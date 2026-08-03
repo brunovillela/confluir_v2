@@ -1,0 +1,35 @@
+O **agendamento** reserva um veículo para um condutor, e registra a retirada e a
+devolução com o hodômetro.
+
+## Retirada e devolução
+
+<PassoAPasso>
+  <Passo titulo="Agende">
+    Escolha o veículo, o condutor e o período de uso.
+  </Passo>
+  <Passo titulo="Retirada">
+    Na saída, registre o hodômetro — a quilometragem de partida.
+  </Passo>
+  <Passo titulo="Devolução">
+    Na volta, registre o hodômetro de chegada. A diferença é a quilometragem
+    rodada no uso.
+  </Passo>
+</PassoAPasso>
+
+## Abastecimentos
+
+Os abastecimentos podem ser lançados um a um ou importados de planilha. Um novo
+abastecimento exige o veículo e o hodômetro, mantendo a leitura de consumo
+coerente.
+
+<Print src="veiculos/agendamentos.png" alt="Agendamento de veículo com retirada e devolução por hodômetro." legenda="Agendamento com controle de hodômetro." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Infrações",
+      href: "/painel/ajuda/veiculos/infracoes",
+      descricao: "Quando há multa no uso",
+    },
+  ]}
+/>

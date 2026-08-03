@@ -1,0 +1,44 @@
+A **CAT** (Comunicação de Acidente de Trabalho) é registrada no formato do
+formulário oficial. O sistema traz o histórico migrado e permite incluir novas.
+
+## Painel e listagem
+
+<PassoAPasso>
+  <Passo titulo="Painel">
+    Indicadores macro: total de CATs, com afastamento, com internação, óbitos,
+    empresas envolvidas, acidentes por ano e os principais tipos, municípios e
+    empresas — todos clicáveis, levando à listagem filtrada.
+  </Passo>
+  <Passo titulo="Listagem">
+    Busca e filtros (ano, tipo, UF, município, afastamento, internação, óbito),
+    ordenação por coluna e exportação em CSV.
+  </Passo>
+  <Passo titulo="Detalhe">
+    Cada CAT abre no formato do formulário oficial, com seus blocos e o número
+    de cada campo.
+  </Passo>
+</PassoAPasso>
+
+## Inclusão
+
+Novas CATs entram de duas formas: pelo **formulário individual** (todos os
+campos do formulário oficial) ou por **importação em massa** de uma planilha
+(CSV), que casa cada coluna pelo número do campo e valida tudo antes de gravar.
+
+<Aviso tipo="atencao" titulo="Dados históricos com limitações">
+  Parte das CATs migradas veio com a descrição truncada e sem código
+  (limitação da base anterior), e quase nenhuma traz o CPF — por isso ainda não
+  há ligação automática entre CAT e filiado. Esses registros ficam sinalizados.
+</Aviso>
+
+<Print alt="Listagem de CATs com filtros e a exportação em CSV." legenda="Listagem de CATs com filtros e exportação." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "CIPA",
+      href: "/painel/ajuda/saude/cipa",
+      descricao: "As reuniões nas empresas",
+    },
+  ]}
+/>

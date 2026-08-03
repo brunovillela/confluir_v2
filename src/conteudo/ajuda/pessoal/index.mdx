@@ -1,0 +1,65 @@
+O módulo **Pessoal** concentra a rotina do departamento de recursos humanos:
+cadastro de funcionários, contracheques, controle de ponto, férias, carreira
+(anuênios e níveis), diárias, atestados, ASOs, treinamentos, reembolsos e
+informes de rendimentos.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+Algumas áreas abrem também para permissões específicas (por exemplo, quem tem
+só **Contracheque** enxerga Funcionários e Contracheques, mas não Férias).
+
+## A tela inicial do Pessoal
+
+Ao entrar em **Pessoal**, você vê duas seções:
+
+<PassoAPasso>
+  <Passo titulo="Precisa de atenção">
+    Alertas acionáveis — diárias e reembolsos aguardando avaliação, gozos de
+    férias a autorizar, ASOs a vencer, certificados vencidos, ausências do dia.
+    Cada alerta leva direto à área correspondente. Só aparece quando há
+    pendência **e** você tem permissão naquela área.
+  </Passo>
+  <Passo titulo="Áreas">
+    Um cartão por área do departamento, cada um com o indicador mais útil (ex.:
+    remessas abertas, funcionários ativos). Clique para entrar.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/painel-visao-geral.png" alt="Tela inicial do módulo Pessoal, com a seção 'Precisa de atenção' no topo e a grade de cartões de áreas abaixo." legenda="Painel do Pessoal: pendências em destaque e as áreas do departamento." />
+
+## Autosserviço do funcionário
+
+O próprio funcionário consulta os seus contracheques, ponto, carreira, férias,
+ASOs, treinamentos e informes na área **Meu perfil** — não é preciso enviar
+nada por fora. A liberação desses documentos é feita pelas áreas deste módulo.
+
+<Aviso tipo="atencao" titulo="Algumas áreas precisam ser ativadas">
+  Diárias e Reembolsos do ACT aparecem como “Configurar” até que o script de
+  banco correspondente seja executado. Enquanto isso, os cartões ficam
+  inativos.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Funcionários",
+      href: "/painel/ajuda/pessoal/funcionarios",
+      descricao: "Cadastro, vínculos e perfil completo",
+    },
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Remessas e liberação ao funcionário",
+    },
+    {
+      titulo: "Controle de ponto",
+      href: "/painel/ajuda/pessoal/ponto",
+      descricao: "Espelhos de ponto e horas extras",
+    },
+    {
+      titulo: "Férias",
+      href: "/painel/ajuda/pessoal/ferias",
+      descricao: "Períodos, gozos e autorização",
+    },
+  ]}
+/>

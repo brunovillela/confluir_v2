@@ -1,0 +1,47 @@
+O cadastro de **fornecedores** é a base de quem a entidade contrata e para quem
+paga. Todo favorecido de uma ordem de pagamento sai daqui.
+
+<RequerPermissao>Fornecedores</RequerPermissao>
+
+## Dados do fornecedor
+
+Cada fornecedor tem nome fantasia, razão social, CNPJ/CPF e a marcação de
+pessoa física ou jurídica. Um fornecedor pode ser bloqueado para fornecimento
+sem ser apagado — assim ele sai das buscas de cotação, mas o histórico fica.
+
+## Endereços e dados bancários
+
+<PassoAPasso>
+  <Passo titulo="Endereços">
+    Um ou mais endereços, com preenchimento automático pelo CEP.
+  </Passo>
+  <Passo titulo="Dados bancários">
+    Banco, agência, conta e/ou chave Pix — usados como favorecido nas ordens de
+    pagamento, sem redigitar a cada pagamento.
+  </Passo>
+</PassoAPasso>
+
+## Excluir × inativar
+
+<Aviso tipo="atencao" titulo="Com histórico, inative">
+  Só dá para excluir um fornecedor sem nenhum vínculo (ordens, propostas,
+  contratos…). Quando há histórico, o caminho é **inativar** — preserva os
+  registros passados.
+</Aviso>
+
+<Print src="compras/fornecedor.png" alt="Detalhe de um fornecedor com dados básicos, endereços, dados bancários e contratos." legenda="Cadastro completo do fornecedor." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "Relação contínua com o fornecedor",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Onde o fornecedor é o favorecido",
+    },
+  ]}
+/>

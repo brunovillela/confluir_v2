@@ -1,0 +1,189 @@
+import "server-only"
+
+/**
+ * Tabelas tenant-owned (têm `emp_proprietaria_id` e RLS `tenant_isolation`).
+ * Espelha supabase/rls-tenant-isolation.sql (as 109 originais) + tabelas que
+ * ganharam o mesmo padrão depois via SQL próprio (ex.: `noticias` em
+ * supabase/noticias.sql). A de escrita (rls-escrita-tenant.sql) deriva via
+ * pg_policies.
+ *
+ * O Proxy de `createAdminClient()` usa este conjunto para rotear a ESCRITA:
+ * tabela AQUI → escreve pelo cliente do tenant (JWT authenticated), com o RLS
+ * gateando (WITH CHECK/USING) e o trigger set_emp_from_jwt preenchendo o emp.
+ * Tabela FORA daqui (global, sem emp) → escreve pelo service_role.
+ *
+ * Falha segura: uma tabela tenant-owned esquecida aqui só perde o backstop de
+ * escrita (grava por service, como antes) — não quebra. O perigoso seria o
+ * inverso (tabela sem GRANT listada aqui → 42501), então só entram nomes que
+ * receberam a policy na parte 1.
+ */
+export const TABELAS_TENANT: ReadonlySet<string> = new Set([
+  "acordo_clausulas",
+  "acordo_coletivo",
+  "acordo_fontes",
+  "agenda",
+  "assinaturas",
+  "caixa_contas",
+  "caixa_movimentacoes",
+  "caixa_ocorrencias",
+  "caixa_prestacoes",
+  "centros_de_custo",
+  "compras_fornecimentos",
+  "compras_itens",
+  "compras_propostas",
+  "compras_solicitacoes",
+  "contratos",
+  "contratos_categorias",
+  "demandas",
+  "demandas_check",
+  "demandas_check_tarefas",
+  "demandas_comentarios",
+  "diretoria_ficha",
+  "diretoria_grupos",
+  "diretoria_instancia_assentos",
+  "diretoria_instancias",
+  "diretoria_integrantes",
+  "diretoria_liberacoes",
+  "diretoria_mandatos",
+  "emails",
+  "emails_institucionais",
+  "empresa",
+  "empresa_departamentos",
+  "empresa_sede",
+  "empresas_categorias",
+  "enderecos",
+  "estoque",
+  "financeiro_diarias",
+  "fa_documentos",
+  "fa_documentos_categorias",
+  "fa_documentos_versao",
+  "ferramentas_anomalias",
+  "filiacao_prontuario",
+  "filiacao_recebe",
+  "filiacao_recebe_comprovacao",
+  "filiacao_recebe_remessa",
+  "filiacao_vinculos",
+  "filiacoes",
+  "financeiro_caixa",
+  "hospedagem_hotel",
+  "hospedagem_hotel_contas",
+  "hospedagem_hotel_usuarios",
+  "hospedagem_servico",
+  "juridico_homologacoes",
+  "juridico_processos",
+  "juridico_reembolsos",
+  "lgpd_solicitacoes",
+  "noticias",
+  "oficios",
+  "oposicao_campanha",
+  "oposicao_campanha_fontes",
+  "oposicao_eventos",
+  "oposicao_opositor",
+  "oposicao_perguntas",
+  "oposicao_resposta",
+  "ordens_pagamento",
+  "patrimonio_recinto",
+  "permissoes",
+  "pessoal_anuenio",
+  "pessoal_anuenio_base",
+  "pessoal_atividade_medidas_seguranca",
+  "pessoal_atividades",
+  "pessoal_atividades_executores",
+  "pessoal_atividades_ferramentas",
+  "pessoal_atividades_perigos",
+  "pessoal_atividades_riscos",
+  "pessoal_atribuicoes_cargo",
+  "pessoal_ausencias",
+  "pessoal_cargo",
+  "pessoal_contracheques_remessas",
+  "pessoal_dependentes",
+  "pessoal_diarias_solicitacoes",
+  "pessoal_faltas_justificadas",
+  "pessoal_faltas_justificadas_periodo",
+  "pessoal_ferias",
+  "pessoal_ferias_gozo",
+  "pessoal_informes_rendimentos",
+  "pessoal_informes_rendimentos_remessas",
+  "pessoal_nivel_salarial",
+  "pessoal_nivel_salarial_base",
+  "pessoal_plano_saude",
+  "portal_nao_filiado",
+  "pessoal_reembolsos_act",
+  "pessoal_reembolsos_act_tipos",
+  "pessoal_registro_ponto_remessas",
+  "pessoal_treinamentos",
+  "pessoal_treinamentos_alunos",
+  "projeto",
+  "registro_sindical",
+  "reuniao_ata",
+  "representacao_documentos",
+  "saude_acompanhamento",
+  "saude_agenda_atendimentos",
+  "saude_assistidos",
+  "saude_atendimentos",
+  "saude_atendimentos_tipos",
+  "saude_cat",
+  "saude_cipa_agenda",
+  "saude_cipa_representantes",
+  "saude_profissionais",
+  "telefones",
+  "usuarios",
+  "veiculo_contratos_aluguel",
+  "veiculos",
+  "veiculos_abastecimentos",
+  "veiculos_abastecimentos_lotes",
+  "veiculos_agendamentos",
+  "veiculos_condutores",
+  "veiculos_disponibilidade",
+  "veiculos_infracoes_historico",
+  "veiculos_verificacao",
+  "vinculos_trabalhistas",
+  "voto_assembleias",
+  "voto_assembleias_aptos",
+  "voto_assembleias_perguntas",
+  "voto_campanha",
+  "voto_mesario",
+  "voto_online",
+  "voto_opcoes_resposta",
+  "voto_resultado_presencial",
+  "voto_rod_assembleias",
+  "voto_unidades_presenciais",
+  "voto_urna",
+  "voto_urna_disponibilidade",
+  "voto_votacao_respostas",
+])
+
+/**
+ * Tabelas GLOBAIS (sem `emp_proprietaria_id`) que ganharam RLS escopado pelo
+ * PAI — ver supabase/rls-tenant-por-pai.sql. Também têm GRANT p/ authenticated,
+ * então a escrita delas vai pelo cliente do tenant (o WITH CHECK valida que o
+ * pai referenciado é do tenant). NÃO têm trigger de emp (não há coluna): o
+ * código já seta o FK do pai (usuario_id, atendimento_id…) no insert.
+ *
+ * DEVE espelhar a lista de rls-tenant-por-pai.sql. Mesma falha segura da
+ * TABELAS_TENANT: esquecida aqui → grava por service (como antes).
+ */
+export const TABELAS_TENANT_POR_PAI: ReadonlySet<string> = new Set([
+  "notificacoes",
+  "cnh",
+  "dados_bancarios",
+  "aso",
+  "pes_atestados_medicos",
+  "pessoal_contracheques",
+  "pessoal_registro_ponto",
+  "veiculos_infracoes",
+  "hospedagem_cupom",
+  "hospedagem_tarifas",
+  "hospedagem_fatura",
+  "voto_campanha_fontes",
+  "fa_documentos_categorias_junction",
+  "juridico_processos_filiados",
+  "oficios_filiados",
+  "saude_atendimentos_acessos",
+  "saude_atendimentos_relatorio",
+])
+
+/** Escreve pelo cliente do tenant (RLS gateia) em vez do service role. */
+export function escrevePeloTenant(tabela: string): boolean {
+  return TABELAS_TENANT.has(tabela) || TABELAS_TENANT_POR_PAI.has(tabela)
+}

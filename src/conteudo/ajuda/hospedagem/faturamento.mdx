@@ -1,0 +1,33 @@
+O **faturamento** transforma as hospedagens do hotel em cobrança: a nota, a
+fatura e a ordem de pagamento.
+
+## Como fatura
+
+<PassoAPasso>
+  <Passo titulo="Reservas faturáveis">
+    As reservas com custo entram no faturamento do hotel.
+  </Passo>
+  <Passo titulo="Nota e fatura">
+    O sistema consolida a nota (DANFE) e a fatura do período.
+  </Passo>
+  <Passo titulo="Ordem de pagamento">
+    A cobrança gera uma ordem “Em autorização”, que segue para o Financeiro.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Reservas sem custo não faturam">
+  Reservas migradas sem custo definido não entram no faturamento — são tratadas
+  como não faturáveis.
+</Aviso>
+
+<Print src="hospedagem/faturamento.png" alt="Faturamento do hotel com nota, fatura e a ordem gerada." legenda="Faturamento do hotel." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Para onde vai a cobrança",
+    },
+  ]}
+/>

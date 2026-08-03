@@ -1,0 +1,55 @@
+O módulo **Filiados** reúne o cadastro dos associados: a base de pessoas, o
+perfil completo de cada filiado, as solicitações de filiação (inclusive as
+recebidas pela ficha pública) e os termos legais que o associado aceita.
+
+<RequerPermissao>Filiados</RequerPermissao>
+
+## As áreas do módulo
+
+<PassoAPasso>
+  <Passo titulo="Filiados">
+    A lista de associados, com busca por nome, CPF ou matrícula, filtros por
+    situação e exportação. Cada linha abre o perfil completo.
+  </Passo>
+  <Passo titulo="Solicitações de filiação">
+    A fila de fichas recebidas pelo site (fluxo público **/filiar**), para
+    conferência e aprovação — é a aprovação que cria a filiação.
+  </Passo>
+  <Passo titulo="Termos legais">
+    Os textos de LGPD e de autorização de desconto que o associado aceita,
+    versionados e específicos da entidade.
+  </Passo>
+</PassoAPasso>
+
+<Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados, com a lista de associados e os filtros de situação no topo." legenda="Lista de filiados com busca e filtros de situação." />
+
+## Situação da filiação
+
+A situação (ativa, suspensa, desfiliada…) é central: ela controla o acesso do
+associado ao portal e o direito a voto em assembleias. A situação aparece na
+lista e no topo do perfil.
+
+<Aviso tipo="dica" titulo="Busca sem acento">
+  A busca por nome ignora acentos e maiúsculas — procurar por “jose” encontra
+  “José”. CPF e matrícula podem ser digitados com ou sem pontuação.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+      descricao: "Identificação, vínculos e consentimentos",
+    },
+    {
+      titulo: "Solicitações de filiação",
+      href: "/painel/ajuda/filiados/solicitacoes",
+      descricao: "A ficha pública e a aprovação",
+    },
+    {
+      titulo: "Termos legais",
+      href: "/painel/ajuda/filiados/termos",
+      descricao: "LGPD e autorização de desconto",
+    },
+  ]}
+/>

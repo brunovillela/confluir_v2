@@ -1,0 +1,430 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM CONFLUIR — arquivo único de tokens
+   Camadas: 1) paleta bruta (só usada aqui) → 2) tokens semânticos
+   (light/dark) → 3) variáveis shadcn/Tailwind (o que os componentes usam).
+   Nenhuma cor crua fora deste arquivo.
+   ════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Paleta bruta (OKLCH → sRGB, contraste validado) ──────────────
+     primary: laranja da marca, H 36.5 — #FF5722 exato no tom 500
+     navy: estrutura/base dark, H 266.4 — #091747 exato no tom 900
+     neutral: cinza frio na matiz do navy (nunca cinza puro)          */
+  --primary-50: #fff4f1;
+  --primary-100: #fee5dd;
+  --primary-200: #ffccbd;
+  --primary-300: #ffa78f;
+  --primary-400: #ff8462;
+  --primary-500: #ff5722;
+  --primary-600: #d73e02;
+  --primary-700: #ae3000;
+  --primary-800: #852301;
+  --primary-900: #591501;
+
+  --navy-50: #f3f7ff;
+  --navy-100: #e4ebfb;
+  --navy-200: #ced9f1;
+  --navy-300: #b2c1e2;
+  --navy-400: #93a6d0;
+  --navy-500: #7388ba;
+  --navy-600: #546aa0;
+  --navy-700: #364c86;
+  --navy-800: #1c306b;
+  --navy-900: #091747;
+
+  --neutral-50: #f5f7fa;
+  --neutral-100: #e9ebef;
+  --neutral-200: #d7d9dd;
+  --neutral-300: #bec1c6;
+  --neutral-400: #a3a6ad;
+  --neutral-500: #8a8e95;
+  --neutral-600: #72767e;
+  --neutral-700: #5a5e66;
+  --neutral-800: #41454d;
+  --neutral-900: #282b34;
+
+  --success-50: #e8fdee;
+  --success-100: #ccf8da;
+  --success-200: #a9ebbf;
+  --success-300: #84d6a2;
+  --success-400: #59be82;
+  --success-500: #31a667;
+  --success-600: #1c8c53;
+  --success-700: #0b703f;
+  --success-800: #03532d;
+  --success-900: #01351b;
+
+  --warning-50: #fff6e7;
+  --warning-100: #ffe8c2;
+  --warning-200: #f9d394;
+  --warning-300: #e6b96b;
+  --warning-400: #cf9d3e;
+  --warning-500: #b78310;
+  --warning-600: #9a6d00;
+  --warning-700: #7b5601;
+  --warning-800: #5b3f01;
+  --warning-900: #3b2700;
+
+  --error-50: #fff4f4;
+  --error-100: #ffe4e4;
+  --error-200: #ffcaca;
+  --error-300: #ffa4a7;
+  --error-400: #f57b82;
+  --error-500: #e45764;
+  --error-600: #c83c4d;
+  --error-700: #a4283a;
+  --error-800: #7d1828;
+  --error-900: #550515;
+
+  --info-50: #f0f8ff;
+  --info-100: #dbeefe;
+  --info-200: #b9deff;
+  --info-300: #8fc8f8;
+  --info-400: #67ade7;
+  --info-500: #4294d4;
+  --info-600: #257cba;
+  --info-700: #0e629a;
+  --info-800: #004975;
+  --info-900: #002e4d;
+
+  /* ── Tokens não-cor ──────────────────────────────────────────────── */
+  --radius: 0.625rem;
+
+  /* z-index nomeado */
+  --z-sticky: 10;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  /* movimento */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TOKENS SEMÂNTICOS — TEMA CLARO (padrão)
+   Página = branco levemente frio · cards = branco puro (surface ≠ base)
+   ════════════════════════════════════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* superfícies */
+  --bg-base: var(--neutral-50); /* #f5f7fa */
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-inset: #eef0f4;
+
+  /* texto (AA sobre todas as superfícies acima) */
+  --text-primary: #0b1633; /* 16.6:1 sobre base */
+  --text-secondary: #505561; /* 6.9:1 */
+  --text-muted: #646974; /* 4.8:1 (também no inset) */
+  --text-inverse: #ffffff;
+  --text-on-action: #ffffff;
+
+  /* bordas */
+  --border-subtle: var(--neutral-100);
+  --border-default: var(--neutral-200);
+  --border-strong: var(--neutral-500); /* 3.3:1 — bordas de input (AA UI) */
+
+  /* ação (laranja). 600 no claro: branco sobre ele = 4.6:1 (AA corpo) */
+  --action: var(--primary-600);
+  --action-hover: var(--primary-700);
+  --action-active: var(--primary-800);
+  --action-disabled: var(--primary-200);
+  --action-fg: var(--text-on-action);
+
+  /* feedback: cor sólida + -fg (texto AA sobre fundo tingido/claro) */
+  --success: var(--success-600);
+  --success-fg: var(--success-700);
+  --warning: var(--warning-600);
+  --warning-fg: var(--warning-700);
+  --error: var(--error-600);
+  --error-fg: var(--error-700);
+  --info: var(--info-600);
+  --info-fg: var(--info-700);
+
+  /* utilitários */
+  --focus-ring: #f4511e; /* ≥3:1 sobre base e surface */
+  --overlay: oklch(0.23 0.09 266.4 / 0.55);
+  --link: var(--primary-700);
+  --link-hover: var(--primary-800);
+
+  /* elevação (sombras frias na matiz do navy) */
+  --elevation-1: 0 1px 2px 0 oklch(0.23 0.09 266.4 / 0.08);
+  --elevation-2:
+    0 1px 2px oklch(0.23 0.09 266.4 / 0.06),
+    0 2px 6px -1px oklch(0.23 0.09 266.4 / 0.1);
+  --elevation-3:
+    0 2px 4px oklch(0.23 0.09 266.4 / 0.05),
+    0 8px 16px -4px oklch(0.23 0.09 266.4 / 0.12);
+  --elevation-4:
+    0 4px 8px oklch(0.23 0.09 266.4 / 0.05),
+    0 20px 40px -8px oklch(0.23 0.09 266.4 / 0.18);
+
+  /* ── Mapeamento shadcn (os componentes usam SÓ estes) ───────────── */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--action);
+  --primary-foreground: var(--action-fg);
+  --secondary: var(--navy-100);
+  --secondary-foreground: var(--navy-800);
+  --muted: var(--bg-inset);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--navy-100);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--error);
+  --border: var(--border-default);
+  --input: var(--border-strong);
+  --ring: var(--focus-ring);
+
+  --chart-1: var(--primary-600);
+  --chart-2: var(--info-600);
+  --chart-3: var(--success-600);
+  --chart-4: var(--warning-600);
+  --chart-5: var(--navy-600);
+
+  /* sidebar: navy estrutural nos dois temas */
+  --sidebar: var(--navy-900);
+  --sidebar-foreground: #e9ebf1;
+  --sidebar-primary: var(--primary-500);
+  --sidebar-primary-foreground: #0b1633;
+  --sidebar-accent: var(--navy-800);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: oklch(0.35 0.08 266.4 / 0.6);
+  --sidebar-ring: var(--primary-400);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TOKENS SEMÂNTICOS — TEMA ESCURO
+   Página = navy bem escuro · cards = um degrau mais claro + borda
+   ════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* superfícies (derivadas de #091747, H 266.4) */
+  --bg-base: #060d20;
+  --bg-surface: #0e172e;
+  --bg-elevated: #17223c;
+  --bg-inset: #04091a;
+
+  /* texto */
+  --text-primary: #e9ebf1; /* 14.9:1 sobre surface */
+  --text-secondary: #b2bbcd; /* 9.2:1 */
+  --text-muted: #959eb3; /* 5.9:1 até no elevated */
+  --text-inverse: #0b1633;
+  --text-on-action: #0b1633; /* navy sobre o laranja: 5.6:1 */
+
+  /* bordas */
+  --border-subtle: #1d273e;
+  --border-default: #29354f;
+  --border-strong: #616e8c; /* ≥3:1 sobre surface e elevated */
+
+  /* ação: #FF5722 pleno no escuro, texto navy (AA corpo) */
+  --action: var(--primary-500);
+  --action-hover: #ff6b3d;
+  --action-active: var(--primary-400);
+  --action-disabled: var(--primary-900);
+  --action-fg: var(--text-on-action);
+
+  /* feedback */
+  --success: var(--success-500);
+  --success-fg: var(--success-400);
+  --warning: var(--warning-500);
+  --warning-fg: var(--warning-400);
+  --error: var(--error-500);
+  --error-fg: var(--error-400);
+  --info: var(--info-500);
+  --info-fg: var(--info-400);
+
+  /* utilitários */
+  --focus-ring: var(--primary-400); /* 6.6:1 até sobre elevated */
+  --overlay: oklch(0.05 0.02 266.4 / 0.7);
+  --link: var(--primary-300);
+  --link-hover: var(--primary-200);
+
+  /* no escuro a elevação é mais sutil: menos sombra, mais borda */
+  --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.35);
+  --elevation-2: 0 1px 3px oklch(0 0 0 / 0.4), 0 2px 8px -2px oklch(0 0 0 / 0.35);
+  --elevation-3: 0 2px 6px oklch(0 0 0 / 0.4), 0 10px 20px -6px oklch(0 0 0 / 0.45);
+  --elevation-4: 0 4px 10px oklch(0 0 0 / 0.45), 0 24px 48px -10px oklch(0 0 0 / 0.55);
+
+  /* ── Mapeamento shadcn ──────────────────────────────────────────── */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--action);
+  --primary-foreground: var(--action-fg);
+  --secondary: var(--navy-800);
+  --secondary-foreground: var(--navy-100);
+  --muted: #1a2440;
+  --muted-foreground: var(--text-muted);
+  --accent: #1d2a4a;
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--error);
+  --border: var(--border-default);
+  --input: var(--border-strong);
+  --ring: var(--focus-ring);
+
+  --chart-1: var(--primary-400);
+  --chart-2: var(--info-400);
+  --chart-3: var(--success-400);
+  --chart-4: var(--warning-400);
+  --chart-5: var(--navy-400);
+
+  --sidebar: var(--navy-900);
+  --sidebar-foreground: #e9ebf1;
+  --sidebar-primary: var(--primary-500);
+  --sidebar-primary-foreground: #0b1633;
+  --sidebar-accent: var(--navy-800);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: oklch(0.35 0.08 266.4 / 0.6);
+  --sidebar-ring: var(--primary-400);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PONTE TAILWIND — expõe os tokens como utilitários
+   ════════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* feedback semântico: bg-success/10, text-success-fg, border-warning/40… */
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-error: var(--error);
+  --color-error-fg: var(--error-fg);
+  --color-info: var(--info);
+  --color-info-fg: var(--info-fg);
+
+  /* utilitários de cor */
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --color-overlay: var(--overlay);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-inset: var(--bg-inset);
+
+  /* raio */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* elevação */
+  --shadow-xs: var(--elevation-1);
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
+  --shadow-xl: var(--elevation-4);
+  --shadow-2xl: var(--elevation-4);
+
+  /* movimento */
+  --ease-standard: var(--ease-standard);
+
+  /* tipografia — escala 12/14/16/18/20/24/30/36/48
+     Poppins é geométrica: tracking levemente negativo nos títulos */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.4rem;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.6rem;
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: 1.65rem;
+  --text-xl--letter-spacing: -0.005em;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.85rem;
+  --text-2xl--letter-spacing: -0.01em;
+  --text-3xl: 1.6875rem;
+  --text-3xl--line-height: 2.05rem;
+  --text-3xl--letter-spacing: -0.015em;
+  --text-4xl: 2rem;
+  --text-4xl--line-height: 2.3rem;
+  --text-4xl--letter-spacing: -0.02em;
+  --text-5xl: 2.625rem;
+  --text-5xl--line-height: 2.7rem;
+  --text-5xl--letter-spacing: -0.022em;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  a,
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+  /* movimento: respeita prefers-reduced-motion em todo o sistema */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

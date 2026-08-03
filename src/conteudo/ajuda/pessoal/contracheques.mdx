@@ -1,0 +1,90 @@
+Os contracheques são organizados em **remessas**. Cada remessa agrupa os
+contracheques de um mesmo período e natureza (mensal, adiantamento, 13º,
+férias ou complementar), e é a partir dela que os documentos são liberados ao
+funcionário.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao> ou <RequerPermissao>Contracheque</RequerPermissao>
+
+## O que é
+
+Uma remessa é um lote de contracheques. Dentro dela, cada item é o PDF de um
+funcionário, com uma situação: **Bloqueado** (só o RH vê) ou **Liberado**
+(visível para o funcionário na área **Meu perfil**).
+
+## Criar uma remessa e adicionar contracheques
+
+<PassoAPasso>
+  <Passo titulo="Nova remessa">
+    Em **Pessoal → Contracheques**, clique em **Nova remessa**. Dê um nome
+    (ex.: “Folha — março/2026”) e informe o período e a natureza.
+  </Passo>
+  <Passo titulo="Abra a remessa">
+    Depois de salvar, clique na remessa na lista para abri-la.
+  </Passo>
+  <Passo titulo="Adicione os contracheques">
+    Em **Adicionar contracheque**, escolha o funcionário e envie o PDF. Repita
+    para cada funcionário — só aparecem na lista quem ainda não tem contracheque
+    nesta remessa.
+  </Passo>
+  <Passo titulo="Confira">
+    Cada item entra como **Bloqueado**. Use **Abrir** para conferir o PDF antes
+    de liberar.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/contracheques-remessa.png" alt="Tela de uma remessa de contracheques, com a tabela de itens (Funcionário, Arquivo, Situação, Ações) e o formulário 'Adicionar contracheque' abaixo." legenda="Dentro de uma remessa: itens por funcionário e o formulário para adicionar." />
+
+## Liberar para o funcionário
+
+Liberar um contracheque o torna visível ao funcionário e dispara o aviso
+(sino e, quando configurado, e-mail).
+
+<PassoAPasso>
+  <Passo titulo="Libere item a item">
+    Na coluna **Ações**, use **Liberar** para mudar a situação de Bloqueado para
+    Liberado.
+  </Passo>
+  <Passo titulo="Acompanhe">
+    A situação de cada item mostra **Liberado** (verde) ou **Bloqueado**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Liberar avisa o funcionário">
+  Ao liberar, o funcionário é notificado e passa a ver o documento na hora.
+  Confira o PDF certo antes de liberar.
+</Aviso>
+
+## Finalizar a remessa
+
+Quando todos os contracheques estiverem conferidos e liberados, **finalize** a
+remessa. Uma remessa finalizada fica travada: não é possível incluir, editar ou
+excluir contracheques.
+
+<Aviso tipo="dica" titulo="Precisa corrigir algo depois de finalizar?">
+  Abra a remessa, clique em **Editar remessa** e reabra-a. Isso destrava a
+  inclusão e a edição dos itens novamente.
+</Aviso>
+
+## Erros comuns
+
+- **Funcionário não aparece na lista de adicionar.** Ele já tem um contracheque
+  nesta remessa — cada funcionário entra uma vez por remessa.
+- **“Não consigo mexer nos itens.”** A remessa está **Finalizada**. Reabra em
+  **Editar remessa**.
+- **O funcionário diz que não vê o contracheque.** Confira se o item está
+  **Liberado**, não **Bloqueado**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Controle de ponto",
+      href: "/painel/ajuda/pessoal/ponto",
+      descricao: "Mesma lógica de remessas, para o ponto",
+    },
+    {
+      titulo: "Funcionários",
+      href: "/painel/ajuda/pessoal/funcionarios",
+      descricao: "A ficha de quem recebe o contracheque",
+    },
+  ]}
+/>

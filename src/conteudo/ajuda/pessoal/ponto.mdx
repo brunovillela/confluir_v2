@@ -1,0 +1,55 @@
+O controle de ponto segue a mesma lógica dos contracheques: os espelhos de
+ponto são organizados em **remessas** por período, e liberados ao funcionário
+a partir de cada remessa.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+## O que é
+
+Cada remessa de ponto reúne os espelhos de ponto de um período de referência,
+com as horas apuradas (inclusive horas extras de 70% e 100%). Como nos
+contracheques, cada item fica **Bloqueado** até ser **Liberado** para o
+funcionário.
+
+## Passo a passo
+
+<PassoAPasso>
+  <Passo titulo="Nova remessa">
+    Em **Pessoal → Controle de ponto**, clique em **Nova remessa** e informe o
+    período de referência.
+  </Passo>
+  <Passo titulo="Adicione os espelhos">
+    Abra a remessa e inclua o espelho de ponto de cada funcionário.
+  </Passo>
+  <Passo titulo="Libere">
+    Confira e **libere** item a item. Liberar avisa o funcionário (sino e, quando
+    configurado, e-mail).
+  </Passo>
+  <Passo titulo="Finalize">
+    Com tudo conferido, finalize a remessa para travá-la.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/ponto-remessas.png" alt="Lista de remessas de controle de ponto, com filtros por ano e situação e a tabela de remessas." legenda="Remessas de controle de ponto, filtráveis por ano e situação." />
+
+## Regras e travas
+
+- Uma remessa **finalizada** não aceita inclusão, edição ou exclusão de itens —
+  reabra em **Editar remessa** para corrigir.
+- Os filtros de **ano** e **situação** (abertas/finalizadas) ajudam a achar
+  remessas antigas rapidamente.
+
+## Erros comuns
+
+- **O funcionário não vê o espelho.** Verifique se o item está **Liberado**.
+- **Remessa travada.** Ela está finalizada; reabra para mexer.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Mesma lógica de remessas e liberação",
+    },
+  ]}
+/>

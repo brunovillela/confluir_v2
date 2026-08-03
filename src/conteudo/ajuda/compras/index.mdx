@@ -1,0 +1,53 @@
+O módulo **Compras** cobre as aquisições da entidade: da solicitação e cotação
+até a aprovação por alçada, o recebimento e o pagamento — além dos contratos e
+do cadastro de fornecedores.
+
+<RequerPermissao>Compras</RequerPermissao>
+
+## As áreas do módulo
+
+<PassoAPasso>
+  <Passo titulo="Nova compra">
+    Registra uma aquisição, direta ou via processo de Compras (com cotação e
+    propostas de fornecedores).
+  </Passo>
+  <Passo titulo="Avaliações">
+    A fila de ordens aguardando aprovação — cada uma cai na alçada de quem pode
+    autorizar aquele valor.
+  </Passo>
+  <Passo titulo="Recebimentos">
+    Fornecimentos comprados aguardando chegada, para dar baixa quando o item
+    entra.
+  </Passo>
+  <Passo titulo="Contratos e Fornecedores">
+    Os contratos com fornecedores (com aditivos e geração de ordens) e o
+    cadastro de quem fornece.
+  </Passo>
+</PassoAPasso>
+
+<Print src="compras/painel.png" alt="Painel do módulo Compras com os cartões das áreas: nova compra, avaliações, recebimentos, contratos e fornecedores." legenda="As áreas do módulo Compras." />
+
+<Aviso tipo="dica" titulo="Ajudas institucionais mudaram de lugar">
+  Apoios da entidade a organizações apoiadas não são compras: eles agora ficam
+  em **Institucional → Ajudas institucionais**, não aqui.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "Aquisição direta × via Compras e a cotação",
+    },
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "Vigência, aditivos e geração de ordens",
+    },
+    {
+      titulo: "Fornecedores",
+      href: "/painel/ajuda/compras/fornecedores",
+      descricao: "Cadastro, endereços e dados bancários",
+    },
+  ]}
+/>

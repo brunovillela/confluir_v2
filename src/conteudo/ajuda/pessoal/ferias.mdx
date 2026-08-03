@@ -1,0 +1,68 @@
+A área de **Férias** controla os períodos aquisitivos de cada funcionário, os
+gozos (as saídas efetivas) e a autorização desses gozos, seguindo as regras da
+CLT.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+## O que é
+
+- **Período aquisitivo** — os 12 meses que dão direito a férias.
+- **Gozo** — cada saída de férias marcada dentro de um período. Um período pode
+  ser fracionado em mais de um gozo.
+- **Autorização** — o passo em que a gestão confirma o gozo.
+
+## Passo a passo
+
+<PassoAPasso>
+  <Passo titulo="Abra Pessoal → Férias">
+    A lista mostra os períodos por funcionário. Use a busca pelo nome e o filtro
+    **Abertos / Finalizados** para navegar.
+  </Passo>
+  <Passo titulo="Novo período">
+    Clique em **Novo período** para registrar um período aquisitivo de um
+    funcionário.
+  </Passo>
+  <Passo titulo="Registre os gozos">
+    Abra o período e marque os gozos com as datas de saída e retorno.
+  </Passo>
+  <Passo titulo="Autorize">
+    Um gozo entra aguardando autorização. Autorize-o para confirmá-lo — o alerta
+    “gozos aguardam autorização” some da tela inicial do Pessoal.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/ferias-periodos.png" alt="Lista de períodos de férias por funcionário, com busca por nome e filtro de situação (abertos/finalizados)." legenda="Períodos de férias, filtráveis por situação." />
+
+## Regras e travas
+
+<Aviso tipo="atencao" titulo="Prazo do período concessivo">
+  A tela inicial do Pessoal alerta sobre períodos em aberto a **120 dias ou
+  menos** do fim do período concessivo. Fique atento a esse alerta para não
+  deixar férias vencerem.
+</Aviso>
+
+- O sistema aplica as regras da CLT ao fracionar e validar os gozos.
+- Gozos aguardando autorização aparecem como pendência na tela inicial do
+  Pessoal.
+
+## Erros comuns
+
+- **“O gozo não conta como concedido.”** Ele ainda está aguardando
+  **autorização** — confirme-o.
+- **Não acho o período de alguém.** Ajuste o filtro de situação (um período já
+  concluído aparece em **Finalizados**).
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral do Pessoal",
+      href: "/painel/ajuda/pessoal",
+      descricao: "Alertas e áreas do departamento",
+    },
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Inclui a natureza 'férias'",
+    },
+  ]}
+/>

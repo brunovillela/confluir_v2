@@ -1,0 +1,34 @@
+O **caixa** é onde o dinheiro entra e sai. A entidade pode ter mais de um
+caixa, e cada um mostra o saldo e a movimentação.
+
+<RequerPermissao>Caixa</RequerPermissao>
+
+## Saldo e movimentação
+
+Cada caixa lista as entradas e saídas em ordem, com o saldo resultante. As
+saídas vêm das ordens de pagamento pagas; as entradas, das receitas lançadas.
+
+## Administração do caixa
+
+<RequerPermissao>Caixa — administração</RequerPermissao>
+
+Abrir, fechar e ajustar caixas exige a permissão de administração, separada da
+permissão de apenas consultar o saldo.
+
+<Aviso tipo="nota" titulo="Caixa é da instituição">
+  O caixa registra o dinheiro da entidade — não é o “bolso” de um funcionário.
+  Quem opera compras com um caixa vê um acesso rápido a ele destacado na barra
+  lateral.
+</Aviso>
+
+<Print src="financeiro/caixa-detalhe.png" alt="Tela de um caixa com o saldo no topo e a lista de entradas e saídas." legenda="Saldo e movimentação de um caixa." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "A origem das saídas",
+    },
+  ]}
+/>

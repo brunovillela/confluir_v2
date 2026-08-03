@@ -1,0 +1,60 @@
+Um **contrato** registra uma relação contínua com um fornecedor — com objeto,
+valor, vigência e o arquivo do contrato — e sabe gerar as ordens de pagamento
+das suas parcelas.
+
+<RequerPermissao>Contratos</RequerPermissao>
+
+## Vigência
+
+A situação do contrato (vigente, vencendo, vencido) é derivada **sempre das
+datas**, não de um campo manual. A lista traz um resumo por situação, e destaca
+os que vencem nos próximos 30 dias.
+
+## Aditivos
+
+Um contrato pode ter aditivos — contratos vinculados a um principal, que
+prorrogam ou alteram o original. O aditivo é criado a partir da página do
+contrato principal.
+
+## Gerar ordens de pagamento
+
+<PassoAPasso>
+  <Passo titulo="Escolha a periodicidade">
+    Mensal, anual ou única, com o valor da parcela e o primeiro vencimento.
+  </Passo>
+  <Passo titulo="Gere">
+    O sistema cria as ordens “Em autorização”, tendo o fornecedor do contrato
+    como favorecido.
+  </Passo>
+  <Passo titulo="Rode de novo sem medo">
+    A geração é idempotente: vencimentos que já têm ordem são pulados, então
+    rodar de novo só completa o que falta — nunca duplica.
+  </Passo>
+</PassoAPasso>
+
+## Categorias
+
+Contratos podem ser organizados por **categoria**. Uma categoria marcada como
+**sigilosa** esconde seus contratos de quem não tem permissão de edição.
+
+<Aviso tipo="dica" titulo="Resumo financeiro">
+  No detalhe do contrato, acima da lista de ordens, aparecem os totais
+  Previsto, Pago e Em aberto.
+</Aviso>
+
+<Print src="compras/contrato.png" alt="Detalhe de um contrato com vigência, aditivos, geração de ordens e o resumo Previsto/Pago/Em aberto." legenda="Detalhe do contrato com o resumo financeiro das ordens." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Fornecedores",
+      href: "/painel/ajuda/compras/fornecedores",
+      descricao: "O favorecido das ordens do contrato",
+    },
+    {
+      titulo: "Ajudas institucionais",
+      href: "/painel/ajuda/institucional/ajudas",
+      descricao: "Mesma estrutura, mas apoio e não compra",
+    },
+  ]}
+/>

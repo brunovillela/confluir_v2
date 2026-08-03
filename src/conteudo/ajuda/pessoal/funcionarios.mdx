@@ -1,0 +1,70 @@
+A área **Funcionários** é a lista de todo o quadro do sindicato e a porta de
+entrada para a ficha completa de cada pessoa.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao> ou <RequerPermissao>Contracheque</RequerPermissao>
+
+## O que é
+
+Uma tabela com nome, cargo, lotação, matrícula, data de admissão e situação
+(ativo ou desligado) de cada funcionário. É daqui que você abre a ficha
+individual, onde ficam os dados cadastrais e o histórico de cada área do
+departamento.
+
+## Encontrar um funcionário
+
+<PassoAPasso>
+  <Passo titulo="Abra Pessoal → Funcionários">
+    No cartão **Funcionários** da tela inicial do Pessoal.
+  </Passo>
+  <Passo titulo="Busque">
+    Digite nome, cargo, lotação ou matrícula no campo de busca e clique em
+    **Buscar**.
+  </Passo>
+  <Passo titulo="Filtre por situação">
+    Use os botões **Ativos**, **Desligados** ou **Todos**. O padrão é mostrar só
+    os ativos.
+  </Passo>
+  <Passo titulo="Ordene">
+    Clique nos títulos **Nome**, **Matrícula** ou **Admissão** para ordenar;
+    clicar de novo inverte a ordem.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/funcionarios-lista.png" alt="Lista de funcionários com o campo de busca, os botões de situação (Ativos, Desligados, Todos) e a tabela com colunas Nome, Cargo, Lotação, Matrícula, Admissão e Situação." legenda="Lista de funcionários com busca, filtros de situação e ordenação." />
+
+## Abrir a ficha do funcionário
+
+Clique no **nome** na lista para abrir a ficha completa. Nela ficam os dados
+cadastrais e o histórico do funcionário em cada área — contracheques, ponto,
+férias, carreira, ASOs, treinamentos e mais.
+
+<Print src="pessoal/funcionarios-ficha.png" alt="Ficha individual de um funcionário, com dados cadastrais no topo e cartões por área do departamento." legenda="Ficha do funcionário: dados cadastrais e histórico por área." />
+
+## Regras e travas
+
+- A situação **Desligado** aparece automaticamente quando há data de demissão
+  registrada; não é um campo manual da lista.
+- A busca cobre nome, cargo, lotação e matrícula ao mesmo tempo — não precisa
+  escolher o campo.
+
+## Erros comuns
+
+- **“Não encontro alguém que sei que existe.”** Verifique o filtro de situação:
+  se a pessoa foi desligada, ela só aparece em **Desligados** ou **Todos**.
+- **Nome em branco.** Registros migrados sem nome aparecem como “(sem nome)” —
+  complete o cadastro pela ficha.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Remessas e liberação ao funcionário",
+    },
+    {
+      titulo: "Visão geral do Pessoal",
+      href: "/painel/ajuda/pessoal",
+      descricao: "As áreas do departamento",
+    },
+  ]}
+/>

@@ -1,0 +1,48 @@
+A **ordem de pagamento** é o registro de uma despesa. Ela nasce “Em
+autorização” e só vira dinheiro que sai depois de passar pela alçada de quem
+pode aprovar.
+
+## O ciclo da ordem
+
+<PassoAPasso>
+  <Passo titulo="Em autorização">
+    A ordem é criada — à mão ou por outro módulo — com favorecido, valor,
+    vencimento, departamento e centro de custo.
+  </Passo>
+  <Passo titulo="Avaliação por alçada">
+    Quem tem alçada aprova (ou recusa). O valor da ordem define quem pode
+    autorizar.
+  </Passo>
+  <Passo titulo="Paga">
+    Autorizada e paga, a ordem baixa e passa a compor a movimentação do caixa.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Nunca se gera ordem já autorizada">
+  Ordens vindas de outros módulos (Compras, Contratos, Ajudas, Reembolsos…)
+  sempre chegam “Em autorização” — a autorização é sempre um passo humano, pela
+  alçada, aqui no Financeiro.
+</Aviso>
+
+## Favorecido
+
+O favorecido é sempre um cadastro (fornecedor, entidade apoiada, funcionário),
+o que garante que os dados bancários venham do cadastro e não sejam digitados
+solto a cada ordem.
+
+<Print src="financeiro/ordem-detalhe.png" alt="Detalhe de uma ordem de pagamento, com favorecido, valor, vencimento e a situação atual." legenda="Uma ordem de pagamento e sua situação no ciclo." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Caixa",
+      href: "/painel/ajuda/financeiro/caixa",
+      descricao: "Para onde a ordem paga vai",
+    },
+    {
+      titulo: "Centros de custo",
+      href: "/painel/ajuda/financeiro/centros-custo",
+      descricao: "A classificação da despesa",
+    },
+  ]}
+/>

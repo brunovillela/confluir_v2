@@ -1,0 +1,55 @@
+As **ajudas institucionais** são apoios da entidade a organizações apoiadas —
+uma relação com a mesma estrutura de um contrato (valor, vigência, ordens de
+pagamento), mas que é ajuda, não compra.
+
+<RequerPermissao>Ajudas institucionais</RequerPermissao>
+
+## Ajuda não é compra
+
+<Aviso tipo="nota" titulo="Por que fica no Institucional">
+  Como se trata de apoio, e não de aquisição, as ajudas ficam aqui — não no
+  módulo Compras. O tipo “apoio institucional” não é um campo que se marca: ele
+  é definido pelo lugar onde a ajuda é criada.
+</Aviso>
+
+## Entidades apoiadas
+
+Antes de registrar uma ajuda, a organização beneficiária precisa estar no
+cadastro de **entidades apoiadas** — um cadastro com a mesma lógica dos
+fornecedores (dados, endereços e dados bancários).
+
+<PassoAPasso>
+  <Passo titulo="Cadastre a entidade">
+    Em Entidades apoiadas, registre a organização que pode receber ajuda.
+  </Passo>
+  <Passo titulo="Registre a ajuda">
+    Em Nova ajuda, escolha a entidade apoiada como beneficiária, com objeto,
+    valor e vigência.
+  </Passo>
+  <Passo titulo="Gere as ordens">
+    Como nos contratos, a ajuda gera ordens de pagamento (mensal, anual ou
+    única), que passam pela autorização do Financeiro.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Excluir entidade apoiada">
+  Uma entidade só pode ser excluída se **não houver ajuda cadastrada** para ela.
+  Com ajuda registrada, o cadastro fica.
+</Aviso>
+
+<Print alt="Lista de ajudas institucionais com resumo por situação e o botão de entidades apoiadas." legenda="Ajudas institucionais e o cadastro de entidades apoiadas." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "Mesma estrutura, no contexto de compras",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Para onde vão as parcelas da ajuda",
+    },
+  ]}
+/>

@@ -1,0 +1,46 @@
+Uma aquisição pode seguir dois caminhos, escolhidos na **Nova compra**.
+
+<RequerPermissao>Compras — editar</RequerPermissao>
+
+## Direta × via Compras
+
+<PassoAPasso>
+  <Passo titulo="Aquisição direta">
+    Para compras simples: você registra o que foi adquirido, o fornecedor e o
+    valor, e a ordem segue para autorização.
+  </Passo>
+  <Passo titulo="Via processo de Compras">
+    Para aquisições que exigem cotação: o processo recebe propostas de
+    fornecedores, você compara e escolhe, e daí saem os fornecimentos.
+  </Passo>
+</PassoAPasso>
+
+## Cotação e propostas
+
+No processo via Compras, cada fornecedor apresenta uma proposta. Você avalia,
+seleciona, e os itens escolhidos viram **fornecimentos** — que serão recebidos
+(quando o item chega) e pagos por ordem.
+
+## Aprovação por alçada
+
+<RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
+
+Toda ordem gerada por uma compra passa por **Avaliações**, onde quem tem alçada
+para aquele valor autoriza. Nada é pago sem essa etapa.
+
+<Print src="compras/nova.png" alt="Tela de nova compra com a escolha entre aquisição direta e processo via Compras." legenda="Nova compra: direta ou via processo com cotação." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Fornecedores",
+      href: "/painel/ajuda/compras/fornecedores",
+      descricao: "Quem fornece e para quem se paga",
+    },
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "Quando a relação é contínua",
+    },
+  ]}
+/>

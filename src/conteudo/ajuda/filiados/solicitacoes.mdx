@@ -1,0 +1,52 @@
+Uma nova filiação pode nascer de duas formas: cadastrada internamente ou
+recebida pela **ficha pública**, o fluxo em que o próprio trabalhador se filia
+pelo site. Esta área é a fila dessas fichas.
+
+## Como a ficha pública funciona
+
+<PassoAPasso>
+  <Passo titulo="O trabalhador acessa /filiar">
+    Sem login, informa o e-mail e recebe um código de verificação.
+  </Passo>
+  <Passo titulo="Preenche a ficha">
+    Num link único e temporário, preenche os dados (com validação de CPF e
+    preenchimento de endereço pelo CEP) e marca os termos legais obrigatórios.
+  </Passo>
+  <Passo titulo="Assina">
+    O sistema gera o PDF da ficha, que o trabalhador assina pelo gov.br e
+    reenvia.
+  </Passo>
+  <Passo titulo="Entra na fila">
+    A ficha aparece aqui, em **Solicitações**, para conferência.
+  </Passo>
+</PassoAPasso>
+
+## Avaliar uma solicitação
+
+<RequerPermissao>Gestão da filiação</RequerPermissao>
+
+Ao abrir uma solicitação, você confere os dados e o PDF assinado. **Aprovar é o
+que cria a filiação** no sistema — antes disso, a pessoa é apenas uma
+solicitante.
+
+<Aviso tipo="atencao" titulo="O e-mail de boas-vindas depende do provedor de e-mail">
+  Ao aprovar, o sistema envia um e-mail de boas-vindas. Esse envio só funciona
+  quando o serviço de e-mail (BREVO) estiver configurado.
+</Aviso>
+
+<Print src="filiados/solicitacao-avaliacao.png" alt="Tela de avaliação de uma solicitação de filiação, com os dados preenchidos e o PDF assinado." legenda="Avaliação da ficha: dados, PDF assinado e o botão de aprovação." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Termos legais",
+      href: "/painel/ajuda/filiados/termos",
+      descricao: "Os textos que a ficha exige aceitar",
+    },
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+      descricao: "O cadastro criado pela aprovação",
+    },
+  ]}
+/>

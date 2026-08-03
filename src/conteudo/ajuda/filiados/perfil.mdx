@@ -1,0 +1,47 @@
+O perfil reúne tudo o que o sistema sabe sobre um associado. Você chega a ele
+clicando em qualquer linha da lista de filiados.
+
+## Identificação e contato
+
+O topo mostra nome, CPF, matrícula e a situação atual da filiação. Abaixo,
+os dados de identificação, contato e endereço.
+
+<Aviso tipo="nota" titulo="O CPF é a identidade da pessoa">
+  Uma mesma pessoa (mesmo CPF) pode ter mais de um registro de filiação ao
+  longo do tempo — por troca de empregador, por exemplo. O perfil agrega esses
+  registros e mostra os “outros registros deste CPF”.
+</Aviso>
+
+## Vínculos e fonte pagadora
+
+A seção de vínculos lista os empregadores (fontes pagadoras) do associado, com
+o nome real da empresa. É por aqui que o sistema sabe de onde vem o desconto da
+contribuição.
+
+## Consentimentos
+
+O cartão de **Consentimentos** mostra qual versão dos termos legais (LGPD e
+autorização de desconto) o associado aceitou, e quando. Como os termos são
+versionados, fica registrado exatamente o texto vigente no momento do aceite.
+
+<Print src="filiados/perfil.png" alt="Perfil do filiado, com os cartões de identificação, vínculos e consentimentos." legenda="Perfil completo: identificação, vínculos e a versão dos termos aceita." />
+
+## Exportação
+
+A lista de filiados exporta em CSV, respeitando os filtros aplicados — útil para
+conferências e para levar dados a planilhas.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Termos legais",
+      href: "/painel/ajuda/filiados/termos",
+      descricao: "Como os textos aceitos são versionados",
+    },
+    {
+      titulo: "Solicitações de filiação",
+      href: "/painel/ajuda/filiados/solicitacoes",
+      descricao: "Como uma nova filiação entra no sistema",
+    },
+  ]}
+/>

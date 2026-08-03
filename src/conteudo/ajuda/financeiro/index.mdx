@@ -1,0 +1,52 @@
+O módulo **Financeiro** cuida do dinheiro da entidade: as ordens de pagamento
+(as despesas), o caixa, os centros de custo que classificam cada lançamento, e
+as receitas — contribuições, tributos e apoios.
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+## As áreas do módulo
+
+<PassoAPasso>
+  <Passo titulo="Ordens de pagamento">
+    Toda saída de dinheiro passa por uma ordem, que nasce “Em autorização” e
+    percorre a alçada até ser paga.
+  </Passo>
+  <Passo titulo="Caixa">
+    O saldo e a movimentação — entradas e saídas — de cada caixa da entidade.
+  </Passo>
+  <Passo titulo="Centros de custo">
+    A classificação contábil que responde “em que essa despesa/receita foi
+    gasta ou recebida”.
+  </Passo>
+  <Passo titulo="Receitas">
+    Receitas sindicais, tributos e apoios financeiros recebidos.
+  </Passo>
+</PassoAPasso>
+
+<Print src="financeiro/painel.png" alt="Painel do módulo Financeiro com os cartões de ordens de pagamento, caixa, centros de custo e receitas." legenda="As áreas do Financeiro." />
+
+<Aviso tipo="nota" titulo="De onde vêm as ordens">
+  Muitas ordens não são criadas à mão aqui: elas nascem em outros módulos —
+  Compras, Contratos, Ajudas institucionais, Veículos, Jurídico — e chegam ao
+  Financeiro para autorização e pagamento.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O ciclo da despesa, da autorização ao pagamento",
+    },
+    {
+      titulo: "Caixa",
+      href: "/painel/ajuda/financeiro/caixa",
+      descricao: "Saldo e movimentação",
+    },
+    {
+      titulo: "Centros de custo",
+      href: "/painel/ajuda/financeiro/centros-custo",
+      descricao: "A classificação de cada lançamento",
+    },
+  ]}
+/>

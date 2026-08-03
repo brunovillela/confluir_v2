@@ -1,0 +1,43 @@
+Os **atendimentos** do serviço de saúde têm um cuidado especial: o relatório
+clínico é sigiloso, cifrado, e com acesso restrito.
+
+## O que é sigiloso e o que não é
+
+<PassoAPasso>
+  <Passo titulo="Relatório clínico — sigiloso">
+    Só é lido por profissional do mesmo tipo do atendimento e pelo autor. É
+    cifrado pela aplicação; nem quem administra a saúde nem o próprio assistido
+    o acessam.
+  </Passo>
+  <Passo titulo="Observação aberta — visível ao assistido">
+    Um texto aberto que o assistido consulta na área dele, no portal.
+  </Passo>
+  <Passo titulo="Apontamento no prontuário">
+    O atendimento gera um registro genérico no prontuário do filiado (“Atendido
+    pelo serviço de saúde”), sem revelar a especialidade.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="perigo" titulo="A chave de cifragem é insubstituível">
+  O relatório é cifrado com uma chave que fica fora do banco. Perder a chave é
+  perder os relatórios — não há recuperação por backup. Toda leitura fica
+  registrada numa trilha de acesso.
+</Aviso>
+
+## Assistido, agenda e portal
+
+O atendimento é feito a um **assistido** (a pessoa atendida, filiada ou não).
+Há agenda de atendimentos, e o filiado vê o que lhe cabe pela área de saúde do
+portal — nunca o relatório.
+
+<Print alt="Atendimento com a observação aberta, o indicador de relatório e a trilha de acessos." legenda="Atendimento: observação aberta e relatório sob controle." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral da Saúde",
+      href: "/painel/ajuda/saude",
+      descricao: "As áreas do módulo",
+    },
+  ]}
+/>
