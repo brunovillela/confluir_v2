@@ -19,6 +19,10 @@ export function subdominioDoHost(host: string | null | undefined): string | null
   if (!host) return null
   const nome = host.split(":")[0].toLowerCase()
   if (/^\d+\.\d+\.\d+\.\d+$/.test(nome)) return null
+  // Deploys da Vercel (`*.vercel.app`, produção e previews) NÃO são subdomínios
+  // de tenant — caem no tenant dono (EMP_PROPRIETARIA_ID). Domínio próprio com
+  // subdomínio de tenant (`<slug>.dominio.tld`) continua resolvendo normalmente.
+  if (nome.endsWith(".vercel.app")) return null
   const partes = nome.split(".")
 
   // Dev: `<slug>.localhost` (o navegador resolve *.localhost para loopback).
