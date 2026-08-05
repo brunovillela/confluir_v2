@@ -14,9 +14,12 @@ import { cn } from "@/lib/utils"
 export function Marca({
   className,
   variante = "reduzida",
+  tenant,
 }: {
   className?: string
   variante?: "reduzida" | "completa" | "sidebar"
+  /** Nome do tenant na variante sidebar (data-driven; sem hardcode). */
+  tenant?: string | null
 }) {
   if (variante === "sidebar") {
     return (
@@ -30,9 +33,11 @@ export function Marca({
             priority
             className="h-14 w-auto"
           />
-          <span className="justify-self-end text-xs leading-none opacity-70">
-            Sindipetro-NF
-          </span>
+          {tenant && (
+            <span className="justify-self-end text-xs leading-none opacity-70">
+              {tenant}
+            </span>
+          )}
         </span>
         <Image
           src="/logo-confluir-reduzida.png"

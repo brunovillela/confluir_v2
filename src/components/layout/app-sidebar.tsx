@@ -56,6 +56,7 @@ export function AppSidebar({
   modulos,
   outrasAreas = [],
   temCaixa = false,
+  tenantNome = null,
 }: {
   usuario: UsuarioSidebar
   modulos: Modulo[]
@@ -63,6 +64,8 @@ export function AppSidebar({
   outrasAreas?: { titulo: string; href: string }[]
   /** O usuário é responsável por uma conta de caixa (acesso destacado). */
   temCaixa?: boolean
+  /** Nome do tenant (organização) exibido no topo da sidebar. */
+  tenantNome?: string | null
 }) {
   const pathname = usePathname()
   const { isMobile } = useSidebar()
@@ -103,7 +106,7 @@ export function AppSidebar({
               className="h-auto py-2 group-data-[collapsible=icon]:p-0!"
             >
               <Link href="/painel">
-                <Marca variante="sidebar" />
+                <Marca variante="sidebar" tenant={tenantNome} />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

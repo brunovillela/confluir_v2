@@ -6,6 +6,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
+import { obterOrganizacao } from "@/lib/db/organizacao"
 import { modulosPermitidos } from "@/lib/permissoes"
 
 export default async function PainelLayout({
@@ -15,12 +16,15 @@ export default async function PainelLayout({
 }) {
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
-  const [areas, naoLidas, temCaixa] = await Promise.all([
+  const [areas, naoLidas, temCaixa, organizacao] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
+    obterOrganizacao(),
   ])
   const outrasAreas = areas.filter((a) => a.href !== "/painel")
+  const tenantNome =
+    organizacao?.nomeFantasia ?? organizacao?.nomeRazao ?? null
 
   const usuario = {
     nome: String(
@@ -39,6 +43,7 @@ export default async function PainelLayout({
         modulos={modulos}
         outrasAreas={outrasAreas}
         temCaixa={temCaixa}
+        tenantNome={tenantNome}
       />
       <SidebarInset>
         <TrilhaProvider>
