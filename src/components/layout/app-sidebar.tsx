@@ -216,13 +216,14 @@ export function AppSidebar({
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => sairDoPainel()}
-                >
-                  <LogOut />
-                  Sair
-                </DropdownMenuItem>
+                <form action={sairDoPainel}>
+                  <DropdownMenuItem variant="destructive" asChild>
+                    <button type="submit" className="w-full">
+                      <LogOut />
+                      Sair
+                    </button>
+                  </DropdownMenuItem>
+                </form>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
