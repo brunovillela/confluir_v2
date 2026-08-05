@@ -385,8 +385,8 @@ async function notificarAvaliacaoDiaria(
   await enviarEmail({
     email: usuario.email,
     nome,
-    assunto: `Diária ${aprovada ? "aprovada" : "reprovada"} — Sindipetro-NF`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/diarias">${SITE_URL}/painel/perfil/diarias</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+    assunto: `Diária ${aprovada ? "aprovada" : "reprovada"} — {ENTIDADE}`,
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/diarias">${SITE_URL}/painel/perfil/diarias</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }
 

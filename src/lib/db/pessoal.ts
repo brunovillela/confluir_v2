@@ -761,8 +761,8 @@ export async function notificarLiberacaoPessoal(
   await enviarEmail({
     email: usuario.email,
     nome,
-    assunto: `${titulo} — Sindipetro-NF`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse o sistema em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+    assunto: `${titulo} — {ENTIDADE}`,
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse o sistema em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }
 

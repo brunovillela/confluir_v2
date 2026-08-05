@@ -1,5 +1,7 @@
 import "server-only"
 
+import { nomeEntidade } from "@/lib/db/organizacao"
+
 /**
  * Envio de email transacional via Brevo (mesmo provedor do SMTP de auth).
  * Requer no .env.local:
@@ -8,6 +10,10 @@ import "server-only"
  *
  * Sem as variáveis o envio é PULADO silenciosamente (retorna false) — as
  * notificações internas do sistema não dependem do email.
+ *
+ * Multitenant: o nome da entidade NÃO é hardcoded. Os templates usam o token
+ * `{ENTIDADE}` (assunto e html) e o remetente é "Confluir — <Entidade>";
+ * ambos são resolvidos aqui via `nomeEntidade()` (data-driven pelo tenant).
  */
 export async function enviarEmail(destino: {
   email: string
@@ -19,6 +25,8 @@ export async function enviarEmail(destino: {
   const remetente = process.env.EMAIL_REMETENTE
   if (!chave || !remetente) return false
 
+  const entidade = await nomeEntidade()
+
   try {
     const resposta = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -28,10 +36,10 @@ export async function enviarEmail(destino: {
         Accept: "application/json",
       },
       body: JSON.stringify({
-        sender: { email: remetente, name: "Confluir — Sindipetro-NF" },
+        sender: { email: remetente, name: `Confluir — ${entidade}` },
         to: [{ email: destino.email, name: destino.nome ?? undefined }],
-        subject: destino.assunto,
-        htmlContent: destino.html,
+        subject: destino.assunto.replaceAll("{ENTIDADE}", entidade),
+        htmlContent: destino.html.replaceAll("{ENTIDADE}", entidade),
       }),
     })
     return resposta.ok

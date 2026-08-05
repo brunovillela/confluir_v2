@@ -300,8 +300,8 @@ async function notificarReembolso(
   await enviarEmail({
     email: usuario.email,
     nome,
-    assunto: `${assunto} — Sindipetro-NF`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/reembolsos">${SITE_URL}/painel/perfil/reembolsos</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+    assunto: `${assunto} — {ENTIDADE}`,
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/reembolsos">${SITE_URL}/painel/perfil/reembolsos</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }
 

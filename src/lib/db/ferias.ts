@@ -702,8 +702,8 @@ export async function definirAutorizacaoGozo(
       await enviarEmail({
         email: usuario.email,
         nome,
-        assunto: "Férias autorizadas — Sindipetro-NF",
-        html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+        assunto: "Férias autorizadas — {ENTIDADE}",
+        html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
       })
     }
   }

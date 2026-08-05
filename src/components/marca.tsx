@@ -86,7 +86,7 @@ export function Marca({
         <span className="text-base font-semibold tracking-tight">
           Confluir
         </span>
-        <span className="text-xs opacity-70">Sindipetro-NF</span>
+        {tenant && <span className="text-xs opacity-70">{tenant}</span>}
       </div>
     </div>
   )

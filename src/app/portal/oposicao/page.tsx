@@ -17,6 +17,7 @@ import {
 import { getSessaoTrabalhador } from "@/lib/auth"
 import { sairDoPortal } from "@/lib/actions/sessao"
 import { campanhasAbertas, minhaOposicao } from "@/lib/db/oposicao"
+import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import {
   estadoPrazo,
@@ -42,11 +43,12 @@ export default async function OposicaoPortalPage({
 }) {
   const sessao = await getSessaoTrabalhador()
   const { desistiu } = await searchParams
+  const entidade = await nomeEntidade()
 
   return (
     <div className="mx-auto grid min-h-dvh max-w-2xl gap-6 px-4 py-8">
       <header className="flex items-center justify-between">
-        <Marca />
+        <Marca tenant={entidade} />
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {sessao && (

@@ -253,8 +253,8 @@ export async function concederLogin(acessoId: string): Promise<ResultadoLogin> {
     ? await enviarEmail({
         email,
         nome,
-        assunto: "Acesso ao Confluir — Sindipetro-NF",
-        html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Seu acesso ao painel do Confluir foi liberado. Defina sua senha para entrar:</p><p><a href="${link}">Definir minha senha</a></p><p>Confluir — Sindipetro-NF</p>`,
+        assunto: "Acesso ao Confluir — {ENTIDADE}",
+        html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Seu acesso ao painel do Confluir foi liberado. Defina sua senha para entrar:</p><p><a href="${link}">Definir minha senha</a></p><p>Confluir — {ENTIDADE}</p>`,
       })
     : false
 

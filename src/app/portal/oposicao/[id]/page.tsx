@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card"
 import { requireSessaoTrabalhador } from "@/lib/auth"
 import { minhaOposicao, obterCampanhaPublica } from "@/lib/db/oposicao"
+import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
 
@@ -52,10 +53,12 @@ export default async function RegistrarOposicaoPage({
     ? campanha.video_filiado_tempo
     : campanha.video_nao_filiado_tempo
 
+  const entidade = await nomeEntidade()
+
   return (
     <div className="mx-auto grid min-h-dvh max-w-2xl gap-6 px-4 py-8">
       <header className="flex items-center justify-between">
-        <Marca />
+        <Marca tenant={entidade} />
         <Button variant="ghost" size="sm" asChild>
           <Link href="/portal/oposicao">
             <ArrowLeft />

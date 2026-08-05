@@ -184,7 +184,7 @@ export async function notificarInformeLiberado(
   await enviarEmail({
     email: usuario.email,
     nome,
-    assunto: "Informe de rendimentos disponível — Sindipetro-NF",
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+    assunto: "Informe de rendimentos disponível — {ENTIDADE}",
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }

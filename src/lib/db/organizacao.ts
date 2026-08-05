@@ -14,6 +14,24 @@ function texto(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v : null
 }
 
+/**
+ * Nome curto da entidade (tenant) para e-mails e UI: nome_fantasia → nome_razao
+ * → "Confluir". Data-driven (sem hardcode); robusto fora de request (fallback).
+ */
+export async function nomeEntidade(): Promise<string> {
+  try {
+    const admin = await createAdminClient()
+    const { data } = await admin
+      .from("empresa")
+      .select("nome_fantasia, nome_razao")
+      .eq("id", await tenantAtual())
+      .maybeSingle()
+    return texto(data?.nome_fantasia) ?? texto(data?.nome_razao) ?? "Confluir"
+  } catch {
+    return "Confluir"
+  }
+}
+
 const TIPOS_LOGO: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",

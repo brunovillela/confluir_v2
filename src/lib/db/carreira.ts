@@ -459,8 +459,8 @@ export async function notificarMudancaCarreira(
   await enviarEmail({
     email: usuario.email,
     nome,
-    assunto: `${assunto} — Sindipetro-NF`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe seu histórico em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — Sindipetro-NF</p>`,
+    assunto: `${assunto} — {ENTIDADE}`,
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe seu histórico em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }
 
