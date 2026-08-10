@@ -1,4 +1,5 @@
 import {
+  Boxes,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -32,6 +33,7 @@ import {
 /** Mapa nome → componente, para que a config de módulos (server) fique serializável. */
 export const ICONES_MODULOS: Record<string, LucideIcon> = {
   LayoutDashboard,
+  Boxes,
   Building2,
   Users,
   Landmark,
