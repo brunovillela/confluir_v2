@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { NextResponse, type NextRequest } from "next/server"
 
-import { EMP_PROPRIETARIA_ID, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
+import { APP_DOMAIN, EMP_PROPRIETARIA_ID, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import {
   moduloDaRota,
   PERMISSOES_USUARIO_FK,
@@ -25,6 +25,22 @@ import { subdominioDoHost } from "@/lib/tenant-host"
  * consultas a `usuarios`/`permissoes` usam o service role (server-side).
  */
 export async function proxy(request: NextRequest) {
+  // ── Landing pública no apex da plataforma ─────────────────────────────
+  // `confluir.online` e `www.confluir.online` (sem subdomínio de tenant)
+  // mostram a landing em `/`. Subdomínios de tenant (<slug>.confluir.online),
+  // localhost e previews *.vercel.app mantêm o app normalmente.
+  const hostname = (request.headers.get("host") ?? "").split(":")[0].toLowerCase()
+  const appDomain = APP_DOMAIN.split(":")[0].toLowerCase()
+  if (
+    appDomain !== "localhost" &&
+    request.nextUrl.pathname === "/" &&
+    (hostname === appDomain || hostname === `www.${appDomain}`)
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/site"
+    return NextResponse.rewrite(url)
+  }
+
   // ── Resolução do tenant ───────────────────────────────────────────────
   // O tenant vem do subdomínio (<slug>.<APP_DOMAIN>). SEM subdomínio de tenant
   // (localhost, apex, admin…) cai no tenant do .env — mantém dev e o deploy
