@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Siren,
   Stethoscope,
-  TriangleAlert,
   Users,
 } from "lucide-react"
 
@@ -101,24 +100,6 @@ export default async function SaudePage() {
           />
         ))}
       </div>
-
-      {resumo.aRevisar > 0 && (
-        <Alert variant="warning">
-          <TriangleAlert />
-          <AlertDescription>
-            <strong>{resumo.aRevisar.toLocaleString("pt-BR")}</strong> CATs vieram
-            da migração com a descrição truncada e sem o código oficial dos
-            campos 31, 32, 34 e 45. O texto foi preservado como estava na
-            origem — nada foi inferido.{" "}
-            <Link
-              href="/painel/saude/cat?revisao=truncadas"
-              className="font-medium underline"
-            >
-              Ver os registros
-            </Link>
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Áreas do módulo */}
       <div>

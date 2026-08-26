@@ -5,7 +5,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { redirect } from "next/navigation"
 
 import { type EstadoForm } from "@/lib/contas"
-import { SITE_URL } from "@/lib/env"
+import { origemAtual } from "@/lib/tenant-url"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
@@ -121,7 +121,7 @@ export async function solicitarPrimeiroAcesso(
     email,
     {
       data: { tipo: "funcionario" },
-      redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
+      redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
     }
   )
   if (error || !convite.user) {
@@ -148,7 +148,7 @@ export async function solicitarRedefinicaoSenha(
 
   const supabase = await createClient()
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
+    redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
   })
 
   return {

@@ -1,4 +1,5 @@
 import "server-only"
+import { hojeSP, texto } from "@/lib/db/comum"
 import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -51,18 +52,8 @@ export const SITUACOES_FILA_FILTRO = [
   "desistente",
 ] as const
 
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
-
 function escaparLike(t: string): string {
   return t.replace(/[%_\\]/g, "\\$&")
-}
-
-function hojeSPdata(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
 }
 
 // Código de 6 dígitos guardado hasheado (sha256 do código + token secreto).
@@ -799,7 +790,7 @@ export async function avaliarSolicitacao(
       .update({
         situacao: "reprovada",
         avaliacao: false,
-        avaliacao_data: hojeSPdata(),
+        avaliacao_data: hojeSP(),
         avaliacao_avaliador_id: avaliadorId,
         reprovacao_motivo: motivo?.trim() ?? null,
         updated_at: new Date().toISOString(),
@@ -874,7 +865,7 @@ export async function avaliarSolicitacao(
     .update({
       situacao: "aprovada",
       avaliacao: true,
-      avaliacao_data: hojeSPdata(),
+      avaliacao_data: hojeSP(),
       avaliacao_avaliador_id: avaliadorId,
       reprovacao_motivo: null,
       filiacao_id: filiacaoId,

@@ -30,10 +30,20 @@ export const metadata: Metadata = {
 type ParamsBusca = {
   busca?: string
   situacao?: string
+  tipo?: string
   pagina?: string
   ordem?: string
   dir?: string
 }
+
+const TIPOS_ORDEM = [
+  "todos",
+  "Compras",
+  "Contrato",
+  "Diária",
+  "Reembolso",
+  "Custeio",
+] as const
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
   const situacoes = ["todas", "abertas", "pagas", "canceladas"] as const
@@ -43,6 +53,9 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
     situacao: situacoes.includes(params.situacao as never)
       ? (params.situacao as (typeof situacoes)[number])
       : "todas",
+    tipo: (TIPOS_ORDEM as readonly string[]).includes(params.tipo ?? "")
+      ? params.tipo!
+      : "todos",
     pagina: Math.max(1, Number(params.pagina) || 1),
     ordem: ordens.includes(params.ordem as never)
       ? (params.ordem as (typeof ordens)[number])
@@ -59,6 +72,7 @@ function montarUrl(
   const q = new URLSearchParams()
   if (merged.busca) q.set("busca", String(merged.busca))
   if (merged.situacao !== "todas") q.set("situacao", String(merged.situacao))
+  if (merged.tipo !== "todos") q.set("tipo", String(merged.tipo))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
   if (merged.ordem !== "vencimento") q.set("ordem", String(merged.ordem))
   if (merged.dir !== "desc") q.set("dir", String(merged.dir))
@@ -112,7 +126,7 @@ export default async function OrdensPage({
 }: {
   searchParams: Promise<ParamsBusca>
 }) {
-  await requirePermissao("financeiro_pagamento")
+  await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
 
   const filtros = normalizarFiltros(await searchParams)
   const lista = await listarOrdens(filtros)
@@ -137,6 +151,9 @@ export default async function OrdensPage({
         <form method="GET" className="flex min-w-0 flex-1 items-center gap-2">
           {filtros.situacao !== "todas" && (
             <input type="hidden" name="situacao" value={filtros.situacao} />
+          )}
+          {filtros.tipo !== "todos" && (
+            <input type="hidden" name="tipo" value={filtros.tipo} />
           )}
           <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -169,6 +186,21 @@ export default async function OrdensPage({
                 href={montarUrl(filtros, { situacao: chip.valor, pagina: 1 })}
               >
                 {chip.rotulo}
+              </Link>
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por tipo">
+          {TIPOS_ORDEM.map((t) => (
+            <Button
+              key={t}
+              variant={filtros.tipo === t ? "default" : "outline"}
+              size="sm"
+              asChild
+            >
+              <Link href={montarUrl(filtros, { tipo: t, pagina: 1 })}>
+                {t === "todos" ? "Todos os tipos" : t}
               </Link>
             </Button>
           ))}

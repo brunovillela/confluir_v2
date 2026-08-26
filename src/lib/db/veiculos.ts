@@ -1,7 +1,8 @@
 import "server-only"
+import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { gerarCodigoProcesso, hojeSP } from "@/lib/db/compras"
+import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
@@ -33,37 +34,10 @@ import {
  * `disponivel: false` até o SQL rodar. Legado do Bubble: somente leitura.
  */
 
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
-
 const AVISO_SQL =
   "Veículos ainda não configurados — rode supabase/veiculos.sql no Supabase."
 
 // ── Auxiliares ─────────────────────────────────────────────────────────────
-
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  const unicos = [...new Set(ids.filter(Boolean))]
-  if (unicos.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", unicos)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null

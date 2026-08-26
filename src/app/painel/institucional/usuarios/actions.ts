@@ -15,6 +15,7 @@ import {
   revogarAcesso,
   type ResultadoLogin,
 } from "@/lib/db/acessos"
+import { atribuirPerfis } from "@/lib/db/perfis"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
 const CHAVE = "permissoes"
@@ -22,6 +23,27 @@ const ALT = ["configuracoes"]
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
+}
+
+export async function salvarPerfisUsuarioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const usuarioId = texto(formData, "usuario_id")
+  const acessoId = texto(formData, "acesso_id")
+  if (!usuarioId) return { erro: "Usuário inválido." }
+
+  const perfilIds = formData
+    .getAll("perfil_id")
+    .map((v) => String(v))
+    .filter(Boolean)
+
+  const r = await atribuirPerfis(usuarioId, perfilIds)
+  if ("erro" in r) return { erro: r.erro }
+  revalidatePath("/painel/institucional/usuarios")
+  if (acessoId) revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+  return { ok: "Perfis atualizados." }
 }
 
 export async function concederAcessoAction(

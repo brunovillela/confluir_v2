@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
@@ -26,11 +27,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * datas. O Bubble segue em produção até a virada de chave: processos
  * legados são tratados como SOMENTE LEITURA aqui.
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "Compras ainda não configuradas — rode supabase/compras.sql no Supabase."
@@ -162,24 +158,6 @@ export type ProcessoDetalhe = {
 
 // ── Auxiliares ─────────────────────────────────────────────────────────────
 
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  const unicos = [...new Set(ids.filter(Boolean))]
-  if (unicos.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", unicos)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
-}
-
 async function empresasPorId(
   ids: string[]
 ): Promise<Map<string, { nome: string; bloqueado: boolean }>> {
@@ -202,13 +180,6 @@ async function empresasPorId(
     })
   }
   return mapa
-}
-
-/** Data de hoje no fuso de São Paulo (AAAA-MM-DD) — para colunas DATE. */
-export function hojeSP(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
 }
 
 /** Código no padrão legado (AAAA.MMDD.HHMM.SSNN, horário de SP) — compartilhado com as ordens. */
@@ -274,7 +245,7 @@ async function normalizarOrdens(
 
 // ── Listagem e resumo ──────────────────────────────────────────────────────
 
-export const PROCESSOS_POR_PAGINA = 30
+export const PROCESSOS_POR_PAGINA = 10
 
 export type FiltrosProcessos = {
   busca?: string
@@ -1595,3 +1566,5 @@ export function alcadaDoUsuario(permissoes: Record<string, unknown>): number {
   const n = typeof bruta === "string" ? Number(bruta) : Number(bruta ?? 0)
   return Number.isFinite(n) && n > 0 ? n : 0
 }
+
+export { hojeSP } from "@/lib/db/comum"

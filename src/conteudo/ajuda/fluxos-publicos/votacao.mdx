@@ -1,0 +1,40 @@
+Na **votação pública** de uma assembleia, o eleitor acessa um link próprio da
+assembleia e se identifica pelo CPF — sem login no sistema.
+
+## Como o eleitor se identifica
+
+<PassoAPasso>
+  <Passo titulo="Abrir o link da assembleia">
+    Cada assembleia tem o seu endereço (`/votar/…`), divulgado pelo sindicato.
+    O acesso é temporário e expira ao fim da votação.
+  </Passo>
+  <Passo titulo="Informar o CPF">
+    O eleitor digita o CPF. O sistema confere que ele está na **lista de aptos**
+    daquela assembleia e que a filiação está ativa, e envia um **código** para o
+    e-mail cadastrado.
+  </Passo>
+  <Passo titulo="Confirmar o código">
+    Com o código de 6 dígitos, a identidade é confirmada e a cédula é liberada.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Só quem está apto vota">
+  O CPF precisa constar na lista de aptos da assembleia e ter uma filiação ativa
+  com e-mail cadastrado. Fora disso, a tela avisa que o CPF não está apto ou não
+  foi localizado.
+</Aviso>
+
+A montagem das perguntas e a apuração ficam no módulo de **Assembleias**, em
+Representação — é lá que a equipe prepara a rodada e acompanha o resultado.
+
+<Print src="fluxos-publicos/votacao.png" alt="Tela pública de votação pedindo o CPF para receber o código de acesso." legenda="Votação: identificação do eleitor por CPF e código." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Assembleias (no painel)",
+      href: "/painel/ajuda/representacao/assembleias",
+      descricao: "Campanha, rodada, perguntas e aptos",
+    },
+  ]}
+/>

@@ -11,9 +11,7 @@ import { FornecedorForm } from "../fornecedor-forms"
 export const metadata: Metadata = { title: "Novo fornecedor — Confluir" }
 
 export default async function NovoFornecedorPage() {
-  await requirePermissao("aquisicoes_fornecedores", [
-    "aquisicoes_compras_edicao",
-  ])
+  await requirePermissao("aquisicoes_compras_edicao")
   return (
     <>
       <div>

@@ -18,6 +18,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { detalheContaCaixa } from "@/lib/db/caixa"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import {
   AlternarContaAtiva,
@@ -35,7 +36,13 @@ export default async function ContaCaixaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string; criada?: string }>
 }) {
-  await requirePermissao("financeiro_caixa", ["financeiro_caixa_admin"])
+  const sessao = await requirePermissao("financeiro_caixa", [
+    "financeiro_caixa_admin",
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_caixa", [
+    "financeiro_caixa_admin",
+  ])
 
   const { id } = await params
   const sp = await searchParams
@@ -132,7 +139,7 @@ export default async function ContaCaixaPage({
         </Card>
       </div>
 
-      {prestacaoAguardando && (
+      {prestacaoAguardando && podeEditar && (
         <Card className="border-info/40">
           <CardHeader>
             <CardTitle className="text-base">
@@ -161,12 +168,14 @@ export default async function ContaCaixaPage({
         </Card>
       )}
 
-      <GrupoColapsavel
-        titulo="Lançar aporte de verba"
-        descricao="O valor fica pendente até o responsável confirmar o recebimento"
-      >
-        <AporteForm contaId={conta.id} />
-      </GrupoColapsavel>
+      {podeEditar && (
+        <GrupoColapsavel
+          titulo="Lançar aporte de verba"
+          descricao="O valor fica pendente até o responsável confirmar o recebimento"
+        >
+          <AporteForm contaId={conta.id} />
+        </GrupoColapsavel>
+      )}
 
       {ocorrencias.length > 0 && (
         <GrupoColapsavel
@@ -227,7 +236,7 @@ export default async function ContaCaixaPage({
                     Resolução: {o.resolucao}
                   </p>
                 )}
-                {o.situacao !== "resolvida" && (
+                {o.situacao !== "resolvida" && podeEditar && (
                   <OcorrenciaAtualizar contaId={conta.id} ocorrenciaId={o.id} />
                 )}
               </li>
@@ -300,9 +309,11 @@ export default async function ContaCaixaPage({
         </GrupoColapsavel>
       )}
 
-      <div className="border-t pt-4">
-        <AlternarContaAtiva contaId={conta.id} ativa={conta.ativa} />
-      </div>
+      {podeEditar && (
+        <div className="border-t pt-4">
+          <AlternarContaAtiva contaId={conta.id} ativa={conta.ativa} />
+        </div>
+      )}
     </>
   )
 }

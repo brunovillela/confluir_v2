@@ -30,8 +30,97 @@ import {
   gerarLinkRecuperacaoAction,
   onboardingEmLoteAction,
   revogarAcessoAction,
+  salvarPerfisUsuarioAction,
   salvarPermissoesAction,
 } from "./actions"
+
+/** Perfil (RBAC) exibido no seletor — tipo local (client não importa server-only). */
+export type PerfilOpcao = {
+  id: string
+  nome: string
+  descricao: string | null
+  alcada_aprovacao: number | null
+  ativo: boolean
+}
+
+export function PerfisUsuarioForm({
+  usuarioId,
+  acessoId,
+  perfis,
+  atribuidos,
+}: {
+  usuarioId: string
+  acessoId: string
+  perfis: PerfilOpcao[]
+  atribuidos: string[]
+}) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
+    salvarPerfisUsuarioAction,
+    {}
+  )
+  const marcados = new Set(atribuidos)
+
+  return (
+    <form action={formAction} className="grid gap-4">
+      <input type="hidden" name="usuario_id" value={usuarioId} />
+      <input type="hidden" name="acesso_id" value={acessoId} />
+
+      {perfis.length === 0 ? (
+        <Alert variant="warning">
+          <AlertDescription>
+            Nenhum perfil cadastrado. Rode o script dos perfis e crie-os em{" "}
+            <strong>Perfis de acesso</strong>.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {perfis.map((p) => (
+            <label
+              key={p.id}
+              className="border-border hover:bg-muted/40 flex items-start gap-2 rounded-md border p-3 text-sm"
+            >
+              <input
+                type="checkbox"
+                name="perfil_id"
+                value={p.id}
+                defaultChecked={marcados.has(p.id)}
+                className="mt-0.5 size-4 shrink-0"
+              />
+              <span className="grid gap-0.5">
+                <span className="font-medium">
+                  {p.nome}
+                  {!p.ativo && (
+                    <span className="text-muted-foreground"> (inativo)</span>
+                  )}
+                </span>
+                {p.descricao && (
+                  <span className="text-muted-foreground text-xs">
+                    {p.descricao}
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {estado.ok && (
+        <p className="text-success-fg flex items-center gap-1.5 text-sm">
+          <Check className="size-4" />
+          {estado.ok}
+        </p>
+      )}
+
+      <div>
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar perfis
+        </Button>
+      </div>
+    </form>
+  )
+}
 
 export function OnboardingLote({
   emailOk,
@@ -54,9 +143,11 @@ export function OnboardingLote({
     <div className="grid gap-4">
       <p className="text-muted-foreground text-sm">
         Convida de uma vez os funcionários do quadro (por vínculo institucional)
-        que ainda não têm login. Cada um recebe um perfil de permissões
-        <strong> vazio</strong> — entra no sistema e vê só o próprio autosserviço
-        (contracheques, ponto, férias); os módulos são liberados depois, aqui.
+        que ainda não têm login. Cada um recebe o{" "}
+        <strong>perfil padrão de onboarding</strong> (definido em Perfis de
+        acesso) — ou, se nenhum estiver marcado, só o autosserviço
+        (contracheques, ponto, férias). Os demais acessos são liberados depois,
+        por perfil.
       </p>
 
       {estado.erro && (

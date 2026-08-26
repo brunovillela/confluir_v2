@@ -28,6 +28,7 @@ import {
   usoCentroCusto,
 } from "@/lib/db/financeiro"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { SituacaoBadge } from "../../situacao-badge"
 import { CentroCustoForm } from "../centro-form"
@@ -41,12 +42,18 @@ export default async function CentroCustoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string; pagina?: string; editar?: string }>
 }) {
-  await requirePermissao("financeiro_pagamento", ["financeiro_caixa"])
+  const sessao = await requirePermissao("financeiro_pagamento", [
+    "financeiro_caixa",
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
+    "financeiro_caixa",
+  ])
 
   const { id } = await params
   const sp = await searchParams
   const { salvo } = sp
-  const editando = sp.editar === "1"
+  const editando = sp.editar === "1" && podeEditar
   const pagina = Math.max(1, Number(sp.pagina) || 1)
   const [centro, uso, todas, ordens] = await Promise.all([
     buscarCentroCusto(id),
@@ -89,18 +96,20 @@ export default async function CentroCustoPage({
       )}
 
       {editando ? (
-        <CentroCustoForm centro={centro} tipos={tipos} />
+        <CentroCustoForm centro={centro} tipos={tipos} podeEditar={podeEditar} />
       ) : (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Dados da conta</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/financeiro/centros-custo/${id}?editar=1`}>
-                  <Pencil />
-                  Editar
-                </Link>
-              </Button>
+              {podeEditar && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/painel/financeiro/centros-custo/${id}?editar=1`}>
+                    <Pencil />
+                    Editar
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { CentroCustoForm } from "../centro-form"
 
@@ -13,7 +14,10 @@ export const metadata: Metadata = {
 }
 
 export default async function NovoCentroCustoPage() {
-  await requirePermissao("financeiro_pagamento", ["financeiro_caixa"])
+  const sessao = await requirePermissao("financeiro_pagamento", [
+    "financeiro_caixa",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const todas = await listarCentrosCusto()
   const tipos = [
@@ -35,7 +39,7 @@ export default async function NovoCentroCustoPage() {
           Novo centro de custo
         </h1>
       </div>
-      <CentroCustoForm tipos={tipos} />
+      <CentroCustoForm tipos={tipos} podeEditar={podeEditar} />
     </>
   )
 }

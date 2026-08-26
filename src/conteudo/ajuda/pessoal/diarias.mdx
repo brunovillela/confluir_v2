@@ -1,0 +1,42 @@
+As **diárias** cobrem despesas de viagens e deslocamentos. A equipe cadastra os
+tipos, o funcionário solicita, e a solicitação é avaliada — gerando uma ordem de
+pagamento quando aprovada.
+
+## Tipos de diária
+
+Em **Tipos de diária**, cadastre cada tipo com o nome e o valor de referência, e
+mantenha ativos apenas os que estão em uso.
+
+## O ciclo da solicitação
+
+<PassoAPasso>
+  <Passo titulo="Solicitar">
+    A solicitação registra o funcionário, o tipo, a quantidade, o período e o
+    motivo. O valor total é calculado pela quantidade × valor do tipo.
+  </Passo>
+  <Passo titulo="Avaliar">
+    Enquanto está **aguardando**, aparece a ação **Avaliar** — a equipe aprova ou
+    reprova. Também é possível cancelar.
+  </Passo>
+  <Passo titulo="Pagamento">
+    Ao aprovar, a diária gera uma **ordem de pagamento** no Financeiro.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Precisa da configuração">
+  As diárias dependem de uma configuração inicial (o arquivo `diarias.sql`). Sem
+  ela, a área mostra um aviso para configurar — fale com quem administra o
+  sistema.
+</Aviso>
+
+<Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com funcionário, tipo, quantidade, valor, período e situação." legenda="Diárias: as solicitações e a avaliação da equipe." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Reembolsos",
+      href: "/painel/ajuda/pessoal/reembolsos",
+      descricao: "O fluxo parecido para despesas do ACT",
+    },
+  ]}
+/>

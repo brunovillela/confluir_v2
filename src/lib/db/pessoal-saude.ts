@@ -1,4 +1,5 @@
 import "server-only"
+import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { referenciaDaData } from "@/lib/db/carreira"
@@ -28,23 +29,6 @@ export const TIPOS_ASO = [
   "Mudança de riscos ocupacionais",
   "Demissional",
 ] as const
-
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  if (ids.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", ids)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
-}
 
 function comNomes<T extends { funcionario_id: string | null }>(
   linhas: T[],

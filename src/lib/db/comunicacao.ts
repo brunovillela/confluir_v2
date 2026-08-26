@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarJsonIA } from "@/lib/ia"
@@ -23,10 +24,6 @@ export type Frequencia = "diaria" | "dias_uteis" | "semanal" | "horas"
 export const TAMANHOS = [1000, 2000, 3000] as const
 
 export const PROMPT_PADRAO = `Você é o editor de comunicação de um sindicato. A partir do conteúdo dos sites indicados, produza um resumo jornalístico das notícias mais relevantes para a categoria (setor de petróleo e energia, trabalho, direitos trabalhistas e sindicais, além de economia e política que afetem os trabalhadores). Priorize fatos recentes e concretos; ignore menus, anúncios, rodapés e conteúdo repetido dos sites. Não invente informações que não estejam nas fontes.`
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 // ── Configuração ─────────────────────────────────────────────────────────────
 

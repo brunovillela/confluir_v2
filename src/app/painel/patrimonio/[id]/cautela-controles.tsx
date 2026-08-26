@@ -22,15 +22,18 @@ export function RegistrarCautelaForm({
   itemId,
   usuarios,
   hoje,
+  podeEditar = true,
 }: {
   itemId: string
   usuarios: Opcao[]
   hoje: string
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     registrarCautelaAction,
     {}
   )
+  if (!podeEditar) return null
   return (
     <form action={formAction} className="grid max-w-xl gap-4">
       <input type="hidden" name="item_id" value={itemId} />
@@ -90,15 +93,18 @@ export function EncerrarCautelaForm({
   itemId,
   cautelaId,
   hoje,
+  podeEditar = true,
 }: {
   itemId: string
   cautelaId: string
   hoje: string
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     encerrarCautelaAction,
     {}
   )
+  if (!podeEditar) return null
   return (
     <form
       action={formAction}

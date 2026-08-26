@@ -30,11 +30,17 @@ export default async function UsuariosPage() {
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/painel/institucional">
             <ArrowLeft />
             Institucional
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/painel/institucional/usuarios/perfis">
+            <ShieldCheck />
+            Perfis de acesso
           </Link>
         </Button>
       </div>

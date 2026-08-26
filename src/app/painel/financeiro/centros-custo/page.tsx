@@ -18,6 +18,7 @@ import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Centros de custo — Confluir" }
 
@@ -36,7 +37,13 @@ export default async function CentrosCustoPage({
     porPagina?: string
   }>
 }) {
-  await requirePermissao("financeiro_pagamento", ["financeiro_caixa"])
+  const sessao = await requirePermissao("financeiro_pagamento", [
+    "financeiro_caixa",
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
+    "financeiro_caixa",
+  ])
 
   const sp = await searchParams
   const todas = await listarCentrosCusto()
@@ -92,12 +99,14 @@ export default async function CentrosCustoPage({
               {todas.length === 1 ? "" : "s"} do plano de centros de custo
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/financeiro/centros-custo/nova">
-              <Plus />
-              Nova conta
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/financeiro/centros-custo/nova">
+                <Plus />
+                Nova conta
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

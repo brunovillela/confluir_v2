@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -13,10 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * simplesmente não há dado de participantes. Vínculos `projeto_id`/`assembleia_id`
  * existem no schema mas vieram vazios (0 preenchidos).
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 async function mapaSedes(): Promise<Map<string, string>> {
   const admin = await createAdminClient()

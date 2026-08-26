@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -17,10 +18,6 @@ import {
  */
 
 const BUCKET = "representacao"
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 export type RegistroLinha = {
   id: string

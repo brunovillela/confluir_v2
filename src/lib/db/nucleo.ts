@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -21,15 +22,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 const AVISO_SQL =
   "Núcleo ainda não configurado — rode supabase/nucleo-ferramentas.sql no Supabase."
 
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
-
 function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null
 }
@@ -40,23 +32,8 @@ function hojeISO(): string {
 
 // ── Pessoas ─────────────────────────────────────────────────────────────────
 
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  const unicos = [...new Set(ids.filter(Boolean))]
-  if (unicos.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", unicos)
-  for (const u of data ?? []) {
-    const nome = [u.nome_guerra, u.nome_completo].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id as string, nome)
-  }
-  return nomes
-}
+/** Nomes de usuários preferindo nome de guerra (padrão do Núcleo). */
+const nomesDosUsuarios = (ids: string[]) => nomesDosUsuariosBase(ids, "guerra")
 
 export type OpcaoPessoa = { id: string; nome: string }
 

@@ -14,6 +14,7 @@ const NAV = [
   { titulo: "Faturamento", href: "/hotel/faturamento" },
   { titulo: "Dados bancários", href: "/hotel/contas" },
   { titulo: "Acordo e orientações", href: "/hotel/acordo" },
+  { titulo: "Ajuda", href: "/hotel/ajuda" },
 ]
 
 /** Casca da área logada do hotel parceiro (header + navegação + container). */

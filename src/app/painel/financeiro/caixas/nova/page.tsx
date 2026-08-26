@@ -12,13 +12,19 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { pessoasAutorizaveis } from "@/lib/db/caixa"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { NovaContaForm } from "../caixa-forms"
 
 export const metadata: Metadata = { title: "Nova conta de caixa — Confluir" }
 
 export default async function NovaContaPage() {
-  await requirePermissao("financeiro_caixa", ["financeiro_caixa_admin"])
+  const sessao = await requirePermissao("financeiro_caixa", [
+    "financeiro_caixa_admin",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_caixa", [
+    "financeiro_caixa_admin",
+  ])
 
   const pessoas = await pessoasAutorizaveis()
 
@@ -49,7 +55,7 @@ export default async function NovaContaPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NovaContaForm pessoas={pessoas} />
+          <NovaContaForm pessoas={pessoas} podeEditar={podeEditar} />
         </CardContent>
       </Card>
     </>

@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -19,9 +20,6 @@ import {
  * (empregadores do ACT), cláusulas estruturadas e alertas de vencimento.
  */
 
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 function escaparLike(t: string): string {
   return t.replace(/[%_\\]/g, "\\$&")
 }

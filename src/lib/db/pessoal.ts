@@ -1,4 +1,5 @@
 import "server-only"
+import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
@@ -71,23 +72,6 @@ async function vinculosDoSindicato(): Promise<VinculoBruto[]> {
     .eq("empregador_id", await tenantAtual())
   if (error) throw new Error(`Falha ao listar funcionários: ${error.message}`)
   return data ?? []
-}
-
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  if (ids.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", ids)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
 }
 
 /**

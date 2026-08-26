@@ -10,9 +10,9 @@ import {
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { CartaoArea } from "@/components/cartao-area"
 import {
   Table,
   TableBody,
@@ -128,47 +128,53 @@ export default async function ComprasPage({
       </div>
 
       {(veAvaliacoes || veRecebimentos || veFornecedores || veContratos) && (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {veAvaliacoes && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/compras/avaliacoes">
-                <ClipboardCheck />
-                Avaliações
-                {resumo.ordensEmAutorizacao > 0 && (
-                  <Badge variant="warning">{resumo.ordensEmAutorizacao}</Badge>
-                )}
-              </Link>
-            </Button>
+            <CartaoArea
+              titulo="Avaliações"
+              descricao="Ordens de compra aguardando autorização por alçada"
+              href="/painel/compras/avaliacoes"
+              icone={ClipboardCheck}
+              indicador={
+                resumo.ordensEmAutorizacao > 0
+                  ? `${resumo.ordensEmAutorizacao} em autorização`
+                  : null
+              }
+            />
           )}
           {veRecebimentos && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/compras/recebimentos">
-                <PackageOpen />
-                Recebimentos
-                {(resumo.aReceber ?? 0) > 0 && (
-                  <Badge variant="info">{resumo.aReceber}</Badge>
-                )}
-              </Link>
-            </Button>
+            <CartaoArea
+              titulo="Recebimentos"
+              descricao="Fornecimentos entregues a conferir"
+              href="/painel/compras/recebimentos"
+              icone={PackageOpen}
+              indicador={
+                (resumo.aReceber ?? 0) > 0
+                  ? `${resumo.aReceber} a receber`
+                  : null
+              }
+            />
           )}
           {veFornecedores && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/compras/fornecedores">
-                <Truck />
-                Fornecedores
-              </Link>
-            </Button>
+            <CartaoArea
+              titulo="Fornecedores"
+              descricao="Cadastro, contratos e dados dos fornecedores"
+              href="/painel/compras/fornecedores"
+              icone={Truck}
+            />
           )}
           {veContratos && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/compras/contratos">
-                <ScrollText />
-                Contratos
-                {resumoContr.vencendo > 0 && (
-                  <Badge variant="warning">{resumoContr.vencendo}</Badge>
-                )}
-              </Link>
-            </Button>
+            <CartaoArea
+              titulo="Contratos"
+              descricao="Contratos vigentes e a geração de ordens"
+              href="/painel/compras/contratos"
+              icone={ScrollText}
+              indicador={
+                resumoContr.vencendo > 0
+                  ? `${resumoContr.vencendo} vencendo`
+                  : null
+              }
+            />
           )}
         </div>
       )}

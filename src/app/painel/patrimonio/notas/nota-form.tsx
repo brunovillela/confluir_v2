@@ -25,14 +25,18 @@ export function NotaForm({
   dados,
   fornecedores,
   temArquivo,
+  podeEditar = true,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: NotaFormDados
   fornecedores: EmpresaOpcao[]
   /** Já existe um arquivo anexado? (muda o rótulo do input) */
   temArquivo?: boolean
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+
+  if (!podeEditar) return null
 
   return (
     <form action={formAction} className="grid max-w-2xl gap-4">

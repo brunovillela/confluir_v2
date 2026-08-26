@@ -96,6 +96,36 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Férias",
         resumo: "Períodos aquisitivos, gozos e autorização com regras da CLT",
       },
+      {
+        slug: "anuenios-niveis",
+        titulo: "Anuênios e níveis",
+        resumo: "A tabela de níveis, o reajuste linear e a progressão por anuênio",
+      },
+      {
+        slug: "diarias",
+        titulo: "Diárias",
+        resumo: "Tipos de diária, solicitação e a ordem de pagamento",
+      },
+      {
+        slug: "atestados-aso",
+        titulo: "Atestados e ASO",
+        resumo: "Atestados e ausências e o exame ocupacional (ASO)",
+      },
+      {
+        slug: "treinamentos",
+        titulo: "Treinamentos",
+        resumo: "Cursos, participantes e os certificados com validade",
+      },
+      {
+        slug: "reembolsos",
+        titulo: "Reembolsos",
+        resumo: "Tipos de reembolso do ACT, avaliação e pagamento em folha",
+      },
+      {
+        slug: "informes",
+        titulo: "Informes de rendimentos",
+        resumo: "A geração dos informes anuais e a liberação ao funcionário",
+      },
     ],
   },
 
@@ -123,9 +153,24 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "A ficha pública, a assinatura gov.br e a aprovação",
       },
       {
+        slug: "receitas",
+        titulo: "Receitas",
+        resumo: "Remessas de recebimento de contribuições por fonte pagadora",
+      },
+      {
+        slug: "prontuarios",
+        titulo: "Prontuários",
+        resumo: "O histórico e os documentos de cada filiado",
+      },
+      {
         slug: "termos",
         titulo: "Termos legais",
         resumo: "LGPD e autorização de desconto, versionados por entidade",
+      },
+      {
+        slug: "importar",
+        titulo: "Importar filiados",
+        resumo: "Carga em massa a partir de uma planilha",
       },
     ],
   },
@@ -385,6 +430,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Apoios a organizações e o cadastro de entidades apoiadas",
       },
       {
+        slug: "custeios",
+        titulo: "Custeio institucional",
+        resumo:
+          "Custeios a diretores, demitidos políticos e convidados, com autorização",
+      },
+      {
         slug: "usuarios",
         titulo: "Usuários e permissões",
         resumo: "Acesso ao painel, permissões por área e alçada",
@@ -413,6 +464,38 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "resumo-ia",
         titulo: "Resumo de notícias por IA",
         resumo: "Fontes, tamanho, recorrência, prompt e geração",
+      },
+    ],
+  },
+  {
+    slug: "fluxos-publicos",
+    titulo: "Fluxos públicos",
+    descricao: "As telas que o trabalhador usa sem login: filiação, oposição e votação",
+    icone: "Globe",
+    // Referência transversal (filiados + representação) — visível a toda a equipe.
+    chave: null,
+    chavesAlternativas: [],
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Visão geral dos fluxos públicos",
+        resumo: "As telas públicas, quem as usa e onde a equipe acompanha",
+      },
+      {
+        slug: "filiacao",
+        titulo: "Filiação pública",
+        resumo: "Do formulário público ao código, à ficha e à assinatura gov.br",
+      },
+      {
+        slug: "oposicao",
+        titulo: "Oposição à contribuição",
+        resumo: "Como o trabalhador (filiado ou não) registra a oposição",
+      },
+      {
+        slug: "votacao",
+        titulo: "Votação pública",
+        resumo: "A cédula das assembleias e como o votante se identifica",
       },
     ],
   },

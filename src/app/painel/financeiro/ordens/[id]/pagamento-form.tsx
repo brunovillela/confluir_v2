@@ -28,6 +28,7 @@ export function PagamentoForm({
   temComprovante,
   temPagamento,
   centros,
+  podeEditar = true,
 }: {
   ordemId: string
   valorPago: number | null
@@ -36,6 +37,7 @@ export function PagamentoForm({
   temComprovante: boolean
   temPagamento: boolean
   centros: CentroOpcao[]
+  podeEditar?: boolean
 }) {
   const [estado, salvarAction, salvando] = useActionState(salvarPagamento, {})
   const [estadoRemover, removerAction, removendo] = useActionState(
@@ -44,6 +46,8 @@ export function PagamentoForm({
   )
 
   const erro = estado.erro ?? estadoRemover.erro
+
+  if (!podeEditar) return null
 
   return (
     <div className="grid gap-4">

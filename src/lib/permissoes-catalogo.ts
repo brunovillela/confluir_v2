@@ -30,6 +30,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "financeiro_receitas_sindicais", rotulo: "Receitas sindicais" },
       { chave: "financeiro_tributos", rotulo: "Tributos" },
       { chave: "financeiro_apoio", rotulo: "Apoio financeiro" },
+      { chave: "financeiro_leitura", rotulo: "Financeiro — somente leitura" },
     ],
   },
   {
@@ -122,7 +123,10 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
   },
   {
     area: "Patrimônio",
-    flags: [{ chave: "patrimonio_geral", rotulo: "Patrimônio" }],
+    flags: [
+      { chave: "patrimonio_geral", rotulo: "Patrimônio" },
+      { chave: "patrimonio_leitura", rotulo: "Patrimônio — somente leitura" },
+    ],
   },
   {
     area: "Comunicação",
@@ -138,6 +142,15 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       {
         chave: "apoio_institucional_edicao",
         rotulo: "Ajudas institucionais — editar",
+      },
+      { chave: "custeio_institucional", rotulo: "Custeio institucional" },
+      {
+        chave: "custeio_institucional_edicao",
+        rotulo: "Custeio institucional — editar",
+      },
+      {
+        chave: "custeio_institucional_autorizacao",
+        rotulo: "Custeio institucional — autorizar",
       },
       { chave: "permissoes", rotulo: "Gerenciar usuários e permissões" },
     ],

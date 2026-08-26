@@ -12,14 +12,17 @@ import { baixarCobrancaAction } from "./actions"
 export function BaixaCobrancaForm({
   infracaoId,
   valorTexto,
+  podeEditar = true,
 }: {
   infracaoId: string
   valorTexto: string
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     baixarCobrancaAction,
     {}
   )
+  if (!podeEditar) return null
   return (
     <form
       action={formAction}

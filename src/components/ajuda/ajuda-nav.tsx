@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { LayoutGrid } from "lucide-react"
 
 import { iconeAjuda } from "@/components/ajuda/icones"
 import { cn } from "@/lib/utils"
@@ -15,22 +16,40 @@ export type NavArea = {
   artigos: NavArtigo[]
 }
 
-function hrefArtigo(areaSlug: string, artigoSlug: string) {
+function hrefArtigo(base: string, areaSlug: string, artigoSlug: string) {
   return artigoSlug === "index"
-    ? `/painel/ajuda/${areaSlug}`
-    : `/painel/ajuda/${areaSlug}/${artigoSlug}`
+    ? `${base}/${areaSlug}`
+    : `${base}/${areaSlug}/${artigoSlug}`
 }
 
-export function AjudaNav({ areas }: { areas: NavArea[] }) {
+/**
+ * Navegação lateral do manual. `base` é a raiz da seção de ajuda
+ * (`/painel/ajuda` no painel, `/portal/ajuda` no portal do associado).
+ */
+export function AjudaNav({
+  areas,
+  base = "/painel/ajuda",
+}: {
+  areas: NavArea[]
+  base?: string
+}) {
   const pathname = usePathname()
 
   return (
     <nav aria-label="Manual" className="text-sm">
       <Link
-        href="/painel/ajuda"
+        href="/manual"
+        className="text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1.5 px-2 text-xs"
+      >
+        <LayoutGrid className="size-3.5" />
+        Todas as interfaces
+      </Link>
+
+      <Link
+        href={base}
         className={cn(
           "mb-2 block rounded-md px-2 py-1.5 font-medium",
-          pathname === "/painel/ajuda"
+          pathname === base
             ? "bg-muted"
             : "hover:bg-muted/60 text-muted-foreground"
         )}
@@ -41,7 +60,7 @@ export function AjudaNav({ areas }: { areas: NavArea[] }) {
       <ul className="space-y-4">
         {areas.map((area) => {
           const Icone = iconeAjuda(area.icone)
-          const areaAtiva = pathname.startsWith(`/painel/ajuda/${area.slug}`)
+          const areaAtiva = pathname.startsWith(`${base}/${area.slug}`)
           return (
             <li key={area.slug}>
               <div
@@ -61,7 +80,7 @@ export function AjudaNav({ areas }: { areas: NavArea[] }) {
               {area.disponivel && area.artigos.length > 0 && (
                 <ul className="border-muted mt-1 ml-3.5 space-y-0.5 border-l pl-2">
                   {area.artigos.map((art) => {
-                    const href = hrefArtigo(area.slug, art.slug)
+                    const href = hrefArtigo(base, area.slug, art.slug)
                     const ativo = pathname === href
                     return (
                       <li key={art.slug}>

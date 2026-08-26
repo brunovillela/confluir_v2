@@ -23,10 +23,90 @@ const EMAIL = "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
 const SHOTS = [
-  // Hospedagem (seed: demo-seed-hospedagem.sql)
-  ["/painel/hospedagem", "hospedagem/painel.png"],
-  ["/painel/hospedagem/servicos/40030000-0000-4000-8000-000000000001", "hospedagem/reserva.png"],
-  ["/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001", "hospedagem/faturamento.png", { scrollTo: "Faturas em aberto" }],
+  // Perfis de acesso / RBAC (seed: demo-seed-perfis.sql + perfis-acesso.sql).
+  ["/painel/institucional/usuarios/perfis", "institucional/perfis.png"],
+  ["/painel/institucional/usuarios/perfis/a0510000-0000-4000-8000-000000000001", "institucional/perfil-detalhe.png", { fullPage: true }],
+
+  // Custeio Institucional (já capturado — seed: demo-seed-custeio.sql).
+  // ["/painel/institucional/custeios", "institucional/custeios.png"],
+  // ["/painel/institucional/custeios/c0570000-0000-4000-8000-000000000001", "institucional/custeio-detalhe.png", { fullPage: true }],
+  // ["/painel/institucional/custeios/finalidades", "institucional/custeio-finalidades.png"],
+
+  // Filiados — áreas extras (já capturado — seed: demo-seed-filiados-extra.sql).
+  // ["/painel/filiados/receitas", "filiados/receitas.png"],
+  // ["/painel/filiados/receitas/60100000-0000-4000-8000-000000000001", "filiados/receita-remessa.png", { fullPage: true }],
+  // ["/painel/filiados/prontuarios", "filiados/prontuarios.png"],
+  // ["/painel/filiados/importar", "filiados/importar.png"],
+
+  // Pessoal — áreas extras (já capturado — seed: demo-seed-pessoal-extra.sql)
+  // ["/painel/pessoal/niveis", "pessoal/niveis.png"],
+  // ["/painel/pessoal/anuenios", "pessoal/anuenios.png"],
+  // ["/painel/pessoal/diarias", "pessoal/diarias.png"],
+  // ["/painel/pessoal/atestados", "pessoal/atestados.png"],
+  // ["/painel/pessoal/aso", "pessoal/aso.png"],
+  // ["/painel/pessoal/treinamentos", "pessoal/treinamentos.png"],
+  // ["/painel/pessoal/reembolsos", "pessoal/reembolsos.png"],
+  // ["/painel/pessoal/informes", "pessoal/informes.png"],
+
+  // Fluxos públicos (já capturado — seed: demo-seed-publicos.sql)
+  // ["/filiar", "fluxos-publicos/filiar.png", { anon: true, fullPage: true }],
+  // ["/ficha/a4a4a4a4-0000-4000-8000-000000000001", "fluxos-publicos/ficha.png", { anon: true, fullPage: true }],
+  // ["/portal/oposicao", "fluxos-publicos/oposicao.png", { anon: true }],
+  // ["/votar/ac000000-0000-4000-8000-000000000001", "fluxos-publicos/votacao.png", { anon: true }],
+
+  // Área do hotel (já capturado — seed: demo-seed-hotel.sql)
+  // ["/hotel/inicio", "hotel/inicio.png", { fullPage: true }],
+  // ["/hotel/reservas/40310000-0000-4000-8000-000000000001", "hotel/reserva.png", { fullPage: true }],
+  // ["/hotel/faturamento", "hotel/faturamento.png", { fullPage: true }],
+  // ["/hotel/contas", "hotel/contas.png"],
+  // ["/hotel/acordo", "hotel/acordo.png", { fullPage: true }],
+
+  // Portal do associado (já capturado — seed: demo-seed-portal.sql)
+  // ["/portal/inicio", "portal/inicio.png"],
+  // ["/portal/cadastro", "portal/cadastro.png", { fullPage: true }],
+  // ["/portal/hospedagem", "portal/hospedagem.png", { fullPage: true }],
+  // ["/portal/saude", "portal/saude.png"],
+  // ["/portal/noticias", "portal/noticias.png"],
+  // ["/portal/agenda", "portal/agenda.png"],
+  // ["/portal/oposicao", "portal/oposicao.png"],
+  // ["/portal/lgpd", "portal/lgpd.png", { fullPage: true }],
+
+  // Introdução — alternador de interfaces (já capturado)
+  // ["/painel", "introducao/alternador.png", { openMenu: true }],
+
+  // Saúde (seed: demo-seed-saude.sql) — já capturado
+  // ["/painel/saude", "saude/painel.png"],
+  // ["/painel/saude/cat", "saude/cat.png"],
+  // ["/painel/saude/cipa/ad800000-0000-4000-8000-000000000001", "saude/cipa.png", { fullPage: true }],
+  // ["/painel/saude/atendimentos/ad400000-0000-4000-8000-000000000001", "saude/atendimentos.png", { fullPage: true }],
+
+  // Comunicação (já capturado — seed: demo-seed-comunicacao.sql)
+  // ["/painel/comunicacao", "noticias/painel.png"],
+  // ["/painel/comunicacao/noticias", "noticias/noticias.png"],
+  // ["/painel/comunicacao/resumo", "noticias/resumo-ia.png"],
+
+  // Jurídico (já capturado — seed: demo-seed-juridico.sql)
+  // ["/painel/juridico", "juridico/painel.png"],
+  // ["/painel/juridico/homologacoes", "juridico/homologacoes.png"],
+  // ["/painel/juridico/processos/a8200000-0000-4000-8000-000000000001", "juridico/processos.png"],
+  // ["/painel/juridico/reembolsos", "juridico/reembolsos.png"],
+
+  // Institucional (já capturado — seed: demo-seed-institucional.sql)
+  // ["/painel/institucional", "institucional/painel.png"],
+  // ["/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001", "institucional/diretoria.png", { fullPage: true }],
+  // ["/painel/institucional/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png"],
+  // ["/painel/institucional/ajudas", "institucional/ajudas.png"],
+
+  // Ferramentas (já capturado — seed: demo-seed-ferramentas.sql)
+  // ["/painel/ferramentas", "ferramentas/painel.png"],
+  // ["/painel/ferramentas/demandas", "ferramentas/projetos.png"],
+  // ["/painel/ferramentas/documentos", "ferramentas/documentos.png"],
+  // ["/painel/ferramentas/oficios/fe800000-0000-4000-8000-000000000001", "ferramentas/oficios.png"],
+
+  // Hospedagem (já capturado — seed: demo-seed-hospedagem.sql)
+  // ["/painel/hospedagem", "hospedagem/painel.png"],
+  // ["/painel/hospedagem/servicos/40030000-0000-4000-8000-000000000001", "hospedagem/reserva.png"],
+  // ["/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001", "hospedagem/faturamento.png", { scrollTo: "Faturas em aberto" }],
 
   // Veículos (já capturado — seed: demo-seed-veiculos.sql)
   // ["/painel/veiculos", "veiculos/painel.png"],
@@ -108,22 +188,45 @@ if (page.url().includes("/login")) {
   process.exit(1)
 }
 
+// Contexto SEM sessão (cookies próprios), para telas públicas anônimas.
+let pageAnon = null
+async function anonPage() {
+  if (!pageAnon) {
+    const ctxAnon = await browser.newContext({
+      viewport: { width: 1440, height: 1024 },
+      deviceScaleFactor: 2,
+    })
+    pageAnon = await ctxAnon.newPage()
+  }
+  return pageAnon
+}
+
 for (const [route, file, opts] of SHOTS) {
   const dir = `public/ajuda/${file.split("/").slice(0, -1).join("/")}`
   mkdirSync(dir, { recursive: true })
-  await page.goto(BASE + route, { waitUntil: "networkidle" })
-  await page.waitForTimeout(700)
+  const p = opts?.anon ? await anonPage() : page
+  // `load` + buffer é mais robusto que networkidle (páginas SSR pesadas ou
+  // compilação a frio no dev podem não atingir networkidle em 30s).
+  await p.goto(BASE + route, { waitUntil: "load", timeout: 60000 })
+  await p.waitForTimeout(1200)
+  // opts.openMenu: abre o dropdown do rodapé (nome do usuário) para o print
+  // do alternador de interfaces.
+  if (opts?.openMenu) {
+    await p.getByText(EMAIL).first().click()
+    await p.getByRole("menuitem", { name: "Meu perfil" }).waitFor({ timeout: 4000 })
+    await p.waitForTimeout(300)
+  }
   // opts.scrollTo: rola até o texto (foca uma seção abaixo da dobra).
   if (opts?.scrollTo) {
     try {
-      await page.getByText(opts.scrollTo, { exact: false }).first()
+      await p.getByText(opts.scrollTo, { exact: false }).first()
         .evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }))
-      await page.waitForTimeout(400)
+      await p.waitForTimeout(400)
     } catch {
       console.log("  (scrollTo não encontrado:", opts.scrollTo + ")")
     }
   }
-  await page.screenshot({ path: `public/ajuda/${file}`, fullPage: opts?.fullPage ?? false })
+  await p.screenshot({ path: `public/ajuda/${file}`, fullPage: opts?.fullPage ?? false })
   console.log("salvo:", file)
 }
 

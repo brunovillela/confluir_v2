@@ -10,7 +10,10 @@ import { podeAcessar } from "@/lib/permissoes"
  */
 export async function GET(request: NextRequest) {
   const sessao = await getSessaoPainel()
-  if (!sessao || !podeAcessar(sessao.permissoes, "patrimonio_geral")) {
+  if (
+    !sessao ||
+    !podeAcessar(sessao.permissoes, "patrimonio_geral", ["patrimonio_leitura"])
+  ) {
     return new Response("Sem acesso", { status: 403 })
   }
 

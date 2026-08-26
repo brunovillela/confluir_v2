@@ -1,0 +1,79 @@
+O **custeio institucional** é onde a entidade registra despesas que ela banca
+**em favor de pessoas** por razão de missão sindical — não como compra, folha de
+pagamento ou reembolso de filiado.
+
+<RequerPermissao>Custeio institucional</RequerPermissao>
+
+## Quando usar (e quando não)
+
+<Aviso tipo="nota" titulo="Três beneficiários">
+  O custeio atende **diretores** (em atividade sindical), **filiados demitidos
+  políticos** e **convidados de eventos** (especialistas, filiados ou não).
+</Aviso>
+
+Use o Custeio — e não outros módulos — quando:
+
+- **Convidado de evento**: em vez de cadastrá-lo como fornecedor e pagar como
+  prestador de serviço (o que não reflete a realidade), registre um custeio com
+  o beneficiário do tipo *Convidado*.
+- **Diretor**: em vez de lançar como reembolso de filiado (aquela área é para
+  despesas do filiado em atos do sindicato, não para atividade de diretor),
+  registre um custeio do tipo *Diretor*.
+
+<Print src="institucional/custeios.png" alt="Lista de custeios institucionais com beneficiário, finalidade, valor e a situação de cada um." legenda="A lista de custeios, com a situação de cada concessão." />
+
+## Finalidades e centro de custo
+
+Cada custeio tem uma **finalidade**, e cada finalidade define o **centro de custo
+padrão**. Ao criar o custeio, esse centro é herdado automaticamente — a ordem de
+pagamento já nasce classificada.
+
+<Aviso tipo="nota" titulo="Finalidades são suas">
+  As finalidades são cadastradas por organização. Além das três iniciais, você
+  pode criar outras (ex.: “ex-diretor”, “homenagem”) em **Finalidades**.
+</Aviso>
+
+<Print src="institucional/custeio-finalidades.png" alt="Tela de finalidades do custeio, cada uma com o centro de custo padrão vinculado." legenda="Cada finalidade define o centro de custo herdado pelo lançamento." />
+
+## Do cadastro ao pagamento
+
+<PassoAPasso>
+  <Passo titulo="Cadastre o custeio">
+    Escolha a finalidade, o beneficiário, o valor e a cadência (pontual ou
+    recorrente). Ele nasce como **rascunho**.
+  </Passo>
+  <Passo titulo="Submeta para autorização">
+    O custeio vai para **aguardando autorização** — o portão interno da
+    entidade, antes do Financeiro.
+  </Passo>
+  <Passo titulo="Autorize">
+    Quem tem a permissão de autorizar libera. Nesse momento, as **ordens de
+    pagamento** são geradas em “Em autorização”.
+  </Passo>
+  <Passo titulo="Financeiro paga">
+    As ordens seguem pela alçada do Financeiro como qualquer despesa. No
+    Financeiro, o filtro **Custeio** mostra só essas ordens.
+  </Passo>
+</PassoAPasso>
+
+<Print src="institucional/custeio-detalhe.png" alt="Detalhe de um custeio autorizado, com a finalidade, o beneficiário, os dados bancários e as ordens de pagamento geradas." legenda="Um custeio autorizado e as ordens que ele gerou no Financeiro." />
+
+<Aviso tipo="atencao" titulo="Convidado não é fornecedor">
+  O convidado externo tem um cadastro leve próprio (nome e dados bancários). Ele
+  **não** entra na lista de fornecedores nem na esteira de Compras.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ajudas institucionais",
+      href: "/painel/ajuda/institucional/ajudas",
+      descricao: "Apoio a entidades — o primo do custeio, para organizações",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Para onde vão as ordens geradas pelo custeio",
+    },
+  ]}
+/>

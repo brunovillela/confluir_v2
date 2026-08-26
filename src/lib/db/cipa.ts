@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -16,10 +17,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  *
  * Ver supabase/saude-cipa.sql.
  */
-
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "CIPA ainda não configurada — rode supabase/saude-cipa.sql no SQL Editor do Supabase."

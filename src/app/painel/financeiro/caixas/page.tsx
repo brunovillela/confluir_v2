@@ -32,11 +32,18 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarContasCaixa, listarOcorrencias } from "@/lib/db/caixa"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Contas de caixa — Confluir" }
 
 export default async function CaixasPage() {
-  await requirePermissao("financeiro_caixa", ["financeiro_caixa_admin"])
+  const sessao = await requirePermissao("financeiro_caixa", [
+    "financeiro_caixa_admin",
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_caixa", [
+    "financeiro_caixa_admin",
+  ])
 
   const [{ disponivel, contas }, ocorrenciasGeral] = await Promise.all([
     listarContasCaixa(),
@@ -106,12 +113,14 @@ export default async function CaixasPage() {
               extratos e prestação de contas
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/financeiro/caixas/nova">
-              <Plus />
-              Nova conta
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/financeiro/caixas/nova">
+                <Plus />
+                Nova conta
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

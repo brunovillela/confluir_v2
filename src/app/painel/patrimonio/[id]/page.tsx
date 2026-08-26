@@ -18,7 +18,8 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
-import { hojeSP } from "@/lib/db/compras"
+import { podeAcessar } from "@/lib/permissoes"
+import { hojeSP } from "@/lib/db/comum"
 import {
   buscarItem,
   listarCautelas,
@@ -44,7 +45,10 @@ export default async function ItemPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
   const { id } = await params
   const { salvo } = await searchParams
 
@@ -97,7 +101,11 @@ export default async function ItemPage({
               {item.recintoNome ? ` · ${item.recintoNome}` : ""}
             </p>
           </div>
-          <ItemAcoes itemId={item.id} ativo={item.ativo} />
+          <ItemAcoes
+            itemId={item.id}
+            ativo={item.ativo}
+            podeEditar={podeEditar}
+          />
         </div>
       </div>
 
@@ -138,16 +146,19 @@ export default async function ItemPage({
         </Card>
       </div>
 
-      <GrupoColapsavel
-        titulo="Editar cadastro"
-        descricao="Nome, números de patrimônio, recinto e descrição"
-      >
-        <ItemForm
-          action={atualizarItemAction}
-          dados={item}
-          recintos={recintos}
-        />
-      </GrupoColapsavel>
+      {podeEditar && (
+        <GrupoColapsavel
+          titulo="Editar cadastro"
+          descricao="Nome, números de patrimônio, recinto e descrição"
+        >
+          <ItemForm
+            action={atualizarItemAction}
+            dados={item}
+            recintos={recintos}
+            podeEditar={podeEditar}
+          />
+        </GrupoColapsavel>
+      )}
 
       <GrupoColapsavel
         titulo="Cautelas"
@@ -159,37 +170,41 @@ export default async function ItemPage({
         }
         aberto
       >
-        <div className="mb-4 rounded-lg border p-4">
-          {cautelaAberta ? (
-            <div className="grid gap-3">
-              <p className="text-sm">
-                Sob cautela de{" "}
-                <span className="font-medium">
-                  {cautelaAberta.responsavelNome ?? "responsável"}
-                </span>
-                {cautelaAberta.inicio
-                  ? ` desde ${formatarData(cautelaAberta.inicio)}`
-                  : ""}
-                .
+        {podeEditar && (
+          <div className="mb-4 rounded-lg border p-4">
+            {cautelaAberta ? (
+              <div className="grid gap-3">
+                <p className="text-sm">
+                  Sob cautela de{" "}
+                  <span className="font-medium">
+                    {cautelaAberta.responsavelNome ?? "responsável"}
+                  </span>
+                  {cautelaAberta.inicio
+                    ? ` desde ${formatarData(cautelaAberta.inicio)}`
+                    : ""}
+                  .
+                </p>
+                <EncerrarCautelaForm
+                  itemId={item.id}
+                  cautelaId={cautelaAberta.id}
+                  hoje={hoje}
+                  podeEditar={podeEditar}
+                />
+              </div>
+            ) : usuarios.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nenhum usuário disponível para receber a cautela.
               </p>
-              <EncerrarCautelaForm
+            ) : (
+              <RegistrarCautelaForm
                 itemId={item.id}
-                cautelaId={cautelaAberta.id}
+                usuarios={usuarios}
                 hoje={hoje}
+                podeEditar={podeEditar}
               />
-            </div>
-          ) : usuarios.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nenhum usuário disponível para receber a cautela.
-            </p>
-          ) : (
-            <RegistrarCautelaForm
-              itemId={item.id}
-              usuarios={usuarios}
-              hoje={hoje}
-            />
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {cautelas.length === 0 ? (
           <p className="text-muted-foreground text-sm">

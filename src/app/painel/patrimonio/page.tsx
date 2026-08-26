@@ -9,7 +9,7 @@ import { resumoPatrimonio } from "@/lib/db/patrimonio"
 export const metadata: Metadata = { title: "Patrimônio — Confluir" }
 
 export default async function PatrimonioPage() {
-  await requirePermissao("patrimonio_geral")
+  await requirePermissao("patrimonio_geral", ["patrimonio_leitura"])
   const resumo = await resumoPatrimonio()
 
   const plural = (n: number, un: string, uns = `${un}s`) =>

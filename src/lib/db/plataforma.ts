@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 
 import { enviarEmail } from "@/lib/email"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
@@ -14,10 +15,6 @@ import { origemDoTenant } from "@/lib/tenant-url"
  * `emp_proprietaria_id` nos dados; o `empresa` do próprio tenant tem
  * `emp_proprietaria_id` nulo (ele é o dono, não pertence a outro).
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 // ── Slug ─────────────────────────────────────────────────────────────────────
 

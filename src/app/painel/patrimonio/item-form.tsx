@@ -26,12 +26,16 @@ export function ItemForm({
   action,
   dados,
   recintos,
+  podeEditar = true,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: ItemFormDados
   recintos: { id: string; rotulo: string }[]
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+
+  if (!podeEditar) return null
 
   return (
     <form action={formAction} className="grid max-w-2xl gap-4">

@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
@@ -35,11 +36,6 @@ import {
  * CAMINHO e a URL assinada sai na hora da exibição. Compat: legado pode
  * trazer URL absoluta, tratada em `urlParecer`.
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "Jurídico ainda não configurado — rode supabase/juridico.sql no Supabase."

@@ -25,11 +25,10 @@ function ouNull(v: string): string | null {
   return v || null
 }
 
-/** Gerir fornecedores = papel de fornecedores OU operação de compras. */
+/** Gerir fornecedores = operação de compras. A flag base `aquisicoes_fornecedores`
+ * é só consulta (não escreve). */
 async function requireGestaoFornecedores() {
-  return requirePermissao("aquisicoes_fornecedores", [
-    "aquisicoes_compras_edicao",
-  ])
+  return requirePermissao("aquisicoes_compras_edicao")
 }
 
 function revalidarFornecedor(id?: string) {

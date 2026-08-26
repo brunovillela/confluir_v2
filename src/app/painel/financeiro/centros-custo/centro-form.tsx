@@ -26,10 +26,12 @@ import {
 export function CentroCustoForm({
   centro,
   tipos,
+  podeEditar = true,
 }: {
   centro?: CentroCusto
   /** Tipos já usados (datalist). */
   tipos: string[]
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     centro ? atualizarCentroCusto : criarCentroCusto,
@@ -40,6 +42,8 @@ export function CentroCustoForm({
     {}
   )
   const erro = estado.erro ?? estadoExcluir.erro
+
+  if (!podeEditar) return null
 
   return (
     <div className="grid gap-4">

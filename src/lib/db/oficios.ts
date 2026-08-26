@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
@@ -16,14 +17,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 
 const AVISO_SQL = "Ofícios ainda não configurados — rode supabase/oficios.sql no Supabase."
-
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function anoDe(data: string | null): number {
   return data ? Number(data.slice(0, 4)) : new Date().getFullYear()

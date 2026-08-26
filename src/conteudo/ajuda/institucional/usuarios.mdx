@@ -11,25 +11,61 @@ pessoa pode ver e editar.
   a área dele pelo portal, com regras próprias.
 </Aviso>
 
-## Permissões por área
+## Perfis de acesso (o caminho recomendado)
+
+Em vez de marcar dezenas de permissões pessoa por pessoa, você define **perfis**
+— pacotes de permissões — e atribui um perfil a cada pessoa.
+
+<Aviso tipo="nota" titulo="Por que perfis">
+  Editar um perfil repercute em **todos** que o têm. Assim, dar acesso vira
+  “escolher um perfil” (ex.: Financeiro / Tesouraria), e mudar a política de uma
+  área é um ajuste só, não um por usuário.
+</Aviso>
 
 <PassoAPasso>
-  <Passo titulo="Cada área tem sua chave">
-    As permissões são agrupadas por área (Financeiro, Pessoal, Compras…), muitas
-    com uma variação “— editar” separada da de apenas consultar.
+  <Passo titulo="Escolha o perfil da pessoa">
+    Ao editar um usuário, marque um ou mais perfis. As permissões do perfil
+    passam a valer para ela.
   </Passo>
-  <Passo titulo="Você marca o que a pessoa pode">
-    Ao editar um usuário, você liga/desliga as permissões. Elas controlam o que
-    aparece no painel e o que cada tela deixa fazer.
+  <Passo titulo="Gerencie os perfis">
+    Em **Perfis de acesso** você cria perfis e define o que cada um libera. Os
+    perfis “de fábrica” já vêm prontos e podem ser ajustados.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="atencao" titulo="Alçada de aprovação">
-  Para quem autoriza ordens de pagamento, além da permissão há a **alçada** — o
-  valor máximo que a pessoa pode aprovar. Defina-a com cuidado.
+<Print src="institucional/perfis.png" alt="Lista de perfis de acesso, cada um com sua alçada e situação." legenda="Os perfis de fábrica — pacotes de permissões prontos para atribuir." />
+
+<Aviso tipo="atencao" titulo="Separe quem lança de quem autoriza">
+  Os perfis já trazem essa separação: perfis operacionais (Financeiro, Compras)
+  **lançam**, e só a Diretoria/Coordenação **autoriza** (alçadas). Manter isso é
+  o controle interno.
 </Aviso>
 
-<Print alt="Tela de edição de permissões de um usuário, agrupadas por área." legenda="Permissões por área, com variações de consulta e edição." />
+<Print src="institucional/perfil-detalhe.png" alt="Edição de um perfil, com as permissões que ele concede agrupadas por área." legenda="Um perfil e as permissões que concede, por área." />
+
+### Só leitura, quando faz sentido
+
+Alguns papéis só precisam **ver** — o Conselho Fiscal é o caso clássico. Um
+perfil de leitura mostra os dados sem nenhum botão de escrita, e a navegação já
+entra restrita ao que ele libera.
+
+<Print src="institucional/conselho-fiscal-painel.png" alt="Painel de um usuário do Conselho Fiscal, com a navegação restrita a poucos módulos." legenda="A navegação já entra restrita ao que o perfil concede." />
+
+<Print src="institucional/conselho-fiscal-ordem.png" alt="Detalhe de uma ordem de pagamento vista por um perfil de leitura, sem botões de edição." legenda="Somente leitura: os dados aparecem, os controles de escrita não." />
+
+## Ajustes finos (exceções)
+
+Quando uma pessoa precisa de algo **além** do seu perfil, use os ajustes
+individuais na edição do usuário — as mesmas permissões por área, marcadas caso
+a caso. É a exceção; o normal é resolver pelo perfil.
+
+<Aviso tipo="atencao" titulo="Alçada de aprovação">
+  Para quem autoriza ordens de pagamento, além da permissão há a **alçada** — o
+  valor máximo que a pessoa pode aprovar. No perfil ela já vem definida; no
+  ajuste individual você pode sobrepor.
+</Aviso>
+
+<Print src="institucional/usuarios.png" alt="Tela de edição de permissões de um usuário, agrupadas por área." legenda="Ajustes finos: permissões individuais, para exceções ao perfil." />
 
 <VejaTambem
   links={[

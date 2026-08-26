@@ -18,7 +18,8 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
-import { hojeSP } from "@/lib/db/compras"
+import { podeAcessar } from "@/lib/permissoes"
+import { hojeSP } from "@/lib/db/comum"
 import {
   buscarRecinto,
   listarItensDoRecinto,
@@ -40,7 +41,10 @@ export default async function RecintoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
   const { id } = await params
   const { salvo } = await searchParams
 
@@ -107,12 +111,18 @@ export default async function RecintoPage({
         </Card>
       </div>
 
-      <GrupoColapsavel
-        titulo="Editar recinto"
-        descricao="Nome, código, sede e descrição física"
-      >
-        <RecintoForm action={atualizarRecintoAction} dados={recinto} />
-      </GrupoColapsavel>
+      {podeEditar && (
+        <GrupoColapsavel
+          titulo="Editar recinto"
+          descricao="Nome, código, sede e descrição física"
+        >
+          <RecintoForm
+            action={atualizarRecintoAction}
+            dados={recinto}
+            podeEditar={podeEditar}
+          />
+        </GrupoColapsavel>
+      )}
 
       <GrupoColapsavel
         titulo="Responsáveis"
@@ -124,19 +134,22 @@ export default async function RecintoPage({
         }
         aberto
       >
-        <div className="mb-4 rounded-lg border p-4">
-          {usuarios.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nenhum usuário disponível para designar.
-            </p>
-          ) : (
-            <DefinirResponsavelForm
-              recintoId={recinto.id}
-              usuarios={usuarios}
-              hoje={hoje}
-            />
-          )}
-        </div>
+        {podeEditar && (
+          <div className="mb-4 rounded-lg border p-4">
+            {usuarios.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nenhum usuário disponível para designar.
+              </p>
+            ) : (
+              <DefinirResponsavelForm
+                recintoId={recinto.id}
+                usuarios={usuarios}
+                hoje={hoje}
+                podeEditar={podeEditar}
+              />
+            )}
+          </div>
+        )}
         {responsaveis.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             Nenhum responsável registrado.

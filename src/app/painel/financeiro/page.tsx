@@ -30,11 +30,15 @@ export const metadata: Metadata = { title: "Financeiro — Confluir" }
 export default async function FinanceiroPage() {
   const sessao = await requirePermissao("financeiro_caixa", [
     "financeiro_pagamento",
+    "financeiro_leitura",
   ])
 
-  const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento")
+  const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
+    "financeiro_leitura",
+  ])
   const veCaixa = podeAcessar(sessao.permissoes, "financeiro_caixa", [
     "financeiro_caixa_admin",
+    "financeiro_leitura",
   ])
 
   const [resumo, ultimas, caixas] = await Promise.all([

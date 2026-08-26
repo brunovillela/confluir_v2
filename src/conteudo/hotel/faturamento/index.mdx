@@ -1,0 +1,46 @@
+No **Faturamento** você reúne as hospedagens num documento de cobrança e
+acompanha o pagamento pelo sindicato.
+
+## As faturas
+
+A lista separa **Faturas em aberto** (ainda não pagas) das **Faturas fechadas**
+(já pagas). Cada linha traz o código, as datas, quantas reservas, o valor, a
+situação e o link do DANFE.
+
+## Emitir uma nova fatura
+
+<PassoAPasso>
+  <Passo titulo="Escolher os serviços">
+    Clique em **Nova fatura**. Aparecem as reservas **faturáveis** — as que têm
+    comparecimento registrado e ainda não foram faturadas. Marque as que quer
+    incluir; o total do subsídio é somado automaticamente.
+  </Passo>
+  <Passo titulo="DANFE e vencimento">
+    Anexe o PDF do DANFE (nota fiscal) e informe a data de vencimento.
+  </Passo>
+  <Passo titulo="Forma de recebimento">
+    Escolha como quer receber — Pix, Pix (QR Code), Depósito (TED) ou Boleto. As
+    opções de Pix e Depósito usam as contas cadastradas em **Dados bancários**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Só entra o que tem comparecimento">
+  Uma reserva só fica faturável depois que você marca **Compareceu** para os
+  hóspedes. Se a lista aparecer vazia, confira o comparecimento na reserva.
+</Aviso>
+
+Ao emitir, a fatura gera uma ordem de pagamento no sindicato com a situação
+**Em autorização** — quando o sindicato paga, ela passa para **Faturas
+fechadas**.
+
+<Print src="hotel/faturamento.png" alt="Página de Faturamento com as faturas em aberto e fechadas." legenda="Faturamento: faturas em aberto e fechadas." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Dados bancários",
+      href: "/hotel/ajuda/contas",
+      descricao: "As contas usadas no recebimento",
+    },
+  ]}
+/>

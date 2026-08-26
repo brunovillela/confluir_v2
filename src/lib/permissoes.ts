@@ -44,7 +44,7 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "Ordens de pagamento, caixa, receitas e despesas",
     chave: "financeiro_caixa",
-    chavesAlternativas: ["financeiro_pagamento"],
+    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura"],
   },
   {
     titulo: "Ordens de pagamento",
@@ -52,6 +52,7 @@ export const MODULOS: Modulo[] = [
     icone: "Receipt",
     descricao: "Receitas e despesas com autorização e pagamento",
     chave: "financeiro_pagamento",
+    chavesAlternativas: ["financeiro_leitura"],
     oculto: true,
   },
   {
@@ -60,7 +61,7 @@ export const MODULOS: Modulo[] = [
     icone: "Wallet",
     descricao: "Contas de dinheiro em espécie, aportes e prestações",
     chave: "financeiro_caixa",
-    chavesAlternativas: ["financeiro_caixa_admin"],
+    chavesAlternativas: ["financeiro_caixa_admin", "financeiro_leitura"],
     oculto: true,
   },
   {
@@ -185,8 +186,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/compras/nova",
     icone: "ShoppingCart",
     descricao: "Registrar aquisição direta ou solicitação via Compras",
-    chave: "aquisicoes_compras",
-    chavesAlternativas: ["aquisicoes_compras_edicao"],
+    chave: "aquisicoes_compras_edicao",
     oculto: true,
   },
   {
@@ -271,6 +271,7 @@ export const MODULOS: Modulo[] = [
     icone: "Receipt",
     descricao: "Baixa das cobranças de infrações aos condutores",
     chave: "financeiro_pagamento",
+    chavesAlternativas: ["financeiro_leitura"],
     oculto: true,
   },
   {
@@ -390,6 +391,7 @@ export const MODULOS: Modulo[] = [
     icone: "Boxes",
     descricao: "Itens patrimoniais, recintos, notas fiscais e cautelas",
     chave: "patrimonio_geral",
+    chavesAlternativas: ["patrimonio_leitura"],
   },
   {
     titulo: "Itens patrimoniais",
@@ -397,6 +399,7 @@ export const MODULOS: Modulo[] = [
     icone: "Boxes",
     descricao: "Bens do patrimônio, com situação, recinto e cautela",
     chave: "patrimonio_geral",
+    chavesAlternativas: ["patrimonio_leitura"],
     oculto: true,
   },
   {
@@ -405,6 +408,7 @@ export const MODULOS: Modulo[] = [
     icone: "Boxes",
     descricao: "Locais onde os bens ficam e seus responsáveis",
     chave: "patrimonio_geral",
+    chavesAlternativas: ["patrimonio_leitura"],
     oculto: true,
   },
   {
@@ -413,6 +417,7 @@ export const MODULOS: Modulo[] = [
     icone: "Boxes",
     descricao: "Notas de entrada e saída dos bens patrimoniais",
     chave: "patrimonio_geral",
+    chavesAlternativas: ["patrimonio_leitura"],
     oculto: true,
   },
   {
@@ -568,6 +573,11 @@ export const MODULOS: Modulo[] = [
       "diretoria_mandatos",
       "registro_mte",
       "ferramentas_emails_internos",
+      "apoio_institucional",
+      "apoio_institucional_edicao",
+      "custeio_institucional",
+      "custeio_institucional_edicao",
+      "custeio_institucional_autorizacao",
     ],
   },
   {
@@ -630,6 +640,18 @@ export const MODULOS: Modulo[] = [
     descricao: "Apoios da entidade a organizações apoiadas",
     chave: "apoio_institucional",
     chavesAlternativas: ["apoio_institucional_edicao"],
+    oculto: true,
+  },
+  {
+    titulo: "Custeio institucional",
+    href: "/painel/institucional/custeios",
+    icone: "HandCoins",
+    descricao: "Custeios a diretores, demitidos políticos e convidados",
+    chave: "custeio_institucional",
+    chavesAlternativas: [
+      "custeio_institucional_edicao",
+      "custeio_institucional_autorizacao",
+    ],
     oculto: true,
   },
 ]

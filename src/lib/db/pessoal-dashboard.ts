@@ -1,4 +1,5 @@
 import "server-only"
+import { hojeSP } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { listarFuncionarios } from "@/lib/db/pessoal"
@@ -39,12 +40,6 @@ export type ResumoPessoal = {
   diariasAguardando: number | null
   reembolsosAguardando: number | null
   reembolsosAPagar: number | null
-}
-
-function hojeSP(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
 }
 
 function somarDias(iso: string, dias: number): string {

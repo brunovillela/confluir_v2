@@ -1,8 +1,9 @@
 import "server-only"
+import { hojeSP } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { hojeSP } from "@/lib/db/compras"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { esquemaAusente } from "@/lib/db/comum"
 
 /**
  * Fornecedores — cadastro completo sobre linhas de `empresa`, com:
@@ -13,11 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * - ordens de pagamento onde a empresa é favorecida (as legadas migraram
  *   SEM esse vínculo — a lista cobre as novas até a re-migração).
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "Cadastro de fornecedores incompleto — rode supabase/fornecedores.sql no Supabase."

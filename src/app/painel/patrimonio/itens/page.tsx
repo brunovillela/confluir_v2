@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarItens, resumoPatrimonio } from "@/lib/db/patrimonio"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Itens patrimoniais — Confluir" }
 
@@ -29,7 +30,10 @@ export default async function ItensPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
 
   const brutos = await searchParams
   const situacao =
@@ -61,12 +65,14 @@ export default async function ItensPage({
               Bens do patrimônio: busca, situação e cautela
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/patrimonio/novo">
-              <Plus />
-              Novo item
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/patrimonio/novo">
+                <Plus />
+                Novo item
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

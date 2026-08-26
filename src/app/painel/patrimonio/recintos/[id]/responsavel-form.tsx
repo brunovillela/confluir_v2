@@ -20,15 +20,18 @@ export function DefinirResponsavelForm({
   recintoId,
   usuarios,
   hoje,
+  podeEditar = true,
 }: {
   recintoId: string
   usuarios: Opcao[]
   hoje: string
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     definirResponsavelRecintoAction,
     {}
   )
+  if (!podeEditar) return null
   return (
     <form action={formAction} className="grid max-w-xl gap-4">
       <input type="hidden" name="recinto_id" value={recintoId} />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import {
   Building2,
+  HandCoins,
   HeartHandshake,
   Landmark,
   Mail,
@@ -74,6 +75,18 @@ const AREAS: Area[] = [
     chavesAlternativas: ["apoio_institucional_edicao"],
   },
   {
+    titulo: "Custeio institucional",
+    descricao:
+      "Custeios da entidade a diretores, demitidos políticos e convidados de eventos",
+    href: "/painel/institucional/custeios",
+    icone: HandCoins,
+    chave: "custeio_institucional",
+    chavesAlternativas: [
+      "custeio_institucional_edicao",
+      "custeio_institucional_autorizacao",
+    ],
+  },
+  {
     titulo: "Usuários e permissões",
     descricao: "Quem acessa o painel e o que cada um pode ver e editar",
     href: "/painel/institucional/usuarios",
@@ -92,6 +105,9 @@ export default async function ConfiguracoesPage() {
     "diretoria_reunioes",
     "apoio_institucional",
     "apoio_institucional_edicao",
+    "custeio_institucional",
+    "custeio_institucional_edicao",
+    "custeio_institucional_autorizacao",
   ])
 
   const visiveis = AREAS.filter((a) =>

@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -15,14 +16,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const AVISO_SQL =
   "Diretoria ainda não configurada — rode supabase/organizacao-diretoria.sql no Supabase."
-
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function hojeISO(): string {
   return new Date().toISOString().slice(0, 10)

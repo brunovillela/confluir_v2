@@ -1,0 +1,57 @@
+A carreira do funcionário tem duas trilhas no Confluir: o **nível salarial** (o
+degrau na tabela do cargo) e o **anuênio** (o adicional por tempo de casa). As
+duas seguem a mesma lógica: uma **tabela** define os degraus, e cada funcionário
+tem um **lançamento** apontando o degrau atual e o próximo.
+
+## Níveis salariais
+
+<PassoAPasso>
+  <Passo titulo="Tabela salarial">
+    Em **Tabela salarial**, cadastre os degraus por cargo — cada um com o código
+    (vertical/horizontal), a carreira e o salário básico.
+  </Passo>
+  <Passo titulo="Lançamento do funcionário">
+    Em **Novo lançamento**, registre o nível atual do funcionário, o próximo e o
+    **tipo de avanço** (Inicial, Automático, Por mérito ou Ajuste salarial).
+  </Passo>
+  <Passo titulo="Reajuste linear">
+    O botão **Reajuste salarial** aplica um percentual a todos os degraus de uma
+    vez, com prévia antes de confirmar.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/niveis.png" alt="Lista de níveis salariais com funcionário, nível, cargo, salário e tipo de avanço." legenda="Níveis: o degrau atual de cada funcionário na tabela salarial." />
+
+## Anuênios
+
+<PassoAPasso>
+  <Passo titulo="Tabela de alíquotas">
+    Em **Tabela de alíquotas**, defina os degraus do anuênio (nível → alíquota,
+    ex.: 2%, 4%…).
+  </Passo>
+  <Passo titulo="Lançamento e progressão">
+    Cada funcionário tem um lançamento com o degrau atual e a data do próximo. A
+    progressão é automática para o degrau seguinte.
+  </Passo>
+  <Passo titulo="Contabilidade">
+    Cada lançamento fica marcado como **Informado** ou **Pendente** para a
+    contabilidade.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="O painel avisa quando vira">
+  Anuênios que avançam nos próximos 30 dias aparecem como alerta no painel do
+  Pessoal, para a equipe se antecipar.
+</Aviso>
+
+<Print src="pessoal/anuenios.png" alt="Lista de anuênios com funcionário, referência, nível, alíquota e situação na contabilidade." legenda="Anuênios: o degrau de cada funcionário e o aviso à contabilidade." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Onde o reajuste e os adicionais entram no pagamento",
+    },
+  ]}
+/>

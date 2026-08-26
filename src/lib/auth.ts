@@ -16,6 +16,7 @@ import {
   podeAcessar,
   type Permissoes,
 } from "@/lib/permissoes"
+import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -80,7 +81,13 @@ export const getSessaoPainel = cache(
       .maybeSingle()
     if (!permissoes) return null
 
-    return { user, usuario: usuario as Usuario, permissoes }
+    // Permissões efetivas = overrides (linha `permissoes`) ∪ chaves dos perfis.
+    const permissoesEfetivas = await resolverPermissoes(
+      admin,
+      usuario.id,
+      permissoes as Permissoes
+    )
+    return { user, usuario: usuario as Usuario, permissoes: permissoesEfetivas }
   }
 )
 

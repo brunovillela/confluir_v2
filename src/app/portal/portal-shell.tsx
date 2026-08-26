@@ -16,6 +16,7 @@ const NAV = [
   { titulo: "Agenda", href: "/portal/agenda" },
   { titulo: "Oposição à contribuição", href: "/portal/oposicao" },
   { titulo: "LGPD", href: "/portal/lgpd" },
+  { titulo: "Ajuda", href: "/portal/ajuda" },
 ]
 
 /** Casca da área logada do portal do associado (header + navegação). */

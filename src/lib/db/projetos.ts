@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { derivarSituacao } from "@/lib/db/compras"
@@ -19,10 +20,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * • `finalizado` deriva a situação; `estrategico` existe mas nunca foi usado.
  * • `departamentos_assoc_raw` = array de bubble_ids de `empresa_departamentos`.
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null

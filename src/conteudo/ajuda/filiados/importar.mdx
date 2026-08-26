@@ -1,0 +1,36 @@
+A **importação em massa** cadastra vários filiados de uma vez a partir de uma
+planilha — útil na virada de sistema ou ao trazer uma nova base.
+
+## Como importar
+
+<PassoAPasso>
+  <Passo titulo="Baixar o modelo">
+    Use **Baixar modelo da planilha** para começar do formato certo. As colunas
+    obrigatórias são **nome_completo** e **cpf**.
+  </Passo>
+  <Passo titulo="Escolher a fonte pagadora">
+    Selecione a fonte pagadora à qual esses trabalhadores estão vinculados.
+  </Passo>
+  <Passo titulo="Enviar o arquivo">
+    Selecione o CSV e clique em **Importar filiados** (até 10.000 linhas por
+    envio).
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="CPF novo cria; CPF existente vincula">
+  Se o CPF já existe, a planilha cria apenas o **vínculo** com a fonte. Se é um
+  CPF novo, cria um filiado com condição **Ativo**. Ao final, um resumo mostra
+  quantos foram criados, vinculados, ignorados e os erros.
+</Aviso>
+
+<Print src="filiados/importar.png" alt="Tela de importação de filiados com o select de fonte pagadora e o envio da planilha CSV." legenda="Importar filiados: a fonte pagadora e a planilha em CSV." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Solicitações de filiação",
+      href: "/painel/ajuda/filiados/solicitacoes",
+      descricao: "A outra porta de entrada: a ficha pública",
+    },
+  ]}
+/>

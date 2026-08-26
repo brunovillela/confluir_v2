@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
@@ -9,10 +10,6 @@ import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
  * logo e as sedes (`empresa_sede`). O logo fica no bucket PÚBLICO `organizacao`
  * e seu caminho em `empresa.logomarca`.
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 /**
  * Nome curto da entidade (tenant) para e-mails e UI: nome_fantasia → nome_razao
@@ -29,6 +26,26 @@ export async function nomeEntidade(): Promise<string> {
     return texto(data?.nome_fantasia) ?? texto(data?.nome_razao) ?? "Confluir"
   } catch {
     return "Confluir"
+  }
+}
+
+/**
+ * E-mail de contato da organização (tenant) para usar como reply-to — assim as
+ * respostas vão para o sindicato certo, enquanto o envelope segue no domínio
+ * limpo da plataforma. Data-driven pelo tenant; null quando não configurado ou
+ * a coluna ainda não existe.
+ */
+export async function emailContatoEntidade(): Promise<string | null> {
+  try {
+    const admin = await createAdminClient()
+    const { data } = await admin
+      .from("empresa")
+      .select("email_contato")
+      .eq("id", await tenantAtual())
+      .maybeSingle()
+    return texto(data?.email_contato)
+  } catch {
+    return null
   }
 }
 
@@ -62,11 +79,6 @@ export type Organizacao = {
   emailContato: string | null
   noticiasUrl: string | null
   noticiasFeedUrl: string | null
-}
-
-/** Campos de contato ausentes até rodar supabase/organizacao-contato.sql. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST204", "42703"].includes(erro?.code ?? "")
 }
 
 export async function obterOrganizacao(): Promise<Organizacao | null> {

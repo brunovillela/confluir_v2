@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { listarCobrancasPendentes, listarInfracoes } from "@/lib/db/veiculos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ROTULOS_FORMA_COBRANCA } from "@/lib/veiculos-constantes"
@@ -28,7 +29,10 @@ export default async function MultasPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  await requirePermissao("financeiro_pagamento")
+  const sessao = await requirePermissao("financeiro_pagamento", [
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
   const { salvo } = await searchParams
 
   const [{ disponivel, cobrancas }, baixadas] = await Promise.all([
@@ -123,6 +127,7 @@ export default async function MultasPage({
                     {c.veiculoPlaca ?? ""} · {c.descricao ?? "—"}
                   </p>
                   <BaixaCobrancaForm
+                    podeEditar={podeEditar}
                     infracaoId={c.id}
                     valorTexto={formatarMoeda(c.cobranca_valor ?? c.custo)}
                   />

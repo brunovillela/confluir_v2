@@ -27,6 +27,7 @@ import {
   listarCentrosCusto,
   type CentroCusto,
 } from "@/lib/db/financeiro"
+import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -116,7 +117,10 @@ export default async function OrdemPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ editar?: string; salvo?: string; removido?: string }>
 }) {
-  await requirePermissao("financeiro_pagamento")
+  const sessao = await requirePermissao("financeiro_pagamento", [
+    "financeiro_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const { id } = await params
   const { editar, salvo, removido } = await searchParams
@@ -124,7 +128,7 @@ export default async function OrdemPage({
   if (!detalhe) notFound()
   const { ordem, favorecido, pagador, autorizador, contratos } = detalhe
 
-  const editandoPagamento = editar === "pagamento"
+  const editandoPagamento = editar === "pagamento" && podeEditar
   const temPagamento =
     ordem.data_pagamento !== null ||
     ordem.arquivo_pagamento !== null ||
@@ -237,7 +241,7 @@ export default async function OrdemPage({
                   Autorização, forma e comprovante
                 </CardDescription>
               </div>
-              {editandoPagamento ? (
+              {editandoPagamento || !podeEditar ? (
                 <Landmark className="text-muted-foreground size-4" />
               ) : (
                 <Button variant="outline" size="sm" asChild>
@@ -252,6 +256,7 @@ export default async function OrdemPage({
           {editandoPagamento ? (
             <CardContent>
               <PagamentoForm
+                podeEditar={podeEditar}
                 ordemId={id}
                 valorPago={ordem.valor_pago as number | null}
                 dataPagamento={ordem.data_pagamento as string | null}

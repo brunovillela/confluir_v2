@@ -41,13 +41,17 @@ export type OrdemLinha = {
   fornecedor_id: string | null
   beneficiario_fornecedor_id: string | null
   beneficiario_usuario_id: string | null
-  /** Nome resolvido do favorecido (empresa ou usuário). */
+  /** Favorecido avulso (gente sem conta: diretor/convidado de custeio). */
+  beneficiario_nome_avulso: string | null
+  /** Nome resolvido do favorecido (empresa, usuário ou avulso). */
   favorecido: string | null
 }
 
 export type FiltrosOrdens = {
   busca?: string
   situacao?: "todas" | "abertas" | "pagas" | "canceladas"
+  /** Filtro pela coluna `tipo` (ex.: "Custeio", "Compras"); "todos" não filtra. */
+  tipo?: string
   pagina?: number
   ordem?: "vencimento" | "pagamento" | "valor"
   dir?: "asc" | "desc"
@@ -67,7 +71,7 @@ const COLUNAS_ORDEM: Record<string, string> = {
 }
 
 const SELECT_ORDEM =
-  "id, codigo, descricao, tipo, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id"
+  "id, codigo, descricao, tipo, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso"
 
 type BuilderFiltros = {
   eq(coluna: string, valor: unknown): BuilderFiltros
@@ -83,7 +87,7 @@ function escaparLike(termo: string): string {
 
 function aplicarFiltrosOrdens<T>(
   builder: T,
-  { busca = "", situacao = "todas" }: FiltrosOrdens,
+  { busca = "", situacao = "todas", tipo = "todos" }: FiltrosOrdens,
   empId: string
 ): T {
   let q = (builder as unknown as BuilderFiltros)
@@ -93,6 +97,7 @@ function aplicarFiltrosOrdens<T>(
   if (situacao === "abertas") q = q.in("situacao", SITUACOES_ABERTAS)
   if (situacao === "pagas") q = q.eq("situacao", "Paga")
   if (situacao === "canceladas") q = q.eq("situacao", "Cancelada")
+  if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
 
   const termo = busca.trim()
   if (termo) {
@@ -159,6 +164,7 @@ async function resolverFavorecidos(
       (o.beneficiario_fornecedor_id &&
         nomes.get(o.beneficiario_fornecedor_id)) ||
       (o.beneficiario_usuario_id && nomes.get(o.beneficiario_usuario_id)) ||
+      o.beneficiario_nome_avulso ||
       null,
   }))
 }
@@ -370,6 +376,9 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
         nomesEmpresas.get(ordem.beneficiario_fornecedor_id)) ||
       (ordem.beneficiario_usuario_id &&
         nomesUsuarios.get(ordem.beneficiario_usuario_id)) ||
+      (typeof ordem.beneficiario_nome_avulso === "string"
+        ? ordem.beneficiario_nome_avulso
+        : null) ||
       null,
     fornecedorNome:
       (ordem.fornecedor_id && nomesEmpresas.get(ordem.fornecedor_id)) ||

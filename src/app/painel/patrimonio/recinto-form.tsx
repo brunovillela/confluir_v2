@@ -24,11 +24,15 @@ export type RecintoFormDados = {
 export function RecintoForm({
   action,
   dados,
+  podeEditar = true,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: RecintoFormDados
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+
+  if (!podeEditar) return null
 
   return (
     <form action={formAction} className="grid max-w-2xl gap-4">

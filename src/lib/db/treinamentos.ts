@@ -1,4 +1,5 @@
 import "server-only"
+import { hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
@@ -44,29 +45,6 @@ export function somarMeses(iso: string, meses: number): string {
   const d = new Date(Date.UTC(ano, mes - 1 + meses, dia))
   if (d.getUTCDate() !== dia) d.setUTCDate(0)
   return d.toISOString().slice(0, 10)
-}
-
-function hojeSP(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
-}
-
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  if (ids.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", ids)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
 }
 
 /**

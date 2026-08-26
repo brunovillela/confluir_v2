@@ -16,7 +16,7 @@ import { NovaCompraForm } from "./nova-compra-form"
 export const metadata: Metadata = { title: "Nova compra — Confluir" }
 
 export default async function NovaCompraPage() {
-  await requirePermissao("aquisicoes_compras", ["aquisicoes_compras_edicao"])
+  await requirePermissao("aquisicoes_compras_edicao")
 
   const [departamentos, centros, projetos, fornecedores] = await Promise.all([
     listarDepartamentos(),

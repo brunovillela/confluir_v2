@@ -1,0 +1,38 @@
+Em **Dados bancários** você cadastra as contas em que o hotel recebe os
+pagamentos do sindicato. São essas contas que aparecem na hora de emitir a
+fatura.
+
+## Cadastrar uma conta
+
+<PassoAPasso>
+  <Passo titulo="Escolher o tipo">
+    **Pix** pede apenas a chave. **Depósito (TED)** pede banco, agência e conta,
+    além do titular e do CNPJ/CPF.
+  </Passo>
+  <Passo titulo="Salvar">
+    A conta cadastrada fica disponível para escolher no faturamento.
+  </Passo>
+</PassoAPasso>
+
+## Ativar e desativar
+
+Você pode **desativar** uma conta que não usa mais e **reativar** quando
+precisar — sem apagar o histórico. Contas desativadas não aparecem como opção na
+fatura.
+
+<Aviso tipo="dica" titulo="Cadastre antes de faturar">
+  Se ao emitir uma fatura por Pix ou Depósito a lista de contas estiver vazia, é
+  porque não há conta ativa daquele tipo — cadastre aqui primeiro.
+</Aviso>
+
+<Print src="hotel/contas.png" alt="Página de Dados bancários com as contas cadastradas e o formulário de nova conta." legenda="Dados bancários: contas de recebimento do hotel." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Faturamento",
+      href: "/hotel/ajuda/faturamento",
+      descricao: "Onde as contas são usadas",
+    },
+  ]}
+/>

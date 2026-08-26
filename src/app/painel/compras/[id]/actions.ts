@@ -46,9 +46,8 @@ export async function cancelarProcessoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requirePermissao("aquisicoes_compras", [
-    "aquisicoes_compras_edicao",
-  ])
+  // Cancelar é operação de edição — não basta a flag base (só leitura).
+  const sessao = await requireOperacao()
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
   const { erro } = await cancelarProcesso(id, sessao.usuario.id)

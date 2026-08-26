@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -24,10 +25,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * Ver lib/saude-sigilo.ts para a criptografia e as regras de acesso, e
  * supabase/saude-atendimentos.sql para o esquema.
  */
-
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "Atendimentos ainda não configurados — rode supabase/saude-atendimentos.sql no SQL Editor do Supabase."

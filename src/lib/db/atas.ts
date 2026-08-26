@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -15,9 +16,6 @@ import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
  * `diretoria` (subpasta `atas/`), reusando `urlDocumentoDiretoria` p/ ler.
  */
 
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 function escaparLike(t: string): string {
   return t.replace(/[%_\\]/g, "\\$&")
 }

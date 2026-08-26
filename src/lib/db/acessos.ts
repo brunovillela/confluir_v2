@@ -1,7 +1,9 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { enviarEmail } from "@/lib/email"
+import { garantirPerfilPadrao } from "@/lib/db/perfis"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { origemAtual } from "@/lib/tenant-url"
@@ -12,10 +14,6 @@ import { origemAtual } from "@/lib/tenant-url"
  * são ignorados aqui. Login/conta de auth é etapa à parte — aqui só o perfil
  * de permissões (as ~63 flags + alçada). Ver [[confluir-fase-3a]].
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null
@@ -436,9 +434,11 @@ export type ResultadoOnboarding = {
 }
 
 /**
- * Convida em lote os funcionários aptos: garante o perfil de permissões vazio
- * e cria a conta de login com convite por e-mail. Reusa concederAcesso +
- * concederLogin (ambos idempotentes). Roda numa request (origemAtual/e-mail).
+ * Convida em lote os funcionários aptos: garante o registro de `permissoes`,
+ * atribui o PERFIL PADRÃO de onboarding (se o tenant definiu um; senão entra só
+ * com o autosserviço) e cria a conta de login com convite por e-mail. Reusa
+ * concederAcesso + garantirPerfilPadrao + concederLogin (idempotentes). Roda
+ * numa request (origemAtual/e-mail).
  */
 export async function onboardingEmLote(): Promise<ResultadoOnboarding> {
   const previa = await previaOnboarding()
@@ -457,6 +457,8 @@ export async function onboardingEmLote(): Promise<ResultadoOnboarding> {
       })
       continue
     }
+    // Atribui o perfil padrão de onboarding (no-op se o tenant não definiu um).
+    await garantirPerfilPadrao(c.usuarioId)
     const login = await concederLogin(acesso.id)
     if (login.erro) {
       if (/já tem conta|already/i.test(login.erro)) {

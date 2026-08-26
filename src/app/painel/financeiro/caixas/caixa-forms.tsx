@@ -23,10 +23,13 @@ const SELECT =
 
 export function NovaContaForm({
   pessoas,
+  podeEditar = true,
 }: {
   pessoas: { id: string; nome: string }[]
+  podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarContaCaixa, {})
+  if (!podeEditar) return null
   return (
     <form action={formAction} className="grid gap-4">
       {estado.erro && (

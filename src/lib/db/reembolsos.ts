@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
@@ -18,11 +19,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * Tabelas NOVAS em supabase/reembolsos-act.sql (não existiam no Bubble
  * migrado) — as leituras degradam com `disponivel: false` até o SQL rodar.
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 export const SITUACOES_REEMBOLSO = [
   "aguardando",
@@ -86,23 +82,6 @@ export type ReembolsoAct = {
   pagamento_ano: string | null
   pago_em: string | null
   created_at: string | null
-}
-
-async function nomesDosUsuarios(ids: string[]): Promise<Map<string, string>> {
-  const nomes = new Map<string, string>()
-  if (ids.length === 0) return nomes
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", ids)
-  for (const u of data ?? []) {
-    const nome = [u.nome_completo, u.nome_guerra].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id, nome)
-  }
-  return nomes
 }
 
 const SELECT_REEMBOLSO =

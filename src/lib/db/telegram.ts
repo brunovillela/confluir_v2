@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { randomInt, randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -24,10 +25,6 @@ import {
  */
 
 const VALIDADE_MIN = 15
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 export async function statusTelegram(usuarioId: string): Promise<{
   vinculado: boolean
@@ -407,11 +404,6 @@ export async function usuarioPorChat(
 // role. Como o service role ignora RLS, TODA query filtra emp explicitamente.
 // `usuarios.id` já é a pessoa: contracheque/diária usam `funcionario_id`, férias
 // usa `trabalhador_id` (ver src/lib/db/pessoal.ts e ferias.ts).
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 export type ContrachequeTelegram = {
   remessaNome: string | null

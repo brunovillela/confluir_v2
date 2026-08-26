@@ -18,6 +18,7 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { listarFornecedores } from "@/lib/db/compras"
 import {
   buscarNota,
@@ -38,7 +39,10 @@ export default async function NotaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
   const { id } = await params
   const { salvo } = await searchParams
 
@@ -124,22 +128,25 @@ export default async function NotaPage({
         </Card>
       </div>
 
-      <GrupoColapsavel
-        titulo="Editar nota"
-        descricao="Número, tipo, emissão, fornecedor e arquivo"
-      >
-        <NotaForm
-          action={atualizarNotaAction}
-          dados={nota}
-          temArquivo={Boolean(arquivoUrl)}
-          fornecedores={fornecedores.map((f) => ({
-            id: f.id,
-            nome: f.nome,
-            cnpj_cpf: f.cnpj_cpf,
-            bloqueado: false,
-          }))}
-        />
-      </GrupoColapsavel>
+      {podeEditar && (
+        <GrupoColapsavel
+          titulo="Editar nota"
+          descricao="Número, tipo, emissão, fornecedor e arquivo"
+        >
+          <NotaForm
+            action={atualizarNotaAction}
+            dados={nota}
+            temArquivo={Boolean(arquivoUrl)}
+            fornecedores={fornecedores.map((f) => ({
+              id: f.id,
+              nome: f.nome,
+              cnpj_cpf: f.cnpj_cpf,
+              bloqueado: false,
+            }))}
+            podeEditar={podeEditar}
+          />
+        </GrupoColapsavel>
+      )}
 
       <GrupoColapsavel
         titulo="Itens da nota"

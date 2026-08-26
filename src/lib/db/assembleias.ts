@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
@@ -27,11 +28,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * a junção campanha↔fontes e roda o backfill (re-rodável — o Bubble segue
  * sincronizando até a virada). `eleitor_id` referencia `usuarios`.
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 

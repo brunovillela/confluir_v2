@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -20,10 +21,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * `arquivo_url` guarda o caminho no bucket (ou, para eventual legado, uma URL
  * externa — ver `urlArquivoDocumento`).
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 /** URL para abrir/baixar o arquivo: externa passa direto; caminho vira signed URL. */
 export async function urlArquivoDocumento(

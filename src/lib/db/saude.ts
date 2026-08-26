@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -36,11 +37,6 @@ import {
  * A paginação e os filtros são resolvidos no PostgREST (13k linhas é muito
  * para trazer em memória a cada request).
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
 
 const AVISO_SQL =
   "A tabela de CATs ainda não está disponível — rode supabase/saude-cat-schema.sql no SQL Editor do Supabase."

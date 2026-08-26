@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -21,10 +22,6 @@ const TABELA: Record<TipoTermo, string> = {
 export const ROTULO_TIPO_TERMO: Record<TipoTermo, string> = {
   lgpd: "Termo de proteção de dados (LGPD)",
   desconto: "Autorização de desconto em folha",
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
 }
 
 /** Código de versão AAAAMMDDHHmm (America/Sao_Paulo). */

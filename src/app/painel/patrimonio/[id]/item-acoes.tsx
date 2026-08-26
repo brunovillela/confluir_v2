@@ -11,11 +11,15 @@ import { alternarAtivoItemAction } from "../actions"
 export function ItemAcoes({
   itemId,
   ativo,
+  podeEditar = true,
 }: {
   itemId: string
   ativo: boolean
+  podeEditar?: boolean
 }) {
   const [estado, acao, pendente] = useActionState(alternarAtivoItemAction, {})
+
+  if (!podeEditar) return null
 
   return (
     <div className="grid gap-2">

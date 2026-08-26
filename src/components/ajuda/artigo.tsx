@@ -11,12 +11,15 @@ export function Artigo({
   areaHref,
   titulo,
   resumo,
+  manualHref = "/painel/ajuda",
   children,
 }: {
   areaTitulo: string
   areaHref: string
   titulo: string
   resumo?: string
+  /** Raiz da seção de ajuda (painel ou portal). */
+  manualHref?: string
   children: React.ReactNode
 }) {
   return (
@@ -25,7 +28,7 @@ export function Artigo({
         aria-label="Trilha"
         className="text-muted-foreground mb-3 flex flex-wrap items-center gap-1 text-xs"
       >
-        <Link href="/painel/ajuda" className="hover:text-foreground">
+        <Link href={manualHref} className="hover:text-foreground">
           Manual
         </Link>
         <ChevronRight className="size-3" />

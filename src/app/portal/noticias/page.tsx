@@ -5,7 +5,6 @@ import { ExternalLink, Newspaper } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireSessaoPortal } from "@/lib/auth"
 import { ultimasNoticias } from "@/lib/db/painel"
-import { formatarData } from "@/lib/formato"
 
 import { PortalShell } from "../portal-shell"
 
@@ -55,7 +54,7 @@ export default async function PortalNoticiasPage() {
                   )}
                   {n.data && (
                     <p className="text-muted-foreground mt-0.5 text-xs">
-                      {formatarData(n.data)}
+                      {n.data}
                     </p>
                   )}
                 </li>

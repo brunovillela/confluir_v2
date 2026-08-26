@@ -15,11 +15,15 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarRecintos } from "@/lib/db/patrimonio"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Recintos — Confluir" }
 
 export default async function RecintosPage() {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
   const recintos = await listarRecintos()
 
   return (
@@ -38,12 +42,14 @@ export default async function RecintosPage() {
               Locais onde os bens patrimoniais ficam alocados
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/patrimonio/recintos/novo">
-              <Plus />
-              Novo recinto
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/patrimonio/recintos/novo">
+                <Plus />
+                Novo recinto
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

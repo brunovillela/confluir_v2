@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { listarFuncionarios } from "@/lib/db/pessoal"
@@ -22,10 +23,6 @@ export type EmailInstitucional = {
 
 /** Regex pragmática de e-mail (não RFC completo — barra erros grosseiros). */
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function nomeUsuario(u: Record<string, unknown> | undefined): string | null {
   if (!u) return null

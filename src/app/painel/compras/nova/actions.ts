@@ -25,9 +25,8 @@ export async function criarCompra(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requirePermissao("aquisicoes_compras", [
-    "aquisicoes_compras_edicao",
-  ])
+  // Registrar compra é escrita — exige a flag de edição (não a base de leitura).
+  const sessao = await requirePermissao("aquisicoes_compras_edicao")
 
   const direta = texto(formData, "modalidade") === "direta"
   const produto = texto(formData, "produto")

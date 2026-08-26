@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { minhasFerias, resumoPeriodo, somarDias } from "@/lib/db/ferias"
@@ -12,10 +13,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * enderecos) e a indicação de funcionário (tem vínculo trabalhista). A foto
  * fica no bucket privado `usuarios`. Ver [[confluir-fase-3a]].
  */
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 const TIPOS_IMG: Record<string, string> = {
   "image/jpeg": "jpg",

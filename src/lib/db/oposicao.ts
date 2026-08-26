@@ -1,4 +1,5 @@
 import "server-only"
+import { hojeSP, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -22,10 +23,6 @@ import {
  */
 
 const OPOSITORES_POR_PAGINA = 50
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function escaparLike(t: string): string {
   return t.replace(/[%_\\]/g, "\\$&")
@@ -997,12 +994,6 @@ export async function obterOpositorDetalhe(
   }
 }
 
-function hojeSPdata(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
-}
-
 /** Aprova (procedente) ou reprova (improcedente + motivo) a oposição. */
 export async function avaliarOpositor(
   id: string,
@@ -1020,7 +1011,7 @@ export async function avaliarOpositor(
     .update({
       situacao: aprovar ? "aprovada" : "reprovada",
       avaliacao: aprovar,
-      avaliacao_data: hojeSPdata(),
+      avaliacao_data: hojeSP(),
       avaliacao_avaliador_id: avaliadorId,
       reprovacao_motivo: aprovar ? null : motivo?.trim(),
     })

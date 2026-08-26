@@ -1,4 +1,5 @@
 import "server-only"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -36,15 +37,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  *   (contratos-ordens.sql). Antes dessa coluna existir, cai na via indireta do
  *   fornecedor (legado) — ver ordensDoContrato.
  */
-
-/** PGRST205/42P01 = tabela ausente; PGRST204/42703 = coluna ausente. */
-function esquemaAusente(erro: { code?: string } | null): boolean {
-  return ["PGRST205", "42P01", "PGRST204", "42703"].includes(erro?.code ?? "")
-}
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 function nomeEmpresa(e: Record<string, unknown> | undefined): string | null {
   if (!e) return null

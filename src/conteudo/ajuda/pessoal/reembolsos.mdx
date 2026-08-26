@@ -1,0 +1,42 @@
+Os **reembolsos do ACT** cobrem despesas previstas no Acordo Coletivo (material
+escolar, óculos, etc.). O funcionário solicita, a equipe avalia, e o valor
+aprovado é pago no contracheque.
+
+## Tipos do ACT
+
+Em **Tipos do ACT**, cadastre cada tipo de reembolso com o nome, uma descrição e,
+se houver, o **teto** de valor. Mantenha ativos os que estão em vigor.
+
+## O ciclo do reembolso
+
+<PassoAPasso>
+  <Passo titulo="Solicitar">
+    A solicitação traz o funcionário, o tipo, o valor solicitado e a descrição da
+    despesa.
+  </Passo>
+  <Passo titulo="Avaliar">
+    Enquanto está **aguardando**, a ação **Avaliar** define o valor aprovado (que
+    pode ser menor que o solicitado) ou reprova.
+  </Passo>
+  <Passo titulo="Pagar em folha">
+    Os aprovados ficam **a lançar no contracheque**; depois de lançados, passam a
+    **pago**, com o mês/ano de referência.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Precisa da configuração">
+  Os reembolsos dependem de uma configuração inicial (`reembolsos-act.sql`). Sem
+  ela, a área mostra um aviso para configurar.
+</Aviso>
+
+<Print src="pessoal/reembolsos.png" alt="Lista de reembolsos do ACT com funcionário, tipo, valor solicitado, aprovado e situação." legenda="Reembolsos do ACT: da solicitação ao pagamento em folha." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Onde o reembolso aprovado é pago",
+    },
+  ]}
+/>

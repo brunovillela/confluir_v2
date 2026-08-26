@@ -1,4 +1,5 @@
 import "server-only"
+import { texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -13,10 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 
 const TAMANHO_MAX = 5 * 1024 * 1024 // 5 MB
-
-function texto(v: unknown): string | null {
-  return typeof v === "string" && v.trim() !== "" ? v : null
-}
 
 export type NoticiaLista = {
   id: string

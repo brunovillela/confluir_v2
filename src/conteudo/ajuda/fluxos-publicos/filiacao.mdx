@@ -1,0 +1,43 @@
+A **filiação pública** deixa o próprio trabalhador iniciar a filiação, sem login,
+pela página `/filiar`. A equipe só entra no fim, para avaliar.
+
+## O fluxo, do início ao fim
+
+<PassoAPasso>
+  <Passo titulo="Preencher a ficha">
+    Em `/filiar`, o trabalhador informa dados pessoais, contato, endereço e o
+    vínculo empregatício, e marca as duas autorizações (LGPD e desconto). Sem os
+    dois aceites, o envio fica bloqueado.
+  </Passo>
+  <Passo titulo="Confirmar o e-mail">
+    Ele recebe um **código de 6 dígitos** por e-mail (válido por 15 minutos) e o
+    digita para confirmar o endereço.
+  </Passo>
+  <Passo titulo="Assinar a ficha">
+    Confirmado o e-mail, abre-se a ficha num **link único**. O trabalhador baixa
+    o PDF, assina no **gov.br** e envia o arquivo assinado de volta.
+  </Passo>
+  <Passo titulo="Avaliação">
+    A solicitação entra em **Filiados → Solicitações**, onde a equipe aprova ou
+    recusa — e, aprovando, a filiação é criada.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="O link da ficha é a chave">
+  Cada ficha tem um endereço único e secreto (um token). É por ele que o
+  trabalhador volta para acompanhar e concluir a assinatura — por isso o link é
+  reenviado por e-mail a cada etapa. Um link inválido mostra "Ficha não
+  encontrada".
+</Aviso>
+
+<Print src="fluxos-publicos/ficha.png" alt="Ficha de filiação no estado aguardando assinatura, com os passos e o botão de baixar o PDF e assinar no gov.br." legenda="A ficha aguardando assinatura: baixar o PDF, assinar no gov.br e enviar." />
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Solicitações de filiação",
+      href: "/painel/ajuda/filiados/solicitacoes",
+      descricao: "A avaliação da equipe, no painel",
+    },
+  ]}
+/>

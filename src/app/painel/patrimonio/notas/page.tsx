@@ -16,11 +16,15 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarNotas } from "@/lib/db/patrimonio"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Notas fiscais — Confluir" }
 
 export default async function NotasPage() {
-  await requirePermissao("patrimonio_geral")
+  const sessao = await requirePermissao("patrimonio_geral", [
+    "patrimonio_leitura",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "patrimonio_geral")
   const notas = await listarNotas()
 
   return (
@@ -41,12 +45,14 @@ export default async function NotasPage() {
               Notas de entrada e saída dos bens patrimoniais
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/patrimonio/notas/novo">
-              <Plus />
-              Nova nota
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/patrimonio/notas/novo">
+                <Plus />
+                Nova nota
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

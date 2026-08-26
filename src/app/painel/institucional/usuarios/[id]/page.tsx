@@ -9,8 +9,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAcesso } from "@/lib/db/acessos"
+import { listarPerfis, perfisDoUsuario } from "@/lib/db/perfis"
 
-import { AcessoLogin, PermissoesForm, RevogarAcesso } from "../usuarios-forms"
+import {
+  AcessoLogin,
+  PerfisUsuarioForm,
+  PermissoesForm,
+  RevogarAcesso,
+} from "../usuarios-forms"
 
 export const metadata: Metadata = { title: "Permissões — Confluir" }
 
@@ -24,6 +30,11 @@ export default async function AcessoPage({
 
   const acesso = await obterAcesso(id)
   if (!acesso) notFound()
+
+  const [perfis, perfisAtribuidos] = await Promise.all([
+    listarPerfis(),
+    acesso.usuarioId ? perfisDoUsuario(acesso.usuarioId) : Promise.resolve([]),
+  ])
 
   return (
     <>
@@ -86,7 +97,39 @@ export default async function AcessoPage({
       </Card>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="grid gap-3 pt-6">
+          <div>
+            <p className="text-sm font-medium">Perfis de acesso</p>
+            <p className="text-muted-foreground text-xs">
+              A forma recomendada de dar acesso: o perfil concede um conjunto de
+              permissões. Some mais de um se precisar.
+            </p>
+          </div>
+          {acesso.usuarioId ? (
+            <PerfisUsuarioForm
+              usuarioId={acesso.usuarioId}
+              acessoId={acesso.id}
+              perfis={perfis}
+              atribuidos={perfisAtribuidos}
+            />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Este acesso não está vinculado a um usuário — não é possível
+              atribuir perfis.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="grid gap-3 pt-6">
+          <div>
+            <p className="text-sm font-medium">Ajustes finos (exceções)</p>
+            <p className="text-muted-foreground text-xs">
+              Concessões individuais além dos perfis. Use só para exceções — o
+              normal é resolver pelo perfil acima.
+            </p>
+          </div>
           <PermissoesForm
             acessoId={acesso.id}
             flags={acesso.flags}

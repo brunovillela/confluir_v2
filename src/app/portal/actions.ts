@@ -8,7 +8,7 @@ import {
   type EstadoForm,
 } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
-import { SITE_URL } from "@/lib/env"
+import { origemAtual } from "@/lib/tenant-url"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -91,7 +91,7 @@ export async function enviarMagicLinkFiliado(
     options: {
       shouldCreateUser: true,
       data: { tipo: "filiado", cpf },
-      emailRedirectTo: `${SITE_URL}/auth/confirm?next=/portal/inicio`,
+      emailRedirectTo: `${await origemAtual()}/auth/confirm?next=/portal/inicio`,
     },
   })
   if (error) {

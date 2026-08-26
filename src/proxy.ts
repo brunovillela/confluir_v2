@@ -8,6 +8,7 @@ import {
   PERMISSOES_USUARIO_FK,
   podeAcessarModulo,
 } from "@/lib/permissoes"
+import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { subdominioDoHost } from "@/lib/tenant-host"
 
 /**
@@ -159,11 +160,18 @@ export async function proxy(request: NextRequest) {
       return redirecionar("/login", { erro: "sem_vinculo" })
     }
 
+    // Permissões efetivas = overrides (linha `permissoes`) ∪ chaves dos perfis.
+    const permissoesEfetivas = await resolverPermissoes(
+      admin,
+      usuario.id,
+      permissoes
+    )
+
     const modulo = moduloDaRota(pathname)
     if (
       modulo?.chave &&
       pathname !== "/painel/sem-acesso" &&
-      !podeAcessarModulo(permissoes, modulo)
+      !podeAcessarModulo(permissoesEfetivas, modulo)
     ) {
       return redirecionar("/painel/sem-acesso")
     }
