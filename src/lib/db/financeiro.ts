@@ -53,6 +53,7 @@ export type FiltrosOrdens = {
   /** Filtro pela coluna `tipo` (ex.: "Custeio", "Compras"); "todos" não filtra. */
   tipo?: string
   pagina?: number
+  porPagina?: number
   ordem?: "vencimento" | "pagamento" | "valor"
   dir?: "asc" | "desc"
 }
@@ -172,7 +173,12 @@ async function resolverFavorecidos(
 export async function listarOrdens(
   filtros: FiltrosOrdens
 ): Promise<ListaOrdens> {
-  const { pagina = 1, ordem = "vencimento", dir = "desc" } = filtros
+  const {
+    pagina = 1,
+    porPagina = ORDENS_POR_PAGINA,
+    ordem = "vencimento",
+    dir = "desc",
+  } = filtros
   const admin = await createAdminClient()
 
   let q = admin
@@ -180,14 +186,14 @@ export async function listarOrdens(
     .select(SELECT_ORDEM, { count: "exact" })
   q = aplicarFiltrosOrdens(q, filtros, await tenantAtual())
 
-  const de = (pagina - 1) * ORDENS_POR_PAGINA
+  const de = (pagina - 1) * porPagina
   const { data, count, error } = await q
     .order(COLUNAS_ORDEM[ordem] ?? "vencimento", {
       ascending: dir === "asc",
       nullsFirst: false,
     })
     .order("created_at", { ascending: false })
-    .range(de, de + ORDENS_POR_PAGINA - 1)
+    .range(de, de + porPagina - 1)
   if (error) throw new Error(`Falha ao listar ordens: ${error.message}`)
 
   const total = count ?? 0
@@ -195,7 +201,7 @@ export async function listarOrdens(
     linhas: await resolverFavorecidos(data ?? []),
     total,
     pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / ORDENS_POR_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
   }
 }
 
@@ -255,7 +261,11 @@ export async function resumoFinanceiro(): Promise<ResumoFinanceiro> {
   return {
     abertas: {
       quantidade: abertas.count ?? 0,
-      valor: somar((abertas.data ?? []).map((o) => o.valor_pago)),
+      // Ordens abertas ainda não têm valor pago → mostra o valor pendente
+      // (cobrança), coerente com o gráfico por situação.
+      valor: somar(
+        (abertas.data ?? []).map((o) => o.valor_pago ?? o.valor_inicial_cobranca)
+      ),
     },
     pagasNoMes: {
       quantidade: pagasNoMes.count ?? 0,

@@ -805,17 +805,20 @@ export async function gerarOrdensContrato(
       .map((o) => texto(o.vencimento)?.slice(0, 10))
       .filter((v): v is string => Boolean(v))
   )
-  const novos = alvos.filter((v) => !jaTem.has(v))
-  const puladas = alvos.length - novos.length
+  const total = alvos.length
+  const novos = alvos
+    .map((venc, i) => ({ venc, parcela: i + 1 }))
+    .filter((x) => !jaTem.has(x.venc))
+  const puladas = total - novos.length
   if (novos.length === 0) return { geradas: 0, puladas }
 
   const departamentoId = texto(linha.departamento_id)
   const centroCustoId = texto(linha.centro_custo_id)
   const objeto = texto(linha.objeto) ?? "Contrato"
-  const registros = novos.map((venc) => ({
+  const registros = novos.map(({ venc, parcela }) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
-    descricao: `${objeto} — venc. ${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)}`,
+    descricao: descricaoOrdemContrato(objeto, venc, parcela, total),
     situacao: "Em autorização",
     valor_inicial_cobranca: params.valorParcela,
     forma_pagamento: params.formaPagamento,
@@ -837,6 +840,22 @@ export async function gerarOrdensContrato(
     return { erro: `Falha ao gerar as ordens: ${erroIns.message}` }
   }
   return { geradas: novos.length, puladas }
+}
+
+/**
+ * Descrição padrão (dinâmica) das ordens geradas por um contrato. Usa o objeto
+ * do contrato + parcela X/N (quando parcelado) + vencimento — o que veio do
+ * Bubble não tinha descrição; toda ordem criada aqui nasce descrita.
+ */
+function descricaoOrdemContrato(
+  objeto: string,
+  venc: string,
+  parcela: number,
+  total: number
+): string {
+  const data = `${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)}`
+  const parc = total > 1 ? ` — parcela ${parcela}/${total}` : ""
+  return `${objeto}${parc}, venc. ${data}`
 }
 
 // ── Lookups para os formulários ──────────────────────────────────────────────

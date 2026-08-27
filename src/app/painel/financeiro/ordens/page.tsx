@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowDown, ArrowUp, ReceiptText, Search } from "lucide-react"
 
+import { Paginacao } from "@/components/paginacao"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -19,6 +20,7 @@ import {
   type FiltrosOrdens,
 } from "@/lib/db/financeiro"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
@@ -32,6 +34,7 @@ type ParamsBusca = {
   situacao?: string
   tipo?: string
   pagina?: string
+  porPagina?: string
   ordem?: string
   dir?: string
 }
@@ -57,6 +60,11 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
       ? params.tipo!
       : "todos",
     pagina: Math.max(1, Number(params.pagina) || 1),
+    porPagina: (OPCOES_POR_PAGINA as readonly number[]).includes(
+      Number(params.porPagina)
+    )
+      ? Number(params.porPagina)
+      : ORDENS_POR_PAGINA,
     ordem: ordens.includes(params.ordem as never)
       ? (params.ordem as (typeof ordens)[number])
       : "vencimento",
@@ -74,6 +82,8 @@ function montarUrl(
   if (merged.situacao !== "todas") q.set("situacao", String(merged.situacao))
   if (merged.tipo !== "todos") q.set("tipo", String(merged.tipo))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
+  if (Number(merged.porPagina) !== ORDENS_POR_PAGINA)
+    q.set("porPagina", String(merged.porPagina))
   if (merged.ordem !== "vencimento") q.set("ordem", String(merged.ordem))
   if (merged.dir !== "desc") q.set("dir", String(merged.dir))
   const query = q.toString()
@@ -130,9 +140,6 @@ export default async function OrdensPage({
 
   const filtros = normalizarFiltros(await searchParams)
   const lista = await listarOrdens(filtros)
-
-  const de = (lista.pagina - 1) * ORDENS_POR_PAGINA + 1
-  const ate = Math.min(lista.total, lista.pagina * ORDENS_POR_PAGINA)
 
   return (
     <>
@@ -292,52 +299,13 @@ export default async function OrdensPage({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-muted-foreground text-sm">
-          {lista.total > 0 ? (
-            <>
-              Exibindo {de.toLocaleString("pt-BR")}–
-              {ate.toLocaleString("pt-BR")} de{" "}
-              {lista.total.toLocaleString("pt-BR")}
-            </>
-          ) : (
-            "Nada a exibir"
-          )}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            disabled={lista.pagina <= 1}
-          >
-            {lista.pagina > 1 ? (
-              <Link href={montarUrl(filtros, { pagina: lista.pagina - 1 })}>
-                Anterior
-              </Link>
-            ) : (
-              <span>Anterior</span>
-            )}
-          </Button>
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {lista.pagina} / {lista.totalPaginas}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            disabled={lista.pagina >= lista.totalPaginas}
-          >
-            {lista.pagina < lista.totalPaginas ? (
-              <Link href={montarUrl(filtros, { pagina: lista.pagina + 1 })}>
-                Próxima
-              </Link>
-            ) : (
-              <span>Próxima</span>
-            )}
-          </Button>
-        </div>
-      </div>
+      <Paginacao
+        total={lista.total}
+        pagina={lista.pagina}
+        totalPaginas={lista.totalPaginas}
+        porPagina={filtros.porPagina}
+        padrao={ORDENS_POR_PAGINA}
+      />
     </>
   )
 }
