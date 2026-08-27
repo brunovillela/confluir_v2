@@ -7,6 +7,7 @@ import {
   FileSignature,
   Landmark,
   Pencil,
+  Printer,
   Receipt,
   Tags,
 } from "lucide-react"
@@ -46,7 +47,7 @@ function Campo({
   return (
     <div>
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
-      <dd className="mt-0.5 text-sm">{children ?? "—"}</dd>
+      <dd className="mt-0.5 text-sm break-words">{children ?? "—"}</dd>
     </div>
   )
 }
@@ -126,7 +127,8 @@ export default async function OrdemPage({
   const { editar, salvo, removido } = await searchParams
   const detalhe = await detalheOrdem(id)
   if (!detalhe) notFound()
-  const { ordem, favorecido, pagador, autorizador, contratos } = detalhe
+  const { ordem, favorecido, pagador, autorizador, contratoVinculado } =
+    detalhe
 
   const editandoPagamento = editar === "pagamento" && podeEditar
   const temPagamento =
@@ -152,9 +154,6 @@ export default async function OrdemPage({
 
   const centros = editandoPagamento ? await listarCentrosCusto() : []
 
-  // Seção de contratos só para ordens provenientes de contrato.
-  const ordemDeContrato = String(ordem.tipo ?? "").startsWith("Contrato")
-
   return (
     <>
       <div>
@@ -174,6 +173,16 @@ export default async function OrdemPage({
               {ordem.tipo}
             </Badge>
           )}
+          <Button variant="outline" size="sm" asChild className="ml-auto">
+            <a
+              href={`/painel/financeiro/ordens/${id}/extrato`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Printer />
+              Extrato (PDF)
+            </a>
+          </Button>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {texto(ordem.descricao)}
@@ -192,7 +201,7 @@ export default async function OrdemPage({
       )}
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -226,11 +235,18 @@ export default async function OrdemPage({
               <Campo rotulo="Boleto">
                 <LinkArquivo url={urlBoleto} />
               </Campo>
+              {detalhe.compraObservacao && (
+                <div className="col-span-2">
+                  <Campo rotulo="Observação da compra">
+                    {detalhe.compraObservacao}
+                  </Campo>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -351,69 +367,55 @@ export default async function OrdemPage({
         </CardContent>
       </Card>
 
-      {ordemDeContrato && (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">
-                Contratos do fornecedor
-                <span className="text-muted-foreground ml-2 text-sm font-normal">
-                  {contratos.length} encontrado
-                  {contratos.length === 1 ? "" : "s"}
-                </span>
-              </CardTitle>
-              <CardDescription>
-                Contratos ligados à empresa favorecida desta ordem
-              </CardDescription>
+      {contratoVinculado && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Contrato vinculado</CardTitle>
+                <CardDescription>
+                  Contrato que originou esta ordem de pagamento
+                </CardDescription>
+              </div>
+              <FileSignature className="text-muted-foreground size-4" />
             </div>
-            <FileSignature className="text-muted-foreground size-4" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {contratos.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nenhum contrato registrado para este fornecedor
-              {detalhe.fornecedorNome ? ` (${detalhe.fornecedorNome})` : ""}.
-            </p>
-          ) : (
-            <ul className="grid gap-2">
-              {contratos.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {c.codigo ? `${c.codigo} — ` : ""}
-                      {c.objeto ?? "(sem objeto)"}
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Campo rotulo="Objeto">
+                  {contratoVinculado.codigo ? (
+                    <span className="text-muted-foreground">
+                      {contratoVinculado.codigo} —{" "}
                     </span>
-                    <span className="text-muted-foreground block text-xs">
-                      Vigência {formatarData(c.vigencia_inicio)} a{" "}
-                      {formatarData(c.vigencia_termino)}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    {c.ativo === true ? (
-                      <Badge
-                        variant="outline"
-                        className="border-success/40 text-success-fg"
-                      >
-                        Ativo
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Inativo
-                      </Badge>
-                    )}
-                    <LinkArquivo url={c.arquivo_contrato} />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                  ) : null}
+                  {contratoVinculado.objeto ?? "(sem objeto)"}
+                </Campo>
+              </div>
+              <Campo rotulo="Vigência">
+                {formatarData(contratoVinculado.vigencia_inicio)} a{" "}
+                {formatarData(contratoVinculado.vigencia_termino)}
+              </Campo>
+              <Campo rotulo="Situação">
+                {contratoVinculado.ativo === true ? (
+                  <Badge
+                    variant="outline"
+                    className="border-success/40 text-success-fg"
+                  >
+                    Ativo
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Inativo
+                  </Badge>
+                )}
+              </Campo>
+              <Campo rotulo="Documento do contrato">
+                <LinkArquivo url={contratoVinculado.arquivo_contrato} />
+              </Campo>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </>
   )

@@ -404,8 +404,10 @@ export type DetalheOrdem = {
   autorizador: string | null
   centroCustoDespesa: CentroCusto | null
   centroCustoReceita: CentroCusto | null
-  /** Contratos do fornecedor/beneficiário da ordem (vínculo pela empresa). */
-  contratos: ContratoResumo[]
+  /** Contrato vinculado à ordem (quando a ordem referencia um contrato). */
+  contratoVinculado: ContratoResumo | null
+  /** Observação da solicitação de compra vinculada (quando houver). */
+  compraObservacao: string | null
 }
 
 export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
@@ -433,7 +435,9 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     ordem.centro_custo_receita_id,
   ].filter((v): v is string => Boolean(v))
 
-  const [empresas, usuarios, centros, contratosRes] = await Promise.all([
+  const empId = await tenantAtual()
+  const [empresas, usuarios, centros, contratoRes, compraRes] =
+    await Promise.all([
     fornecedorIds.length
       ? admin
           .from("empresa")
@@ -454,18 +458,25 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
           )
           .in("id", [...new Set(centroIds)])
       : Promise.resolve({ data: [] }),
-    fornecedorIds.length
+    ordem.contrato_id
       ? admin
           .from("contratos")
           .select(
             "id, codigo, objeto, vigencia_inicio, vigencia_termino, ativo, arquivo_contrato"
           )
-          .in("fornecedor_id", [...new Set(fornecedorIds)])
-          .eq("emp_proprietaria_id", await tenantAtual())
+          .eq("id", ordem.contrato_id)
+          .eq("emp_proprietaria_id", empId)
           .not("deletado", "is", true)
-          .order("vigencia_termino", { ascending: false, nullsFirst: false })
-          .limit(10)
-      : Promise.resolve({ data: [] }),
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    ordem.processo_compra_id
+      ? admin
+          .from("compras_solicitacoes")
+          .select("solicitacao_observacao")
+          .eq("id", ordem.processo_compra_id)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   const nomesEmpresas = new Map<string, string>()
@@ -485,6 +496,12 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
   const centroPorId = new Map(
     ((centros.data ?? []) as CentroCusto[]).map((c) => [c.id, c])
   )
+
+  const compraObs = (
+    compraRes.data as { solicitacao_observacao?: string | null } | null
+  )?.solicitacao_observacao
+  const compraObservacao =
+    typeof compraObs === "string" && compraObs.trim() ? compraObs : null
 
   return {
     ordem: ordem as DetalheOrdem["ordem"],
@@ -515,7 +532,8 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     centroCustoReceita: ordem.centro_custo_receita_id
       ? (centroPorId.get(ordem.centro_custo_receita_id) ?? null)
       : null,
-    contratos: (contratosRes.data ?? []) as ContratoResumo[],
+    contratoVinculado: (contratoRes.data ?? null) as ContratoResumo | null,
+    compraObservacao,
   }
 }
 
