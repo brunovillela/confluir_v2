@@ -1,6 +1,7 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
+import { texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export const ORDENS_POR_PAGINA = 50
@@ -52,6 +53,14 @@ export type FiltrosOrdens = {
   situacao?: "todas" | "abertas" | "pagas" | "canceladas"
   /** Filtro pela coluna `tipo` (ex.: "Custeio", "Compras"); "todos" não filtra. */
   tipo?: string
+  /** id do fornecedor beneficiário (beneficiario_fornecedor_id). */
+  beneficiario?: string
+  /** id do centro de custo (centro_custo_despesa_id). */
+  centroCusto?: string
+  /** id do departamento (departamento_id). */
+  departamento?: string
+  /** forma_pagamento exata. */
+  formaPagamento?: string
   pagina?: number
   porPagina?: number
   ordem?: "vencimento" | "pagamento" | "valor"
@@ -88,7 +97,15 @@ function escaparLike(termo: string): string {
 
 function aplicarFiltrosOrdens<T>(
   builder: T,
-  { busca = "", situacao = "todas", tipo = "todos" }: FiltrosOrdens,
+  {
+    busca = "",
+    situacao = "todas",
+    tipo = "todos",
+    beneficiario = "",
+    centroCusto = "",
+    departamento = "",
+    formaPagamento = "",
+  }: FiltrosOrdens,
   empId: string
 ): T {
   let q = (builder as unknown as BuilderFiltros)
@@ -99,6 +116,10 @@ function aplicarFiltrosOrdens<T>(
   if (situacao === "pagas") q = q.eq("situacao", "Paga")
   if (situacao === "canceladas") q = q.eq("situacao", "Cancelada")
   if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
+  if (beneficiario) q = q.eq("beneficiario_fornecedor_id", beneficiario)
+  if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)
+  if (departamento) q = q.eq("departamento_id", departamento)
+  if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
 
   const termo = busca.trim()
   if (termo) {
@@ -203,6 +224,75 @@ export async function listarOrdens(
     pagina,
     totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
   }
+}
+
+export type OpcoesFiltrosOrdens = {
+  fornecedores: { id: string; nome: string; cnpj_cpf: string | null }[]
+  centrosCusto: { id: string; nome: string }[]
+  departamentos: { id: string; nome: string }[]
+  formasPagamento: string[]
+}
+
+/** Opções dos selects do painel de filtros da lista de ordens. */
+export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [forn, centros, deptos, formas] = await Promise.all([
+    admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao, cnpj_cpf")
+      .eq("emp_proprietaria_id", emp)
+      .not("inativa", "is", true)
+      .order("nome_fantasia", { ascending: true, nullsFirst: false })
+      .limit(3000),
+    admin
+      .from("centros_de_custo")
+      .select("id, nome_da_conta, classificador")
+      .order("classificador", { ascending: true, nullsFirst: false })
+      .order("nome_da_conta", { ascending: true })
+      .limit(1000),
+    admin
+      .from("empresa_departamentos")
+      .select("id, departamento")
+      .eq("emp_proprietaria_id", emp)
+      .order("departamento", { ascending: true })
+      .limit(200),
+    admin
+      .from("ordens_pagamento")
+      .select("forma_pagamento")
+      .eq("emp_proprietaria_id", emp)
+      .not("excluido", "is", true)
+      .not("forma_pagamento", "is", null)
+      .limit(10000),
+  ])
+
+  const fornecedores = (forn.data ?? [])
+    .map((f) => ({
+      id: f.id as string,
+      nome: texto(f.nome_fantasia) ?? texto(f.nome_razao) ?? "",
+      cnpj_cpf: texto(f.cnpj_cpf),
+    }))
+    .filter((f) => f.nome)
+  const centrosCusto = (centros.data ?? []).map((c) => ({
+    id: c.id as string,
+    nome:
+      [texto(c.classificador), texto(c.nome_da_conta)]
+        .filter(Boolean)
+        .join(" — ") || "Centro de custo",
+  }))
+  const departamentos = (deptos.data ?? []).map((d) => ({
+    id: d.id as string,
+    nome: texto(d.departamento) ?? "Departamento",
+  }))
+  const formasPagamento = [
+    ...new Set(
+      (formas.data ?? [])
+        .map((o) => texto(o.forma_pagamento))
+        .filter((v): v is string => Boolean(v))
+    ),
+  ].sort((a, b) => a.localeCompare(b, "pt-BR"))
+
+  return { fornecedores, centrosCusto, departamentos, formasPagamento }
 }
 
 export type ResumoFinanceiro = {

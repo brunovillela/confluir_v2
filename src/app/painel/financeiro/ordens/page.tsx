@@ -1,8 +1,18 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowUp, ReceiptText, Search } from "lucide-react"
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ReceiptText,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react"
 
+import { EmpresaCombobox } from "@/components/empresa-combobox"
 import { Paginacao } from "@/components/paginacao"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,6 +26,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import {
   listarOrdens,
+  opcoesFiltrosOrdens,
   ORDENS_POR_PAGINA,
   type FiltrosOrdens,
 } from "@/lib/db/financeiro"
@@ -33,10 +44,33 @@ type ParamsBusca = {
   busca?: string
   situacao?: string
   tipo?: string
+  beneficiario?: string
+  centroCusto?: string
+  departamento?: string
+  formaPagamento?: string
   pagina?: string
   porPagina?: string
   ordem?: string
   dir?: string
+}
+
+/** Estilo dos <select> nativos do painel de filtros. */
+const CLS_SELECT =
+  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [color-scheme:light] dark:[color-scheme:dark]"
+
+function Campo({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
+      {children}
+    </div>
+  )
 }
 
 const TIPOS_ORDEM = [
@@ -59,6 +93,10 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
     tipo: (TIPOS_ORDEM as readonly string[]).includes(params.tipo ?? "")
       ? params.tipo!
       : "todos",
+    beneficiario: params.beneficiario ?? "",
+    centroCusto: params.centroCusto ?? "",
+    departamento: params.departamento ?? "",
+    formaPagamento: params.formaPagamento ?? "",
     pagina: Math.max(1, Number(params.pagina) || 1),
     porPagina: (OPCOES_POR_PAGINA as readonly number[]).includes(
       Number(params.porPagina)
@@ -81,6 +119,11 @@ function montarUrl(
   if (merged.busca) q.set("busca", String(merged.busca))
   if (merged.situacao !== "todas") q.set("situacao", String(merged.situacao))
   if (merged.tipo !== "todos") q.set("tipo", String(merged.tipo))
+  if (merged.beneficiario) q.set("beneficiario", String(merged.beneficiario))
+  if (merged.centroCusto) q.set("centroCusto", String(merged.centroCusto))
+  if (merged.departamento) q.set("departamento", String(merged.departamento))
+  if (merged.formaPagamento)
+    q.set("formaPagamento", String(merged.formaPagamento))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
   if (Number(merged.porPagina) !== ORDENS_POR_PAGINA)
     q.set("porPagina", String(merged.porPagina))
@@ -139,7 +182,51 @@ export default async function OrdensPage({
   await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
 
   const filtros = normalizarFiltros(await searchParams)
-  const lista = await listarOrdens(filtros)
+  const [lista, opcoes] = await Promise.all([
+    listarOrdens(filtros),
+    opcoesFiltrosOrdens(),
+  ])
+
+  const nomeFornecedor = (id: string) =>
+    opcoes.fornecedores.find((f) => f.id === id)?.nome ?? "beneficiário"
+  const nomeCentro = (id: string) =>
+    opcoes.centrosCusto.find((c) => c.id === id)?.nome ?? "centro de custo"
+  const nomeDepto = (id: string) =>
+    opcoes.departamentos.find((d) => d.id === id)?.nome ?? "departamento"
+  const rotuloSituacao = (s: string) =>
+    CHIPS_SITUACAO.find((c) => c.valor === s)?.rotulo ?? s
+
+  const chips = [
+    filtros.situacao !== "todas" && {
+      rotulo: `Situação: ${rotuloSituacao(filtros.situacao)}`,
+      href: montarUrl(filtros, { situacao: "todas", pagina: 1 }),
+    },
+    filtros.tipo !== "todos" && {
+      rotulo: `Tipo: ${filtros.tipo}`,
+      href: montarUrl(filtros, { tipo: "todos", pagina: 1 }),
+    },
+    filtros.beneficiario && {
+      rotulo: `Beneficiário: ${nomeFornecedor(filtros.beneficiario)}`,
+      href: montarUrl(filtros, { beneficiario: "", pagina: 1 }),
+    },
+    filtros.centroCusto && {
+      rotulo: `Centro de custo: ${nomeCentro(filtros.centroCusto)}`,
+      href: montarUrl(filtros, { centroCusto: "", pagina: 1 }),
+    },
+    filtros.departamento && {
+      rotulo: `Departamento: ${nomeDepto(filtros.departamento)}`,
+      href: montarUrl(filtros, { departamento: "", pagina: 1 }),
+    },
+    filtros.formaPagamento && {
+      rotulo: `Forma: ${filtros.formaPagamento}`,
+      href: montarUrl(filtros, { formaPagamento: "", pagina: 1 }),
+    },
+  ].filter(Boolean) as { rotulo: string; href: string }[]
+
+  const fornecedoresOpt = opcoes.fornecedores.map((f) => ({
+    ...f,
+    bloqueado: false,
+  }))
 
   return (
     <>
@@ -154,13 +241,29 @@ export default async function OrdensPage({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <form method="GET" className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex flex-col gap-3">
+        <form method="GET" className="flex min-w-0 items-center gap-2">
+          {/* Preserva os filtros ativos ao buscar. */}
           {filtros.situacao !== "todas" && (
             <input type="hidden" name="situacao" value={filtros.situacao} />
           )}
           {filtros.tipo !== "todos" && (
             <input type="hidden" name="tipo" value={filtros.tipo} />
+          )}
+          {filtros.beneficiario && (
+            <input type="hidden" name="beneficiario" value={filtros.beneficiario} />
+          )}
+          {filtros.centroCusto && (
+            <input type="hidden" name="centroCusto" value={filtros.centroCusto} />
+          )}
+          {filtros.departamento && (
+            <input type="hidden" name="departamento" value={filtros.departamento} />
+          )}
+          {filtros.formaPagamento && (
+            <input type="hidden" name="formaPagamento" value={filtros.formaPagamento} />
+          )}
+          {filtros.porPagina !== ORDENS_POR_PAGINA && (
+            <input type="hidden" name="porPagina" value={filtros.porPagina} />
           )}
           <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -177,41 +280,134 @@ export default async function OrdensPage({
           </Button>
         </form>
 
-        <div
-          className="flex flex-wrap items-center gap-1.5"
-          role="group"
-          aria-label="Filtrar por situação"
+        <details
+          open={chips.length > 0}
+          className="group border-input bg-card rounded-lg border"
         >
-          {CHIPS_SITUACAO.map((chip) => (
-            <Button
-              key={chip.valor}
-              variant={filtros.situacao === chip.valor ? "default" : "outline"}
-              size="sm"
-              asChild
-            >
-              <Link
-                href={montarUrl(filtros, { situacao: chip.valor, pagina: 1 })}
-              >
-                {chip.rotulo}
-              </Link>
-            </Button>
-          ))}
-        </div>
+          <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <SlidersHorizontal className="text-muted-foreground size-4" />
+              Filtros
+              {chips.length > 0 && (
+                <Badge variant="secondary">{chips.length}</Badge>
+              )}
+            </span>
+            <ChevronDown className="text-muted-foreground size-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <form method="GET" className="border-input grid gap-4 border-t p-4">
+            {filtros.busca && (
+              <input type="hidden" name="busca" value={filtros.busca} />
+            )}
+            {filtros.porPagina !== ORDENS_POR_PAGINA && (
+              <input type="hidden" name="porPagina" value={filtros.porPagina} />
+            )}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Campo label="Situação">
+                <select
+                  name="situacao"
+                  defaultValue={filtros.situacao}
+                  aria-label="Situação"
+                  className={CLS_SELECT}
+                >
+                  {CHIPS_SITUACAO.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Tipo">
+                <select
+                  name="tipo"
+                  defaultValue={filtros.tipo}
+                  aria-label="Tipo"
+                  className={CLS_SELECT}
+                >
+                  {TIPOS_ORDEM.map((t) => (
+                    <option key={t} value={t}>
+                      {t === "todos" ? "Todos os tipos" : t}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Forma de pagamento">
+                <select
+                  name="formaPagamento"
+                  defaultValue={filtros.formaPagamento}
+                  aria-label="Forma de pagamento"
+                  className={CLS_SELECT}
+                >
+                  <option value="">Todas</option>
+                  {opcoes.formasPagamento.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Departamento">
+                <select
+                  name="departamento"
+                  defaultValue={filtros.departamento}
+                  aria-label="Departamento"
+                  className={CLS_SELECT}
+                >
+                  <option value="">Todos</option>
+                  {opcoes.departamentos.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nome}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Centro de custo">
+                <select
+                  name="centroCusto"
+                  defaultValue={filtros.centroCusto}
+                  aria-label="Centro de custo"
+                  className={CLS_SELECT}
+                >
+                  <option value="">Todos</option>
+                  {opcoes.centrosCusto.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Beneficiário">
+                <EmpresaCombobox
+                  empresas={fornecedoresOpt}
+                  name="beneficiario"
+                  defaultId={filtros.beneficiario || undefined}
+                />
+              </Campo>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit">Aplicar filtros</Button>
+              {chips.length > 0 && (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/painel/financeiro/ordens">Limpar filtros</Link>
+                </Button>
+              )}
+            </div>
+          </form>
+        </details>
 
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por tipo">
-          {TIPOS_ORDEM.map((t) => (
-            <Button
-              key={t}
-              variant={filtros.tipo === t ? "default" : "outline"}
-              size="sm"
-              asChild
-            >
-              <Link href={montarUrl(filtros, { tipo: t, pagina: 1 })}>
-                {t === "todos" ? "Todos os tipos" : t}
+        {chips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {chips.map((c) => (
+              <Link
+                key={c.rotulo}
+                href={c.href}
+                className="border-input bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors"
+              >
+                {c.rotulo}
+                <X className="size-3" />
               </Link>
-            </Button>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border">
