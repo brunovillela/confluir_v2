@@ -35,6 +35,7 @@ import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
+import { FiltroDeptoCentro } from "./filtro-depto-centro"
 
 export const metadata: Metadata = {
   title: "Ordens de pagamento — Confluir",
@@ -206,7 +207,7 @@ export default async function OrdensPage({
       href: montarUrl(filtros, { tipo: "todos", pagina: 1 }),
     },
     filtros.beneficiario && {
-      rotulo: `Beneficiário: ${nomeFornecedor(filtros.beneficiario)}`,
+      rotulo: `Favorecido: ${nomeFornecedor(filtros.beneficiario)}`,
       href: montarUrl(filtros, { beneficiario: "", pagina: 1 }),
     },
     filtros.centroCusto && {
@@ -345,37 +346,13 @@ export default async function OrdensPage({
                   ))}
                 </select>
               </Campo>
-              <Campo label="Departamento">
-                <select
-                  name="departamento"
-                  defaultValue={filtros.departamento}
-                  aria-label="Departamento"
-                  className={CLS_SELECT}
-                >
-                  <option value="">Todos</option>
-                  {opcoes.departamentos.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nome}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo label="Centro de custo">
-                <select
-                  name="centroCusto"
-                  defaultValue={filtros.centroCusto}
-                  aria-label="Centro de custo"
-                  className={CLS_SELECT}
-                >
-                  <option value="">Todos</option>
-                  {opcoes.centrosCusto.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo label="Beneficiário">
+              <FiltroDeptoCentro
+                departamentos={opcoes.departamentos}
+                centros={opcoes.centrosCusto}
+                defaultDepartamento={filtros.departamento}
+                defaultCentro={filtros.centroCusto}
+              />
+              <Campo label="Favorecido">
                 <EmpresaCombobox
                   empresas={fornecedoresOpt}
                   name="beneficiario"

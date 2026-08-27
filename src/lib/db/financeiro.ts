@@ -228,7 +228,7 @@ export async function listarOrdens(
 
 export type OpcoesFiltrosOrdens = {
   fornecedores: { id: string; nome: string; cnpj_cpf: string | null }[]
-  centrosCusto: { id: string; nome: string }[]
+  centrosCusto: { id: string; nome: string; departamentoId: string | null }[]
   departamentos: { id: string; nome: string }[]
   formasPagamento: string[]
 }
@@ -247,7 +247,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
       .limit(3000),
     admin
       .from("centros_de_custo")
-      .select("id, nome_da_conta, classificador")
+      .select("id, nome_da_conta, classificador, departamento_id")
       .order("classificador", { ascending: true, nullsFirst: false })
       .order("nome_da_conta", { ascending: true })
       .limit(1000),
@@ -279,6 +279,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
       [texto(c.classificador), texto(c.nome_da_conta)]
         .filter(Boolean)
         .join(" — ") || "Centro de custo",
+    departamentoId: texto(c.departamento_id),
   }))
   const departamentos = (deptos.data ?? []).map((d) => ({
     id: d.id as string,
