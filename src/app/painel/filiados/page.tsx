@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
+import { Donut } from "@/components/grafico-donut"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -69,11 +70,11 @@ function BarraHorizontal({
   )
 }
 
-/** Cores (tokens chart-*, theme-aware) por rótulo de sexo. */
+/** Cores de marca (variações laranja/navy, theme-aware) por rótulo de sexo. */
 const COR_SEXO: Record<string, string> = {
-  Masculino: "var(--chart-2)",
-  Feminino: "var(--chart-3)",
-  Outro: "var(--chart-4)",
+  Masculino: "var(--chart-marca-2)",
+  Feminino: "var(--chart-marca-3)",
+  Outro: "var(--chart-marca-4)",
 }
 
 const fmtNum = (n: number) => n.toLocaleString("pt-BR")
@@ -81,48 +82,6 @@ const fmtPct = (v: number, base: number) =>
   (base > 0 ? (v / base) * 100 : 0).toLocaleString("pt-BR", {
     maximumFractionDigits: 1,
   })
-
-/** Donut (pizza com furo) via conic-gradient; centro exibe o total. */
-function Donut({
-  fatias,
-  centroValor,
-  centroRotulo,
-}: {
-  fatias: { cor: string; valor: number }[]
-  centroValor: string
-  centroRotulo: string
-}) {
-  const soma = fatias.reduce((s, f) => s + f.valor, 0)
-  let acc = 0
-  const stops =
-    soma > 0
-      ? fatias
-          .filter((f) => f.valor > 0)
-          .map((f) => {
-            const ini = (acc / soma) * 100
-            acc += f.valor
-            const fim = (acc / soma) * 100
-            return `${f.cor} ${ini}% ${fim}%`
-          })
-          .join(", ")
-      : "var(--muted) 0% 100%"
-  return (
-    <div className="relative mx-auto size-32">
-      <div
-        className="size-full rounded-full"
-        style={{ background: `conic-gradient(${stops})` }}
-      />
-      <div className="bg-card absolute inset-[24%] flex flex-col items-center justify-center rounded-full text-center">
-        <span className="text-lg leading-none font-semibold tabular-nums">
-          {centroValor}
-        </span>
-        <span className="text-muted-foreground mt-0.5 text-[10px] leading-none">
-          {centroRotulo}
-        </span>
-      </div>
-    </div>
-  )
-}
 
 /** Uma linha da legenda; vira link quando há filtro na lista. */
 function LinhaLegenda({
@@ -187,7 +146,7 @@ function GraficoSexoComposto({
   }
 
   const pizza1 = [
-    { rotulo: "Com sexo", total: comSexo, cor: "var(--chart-1)", href: undefined },
+    { rotulo: "Com sexo", total: comSexo, cor: "var(--chart-marca-1)", href: undefined },
     {
       rotulo: "Sem sexo",
       total: semSexo,
@@ -197,7 +156,7 @@ function GraficoSexoComposto({
   ]
   const pizza2 = comItens.map((s) => ({
     ...s,
-    cor: COR_SEXO[s.rotulo] ?? "var(--chart-5)",
+    cor: COR_SEXO[s.rotulo] ?? "var(--chart-marca-4)",
     href: urlPorSexo(s.rotulo),
   }))
 

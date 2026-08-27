@@ -196,6 +196,12 @@
   --chart-4: var(--warning-600);
   --chart-5: var(--navy-600);
 
+  /* Variações da marca (laranja + navy) para gráficos monocromáticos. */
+  --chart-marca-1: var(--primary-600);
+  --chart-marca-2: var(--navy-600);
+  --chart-marca-3: var(--primary-400);
+  --chart-marca-4: var(--navy-400);
+
   /* sidebar: navy estrutural nos dois temas */
   --sidebar: var(--navy-900);
   --sidebar-foreground: #e9ebf1;
@@ -286,6 +292,12 @@
   --chart-3: var(--success-400);
   --chart-4: var(--warning-400);
   --chart-5: var(--navy-400);
+
+  /* Variações da marca — tons mais claros p/ contraste no tema escuro. */
+  --chart-marca-1: var(--primary-400);
+  --chart-marca-2: var(--navy-300);
+  --chart-marca-3: var(--primary-300);
+  --chart-marca-4: var(--navy-500);
 
   --sidebar: var(--navy-900);
   --sidebar-foreground: #e9ebf1;

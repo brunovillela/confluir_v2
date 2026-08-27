@@ -203,6 +203,8 @@ export type ResumoFinanceiro = {
   abertas: { quantidade: number; valor: number }
   pagasNoMes: { quantidade: number; valor: number }
   totalOrdens: number
+  /** Ordens em aberto quebradas por situação (na ordem de SITUACOES_ABERTAS). */
+  abertasPorSituacao: { situacao: string; quantidade: number; valor: number }[]
 }
 
 function somar(valores: (number | null)[]): number {
@@ -216,7 +218,7 @@ export async function resumoFinanceiro(): Promise<ResumoFinanceiro> {
   const [abertas, pagasNoMes, totalOrdens] = await Promise.all([
     admin
       .from("ordens_pagamento")
-      .select("valor_pago", { count: "exact" })
+      .select("valor_pago, valor_inicial_cobranca, situacao", { count: "exact" })
       .eq("emp_proprietaria_id", await tenantAtual())
       .not("excluido", "is", true)
       .in("situacao", SITUACOES_ABERTAS)
@@ -236,6 +238,20 @@ export async function resumoFinanceiro(): Promise<ResumoFinanceiro> {
       .not("excluido", "is", true),
   ])
 
+  const porSituacao = new Map<string, { quantidade: number; valor: number }>()
+  for (const o of abertas.data ?? []) {
+    const s = typeof o.situacao === "string" ? o.situacao : "—"
+    const atual = porSituacao.get(s) ?? { quantidade: 0, valor: 0 }
+    atual.quantidade += 1
+    const v = o.valor_pago ?? o.valor_inicial_cobranca
+    atual.valor += typeof v === "number" ? v : 0
+    porSituacao.set(s, atual)
+  }
+  const abertasPorSituacao = SITUACOES_ABERTAS.map((s) => ({
+    situacao: s,
+    ...(porSituacao.get(s) ?? { quantidade: 0, valor: 0 }),
+  })).filter((x) => x.quantidade > 0)
+
   return {
     abertas: {
       quantidade: abertas.count ?? 0,
@@ -246,6 +262,7 @@ export async function resumoFinanceiro(): Promise<ResumoFinanceiro> {
       valor: somar((pagasNoMes.data ?? []).map((o) => o.valor_pago ?? o.valor)),
     },
     totalOrdens: totalOrdens.count ?? 0,
+    abertasPorSituacao,
   }
 }
 
