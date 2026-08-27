@@ -11,6 +11,7 @@ import {
   TriangleAlert,
 } from "lucide-react"
 
+import { CartaoArea } from "@/components/cartao-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -75,6 +76,53 @@ export default async function VeiculosPage({
     })),
   ]
 
+  const areasVeiculos = [
+    {
+      titulo: "Agendamentos",
+      descricao: "Solicitações, retiradas e devoluções de veículos",
+      href: "/painel/veiculos/agendamentos",
+      icone: CalendarClock,
+      indicador:
+        (resumo.solicitacoesPendentes ?? 0) > 0
+          ? `${resumo.solicitacoesPendentes} pendente${resumo.solicitacoesPendentes === 1 ? "" : "s"}`
+          : undefined,
+    },
+    gestor && {
+      titulo: "Abastecimentos",
+      descricao: "Registros e importação de abastecimentos",
+      href: "/painel/veiculos/abastecimentos",
+      icone: Fuel,
+    },
+    {
+      titulo: "Infrações",
+      descricao: "Multas e cobrança dos infratores",
+      href: "/painel/veiculos/infracoes",
+      icone: FileWarning,
+      indicador:
+        (resumo.cobrancasPendentes ?? 0) > 0
+          ? `${resumo.cobrancasPendentes} a cobrar`
+          : undefined,
+    },
+    gestor && {
+      titulo: "Condutores",
+      descricao: "CNH e habilitação dos motoristas",
+      href: "/painel/veiculos/condutores",
+      icone: IdCard,
+    },
+    gestor && {
+      titulo: "Contratos de aluguel",
+      descricao: "Locações e mensalidades da frota",
+      href: "/painel/veiculos/contratos",
+      icone: ScrollText,
+    },
+  ].filter(Boolean) as {
+    titulo: string
+    descricao: string
+    href: string
+    icone: typeof CalendarClock
+    indicador?: string
+  }[]
+
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -102,49 +150,17 @@ export default async function VeiculosPage({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/painel/veiculos/agendamentos">
-            <CalendarClock />
-            Agendamentos
-            {(resumo.solicitacoesPendentes ?? 0) > 0 && (
-              <Badge variant="warning">{resumo.solicitacoesPendentes}</Badge>
-            )}
-          </Link>
-        </Button>
-        {gestor && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/painel/veiculos/abastecimentos">
-              <Fuel />
-              Abastecimentos
-            </Link>
-          </Button>
-        )}
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/painel/veiculos/infracoes">
-            <FileWarning />
-            Infrações
-            {(resumo.cobrancasPendentes ?? 0) > 0 && (
-              <Badge variant="warning">{resumo.cobrancasPendentes}</Badge>
-            )}
-          </Link>
-        </Button>
-        {gestor && (
-          <>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/veiculos/condutores">
-                <IdCard />
-                Condutores
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/painel/veiculos/contratos">
-                <ScrollText />
-                Contratos de aluguel
-              </Link>
-            </Button>
-          </>
-        )}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {areasVeiculos.map((a) => (
+          <CartaoArea
+            key={a.href}
+            titulo={a.titulo}
+            descricao={a.descricao}
+            href={a.href}
+            icone={a.icone}
+            indicador={a.indicador}
+          />
+        ))}
       </div>
 
       {!resumo.disponivel && (

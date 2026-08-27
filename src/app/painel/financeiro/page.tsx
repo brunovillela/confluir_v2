@@ -132,7 +132,7 @@ export default async function FinanceiroPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {atalhos.map((a) => (
           <CartaoArea
             key={a.href}
