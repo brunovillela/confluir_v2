@@ -69,66 +69,194 @@ function BarraHorizontal({
   )
 }
 
-/** Paleta categórica do tema (tokens chart-*, validados nos dois temas). */
+/** Cores (tokens chart-*, theme-aware) por rótulo de sexo. */
 const COR_SEXO: Record<string, string> = {
-  Masculino: "bg-chart-2",
-  Feminino: "bg-chart-3",
-  Outro: "bg-chart-4",
-  "Não informado": "bg-muted-foreground",
+  Masculino: "var(--chart-2)",
+  Feminino: "var(--chart-3)",
+  Outro: "var(--chart-4)",
 }
 
-/** Barra empilhada 100% com legenda — share por sexo dos filiados ativos. */
-function GraficoShareSexo({
+const fmtNum = (n: number) => n.toLocaleString("pt-BR")
+const fmtPct = (v: number, base: number) =>
+  (base > 0 ? (v / base) * 100 : 0).toLocaleString("pt-BR", {
+    maximumFractionDigits: 1,
+  })
+
+/** Donut (pizza com furo) via conic-gradient; centro exibe o total. */
+function Donut({
+  fatias,
+  centroValor,
+  centroRotulo,
+}: {
+  fatias: { cor: string; valor: number }[]
+  centroValor: string
+  centroRotulo: string
+}) {
+  const soma = fatias.reduce((s, f) => s + f.valor, 0)
+  let acc = 0
+  const stops =
+    soma > 0
+      ? fatias
+          .filter((f) => f.valor > 0)
+          .map((f) => {
+            const ini = (acc / soma) * 100
+            acc += f.valor
+            const fim = (acc / soma) * 100
+            return `${f.cor} ${ini}% ${fim}%`
+          })
+          .join(", ")
+      : "var(--muted) 0% 100%"
+  return (
+    <div className="relative mx-auto size-32">
+      <div
+        className="size-full rounded-full"
+        style={{ background: `conic-gradient(${stops})` }}
+      />
+      <div className="bg-card absolute inset-[24%] flex flex-col items-center justify-center rounded-full text-center">
+        <span className="text-lg leading-none font-semibold tabular-nums">
+          {centroValor}
+        </span>
+        <span className="text-muted-foreground mt-0.5 text-[10px] leading-none">
+          {centroRotulo}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Uma linha da legenda; vira link quando há filtro na lista. */
+function LinhaLegenda({
+  rotulo,
+  total,
+  pct,
+  cor,
+  href,
+}: {
+  rotulo: string
+  total: number
+  pct: string
+  cor: string
+  href?: string
+}) {
+  const conteudo = (
+    <>
+      <span
+        aria-hidden
+        className="size-2.5 shrink-0 rounded-[3px]"
+        style={{ background: cor }}
+      />
+      <span className="min-w-20">{rotulo}</span>
+      <span className="text-muted-foreground tabular-nums">
+        {fmtNum(total)}
+      </span>
+      <span className="text-muted-foreground ml-auto tabular-nums">{pct}%</span>
+    </>
+  )
+  return href ? (
+    <Link
+      href={href}
+      className="hover:bg-muted/60 -mx-2 flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors"
+    >
+      {conteudo}
+    </Link>
+  ) : (
+    <div className="flex items-center gap-2 px-2 py-1 text-sm">{conteudo}</div>
+  )
+}
+
+/**
+ * Pizza composta: a 1ª pizza divide com sexo × sem sexo; a 2ª deriva da fatia
+ * "com sexo", abrindo em masculino/feminino/outro.
+ */
+function GraficoSexoComposto({
   series,
 }: {
   series: { rotulo: string; total: number }[]
 }) {
-  const soma = series.reduce((s, x) => s + x.total, 0)
-  if (soma === 0) {
+  const semSexo = series.find((s) => s.rotulo === "Não informado")?.total ?? 0
+  const comItens = series.filter((s) => s.rotulo !== "Não informado")
+  const comSexo = comItens.reduce((a, s) => a + s.total, 0)
+  const total = comSexo + semSexo
+
+  if (total === 0) {
     return (
       <p className="text-muted-foreground py-4 text-center text-sm">
         Nenhum registro ativo encontrado.
       </p>
     )
   }
-  const share = (total: number) => (total / soma) * 100
+
+  const pizza1 = [
+    { rotulo: "Com sexo", total: comSexo, cor: "var(--chart-1)", href: undefined },
+    {
+      rotulo: "Sem sexo",
+      total: semSexo,
+      cor: "var(--muted-foreground)",
+      href: urlPorSexo("Não informado"),
+    },
+  ]
+  const pizza2 = comItens.map((s) => ({
+    ...s,
+    cor: COR_SEXO[s.rotulo] ?? "var(--chart-5)",
+    href: urlPorSexo(s.rotulo),
+  }))
+
   return (
-    <div className="grid gap-4">
-      <div className="flex h-5 gap-0.5">
-        {series.map((s) => (
-          <Link
-            key={s.rotulo}
-            href={urlPorSexo(s.rotulo)}
-            className={`${COR_SEXO[s.rotulo] ?? "bg-muted-foreground/50"} rounded-[4px] transition-opacity hover:opacity-80`}
-            style={{ width: `${share(s.total)}%` }}
-            title={`${s.rotulo}: ${s.total.toLocaleString("pt-BR")} (${share(s.total).toFixed(1)}%) — ver na lista`}
-            aria-label={`${s.rotulo}: ${share(s.total).toFixed(1)}% — abrir lista`}
-          />
-        ))}
-      </div>
-      <div className="grid gap-0.5">
-        {series.map((s) => (
-          <Link
-            key={s.rotulo}
-            href={urlPorSexo(s.rotulo)}
-            className="hover:bg-muted/60 -mx-2 flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors"
-          >
-            <span
-              aria-hidden
-              className={`${COR_SEXO[s.rotulo] ?? "bg-muted-foreground/50"} size-2.5 shrink-0 rounded-[3px]`}
+    <div className="grid gap-6 sm:grid-cols-2">
+      {/* Pizza 1: com × sem sexo */}
+      <div className="grid content-start gap-3">
+        <Donut
+          fatias={pizza1.map((p) => ({ cor: p.cor, valor: p.total }))}
+          centroValor={fmtNum(total)}
+          centroRotulo="ativos"
+        />
+        <div className="grid gap-0.5">
+          {pizza1.map((p) => (
+            <LinhaLegenda
+              key={p.rotulo}
+              rotulo={p.rotulo}
+              total={p.total}
+              pct={fmtPct(p.total, total)}
+              cor={p.cor}
+              href={p.href}
             />
-            <span className="min-w-28">{s.rotulo}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {s.total.toLocaleString("pt-BR")}
-            </span>
-            <span className="text-muted-foreground ml-auto tabular-nums">
-              {share(s.total).toLocaleString("pt-BR", {
-                maximumFractionDigits: 1,
-              })}
-              %
-            </span>
-          </Link>
-        ))}
+          ))}
+        </div>
+        <p className="text-muted-foreground text-center text-xs">
+          Preenchimento do campo sexo
+        </p>
+      </div>
+
+      {/* Pizza 2: divisão entre os que têm sexo informado */}
+      <div className="grid content-start gap-3">
+        {comSexo > 0 ? (
+          <>
+            <Donut
+              fatias={pizza2.map((p) => ({ cor: p.cor, valor: p.total }))}
+              centroValor={fmtNum(comSexo)}
+              centroRotulo="com sexo"
+            />
+            <div className="grid gap-0.5">
+              {pizza2.map((p) => (
+                <LinhaLegenda
+                  key={p.rotulo}
+                  rotulo={p.rotulo}
+                  total={p.total}
+                  pct={fmtPct(p.total, comSexo)}
+                  cor={p.cor}
+                  href={p.href}
+                />
+              ))}
+            </div>
+            <p className="text-muted-foreground text-center text-xs">
+              Entre os que têm sexo informado
+            </p>
+          </>
+        ) : (
+          <p className="text-muted-foreground flex h-full items-center justify-center py-8 text-center text-sm">
+            Nenhum filiado com sexo informado.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -392,7 +520,7 @@ export default async function FiliadosPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <GraficoShareSexo series={resumo.porSexo} />
+            <GraficoSexoComposto series={resumo.porSexo} />
           </CardContent>
         </Card>
 
