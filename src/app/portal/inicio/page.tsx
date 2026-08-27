@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { ultimasNoticias } from "@/lib/db/painel"
 import { formatarDataHora } from "@/lib/formato"
@@ -60,7 +60,7 @@ const SERVICOS = [
 ]
 
 export default async function PortalInicioPage() {
-  const { filiado } = await requireSessaoPortal()
+  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
   const [noticias, eventos] = await Promise.all([
@@ -69,7 +69,7 @@ export default async function PortalInicioPage() {
   ])
 
   return (
-    <PortalShell>
+    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Olá, {nome.split(" ")[0]}

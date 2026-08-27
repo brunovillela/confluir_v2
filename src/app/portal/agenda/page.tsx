@@ -3,7 +3,7 @@ import { CalendarDays } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
@@ -12,11 +12,11 @@ import { PortalShell } from "../portal-shell"
 export const metadata: Metadata = { title: "Agenda — Portal do Associado" }
 
 export default async function PortalAgendaPage() {
-  await requireSessaoPortal()
+  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const eventos = await eventosDoAplicativo(50)
 
   return (
-    <PortalShell>
+    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
         <p className="text-muted-foreground mt-1 text-xs">

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { cuponsDoFiliado, hoteisDisponiveis } from "@/lib/db/filiado-portal"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -27,7 +27,7 @@ export default async function PortalHospedagemPage({
 }: {
   searchParams: Promise<{ salvo?: string; pagina?: string; porPagina?: string }>
 }) {
-  const { filiado } = await requireSessaoPortal()
+  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const params = await searchParams
   const { salvo } = params
 
@@ -44,7 +44,7 @@ export default async function PortalHospedagemPage({
   const paginaAtual = paginar(cupons, paginacao)
 
   return (
-    <PortalShell>
+    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Hospedagem</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -61,10 +61,12 @@ export default async function PortalHospedagemPage({
         </Alert>
       )}
 
-      <SolicitarCupomForm
-        hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome }))}
-        hoje={hoje}
-      />
+      {!preview && (
+        <SolicitarCupomForm
+          hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome }))}
+          hoje={hoje}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -124,7 +126,7 @@ export default async function PortalHospedagemPage({
                       />
                     </TableCell>
                     <TableCell>
-                      {c.situacao === "aguardando" && (
+                      {!preview && c.situacao === "aguardando" && (
                         <CancelarMeuCupomBotao id={c.id} />
                       )}
                     </TableCell>

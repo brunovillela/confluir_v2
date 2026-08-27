@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { meusAtendimentos } from "@/lib/db/atendimentos"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { formatarData } from "@/lib/formato"
@@ -27,7 +27,7 @@ export default async function PortalSaudePage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const sessao = await requireSessaoPortal()
+  const sessao = await requireVisualizacaoPortal()
 
   // O CPF se repete em vários registros de filiação (~2,9× por pessoa), e o
   // assistido pode estar ligado a qualquer um deles.
@@ -39,7 +39,7 @@ export default async function PortalSaudePage({
   const { linhas: pagina, ...info } = paginar(linhas, pag)
 
   return (
-    <PortalShell>
+    <PortalShell preview={sessao.preview ? { filiadoNome: sessao.filiado.nome_completo, gestorNome: sessao.gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Saúde</h1>
         <p className="text-muted-foreground mt-1 text-xs">

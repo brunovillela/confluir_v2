@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
@@ -32,7 +32,7 @@ export default async function LgpdPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { filiado } = await requireSessaoPortal()
+  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
   const [cadastro, org] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
@@ -44,7 +44,7 @@ export default async function LgpdPage({
   const aceiteDesconto = cadastro?.tl_desconto_data ?? null
 
   return (
-    <PortalShell>
+    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           LGPD — dados pessoais
@@ -121,7 +121,7 @@ export default async function LgpdPage({
             hotel parceiro recebe seu nome para a reserva) ou por obrigação
             legal.
           </p>
-          {!aceiteLgpd && <AceiteLgpdForm />}
+          {!preview && !aceiteLgpd && <AceiteLgpdForm />}
         </CardContent>
       </Card>
 

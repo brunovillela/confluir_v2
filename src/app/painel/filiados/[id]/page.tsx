@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, MessageCircle, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, Eye, MessageCircle, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
+import { iniciarVisualizacaoFiliado } from "@/lib/actions/visualizacao"
 import { formatarCpf } from "@/lib/cpf"
 import {
   obterTermosAceitos,
@@ -164,14 +165,23 @@ export default async function FiliadoPage({
               Filiados
             </Link>
           </Button>
-          {podeEditar && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/painel/filiados/${f.id}/editar`}>
-                <Pencil />
-                Editar cadastro
-              </Link>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <form action={iniciarVisualizacaoFiliado}>
+              <input type="hidden" name="filiacaoId" value={f.id} />
+              <Button variant="outline" size="sm" type="submit">
+                <Eye />
+                Visualizar área
+              </Button>
+            </form>
+            {podeEditar && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/filiados/${f.id}/editar`}>
+                  <Pencil />
+                  Editar cadastro
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
         {salvo === "1" && (
           <Alert className="mb-4 border-success/40 text-success-fg">

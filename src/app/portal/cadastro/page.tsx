@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { CondicaoBadge } from "@/app/painel/filiados/condicao-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { requireSessaoPortal } from "@/lib/auth"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { formatarCpf } from "@/lib/cpf"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { formatarData } from "@/lib/formato"
@@ -27,12 +27,12 @@ export default async function CadastroPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { filiado } = await requireSessaoPortal()
+  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
   const cadastro = await cadastroDoFiliado(filiado.cpf)
 
   return (
-    <PortalShell>
+    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu cadastro</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -80,6 +80,7 @@ export default async function CadastroPage({
           </Card>
 
           <CadastroForm
+            somenteLeitura={preview}
             contato={{
               email_pessoal: cadastro.email_pessoal,
               email_corporativo: cadastro.email_corporativo,

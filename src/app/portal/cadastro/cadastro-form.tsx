@@ -36,11 +36,18 @@ function aplicarMascara(
   e.target.value = mascara(e.target.value)
 }
 
-export function CadastroForm({ contato }: { contato: ContatoFiliado }) {
+export function CadastroForm({
+  contato,
+  somenteLeitura,
+}: {
+  contato: ContatoFiliado
+  somenteLeitura?: boolean
+}) {
   const [estado, formAction, pendente] = useActionState(atualizarMeuCadastro, {})
 
   return (
     <form action={formAction} className="grid gap-4">
+      <fieldset disabled={somenteLeitura} className="contents">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -174,12 +181,15 @@ export function CadastroForm({ contato }: { contato: ContatoFiliado }) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={pendente}>
-          {pendente && <Loader2 className="animate-spin" />}
-          Salvar alterações
-        </Button>
-      </div>
+      </fieldset>
+      {!somenteLeitura && (
+        <div className="flex justify-end">
+          <Button type="submit" disabled={pendente}>
+            {pendente && <Loader2 className="animate-spin" />}
+            Salvar alterações
+          </Button>
+        </div>
+      )}
     </form>
   )
 }
