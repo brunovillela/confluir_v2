@@ -36,10 +36,17 @@ export type CadastroFiliado = {
   /** Aceites (LGPD e desconto em folha) — datas registradas. */
   tl_lgpd_data: string | null
   tl_desconto_data: string | null
+  /** Datas dos marcos do processo (para a trilha de etapas no portal). */
+  created_at: string | null
+  ficha_assinada_em: string | null
+  filiacao_informada_fonte_em: string | null
+  ativo_em: string | null
+  desfiliacao_informada_fonte_em: string | null
+  inativo_em: string | null
 }
 
 const CAMPOS_CADASTRO =
-  "id, nome_completo, cpf, matricula_sindical, filiacao_condicao, sexo, nascimento_data, email_pessoal, email_corporativo, telefone_1, telefone_1_whatsapp, telefone_2, telefone_2_whatsapp, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, tl_lgpd_data, tl_desconto_data"
+  "id, nome_completo, cpf, matricula_sindical, filiacao_condicao, sexo, nascimento_data, email_pessoal, email_corporativo, telefone_1, telefone_1_whatsapp, telefone_2, telefone_2_whatsapp, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, tl_lgpd_data, tl_desconto_data, created_at, ficha_assinada_em, filiacao_informada_fonte_em, ativo_em, desfiliacao_informada_fonte_em, inativo_em"
 
 /** Registro mais recente (não excluído) do CPF — base das telas do portal. */
 export async function cadastroDoFiliado(

@@ -1,11 +1,19 @@
 import type { Metadata } from "next"
 
 import { CondicaoBadge } from "@/app/painel/filiados/condicao-badge"
+import { TrilhaEtapas } from "@/components/trilha-etapas"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { formatarCpf } from "@/lib/cpf"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
+import { marcosDaTrilha } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
 
 import { PortalShell } from "../portal-shell"
@@ -30,6 +38,18 @@ export default async function CadastroPage({
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
   const cadastro = await cadastroDoFiliado(filiado.cpf)
+
+  // Trilha de etapas (só quando há filiação/desfiliação em andamento).
+  const trilha = cadastro
+    ? marcosDaTrilha(cadastro.filiacao_condicao, {
+        created_at: cadastro.created_at,
+        ficha_assinada_em: cadastro.ficha_assinada_em,
+        filiacao_informada_fonte_em: cadastro.filiacao_informada_fonte_em,
+        ativo_em: cadastro.ativo_em,
+        desfiliacao_informada_fonte_em: cadastro.desfiliacao_informada_fonte_em,
+        inativo_em: cadastro.inativo_em,
+      })
+    : null
 
   return (
     <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
@@ -78,6 +98,24 @@ export default async function CadastroPage({
               </dl>
             </CardContent>
           </Card>
+
+          {trilha && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {trilha.processo === "filiacao"
+                    ? "Andamento da sua filiação"
+                    : "Andamento da sua desfiliação"}
+                </CardTitle>
+                <CardDescription>
+                  Acompanhe em que etapa está o seu processo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-1">
+                <TrilhaEtapas marcos={trilha.marcos} />
+              </CardContent>
+            </Card>
+          )}
 
           <CadastroForm
             somenteLeitura={preview}
