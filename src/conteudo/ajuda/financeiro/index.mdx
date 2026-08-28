@@ -1,35 +1,52 @@
-O módulo **Financeiro** cuida do dinheiro da entidade: as ordens de pagamento
-(as despesas), o caixa, os centros de custo que classificam cada lançamento, e
-as receitas — contribuições, tributos e apoios.
+O módulo **Financeiro** cuida do dinheiro da entidade: as **ordens de
+pagamento** (as despesas), o **caixa**, os **centros de custo** que classificam
+cada lançamento, e as receitas — contribuições, tributos e apoios.
 
-<RequerPermissao>Ordens de pagamento</RequerPermissao>
+<RequerPermissao>Ordens de pagamento</RequerPermissao> ou <RequerPermissao>Financeiro — somente leitura</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Ordens de pagamento">
-    Toda saída de dinheiro passa por uma ordem, que nasce “Em autorização” e
-    percorre a alçada até ser paga.
-  </Passo>
-  <Passo titulo="Caixa">
-    O saldo e a movimentação — entradas e saídas — de cada caixa da entidade.
+    Toda saída de dinheiro passa por uma ordem, que nasce **Em autorização** e
+    percorre a alçada até ser paga. Ver
+    [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
   </Passo>
   <Passo titulo="Centros de custo">
-    A classificação contábil que responde “em que essa despesa/receita foi
-    gasta ou recebida”.
+    A classificação contábil que responde "em que essa despesa/receita foi gasta
+    ou recebida".
   </Passo>
-  <Passo titulo="Receitas">
-    Receitas sindicais, tributos e apoios financeiros recebidos.
+  <Passo titulo="Contas de caixa">
+    O saldo e a movimentação — entradas e saídas — de cada caixa da entidade.
+    <RequerPermissao>Caixa</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="financeiro/painel.png" alt="Painel do módulo Financeiro com os cartões de ordens de pagamento, caixa, centros de custo e receitas." legenda="As áreas do Financeiro." />
+<Print src="financeiro/painel.png" alt="Painel do módulo Financeiro com os indicadores no topo (ordens em aberto, pagas no mês, saldo em caixa), o gráfico de ordens em aberto por situação e os cartões das áreas." legenda="O painel do Financeiro: indicadores, o gráfico por situação e as áreas." />
+
+## O painel de entrada
+
+Ao abrir o Financeiro, o topo traz três indicadores — **ordens em aberto** (o
+valor **pendente**, somando o que ainda será pago), **pagas neste mês** e
+**saldo em contas de caixa** — e um **gráfico de rosca** que mostra onde estão
+as ordens em aberto por situação (A pagar, Processando, Em autorização,
+Aguardando informações). É a leitura rápida de "quanto ainda há para pagar e em
+que estágio".
 
 <Aviso tipo="nota" titulo="De onde vêm as ordens">
-  Muitas ordens não são criadas à mão aqui: elas nascem em outros módulos —
-  Compras, Contratos, Ajudas institucionais, Veículos, Jurídico — e chegam ao
-  Financeiro para autorização e pagamento.
+  A maioria das ordens **não é digitada aqui**: elas nascem em outros módulos —
+  Compras, Contratos, Ajudas institucionais, Veículos, Jurídico, Custeio — e
+  chegam ao Financeiro **Em autorização**, para aprovação por alçada e pagamento.
 </Aviso>
+
+## Erros comuns
+
+- **"O valor de 'ordens em aberto' não bate com a soma das ordens."** O
+  indicador soma o valor **pendente** (o que ainda será pago), não o total
+  histórico. Use os filtros da lista para conferir por situação.
+- **"Não vejo o caixa."** Consultar caixa exige a permissão **Caixa**; abrir e
+  ajustar exige **Caixa — administração**. São separadas de "Ordens de
+  pagamento".
 
 <VejaTambem
   links={[
@@ -39,14 +56,14 @@ as receitas — contribuições, tributos e apoios.
       descricao: "O ciclo da despesa, da autorização ao pagamento",
     },
     {
-      titulo: "Caixa",
-      href: "/painel/ajuda/financeiro/caixa",
-      descricao: "Saldo e movimentação",
-    },
-    {
       titulo: "Centros de custo",
       href: "/painel/ajuda/financeiro/centros-custo",
       descricao: "A classificação de cada lançamento",
+    },
+    {
+      titulo: "Contas de caixa",
+      href: "/painel/ajuda/financeiro/caixa",
+      descricao: "Saldo e movimentação",
     },
   ]}
 />

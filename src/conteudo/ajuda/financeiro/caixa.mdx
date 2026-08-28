@@ -1,34 +1,52 @@
-O **caixa** é onde o dinheiro entra e sai. A entidade pode ter mais de um
-caixa, e cada um mostra o saldo e a movimentação.
+O **caixa** é onde o dinheiro entra e sai. A entidade pode ter mais de um caixa
+(por sede, por finalidade), e cada um mostra o **saldo** e a **movimentação**.
 
 <RequerPermissao>Caixa</RequerPermissao>
 
 ## Saldo e movimentação
 
-Cada caixa lista as entradas e saídas em ordem, com o saldo resultante. As
-saídas vêm das ordens de pagamento pagas; as entradas, das receitas lançadas.
+Cada conta de caixa lista as entradas e saídas em ordem, com o **saldo
+resultante** a cada lançamento. As **saídas** vêm das ordens de pagamento pagas;
+as **entradas**, das receitas e aportes lançados. O saldo de todas as contas
+abertas aparece somado no painel do Financeiro.
+
+<Print src="financeiro/caixa-detalhe.png" alt="Tela de uma conta de caixa com o saldo no topo e a lista de entradas e saídas com o saldo acumulado." legenda="Saldo e movimentação de uma conta de caixa." />
 
 ## Administração do caixa
 
 <RequerPermissao>Caixa — administração</RequerPermissao>
 
-Abrir, fechar e ajustar caixas exige a permissão de administração, separada da
-permissão de apenas consultar o saldo.
+Abrir uma conta, fechá-la, lançar aportes e prestar contas exige a permissão de
+**administração** — separada da permissão de apenas **consultar** o saldo. Uma
+conta **fechada** fica travada para novos lançamentos.
 
-<Aviso tipo="nota" titulo="Caixa é da instituição">
-  O caixa registra o dinheiro da entidade — não é o “bolso” de um funcionário.
-  Quem opera compras com um caixa vê um acesso rápido a ele destacado na barra
-  lateral.
+<Aviso tipo="nota" titulo="Caixa é da instituição, não um bolso pessoal">
+  O caixa registra o dinheiro da entidade. Quem opera compras com um caixa vê um
+  atalho **Meu caixa** destacado na barra lateral, para chegar rápido ao caixa
+  que administra.
 </Aviso>
 
-<Print src="financeiro/caixa-detalhe.png" alt="Tela de um caixa com o saldo no topo e a lista de entradas e saídas." legenda="Saldo e movimentação de um caixa." />
+## Erros comuns
+
+- **"Não consigo lançar nada no caixa."** A conta pode estar **fechada**, ou
+  você tem só a permissão de **consulta** (Caixa), não a de **administração**.
+- **"O saldo não fecha com o extrato do banco."** O caixa reflete o que foi
+  **lançado** no sistema; confira se todas as saídas (ordens pagas) e entradas
+  foram registradas no período.
+- **"Não vejo a área de caixa."** Ela exige a permissão **Caixa**; peça a quem
+  administra os acessos em Institucional → Usuários e permissões.
 
 <VejaTambem
   links={[
     {
       titulo: "Ordens de pagamento",
       href: "/painel/ajuda/financeiro/ordens",
-      descricao: "A origem das saídas",
+      descricao: "A origem das saídas do caixa",
+    },
+    {
+      titulo: "Visão geral do Financeiro",
+      href: "/painel/ajuda/financeiro",
+      descricao: "O saldo somado no painel",
     },
   ]}
 />

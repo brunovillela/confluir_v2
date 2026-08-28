@@ -1,6 +1,8 @@
-A **ordem de pagamento** é o registro de uma despesa. Ela nasce “Em
-autorização” e só vira dinheiro que sai depois de passar pela alçada de quem
-pode aprovar.
+A **ordem de pagamento** é o registro de uma despesa (e, às vezes, de uma
+receita). Ela nasce **Em autorização** e só vira dinheiro que sai depois de
+passar pela alçada de quem pode aprovar.
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao> ou <RequerPermissao>Financeiro — somente leitura</RequerPermissao>
 
 ## O ciclo da ordem
 
@@ -10,39 +12,104 @@ pode aprovar.
     vencimento, departamento e centro de custo.
   </Passo>
   <Passo titulo="Avaliação por alçada">
-    Quem tem alçada aprova (ou recusa). O valor da ordem define quem pode
-    autorizar.
+    Quem tem alçada **aprova** (ou recusa). O **valor** da ordem define quem pode
+    autorizar. Nada é pago sem esse passo.
   </Passo>
   <Passo titulo="Paga">
-    Autorizada e paga, a ordem baixa e passa a compor a movimentação do caixa.
+    Registrado o pagamento, a ordem baixa e passa a compor a movimentação do
+    caixa.
   </Passo>
 </PassoAPasso>
 
 <Aviso tipo="atencao" titulo="Nunca se gera ordem já autorizada">
-  Ordens vindas de outros módulos (Compras, Contratos, Ajudas, Reembolsos…)
-  sempre chegam “Em autorização” — a autorização é sempre um passo humano, pela
-  alçada, aqui no Financeiro.
+  Ordens vindas de outros módulos (Compras, Contratos, Ajudas, Reembolsos,
+  Veículos…) sempre chegam **Em autorização** — a autorização é sempre um passo
+  humano, pela alçada.
 </Aviso>
 
-## Favorecido
+## A lista e os filtros
 
-O favorecido é sempre um cadastro (fornecedor, entidade apoiada, funcionário),
-o que garante que os dados bancários venham do cadastro e não sejam digitados
-solto a cada ordem.
+A lista traz **ordenação por coluna** (clique em Vencimento, Pagamento ou Valor)
+e **quantidade por página**. Os filtros ficam num painel **expansível** —
+clique em **Filtros** para abrir:
 
-<Print src="financeiro/ordem-detalhe.png" alt="Detalhe de uma ordem de pagamento, com favorecido, valor, vencimento e a situação atual." legenda="Uma ordem de pagamento e sua situação no ciclo." />
+- **Situação** — todas, em aberto, pagas ou canceladas.
+- **Tipo** — Compras, Contrato, Diária, Reembolso, Custeio…
+- **Favorecido** — busca pelo nome do fornecedor/beneficiário.
+- **Departamento** e **Centro de custo** — encadeados: ao escolher o
+  departamento, a lista de centros mostra só os dele.
+- **Projeto** e **Forma de pagamento**.
+
+Os filtros ativos viram "etiquetas" acima da lista; clique no **x** de cada uma
+para removê-la.
+
+<Aviso tipo="dica" titulo="'Favorecido', não 'beneficiário'">
+  O nome do campo é **Favorecido** em todo o sistema — é quem recebe o pagamento
+  (uma empresa, um filiado ou um favorecido avulso).
+</Aviso>
+
+## O detalhe da ordem
+
+Ao abrir uma ordem, os dados vêm em cartões:
+
+- **Detalhes da despesa** — descrição, favorecido, tipo, valor cobrado,
+  reembolso, e os documentos: **nota fiscal**, orçamento e **boleto**. Quando a
+  ordem vem de uma compra, aparece também a **observação da compra**.
+- **Detalhes do pagamento** — valor pago, vencimento, data do pagamento, forma,
+  código PIX, pagador, comprovante e a **autorização** (autorizada por quem e
+  quando).
+- **Centro de custo** — o da despesa e o da receita.
+- **Contrato vinculado** — quando a ordem vem de um contrato **ou de uma locação
+  de veículo**: objeto/finalidade, vigência, situação e o documento.
+- **Projeto vinculado** — quando a ordem pertence a um projeto.
+
+<Print src="financeiro/ordem-detalhe.png" alt="Detalhe de uma ordem de pagamento com os cartões Detalhes da despesa, Detalhes do pagamento e Centro de custo, e o botão Extrato (PDF) no topo." legenda="Uma ordem e sua situação no ciclo, com os cartões de despesa e pagamento." />
+
+## Registrar o pagamento
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+No cartão **Detalhes do pagamento**, o botão **Registrar pagamento** abre o
+formulário: valor pago, data, centro de custo da receita e o comprovante. Ao
+salvar, a ordem passa a **Paga**.
+
+## Extrato em PDF
+
+O botão **Extrato (PDF)**, no topo da ordem, gera um documento imprimível com a
+**logomarca do sindicato** no cabeçalho e todos os dados da ordem. As palavras
+**Nota fiscal**, **Boleto** e **Comprovante** viram **links clicáveis** dentro
+do PDF, quando o arquivo existe.
+
+## Erros comuns
+
+- **"A ordem está Em autorização e não paga."** Falta a **aprovação por alçada**
+  — quem tem alçada para o valor precisa autorizar (em Compras → Avaliações, para
+  ordens de compra).
+- **"Escolhi um departamento e sumiram os centros."** É o filtro encadeado: a
+  lista de centros passa a mostrar só os **daquele departamento**. Troque o
+  departamento ou limpe o filtro.
+- **"O extrato abriu sem o link da nota."** O link só aparece quando **há
+  arquivo** anexado (nota, boleto ou comprovante). Sem arquivo, o campo mostra
+  que não foi anexado.
+- **"O filtro por projeto não traz nada."** Só aparecem ordens **vinculadas a um
+  projeto**; muitas ordens não têm projeto.
 
 <VejaTambem
   links={[
     {
-      titulo: "Caixa",
+      titulo: "Centros de custo",
+      href: "/painel/ajuda/financeiro/centros-custo",
+      descricao: "A classificação da despesa e da receita",
+    },
+    {
+      titulo: "Contas de caixa",
       href: "/painel/ajuda/financeiro/caixa",
       descricao: "Para onde a ordem paga vai",
     },
     {
-      titulo: "Centros de custo",
-      href: "/painel/ajuda/financeiro/centros-custo",
-      descricao: "A classificação da despesa",
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "A origem das ordens de compra e a alçada",
     },
   ]}
 />

@@ -1,6 +1,7 @@
 O **centro de custo** responde a uma pergunta simples de toda despesa e
-receita: “em quê?”. É a classificação que permite, depois, saber quanto foi
-gasto ou recebido em cada frente.
+receita: **"em quê?"**. É a classificação que permite, depois, saber quanto foi
+gasto ou recebido em cada frente — a base da prestação de contas ao Conselho
+Fiscal.
 
 <RequerPermissao>Centros de custo</RequerPermissao>
 
@@ -8,21 +9,42 @@ gasto ou recebido em cada frente.
 
 <PassoAPasso>
   <Passo titulo="Classificar">
-    Cada ordem de pagamento e cada receita aponta para um centro de custo.
+    Cada ordem de pagamento e cada receita aponta para um centro de custo. No
+    formulário de compra, por exemplo, ele é **obrigatório**.
   </Passo>
   <Passo titulo="Consolidar">
-    Com a classificação em dia, os relatórios somam por centro de custo — a base
-    da prestação de contas ao Conselho Fiscal.
+    Com a classificação em dia, os relatórios somam por centro de custo — quanto
+    foi gasto em cada área ao longo do período.
   </Passo>
 </PassoAPasso>
 
-## Cadastro
+## O cadastro de um centro
 
-Aqui você cria, renomeia e organiza os centros de custo da entidade. Módulos
-como Contratos e Veículos herdam o centro de custo do cadastro de origem ao
-gerar suas ordens, mantendo a classificação consistente.
+Cada centro tem um **código** (o "acesso"), um **classificador**, um **nome** e
+um **tipo de conta**, e pode estar ligado a um **departamento** (é isso que
+permite filtrar os centros pelo departamento nas telas de compra e de ordens).
+Um centro pode ser marcado como **não usável** para sair das listas de escolha
+sem apagar o histórico que já aponta para ele.
 
-<Print src="financeiro/centros-custo.png" alt="Lista de centros de custo cadastrados." legenda="Os centros de custo da entidade." />
+<Print src="financeiro/centros-custo.png" alt="Lista de centros de custo cadastrados, com código, classificador, nome e tipo." legenda="Os centros de custo da entidade." />
+
+<Aviso tipo="dica" titulo="Módulos herdam o centro de origem">
+  Contratos, Veículos e Projetos **herdam** o centro de custo do cadastro de
+  origem ao gerar suas ordens — e uma compra vinculada a projeto recebe o centro
+  **do projeto** automaticamente. Isso mantém a classificação consistente sem
+  redigitar.
+</Aviso>
+
+## Erros comuns
+
+- **"O centro que preciso não aparece na hora de lançar."** Ele pode estar
+  marcado como **não usável**, ou pertencer a **outro departamento** (nas telas
+  com filtro por departamento). Ajuste o cadastro ou o departamento escolhido.
+- **"Quero apagar um centro antigo."** Se ele já classifica lançamentos, prefira
+  marcá-lo como **não usável** — apagar quebraria o histórico e os relatórios.
+- **"Os relatórios não somam certo por área."** Verifique se as ordens estão com
+  o centro **correto**; a consolidação é tão boa quanto a classificação de cada
+  lançamento.
 
 <VejaTambem
   links={[
@@ -30,6 +52,11 @@ gerar suas ordens, mantendo a classificação consistente.
       titulo: "Ordens de pagamento",
       href: "/painel/ajuda/financeiro/ordens",
       descricao: "Onde o centro de custo é aplicado",
+    },
+    {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "O centro obrigatório e a herança do projeto",
     },
   ]}
 />
