@@ -127,7 +127,6 @@ export default async function FiliadoPage({
     filiacao: f,
     outrosRegistros,
     vinculos,
-    vinculosTrabalhistas,
     contribuicoes,
     reembolsos,
   } = perfil
@@ -320,80 +319,6 @@ export default async function FiliadoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
-            Vínculos empregatícios
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              {vinculosTrabalhistas.length} registro
-              {vinculosTrabalhistas.length === 1 ? "" : "s"}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {vinculosTrabalhistas.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              Nenhum vínculo empregatício registrado.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fonte pagadora</TableHead>
-                    <TableHead>Cargo</TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Lotação
-                    </TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      Matrícula
-                    </TableHead>
-                    <TableHead>Admissão</TableHead>
-                    <TableHead>Demissão</TableHead>
-                    <TableHead>Situação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {vinculosTrabalhistas.map((v) => (
-                    <TableRow key={v.id}>
-                      <TableCell className="max-w-52 truncate font-medium">
-                        {v.empregador ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-40 truncate">
-                        {v.cargo ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden max-w-40 truncate md:table-cell">
-                        {v.lotacao ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden lg:table-cell">
-                        {v.matricula ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {formatarData(v.contrato_admissao)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {formatarData(v.contrato_demissao)}
-                      </TableCell>
-                      <TableCell>
-                        {v.contrato_demissao ? (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Encerrado
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-success/40 text-success-fg">
-                            Ativo
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">
               Histórico de filiação
@@ -426,7 +351,13 @@ export default async function FiliadoPage({
                     <TableHead className="hidden md:table-cell">
                       Lotação
                     </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Matrícula
+                    </TableHead>
                     <TableHead>Admissão</TableHead>
+                    <TableHead className="hidden xl:table-cell">
+                      Demissão
+                    </TableHead>
                     <TableHead>Filiação</TableHead>
                     <TableHead>Desfiliação</TableHead>
                     <TableHead className="hidden lg:table-cell">
@@ -447,12 +378,18 @@ export default async function FiliadoPage({
                       <TableCell className="text-muted-foreground hidden max-w-40 truncate md:table-cell">
                         {v.lotacao ?? "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground hidden lg:table-cell">
+                        {v.matricula ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
                         {formatarData(
                           v.data_entrada_admissao ?? v.fonte_pg_admissao
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-muted-foreground hidden whitespace-nowrap xl:table-cell">
+                        {formatarData(v.data_saida_demissao)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {formatarData(v.data_filiacao ?? v.filiacao_data_adesao)}
                       </TableCell>
                       <TableCell>
