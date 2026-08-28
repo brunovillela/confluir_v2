@@ -1,6 +1,6 @@
 O **prontuário** é a linha do tempo de cada filiado no sindicato: atendimentos,
-homologações, hospedagens, atualizações cadastrais e o que mais a equipe
-registrar. É a memória do relacionamento com o associado.
+homologações, hospedagens, mudanças de etapa, atualizações cadastrais e o que
+mais a equipe registrar. É a memória do relacionamento com o associado.
 
 ## A lista geral
 
@@ -10,22 +10,43 @@ registrar. É a memória do relacionamento com o associado.
     **tipo**, o texto do apontamento e o **autor**.
   </Passo>
   <Passo titulo="Busca e filtro">
-    Filtre por texto (filiado, conteúdo ou autor) e pelo **tipo** do apontamento.
+    Filtre por texto (nome do filiado, conteúdo ou autor) e pelo **tipo** do
+    apontamento para achar rápido.
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/prontuarios.png" alt="Lista geral de prontuários com data, filiado, tipo, apontamento e autor." legenda="Prontuários: os apontamentos de todos os filiados num só lugar." />
+<Print src="filiados/prontuarios.png" alt="Lista geral de prontuários com as colunas data, filiado, tipo, apontamento e autor, e os filtros no topo." legenda="Prontuários: os apontamentos de todos os filiados num só lugar." />
 
 ## O prontuário de um filiado
 
 No perfil de cada filiado há o seu prontuário — a **linha do tempo** só dele.
-Quem tem gestão de filiados pode **adicionar**, editar ou excluir apontamentos
-(data, tipo e o texto).
+
+<PassoAPasso>
+  <Passo titulo="Adicionar um apontamento">
+    Informe a **data**, um **tipo** (opcional) e o **texto**. Serve para
+    registrar contatos, decisões, combinados — tudo que ajude a próxima pessoa a
+    entender o histórico. <RequerPermissao>Gestão da filiação</RequerPermissao>
+  </Passo>
+  <Passo titulo="Editar ou excluir">
+    Cada apontamento manual pode ser corrigido ou removido por quem tem gestão.
+  </Passo>
+</PassoAPasso>
 
 <Aviso tipo="nota" titulo="Alguns apontamentos são automáticos">
-  Além dos apontamentos manuais, o sistema registra fatos ligados ao filiado —
-  como uma homologação ou uma hospedagem — na própria linha do tempo.
+  Além dos manuais, o sistema registra fatos ligados ao filiado — uma
+  **homologação**, uma **hospedagem** ou o **avanço de uma etapa** de filiação —
+  direto na linha do tempo, com o autor da ação. Isso dá rastreabilidade sem
+  ninguém precisar digitar.
 </Aviso>
+
+## Erros comuns
+
+- **"Não consigo adicionar um apontamento."** A escrita exige **Gestão da
+  filiação**. Sem ela, o prontuário é só leitura.
+- **"A lista geral está enorme."** Use o **filtro por tipo** e a busca por autor
+  ou conteúdo — a lista reúne todos os filiados.
+- **"Registrei no filiado errado."** Exclua o apontamento no prontuário daquele
+  filiado e refaça no correto; a exclusão é permitida a quem tem gestão.
 
 <VejaTambem
   links={[
@@ -33,6 +54,11 @@ Quem tem gestão de filiados pode **adicionar**, editar ou excluir apontamentos
       titulo: "Perfil do filiado",
       href: "/painel/ajuda/filiados/perfil",
       descricao: "Onde o prontuário do filiado aparece",
+    },
+    {
+      titulo: "Acompanhamento de etapas",
+      href: "/painel/ajuda/filiados/acompanhamento",
+      descricao: "As mudanças de etapa que viram apontamento",
     },
   ]}
 />

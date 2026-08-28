@@ -1,43 +1,72 @@
-Uma nova filiação pode nascer de duas formas: cadastrada internamente ou
-recebida pela **ficha pública**, o fluxo em que o próprio trabalhador se filia
-pelo site. Esta área é a fila dessas fichas.
+Uma nova filiação pode nascer de duas formas: cadastrada **internamente** (pela
+equipe) ou recebida pela **ficha pública** — o fluxo em que o próprio
+trabalhador se filia pelo site, sem login. Esta área é a fila dessas fichas
+públicas, à espera de conferência.
+
+<RequerPermissao>Gestão da filiação</RequerPermissao>
 
 ## Como a ficha pública funciona
 
 <PassoAPasso>
   <Passo titulo="O trabalhador acessa /filiar">
-    Sem login, informa o e-mail e recebe um código de verificação.
+    Sem login, informa o e-mail e recebe um **código de verificação** — isso
+    garante que o e-mail é dele.
   </Passo>
   <Passo titulo="Preenche a ficha">
-    Num link único e temporário, preenche os dados (com validação de CPF e
-    preenchimento de endereço pelo CEP) e marca os termos legais obrigatórios.
+    Num **link único e temporário**, preenche os dados (com validação de CPF e
+    preenchimento de endereço pelo CEP) e marca os **termos legais**
+    obrigatórios (LGPD e autorização de desconto).
   </Passo>
-  <Passo titulo="Assina">
-    O sistema gera o PDF da ficha, que o trabalhador assina pelo gov.br e
-    reenvia.
+  <Passo titulo="Assina no gov.br">
+    O sistema gera o **PDF** da ficha; o trabalhador assina pelo gov.br e reenvia
+    o arquivo assinado.
   </Passo>
   <Passo titulo="Entra na fila">
-    A ficha aparece aqui, em **Solicitações**, para conferência.
+    A ficha aparece aqui, em **Solicitações**, aguardando a conferência da
+    equipe.
   </Passo>
 </PassoAPasso>
 
 ## Avaliar uma solicitação
 
-<RequerPermissao>Gestão da filiação</RequerPermissao>
+Ao abrir uma solicitação, você confere os dados preenchidos e o **PDF assinado**.
 
-Ao abrir uma solicitação, você confere os dados e o PDF assinado. **Aprovar é o
-que cria a filiação** no sistema — antes disso, a pessoa é apenas uma
-solicitante.
-
-<Aviso tipo="atencao" titulo="O e-mail de boas-vindas depende do provedor de e-mail">
-  Ao aprovar, o sistema envia um e-mail de boas-vindas. Esse envio só funciona
-  quando o serviço de e-mail (BREVO) estiver configurado.
+<Aviso tipo="atencao" titulo="Aprovar é o que cria a filiação">
+  Antes da aprovação, a pessoa é apenas uma **solicitante** — não está no quadro.
+  É a aprovação que cria o registro de filiado de verdade. Se algo estiver
+  errado, você pode recusar em vez de aprovar.
 </Aviso>
 
-<Print src="filiados/solicitacao-avaliacao.png" alt="Tela de avaliação de uma solicitação de filiação, com os dados preenchidos e o PDF assinado." legenda="Avaliação da ficha: dados, PDF assinado e o botão de aprovação." />
+<Print src="filiados/solicitacao-avaliacao.png" alt="Tela de avaliação de uma solicitação de filiação, com os dados preenchidos, o PDF assinado e os botões de aprovar ou recusar." legenda="Avaliação da ficha: os dados, o PDF assinado e a decisão." />
+
+<Aviso tipo="atencao" titulo="O e-mail de boas-vindas depende do provedor">
+  Ao aprovar, o sistema envia um e-mail de boas-vindas. Esse envio só funciona
+  com o serviço de e-mail (Brevo) configurado — sem ele, a filiação é criada do
+  mesmo jeito, mas o e-mail não sai.
+</Aviso>
+
+## Erros comuns
+
+- **"O trabalhador diz que o link não abre."** O link da ficha é **único e
+  temporário** — se expirou, ele recomeça em **/filiar** com o mesmo e-mail.
+- **"A ficha chegou sem o PDF assinado."** A assinatura pelo gov.br é uma etapa
+  do trabalhador; sem o arquivo assinado, oriente-o a concluir a assinatura e
+  reenviar antes da aprovação.
+- **"Aprovei mas o filiado não aparece Ativo."** A filiação nasce no início do
+  processo de etapas; ela avança até Ativo conforme a ficha, a informação à
+  fonte e o início dos descontos. Ver
+  [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+- **"Recebi duas fichas da mesma pessoa."** Cada envio gera uma solicitação;
+  aprove uma e recuse a duplicada. O sistema mostra outros registros do mesmo
+  CPF no perfil.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Fluxo público de filiação",
+      href: "/painel/ajuda/fluxos-publicos/filiacao",
+      descricao: "A mesma jornada, vista pelo lado do trabalhador",
+    },
     {
       titulo: "Termos legais",
       href: "/painel/ajuda/filiados/termos",

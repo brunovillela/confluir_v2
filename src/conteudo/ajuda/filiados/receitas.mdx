@@ -1,43 +1,82 @@
-As **receitas** registram o recebimento das contribuições dos filiados. Cada
-**remessa** é um mês, um ano e um tipo (Associativa, Assistencial ou Sindical);
-dentro dela ficam os lançamentos — um por trabalhador descontado — organizados
-por **fonte pagadora**, e o comprovante do depósito.
+As **receitas** registram o recebimento das contribuições dos filiados. O
+trabalho é organizado em **remessas**: cada remessa é um mês, um ano e um tipo
+(Associativa, Assistencial ou Sindical). Dentro dela ficam os lançamentos — um
+por trabalhador descontado — agrupados por **fonte pagadora**, e o comprovante
+do depósito de cada fonte.
+
+<RequerPermissao>Receitas</RequerPermissao>
 
 ## A lista de remessas
 
 <PassoAPasso>
   <Passo titulo="Indicadores do ano">
     No topo, quatro números do ano selecionado: total recebido, quantidade de
-    contribuições, remessas e a média por contribuição.
+    contribuições, número de remessas e a média por contribuição.
   </Passo>
   <Passo titulo="Cartões por remessa">
     Cada remessa aparece como um cartão (ex.: "5/2026 Associativa") com o selo
-    **Aberta** ou **Fechada**. Use **Nova remessa** para criar.
+    **Aberta** ou **Fechada**. Use **Nova remessa** para criar (mês, ano e tipo).
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/receitas.png" alt="Lista de receitas com os indicadores do ano e os cartões de remessas por tipo." legenda="Receitas: os indicadores do ano e as remessas de recebimento." />
+<Print src="filiados/receitas.png" alt="Lista de receitas com os quatro indicadores do ano no topo e os cartões de remessas por tipo, cada um com o selo Aberta ou Fechada." legenda="Receitas: os indicadores do ano e as remessas de recebimento." />
 
 ## Dentro de uma remessa
 
-Ao abrir uma remessa, você vê os valores por **fonte pagadora**: quantos
-pagantes, o valor informado, a média — e o **recebimento** (o depósito da fonte,
-quando registrado). As fontes que ainda não informaram pagamento aparecem
-separadas.
+Ao abrir uma remessa, os valores aparecem por **fonte pagadora**: quantos
+pagantes, o valor informado, a média — e o **recebimento** (o depósito da
+fonte, quando registrado). As fontes que ainda não informaram pagamento ficam
+separadas, para você cobrar.
 
 <Aviso tipo="nota" titulo="Informado × recebido">
-  O valor **informado** vem dos lançamentos por trabalhador; o **recebimento** é
-  o depósito da fonte. A remessa fica **fechada** quando a conferência termina.
+  O valor **informado** vem dos lançamentos por trabalhador (o que deveria ser
+  descontado); o **recebimento** é o **depósito** que a fonte efetivamente fez. A
+  conferência é comparar os dois.
 </Aviso>
 
-<Print src="filiados/receita-remessa.png" alt="Detalhe da remessa com a tabela de fontes pagadoras, valores informados e o recebimento." legenda="Detalhe da remessa: valores por fonte e o depósito recebido." />
+<Print src="filiados/receita-remessa.png" alt="Detalhe da remessa com a tabela de fontes pagadoras, o número de pagantes, o valor informado, a média e o recebimento de cada fonte." legenda="Detalhe da remessa: valores por fonte e o depósito recebido." />
+
+## Confirmar a situação dos filiados
+
+A conferência da remessa é também onde o processo de filiação se **fecha**: ao
+confirmar que os descontos começaram (ou terminaram), você **marca os cadastros**
+e define a condição em lote — **Ativo** para quem passou a ser descontado,
+**Inativo** para quem deixou de ser. É o caminho normal para os estados finais.
+Ver [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+
+## Fechar a remessa
+
+Quando a conferência termina, a remessa fica **Fechada**. Reabra-a se precisar
+ajustar algum lançamento ou recebimento.
+
+## Erros comuns
+
+- **"Uma fonte não aparece na remessa."** Ela pode não ter lançamentos nesse
+  período, ou o vínculo do trabalhador com a fonte não estar registrado. Confira
+  os vínculos no perfil.
+- **"O informado e o recebido não batem."** É justamente o que a conferência
+  serve para achar: diferença de pagantes, descontos a menor ou depósito
+  parcial. Registre o recebimento real da fonte.
+- **"Marquei Ativo mas o filiado continua em andamento."** Confirme que os
+  cadastros certos foram **marcados** antes de aplicar a condição — a marcação é
+  por trabalhador.
 
 <VejaTambem
   links={[
     {
+      titulo: "Acompanhamento de etapas",
+      href: "/painel/ajuda/filiados/acompanhamento",
+      descricao: "Como a remessa leva um filiado a Ativo/Inativo",
+    },
+    {
       titulo: "Perfil do filiado",
       href: "/painel/ajuda/filiados/perfil",
       descricao: "Os vínculos com as fontes pagadoras",
+    },
+    {
+      titulo: "Empregadores",
+      href: "/painel/ajuda/representacao/empregadores",
+      descricao: "O cadastro das fontes pagadoras",
     },
   ]}
 />

@@ -1,45 +1,99 @@
-O módulo **Filiados** reúne o cadastro dos associados: a base de pessoas, o
-perfil completo de cada filiado, as solicitações de filiação (inclusive as
-recebidas pela ficha pública) e os termos legais que o associado aceita.
+O módulo **Filiados** é a base de pessoas do sindicato: o cadastro dos
+associados, o perfil completo de cada um, o acompanhamento dos processos de
+filiação e desfiliação, o recebimento das contribuições, o prontuário e os
+termos legais que o associado aceita.
 
 <RequerPermissao>Filiados</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
-  <Passo titulo="Filiados">
+  <Passo titulo="Filiados (lista)">
     A lista de associados, com busca por nome, CPF ou matrícula, filtros por
-    situação e exportação. Cada linha abre o perfil completo.
+    situação e exportação em CSV. Cada linha abre o
+    [perfil completo](/painel/ajuda/filiados/perfil).
+  </Passo>
+  <Passo titulo="Acompanhamento">
+    Onde cada processo de filiação/desfiliação está parado, com o gráfico de
+    etapas e a fila por etapa. Ver
+    [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+    <RequerPermissao>Gestão da filiação</RequerPermissao>
   </Passo>
   <Passo titulo="Solicitações de filiação">
-    A fila de fichas recebidas pelo site (fluxo público **/filiar**), para
-    conferência e aprovação — é a aprovação que cria a filiação.
+    A fila de fichas recebidas pelo site (fluxo público **/filiar**) — é a
+    aprovação delas que **cria** a filiação.
   </Passo>
-  <Passo titulo="Termos legais">
-    Os textos de LGPD e de autorização de desconto que o associado aceita,
-    versionados e específicos da entidade.
+  <Passo titulo="Receitas">
+    As remessas de recebimento das contribuições, por fonte pagadora. Ver
+    [Receitas](/painel/ajuda/filiados/receitas).
+  </Passo>
+  <Passo titulo="Prontuários">
+    A linha do tempo de cada associado — atendimentos, homologações, mudanças de
+    etapa e apontamentos manuais.
+  </Passo>
+  <Passo titulo="Termos legais e Importar">
+    Os textos de LGPD e de desconto (versionados) e a carga em massa por
+    planilha.
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados, com a lista de associados e os filtros de situação no topo." legenda="Lista de filiados com busca e filtros de situação." />
+<Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados, com os cartões das áreas, os indicadores e a lista de associados com os filtros de situação no topo." legenda="O painel de Filiados: os cartões das áreas, os indicadores e a lista." />
 
-## Situação da filiação
+## A situação (condição) da filiação
 
-A situação (ativa, suspensa, desfiliada…) é central: ela controla o acesso do
-associado ao portal e o direito a voto em assembleias. A situação aparece na
-lista e no topo do perfil.
+A **condição** é o dado central do módulo: ela controla o acesso do associado ao
+portal e o direito a voto em assembleias, e define em que etapa do processo o
+cadastro está. Aparece como um selo colorido na lista e no topo do perfil. Os
+valores:
+
+- **Ativo** / **Inativo** — filiado em dia / desfiliado (objetivos finais).
+- **Aguarda ficha assinada**, **Filiação não informada à fonte**, **Filiação
+  aguarda fonte** — filiação **em andamento**.
+- **Desfiliação não informada à fonte**, **Desfiliação aguarda fonte** —
+  desfiliação **em andamento**.
+- **Falecido**, **Excluído(a) do quadro associativo** — situações especiais.
+
+<Aviso tipo="dica" titulo="Os cartões do topo são atalhos">
+  Os indicadores "Filiação em andamento" e "Desfiliação em andamento" abrem a
+  lista já filtrada por aquelas condições — o mesmo destino da área de
+  [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+</Aviso>
+
+## Ver a área do filiado
+
+No perfil, o botão **Visualizar área** abre o **portal** como o associado o vê —
+em **somente leitura**. É útil para dar suporte ("veja o que aparece para
+você") sem risco de alterar nada: as ações de escrita usam a sessão real, então
+a gestão apenas visualiza.
 
 <Aviso tipo="dica" titulo="Busca sem acento">
-  A busca por nome ignora acentos e maiúsculas — procurar por “jose” encontra
-  “José”. CPF e matrícula podem ser digitados com ou sem pontuação.
+  A busca por nome ignora acentos e maiúsculas — procurar por "jose" encontra
+  "José". CPF e matrícula podem ser digitados com ou sem pontuação.
 </Aviso>
+
+## Erros comuns
+
+- **"O associado não consegue entrar no portal / votar."** Confira a
+  **condição** — só quem está Ativo tem acesso pleno. Veja em que etapa está pelo
+  [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+- **"Achei a mesma pessoa duas vezes na lista."** Um mesmo CPF pode ter mais de
+  um registro (troca de empregador, por exemplo). O
+  [perfil](/painel/ajuda/filiados/perfil) agrega e mostra os "outros registros
+  deste CPF".
+- **"A exportação veio incompleta."** O CSV respeita os **filtros aplicados** —
+  limpe os filtros para exportar a base inteira.
 
 <VejaTambem
   links={[
     {
       titulo: "Perfil do filiado",
       href: "/painel/ajuda/filiados/perfil",
-      descricao: "Identificação, vínculos e consentimentos",
+      descricao: "Identificação, vínculos, etapas e consentimentos",
+    },
+    {
+      titulo: "Acompanhamento de etapas",
+      href: "/painel/ajuda/filiados/acompanhamento",
+      descricao: "Onde cada processo está parado",
     },
     {
       titulo: "Solicitações de filiação",

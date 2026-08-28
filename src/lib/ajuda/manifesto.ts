@@ -148,6 +148,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Identificação, vínculos, outros registros do CPF e consentimentos",
       },
       {
+        slug: "acompanhamento",
+        titulo: "Acompanhamento de etapas",
+        resumo:
+          "Os processos de filiação e desfiliação: o gráfico de etapas e a fila por etapa",
+      },
+      {
         slug: "solicitacoes",
         titulo: "Solicitações de filiação",
         resumo: "A ficha pública, a assinatura gov.br e a aprovação",

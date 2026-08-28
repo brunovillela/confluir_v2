@@ -1,47 +1,98 @@
-O perfil reúne tudo o que o sistema sabe sobre um associado. Você chega a ele
-clicando em qualquer linha da lista de filiados.
+O perfil reúne tudo o que o sistema sabe sobre um associado, numa página só.
+Você chega a ele clicando em qualquer linha da lista de filiados.
 
-## Identificação e contato
+## O topo: identidade e situação
 
-O topo mostra nome, CPF, matrícula e a situação atual da filiação. Abaixo,
-os dados de identificação, contato e endereço.
+Mostra o **nome**, o **CPF**, a **matrícula** e o selo da **condição** atual da
+filiação. À direita, dois botões:
+
+- **Visualizar área** — abre o portal como o filiado o vê, em somente leitura
+  (bom para dar suporte).
+- **Editar cadastro** — abre o formulário de edição (dados pessoais, contato,
+  endereço e a condição da filiação). <RequerPermissao>Gestão da filiação</RequerPermissao>
 
 <Aviso tipo="nota" titulo="O CPF é a identidade da pessoa">
-  Uma mesma pessoa (mesmo CPF) pode ter mais de um registro de filiação ao
-  longo do tempo — por troca de empregador, por exemplo. O perfil agrega esses
-  registros e mostra os “outros registros deste CPF”.
+  Uma mesma pessoa (mesmo CPF) pode ter mais de um registro de filiação ao longo
+  do tempo — por troca de empregador, por exemplo. Quando existem, eles aparecem
+  no cartão **"Outros registros deste CPF"**, no fim da página, com link entre
+  eles.
 </Aviso>
 
-## Vínculos e fonte pagadora
+## Andamento da filiação
 
-A seção de vínculos lista os empregadores (fontes pagadoras) do associado, com
-o nome real da empresa. É por aqui que o sistema sabe de onde vem o desconto da
-contribuição.
+Quando o cadastro está com uma filiação (ou desfiliação) **em andamento**,
+aparece o **gráfico de etapas** — a linha com marcos preenchidos por data — e o
+botão **Avançar etapa**. Ele some quando o processo chega a Ativo ou Inativo.
+Ver [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+
+## Identificação, contato e endereço
+
+Três cartões com os dados cadastrais: nascimento e sexo; e-mails e telefones
+(com o selo de WhatsApp quando marcado); e o endereço completo.
+
+<Print src="filiados/perfil.png" alt="Perfil do filiado com o topo (nome, CPF, condição, botões Visualizar área e Editar), o gráfico de etapas e os cartões de identificação, contato e endereço." legenda="Perfil completo: topo com a condição, o gráfico de etapas e os dados cadastrais." />
 
 ## Consentimentos
 
-O cartão de **Consentimentos** mostra qual versão dos termos legais (LGPD e
-autorização de desconto) o associado aceitou, e quando. Como os termos são
-versionados, fica registrado exatamente o texto vigente no momento do aceite.
+Mostra qual **versão** dos termos legais (LGPD e autorização de desconto) o
+associado aceitou, e quando. Como os termos são versionados, fica registrado
+exatamente o texto vigente no momento do aceite — uma mudança futura não
+reescreve o passado. Ver [Termos legais](/painel/ajuda/filiados/termos).
 
-<Print src="filiados/perfil.png" alt="Perfil do filiado, com os cartões de identificação, vínculos e consentimentos." legenda="Perfil completo: identificação, vínculos e a versão dos termos aceita." />
+## Histórico de filiação
+
+A tabela reúne, num só lugar, os vínculos do associado: **fonte pagadora**,
+cargo, lotação, **matrícula**, datas de **admissão** e **demissão**, e as datas
+de **filiação** e **desfiliação**, além da condição de cada vínculo.
+
+<Aviso tipo="nota" titulo="Vínculo empregatício e de filiação juntos">
+  Antes havia duas tabelas separadas com a mesma informação. Agora é uma só:
+  tudo o que era "vínculos empregatícios" (cargo, lotação, matrícula, admissão,
+  demissão) está no **Histórico de filiação**.
+</Aviso>
+
+## Contribuições, reembolsos e prontuário
+
+Mais abaixo, o perfil traz:
+
+- **Contribuições** — as últimas contribuições recebidas do associado, com link
+  para ver todas.
+- **Reembolsos e pagamentos** — as ordens de pagamento em favor da pessoa.
+- **Prontuário** — os últimos apontamentos da linha do tempo, com link para o
+  [prontuário](/painel/ajuda/filiados/prontuarios) completo.
 
 ## Exportação
 
-A lista de filiados exporta em CSV, respeitando os filtros aplicados — útil para
-conferências e para levar dados a planilhas.
+A **lista** de filiados exporta em CSV respeitando os filtros aplicados — útil
+para conferências e planilhas.
+
+## Erros comuns
+
+- **"Editei um telefone e o filiado ainda vê o antigo."** O filiado também pode
+  atualizar o próprio contato pelo portal; confira se não houve edição
+  simultânea. A última gravação vale.
+- **"Não vejo o botão Editar / Avançar etapa."** Esses botões exigem **Gestão da
+  filiação**. Sem essa permissão, o perfil é só leitura.
+- **"O histórico está vazio."** O associado pode não ter vínculos registrados
+  ainda — eles entram pela importação, pela ficha ou manualmente em "Adicionar
+  vínculo".
 
 <VejaTambem
   links={[
+    {
+      titulo: "Acompanhamento de etapas",
+      href: "/painel/ajuda/filiados/acompanhamento",
+      descricao: "O gráfico de etapas que aparece no topo",
+    },
     {
       titulo: "Termos legais",
       href: "/painel/ajuda/filiados/termos",
       descricao: "Como os textos aceitos são versionados",
     },
     {
-      titulo: "Solicitações de filiação",
-      href: "/painel/ajuda/filiados/solicitacoes",
-      descricao: "Como uma nova filiação entra no sistema",
+      titulo: "Prontuários",
+      href: "/painel/ajuda/filiados/prontuarios",
+      descricao: "A linha do tempo do associado",
     },
   ]}
 />
