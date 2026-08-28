@@ -33,6 +33,10 @@ export async function criarCompra(
   if (!produto) return { erro: "Descreva o produto ou serviço." }
   const departamentoId = texto(formData, "departamento_id")
   if (!departamentoId) return { erro: "Informe o departamento solicitante." }
+  const centroCustoId = texto(formData, "centro_custo_id")
+  if (!centroCustoId) {
+    return { erro: "Informe o centro de custo da despesa." }
+  }
 
   const base = {
     produto,
@@ -42,7 +46,7 @@ export async function criarCompra(
         : texto(formData, "e_produto") === "bem",
     observacao: texto(formData, "observacao") || null,
     departamento_id: departamentoId,
-    centro_custo_id: texto(formData, "centro_custo_id") || null,
+    centro_custo_id: centroCustoId,
     projeto_id: texto(formData, "projeto_id") || null,
     data_limite: dataISO(texto(formData, "data_limite")),
     local_entrega: texto(formData, "local_entrega") || null,
@@ -68,6 +72,9 @@ export async function criarCompra(
   )
     ? formaBruta
     : null
+  if (!forma) return { erro: "Escolha a forma de pagamento." }
+  const vencimento = dataISO(texto(formData, "vencimento"))
+  if (!vencimento) return { erro: "Informe a data de pagamento (Pagar em)." }
 
   let notaFiscal: string | null = null
   const arquivo = formData.get("nota_fiscal")
@@ -83,7 +90,7 @@ export async function criarCompra(
     valor,
     forma_pagamento: forma,
     data_compra: dataCompra,
-    vencimento: dataISO(texto(formData, "vencimento")),
+    vencimento,
     comprador_id: sessao.usuario.id,
     nota_fiscal_url: notaFiscal,
     ja_recebido: texto(formData, "ja_recebido") === "on",

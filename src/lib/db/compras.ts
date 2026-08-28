@@ -1508,11 +1508,18 @@ export async function listarDepartamentos(): Promise<OpcaoLookup[]> {
   }))
 }
 
-export async function listarProjetosAbertos(): Promise<OpcaoLookup[]> {
+export type ProjetoCompraOpcao = {
+  id: string
+  nome: string
+  /** Centro de custo do projeto — atribuído à despesa da compra. */
+  centroCustoId: string | null
+}
+
+export async function listarProjetosAbertos(): Promise<ProjetoCompraOpcao[]> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("projeto")
-    .select("id, descricao_sumaria, finalizado")
+    .select("id, descricao_sumaria, finalizado, centro_custo_id")
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("finalizado", "is", true)
     .order("descricao_sumaria", { ascending: true })
@@ -1520,7 +1527,39 @@ export async function listarProjetosAbertos(): Promise<OpcaoLookup[]> {
   return (data ?? []).map((p) => ({
     id: String(p.id),
     nome: String(p.descricao_sumaria ?? "(sem nome)"),
+    centroCustoId: (p.centro_custo_id as string | null) ?? null,
   }))
+}
+
+export type CentroCustoCompraOpcao = {
+  id: string
+  nome: string
+  /** Departamento a que o centro pertence — filtro no formulário de compra. */
+  departamentoId: string | null
+}
+
+/** Centros de custo usáveis, com o departamento, para o formulário de compra. */
+export async function listarCentrosCustoParaCompra(): Promise<
+  CentroCustoCompraOpcao[]
+> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("centros_de_custo")
+    .select("id, nome_da_conta, classificador, usavel, departamento_id")
+    .order("classificador", { ascending: true, nullsFirst: false })
+    .order("nome_da_conta", { ascending: true })
+  if (error) {
+    throw new Error(`Falha ao listar centros de custo: ${error.message}`)
+  }
+  return (data ?? [])
+    .filter((c) => c.usavel !== false)
+    .map((c) => ({
+      id: String(c.id),
+      nome:
+        [c.classificador, c.nome_da_conta].filter(Boolean).join(" - ") ||
+        "(sem nome)",
+      departamentoId: (c.departamento_id as string | null) ?? null,
+    }))
 }
 
 // ── Arquivos (bucket 'compras') ────────────────────────────────────────────

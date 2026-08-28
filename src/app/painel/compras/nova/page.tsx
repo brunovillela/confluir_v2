@@ -5,11 +5,11 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import {
+  listarCentrosCustoParaCompra,
   listarDepartamentos,
   listarFornecedores,
   listarProjetosAbertos,
 } from "@/lib/db/compras"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
 
 import { NovaCompraForm } from "./nova-compra-form"
 
@@ -20,7 +20,7 @@ export default async function NovaCompraPage() {
 
   const [departamentos, centros, projetos, fornecedores] = await Promise.all([
     listarDepartamentos(),
-    listarCentrosCusto(),
+    listarCentrosCustoParaCompra(),
     listarProjetosAbertos(),
     listarFornecedores(),
   ])
@@ -42,12 +42,7 @@ export default async function NovaCompraPage() {
 
       <NovaCompraForm
         departamentos={departamentos}
-        centrosCusto={centros
-          .filter((c) => c.usavel !== false)
-          .map((c) => ({
-            id: c.id,
-            nome: [c.classificador, c.nome_da_conta].filter(Boolean).join(" - "),
-          }))}
+        centrosCusto={centros}
         projetos={projetos}
         fornecedores={fornecedores.map((f) => ({
           id: f.id,
