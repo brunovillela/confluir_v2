@@ -28,9 +28,11 @@ import {
  * O sindicato homologa a rescisão do trabalhador (filiado ou não). Os 599
  * registros migrados do Bubble trazem data, motivo, empregador
  * (`fonte_pg_id` → empresa) e, quando filiado, `filiado_id` → filiacoes.
- * 460 são de não-filiados e vieram SEM nome/CPF (o legado não gravou); os
- * registros novos identificam o não-filiado por `trabalhador_nome`/`_cpf`
- * (colunas de supabase/juridico.sql).
+ * ~466 são de não-filiados e vieram SEM nome/CPF — a MIGRAÇÃO não trouxe esses
+ * campos (o nome existe no Bubble, é um campo de texto da homologação). Resgate
+ * pendente pré-virada: job `homologacoes` em scripts/backfill-migracao.mjs
+ * (casa por bubble_id). Os registros novos identificam o não-filiado por
+ * `trabalhador_nome`/`_cpf` (colunas de supabase/juridico.sql).
  *
  * O parecer é um PDF no bucket privado `juridico`: `parecer_url` guarda o
  * CAMINHO e a URL assinada sai na hora da exibição. Compat: legado pode
