@@ -1587,13 +1587,13 @@ export async function listarFilaComprador(): Promise<{
   const { data, error } = await admin
     .from("compras_solicitacoes")
     .select(
-      "id, codigo, solicitacao_produto, solicitacao_departamento_id, em_cotacao, cotacao_termino, data_limite, created_at, cancelado, comprado, recebido"
+      "id, codigo, solicitacao_produto, solicitacao_departamento_id, em_cotacao, cotacao_termino, solicitacao_data_limite, created_at, cancelado, comprado, recebido"
     )
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("aquisicao_direta", false)
     .eq("cancelado", false)
     .eq("comprado", false)
-    .order("data_limite", { ascending: true, nullsFirst: false })
+    .order("solicitacao_data_limite", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
   if (error) {
     if (esquemaAusente(error)) return { disponivel: false, itens: [] }
@@ -1629,7 +1629,7 @@ export async function listarFilaComprador(): Promise<{
         ? (nomeDepto.get(String(x.solicitacao_departamento_id)) ?? null)
         : null,
       situacao: derivarSituacao(x as FlagsProcesso),
-      data_limite: (x.data_limite as string | null) ?? null,
+      data_limite: (x.solicitacao_data_limite as string | null) ?? null,
       created_at: (x.created_at as string | null) ?? null,
     })),
   }
