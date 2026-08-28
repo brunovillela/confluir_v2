@@ -1,7 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Eye, MessageCircle, Pencil, Plus } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  MessageCircle,
+  Pencil,
+  Plus,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +29,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { TrilhaEtapas } from "@/components/trilha-etapas"
 import { requirePermissao } from "@/lib/auth"
 import { iniciarVisualizacaoFiliado } from "@/lib/actions/visualizacao"
+import { marcosDaTrilha, proximaCondicao } from "@/lib/filiacao"
 import { formatarCpf } from "@/lib/cpf"
 import {
   obterTermosAceitos,
@@ -41,6 +50,7 @@ import { podeAcessar } from "@/lib/permissoes"
 
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
 import { CondicaoBadge } from "../condicao-badge"
+import { avancarEtapa } from "../acompanhamento/actions"
 
 export const metadata: Metadata = { title: "Filiado — Confluir" }
 
@@ -107,7 +117,7 @@ export default async function FiliadoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; etapa?: string }>
 }) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
@@ -116,7 +126,7 @@ export default async function FiliadoPage({
   const podeEditar = podeAcessar(sessao.permissoes, "filiacao_gestao")
 
   const { id } = await params
-  const { salvo } = await searchParams
+  const { salvo, etapa } = await searchParams
   const [perfil, prontuario] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
@@ -154,6 +164,21 @@ export default async function FiliadoPage({
     .filter(Boolean)
     .join(" — ")
 
+  // Gráfico de etapas: aparece só quando há processo (filiação/desfiliação)
+  // em andamento. As datas dos marcos saem das colunas de filiacoes.
+  const condicaoAtual =
+    typeof f.filiacao_condicao === "string" ? f.filiacao_condicao : null
+  const dataCol = (v: unknown) => (typeof v === "string" ? v : null)
+  const trilha = marcosDaTrilha(condicaoAtual, {
+    created_at: dataCol(f.created_at),
+    ficha_assinada_em: dataCol(f.ficha_assinada_em),
+    filiacao_informada_fonte_em: dataCol(f.filiacao_informada_fonte_em),
+    ativo_em: dataCol(f.ativo_em),
+    desfiliacao_informada_fonte_em: dataCol(f.desfiliacao_informada_fonte_em),
+    inativo_em: dataCol(f.inativo_em),
+  })
+  const proximaEtapa = proximaCondicao(condicaoAtual)
+
   return (
     <>
       <div>
@@ -187,6 +212,18 @@ export default async function FiliadoPage({
             <AlertDescription>Cadastro atualizado com sucesso.</AlertDescription>
           </Alert>
         )}
+        {etapa === "ok" && (
+          <Alert className="mb-4 border-success/40 text-success-fg">
+            <AlertDescription>Etapa avançada.</AlertDescription>
+          </Alert>
+        )}
+        {etapa === "fim" && (
+          <Alert variant="warning" className="mb-4">
+            <AlertDescription>
+              Este cadastro já está no estágio final do processo.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight break-words min-w-0">
             {texto(f.nome_completo)}
@@ -218,6 +255,42 @@ export default async function FiliadoPage({
           {f.matricula_sindical && <> · matrícula {f.matricula_sindical}</>}
         </p>
       </div>
+
+      {trilha && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">
+                  {trilha.processo === "filiacao"
+                    ? "Processo de filiação"
+                    : "Processo de desfiliação"}
+                </CardTitle>
+                <CardDescription>
+                  Etapa atual: {condicaoAtual}
+                </CardDescription>
+              </div>
+              {podeEditar && proximaEtapa && (
+                <form action={avancarEtapa}>
+                  <input type="hidden" name="filiado_id" value={f.id} />
+                  <input
+                    type="hidden"
+                    name="redirect_to"
+                    value={`/painel/filiados/${f.id}`}
+                  />
+                  <Button type="submit" variant="outline" size="sm">
+                    Avançar etapa
+                    <ArrowRight />
+                  </Button>
+                </form>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-1">
+            <TrilhaEtapas marcos={trilha.marcos} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <Card>

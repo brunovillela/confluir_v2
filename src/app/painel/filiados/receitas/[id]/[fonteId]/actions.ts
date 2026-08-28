@@ -384,10 +384,18 @@ export async function definirCondicaoMarcados(
   }
 
   const admin = await createAdminClient()
+  // Carimba a data do marco final (Ativo/Inativo) + o momento da condição, para
+  // o acompanhamento e o gráfico de etapas do filiado.
+  const agora = new Date().toISOString()
+  const patch = {
+    filiacao_condicao: condicao,
+    condicao_desde: agora,
+    ...(condicao === "Ativo" ? { ativo_em: agora } : { inativo_em: agora }),
+  }
   for (let de = 0; de < marcados.length; de += 100) {
     const { error } = await admin
       .from("filiacoes")
-      .update({ filiacao_condicao: condicao })
+      .update(patch)
       .in("id", marcados.slice(de, de + 100))
       .eq("emp_proprietaria_id", await tenantAtual())
     if (error) {

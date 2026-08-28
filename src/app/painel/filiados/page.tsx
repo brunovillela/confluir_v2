@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   FileUp,
   FolderHeart,
+  Milestone,
   Plus,
   Receipt,
   ScrollText,
@@ -236,6 +237,14 @@ export default async function FiliadosPage() {
   const condicao = (nome: string) =>
     resumo.porCondicao.find((c) => c.condicao === nome)?.total ?? 0
 
+  const emProcesso = [
+    "Aguarda ficha assinada",
+    "Filiação não informada à fonte",
+    "Filiação aguarda fonte",
+    "Desfiliação não informada à fonte",
+    "Desfiliação aguarda fonte",
+  ].reduce((s, c) => s + condicao(c), 0)
+
   const emAndamento = [
     {
       titulo: "Filiação em andamento",
@@ -345,6 +354,19 @@ export default async function FiliadosPage() {
               pendentesFicha > 0
                 ? `${pendentesFicha.toLocaleString("pt-BR")} aguardando avaliação`
                 : "Nenhuma pendente"
+            }
+          />
+        )}
+        {podeRegistrar && (
+          <CartaoArea
+            titulo="Acompanhamento"
+            descricao="Etapas dos processos de filiação e desfiliação"
+            href="/painel/filiados/acompanhamento"
+            icone={Milestone}
+            indicador={
+              emProcesso > 0
+                ? `${emProcesso.toLocaleString("pt-BR")} em andamento`
+                : undefined
             }
           />
         )}
