@@ -48,6 +48,7 @@ type ParamsBusca = {
   beneficiario?: string
   centroCusto?: string
   departamento?: string
+  projeto?: string
   formaPagamento?: string
   pagina?: string
   porPagina?: string
@@ -97,6 +98,7 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
     beneficiario: params.beneficiario ?? "",
     centroCusto: params.centroCusto ?? "",
     departamento: params.departamento ?? "",
+    projeto: params.projeto ?? "",
     formaPagamento: params.formaPagamento ?? "",
     pagina: Math.max(1, Number(params.pagina) || 1),
     porPagina: (OPCOES_POR_PAGINA as readonly number[]).includes(
@@ -123,6 +125,7 @@ function montarUrl(
   if (merged.beneficiario) q.set("beneficiario", String(merged.beneficiario))
   if (merged.centroCusto) q.set("centroCusto", String(merged.centroCusto))
   if (merged.departamento) q.set("departamento", String(merged.departamento))
+  if (merged.projeto) q.set("projeto", String(merged.projeto))
   if (merged.formaPagamento)
     q.set("formaPagamento", String(merged.formaPagamento))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
@@ -194,6 +197,8 @@ export default async function OrdensPage({
     opcoes.centrosCusto.find((c) => c.id === id)?.nome ?? "centro de custo"
   const nomeDepto = (id: string) =>
     opcoes.departamentos.find((d) => d.id === id)?.nome ?? "departamento"
+  const nomeProjeto = (id: string) =>
+    opcoes.projetos.find((p) => p.id === id)?.nome ?? "projeto"
   const rotuloSituacao = (s: string) =>
     CHIPS_SITUACAO.find((c) => c.valor === s)?.rotulo ?? s
 
@@ -217,6 +222,10 @@ export default async function OrdensPage({
     filtros.departamento && {
       rotulo: `Departamento: ${nomeDepto(filtros.departamento)}`,
       href: montarUrl(filtros, { departamento: "", pagina: 1 }),
+    },
+    filtros.projeto && {
+      rotulo: `Projeto: ${nomeProjeto(filtros.projeto)}`,
+      href: montarUrl(filtros, { projeto: "", pagina: 1 }),
     },
     filtros.formaPagamento && {
       rotulo: `Forma: ${filtros.formaPagamento}`,
@@ -259,6 +268,9 @@ export default async function OrdensPage({
           )}
           {filtros.departamento && (
             <input type="hidden" name="departamento" value={filtros.departamento} />
+          )}
+          {filtros.projeto && (
+            <input type="hidden" name="projeto" value={filtros.projeto} />
           )}
           {filtros.formaPagamento && (
             <input type="hidden" name="formaPagamento" value={filtros.formaPagamento} />
@@ -352,6 +364,21 @@ export default async function OrdensPage({
                 defaultDepartamento={filtros.departamento}
                 defaultCentro={filtros.centroCusto}
               />
+              <Campo label="Projeto">
+                <select
+                  name="projeto"
+                  defaultValue={filtros.projeto}
+                  aria-label="Projeto"
+                  className={CLS_SELECT}
+                >
+                  <option value="">Todos os projetos</option>
+                  {opcoes.projetos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
               <Campo label="Favorecido">
                 <EmpresaCombobox
                   empresas={fornecedoresOpt}

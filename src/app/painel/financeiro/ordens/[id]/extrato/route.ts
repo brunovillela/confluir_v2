@@ -70,6 +70,7 @@ export async function GET(
     c ? [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — ") : null
 
   const contrato = detalhe.contratoVinculado
+  const projeto = detalhe.projetoVinculado
   const autorizado = o.autorizacao_esta_autorizado === true
 
   const dados: ExtratoOrdemProps = {
@@ -102,11 +103,24 @@ export async function GET(
       centroReceita: centroTexto(detalhe.centroCustoReceita),
       contrato: contrato
         ? {
+            rotulo:
+              contrato.origem === "aluguel"
+                ? "Locação de veículo"
+                : "Contrato",
             titulo:
               (contrato.codigo ? `${contrato.codigo} — ` : "") +
-              (contrato.objeto ?? "(sem objeto)"),
+              (contrato.objeto ?? "(sem descrição)"),
             vigencia: `${formatarData(contrato.vigencia_inicio)} a ${formatarData(
               contrato.vigencia_termino
+            )}`,
+          }
+        : null,
+      projeto: projeto
+        ? {
+            descricao: projeto.descricao ?? "(sem descrição)",
+            tipo: projeto.tipo ?? "—",
+            periodo: `${formatarData(projeto.inicio)} a ${formatarData(
+              projeto.termino_previsao
             )}`,
           }
         : null,

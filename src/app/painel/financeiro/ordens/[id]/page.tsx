@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ExternalLink,
   FileSignature,
+  FolderKanban,
   Landmark,
   Pencil,
   Printer,
@@ -372,9 +373,18 @@ export default async function OrdemPage({
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Contrato vinculado</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Contrato vinculado
+                  <Badge variant="outline" className="text-muted-foreground">
+                    {contratoVinculado.origem === "aluguel"
+                      ? "Locação de veículo"
+                      : "Contrato"}
+                  </Badge>
+                </CardTitle>
                 <CardDescription>
-                  Contrato que originou esta ordem de pagamento
+                  {contratoVinculado.origem === "aluguel"
+                    ? "Contrato de locação que originou esta ordem"
+                    : "Contrato que originou esta ordem de pagamento"}
                 </CardDescription>
               </div>
               <FileSignature className="text-muted-foreground size-4" />
@@ -383,13 +393,19 @@ export default async function OrdemPage({
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Campo rotulo="Objeto">
+                <Campo
+                  rotulo={
+                    contratoVinculado.origem === "aluguel"
+                      ? "Finalidade"
+                      : "Objeto"
+                  }
+                >
                   {contratoVinculado.codigo ? (
                     <span className="text-muted-foreground">
                       {contratoVinculado.codigo} —{" "}
                     </span>
                   ) : null}
-                  {contratoVinculado.objeto ?? "(sem objeto)"}
+                  {contratoVinculado.objeto ?? "(sem descrição)"}
                 </Campo>
               </div>
               <Campo rotulo="Vigência">
@@ -406,12 +422,60 @@ export default async function OrdemPage({
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-muted-foreground">
-                    Inativo
+                    {contratoVinculado.origem === "aluguel"
+                      ? "Finalizado"
+                      : "Inativo"}
                   </Badge>
                 )}
               </Campo>
               <Campo rotulo="Documento do contrato">
                 <LinkArquivo url={contratoVinculado.arquivo_contrato} />
+              </Campo>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {detalhe.projetoVinculado && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Projeto vinculado</CardTitle>
+                <CardDescription>
+                  Projeto ao qual esta ordem de pagamento pertence
+                </CardDescription>
+              </div>
+              <FolderKanban className="text-muted-foreground size-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Campo rotulo="Descrição">
+                  {detalhe.projetoVinculado.descricao ?? "(sem descrição)"}
+                </Campo>
+              </div>
+              <Campo rotulo="Tipo">
+                {detalhe.projetoVinculado.tipo ?? "—"}
+              </Campo>
+              <Campo rotulo="Período">
+                {formatarData(detalhe.projetoVinculado.inicio)} a{" "}
+                {formatarData(detalhe.projetoVinculado.termino_previsao)}
+              </Campo>
+              <Campo rotulo="Situação">
+                {detalhe.projetoVinculado.finalizado === true ? (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Finalizado
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-success/40 text-success-fg"
+                  >
+                    Em andamento
+                  </Badge>
+                )}
               </Campo>
             </div>
           </CardContent>

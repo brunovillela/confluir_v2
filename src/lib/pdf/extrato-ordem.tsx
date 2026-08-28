@@ -94,7 +94,8 @@ export type ExtratoOrdemProps = {
     autorizador: string
     centroDespesa: string | null
     centroReceita: string | null
-    contrato: { titulo: string; vigencia: string } | null
+    contrato: { rotulo: string; titulo: string; vigencia: string } | null
+    projeto: { descricao: string; periodo: string; tipo: string } | null
     compraObservacao: string | null
     notaFiscalUrl: string | null
     boletoUrl: string | null
@@ -214,10 +215,23 @@ export function ExtratoOrdemPDF({
 
         {ordem.contrato ? (
           <>
-            <Text style={s.secaoTitulo}>Contrato vinculado</Text>
+            <Text style={s.secaoTitulo}>
+              Contrato vinculado — {ordem.contrato.rotulo}
+            </Text>
             <View style={s.grade}>
               <Campo rotulo="Objeto" valor={ordem.contrato.titulo} largo />
               <Campo rotulo="Vigência" valor={ordem.contrato.vigencia} />
+            </View>
+          </>
+        ) : null}
+
+        {ordem.projeto ? (
+          <>
+            <Text style={s.secaoTitulo}>Projeto vinculado</Text>
+            <View style={s.grade}>
+              <Campo rotulo="Descrição" valor={ordem.projeto.descricao} largo />
+              <Campo rotulo="Tipo" valor={ordem.projeto.tipo} />
+              <Campo rotulo="Período" valor={ordem.projeto.periodo} />
             </View>
           </>
         ) : null}

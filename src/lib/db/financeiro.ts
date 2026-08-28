@@ -59,6 +59,8 @@ export type FiltrosOrdens = {
   centroCusto?: string
   /** id do departamento (departamento_id). */
   departamento?: string
+  /** id do projeto (projeto_id). */
+  projeto?: string
   /** forma_pagamento exata. */
   formaPagamento?: string
   pagina?: number
@@ -104,6 +106,7 @@ function aplicarFiltrosOrdens<T>(
     beneficiario = "",
     centroCusto = "",
     departamento = "",
+    projeto = "",
     formaPagamento = "",
   }: FiltrosOrdens,
   empId: string
@@ -119,6 +122,7 @@ function aplicarFiltrosOrdens<T>(
   if (beneficiario) q = q.eq("beneficiario_fornecedor_id", beneficiario)
   if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)
   if (departamento) q = q.eq("departamento_id", departamento)
+  if (projeto) q = q.eq("projeto_id", projeto)
   if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
 
   const termo = busca.trim()
@@ -230,6 +234,7 @@ export type OpcoesFiltrosOrdens = {
   fornecedores: { id: string; nome: string; cnpj_cpf: string | null }[]
   centrosCusto: { id: string; nome: string; departamentoId: string | null }[]
   departamentos: { id: string; nome: string }[]
+  projetos: { id: string; nome: string }[]
   formasPagamento: string[]
 }
 
@@ -237,7 +242,7 @@ export type OpcoesFiltrosOrdens = {
 export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [forn, centros, deptos, formas] = await Promise.all([
+  const [forn, centros, deptos, projs, formas] = await Promise.all([
     admin
       .from("empresa")
       .select("id, nome_fantasia, nome_razao, cnpj_cpf")
@@ -257,6 +262,12 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
       .eq("emp_proprietaria_id", emp)
       .order("departamento", { ascending: true })
       .limit(200),
+    admin
+      .from("projeto")
+      .select("id, descricao, descricao_sumaria")
+      .eq("emp_proprietaria_id", emp)
+      .order("descricao", { ascending: true, nullsFirst: false })
+      .limit(1000),
     admin
       .from("ordens_pagamento")
       .select("forma_pagamento")
@@ -285,6 +296,13 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     id: d.id as string,
     nome: texto(d.departamento) ?? "Departamento",
   }))
+  const projetos = (projs.data ?? [])
+    .map((p) => ({
+      id: p.id as string,
+      nome:
+        texto(p.descricao) ?? texto(p.descricao_sumaria) ?? "",
+    }))
+    .filter((p) => p.nome)
   const formasPagamento = [
     ...new Set(
       (formas.data ?? [])
@@ -293,7 +311,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     ),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-  return { fornecedores, centrosCusto, departamentos, formasPagamento }
+  return { fornecedores, centrosCusto, departamentos, projetos, formasPagamento }
 }
 
 export type ResumoFinanceiro = {
@@ -388,6 +406,8 @@ export type ContratoResumo = {
   vigencia_termino: string | null
   ativo: boolean | null
   arquivo_contrato: string | null
+  /** Origem do vínculo — contrato geral ou locação de veículo. */
+  origem: "contrato" | "aluguel"
 }
 
 export type DetalheOrdem = {
@@ -404,10 +424,24 @@ export type DetalheOrdem = {
   autorizador: string | null
   centroCustoDespesa: CentroCusto | null
   centroCustoReceita: CentroCusto | null
-  /** Contrato vinculado à ordem (quando a ordem referencia um contrato). */
+  /**
+   * Contrato vinculado à ordem — contrato geral (contrato_id) ou locação de
+   * veículo (contrato_aluguel_id), unificados num só espaço.
+   */
   contratoVinculado: ContratoResumo | null
+  /** Projeto vinculado à ordem (quando houver). */
+  projetoVinculado: ProjetoResumo | null
   /** Observação da solicitação de compra vinculada (quando houver). */
   compraObservacao: string | null
+}
+
+export type ProjetoResumo = {
+  id: string
+  descricao: string | null
+  tipo: string | null
+  inicio: string | null
+  termino_previsao: string | null
+  finalizado: boolean | null
 }
 
 export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
@@ -436,8 +470,15 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
   ].filter((v): v is string => Boolean(v))
 
   const empId = await tenantAtual()
-  const [empresas, usuarios, centros, contratoRes, compraRes] =
-    await Promise.all([
+  const [
+    empresas,
+    usuarios,
+    centros,
+    contratoRes,
+    aluguelRes,
+    projetoRes,
+    compraRes,
+  ] = await Promise.all([
     fornecedorIds.length
       ? admin
           .from("empresa")
@@ -467,6 +508,25 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
           .eq("id", ordem.contrato_id)
           .eq("emp_proprietaria_id", empId)
           .not("deletado", "is", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Locação de veículo — só quando não há contrato geral vinculado.
+    !ordem.contrato_id && ordem.contrato_aluguel_id
+      ? admin
+          .from("veiculo_contratos_aluguel")
+          .select(
+            "id, numero_contrato_locadora, finalidade, vigencia_inicio, vigencia_termino, finalizado, arquivo_contrato_url"
+          )
+          .eq("id", ordem.contrato_aluguel_id)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    ordem.projeto_id
+      ? admin
+          .from("projeto")
+          .select("id, descricao, tipo, inicio, termino_previsao, finalizado")
+          .eq("id", ordem.projeto_id)
+          .eq("emp_proprietaria_id", empId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     ordem.processo_compra_id
@@ -503,6 +563,36 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
   const compraObservacao =
     typeof compraObs === "string" && compraObs.trim() ? compraObs : null
 
+  // Contrato vinculado: contrato geral tem precedência; senão, locação de
+  // veículo — ambos exibidos no mesmo espaço.
+  let contratoVinculado: ContratoResumo | null = null
+  if (contratoRes.data) {
+    const c = contratoRes.data as Omit<ContratoResumo, "origem">
+    contratoVinculado = { ...c, origem: "contrato" }
+  } else if (aluguelRes.data) {
+    const a = aluguelRes.data as {
+      id: string
+      numero_contrato_locadora: string | null
+      finalidade: string | null
+      vigencia_inicio: string | null
+      vigencia_termino: string | null
+      finalizado: boolean | null
+      arquivo_contrato_url: string | null
+    }
+    contratoVinculado = {
+      id: a.id,
+      codigo: a.numero_contrato_locadora,
+      objeto: a.finalidade,
+      vigencia_inicio: a.vigencia_inicio,
+      vigencia_termino: a.vigencia_termino,
+      ativo: a.finalizado === null ? null : !a.finalizado,
+      arquivo_contrato: a.arquivo_contrato_url,
+      origem: "aluguel",
+    }
+  }
+
+  const projetoVinculado = (projetoRes.data ?? null) as ProjetoResumo | null
+
   return {
     ordem: ordem as DetalheOrdem["ordem"],
     favorecido:
@@ -532,7 +622,8 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     centroCustoReceita: ordem.centro_custo_receita_id
       ? (centroPorId.get(ordem.centro_custo_receita_id) ?? null)
       : null,
-    contratoVinculado: (contratoRes.data ?? null) as ContratoResumo | null,
+    contratoVinculado,
+    projetoVinculado,
     compraObservacao,
   }
 }
