@@ -1,35 +1,77 @@
-O módulo **Compras** cobre as aquisições da entidade: da solicitação e cotação
-até a aprovação por alçada, o recebimento e o pagamento — além dos contratos e
-do cadastro de fornecedores.
+O módulo **Compras** cobre todo o ciclo de uma aquisição: da solicitação e da
+cotação até a aprovação por alçada, a compra, o recebimento e o pagamento —
+além dos **contratos** com fornecedores e do **cadastro** de quem fornece.
 
 <RequerPermissao>Compras</RequerPermissao>
+
+## Dois caminhos para toda compra
+
+Toda aquisição começa em **Nova compra** e segue por um de dois caminhos. Saber
+qual usar evita metade das dúvidas:
+
+- **Aquisição direta** — a compra **já foi feita** pelo departamento (você foi à
+  loja, contratou o serviço, já tem a nota). Aqui você apenas **registra** o que
+  aconteceu; o sistema gera a ordem de pagamento em autorização.
+- **Via Compras** — a compra **ainda vai acontecer** e precisa de cotação. O
+  departamento **solicita**, o **comprador** cota com fornecedores, compara as
+  propostas, escolhe e compra. É o caminho para valores maiores ou quando é
+  preciso comparar preços.
+
+<Aviso tipo="dica" titulo="Na dúvida entre os dois">
+  Se o dinheiro **já saiu** (ou a compra já está fechada), é **direta**. Se você
+  está **pedindo** para o setor de compras providenciar, é **via Compras**.
+</Aviso>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Nova compra">
-    Registra uma aquisição, direta ou via processo de Compras (com cotação e
-    propostas de fornecedores).
+    Onde toda aquisição nasce — direta ou via Compras. Ver
+    [Comprar](/painel/ajuda/compras/comprar).
+  </Passo>
+  <Passo titulo="Área do comprador">
+    A fila de trabalho de quem cota e compra: os processos **via Compras** que
+    aguardam ação, agrupados por etapa (solicitados, em cotação, cotados a
+    comprar). <RequerPermissao>Comprador</RequerPermissao>
   </Passo>
   <Passo titulo="Avaliações">
-    A fila de ordens aguardando aprovação — cada uma cai na alçada de quem pode
-    autorizar aquele valor.
+    A fila de ordens aguardando **aprovação por alçada** — cada uma cai para
+    quem pode autorizar aquele valor. Nada é pago sem passar por aqui.
+    <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
   </Passo>
-  <Passo titulo="Recebimentos">
-    Fornecimentos comprados aguardando chegada, para dar baixa quando o item
-    entra.
+  <Passo titulo="Recebimentos pendentes">
+    O que ainda **vai chegar**: aquisição direta marcada como não recebida e via
+    Compras já comprado. A recepção confere e dá baixa quando o item entra.
+    <RequerPermissao>Recebimentos</RequerPermissao>
   </Passo>
   <Passo titulo="Contratos e Fornecedores">
-    Os contratos com fornecedores (com aditivos e geração de ordens) e o
-    cadastro de quem fornece.
+    Os contratos com fornecedores (vigência, aditivos e geração de ordens) e o
+    cadastro de quem fornece (endereços, dados bancários).
   </Passo>
 </PassoAPasso>
 
-<Print src="compras/painel.png" alt="Painel do módulo Compras com os cartões das áreas: nova compra, avaliações, recebimentos, contratos e fornecedores." legenda="As áreas do módulo Compras." />
+<Print src="compras/painel.png" alt="Painel do módulo Compras com os cartões das áreas: nova compra, área do comprador, avaliações, recebimentos pendentes, contratos e fornecedores, além dos indicadores no topo." legenda="O painel de Compras: cartões das áreas e indicadores de quanto há em cada etapa." />
 
-<Aviso tipo="dica" titulo="Ajudas institucionais mudaram de lugar">
-  Apoios da entidade a organizações apoiadas não são compras: eles agora ficam
-  em **Institucional → Ajudas institucionais**, não aqui.
+## Quem faz o quê
+
+- **O departamento solicitante** abre a solicitação (via Compras) ou registra a
+  compra direta que fez.
+- **O comprador** opera os processos via Compras: abre a cotação, lança as
+  propostas, escolhe e compra. Trabalha pela **Área do comprador**.
+- **Quem tem alçada** autoriza as ordens em **Avaliações**, dentro do seu limite
+  de valor.
+- **A recepção** dá baixa nas entregas em **Recebimentos pendentes**.
+
+<Aviso tipo="nota" titulo="Cada papel é uma permissão">
+  Uma mesma pessoa pode acumular papéis, mas eles são liberados separadamente em
+  **Institucional → Usuários e permissões** (Comprador, Avaliação de ordens,
+  Recebimentos, Compras — editar). Ver
+  [Usuários e permissões](/painel/ajuda/institucional/usuarios).
+</Aviso>
+
+<Aviso tipo="dica" titulo="Ajudas institucionais não são compras">
+  Apoios da entidade a organizações apoiadas ficam em **Institucional → Ajudas
+  institucionais**, não aqui.
 </Aviso>
 
 <VejaTambem
@@ -37,7 +79,7 @@ do cadastro de fornecedores.
     {
       titulo: "Comprar",
       href: "/painel/ajuda/compras/comprar",
-      descricao: "Aquisição direta × via Compras e a cotação",
+      descricao: "O passo a passo das duas modalidades e o ciclo completo",
     },
     {
       titulo: "Contratos",
@@ -48,6 +90,11 @@ do cadastro de fornecedores.
       titulo: "Fornecedores",
       href: "/painel/ajuda/compras/fornecedores",
       descricao: "Cadastro, endereços e dados bancários",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Para onde vai a ordem depois de autorizada",
     },
   ]}
 />

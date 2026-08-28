@@ -1,46 +1,215 @@
-Uma aquisição pode seguir dois caminhos, escolhidos na **Nova compra**.
+Toda aquisição nasce em **Compras → Nova compra**. No topo do formulário você
+escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra está
+**vinculada a um projeto**. O restante do formulário se adapta a essa escolha.
 
 <RequerPermissao>Compras — editar</RequerPermissao>
 
-## Direta × via Compras
+## Direta × via Compras: qual usar
 
 <PassoAPasso>
-  <Passo titulo="Aquisição direta">
-    Para compras simples: você registra o que foi adquirido, o fornecedor e o
-    valor, e a ordem segue para autorização.
+  <Passo titulo="Aquisição direta — a compra já foi feita">
+    Use quando o departamento **já adquiriu** o bem ou serviço. Você registra o
+    fornecedor, o valor e a nota; o sistema cria a **ordem de pagamento em
+    autorização** na sequência. É o caminho de compras simples e do dia a dia.
   </Passo>
-  <Passo titulo="Via processo de Compras">
-    Para aquisições que exigem cotação: o processo recebe propostas de
-    fornecedores, você compara e escolhe, e daí saem os fornecimentos.
+  <Passo titulo="Via Compras — a compra ainda vai acontecer">
+    Use quando é preciso **cotar** antes de comprar. O departamento apenas
+    **solicita**; o comprador recebe, cota com fornecedores, compara as
+    propostas e efetiva a compra. É o caminho de valores maiores.
   </Passo>
 </PassoAPasso>
 
-## Cotação e propostas
+<Print src="compras/nova.png" alt="Formulário de nova compra: no topo os seletores Via Compras/Aquisição direta e Sem vínculo/Vinculada a projeto; abaixo os campos produto, departamento, centro de custo e projeto." legenda="Nova compra: os seletores no topo mudam quais campos aparecem." />
 
-No processo via Compras, cada fornecedor apresenta uma proposta. Você avalia,
-seleciona, e os itens escolhidos viram **fornecimentos** — que serão recebidos
-(quando o item chega) e pagos por ordem.
+## Os campos comuns às duas modalidades
+
+Independentemente do caminho, estes campos aparecem — e alguns são
+**obrigatórios**:
+
+- **Produto ou serviço** (obrigatório) — o que está sendo adquirido. O botão
+  **Melhorar com IA** reescreve o rascunho de forma mais clara e padronizada.
+- **Departamento solicitante** (obrigatório) — quem está pedindo. Ele também
+  **filtra os centros de custo** logo abaixo.
+- **Centro de custo da despesa** (obrigatório) — a classificação contábil. A
+  lista mostra **apenas os centros do departamento** escolhido.
+- **Vinculada a um projeto** — quando ligada, aparece o campo **Projeto**.
+
+<Aviso tipo="atencao" titulo="Centro de custo agora é obrigatório">
+  A compra não é registrada sem um centro de custo da despesa. Se o campo
+  estiver vazio, escolha o **departamento** primeiro — a lista de centros
+  aparece filtrada por ele.
+</Aviso>
+
+<Aviso tipo="dica" titulo="Projeto define o centro automaticamente">
+  Ao marcar **Vinculada a um projeto** e escolher o projeto, o **centro de custo
+  do projeto** é atribuído à despesa e o campo fica **travado** nesse valor —
+  você não precisa (nem consegue) escolher outro. Assim a despesa cai sempre no
+  centro certo do projeto.
+</Aviso>
+
+## Registrar uma aquisição direta
+
+<PassoAPasso>
+  <Passo titulo="Escolha 'Aquisição direta'">
+    No seletor do topo, mude para **Aquisição direta**. Surge o bloco com os
+    dados da compra já feita.
+  </Passo>
+  <Passo titulo="Preencha os campos comuns">
+    Produto, departamento e centro de custo (obrigatórios), como acima.
+  </Passo>
+  <Passo titulo="Fornecedor, data e valor">
+    Busque e selecione o **fornecedor**, informe a **data da compra** e o
+    **valor** (todos obrigatórios).
+  </Passo>
+  <Passo titulo="Forma de pagamento e 'Pagar em'">
+    Escolha a **forma de pagamento** e a data em **Pagar em** — as duas são
+    **obrigatórias** na aquisição direta, porque a ordem de pagamento nasce daqui.
+  </Passo>
+  <Passo titulo="Nota fiscal (opcional)">
+    Anexe o PDF da nota, se tiver. Aceita até 5 MB.
+  </Passo>
+  <Passo titulo="Produto recebido?">
+    A chave **Produto recebido ou serviço entregue?** já vem ligada. Deixe
+    ligada se o item já chegou; **desligue** se ainda vai chegar — nesse caso ele
+    entra em **Recebimentos pendentes** para a recepção dar baixa depois.
+  </Passo>
+  <Passo titulo="Cadastrar">
+    Ao salvar, o processo nasce **comprado** e uma **ordem de pagamento** é
+    gerada com situação **Em autorização** (aprovação por alçada antes do
+    pagamento).
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Forma de pagamento e 'Pagar em' são obrigatórias">
+  Na aquisição direta as duas passaram a ser exigidas — sem elas a compra não é
+  registrada. (Na solicitação via Compras elas não aparecem: são definidas
+  depois, na proposta escolhida.)
+</Aviso>
+
+## Solicitar via Compras
+
+<PassoAPasso>
+  <Passo titulo="Deixe em 'Via Compras'">
+    É o padrão do formulário. Não aparecem fornecedor nem valor — isso vem da
+    cotação.
+  </Passo>
+  <Passo titulo="Descreva o que precisa">
+    Produto ou serviço, departamento e centro de custo. Em **Observações**,
+    detalhe quantidade, referências e links.
+  </Passo>
+  <Passo titulo="Prazo e local (opcionais)">
+    **Limite para receber** e **Local de entrega preferencial** orientam o
+    comprador e a recepção.
+  </Passo>
+  <Passo titulo="Solicitar">
+    A solicitação entra na fila do comprador (situação **Solicitada**), pronta
+    para ser cotada.
+  </Passo>
+</PassoAPasso>
+
+## O ciclo de um processo via Compras
+
+Depois de solicitado, o processo é operado pelo **comprador**, na **Área do
+comprador** (que reúne tudo que aguarda ação) ou abrindo o processo pela lista.
+Cada etapa é uma ação no próprio processo:
+
+<PassoAPasso>
+  <Passo titulo="Iniciar cotação">
+    Abre a cotação: a partir daí você pode lançar propostas. A situação muda para
+    **Em cotação**.
+  </Passo>
+  <Passo titulo="Lançar as propostas">
+    Adicione uma proposta por fornecedor: fornecedor, valor, forma de pagamento e
+    previsão de entrega. Você pode adicionar quantas quiser.
+  </Passo>
+  <Passo titulo="Encerrar e escolher">
+    Encerre a cotação e marque a(s) proposta(s) **escolhida(s)**. A situação vai
+    para **Cotada**.
+  </Passo>
+  <Passo titulo="Registrar a compra">
+    Confirma a compra das propostas escolhidas: cada proposta vira um
+    **fornecimento** e o processo fica **Comprado** (o valor é a soma dos
+    fornecimentos).
+  </Passo>
+  <Passo titulo="Gerar a ordem de pagamento">
+    De cada fornecimento sai uma **ordem** em **autorização** — que segue para a
+    aprovação por alçada, como na compra direta.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="Área do comprador: a fila de trabalho">
+  Em **Compras → Área do comprador**, os processos via Compras aparecem
+  agrupados por etapa — **Solicitadas** (iniciar cotação), **Em cotação** e
+  **Cotadas — a comprar** — com o prazo em destaque (vermelho quando vencido).
+  Clique num item para operar. <RequerPermissao>Comprador</RequerPermissao>
+</Aviso>
+
+<Print alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: cada processo na sua etapa, com o prazo e o botão de ação." />
 
 ## Aprovação por alçada
 
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
 
-Toda ordem gerada por uma compra passa por **Avaliações**, onde quem tem alçada
-para aquele valor autoriza. Nada é pago sem essa etapa.
+Toda ordem gerada por uma compra — direta ou via Compras — passa por
+**Compras → Avaliações**. Cada avaliador vê as ordens **dentro da sua alçada**
+(o teto de valor que pode autorizar) e as **acima da alçada** apenas como
+contexto, sem poder aprovar. **Nada é pago antes dessa autorização.**
 
-<Print src="compras/nova.png" alt="Tela de nova compra com a escolha entre aquisição direta e processo via Compras." legenda="Nova compra: direta ou via processo com cotação." />
+<Aviso tipo="nota" titulo="O que é alçada">
+  Alçada é o valor máximo que uma pessoa pode autorizar sozinha. É definida no
+  perfil de acesso, em **Usuários e permissões**. Uma ordem acima da sua alçada
+  precisa de quem tenha alçada maior.
+</Aviso>
+
+## Recebimento
+
+Quando o item chega, a baixa é feita em **Compras → Recebimentos pendentes**.
+Aparecem ali a aquisição direta marcada como **não recebida** e os
+fornecimentos **via Compras já comprados**. A recepção abre o item, confere e
+registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
+
+## Erros comuns
+
+- **"Não consigo salvar — o centro de custo fica vazio."** Escolha o
+  **departamento** primeiro; a lista de centros aparece filtrada por ele. Se a
+  compra é de um projeto, marque **Vinculada a um projeto** — o centro vem do
+  projeto automaticamente.
+- **"A forma de pagamento não deixa cadastrar a compra direta."** Na aquisição
+  direta, **Forma de pagamento** e **Pagar em** são obrigatórias.
+- **O fornecedor não aparece na busca.** Ele precisa estar cadastrado em
+  **Fornecedores** e não estar bloqueado. Ver
+  [Fornecedores](/painel/ajuda/compras/fornecedores).
+- **Registrei a compra mas o pagamento não sai.** A ordem nasce **Em
+  autorização** — ela só é paga depois de aprovada por quem tem alçada, em
+  **Avaliações**.
+- **Comprei via Compras mas não consigo escolher a proposta.** É preciso
+  **encerrar a cotação** antes de escolher; e escolher ao menos uma proposta
+  antes de **registrar a compra**.
+- **O item não aparece em Recebimentos.** Só entra o que está **por receber**:
+  compra direta com "produto recebido" **desligado**, ou via Compras já
+  comprado. O que já foi recebido não aparece.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Visão geral de Compras",
+      href: "/painel/ajuda/compras",
+      descricao: "As áreas do módulo e quem faz o quê",
+    },
     {
       titulo: "Fornecedores",
       href: "/painel/ajuda/compras/fornecedores",
       descricao: "Quem fornece e para quem se paga",
     },
     {
-      titulo: "Contratos",
-      href: "/painel/ajuda/compras/contratos",
-      descricao: "Quando a relação é contínua",
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O destino da ordem depois da autorização",
+    },
+    {
+      titulo: "Centros de custo",
+      href: "/painel/ajuda/financeiro/centros-custo",
+      descricao: "A classificação que o campo obrigatório usa",
     },
   ]}
 />
