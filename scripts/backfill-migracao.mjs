@@ -14,7 +14,7 @@
 // USO:
 //   node scripts/backfill-migracao.mjs <arquivo.csv|xlsx> <job>            (dry-run)
 //   node scripts/backfill-migracao.mjs <arquivo.csv|xlsx> <job> --apply    (grava)
-//   jobs disponíveis: compras | financeiro
+//   jobs disponíveis: compras | financeiro | homologacoes
 //
 // PASSO 1 (sempre): rode em dry-run. O script imprime os CABEÇALHOS achados no
 // arquivo e valida o mapeamento. Se um cabeçalho do mapa não existir no CSV,
@@ -28,7 +28,10 @@ const TENANT_REAL = "c763cb99-edfd-4840-8453-ed3fcb66d4a1"
 
 // ── MAPEAMENTO (ajustar os `csv:` aos cabeçalhos reais do arquivo) ──────────
 // tipo: "texto" copia direto | "ref" resolve o bubble_id do CSV → uuid via
-// `refTabela` (empresa|usuarios) e grava o uuid na coluna `db`.
+// `refTabela` (empresa|usuarios) e grava o uuid na coluna `db` | "cpf" copia
+// só os dígitos (o banco guarda CPF sem máscara).
+// filtroNulo extra (opcional): `soNaoFiliado: true` só grava em linhas com
+// filiado_id nulo — proteção para o backfill de nome de não-filiado.
 const JOBS = {
   compras: {
     tabela: "compras_solicitacoes",
@@ -55,13 +58,28 @@ const JOBS = {
       { csv: "BENEFICIÁRIO (USER)", db: "beneficiario_usuario_id", tipo: "ref", refTabela: "usuarios" },
     ],
   },
+  // Nomes/CPF dos trabalhadores NÃO-FILIADOS que vieram vazios na migração das
+  // homologações (466 de 467 não-filiados sem nome). O nome existe no Bubble
+  // como campo de texto na própria homologação (não é filiado, então não há
+  // referência a resolver). CONFIRME os cabeçalhos `csv:` abaixo com o que o
+  // dry-run imprimir — os nomes reais das colunas do export do Bubble podem
+  // diferir destes palpites.
+  homologacoes: {
+    tabela: "juridico_homologacoes",
+    chaveCsv: "unique id",
+    soNaoFiliado: true,
+    colunas: [
+      { csv: "Trabalhador Nome", db: "trabalhador_nome", tipo: "texto" },
+      { csv: "Trabalhador CPF", db: "trabalhador_cpf", tipo: "cpf" },
+    ],
+  },
 }
 
 // ── argumentos ──────────────────────────────────────────────────────────────
 const [arquivo, job] = process.argv.slice(2)
 const APLICAR = process.argv.includes("--apply")
 if (!arquivo || !JOBS[job]) {
-  console.error("uso: node scripts/backfill-migracao.mjs <arquivo> <compras|financeiro> [--apply]")
+  console.error("uso: node scripts/backfill-migracao.mjs <arquivo> <compras|financeiro|homologacoes> [--apply]")
   process.exit(1)
 }
 const cfg = JOBS[job]
@@ -126,6 +144,10 @@ for (const linha of linhas) {
       const uuid = refs[col.refTabela].get(String(bruto).trim())
       if (!uuid) { stat.refNaoResolvida++; continue }
       patch[col.db] = uuid
+    } else if (col.tipo === "cpf") {
+      const digitos = String(bruto).replace(/\D/g, "")
+      if (digitos.length !== 11) continue // ignora CPF malformado
+      patch[col.db] = digitos
     } else {
       patch[col.db] = String(bruto).trim()
     }
@@ -141,12 +163,14 @@ for (const linha of linhas) {
   for (const [db, val] of Object.entries(patch)) {
     let r, ultimoErro
     for (let tent = 1; tent <= 5; tent++) {
-      r = await admin
+      let upd = admin
         .from(cfg.tabela)
         .update({ [db]: val }, { count: "exact" })
         .eq("bubble_id", bubbleId)
         .eq("emp_proprietaria_id", TENANT_REAL)
         .is(db, null)
+      if (cfg.soNaoFiliado) upd = upd.is("filiado_id", null)
+      r = await upd
       if (!r.error) break
       ultimoErro = r.error
       await new Promise((res) => setTimeout(res, 400 * tent))
