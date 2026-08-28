@@ -54,7 +54,7 @@ function Campo({
   return (
     <div>
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
-      <dd className="mt-0.5 text-sm">{children ?? "—"}</dd>
+      <dd className="mt-0.5 text-sm break-words">{children ?? "—"}</dd>
     </div>
   )
 }
@@ -189,7 +189,7 @@ export default async function FiliadoPage({
           </Alert>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight break-words min-w-0">
             {texto(f.nome_completo)}
           </h1>
           {f.filiacao_excluida === true ? (
@@ -220,7 +220,7 @@ export default async function FiliadoPage({
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Identificação</CardTitle>
@@ -253,7 +253,7 @@ export default async function FiliadoPage({
               <Campo rotulo="Email corporativo">
                 {texto(f.email_corporativo)}
               </Campo>
-              <div className="grid grid-cols-2 gap-x-4">
+              <div className="grid grid-cols-2 gap-x-4 [&>*]:min-w-0">
                 <Campo rotulo="Telefone 1">
                   <span className="inline-flex items-center gap-1.5">
                     {formatarTelefone(f.telefone_1 as string | null)}
@@ -282,7 +282,7 @@ export default async function FiliadoPage({
           <CardContent>
             <dl className="grid gap-y-3">
               <Campo rotulo="Endereço">{endereco || "—"}</Campo>
-              <div className="grid grid-cols-2 gap-x-4">
+              <div className="grid grid-cols-2 gap-x-4 [&>*]:min-w-0">
                 <Campo rotulo="Cidade / UF">
                   {texto(f.endereco_cidade) !== "—"
                     ? `${f.endereco_cidade}${f.endereco_estado ? ` / ${f.endereco_estado}` : ""}`
@@ -489,7 +489,7 @@ export default async function FiliadoPage({
         </CardContent>
       </Card>
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
