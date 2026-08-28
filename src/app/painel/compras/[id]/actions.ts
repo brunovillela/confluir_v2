@@ -39,7 +39,7 @@ function dataISO(valor: string): string | null {
 
 /** Operar o processo (cotar, escolher, comprar, gerar ordem). */
 async function requireOperacao() {
-  return requirePermissao("aquisicoes_compras_edicao")
+  return requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_comprador"])
 }
 
 export async function cancelarProcessoAction(

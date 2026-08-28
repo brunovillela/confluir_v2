@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import {
   ClipboardCheck,
+  ClipboardList,
   PackageOpen,
   Plus,
   ScrollText,
@@ -81,6 +82,9 @@ export default async function ComprasPage({
   const podeCriar = podeAcessar(p, "aquisicoes_compras", [
     "aquisicoes_compras_edicao",
   ])
+  const veComprador = podeAcessar(p, "aquisicoes_comprador", [
+    "aquisicoes_compras_edicao",
+  ])
   const veAvaliacoes = podeAcessar(p, "aquisicoes_avaliacoes")
   const veRecebimentos = podeAcessar(p, "aquisicoes_recebimentos", [
     "aquisicoes_compras_edicao",
@@ -127,8 +131,25 @@ export default async function ComprasPage({
         )}
       </div>
 
-      {(veAvaliacoes || veRecebimentos || veFornecedores || veContratos) && (
+      {(veComprador ||
+        veAvaliacoes ||
+        veRecebimentos ||
+        veFornecedores ||
+        veContratos) && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {veComprador && (
+            <CartaoArea
+              titulo="Área do comprador"
+              descricao="Processos Via Compras que aguardam sua ação"
+              href="/painel/compras/comprador"
+              icone={ClipboardList}
+              indicador={
+                resumo.emCotacao + resumo.aguardandoCompra > 0
+                  ? `${resumo.emCotacao + resumo.aguardandoCompra} a operar`
+                  : null
+              }
+            />
+          )}
           {veAvaliacoes && (
             <CartaoArea
               titulo="Avaliações"
@@ -144,8 +165,8 @@ export default async function ComprasPage({
           )}
           {veRecebimentos && (
             <CartaoArea
-              titulo="Recebimentos"
-              descricao="Fornecimentos entregues a conferir"
+              titulo="Recebimentos pendentes"
+              descricao="Compras a receber — direta ou via Compras"
               href="/painel/compras/recebimentos"
               icone={PackageOpen}
               indicador={

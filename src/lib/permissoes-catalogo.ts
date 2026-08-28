@@ -13,6 +13,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     flags: [
       { chave: "aquisicoes_compras", rotulo: "Compras" },
       { chave: "aquisicoes_compras_edicao", rotulo: "Compras — editar" },
+      { chave: "aquisicoes_comprador", rotulo: "Comprador (operar processos)" },
       { chave: "aquisicoes_avaliacoes", rotulo: "Avaliação de ordens (alçada)" },
       { chave: "aquisicoes_contratos", rotulo: "Contratos" },
       { chave: "aquisicoes_contratos_edicao", rotulo: "Contratos — editar" },

@@ -1562,6 +1562,79 @@ export async function listarCentrosCustoParaCompra(): Promise<
     }))
 }
 
+// ── Fila do comprador (processos Via Compras a operar) ─────────────────────
+
+export type ItemFilaComprador = {
+  id: string
+  codigo: string | null
+  produto: string | null
+  departamentoNome: string | null
+  situacao: SituacaoProcesso
+  data_limite: string | null
+  created_at: string | null
+}
+
+/**
+ * Processos Via Compras abertos que aguardam ação do comprador: solicitados
+ * (iniciar cotação), em cotação (coletar propostas) e cotados (escolher e
+ * comprar). Exclui aquisição direta, comprados, recebidos e cancelados.
+ */
+export async function listarFilaComprador(): Promise<{
+  disponivel: boolean
+  itens: ItemFilaComprador[]
+}> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_solicitacoes")
+    .select(
+      "id, codigo, solicitacao_produto, solicitacao_departamento_id, em_cotacao, cotacao_termino, data_limite, created_at, cancelado, comprado, recebido"
+    )
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("aquisicao_direta", false)
+    .eq("cancelado", false)
+    .eq("comprado", false)
+    .order("data_limite", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true })
+  if (error) {
+    if (esquemaAusente(error)) return { disponivel: false, itens: [] }
+    throw new Error(`Falha ao listar a fila do comprador: ${error.message}`)
+  }
+  const brutos = (data ?? []) as Record<string, unknown>[]
+
+  const deptoIds = [
+    ...new Set(
+      brutos
+        .map((x) => x.solicitacao_departamento_id)
+        .filter((v): v is string => Boolean(v))
+    ),
+  ]
+  const nomeDepto = new Map<string, string>()
+  if (deptoIds.length) {
+    const { data: deps } = await admin
+      .from("empresa_departamentos")
+      .select("id, departamento")
+      .in("id", deptoIds)
+    for (const d of (deps ?? []) as Record<string, unknown>[]) {
+      nomeDepto.set(String(d.id), String(d.departamento ?? "(sem nome)"))
+    }
+  }
+
+  return {
+    disponivel: true,
+    itens: brutos.map((x) => ({
+      id: String(x.id),
+      codigo: (x.codigo as string | null) ?? null,
+      produto: (x.solicitacao_produto as string | null) ?? null,
+      departamentoNome: x.solicitacao_departamento_id
+        ? (nomeDepto.get(String(x.solicitacao_departamento_id)) ?? null)
+        : null,
+      situacao: derivarSituacao(x as FlagsProcesso),
+      data_limite: (x.data_limite as string | null) ?? null,
+      created_at: (x.created_at as string | null) ?? null,
+    })),
+  }
+}
+
 // ── Arquivos (bucket 'compras') ────────────────────────────────────────────
 
 /** URL assinada (1h); caminhos http(s) legados do Bubble passam direto. */
