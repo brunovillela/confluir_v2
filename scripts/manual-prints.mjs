@@ -23,11 +23,16 @@ const EMAIL = "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
 const SHOTS = [
-  // Patrimônio (seed: scripts/seed-patrimonio-demo.mjs).
-  ["/painel/patrimonio", "patrimonio/painel.png"],
-  ["/painel/patrimonio/itens", "patrimonio/itens.png"],
-  ["/painel/patrimonio/recintos", "patrimonio/recintos.png"],
-  ["/painel/patrimonio/notas", "patrimonio/notas.png"],
+  // Prints restantes de features novas (seed: scripts/seed-prints-extra.mjs).
+  ["/painel/compras/comprador", "compras/comprador.png"],
+  ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png", { fullPage: true }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
+
+  // Patrimônio (já capturado — seed: scripts/seed-patrimonio-demo.mjs).
+  // ["/painel/patrimonio", "patrimonio/painel.png"],
+  // ["/painel/patrimonio/itens", "patrimonio/itens.png"],
+  // ["/painel/patrimonio/recintos", "patrimonio/recintos.png"],
+  // ["/painel/patrimonio/notas", "patrimonio/notas.png"],
 
   // Perfis de acesso / RBAC (já capturado — seed: demo-seed-perfis.sql).
   // ["/painel/institucional/usuarios/perfis", "institucional/perfis.png"],
