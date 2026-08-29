@@ -31,6 +31,17 @@ se houver, o **teto** de valor. Mantenha ativos os que estão em vigor.
 
 <Print src="pessoal/reembolsos.png" alt="Lista de reembolsos do ACT com funcionário, tipo, valor solicitado, aprovado e situação." legenda="Reembolsos do ACT: da solicitação ao pagamento em folha." />
 
+## Erros comuns
+
+- **"A área pede para configurar."** Falta rodar a configuração inicial
+  (`reembolsos-act.sql`) — fale com quem administra o sistema.
+- **"Aprovei um valor menor que o solicitado — está certo?"** Sim: o **valor
+  aprovado** pode ser menor que o pedido, e é ele que vai para a folha.
+- **"O reembolso aprovado não foi pago."** Ele fica **a lançar no contracheque**
+  até ser lançado; depois passa a **pago**, com o mês/ano de referência.
+- **"O tipo de reembolso não aparece."** Confira se está **ativo** e, se houver,
+  se o valor respeita o **teto** do tipo.
+
 <VejaTambem
   links={[
     {

@@ -21,6 +21,19 @@ certificados — com controle de validade.
 
 <Print src="pessoal/treinamentos.png" alt="Catálogo de treinamentos com nome, carga horária, validade e número de alunos." legenda="Treinamentos: o catálogo de cursos e a contagem de alunos." />
 
+## Erros comuns
+
+- **"O certificado nunca vence."** O treinamento está cadastrado como **"não
+  expira"** — defina a **validade** (em meses) no catálogo para passar a
+  controlar o vencimento.
+- **"O aluno não aparece no treinamento."** Ele precisa ser **adicionado como
+  participante** dentro do treinamento, com início e término.
+- **"O certificado vencido não gerou alerta."** Só há alerta quando o
+  treinamento **tem validade**; a partir do término mais o prazo, o certificado
+  vence e entra no painel.
+- **"Não consigo anexar o certificado."** Adicione o participante primeiro; o
+  anexo do certificado é por aluno.
+
 <VejaTambem
   links={[
     {

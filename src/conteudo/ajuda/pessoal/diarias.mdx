@@ -31,6 +31,18 @@ mantenha ativos apenas os que estão em uso.
 
 <Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com funcionário, tipo, quantidade, valor, período e situação." legenda="Diárias: as solicitações e a avaliação da equipe." />
 
+## Erros comuns
+
+- **"A área pede para configurar."** Falta rodar a configuração inicial
+  (`diarias.sql`) — fale com quem administra o sistema.
+- **"Aprovei a diária, mas o pagamento não saiu."** Ao aprovar, a diária gera
+  uma **ordem de pagamento** no Financeiro que nasce **Em autorização** — ela
+  ainda passa pela alçada antes de ser paga.
+- **"O valor total veio errado."** O total é **quantidade × valor do tipo**;
+  confira o valor de referência cadastrado no tipo de diária.
+- **"O tipo de diária não aparece na solicitação."** Ele pode estar **inativo** —
+  reative-o em Tipos de diária.
+
 <VejaTambem
   links={[
     {
