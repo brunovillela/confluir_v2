@@ -1,33 +1,57 @@
-O **faturamento** transforma as hospedagens do hotel em cobrança: a nota, a
-fatura e a ordem de pagamento.
+O **faturamento** transforma as hospedagens do hotel em cobrança: a nota
+(**DANFE**), a **fatura** e a **ordem de pagamento** no Financeiro.
 
-## Como fatura
+<RequerPermissao>Hospedagens</RequerPermissao>
+
+## Como o hotel fatura
 
 <PassoAPasso>
   <Passo titulo="Reservas faturáveis">
-    As reservas com custo entram no faturamento do hotel.
+    O hotel só vê como faturáveis as reservas com **comparecimento** registrado
+    e com **custo** definido, que ainda não foram faturadas.
   </Passo>
   <Passo titulo="Nota e fatura">
-    O sistema consolida a nota (DANFE) e a fatura do período.
+    O hotel anexa o **DANFE** (PDF), informa o vencimento e escolhe **como
+    receber** (Pix, Pix QR, Depósito/TED ou Boleto) — usando as contas bancárias
+    que ele cadastrou.
   </Passo>
   <Passo titulo="Ordem de pagamento">
-    A cobrança gera uma ordem “Em autorização”, que segue para o Financeiro.
+    Ao emitir, a fatura gera uma ordem **Em autorização** no sindicato, tendo o
+    hotel como favorecido.
+  </Passo>
+  <Passo titulo="Pagamento e baixa">
+    A ordem segue pela **alçada** do Financeiro; quando paga, a fatura do hotel
+    passa a **fechada**.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="nota" titulo="Reservas sem custo não faturam">
-  Reservas migradas sem custo definido não entram no faturamento — são tratadas
-  como não faturáveis.
+<Aviso tipo="atencao" titulo="Reservas sem custo não faturam">
+  Reservas migradas **sem custo** definido são tratadas como **não faturáveis** —
+  não entram na fatura. Confira o custo da reserva se ela deveria ser cobrada.
 </Aviso>
 
-<Print src="hospedagem/faturamento.png" alt="Faturamento do hotel com nota, fatura e a ordem gerada." legenda="Faturamento do hotel." />
+<Print src="hospedagem/faturamento.png" alt="Faturamento do hotel com as faturas em aberto e fechadas, o DANFE e a ordem gerada." legenda="Faturamento do hotel: da nota à ordem de pagamento." />
+
+## Erros comuns
+
+- **"A lista de reservas para faturar está vazia."** Só entram as com
+  **comparecimento** marcado pelo hotel; sem isso, a reserva não aparece.
+- **"A fatura foi emitida mas não foi paga."** A ordem nasce **Em autorização** e
+  passa pela **alçada** do Financeiro — não nasce autorizada.
+- **"Não aparece a conta para receber por Pix/Depósito."** O hotel precisa ter
+  uma **conta ativa** daquele tipo em Dados bancários, na interface dele.
 
 <VejaTambem
   links={[
     {
+      titulo: "Reservas",
+      href: "/painel/ajuda/hospedagem/reservas",
+      descricao: "O comparecimento que libera o faturamento",
+    },
+    {
       titulo: "Ordens de pagamento",
       href: "/painel/ajuda/financeiro/ordens",
-      descricao: "Para onde vai a cobrança",
+      descricao: "Para onde vai a cobrança do hotel",
     },
   ]}
 />

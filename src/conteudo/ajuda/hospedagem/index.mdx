@@ -1,41 +1,95 @@
-O módulo **Hospedagem** gere os hotéis conveniados, suas tarifas e cupons, e as
-reservas dos filiados — além do faturamento do hotel.
+O módulo **Hospedagem** administra os hotéis conveniados, suas **tarifas** e
+**cupons**, e as **reservas** dos filiados — até o **faturamento** do hotel.
 
-## As áreas do módulo
+<RequerPermissao>Hospedagens</RequerPermissao>
+
+## Três lados da mesma hospedagem
+
+A hospedagem passa por **três ambientes** diferentes. Saber quem faz o quê em
+cada um evita a maior parte das dúvidas:
+
+- **Painel do sindicato (aqui)** — cadastra hotéis, tarifas e cupons, emite o
+  cupom para o filiado e acompanha reservas e faturamento.
+- **Área do hotel** — o hotel parceiro tem um acesso **próprio** (login
+  separado) para confirmar as reservas a partir dos cupons, registrar o
+  comparecimento e emitir as faturas. Ele só enxerga o **próprio** hotel.
+- **Portal do filiado** — o filiado **pede o cupom** e acompanha a situação pela
+  área de Hospedagem do portal.
+
+<Aviso tipo="dica" titulo="O cupom é o fio que costura tudo">
+  O filiado pede (ou o sindicato emite) um **cupom**; o hotel transforma o cupom
+  em **reserva** confirmada; o comparecimento libera a reserva para
+  **faturamento**; a fatura vira uma **ordem de pagamento** no Financeiro. Tudo
+  gira em torno do cupom.
+</Aviso>
+
+## O caminho de ponta a ponta
 
 <PassoAPasso>
-  <Passo titulo="Hotéis e tarifas">
-    O cadastro dos hotéis, com as tarifas por período/tipo de quarto.
+  <Passo titulo="Cupom">
+    O filiado solicita pelo portal (ou o sindicato emite). O cupom nasce
+    **aguardando** reserva.
   </Passo>
-  <Passo titulo="Cupons">
-    Cupons de desconto que o filiado usa na reserva.
+  <Passo titulo="Reserva (hotel)">
+    O hotel vê o cupom em "aguardando reserva" e confirma a hospedagem, com a
+    tarifa acordada.
   </Passo>
-  <Passo titulo="Reservas">
-    As reservas dos filiados, do pedido à hospedagem.
+  <Passo titulo="Comparecimento (hotel)">
+    O hotel marca quem **compareceu** — é isso que torna a reserva **faturável**.
   </Passo>
-  <Passo titulo="Faturamento">
-    O faturamento do hotel, com nota e ordem de pagamento.
+  <Passo titulo="Faturamento (hotel)">
+    O hotel reúne as reservas com comparecimento numa **fatura** (com DANFE) e
+    escolhe como receber.
+  </Passo>
+  <Passo titulo="Pagamento (sindicato)">
+    A fatura gera uma **ordem Em autorização** no Financeiro, que segue pela
+    alçada até o pagamento.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="nota" titulo="Interface do hotel">
-  O hotel conveniado tem uma interface própria de acesso, separada do painel da
-  entidade, para operar as suas reservas.
-</Aviso>
+## As áreas no painel do sindicato
 
-<Print src="hospedagem/painel.png" alt="Painel do módulo Hospedagem com hotéis, tarifas, cupons e reservas." legenda="As áreas da Hospedagem." />
+<PassoAPasso>
+  <Passo titulo="Hotéis e tarifas">
+    O cadastro dos hotéis e as **tarifas** por quantidade de hóspedes no quarto
+    (custo por hóspede e custo da entidade).
+  </Passo>
+  <Passo titulo="Cupons">
+    Os cupons de hospedagem — emitidos ao filiado e acompanhados até virarem
+    reserva.
+  </Passo>
+  <Passo titulo="Reservas">
+    As reservas confirmadas pelos hotéis, do pedido à hospedagem.
+  </Passo>
+  <Passo titulo="Faturamento">
+    O faturamento do hotel, com nota (DANFE) e a ordem de pagamento.
+  </Passo>
+</PassoAPasso>
+
+<Print src="hospedagem/painel.png" alt="Painel do módulo Hospedagem com os cartões de hotéis e tarifas, cupons, reservas e faturamento." legenda="As áreas da Hospedagem no painel do sindicato." />
+
+## Erros comuns
+
+- **"O hotel não vê o acesso dele."** A conta do hotel é criada **pelo
+  sindicato**, que envia um convite por e-mail. Sem esse convite, o hotel não
+  entra.
+- **"O filiado pediu, mas não há reserva."** O cupom fica **aguardando** até o
+  **hotel** confirmar a reserva — o sindicato acompanha, mas quem confirma é o
+  hotel.
+- **"A reserva não entra no faturamento."** Só entram reservas com
+  **comparecimento** registrado pelo hotel e com **custo** definido.
 
 <VejaTambem
   links={[
     {
       titulo: "Reservas",
       href: "/painel/ajuda/hospedagem/reservas",
-      descricao: "Do pedido do filiado à hospedagem",
+      descricao: "Do cupom à hospedagem, com tarifa e comparecimento",
     },
     {
       titulo: "Faturamento",
       href: "/painel/ajuda/hospedagem/faturamento",
-      descricao: "Nota e ordem de pagamento",
+      descricao: "Como a reserva vira nota e ordem de pagamento",
     },
   ]}
 />

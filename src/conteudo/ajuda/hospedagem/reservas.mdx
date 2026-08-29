@@ -1,33 +1,65 @@
-A **reserva** liga um filiado a uma hospedagem em um hotel conveniado, aplicando
-tarifa e, quando houver, cupom de desconto.
+A **reserva** liga um filiado a uma hospedagem em um hotel conveniado, com a
+tarifa acordada e, quando houver, um cupom de desconto. Ela **nasce de um
+cupom** e é **confirmada pelo hotel**.
 
-## Da reserva à hospedagem
+<RequerPermissao>Hospedagens</RequerPermissao>
+
+## Do cupom à hospedagem
 
 <PassoAPasso>
-  <Passo titulo="Reserva">
-    Escolha o hotel, o período e o hóspede (filiado), com a tarifa vigente.
-  </Passo>
   <Passo titulo="Cupom">
-    Se houver, aplique o cupom de desconto.
+    O filiado solicita o cupom pelo portal (ou o sindicato emite), escolhendo o
+    hotel e a data. O cupom fica **aguardando** reserva.
   </Passo>
-  <Passo titulo="Hospedagem">
-    O hotel opera a chegada e a saída pela interface própria dele.
+  <Passo titulo="Reserva (feita pelo hotel)">
+    O hotel vê o cupom em "aguardando reserva", informa check-in e check-out e
+    **efetiva a reserva** — o cupom passa a **Reservado** e a **tarifa** aparece.
+  </Passo>
+  <Passo titulo="Comparecimento">
+    Na chegada, o hotel marca **Compareceu** para cada hóspede. Só então a
+    reserva fica **faturável**.
+  </Passo>
+  <Passo titulo="Encerramento">
+    O hotel anexa o relatório (quando pedido) e **finaliza** a reserva.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="dica" titulo="Área do filiado">
-  O próprio filiado acompanha e solicita pela área dele no portal — cadastro,
-  cupons e informações da hospedagem.
+<Aviso tipo="nota" titulo="Quem confirma a reserva é o hotel">
+  O sindicato **emite e acompanha** os cupons e vê as reservas, mas a
+  confirmação da hospedagem (check-in/check-out, comparecimento) é feita pelo
+  **hotel**, na interface própria dele.
 </Aviso>
 
-<Print src="hospedagem/reserva.png" alt="Reserva de hospedagem com hotel, período, hóspede e tarifa." legenda="Uma reserva de hospedagem." />
+## Tarifa, cupom e quarto coletivo
+
+A **tarifa** vem do acordo com o hotel, por quantidade de pessoas no quarto. Um
+**cupom** pode dar desconto. O **quarto coletivo** vale quando dois ou mais
+hóspedes aceitam dividir o quarto — ampliando as opções de vaga e ajustando a
+tarifa por hóspede.
+
+<Print src="hospedagem/reserva.png" alt="Reserva de hospedagem com hotel, período, hóspede, cupom e a tarifa aplicada." legenda="Uma reserva de hospedagem, com tarifa e cupom." />
+
+## Erros comuns
+
+- **"O cupom está aguardando há dias."** Ele depende do **hotel** confirmar a
+  reserva — se demora, contate o hotel; o sindicato não confirma no lugar dele.
+- **"A reserva não vai para o faturamento."** Falta o **comparecimento**
+  (marcado pelo hotel) ou a reserva **não tem custo** definido.
+- **"O filiado quer cancelar depois de reservado."** Pelo portal, o filiado só
+  cancela enquanto o cupom está **aguardando**; depois de reservado, o ajuste é
+  feito com a entidade/hotel.
 
 <VejaTambem
   links={[
     {
       titulo: "Faturamento",
       href: "/painel/ajuda/hospedagem/faturamento",
-      descricao: "Como a reserva vira cobrança",
+      descricao: "Como a reserva com comparecimento vira cobrança",
+    },
+    {
+      titulo: "Visão geral da Hospedagem",
+      href: "/painel/ajuda/hospedagem",
+      descricao: "Os três ambientes e o caminho de ponta a ponta",
     },
   ]}
 />
