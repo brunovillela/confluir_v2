@@ -1,6 +1,8 @@
 Os **processos** são um registro simples das ações judiciais — sem andamentos e
 prazos, foco no cadastro e no acompanhamento macro.
 
+<RequerPermissao>Jurídico geral</RequerPermissao> ou <RequerPermissao>Gestão jurídica</RequerPermissao>
+
 ## O que se registra
 
 <PassoAPasso>
@@ -21,7 +23,17 @@ prazos, foco no cadastro e no acompanhamento macro.
   finalizado automaticamente.
 </Aviso>
 
-<Print src="juridico/processos.png" alt="Detalhe de um processo com número, tipo, partes e filiados vinculados." legenda="Registro de um processo judicial." />
+<Print src="juridico/processos.png" alt="Detalhe de um processo com número, tipo, partes, status, filiados vinculados e o escritório responsável." legenda="Registro de um processo judicial." />
+
+## Erros comuns
+
+- **"O processo continua ativo mesmo encerrado."** Marque um **status terminal**
+  (arquivado, encerrado com/sem êxito) — ele finaliza o processo
+  automaticamente.
+- **"Não consigo lançar reembolso do processo."** Falta o **escritório
+  responsável** definido no processo — é ele o favorecido do reembolso.
+- **"Um filiado não aparece ligado ao processo."** Vincule-o na aba de
+  **filiados envolvidos**; um processo pode ter vários.
 
 <VejaTambem
   links={[

@@ -1,6 +1,8 @@
 Os **reembolsos** cobrem o caminho em que o escritório de advocacia gasta com um
 processo e o sindicato reembolsa.
 
+<RequerPermissao>Jurídico geral</RequerPermissao> para registrar; <RequerPermissao>Gestão jurídica</RequerPermissao> para aprovar
+
 ## Fluxo em duas etapas
 
 <PassoAPasso>
@@ -22,7 +24,18 @@ processo e o sindicato reembolsa.
   esse escritório definido no processo, a aprovação é bloqueada.
 </Aviso>
 
-<Print src="juridico/reembolsos.png" alt="Fila de reembolsos de processo com situação e link ao processo." legenda="Fila de reembolsos com aprovação da gestão jurídica." />
+<Print src="juridico/reembolsos.png" alt="Fila de reembolsos de processo com situação, valor e link ao processo." legenda="Fila de reembolsos com aprovação da gestão jurídica." />
+
+## Erros comuns
+
+- **"A aprovação está bloqueada."** Falta o **escritório responsável** definido
+  no processo — é ele o favorecido. Defina-o no processo e tente de novo.
+- **"Aprovei mas o pagamento não saiu."** A ordem nasce **Em autorização** e
+  ainda passa pela **alçada do Financeiro** — nunca nasce autorizada.
+- **"Não consigo registrar a despesa."** O **comprovante é obrigatório**; anexe-o
+  ao lançar a despesa no processo.
+- **"Só registro, não aprovo."** Aprovar exige **Gestão jurídica**; registrar a
+  despesa abre para **Jurídico geral**.
 
 <VejaTambem
   links={[

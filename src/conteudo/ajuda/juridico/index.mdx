@@ -1,30 +1,41 @@
-O módulo **Jurídico** cobre as homologações de rescisão, o registro dos
-processos judiciais e os reembolsos de despesas de processo.
+O módulo **Jurídico** cobre as **homologações** de rescisão, o registro dos
+**processos** judiciais e os **reembolsos** de despesas do escritório.
+
+<RequerPermissao>Jurídico geral</RequerPermissao>, <RequerPermissao>Gestão jurídica</RequerPermissao> ou <RequerPermissao>Homologações</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Homologações">
-    As rescisões homologadas pelo sindicato, com data, motivo, empregador e o
-    parecer.
+    As rescisões homologadas pelo sindicato, de filiado **ou** não-filiado, com
+    data, motivo, empregador e o parecer.
   </Passo>
   <Passo titulo="Processos">
-    Um registro simples das ações judiciais: número, tipo, partes, status e
-    responsável.
+    Um registro **macro** das ações judiciais: número, tipo, partes, status,
+    filiados envolvidos e o escritório responsável.
   </Passo>
   <Passo titulo="Reembolsos">
-    As despesas do escritório de advocacia que o sindicato reembolsa.
+    As despesas do escritório de advocacia que o sindicato reembolsa, em duas
+    etapas de aprovação. <RequerPermissao>Gestão jurídica</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="juridico/painel.png" alt="Hub do módulo Jurídico com indicadores e os cartões de homologações, processos e reembolsos." legenda="As áreas do Jurídico." />
+<Print src="juridico/painel.png" alt="Hub do módulo Jurídico com os indicadores no topo e os cartões de homologações, processos e reembolsos." legenda="As áreas do Jurídico." />
+
+## Erros comuns
+
+- **"Não vejo o módulo Jurídico."** Ele abre para **Jurídico geral**, **Gestão
+  jurídica** ou **Homologações** — peça o acesso em Institucional → Usuários e
+  permissões.
+- **"Vejo Homologações mas não Reembolsos."** As áreas são permissões
+  separadas; aprovar reembolso exige **Gestão jurídica**.
 
 <VejaTambem
   links={[
     {
       titulo: "Homologações",
       href: "/painel/ajuda/juridico/homologacoes",
-      descricao: "Rescisões homologadas",
+      descricao: "Rescisões homologadas, filiado × não-filiado e parecer",
     },
     {
       titulo: "Processos",
@@ -34,7 +45,7 @@ processos judiciais e os reembolsos de despesas de processo.
     {
       titulo: "Reembolsos",
       href: "/painel/ajuda/juridico/reembolsos",
-      descricao: "Despesas do escritório",
+      descricao: "Despesas do escritório em duas etapas",
     },
   ]}
 />

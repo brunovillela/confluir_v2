@@ -1,29 +1,57 @@
 As **homologações** registram as rescisões de contrato de trabalho homologadas
-pelo sindicato.
+pelo sindicato — de **filiado** ou de **não-filiado**.
 
-## O registro
+<RequerPermissao>Jurídico geral</RequerPermissao>, <RequerPermissao>Gestão jurídica</RequerPermissao> ou <RequerPermissao>Homologações</RequerPermissao>
 
-Cada homologação guarda a data, a data de demissão, o motivo, o empregador e —
-quando há — o parecer em PDF. O trabalhador pode ser um filiado (vinculado ao
-cadastro) ou um não-filiado.
+## O que cada homologação guarda
+
+Data da homologação, data de demissão, **motivo** da rescisão, **empregador**
+(fonte pagadora) e, quando há, o **parecer** em PDF. O trabalhador pode ser um
+**filiado** (ligado ao cadastro) ou um **não-filiado** (nome e CPF informados no
+próprio registro).
+
+## Registrar uma homologação
 
 <PassoAPasso>
-  <Passo titulo="Filiado × não-filiado">
-    No filiado, o registro se liga ao cadastro. No não-filiado, você informa
-    nome e CPF livres.
+  <Passo titulo="Filiado ou não-filiado">
+    Para **filiado**, busque e selecione o cadastro — nome e CPF vêm dele. Para
+    **não-filiado**, informe o **nome** (obrigatório) e o CPF.
+  </Passo>
+  <Passo titulo="Dados da rescisão">
+    Data, motivo e o empregador (a fonte pagadora).
   </Passo>
   <Passo titulo="Parecer">
-    Anexe o parecer em PDF quando houver.
+    Anexe o **parecer em PDF** quando houver. Ele fica em bucket privado e abre
+    por link temporário.
   </Passo>
 </PassoAPasso>
 
+<Print src="juridico/homologacoes.png" alt="Lista de homologações com a busca, os filtros por ano, motivo e vínculo (filiado/não-filiado), a ordenação por coluna e a exportação em CSV." legenda="Homologações: busca, filtros, ordenação e exportação." />
+
+## Encontrar e exportar
+
+A lista tem **busca** (trabalhador, CPF, empregador ou motivo), **filtros** por
+ano, motivo e vínculo (filiado × não-filiado), **ordenação por coluna** e
+**exportação em CSV**. Também dá para filtrar pelo **empregador**, a partir do
+hub.
+
 <Aviso tipo="nota" titulo="Registros históricos anônimos">
-  Parte das homologações migradas veio sem identificação do não-filiado (a base
-  anterior não guardava nome/CPF nesses casos) — esses registros ficam anônimos,
-  com data, motivo e empregador.
+  Parte das homologações migradas de não-filiados veio **sem nome/CPF** (a base
+  anterior não guardava esses campos) — ficam com data, motivo e empregador, mas
+  sem identificação. As homologações **novas** de não-filiado já capturam o nome
+  e o CPF normalmente.
 </Aviso>
 
-<Print src="juridico/homologacoes.png" alt="Lista de homologações com filtros por ano, motivo e situação de filiação." legenda="Homologações com busca, filtros e exportação." />
+## Erros comuns
+
+- **"Não deixa salvar sem escolher o trabalhador."** Ou você **seleciona um
+  filiado** na busca, ou informa o **nome** do não-filiado — um dos dois é
+  obrigatório.
+- **"O CPF foi recusado."** O CPF do não-filiado é validado; confira os dígitos.
+- **"Uma homologação antiga aparece sem nome."** É um registro migrado anônimo —
+  a base anterior não trouxe o nome do não-filiado.
+- **"O parecer não abre."** O link do PDF é **temporário** (assinado na hora);
+  reabra a homologação para gerar um link novo.
 
 <VejaTambem
   links={[
@@ -31,6 +59,11 @@ cadastro) ou um não-filiado.
       titulo: "Processos",
       href: "/painel/ajuda/juridico/processos",
       descricao: "As ações judiciais",
+    },
+    {
+      titulo: "Empregadores",
+      href: "/painel/ajuda/representacao/empregadores",
+      descricao: "As fontes pagadoras usadas como empregador",
     },
   ]}
 />
