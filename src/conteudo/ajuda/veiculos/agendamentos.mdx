@@ -1,35 +1,73 @@
-O **agendamento** reserva um veículo para um condutor, e registra a retirada e a
-devolução com o hodômetro.
+O **agendamento** reserva um veículo para um condutor e registra a **retirada**
+e a **devolução** pelo hodômetro. É por ele que se sabe quem está com cada
+veículo e quanto rodou.
 
-## Retirada e devolução
+<RequerPermissao>Veículos</RequerPermissao>
+
+## Solicitar e usar um veículo
 
 <PassoAPasso>
-  <Passo titulo="Agende">
-    Escolha o veículo, o condutor e o período de uso.
+  <Passo titulo="Solicitar">
+    Em **Veículos → Agendamentos**, use **Solicitar veículo**: escolha o veículo,
+    o condutor e o período de uso. A solicitação entra como **pendente**.
   </Passo>
   <Passo titulo="Retirada">
-    Na saída, registre o hodômetro — a quilometragem de partida.
+    Na saída, registre o **hodômetro de partida** — a quilometragem com que o
+    veículo saiu. A partir daí ele fica **Em uso**.
   </Passo>
   <Passo titulo="Devolução">
-    Na volta, registre o hodômetro de chegada. A diferença é a quilometragem
-    rodada no uso.
+    Na volta, registre o **hodômetro de chegada**. A diferença é a
+    **quilometragem rodada** no uso, e o veículo volta a ficar **Ativo**.
   </Passo>
 </PassoAPasso>
 
+<Print src="veiculos/agendamentos.png" alt="Tela de agendamento de veículo com o período de uso e os campos de hodômetro na retirada e na devolução." legenda="Agendamento com controle de hodômetro na retirada e na devolução." />
+
+## Condutores e CNH
+
+<RequerPermissao>Condutores</RequerPermissao>
+
+Cada condutor tem o registro da **CNH** com a validade. O painel de Veículos
+alerta as CNHs vencidas ou a vencer nos próximos 30 dias — mantenha-as em dia
+para não agendar com um condutor irregular.
+
 ## Abastecimentos
 
-Os abastecimentos podem ser lançados um a um ou importados de planilha. Um novo
-abastecimento exige o veículo e o hodômetro, mantendo a leitura de consumo
-coerente.
+<RequerPermissao>Gestão de veículos</RequerPermissao>
 
-<Print src="veiculos/agendamentos.png" alt="Agendamento de veículo com retirada e devolução por hodômetro." legenda="Agendamento com controle de hodômetro." />
+Os abastecimentos podem ser lançados **um a um** ou **importados de planilha**
+(CSV). Um novo abastecimento exige o **veículo** e o **hodômetro** — é isso que
+mantém a leitura de consumo (km/litro) coerente ao longo do tempo.
+
+<Aviso tipo="dica" titulo="Importar em massa">
+  Para carregar vários abastecimentos de uma vez (por exemplo, o extrato do
+  cartão-combustível), use a **importação de planilha** em Abastecimentos, em vez
+  de digitar um a um.
+</Aviso>
+
+## Erros comuns
+
+- **"O veículo aparece Em uso e não consigo agendar."** Ele está num
+  agendamento aberto — registre a **devolução** (hodômetro de chegada) para
+  liberá-lo.
+- **"A quilometragem rodada saiu errada."** Confira os hodômetros de **partida**
+  e **chegada**; a rodagem é a diferença entre eles.
+- **"A importação de abastecimentos recusou linhas."** Todo abastecimento novo
+  exige **veículo** e **hodômetro** — confira essas colunas na planilha.
+- **"Não deixa escolher um condutor."** Verifique a **CNH** dele (vencida) e se
+  tem a permissão/cadastro em Condutores.
 
 <VejaTambem
   links={[
     {
       titulo: "Infrações",
       href: "/painel/ajuda/veiculos/infracoes",
-      descricao: "Quando há multa no uso",
+      descricao: "Quando o uso gera multa",
+    },
+    {
+      titulo: "Visão geral dos Veículos",
+      href: "/painel/ajuda/veiculos",
+      descricao: "A frota, os alertas e as demais áreas",
     },
   ]}
 />

@@ -1,35 +1,63 @@
-As **infrações** registram multas dos veículos e permitem cobrar o infrator,
-com baixa no Financeiro.
+As **infrações** registram as multas dos veículos e permitem **cobrar o
+infrator**, com baixa no Financeiro e histórico para a prestação de contas.
 
-## Cobrança do infrator
+<RequerPermissao>Infrações</RequerPermissao>
+
+## Registrar e cobrar
 
 <PassoAPasso>
   <Passo titulo="Registre a infração">
-    Vincule a multa ao veículo e ao condutor infrator.
+    Vincule a multa ao **veículo** e ao **condutor infrator**, com a data, o
+    valor e a descrição.
   </Passo>
-  <Passo titulo="Cobre">
-    A cobrança pode ir para o contracheque (desconto) do infrator, quando ele é
-    do quadro.
+  <Passo titulo="Cobre o infrator">
+    Quando o infrator é do quadro, a cobrança pode ir para o **contracheque**
+    (desconto). Fica registrado o que há **a cobrar**.
   </Passo>
-  <Passo titulo="Baixa e histórico">
-    A baixa no Financeiro fica com histórico, o que serve à prestação de contas
-    ao Conselho Fiscal.
+  <Passo titulo="Baixa no Financeiro">
+    A quitação gera a **baixa no Financeiro**, com histórico — o que serve à
+    prestação de contas ao **Conselho Fiscal**.
   </Passo>
 </PassoAPasso>
 
+<Print src="veiculos/infracao.png" alt="Registro de uma infração com o veículo, o condutor infrator, o valor e a forma de cobrança." legenda="Infração com cobrança do infrator e baixa no Financeiro." />
+
+<Aviso tipo="nota" titulo="A cobrança segue o infrator, não o veículo">
+  A multa é vinculada ao **condutor** que cometeu a infração; é dele o desconto.
+  Por isso o agendamento (quem estava com o veículo) ajuda a identificar o
+  responsável.
+</Aviso>
+
 ## Contratos de aluguel
 
-Quando a frota inclui veículos alugados, o contrato de aluguel registra o
-período e as mensalidades.
+<RequerPermissao>Contratos de aluguel</RequerPermissao>
 
-<Print src="veiculos/infracao.png" alt="Registro de uma infração com o infrator e a forma de cobrança." legenda="Infração com cobrança do infrator." />
+Quando a frota inclui veículos alugados, o **contrato de aluguel** registra o
+período (vigência), o fornecedor e as **mensalidades**. O painel de Veículos
+alerta os contratos que terminam nos próximos 30 dias.
+
+## Erros comuns
+
+- **"Registrei a multa mas não descontou."** A cobrança no contracheque só vale
+  para infrator **do quadro**; e o desconto é lançado na folha — confira a
+  situação **a cobrar**.
+- **"A baixa não aparece para o Conselho Fiscal."** A baixa fica no
+  **Financeiro** com histórico; verifique se a infração foi efetivamente
+  **quitada/baixada**, não apenas registrada.
+- **"O contrato de aluguel venceu sem aviso."** O alerta cobre os próximos **30
+  dias** — contratos com término mais distante ainda não aparecem no painel.
 
 <VejaTambem
   links={[
     {
       titulo: "Agendamentos",
       href: "/painel/ajuda/veiculos/agendamentos",
-      descricao: "O uso que gerou a multa",
+      descricao: "O uso e o condutor que geraram a multa",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Onde a baixa no Financeiro é registrada",
     },
   ]}
 />

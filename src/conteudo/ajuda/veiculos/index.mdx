@@ -1,37 +1,74 @@
 O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, os
-agendamentos de uso, os abastecimentos, as infrações e os contratos de aluguel.
+**condutores** (com CNH), os **agendamentos** de uso, os **abastecimentos**, as
+**infrações** e os **contratos de aluguel**.
+
+<RequerPermissao>Veículos</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Frota">
-    O cadastro dos veículos, com a ficha de cada um e os condutores (com CNH).
+    O cadastro dos veículos e a **ficha** de cada um (placa, modelo, cor,
+    lotação, próprio × alugado, seguro). Criar e editar veículos exige
+    <RequerPermissao>Gestão de veículos</RequerPermissao>.
   </Passo>
   <Passo titulo="Agendamentos">
-    A reserva de um veículo, com retirada e devolução (hodômetro).
+    A reserva de um veículo, com retirada e devolução por **hodômetro**.
+    Qualquer pessoa com acesso pode **solicitar** um veículo.
   </Passo>
   <Passo titulo="Abastecimentos">
-    Os abastecimentos, lançados um a um ou importados de planilha.
+    Os abastecimentos, lançados um a um ou **importados de planilha**.
+    <RequerPermissao>Gestão de veículos</RequerPermissao>
   </Passo>
-  <Passo titulo="Infrações e Contratos">
-    As multas, com cobrança do infrator; e os contratos de aluguel de veículos,
-    com mensalidades.
+  <Passo titulo="Condutores">
+    Os motoristas e a validade da **CNH**. <RequerPermissao>Condutores</RequerPermissao>
+  </Passo>
+  <Passo titulo="Infrações">
+    As multas, com cobrança do infrator e baixa no Financeiro.
+    <RequerPermissao>Infrações</RequerPermissao>
+  </Passo>
+  <Passo titulo="Contratos de aluguel">
+    Locações da frota, com período e mensalidades.
+    <RequerPermissao>Contratos de aluguel</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="veiculos/painel.png" alt="Painel do módulo Veículos com a frota e as áreas de agendamentos, abastecimentos e infrações." legenda="As áreas do módulo Veículos." />
+<Print src="veiculos/painel.png" alt="Painel do módulo Veículos com os cartões das áreas (agendamentos, abastecimentos, infrações, condutores, contratos), os indicadores da frota e a lista de veículos." legenda="O painel de Veículos: áreas, indicadores da frota e alertas." />
+
+## Situação de cada veículo
+
+Na lista da frota, cada veículo mostra uma situação: **Ativo** (disponível),
+**Em uso** (retirado num agendamento aberto), **Manutenção** ou **Inativo**.
+Os indicadores do topo resumem a frota (ativa, em uso agora, em manutenção,
+solicitações pendentes).
+
+<Aviso tipo="atencao" titulo="Alertas dos próximos 30 dias">
+  Para quem tem gestão, o painel destaca o que vence em breve: **CNH** de
+  condutor, **seguro** de veículo e **contrato de aluguel**. Cada alerta leva
+  direto ao cadastro correspondente.
+</Aviso>
+
+## Erros comuns
+
+- **"Não consigo cadastrar um veículo."** Criar e editar exige **Gestão de
+  veículos**; sem ela você só consulta e solicita.
+- **"A frota parece incompleta."** A lista mostra só os **ativos** por padrão —
+  use o filtro **Inativos** ou **Todos**.
+- **"As áreas de condutores/abastecimentos/infrações não aparecem."** Cada uma é
+  uma **permissão separada** — peça o acesso em Institucional → Usuários e
+  permissões.
 
 <VejaTambem
   links={[
     {
       titulo: "Agendamentos",
       href: "/painel/ajuda/veiculos/agendamentos",
-      descricao: "Reserva, retirada e devolução",
+      descricao: "Reserva, retirada e devolução por hodômetro",
     },
     {
       titulo: "Infrações",
       href: "/painel/ajuda/veiculos/infracoes",
-      descricao: "Multas e cobrança do infrator",
+      descricao: "Multas, cobrança do infrator e contratos de aluguel",
     },
   ]}
 />
