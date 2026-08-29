@@ -1,28 +1,46 @@
-O módulo **Ferramentas** reúne apoios ao dia a dia da entidade: projetos,
-demandas (tarefas e anomalias), documentos, agenda, ofícios e e-mails
-institucionais.
+O módulo **Ferramentas** reúne apoios ao dia a dia da entidade: **projetos**,
+**demandas** (tarefas e anomalias), **documentos**, **agenda**, **ofícios** e
+**e-mails institucionais**.
+
+<RequerPermissao>Projetos</RequerPermissao>, <RequerPermissao>Documentos</RequerPermissao>, <RequerPermissao>Ofícios</RequerPermissao> ou outra permissão de Ferramentas
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Projetos e Demandas">
-    Projetos e o acompanhamento de demandas — tarefas e anomalias — do time.
+    Projetos e o acompanhamento de **demandas** — tarefas e anomalias — do time.
   </Passo>
   <Passo titulo="Documentos">
     O repositório de documentos da entidade, por categoria.
+    <RequerPermissao>Documentos</RequerPermissao>
   </Passo>
   <Passo titulo="Agenda">
-    Os compromissos e eventos.
+    Os compromissos e eventos. <RequerPermissao>Agenda</RequerPermissao>
   </Passo>
   <Passo titulo="Ofícios e E-mails">
     A emissão de ofícios (com PDF) e o cadastro dos e-mails institucionais.
+    <RequerPermissao>Ofícios</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="ferramentas/painel.png" alt="Hub do módulo Ferramentas com as seis áreas." legenda="As áreas do módulo Ferramentas." />
+<Print src="ferramentas/painel.png" alt="Hub do módulo Ferramentas com os cartões das áreas: projetos e demandas, documentos, agenda, ofícios e e-mails." legenda="As áreas do módulo Ferramentas." />
+
+## Erros comuns
+
+- **"Vejo uma ferramenta e não as outras."** Cada uma é uma **permissão
+  separada** (Projetos, Documentos, Agenda, Ofícios…) — peça o acesso em
+  Institucional → Usuários e permissões.
+- **"Ferramentas é o mesmo que Institucional?"** Não: aqui é o apoio operacional
+  (tarefas, documentos, ofícios); o cadastro da organização e da diretoria fica
+  em **Institucional**.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Projetos e demandas",
+      href: "/painel/ajuda/ferramentas/projetos",
+      descricao: "Organizar o trabalho do time",
+    },
     {
       titulo: "Documentos",
       href: "/painel/ajuda/ferramentas/documentos",

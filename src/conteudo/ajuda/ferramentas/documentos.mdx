@@ -1,25 +1,34 @@
 Os **documentos** são o repositório de arquivos da entidade, organizados por
-categoria.
+**categoria**.
+
+<RequerPermissao>Documentos</RequerPermissao>
 
 ## Organização por categoria
 
-Cada documento pertence a uma categoria, o que mantém o acervo navegável. Você
-sobe, consulta e organiza os arquivos por aqui.
+Cada documento pertence a uma **categoria**, o que mantém o acervo navegável.
+Você sobe, consulta e organiza os arquivos por aqui — eles ficam no
+armazenamento próprio da entidade.
 
-<Aviso tipo="atencao" titulo="Arquivos legados no CDN anterior">
-  Documentos migrados ainda apontam para o endereço de arquivos do sistema
-  anterior. A re-hospedagem no armazenamento próprio é um passo pendente da
-  virada.
-</Aviso>
+## Erros comuns
 
-<Print src="ferramentas/documentos.png" alt="Repositório de documentos organizado por categorias." legenda="Documentos por categoria." />
+- **"Não acho um documento."** Confira a **categoria** — o acervo é navegado por
+  categoria; um arquivo na categoria errada some da vista.
+- **"Não consigo subir arquivo."** Enviar exige a permissão **Documentos**;
+  quem não a tem apenas consulta.
+- **"Um documento antigo não abre."** Alguns arquivos migrados podem ter
+  endereço legado — nesse caso, reenvie o arquivo pela categoria correta.
 
 <VejaTambem
   links={[
     {
       titulo: "Ofícios",
       href: "/painel/ajuda/ferramentas/oficios",
-      descricao: "Documentos oficiais emitidos",
+      descricao: "Os documentos oficiais emitidos pela entidade",
+    },
+    {
+      titulo: "Visão geral",
+      href: "/painel/ajuda/ferramentas",
+      descricao: "As áreas do módulo Ferramentas",
     },
   ]}
 />

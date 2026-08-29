@@ -1,25 +1,43 @@
 **Projetos** e **Demandas** ajudam a organizar o trabalho do time da entidade.
 
+<RequerPermissao>Projetos</RequerPermissao> ou <RequerPermissao>Demandas</RequerPermissao>
+
 ## Projetos
 
-Um projeto agrupa um conjunto de trabalho com um objetivo comum. Serve de
-guarda-chuva para as demandas relacionadas.
+Um projeto agrupa um conjunto de trabalho com um objetivo comum, e serve de
+**guarda-chuva** para as demandas relacionadas. É o mesmo cadastro de projeto que
+o **Financeiro** usa: uma compra ou uma ordem vinculada a um projeto puxa o
+**centro de custo** dele.
 
 ## Demandas: tarefas e anomalias
 
 <PassoAPasso>
   <Passo titulo="Tarefa">
-    Algo a fazer — atribuível e acompanhável até a conclusão.
+    Algo **a fazer** — atribuível a uma pessoa e acompanhável até a conclusão.
   </Passo>
   <Passo titulo="Anomalia">
-    Um problema identificado, registrado para tratamento.
+    Um **problema** identificado, registrado para tratamento e acompanhamento.
   </Passo>
 </PassoAPasso>
 
-<Print src="ferramentas/projetos.png" alt="Acompanhamento de demandas com tarefas e anomalias." legenda="Projetos e demandas do time." />
+<Print src="ferramentas/projetos.png" alt="Acompanhamento de demandas com tarefas e anomalias, atribuídas e com situação." legenda="Projetos e demandas do time." />
+
+## Erros comuns
+
+- **"Editei um projeto e não salvou."** Editar exige **Projetos — editar**; só
+  **Projetos** dá consulta.
+- **"A compra não herdou o centro de custo do projeto."** Confira se o projeto
+  tem **centro de custo** definido — é ele que é atribuído à despesa.
+- **"A demanda não aparece para o responsável."** Verifique se ela foi
+  **atribuída** a ele.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "Como o projeto define o centro de custo da compra",
+    },
     {
       titulo: "Visão geral",
       href: "/painel/ajuda/ferramentas",

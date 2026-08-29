@@ -1,29 +1,40 @@
-Os **ofícios** são os documentos oficiais da entidade, com numeração por ano,
-signatário da diretoria e geração de PDF.
+Os **ofícios** são os documentos oficiais da entidade, com **numeração por
+ano**, **signatário** da diretoria e geração de **PDF**.
+
+<RequerPermissao>Ofícios</RequerPermissao>
 
 ## Emitir um ofício
 
 <PassoAPasso>
   <Passo titulo="Rascunho">
-    Preencha destinatário, assunto e corpo. O signatário vem dos integrantes
-    vigentes da diretoria. Há um campo opcional “Aos cuidados”.
+    Preencha destinatário, assunto e corpo. O **signatário** vem dos integrantes
+    **vigentes** da diretoria. Há um campo opcional "Aos cuidados".
   </Passo>
   <Passo titulo="Emissão">
-    Ao emitir, o ofício recebe o número (o próximo do ano é sugerido) e fica
-    travado — vira documento oficial.
+    Ao emitir, o ofício recebe o **número** (o próximo do ano é sugerido) e fica
+    **travado** — vira documento oficial.
   </Passo>
   <Passo titulo="PDF e impressão">
-    O ofício gera PDF (logo, dados da entidade no rodapé, sedes e paginação) e
-    também abre em versão para impressão.
+    O ofício gera **PDF** (logo, dados da entidade no rodapé, sedes e paginação)
+    e também abre em versão para impressão.
   </Passo>
 </PassoAPasso>
 
-## Tipos automáticos
+<Aviso tipo="dica" titulo="Tipos automáticos poupam digitação">
+  Alguns tipos (filiação/desfiliação) **carregam a lista de pessoas** a partir da
+  fonte pagadora, sem você digitar nome a nome.
+</Aviso>
 
-Alguns tipos de ofício (filiação/desfiliação) carregam a lista de pessoas a
-partir da fonte pagadora, poupando digitação.
+<Print src="ferramentas/oficios.png" alt="Rascunho de um ofício com destinatário, assunto, corpo e o signatário vindo da diretoria." legenda="Emissão de ofício com numeração e PDF." />
 
-<Print src="ferramentas/oficios.png" alt="Rascunho de um ofício com destinatário, assunto, corpo e signatário." legenda="Emissão de ofício com numeração e PDF." />
+## Erros comuns
+
+- **"Não aparece o signatário que quero."** O signatário vem dos integrantes
+  **vigentes** da diretoria — confira o mandato em Institucional → Diretoria.
+- **"Emiti e agora não consigo editar."** Um ofício emitido fica **travado**
+  (é oficial). Emita um novo se precisar corrigir.
+- **"O número saiu fora de sequência."** O sistema **sugere** o próximo do ano,
+  mas confira antes de emitir — a numeração é por ano.
 
 <VejaTambem
   links={[
@@ -31,6 +42,11 @@ partir da fonte pagadora, poupando digitação.
       titulo: "Diretoria",
       href: "/painel/ajuda/institucional/diretoria",
       descricao: "De onde vêm os signatários",
+    },
+    {
+      titulo: "Empregadores",
+      href: "/painel/ajuda/representacao/empregadores",
+      descricao: "As fontes pagadoras dos ofícios de filiação",
     },
   ]}
 />
