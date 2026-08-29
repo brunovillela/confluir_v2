@@ -23,9 +23,15 @@ const EMAIL = "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
 const SHOTS = [
-  // Perfis de acesso / RBAC (seed: demo-seed-perfis.sql + perfis-acesso.sql).
-  ["/painel/institucional/usuarios/perfis", "institucional/perfis.png"],
-  ["/painel/institucional/usuarios/perfis/a0510000-0000-4000-8000-000000000001", "institucional/perfil-detalhe.png", { fullPage: true }],
+  // Patrimônio (seed: scripts/seed-patrimonio-demo.mjs).
+  ["/painel/patrimonio", "patrimonio/painel.png"],
+  ["/painel/patrimonio/itens", "patrimonio/itens.png"],
+  ["/painel/patrimonio/recintos", "patrimonio/recintos.png"],
+  ["/painel/patrimonio/notas", "patrimonio/notas.png"],
+
+  // Perfis de acesso / RBAC (já capturado — seed: demo-seed-perfis.sql).
+  // ["/painel/institucional/usuarios/perfis", "institucional/perfis.png"],
+  // ["/painel/institucional/usuarios/perfis/a0510000-0000-4000-8000-000000000001", "institucional/perfil-detalhe.png", { fullPage: true }],
 
   // Custeio Institucional (já capturado — seed: demo-seed-custeio.sql).
   // ["/painel/institucional/custeios", "institucional/custeios.png"],
