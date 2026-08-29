@@ -822,6 +822,225 @@ export async function datasDaRodada(
   }
 }
 
+// ── Urna presencial (mesário registra o voto individual de cada apto) ──────
+//
+// Urna com mesário grava voto individual em voto_online (mesario_id = operador;
+// eleitor_id NULO = secreto — o conteúdo não é ligado ao eleitor). A
+// participação fica no apto (hora_voto), impedindo voto duplo.
+
+export type AptoUrna = {
+  id: string
+  nome: string | null
+  cpf: string | null
+  matricula: string | null
+  jaVotou: boolean
+}
+export type DadosUrna = {
+  assembleiaId: string
+  nome: string | null
+  empregador: string | null
+  aberta: boolean
+  totalAptos: number
+  votaram: number
+  aptos: AptoUrna[]
+  perguntas: PerguntaVoto[]
+}
+
+async function assembleiaUrnaAberta(
+  assembleiaId: string
+): Promise<{ ok: boolean; rodadaId: string | null; nome: string | null; empresaId: string | null }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select(
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, data_termino, periodo_termino, rod_assembleia_id, empresa_id"
+    )
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!a) return { ok: false, rodadaId: null, nome: null, empresaId: null }
+  const modalidade = derivarModalidade(a)
+  const termino = txt(a.data_termino) ?? txt(a.periodo_termino)
+  const aberta =
+    modalidade === "urna" &&
+    a.apuracao_encerrada !== true &&
+    !(termino && new Date(termino).getTime() < Date.now())
+  return {
+    ok: aberta,
+    rodadaId: txt(a.rod_assembleia_id),
+    nome: txt(a.nome_assembleia),
+    empresaId: txt(a.empresa_id),
+  }
+}
+
+/** Dados da estação de urna: aptos (buscáveis) + a cédula. Só p/ urna aberta. */
+export async function dadosUrna(
+  assembleiaId: string,
+  busca = ""
+): Promise<DadosUrna | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const info = await assembleiaUrnaAberta(assembleiaId)
+
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select("id, nome_assembleia, urnas_de_votacao, online, empresa_id")
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!a || derivarModalidade(a) !== "urna") return null
+
+  let q = admin
+    .from("voto_assembleias_aptos")
+    .select("id, nome_completo, cpf, matricula, hora_voto")
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+    .order("nome_completo", { ascending: true })
+    .limit(50)
+  const termo = busca.trim()
+  if (termo) {
+    const escapado = termo.replace(/[%_,()]/g, " ")
+    q = q.or(
+      `nome_completo.ilike.%${escapado}%,cpf.ilike.%${escapado}%,matricula.ilike.%${escapado}%`
+    )
+  }
+  const [{ data: aptos }, contagem, perguntas, empRes] = await Promise.all([
+    q,
+    admin
+      .from("voto_assembleias_aptos")
+      .select("hora_voto")
+      .eq("emp_proprietaria_id", emp)
+      .eq("assembleia_id", assembleiaId),
+    perguntasDaAssembleia(assembleiaId),
+    txt(a.empresa_id)
+      ? admin.from("empresa").select("nome_fantasia, nome_razao").eq("id", a.empresa_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+  const todas = contagem.data ?? []
+  return {
+    assembleiaId,
+    nome: txt(a.nome_assembleia),
+    empregador: empRes.data
+      ? txt(empRes.data.nome_fantasia) ?? txt(empRes.data.nome_razao)
+      : null,
+    aberta: info.ok,
+    totalAptos: todas.length,
+    votaram: todas.filter((x) => x.hora_voto).length,
+    aptos: (aptos ?? []).map((x) => ({
+      id: String(x.id),
+      nome: txt(x.nome_completo),
+      cpf: txt(x.cpf),
+      matricula: txt(x.matricula),
+      jaVotou: Boolean(x.hora_voto),
+    })),
+    perguntas,
+  }
+}
+
+/** Um apto específico da urna (para a cédula individual). */
+export async function aptoUrna(
+  assembleiaId: string,
+  aptoId: string
+): Promise<{ nome: string | null; cpf: string | null; jaVotou: boolean } | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_assembleias_aptos")
+    .select("nome_completo, cpf, hora_voto")
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("assembleia_id", assembleiaId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    nome: txt(data.nome_completo),
+    cpf: txt(data.cpf),
+    jaVotou: Boolean(data.hora_voto),
+  }
+}
+
+/**
+ * Registra o voto de um apto na urna (secreto), pelo mesário. O conteúdo do
+ * voto nunca é ligado ao eleitor (eleitor_id null); a participação fica no
+ * apto (hora_voto). `mesario_id` não é gravado (nulo, como o legado — a FK
+ * do banco não referencia o usuário do painel).
+ */
+export async function registrarVotoUrna(
+  assembleiaId: string,
+  aptoId: string,
+  escolhas: { perguntaId: string; opcaoId: string }[]
+): Promise<{ erro?: string; ok?: boolean }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const info = await assembleiaUrnaAberta(assembleiaId)
+  if (!info.ok) return { erro: "Urna fechada ou assembleia não é de urna." }
+
+  const { data: apto } = await admin
+    .from("voto_assembleias_aptos")
+    .select("id, cpf, hora_voto")
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+    .maybeSingle()
+  if (!apto) return { erro: "Eleitor não encontrado na lista de aptos." }
+  if (apto.hora_voto) return { erro: "Este eleitor já votou." }
+
+  const perguntas = await perguntasDaAssembleia(assembleiaId)
+  if (perguntas.length === 0) return { erro: "A cédula ainda não tem perguntas." }
+  const escolhaPorPergunta = new Map(
+    escolhas.map((e) => [e.perguntaId, e.opcaoId])
+  )
+  for (const p of perguntas) {
+    const opc = escolhaPorPergunta.get(p.id)
+    if (!opc || !p.opcoes.some((o) => o.id === opc)) {
+      return { erro: "Responda todas as perguntas para confirmar o voto." }
+    }
+  }
+
+  const agora = new Date().toISOString()
+  const linhas = perguntas.map((p) => ({
+    emp_proprietaria_id: emp,
+    assembleia_id: assembleiaId,
+    rod_assembleia_id: info.rodadaId,
+    pergunta_id: p.id,
+    resposta_id: escolhaPorPergunta.get(p.id) as string,
+    valido: true,
+    eleitor_id: null,
+    created_at: agora,
+  }))
+  const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
+  if (erroVoto) {
+    return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
+  }
+
+  await admin
+    .from("voto_assembleias_aptos")
+    .update({ hora_voto: agora })
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", emp)
+
+  // Apontamento genérico no prontuário quando o apto é um filiado (por CPF).
+  if (apto.cpf) {
+    const { buscarFiliadoPorCpf } = await import("@/lib/contas")
+    const filiado = await buscarFiliadoPorCpf(String(apto.cpf))
+    if (filiado?.filiacaoId) {
+      const nomeAss = info.nome ? ` "${info.nome}"` : ""
+      await admin.from("filiacao_prontuario").insert({
+        filiacao_id: filiado.filiacaoId,
+        data: agora,
+        tipo: "Assembleia",
+        descricao: `Votou na urna da assembleia${nomeAss}.`,
+        diretor_funcionario_id: null,
+        emp_proprietaria_id: emp,
+        created_at: agora,
+        modified_at: agora,
+      })
+    }
+  }
+  return { ok: true }
+}
+
 /** Existe apto por e-mail nesta assembleia? (para o fluxo público de OTP). */
 export async function existeAptoPorEmail(
   email: string,

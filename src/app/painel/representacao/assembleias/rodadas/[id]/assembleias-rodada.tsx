@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Gavel, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { Gavel, Loader2, Pencil, Plus, Trash2, Vote } from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -287,6 +287,14 @@ function AssembleiaItem({
           <ModalidadeBadge modalidade={assembleia.modalidade} />
           {assembleia.voto_em_separado && (
             <Badge variant="outline">Voto em separado</Badge>
+          )}
+          {assembleia.modalidade === "urna" && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/representacao/assembleias/urna/${assembleia.id}`}>
+                <Vote />
+                Urna
+              </Link>
+            </Button>
           )}
           <Button variant="outline" size="sm" asChild>
             <Link href={`/painel/representacao/assembleias/apuracao/${assembleia.id}`}>

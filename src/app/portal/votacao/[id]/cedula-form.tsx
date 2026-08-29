@@ -12,10 +12,12 @@ export function CedulaForm({
   assembleiaId,
   perguntas,
   acao,
+  camposOcultos,
 }: {
   assembleiaId: string
   perguntas: PerguntaVoto[]
   acao: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
+  camposOcultos?: Record<string, string>
 }) {
   const [estado, action, pendente] = useActionState(acao, {})
 
@@ -31,6 +33,10 @@ export function CedulaForm({
   return (
     <form action={action} className="grid gap-6">
       <input type="hidden" name="assembleia_id" value={assembleiaId} />
+      {camposOcultos &&
+        Object.entries(camposOcultos).map(([nome, valor]) => (
+          <input key={nome} type="hidden" name={nome} value={valor} />
+        ))}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
