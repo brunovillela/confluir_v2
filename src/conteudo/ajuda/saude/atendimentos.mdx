@@ -1,43 +1,85 @@
-Os **atendimentos** do serviço de saúde têm um cuidado especial: o relatório
-clínico é sigiloso, cifrado, e com acesso restrito.
+Os **atendimentos** do serviço de saúde têm um cuidado especial: o **relatório
+clínico** é sigiloso, cifrado e com acesso restrito por regra própria.
+
+<RequerPermissao>Atendimentos</RequerPermissao>
 
 ## O que é sigiloso e o que não é
 
 <PassoAPasso>
-  <Passo titulo="Relatório clínico — sigiloso">
-    Só é lido por profissional do mesmo tipo do atendimento e pelo autor. É
-    cifrado pela aplicação; nem quem administra a saúde nem o próprio assistido
-    o acessam.
+  <Passo titulo="Relatório clínico — sigiloso e cifrado">
+    O conteúdo clínico. É **cifrado pela aplicação** e nunca sai junto com os
+    metadados. Só abre pela função própria, que **registra cada leitura**.
   </Passo>
   <Passo titulo="Observação aberta — visível ao assistido">
-    Um texto aberto que o assistido consulta na área dele, no portal.
+    Um texto **aberto** que o assistido consulta na área de saúde do portal. Use
+    para orientações e recados, nunca para o conteúdo sigiloso.
   </Passo>
-  <Passo titulo="Apontamento no prontuário">
-    O atendimento gera um registro genérico no prontuário do filiado (“Atendido
-    pelo serviço de saúde”), sem revelar a especialidade.
+  <Passo titulo="Apontamento no prontuário — genérico">
+    O atendimento gera um registro **genérico** no prontuário do filiado
+    ("atendido pelo serviço de saúde"), **sem revelar a especialidade** nem o
+    conteúdo.
   </Passo>
 </PassoAPasso>
 
+## Quem pode ler o relatório
+
+O acesso ao relatório **não vem** da permissão do painel nem de ser a pessoa
+atendida — vem do **perfil clínico** (o cadastro do profissional no serviço de
+saúde). São exatamente três caminhos:
+
+- **Autor** — quem escreveu o relatório sempre lê o que escreveu.
+- **Profissional do mesmo tipo** — um profissional habilitado no **mesmo tipo**
+  do atendimento lê.
+- **Coordenação clínica** — um profissional com **acesso a todos os tipos**
+  atravessa os tipos (previsto para a coordenação).
+
+<Aviso tipo="perigo" titulo="Quem NÃO acessa — de propósito">
+  **Gestão de saúde** (administração do módulo) vê os metadados, mas **não** lê
+  o relatório. O **próprio assistido** também não — ele vê apenas a observação
+  aberta. Um pedido formal de acesso ao prontuário (LGPD, Art. 18) segue por
+  fora do sistema, com um profissional.
+</Aviso>
+
 <Aviso tipo="perigo" titulo="A chave de cifragem é insubstituível">
-  O relatório é cifrado com uma chave que fica fora do banco. Perder a chave é
-  perder os relatórios — não há recuperação por backup. Toda leitura fica
-  registrada numa trilha de acesso.
+  O relatório é cifrado com uma chave que fica **fora do banco**. **Perder a
+  chave é perder os relatórios** — não há recuperação por backup. Toda leitura
+  fica numa **trilha de auditoria**, com o motivo do acesso (autor, mesmo tipo
+  ou coordenação).
 </Aviso>
 
 ## Assistido, agenda e portal
 
 O atendimento é feito a um **assistido** (a pessoa atendida, filiada ou não).
-Há agenda de atendimentos, e o filiado vê o que lhe cabe pela área de saúde do
-portal — nunca o relatório.
+Há **agenda** de atendimentos, e o filiado acompanha o que lhe cabe pela área de
+saúde do **portal** — nunca o relatório.
 
-<Print src="saude/atendimentos.png" alt="Atendimento com a observação aberta, o indicador de relatório e a trilha de acessos." legenda="Atendimento: observação aberta e relatório sob controle." />
+<Print src="saude/atendimentos.png" alt="Tela de um atendimento com a observação aberta, o indicador de que existe relatório e a trilha de acessos." legenda="Atendimento: observação aberta, indicador de relatório e a trilha de acessos." />
+
+## Erros comuns
+
+- **"Sou o gestor da saúde e não abro o relatório."** É proposital — o acesso
+  vem do **perfil clínico**, não da permissão de gestão.
+- **"Atendo, mas não leio o relatório de outro tipo."** Você lê os do **seu
+  tipo** (e os que você mesmo escreveu). Ver todos os tipos exige o perfil de
+  **coordenação** (acesso a todos os tipos).
+- **"O assistido pediu para ver o relatório."** Ele vê só a **observação
+  aberta**; o relatório clínico não é exposto no portal. Encaminhe como pedido
+  formal, com um profissional.
+- **"Perdi/trocou a chave e os relatórios viraram texto ilegível."** Sem a
+  chave correta não há como decifrar — por isso ela é guardada fora do banco e
+  não pode ser perdida.
 
 <VejaTambem
   links={[
     {
       titulo: "Visão geral da Saúde",
       href: "/painel/ajuda/saude",
-      descricao: "As áreas do módulo",
+      descricao: "As áreas do módulo e o cuidado com dados sensíveis",
+    },
+    {
+      titulo: "Prontuários",
+      href: "/painel/ajuda/filiados/prontuarios",
+      descricao: "Onde entra o apontamento genérico do atendimento",
     },
   ]}
 />

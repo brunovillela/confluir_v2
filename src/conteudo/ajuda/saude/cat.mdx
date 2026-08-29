@@ -1,5 +1,8 @@
 A **CAT** (Comunicação de Acidente de Trabalho) é registrada no formato do
-formulário oficial. O sistema traz o histórico migrado e permite incluir novas.
+**formulário oficial**. O sistema traz o histórico migrado e permite incluir
+novas, uma a uma ou em massa.
+
+<RequerPermissao>CATs</RequerPermissao>
 
 ## Painel e listagem
 
@@ -7,31 +10,50 @@ formulário oficial. O sistema traz o histórico migrado e permite incluir novas
   <Passo titulo="Painel">
     Indicadores macro: total de CATs, com afastamento, com internação, óbitos,
     empresas envolvidas, acidentes por ano e os principais tipos, municípios e
-    empresas — todos clicáveis, levando à listagem filtrada.
+    empresas — **todos clicáveis**, levando à listagem já filtrada.
   </Passo>
   <Passo titulo="Listagem">
     Busca e filtros (ano, tipo, UF, município, afastamento, internação, óbito),
-    ordenação por coluna e exportação em CSV.
+    ordenação por coluna e **exportação em CSV**.
   </Passo>
   <Passo titulo="Detalhe">
-    Cada CAT abre no formato do formulário oficial, com seus blocos e o número
-    de cada campo.
+    Cada CAT abre no formato do **formulário oficial**, com seus blocos e o
+    **número de cada campo**.
   </Passo>
 </PassoAPasso>
 
+<Print src="saude/cat.png" alt="Listagem de CATs com a busca, os filtros (ano, tipo, UF, município, afastamento, internação, óbito) e o botão de exportar CSV." legenda="Listagem de CATs com filtros e exportação." />
+
 ## Inclusão
 
-Novas CATs entram de duas formas: pelo **formulário individual** (todos os
-campos do formulário oficial) ou por **importação em massa** de uma planilha
-(CSV), que casa cada coluna pelo número do campo e valida tudo antes de gravar.
+<PassoAPasso>
+  <Passo titulo="Formulário individual">
+    Preenche **todos os campos** do formulário oficial, um a um.
+  </Passo>
+  <Passo titulo="Importação em massa (CSV)">
+    Casa cada coluna da planilha pelo **número do campo** do formulário e valida
+    tudo antes de gravar — é **tudo ou nada**: se uma linha falha, nada é
+    importado, para você corrigir e reenviar.
+  </Passo>
+</PassoAPasso>
 
 <Aviso tipo="atencao" titulo="Dados históricos com limitações">
-  Parte das CATs migradas veio com a descrição truncada e sem código
-  (limitação da base anterior), e quase nenhuma traz o CPF — por isso ainda não
-  há ligação automática entre CAT e filiado. Esses registros ficam sinalizados.
+  Parte das CATs migradas veio com a **descrição truncada** e **sem código**
+  (limitação da base anterior), e quase nenhuma traz o **CPF** — por isso ainda
+  não há ligação automática entre CAT e filiado. Esses registros ficam
+  **sinalizados** na listagem.
 </Aviso>
 
-<Print src="saude/cat.png" alt="Listagem de CATs com filtros e a exportação em CSV." legenda="Listagem de CATs com filtros e exportação." />
+## Erros comuns
+
+- **"A importação recusou tudo por causa de uma linha."** É proposital
+  (**tudo ou nada**): corrija a linha apontada e reenvie a planilha inteira.
+- **"As colunas não bateram na importação."** O casamento é pelo **número do
+  campo** do formulário oficial — confira o cabeçalho da planilha.
+- **"A CAT não aparece ligada ao filiado."** Registros antigos vieram **sem
+  CPF**; a ligação automática depende desse dado.
+- **"Um mesmo tipo/município aparece escrito de várias formas."** São grafias
+  da base antiga; o painel agrupa as variações para os indicadores.
 
 <VejaTambem
   links={[
@@ -39,6 +61,11 @@ campos do formulário oficial) ou por **importação em massa** de uma planilha
       titulo: "CIPA",
       href: "/painel/ajuda/saude/cipa",
       descricao: "As reuniões nas empresas",
+    },
+    {
+      titulo: "Visão geral da Saúde",
+      href: "/painel/ajuda/saude",
+      descricao: "As áreas do módulo",
     },
   ]}
 />

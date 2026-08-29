@@ -1,37 +1,51 @@
-O módulo **Saúde** cobre a atuação do serviço de saúde da entidade: as CATs
-(Comunicações de Acidente de Trabalho), as reuniões de CIPA nas empresas e os
-atendimentos do serviço — estes com sigilo clínico.
+O módulo **Saúde** cobre a atuação do serviço de saúde da entidade: as **CATs**
+(Comunicações de Acidente de Trabalho), as reuniões de **CIPA** nas empresas e
+os **atendimentos** do serviço — estes com sigilo clínico.
+
+<RequerPermissao>CATs</RequerPermissao>, <RequerPermissao>Atendimentos</RequerPermissao> ou <RequerPermissao>Gestão de saúde</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="CAT">
-    O registro e a consulta das Comunicações de Acidente de Trabalho, com painel
-    de indicadores, listagem filtrável e o formulário oficial.
+    Registro e consulta das Comunicações de Acidente de Trabalho, com painel de
+    indicadores, listagem filtrável e o formulário oficial.
+    <RequerPermissao>CATs</RequerPermissao>
   </Passo>
   <Passo titulo="CIPA">
     As reuniões de CIPA das empresas, em que o sindicato é convidado e se faz
-    representar.
+    representar. Abre para CATs, Atendimentos ou Gestão de saúde.
   </Passo>
   <Passo titulo="Atendimentos">
-    Os atendimentos do serviço de saúde, com relatório clínico sigiloso.
+    Os atendimentos do serviço de saúde, com relatório clínico **sigiloso**.
+    <RequerPermissao>Atendimentos</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="saude/painel.png" alt="Painel do módulo Saúde com indicadores de CAT e as áreas CAT, CIPA e Atendimentos." legenda="Painel da Saúde com indicadores e áreas." />
+<Print src="saude/painel.png" alt="Painel do módulo Saúde com os indicadores macro de CAT e os cartões das áreas CAT, CIPA e Atendimentos." legenda="Painel da Saúde: indicadores e áreas." />
 
-<Aviso tipo="atencao" titulo="Dados sensíveis">
-  Este é o módulo com os dados mais sensíveis do sistema. O relatório clínico dos
-  atendimentos é cifrado e tem regras de acesso próprias — veja o artigo de
-  Atendimentos.
+<Aviso tipo="atencao" titulo="O módulo com os dados mais sensíveis">
+  O relatório clínico dos atendimentos é **cifrado** e tem regras de acesso
+  próprias — nem quem administra a saúde o lê. Antes de trabalhar com
+  atendimentos, leia o artigo de
+  [Atendimentos](/painel/ajuda/saude/atendimentos).
 </Aviso>
+
+## Erros comuns
+
+- **"Vejo que houve atendimento, mas não o relatório."** Isso é o esperado: os
+  **metadados** (que houve, quando, por quem) são de gestão; o **conteúdo
+  clínico** só abre para o perfil clínico autorizado.
+- **"Sou gestor de saúde e não abro o relatório."** Correto — **Gestão de
+  saúde** não dá acesso ao relatório; o acesso vem do **perfil clínico**
+  (cadastro em profissionais), não da permissão do painel.
 
 <VejaTambem
   links={[
     {
       titulo: "CAT",
       href: "/painel/ajuda/saude/cat",
-      descricao: "Painel, listagem e inclusão",
+      descricao: "Painel, listagem, formulário oficial e inclusão",
     },
     {
       titulo: "CIPA",
@@ -41,7 +55,7 @@ atendimentos do serviço — estes com sigilo clínico.
     {
       titulo: "Atendimentos",
       href: "/painel/ajuda/saude/atendimentos",
-      descricao: "Sigilo do relatório clínico",
+      descricao: "Sigilo do relatório clínico e regras de acesso",
     },
   ]}
 />
