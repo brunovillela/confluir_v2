@@ -1,28 +1,39 @@
 O módulo **Representação Sindical** reúne as frentes de atuação coletiva da
-entidade: assembleias, oposição à contribuição assistencial, acordos coletivos
-e o cadastro de empregadores (fontes pagadoras).
+entidade: **assembleias**, **oposição** à contribuição assistencial, **acordos
+coletivos** e o cadastro de **empregadores** (fontes pagadoras).
+
+<RequerPermissao>Assembleias e votações</RequerPermissao>, <RequerPermissao>Oposição à contribuição assistencial</RequerPermissao>, <RequerPermissao>Acordos coletivos</RequerPermissao> ou <RequerPermissao>Empregadores e fontes pagadoras</RequerPermissao>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Assembleias">
     Campanhas, rodadas e assembleias com perguntas, aptos a votar e o registro
-    do voto.
+    do voto. <RequerPermissao>Assembleias e votações</RequerPermissao>
   </Passo>
   <Passo titulo="Oposição">
-    O fluxo em que o trabalhador se opõe à contribuição assistencial, do
-    cadastro público à avaliação.
+    O fluxo em que o trabalhador se opõe à contribuição assistencial, do cadastro
+    público à avaliação. <RequerPermissao>Oposição à contribuição assistencial</RequerPermissao>
   </Passo>
   <Passo titulo="Acordos coletivos">
     Os instrumentos coletivos negociados, com sua documentação.
+    <RequerPermissao>Acordos coletivos</RequerPermissao>
   </Passo>
   <Passo titulo="Empregadores">
-    As fontes pagadoras (empresas onde os filiados trabalham) e sua documentação
-    legal.
+    As fontes pagadoras (empresas onde os filiados trabalham), a documentação
+    legal e o registro sindical junto ao MTE.
+    <RequerPermissao>Empregadores e fontes pagadoras</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="representacao/painel.png" alt="Hub do módulo Representação Sindical com os cartões das áreas." legenda="As áreas da Representação Sindical." />
+<Print src="representacao/painel.png" alt="Hub do módulo Representação Sindical com os cartões de assembleias, oposição, acordos coletivos e empregadores." legenda="As áreas da Representação Sindical." />
+
+## Erros comuns
+
+- **"Vejo uma área e não as outras."** Cada frente é uma **permissão separada** —
+  peça o acesso em Institucional → Usuários e permissões.
+- **"Onde ficam empregadores/oposição? Não estão em Filiados."** Eles foram
+  reunidos aqui, na **Representação** — é o lugar da atuação coletiva.
 
 <VejaTambem
   links={[
@@ -39,7 +50,7 @@ e o cadastro de empregadores (fontes pagadoras).
     {
       titulo: "Empregadores",
       href: "/painel/ajuda/representacao/empregadores",
-      descricao: "Fontes pagadoras e documentação",
+      descricao: "Fontes pagadoras, documentação e acordos",
     },
   ]}
 />

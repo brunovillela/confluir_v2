@@ -1,5 +1,8 @@
-As **assembleias** são organizadas em três níveis, o que permite uma mesma
-consulta acontecer em vários locais e momentos.
+As **assembleias** são organizadas em **três níveis**, o que permite uma mesma
+consulta acontecer em vários locais e momentos, sem perder a contagem única dos
+votos.
+
+<RequerPermissao>Assembleias e votações</RequerPermissao>
 
 ## A hierarquia
 
@@ -16,21 +19,40 @@ consulta acontecer em vários locais e momentos.
   </Passo>
 </PassoAPasso>
 
-## Aptos e voto
-
-Quem pode votar é definido na rodada. A situação da filiação entra aqui: um
-associado precisa estar apto para votar. O voto efetivo é registrado no
-sistema, evitando duplicidade.
-
-<Aviso tipo="nota" titulo="Perguntas na rodada">
-  As perguntas são da rodada, não de cada assembleia — assim a mesma consulta
-  vale para todos os encontros daquele ciclo.
+<Aviso tipo="nota" titulo="Perguntas e aptos são da rodada">
+  As perguntas e a lista de aptos pertencem à **rodada**, não a cada assembleia —
+  assim a mesma consulta vale para todos os encontros daquele ciclo e o voto é
+  contado uma vez só.
 </Aviso>
 
-<Print src="representacao/campanha.png" alt="Estrutura de uma campanha com suas rodadas e assembleias." legenda="Campanha, rodada e assembleias." />
+## Aptos e voto
+
+Quem pode votar é definido na **rodada**, e a **situação da filiação** entra
+aqui: um associado precisa estar **apto** para votar. O voto efetivo é
+registrado no sistema, o que **evita duplicidade** (a mesma pessoa não vota duas
+vezes, mesmo participando de assembleias diferentes da rodada).
+
+A cédula em si é uma **tela pública** que o votante acessa para se identificar e
+votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
+
+<Print src="representacao/campanha.png" alt="Estrutura de uma campanha com suas rodadas e, dentro delas, as assembleias por local e data." legenda="Campanha → rodada → assembleias." />
+
+## Erros comuns
+
+- **"Um associado não consegue votar."** Verifique se ele está **apto** na
+  rodada — a situação da filiação define a aptidão.
+- **"Criei a pergunta na assembleia errada."** As perguntas são da **rodada**;
+  edite-as no nível da rodada, não da assembleia.
+- **"A mesma pessoa aparece podendo votar em duas assembleias."** É esperado —
+  ela pode comparecer a qualquer encontro da rodada, mas o **voto** é único.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Votação pública",
+      href: "/painel/ajuda/fluxos-publicos/votacao",
+      descricao: "A cédula que o votante usa",
+    },
     {
       titulo: "Visão geral",
       href: "/painel/ajuda/representacao",
