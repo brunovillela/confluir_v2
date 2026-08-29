@@ -1400,3 +1400,179 @@ export async function subirArquivoAssembleias(
   if (error) return { erro: `Falha ao subir o arquivo: ${error.message}` }
   return { caminho }
 }
+
+// ── Apuração / fechamento de uma assembleia ────────────────────────────────
+//
+// O voto individual (online/urna) vive em `voto_online` (secreto — eleitor_id
+// nulo nos votos novos). A apuração conta por opção, o gestor confirma o
+// resultado agregado (aprovado/reprovado/branco/abstenção) e ENCERRA — o que
+// libera o resultado FINAL para o filiado em "Minhas votações".
+
+export type ApuracaoOpcao = { id: string; texto: string | null; votos: number }
+export type ApuracaoPergunta = {
+  id: string
+  pergunta: string | null
+  ordem: number | null
+  opcoes: ApuracaoOpcao[]
+  totalVotos: number
+}
+export type ApuracaoAssembleia = {
+  id: string
+  nome: string | null
+  modalidade: Modalidade
+  online: boolean
+  apuracaoEncerrada: boolean
+  aptos: number
+  votantes: number
+  perguntas: ApuracaoPergunta[]
+  resultado: {
+    aprovado: number | null
+    reprovado: number | null
+    em_branco: number | null
+    abstencao: number | null
+    total_votos: number | null
+  }
+}
+
+const numOuNull = (v: unknown): number | null =>
+  typeof v === "number" ? v : null
+
+export async function dadosApuracao(
+  assembleiaId: string
+): Promise<ApuracaoAssembleia | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select(
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, rod_assembleia_id, resultado_aprovado, resultado_reprovado, resultado_em_branco, resultado_abstencao, total_votos"
+    )
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!a) return null
+  const rodId = a.rod_assembleia_id ? String(a.rod_assembleia_id) : null
+
+  const { data: perguntas } = rodId
+    ? await admin
+        .from("voto_assembleias_perguntas")
+        .select("id, pergunta, ordem")
+        .eq("rod_assembleia_id", rodId)
+        .order("ordem", { ascending: true, nullsFirst: false })
+    : { data: [] }
+  const pIds = (perguntas ?? []).map((p) => p.id)
+
+  const opcoesPorPergunta = new Map<string, ApuracaoOpcao[]>()
+  if (pIds.length) {
+    const { data: opcoes } = await admin
+      .from("voto_opcoes_resposta")
+      .select("id, opcao_resposta, pergunta_id")
+      .in("pergunta_id", pIds)
+      .order("created_at", { ascending: true })
+    for (const o of opcoes ?? []) {
+      const l = opcoesPorPergunta.get(String(o.pergunta_id)) ?? []
+      l.push({ id: String(o.id), texto: o.opcao_resposta, votos: 0 })
+      opcoesPorPergunta.set(String(o.pergunta_id), l)
+    }
+  }
+
+  const { data: votos } = await admin
+    .from("voto_online")
+    .select("resposta_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+    .not("valido", "is", false)
+  const votosPorOpcao = new Map<string, number>()
+  for (const v of votos ?? []) {
+    if (v.resposta_id) {
+      const k = String(v.resposta_id)
+      votosPorOpcao.set(k, (votosPorOpcao.get(k) ?? 0) + 1)
+    }
+  }
+
+  const [aptosRes, votantesRes] = await Promise.all([
+    admin
+      .from("voto_assembleias_aptos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("assembleia_id", assembleiaId),
+    admin
+      .from("voto_assembleias_aptos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("assembleia_id", assembleiaId)
+      .not("hora_voto", "is", null),
+  ])
+
+  const perguntasOut: ApuracaoPergunta[] = (perguntas ?? []).map((p) => {
+    const ops = (opcoesPorPergunta.get(String(p.id)) ?? []).map((o) => ({
+      ...o,
+      votos: votosPorOpcao.get(o.id) ?? 0,
+    }))
+    return {
+      id: String(p.id),
+      pergunta: p.pergunta,
+      ordem: p.ordem,
+      opcoes: ops,
+      totalVotos: ops.reduce((s, o) => s + o.votos, 0),
+    }
+  })
+
+  return {
+    id: String(a.id),
+    nome: a.nome_assembleia,
+    modalidade: derivarModalidade(a),
+    online: derivarModalidade(a) === "online",
+    apuracaoEncerrada: a.apuracao_encerrada === true,
+    aptos: aptosRes.count ?? 0,
+    votantes: votantesRes.count ?? 0,
+    perguntas: perguntasOut,
+    resultado: {
+      aprovado: numOuNull(a.resultado_aprovado),
+      reprovado: numOuNull(a.resultado_reprovado),
+      em_branco: numOuNull(a.resultado_em_branco),
+      abstencao: numOuNull(a.resultado_abstencao),
+      total_votos: numOuNull(a.total_votos),
+    },
+  }
+}
+
+export async function encerrarApuracao(
+  assembleiaId: string,
+  resultado: {
+    aprovado: number | null
+    reprovado: number | null
+    em_branco: number | null
+    abstencao: number | null
+    total_votos: number | null
+  }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_assembleias")
+    .update({
+      apuracao_encerrada: true,
+      resultado_aprovado: resultado.aprovado,
+      resultado_reprovado: resultado.reprovado,
+      resultado_em_branco: resultado.em_branco,
+      resultado_abstencao: resultado.abstencao,
+      total_votos: resultado.total_votos,
+    })
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  return {}
+}
+
+export async function reabrirApuracao(
+  assembleiaId: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_assembleias")
+    .update({ apuracao_encerrada: false })
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
+  return {}
+}

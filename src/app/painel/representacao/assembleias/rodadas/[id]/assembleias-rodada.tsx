@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { Gavel, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -287,6 +288,12 @@ function AssembleiaItem({
           {assembleia.voto_em_separado && (
             <Badge variant="outline">Voto em separado</Badge>
           )}
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/painel/representacao/assembleias/apuracao/${assembleia.id}`}>
+              <Gavel />
+              Apurar
+            </Link>
+          </Button>
           {editavel && (
             <>
               <Button

@@ -460,25 +460,19 @@ export async function registrarVotoFiliado(
   const emailVot = await obterEmailVotacao(cpf)
   const agora = new Date().toISOString()
 
-  // 1) grava o voto SECRETO (sem eleitor_id) — uma linha por pergunta.
-  const linhas = perguntas.map((p) => {
-    const opcaoId = escolhaPorPergunta.get(p.id) as string
-    const textoOpcao = p.opcoes.find((o) => o.id === opcaoId)?.texto ?? null
-    return {
-      emp_proprietaria_id: emp,
-      assembleia_id: assembleiaId,
-      rod_assembleia_id: eleg.rodadaId,
-      pergunta_id: p.id,
-      resposta_opcao: opcaoId,
-      resposta: textoOpcao,
-      votou: true,
-      valido: true,
-      created_at: agora,
-    }
-  })
-  const { error: erroVoto } = await admin
-    .from("voto_votacao_respostas")
-    .insert(linhas)
+  // 1) grava o voto SECRETO (sem eleitor_id) em voto_online — a tabela que a
+  //    apuração do painel conta. Uma linha por pergunta.
+  const linhas = perguntas.map((p) => ({
+    emp_proprietaria_id: emp,
+    assembleia_id: assembleiaId,
+    rod_assembleia_id: eleg.rodadaId,
+    pergunta_id: p.id,
+    resposta_id: escolhaPorPergunta.get(p.id) as string,
+    valido: true,
+    eleitor_id: null,
+    created_at: agora,
+  }))
+  const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
   if (erroVoto) {
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
@@ -712,24 +706,17 @@ export async function registrarVotoEleitorEmail(
   }
 
   const agora = new Date().toISOString()
-  const linhas = perguntas.map((p) => {
-    const opcaoId = escolhaPorPergunta.get(p.id) as string
-    const textoOpcao = p.opcoes.find((o) => o.id === opcaoId)?.texto ?? null
-    return {
-      emp_proprietaria_id: emp,
-      assembleia_id: assembleiaId,
-      rod_assembleia_id: eleg.rodadaId,
-      pergunta_id: p.id,
-      resposta_opcao: opcaoId,
-      resposta: textoOpcao,
-      votou: true,
-      valido: true,
-      created_at: agora,
-    }
-  })
-  const { error: erroVoto } = await admin
-    .from("voto_votacao_respostas")
-    .insert(linhas)
+  const linhas = perguntas.map((p) => ({
+    emp_proprietaria_id: emp,
+    assembleia_id: assembleiaId,
+    rod_assembleia_id: eleg.rodadaId,
+    pergunta_id: p.id,
+    resposta_id: escolhaPorPergunta.get(p.id) as string,
+    valido: true,
+    eleitor_id: null,
+    created_at: agora,
+  }))
+  const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
   if (erroVoto) {
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
