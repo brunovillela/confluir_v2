@@ -1,6 +1,7 @@
 import {
   BedDouble,
   BookOpen,
+  Boxes,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -30,6 +31,7 @@ import {
 export const ICONES_AJUDA: Record<string, LucideIcon> = {
   BedDouble,
   BookOpen,
+  Boxes,
   BriefcaseBusiness,
   Building2,
   CalendarDays,

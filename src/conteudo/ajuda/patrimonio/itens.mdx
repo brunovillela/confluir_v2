@@ -1,0 +1,76 @@
+Um **item patrimonial** é um bem da instituição. Cada item guarda a sua
+**situação**, o **recinto** onde está e o histórico de **cautelas**.
+
+<RequerPermissao>Patrimônio</RequerPermissao> para editar; <RequerPermissao>Patrimônio — somente leitura</RequerPermissao> para consultar
+
+## Cadastrar e encontrar itens
+
+<PassoAPasso>
+  <Passo titulo="Novo item">
+    Em **Patrimônio → Itens**, use **Novo item** e informe a descrição, a
+    situação, o recinto e os demais dados do bem.
+  </Passo>
+  <Passo titulo="Buscar e filtrar">
+    A lista permite buscar e filtrar os itens; abra um item pelo nome para ver a
+    ficha completa.
+  </Passo>
+  <Passo titulo="Exportar">
+    Dá para **exportar o acervo em CSV**, para conferências e inventário fora do
+    sistema.
+  </Passo>
+</PassoAPasso>
+
+<Print alt="Lista de itens patrimoniais com a situação, o recinto e a marcação de itens em cautela." legenda="Itens patrimoniais, com situação, recinto e cautela." />
+
+## Cautela: entregar e devolver um bem
+
+A **cautela** registra que um item está sob a responsabilidade de uma pessoa
+(uso ou empréstimo). Na ficha do item:
+
+<PassoAPasso>
+  <Passo titulo="Registrar a cautela">
+    Escolha o **responsável** que vai ficar com o bem e a data de início. O item
+    passa a aparecer como **Em cautela**, com o nome de quem está.
+  </Passo>
+  <Passo titulo="Termo de cautela">
+    Anexe o **termo** (documento assinado) quando houver — ele fica guardado na
+    cautela.
+  </Passo>
+  <Passo titulo="Encerrar (devolução)">
+    Na devolução, **encerre** a cautela. O item deixa de estar em cautela e o
+    histórico guarda o período em que ficou com a pessoa.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Uma cautela aberta por vez">
+  Um item só tem **uma cautela aberta** de cada vez — ele está com uma pessoa ou
+  disponível. Para passar a outra pessoa, **encerre** a atual e registre uma
+  nova.
+</Aviso>
+
+## Erros comuns
+
+- **"O item aparece 'Em cautela' e eu quero movê-lo."** Ele está com alguém —
+  **encerre** a cautela atual (devolução) antes de registrar outra ou de tratá-lo
+  como disponível.
+- **"Não há ninguém para receber a cautela."** A lista de responsáveis vem dos
+  usuários disponíveis; verifique o cadastro de quem pode receber.
+- **"Não consigo editar o item."** Editar exige a permissão **Patrimônio**; a de
+  somente leitura apenas consulta.
+- **"O item não aparece em nenhum recinto."** Defina o **recinto** na ficha do
+  item — é ele que diz onde o bem está.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Recintos",
+      href: "/painel/ajuda/patrimonio/recintos",
+      descricao: "Onde os itens ficam e quem responde",
+    },
+    {
+      titulo: "Notas fiscais",
+      href: "/painel/ajuda/patrimonio/notas",
+      descricao: "A entrada e a saída dos bens",
+    },
+  ]}
+/>

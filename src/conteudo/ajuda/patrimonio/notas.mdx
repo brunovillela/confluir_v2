@@ -1,0 +1,47 @@
+As **notas fiscais** documentam a **entrada** (compra, doação) e a **saída**
+(baixa) dos bens patrimoniais. É o lastro fiscal do acervo.
+
+<RequerPermissao>Patrimônio</RequerPermissao> para editar; <RequerPermissao>Patrimônio — somente leitura</RequerPermissao> para consultar
+
+## Registrar uma nota
+
+<PassoAPasso>
+  <Passo titulo="Nova nota">
+    Em **Patrimônio → Notas fiscais**, use **Nova nota** e informe os dados da
+    nota (tipo de movimento — entrada ou saída — número, data e valor).
+  </Passo>
+  <Passo titulo="Anexar o arquivo">
+    Suba o **arquivo** da nota (PDF). Ele fica guardado em armazenamento
+    **privado** e abre por link temporário.
+  </Passo>
+  <Passo titulo="Relacionar aos bens">
+    A nota serve de origem/baixa dos itens, ligando o documento fiscal ao
+    patrimônio.
+  </Passo>
+</PassoAPasso>
+
+<Print alt="Lista de notas fiscais do patrimônio com tipo de movimento (entrada/saída), número, data e valor." legenda="Notas fiscais de entrada e saída dos bens." />
+
+## Erros comuns
+
+- **"O arquivo da nota não abre."** O link é **temporário** (privado); reabra a
+  nota para gerar um link novo.
+- **"Não consigo cadastrar/editar a nota."** Editar exige a permissão
+  **Patrimônio**; a de somente leitura apenas consulta.
+- **"Entrada ou saída?"** **Entrada** documenta a chegada do bem (compra/doação);
+  **saída** documenta a baixa — escolha o tipo conforme o movimento.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Itens patrimoniais",
+      href: "/painel/ajuda/patrimonio/itens",
+      descricao: "Os bens que a nota documenta",
+    },
+    {
+      titulo: "Visão geral do Patrimônio",
+      href: "/painel/ajuda/patrimonio",
+      descricao: "Como as peças do patrimônio se ligam",
+    },
+  ]}
+/>

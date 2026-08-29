@@ -1,0 +1,62 @@
+O módulo **Patrimônio** controla os bens da instituição: os **itens**
+patrimoniais, os **recintos** onde ficam, as **notas fiscais** de entrada e
+saída, e a **cautela** (quando um bem fica sob a responsabilidade de alguém).
+
+<RequerPermissao>Patrimônio</RequerPermissao> ou <RequerPermissao>Patrimônio — somente leitura</RequerPermissao>
+
+## As áreas do módulo
+
+<PassoAPasso>
+  <Passo titulo="Itens patrimoniais">
+    Cada bem do patrimônio, com a sua **situação**, o **recinto** onde está e a
+    **cautela** (se está com alguém).
+  </Passo>
+  <Passo titulo="Recintos">
+    Os **locais** onde os bens ficam e os **responsáveis** por cada um.
+  </Passo>
+  <Passo titulo="Notas fiscais">
+    As notas de **entrada** e **saída** dos bens, com o arquivo anexado.
+  </Passo>
+</PassoAPasso>
+
+<Print alt="Painel do módulo Patrimônio com os cartões de itens, recintos e notas fiscais e os indicadores de total de itens, itens em cautela, recintos e notas." legenda="As áreas do Patrimônio e os indicadores do acervo." />
+
+## Como as peças se ligam
+
+Um **item** fica em um **recinto**; o recinto tem um ou mais **responsáveis**.
+Quando o item é entregue a uma pessoa (para uso ou empréstimo), registra-se uma
+**cautela** — e o item passa a aparecer como **Em cautela** até ser devolvido. A
+**nota fiscal** documenta a entrada (compra/doação) ou a saída (baixa) do bem.
+
+## Somente leitura
+
+O perfil **Patrimônio — somente leitura** (útil ao Conselho Fiscal) mostra o
+acervo, as situações e as cautelas **sem** nenhum botão de escrita.
+
+## Erros comuns
+
+- **"Não vejo o módulo Patrimônio."** Ele exige a permissão **Patrimônio** (ou a
+  de somente leitura) — peça o acesso em Institucional → Usuários e permissões.
+- **"Aparece um aviso para configurar."** O módulo depende da configuração
+  inicial no banco; enquanto ela não roda, os dados não carregam — fale com quem
+  administra o sistema.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Itens patrimoniais",
+      href: "/painel/ajuda/patrimonio/itens",
+      descricao: "O bem, a situação, o recinto e a cautela",
+    },
+    {
+      titulo: "Recintos",
+      href: "/painel/ajuda/patrimonio/recintos",
+      descricao: "Onde os bens ficam e quem responde",
+    },
+    {
+      titulo: "Notas fiscais",
+      href: "/painel/ajuda/patrimonio/notas",
+      descricao: "Entrada e saída dos bens",
+    },
+  ]}
+/>

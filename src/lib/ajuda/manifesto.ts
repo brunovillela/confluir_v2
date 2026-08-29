@@ -328,6 +328,36 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     ],
   },
   {
+    slug: "patrimonio",
+    titulo: "Patrimônio",
+    descricao: "Bens patrimoniais: itens, recintos, notas fiscais e cautelas",
+    icone: "Boxes",
+    ...permissaoDoModulo("/painel/patrimonio"),
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Visão geral do Patrimônio",
+        resumo: "Itens, recintos, notas fiscais e a cautela",
+      },
+      {
+        slug: "itens",
+        titulo: "Itens patrimoniais",
+        resumo: "O bem, sua situação, o recinto e a cautela",
+      },
+      {
+        slug: "recintos",
+        titulo: "Recintos",
+        resumo: "Onde os bens ficam e quem responde por eles",
+      },
+      {
+        slug: "notas",
+        titulo: "Notas fiscais",
+        resumo: "As notas de entrada e saída dos bens",
+      },
+    ],
+  },
+  {
     slug: "hospedagem",
     titulo: "Hospedagem",
     descricao: "Hotéis, tarifas, cupons e reservas",
