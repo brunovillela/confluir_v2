@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { CheckCircle2, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import { CampoCpf } from "@/components/auth/campo-cpf"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,39 +15,47 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 
-import { confirmarTokenEleitor, solicitarTokenEleitor } from "./actions"
+import {
+  confirmarTokenEleitor,
+  confirmarTokenEmail,
+  solicitarTokenEleitor,
+  solicitarTokenEmail,
+} from "./actions"
+
+type Modo = "cpf" | "email"
 
 export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
+  const [modo, setModo] = useState<Modo>("cpf")
+
+  // Preserva o identificador digitado para o passo de confirmação.
   const [cpf, setCpf] = useState("")
-  const [estadoToken, actionToken, pendenteToken] = useActionState(
+  const [email, setEmail] = useState("")
+
+  const [estCpf, actCpf, pendCpf] = useActionState(
     async (prev: { erro?: string; ok?: string }, formData: FormData) => {
       setCpf(String(formData.get("cpf") ?? ""))
       return solicitarTokenEleitor(prev, formData)
     },
     {}
   )
-  const [estadoConfirma, actionConfirma, pendenteConfirma] = useActionState(
-    confirmarTokenEleitor,
+  const [, actCpfConf, pendCpfConf] = useActionState(confirmarTokenEleitor, {})
+
+  const [estEmail, actEmail, pendEmail] = useActionState(
+    async (prev: { erro?: string; ok?: string }, formData: FormData) => {
+      setEmail(String(formData.get("email") ?? ""))
+      return solicitarTokenEmail(prev, formData)
+    },
+    {}
+  )
+  const [, actEmailConf, pendEmailConf] = useActionState(
+    confirmarTokenEmail,
     {}
   )
 
-  if (estadoConfirma.ok === "autenticado") {
-    return (
-      <Card>
-        <CardHeader className="items-center text-center">
-          <CheckCircle2 className="mx-auto size-10 text-success-fg" />
-          <CardTitle className="pt-2">Identidade confirmada</CardTitle>
-          <CardDescription>
-            Você está habilitado a votar. A cédula de votação será liberada
-            quando o módulo de assembleias entrar no ar (Fase 3D).
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    )
-  }
-
-  const aguardandoCodigo = Boolean(estadoToken.ok)
+  const est = modo === "cpf" ? estCpf : estEmail
+  const aguardandoCodigo = Boolean(est.ok)
 
   return (
     <Card>
@@ -55,39 +63,90 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
         <CardTitle>Votação online</CardTitle>
         <CardDescription>
           {aguardandoCodigo
-            ? "Digite o código de 6 dígitos enviado ao seu email."
-            : "Identifique-se com seu CPF para receber o código de acesso."}
+            ? "Digite o código de 6 dígitos enviado ao seu e-mail."
+            : "Identifique-se para receber o código de acesso."}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {!aguardandoCodigo ? (
-          <form action={actionToken} className="grid gap-4">
+      <CardContent className="grid gap-4">
+        {!aguardandoCodigo && (
+          <div className="bg-muted grid grid-cols-2 gap-1 rounded-lg p-1 text-sm">
+            {(
+              [
+                ["cpf", "Sou filiado (CPF)"],
+                ["email", "Não sou filiado (e-mail)"],
+              ] as const
+            ).map(([m, rotulo]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setModo(m)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 transition-colors",
+                  modo === m
+                    ? "bg-background font-medium shadow-xs"
+                    : "text-muted-foreground"
+                )}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Passo 1 — pedir o código */}
+        {!aguardandoCodigo && modo === "cpf" && (
+          <form action={actCpf} className="grid gap-4">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
-            {estadoToken.erro && (
+            {estCpf.erro && (
               <Alert variant="destructive">
-                <AlertDescription>{estadoToken.erro}</AlertDescription>
+                <AlertDescription>{estCpf.erro}</AlertDescription>
               </Alert>
             )}
             <div className="grid gap-2">
               <Label htmlFor="cpf">CPF</Label>
               <CampoCpf id="cpf" name="cpf" required />
             </div>
-            <Button type="submit" disabled={pendenteToken}>
-              {pendenteToken && <Loader2 className="animate-spin" />}
+            <Button type="submit" disabled={pendCpf}>
+              {pendCpf && <Loader2 className="animate-spin" />}
               Receber código
             </Button>
           </form>
-        ) : (
-          <form action={actionConfirma} className="grid gap-4">
-            <input type="hidden" name="cpf" value={cpf} />
-            <Alert>
-              <AlertDescription>{estadoToken.ok}</AlertDescription>
-            </Alert>
-            {estadoConfirma.erro && (
+        )}
+
+        {!aguardandoCodigo && modo === "email" && (
+          <form action={actEmail} className="grid gap-4">
+            <input type="hidden" name="assembleia_id" value={assembleiaId} />
+            {estEmail.erro && (
               <Alert variant="destructive">
-                <AlertDescription>{estadoConfirma.erro}</AlertDescription>
+                <AlertDescription>{estEmail.erro}</AlertDescription>
               </Alert>
             )}
+            <div className="grid gap-2">
+              <Label htmlFor="email">E-mail (o que a empresa informou)</Label>
+              <Input id="email" name="email" type="email" required />
+            </div>
+            <Button type="submit" disabled={pendEmail}>
+              {pendEmail && <Loader2 className="animate-spin" />}
+              Receber código
+            </Button>
+          </form>
+        )}
+
+        {/* Passo 2 — confirmar o código */}
+        {aguardandoCodigo && (
+          <form
+            action={modo === "cpf" ? actCpfConf : actEmailConf}
+            className="grid gap-4"
+          >
+            <input type="hidden" name="assembleia_id" value={assembleiaId} />
+            {modo === "cpf" ? (
+              <input type="hidden" name="cpf" value={cpf} />
+            ) : (
+              <input type="hidden" name="email" value={email} />
+            )}
+            <Alert>
+              <AlertDescription>{est.ok}</AlertDescription>
+            </Alert>
             <div className="grid gap-2">
               <Label htmlFor="token">Código de verificação</Label>
               <Input
@@ -101,8 +160,10 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
                 required
               />
             </div>
-            <Button type="submit" disabled={pendenteConfirma}>
-              {pendenteConfirma && <Loader2 className="animate-spin" />}
+            <Button type="submit" disabled={pendCpfConf || pendEmailConf}>
+              {(pendCpfConf || pendEmailConf) && (
+                <Loader2 className="animate-spin" />
+              )}
               Confirmar
             </Button>
           </form>

@@ -3,12 +3,16 @@ import Link from "next/link"
 import {
   ArrowRight,
   BedDouble,
+  CalendarClock,
   CalendarDays,
   Newspaper,
   ShieldCheck,
   UserPen,
+  Vote,
 } from "lucide-react"
 
+import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardDescription,
@@ -16,9 +20,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
+import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { ultimasNoticias } from "@/lib/db/painel"
-import { formatarDataHora } from "@/lib/formato"
+import { assembleiasDoFiliado } from "@/lib/db/votacao-portal"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { PortalShell } from "../portal-shell"
 
@@ -46,6 +52,12 @@ const SERVICOS = [
     icone: Newspaper,
   },
   {
+    titulo: "Votação",
+    descricao: "Assembleias abertas e o histórico das suas participações",
+    href: "/portal/votacao",
+    icone: Vote,
+  },
+  {
     titulo: "Agenda",
     descricao: "Eventos e atividades abertas aos associados",
     href: "/portal/agenda",
@@ -63,9 +75,10 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos] = await Promise.all([
+  const [noticias, eventos, assembleias] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
+    filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
   ])
 
   return (
@@ -78,6 +91,65 @@ export default async function PortalInicioPage() {
           Bem-vindo(a) ao portal do associado do Sindipetro-NF.
         </p>
       </div>
+
+      {assembleias.length > 0 && (
+        <div className="grid gap-3">
+          {assembleias.map((a) => (
+            <Link
+              key={a.assembleiaId}
+              href={
+                !a.online && a.rodadaId
+                  ? `/portal/votacao/rodada/${a.rodadaId}`
+                  : "/portal/votacao"
+              }
+              className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                  {a.online ? (
+                    <Vote className="size-5" />
+                  ) : (
+                    <CalendarClock className="size-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">
+                    {a.online
+                      ? a.jaVotou
+                        ? "Você já votou nesta assembleia"
+                        : "Assembleia aberta para votação"
+                      : "Assembleia presencial — confira as datas"}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {a.nome ?? a.tema ?? "Assembleia"}
+                    {a.empregador && <> · {a.empregador}</>}
+                    {" · "}
+                    {a.online ? (
+                      a.termino ? (
+                        <ContagemRegressiva ate={a.termino} />
+                      ) : (
+                        ROTULOS_MODALIDADE[a.modalidade]
+                      )
+                    ) : a.inicio ? (
+                      <>a partir de {formatarData(a.inicio)}</>
+                    ) : (
+                      "confira as datas"
+                    )}
+                  </p>
+                </div>
+              </div>
+              {a.online && !a.jaVotou ? (
+                <Button size="sm" className="pointer-events-none">
+                  <Vote />
+                  Votar
+                </Button>
+              ) : (
+                <ArrowRight className="text-muted-foreground size-4" />
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SERVICOS.map((servico) => (
