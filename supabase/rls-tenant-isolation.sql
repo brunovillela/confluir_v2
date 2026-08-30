@@ -127,7 +127,9 @@ declare
     'voto_assembleias_aptos',
     'voto_assembleias_perguntas',
     'voto_campanha',
+    'voto_em_separado',
     'voto_mesario',
+    'voto_mesarios',
     'voto_online',
     'voto_opcoes_resposta',
     'voto_resultado_presencial',
@@ -135,6 +137,9 @@ declare
     'voto_unidades_presenciais',
     'voto_urna',
     'voto_urna_disponibilidade',
+    'voto_urna_lacres',
+    'voto_urna_terminais',
+    'voto_urnas',
     'voto_votacao_respostas'
   ];
 begin

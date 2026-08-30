@@ -191,7 +191,12 @@ export default async function VotacaoPortalPage() {
                   </span>
                 </div>
                 <p className="text-muted-foreground mt-0.5 text-xs">
-                  {[v.empregador, v.tema, ROTULOS_MODALIDADE[v.modalidade]]
+                  {[
+                    v.empregador,
+                    v.tema,
+                    ROTULOS_MODALIDADE[v.modalidade],
+                    v.urna ? `urna: ${v.urna}` : null,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>

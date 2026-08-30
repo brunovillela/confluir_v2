@@ -10,6 +10,7 @@ import {
   periodoIniciado,
   periodoTerminado,
   ROTULOS_MODALIDADE,
+  temVotoOnline,
   type Modalidade,
 } from "@/lib/assembleias-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -1422,6 +1423,14 @@ export type ApuracaoAssembleia = {
   modalidade: Modalidade
   online: boolean
   apuracaoEncerrada: boolean
+  /**
+   * Regra do usuário (2026-08-29): a apuração dos votos individuais só fica
+   * disponível DEPOIS do término da rodada — nada de resultado parcial. Antes
+   * disso a contagem por opção nem é lida do banco (`perguntas` vem zerada);
+   * só o comparecimento (aptos/votantes) aparece.
+   */
+  apuracaoDisponivel: boolean
+  rodadaTermino: string | null
   aptos: number
   votantes: number
   perguntas: ApuracaoPergunta[]
@@ -1453,6 +1462,19 @@ export async function dadosApuracao(
   if (!a) return null
   const rodId = a.rod_assembleia_id ? String(a.rod_assembleia_id) : null
 
+  // Término da rodada → só depois dele a contagem individual fica disponível.
+  const { data: rod } = rodId
+    ? await admin
+        .from("voto_rod_assembleias")
+        .select("termino")
+        .eq("id", rodId)
+        .eq("emp_proprietaria_id", emp)
+        .maybeSingle()
+    : { data: null }
+  const rodadaTermino = rod?.termino ? String(rod.termino) : null
+  const apuracaoDisponivel =
+    a.apuracao_encerrada === true || periodoTerminado(rodadaTermino)
+
   const { data: perguntas } = rodId
     ? await admin
         .from("voto_assembleias_perguntas")
@@ -1476,15 +1498,39 @@ export async function dadosApuracao(
     }
   }
 
-  const { data: votos } = await admin
-    .from("voto_online")
-    .select("resposta_id")
-    .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
-    .not("valido", "is", false)
+  // A contagem por opção só é lida depois do término — antes disso nem sai do
+  // banco, para não vazar resultado parcial nem para o operador da apuração.
+  // Votos EM SEPARADO só entram na conta se o cadastro foi DEFERIDO.
   const votosPorOpcao = new Map<string, number>()
-  for (const v of votos ?? []) {
-    if (v.resposta_id) {
+  if (apuracaoDisponivel) {
+    const { data: votos } = await admin
+      .from("voto_online")
+      .select("resposta_id, em_separado_id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("assembleia_id", assembleiaId)
+      .not("valido", "is", false)
+    const emSepIds = [
+      ...new Set(
+        (votos ?? [])
+          .map((v) => (v.em_separado_id ? String(v.em_separado_id) : null))
+          .filter(Boolean) as string[]
+      ),
+    ]
+    const statusPorId = new Map<string, string>()
+    if (emSepIds.length) {
+      const { data: regs } = await admin
+        .from("voto_em_separado")
+        .select("id, status")
+        .eq("emp_proprietaria_id", emp)
+        .in("id", emSepIds)
+      for (const r of regs ?? []) statusPorId.set(String(r.id), String(r.status))
+    }
+    for (const v of votos ?? []) {
+      if (!v.resposta_id) continue
+      // Voto em separado só conta se DEFERIDO (pendente/indeferido fora).
+      if (v.em_separado_id) {
+        if (statusPorId.get(String(v.em_separado_id)) !== "deferido") continue
+      }
       const k = String(v.resposta_id)
       votosPorOpcao.set(k, (votosPorOpcao.get(k) ?? 0) + 1)
     }
@@ -1522,8 +1568,10 @@ export async function dadosApuracao(
     id: String(a.id),
     nome: a.nome_assembleia,
     modalidade: derivarModalidade(a),
-    online: derivarModalidade(a) === "online",
+    online: temVotoOnline(derivarModalidade(a)),
     apuracaoEncerrada: a.apuracao_encerrada === true,
+    apuracaoDisponivel,
+    rodadaTermino,
     aptos: aptosRes.count ?? 0,
     votantes: votantesRes.count ?? 0,
     perguntas: perguntasOut,
@@ -1548,6 +1596,30 @@ export async function encerrarApuracao(
   }
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  // Trava: não se encerra a apuração antes de a rodada terminar.
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select("rod_assembleia_id")
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  const rodId = a?.rod_assembleia_id ? String(a.rod_assembleia_id) : null
+  const { data: rod } = rodId
+    ? await admin
+        .from("voto_rod_assembleias")
+        .select("termino")
+        .eq("id", rodId)
+        .eq("emp_proprietaria_id", emp)
+        .maybeSingle()
+    : { data: null }
+  if (!periodoTerminado(rod?.termino ? String(rod.termino) : null)) {
+    return {
+      erro: "A apuração só pode ser encerrada após o término da rodada.",
+    }
+  }
+
   const { error } = await admin
     .from("voto_assembleias")
     .update({
@@ -1559,7 +1631,7 @@ export async function encerrarApuracao(
       total_votos: resultado.total_votos,
     })
     .eq("id", assembleiaId)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
   return {}
 }

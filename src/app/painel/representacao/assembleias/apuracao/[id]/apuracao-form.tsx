@@ -30,10 +30,12 @@ export function ApuracaoForm({
   assembleiaId,
   resultado,
   encerrada,
+  disponivel = true,
 }: {
   assembleiaId: string
   resultado: Resultado
   encerrada: boolean
+  disponivel?: boolean
 }) {
   const [estEnc, actEnc, pendEnc] = useActionState(encerrarApuracaoAction, {})
   const [estReab, actReab, pendReab] = useActionState(reabrirApuracaoAction, {})
@@ -101,8 +103,15 @@ export function ApuracaoForm({
           </div>
         ))}
       </div>
+      {!disponivel && (
+        <Alert variant="warning">
+          <AlertDescription>
+            A apuração só pode ser encerrada após o término da rodada.
+          </AlertDescription>
+        </Alert>
+      )}
       <div>
-        <Button type="submit" disabled={pendEnc}>
+        <Button type="submit" disabled={pendEnc || !disponivel}>
           {pendEnc ? <Loader2 className="animate-spin" /> : <Lock />}
           Encerrar apuração
         </Button>

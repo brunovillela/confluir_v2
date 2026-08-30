@@ -253,16 +253,23 @@ export async function assembleiasDoFiliado(
   if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
-    .select("id, assembleia_id, rod_assembleia_id, hora_voto")
+    .select("id, assembleia_id, rod_assembleia_id, hora_voto, presenca_em")
     .eq("emp_proprietaria_id", emp)
     .or(filtros.join(","))
     .not("assembleia_id", "is", null)
   if (!aptos || aptos.length === 0) return []
 
+  // Voto único: presença registrada na urna (mesmo antes do voto digital cair)
+  // já conta como participação — impede votar online numa assembleia híbrida.
   const votouPorAssembleia = new Map<string, boolean>()
   for (const a of aptos) {
     const aid = String(a.assembleia_id)
-    votouPorAssembleia.set(aid, votouPorAssembleia.get(aid) || Boolean(a.hora_voto))
+    votouPorAssembleia.set(
+      aid,
+      votouPorAssembleia.get(aid) ||
+        Boolean(a.hora_voto) ||
+        Boolean(a.presenca_em)
+    )
   }
   const assembleiaIds = [...votouPorAssembleia.keys()]
 
@@ -514,6 +521,8 @@ export type MinhaVotacao = {
   empregador: string | null
   modalidade: Modalidade
   quando: string | null
+  /** Urna presencial em que votou (registro do eleitor), quando houver. */
+  urna: string | null
   apuracaoEncerrada: boolean
   /** Resultado FINAL (só quando apurado). Nunca resultados parciais. */
   resultado: {
@@ -534,7 +543,7 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
   if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
-    .select("assembleia_id, hora_voto")
+    .select("assembleia_id, hora_voto, presenca_urna_id")
     .eq("emp_proprietaria_id", emp)
     .or(filtros.join(","))
     .not("hora_voto", "is", null)
@@ -542,11 +551,26 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
   if (!aptos || aptos.length === 0) return []
 
   const votouEm = new Map<string, string>()
+  const urnaDaAssembleia = new Map<string, string>()
   for (const a of aptos) {
     const id = String(a.assembleia_id)
     if (!votouEm.has(id)) votouEm.set(id, String(a.hora_voto))
+    const urnaId = txt(a.presenca_urna_id)
+    if (urnaId && !urnaDaAssembleia.has(id)) urnaDaAssembleia.set(id, urnaId)
   }
   const ids = [...votouEm.keys()]
+
+  const urnaIds = [...new Set(urnaDaAssembleia.values())]
+  const { data: urnasData } = urnaIds.length
+    ? await admin
+        .from("voto_urnas")
+        .select("id, nome")
+        .eq("emp_proprietaria_id", emp)
+        .in("id", urnaIds)
+    : { data: [] }
+  const nomeUrna = new Map(
+    (urnasData ?? []).map((u) => [String(u.id), txt(u.nome)])
+  )
   const { data: assembleias } = await admin
     .from("voto_assembleias")
     .select(
@@ -595,6 +619,8 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
         empregador: nomeEmpresa.get(String(txt(a.empresa_id))) ?? null,
         modalidade: derivarModalidade(a),
         quando: votouEm.get(String(a.id)) ?? null,
+        urna:
+          nomeUrna.get(urnaDaAssembleia.get(String(a.id)) ?? "") ?? null,
         apuracaoEncerrada: apurado,
         resultado: apurado
           ? {
@@ -626,12 +652,15 @@ export async function elegibilidadeEleitorEmail(
 
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
-    .select("hora_voto")
+    .select("hora_voto, presenca_em")
     .eq("emp_proprietaria_id", emp)
     .eq("assembleia_id", assembleiaId)
     .eq("email_corporativo", alvo)
   if (!aptos || aptos.length === 0) return null
-  const jaVotou = aptos.some((a) => Boolean(a.hora_voto))
+  // Voto único: presença na urna também conta (assembleia híbrida).
+  const jaVotou = aptos.some(
+    (a) => Boolean(a.hora_voto) || Boolean(a.presenca_em)
+  )
 
   const { data: a } = await admin
     .from("voto_assembleias")

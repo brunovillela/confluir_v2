@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { dadosApuracao } from "@/lib/db/assembleias"
+import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
+import { formatarData } from "@/lib/formato"
 
 import { ApuracaoForm } from "./apuracao-form"
+import { EmSeparadoValidacao } from "./emseparado-validacao"
 
 export const metadata: Metadata = { title: "Apuração — Confluir" }
 
@@ -29,6 +32,8 @@ export default async function ApuracaoPage({
   const { id } = await params
   const dados = await dadosApuracao(id)
   if (!dados) notFound()
+  const acomp = await acompanhamentoAssembleia(id)
+  const emSeparado = acomp?.emSeparado ?? []
 
   const participacao =
     dados.aptos > 0 ? Math.round((dados.votantes / dados.aptos) * 100) : null
@@ -70,8 +75,21 @@ export default async function ApuracaoPage({
         </Alert>
       )}
 
+      {dados.online && !dados.apuracaoDisponivel && (
+        <Alert variant="warning">
+          <AlertDescription>
+            A apuração dos votos só fica disponível após o término da rodada
+            {dados.rodadaTermino ? (
+              <> (em {formatarData(dados.rodadaTermino)})</>
+            ) : null}
+            . Até lá, para preservar o sigilo, a contagem não é exibida — só o
+            comparecimento acima.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Contagem por pergunta (voto online) */}
-      {dados.online && dados.perguntas.length > 0 && (
+      {dados.online && dados.apuracaoDisponivel && dados.perguntas.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Contagem por pergunta</CardTitle>
@@ -126,6 +144,25 @@ export default async function ApuracaoPage({
         </Card>
       )}
 
+      {/* Votos em separado — deferir/indeferir */}
+      {emSeparado.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Votos em separado ({emSeparado.length})
+            </CardTitle>
+            <CardDescription>
+              Defira os que têm direito (o voto entra na contagem) ou indefira
+              (o voto é descartado). Nas urnas físicas, use como controle dos
+              envelopes; nas digitais, a contagem acima já respeita a decisão.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmSeparadoValidacao assembleiaId={dados.id} registros={emSeparado} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Resultado agregado + encerrar/reabrir */}
       <Card>
         <CardHeader>
@@ -140,6 +177,7 @@ export default async function ApuracaoPage({
             assembleiaId={dados.id}
             resultado={dados.resultado}
             encerrada={dados.apuracaoEncerrada}
+            disponivel={dados.apuracaoDisponivel}
           />
         </CardContent>
       </Card>

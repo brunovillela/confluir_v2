@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Gavel, Loader2, Pencil, Plus, Trash2, Vote } from "lucide-react"
+import { Activity, Gavel, Loader2, Pencil, Plus, Trash2, Vote } from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import {
   MODALIDADES,
   ROTULOS_MODALIDADE,
+  temUrna,
   type Modalidade,
 } from "@/lib/assembleias-constantes"
 import type { AssembleiaLinha } from "@/lib/db/assembleias"
@@ -33,10 +34,11 @@ const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
 
 const DESCRICOES_MODALIDADE: Record<Modalidade, string> = {
-  online: "Eleitores votam pelo sistema, em /votar.",
-  urna: "Voto presencial registrado por mesário na urna (fase seguinte).",
+  online: "Eleitores votam pelo sistema (área do filiado ou /votar público).",
+  urna: "Presencial no local: mesário registra a presença; voto em urna física ou digital.",
+  hibrida: "Online e presencial com urnas ao mesmo tempo.",
   reuniao:
-    "Encontro presencial com ata assinada; o resultado entra agregado (fase seguinte).",
+    "Reunião de colaboradores na base, com ata assinada; o resultado entra agregado.",
 }
 
 export function AssembleiasDaRodada({
@@ -149,7 +151,7 @@ function CamposAssembleia({
         <RadioGroup
           name="modalidade"
           defaultValue={assembleia?.modalidade ?? "online"}
-          className="grid gap-2 md:grid-cols-3"
+          className="grid gap-2 md:grid-cols-2"
         >
           {MODALIDADES.map((m) => (
             <label
@@ -288,13 +290,21 @@ function AssembleiaItem({
           {assembleia.voto_em_separado && (
             <Badge variant="outline">Voto em separado</Badge>
           )}
-          {assembleia.modalidade === "urna" && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/painel/representacao/assembleias/urna/${assembleia.id}`}>
-                <Vote />
-                Urna
-              </Link>
-            </Button>
+          {temUrna(assembleia.modalidade) && (
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/representacao/assembleias/urnas/${assembleia.id}`}>
+                  <Vote />
+                  Urnas e mesários
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/representacao/assembleias/acompanhamento/${assembleia.id}`}>
+                  <Activity />
+                  Acompanhar
+                </Link>
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" asChild>
             <Link href={`/painel/representacao/assembleias/apuracao/${assembleia.id}`}>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { encerrarApuracao, reabrirApuracao } from "@/lib/db/assembleias"
+import { validarEmSeparado } from "@/lib/db/votacao-mesarios"
 
 function inteiro(formData: FormData, campo: string): number | null {
   const v = String(formData.get(campo) ?? "").trim()
@@ -44,4 +45,22 @@ export async function reabrirApuracaoAction(
   if (r.erro) return { erro: r.erro }
   revalidatePath(`/painel/representacao/assembleias/apuracao/${id}`)
   return { ok: "Apuração reaberta." }
+}
+
+export async function validarEmSeparadoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const id = String(formData.get("em_separado_id") ?? "")
+  const status =
+    String(formData.get("status") ?? "") === "deferido"
+      ? "deferido"
+      : "indeferido"
+  if (!id) return { erro: "Registro inválido." }
+  const r = await validarEmSeparado(id, status)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/representacao/assembleias/apuracao/${assembleiaId}`)
+  return { ok: status === "deferido" ? "Voto deferido." : "Voto indeferido." }
 }

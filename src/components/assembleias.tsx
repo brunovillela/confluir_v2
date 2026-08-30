@@ -8,6 +8,7 @@ import {
 const ESTILOS: Record<Modalidade, string> = {
   online: "border-info/40 text-info-fg",
   urna: "border-warning/40 text-warning-fg",
+  hibrida: "border-primary/40 text-primary",
   reuniao: "border-success/40 text-success-fg",
 }
 
