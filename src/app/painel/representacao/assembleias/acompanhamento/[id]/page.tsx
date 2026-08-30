@@ -130,6 +130,64 @@ export default async function AcompanhamentoPage({
         </CardContent>
       </Card>
 
+      {/* Votos por urna + lacres por dia */}
+      {(dados.votosPorUrna.length > 0 || dados.lacresPorDia.length > 0) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {dados.votosPorUrna.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Votos por urna</CardTitle>
+                <CardDescription>Comparecimento em cada urna.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                {dados.votosPorUrna.map((u, i) => (
+                  <div key={i} className="flex justify-between gap-2 text-sm">
+                    <span>{u.urna ?? "Urna"}</span>
+                    <span className="tabular-nums font-medium">
+                      {u.compareceram.toLocaleString("pt-BR")}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          {dados.lacresPorDia.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Lacres por dia</CardTitle>
+                <CardDescription>
+                  Lacres instalados/rompidos, por dia e urna.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {dados.lacresPorDia.map((d) => (
+                  <div key={d.dia} className="grid gap-1">
+                    <p className="text-xs font-medium">
+                      {d.dia === "—"
+                        ? "—"
+                        : new Date(d.dia + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                    {d.itens.map((it, i) => (
+                      <div
+                        key={i}
+                        className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+                      >
+                        <Badge variant="outline">
+                          {it.tipo === "boca" ? "Boca" : "Principal"}
+                        </Badge>
+                        <span className="font-mono">nº {it.numero ?? "—"}</span>
+                        <span>{it.evento}</span>
+                        {it.urna && <span>· {it.urna}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Quem já votou */}
       <Card>
         <CardHeader>

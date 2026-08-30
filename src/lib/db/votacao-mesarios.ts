@@ -4,6 +4,7 @@ import { randomBytes, randomInt } from "node:crypto"
 
 import {
   derivarModalidade,
+  hojeLocalISO,
   temUrna,
   type Modalidade,
 } from "@/lib/assembleias-constantes"
@@ -64,7 +65,18 @@ export type UrnaLinha = {
 
 // ── Painel: dados de urnas + mesários de uma assembleia ─────────────────────
 
-export type UrnaComLacres = UrnaLinha & { lacres: LacreLinha[] }
+export type UrnaComLacres = UrnaLinha & {
+  lacres: LacreLinha[]
+  apuradorId: string | null
+}
+
+export type ApuradorBasico = {
+  id: string
+  nome: string | null
+  cpf: string | null
+  email: string | null
+  ativo: boolean
+}
 
 export type DadosUrnasAssembleia = {
   assembleiaId: string
@@ -73,6 +85,7 @@ export type DadosUrnasAssembleia = {
   rodadaId: string | null
   urnas: UrnaComLacres[]
   mesarios: MesarioLinha[]
+  apuradores: ApuradorBasico[]
 }
 
 async function contarPresenca(
@@ -108,23 +121,32 @@ export async function dadosUrnasAssembleia(
   const modalidade = derivarModalidade(a)
   const rodadaId = txt(a.rod_assembleia_id)
 
-  const [{ data: urnas }, { data: mesarios }, presenca] = await Promise.all([
-    admin
-      .from("voto_urnas")
-      .select("id, nome, tipo, abertura, fechamento, ativa")
-      .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId)
-      .order("created_at", { ascending: true }),
-    rodadaId
-      ? admin
-          .from("voto_mesarios")
-          .select("id, rod_assembleia_id, nome_completo, cpf, email, ativo")
-          .eq("emp_proprietaria_id", emp)
-          .eq("rod_assembleia_id", rodadaId)
-          .order("nome_completo", { ascending: true })
-      : Promise.resolve({ data: [] }),
-    contarPresenca(emp, assembleiaId),
-  ])
+  const [{ data: urnas }, { data: mesarios }, { data: apuradores }, presenca] =
+    await Promise.all([
+      admin
+        .from("voto_urnas")
+        .select("id, nome, tipo, abertura, fechamento, ativa, apurador_id")
+        .eq("emp_proprietaria_id", emp)
+        .eq("assembleia_id", assembleiaId)
+        .order("created_at", { ascending: true }),
+      rodadaId
+        ? admin
+            .from("voto_mesarios")
+            .select("id, rod_assembleia_id, nome_completo, cpf, email, ativo")
+            .eq("emp_proprietaria_id", emp)
+            .eq("rod_assembleia_id", rodadaId)
+            .order("nome_completo", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      rodadaId
+        ? admin
+            .from("voto_apuradores")
+            .select("id, nome_completo, cpf, email, ativo")
+            .eq("emp_proprietaria_id", emp)
+            .eq("rod_assembleia_id", rodadaId)
+            .order("nome_completo", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      contarPresenca(emp, assembleiaId),
+    ])
 
   // Lacres de todas as urnas desta assembleia (uma consulta, agrupada por urna).
   const urnaIds = (urnas ?? []).map((u) => String(u.id))
@@ -172,11 +194,19 @@ export async function dadosUrnasAssembleia(
         totalAptos,
         compareceram: presenca.porUrna.get(String(u.id)) ?? 0,
         lacres: lacresPorUrna.get(String(u.id)) ?? [],
+        apuradorId: txt(u.apurador_id),
       }
     }),
     mesarios: (mesarios ?? []).map((m) => ({
       id: String(m.id),
       rodadaId: txt(m.rod_assembleia_id),
+      nome: txt(m.nome_completo),
+      cpf: txt(m.cpf),
+      email: txt(m.email),
+      ativo: m.ativo !== false,
+    })),
+    apuradores: (apuradores ?? []).map((m) => ({
+      id: String(m.id),
       nome: txt(m.nome_completo),
       cpf: txt(m.cpf),
       email: txt(m.email),
@@ -519,6 +549,8 @@ export type OperacaoUrna = {
   totalAptos: number
   compareceram: number
   terminalPareado: boolean
+  estadoDia: EstadoDiaUrna
+  eventos: EventoLinha[]
   aptos: AptoUrna[]
 }
 
@@ -531,6 +563,8 @@ export async function operacaoUrna(
   if (!auth) return null
   const { emp, urna } = auth
   const admin = await createAdminClient()
+  const estadoDia = await estadoDiaUrna(urnaId)
+  const eventos = await listarEventos(urnaId)
 
   let q = admin
     .from("voto_assembleias_aptos")
@@ -584,6 +618,8 @@ export async function operacaoUrna(
     totalAptos: listaTodos.length,
     compareceram: listaTodos.filter((a) => a.presenca_em || a.hora_voto).length,
     terminalPareado: (term ?? []).length > 0,
+    estadoDia,
+    eventos,
     aptos: (aptos ?? []).map((a) => ({
       id: String(a.id),
       nome: txt(a.nome_completo),
@@ -632,6 +668,285 @@ export async function parearTerminalMesario(
   return { ok: true }
 }
 
+// ── Eventos/atas e ritual de abertura da urna ───────────────────────────────
+// A urna fica FECHADA (mesmo no horário) até a Abertura do dia, feita com o 1º
+// eleitor que atesta o rompimento do lacre da boca. Eventos: instalacao (1ª),
+// abertura (2ª+), fechamento (fim de dia, exceto o último), encerramento
+// (último). Cada um vira uma ata.
+
+export type EventoTipo =
+  | "instalacao"
+  | "abertura"
+  | "fechamento"
+  | "encerramento"
+  | "anomalia"
+
+export type EstadoDiaUrna = {
+  jaInstalada: boolean
+  encerrada: boolean
+  abertaHoje: boolean
+  ultimoTipo: EventoTipo | null
+  ultimoData: string | null
+}
+
+/** Data local (YYYY-MM-DD) de um timestamptz. */
+function diaLocal(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+export async function estadoDiaUrna(urnaId: string): Promise<EstadoDiaUrna> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_urna_eventos")
+    .select("tipo, data")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("urna_id", urnaId)
+    .neq("tipo", "anomalia")
+    .order("data", { ascending: false })
+  const eventos = data ?? []
+  const jaInstalada = eventos.some((e) => e.tipo === "instalacao")
+  const encerrada = eventos.some((e) => e.tipo === "encerramento")
+  const ultimo = eventos[0]
+  const ultimoTipo = (ultimo?.tipo as EventoTipo | undefined) ?? null
+  const abertaHoje =
+    !encerrada &&
+    (ultimoTipo === "instalacao" || ultimoTipo === "abertura") &&
+    diaLocal(txt(ultimo?.data)) === hojeLocalISO()
+  return {
+    jaInstalada,
+    encerrada,
+    abertaHoje,
+    ultimoTipo,
+    ultimoData: txt(ultimo?.data),
+  }
+}
+
+/** Abertura do dia com o 1º eleitor (instalação na 1ª vez, abertura depois). */
+export async function abrirUrnaDia(
+  urnaId: string,
+  dados: {
+    primeiroEleitorNome: string
+    atestaLacreRompido: boolean
+    lacreBocaNumero: string | null
+    descricao: string | null
+  }
+): Promise<{ erro?: string; ok?: boolean }> {
+  const auth = await urnaAutorizada(urnaId)
+  if (!auth) return { erro: "Urna não autorizada." }
+  const { emp, urna } = auth
+  if (!urna.aberta) return { erro: "A urna está fora do horário de votação." }
+  const estado = await estadoDiaUrna(urnaId)
+  if (estado.encerrada) return { erro: "Esta urna já foi encerrada." }
+  if (estado.abertaHoje) return { erro: "A urna já foi aberta hoje." }
+  if (!dados.primeiroEleitorNome.trim()) {
+    return { erro: "Informe o nome do primeiro eleitor." }
+  }
+  if (!dados.atestaLacreRompido) {
+    return { erro: "O eleitor precisa atestar o rompimento do lacre da boca." }
+  }
+  const admin = await createAdminClient()
+  const mesarios = await mesariosDaSessao()
+  const mesarioId =
+    mesarios.find((m) => m.rodadaId)?.id ?? mesarios[0]?.id ?? null
+  const agora = new Date().toISOString()
+  const tipo: EventoTipo = estado.jaInstalada ? "abertura" : "instalacao"
+
+  const { error } = await admin.from("voto_urna_eventos").insert({
+    emp_proprietaria_id: emp,
+    urna_id: urnaId,
+    tipo,
+    data: agora,
+    mesario_id: mesarioId,
+    primeiro_eleitor_nome: dados.primeiroEleitorNome.trim(),
+    atesta_lacre_rompido: dados.atestaLacreRompido,
+    lacre_boca_numero: dados.lacreBocaNumero,
+    descricao: dados.descricao,
+  })
+  if (error) return { erro: `Não foi possível abrir: ${error.message}` }
+
+  // Registra o rompimento do lacre da boca (guardado dentro da urna).
+  if (dados.lacreBocaNumero) {
+    await admin.from("voto_urna_lacres").insert({
+      emp_proprietaria_id: emp,
+      urna_id: urnaId,
+      tipo: "boca",
+      numero: dados.lacreBocaNumero,
+      evento: "rompido",
+      data: agora,
+      guardado_na_urna: true,
+      observacao: "Rompido na abertura do dia, guardado dentro da urna.",
+    })
+  }
+  return { ok: true }
+}
+
+/** Fechamento do dia (ou encerramento, quando é o último). */
+export async function fecharUrnaDia(
+  urnaId: string,
+  dados: { encerrar: boolean; lacreBocaNumero: string | null; descricao: string | null }
+): Promise<{ erro?: string; ok?: boolean }> {
+  const auth = await urnaAutorizada(urnaId)
+  if (!auth) return { erro: "Urna não autorizada." }
+  const { emp } = auth
+  const estado = await estadoDiaUrna(urnaId)
+  if (estado.encerrada) return { erro: "Esta urna já foi encerrada." }
+  if (!estado.abertaHoje) return { erro: "A urna não está aberta." }
+  const admin = await createAdminClient()
+  const mesarios = await mesariosDaSessao()
+  const mesarioId =
+    mesarios.find((m) => m.rodadaId)?.id ?? mesarios[0]?.id ?? null
+  const agora = new Date().toISOString()
+  const tipo: EventoTipo = dados.encerrar ? "encerramento" : "fechamento"
+
+  const { error } = await admin.from("voto_urna_eventos").insert({
+    emp_proprietaria_id: emp,
+    urna_id: urnaId,
+    tipo,
+    data: agora,
+    mesario_id: mesarioId,
+    lacre_boca_numero: dados.lacreBocaNumero,
+    descricao: dados.descricao,
+  })
+  if (error) return { erro: `Não foi possível fechar: ${error.message}` }
+
+  // No fechamento normal, instala-se o lacre da boca (rompido no dia seguinte).
+  if (!dados.encerrar && dados.lacreBocaNumero) {
+    await admin.from("voto_urna_lacres").insert({
+      emp_proprietaria_id: emp,
+      urna_id: urnaId,
+      tipo: "boca",
+      numero: dados.lacreBocaNumero,
+      evento: "instalado",
+      data: agora,
+      guardado_na_urna: false,
+      observacao: "Lacre da boca instalado no fechamento do dia.",
+    })
+  }
+  return { ok: true }
+}
+
+/** Registro livre de anomalia (ex.: lacre rompido acidental). */
+export async function registrarAnomalia(
+  urnaId: string,
+  descricao: string
+): Promise<{ erro?: string; ok?: boolean }> {
+  const auth = await urnaAutorizada(urnaId)
+  if (!auth) return { erro: "Urna não autorizada." }
+  if (!descricao.trim()) return { erro: "Descreva a anomalia." }
+  const admin = await createAdminClient()
+  const mesarios = await mesariosDaSessao()
+  const mesarioId =
+    mesarios.find((m) => m.rodadaId)?.id ?? mesarios[0]?.id ?? null
+  const { error } = await admin.from("voto_urna_eventos").insert({
+    emp_proprietaria_id: auth.emp,
+    urna_id: urnaId,
+    tipo: "anomalia",
+    data: new Date().toISOString(),
+    mesario_id: mesarioId,
+    descricao: descricao.trim(),
+  })
+  if (error) return { erro: `Não foi possível registrar: ${error.message}` }
+  return { ok: true }
+}
+
+export type EventoLinha = {
+  id: string
+  tipo: EventoTipo
+  data: string | null
+  primeiroEleitor: string | null
+  atestaLacre: boolean | null
+  lacreBoca: string | null
+  descricao: string | null
+}
+
+export type DadosAta = {
+  organizacao: string | null
+  tipo: EventoTipo
+  data: string | null
+  urna: string | null
+  assembleia: string | null
+  campanha: string | null
+  primeiroEleitor: string | null
+  atestaLacre: boolean | null
+  lacreBoca: string | null
+  descricao: string | null
+}
+
+/** Dados de uma ata (evento) — verifica que a urna é do mesário logado. */
+export async function dadosAta(
+  urnaId: string,
+  eventoId: string
+): Promise<DadosAta | null> {
+  const auth = await urnaAutorizada(urnaId)
+  if (!auth) return null
+  const { emp, urna } = auth
+  const admin = await createAdminClient()
+  const { data: ev } = await admin
+    .from("voto_urna_eventos")
+    .select(
+      "id, tipo, data, primeiro_eleitor_nome, atesta_lacre_rompido, lacre_boca_numero, descricao"
+    )
+    .eq("id", eventoId)
+    .eq("emp_proprietaria_id", emp)
+    .eq("urna_id", urnaId)
+    .maybeSingle()
+  if (!ev) return null
+
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select("nome_assembleia, campanha_id")
+    .eq("id", urna.assembleiaId)
+    .maybeSingle()
+  const [{ data: camp }, org] = await Promise.all([
+    txt(a?.campanha_id)
+      ? admin.from("voto_campanha").select("tema").eq("id", a?.campanha_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    (async () => {
+      const { obterOrganizacao } = await import("@/lib/db/organizacao")
+      return obterOrganizacao()
+    })(),
+  ])
+
+  return {
+    organizacao: org?.nomeFantasia ?? org?.nomeRazao ?? null,
+    tipo: (ev.tipo as EventoTipo) ?? "abertura",
+    data: txt(ev.data),
+    urna: urna.nome,
+    assembleia: txt(a?.nome_assembleia),
+    campanha: txt(camp?.tema),
+    primeiroEleitor: txt(ev.primeiro_eleitor_nome),
+    atestaLacre:
+      typeof ev.atesta_lacre_rompido === "boolean" ? ev.atesta_lacre_rompido : null,
+    lacreBoca: txt(ev.lacre_boca_numero),
+    descricao: txt(ev.descricao),
+  }
+}
+
+export async function listarEventos(urnaId: string): Promise<EventoLinha[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_urna_eventos")
+    .select(
+      "id, tipo, data, primeiro_eleitor_nome, atesta_lacre_rompido, lacre_boca_numero, descricao"
+    )
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("urna_id", urnaId)
+    .order("data", { ascending: false })
+  return (data ?? []).map((e) => ({
+    id: String(e.id),
+    tipo: (e.tipo as EventoTipo) ?? "abertura",
+    data: txt(e.data),
+    primeiroEleitor: txt(e.primeiro_eleitor_nome),
+    atestaLacre: typeof e.atesta_lacre_rompido === "boolean" ? e.atesta_lacre_rompido : null,
+    lacreBoca: txt(e.lacre_boca_numero),
+    descricao: txt(e.descricao),
+  }))
+}
+
 /**
  * O mesário registra a PRESENÇA do eleitor.
  * - urna física: encerra a participação (voto em papel; hora_voto = agora).
@@ -645,6 +960,13 @@ export async function registrarPresenca(
   if (!auth) return { erro: "Urna não autorizada." }
   const { emp, urna } = auth
   if (!urna.aberta) return { erro: "A urna está fora do horário de votação." }
+  // A urna FÍSICA precisa da Abertura do dia (ritual com o 1º eleitor); a
+  // digital não tem lacre físico, então opera direto dentro do horário.
+  if (urna.tipo === "fisica" && !(await estadoDiaUrna(urnaId)).abertaHoje) {
+    return {
+      erro: "Faça a Abertura do dia com o primeiro eleitor antes de registrar presenças.",
+    }
+  }
   const admin = await createAdminClient()
 
   const mesarios = await mesariosDaSessao()
@@ -1033,6 +1355,74 @@ async function limparLiberacao(emp: string, termId: string): Promise<void> {
     .eq("emp_proprietaria_id", emp)
 }
 
+// ── Cédula (dados para o PDF) ───────────────────────────────────────────────
+
+import type { DadosCedula } from "@/lib/pdf/cedula"
+
+function periodoTexto(inicio: string | null, termino: string | null): string | null {
+  const f = (d: string | null) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : null
+  const i = f(inicio)
+  const t = f(termino)
+  if (i && t) return `Período: ${i} a ${t}`
+  if (i) return `A partir de ${i}`
+  if (t) return `Até ${t}`
+  return null
+}
+
+export async function dadosCedula(
+  assembleiaId: string
+): Promise<DadosCedula | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select("id, nome_assembleia, campanha_id, rod_assembleia_id")
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!a) return null
+
+  const [{ data: camp }, { data: rod }, perguntas, org] = await Promise.all([
+    txt(a.campanha_id)
+      ? admin.from("voto_campanha").select("tema").eq("id", a.campanha_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    txt(a.rod_assembleia_id)
+      ? admin
+          .from("voto_rod_assembleias")
+          .select("inicio, termino")
+          .eq("id", a.rod_assembleia_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    perguntasDaAssembleia(assembleiaId),
+    (async () => {
+      const { obterOrganizacao } = await import("@/lib/db/organizacao")
+      return obterOrganizacao()
+    })(),
+  ])
+
+  return {
+    organizacao: org?.nomeFantasia ?? org?.nomeRazao ?? null,
+    campanha: txt(camp?.tema),
+    rodada: rod
+      ? periodoTexto(txt(rod.inicio), txt(rod.termino))?.replace("Período: ", "") ?? null
+      : null,
+    assembleia: txt(a.nome_assembleia),
+    periodo: rod ? periodoTexto(txt(rod.inicio), txt(rod.termino)) : null,
+    perguntas: perguntas.map((p) => ({
+      id: p.id,
+      pergunta: p.pergunta,
+      opcoes: p.opcoes.map((o) => ({ id: o.id, texto: o.texto })),
+    })),
+  }
+}
+
 // ── Voto em separado (mesário) ──────────────────────────────────────────────
 // Eleitor que alega direito mas não está na lista de aptos. O mesário cadastra
 // os dados; na urna DIGITAL a cédula é liberada no terminal e o voto fica RETIDO
@@ -1067,6 +1457,9 @@ export async function registrarVotoEmSeparado(
   if (!auth) return { erro: "Urna não autorizada." }
   const { emp, urna } = auth
   if (!urna.aberta) return { erro: "A urna está fora do horário de votação." }
+  if (urna.tipo === "fisica" && !(await estadoDiaUrna(urnaId)).abertaHoje) {
+    return { erro: "Faça a Abertura do dia antes de registrar votos." }
+  }
   if (!dados.nome.trim()) return { erro: "Informe o nome completo." }
   const admin = await createAdminClient()
   const mesarios = await mesariosDaSessao()
@@ -1188,6 +1581,11 @@ export type Acompanhamento = {
     deferido: number
     indeferido: number
   }
+  votosPorUrna: { urna: string | null; compareceram: number }[]
+  lacresPorDia: {
+    dia: string
+    itens: { tipo: string; numero: string | null; evento: string; urna: string | null }[]
+  }[]
 }
 
 export async function acompanhamentoAssembleia(
@@ -1261,6 +1659,47 @@ export async function acompanhamentoAssembleia(
   const contagem = { total: emSeparado.length, pendente: 0, deferido: 0, indeferido: 0 }
   for (const s of emSeparado) contagem[s.status]++
 
+  // Votos por urna (comparecimento por urna presencial).
+  const comparecPorUrna = new Map<string, number>()
+  for (const x of lista) {
+    if (!x.hora_voto) continue
+    const u = txt(x.presenca_urna_id)
+    if (u) comparecPorUrna.set(u, (comparecPorUrna.get(u) ?? 0) + 1)
+  }
+  const votosPorUrna = [...comparecPorUrna.entries()].map(([id, n]) => ({
+    urna: nomeUrna.get(id) ?? null,
+    compareceram: n,
+  }))
+
+  // Lacres usados por dia (todas as urnas da assembleia).
+  const urnaIds = (urnas ?? []).map((u) => String(u.id))
+  const lacresPorDiaMap = new Map<
+    string,
+    { tipo: string; numero: string | null; evento: string; urna: string | null }[]
+  >()
+  if (urnaIds.length) {
+    const { data: lacres } = await admin
+      .from("voto_urna_lacres")
+      .select("urna_id, tipo, numero, evento, data")
+      .eq("emp_proprietaria_id", emp)
+      .in("urna_id", urnaIds)
+      .order("data", { ascending: false })
+    for (const l of lacres ?? []) {
+      const dia = diaLocal(txt(l.data)) ?? "—"
+      const arr = lacresPorDiaMap.get(dia) ?? []
+      arr.push({
+        tipo: l.tipo === "principal" ? "principal" : "boca",
+        numero: txt(l.numero),
+        evento: l.evento === "rompido" ? "rompido" : "instalado",
+        urna: nomeUrna.get(String(l.urna_id)) ?? null,
+      })
+      lacresPorDiaMap.set(dia, arr)
+    }
+  }
+  const lacresPorDia = [...lacresPorDiaMap.entries()]
+    .sort((x, y) => y[0].localeCompare(x[0]))
+    .map(([dia, itens]) => ({ dia, itens }))
+
   return {
     assembleiaId,
     nome: txt(a.nome_assembleia),
@@ -1269,6 +1708,8 @@ export async function acompanhamentoAssembleia(
     quemVotou,
     emSeparado,
     emSeparadoContagem: contagem,
+    votosPorUrna,
+    lacresPorDia,
   }
 }
 

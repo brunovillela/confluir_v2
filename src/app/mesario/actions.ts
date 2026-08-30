@@ -6,8 +6,11 @@ import { revalidatePath } from "next/cache"
 import { mascararEmail, type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import {
+  abrirUrnaDia,
   emailEhMesario,
+  fecharUrnaDia,
   parearTerminalMesario,
+  registrarAnomalia,
   registrarPresenca,
   registrarVotoEmSeparado,
 } from "@/lib/db/votacao-mesarios"
@@ -94,6 +97,57 @@ export async function registrarPresencaAction(
       ? "Presença registrada. Cédula liberada no terminal de votação."
       : "Presença registrada. O eleitor votou na urna.",
   }
+}
+
+export async function abrirUrnaDiaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const urnaId = String(formData.get("urna_id") ?? "")
+  if (!urnaId) return { erro: "Dados inválidos." }
+  const r = await abrirUrnaDia(urnaId, {
+    primeiroEleitorNome: String(formData.get("primeiro_eleitor") ?? ""),
+    atestaLacreRompido: String(formData.get("atesta_lacre") ?? "") === "on",
+    lacreBocaNumero: String(formData.get("lacre_boca") ?? "").trim() || null,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/mesario/urna/${urnaId}`)
+  return { ok: "Urna aberta. Já pode registrar as presenças." }
+}
+
+export async function fecharUrnaDiaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const urnaId = String(formData.get("urna_id") ?? "")
+  if (!urnaId) return { erro: "Dados inválidos." }
+  const encerrar = String(formData.get("encerrar") ?? "") === "on"
+  const r = await fecharUrnaDia(urnaId, {
+    encerrar,
+    lacreBocaNumero: String(formData.get("lacre_boca") ?? "").trim() || null,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/mesario/urna/${urnaId}`)
+  return {
+    ok: encerrar
+      ? "Urna encerrada. Os trabalhos foram concluídos."
+      : "Dia fechado. A boca da urna foi lacrada.",
+  }
+}
+
+export async function registrarAnomaliaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const urnaId = String(formData.get("urna_id") ?? "")
+  const descricao = String(formData.get("descricao") ?? "")
+  if (!urnaId) return { erro: "Dados inválidos." }
+  const r = await registrarAnomalia(urnaId, descricao)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/mesario/urna/${urnaId}`)
+  return { ok: "Anomalia registrada." }
 }
 
 export type EstadoEmSeparado = {

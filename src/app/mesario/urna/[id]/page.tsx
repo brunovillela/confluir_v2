@@ -16,7 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { operacaoUrna } from "@/lib/db/votacao-mesarios"
 
-import { ListaPresenca, PareamentoTerminal, VotoEmSeparado } from "./operacao"
+import {
+  ListaPresenca,
+  PareamentoTerminal,
+  RitualUrna,
+  VotoEmSeparado,
+} from "./operacao"
 
 export const metadata: Metadata = { title: "Operar urna — Confluir" }
 
@@ -106,6 +111,16 @@ export default async function OperarUrnaPage({
         </Alert>
       )}
 
+      {/* Ritual de abertura/fechamento + lacres/anomalias (urna física) */}
+      {dados.tipo === "fisica" && (
+        <RitualUrna
+          urnaId={dados.urnaId}
+          aberta={dados.aberta}
+          estadoDia={dados.estadoDia}
+          eventos={dados.eventos}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Eleitores</CardTitle>
@@ -130,11 +145,20 @@ export default async function OperarUrnaPage({
           </form>
           <ListaPresenca
             urnaId={dados.urnaId}
-            aberta={dados.aberta}
+            aberta={
+              dados.aberta &&
+              (dados.tipo !== "fisica" || dados.estadoDia.abertaHoje)
+            }
             aptos={dados.aptos}
           />
           <div className="border-t pt-3">
-            <VotoEmSeparado urnaId={dados.urnaId} aberta={dados.aberta} />
+            <VotoEmSeparado
+              urnaId={dados.urnaId}
+              aberta={
+                dados.aberta &&
+                (dados.tipo !== "fisica" || dados.estadoDia.abertaHoje)
+              }
+            />
           </div>
         </CardContent>
       </Card>

@@ -66,16 +66,7 @@ export default async function ApuracaoPage({
         </p>
       </div>
 
-      {!dados.online && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Assembleia presencial — não há cédula digital. Informe os números
-            apurados na urna/reunião abaixo.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {dados.online && !dados.apuracaoDisponivel && (
+      {!dados.apuracaoDisponivel && (
         <Alert variant="warning">
           <AlertDescription>
             A apuração dos votos só fica disponível após o término da rodada
@@ -88,58 +79,74 @@ export default async function ApuracaoPage({
         </Alert>
       )}
 
-      {/* Contagem por pergunta (voto online) */}
-      {dados.online && dados.apuracaoDisponivel && dados.perguntas.length > 0 && (
+      {/* Contagem por pergunta: soma dos votos digitais/online + urnas físicas */}
+      {dados.apuracaoDisponivel && dados.perguntas.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Contagem por pergunta</CardTitle>
             <CardDescription>
-              Apuração dos votos online registrados nesta assembleia.
+              Soma dos votos digitais/online e das urnas físicas (por opção, com
+              branco e nulo).
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5">
-            {dados.perguntas.map((p, i) => (
-              <div key={p.id} className="grid gap-2">
-                <p className="text-sm font-medium">
-                  {i + 1}. {p.pergunta ?? "Pergunta"}
-                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                    {p.totalVotos.toLocaleString("pt-BR")} voto
-                    {p.totalVotos === 1 ? "" : "s"}
-                  </span>
-                </p>
-                <div className="grid gap-1.5">
-                  {p.opcoes.map((o) => {
-                    const pct =
-                      p.totalVotos > 0
-                        ? Math.round((o.votos / p.totalVotos) * 100)
-                        : 0
-                    return (
-                      <div
-                        key={o.id}
-                        className="grid grid-cols-[1fr_auto] items-center gap-2 text-sm"
-                      >
-                        <div className="min-w-0">
+            {dados.perguntas.map((p, i) => {
+              const linhas = [
+                ...p.opcoes.map((o) => ({
+                  chave: o.id,
+                  rotulo: o.texto ?? "(opção)",
+                  votos: o.votos,
+                  destaque: true,
+                })),
+                { chave: "branco", rotulo: "Branco", votos: p.branco, destaque: false },
+                { chave: "nulo", rotulo: "Nulo", votos: p.nulo, destaque: false },
+              ]
+              return (
+                <div key={p.id} className="grid gap-2">
+                  <p className="text-sm font-medium">
+                    {i + 1}. {p.pergunta ?? "Pergunta"}
+                    <span className="text-muted-foreground ml-2 text-xs font-normal">
+                      {p.totalVotos.toLocaleString("pt-BR")} voto
+                      {p.totalVotos === 1 ? "" : "s"}
+                    </span>
+                  </p>
+                  <div className="grid gap-1.5">
+                    {linhas.map((l) => {
+                      const pct =
+                        p.totalVotos > 0
+                          ? Math.round((l.votos / p.totalVotos) * 100)
+                          : 0
+                      return (
+                        <div key={l.chave} className="text-sm">
                           <div className="flex justify-between gap-2">
-                            <span className="truncate">
-                              {o.texto ?? "(opção)"}
+                            <span
+                              className={
+                                l.destaque ? "truncate" : "text-muted-foreground truncate"
+                              }
+                            >
+                              {l.rotulo}
                             </span>
                             <span className="text-muted-foreground tabular-nums">
-                              {o.votos.toLocaleString("pt-BR")} · {pct}%
+                              {l.votos.toLocaleString("pt-BR")} · {pct}%
                             </span>
                           </div>
                           <div className="bg-muted mt-1 h-2 overflow-hidden rounded-full">
                             <div
-                              className="bg-primary h-full rounded-full"
+                              className={
+                                l.destaque
+                                  ? "bg-primary h-full rounded-full"
+                                  : "bg-muted-foreground/40 h-full rounded-full"
+                              }
                               style={{ width: `${pct}%` }}
                             />
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </CardContent>
         </Card>
       )}
@@ -175,7 +182,6 @@ export default async function ApuracaoPage({
         <CardContent>
           <ApuracaoForm
             assembleiaId={dados.id}
-            resultado={dados.resultado}
             encerrada={dados.apuracaoEncerrada}
             disponivel={dados.apuracaoDisponivel}
           />

@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import type {
+  ApuradorBasico,
   LacreLinha,
   MesarioLinha,
   UrnaComLacres,
@@ -37,12 +38,16 @@ import type {
 import { formatarCpf } from "@/lib/cpf"
 
 import {
+  atribuirUrnaApuradorAction,
+  criarApuradorAction,
   criarMesarioAction,
   criarUrnaAction,
   registrarLacreAction,
+  removerApuradorAction,
   removerLacreAction,
   removerMesarioAction,
   removerUrnaAction,
+  salvarApuradorAction,
   salvarMesarioAction,
   salvarUrnaAction,
 } from "./actions"
@@ -138,12 +143,58 @@ function CamposUrna({ urna }: { urna?: UrnaLinha }) {
   )
 }
 
-function UrnaItem({
+function AtribuirApurador({
   assembleiaId,
   urna,
+  apuradores,
 }: {
   assembleiaId: string
   urna: UrnaComLacres
+  apuradores: ApuradorBasico[]
+}) {
+  const [estado, formAction, pendente] = useActionState(
+    atribuirUrnaApuradorAction,
+    {}
+  )
+  return (
+    <form
+      action={formAction}
+      className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 text-sm"
+    >
+      <input type="hidden" name="assembleia_id" value={assembleiaId} />
+      <input type="hidden" name="urna_id" value={urna.id} />
+      <span className="text-muted-foreground text-xs">Apurador:</span>
+      <select
+        name="apurador_id"
+        defaultValue={urna.apuradorId ?? ""}
+        className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+      >
+        <option value="">— ninguém —</option>
+        {apuradores.map((ap) => (
+          <option key={ap.id} value={ap.id}>
+            {ap.nome ?? ap.email ?? ap.id.slice(0, 8)}
+          </option>
+        ))}
+      </select>
+      <Button type="submit" variant="secondary" size="sm" disabled={pendente}>
+        {pendente && <Loader2 className="animate-spin" />}
+        Atribuir
+      </Button>
+      {estado.erro && (
+        <span className="text-destructive text-xs">{estado.erro}</span>
+      )}
+    </form>
+  )
+}
+
+function UrnaItem({
+  assembleiaId,
+  urna,
+  apuradores,
+}: {
+  assembleiaId: string
+  urna: UrnaComLacres
+  apuradores: ApuradorBasico[]
 }) {
   const [editando, setEditando] = useState(false)
   const [estSalvar, actSalvar, salvando] = useActionState(salvarUrnaAction, {})
@@ -250,6 +301,13 @@ function UrnaItem({
           </form>
         </div>
       </div>
+      {apuradores.length > 0 && (
+        <AtribuirApurador
+          assembleiaId={assembleiaId}
+          urna={urna}
+          apuradores={apuradores}
+        />
+      )}
       <LacresUrna assembleiaId={assembleiaId} urna={urna} />
     </div>
   )
@@ -687,6 +745,162 @@ function NovoMesario({
   )
 }
 
+// ── Apuradores (mesmo molde dos mesários) ───────────────────────────────────
+
+function CamposApurador({ apurador }: { apurador?: ApuradorBasico }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-1.5 sm:col-span-2">
+        <Label htmlFor="ap-nome">Nome completo *</Label>
+        <Input id="ap-nome" name="nome" required defaultValue={apurador?.nome ?? ""} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="ap-cpf">CPF</Label>
+        <Input
+          id="ap-cpf"
+          name="cpf"
+          defaultValue={apurador?.cpf ? formatarCpf(apurador.cpf) : ""}
+          placeholder="Opcional"
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="ap-email">E-mail *</Label>
+        <Input
+          id="ap-email"
+          name="email"
+          type="email"
+          required
+          defaultValue={apurador?.email ?? ""}
+          placeholder="acesso ao ambiente do apurador"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ApuradorItem({
+  assembleiaId,
+  apurador,
+}: {
+  assembleiaId: string
+  apurador: ApuradorBasico
+}) {
+  const [editando, setEditando] = useState(false)
+  const [estSalvar, actSalvar, salvando] = useActionState(salvarApuradorAction, {})
+  const [estApagar, actApagar, apagando] = useActionState(removerApuradorAction, {})
+  const erro = estSalvar.erro ?? estApagar.erro
+
+  if (editando) {
+    return (
+      <form action={actSalvar} className="grid gap-4 rounded-lg border p-4">
+        {erro && (
+          <Alert variant="destructive">
+            <AlertDescription>{erro}</AlertDescription>
+          </Alert>
+        )}
+        <input type="hidden" name="assembleia_id" value={assembleiaId} />
+        <input type="hidden" name="apurador_id" value={apurador.id} />
+        <CamposApurador apurador={apurador} />
+        <label className="flex items-center gap-2 text-sm">
+          <Switch name="ativo" defaultChecked={apurador.ativo} />
+          <span>Apurador ativo</span>
+        </label>
+        <div className="flex gap-2">
+          <Button type="submit" size="sm" disabled={salvando}>
+            {salvando && <Loader2 className="animate-spin" />}
+            Salvar apurador
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditando(false)}>
+            Cancelar
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg border p-3">
+      {erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{erro}</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{apurador.nome ?? "(sem nome)"}</p>
+          <p className="text-muted-foreground text-xs">
+            {apurador.email ?? "—"}
+            {apurador.cpf ? ` · ${formatarCpf(apurador.cpf)}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          {!apurador.ativo && (
+            <Badge variant="outline" className="text-muted-foreground">
+              Inativo
+            </Badge>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setEditando(true)} aria-label="Editar apurador">
+            <Pencil />
+          </Button>
+          <form
+            action={actApagar}
+            onSubmit={(e) => {
+              if (!confirm("Excluir este apurador?")) e.preventDefault()
+            }}
+          >
+            <input type="hidden" name="assembleia_id" value={assembleiaId} />
+            <input type="hidden" name="apurador_id" value={apurador.id} />
+            <Button type="submit" variant="ghost" size="icon" disabled={apagando} aria-label="Excluir apurador">
+              {apagando ? <Loader2 className="animate-spin" /> : <Trash2 />}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NovoApurador({
+  assembleiaId,
+  rodadaId,
+}: {
+  assembleiaId: string
+  rodadaId: string
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useActionState(criarApuradorAction, {})
+
+  if (!aberto) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => setAberto(true)}>
+        <UserPlus />
+        Cadastrar apurador
+      </Button>
+    )
+  }
+  return (
+    <form action={formAction} className="grid gap-4 rounded-lg border border-dashed p-4">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <input type="hidden" name="assembleia_id" value={assembleiaId} />
+      <input type="hidden" name="rodada_id" value={rodadaId} />
+      <CamposApurador />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <UserPlus />}
+          Cadastrar
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(false)}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 // ── Composição ──────────────────────────────────────────────────────────────
 
 export function UrnasEMesarios({
@@ -694,11 +908,13 @@ export function UrnasEMesarios({
   rodadaId,
   urnas,
   mesarios,
+  apuradores,
 }: {
   assembleiaId: string
   rodadaId: string | null
   urnas: UrnaComLacres[]
   mesarios: MesarioLinha[]
+  apuradores: ApuradorBasico[]
 }) {
   return (
     <div className="grid gap-6">
@@ -717,7 +933,12 @@ export function UrnasEMesarios({
             </p>
           )}
           {urnas.map((u) => (
-            <UrnaItem key={u.id} assembleiaId={assembleiaId} urna={u} />
+            <UrnaItem
+              key={u.id}
+              assembleiaId={assembleiaId}
+              urna={u}
+              apuradores={apuradores}
+            />
           ))}
           <NovaUrna assembleiaId={assembleiaId} />
         </CardContent>
@@ -754,6 +975,42 @@ export function UrnasEMesarios({
                 />
               ))}
               <NovoMesario assembleiaId={assembleiaId} rodadaId={rodadaId} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Apuradores</CardTitle>
+          <CardDescription>
+            Cadastrados na rodada. Acessam <code>/apurador</code> pelo e-mail
+            informado. Atribua urnas a cada apurador no cartão da urna acima.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {!rodadaId ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                Esta assembleia ainda não está vinculada a uma rodada — não é
+                possível cadastrar apuradores.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              {apuradores.length === 0 && (
+                <p className="text-muted-foreground py-2 text-center text-sm">
+                  Nenhum apurador cadastrado nesta rodada ainda.
+                </p>
+              )}
+              {apuradores.map((ap) => (
+                <ApuradorItem
+                  key={ap.id}
+                  assembleiaId={assembleiaId}
+                  apurador={ap}
+                />
+              ))}
+              <NovoApurador assembleiaId={assembleiaId} rodadaId={rodadaId} />
             </>
           )}
         </CardContent>

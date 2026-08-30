@@ -15,6 +15,12 @@ import {
   removerMesario,
   removerUrna,
 } from "@/lib/db/votacao-mesarios"
+import {
+  atribuirUrnaApurador,
+  atualizarApurador,
+  criarApurador,
+  removerApurador,
+} from "@/lib/db/votacao-apuracao"
 
 function rev(assembleiaId: string) {
   revalidatePath(`/painel/representacao/assembleias/urnas/${assembleiaId}`)
@@ -199,4 +205,83 @@ export async function removerLacreAction(
   if (r.erro) return { erro: r.erro }
   rev(assembleiaId)
   return { ok: "Lacre removido." }
+}
+
+// ── Apuradores ──────────────────────────────────────────────────────────────
+
+export async function criarApuradorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const rodadaId = String(formData.get("rodada_id") ?? "")
+  const nome = String(formData.get("nome") ?? "").trim()
+  const email = String(formData.get("email") ?? "").trim()
+  if (!rodadaId) return { erro: "Rodada não identificada." }
+  if (!nome) return { erro: "Informe o nome completo." }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { erro: "Informe um e-mail válido." }
+  }
+  const { erro, cpf } = cpfOpcional(formData)
+  if (erro) return { erro }
+  const r = await criarApurador(rodadaId, { nome, cpf, email })
+  if (r.erro) return { erro: r.erro }
+  rev(assembleiaId)
+  return { ok: "Apurador cadastrado." }
+}
+
+export async function salvarApuradorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const id = String(formData.get("apurador_id") ?? "")
+  const nome = String(formData.get("nome") ?? "").trim()
+  const email = String(formData.get("email") ?? "").trim()
+  if (!id || !nome) return { erro: "Informe o nome completo." }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { erro: "Informe um e-mail válido." }
+  }
+  const { erro, cpf } = cpfOpcional(formData)
+  if (erro) return { erro }
+  const r = await atualizarApurador(id, {
+    nome,
+    cpf,
+    email,
+    ativo: String(formData.get("ativo") ?? "") === "on",
+  })
+  if (r.erro) return { erro: r.erro }
+  rev(assembleiaId)
+  return { ok: "Apurador salvo." }
+}
+
+export async function removerApuradorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const id = String(formData.get("apurador_id") ?? "")
+  if (!id) return { erro: "Apurador inválido." }
+  const r = await removerApurador(id)
+  if (r.erro) return { erro: r.erro }
+  rev(assembleiaId)
+  return { ok: "Apurador excluído." }
+}
+
+export async function atribuirUrnaApuradorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const urnaId = String(formData.get("urna_id") ?? "")
+  const apuradorId = String(formData.get("apurador_id") ?? "").trim() || null
+  if (!urnaId) return { erro: "Urna inválida." }
+  const r = await atribuirUrnaApurador(urnaId, apuradorId)
+  if (r.erro) return { erro: r.erro }
+  rev(assembleiaId)
+  return { ok: "Atribuição salva." }
 }

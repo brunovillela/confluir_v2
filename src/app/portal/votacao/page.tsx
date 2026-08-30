@@ -201,32 +201,25 @@ export default async function VotacaoPortalPage() {
                     .join(" · ")}
                 </p>
                 {v.apuracaoEncerrada && v.resultado ? (
-                  <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <span>
-                      Aprovado:{" "}
-                      <strong className="tabular-nums">
-                        {v.resultado.aprovado ?? "—"}
-                      </strong>
-                    </span>
-                    <span>
-                      Reprovado:{" "}
-                      <strong className="tabular-nums">
-                        {v.resultado.reprovado ?? "—"}
-                      </strong>
-                    </span>
-                    <span>
-                      Branco:{" "}
-                      <strong className="tabular-nums">
-                        {v.resultado.branco ?? "—"}
-                      </strong>
-                    </span>
-                    <span>
-                      Abstenção:{" "}
-                      <strong className="tabular-nums">
-                        {v.resultado.abstencao ?? "—"}
-                      </strong>
-                    </span>
-                  </p>
+                  <div className="mt-2 grid gap-2">
+                    {v.resultado.map((p) => (
+                      <div key={p.perguntaId} className="text-xs">
+                        {p.pergunta && (
+                          <p className="font-medium">{p.pergunta}</p>
+                        )}
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                          {p.itens.map((it, i) => (
+                            <span key={i}>
+                              {it.rotulo}:{" "}
+                              <strong className="tabular-nums">
+                                {it.quantidade.toLocaleString("pt-BR")}
+                              </strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-muted-foreground mt-2 text-xs">
                     Resultado disponível após o encerramento da apuração.

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FileText } from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -37,6 +37,16 @@ export default async function UrnasAssembleiaPage({
             Urnas e mesários — {dados.nome ?? "assembleia"}
           </h1>
           <ModalidadeBadge modalidade={dados.modalidade} />
+          <Button variant="outline" size="sm" asChild className="ml-auto">
+            <a
+              href={`/painel/representacao/assembleias/cedula/${dados.assembleiaId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FileText />
+              Baixar cédula (PDF)
+            </a>
+          </Button>
         </div>
         <p className="text-muted-foreground mt-1 text-sm">
           O mesário registra a <strong>presença</strong> do eleitor — nunca o
@@ -58,6 +68,7 @@ export default async function UrnasAssembleiaPage({
         rodadaId={dados.rodadaId}
         urnas={dados.urnas}
         mesarios={dados.mesarios}
+        apuradores={dados.apuradores}
       />
     </>
   )

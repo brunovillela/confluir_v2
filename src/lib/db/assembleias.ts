@@ -1415,6 +1415,9 @@ export type ApuracaoPergunta = {
   pergunta: string | null
   ordem: number | null
   opcoes: ApuracaoOpcao[]
+  /** Votos em branco (sem marcação) e nulos (marcação inválida) — presencial. */
+  branco: number
+  nulo: number
   totalVotos: number
 }
 export type ApuracaoAssembleia = {
@@ -1434,17 +1437,7 @@ export type ApuracaoAssembleia = {
   aptos: number
   votantes: number
   perguntas: ApuracaoPergunta[]
-  resultado: {
-    aprovado: number | null
-    reprovado: number | null
-    em_branco: number | null
-    abstencao: number | null
-    total_votos: number | null
-  }
 }
-
-const numOuNull = (v: unknown): number | null =>
-  typeof v === "number" ? v : null
 
 export async function dadosApuracao(
   assembleiaId: string
@@ -1454,7 +1447,7 @@ export async function dadosApuracao(
   const { data: a } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, rod_assembleia_id, resultado_aprovado, resultado_reprovado, resultado_em_branco, resultado_abstencao, total_votos"
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, rod_assembleia_id"
     )
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
@@ -1536,6 +1529,48 @@ export async function dadosApuracao(
     }
   }
 
+  // Contagem manual das urnas FÍSICAS desta assembleia (por opção + branco/nulo),
+  // somada à contagem digital acima. Também só depois do término.
+  const brancoPorPergunta = new Map<string, number>()
+  const nuloPorPergunta = new Map<string, number>()
+  if (apuracaoDisponivel) {
+    const { data: urnasFis } = await admin
+      .from("voto_urnas")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("assembleia_id", assembleiaId)
+      .eq("tipo", "fisica")
+    const urnaIds = (urnasFis ?? []).map((u) => String(u.id))
+    if (urnaIds.length) {
+      const { data: sessoes } = await admin
+        .from("voto_apuracao_urna")
+        .select("id")
+        .eq("emp_proprietaria_id", emp)
+        .in("urna_id", urnaIds)
+      const sessaoIds = (sessoes ?? []).map((s) => String(s.id))
+      if (sessaoIds.length) {
+        const { data: cont } = await admin
+          .from("voto_apuracao_contagem")
+          .select("pergunta_id, opcao_id, tipo, quantidade")
+          .eq("emp_proprietaria_id", emp)
+          .in("apuracao_urna_id", sessaoIds)
+        for (const c of cont ?? []) {
+          const q = typeof c.quantidade === "number" ? c.quantidade : 0
+          if (c.tipo === "branco") {
+            const k = String(c.pergunta_id)
+            brancoPorPergunta.set(k, (brancoPorPergunta.get(k) ?? 0) + q)
+          } else if (c.tipo === "nulo") {
+            const k = String(c.pergunta_id)
+            nuloPorPergunta.set(k, (nuloPorPergunta.get(k) ?? 0) + q)
+          } else if (c.opcao_id) {
+            const k = String(c.opcao_id)
+            votosPorOpcao.set(k, (votosPorOpcao.get(k) ?? 0) + q)
+          }
+        }
+      }
+    }
+  }
+
   const [aptosRes, votantesRes] = await Promise.all([
     admin
       .from("voto_assembleias_aptos")
@@ -1555,12 +1590,16 @@ export async function dadosApuracao(
       ...o,
       votos: votosPorOpcao.get(o.id) ?? 0,
     }))
+    const branco = brancoPorPergunta.get(String(p.id)) ?? 0
+    const nulo = nuloPorPergunta.get(String(p.id)) ?? 0
     return {
       id: String(p.id),
       pergunta: p.pergunta,
       ordem: p.ordem,
       opcoes: ops,
-      totalVotos: ops.reduce((s, o) => s + o.votos, 0),
+      branco,
+      nulo,
+      totalVotos: ops.reduce((s, o) => s + o.votos, 0) + branco + nulo,
     }
   })
 
@@ -1575,61 +1614,77 @@ export async function dadosApuracao(
     aptos: aptosRes.count ?? 0,
     votantes: votantesRes.count ?? 0,
     perguntas: perguntasOut,
-    resultado: {
-      aprovado: numOuNull(a.resultado_aprovado),
-      reprovado: numOuNull(a.resultado_reprovado),
-      em_branco: numOuNull(a.resultado_em_branco),
-      abstencao: numOuNull(a.resultado_abstencao),
-      total_votos: numOuNull(a.total_votos),
-    },
   }
 }
 
+/**
+ * Encerra a apuração: tira um SNAPSHOT do resultado dinâmico (por opção +
+ * branco + nulo) em voto_resultado_final e marca apuracao_encerrada. É esse
+ * snapshot que o filiado vê em "Minhas votações".
+ */
 export async function encerrarApuracao(
-  assembleiaId: string,
-  resultado: {
-    aprovado: number | null
-    reprovado: number | null
-    em_branco: number | null
-    abstencao: number | null
-    total_votos: number | null
-  }
+  assembleiaId: string
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
+  const dados = await dadosApuracao(assembleiaId)
+  if (!dados) return { erro: "Assembleia não encontrada." }
+
   // Trava: não se encerra a apuração antes de a rodada terminar.
-  const { data: a } = await admin
-    .from("voto_assembleias")
-    .select("rod_assembleia_id")
-    .eq("id", assembleiaId)
-    .eq("emp_proprietaria_id", emp)
-    .maybeSingle()
-  const rodId = a?.rod_assembleia_id ? String(a.rod_assembleia_id) : null
-  const { data: rod } = rodId
-    ? await admin
-        .from("voto_rod_assembleias")
-        .select("termino")
-        .eq("id", rodId)
-        .eq("emp_proprietaria_id", emp)
-        .maybeSingle()
-    : { data: null }
-  if (!periodoTerminado(rod?.termino ? String(rod.termino) : null)) {
+  if (!periodoTerminado(dados.rodadaTermino)) {
     return {
       erro: "A apuração só pode ser encerrada após o término da rodada.",
     }
   }
 
+  // Regrava o snapshot do zero.
+  await admin
+    .from("voto_resultado_final")
+    .delete()
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+  const linhas: Record<string, unknown>[] = []
+  for (const p of dados.perguntas) {
+    for (const o of p.opcoes) {
+      linhas.push({
+        emp_proprietaria_id: emp,
+        assembleia_id: assembleiaId,
+        pergunta_id: p.id,
+        opcao_id: o.id,
+        tipo: "opcao",
+        quantidade: o.votos,
+      })
+    }
+    if (p.branco > 0)
+      linhas.push({
+        emp_proprietaria_id: emp,
+        assembleia_id: assembleiaId,
+        pergunta_id: p.id,
+        opcao_id: null,
+        tipo: "branco",
+        quantidade: p.branco,
+      })
+    if (p.nulo > 0)
+      linhas.push({
+        emp_proprietaria_id: emp,
+        assembleia_id: assembleiaId,
+        pergunta_id: p.id,
+        opcao_id: null,
+        tipo: "nulo",
+        quantidade: p.nulo,
+      })
+  }
+  if (linhas.length) {
+    const { error: erroSnap } = await admin
+      .from("voto_resultado_final")
+      .insert(linhas)
+    if (erroSnap) return { erro: `Não foi possível gravar: ${erroSnap.message}` }
+  }
+
   const { error } = await admin
     .from("voto_assembleias")
-    .update({
-      apuracao_encerrada: true,
-      resultado_aprovado: resultado.aprovado,
-      resultado_reprovado: resultado.reprovado,
-      resultado_em_branco: resultado.em_branco,
-      resultado_abstencao: resultado.abstencao,
-      total_votos: resultado.total_votos,
-    })
+    .update({ apuracao_encerrada: true })
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível encerrar: ${error.message}` }

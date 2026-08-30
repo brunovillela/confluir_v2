@@ -524,13 +524,17 @@ export type MinhaVotacao = {
   /** Urna presencial em que votou (registro do eleitor), quando houver. */
   urna: string | null
   apuracaoEncerrada: boolean
-  /** Resultado FINAL (só quando apurado). Nunca resultados parciais. */
-  resultado: {
-    aprovado: number | null
-    reprovado: number | null
-    branco: number | null
-    abstencao: number | null
-  } | null
+  /**
+   * Resultado FINAL por opção (só quando apurado). Cada pergunta com suas
+   * opções + branco/nulo. Nunca resultados parciais.
+   */
+  resultado:
+    | {
+        perguntaId: string
+        pergunta: string | null
+        itens: { rotulo: string; quantidade: number }[]
+      }[]
+    | null
 }
 
 /** Votações em que o filiado PARTICIPOU (apto com hora_voto), sem o voto. */
@@ -574,11 +578,88 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
   const { data: assembleias } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, empresa_id, campanha_id, resultado_aprovado, resultado_reprovado, resultado_em_branco, resultado_abstencao"
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, empresa_id, campanha_id"
     )
     .eq("emp_proprietaria_id", emp)
     .in("id", ids)
   if (!assembleias) return []
+
+  // Resultado final por opção (snapshot) das assembleias já apuradas.
+  const apuradas = assembleias
+    .filter((a) => a.apuracao_encerrada === true)
+    .map((a) => String(a.id))
+  const resultadoPorAssembleia = new Map<
+    string,
+    { perguntaId: string; pergunta: string | null; itens: { rotulo: string; quantidade: number }[] }[]
+  >()
+  if (apuradas.length) {
+    const { data: linhas } = await admin
+      .from("voto_resultado_final")
+      .select("assembleia_id, pergunta_id, opcao_id, tipo, quantidade")
+      .eq("emp_proprietaria_id", emp)
+      .in("assembleia_id", apuradas)
+    const perguntaIds = [
+      ...new Set((linhas ?? []).map((l) => String(l.pergunta_id))),
+    ]
+    const opcaoIds = [
+      ...new Set(
+        (linhas ?? [])
+          .map((l) => txt(l.opcao_id))
+          .filter(Boolean) as string[]
+      ),
+    ]
+    const [{ data: pergs }, { data: ops }] = await Promise.all([
+      perguntaIds.length
+        ? admin
+            .from("voto_assembleias_perguntas")
+            .select("id, pergunta, ordem")
+            .in("id", perguntaIds)
+        : Promise.resolve({ data: [] }),
+      opcaoIds.length
+        ? admin
+            .from("voto_opcoes_resposta")
+            .select("id, opcao_resposta")
+            .in("id", opcaoIds)
+        : Promise.resolve({ data: [] }),
+    ])
+    const textoPergunta = new Map(
+      (pergs ?? []).map((p) => [String(p.id), txt(p.pergunta)])
+    )
+    const ordemPergunta = new Map(
+      (pergs ?? []).map((p) => [String(p.id), (p.ordem as number | null) ?? 0])
+    )
+    const textoOpcao = new Map(
+      (ops ?? []).map((o) => [String(o.id), txt(o.opcao_resposta)])
+    )
+    // Agrupa por assembleia → pergunta → itens.
+    for (const ass of apuradas) {
+      const doAss = (linhas ?? []).filter((l) => String(l.assembleia_id) === ass)
+      const porPergunta = new Map<string, { rotulo: string; quantidade: number }[]>()
+      for (const l of doAss) {
+        const pid = String(l.pergunta_id)
+        const rotulo =
+          l.tipo === "branco"
+            ? "Branco"
+            : l.tipo === "nulo"
+              ? "Nulo"
+              : textoOpcao.get(txt(l.opcao_id) ?? "") ?? "(opção)"
+        const arr = porPergunta.get(pid) ?? []
+        arr.push({
+          rotulo,
+          quantidade: typeof l.quantidade === "number" ? l.quantidade : 0,
+        })
+        porPergunta.set(pid, arr)
+      }
+      const perguntas = [...porPergunta.entries()]
+        .sort((x, y) => (ordemPergunta.get(x[0]) ?? 0) - (ordemPergunta.get(y[0]) ?? 0))
+        .map(([pid, itens]) => ({
+          perguntaId: pid,
+          pergunta: textoPergunta.get(pid) ?? null,
+          itens,
+        }))
+      resultadoPorAssembleia.set(ass, perguntas)
+    }
+  }
 
   const empresaIds = [
     ...new Set(
@@ -608,7 +689,6 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
     (campanhasRes.data ?? []).map((c) => [String(c.id), txt(c.tema)])
   )
 
-  const num = (v: unknown): number | null => (typeof v === "number" ? v : null)
   return assembleias
     .map((a) => {
       const apurado = a.apuracao_encerrada === true
@@ -623,12 +703,7 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
           nomeUrna.get(urnaDaAssembleia.get(String(a.id)) ?? "") ?? null,
         apuracaoEncerrada: apurado,
         resultado: apurado
-          ? {
-              aprovado: num(a.resultado_aprovado),
-              reprovado: num(a.resultado_reprovado),
-              branco: num(a.resultado_em_branco),
-              abstencao: num(a.resultado_abstencao),
-            }
+          ? resultadoPorAssembleia.get(String(a.id)) ?? []
           : null,
       }
     })
