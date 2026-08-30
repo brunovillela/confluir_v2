@@ -37,6 +37,124 @@ votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
 
 <Print src="representacao/campanha.png" alt="Estrutura de uma campanha com suas rodadas e, dentro delas, as assembleias por local e data." legenda="Campanha → rodada → assembleias." />
 
+## Modalidades de votação
+
+Cada assembleia tem uma **modalidade**, escolhida ao criá-la:
+
+<PassoAPasso>
+  <Passo titulo="Reunião de colaboradores">
+    Encontro presencial na base, com ata assinada. O resultado entra
+    **agregado** na apuração (você digita os números).
+  </Passo>
+  <Passo titulo="Online">
+    O eleitor vota pela **área do filiado** ou pelo **ambiente público**
+    (`/votar`). O voto é secreto e contado automaticamente.
+  </Passo>
+  <Passo titulo="Presencial com urnas">
+    Votação no local, com **mesário** e **urnas** — que podem ser **físicas**
+    (voto em papel) ou **digitais** (cédula num terminal de votação).
+  </Passo>
+  <Passo titulo="Híbrida">
+    **Online e presencial com urnas ao mesmo tempo** — quem preferir vota pelo
+    sistema; quem for ao local vota na urna. A contagem é única.
+  </Passo>
+</PassoAPasso>
+
+## Presencial com urnas: mesários e terminais
+
+Na página da assembleia, o botão **Urnas e mesários** abre o cadastro:
+
+<PassoAPasso>
+  <Passo titulo="Cadastre as urnas">
+    Dê um nome, escolha o **tipo** (física ou digital) e defina o **horário**
+    (abertura e fechamento). Fora dessa janela, o mesário não consegue operar a
+    urna.
+  </Passo>
+  <Passo titulo="Cadastre os mesários">
+    **Nome completo, CPF e e-mail.** O mesário acessa o ambiente dele em
+    `/mesario` entrando com esse e-mail (recebe um código por e-mail).
+  </Passo>
+  <Passo titulo="O mesário registra a PRESENÇA">
+    No dia, o mesário busca o eleitor pela lista e registra a **presença** — ele
+    **nunca** registra o voto.
+  </Passo>
+  <Passo titulo="Urna física × digital">
+    Na **física**, a presença encerra a participação (o eleitor deposita o voto
+    em papel; o resultado entra agregado na apuração). Na **digital**, a presença
+    **libera a cédula** num **terminal de votação** separado, onde o próprio
+    eleitor vota.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Como parear o terminal de votação (urna digital)">
+  Abra `/urna` no computador de votação e clique em **Iniciar terminal** — ele
+  mostra um **código**. No ambiente do mesário, em **Parear terminal**, digite
+  esse código. A partir daí, cada presença registrada abre a cédula naquele
+  terminal para o eleitor votar.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="O voto é secreto — inclusive no banco">
+  O sistema guarda **quem compareceu** e **em qual urna**, mas **nunca** liga a
+  pessoa ao conteúdo do voto. Nem o mesário nem a administração conseguem ver em
+  quem cada um votou. O votante pode conferir a urna em que votou na área do
+  filiado, em **Minhas votações**. (Exceção: o **voto em separado** fica ligado
+  ao cadastro até ser validado — veja abaixo.)
+</Aviso>
+
+<Aviso tipo="nota" titulo="Voto único na modalidade híbrida">
+  Quem votou **presencialmente** não vota **online** e vice-versa. Assim que a
+  presença é registrada na urna, aquela pessoa deixa de conseguir votar pela área
+  do filiado — o voto é único.
+</Aviso>
+
+## Voto em separado
+
+É o voto de quem **alega ter direito mas não está na lista de aptos**. No
+ambiente do mesário, em **Voto em separado**, cadastre o eleitor (nome completo,
+CPF, data de nascimento, telefone e e-mail). O sistema mostra na tela as
+**orientações do procedimento** (anotações e envelope) e:
+
+<PassoAPasso>
+  <Passo titulo="Urna digital">
+    A cédula é liberada no terminal e o voto fica **retido**, ligado ao cadastro,
+    até a apuração.
+  </Passo>
+  <Passo titulo="Urna física">
+    O eleitor vota em **cédula de papel**, colocada num **envelope** com os dados
+    dele (procedimento manual, fora do sistema).
+  </Passo>
+</PassoAPasso>
+
+Na **apuração**, cada voto em separado é **deferido** (entra na contagem) ou
+**indeferido** (é descartado). Na urna digital, a contagem passa a incluir os
+deferidos automaticamente; na física, use a lista como controle dos envelopes.
+
+## Acompanhamento e lacres
+
+- **Acompanhar** (botão na assembleia): veja **quem já votou**, a **quantidade**
+  de votos em separado e a **lista** de quem votou em separado — sem nunca
+  mostrar o conteúdo do voto.
+- **Lacres** (em cada urna, na página de Urnas e mesários): controle por
+  **número de série** dos dois lacres — o da **boca** (onde entram as cédulas) e
+  o **principal** (abertura total). Registre instalação e rompimento; o lacre
+  rompido é guardado dentro da urna e isso fica anotado.
+
+<Aviso tipo="nota" titulo="Rotina dos lacres">
+  A **principal** é lacrada no primeiro uso e só rompe na apuração. A **boca** é
+  lacrada ao fim de cada dia de votação e rompida no dia seguinte. Todo lacre
+  rompido vai para dentro da urna, pela boca.
+</Aviso>
+
+## Apuração
+
+A apuração fica no botão **Apurar** de cada assembleia. Nas modalidades com voto
+individual (online, urna digital e híbrida), a **contagem só aparece depois do
+término da rodada** — antes disso nem o operador da apuração a vê, para não
+divulgar resultado parcial. Nas **urnas físicas** o apurador lança os números à
+mão (votos normais e em separado). Ao **encerrar** a apuração você confirma o
+resultado agregado, e só então ele fica visível ao filiado em **Minhas
+votações**.
+
 ## Erros comuns
 
 - **"Um associado não consegue votar."** Verifique se ele está **apto** na
@@ -45,6 +163,14 @@ votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
   edite-as no nível da rodada, não da assembleia.
 - **"A mesma pessoa aparece podendo votar em duas assembleias."** É esperado —
   ela pode comparecer a qualquer encontro da rodada, mas o **voto** é único.
+- **"O mesário não consegue abrir a urna."** Confira o **horário** da urna: o
+  acesso é limitado à janela de abertura/fechamento. Confira também se o e-mail
+  dele está cadastrado e **ativo**.
+- **"A cédula não abre no terminal."** O terminal precisa estar **pareado** à
+  urna (código de `/urna` digitado no ambiente do mesário) e a presença do
+  eleitor precisa ter sido registrada.
+- **"Não consigo encerrar a apuração."** Ela só pode ser encerrada **após o
+  término da rodada**.
 
 <VejaTambem
   links={[
