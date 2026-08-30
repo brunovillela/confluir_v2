@@ -5,6 +5,8 @@ import {
   BedDouble,
   CalendarClock,
   CalendarDays,
+  FileSignature,
+  HandCoins,
   Newspaper,
   ShieldCheck,
   UserPen,
@@ -22,6 +24,7 @@ import {
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
+import { oposicoesParaFiliado } from "@/lib/db/oposicao"
 import { ultimasNoticias } from "@/lib/db/painel"
 import { assembleiasDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
@@ -75,10 +78,11 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos, assembleias] = await Promise.all([
+  const [noticias, eventos, assembleias, oposicoes] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
+    filiado.cpf ? oposicoesParaFiliado(filiado.cpf) : Promise.resolve([]),
   ])
 
   return (
@@ -146,6 +150,62 @@ export default async function PortalInicioPage() {
               ) : (
                 <ArrowRight className="text-muted-foreground size-4" />
               )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {oposicoes.length > 0 && (
+        <div className="grid gap-3">
+          {oposicoes.map((o) => (
+            <Link
+              key={o.campanhaId}
+              href={
+                o.pendenteDocumento && o.opositorId
+                  ? `/portal/oposicao/comprovante/${o.opositorId}`
+                  : `/portal/oposicao/${o.campanhaId}`
+              }
+              className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                  {o.pendenteDocumento ? (
+                    <FileSignature className="size-5" />
+                  ) : (
+                    <HandCoins className="size-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">
+                    {o.pendenteDocumento
+                      ? "Falta enviar sua carta assinada"
+                      : "Oposição à contribuição aberta"}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {o.nome ?? "Contribuição assistencial"}
+                    {o.detalhe && <> · {o.detalhe}</>}
+                    {o.prazoFim && (
+                      <>
+                        {" · "}
+                        <ContagemRegressiva ate={`${o.prazoFim}T23:59:59`} />
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" className="pointer-events-none">
+                {o.pendenteDocumento ? (
+                  <>
+                    <FileSignature />
+                    Enviar carta
+                  </>
+                ) : (
+                  <>
+                    <HandCoins />
+                    Opor-me
+                  </>
+                )}
+              </Button>
             </Link>
           ))}
         </div>

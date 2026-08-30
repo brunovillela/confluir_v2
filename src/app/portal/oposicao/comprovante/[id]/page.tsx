@@ -59,17 +59,19 @@ export default async function ComprovantePage({
               mas ainda depende do documento assinado no gov.br.
             </p>
             <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 text-sm">
-              <li>Baixe o documento-modelo abaixo.</li>
+              <li>Baixe a sua carta de oposição (já preenchida com seus dados).</li>
               <li>Assine no Assinador gov.br (assinatura digital).</li>
               <li>Envie o PDF assinado aqui.</li>
             </ol>
-            {c.modeloUrl && (
-              <Button variant="outline" asChild className="w-fit">
-                <a href={c.modeloUrl} target="_blank" rel="noreferrer">
-                  Baixar documento-modelo
-                </a>
-              </Button>
-            )}
+            <Button variant="outline" asChild className="w-fit">
+              <a
+                href={`/portal/oposicao/comprovante/${c.id}/carta`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Baixar carta (PDF)
+              </a>
+            </Button>
             <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
           </CardContent>
         </Card>

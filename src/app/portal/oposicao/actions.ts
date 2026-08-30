@@ -6,7 +6,11 @@ import { redirect } from "next/navigation"
 import { tenantAtual } from "@/lib/tenant"
 
 import { requireSessaoTrabalhador } from "@/lib/auth"
-import { buscarFiliadoPorCpf, type EstadoForm } from "@/lib/contas"
+import {
+  buscarFiliadoPorCpf,
+  mascararEmail,
+  type EstadoForm,
+} from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import {
   minhaOposicao,
@@ -39,33 +43,105 @@ function hojeSP(): string {
   }).format(new Date())
 }
 
-// ── Autocadastro / login do não-filiado ──────────────────────────────────────
+// ── Acesso por CÓDIGO no e-mail (OTP), espelhando o /votar ───────────────────
+// Filiado: identifica-se pelo CPF (o código vai ao e-mail cadastrado).
+// Trabalhador não-filiado: informa nome, CPF e e-mail (o código vai a esse
+// e-mail). O e-mail é verificado pelo OTP; o CPF é a autodeclaração do opositor.
 
-export async function cadastrarNaoFiliado(
+/** Filiado pede o código: CPF → e-mail do cadastro. */
+export async function enviarCodigoFiliado(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const cpf = limparCpf(texto(fd, "cpf"))
+  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const filiado = await buscarFiliadoPorCpf(cpf)
+  if (!filiado || !filiado.email) {
+    return {
+      erro: "CPF não localizado ou sem e-mail. Use o acesso do trabalhador ao lado.",
+    }
+  }
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithOtp({
+    email: filiado.email,
+    options: { shouldCreateUser: true, data: { tipo: "filiado", cpf } },
+  })
+  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  return { ok: `Código enviado para ${mascararEmail(filiado.email)}.` }
+}
+
+export async function confirmarCodigoFiliado(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const cpf = limparCpf(texto(fd, "cpf"))
+  const token = texto(fd, "token")
+  if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
+  const filiado = await buscarFiliadoPorCpf(cpf)
+  if (!filiado?.email) return { erro: "CPF não localizado." }
+  const supabase = await createClient()
+  const { error } = await supabase.auth.verifyOtp({
+    email: filiado.email,
+    token,
+    type: "email",
+  })
+  if (error) return { erro: "Código inválido ou expirado." }
+  redirect("/portal/oposicao")
+}
+
+/** Trabalhador não-filiado pede o código: nome + CPF + e-mail. */
+export async function enviarCodigoTrabalhador(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   const cpf = limparCpf(texto(fd, "cpf"))
   const nome = texto(fd, "nome")
   const email = texto(fd, "email").toLowerCase()
-  const senha = texto(fd, "senha")
-  const nascimento = texto(fd, "nascimento") || null
-
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
   if (!nome) return { erro: "Informe seu nome completo." }
-  if (!email.includes("@")) return { erro: "Informe um e-mail válido." }
-  if (senha.length < 6) return { erro: "A senha deve ter ao menos 6 caracteres." }
-
-  const empId = await tenantAtual()
-  const admin = await createAdminClient()
-
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { erro: "Informe um e-mail válido." }
+  }
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (filiado?.ativo) {
     return {
-      erro: "Este CPF é de um filiado. Entre pelo acesso do filiado (CPF + senha do portal).",
+      erro: "Este CPF é de um filiado — use o acesso do filiado (por CPF).",
     }
   }
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true, data: { tipo: "nao_filiado", cpf, nome } },
+  })
+  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  return { ok: `Código enviado para ${mascararEmail(email)}.` }
+}
 
+export async function confirmarCodigoTrabalhador(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const cpf = limparCpf(texto(fd, "cpf"))
+  const nome = texto(fd, "nome")
+  const email = texto(fd, "email").toLowerCase()
+  const token = texto(fd, "token")
+  if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
+
+  const supabase = await createClient()
+  const { data: verificado, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  })
+  if (error || !verificado.user) return { erro: "Código inválido ou expirado." }
+
+  // Garante o CPF/nome na conta e o cadastro do trabalhador (a sessão só
+  // resolve com metadata.cpf + registro em portal_nao_filiado).
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  await admin.auth.admin.updateUserById(verificado.user.id, {
+    user_metadata: { cpf, tipo: "nao_filiado", nome },
+  })
   const { data: existente } = await admin
     .from("portal_nao_filiado")
     .select("id")
@@ -73,65 +149,18 @@ export async function cadastrarNaoFiliado(
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (existente) {
-    return { erro: "Este CPF já tem cadastro. Use o acesso abaixo para entrar." }
+    await admin
+      .from("portal_nao_filiado")
+      .update({ nome, email })
+      .eq("id", existente.id)
+  } else {
+    await admin.from("portal_nao_filiado").insert({
+      cpf,
+      nome,
+      email,
+      emp_proprietaria_id: empId,
+    })
   }
-
-  const { data: criado, error } = await admin.auth.admin.createUser({
-    email,
-    password: senha,
-    email_confirm: true,
-    user_metadata: { cpf, tipo: "nao_filiado", nome },
-  })
-  if (error || !criado.user) {
-    return {
-      erro: "Não foi possível criar o acesso. O e-mail pode já estar em uso.",
-    }
-  }
-
-  await admin.from("portal_nao_filiado").insert({
-    cpf,
-    nome,
-    email,
-    telefone: texto(fd, "telefone") || null,
-    nascimento,
-    emp_proprietaria_id: empId,
-  })
-
-  const supabase = await createClient()
-  const { error: erroLogin } = await supabase.auth.signInWithPassword({
-    email,
-    password: senha,
-  })
-  if (erroLogin) {
-    return { ok: "Cadastro criado. Faça login abaixo para continuar." }
-  }
-  redirect("/portal/oposicao")
-}
-
-export async function loginNaoFiliado(
-  _prev: EstadoForm,
-  fd: FormData
-): Promise<EstadoForm> {
-  const cpf = limparCpf(texto(fd, "cpf"))
-  const senha = texto(fd, "senha")
-  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
-  if (!senha) return { erro: "Informe sua senha." }
-
-  const admin = await createAdminClient()
-  const { data: perfil } = await admin
-    .from("portal_nao_filiado")
-    .select("email")
-    .eq("cpf", cpf)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .maybeSingle()
-  if (!perfil?.email) return { erro: "CPF ou senha incorretos." }
-
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(perfil.email),
-    password: senha,
-  })
-  if (error) return { erro: "CPF ou senha incorretos." }
   redirect("/portal/oposicao")
 }
 

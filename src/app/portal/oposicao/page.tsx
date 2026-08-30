@@ -83,9 +83,10 @@ export default async function OposicaoPortalPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Acesso do trabalhador</CardTitle>
+              <CardTitle className="text-base">Acesso</CardTitle>
               <CardDescription>
-                Não filiados criam um cadastro para acessar. Seu acesso é
+                Qualquer trabalhador da fonte pagadora pode se opor. Identifique-se
+                e receba um <strong>código por e-mail</strong>. Seu acesso é
                 registrado para fins de auditoria.
               </CardDescription>
             </CardHeader>
@@ -94,11 +95,11 @@ export default async function OposicaoPortalPage({
             </CardContent>
           </Card>
           <p className="text-muted-foreground text-center text-sm">
-            É filiado?{" "}
+            Filiado com acesso ao portal? Você também pode entrar pelo{" "}
             <Link href="/portal" className="text-primary underline">
-              Entre pelo Portal do Associado
-            </Link>{" "}
-            e volte a esta página.
+              Portal do Associado
+            </Link>
+            .
           </p>
         </>
       ) : (

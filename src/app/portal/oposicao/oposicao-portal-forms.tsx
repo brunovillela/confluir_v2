@@ -1,112 +1,211 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { KeyRound, Loader2, Mail } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { cadastrarNaoFiliado, loginNaoFiliado } from "./actions"
+import {
+  confirmarCodigoFiliado,
+  confirmarCodigoTrabalhador,
+  enviarCodigoFiliado,
+  enviarCodigoTrabalhador,
+} from "./actions"
+
+type Estado = { erro?: string; ok?: string }
 
 export function AcessoNaoFiliado() {
-  const [aba, setAba] = useState<"login" | "cadastro">("login")
-  const [estadoLogin, acaoLogin, pendLogin] = useActionState(
-    loginNaoFiliado,
-    {}
-  )
-  const [estadoCad, acaoCad, pendCad] = useActionState(cadastrarNaoFiliado, {})
+  const [aba, setAba] = useState<"filiado" | "trabalhador">("trabalhador")
 
   return (
     <div className="grid gap-4">
       <div className="flex gap-2">
         <Button
           type="button"
-          variant={aba === "login" ? "default" : "outline"}
+          variant={aba === "trabalhador" ? "default" : "outline"}
           size="sm"
-          onClick={() => setAba("login")}
+          onClick={() => setAba("trabalhador")}
         >
-          Já tenho cadastro
+          Sou trabalhador
         </Button>
         <Button
           type="button"
-          variant={aba === "cadastro" ? "default" : "outline"}
+          variant={aba === "filiado" ? "default" : "outline"}
           size="sm"
-          onClick={() => setAba("cadastro")}
+          onClick={() => setAba("filiado")}
         >
-          Criar cadastro
+          Sou filiado
         </Button>
       </div>
 
-      {aba === "login" ? (
-        <form action={acaoLogin} className="grid gap-3">
-          {estadoLogin.erro && (
-            <Alert variant="destructive">
-              <AlertDescription>{estadoLogin.erro}</AlertDescription>
-            </Alert>
-          )}
+      {aba === "trabalhador" ? <FormTrabalhador /> : <FormFiliado />}
+    </div>
+  )
+}
+
+function CampoToken() {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="token">Código recebido por e-mail</Label>
+      <Input
+        id="token"
+        name="token"
+        inputMode="numeric"
+        maxLength={10}
+        required
+        placeholder="Código"
+      />
+    </div>
+  )
+}
+
+function Mensagens({ estado }: { estado: Estado }) {
+  return (
+    <>
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+    </>
+  )
+}
+
+function FormTrabalhador() {
+  const [nome, setNome] = useState("")
+  const [cpf, setCpf] = useState("")
+  const [email, setEmail] = useState("")
+  const [enviado, setEnviado] = useState(false)
+  const [estEnviar, actEnviar, pendEnviar] = useActionState(
+    async (prev: Estado, fd: FormData) => {
+      const r = await enviarCodigoTrabalhador(prev, fd)
+      if (r.ok) setEnviado(true)
+      return r
+    },
+    {}
+  )
+  const [estConfirmar, actConfirmar, pendConfirmar] = useActionState(
+    confirmarCodigoTrabalhador,
+    {}
+  )
+
+  return (
+    <div className="grid gap-4">
+      <form action={actEnviar} className="grid gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="t-nome">Nome completo</Label>
+          <Input
+            id="t-nome"
+            name="nome"
+            required
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="login_cpf">CPF</Label>
-            <Input id="login_cpf" name="cpf" inputMode="numeric" required />
+            <Label htmlFor="t-cpf">CPF</Label>
+            <Input
+              id="t-cpf"
+              name="cpf"
+              inputMode="numeric"
+              required
+              value={cpf}
+              onChange={(e) => setCpf(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="login_senha">Senha</Label>
-            <Input id="login_senha" name="senha" type="password" required />
+            <Label htmlFor="t-email">E-mail</Label>
+            <Input
+              id="t-email"
+              name="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
-          <Button type="submit" disabled={pendLogin}>
-            {pendLogin && <Loader2 className="animate-spin" />}
+        </div>
+        <Mensagens estado={estEnviar} />
+        <Button type="submit" disabled={pendEnviar}>
+          {pendEnviar ? <Loader2 className="animate-spin" /> : <Mail />}
+          {enviado ? "Reenviar código" : "Enviar código"}
+        </Button>
+      </form>
+
+      {enviado && (
+        <form action={actConfirmar} className="grid gap-3 border-t pt-4">
+          <input type="hidden" name="nome" value={nome} />
+          <input type="hidden" name="cpf" value={cpf} />
+          <input type="hidden" name="email" value={email} />
+          <CampoToken />
+          <Mensagens estado={estConfirmar} />
+          <Button type="submit" disabled={pendConfirmar}>
+            {pendConfirmar ? <Loader2 className="animate-spin" /> : <KeyRound />}
             Entrar
           </Button>
         </form>
-      ) : (
-        <form action={acaoCad} className="grid gap-3">
-          {estadoCad.erro && (
-            <Alert variant="destructive">
-              <AlertDescription>{estadoCad.erro}</AlertDescription>
-            </Alert>
-          )}
-          {estadoCad.ok && (
-            <Alert className="border-success/40 text-success-fg">
-              <AlertDescription>{estadoCad.ok}</AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-1.5">
-            <Label htmlFor="cad_cpf">CPF</Label>
-            <Input id="cad_cpf" name="cpf" inputMode="numeric" required />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="cad_nome">Nome completo</Label>
-            <Input id="cad_nome" name="nome" required />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="cad_email">E-mail</Label>
-              <Input id="cad_email" name="email" type="email" required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cad_telefone">Telefone</Label>
-              <Input id="cad_telefone" name="telefone" inputMode="tel" />
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="cad_nascimento">Nascimento</Label>
-              <input
-                id="cad_nascimento"
-                name="nascimento"
-                type="date"
-                className="border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cad_senha">Senha (mín. 6)</Label>
-              <Input id="cad_senha" name="senha" type="password" required />
-            </div>
-          </div>
-          <Button type="submit" disabled={pendCad}>
-            {pendCad && <Loader2 className="animate-spin" />}
-            Criar cadastro e entrar
+      )}
+    </div>
+  )
+}
+
+function FormFiliado() {
+  const [cpf, setCpf] = useState("")
+  const [enviado, setEnviado] = useState(false)
+  const [estEnviar, actEnviar, pendEnviar] = useActionState(
+    async (prev: Estado, fd: FormData) => {
+      const r = await enviarCodigoFiliado(prev, fd)
+      if (r.ok) setEnviado(true)
+      return r
+    },
+    {}
+  )
+  const [estConfirmar, actConfirmar, pendConfirmar] = useActionState(
+    confirmarCodigoFiliado,
+    {}
+  )
+
+  return (
+    <div className="grid gap-4">
+      <form action={actEnviar} className="grid gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="f-cpf">CPF do filiado</Label>
+          <Input
+            id="f-cpf"
+            name="cpf"
+            inputMode="numeric"
+            required
+            value={cpf}
+            onChange={(e) => setCpf(e.target.value)}
+          />
+          <p className="text-muted-foreground text-xs">
+            Enviaremos o código para o e-mail do seu cadastro.
+          </p>
+        </div>
+        <Mensagens estado={estEnviar} />
+        <Button type="submit" disabled={pendEnviar}>
+          {pendEnviar ? <Loader2 className="animate-spin" /> : <Mail />}
+          {enviado ? "Reenviar código" : "Enviar código"}
+        </Button>
+      </form>
+
+      {enviado && (
+        <form action={actConfirmar} className="grid gap-3 border-t pt-4">
+          <input type="hidden" name="cpf" value={cpf} />
+          <CampoToken />
+          <Mensagens estado={estConfirmar} />
+          <Button type="submit" disabled={pendConfirmar}>
+            {pendConfirmar ? <Loader2 className="animate-spin" /> : <KeyRound />}
+            Entrar
           </Button>
         </form>
       )}

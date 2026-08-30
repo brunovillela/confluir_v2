@@ -8,6 +8,7 @@ import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
+  estadoPrazo,
   MODOS_FORMALIZACAO,
   SITUACOES_CAMPANHA,
   type ModoFormalizacao,
@@ -496,6 +497,45 @@ export async function campanhasAbertas(): Promise<CampanhaAberta[]> {
     prazo_inicio: texto(c.prazo_inicio),
     prazo_fim: texto(c.prazo_fim),
   }))
+}
+
+/**
+ * Campanhas de oposição ABERTAS relevantes para o banner do filiado na home:
+ * dentro do prazo e onde ele ainda NÃO concluiu (não se opôs, ou se opôs mas
+ * falta enviar o documento assinado). Espelha o banner de votação.
+ */
+export type OposicaoDoFiliado = {
+  campanhaId: string
+  nome: string | null
+  detalhe: string | null
+  prazoFim: string | null
+  jaOpos: boolean
+  pendenteDocumento: boolean
+  opositorId: string | null
+}
+
+export async function oposicoesParaFiliado(
+  cpf: string
+): Promise<OposicaoDoFiliado[]> {
+  const campanhas = await campanhasAbertas()
+  const hoje = hojeSP()
+  const out: OposicaoDoFiliado[] = []
+  for (const c of campanhas) {
+    if (estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje) !== "aberto") continue
+    const minha = await minhaOposicao(c.id, cpf)
+    const pendente = minha?.situacao === "aguardando_documento"
+    if (minha && !pendente) continue // já concluída → fora do banner
+    out.push({
+      campanhaId: c.id,
+      nome: c.nome,
+      detalhe: c.detalhe_desconto,
+      prazoFim: c.prazo_fim,
+      jaOpos: Boolean(minha),
+      pendenteDocumento: pendente,
+      opositorId: minha?.id ?? null,
+    })
+  }
+  return out
 }
 
 export type CampanhaPublica = {
