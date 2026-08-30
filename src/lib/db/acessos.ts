@@ -4,7 +4,10 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { enviarEmail } from "@/lib/email"
 import { garantirPerfilPadrao } from "@/lib/db/perfis"
-import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
+import {
+  CATALOGO_PERMISSOES,
+  CHAVES_PERMISSAO,
+} from "@/lib/permissoes-catalogo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -57,6 +60,46 @@ export async function listarAcessos(): Promise<AcessoLinha[]> {
       }
     })
     .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
+}
+
+/**
+ * Pessoas do painel e as ÁREAS a que têm acesso — para a IA da Ajuda indicar
+ * "quem procurar". Baseado nas permissões DIRETAS (colunas de `permissoes`);
+ * admin (permissoes/configuracoes) cobre todas as áreas.
+ */
+export type PessoaAcesso = { nome: string; areas: string[]; admin: boolean }
+
+export async function pessoasComAcesso(): Promise<PessoaAcesso[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("permissoes")
+    .select("*")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("usuario_id", "is", null)
+  const linhas = (data ?? []) as Record<string, unknown>[]
+  const usuarios = await usuariosPorId(
+    linhas.map((p) => p.usuario_id as string).filter(Boolean)
+  )
+  const todasAreas = CATALOGO_PERMISSOES.map((a) => a.area)
+
+  const pessoas = linhas
+    .map((p) => {
+      const u = usuarios.get(p.usuario_id as string)
+      const nome = u?.nome
+      if (!nome || !u?.temLogin) return null
+      const ehAdmin = p.permissoes === true || p.configuracoes === true
+      const areas = ehAdmin
+        ? todasAreas
+        : CATALOGO_PERMISSOES.filter((a) =>
+            a.flags.some((f) => p[f.chave] === true)
+          ).map((a) => a.area)
+      if (areas.length === 0 && !ehAdmin) return null
+      return { nome, areas, admin: ehAdmin }
+    })
+    .filter((x): x is PessoaAcesso => x !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+
+  return pessoas
 }
 
 type UsuarioInfo = { nome: string | null; email: string | null; temLogin: boolean }

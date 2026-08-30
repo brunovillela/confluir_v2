@@ -9,6 +9,8 @@ import { requireSessaoPainel } from "@/lib/auth"
 import { AREAS_AJUDA } from "@/lib/ajuda/manifesto"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { PerguntaIA } from "./pergunta-ia"
+
 export const metadata: Metadata = { title: "Manual — Confluir" }
 
 export default async function AjudaIndexPage() {
@@ -45,6 +47,10 @@ export default async function AjudaIndexPage() {
 
       <div className="mt-5 max-w-xl">
         <AjudaBusca itens={itens} />
+      </div>
+
+      <div className="mt-6">
+        <PerguntaIA />
       </div>
 
       <section className="mt-8" aria-label="Áreas do manual">
