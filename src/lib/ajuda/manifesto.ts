@@ -201,6 +201,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Campanha, rodada, perguntas, aptos e o voto",
       },
       {
+        slug: "votacao-presencial",
+        titulo: "Montar uma votação presencial",
+        resumo: "Guia operacional: materiais, urnas, lacres, mesários, apuradores e o dia da votação (inclusive offline)",
+      },
+      {
         slug: "oposicao",
         titulo: "Oposição",
         resumo: "Cadastro público, assinatura gov.br e avaliação",

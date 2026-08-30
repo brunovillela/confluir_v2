@@ -1,0 +1,269 @@
+Este é o **guia operacional** para montar e conduzir uma votação **presencial
+com urnas** — do cadastro no sistema à apuração —, incluindo como preparar a
+**estrutura offline**, para o caso de o local não ter internet confiável.
+
+<RequerPermissao>Assembleias e votações</RequerPermissao>
+
+<Aviso tipo="nota" titulo="Dois mundos que se encontram">
+  O **voto físico** (papel + urna + lacres) é 100% offline. O **sistema** entra
+  para organizar, registrar a presença, controlar lacres, gerar atas/cédula e,
+  na apuração, consolidar os números. Quando não há internet, o físico roda
+  sozinho e o sistema recebe os números **depois**.
+</Aviso>
+
+## 1. Antes do dia — no sistema
+
+<PassoAPasso>
+  <Passo titulo="Estrutura da votação">
+    Crie **campanha → rodada → assembleia**. A modalidade da assembleia deve ser
+    **Presencial com urnas** (só urnas) ou **Híbrida** (urnas + online).
+  </Passo>
+  <Passo titulo="Perguntas e opções">
+    Cadastre as **perguntas** e as **opções de resposta** na rodada. As opções
+    são exatamente o que a apuração vai contar — podem ser **Sim/Não**, **chapas**
+    (Chapa 1, Chapa 2…) ou quantas alternativas você definir. **Não há resposta
+    fixa.**
+  </Passo>
+  <Passo titulo="Lista de aptos">
+    Suba a lista de **aptos** na rodada (CPF, nome, e-mail corporativo, matrícula).
+    É por ela que o mesário confere quem pode votar.
+  </Passo>
+  <Passo titulo="Urnas">
+    Em **Urnas e mesários**, crie cada **urna** (física ou digital), com nome
+    (ex.: "Urna 1 — Portaria REDUC") e a **janela de horário** (abertura e
+    fechamento). Fora dessa janela, a urna não opera.
+  </Passo>
+  <Passo titulo="Mesários e apuradores">
+    Cadastre os **mesários** (nome, CPF, e-mail) e os **apuradores** (nome, CPF,
+    e-mail). **Atribua** uma ou mais urnas a cada apurador (no cartão da urna).
+  </Passo>
+  <Passo titulo="Cédula">
+    Em **Baixar cédula (PDF)**, gere e **imprima** a cédula (com a logomarca e as
+    perguntas/opções). Imprima o suficiente: nº de aptos + uma margem de 15–20%.
+  </Passo>
+</PassoAPasso>
+
+## 2. Materiais — checklist por urna
+
+**Urna física (cada urna, cada local):**
+
+- **Urna** (caixa lacrável) com **dois pontos de lacre**: a **boca** (fenda das
+  cédulas) e a **abertura principal** (tampa).
+- **Lacres numerados**: 1 principal + 1 da boca **por dia de votação**, mais uma
+  **reserva** (para rompimento acidental). Anote os números de série antes.
+- **Cédulas impressas** (o PDF do sistema).
+- **Envelopes de voto em separado** + um formulário para os dados do eleitor.
+- **Lista de aptos impressa** (backup do papel).
+- **Formulários de ata em papel** (backup): instalação, abertura, fechamento,
+  encerramento e anomalias.
+- **Cabine ou anteparo** que garanta o sigilo, canetas.
+- **Dispositivo com internet** para o mesário (celular, tablet ou notebook) usar
+  `/mesario`.
+
+**Urna digital (terminal de votação):**
+
+- **Computador de votação** dedicado, com navegador, aberto em `/urna`.
+- **Dispositivo separado** para o mesário em `/mesario`.
+- **Internet estável** — a urna digital **não funciona offline**.
+
+## 3. Papéis e acessos
+
+<PassoAPasso>
+  <Passo titulo="Mesário — /mesario">
+    Entra pelo e-mail cadastrado (recebe um código). Registra **presença**, faz
+    **abertura/fechamento** da urna, cadastra **voto em separado** e **anomalias**.
+    Nunca vê em quem cada um votou.
+  </Passo>
+  <Passo titulo="Apurador — /apurador">
+    Entra pelo e-mail cadastrado. Vê só as urnas **atribuídas** a ele. Abre a
+    urna, atesta os lacres e lança a contagem.
+  </Passo>
+  <Passo titulo="Terminal de votação — /urna">
+    A urna digital. Sem login: é **pareada** por código ao mesário.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Teste os acessos na véspera">
+  Peça a cada mesário e apurador para **entrar uma vez** (código por e-mail)
+  antes do dia. Assim você descobre e-mail errado ou cadastro inativo a tempo.
+</Aviso>
+
+### Parear o terminal (urna digital)
+
+Abra `/urna` no computador de votação e clique em **Iniciar terminal** — ele
+mostra um **código**. No `/mesario`, na urna, use **Parear terminal** e digite
+esse código. A partir daí, **cada presença registrada abre a cédula** naquele
+terminal para o eleitor votar. Um terminal por urna.
+
+## 4. O dia da votação (urna física)
+
+<PassoAPasso>
+  <Passo titulo="Chegada da urna">
+    A urna chega **lacrada na principal** — esse lacre foi posto na primeira
+    instalação e **permanece até a apuração**. Confira o número do lacre
+    principal contra o registro.
+  </Passo>
+  <Passo titulo="Abertura do dia (com o 1º eleitor)">
+    Mesmo dentro do horário, a urna fica **fechada** até a **Abertura do dia**.
+    Com o **primeiro eleitor** presente, o mesário faz a abertura em `/mesario`,
+    informa o **nome** do eleitor e o **número do lacre da boca rompido**; o
+    eleitor **atesta** que o lacre da boca foi rompido e **introduzido na urna**.
+    Só então as presenças liberam. (A 1ª vez de todas gera a ata de **Instalação**;
+    as demais, ata de **Abertura**.)
+  </Passo>
+  <Passo titulo="Durante a votação">
+    Para cada eleitor apto: o mesário **busca na lista** e clica **Registrar
+    presença**; o eleitor recebe a **cédula**, vota na cabine e **deposita na
+    boca** da urna.
+  </Passo>
+  <Passo titulo="Voto em separado">
+    Se a pessoa alega direito mas **não está na lista**, o mesário usa **Voto em
+    separado**: cadastra nome, CPF, data de nascimento, telefone e e-mail, segue
+    as **orientações na tela** e coloca a **cédula em papel num envelope** com os
+    dados por fora. Esse voto só será computado se for **deferido** na apuração.
+  </Passo>
+  <Passo titulo="Fechamento do dia">
+    Ao fim do dia, o mesário faz **Fechar o dia** e **lacra a boca** (anote o
+    número do novo lacre). A principal permanece. A presença de um eleitor para
+    testemunhar aqui é **facultativa**.
+  </Passo>
+  <Passo titulo="Dias seguintes">
+    No próximo dia, **rompa o lacre da boca** (guarde-o **dentro da urna**, pela
+    boca) e faça nova **Abertura do dia** com o primeiro eleitor daquele dia.
+  </Passo>
+  <Passo titulo="Encerramento">
+    No último fechamento (fim do prazo ou **urna cheia**), use **Encerrar** — a
+    urna vai para a apuração e não recebe mais votos. A principal só será rompida
+    na apuração.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Rotina dos lacres (decore)">
+  **Principal:** lacrada na instalação, só rompe na apuração — fica o tempo todo.
+  **Boca:** lacra ao fim de cada dia e rompe no início do dia seguinte. **Todo
+  lacre rompido vai para dentro da urna, pela boca.** Registre cada instalação e
+  rompimento no controle de lacres (com o número de série).
+</Aviso>
+
+<Aviso tipo="nota" titulo="Anomalias">
+  Qualquer ocorrência — lacre rompido acidental, falha de energia, disputa —
+  registre em **Registrar anomalia** (gera ata própria). Se estiver no papel,
+  preencha o formulário de anomalia e transcreva depois.
+</Aviso>
+
+## 5. Apuração (urna física)
+
+<PassoAPasso>
+  <Passo titulo="Receber e conferir os lacres">
+    O apurador recebe a urna e confere a **integridade dos lacres** (números e
+    estado) contra o registrado. Em `/apurador`, **atesta** a integridade e
+    **inicia a apuração**.
+  </Passo>
+  <Passo titulo="Abrir a urna">
+    Rompe a **principal**, abre a urna e confere os **lacres rompidos** que
+    estavam guardados dentro.
+  </Passo>
+  <Passo titulo="Votos em separado">
+    Decide cada envelope: **deferido** (o voto entra na contagem) ou **indeferido**
+    (descartado). A decisão fica registrada.
+  </Passo>
+  <Passo titulo="Contar">
+    Conta as cédulas **por opção** cadastrada na rodada, mais **branco** (cédula
+    sem marcação) e **nulo** (mais de uma marcação, rabiscos ou anotações), e
+    lança os números em `/apurador`.
+  </Passo>
+  <Passo titulo="Concluir e encerrar">
+    O apurador **conclui** a urna; os números entram no **resultado final**. No
+    painel, **Apurar** mostra o total (todas as urnas + online) e **Encerrar**
+    libera o resultado ao filiado — só **após o término da rodada**.
+  </Passo>
+</PassoAPasso>
+
+## 6. Sem internet no local (offline)
+
+O `/mesario`, o `/urna` e o `/apurador` são páginas web — **precisam de
+internet**. Se o local **não** tem conexão confiável, rode a votação toda no
+**papel** e lance no sistema **depois**.
+
+<Aviso tipo="perigo" titulo="Nunca leve urna digital para local sem internet">
+  O terminal de votação (`/urna`) exige **conexão contínua** com o servidor.
+  Para locais sem internet, use **exclusivamente urna física** (papel).
+</Aviso>
+
+**Leve impresso (o kit offline):**
+
+- **Cédulas** (o PDF do sistema) em quantidade suficiente.
+- **Lista de aptos** impressa, para marcar a presença à caneta.
+- **Formulários de ata** em papel: instalação, abertura, fechamento,
+  encerramento e anomalias — com espaço para data/hora, nome do 1º eleitor,
+  número do lacre e assinatura.
+- **Formulário e envelopes de voto em separado** (nome, CPF, nascimento,
+  telefone, e-mail).
+- **Controle de lacres** em papel: número de série, tipo (boca/principal),
+  instalação/rompimento, data.
+
+**Como rodar no papel:**
+
+<PassoAPasso>
+  <Passo titulo="Abertura">
+    Com o 1º eleitor, rompa o lacre da boca, guarde-o dentro da urna e preencha a
+    **ata de instalação/abertura** (nome do eleitor, número do lacre, hora).
+  </Passo>
+  <Passo titulo="Votação">
+    Marque a **presença na lista impressa** (evita voto duplo), entregue a cédula,
+    o eleitor vota e deposita. Voto em separado vai para o **envelope**.
+  </Passo>
+  <Passo titulo="Fechamento">
+    Lacre a boca, anote o número, preencha a **ata de fechamento**. Repita a cada
+    dia; no último, faça o **encerramento**.
+  </Passo>
+  <Passo titulo="Reconciliação">
+    Quando houver internet (ali ou depois, em outro ponto), a organização lança
+    os eventos/atas que quiser registrar e — o essencial — o **apurador lança a
+    contagem por opção + branco + nulo** em `/apurador`. O resultado final sai
+    idêntico ao que foi apurado no papel.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Queda de internet no meio da votação digital">
+  Se a conexão cair durante uma urna **digital**, **pare o terminal** e passe a
+  operar como **física** (papel): marque as presenças à mão e reconcilie depois.
+  Registre uma **anomalia** descrevendo o ocorrido e o horário.
+</Aviso>
+
+## Checklist da véspera
+
+- Campanha, rodada, assembleia, perguntas e opções criadas.
+- Lista de aptos completa (CPF e e-mail).
+- Urnas criadas com horário; mesários e apuradores cadastrados; urnas atribuídas.
+- Cédulas impressas; lacres numerados conferidos; envelopes; formulários de ata.
+- Dispositivos e internet testados — **ou** o kit offline montado.
+- Mesários e apuradores confirmaram o acesso (código por e-mail).
+
+## Erros comuns
+
+- **"A urna não deixa registrar presença."** Falta a **Abertura do dia** (urna
+  física) ou está **fora do horário** da urna.
+- **"O apurador não vê a urna."** A urna não foi **atribuída** a ele, ou o
+  e-mail está inativo.
+- **"O código de acesso não chega."** Confira o e-mail cadastrado; em dias de
+  muitos envios, o e-mail pode atrasar — reenvie após alguns minutos.
+- **"A cédula não abre no terminal."** O terminal precisa estar **pareado** e a
+  **presença** do eleitor precisa ter sido registrada.
+- **"Perdi um lacre / rompeu sem querer."** Use um lacre **reserva**, registre a
+  troca no controle de lacres e lance uma **anomalia**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Assembleias",
+      href: "/painel/ajuda/representacao/assembleias",
+      descricao: "Estrutura, modalidades, apuração e lacres",
+    },
+    {
+      titulo: "Votação pública",
+      href: "/painel/ajuda/fluxos-publicos/votacao",
+      descricao: "A cédula que o votante usa online",
+    },
+  ]}
+/>

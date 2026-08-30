@@ -107,6 +107,41 @@ Na página da assembleia, o botão **Urnas e mesários** abre o cadastro:
   do filiado — o voto é único.
 </Aviso>
 
+## Abertura, fechamento e atas (urna física)
+
+A urna física segue um ritual, com **ata** a cada evento:
+
+<PassoAPasso>
+  <Passo titulo="Abertura do dia">
+    Mesmo dentro do horário, a urna fica **fechada** até a **Abertura do dia**,
+    feita com o **primeiro eleitor**, que atesta que o lacre da boca foi
+    **rompido** e **introduzido na urna**. Só então libera as presenças. A
+    primeira abertura de todas gera a ata de **Instalação**; as demais, ata de
+    **Abertura**.
+  </Passo>
+  <Passo titulo="Fechamento do dia">
+    Ao fim do dia, faça o **Fechamento** (lacrando a boca). A presença de um
+    eleitor para atestar é **facultativa**. Gera ata de **Fechamento**.
+  </Passo>
+  <Passo titulo="Encerramento">
+    No último fechamento (prazo esgotado ou urna cheia), use **Encerrar** — gera
+    ata de **Encerramento** e libera a urna para apuração.
+  </Passo>
+  <Passo titulo="Anomalias">
+    Qualquer ocorrência (ex.: lacre rompido acidental) é registrada em
+    **Registrar anomalia**, com ata própria.
+  </Passo>
+</PassoAPasso>
+
+Cada evento tem um botão **Ata PDF**. O mesário pode entrar no ambiente e **ver**
+a votação fora do horário, mas só **abre** a urna dentro da janela.
+
+## Cédula (PDF)
+
+Em **Urnas e mesários**, o botão **Baixar cédula (PDF)** gera o modelo de cédula
+com a **logomarca**, os dados da votação (campanha, rodada, assembleia) e as
+perguntas com as opções e a área de marcação.
+
 ## Voto em separado
 
 É o voto de quem **alega ter direito mas não está na lista de aptos**. No
@@ -131,9 +166,9 @@ deferidos automaticamente; na física, use a lista como controle dos envelopes.
 
 ## Acompanhamento e lacres
 
-- **Acompanhar** (botão na assembleia): veja **quem já votou**, a **quantidade**
-  de votos em separado e a **lista** de quem votou em separado — sem nunca
-  mostrar o conteúdo do voto.
+- **Acompanhar** (botão na assembleia): veja **quem já votou**, os **votos por
+  urna**, os **lacres usados por dia** e a **lista** de votos em separado — sem
+  nunca mostrar o conteúdo do voto.
 - **Lacres** (em cada urna, na página de Urnas e mesários): controle por
   **número de série** dos dois lacres — o da **boca** (onde entram as cédulas) e
   o **principal** (abertura total). Registre instalação e rompimento; o lacre
@@ -145,15 +180,38 @@ deferidos automaticamente; na física, use a lista como controle dos envelopes.
   rompido vai para dentro da urna, pela boca.
 </Aviso>
 
+## Apurador
+
+Cadastre apuradores em **Urnas e mesários** (nome, CPF e e-mail) e **atribua**
+uma ou mais urnas a cada um (no cartão da urna). O apurador acessa `/apurador`
+pelo e-mail (código por e-mail) e, para cada urna:
+
+<PassoAPasso>
+  <Passo titulo="Abre e atesta os lacres">
+    Confere os lacres recebidos e **atesta a integridade** antes de começar.
+  </Passo>
+  <Passo titulo="Conta os votos">
+    Lança a contagem **por opção** cadastrada na rodada, mais **branco** e
+    **nulo**.
+  </Passo>
+  <Passo titulo="Conclui">
+    Ao concluir, os números da urna entram no **resultado final** da assembleia.
+  </Passo>
+</PassoAPasso>
+
 ## Apuração
 
-A apuração fica no botão **Apurar** de cada assembleia. Nas modalidades com voto
-individual (online, urna digital e híbrida), a **contagem só aparece depois do
-término da rodada** — antes disso nem o operador da apuração a vê, para não
-divulgar resultado parcial. Nas **urnas físicas** o apurador lança os números à
-mão (votos normais e em separado). Ao **encerrar** a apuração você confirma o
-resultado agregado, e só então ele fica visível ao filiado em **Minhas
-votações**.
+O botão **Apurar** de cada assembleia mostra a contagem **por opção** (as opções
+são as cadastradas na rodada — não há resposta fixa), somando os votos
+**digitais/online** e o que os **apuradores** lançaram nas urnas físicas, com
+**branco** e **nulo**. A contagem **só aparece após o término da rodada** (nada
+de resultado parcial). Ao **encerrar**, o resultado é congelado e liberado ao
+filiado em **Minhas votações**.
+
+<Aviso tipo="nota" titulo="Branco e nulo">
+  **Branco** é a cédula sem qualquer marcação. **Nulo** é a cédula com mais de
+  uma opção marcada, ou com rabiscos/anotações. Ambos são contabilizados.
+</Aviso>
 
 ## Erros comuns
 
@@ -171,9 +229,18 @@ votações**.
   eleitor precisa ter sido registrada.
 - **"Não consigo encerrar a apuração."** Ela só pode ser encerrada **após o
   término da rodada**.
+- **"O mesário não registra presença na urna física."** Falta a **Abertura do
+  dia** — faça-a com o primeiro eleitor antes.
+- **"O apurador não vê a urna."** Confira se a urna foi **atribuída** a ele e se
+  o e-mail está cadastrado e **ativo**.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Montar uma votação presencial",
+      href: "/painel/ajuda/representacao/votacao-presencial",
+      descricao: "Guia operacional, materiais e o modo offline",
+    },
     {
       titulo: "Votação pública",
       href: "/painel/ajuda/fluxos-publicos/votacao",
