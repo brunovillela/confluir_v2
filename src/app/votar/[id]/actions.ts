@@ -98,7 +98,7 @@ export async function confirmarTokenEleitor(
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
 
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
-  if (!/^\d{6}$/.test(token)) return { erro: "O código tem 6 dígitos." }
+  if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
 
   // Reconsulta o email server-side — o email real nunca vai ao cliente.
   const filiado = await buscarFiliadoPorCpf(cpf)
@@ -165,7 +165,7 @@ export async function confirmarTokenEmail(
   const email = String(formData.get("email") ?? "").trim().toLowerCase()
   const token = String(formData.get("token") ?? "").trim()
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
-  if (!/^\d{6}$/.test(token)) return { erro: "O código tem 6 dígitos." }
+  if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
 
   const supabase = await createClient()
   const { error } = await supabase.auth.verifyOtp({

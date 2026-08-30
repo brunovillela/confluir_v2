@@ -63,7 +63,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
         <CardTitle>Votação online</CardTitle>
         <CardDescription>
           {aguardandoCodigo
-            ? "Digite o código de 6 dígitos enviado ao seu e-mail."
+            ? "Digite o código enviado ao seu e-mail."
             : "Identifique-se para receber o código de acesso."}
         </CardDescription>
       </CardHeader>
@@ -153,10 +153,10 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
                 id="token"
                 name="token"
                 inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                placeholder="000000"
-                className="text-center text-lg tracking-[0.5em]"
+                pattern="\d{6,10}"
+                maxLength={10}
+                placeholder="Código"
+                className="text-center text-lg tracking-[0.4em]"
                 required
               />
             </div>

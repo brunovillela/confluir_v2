@@ -35,27 +35,14 @@ create table if not exists votacao_email_verificado (
 -- service role do app; a coluna emp_proprietaria_id isola o tenant.
 alter table votacao_email_verificado enable row level security;
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where tablename = 'votacao_email_verificado'
-      and policyname = 'votacao_email_verificado_tenant'
-  ) then
-    create policy votacao_email_verificado_tenant
-      on votacao_email_verificado
-      for all
-      using (
-        emp_proprietaria_id = (
-          nullif(current_setting('request.jwt.claims', true), '')::jsonb
-            ->> 'emp_proprietaria_id'
-        )::uuid
-      )
-      with check (
-        emp_proprietaria_id = (
-          nullif(current_setting('request.jwt.claims', true), '')::jsonb
-            ->> 'emp_proprietaria_id'
-        )::uuid
-      );
-  end if;
-end $$;
+-- A leitura do app roda sob o JWT `authenticated` com a claim `tenant_id`
+-- (lib/supabase/admin.ts) — a política compara com (auth.jwt() ->> 'tenant_id').
+-- (Correção 2026-08-29: a versão anterior lia a claim 'emp_proprietaria_id',
+-- que não existe nesse JWT, então a leitura devolvia vazio.) DROP+CREATE torna
+-- idempotente ao re-rodar.
+drop policy if exists votacao_email_verificado_tenant on votacao_email_verificado;
+create policy votacao_email_verificado_tenant
+  on votacao_email_verificado
+  for all
+  using (emp_proprietaria_id = (auth.jwt() ->> 'tenant_id')::uuid)
+  with check (emp_proprietaria_id = (auth.jwt() ->> 'tenant_id')::uuid);
