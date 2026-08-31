@@ -31,6 +31,64 @@ export type Hotel = {
   exige_relatorio_para_faturar?: boolean | null
   acordo_vigencia_inicio?: string | null
   acordo_vigencia_fim?: string | null
+  /** Contrato que rege o convênio (supabase/hospedagem-contrato.sql). */
+  contrato_id?: string | null
+}
+
+/**
+ * Contrato que rege o hotel conveniado — fonte da VIGÊNCIA (limita cupons) e do
+ * CENTRO DE CUSTO (usado na ordem do faturamento). Null = hotel sem contrato
+ * vinculado (não pode faturar nem emitir cupom).
+ */
+export type ContratoDoHotel = {
+  id: string
+  codigo: string | null
+  objeto: string | null
+  centroCustoId: string | null
+  vigenciaInicio: string | null
+  vigenciaTermino: string | null
+  vigente: boolean
+}
+
+export async function contratoDoHotel(
+  hotelId: string
+): Promise<ContratoDoHotel | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: h } = await admin
+    .from("hospedagem_hotel")
+    .select("contrato_id")
+    .eq("id", hotelId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  const contratoId = h?.contrato_id ? String(h.contrato_id) : null
+  if (!contratoId) return null
+
+  const { data: c } = await admin
+    .from("contratos")
+    .select("id, codigo, objeto, centro_custo_id, vigencia_inicio, vigencia_termino")
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!c) return null
+
+  const hoje = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date())
+  const inicio = c.vigencia_inicio ? String(c.vigencia_inicio).slice(0, 10) : null
+  const termino = c.vigencia_termino ? String(c.vigencia_termino).slice(0, 10) : null
+  const vigente =
+    (inicio === null || hoje >= inicio) && (termino === null || hoje <= termino)
+
+  return {
+    id: String(c.id),
+    codigo: c.codigo ? String(c.codigo) : null,
+    objeto: c.objeto ? String(c.objeto) : null,
+    centroCustoId: c.centro_custo_id ? String(c.centro_custo_id) : null,
+    vigenciaInicio: inicio,
+    vigenciaTermino: termino,
+    vigente,
+  }
 }
 
 export type Tarifa = {
@@ -977,10 +1035,23 @@ export async function faturarServicos(
     return m ? `${m[3]}/${m[2]}/${m[1]}` : "—"
   }
 
+  // A ordem do faturamento ENTRA no contrato do hotel: usa o contrato_id, o
+  // centro de custo do contrato e cita o contrato na descrição.
+  const contrato = await contratoDoHotel(hotel.id)
+  if (!contrato) {
+    return {
+      erro: "Este hotel não tem contrato vinculado. Vincule um contrato ao hotel antes de faturar.",
+    }
+  }
+  const refContrato = contrato.codigo
+    ? `Contrato ${contrato.codigo}`
+    : "contrato do convênio"
+
   const codigo = gerarCodigoServico()
   const descricao = [
     `Hospedagem — subsídio de ${servicos.length} reserva${servicos.length === 1 ? "" : "s"} no ${hotel.nome ?? "hotel parceiro"}`,
     `(período ${dataBr(inicio)} a ${dataBr(fim)}).`,
+    `Vinculado ao ${refContrato}${contrato.objeto ? ` — ${contrato.objeto}` : ""}.`,
     "Valores com impostos inclusos, conforme o acordo.",
     nova.recebimento ? `Recebimento: ${nova.recebimento}.` : null,
   ]
@@ -1003,6 +1074,8 @@ export async function faturarServicos(
       pix_codigo: nova.pixCodigo,
       arquivo_boleto: nova.boletoCaminho,
       beneficiario_fornecedor_id: hotel.empresa_id,
+      contrato_id: contrato.id,
+      centro_custo_despesa_id: contrato.centroCustoId,
       emp_proprietaria_id: await tenantAtual(),
     })
     .select("id")

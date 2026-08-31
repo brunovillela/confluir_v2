@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+import type { OpcaoContrato } from "@/lib/db/contratos"
+
 import { atualizarHotel, criarHotel } from "./actions"
 
 export type HotelFormDados = {
@@ -22,11 +24,21 @@ export type HotelFormDados = {
   max_hospedes_por_quarto: number | null
   max_hospedes_por_dia: number | null
   exige_relatorio_para_faturar?: boolean | null
-  acordo_vigencia_inicio?: string | null
-  acordo_vigencia_fim?: string | null
+  contrato_id?: string | null
 }
 
-export function HotelForm({ hotel }: { hotel?: HotelFormDados }) {
+function dataBr(iso: string | null): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "")
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "sem término"
+}
+
+export function HotelForm({
+  hotel,
+  contratos,
+}: {
+  hotel?: HotelFormDados
+  contratos: OpcaoContrato[]
+}) {
   const [estado, formAction, pendente] = useActionState(
     hotel ? atualizarHotel : criarHotel,
     {}
@@ -80,23 +92,39 @@ export function HotelForm({ hotel }: { hotel?: HotelFormDados }) {
               defaultValue={hotel?.max_hospedes_por_dia ?? ""}
             />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="acordo_vigencia_inicio">Vigência do acordo — início</Label>
-            <Input
-              id="acordo_vigencia_inicio"
-              name="acordo_vigencia_inicio"
-              type="date"
-              defaultValue={hotel?.acordo_vigencia_inicio ?? ""}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="acordo_vigencia_fim">Vigência do acordo — fim</Label>
-            <Input
-              id="acordo_vigencia_fim"
-              name="acordo_vigencia_fim"
-              type="date"
-              defaultValue={hotel?.acordo_vigencia_fim ?? ""}
-            />
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="contrato_id">Contrato do convênio *</Label>
+            <select
+              id="contrato_id"
+              name="contrato_id"
+              required
+              defaultValue={hotel?.contrato_id ?? ""}
+              className="border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+            >
+              <option value="" disabled>
+                Selecione o contrato…
+              </option>
+              {contratos.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {[c.codigo, c.objeto].filter(Boolean).join(" — ") ||
+                    c.id.slice(0, 8)}
+                  {` · vigência até ${dataBr(c.vigenciaTermino)}`}
+                  {c.vigente ? "" : " (vencido)"}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">
+              A <strong>vigência</strong> (que limita a retirada de cupons) e o{" "}
+              <strong>centro de custo</strong> (usado na ordem do faturamento)
+              vêm deste contrato.
+              {contratos.length === 0 && (
+                <>
+                  {" "}
+                  Nenhum contrato cadastrado — crie um em Compras → Contratos
+                  primeiro.
+                </>
+              )}
+            </p>
           </div>
           <div className="grid content-end gap-2 pb-1 sm:col-span-2">
             <label className="text-muted-foreground flex items-center gap-2 text-sm">

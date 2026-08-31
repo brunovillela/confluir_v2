@@ -8,7 +8,14 @@ import { redirect } from "next/navigation"
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { cadastroDoFiliado, registrosDoCpf } from "@/lib/db/filiado-portal"
+import { contratoDoHotel } from "@/lib/db/hospedagem"
 import { createAdminClient } from "@/lib/supabase/admin"
+
+/** Data BR (DD/MM/AAAA) de um AAAA-MM-DD. */
+function dataBr(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso
+}
 
 /** Data de hoje no fuso de São Paulo (AAAA-MM-DD). */
 function hojeSP(): string {
@@ -59,6 +66,19 @@ export async function solicitarCupom(
     return { erro: "Hotel indisponível para novos cupons." }
   }
   if (!cadastro) return { erro: "Cadastro não encontrado." }
+
+  // Cupons só entre hoje e o TÉRMINO DA VIGÊNCIA do contrato do hotel.
+  const contrato = await contratoDoHotel(hotelId)
+  if (!contrato || !contrato.vigente) {
+    return {
+      erro: "Este hotel está fora do período de convênio no momento — cupons indisponíveis.",
+    }
+  }
+  if (contrato.vigenciaTermino && checkIn > contrato.vigenciaTermino) {
+    return {
+      erro: `O check-in deve ser até o fim da vigência do convênio (${dataBr(contrato.vigenciaTermino)}).`,
+    }
+  }
 
   const { data: duplicado } = await admin
     .from("hospedagem_cupom")

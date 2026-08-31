@@ -226,6 +226,36 @@ async function resolverNomes(
   return { fornecedores, departamentos }
 }
 
+/** Opções de contrato para vincular a um hotel conveniado (select simples). */
+export type OpcaoContrato = {
+  id: string
+  codigo: string | null
+  objeto: string | null
+  vigenciaTermino: string | null
+  vigente: boolean
+}
+
+export async function opcoesContratos(): Promise<OpcaoContrato[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("contratos")
+    .select("id, codigo, objeto, vigencia_termino")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .order("vigencia_termino", { ascending: false, nullsFirst: false })
+  if (error) return []
+  const hoje = hojeSP()
+  return (data ?? []).map((c) => {
+    const termino = texto(c.vigencia_termino)
+    return {
+      id: String(c.id),
+      codigo: texto(c.codigo),
+      objeto: texto(c.objeto),
+      vigenciaTermino: termino,
+      vigente: vigenciaDe(termino, hoje) !== "vencido",
+    }
+  })
+}
+
 export async function listarContratos(opcoes: {
   busca?: string
   situacao?: SituacaoContrato

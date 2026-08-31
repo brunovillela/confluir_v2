@@ -29,6 +29,7 @@ import {
   usuariosDoHotel,
   type FaturaLinha,
 } from "@/lib/db/hospedagem"
+import { opcoesContratos } from "@/lib/db/contratos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { HotelForm } from "../hotel-form"
@@ -134,11 +135,12 @@ export default async function HotelPage({
   await requirePermissao("filiacao_hospedagens_gestao")
 
   const { id } = await params
-  const [hotel, tarifas, acessos, faturas] = await Promise.all([
+  const [hotel, tarifas, acessos, faturas, contratos] = await Promise.all([
     buscarHotel(id),
     listarTarifas(id),
     usuariosDoHotel(id),
     listarFaturas(id),
+    opcoesContratos(),
   ])
   if (!hotel) notFound()
 
@@ -162,7 +164,7 @@ export default async function HotelPage({
         </p>
       </div>
 
-      <HotelForm hotel={hotel} />
+      <HotelForm hotel={hotel} contratos={contratos} />
       <Tarifas hotelId={hotel.id} tarifas={tarifas} />
 
       <Card>

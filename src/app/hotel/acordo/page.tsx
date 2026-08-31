@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoHotel } from "@/lib/auth"
-import { listarTarifas } from "@/lib/db/hospedagem"
+import { contratoDoHotel, listarTarifas } from "@/lib/db/hospedagem"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { HotelShell } from "../hotel-shell"
@@ -57,10 +57,14 @@ const FAQ = [
 
 export default async function AcordoPage() {
   const { hotel } = await requireSessaoHotel()
-  const tarifas = await listarTarifas(hotel.id)
+  const [tarifas, contrato] = await Promise.all([
+    listarTarifas(hotel.id),
+    contratoDoHotel(hotel.id),
+  ])
 
-  const inicio = hotel.acordo_vigencia_inicio ?? null
-  const fim = hotel.acordo_vigencia_fim ?? null
+  // A vigência vem do CONTRATO do convênio.
+  const inicio = contrato?.vigenciaInicio ?? null
+  const fim = contrato?.vigenciaTermino ?? null
 
   return (
     <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>

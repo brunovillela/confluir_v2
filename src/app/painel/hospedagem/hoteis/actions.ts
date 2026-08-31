@@ -21,10 +21,6 @@ function lerCampos(formData: FormData) {
     const n = Number(v)
     return Number.isInteger(n) && n >= 0 ? n : null
   }
-  const data = (campo: string) => {
-    const v = texto(campo)
-    return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null
-  }
   return {
     nome: texto("nome"),
     ativo: formData.get("ativo") === "on",
@@ -34,8 +30,8 @@ function lerCampos(formData: FormData) {
     max_hospedes_por_dia: inteiro("max_hospedes_por_dia"),
     exige_relatorio_para_faturar:
       formData.get("exige_relatorio_para_faturar") === "on",
-    acordo_vigencia_inicio: data("acordo_vigencia_inicio"),
-    acordo_vigencia_fim: data("acordo_vigencia_fim"),
+    // A vigência do hotel vem do CONTRATO — vínculo obrigatório.
+    contrato_id: texto("contrato_id"),
   }
 }
 
@@ -47,6 +43,9 @@ export async function criarHotel(
 
   const dados = lerCampos(formData)
   if (!dados.nome) return { erro: "O nome do hotel é obrigatório." }
+  if (!dados.contrato_id) {
+    return { erro: "Vincule um contrato ao hotel (obrigatório)." }
+  }
 
   const admin = await createAdminClient()
   const { error } = await admin.from("hospedagem_hotel").insert({
@@ -71,6 +70,9 @@ export async function atualizarHotel(
 
   const dados = lerCampos(formData)
   if (!dados.nome) return { erro: "O nome do hotel é obrigatório." }
+  if (!dados.contrato_id) {
+    return { erro: "Vincule um contrato ao hotel (obrigatório)." }
+  }
 
   const admin = await createAdminClient()
   const { error, count } = await admin

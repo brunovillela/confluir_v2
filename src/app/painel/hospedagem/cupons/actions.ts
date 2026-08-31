@@ -7,11 +7,17 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { contratoDoHotel } from "@/lib/db/hospedagem"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT } from "./chaves"
 
 const SEXOS = ["Masculino", "Feminino", "Outro"]
+
+function dataBr(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso
+}
 
 export async function criarCupom(
   _prev: EstadoForm,
@@ -57,6 +63,22 @@ export async function criarCupom(
   if (!hotel) return { erro: "Hotel não encontrado." }
   if (hotel.ativo === false) {
     return { erro: "Este hotel está inativo e não recebe novos cupons." }
+  }
+
+  // Cupom só dentro da vigência do contrato do hotel (mesma regra do portal).
+  const contrato = await contratoDoHotel(hotelId)
+  if (!contrato) {
+    return {
+      erro: "Este hotel não tem contrato vinculado — vincule um contrato antes de emitir cupons.",
+    }
+  }
+  if (!contrato.vigente) {
+    return { erro: "O contrato deste hotel não está vigente — cupons indisponíveis." }
+  }
+  if (contrato.vigenciaTermino && checkIn > contrato.vigenciaTermino) {
+    return {
+      erro: `O check-in deve ser até o fim da vigência do contrato (${dataBr(contrato.vigenciaTermino)}).`,
+    }
   }
 
   const { error } = await admin.from("hospedagem_cupom").insert({

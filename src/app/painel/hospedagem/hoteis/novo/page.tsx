@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { opcoesContratos } from "@/lib/db/contratos"
 
 import { HotelForm } from "../hotel-form"
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Novo hotel parceiro — Confluir" }
 
 export default async function NovoHotelPage() {
   await requirePermissao("filiacao_hospedagens_gestao")
+  const contratos = await opcoesContratos()
 
   return (
     <>
@@ -27,7 +29,7 @@ export default async function NovoHotelPage() {
           cadastradas depois, na página do hotel.
         </p>
       </div>
-      <HotelForm />
+      <HotelForm contratos={contratos} />
     </>
   )
 }
