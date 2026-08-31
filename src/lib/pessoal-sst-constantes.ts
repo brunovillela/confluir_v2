@@ -88,12 +88,16 @@ export const TIPOS_FERRAMENTA: Opcao[] = [
 ]
 
 // ── Riscos ocupacionais (item 8) ─────────────────────────────────────────────
+// Cores das categorias no padrão do Mapa de Riscos (NR-05 / Portaria 25):
+// físico=verde, químico=vermelho, biológico=marrom, ergonômico=amarelo,
+// acidente/mecânico=azul. Psicossocial (NR-01/GRO) não existe na classificação
+// clássica — recebe cor própria fora das 5.
 export const CATEGORIAS_RISCO: (Opcao & { cor: string })[] = [
   { valor: "acidente", rotulo: "Acidente / mecânico", cor: "#1e40af" },
   { valor: "fisico", rotulo: "Físico", cor: "#15803d" },
   { valor: "quimico", rotulo: "Químico", cor: "#b91c1c" },
-  { valor: "biologico", rotulo: "Biológico", cor: "#7e22ce" },
-  { valor: "ergonomico", rotulo: "Ergonômico", cor: "#a16207" },
+  { valor: "biologico", rotulo: "Biológico", cor: "#78350f" },
+  { valor: "ergonomico", rotulo: "Ergonômico", cor: "#ca8a04" },
   { valor: "psicossocial", rotulo: "Psicossocial", cor: "#be185d" },
 ]
 
@@ -175,4 +179,85 @@ export function formatarTempoMes(min: number | null): string {
   if (h === 0) return `${m}min`
   if (m === 0) return `${h}h`
   return `${h}h ${m}min`
+}
+
+// ── Jornada de trabalho contratada ───────────────────────────────────────────
+
+/** Dias da semana no índice do banco (0=domingo … 6=sábado). */
+export const DIAS_SEMANA: { valor: number; rotulo: string; curto: string }[] = [
+  { valor: 1, rotulo: "Segunda-feira", curto: "Seg" },
+  { valor: 2, rotulo: "Terça-feira", curto: "Ter" },
+  { valor: 3, rotulo: "Quarta-feira", curto: "Qua" },
+  { valor: 4, rotulo: "Quinta-feira", curto: "Qui" },
+  { valor: 5, rotulo: "Sexta-feira", curto: "Sex" },
+  { valor: 6, rotulo: "Sábado", curto: "Sáb" },
+  { valor: 0, rotulo: "Domingo", curto: "Dom" },
+]
+
+export type JornadaDia = {
+  dia_semana: number
+  hora_inicio: string | null // "HH:MM" ou "HH:MM:SS"
+  hora_fim: string | null
+}
+
+/** "HH:MM[:SS]" → minutos desde 00:00, ou null. */
+export function horaParaMinutos(hora: string | null): number | null {
+  if (!hora) return null
+  const m = /^(\d{1,2}):(\d{2})/.exec(hora.trim())
+  if (!m) return null
+  const v = Number(m[1]) * 60 + Number(m[2])
+  return v >= 0 && v < 24 * 60 ? v : null
+}
+
+/** Minutos contratados por semana (soma dos dias com início e fim válidos). */
+export function minutosSemanaisJornada(dias: JornadaDia[]): number {
+  let total = 0
+  for (const d of dias) {
+    const ini = horaParaMinutos(d.hora_inicio)
+    const fim = horaParaMinutos(d.hora_fim)
+    if (ini !== null && fim !== null && fim > ini) total += fim - ini
+  }
+  return total
+}
+
+/** Semanas médias por mês (mesma base do VEZES_POR_MES semanal). */
+export const SEMANAS_POR_MES = 4.33
+
+/** Minutos contratados por mês, a partir da jornada semanal. */
+export function minutosMensaisJornada(dias: JornadaDia[]): number {
+  return Math.round(minutosSemanaisJornada(dias) * SEMANAS_POR_MES)
+}
+
+/** % da disponibilidade mensal consumida (null sem jornada cadastrada). */
+export function pctDisponibilidade(
+  tempoMinMes: number,
+  dias: JornadaDia[]
+): number | null {
+  const mes = minutosMensaisJornada(dias)
+  if (mes <= 0) return null
+  return Math.round((tempoMinMes / mes) * 100)
+}
+
+/**
+ * O instante (data no fuso do tenant) está dentro da jornada do dia?
+ * Retorna null quando não há jornada cadastrada para o dia (sem expediente).
+ */
+export function dentroDaJornada(
+  dias: JornadaDia[],
+  diaSemana: number,
+  minutosDoDia: number
+): boolean | null {
+  const d = dias.find((x) => x.dia_semana === diaSemana)
+  if (!d) return null
+  const ini = horaParaMinutos(d.hora_inicio)
+  const fim = horaParaMinutos(d.hora_fim)
+  if (ini === null || fim === null) return null
+  return minutosDoDia >= ini && minutosDoDia <= fim
+}
+
+/** Formata "HH:MM:SS"/"HH:MM" como "HH:MM" (ou "—"). */
+export function formatarHora(hora: string | null): string {
+  if (!hora) return "—"
+  const m = /^(\d{1,2}):(\d{2})/.exec(hora.trim())
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : "—"
 }

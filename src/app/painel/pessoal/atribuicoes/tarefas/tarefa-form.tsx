@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { useActionState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
@@ -11,13 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  FREQUENCIAS,
-  PRESENCAS,
-  RECORRENCIAS,
-  ROTULO_RECORRENCIA,
-  sugerirRecorrencia,
-} from "@/lib/pessoal-sst-constantes"
+import { PRESENCAS } from "@/lib/pessoal-sst-constantes"
 
 import { atualizarTarefa, criarTarefa } from "../actions"
 
@@ -25,9 +18,6 @@ export type TarefaFormDados = {
   id: string
   nome: string | null
   descricao: string | null
-  funcao_id: string | null
-  recorrencia: string | null
-  frequencia: string | null
   presenca: string | null
   observacoes: string | null
 }
@@ -35,23 +25,16 @@ export type TarefaFormDados = {
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-export function TarefaForm({
-  tarefa,
-  funcoes,
-  limiar,
-}: {
-  tarefa?: TarefaFormDados
-  funcoes: { id: string; nome: string | null }[]
-  limiar: string
-}) {
+/**
+ * Dados básicos da tarefa (catálogo). Função e recorrência NÃO ficam aqui:
+ * a recorrência é de cada EXECUTOR (mesma tarefa, cadências diferentes) e a
+ * função vem do vínculo funcionário↔função.
+ */
+export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
   const [estado, action, pendente] = useActionState(
     tarefa ? atualizarTarefa : criarTarefa,
     {}
   )
-  const [frequencia, setFrequencia] = useState(tarefa?.frequencia ?? "")
-  const [recorrencia, setRecorrencia] = useState(tarefa?.recorrencia ?? "")
-  const [recTocada, setRecTocada] = useState(Boolean(tarefa?.recorrencia))
-  const sugestao = sugerirRecorrencia(frequencia || null, limiar)
 
   return (
     <Card>
@@ -96,88 +79,25 @@ export function TarefaForm({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="funcao_id">Função</Label>
-              <select
-                id="funcao_id"
-                name="funcao_id"
-                defaultValue={tarefa?.funcao_id ?? ""}
-                className={SELECT_CLS}
-              >
-                <option value="">— sem função —</option>
-                {funcoes.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome ?? "(sem nome)"}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="presenca">Presença física</Label>
-              <select
-                id="presenca"
-                name="presenca"
-                defaultValue={tarefa?.presenca ?? ""}
-                className={SELECT_CLS}
-              >
-                <option value="">— não definida —</option>
-                {PRESENCAS.map((p) => (
-                  <option key={p.valor} value={p.valor}>
-                    {p.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="frequencia">Frequência</Label>
-              <select
-                id="frequencia"
-                name="frequencia"
-                value={frequencia}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setFrequencia(v)
-                  if (!recTocada) {
-                    setRecorrencia(sugerirRecorrencia(v || null, limiar) ?? "")
-                  }
-                }}
-                className={SELECT_CLS}
-              >
-                <option value="">— não definida —</option>
-                {FREQUENCIAS.map((f) => (
-                  <option key={f.valor} value={f.valor}>
-                    {f.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="recorrencia">Recorrência</Label>
-              <select
-                id="recorrencia"
-                name="recorrencia"
-                value={recorrencia}
-                onChange={(e) => {
-                  setRecorrencia(e.target.value)
-                  setRecTocada(true)
-                }}
-                className={SELECT_CLS}
-              >
-                <option value="">— não definida —</option>
-                {RECORRENCIAS.map((r) => (
-                  <option key={r.valor} value={r.valor}>
-                    {r.rotulo}
-                  </option>
-                ))}
-              </select>
-              {sugestao && (
-                <p className="text-muted-foreground text-xs">
-                  Sugestão pela frequência:{" "}
-                  <strong>{ROTULO_RECORRENCIA[sugestao]}</strong>.
-                </p>
-              )}
-            </div>
+          <div className="grid gap-1.5 sm:max-w-xs">
+            <Label htmlFor="presenca">Presença física</Label>
+            <select
+              id="presenca"
+              name="presenca"
+              defaultValue={tarefa?.presenca ?? ""}
+              className={SELECT_CLS}
+            >
+              <option value="">— não definida —</option>
+              {PRESENCAS.map((p) => (
+                <option key={p.valor} value={p.valor}>
+                  {p.rotulo}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">
+              A recorrência (rotineira × não rotineira) e a frequência são
+              definidas por executor, na seção de executores.
+            </p>
           </div>
 
           <div className="grid gap-1.5">

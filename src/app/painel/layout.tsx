@@ -1,3 +1,4 @@
+import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SinoNotificacoes } from "@/components/layout/sino-notificacoes"
@@ -7,6 +8,7 @@ import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
 import { obterOrganizacao } from "@/lib/db/organizacao"
+import { jornadaDoUsuario } from "@/lib/db/pessoal-sst"
 import { modulosPermitidos } from "@/lib/permissoes"
 
 export default async function PainelLayout({
@@ -16,11 +18,12 @@ export default async function PainelLayout({
 }) {
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
-  const [areas, naoLidas, temCaixa, organizacao] = await Promise.all([
+  const [areas, naoLidas, temCaixa, organizacao, jornada] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
     obterOrganizacao(),
+    jornadaDoUsuario(sessao.usuario.id),
   ])
   const outrasAreas = areas.filter((a) => a.href !== "/painel")
   const tenantNome =
@@ -48,6 +51,7 @@ export default async function PainelLayout({
       <SidebarInset>
         <TrilhaProvider>
           <AppHeader acoes={<SinoNotificacoes naoLidas={naoLidas} />} />
+          <AlertaForaJornada dias={jornada} />
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
             {children}
           </div>

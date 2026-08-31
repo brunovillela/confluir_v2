@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useActionState } from "react"
 import { CheckCircle2, Loader2, Sparkles, X } from "lucide-react"
 
@@ -9,13 +10,18 @@ import { Input } from "@/components/ui/input"
 import {
   CATEGORIAS_RISCO,
   COR_CATEGORIA,
+  FREQUENCIAS,
   PROBABILIDADES,
+  RECORRENCIAS,
   ROTULO_CATEGORIA,
+  ROTULO_FREQUENCIA,
+  ROTULO_RECORRENCIA,
   ROTULO_TIPO_FERRAMENTA,
   SEVERIDADES,
   TIPOS_FERRAMENTA,
   formatarTempoMes,
   nivelRisco,
+  sugerirRecorrencia,
 } from "@/lib/pessoal-sst-constantes"
 
 import {
@@ -81,26 +87,40 @@ function Badge({ cor, children }: { cor: string; children: React.ReactNode }) {
   )
 }
 
-// ── Executores (tempo por funcionário) ───────────────────────────────────────
+// ── Executores (tempo, recorrência e frequência por funcionário) ─────────────
 
 type Executor = {
   id: string
   funcionarioId: string
   nome: string | null
   tempo_min_mes: number | null
+  recorrencia: string | null
+  frequencia: string | null
   avaliado_em: string | null
+  jornadaMinMes: number
+}
+
+function pctJornada(e: Executor): number | null {
+  if (!e.jornadaMinMes || !e.tempo_min_mes) return null
+  return Math.round((e.tempo_min_mes / e.jornadaMinMes) * 100)
 }
 
 export function SecaoExecutores({
   atividadeId,
   executores,
   opcoes,
+  limiar,
 }: {
   atividadeId: string
   executores: Executor[]
   opcoes: { usuarioId: string; nome: string | null }[]
+  limiar: string
 }) {
   const [estado, action, pend] = useActionState(salvarExecutor, {})
+  const [frequencia, setFrequencia] = useState("")
+  const [recorrencia, setRecorrencia] = useState("")
+  const [recTocada, setRecTocada] = useState(false)
+  const sugestao = sugerirRecorrencia(frequencia || null, limiar)
   const totalMin = executores.reduce((s, e) => s + (e.tempo_min_mes ?? 0), 0)
 
   return (
@@ -116,23 +136,31 @@ export function SecaoExecutores({
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">
-          {executores.map((e) => (
-            <li key={e.id} className="flex items-center gap-2 px-3 py-2">
-              <span className="flex-1 text-sm">{e.nome ?? "(sem nome)"}</span>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {formatarTempoMes(e.tempo_min_mes)}/mês
-              </span>
-              <BotaoRevalidar
-                id={e.id}
-                atividadeId={atividadeId}
-                avaliadoEm={e.avaliado_em}
-              />
-              <BotaoExcluir
-                action={excluirExecutor}
-                hidden={{ id: e.id, atividade_id: atividadeId }}
-              />
-            </li>
-          ))}
+          {executores.map((e) => {
+            const pct = pctJornada(e)
+            return (
+              <li key={e.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+                <span className="flex-1 text-sm">{e.nome ?? "(sem nome)"}</span>
+                <span className="text-muted-foreground text-xs">
+                  {e.recorrencia ? ROTULO_RECORRENCIA[e.recorrencia] : "recorrência —"}
+                  {e.frequencia ? ` · ${ROTULO_FREQUENCIA[e.frequencia]}` : ""}
+                </span>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {formatarTempoMes(e.tempo_min_mes)}/mês
+                  {pct !== null && ` · ${pct}% da jornada`}
+                </span>
+                <BotaoRevalidar
+                  id={e.id}
+                  atividadeId={atividadeId}
+                  avaliadoEm={e.avaliado_em}
+                />
+                <BotaoExcluir
+                  action={excluirExecutor}
+                  hidden={{ id: e.id, atividade_id: atividadeId }}
+                />
+              </li>
+            )
+          })}
         </ul>
       )}
       {totalMin > 0 && (
@@ -141,32 +169,84 @@ export function SecaoExecutores({
         </p>
       )}
 
-      <form action={action} className="flex flex-wrap items-end gap-2">
+      <form action={action} className="grid gap-2 rounded-lg border p-3">
         <input type="hidden" name="atividade_id" value={atividadeId} />
-        <select name="funcionario_id" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
-          <option value="" disabled>
-            Funcionário…
-          </option>
-          {opcoes.map((o) => (
-            <option key={o.usuarioId} value={o.usuarioId}>
-              {o.nome ?? "(sem nome)"}
+        <div className="flex flex-wrap items-end gap-2">
+          <select name="funcionario_id" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
+            <option value="" disabled>
+              Funcionário…
             </option>
-          ))}
-        </select>
-        <Input
-          name="tempo_horas_mes"
-          inputMode="decimal"
-          placeholder="Horas/mês"
-          className="w-28"
-        />
-        <Button type="submit" variant="secondary" disabled={pend}>
-          {pend && <Loader2 className="animate-spin" />}
-          Salvar
-        </Button>
+            {opcoes.map((o) => (
+              <option key={o.usuarioId} value={o.usuarioId}>
+                {o.nome ?? "(sem nome)"}
+              </option>
+            ))}
+          </select>
+          <Input
+            name="tempo_horas_mes"
+            inputMode="decimal"
+            placeholder="Horas/mês"
+            className="w-28"
+          />
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid flex-1 gap-1">
+            <span className="text-muted-foreground text-xs">Frequência</span>
+            <select
+              name="frequencia"
+              value={frequencia}
+              onChange={(ev) => {
+                const v = ev.target.value
+                setFrequencia(v)
+                if (!recTocada) {
+                  setRecorrencia(sugerirRecorrencia(v || null, limiar) ?? "")
+                }
+              }}
+              className={SELECT_CLS}
+            >
+              <option value="">— não definida —</option>
+              {FREQUENCIAS.map((f) => (
+                <option key={f.valor} value={f.valor}>
+                  {f.rotulo}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid flex-1 gap-1">
+            <span className="text-muted-foreground text-xs">Recorrência</span>
+            <select
+              name="recorrencia"
+              value={recorrencia}
+              onChange={(ev) => {
+                setRecorrencia(ev.target.value)
+                setRecTocada(true)
+              }}
+              className={SELECT_CLS}
+            >
+              <option value="">— não definida —</option>
+              {RECORRENCIAS.map((r) => (
+                <option key={r.valor} value={r.valor}>
+                  {r.rotulo}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button type="submit" variant="secondary" disabled={pend}>
+            {pend && <Loader2 className="animate-spin" />}
+            Salvar
+          </Button>
+        </div>
+        {sugestao && (
+          <p className="text-muted-foreground text-xs">
+            Sugestão pela frequência:{" "}
+            <strong>{ROTULO_RECORRENCIA[sugestao]}</strong>.
+          </p>
+        )}
       </form>
       <p className="text-muted-foreground text-xs">
-        Re-selecionar o mesmo funcionário atualiza o tempo dele. O tempo é por
-        funcionário — cada um pode ter uma carga diferente.
+        Re-selecionar o mesmo funcionário atualiza os dados dele. Tempo,
+        recorrência e frequência são POR EXECUTOR — cada um pode ter carga e
+        cadência diferentes na mesma tarefa.
       </p>
     </div>
   )
@@ -327,10 +407,11 @@ export function SecaoPerigos({
   )
 }
 
-// ── Riscos ───────────────────────────────────────────────────────────────────
+// ── Riscos (por EXECUTOR: a probabilidade depende da exposição da pessoa) ────
 
 type Risco = {
   id: string
+  executor_id: string | null
   perigo_id: string | null
   categoria: string | null
   probabilidade: number | null
@@ -340,16 +421,63 @@ type Risco = {
   observacao: string | null
 }
 
+function LinhaRisco({
+  r,
+  atividadeId,
+  perigos,
+}: {
+  r: Risco
+  atividadeId: string
+  perigos: Perigo[]
+}) {
+  const nv = nivelRisco(r.probabilidade, r.severidade)
+  const nvR = nivelRisco(r.probabilidade_residual, r.severidade_residual)
+  const perigo = r.perigo_id ? perigos.find((p) => p.id === r.perigo_id) : null
+  return (
+    <li className="flex items-start gap-2 px-3 py-2">
+      <div className="flex flex-1 flex-wrap items-center gap-2">
+        {r.categoria && (
+          <Badge cor={COR_CATEGORIA[r.categoria] ?? "#64748b"}>
+            {ROTULO_CATEGORIA[r.categoria] ?? r.categoria}
+          </Badge>
+        )}
+        {nv && <Badge cor={nv.cor}>Risco: {nv.rotulo} ({nv.valor})</Badge>}
+        {nvR && (
+          <Badge cor={nvR.cor}>
+            Residual: {nvR.rotulo} ({nvR.valor})
+          </Badge>
+        )}
+        {perigo && (
+          <span className="text-muted-foreground text-xs">
+            perigo: {perigo.descricao.slice(0, 40)}
+          </span>
+        )}
+        {r.observacao && (
+          <span className="text-muted-foreground text-xs">{r.observacao}</span>
+        )}
+      </div>
+      <BotaoExcluir
+        action={excluirRisco}
+        hidden={{ id: r.id, atividade_id: atividadeId }}
+      />
+    </li>
+  )
+}
+
 export function SecaoRiscos({
   atividadeId,
   riscos,
   perigos,
+  executores,
 }: {
   atividadeId: string
   riscos: Risco[]
   perigos: Perigo[]
+  executores: Executor[]
 }) {
   const [estado, action, pend] = useActionState(adicionarRisco, {})
+  const semExecutor = riscos.filter((r) => !r.executor_id)
+
   return (
     <div className="grid gap-3">
       {estado.erro && (
@@ -357,129 +485,177 @@ export function SecaoRiscos({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      {riscos.length > 0 && (
-        <ul className="divide-y rounded-lg border">
-          {riscos.map((r) => {
-            const nv = nivelRisco(r.probabilidade, r.severidade)
-            const nvR = nivelRisco(
-              r.probabilidade_residual,
-              r.severidade_residual
-            )
-            return (
-              <li key={r.id} className="flex items-start gap-2 px-3 py-2">
-                <div className="flex flex-1 flex-wrap items-center gap-2">
-                  {r.categoria && (
-                    <Badge cor={COR_CATEGORIA[r.categoria] ?? "#64748b"}>
-                      {ROTULO_CATEGORIA[r.categoria] ?? r.categoria}
-                    </Badge>
-                  )}
-                  {nv && <Badge cor={nv.cor}>Risco: {nv.rotulo} ({nv.valor})</Badge>}
-                  {nvR && (
-                    <Badge cor={nvR.cor}>
-                      Residual: {nvR.rotulo} ({nvR.valor})
-                    </Badge>
-                  )}
-                  {r.observacao && (
-                    <span className="text-muted-foreground text-xs">
-                      {r.observacao}
-                    </span>
-                  )}
-                </div>
-                <BotaoExcluir
-                  action={excluirRisco}
-                  hidden={{ id: r.id, atividade_id: atividadeId }}
-                />
-              </li>
-            )
-          })}
-        </ul>
+
+      {executores.length === 0 && (
+        <p className="text-muted-foreground text-sm">
+          Adicione executores primeiro — o risco (probabilidade × severidade,
+          bruto e residual) é avaliado por pessoa, conforme a exposição de cada
+          uma.
+        </p>
       )}
-      <form action={action} className="grid gap-2 rounded-lg border p-3">
-        <input type="hidden" name="atividade_id" value={atividadeId} />
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="grid gap-1">
-            <span className="text-muted-foreground text-xs">Categoria *</span>
-            <select name="categoria" required defaultValue="" className={SELECT_CLS}>
-              <option value="" disabled>
-                Categoria…
-              </option>
-              {CATEGORIAS_RISCO.map((c) => (
-                <option key={c.valor} value={c.valor}>
-                  {c.rotulo}
-                </option>
-              ))}
-            </select>
+
+      {executores.map((e) => {
+        const doExecutor = riscos.filter((r) => r.executor_id === e.id)
+        const pct = pctJornada(e)
+        return (
+          <div key={e.id} className="rounded-lg border">
+            <div className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-t-lg px-3 py-2">
+              <span className="text-sm font-medium">
+                {e.nome ?? "(sem nome)"}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                exposição: {formatarTempoMes(e.tempo_min_mes)}/mês
+                {pct !== null && ` (${pct}% da jornada)`}
+                {e.recorrencia
+                  ? ` · ${ROTULO_RECORRENCIA[e.recorrencia]}`
+                  : ""}
+              </span>
+            </div>
+            {doExecutor.length === 0 ? (
+              <p className="text-muted-foreground px-3 py-2 text-sm">
+                Nenhum risco avaliado para esta pessoa.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {doExecutor.map((r) => (
+                  <LinhaRisco
+                    key={r.id}
+                    r={r}
+                    atividadeId={atividadeId}
+                    perigos={perigos}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
-          {perigos.length > 0 && (
+        )
+      })}
+
+      {semExecutor.length > 0 && (
+        <div className="border-warning/40 rounded-lg border">
+          <p className="text-warning-fg px-3 py-2 text-xs font-medium">
+            Avaliações antigas sem executor (feitas quando o risco era da
+            tarefa) — reavalie por pessoa e exclua estas:
+          </p>
+          <ul className="divide-y">
+            {semExecutor.map((r) => (
+              <LinhaRisco
+                key={r.id}
+                r={r}
+                atividadeId={atividadeId}
+                perigos={perigos}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {executores.length > 0 && (
+        <form action={action} className="grid gap-2 rounded-lg border p-3">
+          <input type="hidden" name="atividade_id" value={atividadeId} />
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="grid flex-1 gap-1">
+              <span className="text-muted-foreground text-xs">Executor *</span>
+              <select name="executor_id" required defaultValue="" className={SELECT_CLS}>
+                <option value="" disabled>
+                  Executor…
+                </option>
+                {executores.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome ?? "(sem nome)"}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Perigo</span>
-              <select name="perigo_id" defaultValue="" className={SELECT_CLS}>
-                <option value="">— nenhum —</option>
-                {perigos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.descricao.slice(0, 40)}
+              <span className="text-muted-foreground text-xs">Categoria *</span>
+              <select name="categoria" required defaultValue="" className={SELECT_CLS}>
+                <option value="" disabled>
+                  Categoria…
+                </option>
+                {CATEGORIAS_RISCO.map((c) => (
+                  <option key={c.valor} value={c.valor}>
+                    {c.rotulo}
                   </option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <fieldset className="rounded-md border p-2">
-            <legend className="text-muted-foreground px-1 text-xs">
-              Risco bruto
-            </legend>
-            <div className="flex gap-2">
-              <select name="probabilidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
-                <option value="">Probabilidade…</option>
-                {PROBABILIDADES.map((p) => (
-                  <option key={p.valor} value={p.valor}>
-                    {p.rotulo}
-                  </option>
-                ))}
-              </select>
-              <select name="severidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
-                <option value="">Severidade…</option>
-                {SEVERIDADES.map((s) => (
-                  <option key={s.valor} value={s.valor}>
-                    {s.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </fieldset>
-          <fieldset className="rounded-md border p-2">
-            <legend className="text-muted-foreground px-1 text-xs">
-              Risco residual (após treinamento + EPI)
-            </legend>
-            <div className="flex gap-2">
-              <select name="probabilidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
-                <option value="">Probabilidade…</option>
-                {PROBABILIDADES.map((p) => (
-                  <option key={p.valor} value={p.valor}>
-                    {p.rotulo}
-                  </option>
-                ))}
-              </select>
-              <select name="severidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
-                <option value="">Severidade…</option>
-                {SEVERIDADES.map((s) => (
-                  <option key={s.valor} value={s.valor}>
-                    {s.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </fieldset>
-        </div>
-        <div className="flex items-end gap-2">
-          <Input name="observacao" placeholder="Observação (opcional)" className="flex-1" />
-          <Button type="submit" variant="secondary" disabled={pend}>
-            {pend && <Loader2 className="animate-spin" />}
-            Adicionar risco
-          </Button>
-        </div>
-      </form>
+            {perigos.length > 0 && (
+              <div className="grid gap-1">
+                <span className="text-muted-foreground text-xs">Perigo</span>
+                <select name="perigo_id" defaultValue="" className={SELECT_CLS}>
+                  <option value="">— nenhum —</option>
+                  {perigos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.descricao.slice(0, 40)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <fieldset className="rounded-md border p-2">
+              <legend className="text-muted-foreground px-1 text-xs">
+                Risco bruto
+              </legend>
+              <div className="flex gap-2">
+                <select name="probabilidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                  <option value="">Probabilidade…</option>
+                  {PROBABILIDADES.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <select name="severidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                  <option value="">Severidade…</option>
+                  {SEVERIDADES.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </fieldset>
+            <fieldset className="rounded-md border p-2">
+              <legend className="text-muted-foreground px-1 text-xs">
+                Risco residual (após treinamento + EPI)
+              </legend>
+              <div className="flex gap-2">
+                <select name="probabilidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                  <option value="">Probabilidade…</option>
+                  {PROBABILIDADES.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <select name="severidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                  <option value="">Severidade…</option>
+                  {SEVERIDADES.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </fieldset>
+          </div>
+          <div className="flex items-end gap-2">
+            <Input name="observacao" placeholder="Observação (opcional)" className="flex-1" />
+            <Button type="submit" variant="secondary" disabled={pend}>
+              {pend && <Loader2 className="animate-spin" />}
+              Adicionar risco
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Quem passa mais tempo na tarefa tem mais probabilidade de sofrer com
+            os perigos dela — use a exposição mostrada em cada executor para
+            calibrar a probabilidade.
+          </p>
+        </form>
+      )}
     </div>
   )
 }

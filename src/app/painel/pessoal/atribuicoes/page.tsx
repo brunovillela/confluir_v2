@@ -95,7 +95,7 @@ export default async function AtribuicoesPage() {
       titulo: "Tarefas",
       indicador: plural(r.tarefas, "tarefa", "tarefas"),
       descricao:
-        "Catálogo de tarefas com recorrência, presença, ferramentas, perigos, riscos e medidas",
+        "Catálogo de tarefas com presença, ferramentas, perigos e medidas — executores com tempo, recorrência e risco por pessoa",
       icone: ListChecks,
     },
     {
@@ -103,8 +103,24 @@ export default async function AtribuicoesPage() {
       titulo: "Funções e plano de cargos",
       indicador: plural(r.funcoes, "função", "funções"),
       descricao:
-        "Cargos, tarefas esperadas (plano de cargos) e funcionários de cada função",
+        "Cargos, tarefas esperadas (plano de cargos) e desvio de função por executor",
       icone: Users,
+    },
+    {
+      href: "/painel/pessoal/atribuicoes/ghe",
+      titulo: "GHE",
+      indicador: plural(r.ghes, "grupo", "grupos"),
+      descricao:
+        "Grupos Homogêneos de Exposição — trabalhadores com exposição semelhante avaliados em grupo",
+      icone: ShieldAlert,
+    },
+    {
+      href: "/painel/pessoal/atribuicoes/jornadas",
+      titulo: "Jornadas de trabalho",
+      indicador: plural(r.jornadas, "jornada cadastrada", "jornadas cadastradas"),
+      descricao:
+        "Jornada contratada por funcionário — base do % de ocupação e do alerta fora de horário",
+      icone: CalendarClock,
     },
     {
       href: "/painel/pessoal/atribuicoes/matriz",
@@ -121,7 +137,7 @@ export default async function AtribuicoesPage() {
       titulo: "Relatórios",
       indicador: "Por funcionário, função e conjunto",
       descricao:
-        "Presença física, tempo por tarefa, perigos e riscos — e revalidação anual",
+        "Presença física, tempo por tarefa, ocupação da jornada, perigos e riscos — e revalidação anual",
       icone: ClipboardList,
     },
   ]
@@ -169,7 +185,7 @@ export default async function AtribuicoesPage() {
       )}
 
       <section aria-label="Áreas">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
             <CartaoArea key={c.href} {...c} />
           ))}
@@ -182,11 +198,11 @@ export default async function AtribuicoesPage() {
             Classificação de recorrência
           </CardTitle>
           <CardDescription>
-            Regra que sugere se uma tarefa é <strong>rotineira</strong> ou{" "}
-            <strong>não rotineira</strong> a partir da frequência declarada.
-            Tarefas com frequência a partir de{" "}
+            Regra que sugere se a execução é <strong>rotineira</strong> ou{" "}
+            <strong>não rotineira</strong> a partir da frequência declarada de
+            cada executor. Frequências a partir de{" "}
             <strong>{ROTULO_FREQUENCIA[limiar] ?? limiar}</strong> são sugeridas
-            como rotineiras. O gestor pode sobrepor em cada tarefa.
+            como rotineiras. O gestor pode sobrepor em cada executor.
           </CardDescription>
         </CardHeader>
         <CardContent>

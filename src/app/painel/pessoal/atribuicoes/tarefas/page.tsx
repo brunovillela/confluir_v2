@@ -15,10 +15,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarAtividades } from "@/lib/db/pessoal-sst"
-import {
-  ROTULO_PRESENCA,
-  ROTULO_RECORRENCIA,
-} from "@/lib/pessoal-sst-constantes"
+import { ROTULO_PRESENCA } from "@/lib/pessoal-sst-constantes"
 
 export const metadata: Metadata = { title: "Tarefas — Confluir" }
 
@@ -66,8 +63,6 @@ export default async function TarefasPage({
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Tarefa</TableHead>
-              <TableHead className="hidden sm:table-cell">Função</TableHead>
-              <TableHead className="hidden md:table-cell">Recorrência</TableHead>
               <TableHead className="hidden md:table-cell">Presença</TableHead>
               <TableHead className="text-right">Executores</TableHead>
               <TableHead className="text-right">Perigos/Riscos</TableHead>
@@ -76,7 +71,7 @@ export default async function TarefasPage({
           <TableBody>
             {tarefas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="h-32">
+                <TableCell colSpan={4} className="h-32">
                   <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
                     <ListChecks className="size-6" />
                     <p className="text-sm">Nenhuma tarefa cadastrada.</p>
@@ -104,12 +99,6 @@ export default async function TarefasPage({
                       Sem avaliação
                     </Badge>
                   )}
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden sm:table-cell">
-                  {t.funcaoNome ?? "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden md:table-cell">
-                  {t.recorrencia ? ROTULO_RECORRENCIA[t.recorrencia] : "—"}
                 </TableCell>
                 <TableCell className="text-muted-foreground hidden md:table-cell">
                   {t.presenca ? ROTULO_PRESENCA[t.presenca] : "—"}

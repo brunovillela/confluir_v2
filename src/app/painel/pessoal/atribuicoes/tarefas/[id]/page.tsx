@@ -14,11 +14,7 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarFuncionarios } from "@/lib/db/pessoal"
-import {
-  buscarAtividade,
-  listarFuncoes,
-  obterLimiarRotina,
-} from "@/lib/db/pessoal-sst"
+import { buscarAtividade, obterLimiarRotina } from "@/lib/db/pessoal-sst"
 import { listarTreinamentos } from "@/lib/db/treinamentos"
 
 import { ExcluirTarefa } from "./excluir-tarefa"
@@ -49,8 +45,7 @@ export default async function TarefaPage({
   const tarefa = await buscarAtividade(id)
   if (!tarefa) notFound()
 
-  const [funcoes, funcionarios, treinamentos, limiar] = await Promise.all([
-    listarFuncoes(),
+  const [funcionarios, treinamentos, limiar] = await Promise.all([
     listarFuncionarios({ situacao: "ativos" }),
     listarTreinamentos(),
     obterLimiarRotina(),
@@ -74,10 +69,10 @@ export default async function TarefaPage({
           {tarefa.nome ?? "(sem nome)"}
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          {tarefa.funcaoNome ? `Função: ${tarefa.funcaoNome} · ` : ""}
           {tarefa.executores} executor{tarefa.executores === 1 ? "" : "es"} ·{" "}
           {tarefa.perigos} perigo{tarefa.perigos === 1 ? "" : "s"} ·{" "}
-          {tarefa.riscos} risco{tarefa.riscos === 1 ? "" : "s"}
+          {tarefa.riscos} risco{tarefa.riscos === 1 ? "" : "s"} avaliado
+          {tarefa.riscos === 1 ? "" : "s"} por executor
         </p>
       </div>
 
@@ -87,29 +82,27 @@ export default async function TarefaPage({
         </Alert>
       )}
 
-      {/* Níveis 1, 2, 4 — dados básicos, recorrência, presença */}
+      {/* Dados básicos da tarefa (catálogo) */}
       <TarefaForm
         tarefa={{
           id: tarefa.id,
           nome: tarefa.nome,
           descricao: tarefa.descricao,
-          funcao_id: tarefa.funcao_id,
-          recorrencia: tarefa.recorrencia,
-          frequencia: tarefa.frequencia,
           presenca: tarefa.presenca,
           observacoes: tarefa.observacoes,
         }}
-        funcoes={funcoes.map((f) => ({ id: f.id, nome: f.nome }))}
-        limiar={limiar}
       />
 
-      {/* Nível 3 — executores e tempo por funcionário */}
+      {/* Executores: tempo médio/mês, recorrência e frequência POR PESSOA */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Executores e tempo</CardTitle>
+          <CardTitle className="text-base">
+            Executores — tempo e recorrência por pessoa
+          </CardTitle>
           <CardDescription>
-            Quem executa a tarefa e o tempo médio gasto por mês (por
-            funcionário). Também é a base da revalidação anual por pessoa.
+            Quem executa a tarefa, o tempo médio gasto por mês e a recorrência
+            de cada um (a mesma tarefa pode ser rotineira para um e eventual
+            para outro). Também é a base da revalidação anual por pessoa.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,6 +110,7 @@ export default async function TarefaPage({
             atividadeId={id}
             executores={tarefa.executoresLista}
             opcoes={opcoes}
+            limiar={limiar}
           />
         </CardContent>
       </Card>
@@ -150,8 +144,9 @@ export default async function TarefaPage({
                 Perigos e riscos ocupacionais
               </CardTitle>
               <CardDescription>
-                Perigos (NRs) e os riscos ocupacionais deles decorrentes, com o
-                risco residual após treinamento e EPI.
+                Perigos (NRs) são inerentes à TAREFA. O risco (probabilidade ×
+                severidade, bruto e residual) é avaliado POR EXECUTOR — quem tem
+                mais tempo de exposição tem mais probabilidade.
               </CardDescription>
             </div>
             <BotaoAnalisarIA atividadeId={id} />
@@ -164,12 +159,13 @@ export default async function TarefaPage({
           </div>
           <div>
             <p className="mb-2 text-sm font-medium">
-              Riscos ocupacionais (bruto e residual)
+              Riscos ocupacionais por executor (bruto e residual)
             </p>
             <SecaoRiscos
               atividadeId={id}
               riscos={tarefa.riscosLista}
               perigos={tarefa.perigosLista}
+              executores={tarefa.executoresLista}
             />
           </div>
         </CardContent>

@@ -56,6 +56,10 @@ function TabelaConsolidada({ pessoas }: { pessoas: RelatorioPessoa[] }) {
             <TableHead className="hidden sm:table-cell">Função</TableHead>
             <TableHead className="text-right">Tarefas</TableHead>
             <TableHead className="text-right">Tempo/mês</TableHead>
+            <TableHead className="hidden text-right lg:table-cell">
+              Jornada/mês
+            </TableHead>
+            <TableHead className="text-right">Ocupação</TableHead>
             <TableHead className="text-right">Presença física</TableHead>
             <TableHead className="text-right">Perigos</TableHead>
             <TableHead>Riscos</TableHead>
@@ -64,7 +68,7 @@ function TabelaConsolidada({ pessoas }: { pessoas: RelatorioPessoa[] }) {
         <TableBody>
           {pessoas.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground h-16 text-center text-sm">
+              <TableCell colSpan={9} className="text-muted-foreground h-16 text-center text-sm">
                 Sem dados para este escopo.
               </TableCell>
             </TableRow>
@@ -80,6 +84,18 @@ function TabelaConsolidada({ pessoas }: { pessoas: RelatorioPessoa[] }) {
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatarTempoMes(p.tempoTotalMin)}
+              </TableCell>
+              <TableCell className="text-muted-foreground hidden text-right tabular-nums lg:table-cell">
+                {p.jornadaMinMes > 0 ? formatarTempoMes(p.jornadaMinMes) : "—"}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {p.ocupacaoPct === null ? (
+                  "—"
+                ) : (
+                  <span style={{ color: pctCor(p.ocupacaoPct) }}>
+                    {p.ocupacaoPct}%
+                  </span>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {p.presencaFisicaPct === null ? (
@@ -120,7 +136,11 @@ function DetalhePessoa({ p }: { p: RelatorioPessoa }) {
         <CardTitle className="text-base">{p.nome ?? "(sem nome)"}</CardTitle>
         <CardDescription>
           {p.funcaoNome ? `${p.funcaoNome} · ` : ""}
-          {formatarTempoMes(p.tempoTotalMin)}/mês ·{" "}
+          {formatarTempoMes(p.tempoTotalMin)}/mês
+          {p.jornadaMinMes > 0
+            ? ` de ${formatarTempoMes(p.jornadaMinMes)} contratados (${p.ocupacaoPct}% da jornada)`
+            : " (sem jornada cadastrada)"}{" "}
+          ·{" "}
           {p.presencaFisicaPct === null
             ? "presença não definida"
             : `${p.presencaFisicaPct}% presencial`}{" "}

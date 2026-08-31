@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { listarFuncoes, obterLimiarRotina } from "@/lib/db/pessoal-sst"
 
 import { TarefaForm } from "../tarefa-form"
 
@@ -12,10 +11,6 @@ export const metadata: Metadata = { title: "Nova tarefa — Confluir" }
 
 export default async function NovaTarefaPage() {
   await requirePermissao("pessoal_gestao")
-  const [funcoes, limiar] = await Promise.all([
-    listarFuncoes(),
-    obterLimiarRotina(),
-  ])
 
   return (
     <>
@@ -28,14 +23,12 @@ export default async function NovaTarefaPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Nova tarefa</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Depois de criar, você adiciona ferramentas, perigos, riscos, medidas e
-          os executores — e pode pedir a análise SST à IA.
+          Depois de criar, você adiciona ferramentas, perigos e medidas, vincula
+          os executores (com tempo e recorrência de cada um) e avalia os riscos
+          por executor — e pode pedir a análise SST à IA.
         </p>
       </div>
-      <TarefaForm
-        funcoes={funcoes.map((f) => ({ id: f.id, nome: f.nome }))}
-        limiar={limiar}
-      />
+      <TarefaForm />
     </>
   )
 }

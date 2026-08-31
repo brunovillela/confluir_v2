@@ -6,7 +6,10 @@ import { somarMeses } from "@/lib/db/treinamentos"
 import {
   LIMIAR_ROTINA_PADRAO,
   PESO_PRESENCA,
+  minutosMensaisJornada,
+  minutosSemanaisJornada,
   nivelRisco,
+  type JornadaDia,
   type NivelRisco,
 } from "@/lib/pessoal-sst-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -14,11 +17,16 @@ import { createAdminClient } from "@/lib/supabase/admin"
 /**
  * Pessoal › Atribuições / SST — camada de leitura.
  *
- * Catálogo de TAREFAS (`pessoal_atividades`) com a árvore SST: ferramentas,
- * perigos, riscos (bruto + residual) e medidas (treinamento/EPI). Cada tarefa
- * tem EXECUTORES (`pessoal_atividades_executores`: funcionário + tempo médio/mês).
- * FUNÇÕES (`pessoal_funcoes`) agrupam o plano de cargos
- * (`pessoal_atribuicoes_cargo`) e os funcionários (`pessoal_funcionario_funcao`).
+ * Catálogo de TAREFAS (`pessoal_atividades`) com ferramentas, PERIGOS
+ * (inerentes à atividade) e medidas (treinamento/EPI). Cada tarefa tem
+ * EXECUTORES (`pessoal_atividades_executores`: funcionário + tempo médio/mês +
+ * recorrência própria) e o RISCO (bruto + residual) é avaliado POR EXECUTOR
+ * (`pessoal_atividades_riscos.executor_id`) — a probabilidade depende da
+ * exposição de cada pessoa. FUNÇÕES (`pessoal_funcoes`) agrupam o plano de
+ * cargos (`pessoal_atribuicoes_cargo`) e os funcionários
+ * (`pessoal_funcionario_funcao`); o desvio de função é analisado por executor
+ * contra o plano. Jornada contratada em `pessoal_funcionario_jornada`; GHE em
+ * `pessoal_ghe`/`pessoal_ghe_membros`.
  *
  * Escrita fica nas actions das rotas. Ver [[confluir-fase-3a]] e o SQL
  * supabase/pessoal-atribuicoes-sst.sql.
@@ -52,7 +60,7 @@ export type Funcao = {
 export async function listarFuncoes(): Promise<Funcao[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [funcoes, vinculos, atividades] = await Promise.all([
+  const [funcoes, vinculos, plano] = await Promise.all([
     admin
       .from("pessoal_funcoes")
       .select("id, nome, descricao, ativo")
@@ -63,8 +71,8 @@ export async function listarFuncoes(): Promise<Funcao[]> {
       .select("funcao_id")
       .eq("emp_proprietaria_id", emp),
     admin
-      .from("pessoal_atividades")
-      .select("funcao_id")
+      .from("pessoal_atribuicoes_cargo")
+      .select("funcao_id, atividade_id")
       .eq("emp_proprietaria_id", emp),
   ])
   if (funcoes.error) {
@@ -76,10 +84,13 @@ export async function listarFuncoes(): Promise<Funcao[]> {
       porFuncionarios.set(v.funcao_id, (porFuncionarios.get(v.funcao_id) ?? 0) + 1)
     }
   }
-  const porTarefas = new Map<string, number>()
-  for (const a of atividades.data ?? []) {
-    if (a.funcao_id) {
-      porTarefas.set(a.funcao_id, (porTarefas.get(a.funcao_id) ?? 0) + 1)
+  // tarefas da função = tarefas distintas vinculadas ao plano de cargos
+  const porTarefas = new Map<string, Set<string>>()
+  for (const p of plano.data ?? []) {
+    if (p.funcao_id && p.atividade_id) {
+      const s = porTarefas.get(p.funcao_id) ?? new Set<string>()
+      s.add(p.atividade_id as string)
+      porTarefas.set(p.funcao_id, s)
     }
   }
   return (funcoes.data ?? []).map((f) => ({
@@ -88,7 +99,7 @@ export async function listarFuncoes(): Promise<Funcao[]> {
     descricao: f.descricao as string | null,
     ativo: f.ativo !== false,
     funcionarios: porFuncionarios.get(f.id) ?? 0,
-    tarefas: porTarefas.get(f.id) ?? 0,
+    tarefas: porTarefas.get(f.id)?.size ?? 0,
   }))
 }
 
@@ -199,11 +210,12 @@ export type ComparativoLinha = {
 }
 
 /**
- * Compara, para cada funcionário da função, as tarefas que ele executa com o
- * plano de cargos da função:
- * - aderentes: tarefas executadas cuja função é ESTA (atende ao contrato);
- * - foraDaFuncao: tarefas executadas de OUTRA função ou sem função (possível
- *   desvio de função → passivo);
+ * Comparativo POR EXECUTOR: para cada funcionário da função, compara as
+ * tarefas que ele de fato executa com o plano de cargos da função:
+ * - aderentes: tarefas executadas previstas no plano DESTA função;
+ * - foraDaFuncao: tarefas executadas que o plano não prevê (possível desvio
+ *   de função → passivo); quando outra função prevê a tarefa no seu plano,
+ *   ela é apontada;
  * - cobertura do plano: itens do plano ligados a uma tarefa que ele executa.
  * Itens do plano sem tarefa vinculada entram como "livres" (não rastreáveis).
  */
@@ -220,7 +232,7 @@ export async function comparativoFuncao(
   if (vinculados.length === 0) return []
 
   const ids = vinculados.map((v) => v.funcionarioId)
-  const [exec, atividades, funcoes] = await Promise.all([
+  const [exec, atividades, funcoes, planosTodos] = await Promise.all([
     admin
       .from("pessoal_atividades_executores")
       .select("funcionario_id, atividade_id")
@@ -228,20 +240,32 @@ export async function comparativoFuncao(
       .in("funcionario_id", ids),
     admin
       .from("pessoal_atividades")
-      .select("id, nome, funcao_id")
+      .select("id, nome")
       .eq("emp_proprietaria_id", emp),
     admin.from("pessoal_funcoes").select("id, nome").eq("emp_proprietaria_id", emp),
+    admin
+      .from("pessoal_atribuicoes_cargo")
+      .select("funcao_id, atividade_id")
+      .eq("emp_proprietaria_id", emp),
   ])
 
   const ativById = new Map(
     (atividades.data ?? []).map((a) => [
       a.id as string,
-      { nome: a.nome as string | null, funcao_id: a.funcao_id as string | null },
+      { nome: a.nome as string | null },
     ])
   )
   const nomeFuncao = new Map(
     (funcoes.data ?? []).map((f) => [f.id as string, f.nome as string | null])
   )
+  // atividade → funções cujo plano a prevê (para apontar de quem seria a tarefa)
+  const funcoesDaAtividade = new Map<string, Set<string>>()
+  for (const p of planosTodos.data ?? []) {
+    if (!p.funcao_id || !p.atividade_id) continue
+    const s = funcoesDaAtividade.get(p.atividade_id) ?? new Set<string>()
+    s.add(p.funcao_id as string)
+    funcoesDaAtividade.set(p.atividade_id, s)
+  }
   const execPorFuncionario = new Map<string, string[]>()
   for (const e of exec.data ?? []) {
     if (!e.funcionario_id || !e.atividade_id) continue
@@ -252,6 +276,7 @@ export async function comparativoFuncao(
 
   const planoComAtiv = plano.filter((p) => p.atividade_id)
   const planoLivres = plano.length - planoComAtiv.length
+  const planoSet = new Set(planoComAtiv.map((p) => p.atividade_id!))
 
   return vinculados.map((v) => {
     const execIds = execPorFuncionario.get(v.funcionarioId) ?? []
@@ -264,13 +289,18 @@ export async function comparativoFuncao(
     }[] = []
     for (const aid of execIds) {
       const a = ativById.get(aid)
-      if (a?.funcao_id === funcaoId) {
+      if (planoSet.has(aid)) {
         aderentes.push({ id: aid, nome: a?.nome ?? null })
       } else {
+        const outras = [...(funcoesDaAtividade.get(aid) ?? [])].filter(
+          (f) => f !== funcaoId
+        )
         foraDaFuncao.push({
           id: aid,
           nome: a?.nome ?? null,
-          funcaoNome: a?.funcao_id ? (nomeFuncao.get(a.funcao_id) ?? null) : null,
+          funcaoNome: outras.length
+            ? (nomeFuncao.get(outras[0]) ?? null)
+            : null,
         })
       }
     }
@@ -295,12 +325,8 @@ export async function comparativoFuncao(
 
 export type Atividade = {
   id: string
-  funcao_id: string | null
-  funcaoNome: string | null
   nome: string | null
   descricao: string | null
-  recorrencia: string | null
-  frequencia: string | null
   presenca: string | null
   avaliada_em: string | null
   observacoes: string | null
@@ -327,15 +353,12 @@ async function nomesDeAtividades(ids: string[]): Promise<Map<string, string>> {
 export async function listarAtividades(): Promise<Atividade[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [atividades, funcoes, executores, perigos, riscos] = await Promise.all([
+  const [atividades, executores, perigos, riscos] = await Promise.all([
     admin
       .from("pessoal_atividades")
-      .select(
-        "id, funcao_id, nome, descricao, recorrencia, frequencia, presenca, avaliada_em, observacoes"
-      )
+      .select("id, nome, descricao, presenca, avaliada_em, observacoes")
       .eq("emp_proprietaria_id", emp)
       .order("nome", { ascending: true, nullsFirst: false }),
-    admin.from("pessoal_funcoes").select("id, nome").eq("emp_proprietaria_id", emp),
     admin
       .from("pessoal_atividades_executores")
       .select("atividade_id")
@@ -352,9 +375,6 @@ export async function listarAtividades(): Promise<Atividade[]> {
   if (atividades.error) {
     throw new Error(`Falha ao listar tarefas: ${atividades.error.message}`)
   }
-  const nomeFuncao = new Map(
-    (funcoes.data ?? []).map((f) => [f.id as string, f.nome as string | null])
-  )
   const contar = (linhas: { atividade_id: string | null }[] | null) => {
     const m = new Map<string, number>()
     for (const l of linhas ?? []) {
@@ -367,12 +387,8 @@ export async function listarAtividades(): Promise<Atividade[]> {
   const cRis = contar(riscos.data)
   return (atividades.data ?? []).map((a) => ({
     id: a.id as string,
-    funcao_id: a.funcao_id as string | null,
-    funcaoNome: a.funcao_id ? (nomeFuncao.get(a.funcao_id) ?? null) : null,
     nome: a.nome as string | null,
     descricao: a.descricao as string | null,
-    recorrencia: a.recorrencia as string | null,
-    frequencia: a.frequencia as string | null,
     presenca: a.presenca as string | null,
     avaliada_em: a.avaliada_em as string | null,
     observacoes: a.observacoes as string | null,
@@ -396,6 +412,7 @@ export type Perigo = {
 }
 export type Risco = {
   id: string
+  executor_id: string | null
   perigo_id: string | null
   categoria: string | null
   probabilidade: number | null
@@ -420,7 +437,11 @@ export type Executor = {
   funcionarioId: string
   nome: string | null
   tempo_min_mes: number | null
+  recorrencia: string | null
+  frequencia: string | null
   avaliado_em: string | null
+  /** Minutos/mês da jornada contratada (0 = sem jornada cadastrada). */
+  jornadaMinMes: number
 }
 
 export type AtividadeDetalhe = Atividade & {
@@ -438,18 +459,13 @@ export async function buscarAtividade(
   const emp = await tenantAtual()
   const { data: a, error } = await admin
     .from("pessoal_atividades")
-    .select(
-      "id, funcao_id, nome, descricao, recorrencia, frequencia, presenca, avaliada_em, observacoes"
-    )
+    .select("id, nome, descricao, presenca, avaliada_em, observacoes")
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (error || !a) return null
 
-  const [funcao, ferr, per, ris, med, exec] = await Promise.all([
-    a.funcao_id
-      ? admin.from("pessoal_funcoes").select("nome").eq("id", a.funcao_id).maybeSingle()
-      : Promise.resolve({ data: null }),
+  const [ferr, per, ris, med, exec] = await Promise.all([
     admin
       .from("pessoal_atividades_ferramentas")
       .select("id, nome, tipo")
@@ -463,7 +479,7 @@ export async function buscarAtividade(
     admin
       .from("pessoal_atividades_riscos")
       .select(
-        "id, perigo_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual, observacao"
+        "id, executor_id, perigo_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual, observacao"
       )
       .eq("atividade_id", id)
       .order("created_at", { ascending: true }),
@@ -474,27 +490,24 @@ export async function buscarAtividade(
       .order("created_at", { ascending: true }),
     admin
       .from("pessoal_atividades_executores")
-      .select("id, funcionario_id, tempo_min_mes, avaliado_em")
+      .select(
+        "id, funcionario_id, tempo_min_mes, recorrencia, frequencia, avaliado_em"
+      )
       .eq("atividade_id", id),
   ])
 
-  const nomes = await nomesDosUsuarios(
-    (exec.data ?? [])
-      .map((e) => e.funcionario_id)
-      .filter((v): v is string => !!v)
-  )
-
-  const nomeFuncao =
-    (funcao.data as { nome?: string | null } | null)?.nome ?? null
+  const idsExec = (exec.data ?? [])
+    .map((e) => e.funcionario_id)
+    .filter((v): v is string => !!v)
+  const [nomes, jornadas] = await Promise.all([
+    nomesDosUsuarios(idsExec),
+    jornadasDosFuncionarios(idsExec),
+  ])
 
   return {
     id: a.id as string,
-    funcao_id: a.funcao_id as string | null,
-    funcaoNome: nomeFuncao,
     nome: a.nome as string | null,
     descricao: a.descricao as string | null,
-    recorrencia: a.recorrencia as string | null,
-    frequencia: a.frequencia as string | null,
     presenca: a.presenca as string | null,
     avaliada_em: a.avaliada_em as string | null,
     observacoes: a.observacoes as string | null,
@@ -515,6 +528,7 @@ export async function buscarAtividade(
     })),
     riscosLista: (ris.data ?? []).map((r) => ({
       id: r.id as string,
+      executor_id: r.executor_id as string | null,
       perigo_id: r.perigo_id as string | null,
       categoria: r.categoria as string | null,
       probabilidade: r.probabilidade as number | null,
@@ -546,7 +560,12 @@ export async function buscarAtividade(
         funcionarioId: e.funcionario_id as string,
         nome: e.funcionario_id ? (nomes.get(e.funcionario_id) ?? null) : null,
         tempo_min_mes: e.tempo_min_mes as number | null,
+        recorrencia: e.recorrencia as string | null,
+        frequencia: e.frequencia as string | null,
         avaliado_em: e.avaliado_em as string | null,
+        jornadaMinMes: e.funcionario_id
+          ? minutosMensaisJornada(jornadas.get(e.funcionario_id) ?? [])
+          : 0,
       }))
       .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR")),
   }
@@ -734,6 +753,10 @@ export type RelatorioPessoa = {
   nome: string | null
   funcaoNome: string | null
   tempoTotalMin: number
+  /** Minutos/mês da jornada contratada (0 = sem jornada cadastrada). */
+  jornadaMinMes: number
+  /** % da disponibilidade mensal consumida pelas tarefas (null sem jornada). */
+  ocupacaoPct: number | null
   presencaFisicaPct: number | null
   tarefas: TarefaDoRelatorio[]
   perigos: number
@@ -742,8 +765,9 @@ export type RelatorioPessoa = {
 
 /**
  * Relatório para um conjunto de funcionários: por pessoa traz tempo total,
- * % de presença física (ponderada pelo tempo), tarefas, e perigos/riscos
- * agregados a partir das tarefas que a pessoa executa.
+ * jornada contratada e % de ocupação, % de presença física (ponderada pelo
+ * tempo), tarefas (com a recorrência DO EXECUTOR), perigos das tarefas que
+ * executa e os riscos avaliados PARA ELA (por executor).
  */
 export async function relatorioDeFuncionarios(
   usuarioIds: string[]
@@ -753,16 +777,16 @@ export async function relatorioDeFuncionarios(
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const [exec, atividades, perigos, riscos, nomes, funcoesMap] =
+  const [exec, atividades, perigos, riscos, nomes, funcoesMap, jornadas] =
     await Promise.all([
       admin
         .from("pessoal_atividades_executores")
-        .select("atividade_id, funcionario_id, tempo_min_mes")
+        .select("id, atividade_id, funcionario_id, tempo_min_mes, recorrencia")
         .eq("emp_proprietaria_id", emp)
         .in("funcionario_id", ids),
       admin
         .from("pessoal_atividades")
-        .select("id, nome, recorrencia, presenca")
+        .select("id, nome, presenca")
         .eq("emp_proprietaria_id", emp),
       admin
         .from("pessoal_atividades_perigos")
@@ -771,11 +795,13 @@ export async function relatorioDeFuncionarios(
       admin
         .from("pessoal_atividades_riscos")
         .select(
-          "atividade_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual"
+          "executor_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual"
         )
-        .eq("emp_proprietaria_id", emp),
+        .eq("emp_proprietaria_id", emp)
+        .not("executor_id", "is", null),
       nomesDosUsuarios(ids),
       funcoesDosFuncionarios(),
+      jornadasDosFuncionarios(ids),
     ])
 
   const ativById = new Map(
@@ -790,12 +816,12 @@ export async function relatorioDeFuncionarios(
       )
     }
   }
-  const riscosPorAtiv = new Map<string, typeof riscos.data>()
+  const riscosPorExecutor = new Map<string, typeof riscos.data>()
   for (const r of riscos.data ?? []) {
-    if (!r.atividade_id) continue
-    const arr = riscosPorAtiv.get(r.atividade_id) ?? []
+    if (!r.executor_id) continue
+    const arr = riscosPorExecutor.get(r.executor_id) ?? []
     arr!.push(r)
-    riscosPorAtiv.set(r.atividade_id, arr)
+    riscosPorExecutor.set(r.executor_id, arr)
   }
 
   const porFuncionario = new Map<string, typeof exec.data>()
@@ -825,7 +851,7 @@ export async function relatorioDeFuncionarios(
       tarefas.push({
         atividadeId: e.atividade_id as string,
         nome: (a?.nome as string | null) ?? null,
-        recorrencia: (a?.recorrencia as string | null) ?? null,
+        recorrencia: (e.recorrencia as string | null) ?? null,
         presenca: (a?.presenca as string | null) ?? null,
         tempoMinMes: e.tempo_min_mes as number | null,
       })
@@ -836,34 +862,34 @@ export async function relatorioDeFuncionarios(
       }
       if (e.atividade_id) {
         perigosTotal += perigosPorAtiv.get(e.atividade_id) ?? 0
-        for (const r of riscosPorAtiv.get(e.atividade_id) ?? []) {
-          const cat = (r.categoria as string | null) ?? "outro"
-          const nv = nivelRisco(
-            r.probabilidade as number | null,
-            r.severidade as number | null
-          )
-          const nvR = nivelRisco(
-            r.probabilidade_residual as number | null,
-            r.severidade_residual as number | null
-          )
-          const cur = riscoAgg.get(cat) ?? {
-            pior: 0,
-            piorResidual: 0,
-            qtd: 0,
-            nivel: null,
-            nivelResidual: null,
-          }
-          cur.qtd += 1
-          if (nv && nv.valor > cur.pior) {
-            cur.pior = nv.valor
-            cur.nivel = nv
-          }
-          if (nvR && nvR.valor > cur.piorResidual) {
-            cur.piorResidual = nvR.valor
-            cur.nivelResidual = nvR
-          }
-          riscoAgg.set(cat, cur)
+      }
+      for (const r of riscosPorExecutor.get(e.id as string) ?? []) {
+        const cat = (r.categoria as string | null) ?? "outro"
+        const nv = nivelRisco(
+          r.probabilidade as number | null,
+          r.severidade as number | null
+        )
+        const nvR = nivelRisco(
+          r.probabilidade_residual as number | null,
+          r.severidade_residual as number | null
+        )
+        const cur = riscoAgg.get(cat) ?? {
+          pior: 0,
+          piorResidual: 0,
+          qtd: 0,
+          nivel: null,
+          nivelResidual: null,
         }
+        cur.qtd += 1
+        if (nv && nv.valor > cur.pior) {
+          cur.pior = nv.valor
+          cur.nivel = nv
+        }
+        if (nvR && nvR.valor > cur.piorResidual) {
+          cur.piorResidual = nvR.valor
+          cur.nivelResidual = nvR
+        }
+        riscoAgg.set(cat, cur)
       }
     }
 
@@ -881,11 +907,20 @@ export async function relatorioDeFuncionarios(
       })
     )
 
+    const jornadaMinMes = minutosMensaisJornada(
+      jornadas.get(funcionarioId) ?? []
+    )
+
     return {
       funcionarioId,
       nome: nomes.get(funcionarioId) ?? null,
       funcaoNome: funcoesMap.get(funcionarioId)?.nome ?? null,
       tempoTotalMin: tempoTotal,
+      jornadaMinMes,
+      ocupacaoPct:
+        jornadaMinMes > 0
+          ? Math.round((tempoTotal / jornadaMinMes) * 100)
+          : null,
       presencaFisicaPct,
       tarefas: tarefas.sort((a, b) =>
         (b.tempoMinMes ?? 0) - (a.tempoMinMes ?? 0)
@@ -894,6 +929,233 @@ export async function relatorioDeFuncionarios(
       riscos: riscos.sort((a, b) => (b.pior?.valor ?? 0) - (a.pior?.valor ?? 0)),
     }
   })
+}
+
+// ── Jornada de trabalho contratada ───────────────────────────────────────────
+
+/** Jornada (linhas por dia) de um conjunto de funcionários: usuarioId → dias. */
+export async function jornadasDosFuncionarios(
+  usuarioIds: string[]
+): Promise<Map<string, JornadaDia[]>> {
+  const mapa = new Map<string, JornadaDia[]>()
+  const ids = [...new Set(usuarioIds.filter(Boolean))]
+  if (ids.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_funcionario_jornada")
+    .select("funcionario_id, dia_semana, hora_inicio, hora_fim")
+    .in("funcionario_id", ids)
+  if (error) return mapa // schema ausente → sem jornadas
+  for (const j of data ?? []) {
+    if (!j.funcionario_id || typeof j.dia_semana !== "number") continue
+    const arr = mapa.get(j.funcionario_id) ?? []
+    arr.push({
+      dia_semana: j.dia_semana,
+      hora_inicio: j.hora_inicio as string | null,
+      hora_fim: j.hora_fim as string | null,
+    })
+    mapa.set(j.funcionario_id, arr)
+  }
+  return mapa
+}
+
+/** Jornada de UM usuário (para o alerta fora de horário). [] = sem jornada. */
+export async function jornadaDoUsuario(usuarioId: string): Promise<JornadaDia[]> {
+  const mapa = await jornadasDosFuncionarios([usuarioId])
+  return mapa.get(usuarioId) ?? []
+}
+
+export type LinhaJornada = {
+  funcionarioId: string
+  nome: string | null
+  funcaoNome: string | null
+  dias: JornadaDia[]
+  minSemana: number
+  minMes: number
+}
+
+/** Jornadas dos funcionários informados, com carga semanal/mensal calculada. */
+export async function listarJornadas(
+  funcionarios: { usuarioId: string; nome: string | null }[]
+): Promise<LinhaJornada[]> {
+  const ids = funcionarios.map((f) => f.usuarioId)
+  const [jornadas, funcoesMap] = await Promise.all([
+    jornadasDosFuncionarios(ids),
+    funcoesDosFuncionarios(),
+  ])
+  return funcionarios
+    .map((f) => {
+      const dias = (jornadas.get(f.usuarioId) ?? []).sort(
+        (a, b) =>
+          ((a.dia_semana + 6) % 7) - ((b.dia_semana + 6) % 7) // seg…dom
+      )
+      return {
+        funcionarioId: f.usuarioId,
+        nome: f.nome,
+        funcaoNome: funcoesMap.get(f.usuarioId)?.nome ?? null,
+        dias,
+        minSemana: minutosSemanaisJornada(dias),
+        minMes: minutosMensaisJornada(dias),
+      }
+    })
+    .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR"))
+}
+
+// ── Grupo Homogêneo de Exposição (GHE) ───────────────────────────────────────
+
+export type Ghe = {
+  id: string
+  nome: string | null
+  descricao: string | null
+  membros: number
+}
+
+export async function listarGhes(): Promise<Ghe[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [ghes, membros] = await Promise.all([
+    admin
+      .from("pessoal_ghe")
+      .select("id, nome, descricao")
+      .eq("emp_proprietaria_id", emp)
+      .order("nome", { ascending: true, nullsFirst: false }),
+    admin
+      .from("pessoal_ghe_membros")
+      .select("ghe_id")
+      .eq("emp_proprietaria_id", emp),
+  ])
+  if (ghes.error) return [] // schema ausente
+  const cont = new Map<string, number>()
+  for (const m of membros.data ?? []) {
+    if (m.ghe_id) cont.set(m.ghe_id, (cont.get(m.ghe_id) ?? 0) + 1)
+  }
+  return (ghes.data ?? []).map((g) => ({
+    id: g.id as string,
+    nome: g.nome as string | null,
+    descricao: g.descricao as string | null,
+    membros: cont.get(g.id) ?? 0,
+  }))
+}
+
+export type GheDetalhe = Ghe & {
+  membrosLista: { id: string; funcionarioId: string; nome: string | null }[]
+  /** Perfil de exposição do grupo (relatório das pessoas-membro). */
+  perfil: RelatorioPessoa[]
+}
+
+export async function buscarGhe(id: string): Promise<GheDetalhe | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: g, error } = await admin
+    .from("pessoal_ghe")
+    .select("id, nome, descricao")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (error || !g) return null
+  const { data: membros } = await admin
+    .from("pessoal_ghe_membros")
+    .select("id, funcionario_id")
+    .eq("ghe_id", id)
+  const ids = (membros ?? [])
+    .map((m) => m.funcionario_id)
+    .filter((v): v is string => !!v)
+  const [nomes, perfil] = await Promise.all([
+    nomesDosUsuarios(ids),
+    relatorioDeFuncionarios(ids),
+  ])
+  return {
+    id: g.id as string,
+    nome: g.nome as string | null,
+    descricao: g.descricao as string | null,
+    membros: ids.length,
+    membrosLista: (membros ?? [])
+      .map((m) => ({
+        id: m.id as string,
+        funcionarioId: m.funcionario_id as string,
+        nome: m.funcionario_id ? (nomes.get(m.funcionario_id) ?? null) : null,
+      }))
+      .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR")),
+    perfil,
+  }
+}
+
+export type SugestaoGhe = {
+  /** Tarefas compartilhadas (nomes). */
+  tarefas: string[]
+  funcionarios: { funcionarioId: string; nome: string | null }[]
+}
+
+/**
+ * Sugere GHEs: funcionários com o MESMO conjunto de tarefas executadas formam
+ * um grupo (exposição homogênea). Só sugere grupos com 2+ pessoas que ainda
+ * não estejam juntas em um GHE existente.
+ */
+export async function sugerirGhes(): Promise<SugestaoGhe[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [exec, atividades, membros] = await Promise.all([
+    admin
+      .from("pessoal_atividades_executores")
+      .select("funcionario_id, atividade_id")
+      .eq("emp_proprietaria_id", emp),
+    admin
+      .from("pessoal_atividades")
+      .select("id, nome")
+      .eq("emp_proprietaria_id", emp),
+    admin
+      .from("pessoal_ghe_membros")
+      .select("ghe_id, funcionario_id")
+      .eq("emp_proprietaria_id", emp),
+  ])
+  const nomeAtiv = new Map(
+    (atividades.data ?? []).map((a) => [a.id as string, a.nome as string | null])
+  )
+  const tarefasPorPessoa = new Map<string, Set<string>>()
+  for (const e of exec.data ?? []) {
+    if (!e.funcionario_id || !e.atividade_id) continue
+    const s = tarefasPorPessoa.get(e.funcionario_id) ?? new Set<string>()
+    s.add(e.atividade_id)
+    tarefasPorPessoa.set(e.funcionario_id, s)
+  }
+  // pessoas já agrupadas em algum GHE (por GHE)
+  const ghePorPessoa = new Map<string, Set<string>>()
+  for (const m of membros.data ?? []) {
+    if (!m.funcionario_id || !m.ghe_id) continue
+    const s = ghePorPessoa.get(m.funcionario_id) ?? new Set<string>()
+    s.add(m.ghe_id)
+    ghePorPessoa.set(m.funcionario_id, s)
+  }
+  // agrupa por assinatura (conjunto ordenado de tarefas)
+  const grupos = new Map<string, string[]>()
+  for (const [pessoa, tarefas] of tarefasPorPessoa) {
+    if (tarefas.size === 0) continue
+    const chave = [...tarefas].sort().join("|")
+    const arr = grupos.get(chave) ?? []
+    arr.push(pessoa)
+    grupos.set(chave, arr)
+  }
+  const sugestoes: SugestaoGhe[] = []
+  for (const [chave, pessoas] of grupos) {
+    if (pessoas.length < 2) continue
+    // descarta se todos já dividem um mesmo GHE
+    const comuns = pessoas
+      .map((p) => ghePorPessoa.get(p) ?? new Set<string>())
+      .reduce((acc, s) => new Set([...acc].filter((x) => s.has(x))))
+    if (comuns.size > 0) continue
+    const nomes = await nomesDosUsuarios(pessoas)
+    sugestoes.push({
+      tarefas: chave
+        .split("|")
+        .map((id) => nomeAtiv.get(id) ?? "(tarefa)")
+        .filter((v): v is string => !!v),
+      funcionarios: pessoas.map((p) => ({
+        funcionarioId: p,
+        nome: nomes.get(p) ?? null,
+      })),
+    })
+  }
+  return sugestoes.sort((a, b) => b.funcionarios.length - a.funcionarios.length)
 }
 
 // ── Resumo para alertas do painel ────────────────────────────────────────────
@@ -910,6 +1172,10 @@ export type ResumoSST = {
   tarefasSemAvaliacao: number
   /** Atribuições (funcionário×tarefa) com revalidação anual vencida/nunca feita. */
   revalidacoesPendentes: number
+  /** GHEs cadastrados. */
+  ghes: number
+  /** Funcionários com jornada contratada cadastrada. */
+  jornadas: number
 }
 
 export async function resumoSST(): Promise<ResumoSST> {
@@ -934,11 +1200,13 @@ export async function resumoSST(): Promise<ResumoSST> {
         funcionariosComPendencia: 0,
         tarefasSemAvaliacao: 0,
         revalidacoesPendentes: 0,
+        ghes: 0,
+        jornadas: 0,
       }
     }
   }
 
-  const [funcoes, exec, matriz] = await Promise.all([
+  const [funcoes, exec, matriz, ghes, jornadas] = await Promise.all([
     admin
       .from("pessoal_funcoes")
       .select("id", { count: "exact", head: true })
@@ -948,6 +1216,14 @@ export async function resumoSST(): Promise<ResumoSST> {
       .select("avaliado_em")
       .eq("emp_proprietaria_id", emp),
     matrizTreinamento(),
+    admin
+      .from("pessoal_ghe")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp),
+    admin
+      .from("pessoal_funcionario_jornada")
+      .select("funcionario_id")
+      .eq("emp_proprietaria_id", emp),
   ])
 
   const tarefasSemAvaliacao = (atividades ?? []).filter(
@@ -975,5 +1251,11 @@ export async function resumoSST(): Promise<ResumoSST> {
     funcionariosComPendencia,
     tarefasSemAvaliacao,
     revalidacoesPendentes,
+    ghes: ghes.count ?? 0,
+    jornadas: new Set(
+      (jornadas.data ?? [])
+        .map((j) => j.funcionario_id as string | null)
+        .filter(Boolean)
+    ).size,
   }
 }

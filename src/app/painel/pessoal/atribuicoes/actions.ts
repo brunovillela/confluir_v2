@@ -112,7 +112,7 @@ export async function excluirFuncao(
   const id = txt(fd, "id")
   if (!id) return { erro: "Função inválida." }
   const admin = await createAdminClient()
-  // desvincula tarefas (funcao_id → null) via ON DELETE SET NULL; remove plano e vínculos por cascade
+  // remove plano de cargos e vínculos de funcionários por cascade
   const { error } = await admin
     .from("pessoal_funcoes")
     .delete()
@@ -367,12 +367,11 @@ export async function desvincularFuncionario(
 function lerTarefa(fd: FormData) {
   const nome = txt(fd, "nome")
   if (!nome) return { erro: "Informe o nome da tarefa." as string }
+  // função e recorrência NÃO são da tarefa: vivem no executor (cada
+  // funcionário pode ter cadência diferente) e no vínculo funcionário↔função
   return {
     nome,
     descricao: txt(fd, "descricao"),
-    funcao_id: txt(fd, "funcao_id"),
-    recorrencia: txt(fd, "recorrencia"),
-    frequencia: txt(fd, "frequencia"),
     presenca: txt(fd, "presenca"),
     observacoes: txt(fd, "observacoes"),
   }
@@ -476,6 +475,8 @@ export async function salvarExecutor(
       atividade_id: atividadeId,
       funcionario_id: funcionarioId,
       tempo_min_mes: tempoMin,
+      recorrencia: txt(fd, "recorrencia"),
+      frequencia: txt(fd, "frequencia"),
       avaliado_em: hojeSP(),
       emp_proprietaria_id: await tenantAtual(),
     },
@@ -615,12 +616,15 @@ export async function adicionarRisco(
 ): Promise<EstadoForm> {
   await exigir()
   const atividadeId = txt(fd, "atividade_id")
+  const executorId = txt(fd, "executor_id")
   const categoria = txt(fd, "categoria")
   if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!executorId) return { erro: "Escolha o executor — o risco é avaliado por pessoa." }
   if (!categoria) return { erro: "Escolha a categoria do risco." }
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_atividades_riscos").insert({
     atividade_id: atividadeId,
+    executor_id: executorId,
     categoria,
     perigo_id: txt(fd, "perigo_id"),
     probabilidade: int1a5(fd, "probabilidade"),
@@ -702,6 +706,180 @@ export async function excluirMedida(
   return { ok: "Medida removida." }
 }
 
+// ── Jornada de trabalho contratada ───────────────────────────────────────────
+
+/**
+ * Salva a jornada semanal de um funcionário: um campo hora_inicio/hora_fim por
+ * dia (nomes `inicio_0`..`inicio_6`, `fim_0`..`fim_6`). Dia sem os dois
+ * horários = sem expediente (linha removida).
+ */
+export async function salvarJornada(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const funcionarioId = txt(fd, "funcionario_id")
+  if (!funcionarioId) return { erro: "Escolha o funcionário." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const hora = (v: string | null): string | null => {
+    if (!v) return null
+    return /^\d{1,2}:\d{2}$/.test(v) ? v : null
+  }
+
+  for (let dia = 0; dia <= 6; dia++) {
+    const inicio = hora(txt(fd, `inicio_${dia}`))
+    const fim = hora(txt(fd, `fim_${dia}`))
+    if (inicio && fim) {
+      if (fim <= inicio) {
+        return { erro: `Dia ${dia}: o fim deve ser depois do início.` }
+      }
+      const { error } = await admin.from("pessoal_funcionario_jornada").upsert(
+        {
+          emp_proprietaria_id: emp,
+          funcionario_id: funcionarioId,
+          dia_semana: dia,
+          hora_inicio: inicio,
+          hora_fim: fim,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "emp_proprietaria_id,funcionario_id,dia_semana" }
+      )
+      if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+    } else {
+      const { error } = await admin
+        .from("pessoal_funcionario_jornada")
+        .delete()
+        .eq("funcionario_id", funcionarioId)
+        .eq("dia_semana", dia)
+      if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+    }
+  }
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+  return { ok: "Jornada salva." }
+}
+
+// ── GHE (Grupo Homogêneo de Exposição) ───────────────────────────────────────
+
+export async function criarGhe(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const nome = txt(fd, "nome")
+  if (!nome) return { erro: "Informe o nome do GHE." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("pessoal_ghe")
+    .insert({ nome, descricao: txt(fd, "descricao"), emp_proprietaria_id: emp })
+    .select("id")
+    .single()
+  if (error || !data) return { erro: `Não foi possível criar: ${error?.message}` }
+  // membros iniciais opcionais (ids separados por vírgula — usado pela sugestão)
+  const membros = (txt(fd, "membros") ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean)
+  if (membros.length) {
+    await admin.from("pessoal_ghe_membros").insert(
+      membros.map((funcionario_id) => ({
+        ghe_id: data.id,
+        funcionario_id,
+        emp_proprietaria_id: emp,
+      }))
+    )
+  }
+  revalidatePath("/painel/pessoal/atribuicoes/ghe")
+  redirect(`/painel/pessoal/atribuicoes/ghe/${data.id}?salvo=1`)
+}
+
+export async function atualizarGhe(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const id = txt(fd, "id")
+  const nome = txt(fd, "nome")
+  if (!id) return { erro: "GHE inválido." }
+  if (!nome) return { erro: "Informe o nome do GHE." }
+  const admin = await createAdminClient()
+  const { error, count } = await admin
+    .from("pessoal_ghe")
+    .update(
+      {
+        nome,
+        descricao: txt(fd, "descricao"),
+        updated_at: new Date().toISOString(),
+      },
+      { count: "exact" }
+    )
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  if (count === 0) return { erro: "GHE não encontrado." }
+  revalidatePath(`/painel/pessoal/atribuicoes/ghe/${id}`)
+  revalidatePath("/painel/pessoal/atribuicoes/ghe")
+  return { ok: "GHE salvo." }
+}
+
+export async function excluirGhe(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const id = txt(fd, "id")
+  if (!id) return { erro: "GHE inválido." }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("pessoal_ghe")
+    .delete()
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  revalidatePath("/painel/pessoal/atribuicoes/ghe")
+  redirect("/painel/pessoal/atribuicoes/ghe?excluido=1")
+}
+
+export async function adicionarMembroGhe(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const gheId = txt(fd, "ghe_id")
+  const funcionarioId = txt(fd, "funcionario_id")
+  if (!gheId) return { erro: "GHE inválido." }
+  if (!funcionarioId) return { erro: "Escolha o funcionário." }
+  const admin = await createAdminClient()
+  const { error } = await admin.from("pessoal_ghe_membros").upsert(
+    {
+      ghe_id: gheId,
+      funcionario_id: funcionarioId,
+      emp_proprietaria_id: await tenantAtual(),
+    },
+    { onConflict: "ghe_id,funcionario_id" }
+  )
+  if (error) return { erro: `Não foi possível adicionar: ${error.message}` }
+  revalidatePath(`/painel/pessoal/atribuicoes/ghe/${gheId}`)
+  return { ok: "Funcionário adicionado ao GHE." }
+}
+
+export async function removerMembroGhe(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const id = txt(fd, "id")
+  const gheId = txt(fd, "ghe_id")
+  if (!id) return { erro: "Registro inválido." }
+  const admin = await createAdminClient()
+  const { error } = await admin.from("pessoal_ghe_membros").delete().eq("id", id)
+  if (error) return { erro: `Não foi possível remover: ${error.message}` }
+  if (gheId) revalidatePath(`/painel/pessoal/atribuicoes/ghe/${gheId}`)
+  return { ok: "Funcionário removido do GHE." }
+}
+
 // ── IA: análise SST da tarefa (itens 6-10) ───────────────────────────────────
 
 export async function analisarTarefaComIA(
@@ -719,7 +897,6 @@ export async function analisarTarefaComIA(
     tarefa: atividade.nome ?? "",
     descricao: atividade.descricao,
     presenca: atividade.presenca,
-    frequencia: atividade.frequencia,
     ferramentas: atividade.ferramentas.map((f) => f.nome),
   })
   if (erro) return { erro }
@@ -763,19 +940,25 @@ export async function analisarTarefaComIA(
       ) as unknown as Promise<{ error: unknown }>
     )
   }
-  if (sugestao.riscos.length) {
+  // riscos são POR EXECUTOR: a sugestão vale como avaliação inicial para cada
+  // pessoa que executa a tarefa (o gestor ajusta a probabilidade individual)
+  const executores = atividade.executoresLista
+  if (sugestao.riscos.length && executores.length) {
     ops.push(
       admin.from("pessoal_atividades_riscos").insert(
-        sugestao.riscos.map((r) => ({
-          atividade_id: atividadeId,
-          categoria: r.categoria,
-          probabilidade: r.probabilidade,
-          severidade: r.severidade,
-          probabilidade_residual: r.probabilidade_residual,
-          severidade_residual: r.severidade_residual,
-          observacao: r.observacao,
-          emp_proprietaria_id: emp,
-        }))
+        executores.flatMap((e) =>
+          sugestao.riscos.map((r) => ({
+            atividade_id: atividadeId,
+            executor_id: e.id,
+            categoria: r.categoria,
+            probabilidade: r.probabilidade,
+            severidade: r.severidade,
+            probabilidade_residual: r.probabilidade_residual,
+            severidade_residual: r.severidade_residual,
+            observacao: r.observacao,
+            emp_proprietaria_id: emp,
+          }))
+        )
       ) as unknown as Promise<{ error: unknown }>
     )
   }
@@ -797,7 +980,10 @@ export async function analisarTarefaComIA(
   await Promise.all(ops)
 
   revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  const riscosMsg = executores.length
+    ? `${sugestao.riscos.length} risco(s) aplicado(s) a ${executores.length} executor(es)`
+    : `riscos NÃO gravados (a tarefa ainda não tem executores — o risco é avaliado por pessoa)`
   return {
-    ok: `IA sugeriu ${sugestao.perigos.length} perigo(s), ${sugestao.riscos.length} risco(s), ${novasFerramentas.length} ferramenta(s) e ${sugestao.medidas.length} medida(s). Revise, ajuste os níveis e remova o que não se aplicar.`,
+    ok: `IA sugeriu ${sugestao.perigos.length} perigo(s), ${riscosMsg}, ${novasFerramentas.length} ferramenta(s) e ${sugestao.medidas.length} medida(s). Revise, ajuste os níveis por pessoa e remova o que não se aplicar.`,
   }
 }

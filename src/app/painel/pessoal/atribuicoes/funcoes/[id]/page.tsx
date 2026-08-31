@@ -58,7 +58,12 @@ export default async function FuncaoPage({
       comparativoFuncao(id),
     ])
 
-  const tarefasDaFuncao = atividades.filter((a) => a.funcao_id === id)
+  // tarefas da função = as vinculadas ao plano de cargos (a tarefa em si é
+  // um catálogo neutro — não pertence mais a uma função)
+  const idsDoPlano = new Set(
+    atribuicoes.map((a) => a.atividade_id).filter((v): v is string => !!v)
+  )
+  const tarefasDaFuncao = atividades.filter((a) => idsDoPlano.has(a.id))
   const opcoes = funcionarios.linhas.map((l) => ({
     usuarioId: l.usuarioId,
     nome: l.nome,
@@ -134,7 +139,7 @@ export default async function FuncaoPage({
             funcaoNome={funcao.nome ?? ""}
             funcaoDescricao={funcao.descricao}
             atribuicoes={atribuicoes}
-            tarefas={tarefasDaFuncao.map((t) => ({ id: t.id, nome: t.nome }))}
+            tarefas={atividades.map((t) => ({ id: t.id, nome: t.nome }))}
           />
         </CardContent>
       </Card>
@@ -146,9 +151,10 @@ export default async function FuncaoPage({
             Comparativo: tarefas × plano de cargos
           </CardTitle>
           <CardDescription>
-            Por funcionário: tarefas que ele executa dentro da função (atende ao
-            contrato) × tarefas de outra função (possível desvio), e quanto do
-            plano de cargos está coberto.
+            Análise de desvio POR EXECUTOR: tarefas que cada funcionário executa
+            previstas no plano desta função (atende ao contrato) × tarefas fora
+            do plano (possível desvio de função), e quanto do plano está
+            coberto.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -184,12 +190,12 @@ export default async function FuncaoPage({
                 {c.foraDaFuncao.length > 0 && (
                   <p className="text-muted-foreground mt-2 text-xs">
                     <span className="text-warning-fg font-medium">
-                      Fora da função:
+                      Fora do plano da função:
                     </span>{" "}
                     {c.foraDaFuncao
                       .map(
                         (f) =>
-                          `${f.nome ?? "(tarefa)"}${f.funcaoNome ? ` (${f.funcaoNome})` : " (sem função)"}`
+                          `${f.nome ?? "(tarefa)"}${f.funcaoNome ? ` (prevista em: ${f.funcaoNome})` : ""}`
                       )
                       .join(", ")}
                   </p>
@@ -220,19 +226,20 @@ export default async function FuncaoPage({
         <CardHeader>
           <CardTitle className="text-base">Tarefas desta função</CardTitle>
           <CardDescription>
-            Tarefas catalogadas com esta função. A análise SST completa fica em
-            cada tarefa.
+            Tarefas vinculadas ao plano de cargos desta função. A análise SST
+            completa fica em cada tarefa.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
           {tarefasDaFuncao.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Nenhuma tarefa ligada a esta função ainda.{" "}
+              Nenhuma tarefa vinculada ao plano desta função ainda — vincule ao
+              adicionar atribuições no plano de cargos, ou{" "}
               <Link
                 href="/painel/pessoal/atribuicoes/tarefas/nova"
                 className="text-primary hover:underline"
               >
-                Criar tarefa
+                crie uma tarefa
               </Link>
               .
             </p>
@@ -262,7 +269,7 @@ export default async function FuncaoPage({
           </CardTitle>
           <CardDescription>
             Remove a função, seu plano de cargos e os vínculos de funcionários.
-            As tarefas ligadas ficam sem função (não são apagadas).
+            As tarefas do catálogo não são apagadas.
           </CardDescription>
         </CardHeader>
         <CardContent>
