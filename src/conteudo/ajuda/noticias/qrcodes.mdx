@@ -1,0 +1,66 @@
+A área de **QR Codes** emite códigos para peças de comunicação digitais e
+impressas — cartazes, panfletos, posts, e-mails, banners. Cada QR tem título,
+finalidade, quem criou, controle de **ativo/inativo** e contagem de leituras.
+
+<RequerPermissao>Notícias</RequerPermissao>
+
+## O QR é dinâmico — e por que isso importa
+
+A imagem do QR **não** carrega o endereço final: ela carrega um **link curto do
+sistema** (ex.: `https://seusindicato…/q/abc1234`) que **redireciona** ao
+destino. Isso muda tudo para peças impressas:
+
+- **Trocar o destino** depois não exige reimprimir nada — a mesma imagem passa
+  a levar ao novo endereço.
+- **Desativar** o QR derruba o redirecionamento na hora: quem escanear uma
+  peça antiga vê uma página de aviso, não o conteúdo.
+- Cada leitura é **contada** (total e data da última) — dá para saber se a
+  peça está funcionando. Ninguém é identificado.
+
+## Emitir um QR Code
+
+<PassoAPasso>
+  <Passo titulo="Preencha os dados">
+    Em Comunicação → QR Codes, informe o <strong>título</strong>, a
+    <strong>finalidade</strong> (onde a peça será aplicada — é o que organiza a
+    lista depois) e a <strong>URL de destino</strong>.
+  </Passo>
+  <Passo titulo="Baixe a imagem no tamanho da peça">
+    Na página do QR: <strong>PNG</strong> em 256px (e-mail/assinatura), 512px
+    (post de rede social), 1024px (slide, cartaz A4) ou 2048px (faixa/banner),
+    e <strong>SVG</strong> — vetor, que não perde qualidade em nenhum tamanho
+    (é o formato que a gráfica prefere).
+  </Passo>
+  <Passo titulo="Aplique e acompanhe">
+    Use a imagem na peça e acompanhe as leituras na lista. Se a campanha
+    acabar, <strong>desative</strong> — dá para reativar quando quiser.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Excluir ≠ desativar">
+  Excluir apaga o link curto para sempre — peças já impressas com aquele QR
+  deixam de funcionar, sem volta. Para tirar do ar temporariamente (ou
+  permanentemente, mas com opção de arrependimento), use <strong>Desativar</strong>.
+</Aviso>
+
+## Boas práticas de aplicação
+
+- Mantenha a **margem branca** ao redor do código (ela faz parte da imagem) —
+  não a corte na diagramação.
+- Em impressos, prefira o **SVG**; nos PNGs, use o maior tamanho que a peça
+  comportar.
+- Garanta contraste: QR escuro sobre fundo claro. Evite imprimir sobre fotos
+  ou fundos coloridos.
+- Teste a peça escaneando a prova antes de rodar a tiragem.
+
+## Erros comuns
+
+- **"O QR não abre nada."** Veja se ele está **ativo** na lista — inativo
+  mostra a página de aviso. E confira a URL de destino (precisa começar com
+  `https://`).
+- **"Troquei o destino e a imagem mudou?"** Não — a imagem é sempre a mesma
+  (ela aponta para o link curto). Só o redirecionamento muda.
+- **"Imprimi e quero trocar o conteúdo."** É exatamente o caso do QR dinâmico:
+  edite a **URL de destino** e a peça impressa passa a levar ao novo endereço.
+- **"Excluí sem querer."** Não há recuperação — emita um novo QR e refaça a
+  peça. Por isso, prefira **desativar**.

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Newspaper, Sparkles } from "lucide-react"
+import { Link2, Newspaper, QrCode, Sparkles } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
@@ -14,8 +14,8 @@ export default async function ComunicacaoPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Comunicação</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Notícias do sindicato e o resumo de notícias gerado por IA a partir de
-          sites escolhidos.
+          Notícias do sindicato, resumo de notícias por IA, QR Codes e a página
+          de links para as redes sociais.
         </p>
       </div>
 
@@ -31,6 +31,18 @@ export default async function ComunicacaoPage() {
           descricao="A IA lê os sites indicados e gera um resumo para o painel"
           href="/painel/comunicacao/resumo"
           icone={Sparkles}
+        />
+        <CartaoArea
+          titulo="QR Codes"
+          descricao="Emita QR Codes dinâmicos e baixe a imagem em vários tamanhos para peças digitais e impressas"
+          href="/painel/comunicacao/qrcodes"
+          icone={QrCode}
+        />
+        <CartaoArea
+          titulo="Página de links"
+          descricao="O link na bio do Instagram: uma página pública com os canais e conteúdos da entidade"
+          href="/painel/comunicacao/links"
+          icone={Link2}
         />
       </div>
     </>

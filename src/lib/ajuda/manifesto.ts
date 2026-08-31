@@ -492,7 +492,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "noticias",
     titulo: "Comunicação",
-    descricao: "Notícias e resumo de notícias por IA",
+    descricao: "Notícias, resumo por IA, QR Codes e página de links",
     icone: "Newspaper",
     ...permissaoDoModulo("/painel/comunicacao"),
     disponivel: true,
@@ -500,7 +500,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "index",
         titulo: "Visão geral da Comunicação",
-        resumo: "Notícias e o resumo por IA",
+        resumo: "Notícias, o resumo por IA e QR Codes",
       },
       {
         slug: "noticias",
@@ -511,6 +511,16 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "resumo-ia",
         titulo: "Resumo de notícias por IA",
         resumo: "Fontes, tamanho, recorrência, prompt e geração",
+      },
+      {
+        slug: "qrcodes",
+        titulo: "QR Codes",
+        resumo: "Emitir QR dinâmico, baixar em vários tamanhos, ativo/inativo e leituras",
+      },
+      {
+        slug: "pagina-links",
+        titulo: "Página de links",
+        resumo: "O link na bio: página pública com os canais da entidade e cliques por link",
       },
     ],
   },
