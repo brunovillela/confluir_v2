@@ -1,0 +1,221 @@
+A área **Atribuições e SST** mapeia, tarefa por tarefa, o que cada funcionário
+faz — com a análise de saúde e segurança do trabalho (perigos, riscos, EPI e
+treinamentos), o comparativo com o plano de cargos, a matriz de treinamento e a
+revalidação anual. Fica em **Pessoal → Atribuições e SST**.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+## Como a área se organiza
+
+O hub tem quatro frentes e uma configuração:
+
+- **Tarefas** — o catálogo. Cada tarefa reúne recorrência, presença física,
+  ferramentas, perigos, riscos (com risco residual) e medidas (treinamento e
+  EPI), além de quem a executa e quanto tempo gasta.
+- **Funções e plano de cargos** — os cargos, as tarefas esperadas de cada um
+  (o "contrato") e os funcionários que os ocupam.
+- **Matriz de treinamento** — os treinamentos exigidos por funcionário e o
+  status de cada um.
+- **Relatórios** — presença física, tempo, perigos e riscos por funcionário,
+  por função ou pelo conjunto.
+
+No fim do hub, em **Classificação de recorrência**, você define a partir de qual
+frequência uma tarefa é sugerida como **rotineira** (padrão: mensal). É só uma
+sugestão — você sempre pode marcar diferente em cada tarefa.
+
+## Passo 1 — Funções e plano de cargos
+
+Comece pelas funções. Elas são a base do comparativo com o contrato.
+
+<PassoAPasso>
+  <Passo titulo="Gere as funções a partir dos cargos">
+    Em **Funções e plano de cargos**, clique em **Gerar funções a partir dos
+    cargos dos funcionários**. O sistema cria uma função para cada cargo dos
+    vínculos (unindo grafias parecidas) e já vincula cada funcionário à sua —
+    sem digitar nada. Pode rodar de novo depois de admitir alguém com cargo novo.
+  </Passo>
+  <Passo titulo="Monte o plano de cargos">
+    Abra uma função. Em **Plano de cargos**, liste as tarefas esperadas de quem
+    ocupa o cargo. Você pode digitar uma a uma ou clicar em **Sugerir plano com
+    IA** e revisar as sugestões (edite ou remova o que não se aplicar).
+  </Passo>
+  <Passo titulo="Vincule cada item a uma tarefa (recomendado)">
+    Ao adicionar um item do plano, use o campo **Vincular a uma tarefa** para
+    ligá-lo a uma tarefa do catálogo. É isso que faz o comparativo automático
+    funcionar.
+  </Passo>
+  <Passo titulo="Ajuste os funcionários">
+    Em **Funcionários na função**, confira quem ocupa o cargo. Vincular alguém
+    aqui move-o para esta função (cada pessoa ocupa só uma).
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="Reaproveite o que já existe">
+  Os funcionários já têm cargo no vínculo trabalhista. O botão de gerar funções
+  parte desse dado — não recadastre à mão.
+</Aviso>
+
+## Passo 2 — Cadastrar uma tarefa
+
+<PassoAPasso>
+  <Passo titulo="Nova tarefa">
+    Em **Tarefas → Nova tarefa**, informe o **nome** e uma **descrição** (quanto
+    melhor a descrição, melhor a IA analisa o risco depois).
+  </Passo>
+  <Passo titulo="Função e presença física">
+    Escolha a **função** dona da tarefa e a **presença física**: presencial,
+    híbrida ou remota.
+  </Passo>
+  <Passo titulo="Frequência e recorrência">
+    Escolha a **frequência**. Ao fazer isso, a **recorrência** (rotineira ou
+    não) já vem sugerida pela regra do hub — confirme ou troque.
+  </Passo>
+  <Passo titulo="Criar">
+    Clique em **Criar tarefa**. Você cai na página da tarefa, onde adiciona todo
+    o resto.
+  </Passo>
+</PassoAPasso>
+
+## Passo 3 — Executores e tempo
+
+Na página da tarefa, em **Executores e tempo**, registre quem executa e quanto
+tempo gasta.
+
+<PassoAPasso>
+  <Passo titulo="Adicione o funcionário">
+    Escolha o funcionário, informe o **tempo médio em horas por mês** e clique
+    em **Salvar**. O tempo é por pessoa — cada uma pode ter uma carga diferente.
+  </Passo>
+  <Passo titulo="Ajuste quando mudar">
+    Para alterar o tempo de alguém, é só re-selecionar o mesmo funcionário e
+    salvar de novo.
+  </Passo>
+</PassoAPasso>
+
+## Passo 4 — Ferramentas e equipamentos
+
+Em **Ferramentas e equipamentos**, liste o que é necessário para a tarefa
+(computador, sistema de informação, ferramenta manual, infraestrutura). Informe
+o nome e, opcionalmente, o tipo.
+
+## Passo 5 — Perigos e riscos
+
+É o coração da análise SST. Você pode preencher à mão **ou** deixar a IA fazer
+uma primeira versão.
+
+<PassoAPasso>
+  <Passo titulo="Peça a análise à IA (opcional)">
+    Clique em **Analisar riscos com IA**. A partir do nome, da descrição, da
+    presença e das ferramentas, a IA sugere perigos (com a NR de referência),
+    riscos por categoria com probabilidade e severidade, o risco residual e as
+    medidas. Tudo entra para você **revisar** — ajuste os níveis e remova o que
+    não se aplicar.
+  </Passo>
+  <Passo titulo="Perigos associados">
+    Cada perigo tem uma descrição, a fonte/agente, a severidade (1 a 5) e a NR
+    relacionada, quando houver.
+  </Passo>
+  <Passo titulo="Riscos ocupacionais">
+    Para cada risco, escolha a **categoria** (acidente, físico, químico,
+    biológico, ergonômico ou psicossocial) e informe a **probabilidade** e a
+    **severidade**. O sistema calcula o nível pela matriz 5×5 (de Trivial a
+    Intolerável).
+  </Passo>
+  <Passo titulo="Risco residual">
+    No mesmo risco, informe a probabilidade e a severidade **residuais** — ou
+    seja, considerando que o treinamento e o EPI já foram implementados.
+    Normalmente são menores que os brutos.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="A IA sugere, você decide">
+  A análise da IA é um rascunho técnico. Reveja perigos, níveis e medidas antes
+  de considerar a avaliação concluída — a responsabilidade é da gestão.
+</Aviso>
+
+## Passo 6 — Treinamentos e EPI
+
+Em **Treinamentos e EPI (medidas)** ficam os mitigadores da tarefa.
+
+<PassoAPasso>
+  <Passo titulo="Treinamento">
+    Escolha o tipo **Treinamento**, descreva-o e, se fizer sentido, informe a
+    **recorrência em meses**. Para o treinamento entrar na matriz por
+    funcionário, use **Vincular ao catálogo** e ligue-o a um treinamento
+    cadastrado em Pessoal → Treinamentos.
+  </Passo>
+  <Passo titulo="EPI">
+    Escolha o tipo **EPI**, descreva o equipamento e informe o **CA**
+    (Certificado de Aprovação), quando houver.
+  </Passo>
+</PassoAPasso>
+
+## O comparativo: atendimento ao contrato
+
+Na página da função, o cartão **Comparativo: tarefas × plano de cargos** mostra,
+por funcionário:
+
+- **Na função** — tarefas que ele executa e que pertencem à função (atende ao
+  contrato).
+- **Fora da função** — tarefas que ele executa mas são de outra função (ou sem
+  função). É o sinal de **desvio de função**, que ajuda a mitigar passivos.
+- **Cobertura do plano** — quanto do plano de cargos ele efetivamente cobre.
+
+## Matriz de treinamento
+
+Em **Matriz de treinamento**, cada funcionário aparece com os treinamentos
+**exigidos** pelas tarefas que executa, e o status de cada um: **Em dia**,
+**Vencido** ou **Faltando**. Treinamentos que não foram vinculados ao catálogo
+aparecem como **Sem vínculo ao catálogo** — vincule-os para que o status passe a
+ser rastreado.
+
+## Relatórios
+
+Em **Relatórios**, escolha o escopo — **por funcionário**, **por função** ou
+**conjunto (todos)**. Cada pessoa traz o **percentual de presença física**
+(ponderado pelo tempo de cada tarefa), o **tempo total por mês**, as tarefas e
+os perigos e riscos agregados.
+
+## Revalidação anual
+
+A avaliação precisa ser revista todo ano.
+
+- **Por tarefa:** na página da tarefa, use **Registrar avaliação nesta data**.
+  Passados 12 meses, a tarefa entra nos alertas como pendente.
+- **Por funcionário:** em cada executor, o botão **Revalidar** carimba a
+  revisão daquela atribuição para aquela pessoa.
+
+Os alertas de pendência (treinamentos, tarefas sem avaliação e revalidações
+vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
+**Pessoal**.
+
+## Erros comuns
+
+- **"Não aparece nenhuma função."** Rode **Gerar funções a partir dos cargos**,
+  ou crie uma função manualmente.
+- **O comparativo não mostra a cobertura do plano.** Os itens do plano precisam
+  estar **vinculados a uma tarefa** — sem esse vínculo, entram como "não
+  rastreáveis".
+- **Um treinamento aparece como "Sem vínculo ao catálogo" na matriz.** A medida
+  de treinamento não foi ligada ao catálogo. Edite a medida e use **Vincular ao
+  catálogo**.
+- **A recorrência veio "errada".** Ela é só uma sugestão pela frequência; troque
+  no campo **Recorrência**. Para mudar a régua, ajuste o limiar no hub.
+- **"Não consigo excluir a função."** Excluir a função remove o plano e os
+  vínculos, mas as tarefas ligadas apenas ficam sem função — elas não são
+  apagadas.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Treinamentos",
+      href: "/painel/ajuda/pessoal/treinamentos",
+      descricao: "O catálogo que alimenta a matriz de treinamento",
+    },
+    {
+      titulo: "Funcionários",
+      href: "/painel/ajuda/pessoal/funcionarios",
+      descricao: "A ficha de quem executa as tarefas",
+    },
+  ]}
+/>

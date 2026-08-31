@@ -117,6 +117,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Cursos, participantes e os certificados com validade",
       },
       {
+        slug: "atribuicoes-sst",
+        titulo: "Atribuições e SST",
+        resumo:
+          "Tarefas, perigos e riscos, plano de cargos, matriz de treinamento e revalidação",
+      },
+      {
         slug: "reembolsos",
         titulo: "Reembolsos",
         resumo: "Tipos de reembolso do ACT, avaliação e pagamento em folha",
