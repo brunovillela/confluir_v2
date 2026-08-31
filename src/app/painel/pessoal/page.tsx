@@ -10,6 +10,7 @@ import {
   HandCoins,
   HeartPulse,
   ReceiptText,
+  ShieldAlert,
   Stethoscope,
   TreePalm,
   TrendingUp,
@@ -20,6 +21,7 @@ import {
 import { CartaoArea } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { resumoPessoal } from "@/lib/db/pessoal-dashboard"
+import { resumoSST } from "@/lib/db/pessoal-sst"
 
 export const metadata: Metadata = { title: "Pessoal — Confluir" }
 
@@ -83,6 +85,7 @@ export default async function PessoalPage() {
     veGestao || sessao.permissoes[chave] === true
 
   const r = await resumoPessoal()
+  const sst = veGestao ? await resumoSST() : null
 
   const plural = (n: number, um: string, muitos: string) =>
     `${n} ${n === 1 ? um : muitos}`
@@ -157,6 +160,20 @@ export default async function PessoalPage() {
       href: "/painel/pessoal/atestados?aba=ausencias",
       icone: Stethoscope,
       texto: `${plural(r.ausentesHoje, "funcionário ausente", "funcionários ausentes")} hoje.`,
+    })
+  }
+  if (sst?.ativo && sst.treinamentosPendentes > 0) {
+    alertas.push({
+      href: "/painel/pessoal/atribuicoes/matriz",
+      icone: GraduationCap,
+      texto: `${plural(sst.treinamentosPendentes, "treinamento exigido pendente", "treinamentos exigidos pendentes")} na matriz de treinamento.`,
+    })
+  }
+  if (sst?.ativo && sst.tarefasSemAvaliacao > 0) {
+    alertas.push({
+      href: "/painel/pessoal/atribuicoes/tarefas",
+      icone: ShieldAlert,
+      texto: `${plural(sst.tarefasSemAvaliacao, "tarefa sem avaliação SST", "tarefas sem avaliação SST")} ou com avaliação vencida.`,
     })
   }
 
@@ -291,6 +308,21 @@ export default async function PessoalPage() {
           : plural(r.treinamentosTotal, "treinamento", "treinamentos"),
       descricao: "Catálogo, alunos e certificados",
       icone: GraduationCap,
+    },
+    {
+      mostrar: veGestao,
+      href: "/painel/pessoal/atribuicoes",
+      titulo: "Atribuições e SST",
+      indicador:
+        sst && sst.ativo
+          ? sst.treinamentosPendentes + sst.tarefasSemAvaliacao > 0
+            ? `${sst.treinamentosPendentes + sst.tarefasSemAvaliacao} pendência${sst.treinamentosPendentes + sst.tarefasSemAvaliacao === 1 ? "" : "s"}`
+            : plural(sst.tarefas, "tarefa", "tarefas")
+          : "Configurar",
+      descricao: sst && sst.ativo
+        ? "Tarefas, perigos, riscos, matriz de treinamento e revalidação"
+        : "Rode supabase/pessoal-atribuicoes-sst.sql para ativar",
+      icone: ShieldAlert,
     },
     {
       mostrar: ve("pessoal_informes_rendimentos"),

@@ -1,0 +1,680 @@
+"use client"
+
+import { useActionState } from "react"
+import { CheckCircle2, Loader2, Sparkles, X } from "lucide-react"
+
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  CATEGORIAS_RISCO,
+  COR_CATEGORIA,
+  PROBABILIDADES,
+  ROTULO_CATEGORIA,
+  ROTULO_TIPO_FERRAMENTA,
+  SEVERIDADES,
+  TIPOS_FERRAMENTA,
+  formatarTempoMes,
+  nivelRisco,
+} from "@/lib/pessoal-sst-constantes"
+
+import {
+  adicionarFerramenta,
+  adicionarMedida,
+  adicionarPerigo,
+  adicionarRisco,
+  analisarTarefaComIA,
+  excluirExecutor,
+  excluirFerramenta,
+  excluirMedida,
+  excluirPerigo,
+  excluirRisco,
+  marcarTarefaAvaliada,
+  revalidarExecutor,
+  salvarExecutor,
+} from "../../actions"
+
+const SELECT_CLS =
+  "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+
+type Estado = { erro?: string; ok?: string }
+type ActionForm = (p: Estado, fd: FormData) => Promise<Estado>
+
+function BotaoExcluir({
+  action,
+  hidden,
+}: {
+  action: ActionForm
+  hidden: Record<string, string>
+}) {
+  const [, act, pend] = useActionState(action, {})
+  return (
+    <form action={act}>
+      {Object.entries(hidden).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        disabled={pend}
+        className="text-destructive hover:text-destructive h-7 px-2"
+      >
+        {pend ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <X className="size-3.5" />
+        )}
+      </Button>
+    </form>
+  )
+}
+
+function Badge({ cor, children }: { cor: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white"
+      style={{ backgroundColor: cor }}
+    >
+      {children}
+    </span>
+  )
+}
+
+// ── Executores (tempo por funcionário) ───────────────────────────────────────
+
+type Executor = {
+  id: string
+  funcionarioId: string
+  nome: string | null
+  tempo_min_mes: number | null
+  avaliado_em: string | null
+}
+
+export function SecaoExecutores({
+  atividadeId,
+  executores,
+  opcoes,
+}: {
+  atividadeId: string
+  executores: Executor[]
+  opcoes: { usuarioId: string; nome: string | null }[]
+}) {
+  const [estado, action, pend] = useActionState(salvarExecutor, {})
+  const totalMin = executores.reduce((s, e) => s + (e.tempo_min_mes ?? 0), 0)
+
+  return (
+    <div className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {executores.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          Nenhum funcionário executa esta tarefa ainda.
+        </p>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {executores.map((e) => (
+            <li key={e.id} className="flex items-center gap-2 px-3 py-2">
+              <span className="flex-1 text-sm">{e.nome ?? "(sem nome)"}</span>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {formatarTempoMes(e.tempo_min_mes)}/mês
+              </span>
+              <BotaoRevalidar
+                id={e.id}
+                atividadeId={atividadeId}
+                avaliadoEm={e.avaliado_em}
+              />
+              <BotaoExcluir
+                action={excluirExecutor}
+                hidden={{ id: e.id, atividade_id: atividadeId }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      {totalMin > 0 && (
+        <p className="text-muted-foreground text-xs">
+          Tempo somado: {formatarTempoMes(totalMin)}/mês entre os executores.
+        </p>
+      )}
+
+      <form action={action} className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <select name="funcionario_id" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
+          <option value="" disabled>
+            Funcionário…
+          </option>
+          {opcoes.map((o) => (
+            <option key={o.usuarioId} value={o.usuarioId}>
+              {o.nome ?? "(sem nome)"}
+            </option>
+          ))}
+        </select>
+        <Input
+          name="tempo_horas_mes"
+          inputMode="decimal"
+          placeholder="Horas/mês"
+          className="w-28"
+        />
+        <Button type="submit" variant="secondary" disabled={pend}>
+          {pend && <Loader2 className="animate-spin" />}
+          Salvar
+        </Button>
+      </form>
+      <p className="text-muted-foreground text-xs">
+        Re-selecionar o mesmo funcionário atualiza o tempo dele. O tempo é por
+        funcionário — cada um pode ter uma carga diferente.
+      </p>
+    </div>
+  )
+}
+
+function BotaoRevalidar({
+  id,
+  atividadeId,
+  avaliadoEm,
+}: {
+  id: string
+  atividadeId: string
+  avaliadoEm: string | null
+}) {
+  const [, act, pend] = useActionState(revalidarExecutor, {})
+  return (
+    <form action={act}>
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="atividade_id" value={atividadeId} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        disabled={pend}
+        className="h-7 px-2 text-xs"
+        title={avaliadoEm ? `Última: ${avaliadoEm}` : "Nunca revalidada"}
+      >
+        {pend ? <Loader2 className="size-3.5 animate-spin" /> : "Revalidar"}
+      </Button>
+    </form>
+  )
+}
+
+// ── Ferramentas ──────────────────────────────────────────────────────────────
+
+export function SecaoFerramentas({
+  atividadeId,
+  ferramentas,
+}: {
+  atividadeId: string
+  ferramentas: { id: string; nome: string; tipo: string | null }[]
+}) {
+  const [estado, action, pend] = useActionState(adicionarFerramenta, {})
+  return (
+    <div className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {ferramentas.length > 0 && (
+        <ul className="divide-y rounded-lg border">
+          {ferramentas.map((f) => (
+            <li key={f.id} className="flex items-center gap-2 px-3 py-2">
+              <span className="flex-1 text-sm">
+                {f.nome}
+                {f.tipo && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {ROTULO_TIPO_FERRAMENTA[f.tipo] ?? f.tipo}
+                  </span>
+                )}
+              </span>
+              <BotaoExcluir
+                action={excluirFerramenta}
+                hidden={{ id: f.id, atividade_id: atividadeId }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <form action={action} className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <Input name="nome" placeholder="Ferramenta/equipamento" required className="flex-1" />
+        <select name="tipo" defaultValue="" className={SELECT_CLS}>
+          <option value="">Tipo…</option>
+          {TIPOS_FERRAMENTA.map((t) => (
+            <option key={t.valor} value={t.valor}>
+              {t.rotulo}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="secondary" disabled={pend}>
+          {pend && <Loader2 className="animate-spin" />}
+          Adicionar
+        </Button>
+      </form>
+    </div>
+  )
+}
+
+// ── Perigos ──────────────────────────────────────────────────────────────────
+
+type Perigo = {
+  id: string
+  descricao: string
+  fonte: string | null
+  severidade: number | null
+  norma: string | null
+}
+
+export function SecaoPerigos({
+  atividadeId,
+  perigos,
+}: {
+  atividadeId: string
+  perigos: Perigo[]
+}) {
+  const [estado, action, pend] = useActionState(adicionarPerigo, {})
+  return (
+    <div className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {perigos.length > 0 && (
+        <ul className="divide-y rounded-lg border">
+          {perigos.map((p) => (
+            <li key={p.id} className="flex items-start gap-2 px-3 py-2">
+              <span className="flex-1 text-sm">
+                {p.descricao}
+                <span className="text-muted-foreground text-xs">
+                  {p.fonte ? ` · fonte: ${p.fonte}` : ""}
+                  {p.norma ? ` · ${p.norma}` : ""}
+                  {p.severidade ? ` · severidade ${p.severidade}` : ""}
+                </span>
+              </span>
+              <BotaoExcluir
+                action={excluirPerigo}
+                hidden={{ id: p.id, atividade_id: atividadeId }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <form action={action} className="grid gap-2">
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <Input name="descricao" placeholder="Perigo (ex.: contato com parte móvel)" required />
+        <div className="flex flex-wrap items-end gap-2">
+          <Input name="fonte" placeholder="Fonte/agente" className="flex-1" />
+          <Input name="norma" placeholder="NR (ex.: NR-12)" className="w-32" />
+          <select name="severidade" defaultValue="" className={SELECT_CLS}>
+            <option value="">Severidade…</option>
+            {SEVERIDADES.map((s) => (
+              <option key={s.valor} value={s.valor}>
+                {s.rotulo}
+              </option>
+            ))}
+          </select>
+          <Button type="submit" variant="secondary" disabled={pend}>
+            {pend && <Loader2 className="animate-spin" />}
+            Adicionar
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── Riscos ───────────────────────────────────────────────────────────────────
+
+type Risco = {
+  id: string
+  perigo_id: string | null
+  categoria: string | null
+  probabilidade: number | null
+  severidade: number | null
+  probabilidade_residual: number | null
+  severidade_residual: number | null
+  observacao: string | null
+}
+
+export function SecaoRiscos({
+  atividadeId,
+  riscos,
+  perigos,
+}: {
+  atividadeId: string
+  riscos: Risco[]
+  perigos: Perigo[]
+}) {
+  const [estado, action, pend] = useActionState(adicionarRisco, {})
+  return (
+    <div className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {riscos.length > 0 && (
+        <ul className="divide-y rounded-lg border">
+          {riscos.map((r) => {
+            const nv = nivelRisco(r.probabilidade, r.severidade)
+            const nvR = nivelRisco(
+              r.probabilidade_residual,
+              r.severidade_residual
+            )
+            return (
+              <li key={r.id} className="flex items-start gap-2 px-3 py-2">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  {r.categoria && (
+                    <Badge cor={COR_CATEGORIA[r.categoria] ?? "#64748b"}>
+                      {ROTULO_CATEGORIA[r.categoria] ?? r.categoria}
+                    </Badge>
+                  )}
+                  {nv && <Badge cor={nv.cor}>Risco: {nv.rotulo} ({nv.valor})</Badge>}
+                  {nvR && (
+                    <Badge cor={nvR.cor}>
+                      Residual: {nvR.rotulo} ({nvR.valor})
+                    </Badge>
+                  )}
+                  {r.observacao && (
+                    <span className="text-muted-foreground text-xs">
+                      {r.observacao}
+                    </span>
+                  )}
+                </div>
+                <BotaoExcluir
+                  action={excluirRisco}
+                  hidden={{ id: r.id, atividade_id: atividadeId }}
+                />
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <form action={action} className="grid gap-2 rounded-lg border p-3">
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid gap-1">
+            <span className="text-muted-foreground text-xs">Categoria *</span>
+            <select name="categoria" required defaultValue="" className={SELECT_CLS}>
+              <option value="" disabled>
+                Categoria…
+              </option>
+              {CATEGORIAS_RISCO.map((c) => (
+                <option key={c.valor} value={c.valor}>
+                  {c.rotulo}
+                </option>
+              ))}
+            </select>
+          </div>
+          {perigos.length > 0 && (
+            <div className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Perigo</span>
+              <select name="perigo_id" defaultValue="" className={SELECT_CLS}>
+                <option value="">— nenhum —</option>
+                {perigos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.descricao.slice(0, 40)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <fieldset className="rounded-md border p-2">
+            <legend className="text-muted-foreground px-1 text-xs">
+              Risco bruto
+            </legend>
+            <div className="flex gap-2">
+              <select name="probabilidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                <option value="">Probabilidade…</option>
+                {PROBABILIDADES.map((p) => (
+                  <option key={p.valor} value={p.valor}>
+                    {p.rotulo}
+                  </option>
+                ))}
+              </select>
+              <select name="severidade" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                <option value="">Severidade…</option>
+                {SEVERIDADES.map((s) => (
+                  <option key={s.valor} value={s.valor}>
+                    {s.rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </fieldset>
+          <fieldset className="rounded-md border p-2">
+            <legend className="text-muted-foreground px-1 text-xs">
+              Risco residual (após treinamento + EPI)
+            </legend>
+            <div className="flex gap-2">
+              <select name="probabilidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                <option value="">Probabilidade…</option>
+                {PROBABILIDADES.map((p) => (
+                  <option key={p.valor} value={p.valor}>
+                    {p.rotulo}
+                  </option>
+                ))}
+              </select>
+              <select name="severidade_residual" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+                <option value="">Severidade…</option>
+                {SEVERIDADES.map((s) => (
+                  <option key={s.valor} value={s.valor}>
+                    {s.rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </fieldset>
+        </div>
+        <div className="flex items-end gap-2">
+          <Input name="observacao" placeholder="Observação (opcional)" className="flex-1" />
+          <Button type="submit" variant="secondary" disabled={pend}>
+            {pend && <Loader2 className="animate-spin" />}
+            Adicionar risco
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── Medidas (treinamento/EPI) ────────────────────────────────────────────────
+
+type Medida = {
+  id: string
+  tipo: string
+  descricao: string
+  treinamento_id: string | null
+  recorrencia_meses: number | null
+  epi_ca: string | null
+}
+
+export function SecaoMedidas({
+  atividadeId,
+  medidas,
+  treinamentos,
+}: {
+  atividadeId: string
+  medidas: Medida[]
+  treinamentos: { id: string; nome: string | null }[]
+}) {
+  const [estado, action, pend] = useActionState(adicionarMedida, {})
+  const treinos = medidas.filter((m) => m.tipo === "treinamento")
+  const epis = medidas.filter((m) => m.tipo === "epi")
+
+  return (
+    <div className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-xs font-medium">Treinamentos necessários</p>
+          {treinos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum.</p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {treinos.map((m) => (
+                <li key={m.id} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm">
+                    {m.descricao}
+                    {m.recorrencia_meses && (
+                      <span className="text-muted-foreground text-xs">
+                        {" "}
+                        · a cada {m.recorrencia_meses} meses
+                      </span>
+                    )}
+                    {m.treinamento_id && (
+                      <span className="text-muted-foreground text-xs">
+                        {" "}
+                        · no catálogo
+                      </span>
+                    )}
+                  </span>
+                  <BotaoExcluir
+                    action={excluirMedida}
+                    hidden={{ id: m.id, atividade_id: atividadeId }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium">EPIs</p>
+          {epis.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum.</p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {epis.map((m) => (
+                <li key={m.id} className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-sm">
+                    {m.descricao}
+                    {m.epi_ca && (
+                      <span className="text-muted-foreground text-xs">
+                        {" "}
+                        · CA {m.epi_ca}
+                      </span>
+                    )}
+                  </span>
+                  <BotaoExcluir
+                    action={excluirMedida}
+                    hidden={{ id: m.id, atividade_id: atividadeId }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <form action={action} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <div className="grid gap-1 sm:col-span-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <select name="tipo" required defaultValue="treinamento" className={SELECT_CLS}>
+              <option value="treinamento">Treinamento</option>
+              <option value="epi">EPI</option>
+            </select>
+            <Input name="descricao" placeholder="Descrição da medida" required className="flex-1" />
+          </div>
+        </div>
+        <div className="flex items-end gap-2">
+          <select name="treinamento_id" defaultValue="" className={`${SELECT_CLS} flex-1`}>
+            <option value="">Vincular ao catálogo (treinamento)…</option>
+            {treinamentos.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nome ?? "(sem nome)"}
+              </option>
+            ))}
+          </select>
+          <Input
+            name="recorrencia_meses"
+            inputMode="numeric"
+            placeholder="Recorr. (meses)"
+            className="w-32"
+          />
+        </div>
+        <div className="flex items-end gap-2">
+          <Input name="epi_ca" placeholder="CA do EPI (se EPI)" className="flex-1" />
+          <Button type="submit" variant="secondary" disabled={pend}>
+            {pend && <Loader2 className="animate-spin" />}
+            Adicionar
+          </Button>
+        </div>
+      </form>
+      <p className="text-muted-foreground text-xs">
+        Vincule o treinamento ao catálogo para ele entrar na matriz de
+        treinamento por funcionário.
+      </p>
+    </div>
+  )
+}
+
+// ── IA e avaliação da tarefa ─────────────────────────────────────────────────
+
+export function BotaoAnalisarIA({ atividadeId }: { atividadeId: string }) {
+  const [estado, action, pend] = useActionState(analisarTarefaComIA, {})
+  return (
+    <div className="grid gap-2">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <form action={action}>
+        <input type="hidden" name="atividade_id" value={atividadeId} />
+        <Button type="submit" variant="outline" disabled={pend}>
+          {pend ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
+          Analisar riscos com IA
+        </Button>
+      </form>
+    </div>
+  )
+}
+
+export function BotaoAvaliarTarefa({
+  atividadeId,
+  avaliadaEm,
+}: {
+  atividadeId: string
+  avaliadaEm: string | null
+}) {
+  const [estado, action, pend] = useActionState(marcarTarefaAvaliada, {})
+  return (
+    <div className="grid gap-2">
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <form action={action} className="flex items-center gap-2">
+        <input type="hidden" name="id" value={atividadeId} />
+        <Button type="submit" variant="secondary" size="sm" disabled={pend}>
+          {pend ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <CheckCircle2 className="size-4" />
+          )}
+          Registrar avaliação nesta data
+        </Button>
+        <span className="text-muted-foreground text-xs">
+          {avaliadaEm ? `Última avaliação: ${avaliadaEm}` : "Nunca avaliada"}
+        </span>
+      </form>
+    </div>
+  )
+}

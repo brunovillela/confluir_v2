@@ -106,6 +106,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "pessoal_faltas_justificadas_periodo",
   "pessoal_ferias",
   "pessoal_ferias_gozo",
+  "pessoal_funcoes",
+  "pessoal_funcionario_funcao",
   "pessoal_informes_rendimentos",
   "pessoal_informes_rendimentos_remessas",
   "pessoal_nivel_salarial",

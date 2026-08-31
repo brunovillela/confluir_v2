@@ -106,6 +106,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Atribuições e SST",
+    href: "/painel/pessoal/atribuicoes",
+    icone: "BriefcaseBusiness",
+    descricao:
+      "Tarefas, perigos e riscos ocupacionais, matriz de treinamento e revalidação",
+    chave: "pessoal_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Férias",
     href: "/painel/pessoal/ferias",
     icone: "BriefcaseBusiness",
