@@ -44,6 +44,38 @@ Contratos podem ser organizados por **categoria**. Uma categoria marcada como
 
 <Print src="compras/contrato.png" alt="Detalhe de um contrato com vigência, aditivos, geração de ordens e o resumo Previsto/Pago/Em aberto." legenda="Detalhe do contrato com o resumo financeiro das ordens." />
 
+## RPA — Recibo de Pagamento a Autônomo
+
+No topo da lista de contratos, o botão **RPA** abre a emissão de recibos para
+prestadores **autônomos** (pessoa física do cadastro de fornecedores). O RPA em
+PDF é baixado, **assinado pelo prestador** e arquivado — vale como comprovante
+fiscal do serviço prestado.
+
+<PassoAPasso>
+  <Passo titulo="Escolha a base do valor">
+    Parta do valor <strong>bruto</strong> (o sistema calcula INSS, IRRF e ISS e
+    chega ao líquido) ou do valor <strong>líquido</strong> combinado com o
+    prestador — a <strong>conta inversa</strong> descobre o bruto necessário.
+    A prévia atualiza enquanto você digita.
+  </Passo>
+  <Passo titulo="Ajuste as retenções do recibo">
+    Cada retenção pode ser desligada no próprio RPA (ex.: prestador que
+    recolhe o ISS por conta própria), e a alíquota do ISS é editável por
+    recibo. Informe os dependentes para a dedução do IRRF.
+  </Passo>
+  <Passo titulo="Emita e colha a assinatura">
+    O recibo ganha um número sequencial e o PDF sai com os valores
+    discriminados (bruto, retenções, líquido) e o termo de quitação. RPAs não
+    são editáveis — para corrigir, exclua e emita outro.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Tabelas mudam todo ano">
+  O teto do INSS e a tabela progressiva do IRRF são atualizados anualmente pelo
+  governo. Em <strong>Tabelas de retenção</strong>, na área de RPA, confira com
+  a contabilidade e atualize os valores — os recibos já emitidos não mudam.
+</Aviso>
+
 <VejaTambem
   links={[
     {

@@ -127,22 +127,30 @@ export default async function ContratosPage({
               Contratos com fornecedores, aditivos e acompanhamento de vigência
             </p>
           </div>
-          {podeEditar && (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild>
-                <Link href="/painel/compras/contratos/categorias">
-                  <Tags />
-                  Categorias
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link href="/painel/compras/contratos/novo">
-                  <Plus />
-                  Novo contrato
-                </Link>
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/compras/contratos/rpa">
+                <ScrollText />
+                RPA
+              </Link>
+            </Button>
+            {podeEditar && (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/painel/compras/contratos/categorias">
+                    <Tags />
+                    Categorias
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/painel/compras/contratos/novo">
+                    <Plus />
+                    Novo contrato
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

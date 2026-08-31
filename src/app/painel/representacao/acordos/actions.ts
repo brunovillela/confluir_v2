@@ -64,6 +64,7 @@ function lerDados(fd: FormData): Omit<DadosAcordo, "documento_url"> {
       ? (situacao as SituacaoAcordo)
       : "em_negociacao",
     observacoes: ouNull(texto(fd, "observacoes")),
+    com_funcionarios_entidade: fd.get("com_funcionarios_entidade") === "on",
     fonteIds: fd.getAll("fonte").map(String).filter(Boolean),
   }
 }

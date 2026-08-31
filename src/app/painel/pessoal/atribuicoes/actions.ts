@@ -458,9 +458,16 @@ export async function salvarExecutor(
 ): Promise<EstadoForm> {
   await exigir()
   const atividadeId = txt(fd, "atividade_id")
-  const funcionarioId = txt(fd, "funcionario_id")
+  // o select único usa prefixo: "f:<usuarioId>" (funcionário) | "p:<empresaId>"
+  const executor = txt(fd, "executor")
+  let funcionarioId = txt(fd, "funcionario_id")
+  let fornecedorId = txt(fd, "fornecedor_id")
+  if (executor?.startsWith("f:")) funcionarioId = executor.slice(2)
+  if (executor?.startsWith("p:")) fornecedorId = executor.slice(2)
   if (!atividadeId) return { erro: "Tarefa inválida." }
-  if (!funcionarioId) return { erro: "Escolha o funcionário." }
+  if (!funcionarioId && !fornecedorId) {
+    return { erro: "Escolha o funcionário ou o prestador." }
+  }
   // tempo em horas/mês (decimal) → minutos
   const horas = txt(fd, "tempo_horas_mes")
   let tempoMin: number | null = null
@@ -470,21 +477,31 @@ export async function salvarExecutor(
     tempoMin = Math.round(h * 60)
   }
   const admin = await createAdminClient()
-  const { error } = await admin.from("pessoal_atividades_executores").upsert(
-    {
-      atividade_id: atividadeId,
-      funcionario_id: funcionarioId,
-      tempo_min_mes: tempoMin,
-      recorrencia: txt(fd, "recorrencia"),
-      frequencia: txt(fd, "frequencia"),
-      avaliado_em: hojeSP(),
-      emp_proprietaria_id: await tenantAtual(),
-    },
-    { onConflict: "atividade_id,funcionario_id" }
-  )
+  const base = {
+    atividade_id: atividadeId,
+    tempo_min_mes: tempoMin,
+    recorrencia: txt(fd, "recorrencia"),
+    frequencia: txt(fd, "frequencia"),
+    avaliado_em: hojeSP(),
+    emp_proprietaria_id: await tenantAtual(),
+  }
+  // funcionário OU prestador (fornecedor) — upserts com chaves distintas
+  const { error } = funcionarioId
+    ? await admin
+        .from("pessoal_atividades_executores")
+        .upsert(
+          { ...base, funcionario_id: funcionarioId },
+          { onConflict: "atividade_id,funcionario_id" }
+        )
+    : await admin
+        .from("pessoal_atividades_executores")
+        .upsert(
+          { ...base, fornecedor_id: fornecedorId },
+          { onConflict: "atividade_id,fornecedor_id" }
+        )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
-  return { ok: "Executor salvo." }
+  return { ok: funcionarioId ? "Executor salvo." : "Prestador salvo." }
 }
 
 export async function excluirExecutor(

@@ -149,6 +149,8 @@ export type AcordoDetalhe = {
   abrangencia: string | null
   situacao: SituacaoAcordo
   observacoes: string | null
+  /** Acordo do sindicato com os PRÓPRIOS funcionários → aparece no Meu Perfil. */
+  com_funcionarios_entidade: boolean
   documentoUrl: string | null
   fontes: string[]
   clausulas: Clausula[]
@@ -195,6 +197,7 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
     abrangencia: texto(a.abrangencia),
     situacao: (a.situacao ?? "em_negociacao") as SituacaoAcordo,
     observacoes: texto(a.observacoes),
+    com_funcionarios_entidade: a.com_funcionarios_entidade === true,
     documentoUrl,
     fontes: fontesRes.get(id) ?? [],
     clausulas: (clausRes.data ?? []).map((c) => ({
@@ -205,6 +208,58 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
       categoria: (c.categoria ?? "outro") as CategoriaClausula,
     })),
   }
+}
+
+export type AcordoDoPerfil = {
+  id: string
+  tipo: TipoAcordo
+  titulo: string | null
+  vigencia_inicio: string | null
+  vigencia_fim: string | null
+  data_base: string | null
+  documentoUrl: string | null
+}
+
+/**
+ * Acordos da ENTIDADE com os próprios funcionários, para a área Meu Perfil
+ * (autosserviço — sem exigir permissão de Representação). Regra do Bruno:
+ * aparecem os marcados `com_funcionarios_entidade` com situação 'vigente',
+ * MESMO com a vigência vencida (a página sinaliza); saem apenas quando
+ * classificados como não vigentes (situação 'arquivado'). Retorna [] se a
+ * coluna ainda não existe (rodar supabase/acordos-meu-perfil.sql).
+ */
+export async function acordosParaMeuPerfil(): Promise<AcordoDoPerfil[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("acordo_coletivo")
+    .select("id, tipo, titulo, vigencia_inicio, vigencia_fim, data_base, documento_url")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("situacao", "vigente")
+    .eq("com_funcionarios_entidade", true)
+    .order("vigencia_fim", { ascending: false, nullsFirst: false })
+  if (error) return []
+  const linhas = data ?? []
+  return Promise.all(
+    linhas.map(async (a) => {
+      let documentoUrl: string | null = null
+      const caminho = texto(a.documento_url)
+      if (caminho) {
+        const { data: assinado } = await admin.storage
+          .from("acordos")
+          .createSignedUrl(caminho, 3600)
+        documentoUrl = assinado?.signedUrl ?? null
+      }
+      return {
+        id: String(a.id),
+        tipo: (a.tipo ?? "act") as TipoAcordo,
+        titulo: texto(a.titulo),
+        vigencia_inicio: texto(a.vigencia_inicio),
+        vigencia_fim: texto(a.vigencia_fim),
+        data_base: texto(a.data_base),
+        documentoUrl,
+      }
+    })
+  )
 }
 
 /** Acordos vigentes com fim de vigência vencido ou nos próximos `dias` dias. */
@@ -263,6 +318,8 @@ export type DadosAcordo = {
   abrangencia: string | null
   situacao: SituacaoAcordo
   observacoes: string | null
+  /** Acordo com os funcionários da entidade → aparece no Meu Perfil. */
+  com_funcionarios_entidade: boolean
   /** Caminho já gravável (upload na action); undefined = não mexer. */
   documento_url?: string | null
   fonteIds: string[]
@@ -281,6 +338,7 @@ function payload(d: DadosAcordo): Record<string, unknown> {
       ? d.situacao
       : "em_negociacao",
     observacoes: d.observacoes,
+    com_funcionarios_entidade: d.com_funcionarios_entidade,
     updated_at: new Date().toISOString(),
   }
   if (d.documento_url !== undefined) p.documento_url = d.documento_url

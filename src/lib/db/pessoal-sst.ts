@@ -434,14 +434,38 @@ export type Medida = {
 }
 export type Executor = {
   id: string
-  funcionarioId: string
+  /** Funcionário (usuarios) OU prestador (fornecedor/empresa) — um dos dois. */
+  funcionarioId: string | null
+  fornecedorId: string | null
+  prestador: boolean
   nome: string | null
   tempo_min_mes: number | null
   recorrencia: string | null
   frequencia: string | null
   avaliado_em: string | null
-  /** Minutos/mês da jornada contratada (0 = sem jornada cadastrada). */
+  /** Minutos/mês da jornada contratada (0 = sem jornada; prestador não tem). */
   jornadaMinMes: number
+}
+
+/** Nome de exibição de fornecedores/prestadores (tabela empresa). */
+async function nomesDosFornecedores(
+  ids: string[]
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const unicos = [...new Set(ids.filter(Boolean))]
+  if (unicos.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao")
+    .in("id", unicos)
+  for (const e of data ?? []) {
+    const nome = [e.nome_fantasia, e.nome_razao].find(
+      (v): v is string => typeof v === "string" && v.trim() !== ""
+    )
+    if (nome) mapa.set(e.id as string, nome)
+  }
+  return mapa
 }
 
 export type AtividadeDetalhe = Atividade & {
@@ -491,7 +515,7 @@ export async function buscarAtividade(
     admin
       .from("pessoal_atividades_executores")
       .select(
-        "id, funcionario_id, tempo_min_mes, recorrencia, frequencia, avaliado_em"
+        "id, funcionario_id, fornecedor_id, tempo_min_mes, recorrencia, frequencia, avaliado_em"
       )
       .eq("atividade_id", id),
   ])
@@ -499,9 +523,13 @@ export async function buscarAtividade(
   const idsExec = (exec.data ?? [])
     .map((e) => e.funcionario_id)
     .filter((v): v is string => !!v)
-  const [nomes, jornadas] = await Promise.all([
+  const idsForn = (exec.data ?? [])
+    .map((e) => e.fornecedor_id)
+    .filter((v): v is string => !!v)
+  const [nomes, jornadas, nomesForn] = await Promise.all([
     nomesDosUsuarios(idsExec),
     jornadasDosFuncionarios(idsExec),
+    nomesDosFornecedores(idsForn),
   ])
 
   return {
@@ -555,19 +583,32 @@ export async function buscarAtividade(
       risco_id: m.risco_id as string | null,
     })),
     executoresLista: (exec.data ?? [])
-      .map((e) => ({
-        id: e.id as string,
-        funcionarioId: e.funcionario_id as string,
-        nome: e.funcionario_id ? (nomes.get(e.funcionario_id) ?? null) : null,
-        tempo_min_mes: e.tempo_min_mes as number | null,
-        recorrencia: e.recorrencia as string | null,
-        frequencia: e.frequencia as string | null,
-        avaliado_em: e.avaliado_em as string | null,
-        jornadaMinMes: e.funcionario_id
-          ? minutosMensaisJornada(jornadas.get(e.funcionario_id) ?? [])
-          : 0,
-      }))
-      .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR")),
+      .map((e) => {
+        const prestador = !e.funcionario_id && Boolean(e.fornecedor_id)
+        return {
+          id: e.id as string,
+          funcionarioId: (e.funcionario_id as string | null) ?? null,
+          fornecedorId: (e.fornecedor_id as string | null) ?? null,
+          prestador,
+          nome: prestador
+            ? (nomesForn.get(e.fornecedor_id as string) ?? null)
+            : e.funcionario_id
+              ? (nomes.get(e.funcionario_id) ?? null)
+              : null,
+          tempo_min_mes: e.tempo_min_mes as number | null,
+          recorrencia: e.recorrencia as string | null,
+          frequencia: e.frequencia as string | null,
+          avaliado_em: e.avaliado_em as string | null,
+          jornadaMinMes: e.funcionario_id
+            ? minutosMensaisJornada(jornadas.get(e.funcionario_id) ?? [])
+            : 0,
+        }
+      })
+      .sort(
+        (a, b) =>
+          Number(a.prestador) - Number(b.prestador) ||
+          (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR")
+      ),
   }
 }
 
@@ -1156,6 +1197,265 @@ export async function sugerirGhes(): Promise<SugestaoGhe[]> {
     })
   }
   return sugestoes.sort((a, b) => b.funcionarios.length - a.funcionarios.length)
+}
+
+// ── Documentos: Ordem de Serviço (NR-01) e Comunicado de SST ─────────────────
+
+export type TarefaDoDocumento = {
+  nome: string | null
+  descricao: string | null
+  presenca: string | null
+  recorrencia: string | null
+  frequencia: string | null
+  tempoMinMes: number | null
+  ferramentas: string[]
+  perigos: Perigo[]
+  /** Riscos avaliados para ESTE executor (com níveis calculados). */
+  riscos: Risco[]
+  treinamentos: { descricao: string; recorrencia_meses: number | null }[]
+  epis: { descricao: string; epi_ca: string | null }[]
+}
+
+export type DocumentoSst = {
+  /** "os" (funcionário) ou "comunicado" (prestador). */
+  tipo: "os" | "comunicado"
+  pessoa: {
+    nome: string | null
+    documento: string | null
+    complemento: string | null // função (funcionário) ou "Prestador de serviço"
+  }
+  tarefas: TarefaDoDocumento[]
+}
+
+async function montarDocumentoSst(
+  execRows: {
+    id: string
+    atividade_id: string | null
+    tempo_min_mes: number | null
+    recorrencia: string | null
+    frequencia: string | null
+  }[]
+): Promise<TarefaDoDocumento[]> {
+  const admin = await createAdminClient()
+  const atividadeIds = [
+    ...new Set(
+      execRows.map((e) => e.atividade_id).filter((v): v is string => !!v)
+    ),
+  ]
+  if (atividadeIds.length === 0) return []
+  const execIds = execRows.map((e) => e.id)
+
+  const [atividades, ferr, per, ris, med] = await Promise.all([
+    admin
+      .from("pessoal_atividades")
+      .select("id, nome, descricao, presenca")
+      .in("id", atividadeIds),
+    admin
+      .from("pessoal_atividades_ferramentas")
+      .select("atividade_id, nome")
+      .in("atividade_id", atividadeIds),
+    admin
+      .from("pessoal_atividades_perigos")
+      .select("id, atividade_id, descricao, fonte, severidade, norma")
+      .in("atividade_id", atividadeIds),
+    admin
+      .from("pessoal_atividades_riscos")
+      .select(
+        "id, atividade_id, executor_id, perigo_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual, observacao"
+      )
+      .in("executor_id", execIds),
+    admin
+      .from("pessoal_atividade_medidas_seguranca")
+      .select("atividade_id, tipo, descricao, recorrencia_meses, epi_ca")
+      .in("atividade_id", atividadeIds),
+  ])
+
+  const ativById = new Map((atividades.data ?? []).map((a) => [a.id as string, a]))
+  const agrupar = <T extends { atividade_id: string | null }>(linhas: T[]) => {
+    const m = new Map<string, T[]>()
+    for (const l of linhas) {
+      if (!l.atividade_id) continue
+      const arr = m.get(l.atividade_id) ?? []
+      arr.push(l)
+      m.set(l.atividade_id, arr)
+    }
+    return m
+  }
+  const ferrPor = agrupar(ferr.data ?? [])
+  const perPor = agrupar(per.data ?? [])
+  const medPor = agrupar(med.data ?? [])
+  const risPorExec = new Map<string, NonNullable<typeof ris.data>>()
+  for (const r of ris.data ?? []) {
+    if (!r.executor_id) continue
+    const arr = risPorExec.get(r.executor_id) ?? []
+    arr.push(r)
+    risPorExec.set(r.executor_id, arr)
+  }
+
+  return execRows
+    .filter((e) => e.atividade_id && ativById.has(e.atividade_id))
+    .map((e) => {
+      const a = ativById.get(e.atividade_id!)!
+      const medidas = medPor.get(e.atividade_id!) ?? []
+      return {
+        nome: a.nome as string | null,
+        descricao: a.descricao as string | null,
+        presenca: a.presenca as string | null,
+        recorrencia: e.recorrencia,
+        frequencia: e.frequencia,
+        tempoMinMes: e.tempo_min_mes,
+        ferramentas: (ferrPor.get(e.atividade_id!) ?? [])
+          .map((f) => f.nome as string | null)
+          .filter((v): v is string => !!v),
+        perigos: (perPor.get(e.atividade_id!) ?? []).map((p) => ({
+          id: p.id as string,
+          descricao: p.descricao as string,
+          fonte: p.fonte as string | null,
+          severidade: p.severidade as number | null,
+          norma: p.norma as string | null,
+        })),
+        riscos: (risPorExec.get(e.id) ?? []).map((r) => ({
+          id: r.id as string,
+          executor_id: r.executor_id as string | null,
+          perigo_id: r.perigo_id as string | null,
+          categoria: r.categoria as string | null,
+          probabilidade: r.probabilidade as number | null,
+          severidade: r.severidade as number | null,
+          probabilidade_residual: r.probabilidade_residual as number | null,
+          severidade_residual: r.severidade_residual as number | null,
+          observacao: r.observacao as string | null,
+          nivel: nivelRisco(
+            r.probabilidade as number | null,
+            r.severidade as number | null
+          ),
+          nivelResidual: nivelRisco(
+            r.probabilidade_residual as number | null,
+            r.severidade_residual as number | null
+          ),
+        })),
+        treinamentos: medidas
+          .filter((m) => m.tipo === "treinamento")
+          .map((m) => ({
+            descricao: m.descricao as string,
+            recorrencia_meses: m.recorrencia_meses as number | null,
+          })),
+        epis: medidas
+          .filter((m) => m.tipo === "epi")
+          .map((m) => ({
+            descricao: m.descricao as string,
+            epi_ca: m.epi_ca as string | null,
+          })),
+      }
+    })
+    .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR"))
+}
+
+/** Ordem de Serviço (NR-01) de um FUNCIONÁRIO: suas tarefas e a árvore SST. */
+export async function dadosOrdemServico(
+  funcionarioId: string
+): Promise<DocumentoSst | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: exec }, nomes, funcoesMap] = await Promise.all([
+    admin
+      .from("pessoal_atividades_executores")
+      .select("id, atividade_id, tempo_min_mes, recorrencia, frequencia")
+      .eq("emp_proprietaria_id", emp)
+      .eq("funcionario_id", funcionarioId),
+    nomesDosUsuarios([funcionarioId]),
+    funcoesDosFuncionarios(),
+  ])
+  if (!exec || exec.length === 0) return null
+  let cpf: string | null = null
+  const { data: u } = await admin
+    .from("usuarios")
+    .select("cpf")
+    .eq("id", funcionarioId)
+    .maybeSingle()
+  if (u && typeof u.cpf === "string" && u.cpf.trim() !== "") cpf = u.cpf
+  return {
+    tipo: "os",
+    pessoa: {
+      nome: nomes.get(funcionarioId) ?? null,
+      documento: cpf,
+      complemento: funcoesMap.get(funcionarioId)?.nome ?? null,
+    },
+    tarefas: await montarDocumentoSst(exec),
+  }
+}
+
+/** Comunicado de SST de um PRESTADOR (fornecedor): tarefas contratadas. */
+export async function dadosComunicadoSst(
+  fornecedorId: string
+): Promise<DocumentoSst | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: exec }, { data: f }] = await Promise.all([
+    admin
+      .from("pessoal_atividades_executores")
+      .select("id, atividade_id, tempo_min_mes, recorrencia, frequencia")
+      .eq("emp_proprietaria_id", emp)
+      .eq("fornecedor_id", fornecedorId),
+    admin
+      .from("empresa")
+      .select("nome_fantasia, nome_razao, cnpj_cpf")
+      .eq("id", fornecedorId)
+      .maybeSingle(),
+  ])
+  if (!exec || exec.length === 0) return null
+  return {
+    tipo: "comunicado",
+    pessoa: {
+      nome:
+        [f?.nome_fantasia, f?.nome_razao].find(
+          (v): v is string => typeof v === "string" && v.trim() !== ""
+        ) ?? null,
+      documento: (f?.cnpj_cpf as string | null) ?? null,
+      complemento: "Prestador de serviço",
+    },
+    tarefas: await montarDocumentoSst(exec),
+  }
+}
+
+/** Executores agrupados p/ a página de documentos (OS × Comunicado). */
+export type PessoaComTarefas = {
+  id: string
+  nome: string | null
+  tarefas: number
+}
+
+export async function executoresParaDocumentos(): Promise<{
+  funcionarios: PessoaComTarefas[]
+  prestadores: PessoaComTarefas[]
+}> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data } = await admin
+    .from("pessoal_atividades_executores")
+    .select("funcionario_id, fornecedor_id")
+    .eq("emp_proprietaria_id", emp)
+  const contar = (chave: "funcionario_id" | "fornecedor_id") => {
+    const m = new Map<string, number>()
+    for (const e of data ?? []) {
+      const v = e[chave] as string | null
+      if (v) m.set(v, (m.get(v) ?? 0) + 1)
+    }
+    return m
+  }
+  const porFunc = contar("funcionario_id")
+  const porForn = contar("fornecedor_id")
+  const [nomesF, nomesP] = await Promise.all([
+    nomesDosUsuarios([...porFunc.keys()]),
+    nomesDosFornecedores([...porForn.keys()]),
+  ])
+  const ordenar = (m: Map<string, number>, nomes: Map<string, string>) =>
+    [...m.entries()]
+      .map(([id, tarefas]) => ({ id, nome: nomes.get(id) ?? null, tarefas }))
+      .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR"))
+  return {
+    funcionarios: ordenar(porFunc, nomesF),
+    prestadores: ordenar(porForn, nomesP),
+  }
 }
 
 // ── Resumo para alertas do painel ────────────────────────────────────────────

@@ -173,6 +173,24 @@ export function AcordoForm({
         </div>
       </fieldset>
 
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="com_funcionarios_entidade"
+          defaultChecked={acordo?.com_funcionarios_entidade ?? false}
+          className="mt-0.5 size-4"
+        />
+        <span>
+          Acordo com os <strong>funcionários da entidade</strong> (o sindicato
+          como empregador)
+          <span className="text-muted-foreground block text-xs">
+            Acordos marcados aparecem na área Meu Perfil dos funcionários —
+            inclusive vencidos, enquanto a situação for &quot;Vigente&quot;.
+            Arquivar tira do Meu Perfil.
+          </span>
+        </span>
+      </label>
+
       <div className="grid gap-1.5">
         <Label htmlFor="observacoes">Observações</Label>
         <Textarea

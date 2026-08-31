@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   ClipboardList,
+  FileText,
   GraduationCap,
   ListChecks,
   ShieldAlert,
@@ -139,6 +140,14 @@ export default async function AtribuicoesPage() {
       descricao:
         "Presença física, tempo por tarefa, ocupação da jornada, perigos e riscos — e revalidação anual",
       icone: ClipboardList,
+    },
+    {
+      href: "/painel/pessoal/atribuicoes/documentos",
+      titulo: "Documentos SST",
+      indicador: "OS e Comunicados",
+      descricao:
+        "Ordem de Serviço (NR-01) por funcionário e Comunicado de SST por prestador — PDFs para assinar",
+      icone: FileText,
     },
   ]
 

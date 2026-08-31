@@ -91,7 +91,9 @@ function Badge({ cor, children }: { cor: string; children: React.ReactNode }) {
 
 type Executor = {
   id: string
-  funcionarioId: string
+  funcionarioId: string | null
+  fornecedorId: string | null
+  prestador: boolean
   nome: string | null
   tempo_min_mes: number | null
   recorrencia: string | null
@@ -109,11 +111,13 @@ export function SecaoExecutores({
   atividadeId,
   executores,
   opcoes,
+  fornecedores,
   limiar,
 }: {
   atividadeId: string
   executores: Executor[]
   opcoes: { usuarioId: string; nome: string | null }[]
+  fornecedores: { id: string; nome: string }[]
   limiar: string
 }) {
   const [estado, action, pend] = useActionState(salvarExecutor, {})
@@ -132,7 +136,8 @@ export function SecaoExecutores({
       )}
       {executores.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Nenhum funcionário executa esta tarefa ainda.
+          Ninguém executa esta tarefa ainda — vincule funcionários ou
+          prestadores de serviço.
         </p>
       ) : (
         <ul className="divide-y rounded-lg border">
@@ -140,7 +145,14 @@ export function SecaoExecutores({
             const pct = pctJornada(e)
             return (
               <li key={e.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <span className="flex-1 text-sm">{e.nome ?? "(sem nome)"}</span>
+                <span className="flex-1 text-sm">
+                  {e.nome ?? "(sem nome)"}
+                  {e.prestador && (
+                    <span className="bg-muted text-muted-foreground ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium">
+                      prestador
+                    </span>
+                  )}
+                </span>
                 <span className="text-muted-foreground text-xs">
                   {e.recorrencia ? ROTULO_RECORRENCIA[e.recorrencia] : "recorrência —"}
                   {e.frequencia ? ` · ${ROTULO_FREQUENCIA[e.frequencia]}` : ""}
@@ -172,15 +184,26 @@ export function SecaoExecutores({
       <form action={action} className="grid gap-2 rounded-lg border p-3">
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <div className="flex flex-wrap items-end gap-2">
-          <select name="funcionario_id" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
+          <select name="executor" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
             <option value="" disabled>
-              Funcionário…
+              Funcionário ou prestador…
             </option>
-            {opcoes.map((o) => (
-              <option key={o.usuarioId} value={o.usuarioId}>
-                {o.nome ?? "(sem nome)"}
-              </option>
-            ))}
+            <optgroup label="Funcionários">
+              {opcoes.map((o) => (
+                <option key={o.usuarioId} value={`f:${o.usuarioId}`}>
+                  {o.nome ?? "(sem nome)"}
+                </option>
+              ))}
+            </optgroup>
+            {fornecedores.length > 0 && (
+              <optgroup label="Prestadores de serviço (fornecedores)">
+                {fornecedores.map((f) => (
+                  <option key={f.id} value={`p:${f.id}`}>
+                    {f.nome}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <Input
             name="tempo_horas_mes"
@@ -503,6 +526,11 @@ export function SecaoRiscos({
               <span className="text-sm font-medium">
                 {e.nome ?? "(sem nome)"}
               </span>
+              {e.prestador && (
+                <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  prestador
+                </span>
+              )}
               <span className="text-muted-foreground text-xs">
                 exposição: {formatarTempoMes(e.tempo_min_mes)}/mês
                 {pct !== null && ` (${pct}% da jornada)`}
@@ -563,6 +591,7 @@ export function SecaoRiscos({
                 {executores.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.nome ?? "(sem nome)"}
+                    {e.prestador ? " (prestador)" : ""}
                   </option>
                 ))}
               </select>

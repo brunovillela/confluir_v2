@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { listarFornecedores } from "@/lib/db/compras"
 import { listarFuncionarios } from "@/lib/db/pessoal"
 import { buscarAtividade, obterLimiarRotina } from "@/lib/db/pessoal-sst"
 import { listarTreinamentos } from "@/lib/db/treinamentos"
@@ -45,16 +46,20 @@ export default async function TarefaPage({
   const tarefa = await buscarAtividade(id)
   if (!tarefa) notFound()
 
-  const [funcionarios, treinamentos, limiar] = await Promise.all([
+  const [funcionarios, treinamentos, limiar, fornecedores] = await Promise.all([
     listarFuncionarios({ situacao: "ativos" }),
     listarTreinamentos(),
     obterLimiarRotina(),
+    listarFornecedores(),
   ])
 
   const opcoes = funcionarios.linhas.map((l) => ({
     usuarioId: l.usuarioId,
     nome: l.nome,
   }))
+  const opcoesFornecedores = fornecedores
+    .filter((f) => !f.bloqueado)
+    .map((f) => ({ id: f.id, nome: f.nome }))
 
   return (
     <>
@@ -100,9 +105,10 @@ export default async function TarefaPage({
             Executores — tempo e recorrência por pessoa
           </CardTitle>
           <CardDescription>
-            Quem executa a tarefa, o tempo médio gasto por mês e a recorrência
-            de cada um (a mesma tarefa pode ser rotineira para um e eventual
-            para outro). Também é a base da revalidação anual por pessoa.
+            Quem executa a tarefa — funcionário OU prestador de serviço
+            (fornecedor) — com o tempo médio/mês e a recorrência de cada um.
+            Funcionários entram na Ordem de Serviço (NR-01); prestadores, no
+            Comunicado de SST.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -110,6 +116,7 @@ export default async function TarefaPage({
             atividadeId={id}
             executores={tarefa.executoresLista}
             opcoes={opcoes}
+            fornecedores={opcoesFornecedores}
             limiar={limiar}
           />
         </CardContent>
