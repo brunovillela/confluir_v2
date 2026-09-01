@@ -41,7 +41,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Sem plugins remark/rehype para manter compatibilidade com o Turbopack.
-const withMDX = createMDX({});
+// remark-gfm habilita TABELAS (e strikethrough/listas de tarefas) nos artigos
+// do manual — sem ele o markdown de tabela sai como texto cru. Com Turbopack,
+// o plugin precisa vir como STRING (serializável), não como função importada.
+const withMDX = createMDX({
+  options: { remarkPlugins: [["remark-gfm", {}]] },
+});
 
 export default withMDX(nextConfig);

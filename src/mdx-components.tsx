@@ -46,6 +46,24 @@ const components: MDXComponents = {
       {...props}
     />
   ),
+  // Tabelas (GFM, habilitado por remark-gfm no next.config). O wrapper rola
+  // na horizontal para a tabela não estourar a leitura no celular.
+  table: (props) => (
+    <div className="my-4 overflow-x-auto rounded-lg border">
+      <table className="w-full border-collapse text-sm" {...props} />
+    </div>
+  ),
+  thead: (props) => <thead className="bg-muted/50" {...props} />,
+  tr: (props) => <tr className="border-b last:border-0" {...props} />,
+  th: (props) => (
+    <th
+      className="px-3 py-2 text-left align-top font-semibold"
+      {...props}
+    />
+  ),
+  td: (props) => (
+    <td className="px-3 py-2 align-top leading-relaxed" {...props} />
+  ),
   a: ({ href = "", ...props }: React.ComponentProps<"a">) => {
     const interno = href.startsWith("/") || href.startsWith("#")
     return interno ? (
