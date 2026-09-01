@@ -440,3 +440,22 @@
     }
   }
 }
+
+/* Barra de progresso da navegação (components/layout/progresso-navegacao).
+   Avança rápido no começo e desacelera perto do fim — nunca chega a 100%
+   sozinha: quem "completa" é o desmonte do componente, quando a página nova
+   entra. Respeita prefers-reduced-motion pela regra global acima. */
+@keyframes progresso-navegacao {
+  0% {
+    transform: scaleX(0.03);
+  }
+  30% {
+    transform: scaleX(0.45);
+  }
+  60% {
+    transform: scaleX(0.7);
+  }
+  100% {
+    transform: scaleX(0.92);
+  }
+}

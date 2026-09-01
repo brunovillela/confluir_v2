@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { Geist_Mono, Poppins } from "next/font/google"
 
+import { ProgressoNavegacao } from "@/components/layout/progresso-navegacao"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -40,6 +42,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          {/* Suspense: o indicador lê searchParams (client) e sem o
+              limite o Next exigiria render dinâmico em toda a árvore. */}
+          <Suspense fallback={null}>
+            <ProgressoNavegacao />
+          </Suspense>
           {children}
           <Toaster richColors />
         </ThemeProvider>

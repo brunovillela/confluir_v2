@@ -8,7 +8,7 @@ import {
   PERMISSOES_USUARIO_FK,
   podeAcessarModulo,
 } from "@/lib/permissoes"
-import { resolverPermissoes } from "@/lib/permissoes-resolver"
+import { resolverPermissoesComPerfis } from "@/lib/permissoes-resolver"
 import { subdominioDoHost } from "@/lib/tenant-host"
 
 /**
@@ -24,6 +24,24 @@ import { subdominioDoHost } from "@/lib/tenant-host"
  * RLS está habilitado com deny-all para anon/authenticated, então as
  * consultas a `usuarios`/`permissoes` usam o service role (server-side).
  */
+/** Cache em memória do slug→tenant (por instância; TTL curto). */
+type TenantCache = { empresa_id: string; status: string | null } | null
+const TENANT_TTL_MS = 60_000
+const cacheTenants = new Map<string, { valor: TenantCache; ate: number }>()
+
+function tenantDoCache(slug: string): TenantCache {
+  const item = cacheTenants.get(slug)
+  if (!item || item.ate < Date.now()) {
+    cacheTenants.delete(slug)
+    return null
+  }
+  return item.valor
+}
+
+function guardarTenantNoCache(slug: string, valor: TenantCache): void {
+  cacheTenants.set(slug, { valor, ate: Date.now() + TENANT_TTL_MS })
+}
+
 export async function proxy(request: NextRequest) {
   // ── Landing pública no apex da plataforma ─────────────────────────────
   // `confluir.online` e `www.confluir.online` (sem subdomínio de tenant)
@@ -59,11 +77,19 @@ export async function proxy(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
-    const { data: tenant } = await admin
-      .from("tenants")
-      .select("empresa_id, status")
-      .eq("slug", sub)
-      .maybeSingle()
+    // Cache curto do slug→tenant: esta consulta rodava em TODA navegação, e o
+    // dado quase nunca muda. O TTL baixo mantém suspensão/criação de tenant
+    // valendo em segundos, sem pagar uma viagem ao banco por request.
+    let tenant = tenantDoCache(sub)
+    if (!tenant) {
+      const { data } = await admin
+        .from("tenants")
+        .select("empresa_id, status")
+        .eq("slug", sub)
+        .maybeSingle()
+      tenant = data ?? null
+      guardarTenantNoCache(sub, tenant)
+    }
 
     if (!tenant) {
       const url = request.nextUrl.clone()
@@ -152,9 +178,14 @@ export async function proxy(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
+    // UMA consulta com tudo embutido: usuário + overrides (`permissoes`) +
+    // perfis com suas chaves. Antes eram três viagens ao banco EM SÉRIE, em
+    // toda navegação do painel — o maior custo fixo de cada request.
     const { data: usuario } = await admin
       .from("usuarios")
-      .select("id, inativo, deletado")
+      .select(
+        `id, inativo, deletado, permissoes(*), usuario_perfis(perfis(ativo, concede_tudo, alcada_aprovacao, perfil_permissoes(chave)))`
+      )
       .eq("auth_user_id", user.id)
       .eq("emp_proprietaria_id", tenantId)
       .maybeSingle()
@@ -166,21 +197,20 @@ export async function proxy(request: NextRequest) {
 
     // `usuarios` veio da tabela única de contas do Bubble (11,5k pessoas).
     // Quem define funcionário do sistema é o registro em `permissoes`.
-    const { data: permissoes } = await admin
-      .from("permissoes")
-      .select("*")
-      .eq(PERMISSOES_USUARIO_FK, usuario.id)
-      .maybeSingle()
+    const bruto = usuario.permissoes as unknown
+    const permissoes = (Array.isArray(bruto) ? bruto[0] : bruto) as
+      | Record<string, unknown>
+      | null
 
     if (!permissoes) {
       return redirecionar("/login", { erro: "sem_vinculo" })
     }
 
-    // Permissões efetivas = overrides (linha `permissoes`) ∪ chaves dos perfis.
-    const permissoesEfetivas = await resolverPermissoes(
-      admin,
-      usuario.id,
-      permissoes
+    // Permissões efetivas = overrides (linha `permissoes`) ∪ chaves dos perfis
+    // — compostas a partir do que já veio embutido, sem nova ida ao banco.
+    const permissoesEfetivas = resolverPermissoesComPerfis(
+      (usuario.usuario_perfis as unknown[]) ?? [],
+      permissoes as Parameters<typeof resolverPermissoesComPerfis>[1]
     )
 
     const modulo = moduloDaRota(pathname)

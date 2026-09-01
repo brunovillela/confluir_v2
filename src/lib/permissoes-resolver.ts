@@ -60,6 +60,23 @@ export async function resolverPermissoes(
     }
     return base
   }
+  return aplicarPerfis(data ?? [], base)
+}
+
+/**
+ * Mesma composição, a partir dos vínculos JÁ CARREGADOS — para quem trouxe
+ * `usuario_perfis` embutido na consulta do usuário e não quer uma segunda
+ * viagem ao banco (é o caso do proxy, que roda em toda navegação).
+ */
+export function resolverPermissoesComPerfis(
+  vinculos: unknown[],
+  base: Permissoes
+): Permissoes {
+  return aplicarPerfis(vinculos, base)
+}
+
+function aplicarPerfis(vinculos: unknown[], base: Permissoes): Permissoes {
+  const data = vinculos
   if (!data || data.length === 0) return base
 
   const efetiva: Permissoes = { ...base }
