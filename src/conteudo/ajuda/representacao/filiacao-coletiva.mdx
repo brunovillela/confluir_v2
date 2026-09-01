@@ -53,6 +53,57 @@ feita em cascata, da chave mais forte para a mais fraca:
   decisão nesses casos é sempre sua — o sistema apenas sugere os candidatos.
 </Aviso>
 
+## Resolvendo as dúvidas
+
+Cada dúvida tem três saídas, e a diferença entre elas importa:
+
+| Opção | O que faz | Quando usar |
+| --- | --- | --- |
+| **Ignorar** | Não filia essa pessoa agora. Ela fica registrada no processo como “Ignorado” | Quando você não tem como confirmar quem é. Nada se perde: dá para filiar depois, pelo cadastro normal |
+| **Criar cadastro novo** | Cria uma ficha nova, mesmo havendo alguém parecido | Quando você tem certeza de que é outra pessoa (xará) |
+| **É fulano…** | Usa o cadastro que você escolher, alterando a condição dele | Quando você reconhece a pessoa — confira o CPF e a condição mostrados na opção |
+
+<Aviso tipo="atencao" titulo="Criar cadastro novo pode gerar duplicidade">
+  Se a pessoa já existir no cadastro e você mandar criar um novo, ela passa a
+  ter duas fichas. Na dúvida entre “criar” e “ignorar”, prefira **ignorar** —
+  é a opção que não suja o cadastro.
+</Aviso>
+
+### Aplicar a mesma decisão a todas
+
+Quando a lista vem sem CPF, é comum aparecerem **centenas de dúvidas** —
+resolver uma a uma seria inviável. Por isso há o painel **“Aplicar a mesma
+decisão a todas”**, no topo da lista, com três opções:
+
+<PassoAPasso>
+  <Passo titulo="Ignorar todas">
+    Marca todas como “não filiar agora”. É o padrão e a escolha mais segura:
+    você aplica o processo só para quem casou automaticamente (CPF, matrícula
+    ou e-mail) e trata as dúvidas depois, com calma.
+  </Passo>
+  <Passo titulo="Criar cadastro novo para todas">
+    Cria uma ficha nova para cada dúvida. <strong>Use com cuidado</strong> —
+    se alguns já existirem no cadastro, você fica com fichas duplicadas.
+  </Passo>
+  <Passo titulo="Casar com o cadastro sugerido (só onde há 1 candidato)">
+    Aceita a sugestão do sistema, mas <strong>apenas</strong> nas dúvidas em
+    que existe um único candidato. As que têm dois ou mais homônimos são
+    deixadas como estavam, e o sistema avisa quantas ficaram de fora para você
+    resolver à mão. O número entre parênteses na opção mostra quantas serão
+    afetadas.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="É só uma pré-seleção">
+  O botão apenas preenche as escolhas da lista — <strong>nada é gravado</strong>.
+  Você continua podendo mudar caso a caso, e só o “Aplicar processo” (com a
+  palavra APLICAR digitada) grava de fato.
+</Aviso>
+
+Um caminho prático para listas grandes: use **Ignorar todas**, aplique o
+processo e depois peça à empresa a planilha com CPF ou matrícula. Com a lista
+completa, a maioria dos casos passa a casar sozinha.
+
 ## O prazo e a virada automática
 
 Quem entra fica em “Em processo de filiação coletiva” durante o prazo. Vencido
@@ -85,7 +136,15 @@ anterior. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
   cadastro da rodada, ou aquela rodada já tem um processo vinculado.
 - **“Muita gente caiu em dúvida.”** É sinal de que a lista de aptos veio sem
   CPF e sem matrícula. Complete a planilha com uma dessas colunas e importe de
-  novo — o casamento fica automático.
+  novo — o casamento fica automático. Enquanto isso, use **Ignorar todas** para
+  aplicar o processo só a quem casou com segurança.
+- **“Usei o ‘aplicar a todas’ e algumas continuaram em Ignorar.”** É o
+  comportamento correto da opção “casar com o cadastro sugerido”: ela pula as
+  dúvidas com mais de um homônimo, porque aí não há sugestão única — essas
+  precisam da sua decisão individual.
+- **“Apliquei a todas e me arrependi antes de gravar.”** Basta escolher outra
+  opção e clicar de novo, ou ajustar caso a caso: enquanto você não digitar
+  APLICAR, nada foi gravado.
 - **“Apliquei e o número de criados foi menor que o de aptos.”** Normal: quem
   já era filiado ativo não é recriado, e as dúvidas que você deixou como
   “ignorar” não entram.

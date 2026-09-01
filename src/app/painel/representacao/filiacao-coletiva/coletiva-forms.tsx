@@ -2,7 +2,14 @@
 
 import { useState } from "react"
 import { useActionState } from "react"
-import { Loader2, Play, RotateCcw, Trash2, UsersRound } from "lucide-react"
+import {
+  ListChecks,
+  Loader2,
+  Play,
+  RotateCcw,
+  Trash2,
+  UsersRound,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -125,6 +132,13 @@ export function NovoProcessoForm({
   )
 }
 
+type Duvida = {
+  aptoId: string
+  nome: string | null
+  cpf: string | null
+  candidatos: { id: string; nome: string | null; cpf: string | null; condicao: string | null }[]
+}
+
 /** Aplicação do lote: exige digitar APLICAR (ação de massa). */
 export function AplicarProcesso({
   id,
@@ -132,15 +146,48 @@ export function AplicarProcesso({
   resumo,
 }: {
   id: string
-  duvidas: {
-    aptoId: string
-    nome: string | null
-    cpf: string | null
-    candidatos: { id: string; nome: string | null; cpf: string | null; condicao: string | null }[]
-  }[]
+  duvidas: Duvida[]
   resumo: { total: number; mantidos: number; aCriar: number; aRecarimbar: number; duvidas: number }
 }) {
   const [estado, action, pend] = useActionState(aplicarProcessoAction, {})
+  // decisões controladas para o "aplicar a todas" conseguir mexer nos selects
+  const [decisoes, setDecisoes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(duvidas.map((d) => [d.aptoId, "ignorar"]))
+  )
+  const [emMassa, setEmMassa] = useState("ignorar")
+  const [avisoMassa, setAvisoMassa] = useState<string | null>(null)
+
+  const comCandidatoUnico = duvidas.filter((d) => d.candidatos.length === 1)
+
+  function aplicarATodas() {
+    const novas = { ...decisoes }
+    let alteradas = 0
+    let pulou = 0
+    for (const d of duvidas) {
+      if (emMassa === "candidato_unico") {
+        // só onde NÃO há ambiguidade: 1 candidato apenas
+        if (d.candidatos.length === 1) {
+          novas[d.aptoId] = d.candidatos[0].id
+          alteradas++
+        } else {
+          pulou++
+        }
+      } else {
+        novas[d.aptoId] = emMassa
+        alteradas++
+      }
+    }
+    setDecisoes(novas)
+    setAvisoMassa(
+      `${alteradas} dúvida${alteradas === 1 ? "" : "s"} definida${alteradas === 1 ? "" : "s"}` +
+        (pulou > 0
+          ? pulou === 1
+            ? " · 1 ficou como estava por ter mais de um candidato — resolva essa à mão."
+            : ` · ${pulou} ficaram como estavam por terem mais de um candidato — resolva essas à mão.`
+          : ". Revise abaixo antes de aplicar.")
+    )
+  }
+
   return (
     <form action={action} className="grid gap-4">
       {estado.erro && (
@@ -165,6 +212,44 @@ export function AplicarProcesso({
             sozinho, porque homônimo é comum. Escolha o cadastro certo, mande
             criar um novo ou ignore.
           </p>
+
+          {/* Decisão em massa — para listas grandes, onde resolver uma a uma
+              é inviável. Continua sendo só uma pré-seleção: nada é gravado
+              antes de digitar APLICAR. */}
+          <div className="bg-muted/40 grid gap-2 rounded-lg border p-3">
+            <p className="text-sm font-medium">Aplicar a mesma decisão a todas</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <select
+                value={emMassa}
+                onChange={(e) => setEmMassa(e.target.value)}
+                className={`${SELECT} sm:max-w-xs`}
+                aria-label="Decisão para todas as dúvidas"
+              >
+                <option value="ignorar">Ignorar todas (não filiar agora)</option>
+                <option value="criar">Criar cadastro novo para todas</option>
+                <option value="candidato_unico">
+                  Casar com o cadastro sugerido — só onde há 1 candidato (
+                  {comCandidatoUnico.length})
+                </option>
+              </select>
+              <Button type="button" variant="secondary" onClick={aplicarATodas}>
+                <ListChecks className="size-4" />
+                Aplicar às {duvidas.length}
+              </Button>
+            </div>
+            {emMassa === "candidato_unico" && (
+              <p className="text-warning-fg text-xs">
+                Atenção: casar em massa aceita a sugestão do sistema sem
+                conferência individual. Use só quando a lista de aptos vier da
+                mesma base do cadastro; na dúvida, prefira ignorar e resolver
+                caso a caso.
+              </p>
+            )}
+            {avisoMassa && (
+              <p className="text-muted-foreground text-xs">{avisoMassa}</p>
+            )}
+          </div>
+
           <ul className="divide-y rounded-lg border">
             {duvidas.map((d) => (
               <li key={d.aptoId} className="grid gap-2 px-3 py-2 sm:grid-cols-2">
@@ -172,11 +257,20 @@ export function AplicarProcesso({
                   <p className="font-medium">{d.nome ?? "(sem nome)"}</p>
                   <p className="text-muted-foreground text-xs">
                     {d.cpf ? `CPF ${d.cpf}` : "sem CPF na lista de aptos"}
+                    {d.candidatos.length > 1 && (
+                      <span className="text-warning-fg">
+                        {" "}
+                        · {d.candidatos.length} candidatos
+                      </span>
+                    )}
                   </p>
                 </div>
                 <select
                   name={`duvida_${d.aptoId}`}
-                  defaultValue="ignorar"
+                  value={decisoes[d.aptoId] ?? "ignorar"}
+                  onChange={(e) =>
+                    setDecisoes((v) => ({ ...v, [d.aptoId]: e.target.value }))
+                  }
                   className={SELECT}
                 >
                   <option value="ignorar">Ignorar (não filiar agora)</option>
