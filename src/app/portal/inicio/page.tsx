@@ -10,6 +10,7 @@ import {
   Newspaper,
   ShieldCheck,
   UserPen,
+  UsersRound,
   Vote,
 } from "lucide-react"
 
@@ -26,6 +27,7 @@ import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
 import { ultimasNoticias } from "@/lib/db/painel"
+import { situacaoColetivaDoFiliado } from "@/lib/db/filiacao-coletiva"
 import { assembleiasDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
@@ -78,11 +80,12 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos, assembleias, oposicoes] = await Promise.all([
+  const [noticias, eventos, assembleias, oposicoes, coletiva] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
     filiado.cpf ? oposicoesParaFiliado(filiado.cpf) : Promise.resolve([]),
+    situacaoColetivaDoFiliado(filiado.filiacaoId),
   ])
 
   return (
@@ -209,6 +212,36 @@ export default async function PortalInicioPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {coletiva.emProcesso && (
+        <Link
+          href="/portal/desfiliacao"
+          className="border-primary/40 bg-primary/5 hover:border-primary flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-background flex size-9 items-center justify-center rounded-lg">
+              <UsersRound className="size-4.5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">
+                Você foi filiado por decisão da assembleia
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Filiação coletiva aprovada em acordo coletivo
+                {coletiva.prazo && (
+                  <>
+                    {" · desistência até "}
+                    {formatarData(coletiva.prazo)}
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="pointer-events-none">
+            Saiba mais
+          </Button>
+        </Link>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

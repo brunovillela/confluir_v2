@@ -217,6 +217,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Cadastro público, assinatura gov.br e avaliação",
       },
       {
+        slug: "filiacao-coletiva",
+        titulo: "Filiação coletiva",
+        resumo:
+          "Cláusula no ACT: aptos a votar viram filiados, prazo de desistência e reversão",
+      },
+      {
         slug: "empregadores",
         titulo: "Empregadores",
         resumo: "Fontes pagadoras, documentação e acordos coletivos",

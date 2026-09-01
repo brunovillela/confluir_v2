@@ -80,6 +80,9 @@ export type RodadaDetalhe = {
   fontes: string[]
   aptos: number
   votosOnline: number
+  /** ACT em discussão tem cláusula de filiação coletiva (nascedouro). */
+  clausula_filiacao_coletiva: boolean
+  filiacao_coletiva_dias: number | null
 }
 
 export type OpcaoResposta = {
@@ -466,6 +469,9 @@ export async function criarRodada(dados: {
   descricao: string | null
   inicio: string | null
   termino: string | null
+  /** Cláusula de filiação coletiva no ACT em discussão. */
+  clausula_filiacao_coletiva?: boolean
+  filiacao_coletiva_dias?: number | null
 }): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
   const base = {
@@ -475,6 +481,8 @@ export async function criarRodada(dados: {
     termino: dados.termino,
     codigo: gerarCodigo(),
     apuracao_encerrada: false,
+    clausula_filiacao_coletiva: dados.clausula_filiacao_coletiva === true,
+    filiacao_coletiva_dias: dados.filiacao_coletiva_dias ?? null,
     emp_proprietaria_id: await tenantAtual(),
   }
   // Tenta com `inicio` (coluna de assembleias.sql); sem ela, grava o resto.
@@ -501,7 +509,7 @@ export async function obterRodada(id: string): Promise<RodadaDetalhe | null> {
   const { data, error } = await admin
     .from("voto_rod_assembleias")
     .select(
-      "id, nome_assembleia, descricao, codigo, termino, apuracao_encerrada, edital_url, card_grafico_url, video_indicativo_url, campanha_id, campanha:campanha_id (tema)"
+      "id, nome_assembleia, descricao, codigo, termino, apuracao_encerrada, edital_url, card_grafico_url, video_indicativo_url, campanha_id, clausula_filiacao_coletiva, filiacao_coletiva_dias, campanha:campanha_id (tema)"
     )
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -548,6 +556,9 @@ export async function obterRodada(id: string): Promise<RodadaDetalhe | null> {
       : [],
     aptos: aptos.count ?? 0,
     votosOnline: votos.count ?? 0,
+    clausula_filiacao_coletiva: data.clausula_filiacao_coletiva === true,
+    filiacao_coletiva_dias:
+      (data.filiacao_coletiva_dias as number | null) ?? null,
   }
 }
 
@@ -560,6 +571,8 @@ export async function atualizarRodada(
     termino: string | null
     video_indicativo_url: string | null
     apuracao_encerrada: boolean
+    clausula_filiacao_coletiva?: boolean
+    filiacao_coletiva_dias?: number | null
     edital_url?: string
     card_grafico_url?: string
   }
@@ -571,6 +584,10 @@ export async function atualizarRodada(
     termino: dados.termino,
     video_indicativo_url: dados.video_indicativo_url,
     apuracao_encerrada: dados.apuracao_encerrada,
+  }
+  if (dados.clausula_filiacao_coletiva !== undefined) {
+    base.clausula_filiacao_coletiva = dados.clausula_filiacao_coletiva
+    base.filiacao_coletiva_dias = dados.filiacao_coletiva_dias ?? null
   }
   if (dados.edital_url !== undefined) base.edital_url = dados.edital_url
   if (dados.card_grafico_url !== undefined) {
@@ -1283,7 +1300,8 @@ export async function importarAptos(
   rodadaId: string,
   linhas: {
     linha: number
-    cpf: string
+    /** Pode ser null: a empresa nem sempre envia o CPF dos aptos. */
+    cpf: string | null
     nome_completo: string | null
     matricula: string | null
     email: string | null
@@ -1310,11 +1328,13 @@ export async function importarAptos(
   const inserir: Record<string, unknown>[] = []
   const vistosNoArquivo = new Set<string>()
   for (const l of linhas) {
-    if (jaAptos.has(l.cpf) || vistosNoArquivo.has(l.cpf)) {
+    // sem CPF não há como deduplicar com segurança — a linha entra e a
+    // conciliação da filiação coletiva resolve por nome/matrícula depois
+    if (l.cpf && (jaAptos.has(l.cpf) || vistosNoArquivo.has(l.cpf))) {
       resultado.ignorados++
       continue
     }
-    vistosNoArquivo.add(l.cpf)
+    if (l.cpf) vistosNoArquivo.add(l.cpf)
     inserir.push({
       rod_assembleia_id: rodadaId,
       cpf: l.cpf,

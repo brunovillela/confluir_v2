@@ -4,6 +4,10 @@
     {
       "path": "/api/comunicacao/tick",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/filiacao-coletiva/tick",
+      "schedule": "0 12 * * *"
     }
   ]
 }

@@ -61,6 +61,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "fa_documentos_categorias",
   "fa_documentos_versao",
   "ferramentas_anomalias",
+  "filiacao_coletiva",
+  "filiacao_coletiva_itens",
   "filiacao_prontuario",
   "filiacao_recebe",
   "filiacao_recebe_comprovacao",

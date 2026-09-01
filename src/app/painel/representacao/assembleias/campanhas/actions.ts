@@ -51,6 +51,12 @@ export async function salvarCampanha(
   return { ok: "Campanha salva." }
 }
 
+
+function inteiroPositivo(v: string | null): number | null {
+  const n = Number((v ?? "").replace(/D/g, ""))
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 export async function novaRodada(
   _prev: EstadoForm,
   formData: FormData
@@ -68,6 +74,11 @@ export async function novaRodada(
     descricao: texto(formData, "descricao") || null,
     inicio: dataISO(texto(formData, "inicio")),
     termino: dataISO(texto(formData, "termino")),
+    clausula_filiacao_coletiva:
+      texto(formData, "clausula_filiacao_coletiva") === "on",
+    filiacao_coletiva_dias: inteiroPositivo(
+      texto(formData, "filiacao_coletiva_dias")
+    ),
   })
   if (erro || !id) return { erro: erro ?? "Falha ao criar a rodada." }
   revalidatePath(`/painel/representacao/assembleias/campanhas/${campanhaId}`)

@@ -1,0 +1,94 @@
+A **filiação coletiva** acontece quando a categoria decide, em assembleia, que
+todos passam a ser filiados — a cláusula está no acordo coletivo aprovado.
+Nesse caso não há ficha individual: a deliberação da assembleia substitui a
+adesão de cada um.
+
+<RequerPermissao>Assembleias</RequerPermissao>
+
+## Como funciona, do começo ao fim
+
+<PassoAPasso>
+  <Passo titulo="Marque a cláusula na rodada">
+    No cadastro da <strong>rodada de assembleia</strong>, ligue a chave “O ACT
+    em discussão tem cláusula de filiação coletiva” e informe o
+    <strong> prazo de desistência em dias corridos</strong>. É esse
+    interruptor que faz a rodada aparecer na área de filiação coletiva.
+  </Passo>
+  <Passo titulo="Crie o processo">
+    Em Representação → Filiação coletiva, escolha uma das rodadas disponíveis
+    (só aparecem as que têm a cláusula e ainda não viraram processo), dê um
+    título e confirme o prazo. Opcionalmente vincule o acordo coletivo.
+  </Passo>
+  <Passo titulo="Revise a conciliação">
+    O sistema compara a lista de aptos a votar com o cadastro e mostra o que
+    vai acontecer com cada pessoa. <strong>Nada é gravado ainda.</strong>
+  </Passo>
+  <Passo titulo="Aplique">
+    Digite APLICAR e confirme. Só então as filiações são criadas e alteradas.
+  </Passo>
+</PassoAPasso>
+
+## O que acontece com cada apto
+
+| Situação no cadastro | O que o sistema faz |
+| --- | --- |
+| Já é filiado **ativo** | Nada muda |
+| **Não está cadastrado** | Cria o cadastro em “Em processo de filiação coletiva” |
+| Cadastrado em **outra condição** | Passa para “Em processo de filiação coletiva” e ganha um novo vínculo no histórico (o anterior é preservado) |
+
+## Como o sistema identifica as pessoas
+
+As empresas nem sempre enviam o CPF dos aptos a votar. Por isso a comparação é
+feita em cascata, da chave mais forte para a mais fraca:
+
+1. **CPF** — casa automaticamente;
+2. **matrícula** — casa automaticamente (quando é única);
+3. **e-mail** — casa automaticamente;
+4. **nome completo** — **não casa sozinho**: vira uma **dúvida** para você
+   resolver na tela, escolhendo o cadastro certo, mandando criar um novo ou
+   ignorando aquela pessoa.
+
+<Aviso tipo="atencao" titulo="Por que o nome não basta">
+  Homônimo é comum, e filiar a pessoa errada gera cobrança indevida. Por isso a
+  decisão nesses casos é sempre sua — o sistema apenas sugere os candidatos.
+</Aviso>
+
+## O prazo e a virada automática
+
+Quem entra fica em “Em processo de filiação coletiva” durante o prazo. Vencido
+o prazo, o sistema avança sozinho (uma vez por dia): a filiação é
+**informada à fonte pagadora** e, em seguida, vira **Ativo**. O gráfico de
+marcos desses filiados tem três etapas — diferente da filiação individual:
+
+**Em processo de filiação coletiva → Filiação informada à fonte → Ativo**
+
+Se não quiser esperar o processamento diário, use o botão **Processar prazos
+agora**.
+
+## Desistência do trabalhador
+
+Durante o prazo, o próprio trabalhador pode desistir pela **área do filiado**,
+sem precisar ir ao sindicato. Ao desistir, ele entra na trilha normal de
+desfiliação — o empregador é comunicado para encerrar o desconto. Depois do
+prazo a opção some, e a desfiliação volta a ser pelo atendimento.
+
+## Reversão
+
+Se o processamento foi feito por engano, o botão **Reverter processo** desfaz o
+lote inteiro: as filiações criadas são excluídas e as demais voltam à condição
+anterior. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
+**e a sua senha de acesso**.
+
+## Erros comuns
+
+- **“A rodada não aparece na lista.”** Ou a cláusula não foi marcada no
+  cadastro da rodada, ou aquela rodada já tem um processo vinculado.
+- **“Muita gente caiu em dúvida.”** É sinal de que a lista de aptos veio sem
+  CPF e sem matrícula. Complete a planilha com uma dessas colunas e importe de
+  novo — o casamento fica automático.
+- **“Apliquei e o número de criados foi menor que o de aptos.”** Normal: quem
+  já era filiado ativo não é recriado, e as dúvidas que você deixou como
+  “ignorar” não entram.
+- **“O filiado diz que não consegue desistir pelo portal.”** Confira a
+  condição dele e o prazo — a opção só existe em “Em processo de filiação
+  coletiva” e dentro da data.

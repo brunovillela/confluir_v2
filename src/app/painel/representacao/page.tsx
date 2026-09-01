@@ -3,8 +3,9 @@ import {
   Building2,
   FileSignature,
   Gavel,
-  Vote,
   type LucideIcon,
+  UsersRound,
+  Vote,
 } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
@@ -42,6 +43,14 @@ const AREAS: Area[] = [
     href: "/painel/representacao/acordos",
     icone: FileSignature,
     chave: "acordos_coletivos",
+  },
+  {
+    titulo: "Filiação coletiva",
+    descricao:
+      "Assembleia com cláusula no ACT: os aptos a votar tornam-se filiados",
+    href: "/painel/representacao/filiacao-coletiva",
+    icone: UsersRound,
+    chave: "assembleias",
   },
   {
     titulo: "Empregadores",

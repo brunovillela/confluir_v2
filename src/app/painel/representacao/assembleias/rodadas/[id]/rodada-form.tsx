@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { formatarData } from "@/lib/formato"
 
+import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { salvarRodada } from "./actions"
 
 const TEXTAREA =
@@ -30,6 +31,8 @@ type Rodada = {
   termino: string | null
   video_indicativo_url: string | null
   apuracao_encerrada: boolean
+  clausula_filiacao_coletiva: boolean
+  filiacao_coletiva_dias: number | null
 }
 
 export function RodadaForm({
@@ -155,6 +158,11 @@ export function RodadaForm({
                 />
               </div>
             </div>
+
+            <ClausulaColetivaCampos
+              marcadaInicial={rodada.clausula_filiacao_coletiva}
+              diasInicial={rodada.filiacao_coletiva_dias}
+            />
 
             <ApuracaoSwitch inicial={rodada.apuracao_encerrada} />
 

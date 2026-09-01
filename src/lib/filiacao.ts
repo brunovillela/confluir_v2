@@ -7,6 +7,7 @@ export const FILIACAO_CONDICOES = [
   "Ativo",
   "Inativo",
   "Aguarda ficha assinada",
+  "Em processo de filiação coletiva",
   "Filiação aguarda fonte",
   "Filiação não informada à fonte",
   "Desfiliação aguarda fonte",
@@ -41,13 +42,31 @@ export const GRUPOS_CONDICAO: Record<
 // ORDENADA de condições até o objetivo final (Ativo / Inativo). O "avançar
 // etapa" caminha nessa ordem; o gráfico de marcos é derivado dela.
 
-/** Ordem das condições no processo de filiação (até Ativo). */
+/** Ordem das condições no processo de filiação INDIVIDUAL (até Ativo). */
 export const ORDEM_FILIACAO: FiliacaoCondicao[] = [
   "Aguarda ficha assinada",
   "Filiação não informada à fonte",
   "Filiação aguarda fonte",
   "Ativo",
 ]
+
+/**
+ * Ordem das condições na filiação COLETIVA (deliberada em assembleia com
+ * cláusula no ACT). É uma trilha PRÓPRIA, mais curta que a individual: não há
+ * ficha a assinar — a decisão da categoria substitui a adesão individual.
+ * "Filiação aguarda fonte" é o estado em que a fonte JÁ foi informada (é ele
+ * que carimba `filiacao_informada_fonte_em`), por isso o marco se chama
+ * "Filiação informada à fonte". Ver [[confluir-filiacao-coletiva]].
+ */
+export const ORDEM_FILIACAO_COLETIVA: FiliacaoCondicao[] = [
+  "Em processo de filiação coletiva",
+  "Filiação aguarda fonte",
+  "Ativo",
+]
+
+/** A condição que abre a trilha coletiva (usada no motor e no portal). */
+export const CONDICAO_COLETIVA: FiliacaoCondicao =
+  "Em processo de filiação coletiva"
 
 /** Ordem das condições no processo de desfiliação (até Inativo). */
 export const ORDEM_DESFILIACAO: FiliacaoCondicao[] = [
@@ -59,6 +78,7 @@ export const ORDEM_DESFILIACAO: FiliacaoCondicao[] = [
 /** Condições intermediárias em que o respectivo gráfico deve aparecer. */
 export const EM_ANDAMENTO_FILIACAO = ORDEM_FILIACAO.slice(0, -1)
 export const EM_ANDAMENTO_DESFILIACAO = ORDEM_DESFILIACAO.slice(0, -1)
+export const EM_ANDAMENTO_COLETIVA = ORDEM_FILIACAO_COLETIVA.slice(0, -1)
 
 /**
  * Coluna de data carimbada ao ENTRAR em cada condição (motor de etapas).
@@ -67,20 +87,42 @@ export const EM_ANDAMENTO_DESFILIACAO = ORDEM_DESFILIACAO.slice(0, -1)
  */
 export const DATA_AO_ENTRAR: Partial<Record<FiliacaoCondicao, string>> = {
   "Filiação não informada à fonte": "ficha_assinada_em",
+  "Em processo de filiação coletiva": "filiacao_coletiva_em",
   "Filiação aguarda fonte": "filiacao_informada_fonte_em",
   Ativo: "ativo_em",
   "Desfiliação aguarda fonte": "desfiliacao_informada_fonte_em",
   Inativo: "inativo_em",
 }
 
-/** A qual processo a condição pertence (para escolher o gráfico/avanço). */
+export type ProcessoFiliacao = "filiacao" | "filiacao_coletiva" | "desfiliacao"
+
+/**
+ * A qual processo a condição pertence (para escolher o gráfico/avanço).
+ * A condição de abertura da coletiva é exclusiva dela; as demais condições
+ * ("Filiação aguarda fonte", "Ativo") são COMPARTILHADAS com a individual —
+ * por isso quem está nelas cai na trilha individual, salvo se o chamador
+ * informar que o registro veio de um lote coletivo (`ehColetiva`).
+ */
 export function processoDaCondicao(
-  condicao: string | null | undefined
-): "filiacao" | "desfiliacao" | null {
+  condicao: string | null | undefined,
+  ehColetiva = false
+): ProcessoFiliacao | null {
   if (!condicao) return null
-  if ((ORDEM_FILIACAO as string[]).includes(condicao)) return "filiacao"
+  if (condicao === CONDICAO_COLETIVA) return "filiacao_coletiva"
   if ((ORDEM_DESFILIACAO as string[]).includes(condicao)) return "desfiliacao"
+  if ((ORDEM_FILIACAO as string[]).includes(condicao)) {
+    return ehColetiva &&
+      (ORDEM_FILIACAO_COLETIVA as string[]).includes(condicao)
+      ? "filiacao_coletiva"
+      : "filiacao"
+  }
   return null
+}
+
+const ORDEM_DO_PROCESSO: Record<ProcessoFiliacao, FiliacaoCondicao[]> = {
+  filiacao: ORDEM_FILIACAO,
+  filiacao_coletiva: ORDEM_FILIACAO_COLETIVA,
+  desfiliacao: ORDEM_DESFILIACAO,
 }
 
 /**
@@ -88,13 +130,14 @@ export function processoDaCondicao(
  * final (Ativo/Inativo) ou não pertence a um processo.
  */
 export function proximaCondicao(
-  condicao: string | null | undefined
+  condicao: string | null | undefined,
+  ehColetiva = false
 ): FiliacaoCondicao | null {
-  for (const ordem of [ORDEM_FILIACAO, ORDEM_DESFILIACAO]) {
-    const i = ordem.findIndex((c) => c === condicao)
-    if (i >= 0 && i < ordem.length - 1) return ordem[i + 1]
-  }
-  return null
+  const processo = processoDaCondicao(condicao, ehColetiva)
+  if (!processo) return null
+  const ordem = ORDEM_DO_PROCESSO[processo]
+  const i = ordem.findIndex((c) => c === condicao)
+  return i >= 0 && i < ordem.length - 1 ? ordem[i + 1] : null
 }
 
 export type EstadoMarco = "concluido" | "atual" | "pendente"
@@ -116,6 +159,12 @@ const MARCOS_DESFILIACAO: { rotulo: string; coluna: string | null }[] = [
   { rotulo: "Fonte informada", coluna: "desfiliacao_informada_fonte_em" },
   { rotulo: "Inativo", coluna: "inativo_em" },
 ]
+/** Trilha da filiação COLETIVA — mais curta, sem ficha assinada. */
+const MARCOS_FILIACAO_COLETIVA: { rotulo: string; coluna: string | null }[] = [
+  { rotulo: "Em processo de filiação coletiva", coluna: "filiacao_coletiva_em" },
+  { rotulo: "Filiação informada à fonte", coluna: "filiacao_informada_fonte_em" },
+  { rotulo: "Ativo", coluna: "ativo_em" },
+]
 
 /**
  * Monta os marcos do gráfico a partir da condição e das datas do registro.
@@ -125,12 +174,18 @@ const MARCOS_DESFILIACAO: { rotulo: string; coluna: string | null }[] = [
  */
 export function marcosDaTrilha(
   condicao: string | null | undefined,
-  datas: Record<string, string | null | undefined>
-): { processo: "filiacao" | "desfiliacao"; marcos: MarcoTrilha[] } | null {
-  const processo = processoDaCondicao(condicao)
+  datas: Record<string, string | null | undefined>,
+  ehColetiva = false
+): { processo: ProcessoFiliacao; marcos: MarcoTrilha[] } | null {
+  const processo = processoDaCondicao(condicao, ehColetiva)
   if (!processo) return null
-  const ordem = processo === "filiacao" ? ORDEM_FILIACAO : ORDEM_DESFILIACAO
-  const marcosBase = processo === "filiacao" ? MARCOS_FILIACAO : MARCOS_DESFILIACAO
+  const ordem = ORDEM_DO_PROCESSO[processo]
+  const marcosBase =
+    processo === "filiacao"
+      ? MARCOS_FILIACAO
+      : processo === "filiacao_coletiva"
+        ? MARCOS_FILIACAO_COLETIVA
+        : MARCOS_DESFILIACAO
   const idx = ordem.findIndex((c) => c === condicao)
   // Objetivo final não mostra gráfico (o processo terminou).
   if (idx < 0 || idx >= ordem.length - 1) return null

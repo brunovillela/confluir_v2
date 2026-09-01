@@ -42,6 +42,12 @@ function revalidarRodada(rodadaId: string) {
 
 // ── Dados da rodada ────────────────────────────────────────────────────────
 
+
+function inteiroPositivo(v: string | null): number | null {
+  const n = Number((v ?? "").replace(/D/g, ""))
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 export async function salvarRodada(
   _prev: EstadoForm,
   formData: FormData
@@ -60,6 +66,11 @@ export async function salvarRodada(
     termino: dataISO(texto(formData, "termino")),
     video_indicativo_url: texto(formData, "video_indicativo_url") || null,
     apuracao_encerrada: texto(formData, "apuracao_encerrada") === "on",
+    clausula_filiacao_coletiva:
+      texto(formData, "clausula_filiacao_coletiva") === "on",
+    filiacao_coletiva_dias: inteiroPositivo(
+      texto(formData, "filiacao_coletiva_dias")
+    ),
   }
 
   const edital = formData.get("edital")
@@ -363,14 +374,23 @@ export async function importarAptosCsv(
     const campo = SINONIMOS[normalizarCabecalho(titulo)]
     if (campo && ![...colunas.values()].includes(campo)) colunas.set(i, campo)
   })
-  if (![...colunas.values()].includes("cpf")) {
-    return { erro: "A planilha precisa de uma coluna 'cpf'." }
+  // A empresa nem sempre envia o CPF. A planilha precisa de PELO MENOS uma
+  // coluna que identifique a pessoa (cpf, nome ou matrícula) — a conciliação
+  // da filiação coletiva casa por cpf → matrícula → e-mail → nome.
+  if (
+    ![...colunas.values()].some((c) =>
+      ["cpf", "nome", "matricula"].includes(c)
+    )
+  ) {
+    return {
+      erro: "A planilha precisa de ao menos uma coluna de identificação: cpf, nome ou matrícula.",
+    }
   }
 
   const erros: { linha: number; motivo: string }[] = []
   const linhas: {
     linha: number
-    cpf: string
+    cpf: string | null
     nome_completo: string | null
     matricula: string | null
     email: string | null
@@ -383,14 +403,23 @@ export async function importarAptosCsv(
     for (const [indice, campo] of colunas) {
       campos[campo] = (bruta[indice] ?? "").trim()
     }
-    const cpf = limparCpf(campos.cpf ?? "")
-    if (!validarCpf(cpf)) {
-      erros.push({ linha: i + 1, motivo: `CPF inválido: ${campos.cpf || "(vazio)"}` })
+    const cpfBruto = (campos.cpf ?? "").trim()
+    const cpf = limparCpf(cpfBruto)
+    if (cpfBruto !== "" && !validarCpf(cpf)) {
+      erros.push({ linha: i + 1, motivo: `CPF inválido: ${cpfBruto}` })
+      continue
+    }
+    // sem CPF ainda vale, desde que dê para identificar por nome ou matrícula
+    if (cpfBruto === "" && !campos.nome && !campos.matricula) {
+      erros.push({
+        linha: i + 1,
+        motivo: "Linha sem CPF, nome ou matrícula — impossível identificar.",
+      })
       continue
     }
     linhas.push({
       linha: i + 1,
-      cpf,
+      cpf: cpfBruto === "" ? null : cpf,
       nome_completo: campos.nome || null,
       matricula: campos.matricula || null,
       email: campos.email || null,

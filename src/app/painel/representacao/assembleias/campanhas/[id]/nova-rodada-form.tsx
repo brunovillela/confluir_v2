@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { novaRodada } from "../actions"
 
 const TEXTAREA =
@@ -79,6 +80,7 @@ export function NovaRodadaForm({ campanhaId }: { campanhaId: string }) {
               />
             </div>
           </div>
+          <ClausulaColetivaCampos />
           <div className="flex gap-2">
             <Button type="submit" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <Plus />}

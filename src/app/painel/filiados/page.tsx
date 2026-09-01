@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   FileUp,
   FolderHeart,
+  Handshake,
   Milestone,
   Plus,
   Receipt,
@@ -368,6 +369,14 @@ export default async function FiliadosPage() {
                 ? `${emProcesso.toLocaleString("pt-BR")} em andamento`
                 : undefined
             }
+          />
+        )}
+        {podeRegistrar && (
+          <CartaoArea
+            titulo="Filiações coletivas"
+            descricao="Processos deliberados em assembleia e prazos de desistência"
+            href="/painel/filiados/coletivas"
+            icone={Handshake}
           />
         )}
         {podeRegistrar && (
