@@ -34,6 +34,7 @@ yarn-error.log*
 .env*
 
 # vercel
+# Vinculo local com o projeto da Vercel (vercel link)
 .vercel
 
 # typescript
@@ -42,3 +43,6 @@ next-env.d.ts
 
 # Arquivos temporarios do Supabase CLI (versao baixada, links de projeto)
 supabase/.temp/
+
+# Vinculo local com o projeto da Vercel (vercel link)
+.vercel
