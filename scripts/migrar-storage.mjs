@@ -15,6 +15,12 @@
  *
  * Idempotente: arquivo que já existe no destino com o mesmo tamanho é pulado,
  * então dá para rodar de novo depois de uma interrupção.
+ *
+ * ARMADILHA (vista na migração de 01/09): depois do restore do dump, o destino
+ * JÁ TEM `storage.objects` preenchido — o índice inteiro, sem nenhum byte. Como
+ * `list()` lê justamente esse índice, conferir por listagem dá "ok" para
+ * arquivo que não existe. Por isso `--conferir` não se contenta com a listagem:
+ * pede uma URL assinada e faz HEAD nela, que vai ao armazenamento de verdade.
  */
 import { createClient } from "@supabase/supabase-js"
 
@@ -53,6 +59,22 @@ async function listarArquivos(client, bucket, prefixo = "") {
   return achados
 }
 
+/**
+ * Tamanho REAL do objeto no destino, medido fora do índice: gera URL assinada e
+ * faz HEAD. Devolve null quando o arquivo não existe de fato. HEAD não baixa o
+ * corpo, então conferir uma migração inteira custa pouco.
+ */
+async function tamanhoReal(client, bucket, caminho) {
+  const { data, error } = await client.storage
+    .from(bucket)
+    .createSignedUrl(caminho, 60)
+  if (error || !data?.signedUrl) return null
+  const resp = await fetch(data.signedUrl, { method: "HEAD" })
+  if (!resp.ok) return null
+  const n = Number(resp.headers.get("content-length"))
+  return Number.isFinite(n) ? n : 0
+}
+
 const { data: buckets, error: erroBuckets } = await origem.storage.listBuckets()
 if (erroBuckets) {
   console.error("Falha ao listar buckets da origem:", erroBuckets.message)
@@ -86,12 +108,20 @@ for (const bucket of buckets) {
   )
 
   if (conferir) {
-    const faltam = arquivos.filter((a) => !noDestino.has(a.caminho))
+    // Confere BYTE, não índice — ver a armadilha no cabeçalho.
+    const problemas = []
+    for (const arquivo of arquivos) {
+      const real = await tamanhoReal(destino, bucket.name, arquivo.caminho)
+      if (real === null) problemas.push(`${arquivo.caminho} (ausente)`)
+      else if (arquivo.tamanho && real !== arquivo.tamanho) {
+        problemas.push(`${arquivo.caminho} (${arquivo.tamanho} → ${real} bytes)`)
+      }
+    }
     console.log(
-      `${bucket.name}: origem ${arquivos.length} · destino ${noDestino.size}` +
-        (faltam.length ? ` · FALTAM ${faltam.length}` : " · ok")
+      `${bucket.name}: origem ${arquivos.length} · índice do destino ${noDestino.size}` +
+        (problemas.length ? ` · COM PROBLEMA ${problemas.length}` : " · bytes conferidos")
     )
-    for (const f of faltam.slice(0, 5)) console.log(`    falta: ${f.caminho}`)
+    for (const p of problemas.slice(0, 5)) console.log(`    ${p}`)
     continue
   }
 

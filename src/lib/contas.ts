@@ -9,6 +9,27 @@ export type EstadoForm = {
 }
 
 /**
+ * Descrição legível de um erro do Supabase Auth, para LOG do servidor.
+ *
+ * Existe porque `error.message` às vezes chega vazio (`"{}"`) — é o caso da
+ * falha de SMTP, justamente a que mais precisa de diagnóstico. O `status` é o
+ * que separa os cenários: 500 = o provedor de email recusou (credencial,
+ * remetente); 429 = limite de envio do projeto estourado.
+ */
+export function descreveErroAuth(erro: {
+  message?: string
+  status?: number
+  code?: string
+}): string {
+  const partes = [
+    erro.status ? `HTTP ${erro.status}` : null,
+    erro.code || null,
+    erro.message && erro.message !== "{}" ? erro.message : null,
+  ].filter(Boolean)
+  return partes.length ? partes.join(" · ") : "erro sem detalhe do provedor"
+}
+
+/**
  * Modelo de identidade do filiado: o CPF é o identificador único da pessoa.
  * A tabela `filiacoes` tem em média ~3 registros por CPF (histórico de
  * filiações migrado do Bubble) — os registros são agregados aqui e tratados

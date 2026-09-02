@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation"
 
-import { type EstadoForm } from "@/lib/contas"
+import { descreveErroAuth, type EstadoForm } from "@/lib/contas"
 import { usuarioHotelDaConta } from "@/lib/db/hospedagem"
 import { SITE_URL } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
@@ -53,9 +53,17 @@ export async function recuperarSenhaHotel(
   if (!email) return { erro: "Informe seu email." }
 
   const supabase = await createClient()
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
   })
+
+  // Mesma razão do /login: mensagem neutra na tela, erro real no log.
+  if (error) {
+    console.error(
+      "Falha ao enviar recuperação de senha (hotel):",
+      descreveErroAuth(error)
+    )
+  }
 
   return {
     ok: "Se o email estiver cadastrado, você receberá um link para redefinir a senha.",

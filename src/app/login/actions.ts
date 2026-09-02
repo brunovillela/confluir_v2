@@ -4,7 +4,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { redirect } from "next/navigation"
 
-import { type EstadoForm } from "@/lib/contas"
+import { descreveErroAuth, type EstadoForm } from "@/lib/contas"
 import { origemAtual } from "@/lib/tenant-url"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -147,9 +147,21 @@ export async function solicitarRedefinicaoSenha(
   if (!email) return { erro: "Informe seu email." }
 
   const supabase = await createClient()
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
   })
+
+  // A resposta ao usuário é DE PROPÓSITO a mesma em todos os casos — dizer
+  // "email não cadastrado" entregaria quem tem conta. Mas o erro precisa
+  // aparecer em algum lugar: sem este log, uma falha de SMTP vira "enviado" na
+  // tela e ninguém fica sabendo (foi o que aconteceu na migração de 01/09,
+  // com o SMTP do projeto novo ainda sem credencial válida).
+  if (error) {
+    console.error(
+      "Falha ao enviar recuperação de senha:",
+      descreveErroAuth(error)
+    )
+  }
 
   return {
     ok: "Se o email estiver cadastrado, você receberá um link para redefinir a senha.",
