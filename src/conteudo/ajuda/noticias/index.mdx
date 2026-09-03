@@ -1,6 +1,6 @@
-O módulo **Comunicação** reúne as notícias da entidade, o resumo de notícias
-por IA (que acompanha sites externos e destaca o que interessa) e a emissão de
-QR Codes para peças de comunicação.
+O módulo **Comunicação** reúne as notícias da entidade, duas áreas de IA — uma
+que **lê** sites externos e resume, outra que **escreve** textos no tom da casa
+—, a emissão de QR Codes para peças de comunicação e a página de links.
 
 <RequerPermissao>Notícias</RequerPermissao>
 
@@ -14,6 +14,10 @@ QR Codes para peças de comunicação.
   <Passo titulo="Resumo de notícias por IA">
     A IA lê os sites que você configura e gera um resumo (título + texto) para o
     painel, poupando a leitura de tudo.
+  </Passo>
+  <Passo titulo="Assistente de redação">
+    A IA escreve o texto a partir da política editorial da entidade, do objetivo
+    (denúncia, convite, nota de pesar…) e do local onde ele será publicado.
   </Passo>
   <Passo titulo="QR Codes">
     Emissão de QR Codes dinâmicos para peças digitais e impressas, com download
@@ -34,6 +38,9 @@ QR Codes para peças de comunicação.
 - **"Notícia × resumo por IA, qual é qual?"** **Notícias** são o que a entidade
   **publica**; o **resumo por IA** lê **sites externos** e destaca o que
   interessa. São áreas diferentes.
+- **"As duas áreas de IA fazem a mesma coisa?"** Não. O **resumo** *lê* o que os
+  outros publicaram; o **assistente de redação** *escreve* o que a entidade vai
+  publicar.
 
 <VejaTambem
   links={[
@@ -46,6 +53,11 @@ QR Codes para peças de comunicação.
       titulo: "Resumo de notícias por IA",
       href: "/painel/ajuda/noticias/resumo-ia",
       descricao: "Configurar fontes, tamanho e recorrência",
+    },
+    {
+      titulo: "Assistente de redação",
+      href: "/painel/ajuda/noticias/assistente-redacao",
+      descricao: "Política editorial, canais e pedido de texto",
     },
     {
       titulo: "QR Codes",
