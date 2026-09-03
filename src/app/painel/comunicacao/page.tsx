@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Link2, Newspaper, QrCode, Sparkles } from "lucide-react"
+import { Link2, Newspaper, PenLine, QrCode, Sparkles } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
@@ -31,6 +31,12 @@ export default async function ComunicacaoPage() {
           descricao="A IA lê os sites indicados e gera um resumo para o painel"
           href="/painel/comunicacao/resumo"
           icone={Sparkles}
+        />
+        <CartaoArea
+          titulo="Assistente de redação"
+          descricao="A IA escreve o texto seguindo a política editorial da entidade, o objetivo e o canal onde ele será publicado"
+          href="/painel/comunicacao/textos"
+          icone={PenLine}
         />
         <CartaoArea
           titulo="QR Codes"

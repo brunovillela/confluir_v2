@@ -433,7 +433,7 @@ export const MODULOS: Modulo[] = [
     titulo: "Comunicação",
     href: "/painel/comunicacao",
     icone: "Rss",
-    descricao: "Notícias e resumo de notícias por IA",
+    descricao: "Notícias, resumo por IA, assistente de redação, QR Codes e página de links",
     chave: "noticias",
   },
   {
@@ -449,6 +449,14 @@ export const MODULOS: Modulo[] = [
     href: "/painel/comunicacao/resumo",
     icone: "Newspaper",
     descricao: "Resumo por IA de sites de notícias",
+    chave: "noticias",
+    oculto: true,
+  },
+  {
+    titulo: "Assistente de redação",
+    href: "/painel/comunicacao/textos",
+    icone: "PenLine",
+    descricao: "A IA escreve textos seguindo a política editorial da entidade",
     chave: "noticias",
     oculto: true,
   },

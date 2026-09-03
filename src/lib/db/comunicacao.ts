@@ -240,7 +240,12 @@ function extrairTextoDeHtml(html: string): string {
   return texto.slice(0, MAX_POR_FONTE)
 }
 
-async function lerFonte(
+/**
+ * Baixa uma página e devolve o texto legível. Exportada como `lerPaginaWeb`
+ * porque tem um segundo consumidor: o Assistente de redação deduz a política
+ * editorial a partir de textos já publicados pela entidade (comunicacao-textos.ts).
+ */
+export async function lerPaginaWeb(
   url: string
 ): Promise<{ url: string; texto: string } | null> {
   try {
@@ -289,7 +294,7 @@ export async function gerarResumo(
   }
   const { cfg, fontes } = dados
 
-  const lidas = (await Promise.all(fontes.map(lerFonte))).filter(
+  const lidas = (await Promise.all(fontes.map(lerPaginaWeb))).filter(
     (v): v is { url: string; texto: string } => v !== null
   )
   if (lidas.length === 0) {
