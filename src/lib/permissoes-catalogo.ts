@@ -68,6 +68,8 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     flags: [
       { chave: "veiculos", rotulo: "Veículos" },
       { chave: "veiculos_gestao", rotulo: "Gestão de veículos" },
+      { chave: "veiculos_checklist", rotulo: "Checklist da frota" },
+      { chave: "veiculos_manutencao", rotulo: "Manutenções" },
       { chave: "veiculos_condutores", rotulo: "Condutores" },
       { chave: "veiculos_contratos", rotulo: "Contratos de aluguel" },
       { chave: "veiculos_infracoes", rotulo: "Infrações" },

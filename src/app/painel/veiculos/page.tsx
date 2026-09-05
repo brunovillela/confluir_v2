@@ -3,12 +3,14 @@ import Link from "next/link"
 import {
   Car,
   CalendarClock,
+  ClipboardCheck,
   FileWarning,
   Fuel,
   IdCard,
   Plus,
   ScrollText,
   TriangleAlert,
+  Wrench,
 } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
@@ -27,6 +29,8 @@ import {
 import { EmUsoBadge } from "@/components/veiculos"
 import { requirePermissao } from "@/lib/auth"
 import { listarVeiculos, resumoVeiculos } from "@/lib/db/veiculos"
+import { totalVencidos } from "@/lib/db/veiculos-checklist"
+import { totalPreventivasVencidas } from "@/lib/db/veiculos-manutencoes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -52,10 +56,13 @@ export default async function VeiculosPage({
       : "ativos"
   const busca = (brutos.busca ?? "").trim()
 
-  const [resumo, veiculos] = await Promise.all([
-    resumoVeiculos(),
-    listarVeiculos({ busca, situacao }),
-  ])
+  const [resumo, veiculos, checklistsVencidos, preventivasVencidas] =
+    await Promise.all([
+      resumoVeiculos(),
+      listarVeiculos({ busca, situacao }),
+      totalVencidos(),
+      totalPreventivasVencidas(),
+    ])
 
   const hoje = new Date().toISOString().slice(0, 10)
   const alertas = [
@@ -77,6 +84,26 @@ export default async function VeiculosPage({
   ]
 
   const areasVeiculos = [
+    {
+      titulo: "Checklist da frota",
+      descricao: "Verificação periódica dos veículos",
+      href: "/painel/veiculos/checklists",
+      icone: ClipboardCheck,
+      indicador:
+        checklistsVencidos > 0
+          ? `${checklistsVencidos} vencido${checklistsVencidos === 1 ? "" : "s"}`
+          : undefined,
+    },
+    {
+      titulo: "Manutenções",
+      descricao: "Prontuário da frota e preventivas programadas",
+      href: "/painel/veiculos/manutencoes",
+      icone: Wrench,
+      indicador:
+        preventivasVencidas > 0
+          ? `${preventivasVencidas} vencida${preventivasVencidas === 1 ? "" : "s"}`
+          : undefined,
+    },
     {
       titulo: "Agendamentos",
       descricao: "Solicitações, retiradas e devoluções de veículos",

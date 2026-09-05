@@ -17,8 +17,20 @@ import {
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { EmUsoBadge } from "@/components/veiculos"
+import { AlertaChecklist } from "@/components/veiculos-checklist"
+import { AlertaManutencao } from "@/components/veiculos-manutencao"
+
+import { RecorrenciaVeiculoForm } from "../checklists/checklist-forms"
 import { requirePermissao } from "@/lib/auth"
 import { nomesDasSedes } from "@/lib/db/organizacao"
+import {
+  obterConfig as obterConfigChecklist,
+  situacaoDoVeiculo,
+} from "@/lib/db/veiculos-checklist"
+import {
+  listarManutencoes,
+  situacaoDosPlanos,
+} from "@/lib/db/veiculos-manutencoes"
 import {
   buscarVeiculo,
   consumoDoVeiculo,
@@ -46,6 +58,12 @@ export default async function VeiculoPage({
 }) {
   const sessao = await requirePermissao("veiculos", ["veiculos_gestao"])
   const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
+  const podeChecklist = podeAcessar(sessao.permissoes, "veiculos_checklist", [
+    "veiculos_gestao",
+  ])
+  const podeManutencao = podeAcessar(sessao.permissoes, "veiculos_manutencao", [
+    "veiculos_gestao",
+  ])
   const { id } = await params
   const { salvo } = await searchParams
 
@@ -62,6 +80,16 @@ export default async function VeiculoPage({
         ? listarContratos({ situacao: "vigentes" })
         : Promise.resolve({ disponivel: true, contratos: [] }),
       gestor ? nomesDasSedes() : Promise.resolve<string[]>([]),
+    ])
+
+  // Checklist: situação do veículo + a recorrência padrão da frota (esta última
+  // só interessa ao gestor, que pode definir prazo próprio para o veículo).
+  const [checklist, { config: cfgChecklist }, preventivas, manutencoes] =
+    await Promise.all([
+      situacaoDoVeiculo(id),
+      obterConfigChecklist(),
+      situacaoDosPlanos(id),
+      listarManutencoes({ veiculoId: id, limite: 20 }),
     ])
 
   const [crlvUrls, apoliceUrl, crvUrl] = await Promise.all([
@@ -135,6 +163,144 @@ export default async function VeiculoPage({
             Veículo em uso com {veiculo.condutorEmUsoNome}.
           </AlertDescription>
         </Alert>
+      )}
+      {checklist.ativo && cfgChecklist.ativo && !veiculo.inativo && (
+        <AlertaChecklist
+          veiculoId={veiculo.id}
+          situacao={checklist}
+          podeRealizar={podeChecklist}
+        />
+      )}
+      {preventivas.ativo && !veiculo.inativo && (
+        <AlertaManutencao
+          veiculoId={veiculo.id}
+          planos={preventivas.linhas}
+          podeRegistrar={podeManutencao}
+        />
+      )}
+
+      {manutencoes.ativo && (
+        <GrupoColapsavel
+          titulo="Prontuário de manutenções"
+          descricao="Tudo que já foi feito neste veículo, com local, garantia e nota."
+          resumo={
+            <span className="text-muted-foreground text-xs">
+              {manutencoes.linhas.length === 0
+                ? "nenhuma manutenção registrada"
+                : `${manutencoes.linhas.length} registro(s) · última em ${formatarData(manutencoes.linhas[0].realizada_em)}`}
+            </span>
+          }
+        >
+          <div className="grid gap-4 pt-2">
+            {manutencoes.linhas.length > 0 && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Serviço</TableHead>
+                      <TableHead>Local</TableHead>
+                      <TableHead className="text-right">Hodômetro</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manutencoes.linhas.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <Link
+                            href={`/painel/veiculos/manutencoes/${m.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            {formatarData(m.realizada_em)}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              m.tipo === "corretiva" ? "warning" : "secondary"
+                            }
+                          >
+                            {m.tipo === "corretiva" ? "Corretiva" : "Preventiva"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-64 truncate">
+                          {m.descricao ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {m.local_nome ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {m.hodometro?.toLocaleString("pt-BR") ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {m.valor !== null ? formatarMoeda(m.valor) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {podeManutencao && (
+              <div>
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={`/painel/veiculos/manutencoes/nova?veiculo=${veiculo.id}`}
+                  >
+                    Registrar manutenção
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+        </GrupoColapsavel>
+      )}
+
+      {gestor && checklist.ativo && (
+        <GrupoColapsavel
+          titulo="Checklist deste veículo"
+          descricao="Prazo próprio e acesso às verificações já realizadas."
+          resumo={
+            <span className="text-muted-foreground text-xs">
+              {checklist.nunca
+                ? "nunca realizado"
+                : `último em ${formatarData(checklist.ultimoEm)}`}
+              {checklist.recorrenciaPropria
+                ? ` · prazo próprio de ${checklist.recorrenciaPropria} dias`
+                : ` · segue o padrão da frota (${cfgChecklist.recorrencia_dias} dias)`}
+            </span>
+          }
+        >
+          <div className="grid gap-4 pt-2">
+            <RecorrenciaVeiculoForm
+              veiculoId={veiculo.id}
+              atual={checklist.recorrenciaPropria}
+              padrao={cfgChecklist.recorrencia_dias}
+            />
+            <div className="flex flex-wrap gap-2">
+              {podeChecklist && (
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={`/painel/veiculos/checklists/novo?veiculo=${veiculo.id}`}
+                  >
+                    Realizar checklist
+                  </Link>
+                </Button>
+              )}
+              {checklist.ultimoId && (
+                <Button asChild size="sm" variant="ghost">
+                  <Link
+                    href={`/painel/veiculos/checklists/${checklist.ultimoId}`}
+                  >
+                    Ver o último
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        </GrupoColapsavel>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
