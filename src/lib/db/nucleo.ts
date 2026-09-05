@@ -151,22 +151,49 @@ export type DetalheDemanda = {
   orcamento: number | null
   responsavelId: string | null
   responsavelNome: string | null
+  /** Quem abriu a demanda. Nulo nas linhas antigas (nao havia a coluna). */
+  criadoPorId: string | null
+  criadoPorNome: string | null
   tarefas: TarefaLinha[]
 }
 
+const COLS_DEMANDA =
+  "id, nome, descricao, situacao, prazo, orcamento, membro_responsavel_id"
+
 export async function obterDemanda(id: string): Promise<DetalheDemanda | null> {
   const admin = await createAdminClient()
-  const { data: d } = await admin
+  const emp = await tenantAtual()
+
+  // `criado_por` é coluna nova (supabase/demandas-criador.sql). Antes de o SQL
+  // rodar ela não existe, e pedi-la derrubaria a consulta inteira — a página da
+  // demanda deixaria de abrir. Por isso a leitura tenta com a coluna e volta
+  // sem ela; o único efeito é a exclusão não aparecer até o SQL ser aplicado.
+  let d: Record<string, unknown> | null = null
+  const comCriador = await admin
     .from("demandas")
-    .select("id, nome, descricao, situacao, prazo, orcamento, membro_responsavel_id")
+    .select(`${COLS_DEMANDA}, criado_por`)
     .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", emp)
     .maybeSingle()
+  if (comCriador.error) {
+    const semCriador = await admin
+      .from("demandas")
+      .select(COLS_DEMANDA)
+      .eq("id", id)
+      .eq("emp_proprietaria_id", emp)
+      .maybeSingle()
+    d = semCriador.data as Record<string, unknown> | null
+  } else {
+    d = comCriador.data as Record<string, unknown> | null
+  }
   if (!d) return null
 
   const responsavelId = texto(d.membro_responsavel_id)
-  const [responsaveis, tarefas] = await Promise.all([
-    responsavelId ? nomesDosUsuarios([responsavelId]) : Promise.resolve(new Map()),
+  const criadoPorId = texto(d.criado_por)
+  const [nomes, tarefas] = await Promise.all([
+    nomesDosUsuarios(
+      [responsavelId, criadoPorId].filter((v): v is string => Boolean(v))
+    ),
     listarTarefas({ paiTipo: "demanda", paiId: id }),
   ])
 
@@ -178,7 +205,9 @@ export async function obterDemanda(id: string): Promise<DetalheDemanda | null> {
     prazo: texto(d.prazo),
     orcamento: numero(d.orcamento),
     responsavelId,
-    responsavelNome: responsavelId ? (responsaveis.get(responsavelId) ?? null) : null,
+    responsavelNome: responsavelId ? (nomes.get(responsavelId) ?? null) : null,
+    criadoPorId,
+    criadoPorNome: criadoPorId ? (nomes.get(criadoPorId) ?? null) : null,
     tarefas: tarefas.tarefas,
   }
 }
@@ -193,16 +222,127 @@ export type DadosDemanda = {
 }
 
 export async function criarDemanda(
-  dados: DadosDemanda
+  dados: DadosDemanda,
+  criadoPor: string
 ): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const { data, error } = await admin
     .from("demandas")
-    .insert({ ...dados, emp_proprietaria_id: await tenantAtual() })
+    .insert({ ...dados, criado_por: criadoPor, emp_proprietaria_id: emp })
     .select("id")
     .single()
-  if (error) return { erro: `Falha ao criar demanda: ${error.message}` }
-  return { id: data.id as string }
+  if (!error) return { id: data.id as string }
+
+  // Antes de supabase/demandas-criador.sql rodar, a coluna nao existe: cria sem
+  // ela em vez de impedir o cadastro. (Essa demanda ficara sem criador.)
+  const semCriador = await admin
+    .from("demandas")
+    .insert({ ...dados, emp_proprietaria_id: emp })
+    .select("id")
+    .single()
+  if (semCriador.error) {
+    return { erro: `Falha ao criar demanda: ${semCriador.error.message}` }
+  }
+  return { id: semCriador.data.id as string }
+}
+
+/**
+ * O que a exclusão de uma demanda leva junto — contado ANTES de apagar, para a
+ * tela poder avisar. As tarefas entram em `tarefas` mas NÃO são apagadas: elas
+ * pertencem à área Tarefas (mesma tabela usada por projetos e anomalias) e
+ * podem ser de outra pessoa, então são apenas desligadas da demanda. É o que a
+ * própria chave estrangeira já dizia — `demanda_id` é `on delete set null`,
+ * enquanto checklists e comentários são `no action`.
+ */
+export type ResumoExclusaoDemanda = {
+  tarefas: number
+  checklists: number
+  comentarios: number
+}
+
+export async function resumoExclusaoDemanda(
+  id: string
+): Promise<ResumoExclusaoDemanda> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const contar = async (
+    tabela: "demandas_check_tarefas" | "demandas_check" | "demandas_comentarios"
+  ): Promise<number> => {
+    const { count } = await admin
+      .from(tabela)
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("demanda_id", id)
+    return count ?? 0
+  }
+  const [tarefas, checklists, comentarios] = await Promise.all([
+    contar("demandas_check_tarefas"),
+    contar("demandas_check"),
+    contar("demandas_comentarios"),
+  ])
+  return { tarefas, checklists, comentarios }
+}
+
+/**
+ * Apaga a demanda e o que só existe dentro dela. As chaves estrangeiras são
+ * `no action`, então a limpeza é EXPLÍCITA e na ordem certa — um delete direto
+ * falharia com erro de integridade.
+ */
+export async function excluirDemanda(id: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  // 1. As tarefas SOBREVIVEM: perdem o vínculo com a demanda e com o checklist.
+  const { data: checklists } = await admin
+    .from("demandas_check")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("demanda_id", id)
+  const idsChecklists = (checklists ?? []).map((c) => c.id as string)
+
+  const { error: erroTarefas } = await admin
+    .from("demandas_check_tarefas")
+    .update({ demanda_id: null, checklist_id: null })
+    .eq("emp_proprietaria_id", emp)
+    .eq("demanda_id", id)
+  if (erroTarefas) {
+    return { erro: `Falha ao desvincular as tarefas: ${erroTarefas.message}` }
+  }
+
+  // Tarefas ligadas ao checklist mas sem `demanda_id` preenchido também travam.
+  if (idsChecklists.length > 0) {
+    await admin
+      .from("demandas_check_tarefas")
+      .update({ checklist_id: null })
+      .eq("emp_proprietaria_id", emp)
+      .in("checklist_id", idsChecklists)
+  }
+
+  // 2. Checklists e comentários só existem dentro da demanda.
+  const { error: erroCheck } = await admin
+    .from("demandas_check")
+    .delete()
+    .eq("emp_proprietaria_id", emp)
+    .eq("demanda_id", id)
+  if (erroCheck) {
+    return { erro: `Falha ao apagar os checklists: ${erroCheck.message}` }
+  }
+
+  await admin
+    .from("demandas_comentarios")
+    .delete()
+    .eq("emp_proprietaria_id", emp)
+    .eq("demanda_id", id)
+
+  // 3. A demanda.
+  const { error } = await admin
+    .from("demandas")
+    .delete()
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", id)
+  if (error) return { erro: `Falha ao excluir a demanda: ${error.message}` }
+  return {}
 }
 
 export async function atualizarDemanda(

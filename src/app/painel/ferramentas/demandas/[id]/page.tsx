@@ -7,12 +7,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { listarPessoasAtribuiveis, obterDemanda } from "@/lib/db/nucleo"
+import {
+  listarPessoasAtribuiveis,
+  obterDemanda,
+  resumoExclusaoDemanda,
+} from "@/lib/db/nucleo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { AdicionarTarefa } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
-import { SituacaoDemanda } from "./demanda-acoes"
+import { ExcluirDemanda, SituacaoDemanda } from "./demanda-acoes"
 
 export const metadata: Metadata = { title: "Demanda — Confluir" }
 
@@ -23,18 +27,25 @@ export default async function DemandaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  await requirePermissao("ferramentas_demandas", [
+  const sessao = await requirePermissao("ferramentas_demandas", [
     "ferramentas_tarefas",
     "ferramentas_anomalias",
   ])
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [demanda, pessoas] = await Promise.all([
+  const [demanda, pessoas, resumoExclusao] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
+    resumoExclusaoDemanda(id),
   ])
   if (!demanda) notFound()
+
+  // Quem apaga: o criador. Nas demandas antigas, sem criador registrado, o
+  // responsavel assume — senao elas ficariam impossiveis de remover.
+  const podeExcluir = demanda.criadoPorId
+    ? demanda.criadoPorId === sessao.usuario.id
+    : demanda.responsavelId === sessao.usuario.id
 
   const concluidas = demanda.tarefas.filter((t) => t.concluido).length
 
@@ -106,6 +117,28 @@ export default async function DemandaPage({
           />
         </CardContent>
       </Card>
+
+      {podeExcluir && (
+        <Card>
+          <CardContent className="grid gap-3">
+            <div>
+              <p className="text-sm font-medium">Excluir esta demanda</p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {demanda.criadoPorNome
+                  ? `Você criou esta demanda em nome próprio, então pode removê-la.`
+                  : `Esta demanda é anterior ao registro de criador. Como responsável por ela, você pode removê-la.`}
+              </p>
+            </div>
+            <ExcluirDemanda
+              demandaId={demanda.id}
+              nome={demanda.nome}
+              tarefas={resumoExclusao.tarefas}
+              checklists={resumoExclusao.checklists}
+              comentarios={resumoExclusao.comentarios}
+            />
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ListChecks, Plus, TriangleAlert } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,7 +31,7 @@ const CLASSE_SITUACAO: Record<string, string> = {
   Feito: "text-muted-foreground",
 }
 
-type Params = { busca?: string; situacao?: string }
+type Params = { busca?: string; situacao?: string; excluida?: string }
 
 export default async function DemandasPage({
   searchParams,
@@ -45,6 +46,7 @@ export default async function DemandasPage({
 
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
+  const excluida = brutos.excluida === "1"
   const situacao = (SITUACOES_DEMANDA as readonly string[]).includes(
     brutos.situacao ?? ""
   )
@@ -58,6 +60,12 @@ export default async function DemandasPage({
 
   return (
     <>
+      {excluida && (
+        <Alert>
+          <AlertDescription>Demanda excluída.</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Demandas</h1>
