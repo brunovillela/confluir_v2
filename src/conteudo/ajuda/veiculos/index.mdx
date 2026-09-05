@@ -1,4 +1,5 @@
-O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, os
+O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, o
+**checklist** periódico, as **manutenções** (prontuário e preventivas), os
 **condutores** (com CNH), os **agendamentos** de uso, os **abastecimentos**, as
 **infrações** e os **contratos de aluguel**.
 
@@ -15,6 +16,15 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
   <Passo titulo="Agendamentos">
     A reserva de um veículo, com retirada e devolução por **hodômetro**.
     Qualquer pessoa com acesso pode **solicitar** um veículo.
+  </Passo>
+  <Passo titulo="Checklist da frota">
+    A verificação periódica dos veículos, com prazo por frota ou por carro e
+    alerta quando vence. <RequerPermissao>Checklist da frota</RequerPermissao>
+  </Passo>
+  <Passo titulo="Manutenções">
+    O **prontuário** de cada veículo e as **preventivas programadas**, que
+    vencem por data ou por quilometragem.
+    <RequerPermissao>Manutenções</RequerPermissao>
   </Passo>
   <Passo titulo="Abastecimentos">
     Os abastecimentos, lançados um a um ou **importados de planilha**.
@@ -57,6 +67,9 @@ solicitações pendentes).
 - **"As áreas de condutores/abastecimentos/infrações não aparecem."** Cada uma é
   uma **permissão separada** — peça o acesso em Institucional → Usuários e
   permissões.
+- **"Checklist e manutenção são a mesma coisa?"** Não. O **checklist** é a
+  inspeção de rotina que *aponta* o que está errado; a **manutenção** é o
+  serviço que *conserta* — e que pode ter sido programado muito antes.
 
 <VejaTambem
   links={[
@@ -64,6 +77,16 @@ solicitações pendentes).
       titulo: "Agendamentos",
       href: "/painel/ajuda/veiculos/agendamentos",
       descricao: "Reserva, retirada e devolução por hodômetro",
+    },
+    {
+      titulo: "Checklist da frota",
+      href: "/painel/ajuda/veiculos/checklist",
+      descricao: "Verificação periódica e o alerta de prazo vencido",
+    },
+    {
+      titulo: "Manutenções",
+      href: "/painel/ajuda/veiculos/manutencoes",
+      descricao: "Prontuário, preventivas por data ou km e garantia",
     },
     {
       titulo: "Infrações",

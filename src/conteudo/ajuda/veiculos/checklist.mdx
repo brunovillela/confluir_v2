@@ -1,0 +1,121 @@
+O **Checklist da frota** é a verificação periódica dos veículos: alguém confere
+o carro item a item, com prazo definido, e o sistema avisa quando o prazo vence.
+
+<RequerPermissao>Checklist da frota</RequerPermissao>
+
+## Quem faz o quê
+
+- **Realizar o checklist** exige a permissão *Checklist da frota*. A ideia é que
+  a verificação seja feita por um **funcionário dedicado**, não por quem vai
+  dirigir — a gestão de veículos também consegue, como retaguarda para férias e
+  faltas.
+- **Configurar** a recorrência e a lista de itens exige *Gestão de veículos*.
+- **Ver** a situação da frota e o histórico: qualquer pessoa com acesso a
+  Veículos. O alerta na página do carro aparece para todos; só o botão de
+  registrar some para quem não tem a permissão.
+
+## Como o prazo funciona
+
+A frota inteira tem uma recorrência padrão — de fábrica, 30 dias. Cada veículo
+pode ter **prazo próprio**, definido na página dele: a van que roda todo dia
+precisa de verificação mais frequente que o carro que sai uma vez por mês.
+
+O sistema conta a partir do **último checklist realizado**. Veículo que nunca
+passou por um conta como pendente desde o primeiro dia — é por isso que, ao
+ligar a área, todos aparecem em vermelho.
+
+<Aviso tipo="nota" titulo="O aviso vem antes do vencimento">
+  Em <strong>Configuração</strong> você define com quantos dias de antecedência
+  o alerta começa a aparecer (padrão: 3). Antes disso, o veículo fica como
+  &quot;em dia&quot; e nada é exibido — alerta que aparece sempre vira paisagem.
+</Aviso>
+
+## Realizar a verificação
+
+<PassoAPasso>
+  <Passo titulo="Abra o formulário">
+    Em Veículos → Checklist da frota → <strong>Realizar checklist</strong>. Se
+    você entrar pelo alerta da página de um veículo, ele já vem escolhido.
+  </Passo>
+  <Passo titulo="Informe o hodômetro">
+    Opcional, mas vale sempre: essa quilometragem também alimenta o alerta de
+    manutenção preventiva por km.
+  </Passo>
+  <Passo titulo="Responda todos os itens">
+    Cada sistema tem três respostas: <strong>Conforme</strong>,
+    <strong>Não conforme</strong> e <strong>Não se aplica</strong>. Nenhum item
+    pode ficar em branco.
+  </Passo>
+  <Passo titulo="Descreva o que estiver errado">
+    Ao marcar <strong>Não conforme</strong>, abre um campo obrigatório. Escreva
+    o que encontrou — é esse texto que a oficina vai ler.
+  </Passo>
+</PassoAPasso>
+
+### Por que existe o "não se aplica"
+
+Nem todo veículo tem todos os sistemas. Sem essa terceira opção, a saída fácil
+seria marcar "conforme" no que nem existe — e aí o registro deixa de valer como
+prova de que a verificação aconteceu.
+
+### O propósito de cada item aparece na tela
+
+Abaixo do que verificar, o formulário mostra o que aquilo previne. Quem lê
+"previne fundição do motor, superaquecimento e perda de eficiência na frenagem"
+olha o nível de óleo de um jeito diferente de quem só vê "verificar fluidos".
+
+## A lista de itens é sua
+
+Vêm oito sistemas cadastrados: Fluidos e Motor, Vazamentos, Pneus e Rodas,
+Iluminação, Painel de Instrumentos, Visibilidade, Segurança e Emergência, e
+Comandos e Cabine.
+
+Em **Configuração** você edita o texto de cada um, muda a ordem, desativa o que
+não usa e acrescenta o que a sua frota exige — quinta roda, baú refrigerado,
+sirene.
+
+<Aviso tipo="atencao" titulo="Desative em vez de excluir">
+  Checklists já realizados apontam para os itens. Desativar tira o item do
+  formulário e preserva o histórico; excluir só funciona em item que nunca foi
+  usado.
+</Aviso>
+
+## Acompanhar
+
+A tela inicial da área mostra a **situação da frota** — vencidos primeiro,
+depois os que vencem antes — e o **histórico** das verificações. A coluna
+*Pendências* conta os itens que ficaram não conformes no último checklist.
+
+Na página de cada veículo, o alerta aparece logo abaixo do cabeçalho com três
+textos diferentes: nunca realizado, vencido há N dias, ou vence em N dias. E
+mesmo com o prazo em dia, se o último checklist apontou pendências, elas
+continuam sendo mostradas — o carro foi verificado e algo estava errado.
+
+## Erros comuns
+
+- **"Todos os veículos apareceram como vencidos de uma vez."** É o esperado ao
+  ligar a área: nenhum tinha checklist ainda. Some conforme as verificações vão
+  sendo feitas.
+- **"Não vejo o botão Realizar checklist."** Falta a permissão *Checklist da
+  frota* — peça em Institucional → Usuários e permissões.
+- **"Não consigo salvar."** Algum item ficou sem resposta, ou um item marcado
+  como não conforme está sem descrição.
+- **"Quero suspender a cobrança por um tempo."** Em Configuração, desmarque
+  *Exigir checklist periódico*. Os alertas param e o histórico fica.
+- **"Um veículo precisa de prazo diferente."** Abra a página dele, no bloco
+  *Checklist deste veículo*. Deixar o campo vazio faz voltar ao padrão da frota.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Manutenções",
+      href: "/painel/ajuda/veiculos/manutencoes",
+      descricao: "O que fazer com o que o checklist apontou",
+    },
+    {
+      titulo: "Agendamentos",
+      href: "/painel/ajuda/veiculos/agendamentos",
+      descricao: "Retirada e devolução, que também registram hodômetro",
+    },
+  ]}
+/>

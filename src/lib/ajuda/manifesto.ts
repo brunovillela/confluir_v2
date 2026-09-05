@@ -322,7 +322,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "veiculos",
     titulo: "Veículos",
-    descricao: "Frota, agendamentos, abastecimentos e infrações",
+    descricao: "Frota, checklist, manutenções, agendamentos e infrações",
     icone: "Car",
     ...permissaoDoModulo("/painel/veiculos"),
     disponivel: true,
@@ -330,12 +330,24 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "index",
         titulo: "Visão geral dos Veículos",
-        resumo: "Frota, agendamentos, abastecimentos, infrações e aluguel",
+        resumo: "Frota, checklist, manutenções, agendamentos e infrações",
       },
       {
         slug: "agendamentos",
         titulo: "Agendamentos",
         resumo: "Reserva, retirada e devolução por hodômetro; abastecimentos",
+      },
+      {
+        slug: "checklist",
+        titulo: "Checklist da frota",
+        resumo:
+          "Verificação periódica, recorrência por veículo e itens verificados",
+      },
+      {
+        slug: "manutencoes",
+        titulo: "Manutenções",
+        resumo:
+          "Prontuário, preventivas por data ou km, garantia e nota fiscal",
       },
       {
         slug: "infracoes",

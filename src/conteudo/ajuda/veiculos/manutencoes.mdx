@@ -1,0 +1,145 @@
+A área de **Manutenções** guarda o prontuário de cada veículo — tudo que já foi
+feito nele — e as **preventivas programadas**, que geram os alertas de
+manutenção próxima ou vencida.
+
+<RequerPermissao>Manutenções</RequerPermissao>
+
+## Duas coisas diferentes
+
+- **O prontuário** é o que **aconteceu**: cada serviço executado, com local,
+  valor, garantia e nota fiscal.
+- **As preventivas programadas** são o que **deve acontecer**: troca de óleo a
+  cada 10.000 km, revisão anual, correia dentada aos 60.000.
+
+Sem programações cadastradas, o sistema registra histórico mas **não avisa
+nada**. É a programação que produz o alerta.
+
+## Quem faz o quê
+
+- **Registrar manutenção** exige a permissão *Manutenções* (ou *Gestão de
+  veículos*).
+- **Programar preventivas** exige *Gestão de veículos*.
+- **Ver** o prontuário e os alertas: qualquer pessoa com acesso a Veículos.
+
+## Programar uma preventiva
+
+Em Manutenções → **Preventivas programadas** → *Nova programação*.
+
+<PassoAPasso>
+  <Passo titulo="Escolha o veículo e descreva">
+    Uma programação por veículo — cada carro tem sua quilometragem e seu
+    histórico. Ex.: &quot;Troca de óleo e filtro&quot;.
+  </Passo>
+  <Passo titulo="Defina o intervalo">
+    Em <strong>dias</strong>, em <strong>quilômetros</strong>, ou nos dois. Com
+    os dois preenchidos vale <strong>o que vencer primeiro</strong> — é como o
+    manual do fabricante fala: &quot;a cada 10.000 km ou 12 meses&quot;.
+  </Passo>
+  <Passo titulo="Informe o ponto de partida">
+    <strong>Última feita em</strong> e <strong>hodômetro na última</strong>
+    servem para o primeiro ciclo. Depois que houver uma manutenção registrada
+    apontando para esta programação, o cálculo passa a usar ela.
+  </Passo>
+  <Passo titulo="Ajuste a antecedência do aviso">
+    Padrão: 15 dias e 500 km antes do vencimento.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Sem intervalo, o plano nunca vence">
+  O sistema recusa uma programação sem intervalo de dias nem de km — ela ficaria
+  para sempre &quot;em dia&quot; e viraria ruído na lista.
+</Aviso>
+
+### De onde vem a quilometragem atual
+
+O hodômetro do veículo não é digitado num lugar só: ele aparece nos
+**abastecimentos**, nos **checklists**, nas **devoluções** de agendamento e nas
+próprias **manutenções**. O sistema usa sempre o maior valor entre todas essas
+fontes.
+
+Consequência prática: quanto mais essas rotinas forem alimentadas, mais cedo o
+alerta por quilometragem dispara. Se ninguém registra hodômetro em lugar nenhum,
+o alerta por km simplesmente não tem como funcionar — só o de data.
+
+## Registrar uma manutenção
+
+Em Manutenções → **Registrar manutenção**.
+
+<PassoAPasso>
+  <Passo titulo="Tipo">
+    <strong>Preventiva</strong> é a programada, que evita a quebra.
+    <strong>Corretiva</strong> é o conserto, quando o problema já aconteceu.
+  </Passo>
+  <Passo titulo="Cumpre qual programação?">
+    Só aparece nas preventivas. Apontar a programação <strong>zera o contador
+    dela</strong> — é assim que o próximo vencimento é recalculado. Manutenção
+    avulsa é só deixar em branco.
+  </Passo>
+  <Passo titulo="Local, valor e nota">
+    O <strong>local</strong> é um fornecedor já cadastrado em Compras. Se a
+    oficina ainda não estiver lá, cadastre primeiro em Compras → Fornecedores.
+    Anexe o arquivo da nota (PDF ou imagem, até 5 MB) e o número.
+  </Passo>
+  <Passo titulo="Compra que pagou">
+    Opcional. Amarra o gasto ao processo de compra que já existe, sem redigitar
+    valores nem duplicar o controle.
+  </Passo>
+  <Passo titulo="Garantia">
+    Em meses, em quilômetros, ou nos dois. Contam a partir desta manutenção.
+  </Passo>
+</PassoAPasso>
+
+### Por que a garantia importa
+
+É o campo que responde a uma pergunta que costuma ficar sem resposta: *esse
+conserto já não tinha sido feito?*
+
+Preenchida a garantia, o sistema marca o serviço como **em garantia** enquanto
+ela vale, e mostra isso na página da manutenção. Quando o mesmo problema volta,
+dá para conferir em segundos se a oficina ainda deve cobrir — antes de pagar de
+novo.
+
+## O prontuário do veículo
+
+Na página de cada veículo há o bloco **Prontuário de manutenções**, recolhido,
+com o histórico completo: data, tipo, serviço, local, hodômetro e valor. É a
+ficha de vida daquele carro.
+
+Logo acima, o **alerta** aparece quando há preventiva vencida ou se
+aproximando. Ele diz **por qual critério** está vencendo — data ou
+quilometragem —, porque a ação é diferente: prazo se resolve agendando,
+quilometragem depende de quanto o carro ainda vai rodar até lá.
+
+## Erros comuns
+
+- **"Cadastrei a programação mas nenhum alerta apareceu."** Falta o ponto de
+  partida: sem *última feita em* nem *hodômetro na última*, e sem nenhuma
+  manutenção apontando para ela, o sistema não tem de onde contar.
+- **"O alerta por quilometragem não dispara."** O veículo não tem hodômetro
+  registrado em nenhuma fonte. Registre nos abastecimentos, nos checklists ou
+  na própria manutenção.
+- **"A oficina não aparece na busca do local."** Ela precisa estar cadastrada
+  como fornecedor, em Compras → Fornecedores.
+- **"Registrei a preventiva e ela continua vencida."** Você deixou o campo
+  *Cumpre qual programação?* em branco. Sem apontar, o contador da programação
+  não é zerado.
+- **"Não vejo o botão Registrar manutenção."** Falta a permissão *Manutenções*.
+- **"Quero que a manutenção gere a compra."** Hoje o vínculo é no sentido
+  inverso: você aponta uma compra já existente. Criar a compra a partir da
+  manutenção duplicaria o fluxo de aquisição, que tem alçada e cotação
+  próprias.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Checklist da frota",
+      href: "/painel/ajuda/veiculos/checklist",
+      descricao: "A verificação periódica que aponta o que precisa de conserto",
+    },
+    {
+      titulo: "Agendamentos",
+      href: "/painel/ajuda/veiculos/agendamentos",
+      descricao: "Retirada e devolução, que alimentam o hodômetro",
+    },
+  ]}
+/>
