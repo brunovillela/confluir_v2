@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PRESENCAS } from "@/lib/pessoal-sst-constantes"
 
-import { atualizarTarefa, criarTarefa } from "../actions"
+import { atualizarAtividade, criarAtividade } from "../actions"
 
-export type TarefaFormDados = {
+export type AtividadeFormDados = {
   id: string
   nome: string | null
   descricao: string | null
@@ -26,13 +26,13 @@ const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 /**
- * Dados básicos da tarefa (catálogo). Função e recorrência NÃO ficam aqui:
- * a recorrência é de cada EXECUTOR (mesma tarefa, cadências diferentes) e a
+ * Dados básicos da atividade (catálogo). Função e recorrência NÃO ficam aqui:
+ * a recorrência é de cada EXECUTOR (mesma atividade, cadências diferentes) e a
  * função vem do vínculo funcionário↔função.
  */
-export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
+export function AtividadeForm({ atividade }: { atividade?: AtividadeFormDados }) {
   const [estado, action, pendente] = useActionState(
-    tarefa ? atualizarTarefa : criarTarefa,
+    atividade ? atualizarAtividade : criarAtividade,
     {}
   )
 
@@ -40,7 +40,7 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          {tarefa ? "Dados da tarefa" : "Nova tarefa"}
+          {atividade ? "Dados da atividade" : "Nova atividade"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -55,15 +55,15 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
               <AlertDescription>{estado.ok}</AlertDescription>
             </Alert>
           )}
-          {tarefa && <input type="hidden" name="id" value={tarefa.id} />}
+          {atividade && <input type="hidden" name="id" value={atividade.id} />}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="nome">Nome da tarefa *</Label>
+            <Label htmlFor="nome">Nome da atividade *</Label>
             <Input
               id="nome"
               name="nome"
               placeholder="Ex.: Emitir contracheques mensais"
-              defaultValue={tarefa?.nome ?? ""}
+              defaultValue={atividade?.nome ?? ""}
               required
             />
           </div>
@@ -74,8 +74,8 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
               id="descricao"
               name="descricao"
               rows={2}
-              placeholder="O que a tarefa envolve (ajuda a IA na análise de risco)"
-              defaultValue={tarefa?.descricao ?? ""}
+              placeholder="O que a atividade envolve (ajuda a IA na análise de risco)"
+              defaultValue={atividade?.descricao ?? ""}
             />
           </div>
 
@@ -84,7 +84,7 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
             <select
               id="presenca"
               name="presenca"
-              defaultValue={tarefa?.presenca ?? ""}
+              defaultValue={atividade?.presenca ?? ""}
               className={SELECT_CLS}
             >
               <option value="">— não definida —</option>
@@ -106,7 +106,7 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
               id="observacoes"
               name="observacoes"
               rows={2}
-              defaultValue={tarefa?.observacoes ?? ""}
+              defaultValue={atividade?.observacoes ?? ""}
             />
           </div>
 
@@ -114,17 +114,17 @@ export function TarefaForm({ tarefa }: { tarefa?: TarefaFormDados }) {
             <Button variant="ghost" asChild>
               <Link
                 href={
-                  tarefa
-                    ? `/painel/pessoal/atribuicoes/tarefas/${tarefa.id}`
-                    : "/painel/pessoal/atribuicoes/tarefas"
+                  atividade
+                    ? `/painel/pessoal/atribuicoes/atividades/${atividade.id}`
+                    : "/painel/pessoal/atribuicoes/atividades"
                 }
               >
-                {tarefa ? "Voltar" : "Cancelar"}
+                {atividade ? "Voltar" : "Cancelar"}
               </Link>
             </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}
-              {tarefa ? "Salvar tarefa" : "Criar tarefa"}
+              {atividade ? "Salvar atividade" : "Criar atividade"}
             </Button>
           </div>
         </form>

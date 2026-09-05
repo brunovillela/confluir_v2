@@ -110,7 +110,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/pessoal/atribuicoes",
     icone: "BriefcaseBusiness",
     descricao:
-      "Tarefas, perigos e riscos ocupacionais, matriz de treinamento e revalidação",
+      "Atividades, perigos e riscos ocupacionais, matriz de treinamento e revalidação",
     chave: "pessoal_gestao",
     oculto: true,
   },

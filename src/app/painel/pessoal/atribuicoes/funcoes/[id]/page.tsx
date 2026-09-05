@@ -58,12 +58,12 @@ export default async function FuncaoPage({
       comparativoFuncao(id),
     ])
 
-  // tarefas da função = as vinculadas ao plano de cargos (a tarefa em si é
+  // atividades da função = as vinculadas ao plano de cargos (a atividade em si é
   // um catálogo neutro — não pertence mais a uma função)
   const idsDoPlano = new Set(
     atribuicoes.map((a) => a.atividade_id).filter((v): v is string => !!v)
   )
-  const tarefasDaFuncao = atividades.filter((a) => idsDoPlano.has(a.id))
+  const atividadesDaFuncao = atividades.filter((a) => idsDoPlano.has(a.id))
   const opcoes = funcionarios.linhas.map((l) => ({
     usuarioId: l.usuarioId,
     nome: l.nome,
@@ -83,8 +83,8 @@ export default async function FuncaoPage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           {funcao.funcionarios} funcionário{funcao.funcionarios === 1 ? "" : "s"}{" "}
-          · {tarefasDaFuncao.length} tarefa
-          {tarefasDaFuncao.length === 1 ? "" : "s"} · {atribuicoes.length} no
+          · {atividadesDaFuncao.length} atividade
+          {atividadesDaFuncao.length === 1 ? "" : "s"} · {atribuicoes.length} no
           plano de cargos
         </p>
       </div>
@@ -109,7 +109,7 @@ export default async function FuncaoPage({
           <CardHeader>
             <CardTitle className="text-base">Funcionários na função</CardTitle>
             <CardDescription>
-              Quem ocupa esta função — base do comparativo tarefas × plano.
+              Quem ocupa esta função — base do comparativo atividades × plano.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -125,7 +125,7 @@ export default async function FuncaoPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Plano de cargos — tarefas esperadas
+            Plano de cargos — atividades esperadas
           </CardTitle>
           <CardDescription>
             As atribuições que quem ocupa a função deve executar (equivale ao
@@ -139,7 +139,7 @@ export default async function FuncaoPage({
             funcaoNome={funcao.nome ?? ""}
             funcaoDescricao={funcao.descricao}
             atribuicoes={atribuicoes}
-            tarefas={atividades.map((t) => ({ id: t.id, nome: t.nome }))}
+            atividades={atividades.map((t) => ({ id: t.id, nome: t.nome }))}
           />
         </CardContent>
       </Card>
@@ -148,11 +148,11 @@ export default async function FuncaoPage({
         <CardHeader>
           <CardTitle className="text-base">
             <Scale className="mr-1 inline size-4 align-[-3px]" />
-            Comparativo: tarefas × plano de cargos
+            Comparativo: atividades × plano de cargos
           </CardTitle>
           <CardDescription>
-            Análise de desvio POR EXECUTOR: tarefas que cada funcionário executa
-            previstas no plano desta função (atende ao contrato) × tarefas fora
+            Análise de desvio POR EXECUTOR: atividades que cada funcionário executa
+            previstas no plano desta função (atende ao contrato) × atividades fora
             do plano (possível desvio de função), e quanto do plano está
             coberto.
           </CardDescription>
@@ -195,7 +195,7 @@ export default async function FuncaoPage({
                     {c.foraDaFuncao
                       .map(
                         (f) =>
-                          `${f.nome ?? "(tarefa)"}${f.funcaoNome ? ` (prevista em: ${f.funcaoNome})` : ""}`
+                          `${f.nome ?? "(atividade)"}${f.funcaoNome ? ` (prevista em: ${f.funcaoNome})` : ""}`
                       )
                       .join(", ")}
                   </p>
@@ -208,7 +208,7 @@ export default async function FuncaoPage({
                 )}
                 {c.planoLivres > 0 && (
                   <p className="text-muted-foreground mt-1 text-xs">
-                    {c.planoLivres} item(ns) do plano sem tarefa vinculada (não
+                    {c.planoLivres} item(ns) do plano sem atividade vinculada (não
                     rastreável automaticamente).
                   </p>
                 )}
@@ -217,38 +217,38 @@ export default async function FuncaoPage({
           )}
           <p className="text-muted-foreground text-xs">
             Para o plano entrar no comparativo automático, vincule cada atribuição
-            do plano a uma tarefa (campo “tarefa” ao adicionar a atribuição).
+            do plano a uma atividade (campo “atividade” ao adicionar a atribuição).
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tarefas desta função</CardTitle>
+          <CardTitle className="text-base">Atividades desta função</CardTitle>
           <CardDescription>
-            Tarefas vinculadas ao plano de cargos desta função. A análise SST
-            completa fica em cada tarefa.
+            Atividades vinculadas ao plano de cargos desta função. A análise SST
+            completa fica em cada atividade.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
-          {tarefasDaFuncao.length === 0 ? (
+          {atividadesDaFuncao.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              Nenhuma tarefa vinculada ao plano desta função ainda — vincule ao
+              Nenhuma atividade vinculada ao plano desta função ainda — vincule ao
               adicionar atribuições no plano de cargos, ou{" "}
               <Link
-                href="/painel/pessoal/atribuicoes/tarefas/nova"
+                href="/painel/pessoal/atribuicoes/atividades/nova"
                 className="text-primary hover:underline"
               >
-                crie uma tarefa
+                crie uma atividade
               </Link>
               .
             </p>
           ) : (
             <ul className="divide-y rounded-lg border">
-              {tarefasDaFuncao.map((t) => (
+              {atividadesDaFuncao.map((t) => (
                 <li key={t.id}>
                   <Link
-                    href={`/painel/pessoal/atribuicoes/tarefas/${t.id}`}
+                    href={`/painel/pessoal/atribuicoes/atividades/${t.id}`}
                     className="hover:bg-muted/50 flex items-center gap-2 px-3 py-2 text-sm hover:underline"
                   >
                     <ListChecks className="text-muted-foreground size-4" />
@@ -269,7 +269,7 @@ export default async function FuncaoPage({
           </CardTitle>
           <CardDescription>
             Remove a função, seu plano de cargos e os vínculos de funcionários.
-            As tarefas do catálogo não são apagadas.
+            As atividades do catálogo não são apagadas.
           </CardDescription>
         </CardHeader>
         <CardContent>

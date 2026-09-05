@@ -53,7 +53,7 @@ export default async function MatrizPage() {
           Matriz de treinamento
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Treinamentos exigidos por funcionário (a partir das medidas das tarefas
+          Treinamentos exigidos por funcionário (a partir das medidas das atividades
           que ele executa) e o status de cada um.{" "}
           {totalPendentes > 0
             ? `${totalPendentes} pendência${totalPendentes === 1 ? "" : "s"}.`
@@ -68,7 +68,7 @@ export default async function MatrizPage() {
               <GraduationCap className="size-6" />
               <p className="text-sm">
                 Nenhuma exigência de treinamento ainda. Vincule treinamentos (e
-                seu catálogo) nas medidas das tarefas e atribua executores.
+                seu catálogo) nas medidas das atividades e atribua executores.
               </p>
             </div>
           </CardContent>

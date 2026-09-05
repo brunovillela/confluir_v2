@@ -18,21 +18,21 @@ import { listarFuncionarios } from "@/lib/db/pessoal"
 import { buscarAtividade, obterLimiarRotina } from "@/lib/db/pessoal-sst"
 import { listarTreinamentos } from "@/lib/db/treinamentos"
 
-import { ExcluirTarefa } from "./excluir-tarefa"
+import { ExcluirAtividade } from "./excluir-atividade"
 import {
   BotaoAnalisarIA,
-  BotaoAvaliarTarefa,
+  BotaoAvaliarAtividade,
   SecaoExecutores,
   SecaoFerramentas,
   SecaoMedidas,
   SecaoPerigos,
   SecaoRiscos,
 } from "./secoes"
-import { TarefaForm } from "../tarefa-form"
+import { AtividadeForm } from "../atividade-form"
 
-export const metadata: Metadata = { title: "Tarefa — Confluir" }
+export const metadata: Metadata = { title: "Atividade — Confluir" }
 
-export default async function TarefaPage({
+export default async function AtividadePage({
   params,
   searchParams,
 }: {
@@ -43,8 +43,8 @@ export default async function TarefaPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const tarefa = await buscarAtividade(id)
-  if (!tarefa) notFound()
+  const atividade = await buscarAtividade(id)
+  if (!atividade) notFound()
 
   const [funcionarios, treinamentos, limiar, fornecedores] = await Promise.all([
     listarFuncionarios({ situacao: "ativos" }),
@@ -65,36 +65,36 @@ export default async function TarefaPage({
     <>
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/atribuicoes/tarefas">
+          <Link href="/painel/pessoal/atribuicoes/atividades">
             <ArrowLeft />
-            Tarefas
+            Atividades
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {tarefa.nome ?? "(sem nome)"}
+          {atividade.nome ?? "(sem nome)"}
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          {tarefa.executores} executor{tarefa.executores === 1 ? "" : "es"} ·{" "}
-          {tarefa.perigos} perigo{tarefa.perigos === 1 ? "" : "s"} ·{" "}
-          {tarefa.riscos} risco{tarefa.riscos === 1 ? "" : "s"} avaliado
-          {tarefa.riscos === 1 ? "" : "s"} por executor
+          {atividade.executores} executor{atividade.executores === 1 ? "" : "es"} ·{" "}
+          {atividade.perigos} perigo{atividade.perigos === 1 ? "" : "s"} ·{" "}
+          {atividade.riscos} risco{atividade.riscos === 1 ? "" : "s"} avaliado
+          {atividade.riscos === 1 ? "" : "s"} por executor
         </p>
       </div>
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Tarefa criada.</AlertDescription>
+          <AlertDescription>Atividade criada.</AlertDescription>
         </Alert>
       )}
 
-      {/* Dados básicos da tarefa (catálogo) */}
-      <TarefaForm
-        tarefa={{
-          id: tarefa.id,
-          nome: tarefa.nome,
-          descricao: tarefa.descricao,
-          presenca: tarefa.presenca,
-          observacoes: tarefa.observacoes,
+      {/* Dados básicos da atividade (catálogo) */}
+      <AtividadeForm
+        atividade={{
+          id: atividade.id,
+          nome: atividade.nome,
+          descricao: atividade.descricao,
+          presenca: atividade.presenca,
+          observacoes: atividade.observacoes,
         }}
       />
 
@@ -105,7 +105,7 @@ export default async function TarefaPage({
             Executores — tempo e recorrência por pessoa
           </CardTitle>
           <CardDescription>
-            Quem executa a tarefa — funcionário OU prestador de serviço
+            Quem executa a atividade — funcionário OU prestador de serviço
             (fornecedor) — com o tempo médio/mês e a recorrência de cada um.
             Funcionários entram na Ordem de Serviço (NR-01); prestadores, no
             Comunicado de SST.
@@ -114,7 +114,7 @@ export default async function TarefaPage({
         <CardContent>
           <SecaoExecutores
             atividadeId={id}
-            executores={tarefa.executoresLista}
+            executores={atividade.executoresLista}
             opcoes={opcoes}
             fornecedores={opcoesFornecedores}
             limiar={limiar}
@@ -129,14 +129,14 @@ export default async function TarefaPage({
             Ferramentas e equipamentos
           </CardTitle>
           <CardDescription>
-            O que é necessário para executar a tarefa (computador, sistema,
+            O que é necessário para executar a atividade (computador, sistema,
             ferramenta manual, etc).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <SecaoFerramentas
             atividadeId={id}
-            ferramentas={tarefa.ferramentas}
+            ferramentas={atividade.ferramentas}
           />
         </CardContent>
       </Card>
@@ -151,7 +151,7 @@ export default async function TarefaPage({
                 Perigos e riscos ocupacionais
               </CardTitle>
               <CardDescription>
-                Perigos (NRs) são inerentes à TAREFA. O risco (probabilidade ×
+                Perigos (NRs) são inerentes à ATIVIDADE. O risco (probabilidade ×
                 severidade, bruto e residual) é avaliado POR EXECUTOR — quem tem
                 mais tempo de exposição tem mais probabilidade.
               </CardDescription>
@@ -162,7 +162,7 @@ export default async function TarefaPage({
         <CardContent className="grid gap-6">
           <div>
             <p className="mb-2 text-sm font-medium">Perigos associados</p>
-            <SecaoPerigos atividadeId={id} perigos={tarefa.perigosLista} />
+            <SecaoPerigos atividadeId={id} perigos={atividade.perigosLista} />
           </div>
           <div>
             <p className="mb-2 text-sm font-medium">
@@ -170,9 +170,9 @@ export default async function TarefaPage({
             </p>
             <SecaoRiscos
               atividadeId={id}
-              riscos={tarefa.riscosLista}
-              perigos={tarefa.perigosLista}
-              executores={tarefa.executoresLista}
+              riscos={atividade.riscosLista}
+              perigos={atividade.perigosLista}
+              executores={atividade.executoresLista}
             />
           </div>
         </CardContent>
@@ -185,14 +185,14 @@ export default async function TarefaPage({
             Treinamentos e EPI (medidas)
           </CardTitle>
           <CardDescription>
-            Mitigadores da tarefa: treinamentos necessários (com recorrência) e
+            Mitigadores da atividade: treinamentos necessários (com recorrência) e
             EPIs. Ambos reduzem o risco ao patamar residual.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <SecaoMedidas
             atividadeId={id}
-            medidas={tarefa.medidas}
+            medidas={atividade.medidas}
             treinamentos={treinamentos.map((t) => ({
               id: t.id,
               nome: t.treinamento,
@@ -201,17 +201,17 @@ export default async function TarefaPage({
         </CardContent>
       </Card>
 
-      {/* Revalidação anual da avaliação SST da tarefa */}
+      {/* Revalidação anual da avaliação SST da atividade */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Avaliação SST da tarefa</CardTitle>
+          <CardTitle className="text-base">Avaliação SST da atividade</CardTitle>
           <CardDescription>
             Carimba a data da avaliação. O sistema alerta quando passar de 12
             meses (revalidação anual).
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <BotaoAvaliarTarefa atividadeId={id} avaliadaEm={tarefa.avaliada_em} />
+          <BotaoAvaliarAtividade atividadeId={id} avaliadaEm={atividade.avaliada_em} />
         </CardContent>
       </Card>
 
@@ -219,15 +219,15 @@ export default async function TarefaPage({
         <CardHeader>
           <CardTitle className="text-destructive text-base">
             <Trash2 className="mr-1 inline size-4 align-[-3px]" />
-            Excluir tarefa
+            Excluir atividade
           </CardTitle>
           <CardDescription>
-            Remove a tarefa e toda a árvore SST (ferramentas, perigos, riscos,
+            Remove a atividade e toda a árvore SST (ferramentas, perigos, riscos,
             medidas e executores).
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExcluirTarefa id={id} />
+          <ExcluirAtividade id={id} />
         </CardContent>
       </Card>
     </>

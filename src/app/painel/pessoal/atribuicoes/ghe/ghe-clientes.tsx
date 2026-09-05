@@ -59,7 +59,7 @@ export function GheForm({
           id="ghe-descricao"
           name="descricao"
           rows={2}
-          placeholder="Critério de homogeneidade (mesmas tarefas/perigos, exposição semelhante)"
+          placeholder="Critério de homogeneidade (mesmas atividades/perigos, exposição semelhante)"
           defaultValue={ghe?.descricao ?? ""}
         />
       </div>
@@ -184,7 +184,7 @@ function BotaoRemoverMembro({ id, gheId }: { id: string; gheId: string }) {
   )
 }
 
-/** Excluir GHE (não apaga funcionários nem tarefas). */
+/** Excluir GHE (não apaga funcionários nem atividades). */
 export function ExcluirGhe({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirGhe, {})
   return (

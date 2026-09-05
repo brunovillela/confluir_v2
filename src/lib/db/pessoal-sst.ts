@@ -17,8 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 /**
  * Pessoal › Atribuições / SST — camada de leitura.
  *
- * Catálogo de TAREFAS (`pessoal_atividades`) com ferramentas, PERIGOS
- * (inerentes à atividade) e medidas (treinamento/EPI). Cada tarefa tem
+ * Catálogo de ATIVIDADES (`pessoal_atividades`) com ferramentas, PERIGOS
+ * (inerentes à atividade) e medidas (treinamento/EPI). Cada atividade tem
  * EXECUTORES (`pessoal_atividades_executores`: funcionário + tempo médio/mês +
  * recorrência própria) e o RISCO (bruto + residual) é avaliado POR EXECUTOR
  * (`pessoal_atividades_riscos.executor_id`) — a probabilidade depende da
@@ -54,7 +54,7 @@ export type Funcao = {
   descricao: string | null
   ativo: boolean
   funcionarios: number
-  tarefas: number
+  atividades: number
 }
 
 export async function listarFuncoes(): Promise<Funcao[]> {
@@ -84,13 +84,13 @@ export async function listarFuncoes(): Promise<Funcao[]> {
       porFuncionarios.set(v.funcao_id, (porFuncionarios.get(v.funcao_id) ?? 0) + 1)
     }
   }
-  // tarefas da função = tarefas distintas vinculadas ao plano de cargos
-  const porTarefas = new Map<string, Set<string>>()
+  // atividades da função = atividades distintas vinculadas ao plano de cargos
+  const porAtividades = new Map<string, Set<string>>()
   for (const p of plano.data ?? []) {
     if (p.funcao_id && p.atividade_id) {
-      const s = porTarefas.get(p.funcao_id) ?? new Set<string>()
+      const s = porAtividades.get(p.funcao_id) ?? new Set<string>()
       s.add(p.atividade_id as string)
-      porTarefas.set(p.funcao_id, s)
+      porAtividades.set(p.funcao_id, s)
     }
   }
   return (funcoes.data ?? []).map((f) => ({
@@ -99,7 +99,7 @@ export async function listarFuncoes(): Promise<Funcao[]> {
     descricao: f.descricao as string | null,
     ativo: f.ativo !== false,
     funcionarios: porFuncionarios.get(f.id) ?? 0,
-    tarefas: porTarefas.get(f.id)?.size ?? 0,
+    atividades: porAtividades.get(f.id)?.size ?? 0,
   }))
 }
 
@@ -195,12 +195,12 @@ export async function funcoesDosFuncionarios(): Promise<
   return mapa
 }
 
-// ── Comparativo tarefas × plano de cargos (item 5) ───────────────────────────
+// ── Comparativo atividades × plano de cargos (item 5) ───────────────────────────
 
 export type ComparativoLinha = {
   funcionarioId: string
   nome: string | null
-  totalTarefas: number
+  totalAtividades: number
   aderentes: { id: string; nome: string | null }[]
   foraDaFuncao: { id: string; nome: string | null; funcaoNome: string | null }[]
   planoTotal: number
@@ -211,13 +211,13 @@ export type ComparativoLinha = {
 
 /**
  * Comparativo POR EXECUTOR: para cada funcionário da função, compara as
- * tarefas que ele de fato executa com o plano de cargos da função:
- * - aderentes: tarefas executadas previstas no plano DESTA função;
- * - foraDaFuncao: tarefas executadas que o plano não prevê (possível desvio
- *   de função → passivo); quando outra função prevê a tarefa no seu plano,
+ * atividades que ele de fato executa com o plano de cargos da função:
+ * - aderentes: atividades executadas previstas no plano DESTA função;
+ * - foraDaFuncao: atividades executadas que o plano não prevê (possível desvio
+ *   de função → passivo); quando outra função prevê a atividade no seu plano,
  *   ela é apontada;
- * - cobertura do plano: itens do plano ligados a uma tarefa que ele executa.
- * Itens do plano sem tarefa vinculada entram como "livres" (não rastreáveis).
+ * - cobertura do plano: itens do plano ligados a uma atividade que ele executa.
+ * Itens do plano sem atividade vinculada entram como "livres" (não rastreáveis).
  */
 export async function comparativoFuncao(
   funcaoId: string
@@ -258,7 +258,7 @@ export async function comparativoFuncao(
   const nomeFuncao = new Map(
     (funcoes.data ?? []).map((f) => [f.id as string, f.nome as string | null])
   )
-  // atividade → funções cujo plano a prevê (para apontar de quem seria a tarefa)
+  // atividade → funções cujo plano a prevê (para apontar de quem seria a atividade)
   const funcoesDaAtividade = new Map<string, Set<string>>()
   for (const p of planosTodos.data ?? []) {
     if (!p.funcao_id || !p.atividade_id) continue
@@ -308,7 +308,7 @@ export async function comparativoFuncao(
     return {
       funcionarioId: v.funcionarioId,
       nome: v.nome,
-      totalTarefas: execIds.length,
+      totalAtividades: execIds.length,
       aderentes,
       foraDaFuncao,
       planoTotal: planoComAtiv.length,
@@ -321,7 +321,7 @@ export async function comparativoFuncao(
   })
 }
 
-// ── Atividades (tarefas) ─────────────────────────────────────────────────────
+// ── Atividades (atividades) ─────────────────────────────────────────────────────
 
 export type Atividade = {
   id: string
@@ -373,7 +373,7 @@ export async function listarAtividades(): Promise<Atividade[]> {
       .eq("emp_proprietaria_id", emp),
   ])
   if (atividades.error) {
-    throw new Error(`Falha ao listar tarefas: ${atividades.error.message}`)
+    throw new Error(`Falha ao listar atividades: ${atividades.error.message}`)
   }
   const contar = (linhas: { atividade_id: string | null }[] | null) => {
     const m = new Map<string, number>()
@@ -634,8 +634,8 @@ export type LinhaMatriz = {
 }
 
 /**
- * Matriz de treinamento: para cada funcionário que executa tarefas, os
- * treinamentos EXIGIDOS (medidas tipo=treinamento das suas tarefas) cruzados
+ * Matriz de treinamento: para cada funcionário que executa atividades, os
+ * treinamentos EXIGIDOS (medidas tipo=treinamento das suas atividades) cruzados
  * com o que ele já fez (`pessoal_treinamentos_alunos`). Validade = término +
  * recorrência (da medida, ou a validade do catálogo).
  */
@@ -709,7 +709,7 @@ export async function matrizTreinamento(): Promise<LinhaMatriz[]> {
     feitosPorFuncionario.set(a.aluno_id, mapa)
   }
 
-  // exigências por funcionário (união das medidas das suas tarefas)
+  // exigências por funcionário (união das medidas das suas atividades)
   const exigPorFuncionario = new Map<
     string,
     Map<string, ItemMatriz>
@@ -718,7 +718,7 @@ export async function matrizTreinamento(): Promise<LinhaMatriz[]> {
     if (!e.funcionario_id || !e.atividade_id) continue
     const medidasAtiv = medidasPorAtividade.get(e.atividade_id) ?? []
     if (medidasAtiv.length === 0) continue
-    const atividadeNome = nomeAtividade.get(e.atividade_id) ?? "(tarefa)"
+    const atividadeNome = nomeAtividade.get(e.atividade_id) ?? "(atividade)"
     const mapa = exigPorFuncionario.get(e.funcionario_id) ?? new Map()
     for (const m of medidasAtiv) {
       const chave = m.treinamento_id ?? `desc:${m.descricao.toLowerCase().trim()}`
@@ -776,7 +776,7 @@ export async function matrizTreinamento(): Promise<LinhaMatriz[]> {
 
 // ── Relatórios ───────────────────────────────────────────────────────────────
 
-export type TarefaDoRelatorio = {
+export type AtividadeDoRelatorio = {
   atividadeId: string
   nome: string | null
   recorrencia: string | null
@@ -796,10 +796,10 @@ export type RelatorioPessoa = {
   tempoTotalMin: number
   /** Minutos/mês da jornada contratada (0 = sem jornada cadastrada). */
   jornadaMinMes: number
-  /** % da disponibilidade mensal consumida pelas tarefas (null sem jornada). */
+  /** % da disponibilidade mensal consumida pelas atividades (null sem jornada). */
   ocupacaoPct: number | null
   presencaFisicaPct: number | null
-  tarefas: TarefaDoRelatorio[]
+  atividades: AtividadeDoRelatorio[]
   perigos: number
   riscos: RiscoAgregado[]
 }
@@ -807,7 +807,7 @@ export type RelatorioPessoa = {
 /**
  * Relatório para um conjunto de funcionários: por pessoa traz tempo total,
  * jornada contratada e % de ocupação, % de presença física (ponderada pelo
- * tempo), tarefas (com a recorrência DO EXECUTOR), perigos das tarefas que
+ * tempo), atividades (com a recorrência DO EXECUTOR), perigos das atividades que
  * executa e os riscos avaliados PARA ELA (por executor).
  */
 export async function relatorioDeFuncionarios(
@@ -875,7 +875,7 @@ export async function relatorioDeFuncionarios(
 
   return ids.map((funcionarioId) => {
     const linhas = porFuncionario.get(funcionarioId) ?? []
-    const tarefas: TarefaDoRelatorio[] = []
+    const atividades: AtividadeDoRelatorio[] = []
     let tempoTotal = 0
     let somaPeso = 0
     let somaTempoComPresenca = 0
@@ -889,7 +889,7 @@ export async function relatorioDeFuncionarios(
       const a = e.atividade_id ? ativById.get(e.atividade_id) : null
       const tempo = (e.tempo_min_mes as number | null) ?? 0
       tempoTotal += tempo
-      tarefas.push({
+      atividades.push({
         atividadeId: e.atividade_id as string,
         nome: (a?.nome as string | null) ?? null,
         recorrencia: (e.recorrencia as string | null) ?? null,
@@ -963,7 +963,7 @@ export async function relatorioDeFuncionarios(
           ? Math.round((tempoTotal / jornadaMinMes) * 100)
           : null,
       presencaFisicaPct,
-      tarefas: tarefas.sort((a, b) =>
+      atividades: atividades.sort((a, b) =>
         (b.tempoMinMes ?? 0) - (a.tempoMinMes ?? 0)
       ),
       perigos: perigosTotal,
@@ -1122,13 +1122,13 @@ export async function buscarGhe(id: string): Promise<GheDetalhe | null> {
 }
 
 export type SugestaoGhe = {
-  /** Tarefas compartilhadas (nomes). */
-  tarefas: string[]
+  /** Atividades compartilhadas (nomes). */
+  atividades: string[]
   funcionarios: { funcionarioId: string; nome: string | null }[]
 }
 
 /**
- * Sugere GHEs: funcionários com o MESMO conjunto de tarefas executadas formam
+ * Sugere GHEs: funcionários com o MESMO conjunto de atividades executadas formam
  * um grupo (exposição homogênea). Só sugere grupos com 2+ pessoas que ainda
  * não estejam juntas em um GHE existente.
  */
@@ -1152,12 +1152,12 @@ export async function sugerirGhes(): Promise<SugestaoGhe[]> {
   const nomeAtiv = new Map(
     (atividades.data ?? []).map((a) => [a.id as string, a.nome as string | null])
   )
-  const tarefasPorPessoa = new Map<string, Set<string>>()
+  const atividadesPorPessoa = new Map<string, Set<string>>()
   for (const e of exec.data ?? []) {
     if (!e.funcionario_id || !e.atividade_id) continue
-    const s = tarefasPorPessoa.get(e.funcionario_id) ?? new Set<string>()
+    const s = atividadesPorPessoa.get(e.funcionario_id) ?? new Set<string>()
     s.add(e.atividade_id)
-    tarefasPorPessoa.set(e.funcionario_id, s)
+    atividadesPorPessoa.set(e.funcionario_id, s)
   }
   // pessoas já agrupadas em algum GHE (por GHE)
   const ghePorPessoa = new Map<string, Set<string>>()
@@ -1167,11 +1167,11 @@ export async function sugerirGhes(): Promise<SugestaoGhe[]> {
     s.add(m.ghe_id)
     ghePorPessoa.set(m.funcionario_id, s)
   }
-  // agrupa por assinatura (conjunto ordenado de tarefas)
+  // agrupa por assinatura (conjunto ordenado de atividades)
   const grupos = new Map<string, string[]>()
-  for (const [pessoa, tarefas] of tarefasPorPessoa) {
-    if (tarefas.size === 0) continue
-    const chave = [...tarefas].sort().join("|")
+  for (const [pessoa, atividades] of atividadesPorPessoa) {
+    if (atividades.size === 0) continue
+    const chave = [...atividades].sort().join("|")
     const arr = grupos.get(chave) ?? []
     arr.push(pessoa)
     grupos.set(chave, arr)
@@ -1186,9 +1186,9 @@ export async function sugerirGhes(): Promise<SugestaoGhe[]> {
     if (comuns.size > 0) continue
     const nomes = await nomesDosUsuarios(pessoas)
     sugestoes.push({
-      tarefas: chave
+      atividades: chave
         .split("|")
-        .map((id) => nomeAtiv.get(id) ?? "(tarefa)")
+        .map((id) => nomeAtiv.get(id) ?? "(atividade)")
         .filter((v): v is string => !!v),
       funcionarios: pessoas.map((p) => ({
         funcionarioId: p,
@@ -1201,7 +1201,7 @@ export async function sugerirGhes(): Promise<SugestaoGhe[]> {
 
 // ── Documentos: Ordem de Serviço (NR-01) e Comunicado de SST ─────────────────
 
-export type TarefaDoDocumento = {
+export type AtividadeDoDocumento = {
   nome: string | null
   descricao: string | null
   presenca: string | null
@@ -1224,7 +1224,7 @@ export type DocumentoSst = {
     documento: string | null
     complemento: string | null // função (funcionário) ou "Prestador de serviço"
   }
-  tarefas: TarefaDoDocumento[]
+  atividades: AtividadeDoDocumento[]
 }
 
 async function montarDocumentoSst(
@@ -1235,7 +1235,7 @@ async function montarDocumentoSst(
     recorrencia: string | null
     frequencia: string | null
   }[]
-): Promise<TarefaDoDocumento[]> {
+): Promise<AtividadeDoDocumento[]> {
   const admin = await createAdminClient()
   const atividadeIds = [
     ...new Set(
@@ -1350,7 +1350,7 @@ async function montarDocumentoSst(
     .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR"))
 }
 
-/** Ordem de Serviço (NR-01) de um FUNCIONÁRIO: suas tarefas e a árvore SST. */
+/** Ordem de Serviço (NR-01) de um FUNCIONÁRIO: suas atividades e a árvore SST. */
 export async function dadosOrdemServico(
   funcionarioId: string
 ): Promise<DocumentoSst | null> {
@@ -1380,11 +1380,11 @@ export async function dadosOrdemServico(
       documento: cpf,
       complemento: funcoesMap.get(funcionarioId)?.nome ?? null,
     },
-    tarefas: await montarDocumentoSst(exec),
+    atividades: await montarDocumentoSst(exec),
   }
 }
 
-/** Comunicado de SST de um PRESTADOR (fornecedor): tarefas contratadas. */
+/** Comunicado de SST de um PRESTADOR (fornecedor): atividades contratadas. */
 export async function dadosComunicadoSst(
   fornecedorId: string
 ): Promise<DocumentoSst | null> {
@@ -1413,20 +1413,20 @@ export async function dadosComunicadoSst(
       documento: (f?.cnpj_cpf as string | null) ?? null,
       complemento: "Prestador de serviço",
     },
-    tarefas: await montarDocumentoSst(exec),
+    atividades: await montarDocumentoSst(exec),
   }
 }
 
 /** Executores agrupados p/ a página de documentos (OS × Comunicado). */
-export type PessoaComTarefas = {
+export type PessoaComAtividades = {
   id: string
   nome: string | null
-  tarefas: number
+  atividades: number
 }
 
 export async function executoresParaDocumentos(): Promise<{
-  funcionarios: PessoaComTarefas[]
-  prestadores: PessoaComTarefas[]
+  funcionarios: PessoaComAtividades[]
+  prestadores: PessoaComAtividades[]
 }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -1450,7 +1450,7 @@ export async function executoresParaDocumentos(): Promise<{
   ])
   const ordenar = (m: Map<string, number>, nomes: Map<string, string>) =>
     [...m.entries()]
-      .map(([id, tarefas]) => ({ id, nome: nomes.get(id) ?? null, tarefas }))
+      .map(([id, atividades]) => ({ id, nome: nomes.get(id) ?? null, atividades }))
       .sort((a, b) => (a.nome ?? "￿").localeCompare(b.nome ?? "￿", "pt-BR"))
   return {
     funcionarios: ordenar(porFunc, nomesF),
@@ -1464,13 +1464,13 @@ export type ResumoSST = {
   /** Existe o schema (tabelas criadas)? null = rodar SQL. */
   ativo: boolean
   funcoes: number
-  tarefas: number
+  atividades: number
   /** Treinamentos exigidos faltando ou vencidos (soma na matriz). */
   treinamentosPendentes: number
   funcionariosComPendencia: number
-  /** Tarefas nunca avaliadas (avaliada_em null) ou com avaliação vencida (>12m). */
-  tarefasSemAvaliacao: number
-  /** Atribuições (funcionário×tarefa) com revalidação anual vencida/nunca feita. */
+  /** Atividades nunca avaliadas (avaliada_em null) ou com avaliação vencida (>12m). */
+  atividadesSemAvaliacao: number
+  /** Atribuições (funcionário×atividade) com revalidação anual vencida/nunca feita. */
   revalidacoesPendentes: number
   /** GHEs cadastrados. */
   ghes: number
@@ -1495,10 +1495,10 @@ export async function resumoSST(): Promise<ResumoSST> {
       return {
         ativo: false,
         funcoes: 0,
-        tarefas: 0,
+        atividades: 0,
         treinamentosPendentes: 0,
         funcionariosComPendencia: 0,
-        tarefasSemAvaliacao: 0,
+        atividadesSemAvaliacao: 0,
         revalidacoesPendentes: 0,
         ghes: 0,
         jornadas: 0,
@@ -1526,7 +1526,7 @@ export async function resumoSST(): Promise<ResumoSST> {
       .eq("emp_proprietaria_id", emp),
   ])
 
-  const tarefasSemAvaliacao = (atividades ?? []).filter(
+  const atividadesSemAvaliacao = (atividades ?? []).filter(
     (a) => !a.avaliada_em || (a.avaliada_em as string) < um_ano_atras
   ).length
 
@@ -1546,10 +1546,10 @@ export async function resumoSST(): Promise<ResumoSST> {
   return {
     ativo: true,
     funcoes: funcoes.count ?? 0,
-    tarefas: (atividades ?? []).length,
+    atividades: (atividades ?? []).length,
     treinamentosPendentes,
     funcionariosComPendencia,
-    tarefasSemAvaliacao,
+    atividadesSemAvaliacao,
     revalidacoesPendentes,
     ghes: ghes.count ?? 0,
     jornadas: new Set(

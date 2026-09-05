@@ -362,12 +362,12 @@ export async function desvincularFuncionario(
   return { ok: "Funcionário desvinculado." }
 }
 
-// ── Tarefas (atividades) ─────────────────────────────────────────────────────
+// ── Atividades (atividades) ─────────────────────────────────────────────────────
 
-function lerTarefa(fd: FormData) {
+function lerAtividade(fd: FormData) {
   const nome = txt(fd, "nome")
-  if (!nome) return { erro: "Informe o nome da tarefa." as string }
-  // função e recorrência NÃO são da tarefa: vivem no executor (cada
+  if (!nome) return { erro: "Informe o nome da atividade." as string }
+  // função e recorrência NÃO são da atividade: vivem no executor (cada
   // funcionário pode ter cadência diferente) e no vínculo funcionário↔função
   return {
     nome,
@@ -377,12 +377,12 @@ function lerTarefa(fd: FormData) {
   }
 }
 
-export async function criarTarefa(
+export async function criarAtividade(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
-  const dados = lerTarefa(fd)
+  const dados = lerAtividade(fd)
   if ("erro" in dados) return dados
   const admin = await createAdminClient()
   const { data, error } = await admin
@@ -391,18 +391,18 @@ export async function criarTarefa(
     .select("id")
     .single()
   if (error || !data) return { erro: `Não foi possível criar: ${error?.message}` }
-  revalidatePath("/painel/pessoal/atribuicoes/tarefas")
-  redirect(`/painel/pessoal/atribuicoes/tarefas/${data.id}?salvo=1`)
+  revalidatePath("/painel/pessoal/atribuicoes/atividades")
+  redirect(`/painel/pessoal/atribuicoes/atividades/${data.id}?salvo=1`)
 }
 
-export async function atualizarTarefa(
+export async function atualizarAtividade(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
   const id = txt(fd, "id")
-  if (!id) return { erro: "Tarefa inválida." }
-  const dados = lerTarefa(fd)
+  if (!id) return { erro: "Atividade inválida." }
+  const dados = lerAtividade(fd)
   if ("erro" in dados) return dados
   const admin = await createAdminClient()
   const { error, count } = await admin
@@ -411,34 +411,34 @@ export async function atualizarTarefa(
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-  if (count === 0) return { erro: "Tarefa não encontrada." }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${id}`)
-  revalidatePath("/painel/pessoal/atribuicoes/tarefas")
-  return { ok: "Tarefa salva." }
+  if (count === 0) return { erro: "Atividade não encontrada." }
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${id}`)
+  revalidatePath("/painel/pessoal/atribuicoes/atividades")
+  return { ok: "Atividade salva." }
 }
 
-export async function excluirTarefa(
+export async function excluirAtividade(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
   const id = txt(fd, "id")
-  if (!id) return { erro: "Tarefa inválida." }
+  if (!id) return { erro: "Atividade inválida." }
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_atividades").delete().eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  revalidatePath("/painel/pessoal/atribuicoes/tarefas")
-  redirect("/painel/pessoal/atribuicoes/tarefas?excluido=1")
+  revalidatePath("/painel/pessoal/atribuicoes/atividades")
+  redirect("/painel/pessoal/atribuicoes/atividades?excluido=1")
 }
 
-/** Revalidação anual da avaliação SST da tarefa (carimba a data de hoje). */
-export async function marcarTarefaAvaliada(
+/** Revalidação anual da avaliação SST da atividade (carimba a data de hoje). */
+export async function marcarAtividadeAvaliada(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
   const id = txt(fd, "id")
-  if (!id) return { erro: "Tarefa inválida." }
+  if (!id) return { erro: "Atividade inválida." }
   const admin = await createAdminClient()
   const { error } = await admin
     .from("pessoal_atividades")
@@ -446,8 +446,8 @@ export async function marcarTarefaAvaliada(
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível registrar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${id}`)
-  return { ok: "Avaliação da tarefa registrada nesta data." }
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${id}`)
+  return { ok: "Avaliação da atividade registrada nesta data." }
 }
 
 // Executores (tempo por funcionário) ------------------------------------------
@@ -464,7 +464,7 @@ export async function salvarExecutor(
   let fornecedorId = txt(fd, "fornecedor_id")
   if (executor?.startsWith("f:")) funcionarioId = executor.slice(2)
   if (executor?.startsWith("p:")) fornecedorId = executor.slice(2)
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
   if (!funcionarioId && !fornecedorId) {
     return { erro: "Escolha o funcionário ou o prestador." }
   }
@@ -500,7 +500,7 @@ export async function salvarExecutor(
           { onConflict: "atividade_id,fornecedor_id" }
         )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: funcionarioId ? "Executor salvo." : "Prestador salvo." }
 }
 
@@ -518,7 +518,7 @@ export async function excluirExecutor(
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Executor removido." }
 }
 
@@ -537,7 +537,7 @@ export async function revalidarExecutor(
     .update({ avaliado_em: hojeSP(), updated_at: new Date().toISOString() })
     .eq("id", id)
   if (error) return { erro: `Não foi possível registrar: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Atribuição revalidada nesta data." }
 }
 
@@ -550,7 +550,7 @@ export async function adicionarFerramenta(
   await exigir()
   const atividadeId = txt(fd, "atividade_id")
   const nome = txt(fd, "nome")
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
   if (!nome) return { erro: "Informe a ferramenta/equipamento." }
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_atividades_ferramentas").insert({
@@ -560,7 +560,7 @@ export async function adicionarFerramenta(
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível adicionar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Ferramenta adicionada." }
 }
 
@@ -578,7 +578,7 @@ export async function excluirFerramenta(
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Ferramenta removida." }
 }
 
@@ -591,7 +591,7 @@ export async function adicionarPerigo(
   await exigir()
   const atividadeId = txt(fd, "atividade_id")
   const descricao = txt(fd, "descricao")
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
   if (!descricao) return { erro: "Descreva o perigo." }
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_atividades_perigos").insert({
@@ -603,7 +603,7 @@ export async function adicionarPerigo(
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível adicionar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Perigo adicionado." }
 }
 
@@ -621,7 +621,7 @@ export async function excluirPerigo(
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Perigo removido." }
 }
 
@@ -635,7 +635,7 @@ export async function adicionarRisco(
   const atividadeId = txt(fd, "atividade_id")
   const executorId = txt(fd, "executor_id")
   const categoria = txt(fd, "categoria")
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
   if (!executorId) return { erro: "Escolha o executor — o risco é avaliado por pessoa." }
   if (!categoria) return { erro: "Escolha a categoria do risco." }
   const admin = await createAdminClient()
@@ -652,7 +652,7 @@ export async function adicionarRisco(
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível adicionar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Risco adicionado." }
 }
 
@@ -670,7 +670,7 @@ export async function excluirRisco(
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Risco removido." }
 }
 
@@ -684,7 +684,7 @@ export async function adicionarMedida(
   const atividadeId = txt(fd, "atividade_id")
   const tipo = txt(fd, "tipo")
   const descricao = txt(fd, "descricao")
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
   if (tipo !== "treinamento" && tipo !== "epi") {
     return { erro: "Tipo de medida inválido." }
   }
@@ -701,7 +701,7 @@ export async function adicionarMedida(
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível adicionar: ${error.message}` }
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Medida adicionada." }
 }
 
@@ -719,7 +719,7 @@ export async function excluirMedida(
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  if (atividadeId) revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   return { ok: "Medida removida." }
 }
 
@@ -897,21 +897,21 @@ export async function removerMembroGhe(
   return { ok: "Funcionário removido do GHE." }
 }
 
-// ── IA: análise SST da tarefa (itens 6-10) ───────────────────────────────────
+// ── IA: análise SST da atividade (itens 6-10) ───────────────────────────────────
 
-export async function analisarTarefaComIA(
+export async function analisarAtividadeComIA(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
   const atividadeId = txt(fd, "atividade_id")
-  if (!atividadeId) return { erro: "Tarefa inválida." }
+  if (!atividadeId) return { erro: "Atividade inválida." }
 
   const atividade = await buscarAtividade(atividadeId)
-  if (!atividade) return { erro: "Tarefa não encontrada." }
+  if (!atividade) return { erro: "Atividade não encontrada." }
 
   const { sugestao, erro } = await analisarSST({
-    tarefa: atividade.nome ?? "",
+    atividade: atividade.nome ?? "",
     descricao: atividade.descricao,
     presenca: atividade.presenca,
     ferramentas: atividade.ferramentas.map((f) => f.nome),
@@ -958,7 +958,7 @@ export async function analisarTarefaComIA(
     )
   }
   // riscos são POR EXECUTOR: a sugestão vale como avaliação inicial para cada
-  // pessoa que executa a tarefa (o gestor ajusta a probabilidade individual)
+  // pessoa que executa a atividade (o gestor ajusta a probabilidade individual)
   const executores = atividade.executoresLista
   if (sugestao.riscos.length && executores.length) {
     ops.push(
@@ -996,10 +996,10 @@ export async function analisarTarefaComIA(
 
   await Promise.all(ops)
 
-  revalidatePath(`/painel/pessoal/atribuicoes/tarefas/${atividadeId}`)
+  revalidatePath(`/painel/pessoal/atribuicoes/atividades/${atividadeId}`)
   const riscosMsg = executores.length
     ? `${sugestao.riscos.length} risco(s) aplicado(s) a ${executores.length} executor(es)`
-    : `riscos NÃO gravados (a tarefa ainda não tem executores — o risco é avaliado por pessoa)`
+    : `riscos NÃO gravados (a atividade ainda não tem executores — o risco é avaliado por pessoa)`
   return {
     ok: `IA sugeriu ${sugestao.perigos.length} perigo(s), ${riscosMsg}, ${novasFerramentas.length} ferramenta(s) e ${sugestao.medidas.length} medida(s). Revise, ajuste os níveis por pessoa e remova o que não se aplicar.`,
   }

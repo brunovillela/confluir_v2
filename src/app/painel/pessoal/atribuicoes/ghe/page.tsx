@@ -43,8 +43,8 @@ export default async function GhePage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Trabalhadores com exposição semelhante aos mesmos perigos (mesmas
-          tarefas, tempos comparáveis) avaliados em grupo. Quem tem mais tempo
-          numa tarefa tem mais probabilidade de sofrer com os perigos dela.
+          atividades, tempos comparáveis) avaliados em grupo. Quem tem mais tempo
+          numa atividade tem mais probabilidade de sofrer com os perigos dela.
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default async function GhePage({
             Sugestões de agrupamento
           </CardTitle>
           <CardDescription>
-            Funcionários com o MESMO conjunto de tarefas executadas — candidatos
+            Funcionários com o MESMO conjunto de atividades executadas — candidatos
             naturais a um GHE. Revise antes de criar: exposição homogênea também
             depende dos tempos serem comparáveis.
           </CardDescription>
@@ -121,7 +121,7 @@ export default async function GhePage({
           {sugestoes.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               Nenhuma sugestão no momento — surgem quando 2+ funcionários (ainda
-              não agrupados juntos) compartilham exatamente as mesmas tarefas.
+              não agrupados juntos) compartilham exatamente as mesmas atividades.
             </p>
           ) : (
             sugestoes.map((s, i) => (
@@ -132,12 +132,12 @@ export default async function GhePage({
                     .join(", ")}
                 </p>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Tarefas em comum: {s.tarefas.join(", ")}
+                  Atividades em comum: {s.atividades.join(", ")}
                 </p>
                 <div className="mt-2">
                   <CriarGheDaSugestao
-                    nomeSugerido={`GHE — ${s.tarefas[0] ?? "grupo"}`}
-                    descricao={`Grupo sugerido pelas tarefas em comum: ${s.tarefas.join(", ")}.`}
+                    nomeSugerido={`GHE — ${s.atividades[0] ?? "grupo"}`}
+                    descricao={`Grupo sugerido pelas atividades em comum: ${s.atividades.join(", ")}.`}
                     membros={s.funcionarios.map((f) => f.funcionarioId)}
                   />
                 </div>

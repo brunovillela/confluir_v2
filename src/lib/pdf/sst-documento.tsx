@@ -47,8 +47,8 @@ const s = StyleSheet.create({
   },
   linha: { marginBottom: 2, lineHeight: 1.3 },
   rotulo: { fontFamily: "Helvetica-Bold" },
-  tarefa: { marginBottom: 12 },
-  tarefaNome: { fontFamily: "Helvetica-Bold", fontSize: 11, marginBottom: 2 },
+  atividade: { marginBottom: 12 },
+  atividadeNome: { fontFamily: "Helvetica-Bold", fontSize: 11, marginBottom: 2 },
   item: { marginLeft: 10, marginBottom: 1.5, lineHeight: 1.25 },
   aviso: { marginTop: 4, marginBottom: 10, lineHeight: 1.3, textAlign: "justify" },
   assinaturas: { marginTop: 28, flexDirection: "row", justifyContent: "space-between", gap: 20 },
@@ -134,10 +134,10 @@ export function SstDocumentoPDF({
             : "As atividades contratadas abaixo foram avaliadas quanto a perigos e riscos ocupacionais. O prestador declara-se ciente e obriga-se a atender às exigências de treinamento e EPI indicadas, respondendo pelo cumprimento das Normas Regulamentadoras aplicáveis na execução dos serviços."}
         </Text>
 
-        {dados.tarefas.map((t, i) => (
-          <View key={i} style={s.tarefa} wrap={false}>
-            <Text style={s.tarefaNome}>
-              {i + 1}. {t.nome ?? "(tarefa)"}
+        {dados.atividades.map((t, i) => (
+          <View key={i} style={s.atividade} wrap={false}>
+            <Text style={s.atividadeNome}>
+              {i + 1}. {t.nome ?? "(atividade)"}
             </Text>
             {t.descricao && <Text style={s.linha}>{t.descricao}</Text>}
             <Text style={s.linha}>

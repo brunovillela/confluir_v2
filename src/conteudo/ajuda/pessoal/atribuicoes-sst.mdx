@@ -1,4 +1,4 @@
-A área **Atribuições e SST** mapeia, tarefa por tarefa, o que cada funcionário
+A área **Atribuições e SST** mapeia, atividade por atividade, o que cada funcionário
 faz — com a análise de saúde e segurança do trabalho (perigos, riscos por
 executor, EPI e treinamentos), o comparativo com o plano de cargos, os Grupos
 Homogêneos de Exposição, a jornada contratada, a matriz de treinamento e a
@@ -10,11 +10,11 @@ revalidação anual. Fica em **Pessoal → Atribuições e SST**.
 
 O hub tem sete frentes e uma configuração:
 
-- **Tarefas** — o catálogo. A tarefa reúne o que é dela: presença física,
+- **Atividades** — o catálogo. A atividade reúne o que é dela: presença física,
   ferramentas, **perigos** (inerentes à atividade) e medidas (treinamento e
   EPI). Quem executa, quanto tempo gasta, com que recorrência e com que
   **risco** é registrado **por executor**.
-- **Funções e plano de cargos** — os cargos, as tarefas esperadas de cada um
+- **Funções e plano de cargos** — os cargos, as atividades esperadas de cada um
   (o "contrato") e a análise de **desvio de função por executor**.
 - **GHE** — os Grupos Homogêneos de Exposição: trabalhadores com exposição
   semelhante aos mesmos perigos, avaliados em grupo.
@@ -31,17 +31,17 @@ No fim do hub, em **Classificação de recorrência**, você define a partir de 
 frequência a execução é sugerida como **rotineira** (padrão: mensal). É só uma
 sugestão — você sempre pode marcar diferente em cada executor.
 
-## A lógica: tarefa × executor
+## A lógica: atividade × executor
 
-A regra central da área: **o perigo é da tarefa; o risco é do executor**.
+A regra central da área: **o perigo é da atividade; o risco é do executor**.
 Operar uma serra tem os mesmos perigos para todo mundo — mas quem passa 40
-horas por mês na tarefa tem muito mais probabilidade de sofrer com eles do que
+horas por mês na atividade tem muito mais probabilidade de sofrer com eles do que
 quem passa 2. Por isso:
 
-- a **tarefa** guarda o que não muda de pessoa para pessoa (descrição,
+- a **atividade** guarda o que não muda de pessoa para pessoa (descrição,
   presença, ferramentas, perigos, medidas);
 - cada **executor** tem o seu tempo médio por mês, a sua recorrência
-  (a mesma tarefa pode ser rotineira para um e eventual para outro) e a sua
+  (a mesma atividade pode ser rotineira para um e eventual para outro) e a sua
   avaliação de risco (probabilidade × severidade, bruta e residual).
 
 ## Passo 1 — Funções e plano de cargos
@@ -56,13 +56,13 @@ Comece pelas funções. Elas são a base do comparativo com o contrato.
     sem digitar nada. Pode rodar de novo depois de admitir alguém com cargo novo.
   </Passo>
   <Passo titulo="Monte o plano de cargos">
-    Abra uma função. Em **Plano de cargos**, liste as tarefas esperadas de quem
+    Abra uma função. Em **Plano de cargos**, liste as atividades esperadas de quem
     ocupa o cargo. Você pode digitar uma a uma ou clicar em **Sugerir plano com
     IA** e revisar as sugestões (edite ou remova o que não se aplicar).
   </Passo>
-  <Passo titulo="Vincule cada item a uma tarefa (recomendado)">
-    Ao adicionar um item do plano, use o campo **Vincular a uma tarefa** para
-    ligá-lo a uma tarefa do catálogo. É isso que faz o comparativo automático
+  <Passo titulo="Vincule cada item a uma atividade (recomendado)">
+    Ao adicionar um item do plano, use o campo **Vincular a uma atividade** para
+    ligá-lo a uma atividade do catálogo. É isso que faz o comparativo automático
     (e a análise de desvio) funcionar.
   </Passo>
   <Passo titulo="Ajuste os funcionários">
@@ -84,43 +84,43 @@ sem expediente.
 
 A jornada alimenta duas coisas:
 
-- o **% de ocupação** nos relatórios — quanto as tarefas consomem da
+- o **% de ocupação** nos relatórios — quanto as atividades consomem da
   disponibilidade contratada do funcionário;
 - o **alerta de acesso fora do horário** — quando o funcionário usa o sistema
   fora da jornada, uma faixa fixa avisa na tela.
 
-## Passo 3 — Cadastrar uma tarefa
+## Passo 3 — Cadastrar uma atividade
 
 <PassoAPasso>
-  <Passo titulo="Nova tarefa">
-    Em **Tarefas → Nova tarefa**, informe o **nome** e uma **descrição** (quanto
+  <Passo titulo="Nova atividade">
+    Em **Atividades → Nova atividade**, informe o **nome** e uma **descrição** (quanto
     melhor a descrição, melhor a IA analisa o risco depois).
   </Passo>
   <Passo titulo="Presença física">
     Escolha a **presença física**: presencial, híbrida ou remota. Função e
-    recorrência não são da tarefa — a recorrência é definida por executor.
+    recorrência não são da atividade — a recorrência é definida por executor.
   </Passo>
   <Passo titulo="Criar">
-    Clique em **Criar tarefa**. Você cai na página da tarefa, onde adiciona todo
+    Clique em **Criar atividade**. Você cai na página da atividade, onde adiciona todo
     o resto.
   </Passo>
 </PassoAPasso>
 
 ## Passo 4 — Executores: tempo e recorrência por pessoa
 
-Na página da tarefa, em **Executores — tempo e recorrência por pessoa**,
-registre quem executa a tarefa.
+Na página da atividade, em **Executores — tempo e recorrência por pessoa**,
+registre quem executa a atividade.
 
 <PassoAPasso>
   <Passo titulo="Adicione o funcionário">
     Escolha o funcionário, informe o **tempo médio em horas por mês**, a
-    **frequência** e a **recorrência** dele nesta tarefa, e clique em
+    **frequência** e a **recorrência** dele nesta atividade, e clique em
     **Salvar**. Tudo é por pessoa — cada uma pode ter carga e cadência
     diferentes.
   </Passo>
   <Passo titulo="Confira a exposição">
     Com a jornada cadastrada, cada executor mostra também o **% da jornada**
-    que a tarefa consome — a medida direta da exposição.
+    que a atividade consome — a medida direta da exposição.
   </Passo>
   <Passo titulo="Ajuste quando mudar">
     Para alterar os dados de alguém, é só re-selecionar o mesmo funcionário e
@@ -130,11 +130,11 @@ registre quem executa a tarefa.
 
 ## Passo 5 — Ferramentas e equipamentos
 
-Em **Ferramentas e equipamentos**, liste o que é necessário para a tarefa
+Em **Ferramentas e equipamentos**, liste o que é necessário para a atividade
 (computador, sistema de informação, ferramenta manual, infraestrutura). Informe
 o nome e, opcionalmente, o tipo.
 
-## Passo 6 — Perigos (da tarefa) e riscos (por executor)
+## Passo 6 — Perigos (da atividade) e riscos (por executor)
 
 É o coração da análise SST. Você pode preencher à mão **ou** deixar a IA fazer
 uma primeira versão.
@@ -142,7 +142,7 @@ uma primeira versão.
 <PassoAPasso>
   <Passo titulo="Perigos associados">
     Cada perigo tem uma descrição, a fonte/agente, a severidade (1 a 5) e a NR
-    relacionada, quando houver. O perigo é **da tarefa** — vale para todos os
+    relacionada, quando houver. O perigo é **da atividade** — vale para todos os
     executores.
   </Passo>
   <Passo titulo="Riscos por executor">
@@ -151,7 +151,7 @@ uma primeira versão.
     perigo relacionado e informe a **probabilidade** e a **severidade**. O
     sistema calcula o nível pela matriz 5×5 (de Trivial a Intolerável). Use a
     exposição mostrada em cada executor (tempo/mês e % da jornada) para
-    calibrar a probabilidade — quem passa mais tempo na tarefa tem mais
+    calibrar a probabilidade — quem passa mais tempo na atividade tem mais
     probabilidade de sofrer com os perigos dela.
   </Passo>
   <Passo titulo="Risco residual">
@@ -162,7 +162,7 @@ uma primeira versão.
   <Passo titulo="Peça a análise à IA (opcional)">
     Clique em **Analisar riscos com IA**. A IA sugere perigos (com a NR de
     referência), medidas e uma avaliação inicial de risco **aplicada a cada
-    executor atual** da tarefa. Tudo entra para você **revisar** — ajuste os
+    executor atual** da atividade. Tudo entra para você **revisar** — ajuste os
     níveis por pessoa e remova o que não se aplicar. Adicione os executores
     antes de pedir a análise, senão os riscos não têm a quem ser atribuídos.
   </Passo>
@@ -187,7 +187,7 @@ aparecem lado a lado.
 
 ## Passo 7 — Treinamentos e EPI
 
-Em **Treinamentos e EPI (medidas)** ficam os mitigadores da tarefa.
+Em **Treinamentos e EPI (medidas)** ficam os mitigadores da atividade.
 
 <PassoAPasso>
   <Passo titulo="Treinamento">
@@ -202,9 +202,9 @@ Em **Treinamentos e EPI (medidas)** ficam os mitigadores da tarefa.
   </Passo>
 </PassoAPasso>
 
-## Prestadores de serviço nas tarefas
+## Prestadores de serviço nas atividades
 
-O executor de uma tarefa pode ser um **funcionário** ou um **prestador de
+O executor de uma atividade pode ser um **funcionário** ou um **prestador de
 serviço** — o prestador é um **fornecedor** do módulo Compras (cadastre-o lá,
 se ainda não existir). Todos os níveis valem igual para o prestador: tempo
 médio/mês, recorrência/frequência próprias e **riscos avaliados por
@@ -218,8 +218,8 @@ Em **Documentos SST**, o sistema gera os PDFs a partir do que está cadastrado:
 
 <PassoAPasso>
   <Passo titulo="Ordem de Serviço (funcionários)">
-    A OS da NR-01 (item 1.4.1): identifica o trabalhador e lista, tarefa por
-    tarefa, os perigos, os riscos avaliados para ELE, os treinamentos
+    A OS da NR-01 (item 1.4.1): identifica o trabalhador e lista, atividade por
+    atividade, os perigos, os riscos avaliados para ELE, os treinamentos
     obrigatórios e os EPIs — com campo de assinatura do trabalhador e do
     empregador. Baixe, colha a assinatura e arquive.
   </Passo>
@@ -232,40 +232,40 @@ Em **Documentos SST**, o sistema gera os PDFs a partir do que está cadastrado:
 
 <Aviso tipo="dica" titulo="O documento é uma foto do cadastro">
   A OS e o Comunicado refletem o cadastro no momento da emissão. Antes de
-  gerar, confira as tarefas, os riscos por executor e as medidas — e reemita
+  gerar, confira as atividades, os riscos por executor e as medidas — e reemita
   quando a análise mudar.
 </Aviso>
 
 ## GHE — Grupos Homogêneos de Exposição
 
-Em **GHE**, agrupe trabalhadores com exposição semelhante: mesmas tarefas,
+Em **GHE**, agrupe trabalhadores com exposição semelhante: mesmas atividades,
 mesmos perigos, tempos comparáveis.
 
 - **Sugestões automáticas** — o sistema sugere grupos de funcionários que
-  compartilham exatamente o mesmo conjunto de tarefas. Revise antes de criar:
+  compartilham exatamente o mesmo conjunto de atividades. Revise antes de criar:
   homogeneidade também depende de os tempos serem comparáveis.
 - **Criação manual** — crie o grupo, descreva o critério e adicione os
   membros.
 - **Perfil do grupo** — a página do GHE consolida, por membro, o tempo nas
-  tarefas, o % da jornada e os riscos avaliados, e destaca o pior risco de
+  atividades, o % da jornada e os riscos avaliados, e destaca o pior risco de
   cada categoria no grupo.
 
 ## O comparativo: desvio de função por executor
 
-Na página da função, o cartão **Comparativo: tarefas × plano de cargos** mostra,
+Na página da função, o cartão **Comparativo: atividades × plano de cargos** mostra,
 por funcionário:
 
-- **Na função** — tarefas que ele executa e que estão previstas no plano de
+- **Na função** — atividades que ele executa e que estão previstas no plano de
   cargos desta função (atende ao contrato).
-- **Fora do plano da função** — tarefas que ele executa mas o plano não prevê.
+- **Fora do plano da função** — atividades que ele executa mas o plano não prevê.
   É o sinal de **desvio de função**, que ajuda a mitigar passivos. Quando outra
-  função prevê a tarefa no plano dela, o sistema aponta qual.
+  função prevê a atividade no plano dela, o sistema aponta qual.
 - **Cobertura do plano** — quanto do plano de cargos ele efetivamente cobre.
 
 ## Matriz de treinamento
 
 Em **Matriz de treinamento**, cada funcionário aparece com os treinamentos
-**exigidos** pelas tarefas que executa, e o status de cada um: **Em dia**,
+**exigidos** pelas atividades que executa, e o status de cada um: **Em dia**,
 **Vencido** ou **Faltando**. Treinamentos que não foram vinculados ao catálogo
 aparecem como **Sem vínculo ao catálogo** — vincule-os para que o status passe a
 ser rastreado.
@@ -274,8 +274,8 @@ ser rastreado.
 
 Em **Relatórios**, escolha o escopo — **por funcionário**, **por função** ou
 **conjunto (todos)**. Cada pessoa traz o **percentual de presença física**
-(ponderado pelo tempo de cada tarefa), o **tempo total por mês**, a **jornada
-contratada** e o **% de ocupação**, as tarefas (com a recorrência de cada
+(ponderado pelo tempo de cada atividade), o **tempo total por mês**, a **jornada
+contratada** e o **% de ocupação**, as atividades (com a recorrência de cada
 execução) e os riscos avaliados para ela.
 
 ## Alerta de acesso fora do horário
@@ -288,12 +288,12 @@ topo da tela avisando. Sem jornada cadastrada, nada é exibido.
 
 A avaliação precisa ser revista todo ano.
 
-- **Por tarefa:** na página da tarefa, use **Registrar avaliação nesta data**.
-  Passados 12 meses, a tarefa entra nos alertas como pendente.
+- **Por atividade:** na página da atividade, use **Registrar avaliação nesta data**.
+  Passados 12 meses, a atividade entra nos alertas como pendente.
 - **Por funcionário:** em cada executor, o botão **Revalidar** carimba a
   revisão daquela atribuição para aquela pessoa.
 
-Os alertas de pendência (treinamentos, tarefas sem avaliação e revalidações
+Os alertas de pendência (treinamentos, atividades sem avaliação e revalidações
 vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
 **Pessoal**.
 
@@ -302,11 +302,11 @@ vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
 - **"Não aparece nenhuma função."** Rode **Gerar funções a partir dos cargos**,
   ou crie uma função manualmente.
 - **"Não consigo adicionar risco."** O risco é por executor — adicione primeiro
-  os executores da tarefa.
-- **"A IA não gravou os riscos."** A tarefa não tinha executores na hora da
+  os executores da atividade.
+- **"A IA não gravou os riscos."** A atividade não tinha executores na hora da
   análise. Adicione-os e rode a análise de novo.
 - **O comparativo não mostra a cobertura do plano.** Os itens do plano precisam
-  estar **vinculados a uma tarefa** — sem esse vínculo, entram como "não
+  estar **vinculados a uma atividade** — sem esse vínculo, entram como "não
   rastreáveis".
 - **Um treinamento aparece como "Sem vínculo ao catálogo" na matriz.** A medida
   de treinamento não foi ligada ao catálogo. Edite a medida e use **Vincular ao
@@ -320,7 +320,7 @@ vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
   a jornada cadastrada, no fuso de Brasília. Confira os dias e horários em
   **Jornadas de trabalho**.
 - **"Não consigo excluir a função."** Excluir a função remove o plano e os
-  vínculos de funcionários — as tarefas do catálogo não são apagadas.
+  vínculos de funcionários — as atividades do catálogo não são apagadas.
 
 <VejaTambem
   links={[
@@ -332,7 +332,7 @@ vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
     {
       titulo: "Funcionários",
       href: "/painel/ajuda/pessoal/funcionarios",
-      descricao: "A ficha de quem executa as tarefas",
+      descricao: "A ficha de quem executa as atividades",
     },
   ]}
 />

@@ -22,7 +22,7 @@ export async function GET(
     listarSedes().catch(() => ({ disponivel: false, sedes: [] })),
   ])
   if (!dados) {
-    return new Response("Funcionário sem tarefas atribuídas.", { status: 404 })
+    return new Response("Funcionário sem atividades atribuídas.", { status: 404 })
   }
 
   const elemento = createElement(SstDocumentoPDF, {

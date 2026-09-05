@@ -17,16 +17,16 @@ import { requirePermissao } from "@/lib/auth"
 import { listarAtividades } from "@/lib/db/pessoal-sst"
 import { ROTULO_PRESENCA } from "@/lib/pessoal-sst-constantes"
 
-export const metadata: Metadata = { title: "Tarefas — Confluir" }
+export const metadata: Metadata = { title: "Atividades — Confluir" }
 
-export default async function TarefasPage({
+export default async function AtividadesPage({
   searchParams,
 }: {
   searchParams: Promise<{ excluido?: string }>
 }) {
   await requirePermissao("pessoal_gestao")
   const { excluido } = await searchParams
-  const tarefas = await listarAtividades()
+  const atividades = await listarAtividades()
 
   return (
     <>
@@ -38,23 +38,23 @@ export default async function TarefasPage({
               Atribuições
             </Link>
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">Tarefas</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Atividades</h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            {tarefas.length} tarefa{tarefas.length === 1 ? "" : "s"} — abra uma
+            {atividades.length} atividade{atividades.length === 1 ? "" : "s"} — abra uma
             para a análise SST completa e os executores.
           </p>
         </div>
         <Button asChild>
-          <Link href="/painel/pessoal/atribuicoes/tarefas/nova">
+          <Link href="/painel/pessoal/atribuicoes/atividades/nova">
             <Plus />
-            Nova tarefa
+            Nova atividade
           </Link>
         </Button>
       </div>
 
       {excluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Tarefa excluída.</AlertDescription>
+          <AlertDescription>Atividade excluída.</AlertDescription>
         </Alert>
       )}
 
@@ -62,21 +62,21 @@ export default async function TarefasPage({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Tarefa</TableHead>
+              <TableHead>Atividade</TableHead>
               <TableHead className="hidden md:table-cell">Presença</TableHead>
               <TableHead className="text-right">Executores</TableHead>
               <TableHead className="text-right">Perigos/Riscos</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tarefas.length === 0 && (
+            {atividades.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="h-32">
                   <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
                     <ListChecks className="size-6" />
-                    <p className="text-sm">Nenhuma tarefa cadastrada.</p>
+                    <p className="text-sm">Nenhuma atividade cadastrada.</p>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/painel/pessoal/atribuicoes/tarefas/nova">
+                      <Link href="/painel/pessoal/atribuicoes/atividades/nova">
                         <Plus />
                         Criar a primeira
                       </Link>
@@ -85,11 +85,11 @@ export default async function TarefasPage({
                 </TableCell>
               </TableRow>
             )}
-            {tarefas.map((t) => (
+            {atividades.map((t) => (
               <TableRow key={t.id}>
                 <TableCell className="font-medium">
                   <Link
-                    href={`/painel/pessoal/atribuicoes/tarefas/${t.id}`}
+                    href={`/painel/pessoal/atribuicoes/atividades/${t.id}`}
                     className="hover:underline"
                   >
                     {t.nome ?? "(sem nome)"}

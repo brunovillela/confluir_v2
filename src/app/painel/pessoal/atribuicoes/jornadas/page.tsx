@@ -59,7 +59,7 @@ export default async function JornadasPage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Dias e horários de trabalho de cada funcionário. Base do % de
-          ocupação (quanto as tarefas consomem da disponibilidade) e do alerta
+          ocupação (quanto as atividades consomem da disponibilidade) e do alerta
           de acesso fora do horário.
         </p>
       </div>

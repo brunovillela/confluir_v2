@@ -54,7 +54,7 @@ function TabelaConsolidada({ pessoas }: { pessoas: RelatorioPessoa[] }) {
           <TableRow className="bg-muted/50">
             <TableHead>Funcionário</TableHead>
             <TableHead className="hidden sm:table-cell">Função</TableHead>
-            <TableHead className="text-right">Tarefas</TableHead>
+            <TableHead className="text-right">Atividades</TableHead>
             <TableHead className="text-right">Tempo/mês</TableHead>
             <TableHead className="hidden text-right lg:table-cell">
               Jornada/mês
@@ -80,7 +80,7 @@ function TabelaConsolidada({ pessoas }: { pessoas: RelatorioPessoa[] }) {
                 {p.funcaoNome ?? "—"}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {p.tarefas.length}
+                {p.atividades.length}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatarTempoMes(p.tempoTotalMin)}
@@ -149,26 +149,26 @@ function DetalhePessoa({ p }: { p: RelatorioPessoa }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         <div>
-          <p className="mb-2 text-sm font-medium">Tarefas e tempo</p>
+          <p className="mb-2 text-sm font-medium">Atividades e tempo</p>
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead>Tarefa</TableHead>
+                  <TableHead>Atividade</TableHead>
                   <TableHead className="hidden sm:table-cell">Recorrência</TableHead>
                   <TableHead className="hidden sm:table-cell">Presença</TableHead>
                   <TableHead className="text-right">Tempo/mês</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {p.tarefas.length === 0 && (
+                {p.atividades.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-muted-foreground h-14 text-center text-sm">
-                      Sem tarefas atribuídas.
+                      Sem atividades atribuídas.
                     </TableCell>
                   </TableRow>
                 )}
-                {p.tarefas.map((t) => (
+                {p.atividades.map((t) => (
                   <TableRow key={t.atividadeId}>
                     <TableCell className="font-medium">{t.nome ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground hidden sm:table-cell">
@@ -245,7 +245,7 @@ export default async function RelatoriosPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Relatórios SST</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Presença física, tempo por tarefa, perigos e riscos — por funcionário,
+          Presença física, tempo por atividade, perigos e riscos — por funcionário,
           por função ou pelo conjunto.
         </p>
       </div>
@@ -332,7 +332,7 @@ export default async function RelatoriosPage({
             </CardTitle>
             <CardDescription>
               {pessoas.length} funcionário{pessoas.length === 1 ? "" : "s"} no
-              escopo. A presença física é ponderada pelo tempo de cada tarefa.
+              escopo. A presença física é ponderada pelo tempo de cada atividade.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -120,7 +120,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "atribuicoes-sst",
         titulo: "Atribuições e SST",
         resumo:
-          "Tarefas, perigos e riscos, plano de cargos, matriz de treinamento e revalidação",
+          "Atividades, perigos e riscos, plano de cargos, matriz de treinamento e revalidação",
       },
       {
         slug: "reembolsos",

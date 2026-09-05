@@ -37,7 +37,7 @@ export default async function DocumentosSstPage() {
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           A Ordem de Serviço (NR-01) de cada funcionário e o Comunicado de SST
-          de cada prestador — gerados a partir das tarefas, riscos e medidas
+          de cada prestador — gerados a partir das atividades, riscos e medidas
           cadastrados. Baixe, colha a assinatura e arquive.
         </p>
       </div>
@@ -57,7 +57,7 @@ export default async function DocumentosSstPage() {
           <CardContent>
             {funcionarios.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Nenhum funcionário com tarefas atribuídas ainda.
+                Nenhum funcionário com atividades atribuídas ainda.
               </p>
             ) : (
               <ul className="divide-y rounded-lg border">
@@ -70,7 +70,7 @@ export default async function DocumentosSstPage() {
                       {f.nome ?? "(sem nome)"}
                       <span className="text-muted-foreground">
                         {" "}
-                        · {f.tarefas} tarefa{f.tarefas === 1 ? "" : "s"}
+                        · {f.atividades} atividade{f.atividades === 1 ? "" : "s"}
                       </span>
                     </span>
                     <Button asChild variant="outline" size="sm">
@@ -101,8 +101,8 @@ export default async function DocumentosSstPage() {
           <CardContent>
             {prestadores.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                Nenhum prestador com tarefas atribuídas ainda — vincule
-                prestadores como executores nas tarefas.
+                Nenhum prestador com atividades atribuídas ainda — vincule
+                prestadores como executores nas atividades.
               </p>
             ) : (
               <ul className="divide-y rounded-lg border">
@@ -115,7 +115,7 @@ export default async function DocumentosSstPage() {
                       {p.nome ?? "(sem nome)"}
                       <span className="text-muted-foreground">
                         {" "}
-                        · {p.tarefas} tarefa{p.tarefas === 1 ? "" : "s"}
+                        · {p.atividades} atividade{p.atividades === 1 ? "" : "s"}
                       </span>
                     </span>
                     <Button asChild variant="outline" size="sm">
@@ -135,7 +135,7 @@ export default async function DocumentosSstPage() {
 
       <p className="text-muted-foreground text-xs">
         Os documentos refletem o cadastro atual — antes de emitir, confira as
-        tarefas, os riscos por executor e as medidas (treinamentos e EPI) de
+        atividades, os riscos por executor e as medidas (treinamentos e EPI) de
         cada um.
       </p>
     </>

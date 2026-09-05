@@ -9,9 +9,9 @@ import {
 
 /**
  * IA da área Atribuições / SST (itens 5 em diante do pedido). Duas ajudas:
- * - sugerirPlanoCargos: tarefas esperadas de uma FUNÇÃO (plano de cargos).
+ * - sugerirPlanoCargos: atividades esperadas de uma FUNÇÃO (plano de cargos).
  * - analisarSST: perigos, riscos ocupacionais (+ residual), ferramentas e
- *   medidas (treinamento/EPI) de uma TAREFA, à luz das NRs vigentes.
+ *   medidas (treinamento/EPI) de uma ATIVIDADE, à luz das NRs vigentes.
  *
  * A IA apenas SUGERE — nada é gravado sem o gestor confirmar na tela.
  */
@@ -28,7 +28,7 @@ function inteiro1a5(v: unknown): number | null {
 
 // ── Plano de cargos ──────────────────────────────────────────────────────────
 
-const SYSTEM_PLANO = `Você é um especialista em cargos e salários e descrição de funções no Brasil. A partir do NOME de uma função (cargo) e de uma descrição opcional, liste as ATRIBUIÇÕES/TAREFAS típicas que quem ocupa essa função deve executar — o que serviria de "plano de cargos" comparável ao contrato de trabalho. Seja realista e específico ao contexto de um sindicato/entidade. Responda SOMENTE com JSON no formato {"atribuicoes": ["...", "..."]} com 6 a 12 itens curtos (uma linha cada), em português, sem numeração.`
+const SYSTEM_PLANO = `Você é um especialista em cargos e salários e descrição de funções no Brasil. A partir do NOME de uma função (cargo) e de uma descrição opcional, liste as ATRIBUIÇÕES/ATIVIDADES típicas que quem ocupa essa função deve executar — o que serviria de "plano de cargos" comparável ao contrato de trabalho. Seja realista e específico ao contexto de um sindicato/entidade. Responda SOMENTE com JSON no formato {"atribuicoes": ["...", "..."]} com 6 a 12 itens curtos (uma linha cada), em português, sem numeração.`
 
 export async function sugerirPlanoCargos(entrada: {
   funcao: string
@@ -52,9 +52,9 @@ export async function sugerirPlanoCargos(entrada: {
   return { atribuicoes }
 }
 
-// ── Análise SST da tarefa ────────────────────────────────────────────────────
+// ── Análise SST da atividade ────────────────────────────────────────────────────
 
-const SYSTEM_SST = `Você é um profissional de Segurança e Saúde no Trabalho (SST) no Brasil, familiarizado com as Normas Regulamentadoras (NRs) vigentes. A partir da descrição de uma TAREFA, produza uma análise preliminar de risco.
+const SYSTEM_SST = `Você é um profissional de Segurança e Saúde no Trabalho (SST) no Brasil, familiarizado com as Normas Regulamentadoras (NRs) vigentes. A partir da descrição de uma ATIVIDADE, produza uma análise preliminar de risco.
 
 Regras:
 - Categorias de risco ocupacional válidas: ${CATS}.
@@ -62,7 +62,7 @@ Regras:
 - Para o risco RESIDUAL (após treinamento e EPI), estime probabilidade_residual e severidade_residual (1 a 5), normalmente menores que os brutos.
 - Em perigos, "norma" é a NR de referência quando existir (ex.: "NR-06", "NR-12", "NR-17"); senão null.
 - Medidas são de dois tipos: "treinamento" (com recorrencia_meses quando fizer sentido, ex.: 12) e "epi" (com epi opcional).
-- Seja conciso e realista. Se a tarefa for administrativa/remota, os riscos podem ser sobretudo ergonômicos/psicossociais.
+- Seja conciso e realista. Se a atividade for administrativa/remota, os riscos podem ser sobretudo ergonômicos/psicossociais.
 
 Responda SOMENTE com JSON:
 {
@@ -99,19 +99,19 @@ export type SugestaoSST = {
 const CATS_VALIDAS = new Set(CATEGORIAS_RISCO.map((c) => c.valor))
 
 export async function analisarSST(entrada: {
-  tarefa: string
+  atividade: string
   descricao?: string | null
   presenca?: string | null
   frequencia?: string | null
   ferramentas?: string[]
 }): Promise<{ sugestao?: SugestaoSST; erro?: string }> {
-  const tarefa = entrada.tarefa.trim()
-  if (tarefa.length < 2) return { erro: "Informe o nome da tarefa." }
+  const atividade = entrada.atividade.trim()
+  if (atividade.length < 2) return { erro: "Informe o nome da atividade." }
 
   const presencaRotulo = entrada.presenca
     ? (PRESENCAS.find((p) => p.valor === entrada.presenca)?.rotulo ?? entrada.presenca)
     : null
-  const prompt = `TAREFA: ${tarefa}
+  const prompt = `ATIVIDADE: ${atividade}
 ${entrada.descricao ? `DESCRIÇÃO: ${entrada.descricao}\n` : ""}${
     presencaRotulo ? `PRESENÇA: ${presencaRotulo}\n` : ""
   }${

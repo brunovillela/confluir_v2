@@ -6,15 +6,15 @@ import { Loader2, Trash2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
-import { excluirTarefa } from "../../actions"
+import { excluirAtividade } from "../../actions"
 
-export function ExcluirTarefa({ id }: { id: string }) {
-  const [estado, action, pend] = useActionState(excluirTarefa, {})
+export function ExcluirAtividade({ id }: { id: string }) {
+  const [estado, action, pend] = useActionState(excluirAtividade, {})
   return (
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta tarefa e toda a análise SST? Não pode ser desfeito.")) {
+        if (!confirm("Excluir esta atividade e toda a análise SST? Não pode ser desfeito.")) {
           e.preventDefault()
         }
       }}
@@ -32,7 +32,7 @@ export function ExcluirTarefa({ id }: { id: string }) {
         className="text-destructive hover:text-destructive"
       >
         {pend ? <Loader2 className="animate-spin" /> : <Trash2 />}
-        Excluir tarefa
+        Excluir atividade
       </Button>
     </form>
   )

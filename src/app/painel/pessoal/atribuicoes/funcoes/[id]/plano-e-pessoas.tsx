@@ -54,13 +54,13 @@ export function PlanoCargos({
   funcaoNome,
   funcaoDescricao,
   atribuicoes,
-  tarefas,
+  atividades,
 }: {
   funcaoId: string
   funcaoNome: string
   funcaoDescricao: string | null
   atribuicoes: Atribuicao[]
-  tarefas: { id: string; nome: string | null }[]
+  atividades: { id: string; nome: string | null }[]
 }) {
   const [estadoAdd, addAction, addPend] = useActionState(adicionarAtribuicao, {})
   const [estadoIA, iaAction, iaPend] = useActionState(sugerirPlanoComIA, {})
@@ -94,7 +94,7 @@ export function PlanoCargos({
                 {a.atividadeNome && (
                   <span className="text-muted-foreground">
                     {" "}
-                    · tarefa: {a.atividadeNome}
+                    · atividade: {a.atividadeNome}
                   </span>
                 )}
               </span>
@@ -121,8 +121,8 @@ export function PlanoCargos({
             defaultValue=""
             className="border-input bg-background h-9 flex-1 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
           >
-            <option value="">Vincular a uma tarefa (opcional)…</option>
-            {tarefas.map((t) => (
+            <option value="">Vincular a uma atividade (opcional)…</option>
+            {atividades.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.nome ?? "(sem nome)"}
               </option>

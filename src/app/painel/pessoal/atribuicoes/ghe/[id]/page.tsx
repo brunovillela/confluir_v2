@@ -126,7 +126,7 @@ export default async function GheDetalhePage({
             Perfil de exposição do grupo
           </CardTitle>
           <CardDescription>
-            Por membro: tempo nas tarefas, % da jornada consumida e riscos
+            Por membro: tempo nas atividades, % da jornada consumida e riscos
             avaliados (por executor). O pior risco de cada categoria no grupo
             aparece consolidado abaixo.
           </CardDescription>
@@ -152,7 +152,7 @@ export default async function GheDetalhePage({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Membro</TableHead>
-                  <TableHead className="text-right">Tarefas</TableHead>
+                  <TableHead className="text-right">Atividades</TableHead>
                   <TableHead className="text-right">Tempo/mês</TableHead>
                   <TableHead className="text-right">Ocupação</TableHead>
                   <TableHead>Riscos</TableHead>
@@ -175,7 +175,7 @@ export default async function GheDetalhePage({
                       {p.nome ?? "(sem nome)"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {p.tarefas.length}
+                      {p.atividades.length}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatarTempoMes(p.tempoTotalMin)}
@@ -219,7 +219,7 @@ export default async function GheDetalhePage({
             Excluir GHE
           </CardTitle>
           <CardDescription>
-            Remove o grupo e os vínculos de membros. Funcionários, tarefas e
+            Remove o grupo e os vínculos de membros. Funcionários, atividades e
             riscos não são apagados.
           </CardDescription>
         </CardHeader>

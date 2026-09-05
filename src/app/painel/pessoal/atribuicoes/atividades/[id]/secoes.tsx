@@ -29,13 +29,13 @@ import {
   adicionarMedida,
   adicionarPerigo,
   adicionarRisco,
-  analisarTarefaComIA,
+  analisarAtividadeComIA,
   excluirExecutor,
   excluirFerramenta,
   excluirMedida,
   excluirPerigo,
   excluirRisco,
-  marcarTarefaAvaliada,
+  marcarAtividadeAvaliada,
   revalidarExecutor,
   salvarExecutor,
 } from "../../actions"
@@ -136,7 +136,7 @@ export function SecaoExecutores({
       )}
       {executores.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Ninguém executa esta tarefa ainda — vincule funcionários ou
+          Ninguém executa esta atividade ainda — vincule funcionários ou
           prestadores de serviço.
         </p>
       ) : (
@@ -269,7 +269,7 @@ export function SecaoExecutores({
       <p className="text-muted-foreground text-xs">
         Re-selecionar o mesmo funcionário atualiza os dados dele. Tempo,
         recorrência e frequência são POR EXECUTOR — cada um pode ter carga e
-        cadência diferentes na mesma tarefa.
+        cadência diferentes na mesma atividade.
       </p>
     </div>
   )
@@ -563,7 +563,7 @@ export function SecaoRiscos({
         <div className="border-warning/40 rounded-lg border">
           <p className="text-warning-fg px-3 py-2 text-xs font-medium">
             Avaliações antigas sem executor (feitas quando o risco era da
-            tarefa) — reavalie por pessoa e exclua estas:
+            atividade) — reavalie por pessoa e exclua estas:
           </p>
           <ul className="divide-y">
             {semExecutor.map((r) => (
@@ -679,7 +679,7 @@ export function SecaoRiscos({
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            Quem passa mais tempo na tarefa tem mais probabilidade de sofrer com
+            Quem passa mais tempo na atividade tem mais probabilidade de sofrer com
             os perigos dela — use a exposição mostrada em cada executor para
             calibrar a probabilidade.
           </p>
@@ -824,10 +824,10 @@ export function SecaoMedidas({
   )
 }
 
-// ── IA e avaliação da tarefa ─────────────────────────────────────────────────
+// ── IA e avaliação da atividade ─────────────────────────────────────────────────
 
 export function BotaoAnalisarIA({ atividadeId }: { atividadeId: string }) {
-  const [estado, action, pend] = useActionState(analisarTarefaComIA, {})
+  const [estado, action, pend] = useActionState(analisarAtividadeComIA, {})
   return (
     <div className="grid gap-2">
       {estado.erro && (
@@ -851,14 +851,14 @@ export function BotaoAnalisarIA({ atividadeId }: { atividadeId: string }) {
   )
 }
 
-export function BotaoAvaliarTarefa({
+export function BotaoAvaliarAtividade({
   atividadeId,
   avaliadaEm,
 }: {
   atividadeId: string
   avaliadaEm: string | null
 }) {
-  const [estado, action, pend] = useActionState(marcarTarefaAvaliada, {})
+  const [estado, action, pend] = useActionState(marcarAtividadeAvaliada, {})
   return (
     <div className="grid gap-2">
       {estado.ok && (

@@ -169,11 +169,11 @@ export default async function PessoalPage() {
       texto: `${plural(sst.treinamentosPendentes, "treinamento exigido pendente", "treinamentos exigidos pendentes")} na matriz de treinamento.`,
     })
   }
-  if (sst?.ativo && sst.tarefasSemAvaliacao > 0) {
+  if (sst?.ativo && sst.atividadesSemAvaliacao > 0) {
     alertas.push({
-      href: "/painel/pessoal/atribuicoes/tarefas",
+      href: "/painel/pessoal/atribuicoes/atividades",
       icone: ShieldAlert,
-      texto: `${plural(sst.tarefasSemAvaliacao, "tarefa sem avaliação SST", "tarefas sem avaliação SST")} ou com avaliação vencida.`,
+      texto: `${plural(sst.atividadesSemAvaliacao, "atividade sem avaliação SST", "atividades sem avaliação SST")} ou com avaliação vencida.`,
     })
   }
 
@@ -315,12 +315,12 @@ export default async function PessoalPage() {
       titulo: "Atribuições e SST",
       indicador:
         sst && sst.ativo
-          ? sst.treinamentosPendentes + sst.tarefasSemAvaliacao > 0
-            ? `${sst.treinamentosPendentes + sst.tarefasSemAvaliacao} pendência${sst.treinamentosPendentes + sst.tarefasSemAvaliacao === 1 ? "" : "s"}`
-            : plural(sst.tarefas, "tarefa", "tarefas")
+          ? sst.treinamentosPendentes + sst.atividadesSemAvaliacao > 0
+            ? `${sst.treinamentosPendentes + sst.atividadesSemAvaliacao} pendência${sst.treinamentosPendentes + sst.atividadesSemAvaliacao === 1 ? "" : "s"}`
+            : plural(sst.atividades, "atividade", "atividades")
           : "Configurar",
       descricao: sst && sst.ativo
-        ? "Tarefas, perigos, riscos, matriz de treinamento e revalidação"
+        ? "Atividades, perigos, riscos, matriz de treinamento e revalidação"
         : "Rode supabase/pessoal-atribuicoes-sst.sql para ativar",
       icone: ShieldAlert,
     },

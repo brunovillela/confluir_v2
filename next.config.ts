@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
       // E-mails institucionais (cadastro de recurso da entidade) saiu de Ferramentas p/ Institucional.
       { source: "/painel/ferramentas/emails", destination: "/painel/institucional/emails", permanent: true },
       { source: "/painel/ferramentas/emails/:path*", destination: "/painel/institucional/emails/:path*", permanent: true },
+      // SST: "Tarefas" virou "Atividades" para não competir com as Tarefas de
+      // Ferramentas (demandas/projetos/anomalias) — são coisas diferentes e o
+      // nome igual confundia. O banco já usava `pessoal_atividades`.
+      { source: "/painel/pessoal/atribuicoes/tarefas", destination: "/painel/pessoal/atribuicoes/atividades", permanent: true },
+      { source: "/painel/pessoal/atribuicoes/tarefas/:path*", destination: "/painel/pessoal/atribuicoes/atividades/:path*", permanent: true },
     ]
   },
 };

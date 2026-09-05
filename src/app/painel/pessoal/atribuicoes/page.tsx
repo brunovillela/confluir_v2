@@ -69,11 +69,11 @@ export default async function AtribuicoesPage() {
       texto: `${plural(r.treinamentosPendentes, "treinamento exigido pendente", "treinamentos exigidos pendentes")} (faltando ou vencido) em ${plural(r.funcionariosComPendencia, "funcionário", "funcionários")}.`,
     })
   }
-  if (r.ativo && r.tarefasSemAvaliacao > 0) {
+  if (r.ativo && r.atividadesSemAvaliacao > 0) {
     alertas.push({
-      href: "/painel/pessoal/atribuicoes/tarefas",
+      href: "/painel/pessoal/atribuicoes/atividades",
       icone: ShieldAlert,
-      texto: `${plural(r.tarefasSemAvaliacao, "tarefa sem avaliação SST", "tarefas sem avaliação SST")} ou com avaliação vencida (mais de 12 meses).`,
+      texto: `${plural(r.atividadesSemAvaliacao, "atividade sem avaliação SST", "atividades sem avaliação SST")} ou com avaliação vencida (mais de 12 meses).`,
     })
   }
   if (r.ativo && r.revalidacoesPendentes > 0) {
@@ -92,11 +92,11 @@ export default async function AtribuicoesPage() {
     icone: Icone
   }[] = [
     {
-      href: "/painel/pessoal/atribuicoes/tarefas",
-      titulo: "Tarefas",
-      indicador: plural(r.tarefas, "tarefa", "tarefas"),
+      href: "/painel/pessoal/atribuicoes/atividades",
+      titulo: "Atividades",
+      indicador: plural(r.atividades, "atividade", "atividades"),
       descricao:
-        "Catálogo de tarefas com presença, ferramentas, perigos e medidas — executores com tempo, recorrência e risco por pessoa",
+        "Catálogo de atividades com presença, ferramentas, perigos e medidas — executores com tempo, recorrência e risco por pessoa",
       icone: ListChecks,
     },
     {
@@ -104,7 +104,7 @@ export default async function AtribuicoesPage() {
       titulo: "Funções e plano de cargos",
       indicador: plural(r.funcoes, "função", "funções"),
       descricao:
-        "Cargos, tarefas esperadas (plano de cargos) e desvio de função por executor",
+        "Cargos, atividades esperadas (plano de cargos) e desvio de função por executor",
       icone: Users,
     },
     {
@@ -138,7 +138,7 @@ export default async function AtribuicoesPage() {
       titulo: "Relatórios",
       indicador: "Por funcionário, função e conjunto",
       descricao:
-        "Presença física, tempo por tarefa, ocupação da jornada, perigos e riscos — e revalidação anual",
+        "Presença física, tempo por atividade, ocupação da jornada, perigos e riscos — e revalidação anual",
       icone: ClipboardList,
     },
     {
@@ -164,7 +164,7 @@ export default async function AtribuicoesPage() {
           Atribuições e SST
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Tarefas de cada funcionário, análise de perigos e riscos ocupacionais,
+          Atividades de cada funcionário, análise de perigos e riscos ocupacionais,
           matriz de treinamento e revalidação anual.
         </p>
       </div>
@@ -222,7 +222,7 @@ export default async function AtribuicoesPage() {
       <p className="text-muted-foreground text-xs">
         <BriefcaseBusiness className="mr-1 inline size-3.5 align-[-2px]" />
         Preenchimento restrito à gestão de pessoal. A IA ajuda a montar o plano
-        de cargos e a análise de perigos, riscos e medidas de cada tarefa.
+        de cargos e a análise de perigos, riscos e medidas de cada atividade.
       </p>
     </>
   )

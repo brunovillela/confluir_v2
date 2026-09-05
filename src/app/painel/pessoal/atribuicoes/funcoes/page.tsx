@@ -50,7 +50,7 @@ export default async function FuncoesPage({
           Funções e plano de cargos
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Cada função reúne o plano de cargos (tarefas esperadas) e os
+          Cada função reúne o plano de cargos (atividades esperadas) e os
           funcionários que a ocupam — base do comparativo com o contrato.
         </p>
       </div>
@@ -91,7 +91,7 @@ export default async function FuncoesPage({
                   <TableRow className="bg-muted/50">
                     <TableHead>Função</TableHead>
                     <TableHead className="text-right">Funcionários</TableHead>
-                    <TableHead className="text-right">Tarefas</TableHead>
+                    <TableHead className="text-right">Atividades</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -124,7 +124,7 @@ export default async function FuncoesPage({
                         {f.funcionarios}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {f.tarefas}
+                        {f.atividades}
                       </TableCell>
                     </TableRow>
                   ))}
