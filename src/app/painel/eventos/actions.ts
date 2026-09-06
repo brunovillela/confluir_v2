@@ -57,19 +57,33 @@ function gerarSlug(texto: string): string {
 }
 
 /** Datas do período, uma por dia — a presença é registrada por dia. */
+/**
+ * Data de calendário BRASILEIRA (AAAA-MM-DD) de um instante.
+ *
+ * Não dá para usar UTC aqui: o servidor roda em UTC e uma reunião das 20h às
+ * 22h atravessa a meia-noite lá, virando dois dias de evento — dois turnos de
+ * recepção e um comparecimento diluído por dois. O dia do evento é o dia de
+ * quem vai a ele.
+ */
+function dataLocal(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(iso))
+}
+
 function diasEntre(inicioIso: string, terminoIso: string): string[] {
   const dias: string[] = []
-  const ini = new Date(inicioIso)
-  const fim = new Date(terminoIso)
-  const cursor = new Date(
-    Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth(), ini.getUTCDate())
-  )
-  const limite = new Date(
-    Date.UTC(fim.getUTCFullYear(), fim.getUTCMonth(), fim.getUTCDate())
-  )
+  const [ai, mi, di] = dataLocal(inicioIso).split("-").map(Number)
+  const limite = dataLocal(terminoIso)
+
+  // O cursor anda em UTC apenas como aritmética de calendário — os extremos já
+  // vieram convertidos para o fuso de São Paulo acima.
+  const cursor = new Date(Date.UTC(ai, mi - 1, di))
   // Teto de 60 dias: evento maior que isso é erro de digitação, não congresso.
-  while (cursor <= limite && dias.length < 60) {
-    dias.push(cursor.toISOString().slice(0, 10))
+  while (dias.length < 60) {
+    const dia = cursor.toISOString().slice(0, 10)
+    dias.push(dia)
+    if (dia >= limite) break
     cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
   return dias
