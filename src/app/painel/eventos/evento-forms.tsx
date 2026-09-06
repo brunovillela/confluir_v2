@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { CalendarPlus, Loader2, Save, Send, TriangleAlert } from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
@@ -537,24 +537,70 @@ export function AvaliarInscricao({
 }
 
 /**
- * Disparo do RSVP. É um botão e não um automatismo de propósito: a pergunta
- * "você vem?" tem hora certa (uma semana antes, depois do fechamento das
- * inscrições), e quem sabe qual é essa hora é quem organiza.
+ * Disparo do RSVP.
+ *
+ * O envio é MANUAL de propósito: quem sabe a hora certa de perguntar "você
+ * vem?" é quem organiza. O que o sistema faz é destravar o botão sozinho no
+ * instante em que a data de abertura chega — sem recarregar a página, e
+ * mostrando quanto falta até lá.
  */
+function faltam(ms: number): string {
+  const seg = Math.max(0, Math.floor(ms / 1000))
+  const d = Math.floor(seg / 86400)
+  const h = Math.floor((seg % 86400) / 3600)
+  const m = Math.floor((seg % 3600) / 60)
+  if (d > 0) return `${d} dia${d === 1 ? "" : "s"} e ${h}h`
+  if (h > 0) return `${h}h${String(m).padStart(2, "0")}`
+  if (m > 0) return `${m} minuto${m === 1 ? "" : "s"}`
+  return "menos de um minuto"
+}
+
 export function EnviarRsvpForm({
   eventoId,
+  abreEm,
+  enviadoEm,
   jaEnviados,
   semResposta,
 }: {
   eventoId: string
+  /** Nulo = o organizador ainda não disse quando a confirmação abre. */
+  abreEm: string | null
+  enviadoEm: string | null
   jaEnviados: number
   semResposta: number
 }) {
   const [estado, formAction, pendente] = useActionState(enviarRsvpAction, {})
+  // Null até montar: o servidor não pode decidir "já abriu", senão a resposta
+  // renderizada chega ao navegador já vencida e a hidratação diverge.
+  const [restante, setRestante] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!abreEm) return
+    const alvo = new Date(abreEm).getTime()
+    const tick = () => setRestante(alvo - Date.now())
+    tick()
+    // De minuto em minuto basta: o botão destrava sozinho quando a hora chega.
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [abreEm])
+
+  if (!abreEm) {
+    return (
+      <Alert variant="warning">
+        <TriangleAlert />
+        <AlertDescription>
+          Falta dizer <strong>quando a confirmação abre</strong>. Sem data, a
+          pergunta chegaria junto com a inscrição — e quem confirma no minuto
+          seguinte não está dizendo nada novo. Defina em Editar.
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  const aberto = restante !== null && restante <= 0
 
   return (
-    <form action={formAction} className="grid gap-3">
-      <input type="hidden" name="id" value={eventoId} />
+    <div className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -566,25 +612,54 @@ export function EnviarRsvpForm({
         </Alert>
       )}
 
-      {jaEnviados > 0 && (
-        <label className="flex items-start gap-3 rounded-md border p-3">
-          <input type="checkbox" name="reenviar" className="mt-0.5 size-4" />
-          <span className="text-sm">
-            Cobrar quem não respondeu
-            <span className="text-muted-foreground block text-xs">
-              {semResposta} pessoa(s) receberam e ainda não disseram se vêm.
-              Sem marcar, o envio alcança só quem nunca foi perguntado.
-            </span>
-          </span>
-        </label>
+      {restante !== null && !aberto && (
+        <Alert variant="info">
+          <AlertDescription>
+            A confirmação abre em <strong>{faltam(restante)}</strong>. Até lá o
+            passo fica travado para o inscrito, que já foi avisado na página
+            dele de que receberá o e-mail nessa data. O botão libera sozinho
+            quando a hora chegar.
+          </AlertDescription>
+        </Alert>
       )}
 
-      <div>
-        <Button type="submit" size="sm" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Send />}
-          Perguntar quem vem
-        </Button>
-      </div>
-    </form>
+      {aberto && !enviadoEm && !estado.ok && (
+        <Alert variant="warning">
+          <TriangleAlert />
+          <AlertDescription>
+            A confirmação já abriu e o e-mail <strong>ainda não foi
+            enviado</strong>. Os inscritos estão esperando por ele.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <form action={formAction} className="grid gap-3">
+        <input type="hidden" name="id" value={eventoId} />
+
+        {jaEnviados > 0 && (
+          <label className="flex items-start gap-3 rounded-md border p-3">
+            <input type="checkbox" name="reenviar" className="mt-0.5 size-4" />
+            <span className="text-sm">
+              Cobrar quem não respondeu
+              <span className="text-muted-foreground block text-xs">
+                {semResposta} pessoa(s) receberam e ainda não disseram se vêm.
+                Sem marcar, o envio alcança só quem nunca foi perguntado.
+              </span>
+            </span>
+          </label>
+        )}
+
+        <div>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={pendente || restante === null || !aberto}
+          >
+            {pendente ? <Loader2 className="animate-spin" /> : <Send />}
+            Perguntar quem vem
+          </Button>
+        </div>
+      </form>
+    </div>
   )
 }
