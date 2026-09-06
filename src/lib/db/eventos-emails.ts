@@ -275,13 +275,20 @@ export async function enviarRsvp(
 
   // Carimba só quem realmente recebeu, para o reenvio saber onde parou.
   if (resultado.enviados > 0) {
+    const agora = new Date().toISOString()
     await admin
       .from("eventos_inscricoes")
-      .update({ rsvp_enviado_em: new Date().toISOString() })
+      .update({ rsvp_enviado_em: agora })
       .in(
         "id",
         pessoas.filter((p) => p.email).map((p) => p.id)
       )
+    // Carimbo no EVENTO: é o que impede o varredor de disparar de novo.
+    await admin
+      .from("eventos")
+      .update({ rsvp_enviado_lote_em: agora })
+      .eq("emp_proprietaria_id", emp)
+      .eq("id", evento.id)
   }
 
   return resultado

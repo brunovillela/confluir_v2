@@ -259,6 +259,9 @@ export type InscricaoPublica = {
   modoFoto: ModoFoto
   retencaoFotoDias: number
   exigeRsvp: boolean
+  /** Quando a confirmação abre. Nulo = o organizador ainda não marcou. */
+  rsvpAbreEm: string | null
+  rsvpAberto: boolean
   rsvpConfirmado: boolean | null
   termoFotoTexto: string | null
   anonimizada: boolean
@@ -281,7 +284,7 @@ export async function obterInscricaoPorToken(
 
   const { data: ev } = await service
     .from("eventos")
-    .select("id, titulo, slug, inicio, exige_foto, exige_rsvp")
+    .select("id, titulo, slug, inicio, exige_foto, exige_rsvp, rsvp_abre_em")
     .eq("id", data.evento_id as string)
     .maybeSingle()
 
@@ -308,6 +311,13 @@ export async function obterInscricaoPorToken(
     modoFoto,
     retencaoFotoDias: config.retencao_foto_dias,
     exigeRsvp: ev?.exige_rsvp === true,
+    rsvpAbreEm: (ev?.rsvp_abre_em as string | null) ?? null,
+    // A confirmação não abre junto com a inscrição: confirmar presença um
+    // minuto depois de se inscrever repetiria a inscrição, não informaria nada.
+    rsvpAberto:
+      ev?.rsvp_abre_em !== null &&
+      ev?.rsvp_abre_em !== undefined &&
+      new Date(ev.rsvp_abre_em as string) <= new Date(),
     rsvpConfirmado: (data.rsvp_confirmado as boolean | null) ?? null,
     termoFotoTexto: termoFoto?.texto ?? null,
     anonimizada: data.anonimizada_em !== null,

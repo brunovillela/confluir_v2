@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { paraCampoDataHora } from "@/lib/formato"
 
 import {
   avaliarInscricao,
@@ -38,14 +39,7 @@ export type EventoInicial = {
   confirma_filiado_automatico: boolean
   exige_foto: boolean
   exige_rsvp: boolean
-}
-
-/** ISO → valor de <input type="datetime-local"> (que é local, sem fuso). */
-function paraCampoDataHora(iso: string | null): string {
-  if (!iso) return ""
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  rsvp_abre_em: string | null
 }
 
 export function EventoForm({
@@ -66,6 +60,7 @@ export function EventoForm({
   const [cota, setCota] = useState(
     inicial?.cota_convidados != null ? String(inicial.cota_convidados) : ""
   )
+  const [rsvp, setRsvp] = useState(inicial?.exige_rsvp ?? false)
 
   const l = Number(lotacao) || 0
   const o = Number(overbooking) || 0
@@ -338,7 +333,8 @@ export function EventoForm({
               type="checkbox"
               name="exige_rsvp"
               className="mt-0.5 size-4"
-              defaultChecked={inicial?.exige_rsvp ?? false}
+              checked={rsvp}
+              onChange={(e) => setRsvp(e.target.checked)}
             />
             <span className="grid gap-1">
               <span className="text-sm font-medium">Pedir RSVP por e-mail</span>
@@ -348,6 +344,25 @@ export function EventoForm({
               </span>
             </span>
           </label>
+
+          {rsvp && (
+            <div className="grid gap-2 sm:max-w-72">
+              <Label htmlFor="rsvp_abre_em">A confirmação abre em</Label>
+              <Input
+                id="rsvp_abre_em"
+                name="rsvp_abre_em"
+                type="datetime-local"
+                defaultValue={paraCampoDataHora(inicial?.rsvp_abre_em ?? null)}
+              />
+              <p className="text-muted-foreground text-xs">
+                Nesta data o e-mail sai e o botão de confirmar aparece para o
+                inscrito. Antes disso o passo fica travado, dizendo a ele quando
+                a pergunta chega. Escolha depois do fim das inscrições — quem
+                confirma no minuto seguinte à inscrição não está dizendo nada
+                novo.
+              </p>
+            </div>
+          )}
 
           {modoFoto === "nenhuma" ? (
             <Alert>

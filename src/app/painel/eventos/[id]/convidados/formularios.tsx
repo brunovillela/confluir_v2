@@ -1,12 +1,13 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2, Trash2, Upload, UserPlus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { mascaraCpf, mascaraTelefone } from "@/lib/mascaras"
 
 import {
   excluirConvidadoAction,
@@ -105,6 +106,8 @@ export function LancarConvidado({ eventoId }: { eventoId: string }) {
     lancarConvidadoAction,
     {}
   )
+  const [cpf, setCpf] = useState("")
+  const [telefone, setTelefone] = useState("")
 
   return (
     <form action={formAction} className="grid gap-4 pt-2">
@@ -128,7 +131,14 @@ export function LancarConvidado({ eventoId }: { eventoId: string }) {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="cpf">CPF</Label>
-          <Input id="cpf" name="cpf" inputMode="numeric" />
+          <Input
+            id="cpf"
+            name="cpf"
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            value={cpf}
+            onChange={(e) => setCpf(mascaraCpf(e.target.value))}
+          />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="email">E-mail</Label>
@@ -136,7 +146,14 @@ export function LancarConvidado({ eventoId }: { eventoId: string }) {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="telefone">Telefone</Label>
-          <Input id="telefone" name="telefone" />
+          <Input
+            id="telefone"
+            name="telefone"
+            inputMode="tel"
+            placeholder="(22) 90000-0000"
+            value={telefone}
+            onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
+          />
         </div>
         <div className="grid gap-2 sm:col-span-2">
           <Label htmlFor="convidado_por">A convite de</Label>

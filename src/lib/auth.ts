@@ -256,8 +256,8 @@ export const areasDaConta = cache(async (): Promise<AreaDaConta[]> => {
 
   const admin = await createAdminClient()
 
-  const [painel, hotel, portal] = await Promise.all([
-    getSessaoPainel().then((s) => !!s),
+  const [sessaoPainel, hotel, portal] = await Promise.all([
+    getSessaoPainel(),
     (async () => {
       // Tabela ausente ou erro: sem área de hotel.
       const { data, error } = await admin
@@ -284,7 +284,17 @@ export const areasDaConta = cache(async (): Promise<AreaDaConta[]> => {
   ])
 
   const areas: AreaDaConta[] = []
-  if (painel) areas.push({ titulo: "Painel interno", href: "/painel" })
+  if (sessaoPainel) areas.push({ titulo: "Painel interno", href: "/painel" })
+  // A recepção é uma PORTA separada, fora do /painel: sem esta entrada quem
+  // opera a porta não tem como chegar nela — foi o que aconteceu no primeiro
+  // teste.
+  if (
+    sessaoPainel &&
+    (sessaoPainel.permissoes.eventos_recepcao === true ||
+      sessaoPainel.permissoes.eventos_gestao === true)
+  ) {
+    areas.push({ titulo: "Recepção de eventos", href: "/recepcao" })
+  }
   if (hotel) areas.push({ titulo: "Área do hotel", href: "/hotel/inicio" })
   if (portal) areas.push({ titulo: "Portal do associado", href: "/portal/inicio" })
   return areas

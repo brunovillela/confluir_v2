@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
   ArrowLeft,
+  DoorOpen,
   ExternalLink,
   ListChecks,
   Pencil,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import {
+  estadoDoRsvp,
   indicadoresDoEvento,
   inscricoesAbertas,
   listarInscricoes,
@@ -93,6 +95,7 @@ export default async function EventoPage({
     listarInscricoes({ eventoId: id, situacao: "todas" }),
   ])
   const { capacidade } = indicadores
+  const rsvp = estadoDoRsvp(evento)
   const abertura = inscricoesAbertas(evento, capacidade)
 
   return (
@@ -150,6 +153,14 @@ export default async function EventoPage({
                   Campos
                 </Link>
               </Button>
+              {evento.situacao === "publicado" && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/recepcao?evento=${id}`}>
+                    <DoorOpen />
+                    Abrir recepção
+                  </Link>
+                </Button>
+              )}
               {evento.situacao === "publicado" && (
                 <Button asChild variant="outline" size="sm">
                   <a
@@ -278,11 +289,44 @@ export default async function EventoPage({
           </CardContent>
           {gestor && (
             <CardContent className="border-t pt-6">
-              <EnviarRsvpForm
-                eventoId={evento.id}
-                jaEnviados={indicadores.rsvpEnviados}
-                semResposta={indicadores.rsvpSemResposta}
-              />
+              {rsvp.situacao === "sem_data" ? (
+                <Alert variant="warning">
+                  <AlertDescription>
+                    Falta dizer <strong>quando a confirmação abre</strong>. Sem
+                    data, a pergunta chegaria junto com a inscrição — e quem
+                    confirma no minuto seguinte não está dizendo nada novo.
+                    Defina em Editar.
+                  </AlertDescription>
+                </Alert>
+              ) : rsvp.situacao === "aguardando" ? (
+                <Alert variant="info">
+                  <AlertDescription>
+                    A confirmação abre em{" "}
+                    <strong>{formatarDataHora(rsvp.abreEm)}</strong>. Até lá o
+                    passo fica travado para o inscrito, que já foi avisado na
+                    página dele de que receberá o e-mail nessa data.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-3">
+                  {rsvp.situacao === "aberto" && !rsvp.enviadoEm && (
+                    <Alert variant="warning">
+                      <TriangleAlert />
+                      <AlertDescription>
+                        A confirmação abriu em{" "}
+                        <strong>{formatarDataHora(rsvp.abreEm)}</strong> e o
+                        e-mail <strong>ainda não foi enviado</strong>. Os
+                        inscritos estão esperando por ele.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <EnviarRsvpForm
+                    eventoId={evento.id}
+                    jaEnviados={indicadores.rsvpEnviados}
+                    semResposta={indicadores.rsvpSemResposta}
+                  />
+                </div>
+              )}
             </CardContent>
           )}
         </Card>

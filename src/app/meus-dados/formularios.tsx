@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 import { KeyRound, Loader2, Save, Trash2 } from "lucide-react"
 
+import { CampoCodigo } from "@/components/campo-codigo"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -61,17 +62,9 @@ export function ConfirmarAcesso({ token }: { token: string }) {
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <div className="grid gap-2 sm:max-w-52">
+      <div className="grid gap-2">
         <Label htmlFor="codigo">Código de 6 dígitos</Label>
-        <Input
-          id="codigo"
-          name="codigo"
-          inputMode="numeric"
-          maxLength={6}
-          placeholder="000000"
-          className="text-center text-lg tracking-[0.4em]"
-          required
-        />
+        <CampoCodigo autoFocus />
       </div>
       <div>
         <Button type="submit" disabled={pendente}>

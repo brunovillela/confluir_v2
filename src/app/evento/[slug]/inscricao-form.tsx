@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { mascaraCpf, mascaraTelefone } from "@/lib/mascaras"
 
 import { inscreverAction } from "./actions"
 
@@ -84,6 +85,8 @@ export function InscricaoForm({
   const [estado, formAction, pendente] = useActionState(inscreverAction, {})
   const [aceite, setAceite] = useState(false)
   const [aceiteFoto, setAceiteFoto] = useState(false)
+  const [cpf, setCpf] = useState("")
+  const [telefone, setTelefone] = useState("")
 
   const bloqueado = !aceite || (fotoObrigatoria && !aceiteFoto)
 
@@ -109,6 +112,8 @@ export function InscricaoForm({
             name="cpf"
             inputMode="numeric"
             placeholder="000.000.000-00"
+            value={cpf}
+            onChange={(e) => setCpf(mascaraCpf(e.target.value))}
             required
           />
         </div>
@@ -120,6 +125,8 @@ export function InscricaoForm({
             inputMode="tel"
             autoComplete="tel"
             placeholder="(22) 90000-0000"
+            value={telefone}
+            onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
             required
           />
         </div>

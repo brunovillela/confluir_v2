@@ -59,6 +59,7 @@ export default async function EditarEventoPage({
               confirma_filiado_automatico: evento.confirma_filiado_automatico,
               exige_foto: evento.exige_foto,
               exige_rsvp: evento.exige_rsvp,
+              rsvp_abre_em: evento.rsvp_abre_em,
             }}
           />
         </CardContent>

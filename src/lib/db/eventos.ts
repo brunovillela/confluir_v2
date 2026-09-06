@@ -81,6 +81,8 @@ export type Evento = {
   confirma_filiado_automatico: boolean
   exige_foto: boolean
   exige_rsvp: boolean
+  rsvp_abre_em: string | null
+  rsvp_enviado_lote_em: string | null
   situacao: SituacaoEvento
   adiado_para: string | null
   motivo_situacao: string | null
@@ -185,7 +187,7 @@ export async function termosEmVigor(): Promise<Termo[]> {
 // ── Eventos ──────────────────────────────────────────────────────────────────
 
 const CAMPOS_EVENTO =
-  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, situacao, adiado_para, motivo_situacao, criado_por, created_at"
+  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, criado_por, created_at"
 
 function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
   return {
@@ -208,6 +210,8 @@ function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
     confirma_filiado_automatico: e.confirma_filiado_automatico !== false,
     exige_foto: e.exige_foto === true,
     exige_rsvp: e.exige_rsvp === true,
+    rsvp_abre_em: (e.rsvp_abre_em as string | null) ?? null,
+    rsvp_enviado_lote_em: (e.rsvp_enviado_lote_em as string | null) ?? null,
     situacao: (e.situacao as SituacaoEvento) ?? "rascunho",
     adiado_para: (e.adiado_para as string | null) ?? null,
     motivo_situacao: (e.motivo_situacao as string | null) ?? null,
@@ -623,4 +627,31 @@ export async function urlArquivoEventos(
     .from("eventos")
     .createSignedUrl(caminho, 3600)
   return data?.signedUrl ?? null
+}
+
+/**
+ * Em que ponto está a confirmação de presença.
+ *
+ * O RSVP não abre junto com a inscrição: confirmar presença um minuto depois
+ * de se inscrever não acrescenta nada. Quem organiza escolhe a data em que a
+ * pergunta faz sentido — perto do evento, depois de as inscrições fecharem.
+ */
+export type EstadoRsvp =
+  | { situacao: "nao_usa" }
+  | { situacao: "sem_data" }
+  | { situacao: "aguardando"; abreEm: string }
+  | { situacao: "aberto"; abreEm: string; enviadoEm: string | null }
+
+export function estadoDoRsvp(evento: Evento, agora = new Date()): EstadoRsvp {
+  if (!evento.exige_rsvp) return { situacao: "nao_usa" }
+  if (!evento.rsvp_abre_em) return { situacao: "sem_data" }
+  const abre = new Date(evento.rsvp_abre_em)
+  if (abre > agora) {
+    return { situacao: "aguardando", abreEm: evento.rsvp_abre_em }
+  }
+  return {
+    situacao: "aberto",
+    abreEm: evento.rsvp_abre_em,
+    enviadoEm: evento.rsvp_enviado_lote_em,
+  }
 }

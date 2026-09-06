@@ -5,7 +5,7 @@ import { Loader2, MailCheck } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { CampoCodigo } from "@/components/campo-codigo"
 import { Label } from "@/components/ui/label"
 
 import {
@@ -47,17 +47,9 @@ export function ConfirmarEmail({
 
       <form action={formAction} className="grid gap-3">
         <input type="hidden" name="token" value={token} />
-        <div className="grid gap-2 sm:max-w-52">
+        <div className="grid gap-2">
           <Label htmlFor="codigo">Código de 6 dígitos</Label>
-          <Input
-            id="codigo"
-            name="codigo"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="000000"
-            className="text-center text-lg tracking-[0.4em]"
-            required
-          />
+          <CampoCodigo autoFocus />
         </div>
         <p className="text-muted-foreground text-xs">
           Enviamos para {email ?? "seu e-mail"}. Confira também a caixa de spam.

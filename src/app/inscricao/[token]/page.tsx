@@ -181,6 +181,30 @@ export default async function InscricaoPage({
                 Assim que sua inscrição for confirmada, você poderá responder
                 aqui.
               </p>
+            ) : !insc.rsvpAberto ? (
+              // Antes da data: a pessoa precisa saber que ainda vai ser
+              // chamada, senão fecha a página achando que faltou algo.
+              <div className="grid gap-2">
+                <p className="text-sm">
+                  {insc.rsvpAbreEm ? (
+                    <>
+                      Perto do evento vamos perguntar se você conseguiu se
+                      organizar para vir. Você receberá um e-mail a partir de{" "}
+                      <strong>{formatarDataHora(insc.rsvpAbreEm)}</strong>, e a
+                      resposta é dada aqui mesmo.
+                    </>
+                  ) : (
+                    <>
+                      Perto do evento vamos perguntar por e-mail se você
+                      conseguiu se organizar para vir. A resposta é dada aqui
+                      mesmo.
+                    </>
+                  )}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Sua inscrição já está garantida — não há nada a fazer agora.
+                </p>
+              </div>
             ) : (
               <RespostaRsvp
                 token={insc.token}

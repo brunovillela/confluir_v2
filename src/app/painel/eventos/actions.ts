@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { deCampoDataHora, formatarDataHora } from "@/lib/formato"
 import {
   avisarAvaliacao,
   avisarMudancaDoEvento,
@@ -11,7 +12,11 @@ import {
   enviarRsvp,
 } from "@/lib/db/eventos-emails"
 import { type EstadoForm } from "@/lib/contas"
-import { obterEvento, type SituacaoEvento } from "@/lib/db/eventos"
+import {
+  estadoDoRsvp,
+  obterEvento,
+  type SituacaoEvento,
+} from "@/lib/db/eventos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -106,7 +111,7 @@ export async function salvarEvento(
   if (!inicio || !termino) {
     return { erro: "Informe o início e o término do evento." }
   }
-  if (new Date(termino) < new Date(inicio)) {
+  if (deCampoDataHora(termino)! < deCampoDataHora(inicio)!) {
     return { erro: "O término não pode ser anterior ao início." }
   }
 
@@ -134,9 +139,21 @@ export async function salvarEvento(
     }
   }
 
+  const rsvpAbre = txt(fd, "rsvp_abre_em")
+  if (marcado(fd, "exige_rsvp") && !rsvpAbre) {
+    return {
+      erro: "Informe quando a confirmação de presença abre — sem data, a pergunta chegaria junto com a inscrição e não diria nada.",
+    }
+  }
+  if (rsvpAbre && deCampoDataHora(rsvpAbre)! > deCampoDataHora(termino)!) {
+    return {
+      erro: "A confirmação de presença abriria depois do fim do evento.",
+    }
+  }
+
   const abrem = txt(fd, "inscricoes_abrem_em")
   const fecham = txt(fd, "inscricoes_fecham_em")
-  if (abrem && fecham && new Date(fecham) < new Date(abrem)) {
+  if (abrem && fecham && deCampoDataHora(fecham)! < deCampoDataHora(abrem)!) {
     return { erro: "O fim das inscrições não pode ser antes da abertura." }
   }
 
@@ -167,18 +184,19 @@ export async function salvarEvento(
     descricao: txt(fd, "descricao") || null,
     local: txt(fd, "local") || null,
     endereco: txt(fd, "endereco") || null,
-    inicio: new Date(inicio).toISOString(),
-    termino: new Date(termino).toISOString(),
+    inicio: deCampoDataHora(inicio),
+    termino: deCampoDataHora(termino),
     lotacao_maxima: lotacao,
     overbooking_percentual: overbooking,
-    inscricoes_abrem_em: abrem ? new Date(abrem).toISOString() : null,
-    inscricoes_fecham_em: fecham ? new Date(fecham).toISOString() : null,
+    inscricoes_abrem_em: deCampoDataHora(abrem),
+    inscricoes_fecham_em: deCampoDataHora(fecham),
     limite_inscricoes: num(fd, "limite_inscricoes"),
     cota_convidados: cota,
     exige_aprovacao: marcado(fd, "exige_aprovacao"),
     confirma_filiado_automatico: marcado(fd, "confirma_filiado_automatico"),
     exige_foto: marcado(fd, "exige_foto"),
     exige_rsvp: marcado(fd, "exige_rsvp"),
+    rsvp_abre_em: deCampoDataHora(rsvpAbre),
     updated_at: new Date().toISOString(),
   }
   if (cardUrl) dados.card_url = cardUrl
@@ -223,7 +241,12 @@ export async function salvarEvento(
     eventoId = criado.id as string
   }
 
-  await sincronizarDias(eventoId, emp, inicio, termino)
+  await sincronizarDias(
+    eventoId,
+    emp,
+    deCampoDataHora(inicio)!,
+    deCampoDataHora(termino)!
+  )
 
   revalidatePath(BASE)
   revalidatePath(`${BASE}/${eventoId}`)
@@ -332,9 +355,7 @@ export async function mudarSituacaoEvento(
       motivo_situacao: motivo || null,
       // Adiar SEM data é caso previsto: fica nulo e a tela diz "sem nova data".
       adiado_para:
-        nova === "adiado" && adiadoPara
-          ? new Date(adiadoPara).toISOString()
-          : null,
+        nova === "adiado" ? deCampoDataHora(adiadoPara) : null,
       situacao_em: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -436,6 +457,16 @@ export async function enviarRsvpAction(
   if (!evento) return { erro: "Evento não encontrado." }
   if (!evento.exige_rsvp) {
     return { erro: "Este evento não pede RSVP — ligue a opção em Editar." }
+  }
+
+  const estado = estadoDoRsvp(evento)
+  if (estado.situacao === "sem_data") {
+    return { erro: "Defina em Editar quando a confirmação de presença abre." }
+  }
+  if (estado.situacao === "aguardando") {
+    return {
+      erro: `A confirmação de presença só abre em ${formatarDataHora(estado.abreEm)}. Antecipe a data em Editar se quiser perguntar agora.`,
+    }
   }
 
   const avisos = await enviarRsvp(evento, marcado(fd, "reenviar"))
