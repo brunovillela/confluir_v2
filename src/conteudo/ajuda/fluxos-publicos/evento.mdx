@@ -1,0 +1,109 @@
+Quem se inscreve num evento da entidade **não tem login**. Este artigo mostra o
+que essa pessoa vê, para a equipe conseguir orientá-la por telefone.
+
+## Os três endereços
+
+| Endereço | O que é |
+| --- | --- |
+| `/evento/<nome-do-evento>` | a página pública do evento, com o formulário |
+| `/inscricao/<código>` | a página pessoal de quem se inscreveu |
+| `/meus-dados` | o canal para ver, corrigir ou excluir os próprios dados |
+
+## A página do evento
+
+Mostra o card, o nome da entidade, data, local e uma **contagem regressiva**.
+Abaixo, quantas vagas restam e o formulário.
+
+<Aviso tipo="nota" titulo="O número de vagas é o do público">
+  Se o evento guarda vagas para convidados da diretoria, elas não aparecem
+  aqui — anunciá-las prometeria lugar que a própria trava vai negar na hora de
+  enviar.
+</Aviso>
+
+Quando as inscrições estão fechadas, o formulário some e no lugar dele aparece o
+motivo: ainda não começaram, o prazo terminou, as vagas se esgotaram, o evento
+foi adiado ou cancelado.
+
+Evento em rascunho **não tem página**: quem tiver o link recebe "não
+encontrado".
+
+## O formulário
+
+Nome completo, CPF, telefone, e-mail, as perguntas próprias do evento e o aceite
+do termo. Se o evento pedir foto, ela vem depois — não no formulário.
+
+Reinscrever com o mesmo CPF não cria uma segunda inscrição: o sistema devolve a
+que já existe.
+
+## A página da inscrição
+
+Depois de enviar, a pessoa cai num endereço pessoal e recebe um código de 6
+dígitos por e-mail, válido por 30 minutos. Essa página é o centro de tudo, em
+passos numerados:
+
+<PassoAPasso>
+  <Passo titulo="Confirmar o e-mail">
+    Digitando o código. Se não chegou, há um botão para enviar outro — e vale
+    lembrar da caixa de spam.
+  </Passo>
+  <Passo titulo="Enviar a foto">
+    Só quando o evento exige. A câmera abre com uma moldura oval para centralizar
+    o rosto; a imagem é reduzida antes de subir.
+  </Passo>
+  <Passo titulo="Dizer se vai comparecer">
+    Só quando o evento pede RSVP, e só depois de a inscrição estar confirmada.
+  </Passo>
+</PassoAPasso>
+
+Confirmada a inscrição, aparece o **QR Code de entrada**. A pessoa mostra na
+recepção — mas a equipe também acha por nome ou CPF, então esquecer o celular
+não impede ninguém de entrar.
+
+<Aviso tipo="atencao" titulo="O endereço é a credencial">
+  Não há senha: quem tem o link é a pessoa. Por isso a página avisa para guardar
+  e não compartilhar. Se alguém perder o link, o caminho é
+  <strong>/meus-dados</strong>, que reidentifica pelo e-mail.
+</Aviso>
+
+## Meus dados
+
+O canal de direitos do titular (LGPD art. 18) para quem não é filiado — o
+`/portal/lgpd` só atende filiado.
+
+A pessoa informa o e-mail, recebe um código e ganha acesso por poucas horas. Vê
+todas as suas inscrições, o que a entidade guarda, se há foto e para quê, e
+quantas presenças foram registradas. Pode corrigir nome e telefone, ou pedir a
+exclusão digitando **EXCLUIR**.
+
+<Aviso tipo="nota" titulo="A tela não revela quem está na base">
+  Quem digita o e-mail de outra pessoa recebe exatamente a mesma resposta de
+  quem digita o próprio: a tela de código aparece igual, e nada é mostrado sem
+  o código. É o mínimo para o canal não virar ferramenta de descoberta de
+  participantes.
+</Aviso>
+
+Depois de excluir, a tela mostra um **recibo** com a data e o que foi apagado —
+serve de comprovante. Se a foto tinha ido para a catraca, o recibo diz que a
+remoção lá é pendência da equipe, feita fora do Confluir.
+
+### Perguntas que chegam por telefone
+
+- **&quot;Não recebi o código&quot;** — caixa de spam primeiro; depois o botão
+  de reenviar. O código vale 30 minutos e há limite de tentativas.
+- **&quot;Perdi o link da minha inscrição&quot;** — /meus-dados, com o e-mail
+  usado na inscrição.
+- **&quot;Quero trocar meu CPF ou e-mail&quot;** — não dá pelo canal: são os
+  dados que identificam a pessoa. Tem de passar pela secretaria.
+- **&quot;Me inscrevi e não está confirmado&quot;** — ou o e-mail não foi
+  validado, ou o evento exige aprovação e a inscrição está na fila.
+
+<VejaTambem
+  links={[
+    { titulo: "Inscrições e avisos", href: "/painel/ajuda/eventos/inscricoes" },
+    {
+      titulo: "Foto, termos e dados dos participantes",
+      href: "/painel/ajuda/eventos/dados-participantes",
+    },
+    { titulo: "Recepção no dia", href: "/painel/ajuda/eventos/recepcao" },
+  ]}
+/>

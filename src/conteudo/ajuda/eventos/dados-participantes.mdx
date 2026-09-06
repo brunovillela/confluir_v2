@@ -1,0 +1,116 @@
+Quem se inscreve num evento entrega nome, CPF, e-mail, telefone e — dependendo
+da configuração — uma foto do rosto. Este artigo explica o que a entidade assume
+em cada caso e como atender quem pede seus dados de volta.
+
+<RequerPermissao>Gestão de eventos</RequerPermissao>
+
+## Os três modos de foto
+
+A escolha fica em **Eventos → Configuração** e vale para toda a entidade. É a
+decisão mais pesada do módulo, porque é ela que define o **regime legal** do que
+se coleta.
+
+| Modo | O que acontece | Regime |
+| --- | --- | --- |
+| Não pedir foto | nenhuma imagem é coletada | — |
+| Conferência na portaria | a recepção compara com o olho humano | dado pessoal **comum** |
+| Reconhecimento facial | a imagem alimenta a catraca | dado pessoal **sensível** |
+
+<Aviso tipo="perigo" titulo="Reconhecimento facial é dado sensível">
+  Imagem de rosto usada para identificar alguém é dado biométrico (LGPD art. 5º,
+  II) e entra no art. 11: exige consentimento <strong>específico e
+  destacado</strong> para aquela finalidade, prazo de guarda declarado e um
+  caminho de exclusão que alcance também o sistema da catraca. Por isso a tela
+  pede uma confirmação explícita antes de ligar.
+</Aviso>
+
+Muitas entidades não têm catraca — por isso o modo é configurável, e não uma
+regra fixa do sistema. Cada evento pode pedir **menos** que a entidade permite,
+nunca mais.
+
+### O que mais a configuração pede
+
+- **Prazo de guarda da foto** — em dias, contados do fim do evento. Ele aparece
+  no termo, e prometer um prazo é assumir cumpri-lo.
+- **Nome do sistema de controle de acesso** — obrigatório no modo biométrico.
+  Sem ele, a pessoa lê &quot;seu rosto vai para um sistema&quot; sem saber qual.
+- **A remoção é feita à mão** — deixe marcado enquanto não houver integração com
+  a catraca. Desmarcar sem integração faz o sistema prometer uma remoção que
+  ninguém vai executar.
+
+<Aviso tipo="atencao" titulo="Baixar o modo não reclassifica o passado">
+  Se você trocar de biométrico para conferência visual com fotos já guardadas,
+  a tela avisa quantas são. Quem consentiu com o uso na catraca continua tendo
+  direito à remoção lá — a mudança vale daqui para a frente.
+</Aviso>
+
+## Os termos
+
+Ficam listados na mesma tela, com a versão. São **versionados**: publicar uma
+versão nova não reescreve o que quem já aceitou leu, e cada inscrição guarda
+qual versão foi aceita.
+
+São três: o termo de inscrição, o de foto para conferência e o de foto
+biométrica. O termo biométrico diz, com todas as letras, que a recusa
+**inviabiliza a inscrição** no evento — porque é isso que acontece quando a foto
+é exigida, e dizer o contrário seria falso.
+
+## Quando alguém pede os dados de volta
+
+Participante de evento não é filiado e não tem conta no sistema. Ele usa o canal
+público **/meus-dados**: informa o e-mail, recebe um código e ganha acesso por
+poucas horas. Ali vê o que a entidade guarda, corrige nome e telefone, ou pede a
+exclusão.
+
+### O que a exclusão faz
+
+- Apaga **nome, CPF, e-mail, telefone e a foto** — a foto sai do armazenamento
+  de fato, não só da referência.
+- **Mantém** o registro de que alguém esteve presente, sem identificação. É o
+  que impede os indicadores de mentirem sobre quantas pessoas foram ao evento.
+- Apaga as respostas dos campos extras, que podem conter dado pessoal.
+
+### A pendência que sobra
+
+Se a foto da pessoa chegou a ir para a catraca, a exclusão no Confluir **não
+alcança o outro sistema**. Nasce então uma pendência em **Eventos → Pedidos de
+LGPD**, com o e-mail de quem pediu.
+
+<PassoAPasso>
+  <Passo titulo="Alguém vai ao sistema de controle de acesso">
+    E remove a pessoa de lá, de verdade.
+  </Passo>
+  <Passo titulo="Volta e marca &quot;Já removi&quot;">
+    O sistema registra quem confirmou e quando.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="perigo" titulo="Só marque depois de remover">
+  Enquanto a pendência existir, a entidade não cumpriu o pedido. Marcar sem ter
+  removido transforma o registro numa declaração falsa — e é ele que responde à
+  autoridade se for cobrado.
+</Aviso>
+
+### Por que o e-mail continua guardado
+
+O livro de pedidos evita guardar dado de quem pediu exclusão. O e-mail é a
+exceção: sem ele ninguém consegue localizar a pessoa no sistema de controle de
+acesso para removê-la, nem provar depois que o pedido foi atendido. É retenção
+com finalidade declarada (LGPD art. 16, I), e a tela diz isso a quem opera.
+
+## O histórico é a sua defesa
+
+A aba de histórico guarda cada pedido, o que foi apagado, o que foi retido e sob
+qual base legal. É a prova de que a entidade atendeu — vale mais no dia em que
+for cobrada do que no dia em que foi registrada.
+
+<VejaTambem
+  links={[
+    { titulo: "Visão geral dos Eventos", href: "/painel/ajuda/eventos" },
+    { titulo: "Recepção no dia", href: "/painel/ajuda/eventos/recepcao" },
+    {
+      titulo: "Inscrição em evento (visão do público)",
+      href: "/painel/ajuda/fluxos-publicos/evento",
+    },
+  ]}
+/>

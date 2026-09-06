@@ -1,0 +1,83 @@
+A tela da porta fica em **/recepcao** e é a única do módulo feita para ser usada
+de pé, com fila na frente e muitas vezes num tablet. Tudo nela é maior que o
+normal do sistema.
+
+<RequerPermissao>Recepção de eventos</RequerPermissao>
+
+## Quem opera
+
+Quem fica na porta não é quem cadastrou o evento. A permissão *Recepção de
+eventos* dá acesso só a esta tela: encontrar a pessoa e confirmar que ela
+entrou. Não dá para editar evento, ver lista completa nem mexer em inscrição.
+
+## Antes de abrir a porta
+
+Escolha o **evento** e o **dia**. A presença é registrada por dia — num congresso
+de três dias, quem veio só no sábado aparece no sábado.
+
+O topo mostra quantas pessoas já entraram, e o número sobe a cada confirmação.
+
+## Duas formas de encontrar a pessoa
+
+### QR Code
+
+Cada inscrito tem um QR na página da inscrição dele. O botão **Ler QR** abre a
+câmera; quando o código casa com **uma única pessoa** e ela ainda não entrou, a
+presença é confirmada na hora — um toque a menos por pessoa é fila menor.
+
+<Aviso tipo="nota" titulo="O botão pode não aparecer">
+  A leitura de QR é nativa em parte dos navegadores (Chrome, Android) e ausente
+  em outros (Safari no iPhone). Onde não funciona, o botão simplesmente não é
+  exibido — e a busca por nome ou CPF, que existe em todo lugar, é o caminho
+  principal.
+</Aviso>
+
+### Busca por nome ou CPF
+
+Digite pelo menos três caracteres. Funciona com nome parcial e com CPF, com ou
+sem pontos.
+
+Cada resultado mostra a foto (quando o evento pede foto), o nome, o CPF
+**parcialmente escondido** e as etiquetas: *convidado*, *já entrou* e a situação
+quando não é &quot;confirmada&quot;.
+
+<Aviso tipo="atencao" titulo="Por que o CPF aparece cortado">
+  A tela da recepção fica virada para a fila. Mostrar o documento inteiro
+  exporia o CPF de cada pessoa a quem estiver atrás dela — os dígitos do meio
+  bastam para conferir.
+</Aviso>
+
+## Confirmar a entrada
+
+O botão **Confirmar** só funciona para quem está com a inscrição
+**confirmada**. Quem está pendente, recusado ou cancelado aparece na busca com a
+etiqueta vermelha e o botão desligado — assim a recepção vê a pessoa e sabe
+dizer o que houve, em vez de simplesmente não achá-la.
+
+Se a pessoa já tinha entrado, a tela avisa em vez de contar duas vezes.
+
+### Erros comuns
+
+- **&quot;Ninguém encontrado com esse dado&quot;** — confira o dia escolhido e
+  tente pelo CPF; nome tem grafia variável.
+- **A pessoa aparece mas o botão está desligado** — a inscrição não está
+  confirmada. Quem tem *Gestão de eventos* resolve pela página do evento.
+- **A câmera não abre** — o navegador precisa de permissão de câmera, e a página
+  precisa estar em HTTPS. Use a busca enquanto isso.
+
+## Depois do evento
+
+Os números de presença alimentam os indicadores do evento: presentes por dia e
+comparecimento sobre os confirmados. É o que diz, no evento seguinte, se vale
+manter o mesmo overbooking.
+
+<VejaTambem
+  links={[
+    { titulo: "Inscrições e avisos", href: "/painel/ajuda/eventos/inscricoes" },
+    { titulo: "Convidados", href: "/painel/ajuda/eventos/convidados" },
+    {
+      titulo: "Foto, termos e dados dos participantes",
+      href: "/painel/ajuda/eventos/dados-participantes",
+    },
+  ]}
+/>

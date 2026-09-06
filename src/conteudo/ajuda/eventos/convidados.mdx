@@ -1,0 +1,108 @@
+**Convidados** são as vagas que a entidade reserva e preenche por dentro:
+diretoria, autoridades, imprensa, entidades parceiras. Quem lança é a equipe —
+convidado não se inscreve sozinho pelo site.
+
+<RequerPermissao>Gestão de eventos</RequerPermissao>
+
+## Primeiro, guarde as vagas
+
+Em **Editar → Capacidade**, o campo *Vagas guardadas para convidados*. Sem
+isso, a lista da diretoria disputa as mesmas vagas do site — e chega depois.
+
+A tela de Convidados mostra quatro números:
+
+| Número | O que significa |
+| --- | --- |
+| Convidados | quantos já foram lançados |
+| Cota | quantas vagas estão guardadas e quantas dessas ainda estão livres |
+| Vagas do público | o que o link público enxerga |
+| Total confirmado | todo mundo, convidado ou não |
+
+## Lançar um convidado
+
+Para uma pessoa só, o formulário **Lançar um convidado**: nome completo, CPF,
+e-mail, telefone e *A convite de*.
+
+<Aviso tipo="nota" titulo="&quot;A convite de&quot; não é quem digitou">
+  Quem digita costuma ser a secretaria; quem convida é o diretor. Na porta e na
+  prestação de contas, o nome que importa é o do anfitrião — por isso o campo
+  existe separado.
+</Aviso>
+
+O CPF é opcional aqui, mas sem ele o sistema não consegue detectar que a pessoa
+já estava inscrita, nem encontrá-la por documento na recepção. A mensagem de
+sucesso avisa isso.
+
+## Importar uma planilha
+
+<PassoAPasso>
+  <Passo titulo="Baixe o modelo">
+    Botão <strong>Baixar modelo (.xlsx)</strong>, no alto da tela. Ele já vem
+    com o nome do evento e uma aba de instruções.
+  </Passo>
+  <Passo titulo="Preencha a aba Convidados">
+    Uma pessoa por linha. Nome completo e CPF são obrigatórios; e-mail, telefone
+    e &quot;A convite de&quot; são opcionais.
+  </Passo>
+  <Passo titulo="Suba o arquivo">
+    Em <strong>Importar planilha</strong>, escolha o arquivo e clique em
+    Importar.
+  </Passo>
+  <Passo titulo="Confira o que voltou">
+    O sistema lê o arquivo inteiro <em>antes</em> de gravar. Se houver erro,
+    nada entra e a tela lista cada problema com o número da linha.
+  </Passo>
+</PassoAPasso>
+
+### O que a importação perdoa
+
+- **A linha de exemplo** (Maria Aparecida) sai sozinha. Não precisa apagar.
+- **Cabeçalho renomeado** — &quot;Email&quot;, &quot;Celular&quot;,
+  &quot;Documento&quot;, &quot;Convidado por&quot; e outros apelidos são
+  reconhecidos.
+- **Aba renomeada** — &quot;Lista 2026&quot; funciona; o sistema só evita a aba
+  de instruções.
+- **Linha em branco no meio** — é sobra de edição, não erro.
+- **CPF com zero à esquerda** — numa célula sem formatação de texto, o Excel
+  transforma 012.345.678-90 no número 1234567890 e come o zero. O sistema o
+  devolve, conferindo os dígitos verificadores antes.
+
+### O que ela recusa
+
+Cada problema vem com a linha como você a vê no Excel:
+
+- *linha 14: CPF inválido (123.456.789-00)*
+- *linha 22: CPF repetido na própria planilha (já apareceu na linha 9)*
+- *linha 30: já está inscrito neste evento*
+- *linha 7: nome incompleto — informe nome e sobrenome*
+- *linha 41: e-mail inválido*
+
+<Aviso tipo="dica" titulo="Importar as linhas certas mesmo assim">
+  Por padrão, um erro em qualquer linha impede a importação inteira — que
+  costuma ser o que você quer na primeira tentativa. Se preferir aproveitar o
+  resto, marque a caixa; o rótulo diz antes quantos convidados entrariam.
+</Aviso>
+
+Reimportar a planilha corrigida **não duplica ninguém**: o CPF é a chave, e quem
+já está no evento aparece como &quot;já está inscrito&quot;.
+
+## Depois de importar
+
+Convidado entra **confirmado** — a vaga foi reservada pela entidade, não há o
+que aprovar — e **não confirma e-mail**, porque não foi ele quem se inscreveu.
+
+Se a importação passar da cota ou da lotação, a mensagem diz. Não bloqueia: a
+decisão é sua.
+
+## Remover
+
+O ícone de lixeira só aparece **antes de haver presença registrada**. Depois que
+a pessoa entrou no evento, aquilo virou histórico e não some.
+
+<VejaTambem
+  links={[
+    { titulo: "Criar e publicar um evento", href: "/painel/ajuda/eventos/criar" },
+    { titulo: "Recepção no dia", href: "/painel/ajuda/eventos/recepcao" },
+    { titulo: "Visão geral dos Eventos", href: "/painel/ajuda/eventos" },
+  ]}
+/>

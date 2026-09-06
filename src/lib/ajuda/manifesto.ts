@@ -549,6 +549,52 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     ],
   },
   {
+    slug: "eventos",
+    titulo: "Eventos",
+    descricao:
+      "Inscrição, convidados, avisos por e-mail, recepção e dados dos participantes",
+    icone: "CalendarDays",
+    ...permissaoDoModulo("/painel/eventos"),
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Visão geral dos Eventos",
+        resumo:
+          "Do cadastro do evento à confirmação de presença na porta",
+      },
+      {
+        slug: "criar",
+        titulo: "Criar e publicar um evento",
+        resumo:
+          "Datas, lotação, overbooking, travas de inscrição e campos próprios",
+      },
+      {
+        slug: "convidados",
+        titulo: "Convidados",
+        resumo:
+          "Vagas guardadas para a lista da diretoria, por planilha ou uma a uma",
+      },
+      {
+        slug: "inscricoes",
+        titulo: "Inscrições e avisos",
+        resumo:
+          "O que o inscrito vive, como avaliar e quais e-mails o sistema envia",
+      },
+      {
+        slug: "recepcao",
+        titulo: "Recepção no dia",
+        resumo: "A tela da porta: QR Code, busca por nome ou CPF e presença",
+      },
+      {
+        slug: "dados-participantes",
+        titulo: "Foto, termos e dados dos participantes",
+        resumo:
+          "Os três modos de foto, o que cada um exige e como atender pedidos de LGPD",
+      },
+    ],
+  },
+  {
     slug: "fluxos-publicos",
     titulo: "Fluxos públicos",
     descricao: "As telas que o trabalhador usa sem login: filiação, oposição e votação",
@@ -577,6 +623,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "votacao",
         titulo: "Votação pública",
         resumo: "A cédula das assembleias e como o votante se identifica",
+      },
+      {
+        slug: "evento",
+        titulo: "Inscrição em evento",
+        resumo:
+          "A página do evento, a página da inscrição e o canal Meus dados",
       },
     ],
   },

@@ -1,0 +1,135 @@
+Criar um evento é rápido; o que exige atenção são as **travas de inscrição** e
+a **conta da lotação**. Este artigo passa campo a campo.
+
+<RequerPermissao>Gestão de eventos</RequerPermissao>
+
+## Identificação
+
+<PassoAPasso>
+  <Passo titulo="Título">
+    Vira o endereço público. &quot;Congresso dos Petroleiros 2026&quot; gera
+    <strong>/evento/congresso-dos-petroleiros-2026</strong>. Se já existir um
+    igual, o sistema acrescenta um número.
+  </Passo>
+  <Passo titulo="Card">
+    Imagem que aparece no topo da página pública, até 5 MB, em JPG, PNG ou WebP.
+    É o que a pessoa vê antes de ler qualquer coisa.
+  </Passo>
+  <Passo titulo="Início e término">
+    Data e hora. Se o evento dura mais de um dia, cada dia vira uma lista de
+    presença própria.
+  </Passo>
+  <Passo titulo="Local e endereço">
+    Vão no card e nos e-mails de aviso.
+  </Passo>
+</PassoAPasso>
+
+## Capacidade
+
+Três campos que conversam entre si.
+
+- **Lotação máxima** — quantas pessoas cabem no local.
+- **Overbooking (%)** — quanto aceitar acima disso, contando com quem falta.
+- **Vagas guardadas para convidados** — a reserva que o link público não pode
+  ocupar.
+
+A tela mostra a conta pronta enquanto você digita: *"Serão oferecidas 110 vagas
+para uma lotação de 100 — 80 no link público e 30 guardadas para convidados."*
+
+<Aviso tipo="atencao" titulo="Overbooking tem preço">
+  Vagas acima da lotação significam risco de fila na recepção e de convidado sem
+  acomodação. A lotação do local é limitada pelas normas de prevenção e combate
+  a incêndio e pânico, e não pode ser ultrapassada no dia — quem sobrar fica de
+  fora.
+</Aviso>
+
+### Por que guardar vagas
+
+Sem reserva, o site vende o auditório inteiro em poucas horas. Quando a
+diretoria manda a lista de convidados na semana seguinte, não há mais lugar. A
+cota resolve isso: o público só enxerga o que sobra depois da reserva.
+
+A conta é dinâmica. Se a cota é 30 e a diretoria já lançou 12 convidados,
+restam 18 guardadas — e as outras 12 já viraram gente confirmada. Convidado
+lançado além da cota não é bloqueado: ele ocupa vaga do público, e a mensagem
+avisa que isso aconteceu.
+
+## Travas e regras de inscrição
+
+<PassoAPasso>
+  <Passo titulo="Inscrições abrem e fecham em">
+    Janela de datas. Fora dela, a página pública mostra o motivo em vez do
+    formulário.
+  </Passo>
+  <Passo titulo="Teto de inscrições">
+    Trava por quantidade, independente da lotação. Vale sempre o menor entre os
+    dois.
+  </Passo>
+  <Passo titulo="Exige aprovação">
+    Marcado, toda inscrição nasce <strong>pendente</strong> e alguém precisa
+    avaliar. Desmarcado, a pessoa fica confirmada assim que valida o e-mail.
+  </Passo>
+  <Passo titulo="Confirma filiado automaticamente">
+    Filiado entra sem passar pela fila de aprovação.
+  </Passo>
+  <Passo titulo="Exige foto">
+    Só aparece se a entidade permitir foto em <strong>Configuração</strong>. O
+    evento pode pedir menos que a entidade permite, nunca mais.
+  </Passo>
+  <Passo titulo="Exige RSVP">
+    Libera o botão &quot;Perguntar quem vem&quot; na página do evento.
+  </Passo>
+</PassoAPasso>
+
+## Campos próprios da inscrição
+
+Em **Eventos → *evento* → Campos** você acrescenta perguntas ao formulário
+público: restrição alimentar, tamanho de camisa, se precisa de transporte.
+
+Cinco tipos de resposta: texto, número, data, escolha entre opções e sim/não.
+
+<Aviso tipo="dica" titulo="Menos campo obrigatório, mais inscrição">
+  Cada pergunta obrigatória é uma pessoa a menos concluindo a inscrição. Marque
+  como obrigatório só o que você realmente vai usar para organizar o evento.
+</Aviso>
+
+Pergunta que **já tem resposta** não é apagada, só **desativada**: ela some do
+formulário, mas o que as pessoas responderam continua na ficha delas. Uma
+pergunta desativada pode ser reativada depois.
+
+## Publicar, adiar, cancelar
+
+A situação do evento fica no fim da página dele.
+
+- **Rascunho** — o link público não existe.
+- **Publicado** — o link está no ar. Exige título e período preenchidos.
+- **Encerrado** — acabou; serve para tirar da lista corrente.
+- **Adiado** — pede motivo. A nova data é opcional: adiar sem data é caso
+  previsto, e o aviso diz exatamente isso.
+- **Cancelado** — pede motivo.
+
+<Aviso tipo="atencao" titulo="Adiar e cancelar disparam e-mail">
+  O aviso vai para quem está confirmado, pendente <em>e</em> na lista de espera
+  — quem esperava vaga também organizou o dia em torno daquilo. Depois de
+  salvar, a mensagem na tela diz quantos foram avisados, quantos não têm e-mail
+  cadastrado e quantos falharam.
+</Aviso>
+
+### Erros comuns
+
+- **&quot;Complete título e período antes de publicar&quot;** — falta título ou
+  as datas.
+- **&quot;Overbooking só faz sentido com lotação máxima definida&quot;** — o
+  percentual incide sobre a lotação; sem ela não há sobre o que incidir.
+- **&quot;Guardar vagas para convidados exige lotação máxima definida&quot;** —
+  mesma lógica: a reserva sai da lotação.
+- **&quot;Descreva o motivo&quot;** ao adiar ou cancelar — o motivo vai no
+  e-mail. Sem ele, a pessoa recebe um aviso que gera mais dúvida que informação.
+
+<VejaTambem
+  links={[
+    { titulo: "Visão geral dos Eventos", href: "/painel/ajuda/eventos" },
+    { titulo: "Convidados", href: "/painel/ajuda/eventos/convidados" },
+    { titulo: "Inscrições e avisos", href: "/painel/ajuda/eventos/inscricoes" },
+  ]}
+/>

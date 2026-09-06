@@ -1,0 +1,112 @@
+Este artigo cobre o que acontece com uma inscrição do começo ao fim: o que a
+pessoa vive, o que a equipe decide e qual e-mail sai em cada etapa.
+
+<RequerPermissao>Eventos</RequerPermissao>
+
+## O que a pessoa vive
+
+<PassoAPasso>
+  <Passo titulo="Preenche o formulário">
+    Nome, CPF, telefone, e-mail, os campos próprios do evento e o aceite do
+    termo.
+  </Passo>
+  <Passo titulo="Recebe um código de 6 dígitos">
+    Vale 30 minutos. É assim que o sistema sabe que o e-mail é mesmo dela.
+  </Passo>
+  <Passo titulo="Cai na página da inscrição">
+    Endereço pessoal, que ela deve guardar. Ali confirma o código, envia a foto
+    (se o evento pedir), responde ao RSVP e vê o QR Code de entrada.
+  </Passo>
+</PassoAPasso>
+
+Reinscrever com o mesmo CPF **não duplica**: o sistema devolve a inscrição que
+já existe.
+
+## As situações de uma inscrição
+
+| Situação | O que significa |
+| --- | --- |
+| Pendente | aguarda o e-mail ser confirmado ou a avaliação da equipe |
+| Confirmada | tem vaga garantida |
+| Lista de espera | as vagas acabaram; entra se alguém desistir |
+| Recusada | a equipe não aprovou |
+| Cancelada | desistência |
+
+Se o evento **não exige aprovação**, a inscrição vira *confirmada* sozinha
+assim que o e-mail é validado. Se exige, fica *pendente* até alguém avaliar.
+
+## Avaliar
+
+Na página do evento, coluna **Avaliar** da tabela de inscrições. Três decisões:
+confirmar, recusar ou mandar para a lista de espera.
+
+<Aviso tipo="atencao" titulo="Recusa exige motivo">
+  O motivo vai no e-mail à pessoa. Negar sem dizer por quê é o que gera o
+  telefonema no dia seguinte.
+</Aviso>
+
+Reavaliar para a **mesma** situação não reenvia e-mail — apertar o botão duas
+vezes não manda duas mensagens iguais.
+
+## Quais e-mails o sistema envia
+
+| Quando | Para quem | O que leva |
+| --- | --- | --- |
+| Pessoa se inscreve | ela | o código de 6 dígitos |
+| Inscrição fica confirmada | ela | data, local e o link da inscrição |
+| Equipe recusa | ela | o motivo |
+| Equipe manda para a lista de espera | ela | a explicação e o link |
+| Evento é adiado | confirmados, pendentes e lista de espera | motivo e a nova data, se houver |
+| Evento é cancelado | os mesmos | o motivo |
+| Botão &quot;Perguntar quem vem&quot; | confirmados sem resposta | o convite a responder |
+
+<Aviso tipo="nota" titulo="O sistema conta o que saiu">
+  Depois de cada disparo, a tela diz &quot;12 avisos enviados, 3 sem e-mail
+  cadastrado, 1 falhou no envio&quot;. Um aviso que não saiu em silêncio é pior
+  que um erro na tela — por isso o número aparece sempre.
+</Aviso>
+
+Falha no envio **não desfaz a ação**: aprovar uma inscrição vale mesmo que o
+provedor de e-mail esteja fora do ar.
+
+## RSVP: perguntar quem vem
+
+Só aparece nos eventos com **Exige RSVP** ligado, e alcança apenas os
+**confirmados** — perguntar a quem ainda não tem vaga seria promessa que não dá
+para cumprir.
+
+O botão fica no bloco RSVP da página do evento. É um botão, e não um
+automatismo, porque a hora certa de perguntar (depois que as inscrições fecham,
+uma semana antes) é decisão de quem organiza.
+
+Marcando **Cobrar quem não respondeu**, o envio alcança também quem já recebeu
+e ficou em silêncio. Sem marcar, vai só para quem nunca foi perguntado.
+
+<Aviso tipo="dica" titulo="Por que o e-mail tem um botão só">
+  O e-mail leva à página da inscrição, onde estão o &quot;vou&quot; e o
+  &quot;não vou&quot;. Dois botões dentro do e-mail dariam a impressão de
+  responder por ali — e não responderiam: programas de e-mail abrem os links
+  sozinhos para pré-visualizar, e a resposta viria de um robô, não da pessoa.
+</Aviso>
+
+Os três números do RSVP (vêm, não vêm, sem resposta) são sobre os confirmados, e
+servem para dimensionar espaço e alimentação.
+
+### Erros comuns
+
+- **&quot;Este evento não pede RSVP&quot;** — ligue a opção em Editar.
+- **&quot;Ninguém para perguntar&quot;** — ou todos já responderam, ou ainda não
+  há inscrição confirmada.
+- **Muita gente &quot;sem e-mail cadastrado&quot;** — costumam ser convidados
+  lançados por planilha sem a coluna de e-mail preenchida.
+
+<VejaTambem
+  links={[
+    { titulo: "Criar e publicar um evento", href: "/painel/ajuda/eventos/criar" },
+    { titulo: "Recepção no dia", href: "/painel/ajuda/eventos/recepcao" },
+    {
+      titulo: "Inscrição em evento (visão do público)",
+      href: "/painel/ajuda/fluxos-publicos/evento",
+    },
+  ]}
+/>

@@ -1,0 +1,88 @@
+O módulo **Eventos** cuida de tudo que acontece entre "vamos fazer um congresso"
+e "quantas pessoas apareceram": a inscrição pelo site, a lista de convidados da
+diretoria, os avisos por e-mail e a conferência de presença na porta.
+
+<RequerPermissao>Eventos</RequerPermissao>
+
+## As três pessoas envolvidas
+
+O módulo foi desenhado em torno de quem faz o quê, e as telas seguem essa
+divisão.
+
+- **Quem organiza** cria o evento, define lotação, decide se há aprovação,
+  lança convidados e dispara os avisos. Precisa de *Gestão de eventos*.
+- **Quem se inscreve** não tem conta no sistema. Faz tudo por dois endereços
+  públicos: a página do evento e a página pessoal da inscrição dele.
+- **Quem fica na porta** no dia não é quem cadastrou o evento. Tem uma tela
+  própria, de toque grande, feita para operar de pé e com fila na frente.
+
+## O caminho de um evento
+
+<PassoAPasso>
+  <Passo titulo="Criar em rascunho">
+    Enquanto o evento está como <strong>Rascunho</strong>, o link público não
+    existe. Ninguém acha a página, nem por engano.
+  </Passo>
+  <Passo titulo="Guardar as vagas dos convidados">
+    Se a diretoria vai trazer gente, reserve as vagas antes de publicar. Depois
+    que o site esgotar o auditório, não há o que fazer.
+  </Passo>
+  <Passo titulo="Publicar">
+    A partir daí o link <strong>/evento/nome-do-evento</strong> está no ar, com
+    o card, a identidade da entidade e a contagem regressiva.
+  </Passo>
+  <Passo titulo="Acompanhar e avaliar">
+    A página do evento no painel mostra confirmados, vagas restantes, convidados
+    e comparecimento. Se o evento exige aprovação, é ali que se aprova.
+  </Passo>
+  <Passo titulo="Perguntar quem vem">
+    Dias antes, o RSVP: um e-mail perguntando se a pessoa vai mesmo. Serve para
+    dimensionar espaço e alimentação.
+  </Passo>
+  <Passo titulo="Registrar presença no dia">
+    A recepção usa a tela da porta. A presença é registrada por dia — evento de
+    três dias tem três listas.
+  </Passo>
+</PassoAPasso>
+
+## O que o sistema conta sozinho
+
+- **Vagas ofertadas** = lotação do local + overbooking, se houver.
+- **Vagas do público** = o que sobra depois de guardar a cota de convidados.
+- **Comparecimento** = a maior presença de um dia sobre o total de confirmados.
+  É esse número que diz se o overbooking foi bem calibrado.
+
+<Aviso tipo="atencao" titulo="Lotação não é meta">
+  A lotação máxima do local é limitada pelas normas de prevenção e combate a
+  incêndio e pânico. O sistema deixa você ultrapassá-la — com aviso em
+  vermelho —, porque a decisão é sua; mas no dia ela não pode ser ultrapassada.
+</Aviso>
+
+## Onde ficam as coisas
+
+| O que | Onde |
+| --- | --- |
+| Lista de eventos, novo evento | Eventos |
+| Lotação, travas, aprovação, RSVP | Eventos → Editar |
+| Cota e lista de convidados | Eventos → *evento* → Convidados |
+| Perguntas extras da inscrição | Eventos → *evento* → Campos |
+| Modo da foto, catraca, termos | Eventos → Configuração |
+| Pedidos dos participantes | Eventos → Pedidos de LGPD |
+| Tela da porta | /recepcao |
+
+<VejaTambem
+  links={[
+    { titulo: "Criar e publicar um evento", href: "/painel/ajuda/eventos/criar" },
+    { titulo: "Convidados", href: "/painel/ajuda/eventos/convidados" },
+    { titulo: "Inscrições e avisos", href: "/painel/ajuda/eventos/inscricoes" },
+    { titulo: "Recepção no dia", href: "/painel/ajuda/eventos/recepcao" },
+    {
+      titulo: "Foto, termos e dados dos participantes",
+      href: "/painel/ajuda/eventos/dados-participantes",
+    },
+    {
+      titulo: "Inscrição em evento (visão do público)",
+      href: "/painel/ajuda/fluxos-publicos/evento",
+    },
+  ]}
+/>
