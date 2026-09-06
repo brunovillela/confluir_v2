@@ -132,6 +132,14 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     ],
   },
   {
+    area: "Eventos",
+    flags: [
+      { chave: "eventos", rotulo: "Eventos" },
+      { chave: "eventos_gestao", rotulo: "Gestão de eventos" },
+      { chave: "eventos_recepcao", rotulo: "Recepção (confirmar presença)" },
+    ],
+  },
+  {
     area: "Comunicação",
     flags: [{ chave: "noticias", rotulo: "Notícias" }],
   },
