@@ -118,8 +118,13 @@ export default async function PortalEventosPage() {
 
                   {/* Não inscrito: o convite. */}
                   {!e.inscrito &&
-                    (e.aberta ? (
+                    (e.aberta && !preview ? (
                       <Inscrever eventoId={e.evento.id} />
+                    ) : e.aberta && preview ? (
+                      <p className="text-muted-foreground text-sm">
+                        Inscrições abertas — só o próprio associado pode se
+                        inscrever.
+                      </p>
                     ) : (
                       <p className="text-muted-foreground text-sm">
                         {e.motivoFechada ?? "As inscrições estão fechadas."}
@@ -137,11 +142,20 @@ export default async function PortalEventosPage() {
                   {e.inscrito && confirmada && (
                     <div className="grid gap-3 border-t pt-4">
                       {e.evento.exige_rsvp &&
-                        (e.rsvpAberto ? (
+                        (e.rsvpAberto && !preview ? (
                           <ResponderRsvp
                             token={e.inscricaoToken ?? ""}
                             resposta={e.rsvpConfirmado}
                           />
+                        ) : e.rsvpAberto && preview ? (
+                          <p className="text-sm">
+                            Confirmação de presença aberta.{" "}
+                            {e.rsvpConfirmado === null
+                              ? "Ainda sem resposta."
+                              : e.rsvpConfirmado
+                                ? "Respondeu que vai comparecer."
+                                : "Respondeu que não poderá ir."}
+                          </p>
                         ) : (
                           <p className="text-sm">
                             Perto do evento vamos perguntar se você conseguiu se
@@ -162,7 +176,7 @@ export default async function PortalEventosPage() {
                             Ver meu código de entrada
                           </Link>
                         )}
-                        {e.presencas === 0 && e.inscricaoId && (
+                        {e.presencas === 0 && e.inscricaoId && !preview && (
                           <CancelarInscricao inscricaoId={e.inscricaoId} />
                         )}
                       </div>
