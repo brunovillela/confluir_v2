@@ -489,9 +489,9 @@ export async function responderRsvp(
   token: string,
   tenantId: string,
   vem: boolean
-): Promise<{ erro?: string; ok?: boolean }> {
+): Promise<{ erro?: string; ok?: boolean; inscricaoId?: string }> {
   const service = createServiceClient()
-  const { error } = await service
+  const { data, error } = await service
     .from("eventos_inscricoes")
     .update({
       rsvp_confirmado: vem,
@@ -500,6 +500,8 @@ export async function responderRsvp(
     })
     .eq("emp_proprietaria_id", tenantId)
     .eq("token", token)
+    .select("id")
+    .maybeSingle()
   if (error) return { erro: "Não foi possível registrar sua resposta." }
-  return { ok: true }
+  return { ok: true, inscricaoId: (data?.id as string) ?? undefined }
 }

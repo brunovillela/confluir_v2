@@ -8,6 +8,8 @@ import {
   registrarChegada,
   type PessoaNaPorta,
 } from "@/lib/db/eventos-recepcao"
+import { registrarPresencaNoProntuario } from "@/lib/db/eventos-filiados"
+import { tenantAtual } from "@/lib/tenant"
 
 /**
  * Recepção — escrita.
@@ -45,6 +47,12 @@ export async function confirmarChegadaAction(input: {
     input.metodo
   )
   if (res.erro) return { erro: res.erro }
+
+  // Compareceu: vai para o prontuário do filiado. Uma vez por evento, mesmo
+  // num congresso de vários dias — e nunca derruba a confirmação da porta.
+  if (!res.jaEstava) {
+    await registrarPresencaNoProntuario(input.inscricaoId, await tenantAtual())
+  }
 
   revalidatePath("/recepcao")
   return { ok: true, jaEstava: res.jaEstava, nome: res.nome }

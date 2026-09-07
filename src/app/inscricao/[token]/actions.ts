@@ -11,6 +11,10 @@ import {
 } from "@/lib/db/eventos-publico"
 import { obterEvento } from "@/lib/db/eventos"
 import { avisarAvaliacao } from "@/lib/db/eventos-emails"
+import {
+  registrarInscricaoNoProntuario,
+  registrarRsvpNoProntuario,
+} from "@/lib/db/eventos-filiados"
 import { enviarEmail } from "@/lib/email"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -45,6 +49,16 @@ export async function confirmarEmailAction(
   // Evento sem aprovação confirma na hora. Vale um e-mail com data, local e o
   // link: a pessoa vai procurar isso na caixa de entrada semanas depois, não
   // nesta tela. Falhar no envio não desfaz a confirmação.
+  if (resultado.inscricaoId) {
+    // Casa a inscrição com a filiação pelo CPF e lança no prontuário. Vale
+    // mesmo quando a inscrição ainda aguarda aprovação: quem se inscreveu,
+    // se inscreveu.
+    await registrarInscricaoNoProntuario(
+      resultado.inscricaoId,
+      await tenantAtual()
+    )
+  }
+
   if (resultado.confirmada && resultado.eventoId && resultado.inscricaoId) {
     const evento = await obterEvento(resultado.eventoId)
     if (evento) {
@@ -112,8 +126,13 @@ export async function responderRsvpAction(
   const vem = txt(fd, "vem") === "sim"
   if (!token) return { erro: "Inscrição inválida." }
 
-  const { erro } = await responderRsvp(token, await tenantAtual(), vem)
+  const tenantId = await tenantAtual()
+  const { erro, inscricaoId } = await responderRsvp(token, tenantId, vem)
   if (erro) return { erro }
+
+  if (inscricaoId) {
+    await registrarRsvpNoProntuario(inscricaoId, tenantId, vem)
+  }
 
   revalidatePath(`/inscricao/${token}`)
   return {

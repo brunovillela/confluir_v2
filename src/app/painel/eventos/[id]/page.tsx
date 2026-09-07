@@ -38,11 +38,13 @@ import {
   SITUACOES_EVENTO,
   SITUACOES_INSCRICAO,
 } from "@/lib/db/eventos"
+import { contarFiliados } from "@/lib/db/eventos-filiados"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import {
   AvaliarInscricao,
+  ConciliarFiliadosForm,
   EnviarRsvpForm,
   SituacaoEventoForm,
 } from "../evento-forms"
@@ -89,9 +91,10 @@ export default async function EventoPage({
   const evento = await obterEvento(id)
   if (!evento) notFound()
 
-  const [indicadores, inscricoes] = await Promise.all([
+  const [indicadores, inscricoes, filiacao] = await Promise.all([
     indicadoresDoEvento(evento),
     listarInscricoes({ eventoId: id, situacao: "todas" }),
+    contarFiliados(id),
   ])
   const { capacidade } = indicadores
   const abertura = inscricoesAbertas(evento, capacidade)
@@ -223,7 +226,7 @@ export default async function EventoPage({
           </Alert>
         )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Indicador
           rotulo="Confirmados"
           valor={capacidade.confirmadas}
@@ -249,6 +252,15 @@ export default async function EventoPage({
             capacidade.cotaConvidados > 0
               ? `cota de ${capacidade.cotaConvidados}, ${capacidade.cotaRestante} livre(s)`
               : "sem cota reservada"
+          }
+        />
+        <Indicador
+          rotulo="Filiados"
+          valor={filiacao.filiados}
+          detalhe={
+            filiacao.filiados + filiacao.naoFiliados > 0
+              ? `de ${filiacao.filiados + filiacao.naoFiliados} inscritos; ${filiacao.naoFiliados} não filiado(s)`
+              : "nenhum inscrito ainda"
           }
         />
         <Indicador
@@ -376,9 +388,14 @@ export default async function EventoPage({
                             ? "(participante anonimizado)"
                             : (i.nome ?? "—")}
                         </span>
-                        {i.titular_id && (
+                        {i.reservada_por && (
                           <Badge variant="secondary" className="ml-2">
                             convidado
+                          </Badge>
+                        )}
+                        {i.filiacao_id && (
+                          <Badge variant="outline" className="ml-2">
+                            filiado
                           </Badge>
                         )}
                       </TableCell>
@@ -425,6 +442,17 @@ export default async function EventoPage({
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {gestor && inscricoes.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <ConciliarFiliadosForm eventoId={evento.id} />
+              <p className="text-muted-foreground mt-2 text-xs">
+                Liga por CPF quem se inscreveu a quem é filiado. Vale rodar
+                depois que alguém se filia tendo se inscrito antes — é o
+                vínculo que leva a inscrição, o RSVP e a presença ao prontuário
+                da pessoa.
+              </p>
             </div>
           )}
         </CardContent>

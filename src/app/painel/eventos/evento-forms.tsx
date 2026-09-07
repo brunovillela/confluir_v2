@@ -1,7 +1,14 @@
 "use client"
 
 import { useActionState, useEffect, useState } from "react"
-import { CalendarPlus, Loader2, Save, Send, TriangleAlert } from "lucide-react"
+import {
+  CalendarPlus,
+  Loader2,
+  Save,
+  Send,
+  TriangleAlert,
+  UserSearch,
+} from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -13,6 +20,7 @@ import { paraCampoDataHora } from "@/lib/formato"
 
 import {
   avaliarInscricao,
+  conciliarFiliadosAction,
   enviarRsvpAction,
   mudarSituacaoEvento,
   salvarEvento,
@@ -661,5 +669,35 @@ export function EnviarRsvpForm({
         </div>
       </form>
     </div>
+  )
+}
+
+/** Conciliação retroativa de inscritos com filiações, por CPF. */
+export function ConciliarFiliadosForm({ eventoId }: { eventoId: string }) {
+  const [estado, formAction, pendente] = useActionState(
+    conciliarFiliadosAction,
+    {}
+  )
+
+  return (
+    <form action={formAction} className="grid gap-2">
+      <input type="hidden" name="id" value={eventoId} />
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert variant="success">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <div>
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <UserSearch />}
+          Conciliar inscritos com filiados
+        </Button>
+      </div>
+    </form>
   )
 }

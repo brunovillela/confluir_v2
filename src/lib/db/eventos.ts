@@ -86,6 +86,7 @@ export type Evento = {
   situacao: SituacaoEvento
   adiado_para: string | null
   motivo_situacao: string | null
+  agenda_id: string | null
   criadoPorNome: string | null
   created_at: string
 }
@@ -187,7 +188,7 @@ export async function termosEmVigor(): Promise<Termo[]> {
 // ── Eventos ──────────────────────────────────────────────────────────────────
 
 const CAMPOS_EVENTO =
-  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, criado_por, created_at"
+  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, agenda_id, criado_por, created_at"
 
 function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
   return {
@@ -215,6 +216,7 @@ function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
     situacao: (e.situacao as SituacaoEvento) ?? "rascunho",
     adiado_para: (e.adiado_para as string | null) ?? null,
     motivo_situacao: (e.motivo_situacao as string | null) ?? null,
+    agenda_id: (e.agenda_id as string | null) ?? null,
     criadoPorNome: nome,
     created_at: e.created_at as string,
   }
@@ -337,10 +339,16 @@ export async function capacidadeDoEvento(
     .eq("emp_proprietaria_id", emp)
     .eq("evento_id", evento.id)
 
-  const linhas = (data ?? []) as {
-    situacao: string
-    reservada_por: string | null
-  }[]
+  return calcularCapacidade(evento, (data ?? []) as LinhaCapacidade[])
+}
+
+type LinhaCapacidade = { situacao: string; reservada_por: string | null }
+
+/** A conta em si, sem banco — para servir a um evento ou a uma lista. */
+function calcularCapacidade(
+  evento: Evento,
+  linhas: LinhaCapacidade[]
+): Capacidade {
   const confirmadas = linhas.filter((i) => i.situacao === "confirmada").length
   const pendentes = linhas.filter((i) => i.situacao === "pendente").length
   const listaEspera = linhas.filter((i) => i.situacao === "lista_espera").length
@@ -654,4 +662,69 @@ export function estadoDoRsvp(evento: Evento, agora = new Date()): EstadoRsvp {
     abreEm: evento.rsvp_abre_em,
     enviadoEm: evento.rsvp_enviado_lote_em,
   }
+}
+
+/** Vários eventos por id, numa consulta só. */
+export async function obterEventos(ids: string[]): Promise<Evento[]> {
+  if (ids.length === 0) return []
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("eventos")
+    .select(CAMPOS_EVENTO)
+    .eq("emp_proprietaria_id", emp)
+    .in("id", ids)
+    .order("inicio", { ascending: true, nullsFirst: false })
+  if (error) return []
+  const linhas = data ?? []
+  const nomes = await nomesDosUsuarios(
+    linhas.map((e) => e.criado_por).filter((v): v is string => !!v)
+  )
+  return linhas.map((e) =>
+    mapEvento(e, e.criado_por ? (nomes.get(e.criado_por as string) ?? null) : null)
+  )
+}
+
+/**
+ * Capacidade de VÁRIOS eventos numa consulta só.
+ *
+ * `capacidadeDoEvento` faz uma ida ao banco por evento; numa lista isso vira
+ * um N+1 que aparece na primeira tela com dez eventos. Aqui as inscrições de
+ * todos vêm juntas e a conta é feita em memória.
+ */
+export async function capacidadesDosEventos(
+  eventos: Evento[]
+): Promise<Map<string, Capacidade>> {
+  const mapa = new Map<string, Capacidade>()
+  if (eventos.length === 0) return mapa
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data } = await admin
+    .from("eventos_inscricoes")
+    .select("evento_id, situacao, reservada_por")
+    .eq("emp_proprietaria_id", emp)
+    .in(
+      "evento_id",
+      eventos.map((e) => e.id)
+    )
+
+  const porEvento = new Map<
+    string,
+    { situacao: string; reservada_por: string | null }[]
+  >()
+  for (const i of data ?? []) {
+    const id = i.evento_id as string
+    const lista = porEvento.get(id) ?? []
+    lista.push({
+      situacao: i.situacao as string,
+      reservada_por: (i.reservada_por as string | null) ?? null,
+    })
+    porEvento.set(id, lista)
+  }
+
+  for (const evento of eventos) {
+    mapa.set(evento.id, calcularCapacidade(evento, porEvento.get(evento.id) ?? []))
+  }
+  return mapa
 }

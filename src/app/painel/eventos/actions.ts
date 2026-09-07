@@ -17,6 +17,10 @@ import {
   obterEvento,
   type SituacaoEvento,
 } from "@/lib/db/eventos"
+import {
+  conciliarFiliados,
+  sincronizarAgenda,
+} from "@/lib/db/eventos-filiados"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -248,8 +252,14 @@ export async function salvarEvento(
     deCampoDataHora(termino)!
   )
 
+  // Espelha na Agenda da entidade — é assim que o evento aparece para quem
+  // não recebeu o link, inclusive no portal do filiado.
+  const salvo = await obterEvento(eventoId)
+  if (salvo) await sincronizarAgenda(salvo)
+
   revalidatePath(BASE)
   revalidatePath(`${BASE}/${eventoId}`)
+  revalidatePath("/painel/ferramentas/agenda")
   redirect(`${BASE}/${eventoId}?salvo=1`)
 }
 
@@ -363,8 +373,12 @@ export async function mudarSituacaoEvento(
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível atualizar: ${error.message}` }
 
+  const atual = await obterEvento(id)
+  if (atual) await sincronizarAgenda(atual)
+
   revalidatePath(BASE)
   revalidatePath(`${BASE}/${id}`)
+  revalidatePath("/painel/ferramentas/agenda")
 
   // Cancelar e adiar avisam quem se inscreveu. O envio não pode desfazer a
   // mudança — mas o resultado vai na resposta: um aviso que não saiu em
@@ -478,4 +492,30 @@ export async function enviarRsvpAction(
 
   revalidatePath(`${BASE}/${id}`)
   return { ok: descreverAvisos(avisos) }
+}
+
+/**
+ * Casa por CPF os inscritos que ainda não estão ligados a uma filiação.
+ *
+ * Roda sob demanda porque o vínculo pode nascer depois: inscrições feitas
+ * antes desta ligação existir, e gente que se filia DEPOIS de se inscrever
+ * num evento.
+ */
+export async function conciliarFiliadosAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("eventos_gestao")
+  const id = txt(fd, "id")
+  if (!id) return { erro: "Evento inválido." }
+
+  const { conferidas, casadas } = await conciliarFiliados(id)
+  revalidatePath(`${BASE}/${id}`)
+
+  if (conferidas === 0) {
+    return { ok: "Todos os inscritos com CPF já estão ligados à filiação." }
+  }
+  return {
+    ok: `${conferidas} inscrito(s) sem vínculo conferido(s); ${casadas} casado(s) com uma filiação.`,
+  }
 }
