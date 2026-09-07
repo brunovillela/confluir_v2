@@ -175,6 +175,17 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "O histórico e os documentos de cada filiado",
       },
       {
+        slug: "direitos",
+        titulo: "Carência e inadimplência",
+        resumo:
+          "Prazos por direito, faltas que inativam e o efeito suspensivo por pessoa",
+      },
+      {
+        slug: "fichas-pendentes",
+        titulo: "Fichas pendentes",
+        resumo: "Filiados ativos sem a ficha assinada no vínculo corrente",
+      },
+      {
         slug: "termos",
         titulo: "Termos legais",
         resumo: "LGPD e autorização de desconto, versionados por entidade",

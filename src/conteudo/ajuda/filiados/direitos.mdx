@@ -1,0 +1,137 @@
+Duas regras que quase todo estatuto tem: **quanto tempo** o filiado espera para
+usar um direito, e **quantas contribuições em falta** o tornam inativo. As duas
+se configuram em **Filiados → Carência e inadimplência**.
+
+<RequerPermissao>Gestão de filiados</RequerPermissao>
+
+## Carência
+
+A carência existe sobretudo para conter um problema conhecido: filiação em
+massa às vésperas de uma eleição, feita para ganhar o pleito. Por isso ela é
+contada da **filiação mais recente** — não da primeira.
+
+Cada direito tem a sua, e liga por conta própria:
+
+| Direito | O que trava |
+| --- | --- |
+| Hospedagem | solicitar cupom na rede conveniada |
+| Saúde | atendimentos e serviços da entidade |
+| Jurídico | assistência jurídica ao associado |
+| Eventos | inscrição em evento com vaga de filiado |
+| Votar em pleito de filiados | eleição de diretoria, consulta interna |
+
+Direito com a carência **desligada** vale desde a filiação. É o padrão: o
+sistema não inventa restrição que a entidade não pediu.
+
+<Aviso tipo="atencao" titulo="Assembleia da categoria fica de fora">
+  A carência de votação alcança apenas os pleitos marcados como
+  <strong>somente filiados</strong>. Assembleia de categoria é de toda a base —
+  vota quem trabalha, filiado ou não —, e nenhuma dessas regras a atinge. O
+  marcador fica na própria assembleia, ao lado de &quot;Voto em separado&quot;.
+</Aviso>
+
+Ao ligar uma carência, a tela mostra a data em que quem se filiar hoje passaria
+a ter o direito. É a forma de conferir se 90, 180 ou 365 dias é mesmo o que se
+quer.
+
+## Inadimplência
+
+Uma regra por **tipo de contribuição** — Associativa, Assistencial, Sindical —,
+alimentada pelos tipos que a entidade realmente usa. Cada uma tem três ajustes:
+
+<PassoAPasso>
+  <Passo titulo="Quantas faltas">
+    O número de contribuições não pagas que caracteriza a inadimplência.
+  </Passo>
+  <Passo titulo="Precisam ser seguidas?">
+    Marcado, contam apenas as faltas <strong>a partir da remessa mais
+    recente</strong> — quem tem um buraco antigo mas voltou a pagar sai da
+    lista. Desmarcado, soma faltas avulsas dentro da janela.
+  </Passo>
+  <Passo titulo="Janela">
+    Quantas remessas olhar para trás. Sem janela, uma falta de 2019 pesaria
+    hoje.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="Por que a contagem parte da mais recente">
+  Punir quem se regularizou é o oposto do que a regra quer. Alguém que faltou
+  três meses em 2024 e paga religiosamente desde então não é inadimplente — e
+  com &quot;faltas seguidas&quot; ele não aparece na lista.
+</Aviso>
+
+Nenhuma regra vem ligada. Enquanto nenhuma estiver, **ninguém é considerado
+inadimplente**, e a tela de relatório diz isso em vez de mostrar uma lista
+vazia que pareceria &quot;está tudo em ordem&quot;.
+
+## O relatório
+
+**Filiados → Inadimplentes** mostra quem está na condição: nome, CPF, tipo de
+contribuição, quantas faltas, quais remessas ficaram em aberto e qual foi o
+último pagamento. Tem busca por nome ou CPF, filtro por tipo e paginação.
+
+<Aviso tipo="perigo" titulo="A lista aponta, não decide">
+  O sistema <strong>não muda a condição de ninguém sozinho</strong>. Uma remessa
+  que o empregador atrasou põe na lista gente em dia, e a pessoa só descobriria
+  ao ser barrada num benefício. Quem inativa é uma pessoa, caso a caso, olhando
+  a lista.
+</Aviso>
+
+A apuração percorre as remessas da janela — dezenas de milhares de lançamentos
+— e fica guardada por 10 minutos. Por isso a primeira abertura demora alguns
+segundos, e as seguintes são imediatas.
+
+## Efeito suspensivo
+
+Regra sem exceção documentada vira injustiça silenciosa. Toda pessoa pode ser
+tirada de uma das duas regras, com justificativa:
+
+- **Na carência** — o caso típico é quem **trocou de empregador** sem sair do
+  sindicato. Com o efeito suspensivo, vale a **primeira** filiação, e a
+  contagem não recomeça.
+- **Na inadimplência** — afastamento pelo INSS, licença, admissão recente:
+  situações em que não houve desconto porque não havia como haver.
+
+<PassoAPasso>
+  <Passo titulo="Informe o CPF">
+    A suspensão vale para a pessoa, não para um registro de filiação — quem tem
+    vários vínculos é a mesma pessoa.
+  </Passo>
+  <Passo titulo="Escolha o que suspender">
+    Carência ou inadimplência, e se vale para tudo ou só para um benefício /
+    tipo de contribuição.
+  </Passo>
+  <Passo titulo="Escreva a justificativa">
+    Obrigatória. Fica registrada com o seu nome e a data — é o que explica a
+    exceção quando alguém perguntar, dois anos depois.
+  </Passo>
+  <Passo titulo="Defina até quando (opcional)">
+    Sem prazo, vale até ser revogada.
+  </Passo>
+</PassoAPasso>
+
+Quem tem efeito suspensivo aparece **esmaecido e marcado** no relatório — some
+da conta, não da vista.
+
+### Erros comuns
+
+- **&quot;Carência ligada com zero dia não trava nada&quot;** — informe os dias
+  ou desligue a carência.
+- **&quot;Com janela de N remessas, ninguém chega a X faltas&quot;** — a
+  quantidade de faltas não pode ser maior que a janela; a regra nunca se
+  aplicaria.
+- **&quot;Escreva a justificativa&quot;** — o efeito suspensivo exige pelo
+  menos uma frase. É de propósito.
+- **A lista de inadimplentes está vazia** — confira se alguma regra está
+  ligada. Sem regra, ninguém é inadimplente.
+
+<VejaTambem
+  links={[
+    { titulo: "Perfil do filiado", href: "/painel/ajuda/filiados/perfil" },
+    { titulo: "Receitas", href: "/painel/ajuda/filiados/receitas" },
+    {
+      titulo: "Assembleias",
+      href: "/painel/ajuda/representacao/assembleias",
+    },
+  ]}
+/>

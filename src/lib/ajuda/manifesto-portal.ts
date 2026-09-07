@@ -104,6 +104,21 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "eventos",
+    titulo: "Eventos",
+    descricao: "Inscrever-se, avisar se vai comparecer e ver o código de entrada",
+    icone: "CalendarDays",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Eventos do sindicato",
+        resumo: "Como se inscrever e acompanhar sua inscrição",
+      },
+    ],
+  },
+  {
     slug: "oposicao",
     titulo: "Oposição à contribuição",
     descricao: "Como registrar oposição à contribuição assistencial",
