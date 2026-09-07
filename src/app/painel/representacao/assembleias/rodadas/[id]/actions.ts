@@ -220,6 +220,7 @@ function dadosAssembleia(formData: FormData): {
     online: boolean
     urnas_de_votacao: boolean
     voto_em_separado: boolean
+    somente_filiados: boolean
     data_inicio: string | null
     data_termino: string | null
   }
@@ -241,6 +242,7 @@ function dadosAssembleia(formData: FormData): {
       descricao: texto(formData, "descricao") || null,
       ...flagsDaModalidade(modalidade),
       voto_em_separado: texto(formData, "voto_em_separado") === "on",
+      somente_filiados: texto(formData, "somente_filiados") === "on",
       data_inicio: dataISO(texto(formData, "data_inicio")),
       data_termino: dataISO(texto(formData, "data_termino")),
     },

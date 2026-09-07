@@ -6,10 +6,12 @@ import {
   FileUp,
   FileWarning,
   FolderHeart,
+  HandCoins,
   Handshake,
   Milestone,
   Plus,
   Receipt,
+  ShieldCheck,
   ScrollText,
   UserRoundCheck,
   UserRoundMinus,
@@ -345,6 +347,18 @@ export default async function FiliadosPage() {
           descricao="Histórico e documentos de cada filiado"
           href="/painel/filiados/prontuarios"
           icone={FolderHeart}
+        />
+        <CartaoArea
+          titulo="Carência e inadimplência"
+          descricao="Prazos por direito e regras de contribuição em falta"
+          href="/painel/filiados/direitos"
+          icone={ShieldCheck}
+        />
+        <CartaoArea
+          titulo="Inadimplentes"
+          descricao="Quem está na condição definida pelas regras da entidade"
+          href="/painel/filiados/inadimplentes"
+          icone={HandCoins}
         />
         <CartaoArea
           titulo="Fichas pendentes"

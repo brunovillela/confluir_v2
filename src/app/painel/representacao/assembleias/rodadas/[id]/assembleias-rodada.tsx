@@ -173,7 +173,44 @@ function CamposAssembleia({
       </div>
 
       <VotoEmSeparadoSwitch inicial={assembleia?.voto_em_separado ?? false} />
+      <SomenteFiliadosSwitch inicial={assembleia?.somente_filiados ?? false} />
     </>
+  )
+}
+
+/**
+ * Pleito INTERNO × assembleia da categoria.
+ *
+ * Assembleia de categoria é de toda a base — vota quem trabalha, filiado ou
+ * não. Já a eleição de diretoria e a consulta aos associados são só de
+ * filiados, e é nelas que a carência de filiação faz sentido. Sem este
+ * marcador não havia como o sistema saber a diferença.
+ */
+function SomenteFiliadosSwitch({ inicial }: { inicial: boolean }) {
+  const [ativo, setAtivo] = useState(inicial)
+  return (
+    <div className="grid gap-1">
+      <label className="flex items-center gap-2 text-sm">
+        <Switch
+          checked={ativo}
+          onCheckedChange={setAtivo}
+          aria-label="Pleito somente para filiados"
+        />
+        <span className={ativo ? "font-medium" : "text-muted-foreground"}>
+          Somente filiados
+        </span>
+        <input
+          type="hidden"
+          name="somente_filiados"
+          value={ativo ? "on" : ""}
+        />
+      </label>
+      <p className="text-muted-foreground text-xs">
+        {ativo
+          ? "Pleito interno: votam apenas filiados, e a carência configurada em Filiados se aplica."
+          : "Assembleia da categoria: vota toda a base apta, filiada ou não. Nenhuma carência se aplica."}
+      </p>
+    </div>
   )
 }
 
@@ -289,6 +326,9 @@ function AssembleiaItem({
           <ModalidadeBadge modalidade={assembleia.modalidade} />
           {assembleia.voto_em_separado && (
             <Badge variant="outline">Voto em separado</Badge>
+          )}
+          {assembleia.somente_filiados && (
+            <Badge variant="secondary">Somente filiados</Badge>
           )}
           {temUrna(assembleia.modalidade) && (
             <>

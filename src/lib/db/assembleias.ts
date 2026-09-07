@@ -107,6 +107,8 @@ export type AssembleiaLinha = {
   data_inicio: string | null
   data_termino: string | null
   voto_em_separado: boolean
+  /** Pleito interno: só filiados votam, e a carência se aplica. */
+  somente_filiados: boolean
   edital: string | null
   ata: string | null
 }
@@ -879,7 +881,7 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
   const { data, error } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, data_inicio, data_termino, edital, ata"
+      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata"
     )
     .eq("rod_assembleia_id", rodadaId)
     .order("data_inicio", { ascending: true, nullsFirst: false })
@@ -898,6 +900,7 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
       data_inicio: a.data_inicio,
       data_termino: a.data_termino,
       voto_em_separado: a.voto_em_separado === true,
+      somente_filiados: a.somente_filiados === true,
       edital: a.edital,
       ata: a.ata,
     })),
@@ -911,6 +914,8 @@ export async function criarAssembleia(dados: {
   online: boolean
   urnas_de_votacao: boolean
   voto_em_separado: boolean
+  /** Pleito INTERNO: só filiados votam, e a carência se aplica. */
+  somente_filiados: boolean
   data_inicio: string | null
   data_termino: string | null
 }): Promise<{ id?: string; erro?: string }> {
@@ -924,6 +929,7 @@ export async function criarAssembleia(dados: {
       online: dados.online,
       urnas_de_votacao: dados.urnas_de_votacao,
       voto_em_separado: dados.voto_em_separado,
+      somente_filiados: dados.somente_filiados,
       data_inicio: dados.data_inicio,
       data_termino: dados.data_termino,
       codigo: gerarCodigo(),

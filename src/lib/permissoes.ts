@@ -39,6 +39,22 @@ export const MODULOS: Modulo[] = [
     chavesAlternativas: ["filiacao_gestao", "filiacao_receitas"],
   },
   {
+    titulo: "Carência e inadimplência",
+    href: "/painel/filiados/direitos",
+    icone: "ShieldCheck",
+    descricao: "Prazos por direito e regras de contribuição em falta",
+    chave: "filiacao_gestao",
+    oculto: true,
+  },
+  {
+    titulo: "Filiados inadimplentes",
+    href: "/painel/filiados/inadimplentes",
+    icone: "HandCoins",
+    descricao: "Relatório de quem está com contribuições em falta",
+    chave: "filiacao_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Fichas de filiação pendentes",
     href: "/painel/filiados/fichas-pendentes",
     icone: "FileWarning",
