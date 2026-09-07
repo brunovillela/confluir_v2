@@ -146,61 +146,157 @@ for (const n of novas) {
   )
 }
 
-// Os vínculos que passariam a ter fonte: os sem fonte cujo cadastro de origem
-// aponta para uma destas empresas.
+// ── religar o que ficou órfão ──────────────────────────────────────────────
+//
+// Empresa que não existe não pode ser apontada: toda linha que se referia a
+// estas três ficou com a coluna VAZIA, em DUAS tabelas diferentes. A primeira
+// versão deste script só religou os vínculos de filiação RECONSTRUÍDOS — foi
+// um recorte estreito demais, e o Bruno percebeu pela conta que não fechava:
+// a Halliburton mostrava 118 pessoas aqui e mais de mil no sistema antigo.
+//
+// Agora as duas tabelas são varridas, e o casamento é sempre pelo registro de
+// origem no Bubble: o vínculo de FILIAÇÃO herda a `FONTE PG` do cadastro da
+// pessoa; o vínculo TRABALHISTA tem o seu próprio `EMPREGADOR`.
+
 const porOrigem = new Map(cadastros.map((c) => [c._id, c]))
-const idsNovas = new Set(novas.map((n) => n.bubble_id))
-const aLigar = []
+
+// O mapa cobre TODAS as empresas, não só as recém-cadastradas: numa segunda
+// passada as três já existem e o religamento precisaria resolver por elas
+// mesmas — além de alcançar qualquer outro órfão que apareça.
+const empresaPorBubble = new Map()
+for (const e of empresasBubble) {
+  const alvo = resolve(e._id) ?? (novas.find((n) => n.bubble_id === e._id)?.id ?? null)
+  if (alvo) empresaPorBubble.set(e._id, alvo)
+}
+const nomePorId = new Map(
+  empresasBubble
+    .map((e) => [empresaPorBubble.get(e._id), e["Nome fantasia_Nome completo "] ?? e["Nome razão"]])
+    .filter(([id]) => id)
+)
+const rotulo = (id) => nomePorId.get(id) ?? id
+const resumir = (lista, campo) => {
+  const m = new Map()
+  for (const l of lista) m.set(l[campo], (m.get(l[campo]) ?? 0) + 1)
+  return [...m].sort((a, b) => b[1] - a[1])
+}
+
+// 1. vínculos de filiação — a fonte pagadora vem do cadastro da pessoa.
+//    Reconstruídos casam por `reconstruido_de`; os demais, por `bubble_id` do
+//    cadastro do filiado.
+const cadastroDoFiliado = new Map()
+for (const c of cadastros) {
+  const alvo = c.Supabase_id ?? null
+  if (alvo) cadastroDoFiliado.set(alvo, c)
+}
+const filiacoes = await lerTudo("filiacoes", "id, bubble_id", (q) =>
+  q.eq("emp_proprietaria_id", TENANT)
+)
+const porFiliadoBubble = new Map(
+  filiacoes.filter((f) => f.bubble_id).map((f) => [f.id, f.bubble_id])
+)
+
+const aLigarFiliacao = []
 for (const v of vinculos) {
   if (v.fonte_pagadora_id) continue
-  if (!v.reconstruido_de) continue
-  const c = porOrigem.get(v.reconstruido_de)
+  const c =
+    (v.reconstruido_de && porOrigem.get(v.reconstruido_de)) ||
+    cadastroDoFiliado.get(v.filiado_id) ||
+    porOrigem.get(porFiliadoBubble.get(v.filiado_id))
   const fonte = c?.["FONTE PG"]
-  if (!fonte || !idsNovas.has(fonte)) continue
-  const empresa = novas.find((n) => n.bubble_id === fonte)
-  aLigar.push({ id: v.id, fonte_pagadora_id: empresa.id })
+  const empresa = fonte ? empresaPorBubble.get(fonte) : null
+  if (!empresa) continue
+  aLigarFiliacao.push({ id: v.id, fonte_pagadora_id: empresa })
 }
 
-const porEmpresa = new Map()
-for (const l of aLigar) porEmpresa.set(l.fonte_pagadora_id, (porEmpresa.get(l.fonte_pagadora_id) ?? 0) + 1)
-console.log(`\nVÍNCULOS A LIGAR: ${aLigar.length}`)
-for (const [id, n] of porEmpresa) {
-  const e = novas.find((x) => x.id === id)
-  console.log(`  ${String(n).padStart(4)} → ${e?.nome_fantasia ?? e?.nome_razao}`)
+// 2. vínculos trabalhistas — o empregador é do próprio registro.
+const trabalhistasBubble = await bubbleTudo("vínculo trabalhista")
+const empregadorDoBubble = new Map(
+  trabalhistasBubble.filter((t) => t.EMPREGADOR).map((t) => [t._id, t.EMPREGADOR])
+)
+const trabalhistas = await lerTudo(
+  "vinculos_trabalhistas",
+  "id, bubble_id, empregador_id",
+  (q) => q.eq("emp_proprietaria_id", TENANT)
+)
+const aLigarTrabalhista = []
+for (const v of trabalhistas) {
+  if (v.empregador_id || !v.bubble_id) continue
+  const fonte = empregadorDoBubble.get(v.bubble_id)
+  const empresa = fonte ? empresaPorBubble.get(fonte) : null
+  if (!empresa) continue
+  aLigarTrabalhista.push({ id: v.id, empregador_id: empresa })
 }
 
-const semFonteRestantes = vinculos.filter(
-  (v) => !v.fonte_pagadora_id && v.reconstruido_de
-).length
-console.log(`\nvínculos reconstruídos sem fonte hoje: ${semFonteRestantes}`)
-console.log(`  ficariam sem fonte depois:          ${semFonteRestantes - aLigar.length}`)
+console.log(`\nVÍNCULOS DE FILIAÇÃO A LIGAR: ${aLigarFiliacao.length}`)
+for (const [id, n] of resumir(aLigarFiliacao, "fonte_pagadora_id")) {
+  console.log(`  ${String(n).padStart(5)} → ${rotulo(id)}`)
+}
+console.log(`\nVÍNCULOS TRABALHISTAS A LIGAR: ${aLigarTrabalhista.length}`)
+for (const [id, n] of resumir(aLigarTrabalhista, "empregador_id")) {
+  console.log(`  ${String(n).padStart(5)} → ${rotulo(id)}`)
+}
+
+console.log(
+  `\nsem fonte hoje: ${vinculos.filter((v) => !v.fonte_pagadora_id).length} filiação` +
+    ` | ${trabalhistas.filter((v) => !v.empregador_id).length} trabalhista`
+)
+console.log(
+  `depois:         ${vinculos.filter((v) => !v.fonte_pagadora_id).length - aLigarFiliacao.length} filiação` +
+    ` | ${trabalhistas.filter((v) => !v.empregador_id).length - aLigarTrabalhista.length} trabalhista`
+)
 
 if (!APLICAR) {
   console.log("\nDry-run. Nada gravado. Repita com --apply.")
   process.exit(0)
 }
 
-console.log("\nCadastrando as empresas…")
-const { error: erroEmpresa } = await db.from("empresa").insert(novas)
-if (erroEmpresa) {
-  console.error("Falhou:", erroEmpresa.message)
-  process.exit(1)
-}
-console.log(`  ${novas.length} cadastradas.`)
-
-console.log("Ligando os vínculos…")
-let feitos = 0
-for (const { id, fonte_pagadora_id } of aLigar) {
-  const { error } = await db
-    .from("filiacao_vinculos")
-    .update({ fonte_pagadora_id })
-    .eq("id", id)
-  if (error) {
-    console.error(`\nFalhou em ${id}: ${error.message}`)
-    console.error(`Ligados até aqui: ${feitos}.`)
+// O insert só corre quando há empresa nova: numa segunda passada elas já
+// existem, e só falta religar.
+if (novas.length > 0) {
+  console.log("\nCadastrando as empresas…")
+  const { error: erroEmpresa } = await db.from("empresa").insert(novas)
+  if (erroEmpresa) {
+    console.error("Falhou:", erroEmpresa.message)
     process.exit(1)
   }
-  feitos++
-  if (feitos % 50 === 0) process.stdout.write(".")
+  console.log(`  ${novas.length} cadastradas.`)
 }
-console.log(`\nPronto: ${novas.length} empresas cadastradas, ${feitos} vínculos ligados.`)
+
+// Agrupa por empresa e atualiza em lotes: são milhares de linhas, e um update
+// por linha levaria meia hora de ida e volta ao banco para gravar sempre o
+// mesmo valor.
+async function ligar(tabela, lista, campo) {
+  if (lista.length === 0) return 0
+  console.log(`\nLigando ${lista.length} em ${tabela}…`)
+  const porValor = new Map()
+  for (const item of lista) {
+    const ids = porValor.get(item[campo]) ?? []
+    ids.push(item.id)
+    porValor.set(item[campo], ids)
+  }
+  let feitos = 0
+  for (const [valor, ids] of porValor) {
+    for (let de = 0; de < ids.length; de += 200) {
+      const lote = ids.slice(de, de + 200)
+      const { error } = await db
+        .from(tabela)
+        .update({ [campo]: valor })
+        .in("id", lote)
+      if (error) {
+        console.error(`\nFalhou: ${error.message}`)
+        console.error(`Ligados até aqui: ${feitos}.`)
+        process.exit(1)
+      }
+      feitos += lote.length
+      process.stdout.write(".")
+    }
+  }
+  console.log("")
+  return feitos
+}
+
+const nFil = await ligar("filiacao_vinculos", aLigarFiliacao, "fonte_pagadora_id")
+const nTrab = await ligar("vinculos_trabalhistas", aLigarTrabalhista, "empregador_id")
+console.log(
+  `\nPronto: ${novas.length} empresa(s) cadastrada(s), ${nFil} vínculo(s) de filiação e ${nTrab} trabalhista(s) ligados.`
+)
