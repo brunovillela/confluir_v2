@@ -69,17 +69,17 @@ export function Porta({
   const streamRef = useRef<MediaStream | null>(null)
   const buscaRef = useRef<HTMLInputElement>(null)
 
-  // A leitura de QR é nativa em parte dos navegadores (Chrome, Android) e
-  // ausente em outros (Safari/iOS). Em vez de carregar uma biblioteca só por
-  // isso, o botão aparece apenas onde funciona — a busca manual é o caminho
-  // principal e existe em todo lugar.
+  // Ler QR tem dois caminhos: o BarcodeDetector nativo (Chrome/Android, mais
+  // rápido e sem custo de bateria) e, onde ele não existe — Safari, e portanto
+  // TODO navegador de iPhone —, a biblioteca jsQR carregada sob demanda. O que
+  // decide se o botão aparece é só ter câmera.
   //
   // useSyncExternalStore em vez de efeito com setState: o servidor devolve
   // false, o cliente devolve a capacidade real, e o React concilia sem
   // disparar renderização em cascata.
   const scannerDisponivel = useSyncExternalStore(
     () => () => {},
-    () => "BarcodeDetector" in window,
+    () => typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia,
     () => false
   )
 
@@ -179,46 +179,76 @@ export function Porta({
     if (!scanner || !video || !stream) return
 
     let vivo = true
-    video.srcObject = stream
-    video.play().catch(() => {
-      setAviso({
-        tipo: "erro",
-        texto: "A câmera abriu mas o vídeo não iniciou. Toque em Ler QR de novo.",
+
+    const iniciar = async () => {
+      video.srcObject = stream
+      video.play().catch(() => {
+        setAviso({
+          tipo: "erro",
+          texto:
+            "A câmera abriu mas o vídeo não iniciou. Toque em Ler QR de novo.",
+        })
       })
-    })
 
-    const Detector = (
-      window as unknown as {
-        BarcodeDetector?: new (o: { formats: string[] }) => {
-          detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]>
-        }
-      }
-    ).BarcodeDetector
-    // Sem leitor nativo o vídeo continua servindo de espelho da câmera; só
-    // não há detecção. A limpeza abaixo vale nos dois casos.
-    const detector = Detector ? new Detector({ formats: ["qr_code"] }) : null
-
-    const laco = async () => {
-      if (!detector) return
-      if (!vivo || !streamRef.current) return
-      try {
-        const codigos = await detector.detect(video)
-        if (codigos.length > 0) {
-          const token = extrairToken(codigos[0].rawValue)
-          if (token) {
-            vivo = false
-            pararScanner()
-            setTermo(token)
-            await buscar(token, "qr")
-            return
+      const Detector = (
+        window as unknown as {
+          BarcodeDetector?: new (o: { formats: string[] }) => {
+            detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]>
           }
         }
-      } catch {
-        // quadro ruim: segue tentando
+      ).BarcodeDetector
+      const nativo = Detector ? new Detector({ formats: ["qr_code"] }) : null
+
+      // Caminho da biblioteca: o quadro é copiado para um canvas fora da tela
+      // e REDUZIDO antes da varredura. Ler 1080p em JavaScript a cada quadro
+      // derruba o desempenho de celular antigo — e é justamente ele que vai
+      // para a porta.
+      let lerComBiblioteca: (() => string | null) | null = null
+      if (!nativo) {
+        const jsQR = (await import("jsqr")).default
+        const canvas = document.createElement("canvas")
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })
+        lerComBiblioteca = () => {
+          if (!ctx || !video.videoWidth) return null
+          const escala = Math.min(1, 640 / video.videoWidth)
+          canvas.width = Math.round(video.videoWidth * escala)
+          canvas.height = Math.round(video.videoHeight * escala)
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+          const imagem = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          const achado = jsQR(imagem.data, imagem.width, imagem.height, {
+            inversionAttempts: "dontInvert",
+          })
+          return achado?.data ?? null
+        }
       }
-      if (vivo) setTimeout(laco, 250)
+
+      const laco = async () => {
+        if (!vivo || !streamRef.current) return
+        try {
+          const bruto = nativo
+            ? ((await nativo.detect(video))[0]?.rawValue ?? null)
+            : (lerComBiblioteca?.() ?? null)
+          if (bruto) {
+            const token = extrairToken(bruto)
+            if (token) {
+              vivo = false
+              pararScanner()
+              setTermo(token)
+              await buscar(token, "qr")
+              return
+            }
+          }
+        } catch {
+          // quadro ruim: segue tentando
+        }
+        // A biblioteca custa mais por quadro que o leitor nativo; um respiro
+        // maior mantém a câmera fluida.
+        if (vivo) setTimeout(laco, nativo ? 250 : 400)
+      }
+      laco()
     }
-    laco()
+
+    iniciar()
 
     return () => {
       vivo = false
@@ -250,8 +280,8 @@ export function Porta({
         )}
         {!scannerDisponivel && (
           <span className="text-muted-foreground text-sm">
-            Este navegador não lê QR Code. Abra esta tela no celular
-            (Chrome/Android) ou use a busca abaixo.
+            Este dispositivo não tem câmera disponível. Use a busca por nome ou
+            CPF.
           </span>
         )}
       </div>
