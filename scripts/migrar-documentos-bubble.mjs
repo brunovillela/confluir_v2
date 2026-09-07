@@ -97,6 +97,16 @@ const LIMITE = (() => {
 const ehUrlExterna = (v) =>
   typeof v === "string" && (v.startsWith("//") || /^https?:\/\//i.test(v))
 
+/** Mesmas extensões que o app reconhece em lib/db/filiacao-documentos.ts. */
+const EXTENSOES = [".pdf", ".jpg", ".jpeg", ".png", ".zip"]
+
+const ehArquivo = (v) => {
+  if (typeof v !== "string" || !v) return false
+  if (ehUrlExterna(v)) return true
+  const min = v.toLowerCase()
+  return EXTENSOES.some((e) => min.endsWith(e))
+}
+
 const paraUrl = (v) => (v.startsWith("//") ? `https:${v}` : v)
 
 /**
@@ -188,8 +198,11 @@ async function conferir() {
       .not(doc.colunaAtual, "is", null)
       .not(doc.colunaAtual, "like", "//%")
       .limit(2000)
+    // Só conta como resíduo o que não aponta para arquivo NENHUM. Antes eu
+    // exigia ".pdf" aqui e acabava marcando como lixo os JPEG e ZIP que o
+    // próprio script tinha acabado de migrar.
     const lixo = (naoArquivos ?? []).filter(
-      (l) => !String(l[doc.colunaAtual]).toLowerCase().endsWith(".pdf")
+      (l) => !ehArquivo(l[doc.colunaAtual])
     )
 
     console.log(`${doc.tipo.toUpperCase()}`)
