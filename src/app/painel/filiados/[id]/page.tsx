@@ -436,6 +436,7 @@ export default async function FiliadoPage({
                     <TableHead className="hidden lg:table-cell">
                       Condição
                     </TableHead>
+                    <TableHead>Documentos</TableHead>
                     {podeEditar && <TableHead className="w-10" />}
                   </TableRow>
                 </TableHeader>
@@ -472,6 +473,42 @@ export default async function FiliadoPage({
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden lg:table-cell">
                         {v.filiacao_condicao ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex flex-wrap items-center gap-1">
+                          <Badge
+                            variant={v.temFicha ? "success" : "outline"}
+                            title={
+                              v.temFicha
+                                ? "Ficha de filiação anexada"
+                                : "Sem ficha de filiação"
+                            }
+                          >
+                            ficha
+                          </Badge>
+                          {(v.temCarta ||
+                            v.data_desfiliacao ||
+                            v.filiacao_data_saida) && (
+                            <Badge
+                              variant={v.temCarta ? "success" : "warning"}
+                              title={
+                                v.temCarta
+                                  ? "Carta de desfiliação anexada"
+                                  : "Desfiliado sem carta anexada"
+                              }
+                            >
+                              carta
+                            </Badge>
+                          )}
+                          {v.documentoNoBubble && (
+                            <Badge
+                              variant="warning"
+                              title="Arquivo ainda hospedado no sistema antigo"
+                            >
+                              no Bubble
+                            </Badge>
+                          )}
+                        </span>
                       </TableCell>
                       {podeEditar && (
                         <TableCell>

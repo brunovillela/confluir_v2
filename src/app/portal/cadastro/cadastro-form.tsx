@@ -4,6 +4,7 @@ import { useActionState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -182,14 +183,17 @@ export function CadastroForm({
       </Card>
 
       </fieldset>
-      {!somenteLeitura && (
-        <div className="flex justify-end">
+      <div className="flex justify-end">
+        <AcaoVisualizacao
+          preview={somenteLeitura === true}
+          nota="Somente o próprio associado altera o cadastro."
+        >
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}
             Salvar alterações
           </Button>
-        </div>
-      )}
+        </AcaoVisualizacao>
+      </div>
     </form>
   )
 }

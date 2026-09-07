@@ -3,6 +3,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { estatisticasFontes, nomesDeEmpresas } from "@/lib/db/fontes"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
+import { ehDoBubble } from "@/lib/db/filiacao-documentos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
 
@@ -342,6 +343,12 @@ export type Vinculo = {
   fonte_pg_admissao: string | null
   fonte_pagadora_id: string | null
   fontePagadora: string | null
+  /** Tem ficha de filiação anexada? */
+  temFicha: boolean
+  /** Tem carta de desfiliação anexada? */
+  temCarta: boolean
+  /** Algum dos dois ainda mora no CDN do Bubble, e não no nosso bucket. */
+  documentoNoBubble: boolean
 }
 
 export type VinculoTrabalhista = {
@@ -533,7 +540,7 @@ export async function buscarPerfilFiliado(
       admin
         .from("filiacao_vinculos")
         .select(
-          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, filiacao_condicao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id"
+          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, filiacao_condicao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao"
         )
         .in("filiado_id", idsDaPessoa)
         .order("created_at", { ascending: false }),
@@ -594,9 +601,16 @@ export async function buscarPerfilFiliado(
   const nomeEmpresa = (id: string | null) =>
     id ? (nomesEmpresas.get(id) ?? null) : null
 
+  const noBubble = (valor: unknown) =>
+    ehDoBubble(typeof valor === "string" ? valor : null)
+
   const vinculos: Vinculo[] = (vinculosRes.data ?? []).map((v) => ({
     ...v,
     fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
+    temFicha: Boolean(v.ficha_filiacao),
+    temCarta: Boolean(v.carta_desfiliacao),
+    documentoNoBubble:
+      noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
   }))
 
   const vinculosTrabalhistas: VinculoTrabalhista[] = (

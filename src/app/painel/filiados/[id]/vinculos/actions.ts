@@ -7,6 +7,11 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import {
+  enviarDocumentoDoVinculo,
+  removerDocumentoDoVinculo,
+  type TipoDocumento,
+} from "@/lib/db/filiacao-documentos"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -143,4 +148,58 @@ export async function excluirVinculo(
 
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
+}
+
+/**
+ * Ficha de filiação e carta de desfiliação do vínculo.
+ *
+ * Reusam as colunas `ficha_filiacao` e `carta_desfiliacao`, que já vinham do
+ * Bubble — o que faltava era a tela para pôr e ver o papel.
+ */
+export async function enviarDocumentoAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("filiacao_gestao")
+  const filiadoId = String(fd.get("filiadoId") ?? "")
+  const vinculoId = String(fd.get("vinculoId") ?? "")
+  const tipo = String(fd.get("tipo") ?? "") as TipoDocumento
+  if (!vinculoId || (tipo !== "ficha" && tipo !== "carta")) {
+    return { erro: "Documento inválido." }
+  }
+
+  const arquivo = fd.get("arquivo")
+  if (!(arquivo instanceof File)) return { erro: "Escolha o arquivo." }
+
+  const { erro } = await enviarDocumentoDoVinculo(vinculoId, tipo, arquivo)
+  if (erro) return { erro }
+
+  revalidatePath(`/painel/filiados/${filiadoId}`)
+  revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
+  return {
+    ok:
+      tipo === "ficha"
+        ? "Ficha de filiação anexada."
+        : "Carta de desfiliação anexada.",
+  }
+}
+
+export async function removerDocumentoAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("filiacao_gestao")
+  const filiadoId = String(fd.get("filiadoId") ?? "")
+  const vinculoId = String(fd.get("vinculoId") ?? "")
+  const tipo = String(fd.get("tipo") ?? "") as TipoDocumento
+  if (!vinculoId || (tipo !== "ficha" && tipo !== "carta")) {
+    return { erro: "Documento inválido." }
+  }
+
+  const { erro } = await removerDocumentoDoVinculo(vinculoId, tipo)
+  if (erro) return { erro }
+
+  revalidatePath(`/painel/filiados/${filiadoId}`)
+  revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
+  return { ok: "Documento removido do vínculo." }
 }

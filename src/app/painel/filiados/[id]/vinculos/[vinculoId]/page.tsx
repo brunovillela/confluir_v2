@@ -2,13 +2,22 @@ import { tenantAtual } from "@/lib/tenant"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FileDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { documentosDoVinculo } from "@/lib/db/filiacao-documentos"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+import { DocumentoDoVinculo } from "../documentos"
 import { VinculoForm, type VinculoFormDados } from "../vinculo-form"
 
 export const metadata: Metadata = { title: "Vínculo de filiação — Confluir" }
@@ -41,6 +50,8 @@ export default async function EditarVinculoPage({
   ])
   if (!filiado || !vinculo || vinculo.filiado_id !== id) notFound()
 
+  const documentos = await documentosDoVinculo(vinculoId)
+
   return (
     <>
       <div>
@@ -65,6 +76,46 @@ export default async function EditarVinculoPage({
         }))}
         vinculo={vinculo as VinculoFormDados}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Documentos deste vínculo</CardTitle>
+          <CardDescription>
+            O papel que sustenta a filiação e a desfiliação. Guardar aqui é o
+            que torna o arquivo localizável — na gaveta ele existe, mas não é
+            auditável.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="rounded-lg border border-dashed p-4">
+            <p className="text-sm font-medium">
+              Precisa colher a assinatura?
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Baixe a ficha já preenchida com os dados do cadastro e deste
+              vínculo, imprima, colha a assinatura e anexe o PDF abaixo. É o
+              mesmo documento do fluxo público de filiação.
+            </p>
+            <Button variant="outline" size="sm" asChild className="mt-3">
+              <a
+                href={`/painel/filiados/${id}/vinculos/${vinculoId}/ficha`}
+              >
+                <FileDown />
+                Baixar ficha preenchida
+              </a>
+            </Button>
+          </div>
+
+          {documentos.map((d) => (
+            <DocumentoDoVinculo
+              key={d.tipo}
+              filiadoId={id}
+              vinculoId={vinculoId}
+              doc={{ tipo: d.tipo, url: d.url, noBubble: d.noBubble }}
+            />
+          ))}
+        </CardContent>
+      </Card>
     </>
   )
 }

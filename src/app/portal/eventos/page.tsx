@@ -10,6 +10,8 @@ import { formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+
 import { PortalShell } from "../portal-shell"
 import { CancelarInscricao, Inscrever, ResponderRsvp } from "./formularios"
 
@@ -118,13 +120,13 @@ export default async function PortalEventosPage() {
 
                   {/* Não inscrito: o convite. */}
                   {!e.inscrito &&
-                    (e.aberta && !preview ? (
-                      <Inscrever eventoId={e.evento.id} />
-                    ) : e.aberta && preview ? (
-                      <p className="text-muted-foreground text-sm">
-                        Inscrições abertas — só o próprio associado pode se
-                        inscrever.
-                      </p>
+                    (e.aberta ? (
+                      <AcaoVisualizacao
+                        preview={preview}
+                        nota="Somente o próprio associado pode se inscrever."
+                      >
+                        <Inscrever eventoId={e.evento.id} />
+                      </AcaoVisualizacao>
                     ) : (
                       <p className="text-muted-foreground text-sm">
                         {e.motivoFechada ?? "As inscrições estão fechadas."}
@@ -142,20 +144,16 @@ export default async function PortalEventosPage() {
                   {e.inscrito && confirmada && (
                     <div className="grid gap-3 border-t pt-4">
                       {e.evento.exige_rsvp &&
-                        (e.rsvpAberto && !preview ? (
-                          <ResponderRsvp
-                            token={e.inscricaoToken ?? ""}
-                            resposta={e.rsvpConfirmado}
-                          />
-                        ) : e.rsvpAberto && preview ? (
-                          <p className="text-sm">
-                            Confirmação de presença aberta.{" "}
-                            {e.rsvpConfirmado === null
-                              ? "Ainda sem resposta."
-                              : e.rsvpConfirmado
-                                ? "Respondeu que vai comparecer."
-                                : "Respondeu que não poderá ir."}
-                          </p>
+                        (e.rsvpAberto ? (
+                          <AcaoVisualizacao
+                            preview={preview}
+                            nota="A resposta é do associado — a gestão não responde por ele."
+                          >
+                            <ResponderRsvp
+                              token={e.inscricaoToken ?? ""}
+                              resposta={e.rsvpConfirmado}
+                            />
+                          </AcaoVisualizacao>
                         ) : (
                           <p className="text-sm">
                             Perto do evento vamos perguntar se você conseguiu se
@@ -176,8 +174,10 @@ export default async function PortalEventosPage() {
                             Ver meu código de entrada
                           </Link>
                         )}
-                        {e.presencas === 0 && e.inscricaoId && !preview && (
-                          <CancelarInscricao inscricaoId={e.inscricaoId} />
+                        {e.presencas === 0 && e.inscricaoId && (
+                          <AcaoVisualizacao preview={preview} nota="">
+                            <CancelarInscricao inscricaoId={e.inscricaoId} />
+                          </AcaoVisualizacao>
                         )}
                       </div>
                     </div>

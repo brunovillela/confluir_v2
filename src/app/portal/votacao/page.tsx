@@ -22,6 +22,8 @@ import {
 } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+
 import { PortalShell } from "../portal-shell"
 import { EmailVotacaoForm } from "./email-form"
 
@@ -103,14 +105,17 @@ export default async function VotacaoPortalPage() {
                       Você já votou
                     </Badge>
                   ) : (
-                    !preview && (
+                    <AcaoVisualizacao
+                      preview={preview}
+                      nota="O voto é secreto e pessoal — só o associado vota."
+                    >
                       <Button size="sm" asChild>
                         <Link href={`/portal/votacao/${a.assembleiaId}`}>
                           <Vote />
                           Votar agora
                         </Link>
                       </Button>
-                    )
+                    </AcaoVisualizacao>
                   )
                 ) : a.rodadaId ? (
                   <Button variant="outline" size="sm" asChild>

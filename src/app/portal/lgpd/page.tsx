@@ -14,6 +14,8 @@ import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+
 import { PortalShell } from "../portal-shell"
 import { AceiteLgpdForm } from "./aceite-form"
 
@@ -121,7 +123,14 @@ export default async function LgpdPage({
             hotel parceiro recebe seu nome para a reserva) ou por obrigação
             legal.
           </p>
-          {!preview && !aceiteLgpd && <AceiteLgpdForm />}
+          {!aceiteLgpd && (
+            <AcaoVisualizacao
+              preview={preview}
+              nota="O aceite é um ato do próprio titular — a gestão não pode dá-lo por ele."
+            >
+              <AceiteLgpdForm />
+            </AcaoVisualizacao>
+          )}
         </CardContent>
       </Card>
 

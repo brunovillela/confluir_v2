@@ -17,6 +17,8 @@ import { cuponsDoFiliado, hoteisDisponiveis } from "@/lib/db/filiado-portal"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+
 import { PortalShell } from "../portal-shell"
 import { CancelarMeuCupomBotao, SolicitarCupomForm } from "./cupom-portal"
 
@@ -61,12 +63,15 @@ export default async function PortalHospedagemPage({
         </Alert>
       )}
 
-      {!preview && (
+      <AcaoVisualizacao
+        preview={preview}
+        nota="Somente o próprio associado pode solicitar um cupom."
+      >
         <SolicitarCupomForm
           hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome }))}
           hoje={hoje}
         />
-      )}
+      </AcaoVisualizacao>
 
       <Card>
         <CardHeader>
@@ -126,8 +131,10 @@ export default async function PortalHospedagemPage({
                       />
                     </TableCell>
                     <TableCell>
-                      {!preview && c.situacao === "aguardando" && (
-                        <CancelarMeuCupomBotao id={c.id} />
+                      {c.situacao === "aguardando" && (
+                        <AcaoVisualizacao preview={preview} nota="">
+                          <CancelarMeuCupomBotao id={c.id} />
+                        </AcaoVisualizacao>
                       )}
                     </TableCell>
                   </TableRow>
