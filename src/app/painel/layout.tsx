@@ -50,8 +50,13 @@ export default async function PainelLayout({
       />
       <SidebarInset>
         <TrilhaProvider>
-          <AppHeader acoes={<SinoNotificacoes naoLidas={naoLidas} />} />
-          <AlertaForaJornada dias={jornada} />
+          {/* Header e alerta grudam JUNTOS, como um bloco só. Cada um sticky
+              por conta própria fixava os dois em top-0 e o alerta cobria o
+              cabeçalho — texto por cima de texto assim que a página rolava. */}
+          <div className="bg-background sticky top-0 z-(--z-sticky)">
+            <AppHeader acoes={<SinoNotificacoes naoLidas={naoLidas} />} />
+            <AlertaForaJornada dias={jornada} />
+          </div>
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
             {children}
           </div>

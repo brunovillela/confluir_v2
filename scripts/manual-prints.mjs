@@ -47,6 +47,11 @@ const SHOTS = [
   ["/painel/filiados/direitos", "filiados/direitos.png", { fullPage: true }],
   ["/painel/filiados/inadimplentes", "filiados/inadimplentes.png", { fullPage: true }],
   ["/painel/filiados/fichas-pendentes", "filiados/fichas-pendentes.png", { fullPage: true }],
+  [
+    "/painel/filiados/77777777-7777-4777-8777-000000000005",
+    "filiados/vinculo-reconstruido.png",
+    { scrollTo: "Histórico de filiação" },
+  ],
   ["/portal/eventos", "portal/eventos.png", { fullPage: true }],
   ["/evento/encontro-de-formacao-sindical", "fluxos-publicos/evento.png", { anon: true, fullPage: true }],
   ["/meus-dados", "fluxos-publicos/meus-dados.png", { anon: true, altura: 720 }],

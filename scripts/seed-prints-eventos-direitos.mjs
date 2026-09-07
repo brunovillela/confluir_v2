@@ -596,6 +596,15 @@ for (const [nome, situacao] of HISTORICO) {
   )
 }
 
+// Um vínculo derivado do cadastro antigo, para a etiqueta "reconstruído"
+// aparecer no manual. Na base real são 8.537; aqui basta um para ensinar o que
+// a etiqueta quer dizer.
+if (vinculos.length > 0) {
+  vinculos[0].reconstruido_de = "1694090000000x000000000000000001"
+  vinculos[0].cargo = null
+  vinculos[0].lotacao = null
+}
+
 ok(await c.from("filiacao_vinculos").insert(vinculos), "vinculos")
 ok(await c.from("filiacao_recebe_remessa").insert(remessas), "remessas")
 ok(await c.from("filiacao_recebe").insert(linhasRecebe), "recebe")

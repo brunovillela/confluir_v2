@@ -49,7 +49,9 @@ export function AlertaForaJornada({ dias }: { dias: JornadaDia[] }) {
   return (
     <div
       role="status"
-      className="border-warning/40 bg-warning/15 text-warning-fg sticky top-0 z-40 flex items-center gap-2 border-b px-4 py-2 text-sm"
+      // Sem sticky próprio: quem gruda é o bloco do cabeçalho, em
+      // `painel/layout.tsx`. Dois sticky em top-0 se sobrepõem.
+      className="border-warning/40 bg-warning/15 text-warning-fg flex items-center gap-2 border-b px-4 py-2 text-sm"
     >
       <Clock className="size-4 shrink-0" />
       <span>
