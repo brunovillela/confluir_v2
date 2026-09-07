@@ -9,9 +9,11 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   enviarDocumentoDoVinculo,
+  removerArquivosDoVinculo,
   removerDocumentoDoVinculo,
   type TipoDocumento,
 } from "@/lib/db/filiacao-documentos"
+import { invalidarCacheFichasPendentes } from "@/lib/db/filiacao-fichas-pendentes"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -135,17 +137,27 @@ export async function excluirVinculo(
   }
 
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  // Os PDFs anexados saem com o vínculo: sem a linha, ninguém mais os alcança
+  // e eles ficariam ocupando espaço para sempre.
+  await removerArquivosDoVinculo(vinculoId)
+
   const { error } = await admin
     .from("filiacao_vinculos")
     .delete()
     .eq("id", vinculoId)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", emp)
   if (error) {
     return {
       erro: "Não foi possível excluir este vínculo — há registros ligados a ele.",
     }
   }
 
+  // A lista de fichas pendentes deriva dos vínculos; sem isto ela mostraria
+  // por até 10 minutos alguém que não existe mais.
+  invalidarCacheFichasPendentes()
+  revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
 }
@@ -174,6 +186,8 @@ export async function enviarDocumentoAction(
   const { erro } = await enviarDocumentoDoVinculo(vinculoId, tipo, arquivo)
   if (erro) return { erro }
 
+  invalidarCacheFichasPendentes()
+  revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
   return {
@@ -199,6 +213,8 @@ export async function removerDocumentoAction(
   const { erro } = await removerDocumentoDoVinculo(vinculoId, tipo)
   if (erro) return { erro }
 
+  invalidarCacheFichasPendentes()
+  revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
   return { ok: "Documento removido do vínculo." }

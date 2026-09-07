@@ -2,7 +2,7 @@
 
 import { useActionState } from "react"
 import Link from "next/link"
-import { Loader2, Trash2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 
-import { atualizarVinculo, criarVinculo, excluirVinculo } from "./actions"
+import { atualizarVinculo, criarVinculo } from "./actions"
 
 export type OpcaoFonte = { id: string; nome: string }
 
@@ -74,12 +74,7 @@ export function VinculoForm({
     vinculo ? atualizarVinculo : criarVinculo,
     {}
   )
-  const [estadoExcluir, excluirAction, excluindo] = useActionState(
-    excluirVinculo,
-    {}
-  )
-
-  const erro = estado.erro ?? estadoExcluir.erro
+  const erro = estado.erro
 
   return (
     <div className="grid gap-4">
@@ -185,29 +180,7 @@ export function VinculoForm({
         </div>
       </form>
 
-      {vinculo && (
-        <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            if (!confirm("Excluir este vínculo do histórico de filiação?")) {
-              e.preventDefault()
-            }
-          }}
-          className="flex justify-end border-t pt-4"
-        >
-          <input type="hidden" name="filiado_id" value={filiadoId} />
-          <input type="hidden" name="vinculo_id" value={vinculo.id} />
-          <Button
-            type="submit"
-            variant="ghost"
-            disabled={excluindo}
-            className="text-destructive hover:text-destructive"
-          >
-            {excluindo ? <Loader2 className="animate-spin" /> : <Trash2 />}
-            Excluir vínculo
-          </Button>
-        </form>
-      )}
+
     </div>
   )
 }

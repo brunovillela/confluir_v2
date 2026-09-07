@@ -39,6 +39,15 @@ export const MODULOS: Modulo[] = [
     chavesAlternativas: ["filiacao_gestao", "filiacao_receitas"],
   },
   {
+    titulo: "Fichas de filiação pendentes",
+    href: "/painel/filiados/fichas-pendentes",
+    icone: "FileWarning",
+    descricao: "Filiados ativos sem a ficha assinada no vínculo corrente",
+    chave: "filiacao_filiados",
+    chavesAlternativas: ["filiacao_gestao"],
+    oculto: true,
+  },
+  {
     titulo: "Financeiro",
     href: "/painel/financeiro",
     icone: "Landmark",

@@ -225,3 +225,30 @@ export async function documentosNoBubble(): Promise<{
   ])
   return { fichas: fichas.count ?? 0, cartas: cartas.count ?? 0 }
 }
+
+/**
+ * Apaga do bucket os arquivos de um vínculo que está sendo excluído.
+ *
+ * Chamada ANTES do delete da linha: depois dele o caminho se perde e o arquivo
+ * fica órfão no armazenamento, invisível e sem dono. O que veio do Bubble não
+ * é nosso e fica onde está.
+ */
+export async function removerArquivosDoVinculo(
+  vinculoId: string
+): Promise<void> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("filiacao_vinculos")
+    .select("ficha_filiacao, carta_desfiliacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", vinculoId)
+    .maybeSingle()
+  if (!data) return
+
+  const nossos = [data.ficha_filiacao, data.carta_desfiliacao].filter(
+    (v): v is string => typeof v === "string" && ehArquivo(v) && !ehDoBubble(v)
+  )
+  if (nossos.length > 0) {
+    await admin.storage.from(BUCKET).remove(nossos)
+  }
+}

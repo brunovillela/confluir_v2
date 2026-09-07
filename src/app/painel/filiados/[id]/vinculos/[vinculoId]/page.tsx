@@ -14,10 +14,12 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { documentosDoVinculo } from "@/lib/db/filiacao-documentos"
+import { formatarData } from "@/lib/formato"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { DocumentoDoVinculo } from "../documentos"
+import { ExcluirVinculo } from "../excluir-vinculo"
 import { VinculoForm, type VinculoFormDados } from "../vinculo-form"
 
 export const metadata: Metadata = { title: "Vínculo de filiação — Confluir" }
@@ -51,6 +53,14 @@ export default async function EditarVinculoPage({
   if (!filiado || !vinculo || vinculo.filiado_id !== id) notFound()
 
   const documentos = await documentosDoVinculo(vinculoId)
+
+  // Nome da fonte para a confirmação de exclusão dizer de QUAL vínculo se
+  // trata — "excluir o vínculo" sem dizer qual é pedir erro.
+  const fonteNome = vinculo.fonte_pagadora_id
+    ? (fontes.find((f) => f.id === vinculo.fonte_pagadora_id)?.nome_fantasia ??
+      fontes.find((f) => f.id === vinculo.fonte_pagadora_id)?.nome_razao ??
+      null)
+    : null
 
   return (
     <>
@@ -116,6 +126,22 @@ export default async function EditarVinculoPage({
           ))}
         </CardContent>
       </Card>
+
+      <ExcluirVinculo
+        filiadoId={id}
+        vinculoId={vinculoId}
+        fonteNome={fonteNome}
+        dataFiliacao={formatarData(
+          (vinculo.data_filiacao as string | null) ?? null
+        )}
+        dataDesfiliacao={
+          vinculo.data_desfiliacao
+            ? formatarData(vinculo.data_desfiliacao as string)
+            : null
+        }
+        temFicha={documentos.some((d) => d.tipo === "ficha" && d.valor !== null)}
+        temCarta={documentos.some((d) => d.tipo === "carta" && d.valor !== null)}
+      />
     </>
   )
 }

@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardCheck,
   FileUp,
+  FileWarning,
   FolderHeart,
   Handshake,
   Milestone,
@@ -344,6 +345,12 @@ export default async function FiliadosPage() {
           descricao="Histórico e documentos de cada filiado"
           href="/painel/filiados/prontuarios"
           icone={FolderHeart}
+        />
+        <CartaoArea
+          titulo="Fichas pendentes"
+          descricao="Filiados ativos sem a ficha assinada no vínculo corrente"
+          href="/painel/filiados/fichas-pendentes"
+          icone={FileWarning}
         />
         {podeRegistrar && (
           <CartaoArea
