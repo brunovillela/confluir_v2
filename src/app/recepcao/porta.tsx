@@ -148,54 +148,84 @@ export function Porta({
   useEffect(() => pararScanner, [pararScanner])
 
   async function ligarScanner() {
+    setAviso(null)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
         audio: false,
       })
-      streamRef.current = stream
       setScanner(true)
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-
-      const Detector = (
-        window as unknown as {
-          BarcodeDetector: new (o: { formats: string[] }) => {
-            detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]>
-          }
-        }
-      ).BarcodeDetector
-      const detector = new Detector({ formats: ["qr_code"] })
-
-      const laco = async () => {
-        if (!streamRef.current || !videoRef.current) return
-        try {
-          const codigos = await detector.detect(videoRef.current)
-          if (codigos.length > 0) {
-            const token = extrairToken(codigos[0].rawValue)
-            if (token) {
-              pararScanner()
-              setTermo(token)
-              await buscar(token, "qr")
-              return
-            }
-          }
-        } catch {
-          // quadro ruim: segue tentando
-        }
-        setTimeout(laco, 250)
-      }
-      laco()
     } catch {
       setAviso({
         tipo: "erro",
-        texto: "Não foi possível abrir a câmera. Use a busca por nome ou CPF.",
+        texto:
+          "Não foi possível abrir a câmera. Confira a permissão de câmera do navegador e use a busca por nome ou CPF.",
       })
       pararScanner()
     }
   }
+
+  /**
+   * Liga o stream ao <video> e roda a leitura.
+   *
+   * Precisa ser um EFEITO, e não a continuação de `ligarScanner`: o elemento
+   * de vídeo só existe depois que o React re-renderiza com `scanner = true`.
+   * Fazendo dentro da função, `videoRef.current` ainda era null — a câmera
+   * acendia (a luz do aparelho ligava) e a tela ficava preta.
+   */
+  useEffect(() => {
+    const video = videoRef.current
+    const stream = streamRef.current
+    if (!scanner || !video || !stream) return
+
+    let vivo = true
+    video.srcObject = stream
+    video.play().catch(() => {
+      setAviso({
+        tipo: "erro",
+        texto: "A câmera abriu mas o vídeo não iniciou. Toque em Ler QR de novo.",
+      })
+    })
+
+    const Detector = (
+      window as unknown as {
+        BarcodeDetector?: new (o: { formats: string[] }) => {
+          detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]>
+        }
+      }
+    ).BarcodeDetector
+    // Sem leitor nativo o vídeo continua servindo de espelho da câmera; só
+    // não há detecção. A limpeza abaixo vale nos dois casos.
+    const detector = Detector ? new Detector({ formats: ["qr_code"] }) : null
+
+    const laco = async () => {
+      if (!detector) return
+      if (!vivo || !streamRef.current) return
+      try {
+        const codigos = await detector.detect(video)
+        if (codigos.length > 0) {
+          const token = extrairToken(codigos[0].rawValue)
+          if (token) {
+            vivo = false
+            pararScanner()
+            setTermo(token)
+            await buscar(token, "qr")
+            return
+          }
+        }
+      } catch {
+        // quadro ruim: segue tentando
+      }
+      if (vivo) setTimeout(laco, 250)
+    }
+    laco()
+
+    return () => {
+      vivo = false
+      video.srcObject = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanner])
 
   return (
     <div className="grid gap-4">
@@ -218,13 +248,29 @@ export function Porta({
             Fechar câmera
           </Button>
         )}
+        {!scannerDisponivel && (
+          <span className="text-muted-foreground text-sm">
+            Este navegador não lê QR Code. Abra esta tela no celular
+            (Chrome/Android) ou use a busca abaixo.
+          </span>
+        )}
       </div>
 
-      {scanner && (
-        <div className="mx-auto w-full max-w-md overflow-hidden rounded-lg border bg-black">
-          <video ref={videoRef} playsInline muted className="w-full" />
-        </div>
-      )}
+      <div
+        className={
+          scanner
+            ? "mx-auto w-full max-w-md overflow-hidden rounded-lg border bg-black"
+            : "hidden"
+        }
+      >
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          autoPlay
+          className="aspect-[3/4] w-full object-cover sm:aspect-video"
+        />
+      </div>
 
       <form
         onSubmit={(e) => {
