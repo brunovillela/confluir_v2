@@ -3,7 +3,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { estatisticasFontes, nomesDeEmpresas } from "@/lib/db/fontes"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
-import { ehDoBubble } from "@/lib/db/filiacao-documentos"
+import { ehArquivo, ehDoBubble } from "@/lib/db/filiacao-documentos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
 
@@ -607,8 +607,12 @@ export async function buscarPerfilFiliado(
   const vinculos: Vinculo[] = (vinculosRes.data ?? []).map((v) => ({
     ...v,
     fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
-    temFicha: Boolean(v.ficha_filiacao),
-    temCarta: Boolean(v.carta_desfiliacao),
+    temFicha: ehArquivo(
+      typeof v.ficha_filiacao === "string" ? v.ficha_filiacao : null
+    ),
+    temCarta: ehArquivo(
+      typeof v.carta_desfiliacao === "string" ? v.carta_desfiliacao : null
+    ),
     documentoNoBubble:
       noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
   }))

@@ -39,6 +39,19 @@ export function ehDoBubble(valor: string | null): boolean {
   return valor.startsWith("//") || /^https?:\/\//i.test(valor)
 }
 
+/**
+ * O valor guardado aponta mesmo para um ARQUIVO?
+ *
+ * A coluna `carta_desfiliacao` veio da migração com conteúdo misturado: parte
+ * são endereços de PDF, e 109 linhas trazem uma DATA em texto ("Jun 9, 2016
+ * 12:00 am") — um campo do Bubble que caiu na coluna errada. Sem esta
+ * distinção a tela marcaria "carta anexada" para quem não tem carta nenhuma.
+ */
+export function ehArquivo(valor: string | null): boolean {
+  if (!valor) return false
+  return ehDoBubble(valor) || valor.toLowerCase().endsWith(".pdf")
+}
+
 export type DocumentoDoVinculo = {
   tipo: TipoDocumento
   /** O que está gravado na coluna (caminho do bucket ou URL do Bubble). */
@@ -72,9 +85,14 @@ export async function documentosDoVinculo(
     .eq("id", vinculoId)
     .maybeSingle()
 
+  // Só o que é arquivo vira documento; o resto é resíduo da migração e some
+  // da tela como se não houvesse nada — porque não há.
+  const soArquivo = (v: unknown) =>
+    typeof v === "string" && ehArquivo(v) ? v : null
+
   const bruto: Record<TipoDocumento, string | null> = {
-    ficha: (data?.ficha_filiacao as string | null) ?? null,
-    carta: (data?.carta_desfiliacao as string | null) ?? null,
+    ficha: soArquivo(data?.ficha_filiacao),
+    carta: soArquivo(data?.carta_desfiliacao),
   }
 
   return Promise.all(
