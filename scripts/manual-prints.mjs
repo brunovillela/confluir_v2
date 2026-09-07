@@ -22,11 +22,39 @@ const BASE = "http://localhost:3222"
 const EMAIL = "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
+const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
+const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
+
 const SHOTS = [
-  // Prints restantes de features novas (seed: scripts/seed-prints-extra.mjs).
-  ["/painel/compras/comprador", "compras/comprador.png"],
-  ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png", { fullPage: true }],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
+  // Eventos e telas novas de Filiados
+  // (seed: scripts/seed-prints-eventos-direitos.mjs).
+  ["/painel/eventos", "eventos/painel.png"],
+  [`/painel/eventos/${EV_DEMO}`, "eventos/evento.png", { fullPage: true }],
+  [`/painel/eventos/${EV_DEMO}/convidados`, "eventos/convidados.png", { fullPage: true }],
+  [
+    `/painel/eventos/${EV_DEMO}/convidados`,
+    "eventos/convidados-planilha.png",
+    { abrir: "Importar planilha", fullPage: true },
+  ],
+  [`/painel/eventos/${EV_DEMO}/campos`, "eventos/campos.png", { fullPage: true }],
+  ["/painel/eventos/configuracao", "eventos/configuracao.png", { fullPage: true }],
+  ["/painel/eventos/lgpd", "eventos/lgpd.png", { fullPage: true }],
+  [
+    `/recepcao?evento=${EV_DEMO}&dia=${DIA_DEMO}`,
+    "eventos/recepcao.png",
+    { mobile: true, buscar: { campo: "Nome ou CPF", texto: "Marina" } },
+  ],
+  ["/painel/filiados/direitos", "filiados/direitos.png", { fullPage: true }],
+  ["/painel/filiados/inadimplentes", "filiados/inadimplentes.png", { fullPage: true }],
+  ["/painel/filiados/fichas-pendentes", "filiados/fichas-pendentes.png", { fullPage: true }],
+  ["/portal/eventos", "portal/eventos.png", { fullPage: true }],
+  ["/evento/encontro-de-formacao-sindical", "fluxos-publicos/evento.png", { anon: true, fullPage: true }],
+  ["/meus-dados", "fluxos-publicos/meus-dados.png", { anon: true, altura: 720 }],
+
+  // Já capturados nas rodadas anteriores.
+  // ["/painel/compras/comprador", "compras/comprador.png"],
+  // ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png", { fullPage: true }],
+  // ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
 
   // Patrimônio (já capturado — seed: scripts/seed-patrimonio-demo.mjs).
   // ["/painel/patrimonio", "patrimonio/painel.png"],
@@ -199,6 +227,23 @@ if (page.url().includes("/login")) {
   process.exit(1)
 }
 
+// Contexto de CELULAR com a mesma sessão, para telas pensadas para a mão
+// (a recepção de evento é operada de pé, no corredor).
+let pageMobile = null
+async function mobilePage() {
+  if (!pageMobile) {
+    const ctxMobile = await browser.newContext({
+      viewport: { width: 414, height: 896 },
+      deviceScaleFactor: 3,
+      isMobile: true,
+      hasTouch: true,
+      storageState: await ctx.storageState(),
+    })
+    pageMobile = await ctxMobile.newPage()
+  }
+  return pageMobile
+}
+
 // Contexto SEM sessão (cookies próprios), para telas públicas anônimas.
 let pageAnon = null
 async function anonPage() {
@@ -215,7 +260,11 @@ async function anonPage() {
 for (const [route, file, opts] of SHOTS) {
   const dir = `public/ajuda/${file.split("/").slice(0, -1).join("/")}`
   mkdirSync(dir, { recursive: true })
-  const p = opts?.anon ? await anonPage() : page
+  const p = opts?.anon
+    ? await anonPage()
+    : opts?.mobile
+      ? await mobilePage()
+      : page
   // `load` + buffer é mais robusto que networkidle (páginas SSR pesadas ou
   // compilação a frio no dev podem não atingir networkidle em 30s).
   await p.goto(BASE + route, { waitUntil: "load", timeout: 60000 })
@@ -226,6 +275,26 @@ for (const [route, file, opts] of SHOTS) {
     await p.getByText(EMAIL).first().click()
     await p.getByRole("menuitem", { name: "Meu perfil" }).waitFor({ timeout: 4000 })
     await p.waitForTimeout(300)
+  }
+  // opts.abrir: clica no título de um cartão colapsável — um print do cartão
+  // fechado não mostra o que ele guarda.
+  if (opts?.abrir) {
+    await p.getByText(opts.abrir, { exact: false }).first().click()
+    await p.waitForTimeout(600)
+  }
+  // opts.altura: encolhe o quadro para páginas curtas, que de outro modo saem
+  // com meio print de fundo vazio.
+  if (opts?.altura) {
+    await p.setViewportSize({ width: 1440, height: opts.altura })
+    await p.waitForTimeout(300)
+  }
+  // opts.buscar: preenche o campo e dispara a busca — o print de uma tela de
+  // busca vazia não mostra o que a tela faz.
+  if (opts?.buscar) {
+    const campo = p.getByPlaceholder(opts.buscar.campo)
+    await campo.fill(opts.buscar.texto)
+    await campo.press("Enter")
+    await p.waitForTimeout(1500)
   }
   // opts.scrollTo: rola até o texto (foca uma seção abaixo da dobra).
   if (opts?.scrollTo) {
@@ -238,6 +307,7 @@ for (const [route, file, opts] of SHOTS) {
     }
   }
   await p.screenshot({ path: `public/ajuda/${file}`, fullPage: opts?.fullPage ?? false })
+  if (opts?.altura) await p.setViewportSize({ width: 1440, height: 1024 })
   console.log("salvo:", file)
 }
 

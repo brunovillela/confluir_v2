@@ -180,7 +180,7 @@ export function RegraForm({ regra }: { regra: RegraInadimplencia }) {
         <>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor={`qtd-${regra.tipo}`}>Faltas para inativar</Label>
+              <Label htmlFor={`qtd-${regra.tipo}`}>Faltas para entrar na lista</Label>
               <Input
                 id={`qtd-${regra.tipo}`}
                 name="quantidade"
@@ -217,8 +217,8 @@ export function RegraForm({ regra }: { regra: RegraInadimplencia }) {
               As faltas precisam ser seguidas
               <span className="text-muted-foreground block text-xs">
                 {consecutivas
-                  ? `Conta a partir da remessa mais recente: quem voltou a pagar sai da lista, mesmo com buraco antigo. ${quantidade} falta(s) seguida(s) inativa.`
-                  : `Soma faltas avulsas dentro da janela. ${quantidade} falta(s), seguidas ou não, inativa.`}
+                  ? `Conta a partir da remessa mais recente: quem voltou a pagar sai da lista, mesmo com buraco antigo. ${quantidade} falta(s) seguida(s) e a pessoa aparece no relatório.`
+                  : `Soma faltas avulsas dentro da janela. ${quantidade} falta(s), seguidas ou não, e a pessoa aparece no relatório.`}
               </span>
             </span>
           </label>

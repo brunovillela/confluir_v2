@@ -369,10 +369,13 @@ export function Porta({
               </div>
             </div>
 
+            {/* No celular o botão desce para a própria linha: disputando a
+                largura com a foto, sobrava um palmo para o nome e ele saía
+                truncado — justamente o que a recepção precisa ler. */}
             <Button
               type="button"
               size="lg"
-              className="h-14 px-6"
+              className="h-14 w-full px-6 sm:w-auto"
               disabled={p.presenteHoje || p.situacao !== "confirmada"}
               onClick={() => confirmar(p, "busca")}
             >

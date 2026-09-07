@@ -61,7 +61,7 @@ export default async function DireitosPage() {
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Quanto tempo o filiado espera por cada direito, e quantas
-          contribuições em falta o tornam inativo.
+          contribuições em falta o colocam no relatório de inadimplência.
         </p>
       </div>
 

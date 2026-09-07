@@ -123,7 +123,7 @@ export default async function RecepcaoPage({
               ))}
             </div>
             <div>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className="-ml-3 sm:ml-0">
                 <Link href="/recepcao">Trocar de evento</Link>
               </Button>
             </div>

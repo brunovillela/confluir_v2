@@ -124,7 +124,7 @@ export function ConfiguracaoForm({
 
       {modo !== "nenhuma" && (
         <>
-          <div className="grid gap-2 sm:max-w-60">
+          <div className="grid gap-2 sm:max-w-xl">
             <Label htmlFor="retencao_foto_dias">
               Apagar a foto depois de quantos dias
             </Label>
@@ -135,6 +135,7 @@ export function ConfiguracaoForm({
               min={1}
               max={3650}
               defaultValue={config.retencao_foto_dias}
+              className="sm:max-w-40"
             />
             <p className="text-muted-foreground text-xs">
               Contados a partir do fim do evento. O prazo aparece no termo, e
@@ -142,7 +143,7 @@ export function ConfiguracaoForm({
             </p>
           </div>
 
-          <div className="grid gap-2 sm:max-w-96">
+          <div className="grid gap-2 sm:max-w-xl">
             <Label htmlFor="controle_acesso_nome">
               Nome do sistema de controle de acesso
             </Label>
@@ -151,6 +152,7 @@ export function ConfiguracaoForm({
               name="controle_acesso_nome"
               defaultValue={config.controle_acesso_nome ?? ""}
               placeholder="Hit-Conect, por exemplo"
+              className="sm:max-w-96"
             />
             <p className="text-muted-foreground text-xs">
               Aparece no termo e na pendência de remoção. Sem nome, a pessoa lê
