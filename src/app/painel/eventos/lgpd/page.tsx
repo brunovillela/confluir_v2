@@ -49,7 +49,7 @@ function Pedido({
             )}
           </div>
           <p className="text-muted-foreground text-sm">
-            {pedido.emailTitular ?? "(sem identificação)"}
+            {pedido.emailTitular ?? "identificação apagada após a remoção"}
           </p>
         </div>
         <p className="text-muted-foreground text-xs whitespace-nowrap">
@@ -77,6 +77,10 @@ function Pedido({
 
       {pedido.acessoRemocaoPendente && (
         <div className="mt-3 border-t pt-3">
+          <p className="text-muted-foreground mb-2 text-xs">
+            Ao confirmar, o e-mail acima é apagado deste registro — ele só
+            existia para permitir a remoção.
+          </p>
           <BaixarPendenciaBloco
             pedidoId={pedido.id}
             sistema={sistema ?? "controle de acesso"}
@@ -175,10 +179,12 @@ export default async function LgpdEventosPage() {
       </Card>
 
       <p className="text-muted-foreground text-xs">
-        O e-mail de quem pediu exclusão continua aqui de propósito: sem ele
-        ninguém consegue localizar a pessoa no sistema de controle de acesso
-        para removê-la, e não haveria como provar que o pedido foi atendido. É
-        retenção com finalidade declarada (LGPD art. 16, I).
+        O e-mail de quem pediu exclusão fica guardado <strong>enquanto a
+        pendência existe</strong> — sem ele ninguém localiza a pessoa no sistema
+        de controle de acesso para removê-la. Assim que alguém marca a remoção
+        como feita, a identificação é apagada daqui também. O que fica é a
+        prova: tipo do pedido, datas, quantos registros foram anonimizados, a
+        base legal e quem executou.
       </p>
     </>
   )

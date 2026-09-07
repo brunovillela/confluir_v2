@@ -340,6 +340,16 @@ export async function corrigirDados(
   if (Object.keys(mudancas).length === 1) return { erro: "Nada a corrigir." }
 
   const service = createServiceClient()
+  // Guarda uma inscrição como âncora do pedido: é a marca que sobrevive caso
+  // a identificação seja removida depois.
+  const { data: alvos } = await service
+    .from("eventos_inscricoes")
+    .select("id")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("email", email)
+    .is("anonimizada_em", null)
+    .limit(1)
+
   // Corrige em TODAS as inscrições daquele e-mail: para a pessoa é um cadastro
   // só, mesmo que o sistema guarde uma linha por evento.
   const { error } = await service
@@ -354,6 +364,7 @@ export async function corrigirDados(
     emp_proprietaria_id: tenantId,
     tipo: "correcao",
     email_titular: email,
+    inscricao_id: (alvos ?? [])[0]?.id ?? null,
     solicitado_em: new Date().toISOString(),
     concluido_em: new Date().toISOString(),
     observacao: "Correção feita pelo próprio titular no canal de eventos.",
@@ -448,6 +459,9 @@ export async function excluirDadosDoTitular(
     emp_proprietaria_id: tenantId,
     tipo: "exclusao",
     email_titular: email,
+    // Marca que sobrevive à remoção do e-mail: é por ela que o painel
+    // continua listando o pedido depois de a identificação sair.
+    inscricao_id: linhas[0]?.id ?? null,
     solicitado_em: agora,
     concluido_em: agora,
     registros_anonimizados: linhas.length,

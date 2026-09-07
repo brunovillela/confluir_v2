@@ -232,7 +232,9 @@ export async function listarPedidosLgpd(filtro?: {
       "id, tipo, email_titular, solicitado_em, concluido_em, registros_anonimizados, base_legal_retencao, observacao, acesso_remocao_pendente, acesso_removido_em, acesso_removido_por"
     )
     .eq("emp_proprietaria_id", emp)
-    .not("email_titular", "is", null)
+    // Pedidos do canal do titular: enquanto têm identificação, pelo e-mail;
+    // depois que ela é apagada, pela inscrição que ficou como âncora.
+    .or("email_titular.not.is.null,inscricao_id.not.is.null")
   if (filtro?.somentePendentes) q = q.eq("acesso_remocao_pendente", true)
 
   const { data, error } = await q
@@ -276,7 +278,18 @@ export async function listarPedidosLgpd(filtro?: {
   }))
 }
 
-/** Baixa a pendência: alguém foi lá, no outro sistema, e removeu o rosto. */
+/**
+ * Baixa a pendência: alguém foi lá, no outro sistema, e removeu o rosto.
+ *
+ * E APAGA a identificação do pedido. O e-mail só estava guardado porque não se
+ * localiza alguém numa catraca a partir de um hash; cumprida a remoção, ele
+ * perdeu a finalidade — e manter o endereço de quem pediu para ser esquecido
+ * seria guardar justamente o que a pessoa mandou apagar.
+ *
+ * A PROVA sobrevive inteira: tipo do pedido, datas, quantos registros foram
+ * anonimizados, a base legal da retenção e quem executou a remoção. É o que a
+ * autoridade pede — nada disso identifica a pessoa.
+ */
 export async function marcarRemocaoDeAcesso(
   pedidoId: string,
   usuarioId: string
@@ -289,6 +302,8 @@ export async function marcarRemocaoDeAcesso(
       acesso_remocao_pendente: false,
       acesso_removido_em: new Date().toISOString(),
       acesso_removido_por: usuarioId,
+      email_titular: null,
+      cpf_titular: null,
     })
     .eq("emp_proprietaria_id", emp)
     .eq("id", pedidoId)
