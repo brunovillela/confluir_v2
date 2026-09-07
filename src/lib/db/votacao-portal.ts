@@ -3,6 +3,7 @@ import { createHash, randomInt, randomUUID } from "node:crypto"
 
 import { derivarModalidade, type Modalidade } from "@/lib/assembleias-constantes"
 import { enviarEmail } from "@/lib/email"
+import { direitoDoFiliado } from "@/lib/db/filiacao-direitos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -194,6 +195,13 @@ export type AssembleiaDoFiliado = {
   apuracaoEncerrada: boolean
   /** Já votou? (apto.hora_voto preenchido) */
   jaVotou: boolean
+  /** Pleito interno: só filiados votam, e a carência de filiação se aplica. */
+  somenteFiliados: boolean
+  /**
+   * Bloqueio por carência, quando houver. Nulo = pode votar.
+   * Só existe em pleito de filiados — assembleia da categoria nunca tem.
+   */
+  carencia: { motivo: string; liberaEm: string | null; diasRestantes: number | null } | null
 }
 
 function txt(v: unknown): string | null {
@@ -276,7 +284,7 @@ export async function assembleiasDoFiliado(
   const { data: assembleias } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
+      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
     )
     .eq("emp_proprietaria_id", emp)
     .in("id", assembleiaIds)
@@ -324,6 +332,10 @@ export async function assembleiasDoFiliado(
     (campanhasRes.data ?? []).map((c) => [String(c.id), txt(c.tema)])
   )
 
+  // A carência é a MESMA para todos os pleitos do filiado — uma consulta só,
+  // fora do laço.
+  const direito = await direitoDoFiliado(cpf, "votacao")
+
   const agora = Date.now()
   const saida: AssembleiaDoFiliado[] = []
   for (const a of assembleias) {
@@ -357,6 +369,15 @@ export async function assembleiasDoFiliado(
       termino,
       apuracaoEncerrada,
       jaVotou: votouPorAssembleia.get(String(a.id)) ?? false,
+      somenteFiliados: a.somente_filiados === true,
+      carencia:
+        a.somente_filiados === true && !direito.liberado
+          ? {
+              motivo: direito.motivo ?? "Carência de filiação não cumprida.",
+              liberaEm: direito.liberaEm ?? null,
+              diasRestantes: direito.diasRestantes ?? null,
+            }
+          : null,
     })
   }
   // Online (com contagem) primeiro; depois por término mais próximo.
@@ -449,6 +470,13 @@ export async function registrarVotoFiliado(
   if (!eleg) return { erro: "Você não está apto a votar nesta assembleia." }
   if (!eleg.online) return { erro: "Esta assembleia não é de votação online." }
   if (eleg.jaVotou) return { erro: "Você já votou nesta assembleia." }
+  // A carência é conferida AQUI, e não só na tela: sem isto bastaria um POST
+  // direto para votar antes do prazo.
+  if (eleg.carencia) {
+    return {
+      erro: `${eleg.carencia.motivo}${eleg.carencia.diasRestantes ? ` Faltam ${eleg.carencia.diasRestantes} dia(s).` : ""}`,
+    }
+  }
 
   const perguntas = await perguntasDaAssembleia(assembleiaId)
   if (perguntas.length === 0) {
@@ -740,12 +768,16 @@ export async function elegibilidadeEleitorEmail(
   const { data: a } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
+      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
     )
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (!a) return null
+  // Este caminho é o do eleitor identificado só por E-MAIL — quem não é
+  // filiado. Pleito interno não é dele, mesmo que o e-mail esteja na lista de
+  // aptos herdada do empregador.
+  if (a.somente_filiados === true) return null
 
   let rod: Record<string, unknown> | null = null
   if (txt(a.rod_assembleia_id)) {
@@ -781,6 +813,8 @@ export async function elegibilidadeEleitorEmail(
     termino,
     apuracaoEncerrada,
     jaVotou,
+    somenteFiliados: false,
+    carencia: null,
   }
 }
 

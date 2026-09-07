@@ -2,8 +2,10 @@ import "server-only"
 
 import {
   BENEFICIOS,
+  conferirCarencia,
   type Beneficio,
   type CarenciaConfig,
+  type Direito,
   type EscopoSuspensao,
   type RegraInadimplencia,
 } from "@/lib/filiacao-direitos-constantes"
@@ -282,4 +284,69 @@ export async function revogarSuspensao(
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("id", id)
   return error ? { erro: error.message } : {}
+}
+
+// ── A pergunta que as telas fazem ────────────────────────────────────────────
+
+/**
+ * As duas datas de filiação da pessoa: a mais recente (que a carência usa) e a
+ * primeira (que vale quando há efeito suspensivo por troca de empregador).
+ *
+ * Por CPF, porque a pessoa tem um registro de filiação por vínculo.
+ */
+export async function datasDeFiliacao(
+  cpf: string
+): Promise<{ maisRecente: string | null; primeira: string | null }> {
+  if (!cpf) return { maisRecente: null, primeira: null }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const { data: registros } = await admin
+    .from("filiacoes")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("cpf", cpf)
+  const ids = (registros ?? []).map((r) => r.id as string)
+  if (ids.length === 0) return { maisRecente: null, primeira: null }
+
+  const { data: vinculos } = await admin
+    .from("filiacao_vinculos")
+    .select("data_filiacao, filiacao_data_adesao")
+    .eq("emp_proprietaria_id", emp)
+    .in("filiado_id", ids)
+
+  const datas = (vinculos ?? [])
+    .map(
+      (v) =>
+        (v.data_filiacao as string | null) ??
+        (v.filiacao_data_adesao as string | null)
+    )
+    .filter((d): d is string => Boolean(d))
+    .sort()
+
+  if (datas.length === 0) return { maisRecente: null, primeira: null }
+  return { primeira: datas[0], maisRecente: datas[datas.length - 1] }
+}
+
+/**
+ * O filiado pode usar este direito agora?
+ *
+ * Reúne as três coisas que a resposta exige — a configuração, as datas da
+ * pessoa e o efeito suspensivo — para que a tela faça uma pergunta só.
+ */
+export async function direitoDoFiliado(
+  cpf: string,
+  beneficio: Beneficio
+): Promise<Direito> {
+  const [carencias, datas, suspensoes] = await Promise.all([
+    lerCarencias(),
+    datasDeFiliacao(cpf),
+    suspensoesDoCpf(cpf, "carencia"),
+  ])
+  const carencia = carencias.find((c) => c.beneficio === beneficio)
+  if (!carencia) return { liberado: true }
+
+  // Suspensão sem alvo vale para tudo; com alvo, só para aquele benefício.
+  const suspenso = suspensoes.some((s) => !s.alvo || s.alvo === beneficio)
+  return conferirCarencia(carencia, datas, suspenso)
 }

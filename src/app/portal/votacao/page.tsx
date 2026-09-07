@@ -104,6 +104,18 @@ export default async function VotacaoPortalPage() {
                     >
                       Você já votou
                     </Badge>
+                  ) : a.carencia ? (
+                    // Recusa EXPLICADA: sumir com o botão faria a pessoa achar
+                    // que o sistema está quebrado.
+                    <div className="max-w-xs sm:text-right">
+                      <Badge variant="warning">Ainda em carência</Badge>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {a.carencia.motivo}
+                        {a.carencia.liberaEm
+                          ? ` Você poderá votar a partir de ${formatarData(a.carencia.liberaEm)}.`
+                          : ""}
+                      </p>
+                    </div>
                   ) : (
                     <AcaoVisualizacao
                       preview={preview}
