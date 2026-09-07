@@ -14,18 +14,28 @@
 // dos casos, com mediana de diferença ZERO (o resto é gente com mais de um
 // vínculo, em que comparei com o mais recente).
 //
-// O QUE NÃO FAZ: não inventa cargo, lotação nem matrícula do empregador — o
-// cadastro não tem essas coisas, e preenchê-las com palpite estragaria dado
-// bom. Não toca em quem já tem vínculo. Não escreve nada no Bubble.
+// O QUE NÃO FAZ: não inventa nada — todo campo gravado sai de um campo do
+// cadastro de origem. Não toca em quem já tem vínculo. Não escreve no Bubble.
 //
 // PRÉ-REQUISITOS:
 //   1. supabase/filiacao-vinculos-reconstruidos.sql rodado (coluna de marca)
 //   2. BUBBLE_API_ROOT e BUBBLE_API_TOKEN no .env.local
 //
+// --completar: SEGUNDA PASSADA, e ela existe por um erro meu. Li UM registro
+// para decidir quais campos o cadastro tinha — e o Bubble OMITE campo vazio,
+// então tudo que estava em branco naquele registro pareceu não existir. Existe:
+// "Filiação data saída" (548 dos reconstruídos), "FONTE PG matrícula" (5.447),
+// "FONTE PG admissão" (2.965), cargo (1.077), lotação (1.097) e ainda 287
+// fichas e 139 cartas no CDN. Os vínculos foram criados mais pobres do que a
+// origem permitia — e os 548 sem data de saída ficaram indevidamente EM ABERTO.
+// Completar corrige sem desfazer nada: só preenche coluna vazia.
+//
 // USO:
 //   node scripts/reconstruir-vinculos-bubble.mjs                 (dry-run)
 //   node scripts/reconstruir-vinculos-bubble.mjs --limite 20 --apply
 //   node scripts/reconstruir-vinculos-bubble.mjs --apply
+//   node scripts/reconstruir-vinculos-bubble.mjs --completar
+//   node scripts/reconstruir-vinculos-bubble.mjs --completar --apply
 //   node scripts/reconstruir-vinculos-bubble.mjs --conferir
 //   node scripts/reconstruir-vinculos-bubble.mjs --desfazer --apply
 // ===========================================================================
@@ -36,6 +46,7 @@ const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
 const CONFERIR = args.includes("--conferir")
 const DESFAZER = args.includes("--desfazer")
+const COMPLETAR = args.includes("--completar")
 const LIMITE = (() => {
   const i = args.indexOf("--limite")
   return i >= 0 ? Number(args[i + 1]) : null
@@ -157,6 +168,89 @@ if (CONFERIR) {
   process.exit(0)
 }
 
+// ── completar o que a primeira passada deixou para trás ────────────────────
+
+if (COMPLETAR) {
+  console.log(APLICAR ? "MODO APLICAR — vai gravar." : "DRY-RUN — nada será gravado.")
+  console.log("Lendo o Bubble…")
+  const cadastros = await bubbleTudo("filiação")
+  console.log("Lendo o Supabase…")
+  const reconstruidos = await lerTudo(
+    "filiacao_vinculos",
+    "id, reconstruido_de, data_desfiliacao, cargo, lotacao, matricula, data_entrada_admissao, data_saida_demissao, ficha_filiacao, carta_desfiliacao",
+    (q) => q.eq("emp_proprietaria_id", TENANT).not("reconstruido_de", "is", null)
+  )
+  console.log(`  cadastros: ${cadastros.length} | vínculos reconstruídos: ${reconstruidos.length}`)
+
+  const porOrigem = new Map(cadastros.map((o) => [o._id, o]))
+  const dia = (v) => (v ? String(v).slice(0, 10) : null)
+
+  // Só coluna VAZIA é preenchida: completar nunca sobrescreve o que alguém já
+  // corrigiu à mão depois da primeira passada.
+  const CAMPOS = [
+    ["data_desfiliacao", "Filiação data saída", dia],
+    ["cargo", "FONTE PG cargo", (v) => v || null],
+    ["lotacao", "FONTE PG Lotação", (v) => v || null],
+    ["matricula", "FONTE PG matrícula", (v) => (v == null ? null : String(v))],
+    ["data_entrada_admissao", "FONTE PG admissão", dia],
+    ["data_saida_demissao", "FONTE PG demissão", dia],
+    // A URL do CDN vai crua para a coluna, como estavam os vínculos legítimos
+    // antes da migração de documentos. Quem baixa e sobe para o bucket é o
+    // scripts/migrar-documentos-bubble.mjs, que já sabe fazer isso.
+    ["ficha_filiacao", "Filiação Ficha de filiação", (v) => v || null],
+    ["carta_desfiliacao", "Filiação Desfiliação carta", (v) => v || null],
+  ]
+
+  const mudancas = []
+  const porCampo = Object.fromEntries(CAMPOS.map(([col]) => [col, 0]))
+  for (const v of reconstruidos) {
+    const o = porOrigem.get(v.reconstruido_de)
+    if (!o) continue
+    const patch = {}
+    for (const [coluna, chave, converter] of CAMPOS) {
+      if (v[coluna] != null && v[coluna] !== "") continue
+      const valor = converter(o[chave])
+      if (valor == null) continue
+      patch[coluna] = valor
+      porCampo[coluna]++
+    }
+    if (Object.keys(patch).length > 0) mudancas.push({ id: v.id, patch })
+  }
+
+  console.log("\nO QUE FALTA PREENCHER")
+  for (const [coluna, n] of Object.entries(porCampo)) {
+    console.log(`  ${coluna.padEnd(24)} ${n}`)
+  }
+  console.log(`  ${"vínculos a tocar".padEnd(24)} ${mudancas.length}`)
+
+  if (!APLICAR) {
+    console.log("\nDry-run. Nada gravado. Repita com --completar --apply.")
+    process.exit(0)
+  }
+
+  console.log(`\nCompletando ${mudancas.length} vínculos…`)
+  let feitos = 0
+  for (const { id, patch } of mudancas) {
+    const { error } = await db.from("filiacao_vinculos").update(patch).eq("id", id)
+    if (error) {
+      console.error(`\nFalhou em ${id}: ${error.message}`)
+      console.error(`Completados até aqui: ${feitos}.`)
+      process.exit(1)
+    }
+    feitos++
+    if (feitos % 250 === 0) process.stdout.write(".")
+  }
+  const documentos = porCampo.ficha_filiacao + porCampo.carta_desfiliacao
+  console.log(`\nPronto: ${feitos} vínculos completados.`)
+  if (documentos > 0) {
+    console.log(
+      `\n${documentos} documento(s) ainda apontam para o CDN do Bubble.` +
+        "\nRode: node scripts/migrar-documentos-bubble.mjs --apply"
+    )
+  }
+  process.exit(0)
+}
+
 // ── o trabalho ─────────────────────────────────────────────────────────────
 
 console.log(APLICAR ? "MODO APLICAR — vai gravar." : "DRY-RUN — nada será gravado.")
@@ -228,8 +322,8 @@ for (const b of cadastros) {
   novos.push({
     emp_proprietaria_id: TENANT,
     filiado_id: f.id,
-    // Só o que o cadastro realmente diz. Cargo, lotação e matrícula do
-    // empregador ficam vazios: chutá-los estragaria dado bom mais tarde.
+    // A criação grava só a data e a fonte; o resto do que o cadastro guarda
+    // entra pelo --completar, que roda em seguida e preenche coluna vazia.
     data_filiacao: data,
     fonte_pagadora_id: fonte,
     reconstruido_de: b._id,

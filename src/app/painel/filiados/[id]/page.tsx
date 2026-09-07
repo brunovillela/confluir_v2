@@ -449,7 +449,7 @@ export default async function FiliadoPage({
                           <Badge
                             variant="outline"
                             className="ml-2 align-middle"
-                            title="Vínculo derivado do cadastro do sistema antigo: só data de filiação e fonte pagadora. Cargo, lotação e matrícula nunca existiram nessa origem."
+                            title="Vínculo derivado do cadastro do sistema antigo, não registrado por alguém aqui. Traz o que aquele cadastro guardava; campo em branco é campo que a origem não tinha."
                           >
                             reconstruído
                           </Badge>
