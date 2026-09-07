@@ -47,9 +47,13 @@ export function ehDoBubble(valor: string | null): boolean {
  * 12:00 am") — um campo do Bubble que caiu na coluna errada. Sem esta
  * distinção a tela marcaria "carta anexada" para quem não tem carta nenhuma.
  */
+const EXTENSOES = [".pdf", ".jpg", ".jpeg", ".png", ".zip"]
+
 export function ehArquivo(valor: string | null): boolean {
   if (!valor) return false
-  return ehDoBubble(valor) || valor.toLowerCase().endsWith(".pdf")
+  if (ehDoBubble(valor)) return true
+  const v = valor.toLowerCase()
+  return EXTENSOES.some((e) => v.endsWith(e))
 }
 
 export type DocumentoDoVinculo = {
@@ -114,8 +118,16 @@ export async function enviarDocumentoDoVinculo(
   if (arquivo.size > MAX_ARQUIVO) {
     return { erro: "O arquivo deve ter no máximo 10 MB." }
   }
-  if (arquivo.type !== "application/pdf") {
-    return { erro: "Envie em PDF — é o formato que vale como documento." }
+  // A secretaria escaneia em PDF, mas também fotografa a ficha com o celular.
+  // Recusar imagem empurraria o documento de volta para a gaveta.
+  const TIPOS: Record<string, string> = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+  }
+  const extensao = TIPOS[arquivo.type]
+  if (!extensao) {
+    return { erro: "Envie em PDF, JPG ou PNG." }
   }
 
   const admin = await createAdminClient()
@@ -129,10 +141,10 @@ export async function enviarDocumentoDoVinculo(
     .maybeSingle()
   if (!vinculo) return { erro: "Vínculo não encontrado." }
 
-  const caminho = `vinculos/${vinculoId}/${tipo}-${randomUUID()}.pdf`
+  const caminho = `vinculos/${vinculoId}/${tipo}-${randomUUID()}.${extensao}`
   const { error: erroUpload } = await admin.storage
     .from(BUCKET)
-    .upload(caminho, arquivo, { contentType: "application/pdf" })
+    .upload(caminho, arquivo, { contentType: arquivo.type })
   if (erroUpload) return { erro: `Falha ao enviar: ${erroUpload.message}` }
 
   const { error } = await admin

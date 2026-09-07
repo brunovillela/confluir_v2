@@ -111,14 +111,16 @@ export function DocumentoDoVinculo({
         <input type="hidden" name="vinculoId" value={vinculoId} />
         <input type="hidden" name="tipo" value={doc.tipo} />
         <Label htmlFor={`arquivo-${doc.tipo}`} className="text-xs">
-          {doc.url ? "Substituir por outro PDF" : "Anexar PDF assinado"}
+          {doc.url
+            ? "Substituir por outro arquivo"
+            : "Anexar o documento assinado (PDF, JPG ou PNG)"}
         </Label>
         <div className="flex flex-wrap items-center gap-2">
           <Input
             id={`arquivo-${doc.tipo}`}
             name="arquivo"
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,image/jpeg,image/png"
             required
             className="max-w-xs"
           />

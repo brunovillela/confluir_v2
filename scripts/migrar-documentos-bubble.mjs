@@ -18,8 +18,12 @@
 //     bucket e a legada com a URL antiga — o script pula.
 //   • Só grava a coluna DEPOIS de o upload responder OK. Se o upload falhar, a
 //     linha fica como estava, apontando para o Bubble.
-//   • Confere que o que baixou é PDF de verdade (assinatura %PDF-) antes de
-//     subir. Página de erro em HTML não vira "documento".
+//   • Identifica o formato pelos BYTES do arquivo (PDF, JPEG, PNG, ZIP) — nem
+//     tudo que a secretaria guardou é PDF, e recusar o resto faria perder
+//     justamente os documentos mais precários. Página de erro em HTML não vira
+//     "documento".
+//   • PAGINA de mil em mil: o PostgREST devolve no máximo 1000 linhas, e sem
+//     isso uma corrida "completa" parava na milésima sem avisar.
 //
 // USO
 //   node scripts/migrar-documentos-bubble.mjs                 (dry-run, tudo)
@@ -95,6 +99,31 @@ const ehUrlExterna = (v) =>
 
 const paraUrl = (v) => (v.startsWith("//") ? `https:${v}` : v)
 
+/**
+ * Que tipo de arquivo é isto, pelos primeiros bytes?
+ *
+ * Pelo conteúdo, e não pela extensão nem pelo cabeçalho do servidor: nem tudo
+ * que a secretaria guardou é PDF — há ficha escaneada em JPEG, foto de
+ * WhatsApp e até ZIP. São documentos legítimos, e recusá-los faria a entidade
+ * perder justamente os que já estavam mais precários.
+ */
+function tipoDoArquivo(buf) {
+  const m = buf.subarray(0, 8)
+  if (m.subarray(0, 5).toString("latin1") === "%PDF-") {
+    return { ext: "pdf", mime: "application/pdf" }
+  }
+  if (m[0] === 0xff && m[1] === 0xd8 && m[2] === 0xff) {
+    return { ext: "jpg", mime: "image/jpeg" }
+  }
+  if (m[0] === 0x89 && m.subarray(1, 4).toString("latin1") === "PNG") {
+    return { ext: "png", mime: "image/png" }
+  }
+  if (m.subarray(0, 2).toString("latin1") === "PK") {
+    return { ext: "zip", mime: "application/zip" }
+  }
+  return null
+}
+
 async function baixar(url) {
   let ultimoErro = null
   for (let t = 1; t <= TENTATIVAS; t++) {
@@ -106,12 +135,19 @@ async function baixar(url) {
         if (r.status === 404 || r.status === 403) break
       } else {
         const buf = Buffer.from(await r.arrayBuffer())
-        // O CDN devolve HTML de erro com status 200 em alguns casos; a
-        // assinatura do PDF é o que separa documento de página de erro.
-        if (buf.subarray(0, 5).toString() !== "%PDF-") {
-          return { erro: "o arquivo baixado não é um PDF" }
+        // O CDN pode devolver HTML de erro com status 200; olhar os bytes é o
+        // que separa documento de página de erro.
+        // Arquivo vazio do lado do Bubble: o documento nunca esteve lá de
+        // verdade. Não é falha da migração, e insistir não traz nada.
+        if (buf.length === 0) {
+          return { erro: "arquivo VAZIO (0 bytes) no Bubble — nada a migrar" }
         }
-        return { buf }
+        const tipo = tipoDoArquivo(buf)
+        if (!tipo) {
+          const inicio = buf.subarray(0, 40).toString("latin1").replace(/s+/g, " ")
+          return { erro: `formato não reconhecido (começa com "${inicio}")` }
+        }
+        return { buf, tipo }
       }
     } catch (e) {
       ultimoErro = e.message
@@ -205,20 +241,31 @@ async function migrar() {
   const falhas = []
 
   for (const doc of DOCUMENTOS) {
-    let q = supabase
-      .from("filiacao_vinculos")
-      .select(`id, filiado_id, ${doc.colunaAtual}, ${doc.colunaOriginal}`)
-      .eq("emp_proprietaria_id", TENANT_REAL)
-      .like(doc.colunaAtual, "//%")
-      .order("id")
-    if (LIMITE) q = q.limit(LIMITE)
-
-    const { data, error } = await q
-    if (error) {
-      console.log(`Falha ao listar ${doc.tipo}: ${error.message}`)
-      continue
+    // PostgREST devolve no MÁXIMO 1000 linhas por consulta. Sem paginar, uma
+    // corrida "completa" migrava mil e parava calada, dando a impressão de ter
+    // terminado. (Mesma armadilha já vista na conciliação da filiação
+    // coletiva.)
+    const linhas = []
+    const PAGINA = 1000
+    for (let de = 0; ; de += PAGINA) {
+      const ate = de + PAGINA - 1
+      const { data, error } = await supabase
+        .from("filiacao_vinculos")
+        .select(`id, filiado_id, ${doc.colunaAtual}, ${doc.colunaOriginal}`)
+        .eq("emp_proprietaria_id", TENANT_REAL)
+        .like(doc.colunaAtual, "//%")
+        .order("id")
+        .range(de, ate)
+      if (error) {
+        console.log(`Falha ao listar ${doc.tipo}: ${error.message}`)
+        break
+      }
+      const pagina = data ?? []
+      linhas.push(...pagina)
+      if (pagina.length < PAGINA) break
+      if (LIMITE && linhas.length >= LIMITE) break
     }
-    const linhas = data ?? []
+    if (LIMITE) linhas.length = Math.min(linhas.length, LIMITE)
     console.log(`${doc.tipo.toUpperCase()}: ${linhas.length} para migrar`)
 
     for (let i = 0; i < linhas.length; i += LOTE) {
@@ -233,8 +280,8 @@ async function migrar() {
             return
           }
 
-          const { buf, erro } = await baixar(paraUrl(original))
-          if (!buf) {
+          const { buf, tipo, erro } = await baixar(paraUrl(original))
+          if (!buf || !tipo) {
             resumo.falhas++
             falhas.push(`${doc.tipo} ${linha.id}: ${erro}`)
             return
@@ -245,10 +292,10 @@ async function migrar() {
             return
           }
 
-          const caminho = `vinculos/${linha.id}/${doc.tipo}-${randomUUID()}.pdf`
+          const caminho = `vinculos/${linha.id}/${doc.tipo}-${randomUUID()}.${tipo.ext}`
           const { error: erroUpload } = await supabase.storage
             .from(BUCKET)
-            .upload(caminho, buf, { contentType: "application/pdf" })
+            .upload(caminho, buf, { contentType: tipo.mime })
           if (erroUpload) {
             resumo.falhas++
             falhas.push(`${doc.tipo} ${linha.id}: upload — ${erroUpload.message}`)
