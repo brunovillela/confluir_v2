@@ -445,6 +445,15 @@ export default async function FiliadoPage({
                     <TableRow key={v.id}>
                       <TableCell className="max-w-52 truncate font-medium">
                         {v.fontePagadora ?? "—"}
+                        {v.reconstruido && (
+                          <Badge
+                            variant="outline"
+                            className="ml-2 align-middle"
+                            title="Vínculo derivado do cadastro do sistema antigo: só data de filiação e fonte pagadora. Cargo, lotação e matrícula nunca existiram nessa origem."
+                          >
+                            reconstruído
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-40 truncate">
                         {v.cargo ?? v.fonte_pg_cargo ?? "—"}

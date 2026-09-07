@@ -343,6 +343,12 @@ export type Vinculo = {
   fonte_pg_admissao: string | null
   fonte_pagadora_id: string | null
   fontePagadora: string | null
+  /**
+   * Veio do backfill do cadastro antigo, não de alguém que o registrou.
+   * Quem atende precisa saber: o vínculo tem só data e fonte pagadora,
+   * porque era só isso que o cadastro de origem guardava.
+   */
+  reconstruido: boolean
   /** Tem ficha de filiação anexada? */
   temFicha: boolean
   /** Tem carta de desfiliação anexada? */
@@ -540,7 +546,7 @@ export async function buscarPerfilFiliado(
       admin
         .from("filiacao_vinculos")
         .select(
-          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, filiacao_condicao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao"
+          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, filiacao_condicao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de"
         )
         .in("filiado_id", idsDaPessoa)
         .order("created_at", { ascending: false }),
@@ -607,6 +613,7 @@ export async function buscarPerfilFiliado(
   const vinculos: Vinculo[] = (vinculosRes.data ?? []).map((v) => ({
     ...v,
     fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
+    reconstruido: Boolean(v.reconstruido_de),
     temFicha: ehArquivo(
       typeof v.ficha_filiacao === "string" ? v.ficha_filiacao : null
     ),

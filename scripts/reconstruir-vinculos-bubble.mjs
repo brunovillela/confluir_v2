@@ -238,6 +238,17 @@ for (const b of cadastros) {
   })
 }
 
+// ATIVOS PRIMEIRO. A ordem não muda o resultado de um --apply inteiro, mas
+// muda tudo num --limite: na ordem do Bubble os primeiros são cadastros
+// antigos e inativos (os "A" de CPF zero), e conferir vinte deles na tela não
+// diz nada sobre o que importa. Quem se quer olhar antes de soltar oito mil é
+// o filiado ativo.
+novos.sort((a, b) => {
+  const ativo = (n) =>
+    porId.get(n.filiado_id)?.filiacao_condicao === "Ativo" ? 0 : 1
+  return ativo(a) - ativo(b)
+})
+
 console.log("\nRESULTADO DA APURAÇÃO")
 console.log(`  vínculos a criar:                 ${novos.length}`)
 console.log(`  já tinham vínculo:                ${motivos.jaTemVinculo}`)
