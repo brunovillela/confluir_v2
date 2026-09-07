@@ -13,6 +13,7 @@ import {
   removerDocumentoDoVinculo,
   type TipoDocumento,
 } from "@/lib/db/filiacao-documentos"
+import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
 import { invalidarCacheFichasPendentes } from "@/lib/db/filiacao-fichas-pendentes"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -157,6 +158,7 @@ export async function excluirVinculo(
   // A lista de fichas pendentes deriva dos vínculos; sem isto ela mostraria
   // por até 10 minutos alguém que não existe mais.
   invalidarCacheFichasPendentes()
+  invalidarCacheAtivos()
   revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
@@ -187,6 +189,7 @@ export async function enviarDocumentoAction(
   if (erro) return { erro }
 
   invalidarCacheFichasPendentes()
+  invalidarCacheAtivos()
   revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
@@ -214,6 +217,7 @@ export async function removerDocumentoAction(
   if (erro) return { erro }
 
   invalidarCacheFichasPendentes()
+  invalidarCacheAtivos()
   revalidatePath("/painel/filiados/fichas-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)

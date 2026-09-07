@@ -1,5 +1,6 @@
 import "server-only"
 
+import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -11,15 +12,14 @@ import { tenantAtual } from "@/lib/tenant"
  * Filiado ativo sem ficha é exposição da entidade — e, até aqui, invisível:
  * dava para saber abrindo cada cadastro, um a um, entre milhares.
  *
- * DEFINIÇÃO DE ATIVO: vale o ÚLTIMO registro do histórico de vínculos — o de
- * data de filiação mais recente — e ele precisa estar EM ABERTO, isto é, sem
- * data de desfiliação. Vínculos antigos, encerrados, não contam: a pessoa pode
- * ter se desfiliado de um emprego e se filiado por outro.
+ * DEFINIÇÃO DE ATIVO: a condição do cadastro — ver `filiacao-ativos.ts`, que
+ * guarda a régua e o motivo de ela não sair mais do histórico de vínculos.
  *
- * NÃO uso `filiacao_vinculos.filiacao_condicao`: a coluna existe, mas a
- * migração a deixou NULA em 10.823 dos 10.824 vínculos — ler por ali daria 1
- * filiado ativo em vez de 8.155. "Vínculo em aberto" é a derivação que o
- * próprio sistema já usa na ficha do filiado.
+ * Consequência de ler o cadastro: entram na lista pessoas que **não têm
+ * vínculo nenhum**. Não é ruído — é a pior categoria das três. Sem vínculo não
+ * há onde anexar a ficha nem de onde tirar fonte pagadora e data de filiação;
+ * é preciso criar o histórico antes de cobrar o documento. São cerca de 5.900
+ * cadastros ativos, herança de um backfill do Bubble que cobriu metade da base.
  *
  * A varredura passa por todos os vínculos do tenant (mais de dez mil), então o
  * resultado é CACHEADO — a resposta muda devagar, e a alternativa seria uma
@@ -33,8 +33,6 @@ type LinhaVinculo = {
   filiado_id: string | null
   data_filiacao: string | null
   filiacao_data_adesao: string | null
-  data_desfiliacao: string | null
-  filiacao_data_saida: string | null
   ficha_filiacao: string | null
   fonte_pagadora_id: string | null
 }
@@ -44,7 +42,8 @@ export type FiliadoSemFicha = {
   nome: string | null
   cpf: string | null
   matricula: string | null
-  vinculoId: string
+  /** Nulo quando a pessoa não tem NENHUM vínculo — não há onde anexar. */
+  vinculoId: string | null
   fonteNome: string | null
   dataFiliacao: string | null
   /** Tem ficha em ALGUM vínculo antigo? Muda o que a secretaria faz. */
@@ -56,6 +55,8 @@ export type FichasPendentes = {
   semFicha: FiliadoSemFicha[]
   /** Ativos cujo vínculo corrente não tem ficha, mas outro vínculo tem. */
   comFichaAntiga: number
+  /** Ativos sem NENHUM vínculo: falta o histórico antes da ficha. */
+  semHistorico: number
   geradoEm: string
 }
 
@@ -87,22 +88,18 @@ function dataDeFiliacao(v: LinhaVinculo): string {
   return v.data_filiacao ?? v.filiacao_data_adesao ?? ""
 }
 
-/** Vínculo em aberto = ninguém encerrou. As duas colunas existem por herança. */
-function emAberto(v: LinhaVinculo): boolean {
-  return !v.data_desfiliacao && !v.filiacao_data_saida
-}
-
 export async function fichasPendentes(): Promise<FichasPendentes> {
   if (cache && cache.expira > Date.now()) return cache.dados
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  const ativos = await filiadosAtivos()
 
   const vinculos = await lerLotes<LinhaVinculo>((de, ate) =>
     admin
       .from("filiacao_vinculos")
       .select(
-        "id, filiado_id, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida, ficha_filiacao, fonte_pagadora_id"
+        "id, filiado_id, data_filiacao, filiacao_data_adesao, ficha_filiacao, fonte_pagadora_id"
       )
       .eq("emp_proprietaria_id", emp)
       .not("filiado_id", "is", null)
@@ -125,35 +122,23 @@ export async function fichasPendentes(): Promise<FichasPendentes> {
     }
   }
 
-  const ativosSemFicha: LinhaVinculo[] = []
-  let ativos = 0
-  for (const v of ultimoPorFiliado.values()) {
-    if (!emAberto(v)) continue
-    ativos++
-    if (!ehArquivo(v.ficha_filiacao)) ativosSemFicha.push(v)
-  }
-
-  // Nome, CPF e fonte só de quem entra na lista — não dos dez mil.
-  const idsFiliados = ativosSemFicha
-    .map((v) => v.filiado_id as string)
-    .filter(Boolean)
-  const dadosFiliado = new Map<
-    string,
-    { nome: string | null; cpf: string | null; matricula: string | null }
-  >()
-  for (let de = 0; de < idsFiliados.length; de += 200) {
-    const { data } = await admin
-      .from("filiacoes")
-      .select("id, nome_completo, cpf, matricula_sindical")
-      .in("id", idsFiliados.slice(de, de + 200))
-    for (const f of data ?? []) {
-      dadosFiliado.set(f.id as string, {
-        nome: (f.nome_completo as string | null) ?? null,
-        cpf: (f.cpf as string | null) ?? null,
-        matricula: (f.matricula_sindical as string | null) ?? null,
-      })
+  // Percorre os ATIVOS, não os vínculos: quem não tem vínculo também é
+  // cobrado — e é quem mais precisa aparecer.
+  const pendentes: { filiadoId: string; vinculo: LinhaVinculo | null }[] = []
+  let semHistorico = 0
+  for (const filiadoId of ativos.keys()) {
+    const v = ultimoPorFiliado.get(filiadoId) ?? null
+    if (!v) {
+      semHistorico++
+      pendentes.push({ filiadoId, vinculo: null })
+      continue
     }
+    if (ehArquivo(v.ficha_filiacao)) continue
+    pendentes.push({ filiadoId, vinculo: v })
   }
+  const ativosSemFicha = pendentes
+    .map((p) => p.vinculo)
+    .filter((v): v is LinhaVinculo => v !== null)
 
   const idsFontes = [
     ...new Set(
@@ -176,29 +161,30 @@ export async function fichasPendentes(): Promise<FichasPendentes> {
     }
   }
 
-  const semFicha: FiliadoSemFicha[] = ativosSemFicha
-    .map((v) => {
-      const filiadoId = v.filiado_id as string
-      const f = dadosFiliado.get(filiadoId)
+  const semFicha: FiliadoSemFicha[] = pendentes
+    .map(({ filiadoId, vinculo }) => {
+      const f = ativos.get(filiadoId)
       return {
         filiadoId,
         nome: f?.nome ?? null,
         cpf: f?.cpf ?? null,
         matricula: f?.matricula ?? null,
-        vinculoId: v.id,
-        fonteNome: v.fonte_pagadora_id
-          ? (nomesFontes.get(v.fonte_pagadora_id) ?? null)
+        vinculoId: vinculo?.id ?? null,
+        fonteNome: vinculo?.fonte_pagadora_id
+          ? (nomesFontes.get(vinculo.fonte_pagadora_id) ?? null)
           : null,
-        dataFiliacao: v.data_filiacao ?? v.filiacao_data_adesao,
+        dataFiliacao:
+          vinculo?.data_filiacao ?? vinculo?.filiacao_data_adesao ?? null,
         temFichaEmOutroVinculo: temFichaEmAlgum.has(filiadoId),
       }
     })
     .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
 
   const dados: FichasPendentes = {
-    ativos,
+    ativos: ativos.size,
     semFicha,
     comFichaAntiga: semFicha.filter((s) => s.temFichaEmOutroVinculo).length,
+    semHistorico,
     geradoEm: new Date().toISOString(),
   }
   cache = { dados, expira: Date.now() + VALIDADE_CACHE_MS }

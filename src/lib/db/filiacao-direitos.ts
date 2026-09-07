@@ -288,16 +288,38 @@ export async function revogarSuspensao(
 
 // ── A pergunta que as telas fazem ────────────────────────────────────────────
 
+export type DatasDeFiliacao = {
+  maisRecente: string | null
+  primeira: string | null
+  /**
+   * De onde saiu a data. `pagamento` significa "contribui desde pelo menos
+   * esta competência" — um PISO, não a data real de filiação.
+   */
+  origem: "vinculo" | "pagamento" | null
+}
+
 /**
  * As duas datas de filiação da pessoa: a mais recente (que a carência usa) e a
  * primeira (que vale quando há efeito suspensivo por troca de empregador).
  *
  * Por CPF, porque a pessoa tem um registro de filiação por vínculo.
+ *
+ * SEM VÍNCULO, VALE O PAGAMENTO. Metade da base não tem histórico de vínculo
+ * — herança de um backfill do Bubble que cobriu só metade dos cadastros (ver
+ * `filiacao-ativos.ts`). Sem esta saída, ao passar a régua de "ativo" para a
+ * condição do cadastro, cerca de 4.500 pessoas que contribuem há anos ficariam
+ * sem data e a carência as barraria — puniria o filiado por uma lacuna que é
+ * nossa. A primeira remessa em que a pessoa aparece é um piso VERIFICÁVEL:
+ * quem já descontava em 2021 cumpriu qualquer carência; quem se filiou este
+ * mês aparece com a competência deste mês, e a carência continua valendo.
  */
-export async function datasDeFiliacao(
-  cpf: string
-): Promise<{ maisRecente: string | null; primeira: string | null }> {
-  if (!cpf) return { maisRecente: null, primeira: null }
+export async function datasDeFiliacao(cpf: string): Promise<DatasDeFiliacao> {
+  const vazio: DatasDeFiliacao = {
+    maisRecente: null,
+    primeira: null,
+    origem: null,
+  }
+  if (!cpf) return vazio
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
@@ -307,7 +329,7 @@ export async function datasDeFiliacao(
     .eq("emp_proprietaria_id", emp)
     .eq("cpf", cpf)
   const ids = (registros ?? []).map((r) => r.id as string)
-  if (ids.length === 0) return { maisRecente: null, primeira: null }
+  if (ids.length === 0) return vazio
 
   const { data: vinculos } = await admin
     .from("filiacao_vinculos")
@@ -324,8 +346,70 @@ export async function datasDeFiliacao(
     .filter((d): d is string => Boolean(d))
     .sort()
 
-  if (datas.length === 0) return { maisRecente: null, primeira: null }
-  return { primeira: datas[0], maisRecente: datas[datas.length - 1] }
+  if (datas.length > 0) {
+    return {
+      primeira: datas[0],
+      maisRecente: datas[datas.length - 1],
+      origem: "vinculo",
+    }
+  }
+
+  return await datasPeloPagamento(admin, emp, ids)
+}
+
+/**
+ * O piso pelo histórico de contribuição: a primeira e a última competência em
+ * que a pessoa aparece numa remessa.
+ *
+ * A busca é por `filiado_id` porque a coluna `cpf` de `filiacao_recebe` está
+ * vazia nas 609.967 linhas do tenant real — a identificação ali é o cadastro.
+ */
+async function datasPeloPagamento(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  emp: string,
+  ids: string[]
+): Promise<DatasDeFiliacao> {
+  const vazio: DatasDeFiliacao = {
+    maisRecente: null,
+    primeira: null,
+    origem: null,
+  }
+  const { data: linhas } = await admin
+    .from("filiacao_recebe")
+    .select("remessa_id")
+    .eq("emp_proprietaria_id", emp)
+    .in("filiado_id", ids)
+    .not("remessa_id", "is", null)
+  const remessas = [
+    ...new Set((linhas ?? []).map((l) => l.remessa_id as string)),
+  ]
+  if (remessas.length === 0) return vazio
+
+  const ordens: number[] = []
+  for (let de = 0; de < remessas.length; de += 200) {
+    const { data } = await admin
+      .from("filiacao_recebe_remessa")
+      .select("ordem")
+      .in("id", remessas.slice(de, de + 200))
+      .not("ordem", "is", null)
+    for (const r of data ?? []) ordens.push(Number(r.ordem))
+  }
+  if (ordens.length === 0) return vazio
+
+  // As DUAS datas saem da competência mais ANTIGA, de propósito: o que o
+  // pagamento prova é desde quando a pessoa contribui. Usar a competência mais
+  // recente como "filiação mais recente" diria que quem paga há cinco anos se
+  // filiou mês passado, e a carência recomeçaria todo mês.
+  ordens.sort((a, b) => a - b)
+  const piso = primeiroDiaDaCompetencia(ordens[0])
+  return { primeira: piso, maisRecente: piso, origem: "pagamento" }
+}
+
+/** `202110` → `"2021-10-01"`. A competência não tem dia; o dia 1 basta. */
+function primeiroDiaDaCompetencia(ordem: number): string | null {
+  const texto = String(ordem)
+  if (!/^d{6}$/.test(texto)) return null
+  return `${texto.slice(0, 4)}-${texto.slice(4, 6)}-01`
 }
 
 /**

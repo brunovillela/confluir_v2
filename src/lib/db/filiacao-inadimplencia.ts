@@ -1,5 +1,6 @@
 import "server-only"
 
+import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { lerRegrasInadimplencia } from "@/lib/db/filiacao-direitos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -36,7 +37,14 @@ export type Inadimplente = {
 export type RelatorioInadimplencia = {
   /** Nenhuma regra ligada: a tela precisa dizer isso em vez de "ninguém". */
   configurado: boolean
+  /** Todos os filiados ativos, tenham CPF ou não. */
   ativos: number
+  /**
+   * Ativos SEM CPF no cadastro. A remessa identifica quem pagou pelo CPF —
+   * quem não tem fica fora da apuração, para sempre, sem aparecer em lista
+   * nenhuma. É defeito de cadastro, e a tela precisa dizê-lo.
+   */
+  semCpf: number
   porTipo: {
     tipo: string
     quantidade: number
@@ -86,9 +94,19 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
   const emp = await tenantAtual()
 
   const regras = (await lerRegrasInadimplencia()).filter((r) => r.ativo)
+
+  // ── Quem são os ativos (a régua mora em filiacao-ativos.ts) ───────────────
+  const ativos = await filiadosAtivos()
+  const cpfsAtivos = new Set<string>()
+  for (const f of ativos.values()) if (f.cpf) cpfsAtivos.add(f.cpf)
+
+  const semCpf = ativos.size - cpfsAtivos.size
   const vazio: RelatorioInadimplencia = {
     configurado: regras.length > 0,
-    ativos: 0,
+    // Mesmo sem regra a tela mostra o universo: dizer "0 filiados ativos"
+    // seria informação falsa em vez de ausência de configuração.
+    ativos: ativos.size,
+    semCpf,
     porTipo: [],
     lista: [],
     suspensos: 0,
@@ -99,54 +117,6 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
     return vazio
   }
 
-  // ── Quem são os ativos (mesma definição das fichas pendentes) ──────────────
-  const [filiacoes, vinculos] = await Promise.all([
-    lerLotes<{ id: string; cpf: string | null; nome_completo: string | null; matricula_sindical: string | null }>(
-      (de, ate) =>
-        admin
-          .from("filiacoes")
-          .select("id, cpf, nome_completo, matricula_sindical")
-          .eq("emp_proprietaria_id", emp)
-          .order("id", { ascending: true })
-          .range(de, ate)
-    ),
-    lerLotes<{
-      filiado_id: string | null
-      data_filiacao: string | null
-      filiacao_data_adesao: string | null
-      data_desfiliacao: string | null
-      filiacao_data_saida: string | null
-    }>((de, ate) =>
-      admin
-        .from("filiacao_vinculos")
-        .select(
-          "filiado_id, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida"
-        )
-        .eq("emp_proprietaria_id", emp)
-        .not("filiado_id", "is", null)
-        .order("id", { ascending: true })
-        .range(de, ate)
-    ),
-  ])
-
-  const dadosPorId = new Map(filiacoes.map((f) => [f.id, f]))
-  const dataDe = (v: { data_filiacao: string | null; filiacao_data_adesao: string | null }) =>
-    v.data_filiacao ?? v.filiacao_data_adesao ?? ""
-
-  const ultimoPorId = new Map<string, (typeof vinculos)[number]>()
-  for (const v of vinculos) {
-    const id = v.filiado_id as string
-    const atual = ultimoPorId.get(id)
-    if (!atual || dataDe(v) > dataDe(atual)) ultimoPorId.set(id, v)
-  }
-
-  const cpfsAtivos = new Set<string>()
-  for (const [id, v] of ultimoPorId) {
-    if (v.data_desfiliacao || v.filiacao_data_saida) continue
-    const cpf = dadosPorId.get(id)?.cpf
-    if (cpf) cpfsAtivos.add(cpf)
-  }
-
   // ── Remessas e quem pagou cada uma ────────────────────────────────────────
   const { data: remessasBrutas } = await admin
     .from("filiacao_recebe_remessa")
@@ -155,9 +125,23 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
     .not("ordem", "is", null)
     .order("ordem", { ascending: false })
 
-  const cpfPorId = new Map(
-    filiacoes.filter((f) => f.cpf).map((f) => [f.id, f.cpf as string])
-  )
+  // O CPF não vem nas linhas de recebimento do tenant real (a coluna está
+  // nula nas 609.967) — quem identifica a pessoa ali é o `filiado_id`. Este
+  // mapa cobre TODOS os cadastros, não só os ativos: uma linha de remessa
+  // pode ser de quem já saiu, e ignorá-la mudaria a conta de faltas.
+  const cpfPorId = new Map<string, string>()
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await admin
+      .from("filiacoes")
+      .select("id, cpf")
+      .eq("emp_proprietaria_id", emp)
+      .not("cpf", "is", null)
+      .order("id", { ascending: true })
+      .range(de, de + 999)
+    if (error) throw new Error(`Falha ao ler cadastros: ${error.message}`)
+    for (const f of data ?? []) cpfPorId.set(f.id as string, f.cpf as string)
+    if (!data || data.length < 1000) break
+  }
 
   const porTipo: RelatorioInadimplencia["porTipo"] = []
   const faltasPorCpf = new Map<
@@ -275,13 +259,10 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
 
   // Nome e matrícula só de quem entra na lista.
   const nomePorCpf = new Map<string, { nome: string | null; matricula: string | null }>()
-  for (const f of filiacoes) {
+  for (const f of ativos.values()) {
     if (!f.cpf || !faltasPorCpf.has(f.cpf)) continue
-    if (!nomePorCpf.has(f.cpf) && f.nome_completo) {
-      nomePorCpf.set(f.cpf, {
-        nome: f.nome_completo,
-        matricula: f.matricula_sindical,
-      })
+    if (!nomePorCpf.has(f.cpf) && f.nome) {
+      nomePorCpf.set(f.cpf, { nome: f.nome, matricula: f.matricula })
     }
   }
 
@@ -311,7 +292,8 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
 
   const dados: RelatorioInadimplencia = {
     configurado: true,
-    ativos: cpfsAtivos.size,
+    ativos: ativos.size,
+    semCpf,
     porTipo,
     lista,
     suspensos: lista.filter((l) => l.suspenso).length,

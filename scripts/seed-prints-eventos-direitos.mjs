@@ -451,8 +451,11 @@ const recebe = (n) => `e0e0e0e0-0000-4000-8000-00040000${String(n).padStart(4, "
 const porNome = (n) => todosFiliados?.find((f) => f.nome_completo?.startsWith(n))
 
 // [nome, situação, ficha]
-//   ativo        — vínculo em aberto (entra na conta de ativos)
-//   desfiliado   — vínculo encerrado
+//   ativo        — condição "Ativo" no cadastro, com vínculo em aberto
+//   sem-historico — condição "Ativo" e NENHUM vínculo (metade da base real
+//                   está assim: o histórico veio do sistema antigo pela
+//                   metade). Contribuem e não têm onde anexar a ficha.
+//   desfiliado   — condição "Inativo", vínculo encerrado
 //   ficha: "sim" no vínculo corrente | "antiga" num vínculo já encerrado | null
 const HISTORICO = [
   ["Antônio", "ativo", null],
@@ -462,8 +465,8 @@ const HISTORICO = [
   ["José", "ativo", "antiga"],
   ["Mariana", "ativo", null],
   ["Patrícia", "desfiliado", "sim"],
-  ["Ricardo", "ativo", null],
-  ["Sônia", "ativo", null],
+  ["Ricardo", "sem-historico", null],
+  ["Sônia", "sem-historico", null],
   ["Vanessa", "desfiliado", null],
 ]
 
@@ -472,6 +475,7 @@ let nv = 0
 for (const [nome, situacao, ficha] of HISTORICO) {
   const f = porNome(nome)
   if (!f) continue
+  if (situacao === "sem-historico") continue
   // Ficha "antiga": um vínculo ENCERRADO com ficha e um novo em aberto sem —
   // é o caso que a etiqueta da tela de pendências existe para marcar.
   if (ficha === "antiga") {
@@ -533,7 +537,8 @@ const NAO_PAGOU = {
   Fernando: [202606, 202607, 202608, 202609],
   Sônia: [202603, 202604],
 }
-const ativos = HISTORICO.filter(([, sit]) => sit === "ativo").map(([n]) => n)
+// Quem contribui: todos os ativos, com ou sem histórico de vínculo.
+const ativos = HISTORICO.filter(([, sit]) => sit !== "desfiliado").map(([n]) => n)
 
 const linhasRecebe = []
 let nr = 0
@@ -557,18 +562,39 @@ for (const r of remessas) {
 // Limpeza própria: estas tabelas guardam também linhas de outros seeds da
 // demo (a remessa do print de receitas, por exemplo) — apagar por tenant
 // levaria junto o que não é meu.
+//
+// A limpeza varre uma FAIXA FIXA de ids, não a lista que este seed vai
+// inserir agora: mudar a composição do elenco encolhe a lista, e o que sobrou
+// da rodada anterior ficaria para trás (foi o que aconteceu — uma pessoa que
+// deixou de ter vínculo continuou com o vínculo antigo pendurado).
+const faixa = (fn, ate) => Array.from({ length: ate }, (_, i) => fn(i + 1))
 ok(
-  await c.from("filiacao_recebe").delete().in("id", linhasRecebe.map((l) => l.id)),
+  await c.from("filiacao_recebe").delete().in("remessa_id", faixa(remessa, 20)),
   "limpar recebe"
 )
 ok(
-  await c.from("filiacao_recebe_remessa").delete().in("id", remessas.map((r) => r.id)),
+  await c.from("filiacao_recebe_remessa").delete().in("id", faixa(remessa, 20)),
   "limpar remessas"
 )
 ok(
-  await c.from("filiacao_vinculos").delete().in("id", vinculos.map((v) => v.id)),
+  await c.from("filiacao_vinculos").delete().in("id", faixa(vinc, 40)),
   "limpar vinculos"
 )
+
+// A condição sindical mora no CADASTRO — é ela que responde "está filiado?".
+// O histórico de vínculos guarda os empregos; ele pode faltar (e falta, para
+// metade da base real) sem que a pessoa deixe de ser filiada.
+for (const [nome, situacao] of HISTORICO) {
+  const f = porNome(nome)
+  if (!f) continue
+  ok(
+    await c
+      .from("filiacoes")
+      .update({ filiacao_condicao: situacao === "desfiliado" ? "Inativo" : "Ativo" })
+      .eq("id", f.id),
+    `condicao ${nome}`
+  )
+}
 
 ok(await c.from("filiacao_vinculos").insert(vinculos), "vinculos")
 ok(await c.from("filiacao_recebe_remessa").insert(remessas), "remessas")

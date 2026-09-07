@@ -1,6 +1,7 @@
 Duas regras que quase todo estatuto tem: **quanto tempo** o filiado espera para
-usar um direito, e **quantas contribuições em falta** o tornam inativo. As duas
-se configuram em **Filiados → Carência e inadimplência**.
+usar um direito, e **quantas contribuições em falta** o colocam no relatório de
+inadimplência. As duas se configuram em **Filiados → Carência e
+inadimplência**.
 
 <RequerPermissao>Gestão de filiados</RequerPermissao>
 
@@ -33,6 +34,38 @@ sistema não inventa restrição que a entidade não pediu.
 Ao ligar uma carência, a tela mostra a data em que quem se filiar hoje passaria
 a ter o direito. É a forma de conferir se 90, 180 ou 365 dias é mesmo o que se
 quer.
+
+### De onde sai a data de filiação
+
+Do **histórico de filiação**, quando existe. Quando não existe — e não existe
+para boa parte da base, porque o histórico veio do sistema antigo pela metade —
+vale o **histórico de contribuição**: a competência mais antiga em que a pessoa
+aparece numa remessa.
+
+<Aviso tipo="nota" titulo="Por que o pagamento serve de data">
+  É um piso verificável, e a favor do filiado. Quem desconta desde 2021 cumpriu
+  qualquer carência, tenha ou não vínculo registrado — barrá-la seria punir a
+  pessoa por uma lacuna do nosso cadastro. E não abre brecha: quem se filiou
+  este mês aparece com a competência deste mês, e a carência continua valendo.
+</Aviso>
+
+Sobra um caso: quem não tem vínculo datado **nem** nenhuma contribuição. Aí não
+há de onde contar, e a carência barra — a tela diz isso com todas as letras e
+pede que se registre o vínculo. São poucos, e cada um é caso de secretaria.
+
+## Quem é "filiado ativo"
+
+Em toda esta área, ativo é quem tem a **condição sindical do cadastro** marcada
+como *Ativo* — o campo que a secretaria mantém, e que o resto do sistema já
+usava. O histórico de vínculos diz onde a pessoa trabalha; a condição diz se
+ela é filiada.
+
+<Aviso tipo="atencao" titulo="Sem CPF, ninguém entra na conta">
+  A remessa identifica quem pagou pelo CPF. Filiado ativo sem CPF no cadastro
+  fica fora da apuração de inadimplência — não aparece nem em dia nem em falta.
+  Quando existem cadastros assim, a tela avisa quantos são: completá-los é o que
+  os traz para a conta.
+</Aviso>
 
 ## Inadimplência
 

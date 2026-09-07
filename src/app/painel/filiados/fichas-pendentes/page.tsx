@@ -98,20 +98,25 @@ export default async function FichasPendentesPage({
           Fichas de filiação pendentes
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Filiados ativos sem a ficha assinada anexada ao vínculo corrente.
+          Filiados ativos sem a ficha assinada no histórico de filiação.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Numero
           rotulo="Filiados ativos"
           valor={dados.ativos}
-          detalhe="último vínculo em aberto"
+          detalhe="condição do cadastro"
         />
         <Numero
           rotulo="Sem ficha"
           valor={dados.semFicha.length}
           detalhe={`${percentual}% dos ativos`}
+        />
+        <Numero
+          rotulo="Sem histórico"
+          valor={dados.semHistorico}
+          detalhe="não têm nenhum vínculo registrado"
         />
         <Numero
           rotulo="Com ficha antiga"
@@ -123,10 +128,9 @@ export default async function FichasPendentesPage({
       <Alert variant="info">
         <AlertDescription className="grid gap-2">
           <span>
-            <strong>Ativo</strong> aqui é quem tem o vínculo mais recente do
-            histórico <strong>ainda em aberto</strong> — sem data de
-            desfiliação. Quem se desfiliou de um emprego e se filiou por outro
-            conta pelo vínculo novo.
+            <strong>Ativo</strong> aqui é a <strong>condição do cadastro</strong>
+            {" "}— o campo que a secretaria mantém quando alguém se filia ou se
+            desfilia.
           </span>
           <span>
             A ficha cobrada é a do <strong>vínculo corrente</strong>. É ela que
@@ -135,6 +139,19 @@ export default async function FichasPendentesPage({
           </span>
         </AlertDescription>
       </Alert>
+
+      {dados.semHistorico > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <strong>{dados.semHistorico}</strong> pessoa(s) ativa(s) não têm
+            nenhum vínculo registrado — não há onde anexar a ficha nem de onde
+            tirar fonte pagadora e data de filiação. É preciso{" "}
+            <strong>criar o histórico</strong> antes de cobrar o documento. A
+            causa é conhecida: o histórico de vínculos veio do sistema antigo
+            pela metade.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {dados.comFichaAntiga > 0 && (
         <Alert variant="warning">
@@ -200,7 +217,7 @@ export default async function FichasPendentesPage({
                   </TableHeader>
                   <TableBody>
                     {daPagina.map((f) => (
-                      <TableRow key={f.vinculoId}>
+                      <TableRow key={f.vinculoId ?? f.filiadoId}>
                         <TableCell className="max-w-64 truncate font-medium">
                           {f.nome ?? "—"}
                           {f.temFichaEmOutroVinculo && (
@@ -219,14 +236,22 @@ export default async function FichasPendentesPage({
                           {f.fonteNome ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {formatarData(f.dataFiliacao)}
+                          {f.vinculoId ? (
+                            formatarData(f.dataFiliacao)
+                          ) : (
+                            <Badge variant="warning">sem histórico</Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button asChild variant="outline" size="sm">
                             <Link
-                              href={`/painel/filiados/${f.filiadoId}/vinculos/${f.vinculoId}`}
+                              href={
+                                f.vinculoId
+                                  ? `/painel/filiados/${f.filiadoId}/vinculos/${f.vinculoId}`
+                                  : `/painel/filiados/${f.filiadoId}`
+                              }
                             >
-                              Abrir vínculo
+                              {f.vinculoId ? "Abrir vínculo" : "Abrir cadastro"}
                             </Link>
                           </Button>
                         </TableCell>
@@ -250,9 +275,9 @@ export default async function FichasPendentesPage({
       </Card>
 
       <p className="text-muted-foreground text-xs">
-        A varredura passa pelos {dados.ativos > 0 ? "milhares de" : ""} vínculos
-        do cadastro e fica guardada por 10 minutos — por isso a tela abre
-        rápido. Última apuração: {formatarDataHora(dados.geradoEm)}.
+        A varredura passa por todos os cadastros ativos e por todos os vínculos,
+        e fica guardada por 10 minutos — por isso a tela abre rápido. Última
+        apuração: {formatarDataHora(dados.geradoEm)}.
       </p>
     </>
   )

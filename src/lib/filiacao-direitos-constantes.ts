@@ -100,9 +100,13 @@ export function conferirCarencia(
     ? (datas.primeira ?? datas.maisRecente)
     : datas.maisRecente
   if (!base) {
+    // Sem vínculo datado e sem histórico de contribuição não há de onde
+    // contar. É raro, e barrar é o lado seguro — mas o texto tem de dizer o
+    // que fazer, porque a falha é do registro, não da pessoa.
     return {
       liberado: false,
-      motivo: "Não há data de filiação registrada para contar a carência.",
+      motivo:
+        "Não há data de filiação nem histórico de contribuição para contar a carência. Registre o vínculo no histórico de filiação.",
     }
   }
 

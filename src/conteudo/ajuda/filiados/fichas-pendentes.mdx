@@ -11,10 +11,10 @@ entre milhares.
 anexada ao vínculo corrente**.
 
 <Aviso tipo="nota" titulo="O que conta como ativo aqui">
-  O <strong>último registro do histórico de filiação</strong> — o de data de
-  filiação mais recente — precisa estar <strong>em aberto</strong>, sem data de
-  desfiliação. Quem se desfiliou de um emprego e se filiou por outro conta pelo
-  vínculo novo.
+  A <strong>condição sindical do cadastro</strong> — o mesmo campo que a
+  secretaria mantém quando alguém se filia ou se desfilia, e que o resto do
+  sistema já usa. Não é o histórico de vínculos: ele diz onde a pessoa
+  trabalha, não se ela é filiada.
 </Aviso>
 
 A ficha cobrada é a do **vínculo corrente**, porque é ela que sustenta o
@@ -24,6 +24,37 @@ ficha em outro vínculo do histórico. Vale conferir caso a caso se ela cobre a
 situação atual ou se é caso de colher uma nova.
 
 <Print src="filiados/fichas-pendentes.png" alt="Tela de fichas de filiação pendentes com os indicadores de filiados ativos, sem ficha e com ficha antiga, e a lista de quem está sem ficha com CPF, matrícula, fonte pagadora e data de filiação." legenda="Quem está ativo e sem ficha no vínculo corrente — com a etiqueta de quem tem ficha antiga." />
+
+## Quem aparece sem histórico
+
+Parte dos filiados ativos **não tem nenhum vínculo registrado**. Não é erro de
+digitação: o histórico de filiação veio do sistema antigo pela metade, e as
+filiações feitas depois daquela migração também ficaram sem o seu registro.
+
+Para essas pessoas não há onde anexar a ficha, nem de onde tirar fonte
+pagadora e data de filiação — a linha aparece com a etiqueta **sem histórico**
+e o botão leva ao cadastro, não a um vínculo.
+
+<PassoAPasso>
+  <Passo titulo="Abra o cadastro">
+    O botão <strong>Abrir cadastro</strong> leva à ficha da pessoa.
+  </Passo>
+  <Passo titulo="Crie o vínculo">
+    Em <strong>Histórico de filiação</strong>, registre o vínculo com a fonte
+    pagadora, a matrícula e a data de filiação que a entidade tiver.
+  </Passo>
+  <Passo titulo="Depois cobre a ficha">
+    Com o vínculo criado, a pessoa passa a aparecer como qualquer outra da
+    lista, com o caminho normal de baixar, colher e anexar.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Isto não afeta os direitos da pessoa">
+  Faltar o histórico não tira nada de ninguém. Quando não há vínculo datado, a
+  carência conta pelo <strong>histórico de contribuição</strong> — a competência
+  mais antiga em que a pessoa aparece numa remessa. Quem desconta há anos tem
+  qualquer carência cumprida, com ou sem vínculo registrado.
+</Aviso>
 
 ## O que fazer com a lista
 
@@ -52,8 +83,9 @@ situação atual ou se é caso de colher uma nova.
 
 ## Os números da tela
 
-- **Filiados ativos** — o universo considerado.
+- **Filiados ativos** — o universo considerado, pela condição do cadastro.
 - **Sem ficha** — quantos, e que percentual dos ativos representam.
+- **Sem histórico** — quantos não têm nenhum vínculo registrado.
 - **Com ficha antiga** — quantos têm ficha num vínculo anterior.
 
 A apuração percorre todos os vínculos do cadastro e fica guardada por 10

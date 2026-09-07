@@ -131,6 +131,18 @@ export default async function InadimplentesPage({
         </AlertDescription>
       </Alert>
 
+      {dados.semCpf > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <strong>{dados.semCpf}</strong> filiados ativos não têm CPF no
+            cadastro. A remessa diz quem pagou pelo CPF — sem ele, essas
+            pessoas ficam de fora da apuração e nunca aparecem aqui, nem em dia
+            nem em falta. Completar esses cadastros é o que as traz para a
+            conta.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="grid gap-1">
@@ -139,6 +151,9 @@ export default async function InadimplentesPage({
             </span>
             <span className="text-2xl font-semibold tabular-nums">
               {dados.ativos}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              condição do cadastro
             </span>
           </CardContent>
         </Card>
