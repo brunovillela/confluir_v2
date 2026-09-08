@@ -50,7 +50,7 @@ export async function reembolsosDoFiliado(
   const { data, error, count } = await admin
     .from("filiacao_reembolsos")
     .select(
-      "id, data, justificativa, valor, projeto:projeto_id(descricao), ordem:ordem_pagamento_id(id, codigo, situacao, valor_pago, data_pagamento)",
+      "id, data, justificativa, valor, projeto:projeto_id(descricao_sumaria, descricao), ordem:ordem_pagamento_id(id, codigo, situacao, valor_pago, data_pagamento)",
       { count: "exact" }
     )
     .eq("emp_proprietaria_id", emp)
@@ -66,14 +66,14 @@ export async function reembolsosDoFiliado(
   }
 
   const ultimos: ReembolsoFiliado[] = (data ?? []).map((r) => {
-    const projeto = r.projeto as { descricao: string | null } | { descricao: string | null }[] | null
+    const projeto = r.projeto as { descricao_sumaria: string | null; descricao: string | null } | { descricao_sumaria: string | null; descricao: string | null }[] | null
     const ordem = r.ordem as ReembolsoFiliado["ordem"] | ReembolsoFiliado["ordem"][] | null
     return {
       id: r.id as string,
       data: (r.data as string | null) ?? null,
       justificativa: (r.justificativa as string | null) ?? null,
       valor: (r.valor as number | null) ?? null,
-      projeto: (Array.isArray(projeto) ? projeto[0] : projeto)?.descricao ?? null,
+      projeto: (Array.isArray(projeto) ? projeto[0] : projeto)?.descricao_sumaria ?? (Array.isArray(projeto) ? projeto[0] : projeto)?.descricao ?? null,
       ordem: (Array.isArray(ordem) ? ordem[0] : ordem) ?? null,
     }
   })

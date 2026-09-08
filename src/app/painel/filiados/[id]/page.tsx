@@ -124,6 +124,7 @@ export default async function FiliadoPage({
     "filiacao_receitas",
   ])
   const podeEditar = podeAcessar(sessao.permissoes, "filiacao_gestao")
+  const podeReembolsar = podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"])
 
   const { id } = await params
   const { salvo, etapa } = await searchParams
@@ -677,13 +678,30 @@ export default async function FiliadoPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              Reembolsos
-              <span className="text-muted-foreground ml-2 text-sm font-normal">
-                {reembolsosFiliacao.total.toLocaleString("pt-BR")} no total
-                {reembolsosFiliacao.totalPago > 0 && ` · ${formatarMoeda(reembolsosFiliacao.totalPago)} pagos`}
-              </span>
-            </CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                Reembolsos
+                <span className="text-muted-foreground ml-2 text-sm font-normal">
+                  {reembolsosFiliacao.total.toLocaleString("pt-BR")} no total
+                  {reembolsosFiliacao.totalPago > 0 && ` · ${formatarMoeda(reembolsosFiliacao.totalPago)} pagos`}
+                </span>
+              </CardTitle>
+              {podeReembolsar && (
+                <div className="flex items-center gap-2">
+                  {reembolsosFiliacao.total > 0 && (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/painel/filiados/reembolsos?filiado=${f.id}`}>Ver todos</Link>
+                    </Button>
+                  )}
+                  <Button size="sm" asChild>
+                    <Link href={`/painel/filiados/reembolsos/novo?filiado=${f.id}`}>
+                      <Plus />
+                      Lançar reembolso
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
             <CardDescription>
               O que a entidade reembolsou a esta pessoa por participação — reunião,
               ato, assembleia — com a justificativa de cada um.

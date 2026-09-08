@@ -734,7 +734,7 @@ const antonio = porNome("Antônio")
 if (antonio) {
   ok(
     await c.from("projeto").insert([
-      { id: proj(1), emp_proprietaria_id: DEMO, descricao: "Campanha salarial 2026", tipo: "Campanha" },
+      { id: proj(1), emp_proprietaria_id: DEMO, descricao_sumaria: "Campanha salarial 2026", tipo: "Campanha" },
     ]),
     "projeto"
   )

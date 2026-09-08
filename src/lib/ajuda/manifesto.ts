@@ -191,6 +191,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "A carteira de convênios e as unidades onde o filiado é atendido",
       },
       {
+        slug: "reembolsos",
+        titulo: "Reembolsos a filiados",
+        resumo: "Reembolso por participação, com a ordem de pagamento gerada no ato",
+      },
+      {
         slug: "termos",
         titulo: "Termos legais",
         resumo: "LGPD e autorização de desconto, versionados por entidade",

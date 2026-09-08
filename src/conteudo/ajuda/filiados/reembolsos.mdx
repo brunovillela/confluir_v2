@@ -1,0 +1,91 @@
+Reembolso a filiado é o valor que a entidade devolve ao associado por
+participar de uma atividade sindical — reunião, ato, assembleia, congresso.
+É um valor fixo por participação, definido pela entidade, e cada lançamento
+gera a **ordem de pagamento** no Financeiro.
+
+<RequerPermissao>Reembolsos</RequerPermissao>
+
+## O que a tela mostra
+
+**Filiados → Reembolsos** abre com três números: o valor de cada reembolso,
+quanto já foi lançado no mês e o teto mensal (quando a entidade liga um).
+Abaixo, a lista de lançamentos com filiado, justificativa, projeto, valor,
+o código da ordem e a **situação** — que é a situação da ordem no
+Financeiro: Em autorização, A pagar, Paga.
+
+<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: três cartões com valor unitário, lançado no mês e teto mensal; abaixo, a tabela de lançamentos com filiado, justificativa, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
+
+## Lançar um reembolso
+
+<PassoAPasso>
+  <Passo titulo="Escolha o filiado">
+    Pelo botão **Lançar reembolso** (busca por nome, CPF ou matrícula) ou,
+    mais rápido, pelo botão de mesmo nome no cartão Reembolsos do
+    **perfil do filiado** — aí a pessoa já vem escolhida.
+  </Passo>
+  <Passo titulo="Data, justificativa e projeto">
+    A data é a da participação. A justificativa diz o motivo ("assembleia
+    geral de 12/06"). O projeto liga o gasto à campanha ou ao ato, para o
+    Financeiro apurar por projeto.
+  </Passo>
+  <Passo titulo="Confira o valor">
+    Vem preenchido da configuração; pode ser alterado caso a caso.
+  </Passo>
+  <Passo titulo="Lançar">
+    No mesmo ato nascem a **ordem de pagamento** (tipo Reembolso, Em
+    autorização, com o filiado como favorecido, o centro de custo da
+    configuração e a chave Pix, se a entidade a tem) e um apontamento no
+    **prontuário** do filiado.
+  </Passo>
+</PassoAPasso>
+
+<Print src="filiados/reembolso-novo.png" alt="Formulário de novo reembolso com o filiado já escolhido, data, valor preenchido, justificativa e projeto." legenda="Lançar reembolso a partir do perfil: o filiado vem escolhido e o valor vem da configuração." />
+
+<Aviso tipo="nota" titulo="A autorização continua sendo humana">
+  O lançamento não paga ninguém. A ordem chega ao Financeiro **Em
+  autorização** e segue pela alçada como qualquer outra. Quem lança
+  reembolso não precisa ter alçada.
+</Aviso>
+
+## Editar e desfazer
+
+Clique no lançamento para abrir. Enquanto a ordem não foi paga, tudo se
+edita — e a ordem acompanha (valor e descrição). Com a ordem **paga**, só
+justificativa e projeto mudam: o dinheiro saiu, valor e data ficam.
+
+**Desfazer** apaga o lançamento, o apontamento do prontuário e marca a ordem
+como excluída no Financeiro. Ordem paga não se desfaz — um pagamento
+indevido se trata no Financeiro.
+
+## Configuração
+
+Em **Reembolsos → Configuração** a entidade define:
+
+- **Valor de cada reembolso** — o que vem preenchido em cada lançamento.
+- **Centro de custo** — a ordem nasce com ele como centro de custo de despesa.
+- **Teto mensal** — com o teto ligado, o lançamento que ultrapassar a soma do
+  mês é recusado, com a mensagem dizendo quanto já foi.
+
+## De onde vieram
+
+Os 1.848 reembolsos do sistema antigo vieram na virada da Filiação
+(setembro de 2026), com justificativa, projeto e a ordem de pagamento
+correspondente. Alguns não têm ordem ligada — o registro antigo não a
+guardava — e aparecem com **sem ordem** na situação.
+
+## Erros comuns
+
+- **"O teto mensal seria ultrapassado."** A entidade ligou o teto e o mês já
+  chegou nele. Confira a configuração ou espere o mês virar.
+- **"Não vejo o botão Lançar reembolso no perfil."** Exige a permissão
+  **Reembolsos** ou **Gestão da filiação**.
+- **"A situação não muda para Paga."** O pagamento é registrado no
+  Financeiro, na ordem. Aqui só se lê.
+
+<VejaTambem
+  links={[
+    { titulo: "Perfil do filiado", href: "/painel/ajuda/filiados/perfil" },
+    { titulo: "Ordens de pagamento", href: "/painel/ajuda/financeiro/ordens" },
+    { titulo: "Prontuários", href: "/painel/ajuda/filiados/prontuarios" },
+  ]}
+/>

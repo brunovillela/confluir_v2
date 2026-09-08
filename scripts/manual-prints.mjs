@@ -28,10 +28,23 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // CRUD de convênios e de reembolsos (09/09) — mesmo seed, seção 7.
+  [
+    "/painel/filiados/convenios/e0e0e0e0-0000-4000-8000-000600000001",
+    "filiados/convenio-editar.png",
+    { fullPage: true },
+  ],
+  ["/painel/filiados/reembolsos", "filiados/reembolsos.png", { fullPage: true }],
+  [
+    "/painel/filiados/reembolsos/novo?filiado=77777777-7777-4777-8777-000000000005",
+    "filiados/reembolso-novo.png",
+  ],
+
   // Telas da virada da Filiação: convênios, reembolsos e outros contatos
-  // (seed: scripts/seed-prints-eventos-direitos.mjs, seção 7).
-  ["/painel/filiados/convenios", "filiados/convenios.png", { fullPage: true }],
-  ["/portal/convenios", "portal/convenios.png", { fullPage: true }],
+  // (seed: scripts/seed-prints-eventos-direitos.mjs, seção 7). Já capturado.
+  // ["/painel/filiados/convenios", "filiados/convenios.png", { fullPage: true }],
+  // ["/portal/convenios", "portal/convenios.png", { fullPage: true }],
+  /*
   [
     "/painel/filiados/77777777-7777-4777-8777-000000000005",
     "filiados/perfil-outros-contatos.png",
@@ -42,6 +55,7 @@ const SHOTS = [
     "filiados/perfil-reembolsos.png",
     { scrollTo: "O que a entidade reembolsou" },
   ],
+  */
 
   // Eventos e telas novas de Filiados — já capturado em 07/09
   // (seed: scripts/seed-prints-eventos-direitos.mjs).
@@ -293,6 +307,13 @@ for (const [route, file, opts] of SHOTS) {
   // compilação a frio no dev podem não atingir networkidle em 30s).
   await p.goto(BASE + route, { waitUntil: "load", timeout: 60000 })
   await p.waitForTimeout(1200)
+  // O aviso de "fora do horário de trabalho" depende da hora em que o print
+  // é tirado; não é parte da tela que o manual ensina.
+  await p.evaluate(() => {
+    document.querySelectorAll('[role="status"]').forEach((el) => {
+      if (el.textContent?.includes("fora do seu hor")) el.remove()
+    })
+  })
   // opts.openMenu: abre o dropdown do rodapé (nome do usuário) para o print
   // do alternador de interfaces.
   if (opts?.openMenu) {

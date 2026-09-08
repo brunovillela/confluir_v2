@@ -18,6 +18,7 @@ import {
   UserRoundMinus,
   UserRoundPlus,
   UsersRound,
+  Wallet,
 } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
@@ -367,6 +368,14 @@ export default async function FiliadosPage() {
           href="/painel/filiados/convenios"
           icone={BadgePercent}
         />
+        {podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"]) && (
+          <CartaoArea
+            titulo="Reembolsos"
+            descricao="Reembolso por participação em reunião, ato ou assembleia, com a ordem de pagamento"
+            href="/painel/filiados/reembolsos"
+            icone={Wallet}
+          />
+        )}
         <CartaoArea
           titulo="Fichas pendentes"
           descricao="Filiados ativos sem a ficha assinada no vínculo corrente"

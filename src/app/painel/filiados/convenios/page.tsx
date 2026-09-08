@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Handshake } from "lucide-react"
+import { ArrowLeft, ExternalLink, Handshake, Pencil, Plus, Tags } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,32 +10,68 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePermissao } from "@/lib/auth"
 import { listarConvenios } from "@/lib/db/filiacao-convenios"
 import { formatarData, formatarTelefone } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Convênios — Confluir" }
 
 /**
  * A carteira de convênios da entidade, como a secretaria a vê: todos, vigentes
  * ou não, com as unidades de atendimento. O portal mostra só os vigentes.
+ * Quem tem a permissão de convênios (ou a gestão) cria e edita; quem só
+ * consulta vê a lista.
  */
-export default async function ConveniosPage() {
-  await requirePermissao("filiacao_convenios", ["filiacao_consulta_convenios", "filiacao_gestao"])
+export default async function ConveniosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ excluido?: string }>
+}) {
+  const sessao = await requirePermissao("filiacao_convenios", [
+    "filiacao_consulta_convenios",
+    "filiacao_gestao",
+  ])
+  const podeEditar = podeAcessar(sessao.permissoes, "filiacao_convenios", ["filiacao_gestao"])
+  const { excluido } = await searchParams
   const convenios = await listarConvenios()
   const vigentes = convenios.filter((c) => c.vigente).length
 
   return (
     <>
-      <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-          <Link href="/painel/filiados">
-            <ArrowLeft />
-            Filiados
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Convênios</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {convenios.length} convênio(s), {vigentes} vigente(s). O filiado vê os vigentes no portal.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
+            <Link href="/painel/filiados">
+              <ArrowLeft />
+              Filiados
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Convênios</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {convenios.length} convênio(s), {vigentes} vigente(s). O filiado vê os vigentes no portal.
+          </p>
+        </div>
+        {podeEditar && (
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href="/painel/filiados/convenios/categorias">
+                <Tags />
+                Categorias
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/painel/filiados/convenios/novo">
+                <Plus />
+                Novo convênio
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
+
+      {excluido && (
+        <Alert>
+          <AlertDescription>Convênio excluído.</AlertDescription>
+        </Alert>
+      )}
 
       {convenios.length === 0 ? (
         <Card>
@@ -61,7 +98,7 @@ export default async function ConveniosPage() {
                     <TableHead>Situação</TableHead>
                     <TableHead className="hidden md:table-cell">Término</TableHead>
                     <TableHead>Unidades</TableHead>
-                    <TableHead className="w-24" />
+                    <TableHead className="w-28" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -69,7 +106,13 @@ export default async function ConveniosPage() {
                     <TableRow key={c.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{c.categoria ?? "—"}</TableCell>
                       <TableCell className="font-medium">
-                        {c.conveniador ?? "—"}
+                        {podeEditar ? (
+                          <Link href={`/painel/filiados/convenios/${c.id}`} className="hover:underline">
+                            {c.conveniador ?? "—"}
+                          </Link>
+                        ) : (
+                          (c.conveniador ?? "—")
+                        )}
                         {c.infoSumarias && (
                           <span className="text-muted-foreground block max-w-72 truncate text-xs" title={c.infoSumarias}>
                             {c.infoSumarias}
@@ -106,11 +149,20 @@ export default async function ConveniosPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {c.arquivoUrl && (
-                          <a href={c.arquivoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs underline">
-                            <ExternalLink className="size-3" /> contrato
-                          </a>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {c.arquivoUrl && (
+                            <a href={c.arquivoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs underline">
+                              <ExternalLink className="size-3" /> contrato
+                            </a>
+                          )}
+                          {podeEditar && (
+                            <Button asChild variant="ghost" size="icon-sm" aria-label="Editar convênio">
+                              <Link href={`/painel/filiados/convenios/${c.id}`}>
+                                <Pencil />
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
