@@ -22,12 +22,30 @@ const BASE = "http://localhost:3222"
 const EMAIL = "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- usados nos blocos comentados
 const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- usados nos blocos comentados
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Eventos e telas novas de Filiados
+  // Telas da virada da Filiação: convênios, reembolsos e outros contatos
+  // (seed: scripts/seed-prints-eventos-direitos.mjs, seção 7).
+  ["/painel/filiados/convenios", "filiados/convenios.png", { fullPage: true }],
+  ["/portal/convenios", "portal/convenios.png", { fullPage: true }],
+  [
+    "/painel/filiados/77777777-7777-4777-8777-000000000005",
+    "filiados/perfil-outros-contatos.png",
+    { scrollTo: "Outros contatos" },
+  ],
+  [
+    "/painel/filiados/77777777-7777-4777-8777-000000000005",
+    "filiados/perfil-reembolsos.png",
+    { scrollTo: "O que a entidade reembolsou" },
+  ],
+
+  // Eventos e telas novas de Filiados — já capturado em 07/09
   // (seed: scripts/seed-prints-eventos-direitos.mjs).
+  /*
   ["/painel/eventos", "eventos/painel.png"],
   [`/painel/eventos/${EV_DEMO}`, "eventos/evento.png", { fullPage: true }],
   [`/painel/eventos/${EV_DEMO}/convidados`, "eventos/convidados.png", { fullPage: true }],
@@ -55,6 +73,7 @@ const SHOTS = [
   ["/portal/eventos", "portal/eventos.png", { fullPage: true }],
   ["/evento/encontro-de-formacao-sindical", "fluxos-publicos/evento.png", { anon: true, fullPage: true }],
   ["/meus-dados", "fluxos-publicos/meus-dados.png", { anon: true, altura: 720 }],
+  */
 
   // Já capturados nas rodadas anteriores.
   // ["/painel/compras/comprador", "compras/comprador.png"],
@@ -306,6 +325,13 @@ for (const [route, file, opts] of SHOTS) {
     try {
       await p.getByText(opts.scrollTo, { exact: false }).first()
         .evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }))
+      // O cabeçalho do painel é fixo e cobre o topo; recua o bastante para o
+      // título do cartão aparecer inteiro.
+      await p.getByText(opts.scrollTo, { exact: false }).first().evaluate((el) => {
+        let n = el.parentElement
+        while (n && n.scrollTop === 0) n = n.parentElement
+        ;(n ?? window).scrollBy(0, -120)
+      })
       await p.waitForTimeout(400)
     } catch {
       console.log("  (scrollTo não encontrado:", opts.scrollTo + ")")

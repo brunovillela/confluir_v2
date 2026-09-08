@@ -12,6 +12,7 @@ const NAV = [
   { titulo: "Início", href: "/portal/inicio" },
   { titulo: "Meu cadastro", href: "/portal/cadastro" },
   { titulo: "Hospedagem", href: "/portal/hospedagem" },
+  { titulo: "Convênios", href: "/portal/convenios" },
   { titulo: "Saúde", href: "/portal/saude" },
   { titulo: "Notícias", href: "/portal/noticias" },
   { titulo: "Agenda", href: "/portal/agenda" },

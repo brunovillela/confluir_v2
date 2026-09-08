@@ -3,7 +3,9 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { estatisticasFontes, nomesDeEmpresas } from "@/lib/db/fontes"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
+import { contatosDoFiliado, type ContatosDoFiliado } from "@/lib/db/filiacao-contatos"
 import { ehArquivo, ehDoBubble } from "@/lib/db/filiacao-documentos"
+import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
 
@@ -394,6 +396,10 @@ export type PerfilFiliado = {
   vinculos: Vinculo[]
   vinculosTrabalhistas: VinculoTrabalhista[]
   contribuicoes: { total: number; ultimas: Contribuicao[] }
+  /** Reembolsos a filiado (tabela própria, desde 08/09) — o que a entidade pagou à pessoa por participação. */
+  reembolsosFiliacao: { total: number; ultimos: ReembolsoFiliado[]; totalPago: number }
+  /** E-mails, telefones e endereços além dos que cabem no cadastro. */
+  contatos: ContatosDoFiliado
   reembolsos: { total: number; ultimos: Reembolso[] }
 }
 
@@ -636,12 +642,20 @@ export async function buscarPerfilFiliado(
     ultimas: todasContribuicoes.slice(0, 12),
   }
 
+  // Reembolsos e contatos são da PESSOA, não do registro: todos os ids do CPF.
+  const [reembolsosFiliacao, contatos] = await Promise.all([
+    reembolsosDoFiliado(idsDaPessoa),
+    contatosDoFiliado(idsDaPessoa, filiacao as Record<string, string | null>),
+  ])
+
   return {
     filiacao: filiacao as PerfilFiliado["filiacao"],
     outrosRegistros,
     vinculos,
     vinculosTrabalhistas,
     contribuicoes,
+    reembolsosFiliacao,
+    contatos,
     reembolsos: {
       total: reembolsosRes.count ?? 0,
       ultimos: (reembolsosRes.data ?? []) as Reembolso[],

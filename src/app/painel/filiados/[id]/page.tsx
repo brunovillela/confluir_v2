@@ -139,6 +139,8 @@ export default async function FiliadoPage({
     vinculos,
     contribuicoes,
     reembolsos,
+    reembolsosFiliacao,
+    contatos,
   } = perfil
 
   const idTermo = (v: unknown) => (typeof v === "string" && v ? v : null)
@@ -368,6 +370,78 @@ export default async function FiliadoPage({
           </CardContent>
         </Card>
       </div>
+
+      {(contatos.emails.length > 0 || contatos.telefones.length > 0 || contatos.enderecos.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Outros contatos
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {contatos.emails.length} e-mail(s) · {contatos.telefones.length} telefone(s) · {contatos.enderecos.length} endereço(s)
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Tudo que a entidade tem desta pessoa além do que cabe no cadastro. O que
+              já está no cadastro aparece marcado; o resto veio do sistema antigo ou de
+              cadastros posteriores.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
+            <div>
+              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">E-mails</p>
+              {contatos.emails.length === 0 ? (
+                <p className="text-muted-foreground text-sm">—</p>
+              ) : (
+                <ul className="grid gap-1 text-sm">
+                  {contatos.emails.map((e) => (
+                    <li key={e.id} className="flex flex-wrap items-center gap-1.5">
+                      <span className="truncate">{e.email}</span>
+                      {e.favorito && <Badge variant="outline">principal</Badge>}
+                      {e.noCadastro && <Badge variant="secondary">no cadastro</Badge>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">Telefones</p>
+              {contatos.telefones.length === 0 ? (
+                <p className="text-muted-foreground text-sm">—</p>
+              ) : (
+                <ul className="grid gap-1 text-sm">
+                  {contatos.telefones.map((t) => (
+                    <li key={t.id} className="flex flex-wrap items-center gap-1.5">
+                      <span className="tabular-nums">{formatarTelefone(t.numero)}</span>
+                      {t.whatsapp && <MessageCircle className="size-3.5 text-success-fg" aria-label="WhatsApp" />}
+                      {t.tipo && <span className="text-muted-foreground text-xs">{t.tipo}</span>}
+                      {t.noCadastro && <Badge variant="secondary">no cadastro</Badge>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">Endereços</p>
+              {contatos.enderecos.length === 0 ? (
+                <p className="text-muted-foreground text-sm">—</p>
+              ) : (
+                <ul className="grid gap-2 text-sm">
+                  {contatos.enderecos.map((a) => (
+                    <li key={a.id}>
+                      <p className="flex flex-wrap items-center gap-1.5">
+                        <span>{a.linha1 || "—"}</span>
+                        {a.nome && <span className="text-muted-foreground text-xs">{a.nome}</span>}
+                        {a.noCadastro && <Badge variant="secondary">no cadastro</Badge>}
+                      </p>
+                      {a.linha2 && <p className="text-muted-foreground text-xs">{a.linha2}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -604,11 +678,68 @@ export default async function FiliadoPage({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Reembolsos e pagamentos
+              Reembolsos
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {reembolsosFiliacao.total.toLocaleString("pt-BR")} no total
+                {reembolsosFiliacao.totalPago > 0 && ` · ${formatarMoeda(reembolsosFiliacao.totalPago)} pagos`}
+              </span>
+            </CardTitle>
+            <CardDescription>
+              O que a entidade reembolsou a esta pessoa por participação — reunião,
+              ato, assembleia — com a justificativa de cada um.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {reembolsosFiliacao.ultimos.length === 0 ? (
+              <p className="text-muted-foreground py-6 text-center text-sm">
+                Nenhum reembolso registrado para este filiado.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Justificativa</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Situação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reembolsosFiliacao.ultimos.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                      <TableCell className="max-w-64 truncate" title={r.justificativa ?? undefined}>
+                        {r.justificativa ?? "—"}
+                        {r.projeto && (
+                          <span className="text-muted-foreground block truncate text-xs">{r.projeto}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
+                        {formatarMoeda(r.ordem?.valor_pago ?? r.valor)}
+                      </TableCell>
+                      <TableCell>
+                        {r.ordem ? <SituacaoBadge situacao={r.ordem.situacao} /> : <span className="text-muted-foreground text-xs">sem ordem</span>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Ordens de pagamento em favor do filiado
               <span className="text-muted-foreground ml-2 text-sm font-normal">
                 {reembolsos.total.toLocaleString("pt-BR")} no total
               </span>
             </CardTitle>
+            <CardDescription>
+              Pagamentos do Financeiro em que esta pessoa é a favorecida — alcança
+              quem tem login no sistema.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {reembolsos.ultimos.length === 0 ? (

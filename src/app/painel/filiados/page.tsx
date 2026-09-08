@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import {
+  BadgePercent,
   Building2,
   ClipboardCheck,
   FileUp,
@@ -359,6 +360,12 @@ export default async function FiliadosPage() {
           descricao="Quem está na condição definida pelas regras da entidade"
           href="/painel/filiados/inadimplentes"
           icone={HandCoins}
+        />
+        <CartaoArea
+          titulo="Convênios"
+          descricao="Descontos e serviços negociados para o filiado, com as unidades de atendimento"
+          href="/painel/filiados/convenios"
+          icone={BadgePercent}
         />
         <CartaoArea
           titulo="Fichas pendentes"

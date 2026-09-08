@@ -626,6 +626,165 @@ if (assembleia) {
   )
 }
 
+// ── 7. Convênios, reembolsos e outros contatos ─────────────────────────────
+// As três telas que passaram a ler as tabelas novas da virada (08/09). Tudo
+// em faixas fixas de id, como acima; a limpeza vai de fora para dentro.
+const cat = (n) => `e0e0e0e0-0000-4000-8000-0005000000${String(n).padStart(2, "0")}`
+const conv = (n) => `e0e0e0e0-0000-4000-8000-0006000000${String(n).padStart(2, "0")}`
+const unid = (n) => `e0e0e0e0-0000-4000-8000-0007000000${String(n).padStart(2, "0")}`
+const empr = (n) => `e0e0e0e0-0000-4000-8000-0008000000${String(n).padStart(2, "0")}`
+const ende = (n) => `e0e0e0e0-0000-4000-8000-0009000000${String(n).padStart(2, "0")}`
+const mail = (n) => `e0e0e0e0-0000-4000-8000-0010000000${String(n).padStart(2, "0")}`
+const fone = (n) => `e0e0e0e0-0000-4000-8000-0011000000${String(n).padStart(2, "0")}`
+const proj = (n) => `e0e0e0e0-0000-4000-8000-0012000000${String(n).padStart(2, "0")}`
+const ordem = (n) => `e0e0e0e0-0000-4000-8000-0013000000${String(n).padStart(2, "0")}`
+const reemb = (n) => `e0e0e0e0-0000-4000-8000-0014000000${String(n).padStart(2, "0")}`
+
+for (const [tabela, fn] of [
+  ["filiacao_reembolsos", reemb],
+  ["filiacao_convenios_unidades", unid],
+  ["filiacao_convenios", conv],
+  ["filiacao_convenios_categorias", cat],
+  ["emails", mail],
+  ["telefones", fone],
+  ["enderecos", ende],
+  ["ordens_pagamento", ordem],
+  ["projeto", proj],
+  ["empresa", empr],
+]) {
+  ok(await c.from(tabela).delete().in("id", faixa(fn, 20)), `limpar ${tabela}`)
+}
+ok(
+  await c.from("filiacao_reembolsos_config").delete().eq("emp_proprietaria_id", DEMO),
+  "limpar reembolsos_config"
+)
+
+// Conveniadores: duas empresas próprias; a pousada já existe no seed base.
+const POUSADA = "f0f0f0f0-0000-4000-8000-000000000005"
+const GRAFICA = "f0f0f0f0-0000-4000-8000-000000000002"
+ok(
+  await c.from("empresa").insert([
+    { id: empr(1), emp_proprietaria_id: DEMO, nome_fantasia: "Ótica Visão Clara", nome_razao: "Visão Clara Comércio de Óculos Ltda.", empresa: true, conveniador: true, pessoa_juridica: true },
+    { id: empr(2), emp_proprietaria_id: DEMO, nome_fantasia: "Instituto Saber", nome_razao: "Instituto Saber Cursos Livres Ltda.", empresa: true, conveniador: true, pessoa_juridica: true },
+  ]),
+  "empresas conveniadoras"
+)
+ok(await c.from("empresa").update({ conveniador: true }).in("id", [POUSADA, GRAFICA]), "marcar conveniadores")
+
+ok(
+  await c.from("filiacao_convenios_categorias").insert([
+    { id: cat(1), emp_proprietaria_id: DEMO, categoria: "Ótica" },
+    { id: cat(2), emp_proprietaria_id: DEMO, categoria: "Hospedagem" },
+    { id: cat(3), emp_proprietaria_id: DEMO, categoria: "Educação" },
+    { id: cat(4), emp_proprietaria_id: DEMO, categoria: "Serviços" },
+  ]),
+  "categorias de convênio"
+)
+
+// Endereços das unidades (balcões, não pessoas — sem filiado_id).
+ok(
+  await c.from("enderecos").insert([
+    { id: ende(1), emp_proprietaria_id: DEMO, empresa_id: empr(1), nome_endereco: "Loja Centro", tipo_endereco: "Comercial", logradouro: "Rua da Conceição", numero: "120", complemento: "loja B", bairro: "Centro", cidade: "Niterói", estado: "RJ", cep: "24020-080" },
+    { id: ende(2), emp_proprietaria_id: DEMO, empresa_id: empr(1), nome_endereco: "Loja Icaraí", tipo_endereco: "Comercial", logradouro: "Rua Gavião Peixoto", numero: "88", bairro: "Icaraí", cidade: "Niterói", estado: "RJ", cep: "24230-090" },
+    { id: ende(3), emp_proprietaria_id: DEMO, empresa_id: POUSADA, nome_endereco: "Pousada", tipo_endereco: "Comercial", logradouro: "Av. Beira-Mar", numero: "1500", bairro: "Praia do Forte", cidade: "Cabo Frio", estado: "RJ", cep: "28908-000" },
+    { id: ende(4), emp_proprietaria_id: DEMO, empresa_id: empr(2), nome_endereco: "Sede", tipo_endereco: "Comercial", logradouro: "Rua Visconde do Rio Branco", numero: "633", complemento: "3º andar", bairro: "Centro", cidade: "Niterói", estado: "RJ", cep: "24020-005" },
+  ]),
+  "endereços das unidades"
+)
+
+ok(
+  await c.from("filiacao_convenios").insert([
+    {
+      id: conv(1), emp_proprietaria_id: DEMO, categoria_id: cat(1), conveniador_id: empr(1), ativo: true, data_termino: null,
+      info_sumarias: "Desconto em armações, lentes e exames de vista para associados e dependentes.",
+      info_vantagens: "30% em armações, 20% em lentes com antirreflexo e exame de vista gratuito na compra. Parcelamento em até 6 vezes sem juros.",
+    },
+    {
+      id: conv(2), emp_proprietaria_id: DEMO, categoria_id: cat(2), conveniador_id: POUSADA, ativo: true, data_termino: dataIso(dia(400)),
+      info_sumarias: "Diárias com desconto na Pousada Mar Azul, em Cabo Frio, o ano inteiro.",
+      info_vantagens: "25% na diária de segunda a quinta e 15% em fins de semana e feriados, com café da manhã. Crianças até 6 anos não pagam.",
+    },
+    {
+      id: conv(3), emp_proprietaria_id: DEMO, categoria_id: cat(3), conveniador_id: empr(2), ativo: true, data_termino: dataIso(dia(-45)),
+      info_sumarias: "Cursos livres de informática, idiomas e preparação para concursos.",
+      info_vantagens: "40% na mensalidade de qualquer curso presencial ou online e matrícula gratuita.",
+    },
+    {
+      id: conv(4), emp_proprietaria_id: DEMO, categoria_id: cat(4), conveniador_id: GRAFICA, ativo: false, data_termino: null,
+      info_sumarias: "Impressão de cartões, convites e material gráfico com preço de tabela sindical.",
+      info_vantagens: "15% em qualquer serviço gráfico.",
+    },
+  ]),
+  "convênios"
+)
+
+ok(
+  await c.from("filiacao_convenios_unidades").insert([
+    { id: unid(1), emp_proprietaria_id: DEMO, convenio_id: conv(1), nome: "Loja Centro", site: "https://oticavisaoclara.exemplo.com.br", atendimento_presencial: true, atendimento_online: false, endereco_id: ende(1), telefones: ["(21) 2620-1010"], emails: ["centro@oticavisaoclara.exemplo.com.br"] },
+    { id: unid(2), emp_proprietaria_id: DEMO, convenio_id: conv(1), nome: "Loja Icaraí", site: null, atendimento_presencial: true, atendimento_online: false, endereco_id: ende(2), telefones: ["(21) 2710-2020", "(21) 99777-2020"], emails: [] },
+    { id: unid(3), emp_proprietaria_id: DEMO, convenio_id: conv(2), nome: "Pousada Mar Azul", site: "https://pousadamarazul.exemplo.com.br", atendimento_presencial: true, atendimento_online: true, endereco_id: ende(3), telefones: ["(22) 2647-3030"], emails: ["reservas@pousadamarazul.exemplo.com.br"] },
+    { id: unid(4), emp_proprietaria_id: DEMO, convenio_id: conv(3), nome: "Sede Niterói", site: "https://institutosaber.exemplo.com.br", atendimento_presencial: true, atendimento_online: true, endereco_id: ende(4), telefones: ["(21) 2717-4040"], emails: [] },
+  ]),
+  "unidades de convênio"
+)
+
+// Reembolsos do Antônio (o perfil que o manual mostra): três participações,
+// duas pagas e uma aguardando. Cada uma tem a ordem de pagamento por trás.
+const antonio = porNome("Antônio")
+if (antonio) {
+  ok(
+    await c.from("projeto").insert([
+      { id: proj(1), emp_proprietaria_id: DEMO, descricao: "Campanha salarial 2026", tipo: "Campanha" },
+    ]),
+    "projeto"
+  )
+  ok(
+    await c.from("ordens_pagamento").insert([
+      { id: ordem(1), emp_proprietaria_id: DEMO, codigo: "OP-R-001", descricao: "Reembolso de participação — assembleia de 12/06", valor: 35, situacao: "Paga", pago: true, valor_pago: 35, data_pagamento: dataIso(dia(-80)), data_emissao: dataIso(dia(-84)), tipo: "Despesa", forma_pagamento: "Pix", projeto_id: proj(1) },
+      { id: ordem(2), emp_proprietaria_id: DEMO, codigo: "OP-R-002", descricao: "Reembolso de participação — ato na refinaria", valor: 35, situacao: "Paga", pago: true, valor_pago: 35, data_pagamento: dataIso(dia(-30)), data_emissao: dataIso(dia(-33)), tipo: "Despesa", forma_pagamento: "Pix", projeto_id: proj(1) },
+      { id: ordem(3), emp_proprietaria_id: DEMO, codigo: "OP-R-003", descricao: "Reembolso de participação — reunião do conselho", valor: 35, situacao: "A pagar", pago: false, data_emissao: dataIso(dia(-3)), tipo: "Despesa", forma_pagamento: "Pix", projeto_id: proj(1) },
+    ]),
+    "ordens de reembolso"
+  )
+  ok(
+    await c.from("filiacao_reembolsos").insert([
+      { id: reemb(1), emp_proprietaria_id: DEMO, filiado_id: antonio.id, data: dataIso(dia(-84)), justificativa: "Participação na assembleia geral de 12/06", valor: 35, ordem_pagamento_id: ordem(1), projeto_id: proj(1) },
+      { id: reemb(2), emp_proprietaria_id: DEMO, filiado_id: antonio.id, data: dataIso(dia(-33)), justificativa: "Ato unificado na portaria da refinaria", valor: 35, ordem_pagamento_id: ordem(2), projeto_id: proj(1) },
+      { id: reemb(3), emp_proprietaria_id: DEMO, filiado_id: antonio.id, data: dataIso(dia(-3)), justificativa: "Reunião do conselho de representantes", valor: 35, ordem_pagamento_id: ordem(3), projeto_id: proj(1) },
+    ]),
+    "reembolsos"
+  )
+  ok(
+    await c.from("filiacao_reembolsos_config").insert({ emp_proprietaria_id: DEMO, valor_reembolso: 35, orcamento_limite: true, orcamento_mensal: 3500 }),
+    "config de reembolso"
+  )
+
+  // Outros contatos: o que o cadastro já tem (marcado "no cadastro") e o
+  // que só existia nas tabelas de contato do sistema antigo.
+  ok(
+    await c.from("emails").insert([
+      { id: mail(1), emp_proprietaria_id: DEMO, filiado_id: antonio.id, email: "antonio.demo@exemplo.com", tipo_email: "Pessoal", favorito: true },
+      { id: mail(2), emp_proprietaria_id: DEMO, filiado_id: antonio.id, email: "antonio.nunes@petroficticia.exemplo.com.br", tipo_email: "Corporativo", favorito: false },
+    ]),
+    "e-mails"
+  )
+  ok(
+    await c.from("telefones").insert([
+      { id: fone(1), emp_proprietaria_id: DEMO, filiado_id: antonio.id, numero: "(21) 99900-0005", tipo: "Celular", whatsapp: true, favorito: true },
+      { id: fone(2), emp_proprietaria_id: DEMO, filiado_id: antonio.id, numero: "(21) 2610-0005", tipo: "Residencial", whatsapp: false, favorito: false },
+      { id: fone(3), emp_proprietaria_id: DEMO, filiado_id: antonio.id, numero: "(21) 98888-1234", tipo: "Recado (esposa)", whatsapp: true, favorito: false },
+    ]),
+    "telefones"
+  )
+  ok(
+    await c.from("enderecos").insert([
+      { id: ende(5), emp_proprietaria_id: DEMO, filiado_id: antonio.id, nome_endereco: "Residência", tipo_endereco: "Residencial", favorito: true, logradouro: "Av. das Amendoeiras", numero: "410", complemento: "apto 302", bairro: "Fonseca", cidade: "Niterói", estado: "RJ", cep: "24000-000" },
+      { id: ende(6), emp_proprietaria_id: DEMO, filiado_id: antonio.id, nome_endereco: "Casa de praia", tipo_endereco: "Residencial", favorito: false, logradouro: "Rua das Gaivotas", numero: "27", bairro: "Peró", cidade: "Cabo Frio", estado: "RJ", cep: "28921-000" },
+    ]),
+    "endereços"
+  )
+}
+
 console.log("\nPronto. Tenant demo com Eventos, carência, inadimplência e LGPD.")
 console.log("Evento:", EV, "— slug encontro-de-formacao-sindical")
 console.log("Dia 1:", DIA1)

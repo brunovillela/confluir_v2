@@ -186,6 +186,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Filiados ativos sem a ficha assinada no vínculo corrente",
       },
       {
+        slug: "convenios",
+        titulo: "Convênios",
+        resumo: "A carteira de convênios e as unidades onde o filiado é atendido",
+      },
+      {
         slug: "termos",
         titulo: "Termos legais",
         resumo: "LGPD e autorização de desconto, versionados por entidade",

@@ -104,6 +104,21 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "convenios",
+    titulo: "Convênios",
+    descricao: "Descontos e serviços negociados pelo sindicato para você",
+    icone: "Handshake",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Convênios",
+        resumo: "O que o sindicato negociou para você e onde usar",
+      },
+    ],
+  },
+  {
     slug: "eventos",
     titulo: "Eventos",
     descricao: "Inscrever-se, avisar se vai comparecer e ver o código de entrada",
