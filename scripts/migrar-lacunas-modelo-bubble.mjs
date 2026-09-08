@@ -118,7 +118,7 @@ const dia = (v) => (v ? String(v).slice(0, 10) : null)
 const texto = (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null)
 const bool = (v) => (v === true ? true : v === false ? false : null)
 
-async function gravar(tabela, linhas, rotulo) {
+async function gravar(tabela, linhas, rotulo, conflito = "bubble_id") {
   if (linhas.length === 0) return 0
   if (!APLICAR) {
     console.log(`    (dry-run) ${linhas.length} → ${tabela}`)
@@ -127,7 +127,7 @@ async function gravar(tabela, linhas, rotulo) {
   let n = 0
   for (let de = 0; de < linhas.length; de += 500) {
     const lote = linhas.slice(de, de + 500)
-    const { error } = await db.from(tabela).upsert(lote, { onConflict: "bubble_id" })
+    const { error } = await db.from(tabela).upsert(lote, { onConflict: conflito })
     if (error) {
       console.error(`\nFalhou em ${tabela} (${rotulo}) a partir de ${de}: ${error.message}`)
       process.exit(1)
@@ -236,7 +236,8 @@ if (roda("reembolsos")) {
       orcamento_mensal: c["Orçamento mensal"] ?? null,
     }
     console.log(`  config: R$ ${linha.valor_reembolso} por reembolso, orçamento mensal ${linha.orcamento_mensal}, centro de custo ${linha.centro_custo_id ? "resolvido" : "NÃO resolvido"}`)
-    await gravar("filiacao_reembolsos_config", [linha], "config")
+    // uma por tenant: o índice único é em emp_proprietaria_id, não em bubble_id
+    await gravar("filiacao_reembolsos_config", [linha], "config", "emp_proprietaria_id")
   }
 }
 
