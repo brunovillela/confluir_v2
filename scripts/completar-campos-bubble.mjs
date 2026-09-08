@@ -32,6 +32,15 @@
 //   node scripts/completar-campos-bubble.mjs --so cadastro,prontuario
 //   node scripts/completar-campos-bubble.mjs --apply
 //   node --max-old-space-size=6144 scripts/completar-campos-bubble.mjs --so recebe --apply
+//
+// --desde <ISO>: modo do dia da virada. O n8n foi desligado em 08/09 e o
+// Bubble continuou em uso até segunda; o que NASCEU entra pelo delta, mas o
+// que MUDOU num registro que já veio (uma desfiliação lançada na quinta, um
+// telefone corrigido) ficaria para trás, porque este script só preenche
+// coluna vazia. Com --desde, nos registros com Modified Date a partir da
+// data, o valor do Bubble MANDA — sobrescreve o daqui quando difere. Vazio
+// no Bubble continua não apagando nada.
+//   node scripts/completar-campos-bubble.mjs --desde 2026-09-08T20:00:00Z --apply
 // ===========================================================================
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -43,6 +52,14 @@ const SO = (() => {
   const i = args.indexOf("--so")
   return i >= 0 ? args[i + 1].split(",") : null
 })()
+const DESDE = (() => {
+  const i = args.indexOf("--desde")
+  return i >= 0 ? new Date(args[i + 1]) : null
+})()
+if (DESDE && Number.isNaN(DESDE.getTime())) {
+  console.error("--desde precisa de uma data ISO, ex.: 2026-09-08T20:00:00Z")
+  process.exit(1)
+}
 const CACHE = ".auditoria-bubble"
 
 const env = Object.fromEntries(
@@ -65,6 +82,7 @@ const BASE = (env.BUBBLE_API_ROOT || "").replace(/\/+$/, "").replace(/\/obj$/, "
 const TOKEN = env.BUBBLE_API_TOKEN
 
 console.log(APLICAR ? "MODO APLICAR — vai gravar." : "DRY-RUN — nada será gravado.")
+if (DESDE) console.log(`Modo --desde: registros alterados no Bubble a partir de ${DESDE.toISOString()} têm o valor do Bubble por cima do daqui.`)
 
 // ── leitura ────────────────────────────────────────────────────────────────
 
@@ -301,16 +319,20 @@ for (const [nome, parte] of Object.entries(PARTES)) {
   const patches = [] // { id, patch }
   const porCampo = Object.fromEntries(colunas.map((c) => [c, 0]))
   const semRef = Object.fromEntries(colunas.map((c) => [c, 0]))
+  let alterados = 0
 
   for (const r of registros) {
     const linha = (r.Supabase_id && porId.get(r.Supabase_id)) || porBubble.get(r._id) || null
     if (!linha) continue
+    // Alterado no Bubble depois do desligamento: o Bubble manda.
+    const manda = DESDE && r["Modified Date"] && new Date(r["Modified Date"]) >= DESDE
+    if (manda) alterados++
     const patch = {}
     for (const [rotulo, [coluna, como]] of Object.entries(parte.campos)) {
       // Booleano com default false conta como vazio: "false" ali é ausência
       // da migração, não uma escolha de alguém.
       const ocupada = como === "b" ? linha[coluna] === true : !vazio(linha[coluna])
-      if (ocupada) continue
+      if (ocupada && !manda) continue
       const bruto = r[rotulo]
       if (vazio(bruto)) continue
       let valor
@@ -319,6 +341,7 @@ for (const [nome, parte] of Object.entries(PARTES)) {
         if (!valor) { semRef[coluna]++; continue }
       } else valor = conv[como](bruto)
       if (valor === null || valor === undefined) continue
+      if (ocupada && valor === linha[coluna]) continue // já igual
       patch[coluna] = valor
       porCampo[coluna]++
     }
@@ -328,7 +351,7 @@ for (const [nome, parte] of Object.entries(PARTES)) {
   for (const [c, n] of Object.entries(porCampo).sort((a, b) => b[1] - a[1])) {
     if (n || semRef[c]) console.log(`  ${String(n).padStart(7)}  ${c}${semRef[c] ? `   (${semRef[c]} referência(s) sem resolver)` : ""}`)
   }
-  console.log(`  linhas a tocar: ${patches.length}`)
+  console.log(`  linhas a tocar: ${patches.length}${DESDE ? ` · alterados no Bubble desde a data: ${alterados}` : ""}`)
   totalGeral.linhas += patches.length
   totalGeral.campos += Object.values(porCampo).reduce((a, b) => a + b, 0)
 
