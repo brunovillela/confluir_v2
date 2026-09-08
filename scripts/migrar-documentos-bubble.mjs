@@ -45,17 +45,64 @@ const BUCKET = "filiacao"
 const LOTE = 25
 const TENTATIVAS = 3
 
-/** Os dois documentos, e onde a URL original vai descansar. */
+/**
+ * Cada documento sabe de que tabela vem, para que bucket vai e com que
+ * caminho — o caminho segue a convenção que a TELA que o lê já usa, senão o
+ * arquivo chega e ninguém o encontra (o comprovante da remessa, por exemplo,
+ * é lido do bucket "comprovantes" em <remessa>/<fonte>/<arquivo>).
+ * `colunaOriginal` guarda a URL antiga quando a tabela tem onde; sem ela,
+ * a URL vai embora com a troca — o arquivo já é nosso.
+ */
 const DOCUMENTOS = [
   {
     tipo: "ficha",
+    tabela: "filiacao_vinculos",
     colunaAtual: "ficha_filiacao",
     colunaOriginal: "filiacao_ficha",
+    bucket: "filiacao",
+    caminho: (linha, ext) => `vinculos/${linha.id}/ficha-${randomUUID()}.${ext}`,
   },
   {
     tipo: "carta",
+    tabela: "filiacao_vinculos",
     colunaAtual: "carta_desfiliacao",
     colunaOriginal: "filiacao_desfiliacao_carta",
+    bucket: "filiacao",
+    caminho: (linha, ext) => `vinculos/${linha.id}/carta-${randomUUID()}.${ext}`,
+  },
+  {
+    tipo: "comprovante",
+    tabela: "filiacao_recebe_comprovacao",
+    colunaAtual: "comprovante",
+    colunaOriginal: null,
+    colunasExtra: "remessa_id, fonte_pg_id",
+    bucket: "comprovantes",
+    caminho: (linha, ext) =>
+      `${linha.remessa_id ?? "sem-remessa"}/${linha.fonte_pg_id ?? "sem-fonte"}/${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`,
+  },
+  {
+    tipo: "foto",
+    tabela: "filiacoes",
+    colunaAtual: "foto",
+    colunaOriginal: null,
+    bucket: "filiacao",
+    caminho: (linha, ext) => `fotos/${linha.id}/foto-${randomUUID()}.${ext}`,
+  },
+  {
+    tipo: "convenio-arquivo",
+    tabela: "filiacao_convenios",
+    colunaAtual: "arquivo_convenio",
+    colunaOriginal: null,
+    bucket: "filiacao",
+    caminho: (linha, ext) => `convenios/${linha.id}/contrato-${randomUUID()}.${ext}`,
+  },
+  {
+    tipo: "convenio-foto",
+    tabela: "filiacao_convenios",
+    colunaAtual: "foto_principal",
+    colunaOriginal: null,
+    bucket: "filiacao",
+    caminho: (linha, ext) => `convenios/${linha.id}/foto-${randomUUID()}.${ext}`,
   },
 ]
 
@@ -174,7 +221,7 @@ async function conferir() {
   for (const doc of DOCUMENTOS) {
     const contar = async (filtro) => {
       let q = supabase
-        .from("filiacao_vinculos")
+        .from(doc.tabela)
         .select("id", { count: "exact", head: true })
         .eq("emp_proprietaria_id", TENANT_REAL)
       q = filtro(q)
@@ -184,7 +231,7 @@ async function conferir() {
 
     const noBubble = await contar((q) => q.like(doc.colunaAtual, "//%"))
     const migrados = await contar((q) =>
-      q.not(doc.colunaOriginal, "is", null).not(doc.colunaAtual, "is", null)
+      q.not(doc.colunaAtual, "is", null).not(doc.colunaAtual, "like", "//%").not(doc.colunaAtual, "like", "http%")
     )
     const total = await contar((q) => q.not(doc.colunaAtual, "is", null))
 
@@ -192,7 +239,7 @@ async function conferir() {
     // carta_desfiliacao há DATAS em texto ("Jun 9, 2016 12:00 am") — um campo
     // do Bubble que caiu na coluna errada. Não é documento e não se migra.
     const { data: naoArquivos } = await supabase
-      .from("filiacao_vinculos")
+      .from(doc.tabela)
       .select(`id, ${doc.colunaAtual}`)
       .eq("emp_proprietaria_id", TENANT_REAL)
       .not(doc.colunaAtual, "is", null)
@@ -216,7 +263,7 @@ async function conferir() {
 
     // Prova real: o arquivo do bucket abre mesmo? Amostra de 3.
     const { data: amostra } = await supabase
-      .from("filiacao_vinculos")
+      .from(doc.tabela)
       .select(`id, ${doc.colunaAtual}`)
       .eq("emp_proprietaria_id", TENANT_REAL)
       .not(doc.colunaOriginal, "is", null)
@@ -225,7 +272,7 @@ async function conferir() {
       const caminho = linha[doc.colunaAtual]
       if (!caminho || ehUrlExterna(caminho)) continue
       const { data: assinada } = await supabase.storage
-        .from(BUCKET)
+        .from(doc.bucket ?? BUCKET)
         .createSignedUrl(caminho, 60)
       if (!assinada?.signedUrl) {
         console.log(`  !! ${linha.id}: sem URL assinada`)
@@ -263,8 +310,10 @@ async function migrar() {
     for (let de = 0; ; de += PAGINA) {
       const ate = de + PAGINA - 1
       const { data, error } = await supabase
-        .from("filiacao_vinculos")
-        .select(`id, filiado_id, ${doc.colunaAtual}, ${doc.colunaOriginal}`)
+        .from(doc.tabela)
+        .select(
+          [`id`, doc.colunaAtual, doc.colunaOriginal, doc.colunasExtra].filter(Boolean).join(", ")
+        )
         .eq("emp_proprietaria_id", TENANT_REAL)
         .like(doc.colunaAtual, "//%")
         .order("id")
@@ -305,9 +354,9 @@ async function migrar() {
             return
           }
 
-          const caminho = `vinculos/${linha.id}/${doc.tipo}-${randomUUID()}.${tipo.ext}`
+          const caminho = doc.caminho(linha, tipo.ext)
           const { error: erroUpload } = await supabase.storage
-            .from(BUCKET)
+            .from(doc.bucket ?? BUCKET)
             .upload(caminho, buf, { contentType: tipo.mime })
           if (erroUpload) {
             resumo.falhas++
@@ -318,14 +367,15 @@ async function migrar() {
           // Só agora a linha muda: a coluna aponta para o nosso arquivo e a
           // URL do Bubble fica guardada na legada.
           const { error: erroUpdate } = await supabase
-            .from("filiacao_vinculos")
-            .update({
-              [doc.colunaAtual]: caminho,
-              [doc.colunaOriginal]: original,
-            })
+            .from(doc.tabela)
+            .update(
+              doc.colunaOriginal
+                ? { [doc.colunaAtual]: caminho, [doc.colunaOriginal]: original }
+                : { [doc.colunaAtual]: caminho }
+            )
             .eq("id", linha.id)
           if (erroUpdate) {
-            await supabase.storage.from(BUCKET).remove([caminho])
+            await supabase.storage.from(doc.bucket ?? BUCKET).remove([caminho])
             resumo.falhas++
             falhas.push(`${doc.tipo} ${linha.id}: update — ${erroUpdate.message}`)
             return
