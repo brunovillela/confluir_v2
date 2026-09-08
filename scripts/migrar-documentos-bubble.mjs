@@ -287,11 +287,11 @@ async function migrar() {
         lote.map(async (linha) => {
           const original = linha[doc.colunaAtual]
 
-          // Já migrado (a legada guarda a URL antiga): não repete.
-          if (linha[doc.colunaOriginal]) {
-            resumo.pulados++
-            return
-          }
+          // A prova de "já migrado" é a coluna ATUAL ter deixado de ser URL —
+          // e a listagem acima só traz quem ainda é URL. Pular pela coluna
+          // legada estava errado: o migrar-vinculos-bubble.mjs preenche a
+          // legada com a URL original ao trazer o vínculo, e 2.716 arquivos
+          // foram "pulados" sem nunca terem sido baixados.
 
           const { buf, tipo, erro } = await baixar(paraUrl(original))
           if (!buf || !tipo) {
