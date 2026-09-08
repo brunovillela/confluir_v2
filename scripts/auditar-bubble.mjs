@@ -620,7 +620,12 @@ for (const par of PARES) {
     let cdn = 0
     for (const [b, a] of casados) {
       const la = cheioLa(b)
-      const ca = f.type === "boolean" ? a[coluna] === true : preenchidoAqui(a[coluna])
+      // Booleano do Bubble que aqui virou texto ("Conta corrente?" → tipo_conta
+      // "corrente") conta como preenchido quando o texto está lá.
+      const ca =
+        f.type === "boolean" && typeof a[coluna] !== "string"
+          ? a[coluna] === true
+          : preenchidoAqui(a[coluna])
       if (ca) aquiCheio++
       if (la && !ca) falta++
       if (f.type === "file" || f.type === "image") if (ehBubbleCdn(a[coluna])) cdn++
