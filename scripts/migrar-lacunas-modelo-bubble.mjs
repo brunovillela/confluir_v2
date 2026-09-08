@@ -223,7 +223,45 @@ if (roda("reembolsos")) {
     })
   }
   console.log(`  ${reemb.length} reembolsos · sem resolver: filiado ${perdas.filiado}, ordem ${perdas.ordem}, projeto ${perdas.projeto}, prontuário ${perdas.prontuario}`)
+  // Reembolso editado pela tela do Confluir (updated_at preenchido) não é
+  // tocado: a edição daqui manda sobre o Bubble.
+  const { data: editadosR } = await db
+    .from("filiacao_reembolsos")
+    .select("bubble_id")
+    .eq("emp_proprietaria_id", TENANT)
+    .not("updated_at", "is", null)
+    .not("bubble_id", "is", null)
+  const editadosReemb = new Set((editadosR ?? []).map((x) => x.bubble_id))
+  if (editadosReemb.size) {
+    console.log(`  ${editadosReemb.size} reembolso(s) editados no Confluir ficam como estão`)
+    for (let i = linhas.length - 1; i >= 0; i--) if (editadosReemb.has(linhas[i].bubble_id)) linhas.splice(i, 1)
+  }
   await gravar("filiacao_reembolsos", linhas, "reembolsos")
+
+  // O Bubble não guarda o valor no reembolso — está na ordem. Sem ele, a
+  // tela de reembolsos não soma o mês. Copia da ordem para os que estão sem.
+  const { data: semValor } = await db
+    .from("filiacao_reembolsos")
+    .select("id, ordem:ordem_pagamento_id(valor_pago, valor_inicial_cobranca, valor)")
+    .eq("emp_proprietaria_id", TENANT)
+    .is("valor", null)
+    .not("ordem_pagamento_id", "is", null)
+    .limit(5000)
+  const comValor = (semValor ?? [])
+    .map((r) => {
+      const o = Array.isArray(r.ordem) ? r.ordem[0] : r.ordem
+      const v = o?.valor_pago ?? o?.valor_inicial_cobranca ?? o?.valor ?? null
+      return v != null ? { id: r.id, valor: Number(v) } : null
+    })
+    .filter(Boolean)
+  console.log(`  ${comValor.length} reembolsos sem valor ganham o valor da ordem`)
+  if (APLICAR) {
+    for (const { id, valor } of comValor) {
+      const { error } = await db.from("filiacao_reembolsos").update({ valor }).eq("id", id)
+      if (error) { console.error(`  falhou valor em ${id}: ${error.message}`); process.exit(1) }
+    }
+    if (comValor.length) console.log(`    gravados ${comValor.length} valores`)
+  }
 
   const c = cfg[0]
   if (c) {
@@ -300,8 +338,42 @@ if (roda("convenios")) {
     }
   })
   console.log(`  ${convs.length} convênios (${convLinhas.filter((c) => c.ativo).length} ativos) · conveniador não resolvido: ${semConveniador}`)
+
+  // Arquivo que o migrar-documentos já trouxe para o bucket FICA: o upsert
+  // por cima com a URL do CDN desfazia a migração (aconteceu em 08/09 à
+  // noite — 21 arquivos voltaram a apontar para o Bubble).
+  const { data: jaAqui } = await db
+    .from("filiacao_convenios")
+    .select("id, arquivo_convenio, foto_principal, fotos_divulgacao, updated_at")
+    .eq("emp_proprietaria_id", TENANT)
+  const noBucket = (v) => typeof v === "string" && v !== "" && !v.startsWith("//") && !/^https?:\/\//i.test(v)
+  let mantidos = 0
+  // Convênio editado pela tela do Confluir (updated_at preenchido) não é
+  // tocado: a edição daqui manda sobre o Bubble.
+  const editados = new Set((jaAqui ?? []).filter((x) => x.updated_at).map((x) => x.id))
+  if (editados.size) {
+    console.log(`  ${editados.size} convênio(s) editados no Confluir ficam como estão`)
+    for (let i = convLinhas.length - 1; i >= 0; i--) if (editados.has(convLinhas[i].id)) convLinhas.splice(i, 1)
+  }
+  for (const linha of convLinhas) {
+    const atual = (jaAqui ?? []).find((x) => x.id === linha.id)
+    if (!atual) continue
+    for (const col of ["arquivo_convenio", "foto_principal"]) {
+      if (noBucket(atual[col])) {
+        linha[col] = atual[col]
+        mantidos++
+      }
+    }
+    if (Array.isArray(atual.fotos_divulgacao) && atual.fotos_divulgacao.some(noBucket)) {
+      linha.fotos_divulgacao = atual.fotos_divulgacao
+      mantidos++
+    }
+  }
+  if (mantidos) console.log(`  ${mantidos} arquivo(s) já no bucket mantidos`)
   await gravar("filiacao_convenios", convLinhas, "convenios")
-  const convDe = new Map(convLinhas.map((c) => [c.bubble_id, c.id]))
+  // Pelo cache inteiro, não pelas linhas gravadas: unidade de convênio
+  // editado aqui continua apontando para ele.
+  const convDe = new Map(convs.map((c) => [c._id, uuidDe(c._id)]))
 
   // o endereço de cada unidade vira uma linha em enderecos
   const endB = new Map(enderecosB.map((e) => [e._id, e]))
