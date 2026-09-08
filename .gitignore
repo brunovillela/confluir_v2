@@ -46,3 +46,4 @@ supabase/.temp/
 
 # Vinculo local com o projeto da Vercel (vercel link)
 .vercel
+.auditoria-bubble/
