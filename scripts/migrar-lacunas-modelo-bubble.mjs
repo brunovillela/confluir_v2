@@ -415,7 +415,8 @@ if (roda("convenios")) {
   console.log(`  ${unids.length} unidades · com endereço ${endLinhas.length} · com telefone ${unLinhas.filter((u) => u.telefones).length} · com e-mail ${unLinhas.filter((u) => u.emails).length}`)
   await gravar("enderecos", endLinhas, "enderecos das unidades")
   await gravar("filiacao_convenios_unidades", unLinhas, "unidades")
-  const arquivos = convLinhas.filter((c) => c.arquivo_convenio || c.foto_principal || c.fotos_divulgacao).length
+  const cdn = (v) => typeof v === "string" && (v.startsWith("//") || /^https?:\/\//i.test(v))
+  const arquivos = convLinhas.filter((c) => cdn(c.arquivo_convenio) || cdn(c.foto_principal)).length
   if (arquivos) console.log(`  ⚠ ${arquivos} convênios com arquivo/foto ainda no CDN do Bubble — trazer com migrar-documentos-bubble.mjs`)
 }
 
