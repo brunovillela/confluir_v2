@@ -66,6 +66,12 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "ferramentas_anomalias",
   "filiacao_coletiva",
   "filiacao_coletiva_itens",
+  // supabase/filiacao-lacunas-modelo.sql (08/09)
+  "filiacao_convenios",
+  "filiacao_convenios_categorias",
+  "filiacao_convenios_unidades",
+  "filiacao_reembolsos",
+  "filiacao_reembolsos_config",
   "filiacao_prontuario",
   "filiacao_recebe",
   "filiacao_recebe_comprovacao",
