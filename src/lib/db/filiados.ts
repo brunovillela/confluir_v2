@@ -4,7 +4,11 @@ import { tenantAtual } from "@/lib/tenant"
 import { estatisticasFontes, nomesDeEmpresas } from "@/lib/db/fontes"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
 import { contatosDoFiliado, type ContatosDoFiliado } from "@/lib/db/filiacao-contatos"
-import { ehArquivo, ehDoBubble } from "@/lib/db/filiacao-documentos"
+import {
+  ehArquivo,
+  ehDoBubble,
+  urlDocumentoDoVinculo,
+} from "@/lib/db/filiacao-documentos"
 import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
@@ -380,6 +384,9 @@ export type Vinculo = {
   temFicha: boolean
   /** Tem carta de desfiliação anexada? */
   temCarta: boolean
+  /** Links para abrir os documentos (assinados ou do Bubble); null = sem arquivo. */
+  fichaUrl: string | null
+  cartaUrl: string | null
   /** Algum dos dois ainda mora no CDN do Bubble, e não no nosso bucket. */
   documentoNoBubble: boolean
 }
@@ -641,19 +648,30 @@ export async function buscarPerfilFiliado(
   const noBubble = (valor: unknown) =>
     ehDoBubble(typeof valor === "string" ? valor : null)
 
-  const vinculos: Vinculo[] = (vinculosRes.data ?? []).map((v) => ({
-    ...v,
-    fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
-    reconstruido: Boolean(v.reconstruido_de),
-    temFicha: ehArquivo(
-      typeof v.ficha_filiacao === "string" ? v.ficha_filiacao : null
-    ),
-    temCarta: ehArquivo(
-      typeof v.carta_desfiliacao === "string" ? v.carta_desfiliacao : null
-    ),
-    documentoNoBubble:
-      noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
-  }))
+  const vinculos: Vinculo[] = await Promise.all(
+    (vinculosRes.data ?? []).map(async (v) => {
+      const ficha = typeof v.ficha_filiacao === "string" ? v.ficha_filiacao : null
+      const carta = typeof v.carta_desfiliacao === "string" ? v.carta_desfiliacao : null
+      const temFicha = ehArquivo(ficha)
+      const temCarta = ehArquivo(carta)
+      // As tags "ficha"/"carta" da página abrem o documento: resolve o link
+      // aqui (URL assinada de 1h, ou a do CDN do Bubble enquanto não migra).
+      const [fichaUrl, cartaUrl] = await Promise.all([
+        temFicha ? urlDocumentoDoVinculo(ficha) : Promise.resolve(null),
+        temCarta ? urlDocumentoDoVinculo(carta) : Promise.resolve(null),
+      ])
+      return {
+        ...v,
+        fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
+        reconstruido: Boolean(v.reconstruido_de),
+        temFicha,
+        temCarta,
+        fichaUrl,
+        cartaUrl,
+        documentoNoBubble: noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
+      }
+    })
+  )
 
   const vinculosTrabalhistas: VinculoTrabalhista[] = (
     trabalhistasRes.data ?? []

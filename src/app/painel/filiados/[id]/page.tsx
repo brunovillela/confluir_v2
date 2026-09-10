@@ -554,29 +554,41 @@ export default async function FiliadoPage({
                       </TableCell>
                       <TableCell>
                         <span className="flex flex-wrap items-center gap-1">
-                          <Badge
-                            variant={v.temFicha ? "success" : "outline"}
-                            title={
-                              v.temFicha
-                                ? "Ficha de filiação anexada"
-                                : "Sem ficha de filiação"
-                            }
-                          >
-                            ficha
-                          </Badge>
+                          {v.fichaUrl ? (
+                            <a
+                              href={v.fichaUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Abrir a ficha de filiação"
+                            >
+                              <Badge variant="success" className="hover:underline">
+                                ficha
+                              </Badge>
+                            </a>
+                          ) : (
+                            <Badge variant="outline" title="Sem ficha de filiação">
+                              ficha
+                            </Badge>
+                          )}
                           {(v.temCarta ||
                             v.data_desfiliacao ||
                             v.filiacao_data_saida) && (
-                            <Badge
-                              variant={v.temCarta ? "success" : "warning"}
-                              title={
-                                v.temCarta
-                                  ? "Carta de desfiliação anexada"
-                                  : "Desfiliado sem carta anexada"
-                              }
-                            >
-                              carta
-                            </Badge>
+                            v.cartaUrl ? (
+                              <a
+                                href={v.cartaUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Abrir a carta de desfiliação"
+                              >
+                                <Badge variant="success" className="hover:underline">
+                                  carta
+                                </Badge>
+                              </a>
+                            ) : (
+                              <Badge variant="warning" title="Desfiliado sem carta anexada">
+                                carta
+                              </Badge>
+                            )
                           )}
                           {v.documentoNoBubble && (
                             <Badge

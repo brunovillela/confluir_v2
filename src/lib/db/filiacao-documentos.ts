@@ -66,6 +66,13 @@ export type DocumentoDoVinculo = {
 }
 
 /** Link temporário do bucket privado; URL do Bubble passa direto. */
+/** URL para abrir um documento de vínculo: assinada (bucket) ou a do Bubble. */
+export async function urlDocumentoDoVinculo(
+  valor: string | null
+): Promise<string | null> {
+  return urlDe(valor)
+}
+
 async function urlDe(valor: string | null): Promise<string | null> {
   if (!valor) return null
   if (ehDoBubble(valor)) {

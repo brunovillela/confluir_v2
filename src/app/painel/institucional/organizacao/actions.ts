@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
+import {
+  atualizarDepartamento,
+  criarDepartamento,
+  excluirDepartamento,
+} from "@/lib/db/departamentos"
 import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarOrganizacao,
@@ -43,6 +48,48 @@ export async function salvarOrganizacaoAction(
 
   revalidatePath("/painel/institucional/organizacao")
   return { ok: "Organização salva." }
+}
+
+const UUID = /^[0-9a-f-]{36}$/i
+
+/** Cria ou atualiza um departamento com coordenador e integrantes. */
+export async function salvarDepartamentoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("configuracoes")
+  const id = texto(formData, "departamento_id")
+  const nome = texto(formData, "nome")
+  if (!nome) return { erro: "Informe o nome do departamento." }
+  const coordenador = texto(formData, "coordenador_id")
+  const integrantes = formData
+    .getAll("integrantes")
+    .map((v) => String(v))
+    .filter((v) => UUID.test(v))
+  const dados = {
+    nome,
+    coordenadorId: UUID.test(coordenador) ? coordenador : null,
+    integrantes,
+  }
+  const { erro } = id
+    ? await atualizarDepartamento(id, dados)
+    : await criarDepartamento(dados)
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/organizacao")
+  return { ok: id ? "Departamento salvo." : "Departamento criado." }
+}
+
+export async function excluirDepartamentoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("configuracoes")
+  const id = texto(formData, "departamento_id")
+  if (!UUID.test(id)) return { erro: "Departamento inválido." }
+  const { erro } = await excluirDepartamento(id)
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/organizacao")
+  return { ok: "Departamento excluído." }
 }
 
 export async function salvarSedeAction(
