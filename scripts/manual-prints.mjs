@@ -28,7 +28,27 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // CRUD de convênios e de reembolsos (09/09) — mesmo seed, seção 7.
+  // Rodada de 10/09: relatórios, cadastros pendentes, nova filiação, página do
+  // veículo (visão geral, histórico, saída), portal eventos e departamentos.
+  ["/painel/filiados", "filiados/lista.png", { fullPage: true }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000001", "filiados/perfil.png", { fullPage: true }],
+  ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png", { fullPage: true }],
+  ["/painel/filiados/relatorios", "filiados/relatorios.png"],
+  ["/painel/filiados/relatorios/personalizado?condicao=Ativo", "filiados/relatorio-personalizado.png", { fullPage: true }],
+  ["/painel/filiados/relatorios/carencia", "filiados/relatorio-carencia.png"],
+  ["/painel/filiados/novo?modo=massa", "filiados/importar.png"],
+  ["/painel/filiados/direitos", "filiados/direitos.png", { fullPage: true }],
+  ["/painel/veiculos", "veiculos/painel.png", { fullPage: true }],
+  ["/painel/veiculos/agendamentos", "veiculos/agendamentos.png", { fullPage: true }],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000002", "veiculos/veiculo.png", { fullPage: true }],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000002/historico", "veiculos/historico.png"],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao", "veiculos/movimentacao.png"],
+  ["/portal/eventos", "portal/eventos.png", { fullPage: true }],
+  ["/portal/inicio", "portal/inicio.png", { fullPage: true }],
+  ["/painel/institucional/organizacao", "institucional/organizacao.png", { scrollTo: "Departamentos", fullPage: true }],
+
+  // Rodadas anteriores (mantidas como referência).
+  /*
   [
     "/painel/filiados/convenios/e0e0e0e0-0000-4000-8000-000600000001",
     "filiados/convenio-editar.png",
@@ -39,6 +59,7 @@ const SHOTS = [
     "/painel/filiados/reembolsos/novo?filiado=77777777-7777-4777-8777-000000000005",
     "filiados/reembolso-novo.png",
   ],
+  */
 
   // Telas da virada da Filiação: convênios, reembolsos e outros contatos
   // (seed: scripts/seed-prints-eventos-direitos.mjs, seção 7). Já capturado.

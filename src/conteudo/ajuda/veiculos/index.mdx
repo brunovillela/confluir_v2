@@ -45,7 +45,7 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
   </Passo>
 </PassoAPasso>
 
-<Print src="veiculos/painel.png" alt="Painel do módulo Veículos com os cartões das áreas (agendamentos, abastecimentos, infrações, condutores, contratos), os indicadores da frota e a lista de veículos." legenda="O painel de Veículos: áreas, indicadores da frota e alertas." />
+<Print src="veiculos/painel.png" alt="Painel do módulo Veículos com o cabeçalho, os cartões das áreas em cinco colunas, os indicadores da frota, os alertas e a lista de veículos." legenda="O painel de Veículos: cabeçalho, áreas, indicadores da frota, alertas e a lista." />
 
 ## Situação de cada veículo
 
@@ -58,6 +58,54 @@ solicitações pendentes).
   Para quem tem gestão, o painel destaca o que vence em breve: **CNH** de
   condutor, **seguro** de veículo e **contrato de aluguel**. Cada alerta leva
   direto ao cadastro correspondente.
+</Aviso>
+
+## A página do veículo
+
+Abrir um veículo mostra a **visão geral** dele, nesta ordem:
+
+<PassoAPasso>
+  <Passo titulo="Cabeçalho e botões">
+    Placa, situação (disponível, em uso, em manutenção, inativo), modelo e o
+    hodômetro atual. Ao lado, os botões que levam às áreas do veículo:
+    **Registrar saída** ou **Registrar entrada** (muda conforme o veículo está
+    na garagem ou fora; só recepção e gestão), **Manutenções**, **Checklist**,
+    **Abastecimentos**, **Infrações** e **Histórico de uso**. O gestor ainda
+    tem **Inativar veículo**; o botão **Enviar para manutenção** fica dentro
+    de Manutenções.
+  </Passo>
+  <Passo titulo="Avisos">
+    Veículo fora (com quem, destino e previsão de retorno — em destaque se a
+    previsão já venceu), seguro vencido ou vencendo em 30 dias, seguro sem
+    vencimento cadastrado, contrato de aluguel terminando, checklist e
+    preventivas vencidas.
+  </Passo>
+  <Passo titulo="Indicadores de uso">
+    Km rodado (total e nos últimos 12 meses), usos registrados, média de km e
+    de dias por uso e consumo em km/l; depois, os condutores que mais rodaram
+    e os que mais ficam com o veículo.
+  </Passo>
+  <Passo titulo="Dados, documentos e histórico">
+    Os dados do cadastro, os documentos anexados (CRLV, apólice, CRV), o
+    contrato de aluguel ou o resumo de combustível, as dez movimentações mais
+    recentes e, para o gestor, o formulário de edição do cadastro.
+  </Passo>
+</PassoAPasso>
+
+<Print src="veiculos/veiculo.png" alt="Página de um veículo: placa com a situação Em uso, botões de registrar entrada, manutenções, checklist, abastecimentos, infrações e histórico de uso, avisos de veículo fora e checklist nunca realizado, indicadores de km rodado, usos, média e consumo, rankings de condutores, dados do veículo e histórico de uso." legenda="A visão geral do veículo: botões no topo, avisos, indicadores e histórico." />
+
+O botão **Histórico de uso** abre todas as saídas e entradas do veículo, com
+filtros por período, condutor e situação, paginação e o total de km do filtro.
+Quem tem gestão vê um lápis em cada linha para **corrigir um lançamento**
+errado (hodômetro, datas, condutor, sedes, destino): a quilometragem rodada e
+a situação do veículo são recalculadas.
+
+<Print src="veiculos/historico.png" alt="Histórico de uso de um veículo com os filtros de período, condutor e situação, o total de movimentações e km, e a tabela de saídas e entradas com o lápis de correção." legenda="O histórico completo: filtros, total do recorte e correção de lançamento pela gestão." />
+
+<Aviso tipo="nota" titulo="Dados do sistema antigo nos indicadores">
+  Movimentações antigas que nunca foram fechadas contam um dia cada, não até
+  hoje; usos com mais de 10.000 km numa saída só (erro de digitação de
+  hodômetro) ficam fora das somas.
 </Aviso>
 
 ## Erros comuns

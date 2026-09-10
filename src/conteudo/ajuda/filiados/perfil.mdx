@@ -30,7 +30,7 @@ Ver [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
 Três cartões com os dados cadastrais: nascimento e sexo; e-mails e telefones
 (com o selo de WhatsApp quando marcado); e o endereço completo.
 
-<Print src="filiados/perfil.png" alt="Perfil do filiado com o topo (nome, CPF, condição, botões Visualizar área e Editar), o gráfico de etapas e os cartões de identificação, contato e endereço." legenda="Perfil completo: topo com a condição, o gráfico de etapas e os dados cadastrais." />
+<Print src="filiados/perfil.png" alt="Perfil do filiado com o topo (nome, CPF, condição, botões Visualizar área e Editar), o gráfico de etapas, os cartões de identificação, contato e endereço e o histórico de filiação com as etiquetas de documentos e o triângulo de advertência nas linhas incompletas." legenda="Perfil completo: topo com a condição, etapas, dados cadastrais e o histórico de filiação com as pendências marcadas." />
 
 ### Outros contatos
 
@@ -59,8 +59,32 @@ reescreve o passado. Ver [Termos legais](/painel/ajuda/filiados/termos).
 ## Histórico de filiação
 
 A tabela reúne, num só lugar, os vínculos do associado: **fonte pagadora**,
-cargo, lotação, **matrícula**, datas de **admissão** e **demissão**, e as datas
-de **filiação** e **desfiliação**, além da condição de cada vínculo.
+cargo, lotação, **matrícula**, datas de **admissão** e **saída na fonte**, e as
+datas de **filiação** e **desfiliação**. Na edição do vínculo há ainda a
+**condição na fonte pagadora** (trabalhador da ativa, beneficiário aposentado
+ou pensionista — diferente da condição sindical, que é junto ao sindicato; o
+padrão segue o tipo da fonte: empresa → ativa, fundo de pensão → aposentado) e
+o **regime de trabalho** (administrativo, ininterrupto de revezamento, idem
+offshore ou misto).
+
+<Aviso tipo="nota" titulo="Uma condição sindical só">
+  A condição sindical mora no <strong>cadastro</strong> e move a esteira de
+  etapas. O vínculo não tem condição própria — o que ele guarda é a condição
+  <em>naquela fonte pagadora</em>.
+</Aviso>
+
+### O que o vínculo precisa ter
+
+Um vínculo completo tem fonte pagadora, matrícula, cargo, lotação, admissão na
+fonte, data de filiação, condição na fonte, regime de trabalho (só para
+trabalhador da ativa) e a **ficha de filiação** anexada. Saída na fonte, carta
+de desligamento e data de desfiliação só existem quando o vínculo termina, e
+por isso não contam como falta.
+
+Linha incompleta ganha um **triângulo de advertência** na coluna de documentos,
+com a quantidade do que falta; passe o mouse para ver a lista. Ao abrir o
+vínculo, um aviso no topo repete o que falta. É a mesma régua da tela
+[Cadastros pendentes](/painel/ajuda/filiados/cadastros-pendentes).
 
 <Aviso tipo="nota" titulo="Vínculo empregatício e de filiação juntos">
   Antes havia duas tabelas separadas com a mesma informação. Agora é uma só:
@@ -94,14 +118,13 @@ digitado manda.
 
 ### Os documentos de cada vínculo
 
-A coluna **Documentos** mostra, de relance, o que cada vínculo tem de papel:
+A coluna **Documentos** mostra só o que **existe**: a etiqueta **ficha** e a
+etiqueta **carta** aparecem em verde quando o arquivo está anexado, e **clicar
+nelas abre o documento** numa nova aba. Documento que falta não ganha etiqueta
+— a falta aparece pelo triângulo de advertência descrito acima. A etiqueta
+**no Bubble** marca arquivo ainda hospedado no sistema antigo.
 
-- **ficha** em verde — a ficha de filiação assinada está anexada.
-- **carta** — só aparece em vínculo desfiliado. Amarela significa desfiliação
-  sem a carta anexada.
-- **no Bubble** — o arquivo está no sistema antigo, não no Confluir.
-
-Clique no lápis do vínculo para abrir os documentos. Ali dá para anexar,
+Clique no lápis do vínculo para gerenciar os documentos. Ali dá para anexar,
 substituir, abrir e remover cada um deles, em PDF.
 
 <Aviso tipo="dica" titulo="Precisa colher a assinatura?">

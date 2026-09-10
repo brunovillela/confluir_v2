@@ -13,6 +13,12 @@ termos legais que o associado aceita.
     situação e exportação em CSV. Cada linha abre o
     [perfil completo](/painel/ajuda/filiados/perfil).
   </Passo>
+  <Passo titulo="Nova filiação">
+    Cadastro de um filiado pela secretaria, com dois modos no topo da tela:
+    **Inclusão individual** (formulário) e **Inclusão em massa** (planilha —
+    ver [Importar](/painel/ajuda/filiados/importar)).
+    <RequerPermissao>Gestão da filiação</RequerPermissao>
+  </Passo>
   <Passo titulo="Acompanhamento">
     Onde cada processo de filiação/desfiliação está parado, com o gráfico de
     etapas e a fila por etapa. Ver
@@ -31,13 +37,14 @@ termos legais que o associado aceita.
     A linha do tempo de cada associado — atendimentos, homologações, mudanças de
     etapa e apontamentos manuais.
   </Passo>
-  <Passo titulo="Termos legais e Importar">
-    Os textos de LGPD e de desconto (versionados) e a carga em massa por
-    planilha.
+  <Passo titulo="Configurações de filiação">
+    Carência por direito, regra de inadimplência e os termos legais (LGPD e
+    desconto, versionados). Ver
+    [Configurações de filiação](/painel/ajuda/filiados/direitos).
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados, com os cartões das áreas, os indicadores e a lista de associados com os filtros de situação no topo." legenda="O painel de Filiados: os cartões das áreas, os indicadores e a lista." />
+<Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados com a busca rápida, os cartões das áreas em cinco colunas, os indicadores, os gráficos de sexo, fonte pagadora, regime, condição na fonte e filiações × desfiliações, e os aniversariantes no fim." legenda="O painel de Filiados: busca rápida, áreas, indicadores e gráficos; os aniversariantes ficam no fim." />
 
 ## A situação (condição) da filiação
 
@@ -68,8 +75,30 @@ a gestão apenas visualiza.
 
 <Aviso tipo="dica" titulo="Busca sem acento">
   A busca por nome ignora acentos e maiúsculas — procurar por "jose" encontra
-  "José". CPF e matrícula podem ser digitados com ou sem pontuação.
+  "José". CPF e matrícula podem ser digitados com ou sem pontuação. Na busca
+  rápida do painel, quem tem a matrícula sindical ou o CPF <strong>exatamente
+  igual</strong> ao termo vem primeiro — "850" traz a matrícula 850 antes de
+  8504, 8505 e dos CPFs que começam com 850.
 </Aviso>
+
+## Os gráficos do painel
+
+Abaixo dos cartões e dos indicadores, o painel mostra o quadro de filiados
+ativos em gráficos, todos na paleta da entidade:
+
+- **Divisão por sexo** — duas rosquinhas: preenchimento do campo sexo e, entre
+  os que têm sexo informado, a divisão entre masculino, feminino e outro. Cada
+  fatia da legenda abre a lista filtrada.
+- **Filiados por fonte pagadora** — as dez maiores fontes.
+- **Regime de trabalho** e **Condição na fonte pagadora** — sobre os vínculos
+  em aberto dos filiados ativos.
+- **Filiações × desfiliações** — quantos vínculos foram filiados e desfiliados
+  no período (nesta semana, neste mês ou neste ano), com o saldo. Conta pela
+  data de filiação e de desfiliação gravada no vínculo, o que deixa de fora um
+  acerto lançado com data antiga.
+- **Registros por condição de filiação** — todos os cadastros, por condição.
+
+Os **aniversariantes de hoje** ficam no fim da página, depois dos gráficos.
 
 ## Erros comuns
 
