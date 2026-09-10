@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/filiacao-documentos"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
 import { invalidarCacheFichasPendentes } from "@/lib/db/filiacao-fichas-pendentes"
+import { CONDICOES_NA_FONTE, REGIMES_TRABALHO } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -31,15 +32,29 @@ function lerCampos(formData: FormData) {
     return DATA.test(v) ? v : null
   }
   const fonte = String(formData.get("fonte_pagadora_id") ?? "")
+  const opcao = <T extends string>(campo: string, lista: readonly T[]): T | null => {
+    const v = texto(campo)
+    return v && (lista as readonly string[]).includes(v) ? (v as T) : null
+  }
   return {
     fonte_pagadora_id: UUID.test(fonte) ? fonte : null,
     cargo: texto("cargo"),
     lotacao: texto("lotacao"),
     matricula: texto("matricula"),
     data_entrada_admissao: data("data_entrada_admissao"),
+    data_saida_demissao: data("data_saida_demissao"),
     data_filiacao: data("data_filiacao"),
     data_desfiliacao: data("data_desfiliacao"),
+    condicao_na_fonte: opcao("condicao_na_fonte", CONDICOES_NA_FONTE),
+    regime_trabalho: opcao("regime_trabalho", REGIMES_TRABALHO),
   }
+}
+
+function mensagemErro(acao: string, error: { code?: string; message: string }): string {
+  if (error.code === "42703" || error.code === "PGRST204") {
+    return "Condição na fonte ainda não configurada — rode supabase/vinculos-condicao-fonte-regime.sql no Supabase."
+  }
+  return `Não foi possível ${acao}: ${error.message}`
 }
 
 function validar(dados: ReturnType<typeof lerCampos>): string | null {
@@ -50,6 +65,13 @@ function validar(dados: ReturnType<typeof lerCampos>): string | null {
     dados.data_desfiliacao < dados.data_filiacao
   ) {
     return "A desfiliação não pode ser anterior à filiação."
+  }
+  if (
+    dados.data_entrada_admissao &&
+    dados.data_saida_demissao &&
+    dados.data_saida_demissao < dados.data_entrada_admissao
+  ) {
+    return "A saída na fonte não pode ser anterior à admissão."
   }
   return null
 }
@@ -83,7 +105,7 @@ export async function criarVinculo(
     filiado_id: filiadoId,
     emp_proprietaria_id: await tenantAtual(),
   })
-  if (error) return { erro: `Não foi possível criar: ${error.message}` }
+  if (error) return { erro: mensagemErro("criar", error) }
 
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
@@ -111,7 +133,7 @@ export async function atualizarVinculo(
     .update(dados, { count: "exact" })
     .eq("id", vinculoId)
     .eq("emp_proprietaria_id", await tenantAtual())
-  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  if (error) return { erro: mensagemErro("salvar", error) }
   if (count === 0) return { erro: "Vínculo não encontrado." }
 
   revalidatePath(`/painel/filiados/${filiadoId}`)

@@ -54,6 +54,7 @@ export default async function NovoVinculoPage({
         fontes={fontes.map((f) => ({
           id: f.id,
           nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
+          fundoPensao: f.fundo_pensao === true,
         }))}
       />
     </>

@@ -16,6 +16,7 @@ import { requirePermissao } from "@/lib/auth"
 import { documentosDoVinculo } from "@/lib/db/filiacao-documentos"
 import { formatarData } from "@/lib/formato"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { esquemaAusente } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { DocumentoDoVinculo } from "../documentos"
@@ -23,6 +24,33 @@ import { ExcluirVinculo } from "../excluir-vinculo"
 import { VinculoForm, type VinculoFormDados } from "../vinculo-form"
 
 export const metadata: Metadata = { title: "Vínculo de filiação — Confluir" }
+
+const COLS_VINCULO =
+  "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_saida_demissao, data_filiacao, data_desfiliacao, regime_trabalho"
+
+/**
+ * `condicao_na_fonte` nasce em supabase/vinculos-condicao-fonte-regime.sql;
+ * antes do SQL a página continua abrindo, só sem esse campo preenchido.
+ */
+async function lerVinculo(vinculoId: string) {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const completo = await admin
+    .from("filiacao_vinculos")
+    .select(`${COLS_VINCULO}, condicao_na_fonte`)
+    .eq("id", vinculoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!completo.error) return completo
+  if (!esquemaAusente(completo.error)) return completo
+  const basico = await admin
+    .from("filiacao_vinculos")
+    .select(COLS_VINCULO)
+    .eq("id", vinculoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  return { ...basico, data: basico.data ? { ...basico.data, condicao_na_fonte: null } : null }
+}
 
 export default async function EditarVinculoPage({
   params,
@@ -40,14 +68,7 @@ export default async function EditarVinculoPage({
       .eq("id", id)
       .eq("emp_proprietaria_id", await tenantAtual())
       .maybeSingle(),
-    admin
-      .from("filiacao_vinculos")
-      .select(
-        "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_filiacao, data_desfiliacao"
-      )
-      .eq("id", vinculoId)
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .maybeSingle(),
+    lerVinculo(vinculoId),
     listarFontesPagadoras(),
   ])
   if (!filiado || !vinculo || vinculo.filiado_id !== id) notFound()
@@ -83,6 +104,7 @@ export default async function EditarVinculoPage({
         fontes={fontes.map((f) => ({
           id: f.id,
           nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
+          fundoPensao: f.fundo_pensao === true,
         }))}
         vinculo={vinculo as VinculoFormDados}
       />

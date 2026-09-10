@@ -19,6 +19,31 @@ export const FILIACAO_CONDICOES = [
 export type FiliacaoCondicao = (typeof FILIACAO_CONDICOES)[number]
 
 /**
+ * Condição do filiado NA FONTE PAGADORA (por vínculo) — não confundir com a
+ * condição sindical acima. Mesmos rótulos que o Bubble usava no cadastro.
+ * Padrão por tipo de fonte: empresa → ativa; fundo de pensão → aposentado.
+ */
+export const CONDICOES_NA_FONTE = [
+  "Trabalhador(a) da ativa",
+  "Beneficiário(a) aposentado(a)",
+  "Beneficiário(a) pensionista",
+] as const
+export type CondicaoNaFonte = (typeof CONDICOES_NA_FONTE)[number]
+
+export function condicaoNaFontePadrao(fundoPensao: boolean): CondicaoNaFonte {
+  return fundoPensao ? "Beneficiário(a) aposentado(a)" : "Trabalhador(a) da ativa"
+}
+
+/** Regime de trabalho (turno) do vínculo. */
+export const REGIMES_TRABALHO = [
+  "Administrativo",
+  "Ininterrupto de revezamento",
+  "Ininterrupto de revezamento offshore",
+  "Misto",
+] as const
+export type RegimeTrabalho = (typeof REGIMES_TRABALHO)[number]
+
+/**
  * Grupos de condições usados nos indicadores do dashboard — o filtro
  * `condicao` da listagem aceita a chave do grupo além dos valores acima.
  */

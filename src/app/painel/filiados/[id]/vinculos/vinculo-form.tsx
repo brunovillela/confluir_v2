@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 
@@ -22,9 +22,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import {
+  CONDICOES_NA_FONTE,
+  REGIMES_TRABALHO,
+  condicaoNaFontePadrao,
+} from "@/lib/filiacao"
+
 import { atualizarVinculo, criarVinculo } from "./actions"
 
-export type OpcaoFonte = { id: string; nome: string }
+export type OpcaoFonte = { id: string; nome: string; fundoPensao: boolean }
 
 export type VinculoFormDados = {
   id: string
@@ -33,8 +39,11 @@ export type VinculoFormDados = {
   lotacao: string | null
   matricula: string | null
   data_entrada_admissao: string | null
+  data_saida_demissao: string | null
   data_filiacao: string | null
   data_desfiliacao: string | null
+  condicao_na_fonte: string | null
+  regime_trabalho: string | null
 }
 
 function CampoData({
@@ -74,6 +83,22 @@ export function VinculoForm({
   )
   const erro = estado.erro
 
+  // A condição na fonte segue o TIPO da fonte enquanto o usuário não a
+  // escolher: empresa → trabalhador da ativa; fundo de pensão → aposentado.
+  const [fonteId, setFonteId] = useState(vinculo?.fonte_pagadora_id ?? "")
+  const [condicao, setCondicao] = useState(vinculo?.condicao_na_fonte ?? "")
+  const [condicaoEscolhida, setCondicaoEscolhida] = useState(
+    Boolean(vinculo?.condicao_na_fonte)
+  )
+  const fonteEhFundo = (id: string) =>
+    fontes.find((f) => f.id === id)?.fundoPensao ?? false
+  const condicaoEfetiva =
+    condicao || (fonteId ? condicaoNaFontePadrao(fonteEhFundo(fonteId)) : "")
+  const escolherFonte = (id: string) => {
+    setFonteId(id)
+    if (!condicaoEscolhida) setCondicao(condicaoNaFontePadrao(fonteEhFundo(id)))
+  }
+
   return (
     <div className="grid gap-4">
       {erro && (
@@ -95,7 +120,8 @@ export function VinculoForm({
               <Label htmlFor="fonte_pagadora_id">Fonte pagadora *</Label>
               <Select
                 name="fonte_pagadora_id"
-                defaultValue={vinculo?.fonte_pagadora_id ?? undefined}
+                value={fonteId || undefined}
+                onValueChange={escolherFonte}
                 required
               >
                 <SelectTrigger id="fonte_pagadora_id" className="w-full">
@@ -130,10 +156,59 @@ export function VinculoForm({
                 defaultValue={vinculo?.lotacao ?? ""}
               />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="condicao_na_fonte">Condição na fonte pagadora</Label>
+              <Select
+                name="condicao_na_fonte"
+                value={condicaoEfetiva || undefined}
+                onValueChange={(v) => {
+                  setCondicao(v)
+                  setCondicaoEscolhida(true)
+                }}
+              >
+                <SelectTrigger id="condicao_na_fonte" className="w-full">
+                  <SelectValue placeholder="Escolha a fonte primeiro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDICOES_NA_FONTE.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Situação nesta fonte — diferente da condição sindical. Padrão:
+                empresa → ativa; fundo de pensão → aposentado.
+              </p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="regime_trabalho">Regime de trabalho (turno)</Label>
+              <Select
+                name="regime_trabalho"
+                defaultValue={vinculo?.regime_trabalho ?? undefined}
+              >
+                <SelectTrigger id="regime_trabalho" className="w-full">
+                  <SelectValue placeholder="Não informado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGIMES_TRABALHO.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <CampoData
               nome="data_entrada_admissao"
               rotulo="Admissão na fonte"
               valor={vinculo?.data_entrada_admissao ?? null}
+            />
+            <CampoData
+              nome="data_saida_demissao"
+              rotulo="Saída na fonte"
+              valor={vinculo?.data_saida_demissao ?? null}
             />
             <CampoData
               nome="data_filiacao"
