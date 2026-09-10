@@ -274,7 +274,12 @@ export type SugestaoFiliado = {
   filiacao_condicao: string | null
 }
 
-/** Sugestões da busca rápida (nome composto, CPF ou matrícula). */
+/**
+ * Sugestões da busca rápida (nome composto, CPF ou matrícula sindical).
+ * Termo numérico: quem tem a matrícula sindical ou o CPF EXATAMENTE igual
+ * vem primeiro — a busca por prefixo, ordenada por nome e cortada em
+ * `limite`, soterrava a matrícula 850 sob 8504, 8505 e CPFs 850…
+ */
 export async function sugerirFiliados(
   busca: string,
   limite = 8
@@ -282,15 +287,36 @@ export async function sugerirFiliados(
   const termo = busca.trim()
   if (termo.length < 3) return []
   const admin = await createAdminClient()
-  let q = admin
-    .from("filiacoes")
-    .select("id, nome_completo, cpf, matricula_sindical, filiacao_condicao")
-  q = aplicarFiltros(q, { busca: termo, situacao: "ativas" }, await tenantAtual())
+  const empId = await tenantAtual()
+  const colunas = "id, nome_completo, cpf, matricula_sindical, filiacao_condicao"
+
+  const digitos = termo.replace(/D/g, "")
+  const numerico = digitos.length >= 3 && /^[d.-s/]+$/.test(termo)
+  let exatos: SugestaoFiliado[] = []
+  if (numerico) {
+    const matricula = digitos.replace(/^0+/, "") || digitos
+    const { data, error } = await admin
+      .from("filiacoes")
+      .select(colunas)
+      .eq("emp_proprietaria_id", empId)
+      .not("filiacao_excluida", "is", true)
+      .or(`matricula_sindical.eq.${matricula},cpf.eq.${digitos}`)
+      .order("nome_completo", { ascending: true, nullsFirst: false })
+      .limit(limite)
+    if (error) throw new Error(`Falha na busca: ${error.message}`)
+    exatos = (data ?? []) as SugestaoFiliado[]
+  }
+
+  let q = admin.from("filiacoes").select(colunas)
+  q = aplicarFiltros(q, { busca: termo, situacao: "ativas" }, empId)
   const { data, error } = await q
     .order("nome_completo", { ascending: true, nullsFirst: false })
     .limit(limite)
   if (error) throw new Error(`Falha na busca: ${error.message}`)
-  return (data ?? []) as SugestaoFiliado[]
+
+  const vistos = new Set(exatos.map((e) => e.id))
+  const demais = ((data ?? []) as SugestaoFiliado[]).filter((s) => !vistos.has(s.id))
+  return [...exatos, ...demais].slice(0, limite)
 }
 
 /** Um filiado pelo id (para exibir/pré-selecionar um vínculo). Sem filtro de
