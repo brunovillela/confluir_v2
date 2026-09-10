@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CalendarClock } from "lucide-react"
+import { ArrowLeft, CalendarClock, KeyRound, LogIn } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,67 +16,58 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { SituacaoAgendamentoBadge } from "@/components/veiculos"
 import { requirePermissao } from "@/lib/auth"
-import { nomesDasSedes } from "@/lib/db/organizacao"
 import {
-  buscarCondutorDoUsuario,
   listarAgendamentos,
-  listarCondutores,
   listarMovimentacoes,
   listarVeiculos,
 } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
-import { podeAcessar } from "@/lib/permissoes"
 
 import {
   CancelarAgendamentoForm,
-  DevolucaoForm,
-  RetiradaForm,
-  SolicitarVeiculoForm,
+  TransferirVeiculoForm,
   TriagemAgendamentoForm,
 } from "./agendamento-forms"
 
 export const metadata: Metadata = { title: "Agendamentos de veículos — Confluir" }
 
+/**
+ * Gestão dos agendamentos pela RECEPÇÃO (controle de acesso): atende ou
+ * transfere o veículo, nega, cancela e acompanha quem está na rua. A saída
+ * e a entrada se registram na PÁGINA DO VEÍCULO; o condutor solicita no
+ * painel inicial.
+ */
 export default async function AgendamentosPage({
   searchParams,
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const sessao = await requirePermissao("veiculos", ["veiculos_gestao"])
-  const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
+  await requirePermissao("veiculos_recepcao", ["veiculos_gestao"])
   const { salvo } = await searchParams
 
-  const [meus, condutor, fila, movimentacoesAbertas, frota, condutoresRes, sedes] =
-    await Promise.all([
-      listarAgendamentos({ condutorId: sessao.usuario.id, limite: 30 }),
-      buscarCondutorDoUsuario(sessao.usuario.id),
-      gestor
-        ? listarAgendamentos({ situacoes: ["solicitada", "atendida", "retirada"] })
-        : Promise.resolve({ disponivel: true, agendamentos: [] }),
-      gestor
-        ? listarMovimentacoes({ abertas: true, fluxoNovo: true })
-        : Promise.resolve([]),
-      gestor ? listarVeiculos({ situacao: "ativos" }) : Promise.resolve([]),
-      gestor
-        ? listarCondutores()
-        : Promise.resolve({ disponivel: true, condutores: [] }),
-      nomesDasSedes(),
-    ])
+  const [fila, encerradas, movimentacoesAbertas, frota] = await Promise.all([
+    listarAgendamentos({ situacoes: ["solicitada", "atendida", "retirada"] }),
+    listarAgendamentos({
+      situacoes: ["concluida", "cancelada", "negada"],
+      limite: 20,
+    }),
+    listarMovimentacoes({ abertas: true, fluxoNovo: true }),
+    listarVeiculos({ situacao: "ativos" }),
+  ])
 
-  // Só movimentações do fluxo novo entram na lista de devolução pendente.
-  const abertasNovas = movimentacoesAbertas.filter((m) => m.aberta)
   const veiculosDisponiveis = frota
     .filter((v) => !v.inativo && !v.manutencao && v.emUso === false)
     .map((v) => ({
       id: v.id,
       rotulo: `${v.placa ?? "s/ placa"} — ${v.marca_modelo ?? ""}${v.lotacao ? ` (${v.lotacao})` : ""}`,
     }))
-  const condutoresAptos = condutoresRes.condutores
-    .filter((c) => c.apto)
-    .map((c) => ({ id: c.usuario_id, nome: c.usuarioNome ?? "(sem nome)" }))
 
   const solicitadas = fila.agendamentos.filter((a) => a.situacao === "solicitada")
   const atendidas = fila.agendamentos.filter((a) => a.situacao === "atendida")
+  const naRua = movimentacoesAbertas.filter((m) => m.aberta)
+  const historico = [...encerradas.agendamentos].sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? "")
+  )
 
   return (
     <>
@@ -91,7 +82,8 @@ export default async function AgendamentosPage({
           Agendamentos de veículos
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Solicitação de veículo, atendimento, retirada e devolução
+          Recepção: atender, transferir e cancelar solicitações. A saída e a
+          entrada do veículo se registram na página do veículo.
         </p>
       </div>
 
@@ -100,7 +92,7 @@ export default async function AgendamentosPage({
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>
       )}
-      {!meus.disponivel && (
+      {!fila.disponivel && (
         <Alert variant="warning">
           <AlertDescription>
             Agendamentos ainda não configurados — rode{" "}
@@ -109,77 +101,167 @@ export default async function AgendamentosPage({
         </Alert>
       )}
 
-      {condutor?.apto ? (
-        <GrupoColapsavel
-          titulo="Solicitar veículo"
-          descricao="Sua CNH está em dia — informe motivo, destino e datas"
-        >
-          <SolicitarVeiculoForm sedes={sedes} />
-        </GrupoColapsavel>
-      ) : (
-        <Alert variant="info">
-          <AlertDescription>
-            {condutor === null
-              ? "Você ainda não tem cadastro de condutor — procure a gestão da frota para se cadastrar e solicitar veículos."
-              : condutor.cnhVencida
-                ? "Sua CNH está vencida — atualize o cadastro com a gestão da frota para voltar a solicitar veículos."
-                : "Seu cadastro de condutor ainda não está autorizado a dirigir os veículos do sindicato."}
-          </AlertDescription>
-        </Alert>
-      )}
-
       <GrupoColapsavel
-        titulo="Minhas solicitações"
+        titulo="Fila de solicitações"
+        descricao="Atenda vinculando um veículo disponível, negue com motivo ou cancele"
         resumo={
           <span className="text-muted-foreground text-sm tabular-nums">
-            {meus.agendamentos.length}
+            {solicitadas.length}
           </span>
         }
-        aberto={!gestor}
+        aberto
       >
-        {meus.agendamentos.length === 0 ? (
+        {solicitadas.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Você ainda não solicitou veículos.
+            <CalendarClock className="mr-1 inline size-4" />
+            Nenhuma solicitação aguardando.
+          </p>
+        ) : (
+          <div className="grid gap-4">
+            {solicitadas.map((a) => (
+              <Card key={a.id}>
+                <CardContent className="grid gap-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                    <span className="font-medium">
+                      {a.condutorNome ?? "(condutor)"} —{" "}
+                      {formatarData(a.data_retirada)}
+                      {a.data_retorno ? ` a ${formatarData(a.data_retorno)}` : ""}
+                      {a.sede_retirada ? ` · ${a.sede_retirada}` : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Solicitado em {formatarData(a.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Motivo:</span>{" "}
+                    {a.motivo ?? "—"}
+                    {"  ·  "}
+                    <span className="text-muted-foreground">Destino:</span>{" "}
+                    {a.destino ?? "—"}
+                  </p>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <TriagemAgendamentoForm
+                      agendamentoId={a.id}
+                      veiculos={veiculosDisponiveis}
+                    />
+                    <CancelarAgendamentoForm
+                      agendamentoId={a.id}
+                      recepcao
+                      voltar="/painel/veiculos/agendamentos"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </GrupoColapsavel>
+
+      <GrupoColapsavel
+        titulo="Aguardando saída"
+        descricao="Solicitações com veículo reservado — a saída se registra na página do veículo"
+        resumo={
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {atendidas.length}
+          </span>
+        }
+        aberto={atendidas.length > 0}
+      >
+        {atendidas.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nenhuma saída pendente.</p>
+        ) : (
+          <div className="grid gap-4">
+            {atendidas.map((a) => (
+              <Card key={a.id}>
+                <CardContent className="grid gap-3">
+                  <p className="text-sm font-medium">
+                    {a.condutorNome ?? "(condutor)"} —{" "}
+                    {a.veiculoPlaca ?? "?"} {a.veiculoModelo ?? ""} ·{" "}
+                    {formatarData(a.data_retirada)}
+                    {a.data_retorno ? ` a ${formatarData(a.data_retorno)}` : ""}
+                    {a.sede_retirada ? ` · ${a.sede_retirada}` : ""}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {a.motivo ?? "—"}
+                    {a.destino ? ` · destino: ${a.destino}` : ""}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {a.veiculo_id && (
+                      <Button size="sm" asChild>
+                        <Link href={`/painel/veiculos/${a.veiculo_id}`}>
+                          <KeyRound />
+                          Registrar saída
+                        </Link>
+                      </Button>
+                    )}
+                    <TransferirVeiculoForm
+                      agendamentoId={a.id}
+                      veiculos={veiculosDisponiveis}
+                    />
+                    <CancelarAgendamentoForm
+                      agendamentoId={a.id}
+                      recepcao
+                      voltar="/painel/veiculos/agendamentos"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </GrupoColapsavel>
+
+      <GrupoColapsavel
+        titulo="Veículos na rua"
+        descricao="Movimentações em aberto — a entrada se registra na página do veículo"
+        resumo={
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {naRua.length}
+          </span>
+        }
+        aberto={naRua.length > 0}
+      >
+        {naRua.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nenhum veículo fora da garagem.
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Retirada</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead>Destino</TableHead>
                 <TableHead>Veículo</TableHead>
-                <TableHead>Situação</TableHead>
+                <TableHead>Condutor</TableHead>
+                <TableHead>Saída</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Previsão de retorno</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {meus.agendamentos.map((a) => (
-                <TableRow key={a.id}>
+              {naRua.map((m) => (
+                <TableRow key={m.id}>
                   <TableCell className="whitespace-nowrap">
-                    {formatarData(a.data_retirada)}
-                    {a.sede_retirada ? ` · ${a.sede_retirada}` : ""}
+                    {m.veiculoPlaca ?? "?"} {m.veiculoModelo ?? ""}
+                  </TableCell>
+                  <TableCell>{m.condutorNome ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatarData(m.data_retirada)}
+                    {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
                   </TableCell>
                   <TableCell className="max-w-52">
-                    <span className="line-clamp-1">{a.motivo ?? "—"}</span>
-                  </TableCell>
-                  <TableCell className="max-w-52">
-                    <span className="line-clamp-1">{a.destino ?? "—"}</span>
+                    <span className="line-clamp-1">{m.destino ?? "—"}</span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {a.veiculoPlaca ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <SituacaoAgendamentoBadge situacao={a.situacao} />
-                    {a.situacao === "negada" && a.negado_motivo && (
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {a.negado_motivo}
-                      </p>
-                    )}
+                    {m.previsao_retorno ? formatarData(m.previsao_retorno) : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {(a.situacao === "solicitada" || a.situacao === "atendida") && (
-                      <CancelarAgendamentoForm agendamentoId={a.id} />
+                    {m.veiculo_id && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/painel/veiculos/${m.veiculo_id}`}>
+                          <LogIn />
+                          Registrar entrada
+                        </Link>
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -189,150 +271,55 @@ export default async function AgendamentosPage({
         )}
       </GrupoColapsavel>
 
-      {gestor && (
-        <>
-          <GrupoColapsavel
-            titulo="Fila de solicitações"
-            descricao="Atenda vinculando um veículo disponível ou negue com motivo"
-            resumo={
-              <span className="text-muted-foreground text-sm tabular-nums">
-                {solicitadas.length}
-              </span>
-            }
-            aberto
-          >
-            {solicitadas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                <CalendarClock className="mr-1 inline size-4" />
-                Nenhuma solicitação aguardando.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                {solicitadas.map((a) => (
-                  <Card key={a.id}>
-                    <CardContent className="grid gap-3">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                        <span className="font-medium">
-                          {a.condutorNome ?? "(condutor)"} —{" "}
-                          {formatarData(a.data_retirada)}
-                          {a.data_retorno
-                            ? ` a ${formatarData(a.data_retorno)}`
-                            : ""}
-                          {a.sede_retirada ? ` · ${a.sede_retirada}` : ""}
-                        </span>
-                        <span className="text-muted-foreground">
-                          Solicitado em {formatarData(a.created_at)}
-                        </span>
-                      </div>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Motivo:</span>{" "}
-                        {a.motivo ?? "—"}
-                        {"  ·  "}
-                        <span className="text-muted-foreground">Destino:</span>{" "}
-                        {a.destino ?? "—"}
+      <GrupoColapsavel
+        titulo="Encerradas recentes"
+        descricao="Concluídas, canceladas e negadas — cancelar não apaga o registro"
+        resumo={
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {historico.length}
+          </span>
+        }
+      >
+        {historico.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nada encerrado ainda.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Retirada</TableHead>
+                <TableHead>Condutor</TableHead>
+                <TableHead>Veículo</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Situação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {historico.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {formatarData(a.data_retirada)}
+                  </TableCell>
+                  <TableCell>{a.condutorNome ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {a.veiculoPlaca ?? "—"}
+                  </TableCell>
+                  <TableCell className="max-w-52">
+                    <span className="line-clamp-1">{a.destino ?? "—"}</span>
+                  </TableCell>
+                  <TableCell>
+                    <SituacaoAgendamentoBadge situacao={a.situacao} />
+                    {a.situacao === "negada" && a.negado_motivo && (
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {a.negado_motivo}
                       </p>
-                      <TriagemAgendamentoForm
-                        agendamentoId={a.id}
-                        veiculos={veiculosDisponiveis}
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </GrupoColapsavel>
-
-          <GrupoColapsavel
-            titulo="Aguardando retirada"
-            descricao="Solicitações atendidas — registre o hodômetro na entrega das chaves"
-            resumo={
-              <span className="text-muted-foreground text-sm tabular-nums">
-                {atendidas.length}
-              </span>
-            }
-            aberto={atendidas.length > 0}
-          >
-            {atendidas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nenhuma retirada pendente.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                {atendidas.map((a) => (
-                  <Card key={a.id}>
-                    <CardContent className="grid gap-3">
-                      <p className="text-sm font-medium">
-                        {a.condutorNome ?? "(condutor)"} —{" "}
-                        {a.veiculoPlaca ?? "?"} {a.veiculoModelo ?? ""} ·{" "}
-                        {formatarData(a.data_retirada)}
-                        {a.sede_retirada ? ` · ${a.sede_retirada}` : ""}
-                      </p>
-                      <RetiradaForm
-                        agendamentoId={a.id}
-                        veiculoFixoId={a.veiculo_id}
-                        condutorFixoId={a.condutor_id}
-                        sedePadrao={a.sede_retirada}
-                        sedes={sedes}
-                        veiculos={[]}
-                        condutores={[]}
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </GrupoColapsavel>
-
-          <GrupoColapsavel
-            titulo="Veículos na rua"
-            descricao="Movimentações em aberto — registre a devolução no retorno"
-            resumo={
-              <span className="text-muted-foreground text-sm tabular-nums">
-                {abertasNovas.length}
-              </span>
-            }
-            aberto={abertasNovas.length > 0}
-          >
-            {abertasNovas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nenhum veículo com devolução pendente no fluxo novo.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                {abertasNovas.map((m) => (
-                  <Card key={m.id}>
-                    <CardContent className="grid gap-3">
-                      <p className="text-sm font-medium">
-                        {m.veiculoPlaca ?? "?"} {m.veiculoModelo ?? ""} com{" "}
-                        {m.condutorNome ?? "(condutor)"} desde{" "}
-                        {formatarData(m.data_retirada)} (hodômetro{" "}
-                        {m.hodometro_retirada?.toLocaleString("pt-BR") ?? "—"})
-                        {m.destino ? ` · destino: ${m.destino}` : ""}
-                      </p>
-                      <DevolucaoForm
-                        movimentacaoId={m.id}
-                        sedePadrao={m.sede_retirada}
-                        sedes={sedes}
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </GrupoColapsavel>
-
-          <GrupoColapsavel
-            titulo="Retirada avulsa"
-            descricao="Saída sem solicitação prévia — escolha veículo e condutor"
-          >
-            <RetiradaForm
-              sedes={sedes}
-              veiculos={veiculosDisponiveis}
-              condutores={condutoresAptos}
-            />
-          </GrupoColapsavel>
-        </>
-      )}
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </GrupoColapsavel>
     </>
   )
 }

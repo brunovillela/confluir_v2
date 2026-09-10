@@ -46,8 +46,14 @@ export default async function VeiculosPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  const sessao = await requirePermissao("veiculos", ["veiculos_gestao"])
+  const sessao = await requirePermissao("veiculos", [
+    "veiculos_gestao",
+    "veiculos_recepcao",
+  ])
   const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
+  const recepcao = podeAcessar(sessao.permissoes, "veiculos_recepcao", [
+    "veiculos_gestao",
+  ])
 
   const brutos = await searchParams
   const situacao =
@@ -104,9 +110,9 @@ export default async function VeiculosPage({
           ? `${preventivasVencidas} vencida${preventivasVencidas === 1 ? "" : "s"}`
           : undefined,
     },
-    {
+    recepcao && {
       titulo: "Agendamentos",
-      descricao: "Solicitações, retiradas e devoluções de veículos",
+      descricao: "Recepção: solicitações, veículos na rua e transferências",
       href: "/painel/veiculos/agendamentos",
       icone: CalendarClock,
       indicador:
@@ -161,7 +167,7 @@ export default async function VeiculosPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href="/painel/veiculos/agendamentos">
+            <Link href="/painel#meus-veiculos">
               <CalendarClock />
               Solicitar veículo
             </Link>
@@ -206,7 +212,7 @@ export default async function VeiculosPage({
         <CardResumo
           rotulo="Solicitações pendentes"
           valor={resumo.solicitacoesPendentes ?? "—"}
-          href="/painel/veiculos/agendamentos"
+          href={recepcao ? "/painel/veiculos/agendamentos" : undefined}
         />
         <CardResumo rotulo="Em manutenção" valor={resumo.emManutencao} />
       </div>

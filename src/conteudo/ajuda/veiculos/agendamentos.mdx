@@ -1,27 +1,73 @@
-O **agendamento** reserva um veículo para um condutor e registra a **retirada**
-e a **devolução** pelo hodômetro. É por ele que se sabe quem está com cada
-veículo e quanto rodou.
+O **agendamento** é a solicitação de um veículo por um condutor. A **saída** e a
+**entrada** do veículo são registradas pela **recepção** (controle de acesso),
+com o hodômetro. É por isso que se sabe quem está com cada veículo e quanto
+rodou.
 
-<RequerPermissao>Veículos</RequerPermissao>
+## Quem faz o quê
 
-## Solicitar e usar um veículo
+- **Condutor**: solicita o veículo no **painel inicial** (bloco *Veículos*), sem
+  precisar de acesso ao módulo. Lá também acompanha, edita e cancela as
+  solicitações em aberto.
+- **Recepção**: gerencia as solicitações em **Veículos → Agendamentos** e
+  registra a saída e a entrada na **página do veículo**.
+  <RequerPermissao>Recepção (entrada/saída e agendamentos)</RequerPermissao>
+
+## Solicitar um veículo (condutor)
 
 <PassoAPasso>
   <Passo titulo="Solicitar">
-    Em **Veículos → Agendamentos**, use **Solicitar veículo**: escolha o veículo,
-    o condutor e o período de uso. A solicitação entra como **pendente**.
+    No painel inicial, em **Veículos → Solicitar veículo**, informe motivo,
+    destino, data de retirada, retorno previsto e sede. A solicitação entra como
+    **Solicitada**. Só quem tem cadastro de condutor autorizado e CNH em dia
+    consegue solicitar.
   </Passo>
-  <Passo titulo="Retirada">
-    Na saída, registre o **hodômetro de partida** — a quilometragem com que o
-    veículo saiu. A partir daí ele fica **Em uso**.
+  <Passo titulo="Acompanhar">
+    As solicitações em aberto ficam no mesmo bloco, com a situação: **Solicitada**,
+    **Atendida** (já há veículo reservado) ou **Veículo retirado**.
   </Passo>
-  <Passo titulo="Devolução">
-    Na volta, registre o **hodômetro de chegada**. A diferença é a
-    **quilometragem rodada** no uso, e o veículo volta a ficar **Ativo**.
+  <Passo titulo="Editar ou cancelar">
+    Enquanto o veículo não sai, dá para **editar** os dados ou **cancelar**.
+    Cancelar não apaga: a solicitação fica registrada como **Cancelada**.
   </Passo>
 </PassoAPasso>
 
-<Print src="veiculos/agendamentos.png" alt="Tela de agendamento de veículo com o período de uso e os campos de hodômetro na retirada e na devolução." legenda="Agendamento com controle de hodômetro na retirada e na devolução." />
+## Gerenciar as solicitações (recepção)
+
+Em **Veículos → Agendamentos**:
+
+- **Fila de solicitações**: atenda vinculando um veículo disponível, negue com
+  motivo ou cancele. O condutor é avisado.
+- **Aguardando saída**: solicitações já com veículo. Dá para **transferir** a
+  reserva para outro veículo, cancelar ou ir direto para a página do veículo
+  registrar a saída.
+- **Veículos na rua**: quem está fora, desde quando, destino e previsão de
+  retorno, com atalho para registrar a entrada.
+- **Encerradas recentes**: concluídas, canceladas e negadas ficam no histórico.
+
+## Registrar saída e entrada (recepção)
+
+Na **página do veículo**, o bloco de entrada e saída muda conforme a situação:
+
+<PassoAPasso>
+  <Passo titulo="Veículo na garagem → Registrar saída">
+    Escolha o condutor (ou vincule a uma solicitação — ela já traz condutor e
+    destino e recebe **baixa**, passando a *Veículo retirado*), informe o
+    **hodômetro** e a sede. **Destino** e **previsão de retorno** são facultativos.
+  </Passo>
+  <Passo titulo="Veículo fora → Registrar entrada">
+    O bloco mostra desde quando o veículo está fora, com quem, o destino e a
+    previsão. Informe o **hodômetro na entrada**, a sede e uma observação
+    (avarias, pendências). A diferença dos hodômetros é a **quilometragem
+    rodada**, e o veículo volta a ficar **Disponível**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="O condutor não registra a saída">
+  Quem registra é o controle de acesso, na hora em que o veículo passa pela
+  portaria. Assim o hodômetro e o horário refletem a saída real.
+</Aviso>
+
+<Print src="veiculos/agendamentos.png" alt="Tela de agendamento de veículo com o período de uso e os campos de hodômetro na retirada e na devolução." legenda="Agendamento com controle de hodômetro na saída e na entrada." />
 
 ## Condutores e CNH
 
@@ -47,11 +93,13 @@ mantém a leitura de consumo (km/litro) coerente ao longo do tempo.
 
 ## Erros comuns
 
-- **"O veículo aparece Em uso e não consigo agendar."** Ele está num
-  agendamento aberto — registre a **devolução** (hodômetro de chegada) para
-  liberá-lo.
-- **"A quilometragem rodada saiu errada."** Confira os hodômetros de **partida**
-  e **chegada**; a rodagem é a diferença entre eles.
+- **"Não vejo o bloco Veículos no painel inicial."** Você não tem cadastro de
+  condutor — peça à gestão da frota em Condutores.
+- **"O veículo aparece Em uso e não consigo registrar a saída."** Ele está com
+  movimentação aberta — a recepção registra a **entrada** na página do veículo
+  para liberá-lo.
+- **"A quilometragem rodada saiu errada."** Confira os hodômetros de **saída**
+  e **entrada**; a rodagem é a diferença entre eles.
 - **"A importação de abastecimentos recusou linhas."** Todo abastecimento novo
   exige **veículo** e **hodômetro** — confira essas colunas na planilha.
 - **"Não deixa escolher um condutor."** Verifique a **CNH** dele (vencida) e se

@@ -12,6 +12,7 @@ import {
   UserRoundX,
 } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -33,6 +34,7 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { ConsultaFiliacao } from "./consulta-filiacao-widget"
+import { MeusVeiculos } from "./meus-veiculos"
 import { ResumoIAPainel } from "./resumo-ia-painel"
 
 export const metadata: Metadata = { title: "Painel — Confluir" }
@@ -99,8 +101,13 @@ function GrupoDoDia({
   )
 }
 
-export default async function PainelPage() {
+export default async function PainelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ salvo?: string }>
+}) {
   const sessao = await requireSessaoPainel()
+  const { salvo } = await searchParams
   const nome = String(
     sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? ""
   ).split(" ")[0]
@@ -133,6 +140,12 @@ export default async function PainelPage() {
           Hoje é {resumo.hoje} — bom trabalho.
         </p>
       </div>
+
+      {salvo && (
+        <Alert variant="success">
+          <AlertDescription>Registro salvo.</AlertDescription>
+        </Alert>
+      )}
 
       {contaCaixa && (
         <Link href="/painel/perfil/caixa" className="group block">
@@ -169,6 +182,8 @@ export default async function PainelPage() {
           </Card>
         </Link>
       )}
+
+      <MeusVeiculos usuarioId={sessao.usuario.id as string} />
 
       <div className="grid items-start gap-4 lg:grid-cols-4">
         {/* Coluna do dia (1/4) — grupos só aparecem com conteúdo */}

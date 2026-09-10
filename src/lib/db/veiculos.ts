@@ -579,6 +579,7 @@ async function montarAgendamentos(
 export async function listarAgendamentos(filtros: {
   situacoes?: SituacaoAgendamento[]
   condutorId?: string
+  veiculoId?: string
   limite?: number
 }): Promise<{ disponivel: boolean; agendamentos: Agendamento[] }> {
   const admin = await createAdminClient()
@@ -588,6 +589,7 @@ export async function listarAgendamentos(filtros: {
     .eq("emp_proprietaria_id", await tenantAtual())
   if (filtros.situacoes?.length) q = q.in("situacao", filtros.situacoes)
   if (filtros.condutorId) q = q.eq("condutor_id", filtros.condutorId)
+  if (filtros.veiculoId) q = q.eq("veiculo_id", filtros.veiculoId)
   const { data, error } = await q
     .order("data_retirada", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -613,28 +615,42 @@ export type NovoAgendamento = {
   sede_retirada: string
 }
 
+/** Condutor apto a solicitar: cadastro autorizado e CNH em dia. */
+async function validarCondutorSolicitante(
+  usuarioId: string
+): Promise<string | null> {
+  const condutor = await buscarCondutorDoUsuario(usuarioId)
+  if (!condutor) {
+    return "Você não tem cadastro de condutor — procure a gestão da frota."
+  }
+  if (!condutor.autorizado) {
+    return "Seu cadastro de condutor não está autorizado a dirigir."
+  }
+  if (condutor.cnhVencida) {
+    return "Sua CNH está vencida — atualize o cadastro para solicitar."
+  }
+  return null
+}
+
+function validarDatasAgendamento(
+  dataRetirada: string,
+  dataRetorno: string | null
+): string | null {
+  if (dataRetirada < hojeSP()) return "A data de retirada não pode estar no passado."
+  if (dataRetorno && dataRetorno < dataRetirada) {
+    return "O retorno previsto não pode ser antes da retirada."
+  }
+  return null
+}
+
 /** Solicitação de veículo — exige condutor autorizado com CNH em dia. */
 export async function criarAgendamento(
   novo: NovoAgendamento
 ): Promise<{ erro?: string }> {
-  const condutor = await buscarCondutorDoUsuario(novo.condutor_usuario_id)
-  if (!condutor) {
-    return {
-      erro: "Você não tem cadastro de condutor — procure a gestão da frota.",
-    }
-  }
-  if (!condutor.autorizado) {
-    return { erro: "Seu cadastro de condutor não está autorizado a dirigir." }
-  }
-  if (condutor.cnhVencida) {
-    return { erro: "Sua CNH está vencida — atualize o cadastro para solicitar." }
-  }
-  if (novo.data_retirada < hojeSP()) {
-    return { erro: "A data de retirada não pode estar no passado." }
-  }
-  if (novo.data_retorno && novo.data_retorno < novo.data_retirada) {
-    return { erro: "O retorno previsto não pode ser antes da retirada." }
-  }
+  const erroCondutor = await validarCondutorSolicitante(novo.condutor_usuario_id)
+  if (erroCondutor) return { erro: erroCondutor }
+  const erroDatas = validarDatasAgendamento(novo.data_retirada, novo.data_retorno)
+  if (erroDatas) return { erro: erroDatas }
 
   const admin = await createAdminClient()
   const { error } = await admin.from("veiculos_agendamentos").insert({
@@ -656,27 +672,98 @@ export async function criarAgendamento(
   return {}
 }
 
-/** Cancela a PRÓPRIA solicitação, enquanto não retirada. */
-export async function cancelarAgendamento(
+export type EdicaoAgendamento = Omit<NovoAgendamento, "condutor_usuario_id">
+
+/**
+ * O condutor edita a PRÓPRIA solicitação enquanto ela está em aberto
+ * (solicitada ou atendida). Se já havia veículo vinculado, ele é mantido —
+ * a recepção transfere se a mudança de datas exigir.
+ */
+export async function editarAgendamento(
   id: string,
-  usuarioId: string
+  usuarioId: string,
+  dados: EdicaoAgendamento
 ): Promise<{ erro?: string }> {
+  const erroDatas = validarDatasAgendamento(dados.data_retirada, dados.data_retorno)
+  if (erroDatas) return { erro: erroDatas }
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("veiculos_agendamentos")
-    .update({ situacao: "cancelada", updated_at: new Date().toISOString() })
+    .update({
+      motivo: dados.motivo,
+      destino: dados.destino,
+      data_retirada: dados.data_retirada,
+      data_retorno: dados.data_retorno,
+      sede_retirada_os: dados.sede_retirada,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .eq("condutor_id", usuarioId)
     .in("situacao", ["solicitada", "atendida"])
     .select("id")
-  if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
+  if (error) return { erro: `Não foi possível alterar: ${error.message}` }
   if ((data ?? []).length === 0) {
     return { erro: "Solicitação não encontrada ou já em andamento." }
   }
   return {}
 }
 
-/** Gestor atende a solicitação vinculando um veículo disponível. */
+/**
+ * Cancela uma solicitação em aberto. Cancelar NÃO exclui: a linha fica com
+ * situacao 'cancelada', quem cancelou e quando. O condutor só cancela a
+ * própria; a recepção (`gestao`) cancela qualquer uma — e o condutor é avisado.
+ */
+export async function cancelarAgendamento(
+  id: string,
+  usuarioId: string,
+  opcoes: { gestao?: boolean; motivo?: string | null } = {}
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const agora = new Date().toISOString()
+  const aplicar = (dados: Record<string, unknown>) => {
+    let q = admin
+      .from("veiculos_agendamentos")
+      .update(dados)
+      .eq("id", id)
+      .in("situacao", ["solicitada", "atendida"])
+    if (!opcoes.gestao) q = q.eq("condutor_id", usuarioId)
+    return q.select("id, condutor_id, data_retirada")
+  }
+  let { data, error } = await aplicar({
+    situacao: "cancelada",
+    updated_at: agora,
+    cancelado_por_id: usuarioId,
+    cancelado_em: agora,
+  })
+  if (error && esquemaAusente(error)) {
+    // Sem supabase/veiculos-recepcao.sql: cancela sem registrar quem foi.
+    ;({ data, error } = await aplicar({ situacao: "cancelada", updated_at: agora }))
+  }
+  if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
+  const linha = (data ?? [])[0]
+  if (!linha) return { erro: "Solicitação não encontrada ou já em andamento." }
+
+  if (opcoes.gestao && linha.condutor_id && String(linha.condutor_id) !== usuarioId) {
+    await notificarUsuario(
+      String(linha.condutor_id),
+      "Solicitação de veículo cancelada",
+      `Sua solicitação de veículo para ${formatarDataCurta(texto(linha.data_retirada))} foi cancelada pela recepção.${opcoes.motivo ? ` Motivo: ${opcoes.motivo}` : ""}`,
+      "/painel"
+    )
+  }
+  return {}
+}
+
+function formatarDataCurta(iso: string | null): string {
+  if (!iso) return "a data solicitada"
+  const [a, m, d] = iso.split("-")
+  return `${d}/${m}/${a}`
+}
+
+/**
+ * Recepção/gestão atende a solicitação vinculando um veículo disponível —
+ * ou TRANSFERE: numa solicitação já atendida, troca o veículo reservado.
+ */
 export async function atenderAgendamento(
   id: string,
   veiculoId: string,
@@ -693,6 +780,13 @@ export async function atenderAgendamento(
   if (veiculo.manutencao === true) {
     return { erro: "Este veículo está em manutenção." }
   }
+  const { data: anterior } = await admin
+    .from("veiculos_agendamentos")
+    .select("veiculo_id")
+    .eq("id", id)
+    .maybeSingle()
+  const transferencia =
+    Boolean(anterior?.veiculo_id) && String(anterior?.veiculo_id) !== veiculoId
 
   const { data, error } = await admin
     .from("veiculos_agendamentos")
@@ -714,9 +808,11 @@ export async function atenderAgendamento(
   if (linha.condutor_id) {
     await notificarUsuario(
       String(linha.condutor_id),
-      "Veículo reservado",
-      `Sua solicitação de veículo foi atendida: ${veiculo.marca_modelo ?? ""} placa ${veiculo.placa ?? "—"}. Retire na sede combinada.`,
-      "/painel/veiculos/agendamentos"
+      transferencia ? "Veículo da sua reserva foi trocado" : "Veículo reservado",
+      transferencia
+        ? `A recepção transferiu sua reserva para outro veículo: ${veiculo.marca_modelo ?? ""} placa ${veiculo.placa ?? "—"}.`
+        : `Sua solicitação de veículo foi atendida: ${veiculo.marca_modelo ?? ""} placa ${veiculo.placa ?? "—"}. Retire na sede combinada.`,
+      "/painel"
     )
   }
   return {}
@@ -748,7 +844,7 @@ export async function negarAgendamento(
       String(linha.condutor_id),
       "Solicitação de veículo negada",
       `Sua solicitação de veículo foi negada. Motivo: ${motivo}`,
-      "/painel/veiculos/agendamentos"
+      "/painel"
     )
   }
   return {}
@@ -773,6 +869,8 @@ export type Movimentacao = {
   hodometro_devolucao: number | null
   km_rodado: number | null
   observacao_retorno: string | null
+  /** Informada pela recepção na saída (facultativa). */
+  previsao_retorno: string | null
   aberta: boolean
 }
 
@@ -835,6 +933,7 @@ export async function listarMovimentacoes(filtros: {
       hodometro_devolucao: numero(m.hodometro_devolucao),
       km_rodado: numero(m.km_rodado),
       observacao_retorno: texto(m.observacao_retorno),
+      previsao_retorno: texto(m.previsao_retorno),
       aberta: !m.data_devolucao,
     }
   })
@@ -849,9 +948,16 @@ export type NovaRetirada = {
   sede: string
   motivo: string | null
   destino: string | null
+  /** Facultativa — a recepção informa quando o condutor souber. */
+  previsao_retorno: string | null
   registrado_por_id: string
 }
 
+/**
+ * SAÍDA do veículo, registrada pela recepção (controle de acesso). Pode
+ * nascer de uma solicitação (atendida, ou ainda só solicitada — aí a saída
+ * vale como atendimento) ou ser avulsa.
+ */
 export async function registrarRetirada(
   nova: NovaRetirada
 ): Promise<{ erro?: string }> {
@@ -892,6 +998,7 @@ export async function registrarRetirada(
     sede_retirada: nova.sede,
     motivo: nova.motivo,
     destino: nova.destino,
+    previsao_retorno: nova.previsao_retorno,
     disponivel: false,
     manutencao: false,
     registrado_por_id: nova.registrado_por_id,
@@ -903,14 +1010,21 @@ export async function registrarRetirada(
   }
 
   if (nova.agendamento_id) {
+    // Baixa da solicitação: vira 'retirada' com o veículo que de fato saiu.
+    // Se ainda estava só 'solicitada', a saída vale como atendimento.
+    const agora = new Date().toISOString()
     await admin
       .from("veiculos_agendamentos")
       .update({
         situacao: "retirada",
+        atendido: true,
         veiculo_id: nova.veiculo_id,
-        updated_at: new Date().toISOString(),
+        atendido_por_id: nova.registrado_por_id,
+        atendido_em: agora,
+        updated_at: agora,
       })
       .eq("id", nova.agendamento_id)
+      .in("situacao", ["solicitada", "atendida"])
   }
   return {}
 }
