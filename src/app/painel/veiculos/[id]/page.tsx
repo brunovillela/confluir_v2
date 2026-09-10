@@ -1,7 +1,16 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink, KeyRound, LogIn } from "lucide-react"
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  ExternalLink,
+  FileWarning,
+  Fuel,
+  KeyRound,
+  LogIn,
+  Wrench,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -20,38 +29,46 @@ import { EmUsoBadge } from "@/components/veiculos"
 import { AlertaChecklist } from "@/components/veiculos-checklist"
 import { AlertaManutencao } from "@/components/veiculos-manutencao"
 
-import { RecorrenciaVeiculoForm } from "../checklists/checklist-forms"
 import { requirePermissao } from "@/lib/auth"
+import { hojeSP } from "@/lib/db/comum"
 import { nomesDasSedes } from "@/lib/db/organizacao"
 import {
   obterConfig as obterConfigChecklist,
   situacaoDoVeiculo,
 } from "@/lib/db/veiculos-checklist"
 import {
-  listarManutencoes,
+  hodometroAtual,
   situacaoDosPlanos,
 } from "@/lib/db/veiculos-manutencoes"
 import {
   buscarVeiculo,
   consumoDoVeiculo,
-  listarAbastecimentos,
-  listarAgendamentos,
-  listarCondutores,
+  indicadoresDoVeiculo,
   listarContratos,
-  listarInfracoes,
   listarMovimentacoes,
   urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
-import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { atualizarVeiculoAction } from "../actions"
 import { VeiculoForm } from "../veiculo-form"
-import { EntradaVeiculoForm, SaidaVeiculoForm } from "./movimentacao-forms"
 import { VeiculoAcoes } from "./veiculo-acoes"
 
 export const metadata: Metadata = { title: "Veículo — Confluir" }
 
+/** Dias entre hoje e uma data ISO (negativo = já passou). */
+function diasAte(iso: string | null): number | null {
+  if (!iso) return null
+  const ms = Date.parse(iso) - Date.parse(hojeSP())
+  return Number.isFinite(ms) ? Math.round(ms / 86_400_000) : null
+}
+
+/**
+ * Visão geral do veículo: avisos, indicadores de uso, dados e histórico.
+ * As áreas com formulário (entrada/saída, manutenções, checklist,
+ * abastecimentos, infrações) vivem em subpáginas, nos botões do topo.
+ */
 export default async function VeiculoPage({
   params,
   searchParams,
@@ -64,7 +81,6 @@ export default async function VeiculoPage({
     "veiculos_recepcao",
   ])
   const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
-  // Recepção (controle de acesso): registra saída e entrada do veículo.
   const recepcao = podeAcessar(sessao.permissoes, "veiculos_recepcao", [
     "veiculos_gestao",
   ])
@@ -80,67 +96,29 @@ export default async function VeiculoPage({
   const veiculo = await buscarVeiculo(id)
   if (!veiculo) notFound()
 
-  const [movimentacoes, abastecimentos, infracoes, consumo, contratosRes, sedes] =
-    await Promise.all([
-      listarMovimentacoes({ veiculoId: id, limite: 10 }),
-      listarAbastecimentos({ veiculoId: id, pagina: 1 }),
-      listarInfracoes({ veiculoId: id, limite: 10 }),
-      consumoDoVeiculo(id),
-      gestor
-        ? listarContratos({ situacao: "vigentes" })
-        : Promise.resolve({ disponivel: true, contratos: [] }),
-      gestor || recepcao ? nomesDasSedes() : Promise.resolve<string[]>([]),
-    ])
-
-  // Bloco de entrada e saída (recepção): fora → entrada; na garagem → saída.
-  const movimentacaoAberta = veiculo.movimentacaoAbertaId
-    ? (movimentacoes.find((m) => m.id === veiculo.movimentacaoAbertaId) ?? null)
-    : null
-  const podeSair = recepcao && !veiculo.inativo && !veiculo.manutencao && !veiculo.emUso
-  const [condutoresRes, reservadas, solicitadas] = await Promise.all([
-    podeSair
-      ? listarCondutores()
-      : Promise.resolve({ disponivel: true, condutores: [] }),
-    podeSair
-      ? listarAgendamentos({ situacoes: ["atendida"], veiculoId: id })
-      : Promise.resolve({ disponivel: true, agendamentos: [] }),
-    podeSair
-      ? listarAgendamentos({ situacoes: ["solicitada"] })
-      : Promise.resolve({ disponivel: true, agendamentos: [] }),
+  const [
+    movimentacoes,
+    indicadores,
+    consumo,
+    hodometro,
+    contratosRes,
+    sedes,
+    checklist,
+    { config: cfgChecklist },
+    preventivas,
+  ] = await Promise.all([
+    listarMovimentacoes({ veiculoId: id, limite: 10 }),
+    indicadoresDoVeiculo(id),
+    consumoDoVeiculo(id),
+    hodometroAtual(id),
+    gestor
+      ? listarContratos({ situacao: "vigentes" })
+      : Promise.resolve({ disponivel: true, contratos: [] }),
+    gestor ? nomesDasSedes() : Promise.resolve<string[]>([]),
+    situacaoDoVeiculo(id),
+    obterConfigChecklist(),
+    situacaoDosPlanos(id),
   ])
-  const condutoresAptos = condutoresRes.condutores
-    .filter((c) => c.apto)
-    .map((c) => ({ id: c.usuario_id, nome: c.usuarioNome ?? "(sem nome)" }))
-  const periodo = (a: { data_retirada: string | null; data_retorno: string | null }) =>
-    `${formatarData(a.data_retirada)}${a.data_retorno ? ` a ${formatarData(a.data_retorno)}` : ""}`
-  const reservas = [
-    ...reservadas.agendamentos.map((a) => ({
-      id: a.id,
-      condutorId: a.condutor_id,
-      rotulo: `Reservado para ${a.condutorNome ?? "(condutor)"} — ${periodo(a)}${a.destino ? ` · ${a.destino}` : ""}`,
-      destino: a.destino,
-      data_retorno: a.data_retorno,
-      atendida: true,
-    })),
-    ...solicitadas.agendamentos.map((a) => ({
-      id: a.id,
-      condutorId: a.condutor_id,
-      rotulo: `Solicitado (sem veículo) por ${a.condutorNome ?? "(condutor)"} — ${periodo(a)}${a.destino ? ` · ${a.destino}` : ""}`,
-      destino: a.destino,
-      data_retorno: a.data_retorno,
-      atendida: false,
-    })),
-  ]
-
-  // Checklist: situação do veículo + a recorrência padrão da frota (esta última
-  // só interessa ao gestor, que pode definir prazo próprio para o veículo).
-  const [checklist, { config: cfgChecklist }, preventivas, manutencoes] =
-    await Promise.all([
-      situacaoDoVeiculo(id),
-      obterConfigChecklist(),
-      situacaoDosPlanos(id),
-      listarManutencoes({ veiculoId: id, limite: 20 }),
-    ])
 
   const [crlvUrls, apoliceUrl, crvUrl] = await Promise.all([
     Promise.all(veiculo.crlv_urls.map((c) => urlArquivoVeiculos(c))),
@@ -154,6 +132,14 @@ export default async function VeiculoPage({
     ...(apoliceUrl ? [{ rotulo: "Apólice do seguro", url: apoliceUrl }] : []),
     ...(crvUrl ? [{ rotulo: "CRV / transferência", url: crvUrl }] : []),
   ]
+
+  // ── Avisos do veículo ──────────────────────────────────────────────────
+  const movimentacaoAberta = veiculo.movimentacaoAbertaId
+    ? (movimentacoes.find((m) => m.id === veiculo.movimentacaoAbertaId) ?? null)
+    : null
+  const diasSeguro = diasAte(veiculo.seguro_vencimento)
+  const diasContrato = diasAte(veiculo.contrato?.vigencia_termino ?? null)
+  const diasPrevisao = diasAte(movimentacaoAberta?.previsao_retorno ?? null)
 
   return (
     <>
@@ -190,15 +176,58 @@ export default async function VeiculoPage({
               {veiculo.marca_modelo ?? "—"}
               {veiculo.cor ? ` · ${veiculo.cor}` : ""}
               {veiculo.lotacao ? ` · ${veiculo.lotacao}` : ""}
+              {hodometro !== null
+                ? ` · hodômetro ${hodometro.toLocaleString("pt-BR")} km`
+                : ""}
             </p>
           </div>
-          {gestor && (
-            <VeiculoAcoes
-              veiculoId={veiculo.id}
-              manutencao={veiculo.manutencao}
-              inativo={veiculo.inativo}
-            />
-          )}
+          <div className="grid gap-2">
+            <div className="flex flex-wrap gap-2">
+              {recepcao && !veiculo.inativo && (
+                <Button size="sm" asChild>
+                  <Link href={`/painel/veiculos/${veiculo.id}/movimentacao`}>
+                    {veiculo.emUso ? <LogIn /> : <KeyRound />}
+                    {veiculo.emUso ? "Registrar entrada" : "Registrar saída"}
+                  </Link>
+                </Button>
+              )}
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/painel/veiculos/${veiculo.id}/manutencoes`}>
+                  <Wrench />
+                  Manutenções
+                </Link>
+              </Button>
+              {checklist.ativo && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/painel/veiculos/${veiculo.id}/checklist`}>
+                    <ClipboardCheck />
+                    Checklist
+                  </Link>
+                </Button>
+              )}
+              {gestor && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/painel/veiculos/${veiculo.id}/abastecimentos`}>
+                    <Fuel />
+                    Abastecimentos
+                  </Link>
+                </Button>
+              )}
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/painel/veiculos/${veiculo.id}/infracoes`}>
+                  <FileWarning />
+                  Infrações
+                </Link>
+              </Button>
+            </div>
+            {gestor && (
+              <VeiculoAcoes
+                veiculoId={veiculo.id}
+                manutencao={veiculo.manutencao}
+                inativo={veiculo.inativo}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -207,80 +236,72 @@ export default async function VeiculoPage({
           <AlertDescription>Alterações salvas.</AlertDescription>
         </Alert>
       )}
-      {veiculo.emUso && veiculo.condutorEmUsoNome && !recepcao && (
-        <Alert variant="info">
-          <AlertDescription>
-            Veículo em uso com {veiculo.condutorEmUsoNome}.
+
+      {/* ── Avisos ─────────────────────────────────────────────────────── */}
+      {veiculo.emUso && (
+        <Alert variant={diasPrevisao !== null && diasPrevisao < 0 ? "warning" : "info"}>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Veículo fora com{" "}
+              <strong>{veiculo.condutorEmUsoNome ?? "condutor não informado"}</strong>
+              {movimentacaoAberta?.data_retirada
+                ? ` desde ${formatarData(movimentacaoAberta.data_retirada)}`
+                : ""}
+              {movimentacaoAberta?.destino ? ` · ${movimentacaoAberta.destino}` : ""}
+              {movimentacaoAberta?.previsao_retorno
+                ? diasPrevisao !== null && diasPrevisao < 0
+                  ? ` · previsão de retorno vencida há ${Math.abs(diasPrevisao)} ${Math.abs(diasPrevisao) === 1 ? "dia" : "dias"} (${formatarData(movimentacaoAberta.previsao_retorno)})`
+                  : ` · retorno previsto para ${formatarData(movimentacaoAberta.previsao_retorno)}`
+                : ""}
+            </span>
+            {recepcao && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/painel/veiculos/${veiculo.id}/movimentacao`}>
+                  <LogIn />
+                  Registrar entrada
+                </Link>
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
       )}
-
-      {recepcao && !veiculo.inativo && (
-        <Card>
-          <CardContent className="grid gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 font-semibold">
-                {veiculo.emUso ? <LogIn className="size-4" /> : <KeyRound className="size-4" />}
-                {veiculo.emUso ? "Registrar entrada" : "Registrar saída"}
-              </h2>
-              <Badge
-                variant="outline"
-                className={
-                  veiculo.emUso
-                    ? "border-warning/40 text-warning-fg"
-                    : "border-success/40 text-success-fg"
-                }
+      {!veiculo.inativo && veiculo.seguro_vencimento && diasSeguro !== null && diasSeguro <= 30 && (
+        <Alert variant={diasSeguro < 0 ? "destructive" : "warning"}>
+          <AlertDescription>
+            {diasSeguro < 0
+              ? `Seguro vencido há ${Math.abs(diasSeguro)} ${Math.abs(diasSeguro) === 1 ? "dia" : "dias"} (${formatarData(veiculo.seguro_vencimento)}).`
+              : diasSeguro === 0
+                ? "Seguro vence hoje."
+                : `Seguro vence em ${diasSeguro} ${diasSeguro === 1 ? "dia" : "dias"} (${formatarData(veiculo.seguro_vencimento)}).`}
+          </AlertDescription>
+        </Alert>
+      )}
+      {!veiculo.inativo && !veiculo.seguro_vencimento && (
+        <Alert variant="info">
+          <AlertDescription>
+            Sem vencimento de seguro cadastrado — informe em Editar cadastro
+            para receber o aviso.
+          </AlertDescription>
+        </Alert>
+      )}
+      {veiculo.contrato && diasContrato !== null && diasContrato <= 30 && (
+        <Alert variant={diasContrato < 0 ? "destructive" : "warning"}>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              {diasContrato < 0
+                ? `Contrato de aluguel ${veiculo.contrato.numero ?? ""} terminou em ${formatarData(veiculo.contrato.vigencia_termino)}.`
+                : `Contrato de aluguel ${veiculo.contrato.numero ?? ""} termina em ${diasContrato} ${diasContrato === 1 ? "dia" : "dias"} (${formatarData(veiculo.contrato.vigencia_termino)}).`}
+            </span>
+            {gestor && (
+              <Link
+                href={`/painel/veiculos/contratos/${veiculo.contrato.id}`}
+                className="text-primary text-sm hover:underline"
               >
-                {veiculo.emUso ? "Veículo fora" : "Na garagem"}
-              </Badge>
-            </div>
-            {veiculo.emUso ? (
-              movimentacaoAberta ? (
-                <>
-                  <p className="text-sm">
-                    Fora desde {formatarData(movimentacaoAberta.data_retirada)}
-                    {movimentacaoAberta.sede_retirada
-                      ? ` (${movimentacaoAberta.sede_retirada})`
-                      : ""}{" "}
-                    com <strong>{movimentacaoAberta.condutorNome ?? "condutor não informado"}</strong>
-                    {movimentacaoAberta.destino
-                      ? ` · destino: ${movimentacaoAberta.destino}`
-                      : ""}
-                    {movimentacaoAberta.previsao_retorno
-                      ? ` · previsão de retorno: ${formatarData(movimentacaoAberta.previsao_retorno)}`
-                      : ""}
-                    {movimentacaoAberta.hodometro_retirada !== null
-                      ? ` · saiu com ${movimentacaoAberta.hodometro_retirada.toLocaleString("pt-BR")} km`
-                      : ""}
-                  </p>
-                  <EntradaVeiculoForm
-                    veiculoId={veiculo.id}
-                    movimentacaoId={movimentacaoAberta.id}
-                    sedes={sedes}
-                    sedePadrao={movimentacaoAberta.sede_retirada}
-                  />
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Veículo em uso com {veiculo.condutorEmUsoNome ?? "condutor não informado"} —
-                  a movimentação aberta não está entre as mais recentes.
-                </p>
-              )
-            ) : veiculo.manutencao ? (
-              <p className="text-muted-foreground text-sm">
-                Veículo em manutenção — não sai da garagem até a gestão liberar.
-              </p>
-            ) : (
-              <SaidaVeiculoForm
-                veiculoId={veiculo.id}
-                sedes={sedes}
-                sedePadrao={veiculo.lotacao}
-                condutores={condutoresAptos}
-                reservas={reservas}
-              />
+                Abrir contrato
+              </Link>
             )}
-          </CardContent>
-        </Card>
+          </AlertDescription>
+        </Alert>
       )}
       {checklist.ativo && cfgChecklist.ativo && !veiculo.inativo && (
         <AlertaChecklist
@@ -297,130 +318,83 @@ export default async function VeiculoPage({
         />
       )}
 
-      {manutencoes.ativo && (
-        <GrupoColapsavel
-          titulo="Prontuário de manutenções"
-          descricao="Tudo que já foi feito neste veículo, com local, garantia e nota."
-          resumo={
-            <span className="text-muted-foreground text-xs">
-              {manutencoes.linhas.length === 0
-                ? "nenhuma manutenção registrada"
-                : `${manutencoes.linhas.length} registro(s) · última em ${formatarData(manutencoes.linhas[0].realizada_em)}`}
-            </span>
+      {/* ── Indicadores ────────────────────────────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Indicador
+          rotulo="Km rodado (total)"
+          valor={indicadores.kmTotal.toLocaleString("pt-BR")}
+          detalhe={`${indicadores.km12Meses.toLocaleString("pt-BR")} km nos últimos 12 meses`}
+        />
+        <Indicador
+          rotulo="Usos registrados"
+          valor={indicadores.usos.toLocaleString("pt-BR")}
+          detalhe={
+            indicadores.ultimoUsoEm
+              ? `último em ${formatarData(indicadores.ultimoUsoEm)}`
+              : "nenhuma movimentação"
           }
-        >
-          <div className="grid gap-4 pt-2">
-            {manutencoes.linhas.length > 0 && (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Serviço</TableHead>
-                      <TableHead>Local</TableHead>
-                      <TableHead className="text-right">Hodômetro</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {manutencoes.linhas.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="whitespace-nowrap">
-                          <Link
-                            href={`/painel/veiculos/manutencoes/${m.id}`}
-                            className="font-medium hover:underline"
-                          >
-                            {formatarData(m.realizada_em)}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              m.tipo === "corretiva" ? "warning" : "secondary"
-                            }
-                          >
-                            {m.tipo === "corretiva" ? "Corretiva" : "Preventiva"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-64 truncate">
-                          {m.descricao ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {m.local_nome ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {m.hodometro?.toLocaleString("pt-BR") ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {m.valor !== null ? formatarMoeda(m.valor) : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            {podeManutencao && (
-              <div>
-                <Button asChild size="sm" variant="outline">
-                  <Link
-                    href={`/painel/veiculos/manutencoes/nova?veiculo=${veiculo.id}`}
-                  >
-                    Registrar manutenção
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </div>
-        </GrupoColapsavel>
+        />
+        <Indicador
+          rotulo="Média por uso"
+          valor={
+            indicadores.mediaKmPorUso !== null
+              ? `${indicadores.mediaKmPorUso.toLocaleString("pt-BR")} km`
+              : "—"
+          }
+          detalhe={
+            indicadores.mediaDiasPorUso !== null
+              ? `${indicadores.mediaDiasPorUso.toLocaleString("pt-BR")} dias fora, em média`
+              : `${indicadores.diasFora.toLocaleString("pt-BR")} dias fora no total`
+          }
+        />
+        <Indicador
+          rotulo="Consumo"
+          valor={
+            consumo?.kmPorLitro
+              ? `${consumo.kmPorLitro.toLocaleString("pt-BR")} km/l`
+              : "—"
+          }
+          detalhe={
+            consumo
+              ? `${formatarMoeda(consumo.totalGasto)} em ${consumo.lancamentos} abastecimento${consumo.lancamentos === 1 ? "" : "s"}`
+              : "sem abastecimentos vinculados"
+          }
+        />
+      </div>
+
+      {(indicadores.condutoresPorKm.length > 0 ||
+        indicadores.condutoresPorDias.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardContent className="grid gap-2 text-sm">
+              <p className="font-medium">Condutores que mais rodaram</p>
+              <Ranking
+                linhas={indicadores.condutoresPorKm.map((c) => ({
+                  id: c.id,
+                  nome: c.nome,
+                  valor: `${c.km.toLocaleString("pt-BR")} km`,
+                  detalhe: `${c.usos} uso${c.usos === 1 ? "" : "s"}`,
+                }))}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="grid gap-2 text-sm">
+              <p className="font-medium">Condutores que mais ficam com o veículo</p>
+              <Ranking
+                linhas={indicadores.condutoresPorDias.map((c) => ({
+                  id: c.id,
+                  nome: c.nome,
+                  valor: `${c.dias.toLocaleString("pt-BR")} ${c.dias === 1 ? "dia" : "dias"}`,
+                  detalhe: `${c.usos} uso${c.usos === 1 ? "" : "s"}`,
+                }))}
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {gestor && checklist.ativo && (
-        <GrupoColapsavel
-          titulo="Checklist deste veículo"
-          descricao="Prazo próprio e acesso às verificações já realizadas."
-          resumo={
-            <span className="text-muted-foreground text-xs">
-              {checklist.nunca
-                ? "nunca realizado"
-                : `último em ${formatarData(checklist.ultimoEm)}`}
-              {checklist.recorrenciaPropria
-                ? ` · prazo próprio de ${checklist.recorrenciaPropria} dias`
-                : ` · segue o padrão da frota (${cfgChecklist.recorrencia_dias} dias)`}
-            </span>
-          }
-        >
-          <div className="grid gap-4 pt-2">
-            <RecorrenciaVeiculoForm
-              veiculoId={veiculo.id}
-              atual={checklist.recorrenciaPropria}
-              padrao={cfgChecklist.recorrencia_dias}
-            />
-            <div className="flex flex-wrap gap-2">
-              {podeChecklist && (
-                <Button asChild size="sm" variant="outline">
-                  <Link
-                    href={`/painel/veiculos/checklists/novo?veiculo=${veiculo.id}`}
-                  >
-                    Realizar checklist
-                  </Link>
-                </Button>
-              )}
-              {checklist.ultimoId && (
-                <Button asChild size="sm" variant="ghost">
-                  <Link
-                    href={`/painel/veiculos/checklists/${checklist.ultimoId}`}
-                  >
-                    Ver o último
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </div>
-        </GrupoColapsavel>
-      )}
-
+      {/* ── Dados ──────────────────────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardContent className="grid gap-2 text-sm">
@@ -442,6 +416,16 @@ export default async function VeiculoPage({
                 veiculo.seguro_vencimento
                   ? formatarData(veiculo.seguro_vencimento)
                   : null
+              }
+            />
+            <Linha
+              rotulo="Checklist"
+              valor={
+                !checklist.ativo
+                  ? null
+                  : checklist.nunca
+                    ? "nunca realizado"
+                    : `último em ${formatarData(checklist.ultimoEm)}`
               }
             />
           </CardContent>
@@ -472,7 +456,7 @@ export default async function VeiculoPage({
         <Card>
           <CardContent className="grid gap-2 text-sm">
             <p className="font-medium">
-              {veiculo.eh_alugado ? "Contrato de aluguel" : "Consumo"}
+              {veiculo.eh_alugado ? "Contrato de aluguel" : "Combustível"}
             </p>
             {veiculo.contrato ? (
               <>
@@ -505,54 +489,17 @@ export default async function VeiculoPage({
                   rotulo="Km na janela medida"
                   valor={consumo.kmRodados?.toLocaleString("pt-BR") ?? "—"}
                 />
-                <Linha
-                  rotulo="Média km/l"
-                  valor={consumo.kmPorLitro?.toLocaleString("pt-BR") ?? "—"}
-                />
               </>
             ) : (
               <p className="text-muted-foreground">
-                Sem lançamentos vinculados a este veículo.
+                Sem abastecimentos vinculados a este veículo.
               </p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {consumo && veiculo.contrato && (
-        <Card>
-          <CardContent className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-            <p className="font-medium">Consumo:</p>
-            <span>Gasto {formatarMoeda(consumo.totalGasto)}</span>
-            <span>{consumo.totalLitros.toLocaleString("pt-BR")} litros</span>
-            <span>
-              Média{" "}
-              {consumo.kmPorLitro
-                ? `${consumo.kmPorLitro.toLocaleString("pt-BR")} km/l`
-                : "—"}
-            </span>
-          </CardContent>
-        </Card>
-      )}
-
-      {gestor && (
-        <GrupoColapsavel
-          titulo="Editar cadastro"
-          descricao="Placa, modelo, lotação, seguro e vínculo com contrato"
-        >
-          <VeiculoForm
-            action={atualizarVeiculoAction}
-            dados={veiculo}
-            sedes={sedes}
-            contratoAtualId={veiculo.contrato_aluguel_id}
-            contratos={contratosRes.contratos.map((c) => ({
-              id: c.id,
-              rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
-            }))}
-          />
-        </GrupoColapsavel>
-      )}
-
+      {/* ── Histórico de uso ───────────────────────────────────────────── */}
       <GrupoColapsavel
         titulo="Histórico de uso"
         descricao="Retiradas e devoluções mais recentes"
@@ -569,8 +516,8 @@ export default async function VeiculoPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Retirada</TableHead>
-                <TableHead>Devolução</TableHead>
+                <TableHead>Saída</TableHead>
+                <TableHead>Entrada</TableHead>
                 <TableHead>Condutor</TableHead>
                 <TableHead>Destino</TableHead>
                 <TableHead className="text-right">Hodômetro</TableHead>
@@ -590,7 +537,10 @@ export default async function VeiculoPage({
                         variant="outline"
                         className="border-warning/40 text-warning-fg"
                       >
-                        Em aberto
+                        Fora
+                        {m.previsao_retorno
+                          ? ` · prev. ${formatarData(m.previsao_retorno)}`
+                          : ""}
                       </Badge>
                     ) : (
                       `${formatarData(m.data_devolucao)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
@@ -615,100 +565,70 @@ export default async function VeiculoPage({
         )}
       </GrupoColapsavel>
 
-      <GrupoColapsavel
-        titulo="Abastecimentos"
-        descricao="Lançamentos vinculados a este veículo (fluxo novo)"
-        resumo={
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {abastecimentos.total}
-          </span>
-        }
-      >
-        {abastecimentos.linhas.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Nenhum abastecimento vinculado — os lançamentos legados do Bubble
-            não têm veículo.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Posto</TableHead>
-                <TableHead>Combustível</TableHead>
-                <TableHead className="text-right">Litros</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Hodômetro</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {abastecimentos.linhas.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="whitespace-nowrap">
-                    {formatarDataHora(a.data_hora)}
-                  </TableCell>
-                  <TableCell>{a.posto ?? "—"}</TableCell>
-                  <TableCell>{a.combustivel ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {a.volume?.toLocaleString("pt-BR") ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(a.valor)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {a.hodometro?.toLocaleString("pt-BR") ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </GrupoColapsavel>
-
-      <GrupoColapsavel
-        titulo="Infrações"
-        descricao="Multas registradas neste veículo"
-        resumo={
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {infracoes.length}
-          </span>
-        }
-      >
-        {infracoes.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhuma infração.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Gravidade</TableHead>
-                <TableHead>Condutor</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {infracoes.map((i) => (
-                <TableRow key={i.id}>
-                  <TableCell>
-                    <Link
-                      href={`/painel/veiculos/infracoes/${i.id}`}
-                      className="text-primary whitespace-nowrap hover:underline"
-                    >
-                      {formatarData(i.infracao_data)}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{i.infracao_tipo ?? "—"}</TableCell>
-                  <TableCell>{i.condutorNome ?? "—"}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(i.custo)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </GrupoColapsavel>
+      {gestor && (
+        <GrupoColapsavel
+          titulo="Editar cadastro"
+          descricao="Placa, modelo, lotação, seguro e vínculo com contrato"
+        >
+          <VeiculoForm
+            action={atualizarVeiculoAction}
+            dados={veiculo}
+            sedes={sedes}
+            contratoAtualId={veiculo.contrato_aluguel_id}
+            contratos={contratosRes.contratos.map((c) => ({
+              id: c.id,
+              rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
+            }))}
+          />
+        </GrupoColapsavel>
+      )}
     </>
+  )
+}
+
+function Indicador({
+  rotulo,
+  valor,
+  detalhe,
+}: {
+  rotulo: string
+  valor: string
+  detalhe?: string
+}) {
+  return (
+    <Card>
+      <CardContent className="grid gap-1 py-4">
+        <span className="text-muted-foreground text-xs">{rotulo}</span>
+        <span className="text-2xl font-semibold tabular-nums">{valor}</span>
+        {detalhe && <span className="text-muted-foreground text-xs">{detalhe}</span>}
+      </CardContent>
+    </Card>
+  )
+}
+
+function Ranking({
+  linhas,
+}: {
+  linhas: { id: string; nome: string; valor: string; detalhe: string }[]
+}) {
+  if (linhas.length === 0) {
+    return <p className="text-muted-foreground">Sem dados.</p>
+  }
+  return (
+    <ol className="grid gap-1.5">
+      {linhas.map((l, i) => (
+        <li key={l.id} className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 truncate">
+            <span className="text-muted-foreground mr-2 tabular-nums">{i + 1}.</span>
+            {l.nome}
+          </span>
+          <span className="shrink-0 text-right tabular-nums">
+            <span className="font-medium">{l.valor}</span>
+            <span className="text-muted-foreground ml-2 text-xs">{l.detalhe}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

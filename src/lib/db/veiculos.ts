@@ -1343,6 +1343,139 @@ export async function consumoDoVeiculo(
   }
 }
 
+// ── Indicadores de uso do veículo ──────────────────────────────────────────
+
+export type CondutorIndicador = {
+  id: string
+  nome: string
+  km: number
+  usos: number
+  dias: number
+}
+
+export type IndicadoresVeiculo = {
+  /** Movimentações (retiradas) registradas, legado incluído. */
+  usos: number
+  usosAbertos: number
+  kmTotal: number
+  km12Meses: number
+  /** Soma dos dias fora da garagem (mesmo dia conta 1). */
+  diasFora: number
+  mediaKmPorUso: number | null
+  mediaDiasPorUso: number | null
+  ultimoUsoEm: string | null
+  /** Top 5 por quilometragem rodada. */
+  condutoresPorKm: CondutorIndicador[]
+  /** Top 5 por dias com o veículo. */
+  condutoresPorDias: CondutorIndicador[]
+}
+
+function diasEntre(inicio: string, fim: string): number {
+  const ms = Date.parse(fim) - Date.parse(inicio)
+  if (!Number.isFinite(ms) || ms < 0) return 1
+  return Math.floor(ms / 86_400_000) + 1
+}
+
+/**
+ * Um uso acima disto é erro de digitação de hodômetro (o legado tem usos de
+ * 78 mil km) — fica fora das somas para não distorcer o ranking.
+ */
+const KM_MAX_POR_USO = 10_000
+
+/**
+ * Indicadores calculados sobre TODAS as movimentações do veículo (o legado do
+ * Bubble tem km_rodado, datas e condutor preenchidos). Movimentação aberta do
+ * fluxo novo conta os dias até hoje; aberta LEGADA (sem devolução registrada
+ * no Bubble, há anos) conta só o dia da saída — senão inflaria os dias fora.
+ */
+export async function indicadoresDoVeiculo(
+  veiculoId: string
+): Promise<IndicadoresVeiculo> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_disponibilidade")
+    .select("condutor_id, km_rodado, data_retirada, data_devolucao, registrado_por_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("veiculo_id", veiculoId)
+    .order("data_retirada", { ascending: false })
+    .range(0, 4999)
+  if (error) throw new Error(`Falha ao calcular indicadores: ${error.message}`)
+  const linhas = (data ?? []) as Record<string, unknown>[]
+
+  const hoje = hojeSP()
+  const ha12Meses = new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
+  const porCondutor = new Map<string, CondutorIndicador>()
+  let kmTotal = 0
+  let km12Meses = 0
+  let diasFora = 0
+  let usosAbertos = 0
+  let usosComKm = 0
+  let usosComDias = 0
+  let ultimoUsoEm: string | null = null
+
+  for (const l of linhas) {
+    const km = numero(l.km_rodado)
+    const retirada = texto(l.data_retirada)
+    const devolucao = texto(l.data_devolucao)
+    const aberta = !devolucao
+    const fluxoNovo = Boolean(l.registrado_por_id)
+    if (aberta && fluxoNovo) usosAbertos++
+    if (retirada && (!ultimoUsoEm || retirada > ultimoUsoEm)) ultimoUsoEm = retirada
+
+    let dias = 0
+    if (retirada) {
+      dias = aberta && !fluxoNovo ? 1 : diasEntre(retirada, devolucao ?? hoje)
+      diasFora += dias
+      usosComDias++
+    }
+    if (km !== null && km > 0 && km <= KM_MAX_POR_USO) {
+      kmTotal += km
+      usosComKm++
+      if (retirada && retirada >= ha12Meses) km12Meses += km
+    }
+
+    const condutorId = texto(l.condutor_id)
+    if (!condutorId) continue
+    const c = porCondutor.get(condutorId) ?? {
+      id: condutorId,
+      nome: "",
+      km: 0,
+      usos: 0,
+      dias: 0,
+    }
+    c.usos++
+    c.km += km !== null && km > 0 ? km : 0
+    c.dias += dias
+    porCondutor.set(condutorId, c)
+  }
+
+  const nomes = await nomesDosUsuarios([...porCondutor.keys()])
+  const condutores = [...porCondutor.values()].map((c) => ({
+    ...c,
+    nome: nomes.get(c.id) ?? "(condutor sem cadastro)",
+  }))
+
+  return {
+    usos: linhas.length,
+    usosAbertos,
+    kmTotal,
+    km12Meses,
+    diasFora,
+    mediaKmPorUso: usosComKm > 0 ? Math.round(kmTotal / usosComKm) : null,
+    mediaDiasPorUso:
+      usosComDias > 0 ? Math.round((diasFora / usosComDias) * 10) / 10 : null,
+    ultimoUsoEm,
+    condutoresPorKm: [...condutores]
+      .filter((c) => c.km > 0)
+      .sort((a, b) => b.km - a.km)
+      .slice(0, 5),
+    condutoresPorDias: [...condutores]
+      .filter((c) => c.dias > 0)
+      .sort((a, b) => b.dias - a.dias || b.usos - a.usos)
+      .slice(0, 5),
+  }
+}
+
 // ── Infrações ──────────────────────────────────────────────────────────────
 
 export type Infracao = {

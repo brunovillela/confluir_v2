@@ -188,7 +188,7 @@ export default async function AgendamentosPage({
                   <div className="flex flex-wrap items-center gap-2">
                     {a.veiculo_id && (
                       <Button size="sm" asChild>
-                        <Link href={`/painel/veiculos/${a.veiculo_id}`}>
+                        <Link href={`/painel/veiculos/${a.veiculo_id}/movimentacao`}>
                           <KeyRound />
                           Registrar saída
                         </Link>
@@ -257,7 +257,7 @@ export default async function AgendamentosPage({
                   <TableCell className="text-right">
                     {m.veiculo_id && (
                       <Button size="sm" variant="outline" asChild>
-                        <Link href={`/painel/veiculos/${m.veiculo_id}`}>
+                        <Link href={`/painel/veiculos/${m.veiculo_id}/movimentacao`}>
                           <LogIn />
                           Registrar entrada
                         </Link>
