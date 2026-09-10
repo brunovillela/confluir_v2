@@ -51,7 +51,7 @@ export function AppHeader({ acoes }: { acoes?: React.ReactNode }) {
   const rotulos = useRotulosTrilha()
 
   return (
-    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-(--z-sticky) flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
+    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-(--z-sticky) flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur print:hidden">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4!" />
 

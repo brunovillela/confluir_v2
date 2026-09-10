@@ -1,5 +1,5 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
   ArrowRight,
   Award,
@@ -16,25 +16,25 @@ import {
   TrendingUp,
   TriangleAlert,
   Users,
-} from "lucide-react"
+} from "lucide-react";
 
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
-import { requirePermissao } from "@/lib/auth"
-import { resumoPessoal } from "@/lib/db/pessoal-dashboard"
-import { resumoSST } from "@/lib/db/pessoal-sst"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { requirePermissao } from "@/lib/auth";
+import { resumoPessoal } from "@/lib/db/pessoal-dashboard";
+import { resumoSST } from "@/lib/db/pessoal-sst";
 
-export const metadata: Metadata = { title: "Pessoal — Confluir" }
+export const metadata: Metadata = { title: "Pessoal — Confluir" };
 
-type Icone = React.ComponentType<{ className?: string }>
+type Icone = React.ComponentType<{ className?: string }>;
 
 function AlertaLink({
   href,
   texto,
   icone: IconeAlerta,
 }: {
-  href: string
-  texto: string
-  icone: Icone
+  href: string;
+  texto: string;
+  icone: Icone;
 }) {
   return (
     <Link href={href} className="group block">
@@ -44,7 +44,7 @@ function AlertaLink({
         <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
     </Link>
-  )
+  );
 }
 
 function AreaCard({
@@ -54,11 +54,11 @@ function AreaCard({
   descricao,
   icone,
 }: {
-  href: string
-  titulo: string
-  indicador: string
-  descricao: string
-  icone: Icone
+  href: string;
+  titulo: string;
+  indicador: string;
+  descricao: string;
+  icone: Icone;
 }) {
   return (
     <CartaoArea
@@ -68,7 +68,7 @@ function AreaCard({
       indicador={indicador}
       icone={icone}
     />
-  )
+  );
 }
 
 export default async function PessoalPage() {
@@ -79,112 +79,111 @@ export default async function PessoalPage() {
     "pessoal_diarias",
     "pessoal_aso",
     "pessoal_informes_rendimentos",
-  ])
-  const veGestao = sessao.permissoes["pessoal_gestao"] === true
-  const ve = (chave: string) =>
-    veGestao || sessao.permissoes[chave] === true
+  ]);
+  const veGestao = sessao.permissoes["pessoal_gestao"] === true;
+  const ve = (chave: string) => veGestao || sessao.permissoes[chave] === true;
 
-  const r = await resumoPessoal()
-  const sst = veGestao ? await resumoSST() : null
+  const r = await resumoPessoal();
+  const sst = veGestao ? await resumoSST() : null;
 
   const plural = (n: number, um: string, muitos: string) =>
-    `${n} ${n === 1 ? um : muitos}`
+    `${n} ${n === 1 ? um : muitos}`;
 
   // Alertas acionáveis — só aparecem com pendência E permissão na área.
-  const alertas: { href: string; texto: string; icone: Icone }[] = []
+  const alertas: { href: string; texto: string; icone: Icone }[] = [];
   if (veGestao && (r.diariasAguardando ?? 0) > 0) {
     alertas.push({
       href: "/painel/pessoal/diarias",
       icone: HandCoins,
       texto: `${plural(r.diariasAguardando!, "diária aguarda", "diárias aguardam")} avaliação.`,
-    })
+    });
   }
   if (veGestao && (r.reembolsosAguardando ?? 0) > 0) {
     alertas.push({
       href: "/painel/pessoal/reembolsos",
       icone: ReceiptText,
       texto: `${plural(r.reembolsosAguardando!, "reembolso do ACT aguarda", "reembolsos do ACT aguardam")} avaliação.`,
-    })
+    });
   }
   if (veGestao && (r.reembolsosAPagar ?? 0) > 0) {
     alertas.push({
       href: "/painel/pessoal/reembolsos",
       icone: ReceiptText,
       texto: `${plural(r.reembolsosAPagar!, "reembolso aprovado", "reembolsos aprovados")} a lançar no contracheque.`,
-    })
+    });
   }
   if (veGestao && r.gozosAguardando > 0) {
     alertas.push({
       href: "/painel/pessoal/ferias",
       icone: TreePalm,
       texto: `${plural(r.gozosAguardando, "gozo de férias aguarda", "gozos de férias aguardam")} autorização.`,
-    })
+    });
   }
   if (veGestao && r.feriasVencendo120 > 0) {
     alertas.push({
       href: "/painel/pessoal/ferias",
       icone: TreePalm,
       texto: `${plural(r.feriasVencendo120, "período de férias em aberto", "períodos de férias em aberto")} com 120 dias ou menos para o fim do concessivo.`,
-    })
+    });
   }
   if (ve("pessoal_anuenios") && r.anuenios30 > 0) {
     alertas.push({
       href: "/painel/pessoal/anuenios",
       icone: Award,
       texto: `${plural(r.anuenios30, "anuênio avança", "anuênios avançam")} nos próximos 30 dias.`,
-    })
+    });
   }
   if (ve("pessoal_niveis_salariais") && r.niveis30 > 0) {
     alertas.push({
       href: "/painel/pessoal/niveis",
       icone: TrendingUp,
       texto: `${plural(r.niveis30, "nível salarial com avanço previsto", "níveis salariais com avanço previsto")} nos próximos 30 dias.`,
-    })
+    });
   }
   if (ve("pessoal_aso") && r.asoVencendo90 > 0) {
     alertas.push({
       href: "/painel/pessoal/aso",
       icone: HeartPulse,
       texto: `${plural(r.asoVencendo90, "ASO vigente vencido ou vencendo", "ASOs vigentes vencidos ou vencendo")} nos próximos 90 dias.`,
-    })
+    });
   }
   if (veGestao && r.certificadosVencidos > 0) {
     alertas.push({
       href: "/painel/pessoal/treinamentos",
       icone: GraduationCap,
       texto: `${plural(r.certificadosVencidos, "certificado de treinamento vencido", "certificados de treinamento vencidos")}.`,
-    })
+    });
   }
   if (veGestao && r.ausentesHoje > 0) {
     alertas.push({
       href: "/painel/pessoal/atestados?aba=ausencias",
       icone: Stethoscope,
       texto: `${plural(r.ausentesHoje, "funcionário ausente", "funcionários ausentes")} hoje.`,
-    })
+    });
   }
   if (sst?.ativo && sst.treinamentosPendentes > 0) {
     alertas.push({
       href: "/painel/pessoal/atribuicoes/matriz",
       icone: GraduationCap,
       texto: `${plural(sst.treinamentosPendentes, "treinamento exigido pendente", "treinamentos exigidos pendentes")} na matriz de treinamento.`,
-    })
+    });
   }
   if (sst?.ativo && sst.atividadesSemAvaliacao > 0) {
     alertas.push({
       href: "/painel/pessoal/atribuicoes/atividades",
       icone: ShieldAlert,
       texto: `${plural(sst.atividadesSemAvaliacao, "atividade sem avaliação SST", "atividades sem avaliação SST")} ou com avaliação vencida.`,
-    })
+    });
   }
 
   // Cards de área — cada um com o indicador mais útil da área.
   const areas: {
-    mostrar: boolean
-    href: string
-    titulo: string
-    indicador: string
-    descricao: string
-    icone: Icone
+    mostrar: boolean;
+    href: string;
+    titulo: string;
+    indicador: string;
+    descricao: string;
+    icone: Icone;
   }[] = [
     {
       mostrar: veGestao || ve("pessoal_contracheque"),
@@ -201,7 +200,7 @@ export default async function PessoalPage() {
       indicador: plural(
         r.remessasContrachequesAbertas,
         "remessa aberta",
-        "remessas abertas"
+        "remessas abertas",
       ),
       descricao: "Remessas mensais, 13º, férias e adiantamentos",
       icone: ReceiptText,
@@ -213,7 +212,7 @@ export default async function PessoalPage() {
       indicador: plural(
         r.remessasPontoAbertas,
         "remessa aberta",
-        "remessas abertas"
+        "remessas abertas",
       ),
       descricao: "Espelhos de ponto e horas 70%/100%",
       icone: Clock4,
@@ -222,7 +221,11 @@ export default async function PessoalPage() {
       mostrar: veGestao,
       href: "/painel/pessoal/ferias",
       titulo: "Férias",
-      indicador: plural(r.feriasAbertas, "período em aberto", "períodos em aberto"),
+      indicador: plural(
+        r.feriasAbertas,
+        "período em aberto",
+        "períodos em aberto",
+      ),
       descricao: "Períodos, gozos e autorizações (regras CLT)",
       icone: TreePalm,
     },
@@ -319,9 +322,10 @@ export default async function PessoalPage() {
             ? `${sst.treinamentosPendentes + sst.atividadesSemAvaliacao} pendência${sst.treinamentosPendentes + sst.atividadesSemAvaliacao === 1 ? "" : "s"}`
             : plural(sst.atividades, "atividade", "atividades")
           : "Configurar",
-      descricao: sst && sst.ativo
-        ? "Atividades, perigos, riscos, matriz de treinamento e revalidação"
-        : "Rode supabase/pessoal-atribuicoes-sst.sql para ativar",
+      descricao:
+        sst && sst.ativo
+          ? "Atividades, perigos, riscos, matriz de treinamento e revalidação"
+          : "Rode supabase/pessoal-atribuicoes-sst.sql para ativar",
       icone: ShieldAlert,
     },
     {
@@ -331,14 +335,14 @@ export default async function PessoalPage() {
       indicador: plural(
         r.informesRemessasAbertas,
         "remessa aberta",
-        "remessas abertas"
+        "remessas abertas",
       ),
       descricao: "Remessas anuais para o imposto de renda",
       icone: FileBadge,
     },
-  ]
+  ];
 
-  const visiveis = areas.filter((a) => a.mostrar)
+  const visiveis = areas.filter((a) => a.mostrar);
 
   return (
     <>
@@ -351,6 +355,22 @@ export default async function PessoalPage() {
           departamento
         </p>
       </div>
+
+      <section aria-label="Áreas do Pessoal">
+        <h2 className="mb-2 text-sm font-medium">Áreas</h2>
+        <div className={GRADE_AREAS}>
+          {visiveis.map((a) => (
+            <AreaCard
+              key={a.href}
+              href={a.href}
+              titulo={a.titulo}
+              indicador={a.indicador}
+              descricao={a.descricao}
+              icone={a.icone}
+            />
+          ))}
+        </div>
+      </section>
 
       {alertas.length > 0 && (
         <section aria-label="Pendências">
@@ -370,22 +390,6 @@ export default async function PessoalPage() {
           </div>
         </section>
       )}
-
-      <section aria-label="Áreas do Pessoal">
-        <h2 className="mb-2 text-sm font-medium">Áreas</h2>
-        <div className={GRADE_AREAS}>
-          {visiveis.map((a) => (
-            <AreaCard
-              key={a.href}
-              href={a.href}
-              titulo={a.titulo}
-              indicador={a.indicador}
-              descricao={a.descricao}
-              icone={a.icone}
-            />
-          ))}
-        </div>
-      </section>
 
       <p className="text-muted-foreground text-xs">
         <BriefcaseBusiness className="mr-1 inline size-3.5 align-[-2px]" />
@@ -414,5 +418,5 @@ export default async function PessoalPage() {
         .
       </p>
     </>
-  )
+  );
 }

@@ -465,7 +465,8 @@
   [data-slot="sidebar"],
   [data-slot="sidebar-gap"],
   [data-slot="sidebar-container"],
-  [data-slot="sidebar-inset"] > header {
+  [data-slot="sidebar-inset"] > header,
+  [data-sidebar="rail"] {
     display: none !important;
   }
   body {

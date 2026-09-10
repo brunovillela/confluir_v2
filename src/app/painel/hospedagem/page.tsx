@@ -1,14 +1,14 @@
-import type { Metadata } from "next"
-import { BedDouble, CalendarCheck, Hotel, Percent, Ticket } from "lucide-react"
+import type { Metadata } from "next";
+import { BedDouble, CalendarCheck, Hotel, Percent, Ticket } from "lucide-react";
 
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,24 +16,30 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { requirePermissao } from "@/lib/auth"
-import { listarCupons, resumoHospedagem } from "@/lib/db/hospedagem"
-import { formatarData } from "@/lib/formato"
-import { podeAcessar } from "@/lib/permissoes"
+} from "@/components/ui/table";
+import { requirePermissao } from "@/lib/auth";
+import { listarCupons, resumoHospedagem } from "@/lib/db/hospedagem";
+import { formatarData } from "@/lib/formato";
+import { podeAcessar } from "@/lib/permissoes";
 
-import { SituacaoCupomBadge } from "./situacao-cupom-badge"
+import { SituacaoCupomBadge } from "./situacao-cupom-badge";
 
-export const metadata: Metadata = { title: "Hospedagem — Confluir" }
+export const metadata: Metadata = { title: "Hospedagem — Confluir" };
 
 export default async function HospedagemPage() {
   const sessao = await requirePermissao("filiacao_hospedagens", [
     "filiacao_hospedagens_gestao",
     "filiacao_hospedagens_edicao",
-  ])
-  const podeGerir = podeAcessar(sessao.permissoes, "filiacao_hospedagens_gestao")
+  ]);
+  const podeGerir = podeAcessar(
+    sessao.permissoes,
+    "filiacao_hospedagens_gestao",
+  );
 
-  const [resumo, cupons] = await Promise.all([resumoHospedagem(), listarCupons()])
+  const [resumo, cupons] = await Promise.all([
+    resumoHospedagem(),
+    listarCupons(),
+  ]);
 
   const indicadores = [
     {
@@ -60,7 +66,7 @@ export default async function HospedagemPage() {
       detalhe: "cupons reservados com check-in já passado",
       icone: Percent,
     },
-  ]
+  ];
 
   const atalhos = [
     {
@@ -72,7 +78,8 @@ export default async function HospedagemPage() {
     },
     {
       titulo: "Reservas (serviços)",
-      descricao: "Reservas efetivadas nos hotéis, agrupando os cupons dos hóspedes",
+      descricao:
+        "Reservas efetivadas nos hotéis, agrupando os cupons dos hóspedes",
       href: "/painel/hospedagem/servicos",
       icone: CalendarCheck,
     },
@@ -83,13 +90,13 @@ export default async function HospedagemPage() {
       icone: Hotel,
     },
   ].filter(Boolean) as {
-    titulo: string
-    descricao: string
-    href: string
-    icone: typeof Hotel
-  }[]
+    titulo: string;
+    descricao: string;
+    href: string;
+    icone: typeof Hotel;
+  }[];
 
-  const ultimos = cupons.slice(0, 8)
+  const ultimos = cupons.slice(0, 8);
 
   return (
     <>
@@ -98,23 +105,6 @@ export default async function HospedagemPage() {
         <p className="text-muted-foreground mt-1 text-xs">
           Hotéis parceiros, cupons de subsídio e reservas dos associados.
         </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {indicadores.map((ind) => (
-          <Card key={ind.titulo}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardDescription>{ind.titulo}</CardDescription>
-                <ind.icone className="text-muted-foreground size-4" />
-              </div>
-              <CardTitle className="text-2xl tabular-nums">{ind.valor}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-xs">{ind.detalhe}</p>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       <div className={GRADE_AREAS}>
@@ -129,6 +119,25 @@ export default async function HospedagemPage() {
         ))}
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {indicadores.map((ind) => (
+          <Card key={ind.titulo}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardDescription>{ind.titulo}</CardDescription>
+                <ind.icone className="text-muted-foreground size-4" />
+              </div>
+              <CardTitle className="text-2xl tabular-nums">
+                {ind.valor}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-xs">{ind.detalhe}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {ultimos.length > 0 && (
         <Card>
           <CardHeader>
@@ -140,9 +149,13 @@ export default async function HospedagemPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Filiado</TableHead>
-                    <TableHead className="hidden md:table-cell">Hotel</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Hotel
+                    </TableHead>
                     <TableHead>Check-in</TableHead>
-                    <TableHead className="hidden sm:table-cell">Emitido em</TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      Emitido em
+                    </TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -176,5 +189,5 @@ export default async function HospedagemPage() {
         </Card>
       )}
     </>
-  )
+  );
 }

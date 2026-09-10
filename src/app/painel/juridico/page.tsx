@@ -1,32 +1,32 @@
-import type { Metadata } from "next"
-import Link from "next/link"
-import { FileSignature, Gavel, ListChecks, Scale } from "lucide-react"
+import type { Metadata } from "next";
+import Link from "next/link";
+import { FileSignature, Gavel, ListChecks, Scale } from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
-import { requirePermissao } from "@/lib/auth"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { requirePermissao } from "@/lib/auth";
 import {
   contarReembolsosAguardando,
   indicadoresHomologacoes,
   indicadoresProcessos,
-} from "@/lib/db/juridico"
+} from "@/lib/db/juridico";
 
-export const metadata: Metadata = { title: "Jurídico — Confluir" }
+export const metadata: Metadata = { title: "Jurídico — Confluir" };
 
 export default async function JuridicoPage() {
   await requirePermissao("juridico_geral", [
     "juridico_gestao",
     "juridico_homologacoes",
-  ])
+  ]);
 
   const [ind, proc, reembolsosAguardando] = await Promise.all([
     indicadoresHomologacoes(),
     indicadoresProcessos(),
     contarReembolsosAguardando(),
-  ])
-  const maiorMotivo = Math.max(1, ...ind.porMotivo.map((m) => m.total))
+  ]);
+  const maiorMotivo = Math.max(1, ...ind.porMotivo.map((m) => m.total));
 
   return (
     <>
@@ -45,32 +45,30 @@ export default async function JuridicoPage() {
         </Button>
       </div>
 
-      {ind.total === 0 && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Nenhuma homologação encontrada — se a listagem também estiver vazia,
-            rode <code>supabase/juridico.sql</code> no SQL Editor do Supabase.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {reembolsosAguardando > 0 && (
-        <Alert variant="warning">
-          <AlertDescription>
-            <strong>{reembolsosAguardando.toLocaleString("pt-BR")}</strong>{" "}
-            {reembolsosAguardando === 1
-              ? "reembolso aguardando aprovação"
-              : "reembolsos aguardando aprovação"}
-            .{" "}
-            <Link
-              href="/painel/juridico/reembolsos"
-              className="font-medium underline"
-            >
-              Ver a fila
-            </Link>
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Áreas do módulo */}
+      <div>
+        <h2 className="mb-3 text-sm font-medium">Áreas</h2>
+        <div className={GRADE_AREAS}>
+          <CardArea
+            icone={FileSignature}
+            titulo="Homologações"
+            descricao="Rescisões trabalhistas homologadas pelo sindicato"
+            indicador={`${ind.total.toLocaleString("pt-BR")} ${ind.total === 1 ? "registro" : "registros"}`}
+            href="/painel/juridico/homologacoes"
+          />
+          <CardArea
+            icone={Gavel}
+            titulo="Processos"
+            descricao="Ações judiciais acompanhadas pelo sindicato"
+            indicador={
+              !proc.disponivel
+                ? "Configurar"
+                : `${proc.total.toLocaleString("pt-BR")} ${proc.total === 1 ? "processo" : "processos"}`
+            }
+            href="/painel/juridico/processos"
+          />
+        </div>
+      </div>
 
       {/* Indicadores — Homologações */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -124,30 +122,32 @@ export default async function JuridicoPage() {
         </div>
       )}
 
-      {/* Áreas do módulo */}
-      <div>
-        <h2 className="mb-3 text-sm font-medium">Áreas</h2>
-        <div className={GRADE_AREAS}>
-          <CardArea
-            icone={FileSignature}
-            titulo="Homologações"
-            descricao="Rescisões trabalhistas homologadas pelo sindicato"
-            indicador={`${ind.total.toLocaleString("pt-BR")} ${ind.total === 1 ? "registro" : "registros"}`}
-            href="/painel/juridico/homologacoes"
-          />
-          <CardArea
-            icone={Gavel}
-            titulo="Processos"
-            descricao="Ações judiciais acompanhadas pelo sindicato"
-            indicador={
-              !proc.disponivel
-                ? "Configurar"
-                : `${proc.total.toLocaleString("pt-BR")} ${proc.total === 1 ? "processo" : "processos"}`
-            }
-            href="/painel/juridico/processos"
-          />
-        </div>
-      </div>
+      {ind.total === 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Nenhuma homologação encontrada — se a listagem também estiver vazia,
+            rode <code>supabase/juridico.sql</code> no SQL Editor do Supabase.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {reembolsosAguardando > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <strong>{reembolsosAguardando.toLocaleString("pt-BR")}</strong>{" "}
+            {reembolsosAguardando === 1
+              ? "reembolso aguardando aprovação"
+              : "reembolsos aguardando aprovação"}
+            .{" "}
+            <Link
+              href="/painel/juridico/reembolsos"
+              className="font-medium underline"
+            >
+              Ver a fila
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Distribuição por motivo */}
       {ind.porMotivo.length > 0 && (
@@ -189,12 +189,12 @@ export default async function JuridicoPage() {
         </div>
       )}
     </>
-  )
+  );
 }
 
 function pct(parte: number, total: number): string | undefined {
-  if (!total) return undefined
-  return `${((parte / total) * 100).toFixed(1).replace(".", ",")}% do total`
+  if (!total) return undefined;
+  return `${((parte / total) * 100).toFixed(1).replace(".", ",")}% do total`;
 }
 
 function Indicador({
@@ -203,10 +203,10 @@ function Indicador({
   detalhe,
   href,
 }: {
-  rotulo: string
-  valor: number | string
-  detalhe?: string
-  href?: string
+  rotulo: string;
+  valor: number | string;
+  detalhe?: string;
+  href?: string;
 }) {
   const conteudo = (
     <CardContent>
@@ -218,15 +218,15 @@ function Indicador({
         <p className="text-muted-foreground mt-0.5 text-xs">{detalhe}</p>
       )}
     </CardContent>
-  )
-  if (!href) return <Card>{conteudo}</Card>
+  );
+  if (!href) return <Card>{conteudo}</Card>;
   return (
     <Link href={href} className="group">
       <Card className="group-hover:border-primary/40 h-full transition-colors">
         {conteudo}
       </Card>
     </Link>
-  )
+  );
 }
 
 function CardArea({
@@ -237,12 +237,12 @@ function CardArea({
   href,
   emBreve,
 }: {
-  icone: typeof Scale
-  titulo: string
-  descricao: string
-  indicador: string
-  href?: string
-  emBreve?: boolean
+  icone: typeof Scale;
+  titulo: string;
+  descricao: string;
+  indicador: string;
+  href?: string;
+  emBreve?: boolean;
 }) {
   return (
     <CartaoArea
@@ -253,5 +253,5 @@ function CardArea({
       href={href}
       emBreve={emBreve}
     />
-  )
+  );
 }

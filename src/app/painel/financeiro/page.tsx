@@ -1,22 +1,22 @@
-import type { Metadata } from "next"
-import { CircleDollarSign, Receipt, Wallet } from "lucide-react"
+import type { Metadata } from "next";
+import { CircleDollarSign, Receipt, Wallet } from "lucide-react";
 
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
-import { Donut } from "@/components/grafico-donut"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { Donut } from "@/components/grafico-donut";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { requirePermissao } from "@/lib/auth"
-import { listarContasCaixa } from "@/lib/db/caixa"
-import { resumoFinanceiro } from "@/lib/db/financeiro"
-import { formatarMoeda } from "@/lib/formato"
-import { podeAcessar } from "@/lib/permissoes"
+} from "@/components/ui/card";
+import { requirePermissao } from "@/lib/auth";
+import { listarContasCaixa } from "@/lib/db/caixa";
+import { resumoFinanceiro } from "@/lib/db/financeiro";
+import { formatarMoeda } from "@/lib/formato";
+import { podeAcessar } from "@/lib/permissoes";
 
-export const metadata: Metadata = { title: "Financeiro — Confluir" }
+export const metadata: Metadata = { title: "Financeiro — Confluir" };
 
 /** Cores de marca (laranja/navy) por fatia de situação. */
 const CORES_SITUACAO = [
@@ -24,33 +24,33 @@ const CORES_SITUACAO = [
   "var(--chart-marca-2)",
   "var(--chart-marca-3)",
   "var(--chart-marca-4)",
-]
+];
 
 export default async function FinanceiroPage() {
   const sessao = await requirePermissao("financeiro_caixa", [
     "financeiro_pagamento",
     "financeiro_leitura",
-  ])
+  ]);
 
   const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
     "financeiro_leitura",
-  ])
+  ]);
   const veCaixa = podeAcessar(sessao.permissoes, "financeiro_caixa", [
     "financeiro_caixa_admin",
     "financeiro_leitura",
-  ])
+  ]);
 
   const [resumo, caixas] = await Promise.all([
     resumoFinanceiro(),
     veCaixa
       ? listarContasCaixa()
       : Promise.resolve({ disponivel: false, contas: [] }),
-  ])
+  ]);
 
   const caixasAbertas = caixas.contas.filter(
-    (c) => c.ativa && c.situacao !== "fechada"
-  )
-  const saldoCaixas = caixasAbertas.reduce((acc, c) => acc + c.saldo, 0)
+    (c) => c.ativa && c.situacao !== "fechada",
+  );
+  const saldoCaixas = caixasAbertas.reduce((acc, c) => acc + c.saldo, 0);
 
   const indicadores = [
     {
@@ -72,11 +72,11 @@ export default async function FinanceiroPage() {
       icone: Wallet,
     },
   ].filter(Boolean) as {
-    titulo: string
-    valor: string
-    detalhe: string
-    icone: typeof Wallet
-  }[]
+    titulo: string;
+    valor: string;
+    detalhe: string;
+    icone: typeof Wallet;
+  }[];
 
   const atalhos = [
     veOrdens && {
@@ -98,11 +98,11 @@ export default async function FinanceiroPage() {
       icone: Wallet,
     },
   ].filter(Boolean) as {
-    titulo: string
-    descricao: string
-    href: string
-    icone: typeof Receipt
-  }[]
+    titulo: string;
+    descricao: string;
+    href: string;
+    icone: typeof Receipt;
+  }[];
 
   return (
     <>
@@ -111,6 +111,18 @@ export default async function FinanceiroPage() {
         <p className="text-muted-foreground mt-1 text-xs">
           Visão geral das ordens de pagamento e do caixa.
         </p>
+      </div>
+
+      <div className={GRADE_AREAS}>
+        {atalhos.map((a) => (
+          <CartaoArea
+            key={a.href}
+            titulo={a.titulo}
+            descricao={a.descricao}
+            href={a.href}
+            icone={a.icone}
+          />
+        ))}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -132,18 +144,6 @@ export default async function FinanceiroPage() {
         ))}
       </div>
 
-      <div className={GRADE_AREAS}>
-        {atalhos.map((a) => (
-          <CartaoArea
-            key={a.href}
-            titulo={a.titulo}
-            descricao={a.descricao}
-            href={a.href}
-            icone={a.icone}
-          />
-        ))}
-      </div>
-
       {resumo.abertasPorSituacao.length > 0 && (
         <Card>
           <CardHeader>
@@ -151,9 +151,8 @@ export default async function FinanceiroPage() {
               Ordens em aberto por situação
             </CardTitle>
             <CardDescription>
-              Onde estão as{" "}
-              {resumo.abertas.quantidade.toLocaleString("pt-BR")} ordens que
-              aguardam ação
+              Onde estão as {resumo.abertas.quantidade.toLocaleString("pt-BR")}{" "}
+              ordens que aguardam ação
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -196,5 +195,5 @@ export default async function FinanceiroPage() {
         </Card>
       )}
     </>
-  )
+  );
 }

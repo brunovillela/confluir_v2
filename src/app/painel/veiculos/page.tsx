@@ -1,5 +1,5 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Car,
   CalendarClock,
@@ -11,13 +11,13 @@ import {
   ScrollText,
   TriangleAlert,
   Wrench,
-} from "lucide-react"
+} from "lucide-react";
 
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,42 +25,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { EmUsoBadge } from "@/components/veiculos"
-import { requirePermissao } from "@/lib/auth"
-import { listarVeiculos, resumoVeiculos } from "@/lib/db/veiculos"
-import { totalVencidos } from "@/lib/db/veiculos-checklist"
-import { totalPreventivasVencidas } from "@/lib/db/veiculos-manutencoes"
-import { formatarData } from "@/lib/formato"
-import { podeAcessar } from "@/lib/permissoes"
+} from "@/components/ui/table";
+import { EmUsoBadge } from "@/components/veiculos";
+import { requirePermissao } from "@/lib/auth";
+import { listarVeiculos, resumoVeiculos } from "@/lib/db/veiculos";
+import { totalVencidos } from "@/lib/db/veiculos-checklist";
+import { totalPreventivasVencidas } from "@/lib/db/veiculos-manutencoes";
+import { formatarData } from "@/lib/formato";
+import { podeAcessar } from "@/lib/permissoes";
 
-export const metadata: Metadata = { title: "Veículos — Confluir" }
+export const metadata: Metadata = { title: "Veículos — Confluir" };
 
 const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]";
 
-type Params = { busca?: string; situacao?: string }
+type Params = { busca?: string; situacao?: string };
 
 export default async function VeiculosPage({
   searchParams,
 }: {
-  searchParams: Promise<Params>
+  searchParams: Promise<Params>;
 }) {
   const sessao = await requirePermissao("veiculos", [
     "veiculos_gestao",
     "veiculos_recepcao",
-  ])
-  const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
+  ]);
+  const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao");
   const recepcao = podeAcessar(sessao.permissoes, "veiculos_recepcao", [
     "veiculos_gestao",
-  ])
+  ]);
 
-  const brutos = await searchParams
+  const brutos = await searchParams;
   const situacao =
     brutos.situacao === "inativos" || brutos.situacao === "todos"
       ? brutos.situacao
-      : "ativos"
-  const busca = (brutos.busca ?? "").trim()
+      : "ativos";
+  const busca = (brutos.busca ?? "").trim();
 
   const [resumo, veiculos, checklistsVencidos, preventivasVencidas] =
     await Promise.all([
@@ -68,9 +68,9 @@ export default async function VeiculosPage({
       listarVeiculos({ busca, situacao }),
       totalVencidos(),
       totalPreventivasVencidas(),
-    ])
+    ]);
 
-  const hoje = new Date().toISOString().slice(0, 10)
+  const hoje = new Date().toISOString().slice(0, 10);
   const alertas = [
     ...resumo.cnhsVencendo.map((c) => ({
       chave: `cnh-${c.id}`,
@@ -87,7 +87,7 @@ export default async function VeiculosPage({
       texto: `Contrato de aluguel ${c.numero ?? ""} (${c.fornecedorNome ?? ""}) termina em ${formatarData(c.vigencia_termino)}`,
       href: `/painel/veiculos/contratos/${c.id}`,
     })),
-  ]
+  ];
 
   const areasVeiculos = [
     {
@@ -149,12 +149,12 @@ export default async function VeiculosPage({
       icone: ScrollText,
     },
   ].filter(Boolean) as {
-    titulo: string
-    descricao: string
-    href: string
-    icone: typeof CalendarClock
-    indicador?: string
-  }[]
+    titulo: string;
+    descricao: string;
+    href: string;
+    icone: typeof CalendarClock;
+    indicador?: string;
+  }[];
 
   return (
     <>
@@ -196,16 +196,6 @@ export default async function VeiculosPage({
         ))}
       </div>
 
-      {!resumo.disponivel && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Veículos ainda não configurados por completo — rode{" "}
-            <code>supabase/veiculos.sql</code> no SQL Editor do Supabase para
-            habilitar condutores, agendamentos e cobranças.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <CardResumo rotulo="Frota ativa" valor={resumo.frotaAtiva} />
         <CardResumo rotulo="Em uso agora" valor={resumo.emUso ?? "—"} />
@@ -216,6 +206,16 @@ export default async function VeiculosPage({
         />
         <CardResumo rotulo="Em manutenção" valor={resumo.emManutencao} />
       </div>
+
+      {!resumo.disponivel && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Veículos ainda não configurados por completo — rode{" "}
+            <code>supabase/veiculos.sql</code> no SQL Editor do Supabase para
+            habilitar condutores, agendamentos e cobranças.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {gestor && alertas.length > 0 && (
         <Card>
@@ -248,7 +248,11 @@ export default async function VeiculosPage({
           placeholder="Placa, modelo ou código"
           className={`${SELECT_FILTRO} w-64 max-w-full`}
         />
-        <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO}>
+        <select
+          name="situacao"
+          defaultValue={situacao}
+          className={SELECT_FILTRO}
+        >
           <option value="ativos">Ativos</option>
           <option value="inativos">Inativos</option>
           <option value="todos">Todos</option>
@@ -303,11 +307,17 @@ export default async function VeiculosPage({
                     </TableCell>
                     <TableCell>
                       {v.inativo ? (
-                        <Badge variant="outline" className="text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground"
+                        >
                           Inativo
                         </Badge>
                       ) : v.manutencao ? (
-                        <Badge variant="outline" className="border-warning/40 text-warning-fg">
+                        <Badge
+                          variant="outline"
+                          className="border-warning/40 text-warning-fg"
+                        >
                           Manutenção
                         </Badge>
                       ) : (
@@ -323,7 +333,7 @@ export default async function VeiculosPage({
         </CardContent>
       </Card>
     </>
-  )
+  );
 }
 
 function CardResumo({
@@ -331,9 +341,9 @@ function CardResumo({
   valor,
   href,
 }: {
-  rotulo: string
-  valor: number | string
-  href?: string
+  rotulo: string;
+  valor: number | string;
+  href?: string;
 }) {
   const conteudo = (
     <CardContent>
@@ -342,13 +352,13 @@ function CardResumo({
         {typeof valor === "number" ? valor.toLocaleString("pt-BR") : valor}
       </p>
     </CardContent>
-  )
-  if (!href) return <Card>{conteudo}</Card>
+  );
+  if (!href) return <Card>{conteudo}</Card>;
   return (
     <Link href={href} className="group">
       <Card className="group-hover:border-primary/40 transition-colors">
         {conteudo}
       </Card>
     </Link>
-  )
+  );
 }

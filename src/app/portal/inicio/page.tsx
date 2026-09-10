@@ -12,6 +12,7 @@ import {
   UserPen,
   UsersRound,
   Vote,
+  Sparkles,
 } from "lucide-react"
 
 import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
@@ -22,8 +23,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { tenantAtual } from "@/lib/tenant"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { eventosParaFiliado } from "@/lib/db/eventos-portal"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
 import { ultimasNoticias } from "@/lib/db/painel"
@@ -63,9 +66,9 @@ const SERVICOS = [
     icone: Vote,
   },
   {
-    titulo: "Agenda",
-    descricao: "Eventos e atividades abertas aos associados",
-    href: "/portal/agenda",
+    titulo: "Eventos e agenda",
+    descricao: "Inscrições abertas, suas inscrições e a agenda de atividades",
+    href: "/portal/eventos",
     icone: CalendarDays,
   },
   {
@@ -80,12 +83,15 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos, assembleias, oposicoes, coletiva] = await Promise.all([
+  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
     filiado.cpf ? oposicoesParaFiliado(filiado.cpf) : Promise.resolve([]),
     situacaoColetivaDoFiliado(filiado.filiacaoId),
+    eventosParaFiliado(filiado.cpf, await tenantAtual())
+      .then((l) => l.filter((e) => e.aberta && !e.inscrito))
+      .catch(() => []),
   ])
 
   return (
@@ -295,10 +301,37 @@ export default async function PortalInicioPage() {
           </Card>
         )}
 
+        {inscricoesAbertas.length > 0 && (
+          <Card className="border-primary/50 bg-primary/5 ring-1 ring-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="text-primary size-4" />
+                Inscrições abertas
+              </CardTitle>
+            </CardHeader>
+            <ul className="grid gap-2 px-6 pb-5">
+              {inscricoesAbertas.slice(0, 3).map((e) => (
+                <li key={e.evento.id} className="text-sm">
+                  <span className="font-medium">{e.evento.titulo ?? "(sem título)"}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    {formatarDataHora(e.evento.inicio)}
+                    {e.evento.local ? ` · ${e.evento.local}` : ""}
+                  </span>
+                </li>
+              ))}
+              <li>
+                <Button asChild size="sm">
+                  <Link href="/portal/eventos">Ver e inscrever-se</Link>
+                </Button>
+              </li>
+            </ul>
+          </Card>
+        )}
+
         {eventos.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Próximos eventos</CardTitle>
+              <CardTitle className="text-base">Agenda de atividades</CardTitle>
             </CardHeader>
             <ul className="grid gap-2 px-6 pb-5">
               {eventos.map((e) => (

@@ -63,6 +63,11 @@ crie/ajuste um token — não escreva hex, `oklch()` nem classes tipo
   (`?pagina=`/`?porPagina=`, prefixo quando há 2+ tabelas na página).
   Padrões: **30** itens em página dedicada à lista, **10** em página
   concorrida (lista dividindo espaço com cards/formulários).
+- **Ordem das seções num hub de módulo** (decisão do Bruno, 10/09/2026):
+  1) cabeçalho da página (título, subtítulo, botões de ação) → 2) grade de
+  áreas do módulo (`GRADE_AREAS`) → 3) grandes indicadores (cartões de
+  número) → 4) o resto (alertas, filtros, tabelas, gráficos). Alerta de
+  configuração pendente vem depois dos indicadores, não antes das áreas.
 - **Grade de áreas (hubs)**: os cartões de área de todo hub de módulo usam
   `CartaoArea` dentro de `className={GRADE_AREAS}` (components/cartao-area.tsx):
   1 coluna no celular, 2 de `sm`, 3 de `md`, **5 de `xl`**. Nunca uma

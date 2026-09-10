@@ -15,7 +15,6 @@ const NAV = [
   { titulo: "Convênios", href: "/portal/convenios" },
   { titulo: "Saúde", href: "/portal/saude" },
   { titulo: "Notícias", href: "/portal/noticias" },
-  { titulo: "Agenda", href: "/portal/agenda" },
   { titulo: "Eventos", href: "/portal/eventos" },
   { titulo: "Votação", href: "/portal/votacao" },
   { titulo: "Oposição à contribuição", href: "/portal/oposicao" },

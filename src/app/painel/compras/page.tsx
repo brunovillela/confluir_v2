@@ -1,5 +1,5 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
   ClipboardCheck,
   ClipboardList,
@@ -8,12 +8,12 @@ import {
   ScrollText,
   ShoppingCart,
   Truck,
-} from "lucide-react"
+} from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import {
   Table,
   TableBody,
@@ -21,35 +21,35 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { AquisicaoBadge, SituacaoProcessoBadge } from "@/components/compras"
-import { requirePermissao } from "@/lib/auth"
+} from "@/components/ui/table";
+import { AquisicaoBadge, SituacaoProcessoBadge } from "@/components/compras";
+import { requirePermissao } from "@/lib/auth";
 import {
   ROTULOS_SITUACAO_PROCESSO,
   SITUACOES_PROCESSO,
   type SituacaoProcesso,
-} from "@/lib/compras-constantes"
-import { listarProcessos, resumoCompras } from "@/lib/db/compras"
-import { resumoContratos } from "@/lib/db/contratos"
-import { formatarData, formatarMoeda } from "@/lib/formato"
-import { podeAcessar } from "@/lib/permissoes"
+} from "@/lib/compras-constantes";
+import { listarProcessos, resumoCompras } from "@/lib/db/compras";
+import { resumoContratos } from "@/lib/db/contratos";
+import { formatarData, formatarMoeda } from "@/lib/formato";
+import { podeAcessar } from "@/lib/permissoes";
 
-export const metadata: Metadata = { title: "Compras — Confluir" }
+export const metadata: Metadata = { title: "Compras — Confluir" };
 
 const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]";
 
 type Params = {
-  busca?: string
-  situacao?: string
-  aquisicao?: string
-  pagina?: string
-}
+  busca?: string;
+  situacao?: string;
+  aquisicao?: string;
+  pagina?: string;
+};
 
 export default async function ComprasPage({
   searchParams,
 }: {
-  searchParams: Promise<Params>
+  searchParams: Promise<Params>;
 }) {
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
@@ -57,59 +57,59 @@ export default async function ComprasPage({
     "aquisicoes_recebimentos",
     "aquisicoes_fornecedores",
     "aquisicoes_contratos",
-  ])
-  const p = sessao.permissoes
+  ]);
+  const p = sessao.permissoes;
 
-  const brutos = await searchParams
+  const brutos = await searchParams;
   const situacao = (SITUACOES_PROCESSO as readonly string[]).includes(
-    brutos.situacao ?? ""
+    brutos.situacao ?? "",
   )
     ? (brutos.situacao as SituacaoProcesso)
-    : "todas"
+    : "todas";
   const aquisicao =
     brutos.aquisicao === "direta" || brutos.aquisicao === "via_compras"
       ? brutos.aquisicao
-      : "todas"
-  const busca = (brutos.busca ?? "").trim()
-  const pagina = Number(brutos.pagina) > 0 ? Number(brutos.pagina) : 1
+      : "todas";
+  const busca = (brutos.busca ?? "").trim();
+  const pagina = Number(brutos.pagina) > 0 ? Number(brutos.pagina) : 1;
 
   const [resumo, lista, resumoContr] = await Promise.all([
     resumoCompras(),
     listarProcessos({ busca, situacao, aquisicao, pagina }),
     resumoContratos(),
-  ])
+  ]);
 
   const podeCriar = podeAcessar(p, "aquisicoes_compras", [
     "aquisicoes_compras_edicao",
-  ])
+  ]);
   const veComprador = podeAcessar(p, "aquisicoes_comprador", [
     "aquisicoes_compras_edicao",
-  ])
-  const veAvaliacoes = podeAcessar(p, "aquisicoes_avaliacoes")
+  ]);
+  const veAvaliacoes = podeAcessar(p, "aquisicoes_avaliacoes");
   const veRecebimentos = podeAcessar(p, "aquisicoes_recebimentos", [
     "aquisicoes_compras_edicao",
-  ])
+  ]);
   const veFornecedores = podeAcessar(p, "aquisicoes_fornecedores", [
     "aquisicoes_compras_edicao",
-  ])
+  ]);
   const veContratos = podeAcessar(p, "aquisicoes_contratos", [
     "aquisicoes_contratos_edicao",
-  ])
+  ]);
 
   const filtrosQuery = (mudancas: Record<string, string>) => {
-    const q = new URLSearchParams()
+    const q = new URLSearchParams();
     const estado: Record<string, string> = {
       busca,
       situacao,
       aquisicao,
       ...mudancas,
-    }
+    };
     for (const [chave, valor] of Object.entries(estado)) {
-      if (valor && valor !== "todas") q.set(chave, valor)
+      if (valor && valor !== "todas") q.set(chave, valor);
     }
-    const s = q.toString()
-    return s ? `?${s}` : ""
-  }
+    const s = q.toString();
+    return s ? `?${s}` : "";
+  };
 
   return (
     <>
@@ -200,16 +200,6 @@ export default async function ComprasPage({
         </div>
       )}
 
-      {resumo.aReceber === null && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Compras ainda não configuradas por completo — rode{" "}
-            <code>supabase/compras.sql</code> no SQL Editor do Supabase para
-            habilitar cotações, fornecimentos e recebimentos.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <CardResumo
           rotulo="Em cotação"
@@ -233,7 +223,20 @@ export default async function ComprasPage({
         />
       </div>
 
-      <form className="flex flex-wrap items-center gap-2" action="/painel/compras">
+      {resumo.aReceber === null && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Compras ainda não configuradas por completo — rode{" "}
+            <code>supabase/compras.sql</code> no SQL Editor do Supabase para
+            habilitar cotações, fornecimentos e recebimentos.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <form
+        className="flex flex-wrap items-center gap-2"
+        action="/painel/compras"
+      >
         <input
           type="search"
           name="busca"
@@ -241,7 +244,11 @@ export default async function ComprasPage({
           placeholder="Código ou produto/serviço"
           className={`${SELECT_FILTRO} w-64 max-w-full`}
         />
-        <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO}>
+        <select
+          name="situacao"
+          defaultValue={situacao}
+          className={SELECT_FILTRO}
+        >
           <option value="todas">Todas as situações</option>
           {SITUACOES_PROCESSO.map((s) => (
             <option key={s} value={s}>
@@ -352,7 +359,7 @@ export default async function ComprasPage({
         </CardContent>
       </Card>
     </>
-  )
+  );
 }
 
 function CardResumo({
@@ -360,9 +367,9 @@ function CardResumo({
   valor,
   href,
 }: {
-  rotulo: string
-  valor: number | string
-  href?: string
+  rotulo: string;
+  valor: number | string;
+  href?: string;
 }) {
   const conteudo = (
     <CardContent>
@@ -371,13 +378,13 @@ function CardResumo({
         {typeof valor === "number" ? valor.toLocaleString("pt-BR") : valor}
       </p>
     </CardContent>
-  )
-  if (!href) return <Card>{conteudo}</Card>
+  );
+  if (!href) return <Card>{conteudo}</Card>;
   return (
     <Link href={href} className="group">
       <Card className="group-hover:border-primary/40 transition-colors">
         {conteudo}
       </Card>
     </Link>
-  )
+  );
 }

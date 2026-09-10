@@ -1,5 +1,5 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Building2,
   CalendarDays,
@@ -10,27 +10,27 @@ import {
   Siren,
   Stethoscope,
   Users,
-} from "lucide-react"
+} from "lucide-react";
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
-import { requirePermissao } from "@/lib/auth"
-import { contagensAtendimento } from "@/lib/db/atendimentos"
-import { resumoSaude } from "@/lib/db/saude"
-import { formatarData } from "@/lib/formato"
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { requirePermissao } from "@/lib/auth";
+import { contagensAtendimento } from "@/lib/db/atendimentos";
+import { resumoSaude } from "@/lib/db/saude";
+import { formatarData } from "@/lib/formato";
 
-export const metadata: Metadata = { title: "Saúde — Confluir" }
+export const metadata: Metadata = { title: "Saúde — Confluir" };
 
 export default async function SaudePage() {
-  await requirePermissao("saude_cat", ["saude_atendimento", "saude_gestao"])
+  await requirePermissao("saude_cat", ["saude_atendimento", "saude_gestao"]);
 
   const [
     resumo,
     { atendimentos, assistidos, agendamentos, profissionais, cipa },
-  ] = await Promise.all([resumoSaude(), contagensAtendimento()])
-  const maiorAno = Math.max(1, ...resumo.porAno.map((a) => a.total))
+  ] = await Promise.all([resumoSaude(), contagensAtendimento()]);
+  const maiorAno = Math.max(1, ...resumo.porAno.map((a) => a.total));
 
   return (
     <>
@@ -47,58 +47,6 @@ export default async function SaudePage() {
             Ver CATs
           </Link>
         </Button>
-      </div>
-
-      {!resumo.disponivel && (
-        <Alert variant="warning">
-          <AlertDescription>
-            A tabela de CATs ainda não está disponível — rode{" "}
-            <code>supabase/saude-cat-schema.sql</code> no SQL Editor do Supabase.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Indicadores macro */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador
-          rotulo="CATs registradas"
-          valor={resumo.total}
-          href="/painel/saude/cat"
-        />
-        <Indicador
-          rotulo="Com afastamento"
-          valor={resumo.comAfastamento}
-          detalhe={pct(resumo.comAfastamento, resumo.total)}
-          href="/painel/saude/cat?afastamento=sim"
-        />
-        <Indicador
-          rotulo="Com internação"
-          valor={resumo.comInternacao}
-          detalhe={pct(resumo.comInternacao, resumo.total)}
-          href="/painel/saude/cat?internacao=sim"
-        />
-        <Indicador
-          rotulo="Óbitos"
-          valor={resumo.obitos}
-          destaque={resumo.obitos > 0}
-          href="/painel/saude/cat?obito=sim"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador rotulo="Empresas envolvidas" valor={resumo.empregadores} />
-        <Indicador
-          rotulo="Acidente mais recente"
-          valor={resumo.ultimoAcidente ? formatarData(resumo.ultimoAcidente) : "—"}
-        />
-        {resumo.porTipo.slice(0, 2).map((t) => (
-          <Indicador
-            key={t.rotulo}
-            rotulo={t.rotulo}
-            valor={t.total}
-            detalhe={pct(t.total, resumo.total)}
-          />
-        ))}
       </div>
 
       {/* Áreas do módulo */}
@@ -170,6 +118,61 @@ export default async function SaudePage() {
         </div>
       </div>
 
+      {/* Indicadores macro */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Indicador
+          rotulo="CATs registradas"
+          valor={resumo.total}
+          href="/painel/saude/cat"
+        />
+        <Indicador
+          rotulo="Com afastamento"
+          valor={resumo.comAfastamento}
+          detalhe={pct(resumo.comAfastamento, resumo.total)}
+          href="/painel/saude/cat?afastamento=sim"
+        />
+        <Indicador
+          rotulo="Com internação"
+          valor={resumo.comInternacao}
+          detalhe={pct(resumo.comInternacao, resumo.total)}
+          href="/painel/saude/cat?internacao=sim"
+        />
+        <Indicador
+          rotulo="Óbitos"
+          valor={resumo.obitos}
+          destaque={resumo.obitos > 0}
+          href="/painel/saude/cat?obito=sim"
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Indicador rotulo="Empresas envolvidas" valor={resumo.empregadores} />
+        <Indicador
+          rotulo="Acidente mais recente"
+          valor={
+            resumo.ultimoAcidente ? formatarData(resumo.ultimoAcidente) : "—"
+          }
+        />
+        {resumo.porTipo.slice(0, 2).map((t) => (
+          <Indicador
+            key={t.rotulo}
+            rotulo={t.rotulo}
+            valor={t.total}
+            detalhe={pct(t.total, resumo.total)}
+          />
+        ))}
+      </div>
+
+      {!resumo.disponivel && (
+        <Alert variant="warning">
+          <AlertDescription>
+            A tabela de CATs ainda não está disponível — rode{" "}
+            <code>supabase/saude-cat-schema.sql</code> no SQL Editor do
+            Supabase.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Distribuições */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
@@ -221,16 +224,18 @@ export default async function SaudePage() {
           icone={MapPin}
           titulo="Municípios com mais CATs"
           itens={resumo.topMunicipios}
-          href={(nome) => `/painel/saude/cat?municipio=${encodeURIComponent(nome)}`}
+          href={(nome) =>
+            `/painel/saude/cat?municipio=${encodeURIComponent(nome)}`
+          }
         />
       </div>
     </>
-  )
+  );
 }
 
 function pct(parte: number, total: number): string | undefined {
-  if (!total) return undefined
-  return `${((parte / total) * 100).toFixed(1).replace(".", ",")}% do total`
+  if (!total) return undefined;
+  return `${((parte / total) * 100).toFixed(1).replace(".", ",")}% do total`;
 }
 
 function Indicador({
@@ -240,11 +245,11 @@ function Indicador({
   href,
   destaque,
 }: {
-  rotulo: string
-  valor: number | string
-  detalhe?: string
-  href?: string
-  destaque?: boolean
+  rotulo: string;
+  valor: number | string;
+  detalhe?: string;
+  href?: string;
+  destaque?: boolean;
 }) {
   const conteudo = (
     <CardContent>
@@ -258,15 +263,15 @@ function Indicador({
         <p className="text-muted-foreground mt-0.5 text-xs">{detalhe}</p>
       )}
     </CardContent>
-  )
-  if (!href) return <Card>{conteudo}</Card>
+  );
+  if (!href) return <Card>{conteudo}</Card>;
   return (
     <Link href={href} className="group">
       <Card className="group-hover:border-primary/40 h-full transition-colors">
         {conteudo}
       </Card>
     </Link>
-  )
+  );
 }
 
 function CardArea({
@@ -277,12 +282,12 @@ function CardArea({
   href,
   emBreve,
 }: {
-  icone: typeof HeartPulse
-  titulo: string
-  descricao: string
-  indicador: string
-  href?: string
-  emBreve?: boolean
+  icone: typeof HeartPulse;
+  titulo: string;
+  descricao: string;
+  indicador: string;
+  href?: string;
+  emBreve?: boolean;
 }) {
   return (
     <CartaoArea
@@ -293,7 +298,7 @@ function CardArea({
       href={href}
       emBreve={emBreve}
     />
-  )
+  );
 }
 
 function ListaTop({
@@ -302,10 +307,10 @@ function ListaTop({
   itens,
   href,
 }: {
-  icone: typeof Siren
-  titulo: string
-  itens: { nome: string; total: number }[]
-  href: (nome: string) => string
+  icone: typeof Siren;
+  titulo: string;
+  itens: { nome: string; total: number }[];
+  href: (nome: string) => string;
 }) {
   return (
     <Card>
@@ -323,7 +328,10 @@ function ListaTop({
                 key={i.nome}
                 className="flex items-baseline justify-between gap-3 text-sm"
               >
-                <Link href={href(i.nome)} className="line-clamp-1 hover:underline">
+                <Link
+                  href={href(i.nome)}
+                  className="line-clamp-1 hover:underline"
+                >
                   {i.nome}
                 </Link>
                 <span className="text-muted-foreground tabular-nums">
@@ -335,5 +343,5 @@ function ListaTop({
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
