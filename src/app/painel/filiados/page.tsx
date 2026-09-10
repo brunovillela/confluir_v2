@@ -23,6 +23,7 @@ import {
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { Donut } from "@/components/grafico-donut"
+import { formatarData } from "@/lib/formato"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -77,11 +78,21 @@ function BarraHorizontal({
   )
 }
 
-/** Cores de marca (variações laranja/navy, theme-aware) por rótulo de sexo. */
+/**
+ * Paleta categórica dos donuts (padrão do sistema): laranja (marca-1) e
+ * navy (marca-2) em ordem FIXA — as duas pizzas de sexo usam as mesmas duas
+ * cores; a 3ª fatia, quando existe, é o navy claro (marca-4).
+ */
+const CORES_DONUT = [
+  "var(--chart-marca-1)",
+  "var(--chart-marca-2)",
+  "var(--chart-marca-4)",
+  "var(--chart-marca-3)",
+]
 const COR_SEXO: Record<string, string> = {
-  Masculino: "var(--chart-marca-2)",
-  Feminino: "var(--chart-marca-3)",
-  Outro: "var(--chart-marca-4)",
+  Masculino: CORES_DONUT[0],
+  Feminino: CORES_DONUT[1],
+  Outro: CORES_DONUT[2],
 }
 
 const fmtNum = (n: number) => n.toLocaleString("pt-BR")
@@ -126,7 +137,117 @@ function LinhaLegenda({
       {conteudo}
     </Link>
   ) : (
-    <div className="flex items-center gap-2 px-2 py-1 text-sm">{conteudo}</div>
+    // Mesmas margens do Link: sem o -mx-2 a linha sem link ficava deslocada.
+    <div className="-mx-2 flex items-center gap-2 px-2 py-1 text-sm">{conteudo}</div>
+  )
+}
+
+/** Donut simples com legenda, para séries categóricas (regime, condição). */
+function GraficoDonutSimples({
+  series,
+  centroRotulo,
+  vazio,
+}: {
+  series: { rotulo: string; total: number }[]
+  centroRotulo: string
+  vazio: string
+}) {
+  const total = series.reduce((a, s) => a + s.total, 0)
+  if (total === 0) {
+    return <p className="text-muted-foreground py-4 text-center text-sm">{vazio}</p>
+  }
+  const fatias = series.map((s, i) => ({
+    ...s,
+    cor: s.rotulo === "Não informado" ? "var(--muted-foreground)" : CORES_DONUT[i % CORES_DONUT.length],
+  }))
+  return (
+    <div className="grid content-start gap-3">
+      <Donut
+        fatias={fatias.map((f) => ({ cor: f.cor, valor: f.total }))}
+        centroValor={fmtNum(total)}
+        centroRotulo={centroRotulo}
+      />
+      <div className="grid gap-0.5">
+        {fatias.map((f) => (
+          <LinhaLegenda
+            key={f.rotulo}
+            rotulo={f.rotulo}
+            total={f.total}
+            pct={fmtPct(f.total, total)}
+            cor={f.cor}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const PERIODOS: { chave: "semana" | "mes" | "ano"; rotulo: string }[] = [
+  { chave: "semana", rotulo: "Nesta semana" },
+  { chave: "mes", rotulo: "Neste mês" },
+  { chave: "ano", rotulo: "Neste ano" },
+]
+
+/** Filiações × desfiliações no período — duas barras na paleta categórica. */
+function GraficoMovimento({
+  movimento,
+}: {
+  movimento: { periodo: string; filiacoes: number; desfiliacoes: number; inicio: string; fim: string }
+}) {
+  const maximo = Math.max(movimento.filiacoes, movimento.desfiliacoes, 1)
+  const saldo = movimento.filiacoes - movimento.desfiliacoes
+  const barras = [
+    { rotulo: "Filiações", total: movimento.filiacoes, cor: CORES_DONUT[0] },
+    { rotulo: "Desfiliações", total: movimento.desfiliacoes, cor: CORES_DONUT[1] },
+  ]
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap gap-1">
+        {PERIODOS.map((p) => (
+          <Link
+            key={p.chave}
+            href={`/painel/filiados?periodo=${p.chave}`}
+            scroll={false}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              movimento.periodo === p.chave
+                ? "border-primary bg-primary text-primary-foreground"
+                : "hover:bg-muted"
+            }`}
+          >
+            {p.rotulo}
+          </Link>
+        ))}
+      </div>
+      <div className="grid gap-3">
+        {barras.map((b) => (
+          <div key={b.rotulo} className="grid gap-1">
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <span aria-hidden className="size-2.5 rounded-[3px]" style={{ background: b.cor }} />
+                {b.rotulo}
+              </span>
+              <span className="tabular-nums font-medium">{fmtNum(b.total)}</span>
+            </div>
+            <div className="bg-muted h-2 overflow-hidden rounded-sm">
+              <div
+                className="h-full rounded-sm"
+                style={{ width: `${(b.total / maximo) * 100}%`, background: b.cor }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Saldo{" "}
+        <span className={`font-medium tabular-nums ${saldo < 0 ? "text-destructive" : "text-success-fg"}`}>
+          {saldo > 0 ? "+" : ""}
+          {fmtNum(saldo)}
+        </span>{" "}
+        · {formatarData(movimento.inicio)} a {formatarData(movimento.fim)} · pela data
+        de filiação e de desfiliação do vínculo, o que deixa de fora acertos lançados
+        com data antiga.
+      </p>
+    </div>
   )
 }
 
@@ -153,17 +274,17 @@ function GraficoSexoComposto({
   }
 
   const pizza1 = [
-    { rotulo: "Com sexo", total: comSexo, cor: "var(--chart-marca-1)", href: undefined },
+    { rotulo: "Com sexo", total: comSexo, cor: CORES_DONUT[0], href: undefined },
     {
       rotulo: "Sem sexo",
       total: semSexo,
-      cor: "var(--muted-foreground)",
+      cor: CORES_DONUT[1],
       href: urlPorSexo("Não informado"),
     },
   ]
   const pizza2 = comItens.map((s) => ({
     ...s,
-    cor: COR_SEXO[s.rotulo] ?? "var(--chart-marca-4)",
+    cor: COR_SEXO[s.rotulo] ?? CORES_DONUT[2],
     href: urlPorSexo(s.rotulo),
   }))
 
@@ -228,15 +349,22 @@ function GraficoSexoComposto({
   )
 }
 
-export default async function FiliadosPage() {
+export default async function FiliadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periodo?: string }>
+}) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
     "filiacao_receitas",
   ])
   const podeRegistrar = podeAcessar(sessao.permissoes, "filiacao_gestao")
+  const { periodo: periodoBruto } = await searchParams
+  const periodo =
+    periodoBruto === "semana" || periodoBruto === "ano" ? periodoBruto : "mes"
 
   const [resumo, pendentesFicha] = await Promise.all([
-    resumoFiliados(),
+    resumoFiliados(periodo),
     podeRegistrar ? contarSolicitacoesPendentes() : Promise.resolve(0),
   ])
 
@@ -579,6 +707,50 @@ export default async function FiliadosPage() {
                 Nenhum vínculo ativo encontrado.
               </p>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Regime de trabalho</CardTitle>
+            <CardDescription>
+              Vínculos em aberto de filiados ativos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoDonutSimples
+              series={resumo.porRegime}
+              centroRotulo="vínculos"
+              vazio="Nenhum vínculo em aberto."
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Condição na fonte pagadora</CardTitle>
+            <CardDescription>
+              Vínculos em aberto de filiados ativos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoDonutSimples
+              series={resumo.porCondicaoFonte}
+              centroRotulo="vínculos"
+              vazio="Nenhum vínculo em aberto."
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Filiações × desfiliações</CardTitle>
+            <CardDescription>
+              Vínculos filiados e desfiliados no período
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GraficoMovimento movimento={resumo.movimento} />
           </CardContent>
         </Card>
       </div>

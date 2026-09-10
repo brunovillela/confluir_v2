@@ -43,3 +43,20 @@ where regime_trabalho = 'Offshore';
 
 create index if not exists idx_filiacao_vinculos_condicao_fonte
   on filiacao_vinculos (fonte_pagadora_id, condicao_na_fonte);
+
+-- ── Complemento 10/09 (já aplicado no banco via API; fica aqui para reprodução) ──
+-- Regime vazio vira Administrativo (Bruno: pouco impacto, evita advertência).
+update filiacao_vinculos
+set regime_trabalho = 'Administrativo'
+where regime_trabalho is null;
+
+-- Condição vazia: fundo de pensão → aposentado; qualquer outra fonte, ou sem
+-- fonte, → trabalhador da ativa.
+update filiacao_vinculos v
+set condicao_na_fonte = 'Beneficiário(a) aposentado(a)'
+from empresa e
+where e.id = v.fonte_pagadora_id and e.fundo_pensao = true
+  and v.condicao_na_fonte is null;
+update filiacao_vinculos
+set condicao_na_fonte = 'Trabalhador(a) da ativa'
+where condicao_na_fonte is null;

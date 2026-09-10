@@ -67,6 +67,12 @@ crie/ajuste um token — não escreva hex, `oklch()` nem classes tipo
   `CartaoArea` dentro de `className={GRADE_AREAS}` (components/cartao-area.tsx):
   1 coluna no celular, 2 de `sm`, 3 de `md`, **5 de `xl`**. Nunca uma
   grade própria por página — era isso que fazia cada hub parecer diferente.
+- **Gráficos categóricos (donuts, barras)**: paleta de marca em ordem FIXA —
+  `--chart-marca-1` (laranja) → `--chart-marca-2` (navy) → `--chart-marca-4`
+  (navy claro) → `--chart-marca-3`; "não informado" é `--muted-foreground`.
+  Gráficos irmãos usam as mesmas cores na mesma ordem; legenda sempre com
+  rótulo e valor em texto (a cor só acompanha). O navy de marca é de croma
+  baixo — o validador de paleta o aponta; a legenda textual compensa.
 - **Dropdowns**: opção que vem de lista dinâmica (sedes, pessoas, veículos,
   fornecedores…) chega **em ordem alfabética** (`localeCompare("pt-BR")` ou
   `.order("<nome>")` na origem, em lib/db). Listas fixas (situações, tipos)

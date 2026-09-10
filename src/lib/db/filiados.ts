@@ -1,14 +1,19 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
-import { estatisticasFontes, nomesDeEmpresas } from "@/lib/db/fontes"
-import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
+import { estatisticasFontes, lerLotes, nomesDeEmpresas } from "@/lib/db/fontes"
+import {
+  FILIACAO_CONDICOES,
+  GRUPOS_CONDICAO,
+  pendenciasDoVinculo,
+} from "@/lib/filiacao"
 import { contatosDoFiliado, type ContatosDoFiliado } from "@/lib/db/filiacao-contatos"
 import {
   ehArquivo,
   ehDoBubble,
   urlDocumentoDoVinculo,
 } from "@/lib/db/filiacao-documentos"
+import { hojeSP } from "@/lib/db/comum"
 import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
@@ -374,6 +379,10 @@ export type Vinculo = {
   fonte_pg_admissao: string | null
   fonte_pagadora_id: string | null
   fontePagadora: string | null
+  condicao_na_fonte: string | null
+  regime_trabalho: string | null
+  /** Campos obrigatórios que faltam (ver pendenciasDoVinculo). */
+  pendencias: string[]
   /**
    * Veio do backfill do cadastro antigo, não de alguém que o registrou.
    * Quem atende precisa saber: o vínculo tem só data e fonte pagadora,
@@ -584,7 +593,7 @@ export async function buscarPerfilFiliado(
       admin
         .from("filiacao_vinculos")
         .select(
-          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de"
+          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de, condicao_na_fonte, regime_trabalho"
         )
         .in("filiado_id", idsDaPessoa)
         .order("created_at", { ascending: false }),
@@ -669,6 +678,7 @@ export async function buscarPerfilFiliado(
         fichaUrl,
         cartaUrl,
         documentoNoBubble: noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
+        pendencias: pendenciasDoVinculo({ ...v, temFicha }),
       }
     })
   )
@@ -716,6 +726,12 @@ export type ResumoFiliados = {
   fontesComFiliados: number
   /** Divisão por sexo dos registros ativos (condição 'Ativo'). */
   porSexo: { rotulo: string; total: number }[]
+  /** Vínculos ABERTOS de filiados ativos, por regime de trabalho. */
+  porRegime: { rotulo: string; total: number }[]
+  /** Vínculos ABERTOS de filiados ativos, por condição na fonte pagadora. */
+  porCondicaoFonte: { rotulo: string; total: number }[]
+  /** Filiações × desfiliações no período (pela data do evento). */
+  movimento: { periodo: PeriodoMovimento; filiacoes: number; desfiliacoes: number; inicio: string; fim: string }
   /** Filiados ativos (pessoas) por fonte pagadora — 10 maiores. */
   porFonte: { id: string; fonte: string; total: number }[]
   /** Registros por condição de filiação (inclui excluídas — link usa situacao=todas). */
@@ -724,6 +740,26 @@ export type ResumoFiliados = {
 }
 
 export type Aniversariante = { id: string; nome_completo: string | null }
+
+export type PeriodoMovimento = "semana" | "mes" | "ano"
+
+/** Início e fim (ISO, inclusive) do período em America/Sao_Paulo. */
+function limitesDoPeriodo(periodo: PeriodoMovimento): { inicio: string; fim: string } {
+  const hoje = hojeSP()
+  const [a, m, d] = hoje.split("-").map(Number)
+  const iso = (dt: Date) => dt.toISOString().slice(0, 10)
+  if (periodo === "ano") return { inicio: `${a}-01-01`, fim: `${a}-12-31` }
+  if (periodo === "mes") {
+    const ultimo = new Date(Date.UTC(a, m, 0))
+    return { inicio: `${a}-${String(m).padStart(2, "0")}-01`, fim: iso(ultimo) }
+  }
+  // semana: segunda a domingo
+  const data = new Date(Date.UTC(a, m - 1, d))
+  const diaSemana = (data.getUTCDay() + 6) % 7 // 0 = segunda
+  const segunda = new Date(data.getTime() - diaSemana * 86_400_000)
+  const domingo = new Date(segunda.getTime() + 6 * 86_400_000)
+  return { inicio: iso(segunda), fim: iso(domingo) }
+}
 
 /** Dia e mês de hoje em America/Sao_Paulo (o servidor pode estar em UTC). */
 function hojeSaoPaulo(): { dia: number; mes: number; rotulo: string } {
@@ -737,10 +773,13 @@ function hojeSaoPaulo(): { dia: number; mes: number; rotulo: string } {
   return { dia, mes, rotulo: `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}` }
 }
 
-export async function resumoFiliados(): Promise<ResumoFiliados> {
+export async function resumoFiliados(
+  periodo: PeriodoMovimento = "mes"
+): Promise<ResumoFiliados> {
   const admin = await createAdminClient()
   const hoje = hojeSaoPaulo()
   const empId = await tenantAtual()
+  const limites = limitesDoPeriodo(periodo)
 
   const base = () =>
     admin
@@ -754,6 +793,8 @@ export async function resumoFiliados(): Promise<ResumoFiliados> {
     [registros, masculino, feminino, outro, semSexo, aniversariantes],
     fontes,
     condicoes,
+    vinculosAbertos,
+    [filiacoesNoPeriodo, desfiliacoesNoPeriodo],
   ] = await Promise.all([
     Promise.all([
       base().not("filiacao_excluida", "is", true),
@@ -776,7 +817,56 @@ export async function resumoFiliados(): Promise<ResumoFiliados> {
       ...FILIACAO_CONDICOES.map((c) => base().eq("filiacao_condicao", c)),
       base().is("filiacao_condicao", null),
     ]),
+    // Vínculos em aberto (sem data de saída) — regime e condição na fonte.
+    lerLotes<{
+      filiado_id: string
+      regime_trabalho: string | null
+      condicao_na_fonte: string | null
+    }>((de, ate) =>
+      admin
+        .from("filiacao_vinculos")
+        .select("filiado_id, regime_trabalho, condicao_na_fonte")
+        .eq("emp_proprietaria_id", empId)
+        .is("data_desfiliacao", null)
+        .is("filiacao_data_saida", null)
+        .order("id", { ascending: true })
+        .range(de, ate)
+    ).catch(() => []),
+    // Movimento: pela DATA DO EVENTO — um acerto lançado hoje com data antiga
+    // cai fora do período, e é isso que separa acerto de filiação nova.
+    Promise.all([
+      admin
+        .from("filiacao_vinculos")
+        .select("id", { count: "exact", head: true })
+        .eq("emp_proprietaria_id", empId)
+        .gte("data_filiacao", limites.inicio)
+        .lte("data_filiacao", limites.fim),
+      admin
+        .from("filiacao_vinculos")
+        .select("id", { count: "exact", head: true })
+        .eq("emp_proprietaria_id", empId)
+        .gte("data_desfiliacao", limites.inicio)
+        .lte("data_desfiliacao", limites.fim),
+    ]),
   ])
+
+  // Só vínculos de filiados ATIVOS entram nos donuts de regime e condição.
+  const ativosIds = new Set(
+    fontes.registros.filter((r) => r.filiacao_condicao === "Ativo").map((r) => r.id)
+  )
+  const contar = (chave: "regime_trabalho" | "condicao_na_fonte") => {
+    const m = new Map<string, number>()
+    for (const v of vinculosAbertos) {
+      if (!ativosIds.has(v.filiado_id)) continue
+      const k = v[chave] ?? "Não informado"
+      m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return [...m.entries()]
+      .map(([rotulo, total]) => ({ rotulo, total }))
+      .sort((a, b) => b.total - a.total)
+  }
+  const porRegime = contar("regime_trabalho")
+  const porCondicaoFonte = contar("condicao_na_fonte")
 
   const porSexo = [
     { rotulo: "Masculino", total: masculino.count ?? 0 },
@@ -801,6 +891,15 @@ export async function resumoFiliados(): Promise<ResumoFiliados> {
     filiacoesAtivas: porSexo.reduce((soma, s) => soma + s.total, 0),
     fontesComFiliados: fontes.fontesComFiliados,
     porSexo,
+    porRegime,
+    porCondicaoFonte,
+    movimento: {
+      periodo,
+      filiacoes: filiacoesNoPeriodo.count ?? 0,
+      desfiliacoes: desfiliacoesNoPeriodo.count ?? 0,
+      inicio: limites.inicio,
+      fim: limites.fim,
+    },
     porFonte: fontes.porFonte,
     porCondicao,
     aniversariantes: {

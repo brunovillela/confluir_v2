@@ -34,6 +34,38 @@ export function condicaoNaFontePadrao(fundoPensao: boolean): CondicaoNaFonte {
   return fundoPensao ? "Beneficiário(a) aposentado(a)" : "Trabalhador(a) da ativa"
 }
 
+/**
+ * O que um vínculo de filiação precisa ter preenchido (regra do Bruno,
+ * 10/09/2026). Isentos: data de saída/demissão na fonte, carta de
+ * desligamento, data de desfiliação e — para quem não é trabalhador da
+ * ativa — o regime de trabalho. Devolve os rótulos do que falta.
+ */
+export function pendenciasDoVinculo(v: {
+  fonte_pagadora_id: string | null
+  matricula: string | null
+  cargo: string | null
+  lotacao: string | null
+  data_entrada_admissao: string | null
+  data_filiacao: string | null
+  condicao_na_fonte: string | null
+  regime_trabalho: string | null
+  temFicha: boolean
+}): string[] {
+  const faltam: string[] = []
+  if (!v.fonte_pagadora_id) faltam.push("fonte pagadora")
+  if (!v.matricula) faltam.push("matrícula na fonte")
+  if (!v.cargo) faltam.push("cargo")
+  if (!v.lotacao) faltam.push("lotação")
+  if (!v.data_entrada_admissao) faltam.push("admissão na fonte")
+  if (!v.data_filiacao) faltam.push("data de filiação")
+  if (!v.condicao_na_fonte) faltam.push("condição na fonte pagadora")
+  if (v.condicao_na_fonte === "Trabalhador(a) da ativa" && !v.regime_trabalho) {
+    faltam.push("regime de trabalho")
+  }
+  if (!v.temFicha) faltam.push("ficha de filiação")
+  return faltam
+}
+
 /** Regime de trabalho (turno) do vínculo. */
 export const REGIMES_TRABALHO = [
   "Administrativo",

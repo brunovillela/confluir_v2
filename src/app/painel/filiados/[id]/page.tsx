@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Pencil,
   Plus,
+  TriangleAlert,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -554,7 +555,9 @@ export default async function FiliadoPage({
                       </TableCell>
                       <TableCell>
                         <span className="flex flex-wrap items-center gap-1">
-                          {v.fichaUrl ? (
+                          {/* Só o documento que EXISTE aparece; a falta é
+                              apontada pela advertência de pendências. */}
+                          {v.fichaUrl && (
                             <a
                               href={v.fichaUrl}
                               target="_blank"
@@ -565,30 +568,28 @@ export default async function FiliadoPage({
                                 ficha
                               </Badge>
                             </a>
-                          ) : (
-                            <Badge variant="outline" title="Sem ficha de filiação">
-                              ficha
-                            </Badge>
                           )}
-                          {(v.temCarta ||
-                            v.data_desfiliacao ||
-                            v.filiacao_data_saida) && (
-                            v.cartaUrl ? (
-                              <a
-                                href={v.cartaUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Abrir a carta de desfiliação"
-                              >
-                                <Badge variant="success" className="hover:underline">
-                                  carta
-                                </Badge>
-                              </a>
-                            ) : (
-                              <Badge variant="warning" title="Desfiliado sem carta anexada">
+                          {v.cartaUrl && (
+                            <a
+                              href={v.cartaUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Abrir a carta de desfiliação"
+                            >
+                              <Badge variant="success" className="hover:underline">
                                 carta
                               </Badge>
-                            )
+                            </a>
+                          )}
+                          {v.pendencias.length > 0 && (
+                            <span
+                              className="text-warning-fg inline-flex items-center gap-1 text-xs"
+                              title={`Faltam: ${v.pendencias.join(", ")}`}
+                            >
+                              <TriangleAlert className="size-4" aria-hidden />
+                              <span className="sr-only">Pendências:</span>
+                              {v.pendencias.length}
+                            </span>
                           )}
                           {v.documentoNoBubble && (
                             <Badge

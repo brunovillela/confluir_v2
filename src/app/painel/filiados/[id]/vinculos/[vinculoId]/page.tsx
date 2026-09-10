@@ -4,6 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, FileDown } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -17,6 +18,7 @@ import { documentosDoVinculo } from "@/lib/db/filiacao-documentos"
 import { formatarData } from "@/lib/formato"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { esquemaAusente } from "@/lib/db/comum"
+import { pendenciasDoVinculo } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { DocumentoDoVinculo } from "../documentos"
@@ -74,6 +76,17 @@ export default async function EditarVinculoPage({
   if (!filiado || !vinculo || vinculo.filiado_id !== id) notFound()
 
   const documentos = await documentosDoVinculo(vinculoId)
+  const pendencias = pendenciasDoVinculo({
+    fonte_pagadora_id: (vinculo.fonte_pagadora_id as string | null) ?? null,
+    matricula: (vinculo.matricula as string | null) ?? null,
+    cargo: (vinculo.cargo as string | null) ?? null,
+    lotacao: (vinculo.lotacao as string | null) ?? null,
+    data_entrada_admissao: (vinculo.data_entrada_admissao as string | null) ?? null,
+    data_filiacao: (vinculo.data_filiacao as string | null) ?? null,
+    condicao_na_fonte: (vinculo.condicao_na_fonte as string | null) ?? null,
+    regime_trabalho: (vinculo.regime_trabalho as string | null) ?? null,
+    temFicha: documentos.some((d) => d.tipo === "ficha" && d.valor !== null),
+  })
 
   // Nome da fonte para a confirmação de exclusão dizer de QUAL vínculo se
   // trata — "excluir o vínculo" sem dizer qual é pedir erro.
@@ -99,6 +112,16 @@ export default async function EditarVinculoPage({
           Histórico de {filiado.nome_completo ?? "—"}.
         </p>
       </div>
+
+      {pendencias.length > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <strong>Vínculo incompleto.</strong> Faltam: {pendencias.join(", ")}.
+            Saída na fonte, carta de desligamento e desfiliação só valem quando
+            o vínculo termina; regime de trabalho só para trabalhador da ativa.
+          </AlertDescription>
+        </Alert>
+      )}
       <VinculoForm
         filiadoId={id}
         fontes={fontes.map((f) => ({
