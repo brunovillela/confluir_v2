@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ShieldOff } from "lucide-react"
+import { ArrowLeft, FileText, ShieldOff } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +30,7 @@ import {
 } from "./formularios"
 
 export const metadata: Metadata = {
-  title: "Carência e inadimplência — Confluir",
+  title: "Configurações de filiação — Confluir",
 }
 
 export default async function DireitosPage() {
@@ -57,13 +57,31 @@ export default async function DireitosPage() {
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Carência e inadimplência
+          Configurações de filiação
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Quanto tempo o filiado espera por cada direito, e quantas
-          contribuições em falta o colocam no relatório de inadimplência.
+          Carência por direito, regra de inadimplência e os termos legais
+          aceitos na filiação.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Termos legais</CardTitle>
+          <CardDescription>
+            Textos de LGPD e de autorização de desconto que o filiado aceita
+            na ficha — versões, vigência e edição.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/painel/filiados/termos">
+              <FileText />
+              Abrir termos legais
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

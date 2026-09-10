@@ -176,14 +176,19 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "direitos",
-        titulo: "Carência e inadimplência",
+        titulo: "Configurações de filiação",
         resumo:
-          "Prazos por direito, faltas que inativam e o efeito suspensivo por pessoa",
+          "Carência por direito, regra de inadimplência e termos legais",
       },
       {
-        slug: "fichas-pendentes",
-        titulo: "Fichas pendentes",
-        resumo: "Filiados ativos sem a ficha assinada no vínculo corrente",
+        slug: "cadastros-pendentes",
+        titulo: "Cadastros pendentes",
+        resumo: "Filiados ativos com dado, termo ou histórico de vínculos incompleto",
+      },
+      {
+        slug: "relatorios",
+        titulo: "Relatórios",
+        resumo: "Em carência, plenos, inadimplentes e o relatório personalizado",
       },
       {
         slug: "convenios",

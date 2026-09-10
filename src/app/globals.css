@@ -459,3 +459,19 @@
     transform: scaleX(0.92);
   }
 }
+
+/* Impressão (relatórios): só o conteúdo — sem sidebar, cabeçalho e fundos. */
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

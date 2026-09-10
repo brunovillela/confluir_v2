@@ -117,8 +117,6 @@ export default async function EditarVinculoPage({
         <Alert variant="warning">
           <AlertDescription>
             <strong>Vínculo incompleto.</strong> Faltam: {pendencias.join(", ")}.
-            Saída na fonte, carta de desligamento e desfiliação só valem quando
-            o vínculo termina; regime de trabalho só para trabalhador da ativa.
           </AlertDescription>
         </Alert>
       )}

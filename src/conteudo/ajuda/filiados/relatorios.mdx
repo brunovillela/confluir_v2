@@ -1,0 +1,79 @@
+Os **relatórios** respondem, em lista, às perguntas que a gestão da filiação
+mais faz: quem ainda está em carência, quem já é pleno, quem está inadimplente
+— e qualquer outro recorte, montado com filtros. Todos exportam em **CSV** e
+**imprimem**.
+
+<RequerPermissao>Gestão de filiados</RequerPermissao>
+
+## Os relatórios fixos
+
+Em **Filiados → Relatórios**, três recortes prontos sobre os filiados ativos:
+
+- **Filiados em carência** — ativos que ainda não cumpriram a **carência de
+  voto** configurada em Configurações de filiação. Mostra quando a carência
+  libera e quantos dias faltam.
+- **Filiados plenos** — ativos com a carência de voto cumprida.
+- **Filiados inadimplentes** — ativos na condição definida pelas regras de
+  inadimplência, com o tipo de contribuição, as remessas em falta e o último
+  pagamento.
+
+<Aviso tipo="nota" titulo="De onde vem a carência">
+  É a mesma regra do portal: conta da <strong>filiação mais recente</strong> do
+  CPF; com efeito suspensivo, da primeira. Quem não tem vínculo datado usa a
+  competência mais antiga em que aparece numa remessa. Quem não tem nem isso
+  aparece como <em>sem data para contar</em>.
+</Aviso>
+
+## O relatório personalizado
+
+Um painel de filtros e uma lista de colunas à escolha:
+
+- **Cadastro**: situação, condição sindical (ou grupo de condições), sexo,
+  faixa de idade, UF e cidade.
+- **Vínculo corrente**: fonte pagadora, condição na fonte, regime de trabalho,
+  lotação, período da filiação mais recente, com ou sem vínculo em aberto.
+- **Direitos e termos**: carência de voto, inadimplência, ficha de filiação,
+  termo LGPD e termo de desconto.
+
+Marque as **colunas** que quer ver (nome, CPF, matrícula, fonte, datas de
+filiação, carência, inadimplência, contatos, endereço…) e clique em
+**Aplicar**. A ordenação vale para a tela e para o CSV.
+
+<PassoAPasso>
+  <Passo titulo="Monte o recorte">
+    Combine os filtros. O contador ao lado de Aplicar mostra quantos filiados
+    entram.
+  </Passo>
+  <Passo titulo="Escolha as colunas">
+    Sem nenhuma marcada, valem as colunas padrão do relatório.
+  </Passo>
+  <Passo titulo="Exporte ou imprima">
+    <strong>Exportar CSV</strong> traz todos os filiados do recorte com as
+    colunas escolhidas. <strong>Imprimir</strong> sai com a página atual da
+    tabela, sem menu e sem filtros.
+  </Passo>
+</PassoAPasso>
+
+## Erros comuns
+
+- **"Todo mundo aparece como pleno."** A carência de voto está desligada ou com
+  zero dias em Configurações de filiação.
+- **"O relatório de inadimplentes está vazio."** Nenhuma regra de inadimplência
+  está ligada.
+- **"O número não bate com o que acabei de mudar."** A apuração fica guardada
+  por 10 minutos; a hora da última está no rodapé.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Configurações de filiação",
+      href: "/painel/ajuda/filiados/direitos",
+      descricao: "Onde a carência e a inadimplência são definidas",
+    },
+    {
+      titulo: "Cadastros pendentes",
+      href: "/painel/ajuda/filiados/cadastros-pendentes",
+      descricao: "O que falta em cada cadastro ativo",
+    },
+  ]}
+/>

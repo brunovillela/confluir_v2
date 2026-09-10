@@ -14,7 +14,7 @@ import {
   type TipoDocumento,
 } from "@/lib/db/filiacao-documentos"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
-import { invalidarCacheFichasPendentes } from "@/lib/db/filiacao-fichas-pendentes"
+import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { CONDICOES_NA_FONTE, REGIMES_TRABALHO } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -172,9 +172,9 @@ export async function excluirVinculo(
 
   // A lista de fichas pendentes deriva dos vínculos; sem isto ela mostraria
   // por até 10 minutos alguém que não existe mais.
-  invalidarCacheFichasPendentes()
+  invalidarCacheCadastrosPendentes()
   invalidarCacheAtivos()
-  revalidatePath("/painel/filiados/fichas-pendentes")
+  revalidatePath("/painel/filiados/cadastros-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
 }
@@ -203,9 +203,9 @@ export async function enviarDocumentoAction(
   const { erro } = await enviarDocumentoDoVinculo(vinculoId, tipo, arquivo)
   if (erro) return { erro }
 
-  invalidarCacheFichasPendentes()
+  invalidarCacheCadastrosPendentes()
   invalidarCacheAtivos()
-  revalidatePath("/painel/filiados/fichas-pendentes")
+  revalidatePath("/painel/filiados/cadastros-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
   return {
@@ -231,9 +231,9 @@ export async function removerDocumentoAction(
   const { erro } = await removerDocumentoDoVinculo(vinculoId, tipo)
   if (erro) return { erro }
 
-  invalidarCacheFichasPendentes()
+  invalidarCacheCadastrosPendentes()
   invalidarCacheAtivos()
-  revalidatePath("/painel/filiados/fichas-pendentes")
+  revalidatePath("/painel/filiados/cadastros-pendentes")
   revalidatePath(`/painel/filiados/${filiadoId}`)
   revalidatePath(`/painel/filiados/${filiadoId}/vinculos/${vinculoId}`)
   return { ok: "Documento removido do vínculo." }

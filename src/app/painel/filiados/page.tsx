@@ -4,7 +4,7 @@ import {
   BadgePercent,
   Building2,
   ClipboardCheck,
-  FileUp,
+  BarChart3,
   FileWarning,
   FolderHeart,
   HandCoins,
@@ -13,7 +13,6 @@ import {
   Plus,
   Receipt,
   ShieldCheck,
-  ScrollText,
   UserRoundCheck,
   UserRoundMinus,
   UserRoundPlus,
@@ -479,8 +478,8 @@ export default async function FiliadosPage({
           icone={FolderHeart}
         />
         <CartaoArea
-          titulo="Carência e inadimplência"
-          descricao="Prazos por direito e regras de contribuição em falta"
+          titulo="Configurações de filiação"
+          descricao="Carência por direito, regra de inadimplência e termos legais"
           href="/painel/filiados/direitos"
           icone={ShieldCheck}
         />
@@ -504,10 +503,18 @@ export default async function FiliadosPage({
             icone={Wallet}
           />
         )}
+        {podeRegistrar && (
+          <CartaoArea
+            titulo="Relatórios"
+            descricao="Em carência, plenos, inadimplentes e o relatório personalizado com filtros"
+            href="/painel/filiados/relatorios"
+            icone={BarChart3}
+          />
+        )}
         <CartaoArea
-          titulo="Fichas pendentes"
-          descricao="Filiados ativos sem a ficha assinada no vínculo corrente"
-          href="/painel/filiados/fichas-pendentes"
+          titulo="Cadastros pendentes"
+          descricao="Filiados ativos com dado, termo ou histórico de vínculos incompleto"
+          href="/painel/filiados/cadastros-pendentes"
           icone={FileWarning}
         />
         {podeRegistrar && (
@@ -542,22 +549,6 @@ export default async function FiliadosPage({
             descricao="Processos deliberados em assembleia e prazos de desistência"
             href="/painel/filiados/coletivas"
             icone={Handshake}
-          />
-        )}
-        {podeRegistrar && (
-          <CartaoArea
-            titulo="Termos legais"
-            descricao="Textos de LGPD e desconto aceitos na filiação"
-            href="/painel/filiados/termos"
-            icone={ScrollText}
-          />
-        )}
-        {podeRegistrar && (
-          <CartaoArea
-            titulo="Importar filiados"
-            descricao="Carga em massa a partir de uma planilha"
-            href="/painel/filiados/importar"
-            icone={FileUp}
           />
         )}
       </div>
@@ -624,46 +615,6 @@ export default async function FiliadosPage({
           )
         })}
       </div>
-
-      {/* Aniversariantes de hoje */}
-      <GrupoColapsavel
-        titulo={`Aniversariantes de hoje (${resumo.aniversariantes.hoje})`}
-        resumo={
-          <Badge
-            variant="outline"
-            className="text-muted-foreground tabular-nums"
-          >
-            {resumo.aniversariantes.total.toLocaleString("pt-BR")}
-          </Badge>
-        }
-      >
-        {resumo.aniversariantes.nomes.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Ninguém faz aniversário hoje.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {resumo.aniversariantes.nomes.map((a) => (
-              <Link
-                key={a.id}
-                href={`/painel/filiados/${a.id}`}
-                className="hover:bg-muted rounded-full border px-3 py-1 text-sm transition-colors"
-              >
-                {a.nome_completo ?? "(sem nome)"}
-              </Link>
-            ))}
-            {resumo.aniversariantes.total >
-              resumo.aniversariantes.nomes.length && (
-              <span className="text-muted-foreground self-center text-sm">
-                e mais{" "}
-                {resumo.aniversariantes.total -
-                  resumo.aniversariantes.nomes.length}
-                …
-              </span>
-            )}
-          </div>
-        )}
-      </GrupoColapsavel>
 
       {/* Gráficos */}
       <div className="grid gap-4 xl:grid-cols-2">
@@ -785,6 +736,46 @@ export default async function FiliadosPage({
           })}
         </CardContent>
       </Card>
+
+      {/* Aniversariantes de hoje */}
+      <GrupoColapsavel
+        titulo={`Aniversariantes de hoje (${resumo.aniversariantes.hoje})`}
+        resumo={
+          <Badge
+            variant="outline"
+            className="text-muted-foreground tabular-nums"
+          >
+            {resumo.aniversariantes.total.toLocaleString("pt-BR")}
+          </Badge>
+        }
+      >
+        {resumo.aniversariantes.nomes.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Ninguém faz aniversário hoje.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {resumo.aniversariantes.nomes.map((a) => (
+              <Link
+                key={a.id}
+                href={`/painel/filiados/${a.id}`}
+                className="hover:bg-muted rounded-full border px-3 py-1 text-sm transition-colors"
+              >
+                {a.nome_completo ?? "(sem nome)"}
+              </Link>
+            ))}
+            {resumo.aniversariantes.total >
+              resumo.aniversariantes.nomes.length && (
+              <span className="text-muted-foreground self-center text-sm">
+                e mais{" "}
+                {resumo.aniversariantes.total -
+                  resumo.aniversariantes.nomes.length}
+                …
+              </span>
+            )}
+          </div>
+        )}
+      </GrupoColapsavel>
     </>
   )
 }

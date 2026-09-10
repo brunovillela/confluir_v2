@@ -1,0 +1,78 @@
+Um filiado **ativo** deve ter o cadastro e o histórico de filiação completos:
+CPF válido, nome completo, os termos legais aceitos, um vínculo em aberto e,
+nesse vínculo, os dados fundamentais e a ficha assinada. **Cadastros
+pendentes** reúne quem falha em qualquer um desses pontos — antes, só a falta
+da ficha era visível.
+
+<RequerPermissao>Filiados</RequerPermissao>
+
+## O que conta como pendência
+
+**Filiados → Cadastros pendentes** mostra os filiados **ativos** (condição do
+cadastro) com pelo menos uma destas inconsistências:
+
+- **CPF ausente ou inválido** — o CPF é a identidade do filiado no sistema.
+- **Nome incompleto** — sem nome, ou só um nome.
+- **Termo LGPD não aceito** — o cadastro não aponta para a versão em vigor.
+- **Termo de desconto não aceito** — idem, para a autorização de desconto.
+- **Sem vínculo em aberto** — não há vínculo de filiação sem data de saída.
+- **Vínculo incompleto** — no vínculo em aberto falta algo obrigatório: fonte
+  pagadora, matrícula, cargo, lotação, admissão na fonte, data de filiação,
+  condição na fonte, regime de trabalho (só para trabalhador da ativa) ou a
+  **ficha de filiação**. Saída na fonte, carta de desligamento e desfiliação
+  não contam: só existem quando o vínculo termina.
+
+Os cartões do topo dão o total de cada pendência e filtram a lista ao clicar.
+Cada linha mostra as etiquetas do que falta; na de vínculo incompleto, o texto
+lista os campos.
+
+<Aviso tipo="nota" titulo="O que conta como ativo aqui">
+  A <strong>condição sindical do cadastro</strong> — o campo que a secretaria
+  mantém quando alguém se filia ou se desfilia. Não é o histórico de vínculos:
+  ele diz onde a pessoa trabalha, não se ela é filiada.
+</Aviso>
+
+## Como resolver
+
+<PassoAPasso>
+  <Passo titulo="Abra o cadastro ou o vínculo">
+    Quando a única pendência é o vínculo, o botão abre direto a edição dele;
+    nos demais casos abre o cadastro, onde o histórico de filiação marca com
+    um triângulo as linhas incompletas e a edição do vínculo lista o que falta.
+  </Passo>
+  <Passo titulo="Sem vínculo em aberto">
+    Registre o vínculo em <strong>Histórico de filiação</strong>, com fonte
+    pagadora, matrícula e data de filiação. Parte desses casos é herança do
+    sistema antigo, que trouxe o histórico pela metade.
+  </Passo>
+  <Passo titulo="Termos legais">
+    O aceite é registrado na ficha pública ou pela secretaria. Em 10/09/2026 o
+    termo de desconto em vigor foi registrado como aceito para todos os ativos,
+    porque a ficha assinada já o menciona; o de LGPD continua pendente para
+    quem não o aceitou.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Isto não afeta os direitos da pessoa">
+  Pendência de cadastro não tira nada de ninguém. Quando não há vínculo datado,
+  a carência conta pelo <strong>histórico de contribuição</strong> — a
+  competência mais antiga em que a pessoa aparece numa remessa.
+</Aviso>
+
+A varredura passa por todos os cadastros ativos e por todos os vínculos e fica
+guardada por 10 minutos; a hora da última apuração aparece no rodapé da tela.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+      descricao: "Onde o histórico de filiação é editado",
+    },
+    {
+      titulo: "Configurações de filiação",
+      href: "/painel/ajuda/filiados/direitos",
+      descricao: "Carência, inadimplência e termos legais",
+    },
+  ]}
+/>
