@@ -508,9 +508,6 @@ export default async function FiliadoPage({
                     </TableHead>
                     <TableHead>Filiação</TableHead>
                     <TableHead>Desfiliação</TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      Condição
-                    </TableHead>
                     <TableHead>Documentos</TableHead>
                     {podeEditar && <TableHead className="w-10" />}
                   </TableRow>
@@ -554,9 +551,6 @@ export default async function FiliadoPage({
                         {formatarData(
                           v.data_desfiliacao ?? v.filiacao_data_saida
                         )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden lg:table-cell">
-                        {v.filiacao_condicao ?? "—"}
                       </TableCell>
                       <TableCell>
                         <span className="flex flex-wrap items-center gap-1">

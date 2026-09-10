@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 export const TIPO_FONTE_PAGADORA = "Fonte pagadora"
 
-async function lerLotes<T>(
+export async function lerLotes<T>(
   consulta: (de: number, ate: number) => PromiseLike<{
     data: T[] | null
     error: { message: string } | null
@@ -439,7 +439,6 @@ export async function importarFiliadosDaFonte(
         matricula: l.matricula_fonte,
         data_entrada_admissao: l.data_admissao,
         data_filiacao: l.data_filiacao,
-        filiacao_condicao: l.condicao ?? "Ativo",
         emp_proprietaria_id: empId,
       }))
     )

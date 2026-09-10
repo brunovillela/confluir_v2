@@ -3,6 +3,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import {
   estatisticasFontes,
+  lerLotes,
   listarFontesPagadoras,
   nomesDeEmpresas,
 } from "@/lib/db/fontes"
@@ -330,18 +331,13 @@ export async function relatorioFonteRemessa(
   remessaId: string,
   fonteId: string
 ): Promise<RelatorioFonte> {
-  const admin = await createAdminClient()
-  const [todos, stats, vinculosRes] = await Promise.all([
+  const [todos, stats, vinculos] = await Promise.all([
     lancamentosDaRemessa(remessaId),
     estatisticasFontes(),
-    // Vínculos em aberto na fonte (matrícula do trabalhador na empresa)
-    admin
-      .from("filiacao_vinculos")
-      .select("filiado_id, matricula, fonte_pg_matricula")
-      .eq("fonte_pagadora_id", fonteId)
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .is("data_desfiliacao", null)
-      .is("filiacao_data_saida", null),
+    // Vínculos em aberto na fonte (matrícula do trabalhador na empresa).
+    // Em lotes: sem .range o PostgREST devolve no máximo 1.000 linhas, e
+    // a Petrobras tem 12 mil vínculos — o relatório saía capado.
+    vinculosDaFonte(fonteId, { somenteAbertos: true }),
   ])
 
   const registroPorId = new Map(stats.registros.map((r) => [r.id, r]))
@@ -385,7 +381,7 @@ export async function relatorioFonteRemessa(
   )
   const vistos = new Set<string>()
   const ativosNaoPagantes: RelatorioFonte["ativosNaoPagantes"] = []
-  for (const v of vinculosRes.data ?? []) {
+  for (const v of vinculos) {
     if (!v.filiado_id || vistos.has(v.filiado_id)) continue
     vistos.add(v.filiado_id)
     const registro = registroPorId.get(v.filiado_id)
@@ -405,24 +401,62 @@ export async function relatorioFonteRemessa(
   return { lancamentos, naoEncontrados, pagantesNaoAtivos, ativosNaoPagantes }
 }
 
-/** Remessa anterior do mesmo tipo (mapa matrícula→filiado vem de lá). */
-async function lancamentosRemessaAnterior(
+/**
+ * Remessa vizinha do mesmo tipo (mapa matrícula→filiado vem de lá): a
+ * anterior; se não houver — a remessa mais antiga do tipo, caso de uma
+ * reimportação de histórico — a seguinte, que já tem os pagantes
+ * identificados.
+ */
+async function lancamentosRemessaVizinha(
   remessaId: string
 ): Promise<LancamentoBruto[]> {
   const remessa = await buscarRemessa(remessaId)
   if (!remessa?.ordem || !remessa.tipo) return []
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("filiacao_recebe_remessa")
-    .select("id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("tipo", remessa.tipo)
-    .lt("ordem", remessa.ordem)
-    .order("ordem", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (!data) return []
-  return lancamentosDaRemessa(data.id).catch(() => [])
+  const empId = await tenantAtual()
+  const vizinha = (sentido: "anterior" | "seguinte") =>
+    admin
+      .from("filiacao_recebe_remessa")
+      .select("id")
+      .eq("emp_proprietaria_id", empId)
+      .eq("tipo", remessa.tipo)
+      [sentido === "anterior" ? "lt" : "gt"]("ordem", remessa.ordem!)
+      .order("ordem", { ascending: sentido === "seguinte" })
+      .limit(1)
+      .maybeSingle()
+  const alvo =
+    (await vizinha("anterior")).data ?? (await vizinha("seguinte")).data
+  if (!alvo) return []
+  return lancamentosDaRemessa(alvo.id).catch(() => [])
+}
+
+/**
+ * Vínculos com filiado de uma fonte pagadora, em lotes de 1.000 — sem
+ * .range o PostgREST devolve só o primeiro milhar, e fontes como a
+ * Petrobras (12 mil vínculos) ficavam com o mapa de matrículas capado.
+ */
+async function vinculosDaFonte(
+  fonteId: string,
+  opcoes: { somenteAbertos?: boolean } = {}
+) {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  return lerLotes<{
+    filiado_id: string
+    matricula: string | null
+    fonte_pg_matricula: string | null
+  }>((de, ate) => {
+    let q = admin
+      .from("filiacao_vinculos")
+      .select("filiado_id, matricula, fonte_pg_matricula")
+      .eq("fonte_pagadora_id", fonteId)
+      .eq("emp_proprietaria_id", empId)
+      .not("filiado_id", "is", null)
+    if (opcoes.somenteAbertos) {
+      q = q.is("data_desfiliacao", null).is("filiacao_data_saida", null)
+    }
+    return q.order("id", { ascending: true }).range(de, ate)
+  })
 }
 
 /**
@@ -491,7 +525,7 @@ type ItemResolver = {
 
 /**
  * Identifica cada linha do relatório contra o cadastro. Ordem de prioridade:
- * CPF → matrícula (vínculos + remessas) → NOME (último recurso). Nomes que
+ * CPF → matrícula (vínculos + esta remessa + a vizinha) → NOME (último recurso). Nomes que
  * apontam para mais de um filiado ficam AMBÍGUOS e não casam (evita registrar
  * no filiado errado). Devolve também COMO casou, p/ o preview revisar por-nome.
  */
@@ -500,17 +534,11 @@ export async function resolverFiliadosLoteDetalhado(
   remessaId: string,
   itens: ItemResolver[]
 ): Promise<ResolucaoFiliado[]> {
-  const admin = await createAdminClient()
-  const [stats, vinculosRes, atuais, anteriores] = await Promise.all([
+  const [stats, vinculos, atuais, vizinhos] = await Promise.all([
     estatisticasFontes(),
-    admin
-      .from("filiacao_vinculos")
-      .select("filiado_id, matricula, fonte_pg_matricula")
-      .eq("fonte_pagadora_id", fonteId)
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .not("filiado_id", "is", null),
+    vinculosDaFonte(fonteId),
     lancamentosDaRemessa(remessaId).catch(() => [] as LancamentoBruto[]),
-    lancamentosRemessaAnterior(remessaId),
+    lancamentosRemessaVizinha(remessaId),
   ])
 
   const porCpf = new Map<string, string>()
@@ -532,11 +560,11 @@ export async function resolverFiliadosLoteDetalhado(
     const chave = matricula.replace(/^0+/, "")
     if (chave && !porMatricula.has(chave)) porMatricula.set(chave, filiadoId)
   }
-  for (const v of vinculosRes.data ?? []) {
+  for (const v of vinculos) {
     aprender(v.matricula, v.filiado_id)
     aprender(v.fonte_pg_matricula, v.filiado_id)
   }
-  for (const l of [...atuais, ...anteriores]) {
+  for (const l of [...atuais, ...vizinhos]) {
     if (l.fonte_pg_id === fonteId) aprender(l.fonte_pg_matricula, l.filiado_id)
   }
 

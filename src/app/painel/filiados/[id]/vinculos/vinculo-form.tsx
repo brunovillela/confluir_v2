@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 
 import { atualizarVinculo, criarVinculo } from "./actions"
 
@@ -36,7 +35,6 @@ export type VinculoFormDados = {
   data_entrada_admissao: string | null
   data_filiacao: string | null
   data_desfiliacao: string | null
-  filiacao_condicao: string | null
 }
 
 function CampoData({
@@ -107,25 +105,6 @@ export function VinculoForm({
                   {fontes.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
                       {f.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="filiacao_condicao">Condição</Label>
-              <Select
-                name="filiacao_condicao"
-                defaultValue={vinculo?.filiacao_condicao ?? "sem_condicao"}
-              >
-                <SelectTrigger id="filiacao_condicao" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sem_condicao">Sem condição</SelectItem>
-                  {FILIACAO_CONDICOES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>

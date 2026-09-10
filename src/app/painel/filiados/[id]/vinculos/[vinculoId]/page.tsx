@@ -43,7 +43,7 @@ export default async function EditarVinculoPage({
     admin
       .from("filiacao_vinculos")
       .select(
-        "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_filiacao, data_desfiliacao, filiacao_condicao"
+        "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_filiacao, data_desfiliacao"
       )
       .eq("id", vinculoId)
       .eq("emp_proprietaria_id", await tenantAtual())

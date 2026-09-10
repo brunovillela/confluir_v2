@@ -15,7 +15,6 @@ import {
 } from "@/lib/db/filiacao-documentos"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
 import { invalidarCacheFichasPendentes } from "@/lib/db/filiacao-fichas-pendentes"
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -32,7 +31,6 @@ function lerCampos(formData: FormData) {
     return DATA.test(v) ? v : null
   }
   const fonte = String(formData.get("fonte_pagadora_id") ?? "")
-  const condicao = String(formData.get("filiacao_condicao") ?? "")
   return {
     fonte_pagadora_id: UUID.test(fonte) ? fonte : null,
     cargo: texto("cargo"),
@@ -41,11 +39,6 @@ function lerCampos(formData: FormData) {
     data_entrada_admissao: data("data_entrada_admissao"),
     data_filiacao: data("data_filiacao"),
     data_desfiliacao: data("data_desfiliacao"),
-    filiacao_condicao: (FILIACAO_CONDICOES as readonly string[]).includes(
-      condicao
-    )
-      ? condicao
-      : null,
   }
 }
 

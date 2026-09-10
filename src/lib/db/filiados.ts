@@ -340,7 +340,6 @@ export type Vinculo = {
   filiacao_data_saida: string | null
   data_entrada_admissao: string | null
   data_saida_demissao: string | null
-  filiacao_condicao: string | null
   fonte_pg_cargo: string | null
   fonte_pg_admissao: string | null
   fonte_pagadora_id: string | null
@@ -552,7 +551,7 @@ export async function buscarPerfilFiliado(
       admin
         .from("filiacao_vinculos")
         .select(
-          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, filiacao_condicao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de"
+          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de"
         )
         .in("filiado_id", idsDaPessoa)
         .order("created_at", { ascending: false }),

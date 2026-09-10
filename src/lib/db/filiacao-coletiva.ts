@@ -677,7 +677,6 @@ export async function aplicarProcesso(
         .insert({
           filiado_id: filiacaoId,
           matricula: item.matricula,
-          filiacao_condicao: CONDICAO_COLETIVA,
           data_filiacao: hoje,
           emp_proprietaria_id: emp,
         })
