@@ -244,16 +244,23 @@ export async function opcoesContratos(): Promise<OpcaoContrato[]> {
     .order("vigencia_termino", { ascending: false, nullsFirst: false })
   if (error) return []
   const hoje = hojeSP()
-  return (data ?? []).map((c) => {
-    const termino = texto(c.vigencia_termino)
-    return {
-      id: String(c.id),
-      codigo: texto(c.codigo),
-      objeto: texto(c.objeto),
-      vigenciaTermino: termino,
-      vigente: vigenciaDe(termino, hoje) !== "vencido",
-    }
-  })
+  return (data ?? [])
+    .map((c) => {
+      const termino = texto(c.vigencia_termino)
+      return {
+        id: String(c.id),
+        codigo: texto(c.codigo),
+        objeto: texto(c.objeto),
+        vigenciaTermino: termino,
+        vigente: vigenciaDe(termino, hoje) !== "vencido",
+      }
+    })
+    .sort((a, b) =>
+      `${a.codigo ?? ""} ${a.objeto ?? ""}`.localeCompare(
+        `${b.codigo ?? ""} ${b.objeto ?? ""}`,
+        "pt-BR"
+      )
+    )
 }
 
 export async function listarContratos(opcoes: {

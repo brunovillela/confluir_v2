@@ -48,7 +48,9 @@ export default async function NovoReembolsoPage({
         </p>
       </div>
       <ReembolsoForm
-        projetos={projetos.map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))}
+        projetos={projetos
+          .map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))
+          .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"))}
         valorPadrao={config.valorReembolso}
         filiadoInicial={inicial}
         voltarPara={voltar}

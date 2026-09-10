@@ -63,13 +63,16 @@ export async function listarTiposDiaria(): Promise<{
   }
   return {
     disponivel: true,
-    tipos: (data ?? []).map((t) => ({
-      id: String(t.id),
-      nome: String(t.nome ?? t.diaria ?? "(sem nome)"),
-      categoria: (t.diaria as string | null) ?? null,
-      valor_reembolso: (t.valor_reembolso as number | null) ?? null,
-      ativa: t.ativa !== false,
-    })),
+    tipos: (data ?? [])
+      .map((t) => ({
+        id: String(t.id),
+        nome: String(t.nome ?? t.diaria ?? "(sem nome)"),
+        categoria: (t.diaria as string | null) ?? null,
+        valor_reembolso: (t.valor_reembolso as number | null) ?? null,
+        ativa: t.ativa !== false,
+      }))
+      // Dropdown: ordem alfabética (padrão do sistema, DESIGN.md).
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
   }
 }
 

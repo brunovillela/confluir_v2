@@ -15,7 +15,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { contagensAtendimento } from "@/lib/db/atendimentos"
 import { resumoSaude } from "@/lib/db/saude"
@@ -104,7 +104,7 @@ export default async function SaudePage() {
       {/* Áreas do módulo */}
       <div>
         <h2 className="mb-3 text-sm font-medium">Áreas</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={GRADE_AREAS}>
           <CardArea
             icone={ClipboardList}
             titulo="CAT"

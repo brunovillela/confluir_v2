@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import {
   Table,
   TableBody,
@@ -136,7 +136,7 @@ export default async function ComprasPage({
         veRecebimentos ||
         veFornecedores ||
         veContratos) && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={GRADE_AREAS}>
           {veComprador && (
             <CartaoArea
               titulo="Área do comprador"

@@ -10,6 +10,7 @@ import {
   cancelarAgendamento,
   criarAgendamento,
   editarAgendamento,
+  editarMovimentacao,
   negarAgendamento,
   registrarDevolucao,
   registrarRetirada,
@@ -212,6 +213,59 @@ export async function registrarSaidaAction(
   if (erro) return { erro }
   revalidar(veiculoId)
   redirect(comSalvo(destino(formData, `/painel/veiculos/${veiculoId}`)))
+}
+
+/** Gestão da frota corrige uma movimentação já lançada. */
+export async function editarMovimentacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "movimentacao_id")
+  const veiculoId = texto(formData, "veiculo_id")
+  if (!UUID.test(id)) return { erro: "Movimentação inválida." }
+  const numeroOuNulo = (campo: string) => {
+    const v = texto(formData, campo)
+    if (!v) return { valor: null, invalido: false }
+    const n = parseValorBR(v)
+    return { valor: n, invalido: n === null || n < 0 }
+  }
+  const hodRet = numeroOuNulo("hodometro_retirada")
+  const hodDev = numeroOuNulo("hodometro_devolucao")
+  if (hodRet.invalido) return { erro: "Hodômetro da saída inválido." }
+  if (hodDev.invalido) return { erro: "Hodômetro da entrada inválido." }
+  const dataRet = texto(formData, "data_retirada")
+  const dataDev = texto(formData, "data_devolucao")
+  const previsao = texto(formData, "previsao_retorno")
+  if (dataRet && !dataISO(dataRet)) return { erro: "Data da saída inválida." }
+  if (dataDev && !dataISO(dataDev)) return { erro: "Data da entrada inválida." }
+  if (previsao && !dataISO(previsao)) return { erro: "Previsão de retorno inválida." }
+  if (!dataRet) return { erro: "Informe a data da saída." }
+  const condutor = texto(formData, "condutor_usuario_id")
+
+  const { erro } = await editarMovimentacao(id, {
+    condutor_usuario_id: UUID.test(condutor) ? condutor : null,
+    data_retirada: dataRet,
+    hodometro_retirada: hodRet.valor,
+    sede_retirada: texto(formData, "sede_retirada") || null,
+    destino: texto(formData, "destino") || null,
+    previsao_retorno: previsao || null,
+    data_devolucao: dataDev || null,
+    hodometro_devolucao: hodDev.valor,
+    sede_devolucao: texto(formData, "sede_devolucao") || null,
+    observacao_retorno: texto(formData, "observacao_retorno") || null,
+  })
+  if (erro) return { erro }
+  revalidar(UUID.test(veiculoId) ? veiculoId : undefined)
+  if (UUID.test(veiculoId)) revalidatePath(`/painel/veiculos/${veiculoId}/historico`)
+  redirect(
+    comSalvo(
+      destino(
+        formData,
+        UUID.test(veiculoId) ? `/painel/veiculos/${veiculoId}/historico` : "/painel/veiculos"
+      )
+    )
+  )
 }
 
 /** ENTRADA (devolução) do veículo — registrada pela recepção. */

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Link2, Newspaper, PenLine, QrCode, Sparkles } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 
 export const metadata: Metadata = { title: "Comunicação — Confluir" }
@@ -19,7 +19,7 @@ export default async function ComunicacaoPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         <CartaoArea
           titulo="Notícias"
           descricao="Publique manchetes exibidas no painel e no portal do filiado"

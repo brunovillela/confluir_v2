@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -126,7 +126,7 @@ export default async function ConfiguracoesPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         {visiveis.map((area) => (
           <CartaoArea
             key={area.titulo}

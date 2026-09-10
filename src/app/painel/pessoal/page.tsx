@@ -18,7 +18,7 @@ import {
   Users,
 } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { resumoPessoal } from "@/lib/db/pessoal-dashboard"
 import { resumoSST } from "@/lib/db/pessoal-sst"
@@ -373,7 +373,7 @@ export default async function PessoalPage() {
 
       <section aria-label="Áreas do Pessoal">
         <h2 className="mb-2 text-sm font-medium">Áreas</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className={GRADE_AREAS}>
           {visiveis.map((a) => (
             <AreaCard
               key={a.href}

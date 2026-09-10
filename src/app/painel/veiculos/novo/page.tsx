@@ -39,10 +39,12 @@ export default async function NovoVeiculoPage() {
           <VeiculoForm
             action={criarVeiculoAction}
             sedes={sedes}
-            contratos={contratos.map((c) => ({
-              id: c.id,
-              rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
-            }))}
+            contratos={contratos
+              .map((c) => ({
+                id: c.id,
+                rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
+              }))
+              .sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"))}
           />
         </CardContent>
       </Card>

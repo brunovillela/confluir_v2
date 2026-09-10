@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { BedDouble, CalendarCheck, Hotel, Percent, Ticket } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import {
   Card,
   CardContent,
@@ -117,7 +117,7 @@ export default async function HospedagemPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         {atalhos.map((a) => (
           <CartaoArea
             key={a.href}

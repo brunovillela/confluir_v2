@@ -13,7 +13,7 @@ import {
   Wrench,
 } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -183,7 +183,7 @@ export default async function VeiculosPage({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         {areasVeiculos.map((a) => (
           <CartaoArea
             key={a.href}

@@ -93,7 +93,9 @@ export default async function ReembolsoPage({
       </Card>
 
       <ReembolsoForm
-        projetos={projetos.map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))}
+        projetos={projetos
+          .map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))
+          .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"))}
         valorPadrao={null}
         reembolso={reembolso}
         voltarPara="/painel/filiados/reembolsos"

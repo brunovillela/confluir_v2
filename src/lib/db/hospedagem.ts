@@ -262,10 +262,13 @@ export async function listarCupons(): Promise<CupomLinha[]> {
 /** Cupons aguardando reserva (sem serviço e não cancelados) de um hotel. */
 export async function cuponsAguardando(hotelId?: string): Promise<CupomLinha[]> {
   const todos = await listarCupons()
-  return todos.filter(
-    (c) =>
-      situacaoCupom(c) === "aguardando" && (!hotelId || c.hotel_id === hotelId)
-  )
+  return todos
+    .filter(
+      (c) =>
+        situacaoCupom(c) === "aguardando" && (!hotelId || c.hotel_id === hotelId)
+    )
+    // Alimenta o dropdown "vincular cupom": por nome do hóspede.
+    .sort((a, b) => (a.filiadoNome ?? "").localeCompare(b.filiadoNome ?? "", "pt-BR"))
 }
 
 async function nomesDeFiliados(
@@ -861,7 +864,13 @@ export async function contasDoHotel(
     if (tabelaAusente(error)) return { disponivel: false, contas: [] }
     throw new Error(`Falha ao listar contas do hotel: ${error.message}`)
   }
-  return { disponivel: true, contas: (data ?? []) as ContaHotel[] }
+  const contas = ((data ?? []) as ContaHotel[]).sort((a, b) =>
+    `${a.titular ?? ""} ${a.banco ?? ""}`.localeCompare(
+      `${b.titular ?? ""} ${b.banco ?? ""}`,
+      "pt-BR"
+    )
+  )
+  return { disponivel: true, contas }
 }
 
 // ── Faturamento ────────────────────────────────────────────────────────────

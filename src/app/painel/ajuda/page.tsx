@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
+import { GRADE_AREAS } from "@/components/cartao-area"
 import { AjudaBusca, type ItemBusca } from "@/components/ajuda/ajuda-busca"
 import { iconeAjuda } from "@/components/ajuda/icones"
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,7 +55,7 @@ export default async function AjudaIndexPage() {
       </div>
 
       <section className="mt-8" aria-label="Áreas do manual">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={GRADE_AREAS}>
           {areas.map((area) => {
             const Icone = iconeAjuda(area.icone)
             const conteudo = (

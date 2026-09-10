@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Boxes, MapPin, Receipt } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { requirePermissao } from "@/lib/auth"
 import { resumoPatrimonio } from "@/lib/db/patrimonio"
@@ -34,7 +34,7 @@ export default async function PatrimonioPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         <CartaoArea
           titulo="Itens patrimoniais"
           descricao="Bens do patrimônio, com situação, recinto e cautela"

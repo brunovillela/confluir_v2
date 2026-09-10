@@ -21,7 +21,7 @@ import {
   Wallet,
 } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { Donut } from "@/components/grafico-donut"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
@@ -330,7 +330,7 @@ export default async function FiliadosPage() {
       <BuscaRapida />
 
       {/* Áreas de Filiados */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={GRADE_AREAS}>
         <CartaoArea
           titulo="Todos os filiados"
           descricao="Lista completa com filtros, busca e exportação"

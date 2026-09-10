@@ -586,10 +586,12 @@ export default async function VeiculoPage({
             dados={veiculo}
             sedes={sedes}
             contratoAtualId={veiculo.contrato_aluguel_id}
-            contratos={contratosRes.contratos.map((c) => ({
-              id: c.id,
-              rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
-            }))}
+            contratos={contratosRes.contratos
+              .map((c) => ({
+                id: c.id,
+                rotulo: `${c.numero ?? "(sem número)"} — ${c.fornecedorNome ?? "locadora"}`,
+              }))
+              .sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"))}
           />
         </GrupoColapsavel>
       )}

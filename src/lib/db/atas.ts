@@ -135,10 +135,12 @@ export async function opcoesMandatos(): Promise<
   { id: string; nome: string }[]
 > {
   const mandatos = await listarMandatos()
-  return mandatos.map((m) => ({
-    id: m.id,
-    nome: m.mandato ?? "(mandato sem nome)",
-  }))
+  return mandatos
+    .map((m) => ({
+      id: m.id,
+      nome: m.mandato ?? "(mandato sem nome)",
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }
 
 // ── Escrita ──────────────────────────────────────────────────────────────────

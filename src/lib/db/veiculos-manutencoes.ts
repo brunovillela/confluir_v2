@@ -484,7 +484,7 @@ export async function comprasParaVinculo(
         : null,
     ].filter(Boolean)
     return { id: c.id as string, rotulo: partes.join(" · ") || "(sem código)" }
-  })
+  }).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"))
 }
 
 async function codigosDasCompras(ids: string[]): Promise<Map<string, string>> {

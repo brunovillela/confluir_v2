@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Search, X } from "lucide-react"
+import { Pencil, Search, X } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,6 +22,7 @@ import { requirePermissao } from "@/lib/auth"
 import { buscarVeiculo, listarMovimentacoes } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { CabecalhoVeiculo } from "../cabecalho-veiculo"
 
@@ -37,6 +39,7 @@ type Params = {
   situacao?: string
   pagina?: string
   porPagina?: string
+  salvo?: string
 }
 
 const dataISO = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "")
@@ -49,7 +52,11 @@ export default async function HistoricoVeiculoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<Params>
 }) {
-  await requirePermissao("veiculos", ["veiculos_gestao", "veiculos_recepcao"])
+  const sessao = await requirePermissao("veiculos", [
+    "veiculos_gestao",
+    "veiculos_recepcao",
+  ])
+  const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
   const { id } = await params
   const brutos = await searchParams
   const veiculo = await buscarVeiculo(id)
@@ -95,6 +102,12 @@ export default async function HistoricoVeiculoPage({
         titulo="Histórico de uso"
         descricao="Todas as saídas e entradas registradas, do fluxo novo e do legado"
       />
+
+      {brutos.salvo && (
+        <Alert variant="success">
+          <AlertDescription>Movimentação corrigida.</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
@@ -191,6 +204,7 @@ export default async function HistoricoVeiculoPage({
                 <TableHead className="text-right">Hodômetro</TableHead>
                 <TableHead className="text-right">Km</TableHead>
                 <TableHead>Observação</TableHead>
+                {gestor && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -230,6 +244,16 @@ export default async function HistoricoVeiculoPage({
                   <TableCell className="text-muted-foreground max-w-56">
                     <span className="line-clamp-1">{m.observacao_retorno ?? "—"}</span>
                   </TableCell>
+                  {gestor && (
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" asChild title="Corrigir lançamento">
+                        <Link href={`/painel/veiculos/${veiculo.id}/historico/${m.id}`}>
+                          <Pencil />
+                          <span className="sr-only">Corrigir</span>
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

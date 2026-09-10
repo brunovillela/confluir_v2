@@ -877,6 +877,7 @@ export type Movimentacao = {
 export async function listarMovimentacoes(filtros: {
   veiculoId?: string
   condutorId?: string
+  ids?: string[]
   abertas?: boolean
   /** Só o fluxo novo (com registrado_por_id) — exclui as 221 aberturas legadas. */
   fluxoNovo?: boolean
@@ -889,6 +890,7 @@ export async function listarMovimentacoes(filtros: {
     .eq("emp_proprietaria_id", await tenantAtual())
   if (filtros.veiculoId) q = q.eq("veiculo_id", filtros.veiculoId)
   if (filtros.condutorId) q = q.eq("condutor_id", filtros.condutorId)
+  if (filtros.ids) q = q.in("id", filtros.ids)
   if (filtros.abertas) q = q.is("data_devolucao", null)
   if (filtros.fluxoNovo) q = q.not("registrado_por_id", "is", null)
   const { data, error } = await q
@@ -937,6 +939,104 @@ export async function listarMovimentacoes(filtros: {
       aberta: !m.data_devolucao,
     }
   })
+}
+
+export type EdicaoMovimentacao = {
+  condutor_usuario_id: string | null
+  data_retirada: string | null
+  hodometro_retirada: number | null
+  sede_retirada: string | null
+  destino: string | null
+  previsao_retorno: string | null
+  data_devolucao: string | null
+  hodometro_devolucao: number | null
+  sede_devolucao: string | null
+  observacao_retorno: string | null
+}
+
+/**
+ * Gestão da frota corrige uma movimentação lançada errado (hodômetro, datas,
+ * condutor, sedes…). Recalcula km_rodado e o estado "disponível". Apagar a
+ * devolução reabre a movimentação — só se o veículo não tiver outra aberta.
+ */
+export async function editarMovimentacao(
+  id: string,
+  dados: EdicaoMovimentacao
+): Promise<{ erro?: string }> {
+  if (
+    dados.hodometro_retirada !== null &&
+    dados.hodometro_devolucao !== null &&
+    dados.hodometro_devolucao < dados.hodometro_retirada
+  ) {
+    return { erro: "O hodômetro da entrada não pode ser menor que o da saída." }
+  }
+  if (
+    dados.data_retirada &&
+    dados.data_devolucao &&
+    dados.data_devolucao < dados.data_retirada
+  ) {
+    return { erro: "A data da entrada não pode ser anterior à da saída." }
+  }
+  if (dados.data_devolucao && dados.hodometro_devolucao === null) {
+    return { erro: "Com data de entrada, informe também o hodômetro da entrada." }
+  }
+  if (!dados.data_devolucao && dados.hodometro_devolucao !== null) {
+    return { erro: "Com hodômetro da entrada, informe também a data da entrada." }
+  }
+
+  const admin = await createAdminClient()
+  const { data: atual } = await admin
+    .from("veiculos_disponibilidade")
+    .select("id, veiculo_id, data_devolucao")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!atual) return { erro: "Movimentação não encontrada." }
+
+  const reabrindo = Boolean(atual.data_devolucao) && !dados.data_devolucao
+  if (reabrindo && atual.veiculo_id) {
+    const { count } = await admin
+      .from("veiculos_disponibilidade")
+      .select("id", { count: "exact", head: true })
+      .eq("veiculo_id", atual.veiculo_id)
+      .is("data_devolucao", null)
+      .not("registrado_por_id", "is", null)
+      .neq("id", id)
+    if ((count ?? 0) > 0) {
+      return { erro: "O veículo já tem outra movimentação em aberto — não dá para reabrir esta." }
+    }
+  }
+  if (dados.condutor_usuario_id) {
+    const condutor = await buscarCondutorDoUsuario(dados.condutor_usuario_id)
+    if (!condutor) return { erro: "O condutor escolhido não tem cadastro de condutor." }
+  }
+
+  const kmRodado =
+    dados.hodometro_retirada !== null && dados.hodometro_devolucao !== null
+      ? dados.hodometro_devolucao - dados.hodometro_retirada
+      : null
+  const { error } = await admin
+    .from("veiculos_disponibilidade")
+    .update({
+      condutor_id: dados.condutor_usuario_id,
+      data_retirada: dados.data_retirada,
+      hodometro_retirada: dados.hodometro_retirada,
+      sede_retirada_os: dados.sede_retirada,
+      sede_retirada: dados.sede_retirada,
+      destino: dados.destino,
+      previsao_retorno: dados.previsao_retorno,
+      data_devolucao: dados.data_devolucao,
+      hodometro_devolucao: dados.hodometro_devolucao,
+      sede_devolucao_os: dados.sede_devolucao,
+      sede_devolucao: dados.sede_devolucao,
+      observacao_retorno: dados.observacao_retorno,
+      km_rodado: kmRodado,
+      disponivel: Boolean(dados.data_devolucao),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  return {}
 }
 
 export type NovaRetirada = {

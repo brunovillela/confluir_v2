@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { CircleDollarSign, Receipt, Wallet } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { Donut } from "@/components/grafico-donut"
 import {
   Card,
@@ -132,7 +132,7 @@ export default async function FinanceiroPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         {atalhos.map((a) => (
           <CartaoArea
             key={a.href}

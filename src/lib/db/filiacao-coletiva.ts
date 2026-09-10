@@ -468,7 +468,7 @@ export async function rodadasDisponiveis(): Promise<
       aptos: count ?? 0,
     })
   }
-  return resultado
+  return resultado.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
 }
 
 /**

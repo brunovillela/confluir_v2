@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
@@ -336,7 +336,7 @@ export default async function PerfilPage() {
                 <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                   {g.titulo}
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className={GRADE_AREAS}>
                   {g.itens.map((r) => (
                     <CartaoArea
                       key={r.href}

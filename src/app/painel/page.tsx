@@ -114,7 +114,7 @@ export default async function PainelPage({
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
 
   const [resumo, noticias, meuCaixa, org, resumoIA] = await Promise.all([
-    resumoPainel(),
+    resumoPainel(sessao.usuario.id as string),
     ultimasNoticias(8),
     contaDoUsuario(sessao.usuario.id as string).catch(() => ({
       disponivel: false,

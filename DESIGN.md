@@ -63,6 +63,14 @@ crie/ajuste um token — não escreva hex, `oklch()` nem classes tipo
   (`?pagina=`/`?porPagina=`, prefixo quando há 2+ tabelas na página).
   Padrões: **30** itens em página dedicada à lista, **10** em página
   concorrida (lista dividindo espaço com cards/formulários).
+- **Grade de áreas (hubs)**: os cartões de área de todo hub de módulo usam
+  `CartaoArea` dentro de `className={GRADE_AREAS}` (components/cartao-area.tsx):
+  1 coluna no celular, 2 de `sm`, 3 de `md`, **5 de `xl`**. Nunca uma
+  grade própria por página — era isso que fazia cada hub parecer diferente.
+- **Dropdowns**: opção que vem de lista dinâmica (sedes, pessoas, veículos,
+  fornecedores…) chega **em ordem alfabética** (`localeCompare("pt-BR")` ou
+  `.order("<nome>")` na origem, em lib/db). Listas fixas (situações, tipos)
+  seguem a ordem do processo.
 - **Espaçamento**: escala de 4px (utilitários padrão: `p-1` = 4px…).
 - **Raio**: `rounded-sm/md/lg/xl` derivados de `--radius`.
 - **Elevação**: `shadow-xs/md/lg/xl` (mais sutil no dark — lá a separação é

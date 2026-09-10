@@ -8,7 +8,7 @@ import {
   Vote,
 } from "lucide-react"
 
-import { CartaoArea } from "@/components/cartao-area"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -81,7 +81,7 @@ export default async function RepresentacaoPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={GRADE_AREAS}>
         {areas.map((a) => (
           <CartaoArea
             key={a.titulo}

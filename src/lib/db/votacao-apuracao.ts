@@ -143,6 +143,7 @@ export async function apuradoresDaSessao(): Promise<ApuradorLinha[]> {
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("ativo", true)
     .ilike("email", email)
+    .order("nome_completo", { ascending: true })
   return (data ?? []).map((m) => ({
     id: String(m.id),
     rodadaId: txt(m.rod_assembleia_id),

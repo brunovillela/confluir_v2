@@ -93,7 +93,12 @@ function hojeSaoPaulo(): { dia: number; mes: number; ano: number; rotulo: string
   }
 }
 
-export async function resumoPainel(): Promise<ResumoPainel> {
+/**
+ * @param usuarioId Demandas em aberto só aparecem para quem está nelas:
+ * o demandante (`criado_por`) ou o demandado (`membro_responsavel_id`).
+ * Antes o bloco mostrava as demandas de todo mundo para todo mundo.
+ */
+export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
   const admin = await createAdminClient()
   const hoje = hojeSaoPaulo()
 
@@ -145,6 +150,7 @@ export async function resumoPainel(): Promise<ResumoPainel> {
       .select("id, nome, descricao, situacao, prazo, membro_responsavel_id")
       .eq("emp_proprietaria_id", await tenantAtual())
       .or("situacao.neq.Feito,situacao.is.null")
+      .or(`membro_responsavel_id.eq.${usuarioId},criado_por.eq.${usuarioId}`)
       .order("prazo", { ascending: true, nullsFirst: false })
       .limit(8),
   ])

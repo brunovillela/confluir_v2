@@ -63,7 +63,9 @@ export default async function FiliacaoColetivaPage({
     listarAcordos().catch(() => []),
   ])
 
-  const acordos = acordosRes.map((a) => ({ id: a.id, titulo: a.titulo }))
+  const acordos = acordosRes
+    .map((a) => ({ id: a.id, titulo: a.titulo }))
+    .sort((a, b) => (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR"))
 
   return (
     <>

@@ -5,6 +5,15 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 /**
+ * Grade padrão dos cartões de área nos hubs (decisão do Bruno, 10/09/2026):
+ * 1 coluna no celular, 2 a partir de 640px, 3 em tablet, 5 em tela larga.
+ * Todo hub usa esta constante — sem className próprio — para as páginas
+ * ficarem iguais entre si e responsivas do mesmo jeito.
+ */
+export const GRADE_AREAS =
+  "grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+
+/**
  * Card de navegação para um hub de módulo/área. Padrão único do sistema: ícone
  * laranja (`text-primary`) no topo, título, descrição menor e, opcionalmente,
  * um indicador (ex.: "128 registros") ou o selo "Em breve". Substitui os
