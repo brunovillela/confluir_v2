@@ -85,8 +85,11 @@ export async function alternarManutencaoAction(
   const { erro } = await atualizarVeiculo(id, { manutencao: emManutencao })
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/${id}`)
+  revalidatePath(`/painel/veiculos/${id}/manutencoes`)
   revalidatePath("/painel/veiculos")
-  redirect(`/painel/veiculos/${id}?salvo=1`)
+  // O botão vive na subpágina de manutenções; volta para onde foi acionado.
+  const voltar = texto(formData, "voltar")
+  redirect(`${voltar.startsWith("/painel/veiculos/") ? voltar : `/painel/veiculos/${id}`}?salvo=1`)
 }
 
 export async function alternarInatividadeAction(

@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileWarning,
   Fuel,
+  History,
   KeyRound,
   LogIn,
   Wrench,
@@ -53,7 +54,7 @@ import { podeAcessar } from "@/lib/permissoes"
 
 import { atualizarVeiculoAction } from "../actions"
 import { VeiculoForm } from "../veiculo-form"
-import { VeiculoAcoes } from "./veiculo-acoes"
+import { InativarVeiculoBotao } from "./veiculo-acoes"
 
 export const metadata: Metadata = { title: "Veículo — Confluir" }
 
@@ -219,13 +220,15 @@ export default async function VeiculoPage({
                   Infrações
                 </Link>
               </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/painel/veiculos/${veiculo.id}/historico`}>
+                  <History />
+                  Histórico de uso
+                </Link>
+              </Button>
             </div>
             {gestor && (
-              <VeiculoAcoes
-                veiculoId={veiculo.id}
-                manutencao={veiculo.manutencao}
-                inativo={veiculo.inativo}
-              />
+              <InativarVeiculoBotao veiculoId={veiculo.id} inativo={veiculo.inativo} />
             )}
           </div>
         </div>
@@ -502,7 +505,7 @@ export default async function VeiculoPage({
       {/* ── Histórico de uso ───────────────────────────────────────────── */}
       <GrupoColapsavel
         titulo="Histórico de uso"
-        descricao="Retiradas e devoluções mais recentes"
+        descricao="As 10 movimentações mais recentes — o histórico completo, com filtros, fica no botão do topo"
         resumo={
           <span className="text-muted-foreground text-sm tabular-nums">
             {movimentacoes.length}
@@ -563,6 +566,14 @@ export default async function VeiculoPage({
             </TableBody>
           </Table>
         )}
+        <div className="mt-3">
+          <Button size="sm" variant="ghost" asChild>
+            <Link href={`/painel/veiculos/${veiculo.id}/historico`}>
+              <History />
+              Ver histórico completo
+            </Link>
+          </Button>
+        </div>
       </GrupoColapsavel>
 
       {gestor && (

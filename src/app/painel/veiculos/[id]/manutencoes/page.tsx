@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Wrench } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,23 +26,28 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { CabecalhoVeiculo } from "../cabecalho-veiculo"
+import { ManutencaoVeiculoBotao } from "../veiculo-acoes"
 
 export const metadata: Metadata = { title: "Manutenções do veículo — Confluir" }
 
 /** Prontuário do veículo: tudo que já foi feito nele, e as preventivas. */
 export default async function ManutencoesVeiculoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ salvo?: string }>
 }) {
   const sessao = await requirePermissao("veiculos", [
     "veiculos_gestao",
     "veiculos_recepcao",
   ])
+  const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
   const podeManutencao = podeAcessar(sessao.permissoes, "veiculos_manutencao", [
     "veiculos_gestao",
   ])
   const { id } = await params
+  const { salvo } = await searchParams
   const veiculo = await buscarVeiculo(id)
   if (!veiculo) notFound()
 
@@ -57,16 +63,39 @@ export default async function ManutencoesVeiculoPage({
         titulo="Prontuário de manutenções"
         descricao="Tudo que já foi feito neste veículo, com local, garantia e nota"
         acoes={
-          podeManutencao && (
-            <Button asChild>
-              <Link href={`/painel/veiculos/manutencoes/nova?veiculo=${veiculo.id}`}>
-                <Wrench />
-                Registrar manutenção
-              </Link>
-            </Button>
-          )
+          <>
+            {podeManutencao && (
+              <Button asChild>
+                <Link href={`/painel/veiculos/manutencoes/nova?veiculo=${veiculo.id}`}>
+                  <Wrench />
+                  Registrar manutenção
+                </Link>
+              </Button>
+            )}
+            {gestor && !veiculo.inativo && (
+              <ManutencaoVeiculoBotao
+                veiculoId={veiculo.id}
+                manutencao={veiculo.manutencao}
+                voltar={`/painel/veiculos/${veiculo.id}/manutencoes`}
+              />
+            )}
+          </>
         }
       />
+
+      {salvo && (
+        <Alert variant="success">
+          <AlertDescription>Alterações salvas.</AlertDescription>
+        </Alert>
+      )}
+      {veiculo.manutencao && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Veículo <strong>em manutenção</strong>: não sai da garagem até
+            a gestão concluir a manutenção.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {preventivas.ativo && !veiculo.inativo && (
         <AlertaManutencao
