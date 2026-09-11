@@ -16,6 +16,7 @@ import {
   registrarVotoFiliado,
 } from "@/lib/db/votacao-portal"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
 /**
@@ -110,7 +111,7 @@ export async function confirmarTokenEleitor(
     token,
     type: "email",
   })
-  if (error) return { erro: "Código inválido ou expirado." }
+  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "votacao_filiado" }) }
 
   // Sessão do eleitor criada (user_metadata.cpf) — recarrega a página, que
   // agora mostra a cédula.
@@ -173,7 +174,7 @@ export async function confirmarTokenEmail(
     token,
     type: "email",
   })
-  if (error) return { erro: "Código inválido ou expirado." }
+  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: email, token, fluxo: "votacao_corporativo" }) }
 
   redirect(`/votar/${assembleiaId}`)
 }

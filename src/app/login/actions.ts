@@ -113,7 +113,7 @@ export async function solicitarPrimeiroAcesso(
 
   if (usuario.auth_user_id) {
     return {
-      erro: "Esta conta já foi ativada. Se esqueceu a senha, use a recuperação de senha.",
+      erro: "Esta conta já foi ativada ou já recebeu um convite. Para receber um novo link, use “Esqueci minha senha” na tela de login.",
     }
   }
 

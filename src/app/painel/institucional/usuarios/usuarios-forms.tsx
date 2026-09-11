@@ -1,5 +1,7 @@
 "use client"
 
+import { textoValidade } from "@/lib/auth-email-constantes"
+
 import { useActionState, useState } from "react"
 import {
   Check,
@@ -363,6 +365,9 @@ function LinkGerado({ link }: { link: string }) {
           {copiado ? "Copiado" : "Copiar"}
         </Button>
       </div>
+      <p className="text-muted-foreground text-xs">
+        Vale por {textoValidade()} e funciona uma única vez. Se vencer, gere outro.
+      </p>
     </div>
   )
 }

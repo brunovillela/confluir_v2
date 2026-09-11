@@ -14,6 +14,7 @@ import {
   registrarPresenca,
   registrarVotoEmSeparado,
 } from "@/lib/db/votacao-mesarios"
+import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
 // ── Login do mesário (OTP por e-mail) ───────────────────────────────────────
@@ -57,7 +58,7 @@ export async function confirmarCodigoMesario(
     token,
     type: "email",
   })
-  if (error) return { erro: "Código inválido ou expirado." }
+  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: email, token, fluxo: "mesario" }) }
   redirect("/mesario")
 }
 

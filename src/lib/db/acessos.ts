@@ -2,7 +2,9 @@ import "server-only"
 import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { enviarEmail } from "@/lib/email"
+import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
+import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
+import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
 import { garantirPerfilPadrao } from "@/lib/db/perfis"
 import {
   CATALOGO_PERMISSOES,
@@ -268,7 +270,8 @@ export async function concederLogin(acessoId: string): Promise<ResultadoLogin> {
     return { erro: "O usuário não tem e-mail cadastrado — cadastre um e-mail antes." }
   }
 
-  const redirectSenha = `${await origemAtual()}/auth/confirm?next=/definir-senha`
+  const origem = await origemAtual()
+  const redirectSenha = `${origem}/auth/confirm?next=/definir-senha`
   const { data, error } = await admin.auth.admin.generateLink({
     type: "invite",
     email,
@@ -288,14 +291,14 @@ export async function concederLogin(acessoId: string): Promise<ResultadoLogin> {
     .update({ auth_user_id: data.user.id })
     .eq("id", u.id)
 
-  const link = data.properties?.action_link ?? undefined
+  const link = linkConfirmacaoEmail(origem, data.properties)
   const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
   const emailEnviado = link
     ? await enviarEmail({
         email,
         nome,
         assunto: "Acesso ao Confluir — {ENTIDADE}",
-        html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Seu acesso ao painel do Confluir foi liberado. Defina sua senha para entrar:</p><p><a href="${link}">Definir minha senha</a></p><p>Confluir — {ENTIDADE}</p>`,
+        html: `${tituloEmail("Seu acesso foi liberado")}<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Seu acesso ao painel do Confluir em {ENTIDADE} foi liberado. Defina sua senha para entrar:</p>${botaoEmail(link, "Definir minha senha")}${avisoValidadeLinkHtml(origem)}${linkReserva(link)}`,
       })
     : false
 
@@ -319,22 +322,23 @@ export async function gerarLinkRecuperacao(
   const email = texto(u.email)
   if (!email) return { erro: "O usuário não tem e-mail cadastrado." }
 
-  const redirectSenha = `${await origemAtual()}/auth/confirm?next=/definir-senha`
+  const origem = await origemAtual()
+  const redirectSenha = `${origem}/auth/confirm?next=/definir-senha`
   const { data, error } = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
     options: { redirectTo: redirectSenha },
   })
-  if (error || !data.properties?.action_link) {
+  const link = linkConfirmacaoEmail(origem, data.properties)
+  if (error || !link) {
     return { erro: `Não foi possível gerar o link: ${error?.message ?? "erro"}` }
   }
-  const link = data.properties.action_link
   const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
   const emailEnviado = await enviarEmail({
     email,
     nome,
     assunto: "Redefinição de senha — Confluir",
-    html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Use o link abaixo para redefinir sua senha do Confluir:</p><p><a href="${link}">Redefinir senha</a></p>`,
+    html: `${tituloEmail("Redefinição de senha")}<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Use o botão abaixo para redefinir sua senha do Confluir:</p>${botaoEmail(link, "Redefinir senha")}${avisoValidadeLinkHtml(origem)}${linkReserva(link)}`,
   })
   return {
     ok: emailEnviado

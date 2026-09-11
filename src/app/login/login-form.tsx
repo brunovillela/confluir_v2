@@ -16,13 +16,13 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
 
 import { loginFuncionario } from "./actions"
 
 const MENSAGENS_ERRO: Record<string, string> = {
   sem_vinculo:
     "Sua conta não está vinculada a um funcionário. Filiados devem usar o Portal do Associado.",
-  link_invalido: "O link de acesso é inválido ou expirou. Faça login ou solicite um novo.",
 }
 
 export function LoginForm({
@@ -34,7 +34,10 @@ export function LoginForm({
 }) {
   const [estado, formAction, pendente] = useActionState(loginFuncionario, {})
   const erro =
-    estado.erro ?? (erroInicial ? MENSAGENS_ERRO[erroInicial] : undefined)
+    estado.erro ??
+    (erroInicial
+      ? (MENSAGENS_ERRO[erroInicial] ?? mensagemLinkRecusado(erroInicial, "painel"))
+      : undefined)
 
   return (
     <Card>

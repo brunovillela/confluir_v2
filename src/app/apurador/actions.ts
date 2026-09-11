@@ -11,6 +11,7 @@ import {
   salvarContagemUrna,
   type ContagemLinha,
 } from "@/lib/db/votacao-apuracao"
+import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
 // ── Login do apurador (OTP por e-mail) ──────────────────────────────────────
@@ -50,7 +51,7 @@ export async function confirmarCodigoApurador(
   if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
   const supabase = await createClient()
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" })
-  if (error) return { erro: "Código inválido ou expirado." }
+  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: email, token, fluxo: "apurador" }) }
   redirect("/apurador")
 }
 

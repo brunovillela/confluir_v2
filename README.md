@@ -23,7 +23,8 @@ SaaS de gestão organizacional para sindicatos. Migração do Bubble.io para Nex
 1. **Auth → URL Configuration**: Site URL = URL do app; adicionar `http://localhost:3000/**` e o domínio de produção em Redirect URLs.
 2. **Auth → Email Templates**:
    - Nos templates *Invite user*, *Magic Link* e *Reset Password*, troque o link para o padrão server-side:
-     `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite` (ajuste o `type` por template: `invite`, `magiclink`, `recovery`) e acrescente `&next=/definir-senha` nos de convite/recuperação e `&next=/portal/inicio` no magic link.
+     `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery` (ajuste o `type` por template: `invite`, `magiclink`, `recovery`). Use `{{ .RedirectTo }}`, não `{{ .SiteURL }}`: o app já manda o redirect com o subdomínio do tenant e o `?next=` certo (multi-tenant). O *Reset Password* está assim desde 11/09/2026.
+   - Cite o prazo do link no texto (hoje 2 horas = "Email OTP Expiration" 7200 s, espelhado em `src/lib/auth-email-constantes.ts`).
    - No template *Magic Link*, inclua também `{{ .Token }}` (código de 6 dígitos) — é o que o eleitor digita na votação (Porta 3).
 3. **SMTP**: configure um provedor de email próprio (o SMTP embutido do Supabase tem limite baixo e não serve para produção).
 

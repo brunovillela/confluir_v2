@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Redefinição de senha — Confluir</title>
+<style>
+  body { margin:0; padding:0; background-color:#F5F7FA; }
+  a { color:#D73E02; }
+  @media (max-width:600px) {
+    .cartao { width:100% !important; border-radius:0 !important; }
+    .miolo { padding:28px 20px !important; }
+    .faixa { padding:18px 20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F7FA;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Seu link para escolher uma nova senha. Vale por 2 horas.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5F7FA;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="cartao" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;background-color:#FFFFFF;border:1px solid #E9EBEF;border-radius:12px;overflow:hidden;">
+<tr><td class="faixa" align="left" bgcolor="#091747" style="background-color:#091747;padding:20px 32px;">
+<img src="{{ .SiteURL }}/logo-confluir-completa-dark.png" width="150" height="50" alt="Confluir" style="display:block;border:0;outline:none;text-decoration:none;width:150px;height:50px;">
+</td></tr>
+<tr><td bgcolor="#FF5722" style="background-color:#FF5722;height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+<tr><td class="miolo" style="padding:36px 32px 20px;font-family:Poppins, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:1.6;color:#41454D;">
+<h1 style="margin:0 0 16px;font-family:Poppins, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:1.3;font-weight:600;color:#091747;">Redefinição de senha</h1>
+<p style="margin:0 0 16px;">Recebemos um pedido para redefinir a senha da sua conta no Confluir. Clique no botão abaixo para escolher uma nova.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;border-collapse:separate;">
+<tr><td align="center" bgcolor="#D73E02" style="border-radius:8px;background-color:#D73E02;">
+<a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Poppins, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:600;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:8px;">Redefinir senha</a>
+</td></tr>
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+<tr><td style="background-color:#FFF4F1;border-left:4px solid #FF5722;border-radius:6px;padding:14px 16px;font-family:Poppins, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:1.5;color:#41454D;">Este link vale por <strong>2 horas</strong> e funciona uma única vez. Se ele vencer, peça outro em <strong>Esqueci minha senha</strong>, na tela de login.</td></tr>
+</table>
+<p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#72767E;">Se o botão não abrir, copie e cole este endereço no navegador:<br><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery" style="color:#D73E02;word-break:break-all;">{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery</a></p>
+<p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#72767E;">Se não foi você que pediu, ignore este e-mail. Sua senha continua a mesma.</p>
+</td></tr>
+</table>
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
+<tr><td align="center" style="padding:18px 24px 0;font-family:Poppins, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:1.5;color:#72767E;">Este é um e-mail automático do Confluir. Não é preciso respondê-lo.</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -1,7 +1,9 @@
 import "server-only"
 import { texto } from "@/lib/db/comum"
 
-import { enviarEmail } from "@/lib/email"
+import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
+import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
+import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { subdominioReservado } from "@/lib/tenant-host"
@@ -290,14 +292,14 @@ export async function criarTenant(
     .update({ auth_user_id: convite.user.id })
     .eq("id", usuarioId)
 
-  const link = convite.properties?.action_link ?? undefined
+  const link = linkConfirmacaoEmail(origemDoTenant(slug), convite.properties)
   const primeiroNome = dados.admin_nome.split(" ")[0]
   const emailEnviado = link
     ? await enviarEmail({
         email,
         nome: dados.admin_nome,
         assunto: "Acesso ao Confluir",
-        html: `<p>Olá, ${primeiroNome}!</p><p>Sua organização foi criada no Confluir e você é o administrador. Defina sua senha para entrar:</p><p><a href="${link}">Definir minha senha</a></p>`,
+        html: `${tituloEmail("Sua organização está no Confluir")}<p>Olá, ${primeiroNome}!</p><p>Sua organização foi criada no Confluir e você é o administrador. Defina sua senha para entrar:</p>${botaoEmail(link, "Definir minha senha")}${avisoValidadeLinkHtml(origemDoTenant(slug))}${linkReserva(link)}`,
       })
     : false
 

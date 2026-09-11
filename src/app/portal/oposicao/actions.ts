@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/oposicao"
 import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
 function texto(fd: FormData, campo: string): string {
@@ -85,7 +86,7 @@ export async function confirmarCodigoFiliado(
     token,
     type: "email",
   })
-  if (error) return { erro: "Código inválido ou expirado." }
+  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "oposicao_filiado" }) }
   redirect("/portal/oposicao")
 }
 
@@ -133,7 +134,7 @@ export async function confirmarCodigoTrabalhador(
     token,
     type: "email",
   })
-  if (error || !verificado.user) return { erro: "Código inválido ou expirado." }
+  if (error || !verificado.user) return { erro: await diagnosticarCodigoRecusado({ erro: error, email, token, fluxo: "oposicao_trabalhador" }) }
 
   // Garante o CPF/nome na conta e o cadastro do trabalhador (a sessão só
   // resolve com metadata.cpf + registro em portal_nao_filiado).

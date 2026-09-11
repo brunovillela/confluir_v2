@@ -1,5 +1,7 @@
 "use client"
 
+import { textoValidade } from "@/lib/auth-email-constantes"
+
 import { useActionState } from "react"
 import Link from "next/link"
 import { ArrowRight, Copy, Loader2, Save } from "lucide-react"
@@ -153,6 +155,9 @@ export function NovoTenantForm() {
               <Input readOnly value={estado.link} className="font-mono text-xs" />
               <CopiarBotao texto={estado.link} />
             </div>
+            <span className="text-muted-foreground text-xs">
+              Vale por {textoValidade()} e funciona uma única vez.
+            </span>
           </AlertDescription>
         </Alert>
       )}
