@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import { listarHoteis } from "@/lib/db/hospedagem"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 
 import { CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT } from "../chaves"
 import { CupomForm } from "../cupom-form"
@@ -30,7 +31,9 @@ export default async function NovoCupomPage() {
           Autorização do sindicato para o filiado ter subsídio no hotel parceiro.
         </p>
       </div>
-      <CupomForm hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome }))} />
+      <CupomForm
+        hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome, garantida: ehGarantida(h) }))}
+      />
     </>
   )
 }

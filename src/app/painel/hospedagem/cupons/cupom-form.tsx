@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 
@@ -18,10 +18,17 @@ import { criarCupom } from "./actions"
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-export type HotelOpcao = { id: string; nome: string | null }
+export type HotelOpcao = {
+  id: string
+  nome: string | null
+  /** Demanda garantida: a emissão já é a reserva, com check-out. */
+  garantida?: boolean
+}
 
 export function CupomForm({ hoteis }: { hoteis: HotelOpcao[] }) {
   const [estado, formAction, pendente] = useActionState(criarCupom, {})
+  const [hotelId, setHotelId] = useState("")
+  const garantida = hoteis.find((h) => h.id === hotelId)?.garantida === true
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -50,22 +57,43 @@ export function CupomForm({ hoteis }: { hoteis: HotelOpcao[] }) {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor="hotel_id">Hotel *</Label>
-            <select id="hotel_id" name="hotel_id" required className={SELECT} defaultValue="">
+            <select
+              id="hotel_id"
+              name="hotel_id"
+              required
+              className={SELECT}
+              value={hotelId}
+              onChange={(e) => setHotelId(e.target.value)}
+            >
               <option value="" disabled>
                 Selecione o hotel
               </option>
               {hoteis.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.nome ?? "(sem nome)"}
+                  {h.garantida ? " — demanda garantida" : ""}
                 </option>
               ))}
             </select>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="check_in">Check-in previsto *</Label>
+            <Label htmlFor="check_in">{garantida ? "Check-in *" : "Check-in previsto *"}</Label>
             <Input id="check_in" name="check_in" type="date" required />
           </div>
-          <div className="grid gap-1.5">
+          {garantida && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="check_out">Check-out *</Label>
+              <Input id="check_out" name="check_out" type="date" required />
+            </div>
+          )}
+          {garantida && (
+            <p className="text-muted-foreground text-xs sm:col-span-2">
+              Hotel de demanda garantida: a emissão já é a reserva. O quarto é
+              escolhido na hora, com o sexo do cadastro do filiado, e valem as
+              condições da hospedagem e a regra de não comparecimento.
+            </p>
+          )}
+          <div className="grid gap-1.5" hidden={garantida}>
             <Label htmlFor="sexo">Sexo (para composição dos quartos)</Label>
             <select id="sexo" name="sexo" className={SELECT} defaultValue="">
               <option value="">Não informado</option>
@@ -94,7 +122,7 @@ export function CupomForm({ hoteis }: { hoteis: HotelOpcao[] }) {
         </Button>
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
-          Emitir cupom
+          {garantida ? "Reservar" : "Emitir cupom"}
         </Button>
       </div>
     </form>

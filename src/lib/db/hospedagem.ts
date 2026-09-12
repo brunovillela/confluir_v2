@@ -33,6 +33,20 @@ export type Hotel = {
   acordo_vigencia_fim?: string | null
   /** Contrato que rege o convênio (supabase/hospedagem-contrato.sql). */
   contrato_id?: string | null
+  // Demanda garantida (supabase/hospedagem-demanda-garantida.sql).
+  /** "uso" (pagamento por uso) ou "garantida" (demanda garantida). */
+  modalidade?: string | null
+  quartos_por_dia_semana?: (number | null)[] | null
+  regra_distribuicao?: string | null
+  trava_ultimo_quarto?: boolean | null
+  trava_dias_antes?: number | null
+  trava_hora?: string | null
+  max_noites?: number | null
+  horario_checkin?: string | null
+  cancelamento_horas?: number | null
+  espera_prazo_horas?: number | null
+  alocacao_versao?: number | null
+  fila_processada_em?: string | null
 }
 
 /**
@@ -113,6 +127,10 @@ export type Cupom = {
   filiado_id: string | null
   hotel_id: string | null
   created_at: string | null
+  /** Reserva de hotel de demanda garantida (não passa por "aguardando reserva"). */
+  reserva_garantida?: boolean | null
+  check_out?: string | null
+  quarto?: number | null
 }
 
 export type CupomLinha = Cupom & {
@@ -167,8 +185,8 @@ export function situacaoCupom(c: Pick<Cupom, "cancelado" | "servico_id">): Situa
 
 // "*" tolera as colunas novas de hospedagem-faturamento.sql antes do SQL rodar.
 const HOTEL_CAMPOS = "*"
-const CUPOM_CAMPOS =
-  "id, check_in, sexo, cancelado, compareceu, aceita_quarto_coletivo, tarifa_hospede, servico_id, filiado_id, hotel_id, created_at"
+// "*" tolera as colunas da demanda garantida antes do SQL rodar.
+const CUPOM_CAMPOS = "*"
 const SERVICO_CAMPOS =
   "id, codigo, checkin_date, checkout_date, sexo, coletivo, finalizado, quant_ocupantes, custo_entidade, relatorio, fatura_id, hotel_id, created_at"
 
@@ -265,7 +283,9 @@ export async function cuponsAguardando(hotelId?: string): Promise<CupomLinha[]> 
   return todos
     .filter(
       (c) =>
-        situacaoCupom(c) === "aguardando" && (!hotelId || c.hotel_id === hotelId)
+        situacaoCupom(c) === "aguardando" &&
+        c.reserva_garantida !== true &&
+        (!hotelId || c.hotel_id === hotelId)
     )
     // Alimenta o dropdown "vincular cupom": por nome do hóspede.
     .sort((a, b) => (a.filiadoNome ?? "").localeCompare(b.filiadoNome ?? "", "pt-BR"))
@@ -1160,7 +1180,9 @@ export async function resumoHospedagem(): Promise<ResumoHospedagem> {
 
   return {
     hoteisAtivos: hoteis.filter((h) => h.ativo !== false).length,
-    cuponsAguardando: cupons.filter((c) => situacaoCupom(c) === "aguardando").length,
+    cuponsAguardando: cupons.filter(
+      (c) => situacaoCupom(c) === "aguardando" && c.reserva_garantida !== true
+    ).length,
     reservasAbertas: servicos.filter(
       (s) => s.finalizado !== true && (s.checkout_date ?? "") >= hoje
     ).length,

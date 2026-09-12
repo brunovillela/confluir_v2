@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { BedDouble, CalendarCheck, Hotel, Percent, Ticket } from "lucide-react";
+import {
+  BedDouble,
+  CalendarCheck,
+  Hotel,
+  Percent,
+  Ticket,
+  UserX,
+} from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import {
@@ -82,6 +89,20 @@ export default async function HospedagemPage() {
         "Reservas efetivadas nos hotéis, agrupando os cupons dos hóspedes",
       href: "/painel/hospedagem/servicos",
       icone: CalendarCheck,
+    },
+    {
+      titulo: "Mapa de hóspedes",
+      descricao:
+        "Demanda garantida: quem está em cada quarto, noite a noite, com remanejamento",
+      href: "/painel/hospedagem/mapa",
+      icone: BedDouble,
+    },
+    podeGerir && {
+      titulo: "Não comparecimentos",
+      descricao:
+        "Reservas sem entrada no hotel: abono de faltas e liberação de punição",
+      href: "/painel/hospedagem/nao-comparecimentos",
+      icone: UserX,
     },
     podeGerir && {
       titulo: "Hotéis parceiros",

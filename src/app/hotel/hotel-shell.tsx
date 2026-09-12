@@ -11,6 +11,8 @@ import { sairDoHotel } from "./actions"
 
 const NAV = [
   { titulo: "Início", href: "/hotel/inicio" },
+  { titulo: "Hóspedes por quarto", href: "/hotel/hospedes" },
+  { titulo: "Recepção", href: "/hotel/recepcao" },
   { titulo: "Faturamento", href: "/hotel/faturamento" },
   { titulo: "Dados bancários", href: "/hotel/contas" },
   { titulo: "Acordo e orientações", href: "/hotel/acordo" },

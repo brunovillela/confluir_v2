@@ -17,6 +17,7 @@ import {
   removerBeneficiarioHospedagem,
   salvarCondicoesHospedagem,
 } from "@/lib/db/hospedagem-condicoes"
+import { salvarRegraNaoComparecimento } from "@/lib/db/hospedagem-garantida"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { REGIMES_TRABALHO } from "@/lib/filiacao"
 import {
@@ -247,6 +248,52 @@ export async function incluirBeneficiarioHospedagemAction(
   revalidatePath(BASE)
   revalidatePath("/portal/hospedagem")
   return { ok: `${nome ?? "Pessoa"} incluída na lista de beneficiários.` }
+}
+
+/** Regra de punição por não comparecimento (reservas de demanda garantida). */
+export async function salvarRegraNaoComparecimentoAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("filiacao_gestao")
+
+  const numero = (campo: string, min: number, max: number, padrao: number) => {
+    const v = txt(fd, campo)
+    if (v === "") return padrao
+    const n = Number(v)
+    return Number.isInteger(n) && n >= min && n <= max ? n : Number.NaN
+  }
+  const quantidade = numero("quantidade", 1, 50, 1)
+  const janelaMeses = numero("janela_meses", 1, 60, 12)
+  const suspensaoDias = numero("suspensao_dias", 1, 730, 30)
+  if ([quantidade, janelaMeses, suspensaoDias].some((n) => Number.isNaN(n))) {
+    return {
+      erro: "Confira os números: faltas de 1 a 50, período de 1 a 60 meses e suspensão de 1 a 730 dias.",
+    }
+  }
+  const penalidadeBruta = txt(fd, "penalidade")
+  const penalidade =
+    penalidadeBruta === "consumir_periodo" || penalidadeBruta === "desabilitar"
+      ? penalidadeBruta
+      : "suspender"
+
+  const { erro } = await salvarRegraNaoComparecimento(
+    {
+      ativa: marcado(fd, "ativa"),
+      quantidade,
+      janelaMeses,
+      penalidade,
+      periodo: txt(fd, "periodo") === "ano" ? "ano" : "mes",
+      suspensaoDias,
+    },
+    sessao.usuario.id
+  )
+  if (erro) return { erro: `Não foi possível salvar: ${erro}` }
+
+  revalidatePath(BASE)
+  revalidatePath("/portal/hospedagem")
+  revalidatePath("/painel/hospedagem/nao-comparecimentos")
+  return { ok: "Regra de não comparecimento salva." }
 }
 
 export async function removerBeneficiarioHospedagemAction(

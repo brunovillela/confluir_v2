@@ -1,8 +1,19 @@
 import type { Metadata } from "next"
+import Link from "next/link"
+import { QrCode } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 import { SituacaoCupomBadge } from "@/app/painel/hospedagem/situacao-cupom-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -13,15 +24,42 @@ import {
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-import { cuponsDoFiliado, hoteisDisponiveis } from "@/lib/db/filiado-portal"
+import {
+  cuponsDoFiliado,
+  hoteisDisponiveis,
+  registrosDoCpf,
+} from "@/lib/db/filiado-portal"
 import { regrasDeUtilizacaoHospedagem } from "@/lib/db/hospedagem-condicoes"
+import {
+  ROTULO_SITUACAO_RESERVA,
+  configDoHotel,
+  ehGarantida,
+  esperasDaPessoa,
+  lerRegraNaoComparecimento,
+  processarFilasDosHoteis,
+  reservasGarantidasDaPessoa,
+  type EsperaDaPessoa,
+  type ReservaGarantida,
+} from "@/lib/db/hospedagem-garantida"
+import {
+  dataBR,
+  dataHoraBR,
+  descreverRegraNaoComparecimento,
+  descreverRegrasGarantida,
+} from "@/lib/hospedagem-garantida-constantes"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 
 import { PortalShell } from "../portal-shell"
-import { CancelarMeuCupomBotao, SolicitarCupomForm } from "./cupom-portal"
+import {
+  CancelarEsperaBotao,
+  CancelarMeuCupomBotao,
+  CancelarReservaBotao,
+  ConfirmarOfertaBotao,
+  SolicitarCupomForm,
+} from "./cupom-portal"
 import { RegrasUtilizacao } from "./regras-utilizacao"
 
 export const metadata: Metadata = { title: "Hospedagem — Portal do Associado" }
@@ -35,11 +73,30 @@ export default async function PortalHospedagemPage({
   const params = await searchParams
   const { salvo } = params
 
-  const [cupons, hoteis, regras] = await Promise.all([
+  const [cupons, hoteis, regras, registros] = await Promise.all([
     cuponsDoFiliado(filiado.cpf),
     hoteisDisponiveis(),
     regrasDeUtilizacaoHospedagem(),
+    registrosDoCpf(filiado.cpf),
   ])
+
+  // Demanda garantida: a fila de espera é processada aqui (sem agendador),
+  // antes de ler reservas e ofertas da pessoa.
+  const hoteisGarantidos = hoteis.filter(ehGarantida)
+  let reservas: ReservaGarantida[] = []
+  let esperas: EsperaDaPessoa[] = []
+  let regraFaltas: string | null = null
+  if (hoteisGarantidos.length > 0) {
+    await processarFilasDosHoteis(hoteisGarantidos)
+    const [r, e, regra] = await Promise.all([
+      reservasGarantidasDaPessoa(registros, hoteis),
+      esperasDaPessoa(registros, hoteis),
+      lerRegraNaoComparecimento(),
+    ])
+    reservas = r
+    esperas = e
+    regraFaltas = descreverRegraNaoComparecimento(regra)
+  }
   const hoje = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
   }).format(new Date())
@@ -69,6 +126,11 @@ export default async function PortalHospedagemPage({
       <RegrasUtilizacao
         configuradas={regras.configuradas}
         observacao={regras.observacao}
+        porHotel={hoteisGarantidos.map((h) => ({
+          nome: h.nome ?? "Hotel parceiro",
+          regras: descreverRegrasGarantida(configDoHotel(h)),
+        }))}
+        naoComparecimento={regraFaltas}
       />
 
       <AcaoVisualizacao
@@ -76,10 +138,132 @@ export default async function PortalHospedagemPage({
         nota="Somente o próprio associado pode solicitar um cupom."
       >
         <SolicitarCupomForm
-          hoteis={hoteis.map((h) => ({ id: h.id, nome: h.nome }))}
+          hoteis={hoteis.map((h) => ({
+            id: h.id,
+            nome: h.nome,
+            garantida: ehGarantida(h),
+            maxNoites: configDoHotel(h).maxNoites,
+          }))}
           hoje={hoje}
         />
       </AcaoVisualizacao>
+
+      {hoteisGarantidos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Minhas reservas</CardTitle>
+            <CardDescription className="text-xs">
+              Reservas nos hotéis de demanda garantida. Na chegada, apresente o
+              QR Code e um documento oficial com foto.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {reservas.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Você ainda não tem reservas.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hotel</TableHead>
+                      <TableHead>Estadia</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reservas.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="max-w-48 truncate font-medium">
+                          {r.hotelNome ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                          {dataBR(r.checkIn)} a {dataBR(r.checkOut)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              r.situacao === "confirmada" || r.situacao === "hospedado"
+                                ? "success"
+                                : r.situacao === "nao_compareceu"
+                                  ? "destructive"
+                                  : r.situacao === "aguardando_confirmacao"
+                                    ? "warning"
+                                    : "outline"
+                            }
+                          >
+                            {ROTULO_SITUACAO_RESERVA[r.situacao]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1">
+                            {(r.situacao === "confirmada" || r.situacao === "hospedado") && (
+                              <Button variant="outline" size="sm" asChild className="h-7 px-2">
+                                <Link href={`/portal/hospedagem/reserva/${r.id}`}>
+                                  <QrCode />
+                                  QR Code
+                                </Link>
+                              </Button>
+                            )}
+                            {r.podeCancelar && (
+                              <AcaoVisualizacao preview={preview} nota="">
+                                <CancelarReservaBotao id={r.id} />
+                              </AcaoVisualizacao>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {esperas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Lista de espera</CardTitle>
+            <CardDescription className="text-xs">
+              Quando abre vaga, ela fica guardada por algumas horas para você
+              confirmar. Sem confirmação, passa para a próxima pessoa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {esperas.map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {e.hotelNome ?? "Hotel parceiro"} · {dataBR(e.checkIn)} a{" "}
+                    {dataBR(e.checkOut)}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {e.situacao === "aguardando" && "Na fila, aguardando vaga."}
+                    {e.situacao === "oferecida" &&
+                      `Abriu vaga! Confirme até ${e.ofertaExpiraEm ? dataHoraBR(new Date(e.ofertaExpiraEm)) : "—"}.`}
+                    {e.situacao === "confirmada" && "Vaga confirmada: veja em Minhas reservas."}
+                    {e.situacao === "expirada" && (e.motivo ?? "Pedido expirado.")}
+                    {e.situacao === "cancelada" && (e.motivo ?? "Pedido cancelado.")}
+                  </p>
+                </div>
+                {(e.situacao === "aguardando" || e.situacao === "oferecida") && (
+                  <AcaoVisualizacao preview={preview} nota="">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {e.situacao === "oferecida" && <ConfirmarOfertaBotao token={e.token} />}
+                      <CancelarEsperaBotao id={e.id} />
+                    </div>
+                  </AcaoVisualizacao>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

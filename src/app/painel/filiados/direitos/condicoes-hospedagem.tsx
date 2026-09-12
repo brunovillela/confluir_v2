@@ -13,12 +13,18 @@ import {
   PERIODOS_QUANTIDADE,
   type CondicoesHospedagem,
 } from "@/lib/hospedagem-condicoes-constantes"
+import {
+  PENALIDADES_NAO_COMPARECIMENTO,
+  type PenalidadeNaoComparecimento,
+  type RegraNaoComparecimento,
+} from "@/lib/hospedagem-garantida-constantes"
 import { mascaraCpf } from "@/lib/mascaras"
 
 import {
   incluirBeneficiarioHospedagemAction,
   removerBeneficiarioHospedagemAction,
   salvarCondicoesHospedagemAction,
+  salvarRegraNaoComparecimentoAction,
 } from "./actions"
 
 const SELECT =
@@ -304,6 +310,119 @@ export function IncluirBeneficiarioHospedagem() {
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <UserPlus />}
           Incluir
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+export function NaoComparecimentoForm({ regra }: { regra: RegraNaoComparecimento }) {
+  const [estado, formAction, pendente] = useActionState(
+    salvarRegraNaoComparecimentoAction,
+    {}
+  )
+  const [ativa, setAtiva] = useState(regra.ativa)
+  const [penalidade, setPenalidade] = useState<PenalidadeNaoComparecimento>(regra.penalidade)
+
+  return (
+    <form action={formAction} className="grid gap-4">
+      <Recado erro={estado.erro} ok={estado.ok} />
+
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          name="ativa"
+          className="mt-0.5 size-4"
+          checked={ativa}
+          onChange={(e) => setAtiva(e.target.checked)}
+        />
+        <span className="text-sm">
+          <span className="font-medium">Punir o não comparecimento</span>
+          <span className="text-muted-foreground block text-xs">
+            Falta é a reserva não cancelada sem entrada registrada no hotel até
+            o fim do dia do check-in.
+          </span>
+        </span>
+      </label>
+
+      <div hidden={!ativa} className="grid gap-4 pl-7">
+        <div className="grid gap-3 sm:grid-cols-[10rem_10rem]">
+          <div className="grid gap-1.5">
+            <Label htmlFor="nc_quantidade">Faltas para punir</Label>
+            <Input
+              id="nc_quantidade"
+              name="quantidade"
+              type="number"
+              min={1}
+              max={50}
+              defaultValue={regra.quantidade}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nc_janela">Em quantos meses</Label>
+            <Input
+              id="nc_janela"
+              name="janela_meses"
+              type="number"
+              min={1}
+              max={60}
+              defaultValue={regra.janelaMeses}
+            />
+          </div>
+        </div>
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Com 1 falta, a punição vale já na primeira. Com mais, só quando elas se
+          repetem dentro do período.
+        </p>
+
+        <div className="grid gap-2">
+          {PENALIDADES_NAO_COMPARECIMENTO.map((p) => (
+            <label key={p.chave} className="flex items-start gap-3 rounded-lg border p-3">
+              <input
+                type="radio"
+                name="penalidade"
+                value={p.chave}
+                className="mt-1 size-4"
+                checked={penalidade === p.chave}
+                onChange={() => setPenalidade(p.chave)}
+              />
+              <span className="text-sm">
+                <span className="font-medium">{p.rotulo}</span>
+                <span className="text-muted-foreground block text-xs">{p.descricao}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div hidden={penalidade !== "consumir_periodo"} className="grid gap-1.5 sm:w-48">
+          <Label htmlFor="nc_periodo">Período consumido</Label>
+          <select
+            id="nc_periodo"
+            name="periodo"
+            className={SELECT}
+            defaultValue={regra.periodo}
+          >
+            <option value="mes">O mês da falta</option>
+            <option value="ano">O ano da falta</option>
+          </select>
+        </div>
+        <div hidden={penalidade !== "suspender"} className="grid gap-1.5 sm:w-48">
+          <Label htmlFor="nc_dias">Dias de suspensão</Label>
+          <Input
+            id="nc_dias"
+            name="suspensao_dias"
+            type="number"
+            min={1}
+            max={730}
+            defaultValue={regra.suspensaoDias}
+          />
+        </div>
+      </div>
+
+      <div>
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar regra
         </Button>
       </div>
     </form>

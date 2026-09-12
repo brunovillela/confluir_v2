@@ -8,7 +8,14 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
-import { contratoDoHotel } from "@/lib/db/hospedagem"
+import { buscarHotel, contratoDoHotel } from "@/lib/db/hospedagem"
+import {
+  cancelarReservaGarantida,
+  conferirPodeReservar,
+  ehGarantida,
+  enviarEmailReservaConfirmada,
+  reservarEstadia,
+} from "@/lib/db/hospedagem-garantida"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -45,7 +52,7 @@ export async function criarCupom(
   const [{ data: filiado }, { data: hotel }] = await Promise.all([
     admin
       .from("filiacoes")
-      .select("id, cpf, filiacao_condicao")
+      .select("id, cpf, sexo, filiacao_condicao")
       .eq("id", filiadoId)
       .eq("emp_proprietaria_id", await tenantAtual())
       .maybeSingle(),
@@ -65,6 +72,40 @@ export async function criarCupom(
   if (!hotel) return { erro: "Hotel não encontrado." }
   if (hotel.ativo === false) {
     return { erro: "Este hotel está inativo e não recebe novos cupons." }
+  }
+
+  // Demanda garantida: a equipe faz a RESERVA em nome do filiado, com as
+  // mesmas conferências do portal (condições e não comparecimento).
+  const hotelCompleto = await buscarHotel(hotelId)
+  if (hotelCompleto && ehGarantida(hotelCompleto)) {
+    const checkOut = String(formData.get("check_out") ?? "")
+    const cpfPessoa = (filiado.cpf as string | null) ?? null
+    const registrosPessoa = cpfPessoa ? await registrosDoCpf(cpfPessoa) : []
+    const registros = registrosPessoa.length > 0 ? registrosPessoa : [filiadoId]
+    const pode = await conferirPodeReservar({ cpf: cpfPessoa, registros, checkIn })
+    if (pode.erro) {
+      return { erro: `Este filiado não pode reservar: ${pode.erro}` }
+    }
+    const reserva = await reservarEstadia({
+      hotel: hotelCompleto,
+      filiadoId,
+      registros,
+      sexo: (filiado.sexo as string | null) ?? null,
+      checkIn,
+      checkOut,
+    })
+    if (!reserva.ok) return { erro: reserva.erro }
+    await enviarEmailReservaConfirmada({
+      cpf: cpfPessoa,
+      hotelNome: hotelCompleto.nome ?? "hotel",
+      checkIn,
+      checkOut,
+    })
+    revalidatePath("/painel/hospedagem")
+    revalidatePath("/painel/hospedagem/cupons")
+    revalidatePath("/painel/hospedagem/mapa")
+    revalidatePath("/hotel/hospedes")
+    redirect(`/painel/hospedagem/mapa?hotel=${hotelId}&noite=${checkIn}&salvo=1`)
   }
 
   // Cupom só dentro da vigência do contrato do hotel (mesma regra do portal).
@@ -122,6 +163,24 @@ export async function cancelarCupom(
   if (!id) return { erro: "Cupom inválido." }
 
   const admin = await createAdminClient()
+
+  // Reserva de demanda garantida: cancela liberando o quarto e oferecendo a
+  // vaga à lista de espera (só marcar cancelado deixaria a fila parada).
+  const { data: alvo } = await admin
+    .from("hospedagem_cupom")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle()
+  if (alvo?.reserva_garantida === true) {
+    const { erro } = await cancelarReservaGarantida(id, { porEquipe: true })
+    if (erro) return { erro }
+    revalidatePath("/painel/hospedagem/cupons")
+    revalidatePath("/painel/hospedagem")
+    revalidatePath("/painel/hospedagem/mapa")
+    revalidatePath("/hotel/hospedes")
+    return { ok: "Reserva cancelada. A vaga foi oferecida à lista de espera." }
+  }
+
   const { error, count } = await admin
     .from("hospedagem_cupom")
     .update({ cancelado: true }, { count: "exact" })

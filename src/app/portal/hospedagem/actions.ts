@@ -8,7 +8,17 @@ import { redirect } from "next/navigation"
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { cadastroDoFiliado, registrosDoCpf } from "@/lib/db/filiado-portal"
-import { contratoDoHotel } from "@/lib/db/hospedagem"
+import { buscarHotel, contratoDoHotel } from "@/lib/db/hospedagem"
+import {
+  cancelarEspera,
+  cancelarReservaGarantida,
+  confirmarOferta,
+  conferirPodeReservar,
+  ehGarantida,
+  entrarNaEspera,
+  enviarEmailReservaConfirmada,
+  reservarEstadia,
+} from "@/lib/db/hospedagem-garantida"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -36,10 +46,24 @@ function hojeSP(): string {
  *  - condições definidas pelo sindicato: fonte, regime, quantidade por
  *    período e lista de beneficiários (src/lib/db/hospedagem-condicoes.ts).
  */
+/** Estado do pedido: sem vaga na demanda garantida, oferece a lista de espera. */
+export type EstadoPedidoHospedagem = EstadoForm & {
+  espera?: { hotelId: string; checkIn: string; checkOut: string }
+}
+
+function revalidarHospedagem(cupomId?: string) {
+  revalidatePath("/portal/hospedagem")
+  if (cupomId) revalidatePath(`/portal/hospedagem/reserva/${cupomId}`)
+  revalidatePath("/painel/hospedagem")
+  revalidatePath("/painel/hospedagem/cupons")
+  revalidatePath("/painel/hospedagem/mapa")
+  revalidatePath("/hotel/hospedes")
+}
+
 export async function solicitarCupom(
-  _prev: EstadoForm,
+  _prev: EstadoPedidoHospedagem,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoPedidoHospedagem> {
   const { filiado } = await requireSessaoPortal()
 
   const hotelId = String(formData.get("hotel_id") ?? "")
@@ -69,6 +93,36 @@ export async function solicitarCupom(
     return { erro: "Hotel indisponível para novos cupons." }
   }
   if (!cadastro) return { erro: "Cadastro não encontrado." }
+
+  // Demanda garantida: o pedido já é a reserva, com o quarto definido na hora.
+  const hotelCompleto = await buscarHotel(hotelId)
+  if (hotelCompleto && ehGarantida(hotelCompleto)) {
+    const checkOut = String(formData.get("check_out") ?? "")
+    const pode = await conferirPodeReservar({ cpf: filiado.cpf, registros, checkIn })
+    if (pode.erro) return { erro: pode.erro }
+    const reserva = await reservarEstadia({
+      hotel: hotelCompleto,
+      filiadoId: cadastro.id,
+      registros,
+      sexo: cadastro.sexo,
+      checkIn,
+      checkOut,
+    })
+    if (!reserva.ok) {
+      return {
+        erro: reserva.erro,
+        espera: reserva.semVaga ? { hotelId, checkIn, checkOut } : undefined,
+      }
+    }
+    await enviarEmailReservaConfirmada({
+      cpf: filiado.cpf,
+      hotelNome: hotelCompleto.nome ?? "hotel",
+      checkIn,
+      checkOut,
+    })
+    revalidarHospedagem(reserva.cupomId)
+    redirect(`/portal/hospedagem/reserva/${reserva.cupomId}?salvo=1`)
+  }
 
   // Cupons só entre hoje e o TÉRMINO DA VIGÊNCIA do contrato do hotel.
   const contrato = await contratoDoHotel(hotelId)
@@ -151,4 +205,82 @@ export async function cancelarMeuCupom(
   revalidatePath("/painel/hospedagem")
   revalidatePath("/painel/hospedagem/cupons")
   return { ok: "Cupom cancelado." }
+}
+
+// ── Demanda garantida ───────────────────────────────────────────────────────
+
+/** Entra na lista de espera de um hotel de demanda garantida sem vaga. */
+export async function entrarNaEsperaPortal(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { filiado } = await requireSessaoPortal()
+  const hotelId = String(formData.get("hotel_id") ?? "")
+  const checkIn = String(formData.get("check_in") ?? "")
+  const checkOut = String(formData.get("check_out") ?? "")
+
+  const [hotel, cadastro, registros] = await Promise.all([
+    buscarHotel(hotelId),
+    cadastroDoFiliado(filiado.cpf),
+    registrosDoCpf(filiado.cpf),
+  ])
+  if (!hotel || hotel.ativo === false) return { erro: "Hotel indisponível." }
+  if (!cadastro) return { erro: "Cadastro não encontrado." }
+
+  const pode = await conferirPodeReservar({ cpf: filiado.cpf, registros, checkIn })
+  if (pode.erro) return { erro: pode.erro }
+
+  const { erro } = await entrarNaEspera({
+    hotel,
+    filiadoId: cadastro.id,
+    registros,
+    cpf: filiado.cpf,
+    sexo: cadastro.sexo,
+    checkIn,
+    checkOut,
+  })
+  if (erro) return { erro }
+
+  revalidarHospedagem()
+  return {
+    ok: "Você entrou na lista de espera. Se abrir vaga, avisamos por e-mail e aqui no portal, com um botão para confirmar.",
+  }
+}
+
+export async function cancelarReservaPortal(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { filiado } = await requireSessaoPortal()
+  const id = String(formData.get("id") ?? "")
+  const registros = await registrosDoCpf(filiado.cpf)
+  const { erro } = await cancelarReservaGarantida(id, { registros, porEquipe: false })
+  if (erro) return { erro }
+  revalidarHospedagem(id)
+  return { ok: "Reserva cancelada." }
+}
+
+export async function cancelarEsperaPortal(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { filiado } = await requireSessaoPortal()
+  const id = String(formData.get("id") ?? "")
+  const registros = await registrosDoCpf(filiado.cpf)
+  const { erro } = await cancelarEspera(id, registros)
+  if (erro) return { erro }
+  revalidarHospedagem()
+  return { ok: "Você saiu da lista de espera." }
+}
+
+export async function confirmarOfertaPortal(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireSessaoPortal()
+  const token = String(formData.get("token") ?? "")
+  const { erro } = await confirmarOferta(token)
+  if (erro) return { erro }
+  revalidarHospedagem()
+  return { ok: "Reserva confirmada! O QR Code está em Minhas reservas." }
 }

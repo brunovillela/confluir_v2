@@ -14,17 +14,22 @@ import {
 const REGRAS_GERAIS = [
   "Ter a filiação ativa.",
   "Escolher um hotel conveniado com convênio em vigor. O check-in vai de hoje até o fim da vigência do convênio.",
-  "Ter no máximo um cupom aguardando reserva para o mesmo hotel e a mesma data.",
-  "Quarto coletivo só reúne hóspedes do mesmo sexo que aceitaram dividir o quarto.",
-  "Retirar o cupom não garante a reserva: quem confirma é o hotel.",
+  "Quarto coletivo só reúne hóspedes do mesmo sexo.",
+  "Nos hotéis de pagamento por uso, retirar o cupom não garante a reserva: quem confirma é o hotel. Vale um cupom aguardando reserva por hotel e data.",
 ]
 
 export function RegrasUtilizacao({
   configuradas,
   observacao,
+  porHotel = [],
+  naoComparecimento = null,
 }: {
   configuradas: string[]
   observacao: string | null
+  /** Regras de cada hotel de demanda garantida. */
+  porHotel?: { nome: string; regras: string[] }[]
+  /** Punição por reserva sem comparecimento, quando ligada. */
+  naoComparecimento?: string | null
 }) {
   return (
     <Card>
@@ -45,9 +50,25 @@ export function RegrasUtilizacao({
             </ul>
           </div>
         )}
+        {naoComparecimento && (
+          <div className="grid gap-1.5">
+            <p className="font-medium">Não comparecimento</p>
+            <p className="text-muted-foreground">{naoComparecimento}</p>
+          </div>
+        )}
+        {porHotel.map((h) => (
+          <div key={h.nome} className="grid gap-1.5">
+            <p className="font-medium">{h.nome} · reserva na hora</p>
+            <ul className="text-muted-foreground list-disc space-y-1 pl-5">
+              {h.regras.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
         <div className="grid gap-1.5">
           <p className="font-medium">
-            {configuradas.length > 0 ? "Para todos" : "Regras"}
+            {configuradas.length > 0 || porHotel.length > 0 ? "Para todos" : "Regras"}
           </p>
           <ul className="text-muted-foreground list-disc space-y-1 pl-5">
             {REGRAS_GERAIS.map((r) => (

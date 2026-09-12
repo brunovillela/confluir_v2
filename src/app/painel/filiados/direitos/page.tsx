@@ -26,11 +26,13 @@ import {
 } from "@/lib/db/hospedagem-condicoes"
 import { BENEFICIOS } from "@/lib/filiacao-direitos-constantes"
 import { contarCondicoesAtivas } from "@/lib/hospedagem-condicoes-constantes"
+import { lerRegraNaoComparecimento } from "@/lib/db/hospedagem-garantida"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 
 import {
   CondicoesHospedagemForm,
   IncluirBeneficiarioHospedagem,
+  NaoComparecimentoForm,
   RemoverBeneficiarioHospedagem,
 } from "./condicoes-hospedagem"
 import {
@@ -54,6 +56,7 @@ export default async function DireitosPage() {
     condicoesHospedagem,
     beneficiarios,
     fontes,
+    regraNaoComparecimento,
   ] = await Promise.all([
     lerCarencias(),
     lerRegrasInadimplencia(),
@@ -61,6 +64,7 @@ export default async function DireitosPage() {
     lerCondicoesHospedagem(),
     listarBeneficiariosHospedagem(),
     listarFontesPagadoras(),
+    lerRegraNaoComparecimento(),
   ])
   const opcoesFontes = fontes
     .map((f) => ({
@@ -201,6 +205,23 @@ export default async function DireitosPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Não comparecimento na hospedagem</CardTitle>
+          <CardDescription>
+            Vale para reservas em hotéis de demanda garantida. Abonos de faltas e
+            liberações ficam em{" "}
+            <Link href="/painel/hospedagem/nao-comparecimentos" className="underline">
+              Hospedagem → Não comparecimentos
+            </Link>
+            .
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NaoComparecimentoForm regra={regraNaoComparecimento} />
         </CardContent>
       </Card>
 

@@ -115,20 +115,22 @@ export async function cuponsDoFiliado(cpf: string): Promise<CupomDoFiliado[]> {
   const [{ data, error }, hoteis] = await Promise.all([
     admin
       .from("hospedagem_cupom")
-      .select(
-        "id, check_in, cancelado, compareceu, aceita_quarto_coletivo, tarifa_hospede, servico_id, hotel_id, created_at"
-      )
+      // "*" tolera as colunas da demanda garantida antes do SQL rodar.
+      .select("*")
       .in("filiado_id", ids)
       .order("created_at", { ascending: false }),
     listarHoteis(),
   ])
   if (error) throw new Error(`Falha ao listar cupons: ${error.message}`)
   const nomeHotel = new Map(hoteis.map((h) => [h.id, h.nome]))
-  return (data ?? []).map((c) => ({
-    ...c,
-    hotelNome: c.hotel_id ? (nomeHotel.get(c.hotel_id) ?? null) : null,
-    situacao: situacaoCupom(c),
-  }))
+  // Reservas de demanda garantida têm lista própria (Minhas reservas).
+  return (data ?? [])
+    .filter((c) => c.reserva_garantida !== true)
+    .map((c) => ({
+      ...c,
+      hotelNome: c.hotel_id ? (nomeHotel.get(c.hotel_id) ?? null) : null,
+      situacao: situacaoCupom(c),
+    }))
 }
 
 export async function hoteisDisponiveis(): Promise<Hotel[]> {
