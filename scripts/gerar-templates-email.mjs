@@ -41,6 +41,18 @@ const link = (tipo) =>
   `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=${tipo}`
 
 /**
+ * Troca de e-mail: nenhuma tela do app faz isso hoje (11/09/2026). Se uma
+ * tela futura chamar updateUser({ email }) SEM emailRedirectTo, o RedirectTo
+ * vira o Site URL, sem "?", e o link padrão sairia quebrado. Por isso o
+ * modelo tem dois ramos COMPLETOS (botão + endereço), escolhidos pelo `if`:
+ * nunca ponha o `if` no meio do href, o Go pode recusar URL ambígua.
+ */
+const LINK_TROCA_COM_RETORNO = link("email_change")
+const LINK_TROCA_PADRAO =
+  "{{ .SiteURL }}/auth/confirm?next=/&token_hash={{ .TokenHash }}&type=email_change"
+const AVISO_TROCA = `Este link vale por <strong>${PRAZO}</strong> e funciona uma única vez. Se a troca segura estiver ligada, o endereço antigo e o novo recebem um link cada, e os dois precisam ser confirmados.`
+
+/**
  * Código de 6 dígitos + botão opcional. Os fluxos só de código (votação,
  * mesário, apurador, oposição) pedem o código SEM endereço de retorno; aí o
  * Supabase usa o Site URL como RedirectTo e o botão sairia quebrado. O `if`
@@ -66,7 +78,7 @@ const MODELOS = [
   {
     arquivo: "recuperacao.html",
     supabase: "Reset Password",
-    assunto: "Redefinição de senha — Confluir",
+    assunto: "Confluir | Redefinição de senha",
     preheader: `Seu link para escolher uma nova senha. Vale por ${PRAZO}.`,
     corpo: [
       tituloEmail("Redefinição de senha"),
@@ -86,7 +98,7 @@ const MODELOS = [
   {
     arquivo: "convite.html",
     supabase: "Invite user",
-    assunto: "Seu acesso ao Confluir",
+    assunto: "Confluir | Seu acesso",
     preheader: `Defina sua senha para entrar. O convite vale por ${PRAZO}.`,
     corpo: [
       tituloEmail("Seu acesso ao Confluir foi liberado"),
@@ -103,7 +115,7 @@ const MODELOS = [
   {
     arquivo: "link-magico.html",
     supabase: "Magic Link",
-    assunto: "Seu código de acesso — Confluir",
+    assunto: "Confluir | Seu código de acesso",
     preheader: `Seu código de acesso ao Confluir. Vale por ${PRAZO}.`,
     corpo: corpoCodigo({
       titulo: "Seu código de acesso",
@@ -113,13 +125,56 @@ const MODELOS = [
   {
     arquivo: "confirmar-cadastro.html",
     supabase: "Confirm signup",
-    assunto: "Confirme seu e-mail — Confluir",
+    assunto: "Confluir | Confirme seu e-mail",
     preheader: `Seu código para confirmar o e-mail. Vale por ${PRAZO}.`,
     corpo: corpoCodigo({
       titulo: "Confirme seu e-mail",
       intro:
         "É o seu primeiro acesso ao Confluir. Para confirmar este e-mail, digite o código abaixo na tela em que você o pediu.",
     }),
+  },
+  {
+    arquivo: "troca-email.html",
+    supabase: "Change Email Address",
+    assunto: "Confluir | Confirme a troca de e-mail",
+    preheader: `Confirme o novo e-mail da sua conta. O link vale por ${PRAZO}.`,
+    corpo: [
+      tituloEmail("Confirme a troca de e-mail"),
+      paragrafo(
+        "Recebemos um pedido para trocar o e-mail da sua conta no Confluir de <strong>{{ .Email }}</strong> para <strong>{{ .NewEmail }}</strong>. Para confirmar, clique no botão abaixo."
+      ),
+      "{{ if ne .RedirectTo .SiteURL }}",
+      botaoEmail(LINK_TROCA_COM_RETORNO, "Confirmar novo e-mail"),
+      caixaAviso(AVISO_TROCA),
+      linkReserva(LINK_TROCA_COM_RETORNO),
+      "{{ else }}",
+      botaoEmail(LINK_TROCA_PADRAO, "Confirmar novo e-mail"),
+      caixaAviso(AVISO_TROCA),
+      linkReserva(LINK_TROCA_PADRAO),
+      "{{ end }}",
+      textoSuave(
+        "Se não foi você que pediu, não clique no botão e avise a sua entidade: alguém pode estar tentando alterar a sua conta."
+      ),
+    ].join("\n"),
+  },
+  {
+    arquivo: "reautenticacao.html",
+    supabase: "Reauthentication",
+    assunto: "Confluir | Código de confirmação",
+    preheader: `Seu código para confirmar que é você. Vale por ${PRAZO}.`,
+    corpo: [
+      tituloEmail("Confirme que é você"),
+      paragrafo(
+        "Para concluir uma alteração de segurança na sua conta do Confluir, digite o código abaixo na tela em que você está."
+      ),
+      caixaCodigo("{{ .Token }}"),
+      caixaAviso(
+        `O código vale por <strong>${PRAZO}</strong> e funciona uma única vez. Cada novo pedido anula o anterior.`
+      ),
+      textoSuave(
+        "Se você não está alterando nada na sua conta, não repasse este código a ninguém e troque sua senha."
+      ),
+    ].join("\n"),
   },
 ]
 
@@ -150,14 +205,17 @@ troque o **Subject** e cole o arquivo inteiro no **Message body**.
 
 | Modelo no Supabase | Arquivo | Assunto |
 |---|---|---|
-${MODELOS.map((m) => `| ${m.supabase} | ${m.arquivo} | ${m.assunto} |`).join("\n")}
+${MODELOS.map((m) => `| ${m.supabase} | ${m.arquivo} | ${m.assunto.replaceAll("|", "\\|")} |`).join("\n")}
 
 O prazo citado nos textos (${PRAZO}) vem de \`VALIDADE_LINK_EMAIL_SEGUNDOS\`
 em \`src/lib/auth-email-constantes.ts\`, que espelha o "Email OTP Expiration"
 do Supabase. Mudou lá, mude a constante e gere de novo.
 
-Os modelos *Change Email Address* e *Reauthentication* não são usados pelo
-app e ficaram de fora.
+*Change Email Address* e *Reauthentication* não são disparados pelo app hoje
+(nenhuma tela troca o e-mail de login nem pede reautenticação). Estão prontos
+para quando isso existir ou para quem ligar "Secure email change" ou "Secure
+password change" no Supabase. Uma tela que trocar o e-mail deve passar
+\`emailRedirectTo\` com o subdomínio do tenant.
 `
 )
 
@@ -172,6 +230,12 @@ if (iPrevia > 0) {
       .replaceAll("{{ .RedirectTo }}", redirect)
       .replaceAll("{{ .TokenHash }}", "pkce_3f9a0c2e7b")
       .replaceAll("{{ .Token }}", "482913")
+      .replaceAll("{{ .Email }}", "voce@exemplo.com.br")
+      .replaceAll("{{ .NewEmail }}", "novo@exemplo.com.br")
+      // Prévia mostra só o ramo "com retorno": corta de {{ else }} até o {{ end }} seguinte.
+      .split("{{ else }}")
+      .map((parte, i) => (i === 0 ? parte : parte.slice(parte.indexOf("{{ end }}") + "{{ end }}".length)))
+      .join("")
       .replaceAll("{{ if ne .RedirectTo .SiteURL }}", "")
       .replaceAll("{{ end }}", "")
   for (const m of MODELOS) {
