@@ -9,6 +9,7 @@ import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { cadastroDoFiliado, registrosDoCpf } from "@/lib/db/filiado-portal"
 import { contratoDoHotel } from "@/lib/db/hospedagem"
+import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /** Data BR (DD/MM/AAAA) de um AAAA-MM-DD. */
@@ -31,7 +32,9 @@ function hojeSP(): string {
  *  - filiação ativa (garantida pela sessão do portal);
  *  - hotel parceiro ativo;
  *  - check-in de hoje em diante;
- *  - sem cupom AGUARDANDO duplicado (mesmo hotel e mesmo check-in).
+ *  - sem cupom AGUARDANDO duplicado (mesmo hotel e mesmo check-in);
+ *  - condições definidas pelo sindicato: fonte, regime, quantidade por
+ *    período e lista de beneficiários (src/lib/db/hospedagem-condicoes.ts).
  */
 export async function solicitarCupom(
   _prev: EstadoForm,
@@ -94,6 +97,14 @@ export async function solicitarCupom(
       erro: "Você já tem um cupom aguardando reserva para este hotel nesta data.",
     }
   }
+
+  // Condições definidas pelo sindicato em Configurações de filiação.
+  const condicoes = await conferirCondicoesHospedagem({
+    cpf: filiado.cpf,
+    registros,
+    checkIn,
+  })
+  if (condicoes.erro) return { erro: condicoes.erro }
 
   const { error } = await admin.from("hospedagem_cupom").insert({
     filiado_id: cadastro.id,

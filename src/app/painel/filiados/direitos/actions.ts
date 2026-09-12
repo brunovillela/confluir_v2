@@ -11,7 +11,14 @@ import {
   salvarRegraInadimplencia,
 } from "@/lib/db/filiacao-direitos"
 import { invalidarCacheInadimplencia } from "@/lib/db/filiacao-inadimplencia"
+import {
+  incluirBeneficiarioHospedagem,
+  listarBeneficiariosHospedagem,
+  removerBeneficiarioHospedagem,
+  salvarCondicoesHospedagem,
+} from "@/lib/db/hospedagem-condicoes"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { REGIMES_TRABALHO } from "@/lib/filiacao"
 import {
   BENEFICIOS,
   type Beneficio,
@@ -19,6 +26,7 @@ import {
 } from "@/lib/filiacao-direitos-constantes"
 
 const BASE = "/painel/filiados/direitos"
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function txt(fd: FormData, campo: string): string {
   return String(fd.get(campo) ?? "").trim()
@@ -152,4 +160,107 @@ export async function revogarSuspensaoAction(
   revalidatePath(BASE)
   revalidatePath("/painel/filiados/inadimplentes")
   return { ok: "Efeito suspensivo revogado." }
+}
+
+// ── Condições da hospedagem ─────────────────────────────────────────────────
+
+export async function salvarCondicoesHospedagemAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("filiacao_gestao")
+
+  const restringirFontes = marcado(fd, "restringir_fontes")
+  const fontesIds = [
+    ...new Set(fd.getAll("fontes").map(String).filter((v) => UUID.test(v))),
+  ]
+  const restringirRegimes = marcado(fd, "restringir_regimes")
+  const regimes = [...new Set(fd.getAll("regimes").map(String))].filter((r) =>
+    (REGIMES_TRABALHO as readonly string[]).includes(r)
+  )
+  const limitarQuantidade = marcado(fd, "limitar_quantidade")
+  const quantidade = Number(txt(fd, "quantidade_maxima") || "1")
+  const quantidadeValida =
+    Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= 365
+  const somenteBeneficiarios = marcado(fd, "somente_beneficiarios")
+
+  if (restringirFontes && fontesIds.length === 0) {
+    return {
+      erro: "Marque ao menos uma fonte pagadora ou desligue a restrição por fonte.",
+    }
+  }
+  if (restringirRegimes && regimes.length === 0) {
+    return {
+      erro: "Marque ao menos um regime de trabalho ou desligue a restrição por regime.",
+    }
+  }
+  if (limitarQuantidade && !quantidadeValida) {
+    return { erro: "A quantidade de cupons deve ser um número inteiro entre 1 e 365." }
+  }
+  if (somenteBeneficiarios) {
+    // Restringir a uma lista vazia tiraria a hospedagem de todo mundo.
+    const lista = await listarBeneficiariosHospedagem()
+    if (lista.length === 0) {
+      return {
+        erro: "A lista de beneficiários está vazia. Inclua as pessoas antes de restringir a hospedagem a ela.",
+      }
+    }
+  }
+
+  const { erro } = await salvarCondicoesHospedagem(
+    {
+      restringirFontes,
+      fontesIds,
+      restringirRegimes,
+      regimes,
+      limitarQuantidade,
+      quantidadeMaxima: quantidadeValida ? quantidade : 1,
+      quantidadePeriodo: txt(fd, "quantidade_periodo") === "ano" ? "ano" : "mes",
+      somenteBeneficiarios,
+      observacao: txt(fd, "observacao") || null,
+    },
+    sessao.usuario.id
+  )
+  if (erro) return { erro: `Não foi possível salvar: ${erro}` }
+
+  revalidatePath(BASE)
+  revalidatePath("/portal/hospedagem")
+  return { ok: "Condições da hospedagem salvas." }
+}
+
+export async function incluirBeneficiarioHospedagemAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("filiacao_gestao")
+
+  const cpf = limparCpf(txt(fd, "cpf"))
+  if (!validarCpf(cpf)) return { erro: "Informe um CPF válido." }
+
+  const { erro, nome } = await incluirBeneficiarioHospedagem({
+    cpf,
+    observacao: txt(fd, "observacao") || null,
+    usuarioId: sessao.usuario.id,
+  })
+  if (erro) return { erro }
+
+  revalidatePath(BASE)
+  revalidatePath("/portal/hospedagem")
+  return { ok: `${nome ?? "Pessoa"} incluída na lista de beneficiários.` }
+}
+
+export async function removerBeneficiarioHospedagemAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("filiacao_gestao")
+  const id = txt(fd, "id")
+  if (!UUID.test(id)) return { erro: "Registro inválido." }
+
+  const { erro } = await removerBeneficiarioHospedagem(id)
+  if (erro) return { erro: `Não foi possível remover: ${erro}` }
+
+  revalidatePath(BASE)
+  revalidatePath("/portal/hospedagem")
+  return { ok: "Removida da lista." }
 }

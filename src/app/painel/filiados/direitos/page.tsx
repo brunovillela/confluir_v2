@@ -19,9 +19,20 @@ import {
   lerRegrasInadimplencia,
   listarSuspensoes,
 } from "@/lib/db/filiacao-direitos"
+import { listarFontesPagadoras } from "@/lib/db/fontes"
+import {
+  lerCondicoesHospedagem,
+  listarBeneficiariosHospedagem,
+} from "@/lib/db/hospedagem-condicoes"
 import { BENEFICIOS } from "@/lib/filiacao-direitos-constantes"
+import { contarCondicoesAtivas } from "@/lib/hospedagem-condicoes-constantes"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 
+import {
+  CondicoesHospedagemForm,
+  IncluirBeneficiarioHospedagem,
+  RemoverBeneficiarioHospedagem,
+} from "./condicoes-hospedagem"
 import {
   CarenciaForm,
   ConcederSuspensao,
@@ -36,11 +47,32 @@ export const metadata: Metadata = {
 export default async function DireitosPage() {
   await requirePermissao("filiacao_gestao")
 
-  const [carencias, regras, suspensoes] = await Promise.all([
+  const [
+    carencias,
+    regras,
+    suspensoes,
+    condicoesHospedagem,
+    beneficiarios,
+    fontes,
+  ] = await Promise.all([
     lerCarencias(),
     lerRegrasInadimplencia(),
     listarSuspensoes(),
+    lerCondicoesHospedagem(),
+    listarBeneficiariosHospedagem(),
+    listarFontesPagadoras(),
   ])
+  const opcoesFontes = fontes
+    .map((f) => ({
+      id: f.id,
+      nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
+      detalhe:
+        [f.fundo_pensao ? "fundo de pensão" : null, f.inativa ? "inativa" : null]
+          .filter(Boolean)
+          .join(" · ") || null,
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  const condicoesLigadas = contarCondicoesAtivas(condicoesHospedagem)
 
   // O "hoje" sai daqui e vai pronto para o cliente — ver PreviaDaData.
   const hojeIso = new Date().toISOString()
@@ -60,8 +92,8 @@ export default async function DireitosPage() {
           Configurações de filiação
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Carência por direito, regra de inadimplência e os termos legais
-          aceitos na filiação.
+          Carência por direito, condições da hospedagem, regra de
+          inadimplência e os termos legais aceitos na filiação.
         </p>
       </div>
 
@@ -109,6 +141,68 @@ export default async function DireitosPage() {
           independentemente de filiação, e nenhuma dessas regras a atinge.
         </AlertDescription>
       </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Condições da hospedagem</CardTitle>
+          <CardDescription>
+            Quem pode solicitar cupom, além de ter a filiação ativa. Valem no
+            portal do associado e na emissão pelo painel, e aparecem para o
+            associado em Hospedagem, nas regras de utilização.{" "}
+            {condicoesLigadas === 0
+              ? "Nenhuma condição ligada hoje."
+              : `${condicoesLigadas} condição(ões) ligada(s).`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CondicoesHospedagemForm
+            condicoes={condicoesHospedagem}
+            fontes={opcoesFontes}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Lista de beneficiários da hospedagem
+          </CardTitle>
+          <CardDescription>
+            {condicoesHospedagem.somenteBeneficiarios
+              ? "Em uso: só estas pessoas podem solicitar cupom."
+              : "Fora de uso: ligue “Somente a lista de beneficiários” nas condições acima para restringir a ela."}{" "}
+            {beneficiarios.length === 1
+              ? "1 pessoa na lista."
+              : `${beneficiarios.length} pessoas na lista.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <IncluirBeneficiarioHospedagem />
+          {beneficiarios.length > 0 && (
+            <div className="grid gap-2">
+              {beneficiarios.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <span className="font-medium">{b.nome ?? "—"}</span>{" "}
+                    <span className="text-muted-foreground text-sm tabular-nums">
+                      {formatarCnpjCpf(b.cpf)}
+                    </span>
+                    {b.observacao && (
+                      <p className="text-muted-foreground text-xs">
+                        {b.observacao}
+                      </p>
+                    )}
+                  </div>
+                  <RemoverBeneficiarioHospedagem id={b.id} />
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

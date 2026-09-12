@@ -14,6 +14,7 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { cuponsDoFiliado, hoteisDisponiveis } from "@/lib/db/filiado-portal"
+import { regrasDeUtilizacaoHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -21,6 +22,7 @@ import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 
 import { PortalShell } from "../portal-shell"
 import { CancelarMeuCupomBotao, SolicitarCupomForm } from "./cupom-portal"
+import { RegrasUtilizacao } from "./regras-utilizacao"
 
 export const metadata: Metadata = { title: "Hospedagem — Portal do Associado" }
 
@@ -33,9 +35,10 @@ export default async function PortalHospedagemPage({
   const params = await searchParams
   const { salvo } = params
 
-  const [cupons, hoteis] = await Promise.all([
+  const [cupons, hoteis, regras] = await Promise.all([
     cuponsDoFiliado(filiado.cpf),
     hoteisDisponiveis(),
+    regrasDeUtilizacaoHospedagem(),
   ])
   const hoje = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -62,6 +65,11 @@ export default async function PortalHospedagemPage({
           </AlertDescription>
         </Alert>
       )}
+
+      <RegrasUtilizacao
+        configuradas={regras.configuradas}
+        observacao={regras.observacao}
+      />
 
       <AcaoVisualizacao
         preview={preview}

@@ -7,7 +7,9 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { contratoDoHotel } from "@/lib/db/hospedagem"
+import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT } from "./chaves"
@@ -43,7 +45,7 @@ export async function criarCupom(
   const [{ data: filiado }, { data: hotel }] = await Promise.all([
     admin
       .from("filiacoes")
-      .select("id, filiacao_condicao")
+      .select("id, cpf, filiacao_condicao")
       .eq("id", filiadoId)
       .eq("emp_proprietaria_id", await tenantAtual())
       .maybeSingle(),
@@ -79,6 +81,19 @@ export async function criarCupom(
     return {
       erro: `O check-in deve ser até o fim da vigência do contrato (${dataBr(contrato.vigenciaTermino)}).`,
     }
+  }
+
+  // As condições definidas pelo sindicato valem também na emissão pela equipe.
+  // Vínculos e cupons contam por PESSOA: todos os registros do CPF.
+  const cpfFiliado = (filiado.cpf as string | null) ?? null
+  const registrosDaPessoa = cpfFiliado ? await registrosDoCpf(cpfFiliado) : []
+  const condicoes = await conferirCondicoesHospedagem({
+    cpf: cpfFiliado,
+    registros: registrosDaPessoa.length > 0 ? registrosDaPessoa : [filiadoId],
+    checkIn,
+  })
+  if (condicoes.erro) {
+    return { erro: `Este filiado não atende às condições da hospedagem: ${condicoes.erro}` }
   }
 
   const { error } = await admin.from("hospedagem_cupom").insert({
