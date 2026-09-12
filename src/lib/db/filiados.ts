@@ -520,6 +520,8 @@ export type Vinculo = {
   fonte_pg_admissao: string | null
   fonte_pagadora_id: string | null
   fontePagadora: string | null
+  /** A fonte é fundo de pensão: cargo e lotação aparecem como "não aplicável". */
+  fundoPensao: boolean
   condicao_na_fonte: string | null
   regime_trabalho: string | null
   /** Campos obrigatórios que faltam (ver pendenciasDoVinculo). */
@@ -780,16 +782,18 @@ export async function buscarPerfilFiliado(
     ),
   ]
   const nomesEmpresas = new Map<string, string>()
+  const fundosPensao = new Set<string>()
   if (empresaIds.length > 0) {
     const { data: empresas } = await admin
       .from("empresa")
-      .select("id, empresa, nome_fantasia, nome_razao")
+      .select("id, empresa, nome_fantasia, nome_razao, fundo_pensao")
       .in("id", empresaIds)
     for (const e of empresas ?? []) {
       const nome = [e.empresa, e.nome_fantasia, e.nome_razao].find(
         (v): v is string => typeof v === "string" && v.trim() !== ""
       )
       if (nome) nomesEmpresas.set(e.id, nome)
+      if (e.fundo_pensao === true) fundosPensao.add(e.id)
     }
   }
   const nomeEmpresa = (id: string | null) =>
@@ -813,13 +817,22 @@ export async function buscarPerfilFiliado(
       return {
         ...v,
         fontePagadora: nomeEmpresa(v.fonte_pagadora_id),
+        fundoPensao: v.fonte_pagadora_id
+          ? fundosPensao.has(v.fonte_pagadora_id)
+          : false,
         reconstruido: Boolean(v.reconstruido_de),
         temFicha,
         temCarta,
         fichaUrl,
         cartaUrl,
         documentoNoBubble: noBubble(v.ficha_filiacao) || noBubble(v.carta_desfiliacao),
-        pendencias: pendenciasDoVinculo({ ...v, temFicha }),
+        pendencias: pendenciasDoVinculo({
+          ...v,
+          temFicha,
+          fundoPensao: v.fonte_pagadora_id
+            ? fundosPensao.has(v.fonte_pagadora_id)
+            : false,
+        }),
       }
     })
   )

@@ -88,7 +88,7 @@ export function BuscaRapida() {
   const urlListaCompleta = `/painel/filiados/lista?busca=${encodeURIComponent(termo.trim())}`
 
   return (
-    <div ref={caixa} className="relative w-full sm:max-w-md">
+    <div ref={caixa} className="relative w-full sm:max-w-2xl">
       <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
       {carregando && (
         <Loader2 className="text-muted-foreground absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin" />

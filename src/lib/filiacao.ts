@@ -38,7 +38,10 @@ export function condicaoNaFontePadrao(fundoPensao: boolean): CondicaoNaFonte {
  * O que um vínculo de filiação precisa ter preenchido (regra do Bruno,
  * 10/09/2026). Isentos: data de saída/demissão na fonte, carta de
  * desligamento, data de desfiliação e — para quem não é trabalhador da
- * ativa — o regime de trabalho. Devolve os rótulos do que falta.
+ * ativa — o regime de trabalho. Em fonte que é FUNDO DE PENSÃO, cargo e
+ * lotação também não se aplicam (regra do Bruno, 12/09/2026): o filiado é
+ * aposentado ou pensionista e não tem posto na empresa. Devolve os rótulos
+ * do que falta.
  */
 export function pendenciasDoVinculo(v: {
   fonte_pagadora_id: string | null
@@ -50,12 +53,16 @@ export function pendenciasDoVinculo(v: {
   condicao_na_fonte: string | null
   regime_trabalho: string | null
   temFicha: boolean
+  /** A fonte pagadora é fundo de pensão: cargo e lotação não se aplicam. */
+  fundoPensao?: boolean
 }): string[] {
   const faltam: string[] = []
   if (!v.fonte_pagadora_id) faltam.push("fonte pagadora")
   if (!v.matricula) faltam.push("matrícula na fonte")
-  if (!v.cargo) faltam.push("cargo")
-  if (!v.lotacao) faltam.push("lotação")
+  if (!v.fundoPensao) {
+    if (!v.cargo) faltam.push("cargo")
+    if (!v.lotacao) faltam.push("lotação")
+  }
   if (!v.data_entrada_admissao) faltam.push("admissão na fonte")
   if (!v.data_filiacao) faltam.push("data de filiação")
   if (!v.condicao_na_fonte) faltam.push("condição na fonte pagadora")

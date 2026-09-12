@@ -86,6 +86,9 @@ export default async function EditarVinculoPage({
     condicao_na_fonte: (vinculo.condicao_na_fonte as string | null) ?? null,
     regime_trabalho: (vinculo.regime_trabalho as string | null) ?? null,
     temFicha: documentos.some((d) => d.tipo === "ficha" && d.valor !== null),
+    fundoPensao:
+      fontes.find((f) => f.id === vinculo.fonte_pagadora_id)?.fundo_pensao ===
+      true,
   })
 
   // Nome da fonte para a confirmação de exclusão dizer de QUAL vínculo se

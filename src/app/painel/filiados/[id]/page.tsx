@@ -529,10 +529,12 @@ export default async function FiliadoPage({
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-40 truncate">
-                        {v.cargo ?? v.fonte_pg_cargo ?? "—"}
+                        {v.cargo ??
+                          v.fonte_pg_cargo ??
+                          (v.fundoPensao ? "não aplicável" : "—")}
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden max-w-40 truncate md:table-cell">
-                        {v.lotacao ?? "—"}
+                        {v.lotacao ?? (v.fundoPensao ? "não aplicável" : "—")}
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden lg:table-cell">
                         {v.matricula ?? "—"}

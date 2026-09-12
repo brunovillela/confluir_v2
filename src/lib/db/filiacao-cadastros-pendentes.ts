@@ -1,6 +1,7 @@
 import "server-only"
 
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
+import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { validarCpf } from "@/lib/cpf"
 import { pendenciasDoVinculo } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -10,6 +11,7 @@ import { tenantAtual } from "@/lib/tenant"
  * Cadastros PENDENTES: filiados ativos com alguma inconsistência — dado
  * fundamental faltando (CPF, nome completo, termos legais), histórico de
  * vínculos ausente ou vínculo corrente incompleto (ver `pendenciasDoVinculo`).
+ * Vínculo em fundo de pensão sem cargo e lotação NÃO é pendência (12/09/2026).
  *
  * Substitui a tela "Fichas pendentes" (decisão do Bruno, 10/09/2026): a ficha
  * continua sendo uma das pendências, mas deixa de ser a única.
@@ -138,7 +140,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [cadastros, vinculos, termos] = await Promise.all([
+  const [cadastros, vinculos, termos, fontes] = await Promise.all([
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
@@ -161,7 +163,13 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
         .range(de, ate)
     ),
     termosEmVigor(),
+    listarFontesPagadoras(),
   ])
+
+  // Fontes que são fundo de pensão: cargo e lotação não se aplicam ao vínculo.
+  const fundosPensao = new Set(
+    fontes.filter((f) => f.fundo_pensao === true).map((f) => f.id)
+  )
 
   // Vínculo corrente = o ABERTO mais recente; sem aberto, é pendência de histórico.
   const correntePorFiliado = new Map<string, LinhaVinculo>()
@@ -198,6 +206,9 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
       faltamNoVinculo = pendenciasDoVinculo({
         ...v,
         temFicha: ehArquivo(v.ficha_filiacao),
+        fundoPensao: v.fonte_pagadora_id
+          ? fundosPensao.has(v.fonte_pagadora_id)
+          : false,
       })
       if (faltamNoVinculo.length > 0) tipos.push("vinculo")
     }
