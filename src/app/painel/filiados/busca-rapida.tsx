@@ -15,11 +15,14 @@ type Sugestao = {
   cpf: string | null
   matricula_sindical: string | null
   filiacao_condicao: string | null
+  /** Matrícula na fonte que casou com a busca. */
+  matricula_fonte?: string | null
 }
 
 /**
  * Busca rápida do dashboard: com 3+ caracteres consulta /painel/filiados/busca
- * (nome composto, CPF ou matrícula) e lista sugestões; Enter abre a lista
+ * (nome composto, CPF, matrícula sindical ou matrícula na fonte do vínculo) e
+ * lista sugestões; Enter abre a lista
  * completa com o termo aplicado.
  */
 export function BuscaRapida() {
@@ -98,7 +101,7 @@ export function BuscaRapida() {
           if (e.key === "Enter" && termo.trim()) router.push(urlListaCompleta)
           if (e.key === "Escape") setAberto(false)
         }}
-        placeholder="Busca rápida: nome, CPF ou matrícula"
+        placeholder="Busca rápida: nome, CPF ou matrícula (sindical ou na fonte)"
         className="pl-8"
         aria-label="Busca rápida de filiados"
         role="combobox"
@@ -125,6 +128,7 @@ export function BuscaRapida() {
                     <span className="text-muted-foreground hidden font-mono text-xs sm:inline">
                       {s.cpf ? formatarCpf(s.cpf) : ""}
                       {s.matricula_sindical && <> · {s.matricula_sindical}</>}
+                      {s.matricula_fonte && <> · na fonte {s.matricula_fonte}</>}
                     </span>
                     <CondicaoBadge condicao={s.filiacao_condicao} />
                   </button>

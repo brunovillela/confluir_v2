@@ -230,7 +230,7 @@ export default async function FiliadosPage({
             <Input
               name="busca"
               defaultValue={filtros.busca}
-              placeholder="Nome, CPF ou matrícula"
+              placeholder="Nome, CPF ou matrícula (sindical ou na fonte)"
               className="pl-8"
               aria-label="Buscar filiado"
             />

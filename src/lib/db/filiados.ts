@@ -15,7 +15,7 @@ import {
 } from "@/lib/db/filiacao-documentos"
 import { hojeSP } from "@/lib/db/comum"
 import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
 
 export const FILIADOS_POR_PAGINA = 50
@@ -63,6 +63,100 @@ function escaparLike(termo: string): string {
   return termo.replace(/[%_\\]/g, "\\$&")
 }
 
+/**
+ * Termo com cara de identificador: CPF, matrícula sindical ou matrícula na
+ * fonte. Vale para número com máscara ("123.456.789-00", "850") e para
+ * qualquer termo sem espaço que tenha dígito ("BR12345"). Nome não tem
+ * dígito, então não disputa com a busca por nome.
+ */
+function ehIdentificador(termo: string): boolean {
+  const digitos = termo.replace(/\D/g, "")
+  const soNumerico = digitos.length >= 3 && /^[\d.\-\s/]+$/.test(termo)
+  return soNumerico || (/\d/.test(termo) && !/\s/.test(termo))
+}
+
+/** Matrícula comparável: sem máscara, maiúscula e sem zeros à esquerda. */
+function normalizarMatricula(valor: string): string {
+  return valor
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .replace(/^0+/, "")
+}
+
+/** Teto de registros trazidos pela matrícula na fonte (vão num `id.in`). */
+const LIMITE_VINCULOS_BUSCA = 200
+
+/**
+ * Registros de filiação cuja matrícula NA FONTE (a matrícula do empregador:
+ * filiacao_vinculos.matricula, ou o legado fonte_pg_matricula) começa pelo
+ * termo. Devolve id do registro → matrícula encontrada.
+ *
+ * Caminho principal: RPC `filiados_por_matricula_vinculo`
+ * (supabase/busca-matricula-vinculo.sql), que ignora máscara, caixa e zeros
+ * à esquerda e usa índice. A RPC roda pelo service role e filtra a
+ * organização em p_emp. Sem a função no banco, cai num ilike por prefixo no
+ * texto cru: acha menos (depende da máscara), mas não quebra a busca.
+ */
+async function registrosPorMatriculaVinculo(
+  termo: string,
+  empId: string
+): Promise<Map<string, string>> {
+  const resultado = new Map<string, string>()
+  const norm = normalizarMatricula(termo)
+  if (norm.length < 3) return resultado
+
+  const { data, error } = await createServiceClient().rpc(
+    "filiados_por_matricula_vinculo",
+    { p_emp: empId, p_termo: norm, p_limite: LIMITE_VINCULOS_BUSCA }
+  )
+  if (!error) {
+    for (const l of (data ?? []) as {
+      filiado_id: string | null
+      matricula: string | null
+    }[]) {
+      if (l.filiado_id && !resultado.has(l.filiado_id)) {
+        resultado.set(l.filiado_id, l.matricula ?? "")
+      }
+    }
+    return resultado
+  }
+
+  console.warn(
+    "[busca filiados] RPC filiados_por_matricula_vinculo indisponível, usando ilike:",
+    error.message
+  )
+  // Só caracteres de matrícula: o termo vai dentro do filtro `or` do PostgREST.
+  const seguro = termo.replace(/[^A-Za-z0-9.\-/]/g, "")
+  if (seguro.length < 3) return resultado
+  const admin = await createAdminClient()
+  const { data: linhas } = await admin
+    .from("filiacao_vinculos")
+    .select("filiado_id, matricula, fonte_pg_matricula")
+    .eq("emp_proprietaria_id", empId)
+    .or(`matricula.ilike.${seguro}%,fonte_pg_matricula.ilike.${seguro}%`)
+    .limit(LIMITE_VINCULOS_BUSCA)
+  for (const l of (linhas ?? []) as {
+    filiado_id: string | null
+    matricula: string | null
+    fonte_pg_matricula: string | null
+  }[]) {
+    if (l.filiado_id && !resultado.has(l.filiado_id)) {
+      resultado.set(l.filiado_id, l.matricula ?? l.fonte_pg_matricula ?? "")
+    }
+  }
+  return resultado
+}
+
+/** Pré-busca da listagem: ids pela matrícula na fonte, só para identificador. */
+async function idsPorMatriculaVinculo(
+  busca: string | undefined,
+  empId: string
+): Promise<string[]> {
+  const termo = (busca ?? "").trim()
+  if (!termo || !ehIdentificador(termo)) return []
+  return [...(await registrosPorMatriculaVinculo(termo, empId)).keys()]
+}
+
 /** Subconjunto do builder do PostgREST usado pelos filtros da listagem. */
 type BuilderFiltros = {
   eq(coluna: string, valor: unknown): BuilderFiltros
@@ -87,7 +181,9 @@ function aplicarFiltros<T>(
     sexo = "todos",
     fonte = "",
   }: FiltrosFiliados,
-  empId: string
+  empId: string,
+  /** Registros achados pela matrícula na fonte (pré-busca assíncrona). */
+  idsVinculo: readonly string[] = []
 ): T {
   let q = builder as unknown as BuilderFiltros
   q = q.eq("emp_proprietaria_id", empId)
@@ -111,10 +207,15 @@ function aplicarFiltros<T>(
   const termo = busca.trim()
   if (termo) {
     const digitos = termo.replace(/\D/g, "")
-    const soNumerico = digitos.length >= 3 && /^[\d.\-\s/]+$/.test(termo)
-    if (soNumerico) {
-      // CPF ou matrícula sindical, com ou sem máscara
-      q = q.or(`cpf.like.${digitos}%,matricula_sindical.like.${digitos}%`)
+    if (ehIdentificador(termo)) {
+      // CPF e matrícula sindical por prefixo (com ou sem máscara), mais os
+      // registros achados pela matrícula na fonte (idsVinculo).
+      const partes: string[] = []
+      if (digitos.length >= 3) {
+        partes.push(`cpf.like.${digitos}%`, `matricula_sindical.like.${digitos}%`)
+      }
+      if (idsVinculo.length > 0) partes.push(`id.in.(${idsVinculo.join(",")})`)
+      q = partes.length > 0 ? q.or(partes.join(",")) : q.in("id", [])
     } else {
       // Cada palavra vira um AND — "Sergio Borges" acha "Sergio Borges Cordeiro"
       // e também composições não adjacentes ("Sergio Cordeiro"). Busca na coluna
@@ -149,11 +250,13 @@ async function filtrarPorFonteEmMemoria(
   const sexo = filtros.sexo ?? "todos"
   const termo = (filtros.busca ?? "").trim()
   const digitos = termo.replace(/\D/g, "")
-  const soNumerico =
-    termo !== "" && digitos.length >= 3 && /^[\d.\-\s/]+$/.test(termo)
-  const palavras = soNumerico
+  const identificador = termo !== "" && ehIdentificador(termo)
+  const palavras = identificador
     ? []
     : semAcento(termo).split(/\s+/).filter(Boolean)
+  const idsVinculo = new Set(
+    identificador ? await idsPorMatriculaVinculo(termo, await tenantAtual()) : []
+  )
 
   const linhas = stats.registros.filter((f) => {
     if (!membros.has(f.id)) return false
@@ -177,10 +280,12 @@ async function filtrarPorFonteEmMemoria(
     }
     if (sexo === "nenhum" && f.sexo !== null) return false
     if (sexo !== "todos" && sexo !== "nenhum" && f.sexo !== sexo) return false
-    if (soNumerico) {
+    if (identificador) {
       return (
-        (f.cpf ?? "").startsWith(digitos) ||
-        (f.matricula_sindical ?? "").startsWith(digitos)
+        (digitos.length >= 3 &&
+          ((f.cpf ?? "").startsWith(digitos) ||
+            (f.matricula_sindical ?? "").startsWith(digitos))) ||
+        idsVinculo.has(f.id)
       )
     }
     if (palavras.length > 0) {
@@ -229,7 +334,9 @@ export async function listarFiliados(
   let q = admin
     .from("filiacoes")
     .select(SELECT_LINHAS, { count: "exact" })
-  q = aplicarFiltros(q, filtros, await tenantAtual())
+  const empId = await tenantAtual()
+  const idsVinculo = await idsPorMatriculaVinculo(filtros.busca, empId)
+  q = aplicarFiltros(q, filtros, empId, idsVinculo)
   q = q
     .order(COLUNAS_ORDEM[ordem] ?? "nome_completo", {
       ascending: dir !== "desc",
@@ -260,10 +367,12 @@ export async function listarFiliadosParaExportar(
   const admin = await createAdminClient()
   const linhas: FiliadoLinha[] = []
   const LOTE = 1000
+  const empId = await tenantAtual()
+  const idsVinculo = await idsPorMatriculaVinculo(filtros.busca, empId)
 
   for (let de = 0; ; de += LOTE) {
     let q = admin.from("filiacoes").select(SELECT_LINHAS)
-    q = aplicarFiltros(q, filtros, await tenantAtual())
+    q = aplicarFiltros(q, filtros, empId, idsVinculo)
     const { data, error } = await q
       .order("nome_completo", { ascending: true, nullsFirst: false })
       .order("id", { ascending: true })
@@ -281,10 +390,13 @@ export type SugestaoFiliado = {
   cpf: string | null
   matricula_sindical: string | null
   filiacao_condicao: string | null
+  /** Matrícula na fonte que casou com a busca (só quando achado por ela). */
+  matricula_fonte?: string | null
 }
 
 /**
- * Sugestões da busca rápida (nome composto, CPF ou matrícula sindical).
+ * Sugestões da busca rápida (nome composto, CPF, matrícula sindical ou
+ * matrícula na fonte do vínculo).
  * Termo numérico: quem tem a matrícula sindical ou o CPF EXATAMENTE igual
  * vem primeiro — a busca por prefixo, ordenada por nome e cortada em
  * `limite`, soterrava a matrícula 850 sob 8504, 8505 e CPFs 850…
@@ -299,25 +411,51 @@ export async function sugerirFiliados(
   const empId = await tenantAtual()
   const colunas = "id, nome_completo, cpf, matricula_sindical, filiacao_condicao"
 
-  const digitos = termo.replace(/D/g, "")
-  const numerico = digitos.length >= 3 && /^[d.-s/]+$/.test(termo)
+  // Termo identificador (CPF, matrícula sindical ou na fonte): quem tem um
+  // deles EXATAMENTE igual vem primeiro. (As barras destas regex tinham se
+  // perdido em 2026: /D/g e /^[d.-s/]+$/ tratavam "Maria" como número e não
+  // tiravam a máscara do CPF.)
+  const digitos = termo.replace(/\D/g, "")
+  const identificador = ehIdentificador(termo)
+  const porVinculo = identificador
+    ? await registrosPorMatriculaVinculo(termo, empId)
+    : new Map<string, string>()
+
   let exatos: SugestaoFiliado[] = []
-  if (numerico) {
-    const matricula = digitos.replace(/^0+/, "") || digitos
-    const { data, error } = await admin
-      .from("filiacoes")
-      .select(colunas)
-      .eq("emp_proprietaria_id", empId)
-      .not("filiacao_excluida", "is", true)
-      .or(`matricula_sindical.eq.${matricula},cpf.eq.${digitos}`)
-      .order("nome_completo", { ascending: true, nullsFirst: false })
-      .limit(limite)
-    if (error) throw new Error(`Falha na busca: ${error.message}`)
-    exatos = (data ?? []) as SugestaoFiliado[]
+  if (identificador) {
+    const partes: string[] = []
+    if (digitos.length >= 3) {
+      const matricula = digitos.replace(/^0+/, "") || digitos
+      partes.push(`matricula_sindical.eq.${matricula}`, `cpf.eq.${digitos}`)
+    }
+    const norm = normalizarMatricula(termo)
+    const idsExatosVinculo = [...porVinculo]
+      .filter(([, m]) => normalizarMatricula(m) === norm)
+      .map(([id]) => id)
+    if (idsExatosVinculo.length > 0) {
+      partes.push(`id.in.(${idsExatosVinculo.join(",")})`)
+    }
+    if (partes.length > 0) {
+      const { data, error } = await admin
+        .from("filiacoes")
+        .select(colunas)
+        .eq("emp_proprietaria_id", empId)
+        .not("filiacao_excluida", "is", true)
+        .or(partes.join(","))
+        .order("nome_completo", { ascending: true, nullsFirst: false })
+        .limit(limite)
+      if (error) throw new Error(`Falha na busca: ${error.message}`)
+      exatos = (data ?? []) as SugestaoFiliado[]
+    }
   }
 
   let q = admin.from("filiacoes").select(colunas)
-  q = aplicarFiltros(q, { busca: termo, situacao: "ativas" }, empId)
+  q = aplicarFiltros(
+    q,
+    { busca: termo, situacao: "ativas" },
+    empId,
+    [...porVinculo.keys()]
+  )
   const { data, error } = await q
     .order("nome_completo", { ascending: true, nullsFirst: false })
     .limit(limite)
@@ -325,7 +463,10 @@ export async function sugerirFiliados(
 
   const vistos = new Set(exatos.map((e) => e.id))
   const demais = ((data ?? []) as SugestaoFiliado[]).filter((s) => !vistos.has(s.id))
-  return [...exatos, ...demais].slice(0, limite)
+  return [...exatos, ...demais].slice(0, limite).map((s) => ({
+    ...s,
+    matricula_fonte: porVinculo.get(s.id) ?? null,
+  }))
 }
 
 /** Um filiado pelo id (para exibir/pré-selecionar um vínculo). Sem filtro de
