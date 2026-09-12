@@ -261,7 +261,11 @@ export default async function RelatorioFontePage({
         titulo="Enviar relação de pagamentos"
         descricao="Importa a remessa de contribuições (CSV) ou inclui um filiado por vez"
       >
-        <EnviarContribuicoes remessaId={id} fonteId={fonteId} />
+        <EnviarContribuicoes
+          remessaId={id}
+          fonteId={fonteId}
+          ativosNaoPagantes={ativosNaoPagantes}
+        />
       </GrupoColapsavel>
 
       <GrupoColapsavel

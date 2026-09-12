@@ -269,35 +269,96 @@ export async function incluirContribuicao(
   if (!ids) return { erro: "Remessa ou fonte inválida." }
   const { remessaId, fonteId } = ids
 
-  const cpfBruto = String(formData.get("cpf") ?? "").trim()
-  const cpf = cpfBruto ? limparCpf(cpfBruto) : ""
-  if (cpfBruto && !validarCpf(cpf)) return { erro: "CPF inválido." }
-  const matricula =
-    String(formData.get("matricula") ?? "").replace(/\D/g, "") || null
-  if (!cpf && !matricula) {
-    return { erro: "Informe o CPF ou a matrícula na fonte." }
-  }
   const valor = parseValor(String(formData.get("valor") ?? ""))
-  if (valor === null) return { erro: "Informe o valor da contribuição." }
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const escolhido = String(formData.get("filiado_id") ?? "").trim()
 
-  const [filiadoId] = await resolverFiliadosLote(fonteId, remessaId, [
-    { cpf: cpf || null, matriculaFonte: matricula },
-  ])
-  if (!filiadoId) {
-    return {
-      erro: "Filiado não encontrado pelo CPF/matrícula — confira os dados ou use a importação em massa (que aceita não encontrados).",
+  let filiadoId: string
+  let cpf: string | null
+  let matricula: string | null
+
+  if (escolhido) {
+    // Filiado escolhido na lista de ativos da fonte fora da relação. A lista
+    // veio da página, então o servidor reconfere: o registro é desta
+    // organização e ainda não está na relação desta fonte nesta remessa.
+    if (!UUID.test(escolhido)) return { erro: "Filiado inválido." }
+    if (valor === null) return { erro: "Informe o valor da contribuição." }
+    const [{ data: registro }, { data: jaNaRelacao }, { data: vinculo }] =
+      await Promise.all([
+        admin
+          .from("filiacoes")
+          .select("id, cpf")
+          .eq("id", escolhido)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle(),
+        admin
+          .from("filiacao_recebe")
+          .select("id")
+          .eq("remessa_id", remessaId)
+          .eq("fonte_pg_id", fonteId)
+          .eq("filiado_id", escolhido)
+          .eq("emp_proprietaria_id", empId)
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("filiacao_vinculos")
+          .select("matricula, fonte_pg_matricula")
+          .eq("filiado_id", escolhido)
+          .eq("fonte_pagadora_id", fonteId)
+          .eq("emp_proprietaria_id", empId)
+          .is("data_desfiliacao", null)
+          .is("filiacao_data_saida", null)
+          .limit(1)
+          .maybeSingle(),
+      ])
+    if (!registro) return { erro: "Filiado não encontrado nesta organização." }
+    if (jaNaRelacao) {
+      return {
+        erro: "Este filiado já está na relação desta fonte. Recarregue a página para atualizar a lista.",
+      }
     }
+    filiadoId = escolhido
+    cpf = (registro.cpf as string | null) ?? null
+    // Mesma normalização do envio por matrícula: só dígitos.
+    const matriculaVinculo =
+      (vinculo?.matricula as string | null) ??
+      (vinculo?.fonte_pg_matricula as string | null) ??
+      ""
+    matricula = matriculaVinculo.replace(/\D/g, "") || null
+  } else {
+    const cpfBruto = String(formData.get("cpf") ?? "").trim()
+    const cpfLimpo = cpfBruto ? limparCpf(cpfBruto) : ""
+    if (cpfBruto && !validarCpf(cpfLimpo)) return { erro: "CPF inválido." }
+    matricula =
+      String(formData.get("matricula") ?? "").replace(/\D/g, "") || null
+    if (!cpfLimpo && !matricula) {
+      return {
+        erro: "Escolha um filiado na lista ou informe o CPF ou a matrícula na fonte.",
+      }
+    }
+    if (valor === null) return { erro: "Informe o valor da contribuição." }
+    cpf = cpfLimpo || null
+
+    const [resolvido] = await resolverFiliadosLote(fonteId, remessaId, [
+      { cpf, matriculaFonte: matricula },
+    ])
+    if (!resolvido) {
+      return {
+        erro: "Filiado não encontrado pelo CPF/matrícula — confira os dados ou use a importação em massa (que aceita não encontrados).",
+      }
+    }
+    filiadoId = resolvido
   }
 
-  const admin = await createAdminClient()
   const { error } = await admin.from("filiacao_recebe").insert({
     remessa_id: remessaId,
     fonte_pg_id: fonteId,
     filiado_id: filiadoId,
-    cpf: cpf || null,
+    cpf,
     fonte_pg_matricula: matricula,
     valor,
-    emp_proprietaria_id: await tenantAtual(),
+    emp_proprietaria_id: empId,
   })
   if (error) return { erro: `Não foi possível incluir: ${error.message}` }
 

@@ -7,24 +7,33 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { RelatorioFonte } from "@/lib/db/receitas"
 import { mascaraCpf } from "@/lib/mascaras"
 import { cn } from "@/lib/utils"
 
 import { importarContribuicoes, incluirContribuicao } from "./actions"
 import { ImportarRelatorioIa } from "./importar-relatorio-ia"
 
+const SELECT =
+  "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+
 /**
  * Envio da relação de pagamentos: em massa (CSV) ou um filiado por vez.
- * O CPF ou a matrícula na fonte fazem o vínculo com o filiado.
+ * No individual, o filiado vem da lista de ativos da fonte que ainda não
+ * estão na relação (em ordem alfabética) OU do CPF / matrícula na fonte.
  */
 export function EnviarContribuicoes({
   remessaId,
   fonteId,
+  ativosNaoPagantes,
 }: {
   remessaId: string
   fonteId: string
+  /** Ativos com vínculo em aberto na fonte fora da relação, já em ordem alfabética. */
+  ativosNaoPagantes: RelatorioFonte["ativosNaoPagantes"]
 }) {
   const [modo, setModo] = useState<"massa" | "individual" | "ia">("massa")
+  const [filiadoId, setFiliadoId] = useState("")
   const [massa, massaAction, massaPendente] = useActionState(
     importarContribuicoes,
     {}
@@ -133,6 +142,38 @@ export function EnviarContribuicoes({
               <AlertDescription>{individual.erro}</AlertDescription>
             </Alert>
           )}
+          <div className="grid gap-1.5">
+            <Label htmlFor="filiado_id">Filiado ativo desta fonte</Label>
+            <select
+              id="filiado_id"
+              name="filiado_id"
+              className={SELECT}
+              value={filiadoId}
+              onChange={(e) => setFiliadoId(e.target.value)}
+              disabled={ativosNaoPagantes.length === 0}
+            >
+              <option value="">
+                {ativosNaoPagantes.length === 0
+                  ? "Todos os ativos desta fonte já estão na relação"
+                  : `Selecione — ${ativosNaoPagantes.length.toLocaleString("pt-BR")} fora da relação`}
+              </option>
+              {ativosNaoPagantes.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nome ?? "(sem nome)"}
+                  {a.matriculaFonte
+                    ? ` — na fonte ${a.matriculaFonte}`
+                    : a.matriculaSindical
+                      ? ` — matrícula sindical ${a.matriculaSindical}`
+                      : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">
+              {filiadoId
+                ? "Filiado escolhido na lista: CPF e matrícula não são necessários."
+                : "Ativos com vínculo em aberto na fonte que ainda não estão na relação. Se a pessoa não estiver aqui, informe o CPF ou a matrícula na fonte."}
+            </p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1.5">
               <Label htmlFor="cpf">CPF</Label>
@@ -141,6 +182,7 @@ export function EnviarContribuicoes({
                 name="cpf"
                 inputMode="numeric"
                 placeholder="000.000.000-00"
+                disabled={Boolean(filiadoId)}
                 onChange={(e) => {
                   e.target.value = mascaraCpf(e.target.value)
                 }}
@@ -148,7 +190,12 @@ export function EnviarContribuicoes({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="matricula">Matrícula na fonte</Label>
-              <Input id="matricula" name="matricula" inputMode="numeric" />
+              <Input
+                id="matricula"
+                name="matricula"
+                inputMode="numeric"
+                disabled={Boolean(filiadoId)}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="valor">Valor *</Label>
