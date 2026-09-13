@@ -1,5 +1,12 @@
 import type { Metadata } from "next"
-import { Link2, Newspaper, PenLine, QrCode, Sparkles } from "lucide-react"
+import {
+  Link2,
+  MonitorPlay,
+  Newspaper,
+  PenLine,
+  QrCode,
+  Sparkles,
+} from "lucide-react"
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
@@ -14,8 +21,8 @@ export default async function ComunicacaoPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Comunicação</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Notícias do sindicato, resumo de notícias por IA, QR Codes e a página
-          de links para as redes sociais.
+          Notícias do sindicato, resumo de notícias por IA, QR Codes, slides
+          para as TVs e a página de links para as redes sociais.
         </p>
       </div>
 
@@ -43,6 +50,12 @@ export default async function ComunicacaoPage() {
           descricao="Emita QR Codes dinâmicos e baixe a imagem em vários tamanhos para peças digitais e impressas"
           href="/painel/comunicacao/qrcodes"
           icone={QrCode}
+        />
+        <CartaoArea
+          titulo="Slides para TV"
+          descricao="Conjuntos de slides na horizontal ou na vertical, com logo e faixa de notícias, num link público para as televisões"
+          href="/painel/comunicacao/slides"
+          icone={MonitorPlay}
         />
         <CartaoArea
           titulo="Página de links"

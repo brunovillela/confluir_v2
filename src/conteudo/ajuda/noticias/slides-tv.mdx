@@ -1,0 +1,110 @@
+Os **Slides para TV** montam a programação das televisões da entidade: uma
+sequência de slides com imagem, título e descrição, o logo da entidade no canto
+e uma faixa de rodapé com as últimas notícias. Cada conjunto tem um **link
+público** — abra-o no navegador da TV e ela passa os slides sozinha.
+
+<RequerPermissao>Notícias</RequerPermissao>
+
+## Como funciona
+
+- Cada **conjunto** é uma programação, na **horizontal** (TV deitada, 16:9) ou
+  na **vertical** (TV em pé, 9:16). Para a mesma programação nos dois formatos,
+  crie um conjunto e use **Duplicar** com a outra orientação.
+- O link é **único e sem login** (algo como `https://seusindicato…/tv/k3m9x…`).
+  Qualquer pessoa com o link vê a tela — não coloque nada sigiloso nos slides.
+- A TV confere mudanças **a cada minuto**: ao salvar um slide, trocar a ordem ou
+  publicar uma notícia, ela recarrega sozinha. Não é preciso mexer na TV.
+- O **logo** vem do cadastro da organização (Institucional) e aparece no canto
+  superior direito, com a opacidade que você escolher.
+- A **faixa** passa as mensagens fixas que você escrever e as últimas manchetes
+  de **Notícias**, com a hora ao lado.
+
+## Montar um conjunto
+
+<PassoAPasso>
+  <Passo titulo="Crie o conjunto">
+    Em Comunicação → Slides para TV, dê um nome (ex.: TV da recepção) e escolha
+    a orientação da TV.
+  </Passo>
+  <Passo titulo="Adicione os slides">
+    Cada slide tem imagem e/ou título, e uma descrição curta. Ele precisa de
+    pelo menos a imagem ou o título — sem imagem, o slide sai só com o texto
+    sobre o fundo da marca. Use as setas para ordenar.
+  </Passo>
+  <Passo titulo="Ajuste a configuração">
+    Tempo de cada slide, logo e opacidade, faixa de notícias (quantas manchetes e
+    mensagens fixas) e a hora. A <strong>Prévia</strong> mostra o resultado.
+  </Passo>
+  <Passo titulo="Abra o link na TV">
+    Copie o link e abra no navegador da TV (ou emita um QR e leia com a TV ou o
+    celular ligado a ela). Um clique ou OK no controle coloca em tela cheia.
+  </Passo>
+</PassoAPasso>
+
+## Imagens
+
+- Tamanho ideal: **1920 × 1080** na horizontal e **1080 × 1920** na vertical.
+  Fotos maiores são reduzidas no próprio navegador antes do envio.
+- **Preencher a tela** ocupa tudo e corta as sobras — bom para fotos.
+  **Imagem inteira** mostra a peça sem cortes, com a própria imagem desfocada ao
+  fundo — bom para cartazes e artes com texto.
+- O título e a descrição aparecem sobre a parte de baixo da imagem, com uma
+  sombra para dar leitura. Numa arte que já tem texto, deixe os dois vazios.
+
+<Aviso tipo="dica" titulo="Escreva para quem passa">
+  A TV é lida de longe e de passagem: título curto e uma ou duas frases na
+  descrição. O título aceita até 90 caracteres e a descrição, até 240.
+</Aviso>
+
+## Programar a exibição
+
+Em cada slide, **Exibir a partir de** e **Exibir até** controlam o período: o
+slide de uma assembleia entra no dia marcado e sai sozinho depois dela. A lista
+mostra a situação de cada um — **No ar**, **Agendado**, **Encerrado** ou
+**Oculto** (olho). **Segundos na tela** vazio usa o tempo padrão do conjunto.
+
+## TV em pé
+
+Muitas TVs penduradas na vertical continuam com o navegador deitado — a imagem
+sai de lado. Nesse caso, em **Rotação na TV**, escolha girar 90° no sentido
+horário ou anti-horário (teste os dois) e a tela passa a ocupar a TV inteira.
+
+## Tirar do ar
+
+- **Ocultar um slide** (olho): some da TV e continua na lista.
+- **Publicado** desmarcado: as TVs mostram só o logo da entidade, até você
+  publicar de novo.
+- **Gerar novo link**: o link atual para de funcionar na hora. Use quando o
+  link vazou; depois, abra o novo nas TVs.
+
+## Erros comuns
+
+- **"Mudei o slide e a TV não mudou."** Espere até 1 minuto. Se não mudar,
+  confira se a TV está conectada à internet: o painel mostra **a última conexão
+  de TV** no link do conjunto.
+- **"A imagem aparece de lado."** A TV está em pé com o navegador deitado — use
+  a **Rotação na TV**.
+- **"Sobram faixas pretas nas laterais."** A orientação do conjunto não é a da
+  TV (um conjunto vertical numa TV deitada, por exemplo). Duplique na outra
+  orientação.
+- **"A faixa não aparece."** Ela só aparece quando há o que passar: marque as
+  notícias (e tenha notícias publicadas) ou escreva uma mensagem fixa.
+- **"A TV mostra 'Este link de TV não existe mais'."** O link foi trocado em
+  **Gerar novo link** ou o conjunto foi excluído — abra o link atual na TV.
+- **"A TV fica lenta."** Navegadores de TV têm pouca memória: prefira até uns 15
+  slides no ar por conjunto e imagens no tamanho ideal.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Notícias",
+      href: "/painel/ajuda/noticias/noticias",
+      descricao: "As manchetes que passam na faixa",
+    },
+    {
+      titulo: "QR Codes",
+      href: "/painel/ajuda/noticias/qrcodes",
+      descricao: "Emitir o QR do link da TV",
+    },
+  ]}
+/>

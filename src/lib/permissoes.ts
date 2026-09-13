@@ -526,7 +526,7 @@ export const MODULOS: Modulo[] = [
     titulo: "Comunicação",
     href: "/painel/comunicacao",
     icone: "Rss",
-    descricao: "Notícias, resumo por IA, assistente de redação, QR Codes e página de links",
+    descricao: "Notícias, resumo por IA, assistente de redação, QR Codes, slides para TV e página de links",
     chave: "noticias",
   },
   {

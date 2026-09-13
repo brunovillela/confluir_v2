@@ -536,7 +536,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "noticias",
     titulo: "Comunicação",
-    descricao: "Notícias, IA que resume e escreve textos, QR Codes e página de links",
+    descricao: "Notícias, IA que resume e escreve textos, QR Codes, slides para TV e página de links",
     icone: "Newspaper",
     ...permissaoDoModulo("/painel/comunicacao"),
     disponivel: true,
@@ -566,6 +566,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "qrcodes",
         titulo: "QR Codes",
         resumo: "Emitir QR dinâmico, baixar em vários tamanhos, ativo/inativo e leituras",
+      },
+      {
+        slug: "slides-tv",
+        titulo: "Slides para TV",
+        resumo: "Conjuntos horizontais e verticais com logo e faixa de notícias num link público para as TVs",
       },
       {
         slug: "pagina-links",

@@ -251,7 +251,8 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
 // tenant aponta para o seu próprio site. Sem URL configurada, o widget fica
 // só com a tabela `noticias`.
 
-let cacheNoticias: { expira: number; noticias: Noticia[] } | null = null
+/** Cache POR TENANT: um único cache servia o site de um tenant a todos. */
+const cacheNoticias = new Map<string, { expira: number; noticias: Noticia[] }>()
 
 function decodificarEntidades(s: string): string {
   return s
@@ -307,10 +308,11 @@ export async function buscarNoticia(
  */
 export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
   const admin = await createAdminClient()
+  const tenant = await tenantAtual()
   const { data: daTabela } = await admin
     .from("noticias")
     .select("id, manchete, created_at")
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", tenant)
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(limite)
   const internas = (daTabela ?? []).filter((n) => n.manchete)
@@ -323,8 +325,9 @@ export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
     }))
   }
 
-  if (cacheNoticias && cacheNoticias.expira > Date.now()) {
-    return cacheNoticias.noticias.slice(0, limite)
+  const emCache = cacheNoticias.get(tenant)
+  if (emCache && emCache.expira > Date.now()) {
+    return emCache.noticias.slice(0, limite)
   }
 
   // URLs de notícias configuradas pela organização (multitenant).
@@ -387,7 +390,7 @@ export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
   }
 
   if (noticias.length > 0) {
-    cacheNoticias = { expira: Date.now() + 30 * 60_000, noticias }
+    cacheNoticias.set(tenant, { expira: Date.now() + 30 * 60_000, noticias })
   }
   return noticias.slice(0, limite)
 }
