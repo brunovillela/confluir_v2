@@ -10,7 +10,7 @@ import {
   listarCondutores,
   listarMovimentacoes,
 } from "@/lib/db/veiculos"
-import { formatarData } from "@/lib/formato"
+import { horaSP, momentoBR } from "@/lib/veiculos-constantes"
 
 import { CabecalhoVeiculo } from "../../cabecalho-veiculo"
 import { MovimentacaoEditarForm } from "./movimentacao-editar-form"
@@ -41,7 +41,7 @@ export default async function EditarMovimentacaoPage({
       <CabecalhoVeiculo
         veiculo={veiculo}
         titulo="Corrigir movimentação"
-        descricao={`Saída em ${formatarData(m.data_retirada)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " · em aberto" : ` · entrada em ${formatarData(m.data_devolucao)}`}`}
+        descricao={`Saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " · em aberto" : ` · entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}`}`}
       />
 
       <Alert variant="info">
@@ -60,6 +60,8 @@ export default async function EditarMovimentacaoPage({
             valores={{
               condutor_id: m.condutor_id,
               data_retirada: m.data_retirada,
+              hora_retirada: horaSP(m.retirada_em),
+              hora_devolucao: horaSP(m.devolucao_em),
               hodometro_retirada: m.hodometro_retirada,
               sede_retirada: m.sede_retirada,
               destino: m.destino,

@@ -11,8 +11,10 @@ import {
   listarAgendamentos,
   listarCondutores,
   listarMovimentacoes,
+  ultimaEntradaDoVeiculo,
 } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
+import { momentoBR } from "@/lib/veiculos-constantes"
 
 import { CabecalhoVeiculo } from "../cabecalho-veiculo"
 import { EntradaVeiculoForm, SaidaVeiculoForm } from "../movimentacao-forms"
@@ -38,7 +40,7 @@ export default async function MovimentacaoVeiculoPage({
   if (!veiculo) notFound()
 
   const podeSair = !veiculo.inativo && !veiculo.manutencao && !veiculo.emUso
-  const [movimentacoes, sedes, condutoresRes, reservadas, solicitadas] =
+  const [movimentacoes, sedes, condutoresRes, reservadas, solicitadas, ultimaEntrada] =
     await Promise.all([
       veiculo.movimentacaoAbertaId
         ? listarMovimentacoes({ veiculoId: id, abertas: true, limite: 5 })
@@ -53,6 +55,7 @@ export default async function MovimentacaoVeiculoPage({
       podeSair
         ? listarAgendamentos({ situacoes: ["solicitada"] })
         : Promise.resolve({ disponivel: true, agendamentos: [] }),
+      podeSair ? ultimaEntradaDoVeiculo(id) : Promise.resolve(null),
     ])
 
   const movimentacaoAberta =
@@ -117,7 +120,8 @@ export default async function MovimentacaoVeiculoPage({
             movimentacaoAberta ? (
               <>
                 <p className="text-sm">
-                  Fora desde {formatarData(movimentacaoAberta.data_retirada)}
+                  Fora desde{" "}
+                  {momentoBR(movimentacaoAberta.data_retirada, movimentacaoAberta.retirada_em)}
                   {movimentacaoAberta.sede_retirada
                     ? ` (${movimentacaoAberta.sede_retirada})`
                     : ""}{" "}
@@ -140,6 +144,7 @@ export default async function MovimentacaoVeiculoPage({
                   movimentacaoId={movimentacaoAberta.id}
                   sedes={sedes}
                   sedePadrao={movimentacaoAberta.sede_retirada}
+                  hodometroSaida={movimentacaoAberta.hodometro_retirada}
                 />
               </>
             ) : (
@@ -160,6 +165,7 @@ export default async function MovimentacaoVeiculoPage({
               sedePadrao={veiculo.lotacao}
               condutores={condutoresAptos}
               reservas={reservas}
+              ultimaEntrada={ultimaEntrada}
             />
           )}
         </CardContent>

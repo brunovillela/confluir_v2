@@ -31,6 +31,10 @@
 //   node scripts/migrar-veiculos-bubble.mjs --apply
 //   node scripts/migrar-veiculos-bubble.mjs --so infracoes,condutores
 //   node scripts/migrar-veiculos-bubble.mjs --documentos [--apply] [--limite 5]
+//   node scripts/migrar-veiculos-bubble.mjs --reparar-carimbo <de> <até> [--apply]
+//     devolve o updated_at ao Modified Date do Bubble nas linhas carimbadas por
+//     uma rodada anterior (que gravava "agora" e as fazia parecer editadas no
+//     Confluir). Roda antes das partes, na mesma execução.
 // ===========================================================================
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -46,6 +50,13 @@ const arg = (nome) => {
 }
 const SO = arg("--so")?.split(",") ?? null
 const LIMITE = Number(arg("--limite")) || null
+const REPARAR = (() => {
+  const i = args.indexOf("--reparar-carimbo")
+  if (i < 0) return null
+  const de = new Date(args[i + 1]), ate = new Date(args[i + 2])
+  if (Number.isNaN(de.getTime()) || Number.isNaN(ate.getTime())) throw new Error("--reparar-carimbo <de> <até> em ISO")
+  return { de: de.toISOString(), ate: ate.toISOString() }
+})()
 const CACHE = ".auditoria-bubble"
 const FOLGA_MS = 10 * 60 * 1000
 
@@ -175,6 +186,20 @@ const itens = (v) => {
 const jaNoBucket = (v) => itens(v).some((s) => typeof s === "string" && /\.(pdf|jpe?g|png)$/i.test(s)) && !itens(v).some(ehUrlCdn)
 const apontaCdn = (v) => itens(v).some(ehUrlCdn)
 
+/**
+ * Instante da saída/entrada. Meia-noite exata em São Paulo é data digitada sem
+ * hora no Bubble: fica sem horário, para a tela não mostrar "às 00:00".
+ */
+const COM_HORA = new Set(["retirada_em", "devolucao_em"])
+function instanteComHora(bruto) {
+  if (vazio(bruto)) return null
+  const d = new Date(bruto)
+  if (Number.isNaN(d.getTime())) return null
+  const hora = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(d)
+  if (hora === "00:00:00" && d.getUTCMilliseconds() === 0) return null
+  return d.toISOString()
+}
+
 /** Mesmo valor? (compara no formato da coluna) */
 function igual(a, b, formato) {
   if (vazio(a) && vazio(b)) return true
@@ -250,13 +275,24 @@ const PARTES = [
   {
     nome: "disponibilidade", tipo: "veículosdisponibilidade", tabela: "veiculos_disponibilidade",
     campos: {
-      "Código": "codigo", "CONDUTOR": "condutor_id", "VEÍCULO": "veiculo_id", "Data da retirada": "data_retirada",
-      "Data da devolução": "data_devolucao", "Destino": "destino", "Motivo": "motivo", "Disponível?": "disponivel",
+      // A data vai para a coluna DATE e o instante para retirada_em/devolucao_em
+      // (supabase/veiculos-horarios-situacao.sql).
+      "Código": "codigo", "CONDUTOR": "condutor_id", "VEÍCULO": "veiculo_id",
+      "Data da retirada": ["data_retirada", "retirada_em"],
+      "Data da devolução": ["data_devolucao", "devolucao_em"], "Destino": "destino", "Motivo": "motivo", "Disponível?": "disponivel",
       "Hodômetro da retirada": "hodometro_retirada", "Hodômetro da devolução": "hodometro_devolucao", "Km rodado": "km_rodado",
       "Manutenção?": "manutencao", "Observação de retorno": "observacao_retorno", "Previsão de retorno": "previsao_retorno",
       "Previsão de retorno negada?": "previsao_retorno_negada", "Sede da retirada": "sede_retirada",
       "Sede da devolução": "sede_devolucao", "Sede retirada OS": "sede_retirada_os", "Sede devolução OS": "sede_devolucao_os",
       "Tempo com veículo": "tempo_com_veiculo",
+    },
+    // A migração original cortou a data em UTC: a saída às 21h30 de São Paulo
+    // ficou no dia seguinte. Com o instante conhecido, o dia de SP manda.
+    derivar: (linha) => {
+      const d = {}
+      if (linha.retirada_em && linha.data_retirada && dataSP(linha.retirada_em) !== String(linha.data_retirada).slice(0, 10)) d.data_retirada = dataSP(linha.retirada_em)
+      if (linha.devolucao_em && linha.data_devolucao && dataSP(linha.devolucao_em) !== String(linha.data_devolucao).slice(0, 10)) d.data_devolucao = dataSP(linha.devolucao_em)
+      return d
     },
   },
   {
@@ -338,6 +374,9 @@ async function migrarParte(parte) {
           const id = refs.get(c.fk)(bruto)
           if (!id) { semRef[coluna] = (semRef[coluna] ?? 0) + 1; continue }
           linha[coluna] = id
+        } else if (COM_HORA.has(coluna)) {
+          const v = instanteComHora(bruto)
+          if (v !== null) linha[coluna] = v
         } else {
           const v = converter(bruto, c.formato)
           if (v !== null) linha[coluna] = v
@@ -386,7 +425,10 @@ async function migrarParte(parte) {
       if (!igual(atual[c], v, cols[c]?.formato)) { patch[c] = v; contaEditar[`${c} (derivado)`] = (contaEditar[`${c} (derivado)`] ?? 0) + 1 }
     }
     if (Object.keys(patch).length) {
-      if ("updated_at" in cols) patch.updated_at = new Date().toISOString()
+      // Carimbar "agora" faria a linha parecer editada no Confluir e travaria
+      // as próximas edições vindas do Bubble. Só acompanha o Bubble quando ele
+      // é mais novo; preencher vazio não mexe no carimbo.
+      if ("updated_at" in cols && bubbleMaisNovo) patch.updated_at = r["Modified Date"]
       atualizar.push([atual.id, patch])
     }
   }
@@ -585,12 +627,35 @@ async function migrarDocumentos() {
   }
 }
 
+// ── reparo do carimbo de uma rodada anterior ───────────────────────────────
+
+async function repararCarimbo() {
+  console.log(`\n▸ REPARAR CARIMBO  (updated_at entre ${REPARAR.de} e ${REPARAR.ate})`)
+  for (const parte of PARTES) {
+    if (!roda(parte.nome)) continue
+    const cols = colunasDe(parte.tabela)
+    if (!("updated_at" in cols)) continue
+    const modificado = new Map((await bubble(parte.tipo)).map((r) => [r._id, r["Modified Date"]]))
+    const linhas = (await lerTudo(parte.tabela, "*", !parte.semTenant)).filter(
+      (l) => l.updated_at && l.updated_at >= REPARAR.de && l.updated_at <= REPARAR.ate && l.bubble_id && !l.registrado_por_id
+    )
+    const alvo = linhas.filter((l) => modificado.get(l.bubble_id))
+    console.log(`  ${parte.nome}: ${alvo.length} linha(s)${linhas.length - alvo.length ? ` · ${linhas.length - alvo.length} sem par no Bubble (ficam)` : ""}`)
+    if (!APLICAR) continue
+    for (const l of alvo) {
+      const { error } = await db.from(parte.tabela).update({ updated_at: modificado.get(l.bubble_id) }).eq("id", l.id)
+      if (error) throw new Error(`reparo ${parte.tabela} ${l.id}: ${error.message}`)
+    }
+  }
+}
+
 // ── execução ───────────────────────────────────────────────────────────────
 
 try {
   if (DOCUMENTOS) {
     await migrarDocumentos()
   } else {
+    if (REPARAR) await repararCarimbo()
     for (const parte of PARTES) if (roda(parte.nome)) await migrarParte(parte)
     if (roda("condutores")) await migrarCondutores()
     console.log(`\n${APLICAR ? "Pronto" : "Dry-run"}: ${resumo.map((r) => `${r.parte} +${r.inserir}/~${r.atualizar}`).join(" · ")}`)

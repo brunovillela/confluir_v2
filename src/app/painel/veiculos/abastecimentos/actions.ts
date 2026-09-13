@@ -17,6 +17,7 @@ import {
   type LinhaImportacao,
 } from "@/lib/db/veiculos"
 import { parseValorBR } from "@/lib/valores"
+import { parseHodometro } from "@/lib/veiculos-constantes"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -33,7 +34,7 @@ export async function criarAbastecimentoAction(
   const combustivel = texto(formData, "combustivel")
   const volume = parseValorBR(texto(formData, "volume"))
   const valor = parseValorBR(texto(formData, "valor"))
-  const hodometro = parseValorBR(texto(formData, "hodometro"))
+  const hodometro = parseHodometro(texto(formData, "hodometro"))
   const dataHora = texto(formData, "data_hora")
 
   if (!veiculoId) return { erro: "Escolha o veículo." }
@@ -135,7 +136,7 @@ export async function importarAbastecimentosAction(
       : "12:00"
     const volume = parseValorBR(l[iVolume] ?? "")
     const valor = parseValorBR(l[iValor] ?? "")
-    const hodometro = iHodometro >= 0 ? parseValorBR(l[iHodometro] ?? "") : null
+    const hodometro = iHodometro >= 0 ? parseHodometro(l[iHodometro] ?? "") : null
 
     if (!placa) problemas.push(`${rotulo}: sem placa`)
     else if (!data) problemas.push(`${rotulo}: data inválida`)

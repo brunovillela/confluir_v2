@@ -6,6 +6,7 @@ import { Check, KeyRound, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { momentoBR, parseHodometro } from "@/lib/veiculos-constantes"
 
 import {
   registrarEntradaAction,
@@ -24,6 +25,26 @@ export type ReservaVinculavel = {
   atendida: boolean
 }
 
+/** A entrada mais recente do veículo, mostrada para conferir o hodômetro. */
+export type UltimaEntrada = {
+  hodometro: number
+  data: string | null
+  em: string | null
+  sede: string | null
+  condutorNome: string | null
+}
+
+/** Aviso quando o hodômetro digitado é menor que a referência. */
+function AvisoHodometro({ digitado, referencia, rotulo }: { digitado: string; referencia: number | null; rotulo: string }) {
+  const n = parseHodometro(digitado)
+  if (referencia === null || n === null || n >= referencia) return null
+  return (
+    <p className="text-warning-fg text-xs">
+      Menor que {rotulo} ({referencia.toLocaleString("pt-BR")} km) — confira o painel.
+    </p>
+  )
+}
+
 /**
  * SAÍDA — o veículo está na garagem. A recepção escolhe o condutor (ou a
  * reserva, que já traz condutor e destino), informa hodômetro e sede, e
@@ -35,14 +56,20 @@ export function SaidaVeiculoForm({
   sedePadrao,
   condutores,
   reservas,
+  ultimaEntrada,
 }: {
   veiculoId: string
   sedes: string[]
   sedePadrao?: string | null
   condutores: OpcaoCondutor[]
   reservas: ReservaVinculavel[]
+  /** Km e momento da última entrada — ponto de partida do hodômetro. */
+  ultimaEntrada: UltimaEntrada | null
 }) {
   const [estado, formAction, pendente] = useActionState(registrarSaidaAction, {})
+  const [hodometro, setHodometro] = useState(
+    ultimaEntrada ? ultimaEntrada.hodometro.toLocaleString("pt-BR") : ""
+  )
   const [reservaId, setReservaId] = useState("")
   const [condutorId, setCondutorId] = useState("")
   const [destino, setDestino] = useState("")
@@ -67,6 +94,24 @@ export function SaidaVeiculoForm({
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       <input type="hidden" name="voltar" value={`/painel/veiculos/${veiculoId}`} />
       {reservaId && <input type="hidden" name="agendamento_id" value={reservaId} />}
+
+      {ultimaEntrada ? (
+        <div className="bg-muted/50 rounded-md border px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Última entrada: </span>
+          <strong className="tabular-nums">{ultimaEntrada.hodometro.toLocaleString("pt-BR")} km</strong>
+          {" · "}
+          {momentoBR(ultimaEntrada.data, ultimaEntrada.em)}
+          {ultimaEntrada.sede ? ` · ${ultimaEntrada.sede}` : ""}
+          {ultimaEntrada.condutorNome ? ` · com ${ultimaEntrada.condutorNome}` : ""}
+          <span className="text-muted-foreground block text-xs">
+            O hodômetro abaixo já vem com esse valor: confira no painel e ajuste se mudou.
+          </span>
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-xs">
+          Nenhuma entrada com hodômetro registrada para este veículo.
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {reservas.length > 0 && (
@@ -129,6 +174,13 @@ export function SaidaVeiculoForm({
             inputMode="numeric"
             placeholder="Ex.: 48.350"
             className="tabular-nums"
+            value={hodometro}
+            onChange={(e) => setHodometro(e.target.value)}
+          />
+          <AvisoHodometro
+            digitado={hodometro}
+            referencia={ultimaEntrada?.hodometro ?? null}
+            rotulo="o da última entrada"
           />
         </div>
         <div className="grid gap-1.5">
@@ -189,16 +241,19 @@ export function EntradaVeiculoForm({
   movimentacaoId,
   sedes,
   sedePadrao,
+  hodometroSaida,
 }: {
   veiculoId: string
   movimentacaoId: string
   sedes: string[]
   sedePadrao?: string | null
+  hodometroSaida: number | null
 }) {
   const [estado, formAction, pendente] = useActionState(
     registrarEntradaAction,
     {}
   )
+  const [hodometro, setHodometro] = useState("")
   return (
     <form action={formAction} className="grid gap-4">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
@@ -214,7 +269,10 @@ export function EntradaVeiculoForm({
             inputMode="numeric"
             placeholder="Ex.: 48.512"
             className="tabular-nums"
+            value={hodometro}
+            onChange={(e) => setHodometro(e.target.value)}
           />
+          <AvisoHodometro digitado={hodometro} referencia={hodometroSaida} rotulo="o da saída" />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="sede">Sede de entrada *</Label>

@@ -100,6 +100,16 @@ export type VeiculoLinha = {
   /** Movimentação aberta (veículo na rua) — null = SQL não rodado. */
   emUso: boolean | null
   condutorEmUsoNome: string | null
+  /** Desde quando a situação atual vale (saída, entrada, manutenção, inativação). */
+  desde: { data: string | null; em: string | null } | null
+  /**
+   * Onde o veículo está: disponível = sede da última entrada; em manutenção =
+   * último local conhecido. Em uso = null (está fora; ver `destino`).
+   */
+  onde: string | null
+  /** Em uso: sede de onde saiu e destino informado. */
+  saiuDe: string | null
+  destino: string | null
 }
 
 export type FiltrosFrota = {
@@ -133,62 +143,121 @@ export async function listarVeiculos(
   if (error) throw new Error(`Falha ao listar a frota: ${error.message}`)
   const brutos = (data ?? []) as Record<string, unknown>[]
 
-  const abertas = await movimentacoesAbertas()
-  return brutos.map((v) => {
-    const aberta = abertas?.get(String(v.id))
-    return {
-      id: String(v.id),
-      codigo: texto(v.codigo),
-      placa: texto(v.placa),
-      marca_modelo: texto(v.marca_modelo),
-      cor: texto(v.cor),
-      combustivel: texto(v.combustivel),
-      lotacao: texto(v.lotacao_os) ?? texto(v.lotacao),
-      eh_alugado: v.eh_alugado === true,
-      inativo: v.inativo === true,
-      manutencao: v.manutencao === true,
-      emUso: abertas === null ? null : Boolean(aberta),
-      condutorEmUsoNome: aberta?.condutorNome ?? null,
-    }
-  })
+  const ultimas = await ultimasMovimentacoes()
+  return brutos.map((v) => montarLinhaVeiculo(v, ultimas))
+}
+
+function montarLinhaVeiculo(
+  v: Record<string, unknown>,
+  ultimas: Map<string, UltimaMovimentacao> | null
+): VeiculoLinha {
+  const ultima = ultimas?.get(String(v.id)) ?? null
+  const aberta = ultima?.aberta ? ultima : null
+  const inativo = v.inativo === true
+  const manutencao = v.manutencao === true
+  const ultimoLocal = ultima && !ultima.aberta ? ultima.sedeDevolucao : null
+
+  let desde: VeiculoLinha["desde"] = null
+  let onde: string | null = null
+  if (inativo) {
+    desde = texto(v.inativo_desde) ? { data: null, em: texto(v.inativo_desde) } : null
+  } else if (manutencao) {
+    desde = texto(v.manutencao_desde) ? { data: null, em: texto(v.manutencao_desde) } : null
+    onde = ultimoLocal
+  } else if (aberta) {
+    desde = { data: aberta.data_retirada, em: aberta.retirada_em }
+  } else if (ultima) {
+    desde = { data: ultima.data_devolucao, em: ultima.devolucao_em }
+    onde = ultimoLocal
+  }
+
+  return {
+    id: String(v.id),
+    codigo: texto(v.codigo),
+    placa: texto(v.placa),
+    marca_modelo: texto(v.marca_modelo),
+    cor: texto(v.cor),
+    combustivel: texto(v.combustivel),
+    lotacao: texto(v.lotacao_os) ?? texto(v.lotacao),
+    eh_alugado: v.eh_alugado === true,
+    inativo,
+    manutencao,
+    emUso: ultimas === null ? null : Boolean(aberta),
+    condutorEmUsoNome: aberta?.condutorNome ?? null,
+    desde,
+    onde,
+    saiuDe: aberta?.sedeRetirada ?? null,
+    destino: aberta?.destino ?? null,
+  }
+}
+
+export type UltimaMovimentacao = {
+  id: string
+  aberta: boolean
+  condutor_id: string | null
+  condutorNome: string | null
+  destino: string | null
+  sedeRetirada: string | null
+  sedeDevolucao: string | null
+  data_retirada: string | null
+  retirada_em: string | null
+  data_devolucao: string | null
+  devolucao_em: string | null
+  hodometro_devolucao: number | null
 }
 
 /**
- * Movimentações do FLUXO NOVO sem devolução, por veículo. O marcador é
- * `registrado_por_id` (sempre preenchido nas retiradas novas) — as 221
- * movimentações legadas sem devolução ficam de fora do status "em uso".
- * Null = esquema sem o SQL novo.
+ * A movimentação MAIS RECENTE de cada veículo (view
+ * `veiculos_ultima_movimentacao`, supabase/veiculos-horarios-situacao.sql).
+ * Aberta = veículo em uso; fechada = disponível na sede da entrada. As 221
+ * saídas antigas que o Bubble nunca fechou não contam: cada uma tem outra
+ * movimentação depois dela.
+ *
+ * Sem a view, degrada para a regra anterior (só saídas abertas do fluxo novo).
+ * Null = esquema de veículos sem o SQL.
  */
-async function movimentacoesAbertas(): Promise<Map<
-  string,
-  { id: string; condutor_id: string | null; condutorNome: string | null }
-> | null> {
+export async function ultimasMovimentacoes(
+  veiculoId?: string
+): Promise<Map<string, UltimaMovimentacao> | null> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("veiculos_disponibilidade")
-    .select("id, veiculo_id, condutor_id, registrado_por_id")
-    .is("data_devolucao", null)
-    .not("registrado_por_id", "is", null)
+  const emp = await tenantAtual()
+  let q = admin.from("veiculos_ultima_movimentacao").select("*").eq("emp_proprietaria_id", emp)
+  if (veiculoId) q = q.eq("veiculo_id", veiculoId)
+  let { data, error } = await q
+  if (error && esquemaAusente(error)) {
+    let antigo = admin
+      .from("veiculos_disponibilidade")
+      .select("*")
+      .eq("emp_proprietaria_id", emp)
+      .is("data_devolucao", null)
+      .not("registrado_por_id", "is", null)
+    if (veiculoId) antigo = antigo.eq("veiculo_id", veiculoId)
+    ;({ data, error } = await antigo)
+  }
   if (error) {
     if (esquemaAusente(error)) return null
     throw new Error(`Falha ao consultar movimentações: ${error.message}`)
   }
   const linhas = (data ?? []) as Record<string, unknown>[]
   const nomes = await nomesDosUsuarios(
-    linhas.map((l) => String(l.condutor_id ?? "")).filter(Boolean)
+    linhas.filter((l) => !l.data_devolucao).map((l) => String(l.condutor_id ?? "")).filter(Boolean)
   )
-  const mapa = new Map<
-    string,
-    { id: string; condutor_id: string | null; condutorNome: string | null }
-  >()
+  const mapa = new Map<string, UltimaMovimentacao>()
   for (const l of linhas) {
     if (!l.veiculo_id) continue
     mapa.set(String(l.veiculo_id), {
       id: String(l.id),
+      aberta: !l.data_devolucao,
       condutor_id: texto(l.condutor_id),
-      condutorNome: l.condutor_id
-        ? (nomes.get(String(l.condutor_id)) ?? null)
-        : null,
+      condutorNome: l.condutor_id ? (nomes.get(String(l.condutor_id)) ?? null) : null,
+      destino: texto(l.destino),
+      sedeRetirada: texto(l.sede_retirada_os) ?? texto(l.sede_retirada),
+      sedeDevolucao: texto(l.sede_devolucao_os) ?? texto(l.sede_devolucao),
+      data_retirada: texto(l.data_retirada),
+      retirada_em: texto(l.retirada_em),
+      data_devolucao: texto(l.data_devolucao),
+      devolucao_em: texto(l.devolucao_em),
+      hodometro_devolucao: numero(l.hodometro_devolucao),
     })
   }
   return mapa
@@ -221,8 +290,8 @@ export async function buscarVeiculo(
   if (error) throw new Error(`Falha ao buscar o veículo: ${error.message}`)
   if (!v) return null
 
-  const abertas = await movimentacoesAbertas()
-  const aberta = abertas?.get(String(v.id))
+  const ultimas = await ultimasMovimentacoes(String(v.id))
+  const ultima = ultimas?.get(String(v.id))
 
   let contrato: ContratoLinha | null = null
   const contratoId = texto(v.contrato_aluguel_id)
@@ -232,19 +301,8 @@ export async function buscarVeiculo(
   }
 
   return {
-    id: String(v.id),
-    codigo: texto(v.codigo),
-    placa: texto(v.placa),
-    marca_modelo: texto(v.marca_modelo),
-    cor: texto(v.cor),
-    combustivel: texto(v.combustivel),
-    lotacao: texto(v.lotacao_os) ?? texto(v.lotacao),
-    eh_alugado: v.eh_alugado === true,
-    inativo: v.inativo === true,
-    manutencao: v.manutencao === true,
-    emUso: abertas === null ? null : Boolean(aberta),
-    condutorEmUsoNome: aberta?.condutorNome ?? null,
-    movimentacaoAbertaId: aberta?.id ?? null,
+    ...montarLinhaVeiculo(v, ultimas),
+    movimentacaoAbertaId: ultima?.aberta ? ultima.id : null,
     renavan: texto(v.renavan),
     ano_fabricacao: texto(v.ano_fabricacao),
     ano_modelo: texto(v.ano_modelo),
@@ -328,15 +386,31 @@ export async function atualizarVeiculo(
   if (dados.eh_alugado !== undefined) mudancas.eh_alugado = dados.eh_alugado
   if (dados.seguro_vencimento !== undefined) mudancas.seguro_vencimento = dados.seguro_vencimento
   if (dados.contrato_aluguel_id !== undefined) mudancas.contrato_aluguel_id = dados.contrato_aluguel_id
-  if (dados.inativo !== undefined) mudancas.inativo = dados.inativo
-  if (dados.manutencao !== undefined) mudancas.manutencao = dados.manutencao
+  if (dados.inativo !== undefined) {
+    mudancas.inativo = dados.inativo
+    mudancas.inativo_desde = dados.inativo ? new Date().toISOString() : null
+  }
+  if (dados.manutencao !== undefined) {
+    mudancas.manutencao = dados.manutencao
+    mudancas.manutencao_desde = dados.manutencao ? new Date().toISOString() : null
+  }
 
-  const { data, error } = await admin
-    .from("veiculos")
-    .update(mudancas)
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .select("id")
+  const tenant = await tenantAtual()
+  const gravar = (campos: Record<string, unknown>) =>
+    admin
+      .from("veiculos")
+      .update(campos)
+      .eq("id", id)
+      .eq("emp_proprietaria_id", tenant)
+      .select("id")
+  let { data, error } = await gravar(mudancas)
+  if (error && esquemaAusente(error) && ("inativo_desde" in mudancas || "manutencao_desde" in mudancas)) {
+    // Sem supabase/veiculos-horarios-situacao.sql: grava sem o "desde".
+    const semDesde = { ...mudancas }
+    delete semDesde.inativo_desde
+    delete semDesde.manutencao_desde
+    ;({ data, error } = await gravar(semDesde))
+  }
   if (error) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível salvar: ${error.message}` }
@@ -865,6 +939,9 @@ export type Movimentacao = {
   sede_devolucao: string | null
   data_retirada: string | null
   data_devolucao: string | null
+  /** Instante da saída/entrada — null nas antigas sem horário conhecido. */
+  retirada_em: string | null
+  devolucao_em: string | null
   hodometro_retirada: number | null
   hodometro_devolucao: number | null
   km_rodado: number | null
@@ -879,11 +956,28 @@ export async function listarMovimentacoes(filtros: {
   condutorId?: string
   ids?: string[]
   abertas?: boolean
-  /** Só o fluxo novo (com registrado_por_id) — exclui as 221 aberturas legadas. */
-  fluxoNovo?: boolean
+  /**
+   * Só a saída em aberto que é a situação ATUAL de um veículo ativo (a última
+   * movimentação dele) — exclui as saídas antigas que o Bubble nunca fechou.
+   */
+  emUsoAgora?: boolean
   limite?: number
 }): Promise<Movimentacao[]> {
   const admin = await createAdminClient()
+  if (filtros.emUsoAgora) {
+    const ultimas = await ultimasMovimentacoes()
+    const { data: ativos } = await admin
+      .from("veiculos")
+      .select("id")
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("inativo", false)
+    const idsAtivos = new Set((ativos ?? []).map((v) => String(v.id)))
+    const ids = [...(ultimas ?? new Map<string, UltimaMovimentacao>())]
+      .filter(([veiculoId, u]) => u.aberta && idsAtivos.has(veiculoId))
+      .map(([, u]) => u.id)
+    if (ids.length === 0) return []
+    filtros = { ...filtros, ids: filtros.ids ? filtros.ids.filter((i) => ids.includes(i)) : ids }
+  }
   let q = admin
     .from("veiculos_disponibilidade")
     .select("*")
@@ -892,13 +986,13 @@ export async function listarMovimentacoes(filtros: {
   if (filtros.condutorId) q = q.eq("condutor_id", filtros.condutorId)
   if (filtros.ids) q = q.in("id", filtros.ids)
   if (filtros.abertas) q = q.is("data_devolucao", null)
-  if (filtros.fluxoNovo) q = q.not("registrado_por_id", "is", null)
+  // Pela data da saída: o created_at das movimentações migradas é o dia da
+  // migração, e ordenar por ele embaralhava o histórico.
   const { data, error } = await q
+    .order("data_retirada", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(filtros.limite ?? 100)
   if (error) {
-    // Filtro por coluna nova sem o SQL rodado: degrada para lista vazia.
-    if (filtros.fluxoNovo && esquemaAusente(error)) return []
     throw new Error(`Falha ao listar movimentações: ${error.message}`)
   }
   const brutos = (data ?? []) as Record<string, unknown>[]
@@ -916,6 +1010,13 @@ export async function listarMovimentacoes(filtros: {
     ((veiculos.data ?? []) as Record<string, unknown>[]).map((v) => [String(v.id), v])
   )
 
+  // No mesmo dia, a saída mais tarde vem primeiro (quando o horário é conhecido).
+  brutos.sort((a, b) => {
+    const dia = String(b.data_retirada ?? "").localeCompare(String(a.data_retirada ?? ""))
+    if (dia !== 0) return dia
+    return String(b.retirada_em ?? b.created_at ?? "").localeCompare(String(a.retirada_em ?? a.created_at ?? ""))
+  })
+
   return brutos.map((m) => {
     const veiculo = m.veiculo_id ? veiculoPorId.get(String(m.veiculo_id)) : undefined
     return {
@@ -931,6 +1032,8 @@ export async function listarMovimentacoes(filtros: {
       sede_devolucao: texto(m.sede_devolucao_os) ?? texto(m.sede_devolucao),
       data_retirada: texto(m.data_retirada),
       data_devolucao: texto(m.data_devolucao),
+      retirada_em: texto(m.retirada_em),
+      devolucao_em: texto(m.devolucao_em),
       hodometro_retirada: numero(m.hodometro_retirada),
       hodometro_devolucao: numero(m.hodometro_devolucao),
       km_rodado: numero(m.km_rodado),
@@ -944,6 +1047,9 @@ export async function listarMovimentacoes(filtros: {
 export type EdicaoMovimentacao = {
   condutor_usuario_id: string | null
   data_retirada: string | null
+  /** Instante da saída (data + hora); null = hora não informada. */
+  retirada_em: string | null
+  devolucao_em: string | null
   hodometro_retirada: number | null
   sede_retirada: string | null
   destino: string | null
@@ -976,6 +1082,9 @@ export async function editarMovimentacao(
     dados.data_devolucao < dados.data_retirada
   ) {
     return { erro: "A data da entrada não pode ser anterior à da saída." }
+  }
+  if (dados.retirada_em && dados.devolucao_em && dados.devolucao_em < dados.retirada_em) {
+    return { erro: "O horário da entrada não pode ser anterior ao da saída." }
   }
   if (dados.data_devolucao && dados.hodometro_devolucao === null) {
     return { erro: "Com data de entrada, informe também o hodômetro da entrada." }
@@ -1015,11 +1124,11 @@ export async function editarMovimentacao(
     dados.hodometro_retirada !== null && dados.hodometro_devolucao !== null
       ? dados.hodometro_devolucao - dados.hodometro_retirada
       : null
-  const { error } = await admin
-    .from("veiculos_disponibilidade")
-    .update({
+  const { error } = await gravarMovimentacao("update", id, {
       condutor_id: dados.condutor_usuario_id,
       data_retirada: dados.data_retirada,
+      retirada_em: dados.retirada_em,
+      devolucao_em: dados.data_devolucao ? dados.devolucao_em : null,
       hodometro_retirada: dados.hodometro_retirada,
       sede_retirada_os: dados.sede_retirada,
       sede_retirada: dados.sede_retirada,
@@ -1033,10 +1142,75 @@ export async function editarMovimentacao(
       km_rodado: kmRodado,
       disponivel: Boolean(dados.data_devolucao),
       updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
+  })
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   return {}
+}
+
+/**
+ * Grava em veiculos_disponibilidade. Sem supabase/veiculos-horarios-situacao.sql
+ * as colunas de horário não existem: repete sem elas em vez de falhar.
+ */
+async function gravarMovimentacao(
+  operacao: "insert" | "update",
+  id: string | null,
+  campos: Record<string, unknown>,
+  opcoes: { soAberta?: boolean } = {}
+): Promise<{ error: { message: string; code?: string } | null }> {
+  const admin = await createAdminClient()
+  const executar = async (c: Record<string, unknown>) => {
+    if (operacao === "insert") {
+      return admin.from("veiculos_disponibilidade").insert(c)
+    }
+    let q = admin.from("veiculos_disponibilidade").update(c).eq("id", id ?? "")
+    if (opcoes.soAberta) q = q.is("data_devolucao", null)
+    return q
+  }
+  const { error } = await executar(campos)
+  if (error && esquemaAusente(error) && ("retirada_em" in campos || "devolucao_em" in campos)) {
+    const semHorario = { ...campos }
+    delete semHorario.retirada_em
+    delete semHorario.devolucao_em
+    return { error: (await executar(semHorario)).error }
+  }
+  return { error }
+}
+
+/** A entrada mais recente do veículo — ponto de partida do hodômetro na saída. */
+export async function ultimaEntradaDoVeiculo(veiculoId: string): Promise<{
+  hodometro: number
+  data: string | null
+  em: string | null
+  sede: string | null
+  condutorNome: string | null
+} | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_disponibilidade")
+    .select("*")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("veiculo_id", veiculoId)
+    .not("hodometro_devolucao", "is", null)
+    .order("data_devolucao", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(10)
+  if (error || !data?.length) return null
+  const linhas = (data as Record<string, unknown>[]).sort((a, b) => {
+    const dia = String(b.data_devolucao ?? "").localeCompare(String(a.data_devolucao ?? ""))
+    if (dia !== 0) return dia
+    return String(b.devolucao_em ?? b.created_at ?? "").localeCompare(String(a.devolucao_em ?? a.created_at ?? ""))
+  })
+  const l = linhas[0]
+  const hodometro = numero(l.hodometro_devolucao)
+  if (hodometro === null) return null
+  const nomes = l.condutor_id ? await nomesDosUsuarios([String(l.condutor_id)]) : new Map<string, string>()
+  return {
+    hodometro,
+    data: texto(l.data_devolucao),
+    em: texto(l.devolucao_em),
+    sede: texto(l.sede_devolucao_os) ?? texto(l.sede_devolucao),
+    condutorNome: l.condutor_id ? (nomes.get(String(l.condutor_id)) ?? null) : null,
+  }
 }
 
 export type NovaRetirada = {
@@ -1072,14 +1246,9 @@ export async function registrarRetirada(
   if (veiculo.inativo === true) return { erro: "Este veículo está inativo." }
   if (veiculo.manutencao === true) return { erro: "Este veículo está em manutenção." }
 
-  const { count: emUso } = await admin
-    .from("veiculos_disponibilidade")
-    .select("id", { count: "exact", head: true })
-    .eq("veiculo_id", nova.veiculo_id)
-    .not("registrado_por_id", "is", null)
-    .is("data_devolucao", null)
-  if ((emUso ?? 0) > 0) {
-    return { erro: "Este veículo já está com movimentação em aberto." }
+  const ultima = (await ultimasMovimentacoes(nova.veiculo_id))?.get(nova.veiculo_id)
+  if (ultima?.aberta) {
+    return { erro: "Este veículo está fora: registre a entrada antes de uma nova saída." }
   }
 
   const condutor = await buscarCondutorDoUsuario(nova.condutor_usuario_id)
@@ -1088,11 +1257,12 @@ export async function registrarRetirada(
   }
   if (condutor.cnhVencida) return { erro: "A CNH do condutor está vencida." }
 
-  const { error } = await admin.from("veiculos_disponibilidade").insert({
+  const { error } = await gravarMovimentacao("insert", null, {
     agendamento_id: nova.agendamento_id,
     veiculo_id: nova.veiculo_id,
     condutor_id: nova.condutor_usuario_id,
     data_retirada: hojeSP(),
+    retirada_em: new Date().toISOString(),
     hodometro_retirada: nova.hodometro,
     sede_retirada_os: nova.sede,
     sede_retirada: nova.sede,
@@ -1154,10 +1324,9 @@ export async function registrarDevolucao(
     }
   }
 
-  const { error } = await admin
-    .from("veiculos_disponibilidade")
-    .update({
+  const { error } = await gravarMovimentacao("update", dev.movimentacao_id, {
       data_devolucao: hojeSP(),
+      devolucao_em: new Date().toISOString(),
       hodometro_devolucao: dev.hodometro,
       sede_devolucao_os: dev.sede,
       sede_devolucao: dev.sede,
@@ -1166,9 +1335,7 @@ export async function registrarDevolucao(
       observacao_retorno: dev.observacao,
       disponivel: true,
       updated_at: new Date().toISOString(),
-    })
-    .eq("id", dev.movimentacao_id)
-    .is("data_devolucao", null)
+  }, { soAberta: true })
   if (error) return { erro: `Não foi possível registrar a devolução: ${error.message}` }
 
   if (mov.agendamento_id) {
@@ -2488,7 +2655,13 @@ export async function resumoVeiculos(): Promise<ResumoVeiculos> {
       listarContratos({ situacao: "vigentes" }),
     ])
 
-  const abertas = await movimentacoesAbertas()
+  const [ultimas, ativos] = await Promise.all([
+    ultimasMovimentacoes(),
+    admin.from("veiculos").select("id").eq("emp_proprietaria_id", await tenantAtual()).eq("inativo", false),
+  ])
+  const idsAtivos = new Set((ativos.data ?? []).map((v) => String(v.id)))
+  const emUsoAgora =
+    ultimas === null ? null : [...ultimas].filter(([id, u]) => u.aberta && idsAtivos.has(id)).length
 
   const cnhsVencendo = condutoresRes.condutores.filter(
     (c) =>
@@ -2505,7 +2678,7 @@ export async function resumoVeiculos(): Promise<ResumoVeiculos> {
 
   return {
     frotaAtiva: frota.count ?? 0,
-    emUso: abertas === null ? null : abertas.size,
+    emUso: emUsoAgora,
     // Head-count com coluna ausente volta count null — sinal de rodar o SQL.
     solicitacoesPendentes: solicitacoes.error
       ? null
@@ -2521,7 +2694,7 @@ export async function resumoVeiculos(): Promise<ResumoVeiculos> {
     ),
     contratosVencendo,
     emManutencao: manutencao.count ?? 0,
-    disponivel: condutoresRes.disponivel && abertas !== null,
+    disponivel: condutoresRes.disponivel && ultimas !== null,
   }
 }
 

@@ -49,10 +49,21 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
 
 ## Situação de cada veículo
 
-Na lista da frota, cada veículo mostra uma situação: **Ativo** (disponível),
-**Em uso** (retirado num agendamento aberto), **Manutenção** ou **Inativo**.
-Os indicadores do topo resumem a frota (ativa, em uso agora, em manutenção,
-solicitações pendentes).
+Na lista da frota, cada veículo mostra a situação e **desde quando** ela vale:
+**Disponível** (desde a última entrada), **Em uso** (desde a saída),
+**Manutenção** ou **Inativo** (desde quando a gestão marcou). A coluna **Onde
+está** diz o local de agora: o disponível está na **sede da última entrada**; o
+que está fora mostra o destino e de onde saiu. Os indicadores do topo resumem a
+frota (ativa, em uso agora, em manutenção, solicitações pendentes).
+
+<Aviso tipo="dica" titulo="Lotação não é onde o carro está">
+  A **lotação** é a sede a que o veículo pertence. O carro lotado em Campos que
+  foi devolvido em Macaé aparece **disponível em Macaé** — é lá que ele está.
+</Aviso>
+
+A situação vem da **última movimentação** de cada veículo. Saídas antigas que
+nunca foram fechadas no sistema anterior não deixam o carro "em uso" para
+sempre: basta ter uma movimentação mais recente.
 
 <Aviso tipo="atencao" titulo="Alertas dos próximos 30 dias">
   Para quem tem gestão, o painel destaca o que vence em breve: **CNH** de

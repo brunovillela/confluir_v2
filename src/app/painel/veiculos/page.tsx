@@ -28,11 +28,16 @@ import {
 } from "@/components/ui/table";
 import { EmUsoBadge } from "@/components/veiculos";
 import { requirePermissao } from "@/lib/auth";
-import { listarVeiculos, resumoVeiculos } from "@/lib/db/veiculos";
+import {
+  listarVeiculos,
+  resumoVeiculos,
+  type VeiculoLinha,
+} from "@/lib/db/veiculos";
 import { totalVencidos } from "@/lib/db/veiculos-checklist";
 import { totalPreventivasVencidas } from "@/lib/db/veiculos-manutencoes";
 import { formatarData } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
+import { momentoBR } from "@/lib/veiculos-constantes";
 
 export const metadata: Metadata = { title: "Veículos — Confluir" };
 
@@ -275,10 +280,10 @@ export default async function VeiculosPage({
                 <TableRow>
                   <TableHead>Placa</TableHead>
                   <TableHead>Modelo</TableHead>
-                  <TableHead>Cor</TableHead>
                   <TableHead>Lotação</TableHead>
                   <TableHead>Vínculo</TableHead>
                   <TableHead>Situação</TableHead>
+                  <TableHead>Onde está</TableHead>
                   <TableHead>Condutor atual</TableHead>
                 </TableRow>
               </TableHeader>
@@ -297,8 +302,12 @@ export default async function VeiculosPage({
                       <span className="line-clamp-1">
                         {v.marca_modelo ?? "—"}
                       </span>
+                      {v.cor && (
+                        <span className="text-muted-foreground block text-xs">
+                          {v.cor}
+                        </span>
+                      )}
                     </TableCell>
-                    <TableCell>{v.cor ?? "—"}</TableCell>
                     <TableCell>{v.lotacao ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="whitespace-nowrap">
@@ -323,6 +332,14 @@ export default async function VeiculosPage({
                       ) : (
                         <EmUsoBadge emUso={v.emUso} />
                       )}
+                      {v.desde && (v.desde.data || v.desde.em) && (
+                        <span className="text-muted-foreground mt-1 block text-xs whitespace-nowrap">
+                          desde {momentoBR(v.desde.data, v.desde.em)}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-56">
+                      <OndeEsta veiculo={v} />
                     </TableCell>
                     <TableCell>{v.condutorEmUsoNome ?? "—"}</TableCell>
                   </TableRow>
@@ -333,6 +350,44 @@ export default async function VeiculosPage({
         </CardContent>
       </Card>
     </>
+  );
+}
+
+/**
+ * Onde o veículo está AGORA — não é a lotação: um carro lotado em Campos pode
+ * estar disponível em Macaé, onde foi devolvido.
+ */
+function OndeEsta({ veiculo: v }: { veiculo: VeiculoLinha }) {
+  if (v.inativo) return <span className="text-muted-foreground">—</span>;
+  if (!v.manutencao && v.emUso) {
+    return (
+      <>
+        <span className="line-clamp-1">
+          Fora{v.destino ? ` · ${v.destino}` : ""}
+        </span>
+        {v.saiuDe && (
+          <span className="text-muted-foreground block text-xs">
+            saiu de {v.saiuDe}
+          </span>
+        )}
+      </>
+    );
+  }
+  if (v.manutencao) {
+    return v.onde ? (
+      <span className="text-muted-foreground text-xs">
+        último local: {v.onde}
+      </span>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+  }
+  return v.onde ? (
+    <span>{v.onde}</span>
+  ) : (
+    <span className="text-muted-foreground text-xs">
+      sem entrada registrada
+    </span>
   );
 }
 

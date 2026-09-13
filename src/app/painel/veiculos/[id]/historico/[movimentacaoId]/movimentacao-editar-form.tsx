@@ -13,6 +13,9 @@ import { SELECT, type OpcaoCondutor } from "../../../agendamentos/agendamento-fo
 export type ValoresMovimentacao = {
   condutor_id: string | null
   data_retirada: string | null
+  /** "HH:MM" em São Paulo; vazio = horário não registrado. */
+  hora_retirada: string
+  hora_devolucao: string
   hodometro_retirada: number | null
   sede_retirada: string | null
   destino: string | null
@@ -85,6 +88,16 @@ export function MovimentacaoEditarForm({
             />
           </div>
           <div className="grid gap-1.5">
+            <Label htmlFor="hora_retirada">Hora da saída</Label>
+            <Input
+              id="hora_retirada"
+              name="hora_retirada"
+              type="time"
+              defaultValue={valores.hora_retirada}
+              className={data}
+            />
+          </div>
+          <div className="grid gap-1.5">
             <Label htmlFor="hodometro_retirada">Hodômetro na saída</Label>
             <Input
               id="hodometro_retirada"
@@ -144,6 +157,16 @@ export function MovimentacaoEditarForm({
               name="data_devolucao"
               type="date"
               defaultValue={valores.data_devolucao ?? ""}
+              className={data}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="hora_devolucao">Hora da entrada</Label>
+            <Input
+              id="hora_devolucao"
+              name="hora_devolucao"
+              type="time"
+              defaultValue={valores.hora_devolucao}
               className={data}
             />
           </div>

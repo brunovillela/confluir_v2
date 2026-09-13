@@ -22,6 +22,7 @@ import {
   listarVeiculos,
 } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
+import { momentoBR } from "@/lib/veiculos-constantes"
 
 import {
   CancelarAgendamentoForm,
@@ -51,7 +52,7 @@ export default async function AgendamentosPage({
       situacoes: ["concluida", "cancelada", "negada"],
       limite: 20,
     }),
-    listarMovimentacoes({ abertas: true, fluxoNovo: true }),
+    listarMovimentacoes({ emUsoAgora: true }),
     listarVeiculos({ situacao: "ativos" }),
   ])
 
@@ -245,7 +246,7 @@ export default async function AgendamentosPage({
                   </TableCell>
                   <TableCell>{m.condutorNome ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {formatarData(m.data_retirada)}
+                    {momentoBR(m.data_retirada, m.retirada_em)}
                     {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
                   </TableCell>
                   <TableCell className="max-w-52">

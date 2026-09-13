@@ -21,6 +21,7 @@ import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import { buscarVeiculo, listarMovimentacoes } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
+import { momentoBR } from "@/lib/veiculos-constantes"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -211,7 +212,7 @@ export default async function HistoricoVeiculoPage({
               {pagina.linhas.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="whitespace-nowrap">
-                    {formatarData(m.data_retirada)}
+                    {momentoBR(m.data_retirada, m.retirada_em)}
                     {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
@@ -223,7 +224,7 @@ export default async function HistoricoVeiculoPage({
                         Fora
                       </Badge>
                     ) : (
-                      `${formatarData(m.data_devolucao)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
+                      `${momentoBR(m.data_devolucao, m.devolucao_em)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
                     )}
                   </TableCell>
                   <TableCell>{m.condutorNome ?? "—"}</TableCell>

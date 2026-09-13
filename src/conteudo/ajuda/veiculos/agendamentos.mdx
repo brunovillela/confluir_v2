@@ -58,14 +58,21 @@ rodaram e que mais ficam com o veículo. O botão **Histórico de uso** abre tod
 saídas e entradas do veículo, com filtros por período, condutor e situação. O
 botão **Enviar para manutenção** fica na tela de Manutenções. Quem tem
 **Gestão de veículos** vê, no histórico, um lápis em cada linha para **corrigir um
-lançamento** errado (hodômetro, datas, condutor, sedes, destino): a quilometragem
-rodada e a situação do veículo são recalculadas.
+lançamento** errado (hodômetro, datas e horários, condutor, sedes, destino): a
+quilometragem rodada e a situação do veículo são recalculadas.
+
+Saídas e entradas guardam **data e hora** do registro — é o horário mostrado no
+histórico, na página do veículo e em Veículos na rua. As movimentações antigas
+sem horário conhecido aparecem só com a data.
 
 <PassoAPasso>
   <Passo titulo="Veículo na garagem → Registrar saída">
     Escolha o condutor (ou vincule a uma solicitação — ela já traz condutor e
     destino e recebe **baixa**, passando a *Veículo retirado*), informe o
     **hodômetro** e a sede. **Destino** e **previsão de retorno** são facultativos.
+    A tela mostra a **última entrada** do veículo (km, dia e hora, sede e
+    condutor) e já preenche o hodômetro com esse valor: confira no painel e
+    ajuste. Um valor menor que o da última entrada ganha um aviso.
   </Passo>
   <Passo titulo="Veículo fora → Registrar entrada">
     O bloco mostra desde quando o veículo está fora, com quem, o destino e a

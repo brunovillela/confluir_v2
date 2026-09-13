@@ -3,6 +3,64 @@
  * (fora de db/veiculos.ts, que é server-only).
  */
 
+import { formatarData } from "@/lib/formato"
+
+// ── Horários e hodômetro ────────────────────────────────────────────────────
+
+/**
+ * Hodômetro em km inteiros. "48.350" é quarenta e oito mil — ler como número
+ * decimal (48,35) gravava a quilometragem errada.
+ */
+export function parseHodometro(bruto: string): number | null {
+  let v = bruto.replace(/\s/g, "")
+  // Fração descartada: vírgula decimal ("48.350,5") ou ponto seguido de 1–2
+  // dígitos ("48350.0", como sai de planilha). Ponto com 3 dígitos é milhar.
+  if (v.includes(",")) v = v.split(",")[0]
+  else v = v.replace(/\.\d{1,2}$/, "")
+  const inteiro = v.replace(/\D/g, "")
+  if (!inteiro) return null
+  const n = Number(inteiro)
+  return Number.isSafeInteger(n) ? n : null
+}
+
+/** Momento de uma saída/entrada: com hora quando se sabe, só a data quando não. */
+export function momentoBR(data: string | null, em: string | null): string {
+  if (em) {
+    const d = new Date(em)
+    if (!Number.isNaN(d.getTime())) {
+      // formatarData leria o "AAAA-MM-DD" do ISO em UTC: 21h em São Paulo
+      // viraria o dia seguinte.
+      const dia = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(d)
+      return `${dia} às ${horaSP(em)}`
+    }
+  }
+  return formatarData(data)
+}
+
+/** ISO → "HH:MM" no fuso de São Paulo (para o campo de hora). */
+export function horaSP(iso: string | null): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(d)
+}
+
+/**
+ * Data "AAAA-MM-DD" + hora "HH:MM" digitadas em São Paulo → ISO. Sem hora →
+ * null. Monta com o fuso explícito (São Paulo não tem horário de verão desde
+ * 2019): o `datetime-local` convertido pelo servidor deslocava 3 horas.
+ */
+export function instanteSP(data: string | null, hora: string | null): string | null {
+  if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return null
+  if (!hora || !/^\d{2}:\d{2}$/.test(hora)) return null
+  return new Date(`${data}T${hora}:00-03:00`).toISOString()
+}
+
 export const SITUACOES_AGENDAMENTO = [
   "solicitada",
   "atendida",

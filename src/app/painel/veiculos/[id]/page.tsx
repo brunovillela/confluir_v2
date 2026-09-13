@@ -50,6 +50,7 @@ import {
   urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { momentoBR } from "@/lib/veiculos-constantes"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { atualizarVeiculoAction } from "../actions"
@@ -248,8 +249,9 @@ export default async function VeiculoPage({
               Veículo fora com{" "}
               <strong>{veiculo.condutorEmUsoNome ?? "condutor não informado"}</strong>
               {movimentacaoAberta?.data_retirada
-                ? ` desde ${formatarData(movimentacaoAberta.data_retirada)}`
+                ? ` desde ${momentoBR(movimentacaoAberta.data_retirada, movimentacaoAberta.retirada_em)}`
                 : ""}
+              {movimentacaoAberta?.sede_retirada ? ` (saiu de ${movimentacaoAberta.sede_retirada})` : ""}
               {movimentacaoAberta?.destino ? ` · ${movimentacaoAberta.destino}` : ""}
               {movimentacaoAberta?.previsao_retorno
                 ? diasPrevisao !== null && diasPrevisao < 0
@@ -531,7 +533,7 @@ export default async function VeiculoPage({
               {movimentacoes.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="whitespace-nowrap">
-                    {formatarData(m.data_retirada)}
+                    {momentoBR(m.data_retirada, m.retirada_em)}
                     {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
@@ -546,7 +548,7 @@ export default async function VeiculoPage({
                           : ""}
                       </Badge>
                     ) : (
-                      `${formatarData(m.data_devolucao)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
+                      `${momentoBR(m.data_devolucao, m.devolucao_em)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
                     )}
                   </TableCell>
                   <TableCell>{m.condutorNome ?? "—"}</TableCell>

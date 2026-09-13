@@ -688,8 +688,8 @@ export type VeiculoDisponivelTelegram = {
 
 /**
  * Veículos DISPONÍVEIS do tenant: ativos, fora de manutenção e sem movimentação
- * aberta (retirada sem devolução no fluxo novo). Espelha a derivação de
- * `listarVeiculos`/`movimentacoesAbertas` em src/lib/db/veiculos.ts.
+ * em aberto (última movimentação sem devolução). Espelha a derivação de
+ * `listarVeiculos`/`ultimasMovimentacoes` em src/lib/db/veiculos.ts.
  */
 export async function veiculosDisponiveisTelegram(
   empId: string
@@ -701,14 +701,24 @@ export async function veiculosDisponiveisTelegram(
     .eq("emp_proprietaria_id", empId)
     .eq("inativo", false)
   if (error) return { disponivel: !esquemaAusente(error), itens: [] }
-  // Em uso agora = movimentação aberta do fluxo novo. Se a tabela ainda não
-  // existe, degrada tratando ninguém como em uso.
-  const { data: abertas } = await svc
-    .from("veiculos_disponibilidade")
+  // Em uso agora = a última movimentação do veículo está aberta (view de
+  // supabase/veiculos-horarios-situacao.sql). Sem a view, cai na regra antiga
+  // (saída aberta do fluxo novo); sem a tabela, ninguém em uso.
+  const ultimas = await svc
+    .from("veiculos_ultima_movimentacao")
     .select("veiculo_id")
     .eq("emp_proprietaria_id", empId)
     .is("data_devolucao", null)
-    .not("registrado_por_id", "is", null)
+  const abertas = ultimas.error
+    ? (
+        await svc
+          .from("veiculos_disponibilidade")
+          .select("veiculo_id")
+          .eq("emp_proprietaria_id", empId)
+          .is("data_devolucao", null)
+          .not("registrado_por_id", "is", null)
+      ).data
+    : ultimas.data
   const emUso = new Set((abertas ?? []).map((m) => String(m.veiculo_id)))
   const itens = (veiculos ?? [])
     .filter((v) => v.manutencao !== true && !emUso.has(String(v.id)))

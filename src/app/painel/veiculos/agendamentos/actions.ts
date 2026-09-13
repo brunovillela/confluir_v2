@@ -15,7 +15,7 @@ import {
   registrarDevolucao,
   registrarRetirada,
 } from "@/lib/db/veiculos"
-import { parseValorBR } from "@/lib/valores"
+import { instanteSP, parseHodometro } from "@/lib/veiculos-constantes"
 
 /**
  * Quem faz o quê (decisão do Bruno, 2026-09-10):
@@ -186,7 +186,7 @@ export async function registrarSaidaAction(
   const veiculoId = texto(formData, "veiculo_id")
   const condutorId = texto(formData, "condutor_usuario_id")
   const agendamentoId = texto(formData, "agendamento_id")
-  const hodometro = parseValorBR(texto(formData, "hodometro"))
+  const hodometro = parseHodometro(texto(formData, "hodometro"))
   const sede = texto(formData, "sede")
   if (!UUID.test(veiculoId)) return { erro: "Veículo inválido." }
   if (!UUID.test(condutorId)) return { erro: "Escolha o condutor." }
@@ -227,7 +227,7 @@ export async function editarMovimentacaoAction(
   const numeroOuNulo = (campo: string) => {
     const v = texto(formData, campo)
     if (!v) return { valor: null, invalido: false }
-    const n = parseValorBR(v)
+    const n = parseHodometro(v)
     return { valor: n, invalido: n === null || n < 0 }
   }
   const hodRet = numeroOuNulo("hodometro_retirada")
@@ -241,11 +241,17 @@ export async function editarMovimentacaoAction(
   if (dataDev && !dataISO(dataDev)) return { erro: "Data da entrada inválida." }
   if (previsao && !dataISO(previsao)) return { erro: "Previsão de retorno inválida." }
   if (!dataRet) return { erro: "Informe a data da saída." }
+  const horaRet = texto(formData, "hora_retirada")
+  const horaDev = texto(formData, "hora_devolucao")
+  if (horaRet && !/^\d{2}:\d{2}$/.test(horaRet)) return { erro: "Hora da saída inválida." }
+  if (horaDev && !/^\d{2}:\d{2}$/.test(horaDev)) return { erro: "Hora da entrada inválida." }
   const condutor = texto(formData, "condutor_usuario_id")
 
   const { erro } = await editarMovimentacao(id, {
     condutor_usuario_id: UUID.test(condutor) ? condutor : null,
     data_retirada: dataRet,
+    retirada_em: instanteSP(dataRet, horaRet),
+    devolucao_em: instanteSP(dataDev, horaDev),
     hodometro_retirada: hodRet.valor,
     sede_retirada: texto(formData, "sede_retirada") || null,
     destino: texto(formData, "destino") || null,
@@ -276,7 +282,7 @@ export async function registrarEntradaAction(
   await requirePermissao("veiculos_recepcao", RECEPCAO)
   const movimentacaoId = texto(formData, "movimentacao_id")
   const veiculoId = texto(formData, "veiculo_id")
-  const hodometro = parseValorBR(texto(formData, "hodometro"))
+  const hodometro = parseHodometro(texto(formData, "hodometro"))
   const sede = texto(formData, "sede")
   if (!UUID.test(movimentacaoId)) return { erro: "Movimentação inválida." }
   if (hodometro === null || hodometro < 0) {
