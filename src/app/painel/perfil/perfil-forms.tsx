@@ -122,18 +122,6 @@ export function PerfilForm({ dados }: { dados: PerfilFormDados }) {
         </div>
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="foto">Trocar foto</Label>
-        <input
-          id="foto"
-          name="foto"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="max-w-xs text-sm"
-        />
-        <span className="text-muted-foreground text-xs">JPG, PNG ou WEBP, até 3 MB.</span>
-      </div>
-
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
       <div>

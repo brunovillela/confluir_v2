@@ -19,7 +19,6 @@ import {
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
@@ -41,6 +40,7 @@ import {
   RemoverEndereco,
   RemoverTelefone,
 } from "./perfil-forms"
+import { FotoPerfil } from "./foto-perfil"
 
 export const metadata: Metadata = { title: "Meu perfil — Confluir" }
 
@@ -151,11 +151,6 @@ const GRUPOS: { titulo: string; itens: AreaPerfil[] }[] = [
   },
 ]
 
-function iniciais(nome: string | null): string {
-  const partes = (nome ?? "?").trim().split(/\s+/)
-  return ((partes[0]?.[0] ?? "?") + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase()
-}
-
 export default async function PerfilPage() {
   const { usuario } = await requireSessaoPainel()
   const [perfil, telefones, enderecos] = await Promise.all([
@@ -169,13 +164,7 @@ export default async function PerfilPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-4">
-        <Avatar className="size-16">
-          {perfil.fotoUrl && <AvatarImage src={perfil.fotoUrl} alt="" />}
-          <AvatarFallback className="text-lg">
-            {iniciais(perfil.nomeCompleto)}
-          </AvatarFallback>
-        </Avatar>
+      <FotoPerfil nome={perfil.nomeCompleto} fotoUrl={perfil.fotoUrl}>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {perfil.nomeCompleto ?? "Meu perfil"}
@@ -185,7 +174,7 @@ export default async function PerfilPage() {
             {perfil.matricula ? ` · Matrícula ${perfil.matricula}` : ""}
           </p>
         </div>
-      </div>
+      </FotoPerfil>
 
       {alertas.length > 0 && (
         <div className="grid gap-2">

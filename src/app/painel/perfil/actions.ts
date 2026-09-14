@@ -10,6 +10,7 @@ import {
   atualizarFoto,
   atualizarPerfil,
   removerEndereco,
+  removerFoto,
   removerTelefone,
 } from "@/lib/db/perfil"
 
@@ -40,15 +41,34 @@ export async function salvarPerfilAction(
   })
   if (erro) return { erro }
 
-  // Foto opcional.
-  const foto = formData.get("foto")
-  if (foto instanceof File && foto.size > 0) {
-    const r = await atualizarFoto(usuario.id, foto)
-    if (r.erro) return { erro: r.erro }
-  }
-
   revalidatePath(ROTA)
   return { ok: "Perfil salvo." }
+}
+
+// A foto aparece na sidebar (layout do painel): revalida o layout inteiro.
+export async function trocarFotoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { usuario } = await requireSessaoPainel()
+  const foto = formData.get("foto")
+  if (!(foto instanceof File) || foto.size === 0) return { erro: "Escolha uma imagem." }
+  const { erro } = await atualizarFoto(usuario.id, foto)
+  if (erro) return { erro }
+  revalidatePath("/painel", "layout")
+  return { ok: "Foto atualizada." }
+}
+
+export async function removerFotoAction(
+  _prev: EstadoForm,
+  _formData: FormData
+): Promise<EstadoForm> {
+  void _formData
+  const { usuario } = await requireSessaoPainel()
+  const { erro } = await removerFoto(usuario.id)
+  if (erro) return { erro }
+  revalidatePath("/painel", "layout")
+  return { ok: "Foto removida." }
 }
 
 export async function adicionarTelefoneAction(

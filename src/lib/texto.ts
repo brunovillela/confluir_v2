@@ -12,6 +12,14 @@ export function semAcento(s: string): string {
     .trim()
 }
 
+/** Iniciais do avatar de quem não tem foto: primeira e última palavra do nome. */
+export function iniciais(nome: string | null): string {
+  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean)
+  const primeira = partes[0]?.[0] ?? "?"
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ""
+  return (primeira + ultima).toUpperCase()
+}
+
 /** Preposições de nomes próprios que ficam em minúsculo (exceto no início). */
 const PREPOSICOES_NOME = new Set(["de", "da", "das", "do", "dos", "e"])
 

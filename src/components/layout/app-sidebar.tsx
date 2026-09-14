@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { ICONES_MODULOS } from "@/components/layout/icones-modulos";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,19 +37,15 @@ import {
 } from "@/components/ui/sidebar";
 import { sairDoPainel } from "@/lib/actions/sessao";
 import type { Modulo } from "@/lib/permissoes";
+import { iniciais } from "@/lib/texto";
 import { Marca } from "@/components/marca";
 
 type UsuarioSidebar = {
   nome: string;
   email: string;
+  /** Foto de perfil; sem ela, as iniciais. */
+  fotoUrl: string | null;
 };
-
-function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/);
-  const primeira = partes[0]?.[0] ?? "?";
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : "";
-  return (primeira + ultima).toUpperCase();
-}
 
 export function AppSidebar({
   usuario,
@@ -207,6 +203,9 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <div className="flex items-center gap-2 px-2 py-1.5">
                   <Avatar className="size-8 rounded-lg">
+                    {usuario.fotoUrl && (
+                      <AvatarImage src={usuario.fotoUrl} alt="" className="object-cover" />
+                    )}
                     <AvatarFallback className="rounded-lg text-xs">
                       {iniciais(usuario.nome)}
                     </AvatarFallback>
@@ -229,6 +228,9 @@ export function AppSidebar({
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
                     <Avatar className="size-8 rounded-lg">
+                      {usuario.fotoUrl && (
+                        <AvatarImage src={usuario.fotoUrl} alt="" className="object-cover" />
+                      )}
                       <AvatarFallback className="rounded-lg text-xs">
                         {iniciais(usuario.nome)}
                       </AvatarFallback>

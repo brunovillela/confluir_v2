@@ -20,14 +20,32 @@ const TIPOS_IMG: Record<string, string> = {
   "image/webp": "webp",
 }
 
+const ehUrlExterna = (caminho: string) => /^(https?:)?\/\//.test(caminho)
+
+// A foto aparece na sidebar de TODA página do painel: a URL assinada é
+// guardada e reaproveitada, em vez de uma ida ao Storage por navegação. O
+// caminho muda a cada troca de foto, então o cache nunca serve foto velha.
+const VALIDADE_URL_S = 24 * 60 * 60
+const urlsAssinadas = new Map<string, { url: string; expira: number }>()
+
 export async function urlFoto(caminho: string | null): Promise<string | null> {
   if (!caminho) return null
-  if (/^(https?:)?\/\//.test(caminho)) {
+  if (ehUrlExterna(caminho)) {
     return caminho.startsWith("//") ? `https:${caminho}` : caminho
   }
+  const guardada = urlsAssinadas.get(caminho)
+  if (guardada && guardada.expira > Date.now()) return guardada.url
   const admin = await createAdminClient()
-  const { data } = await admin.storage.from("usuarios").createSignedUrl(caminho, 3600)
-  return data?.signedUrl ?? null
+  const { data } = await admin.storage
+    .from("usuarios")
+    .createSignedUrl(caminho, VALIDADE_URL_S)
+  if (!data?.signedUrl) return null
+  // Renova com uma hora de folga antes de a URL expirar.
+  urlsAssinadas.set(caminho, {
+    url: data.signedUrl,
+    expira: Date.now() + (VALIDADE_URL_S - 3600) * 1000,
+  })
+  return data.signedUrl
 }
 
 // ── Perfil ──────────────────────────────────────────────────────────────────
@@ -111,6 +129,25 @@ export async function atualizarPerfil(
   return {}
 }
 
+/** Caminho da foto atual, para apagar o arquivo antigo depois da troca. */
+async function fotoAtual(usuarioId: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("usuarios")
+    .select("foto")
+    .eq("id", usuarioId)
+    .maybeSingle()
+  return texto(data?.foto)
+}
+
+/** Apaga do bucket a foto antiga — a do Bubble (URL externa) não é nossa. */
+async function apagarArquivoDeFoto(caminho: string | null) {
+  if (!caminho || ehUrlExterna(caminho)) return
+  const admin = await createAdminClient()
+  await admin.storage.from("usuarios").remove([caminho])
+  urlsAssinadas.delete(caminho)
+}
+
 export async function atualizarFoto(
   usuarioId: string,
   arquivo: File
@@ -118,17 +155,35 @@ export async function atualizarFoto(
   const ext = TIPOS_IMG[arquivo.type]
   if (!ext) return { erro: "A foto deve ser JPG, PNG ou WEBP." }
   if (arquivo.size > 3 * 1024 * 1024) return { erro: "A foto deve ter no máximo 3 MB." }
-  const caminho = `${usuarioId}/${Date.now()}.${ext}`
+  const anterior = await fotoAtual(usuarioId)
+  const caminho = `${await tenantAtual()}/${usuarioId}/${Date.now()}.${ext}`
   const admin = await createAdminClient()
   const { error } = await admin.storage
     .from("usuarios")
-    .upload(caminho, arquivo, { contentType: arquivo.type, upsert: true })
+    .upload(caminho, arquivo, { contentType: arquivo.type, upsert: false })
   if (error) return { erro: `Falha ao subir a foto: ${error.message}` }
   const { error: erroDb } = await admin
     .from("usuarios")
     .update({ foto: caminho, updated_at: new Date().toISOString() })
     .eq("id", usuarioId)
-  if (erroDb) return { erro: `Foto subiu, mas falhou ao salvar: ${erroDb.message}` }
+  if (erroDb) {
+    await admin.storage.from("usuarios").remove([caminho])
+    return { erro: `Falha ao salvar a foto: ${erroDb.message}` }
+  }
+  await apagarArquivoDeFoto(anterior)
+  return {}
+}
+
+/** Tira a foto: a pessoa volta a aparecer com as iniciais. */
+export async function removerFoto(usuarioId: string): Promise<{ erro?: string }> {
+  const anterior = await fotoAtual(usuarioId)
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("usuarios")
+    .update({ foto: null, updated_at: new Date().toISOString() })
+    .eq("id", usuarioId)
+  if (error) return { erro: `Falha ao remover a foto: ${error.message}` }
+  await apagarArquivoDeFoto(anterior)
   return {}
 }
 

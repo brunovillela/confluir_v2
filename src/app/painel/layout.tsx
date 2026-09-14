@@ -8,6 +8,7 @@ import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
 import { obterOrganizacao } from "@/lib/db/organizacao"
+import { urlFoto } from "@/lib/db/perfil"
 import { jornadaDoUsuario } from "@/lib/db/pessoal-sst"
 import { modulosPermitidos } from "@/lib/permissoes"
 
@@ -18,12 +19,13 @@ export default async function PainelLayout({
 }) {
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
-  const [areas, naoLidas, temCaixa, organizacao, jornada] = await Promise.all([
+  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
     obterOrganizacao(),
     jornadaDoUsuario(sessao.usuario.id),
+    urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
   ])
   const outrasAreas = areas.filter((a) => a.href !== "/painel")
   const tenantNome =
@@ -37,6 +39,7 @@ export default async function PainelLayout({
         "Usuário"
     ),
     email: String(sessao.usuario.email ?? sessao.user.email ?? ""),
+    fotoUrl,
   }
 
   return (
