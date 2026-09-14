@@ -28,6 +28,7 @@ export type RemessaFormDados = {
   ferias: boolean | null
   adiantamento: boolean | null
   complementar_mensal: boolean | null
+  data_pagamento?: string | null
   itens: number
 }
 
@@ -50,8 +51,11 @@ function naturezaAtual(r?: RemessaFormDados): string {
 
 export function RemessaContrachequesForm({
   remessa,
+  comDataPagamento = true,
 }: {
   remessa?: RemessaFormDados
+  /** false enquanto o SQL da folha não rodou (a coluna não existe). */
+  comDataPagamento?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     remessa ? atualizarRemessaContracheques : criarRemessaContracheques,
@@ -111,6 +115,21 @@ export function RemessaContrachequesForm({
                 ))}
               </select>
             </div>
+            {comDataPagamento && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="data_pagamento">Data de pagamento</Label>
+                <Input
+                  id="data_pagamento"
+                  name="data_pagamento"
+                  type="date"
+                  defaultValue={remessa?.data_pagamento ?? ""}
+                  className="[color-scheme:light] dark:[color-scheme:dark]"
+                />
+                <span className="text-muted-foreground text-xs">
+                  Vira o vencimento das ordens de pagamento dos contracheques.
+                </span>
+              </div>
+            )}
             <div className="grid content-end pb-1">
               <label className="text-muted-foreground flex items-center gap-2 text-sm">
                 <Checkbox

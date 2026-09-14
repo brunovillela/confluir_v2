@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, ReceiptText } from "lucide-react"
+import { ArrowDown, ArrowLeft, ArrowUp, Plus, ReceiptText, Settings } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { podeAcessar } from "@/lib/permissoes"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
@@ -90,7 +91,8 @@ export default async function RemessasContrachequesPage({
 }: {
   searchParams: Promise<ParamsLista>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
+  const gestao = podeAcessar(sessao.permissoes, "pessoal_gestao")
   const brutos = await searchParams
   const { excluida } = brutos
 
@@ -163,12 +165,22 @@ export default async function RemessasContrachequesPage({
               remessa agrupa os contracheques de um período/natureza
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/pessoal/contracheques/nova">
-              <Plus />
-              Nova remessa
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {gestao && (
+              <Button variant="outline" asChild>
+                <Link href="/painel/pessoal/contracheques/configuracao">
+                  <Settings />
+                  Configuração
+                </Link>
+              </Button>
+            )}
+            <Button asChild>
+              <Link href="/painel/pessoal/contracheques/nova">
+                <Plus />
+                Nova remessa
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

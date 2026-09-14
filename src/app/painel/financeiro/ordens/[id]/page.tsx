@@ -28,7 +28,9 @@ import {
   detalheOrdem,
   listarCentrosCusto,
   type CentroCusto,
+  urlNotaFiscalOrdem,
 } from "@/lib/db/financeiro"
+import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -148,9 +150,10 @@ export default async function OrdemPage({
       .createSignedUrl(valor, 3600)
     return data?.signedUrl ?? null
   }
-  const [urlComprovante, urlBoleto] = await Promise.all([
+  const [urlComprovante, urlBoleto, urlNotaFiscal] = await Promise.all([
     resolverArquivo(ordem.arquivo_pagamento),
     resolverArquivo(ordem.arquivo_boleto),
+    urlNotaFiscalOrdem(ordem.arquivo_nota_fiscal),
   ])
 
   const centros = editandoPagamento ? await listarCentrosCusto() : []
@@ -227,8 +230,8 @@ export default async function OrdemPage({
               <Campo rotulo="Reembolso">
                 {ordem.reembolso_pagamento === true ? "Sim" : "Não"}
               </Campo>
-              <Campo rotulo="Nota fiscal">
-                <LinkArquivo url={ordem.arquivo_nota_fiscal} />
+              <Campo rotulo={ordem.tipo === TIPO_ORDEM_FOLHA ? "Contracheque (comprovante)" : "Nota fiscal"}>
+                <LinkArquivo url={urlNotaFiscal} />
               </Campo>
               <Campo rotulo="Orçamento">
                 <LinkArquivo url={ordem.arquivo_orcamento} />

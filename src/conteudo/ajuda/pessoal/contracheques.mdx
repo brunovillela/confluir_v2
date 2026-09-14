@@ -16,23 +16,77 @@ funcionário, com uma situação: **Bloqueado** (só o RH vê) ou **Liberado**
 <PassoAPasso>
   <Passo titulo="Nova remessa">
     Em **Pessoal → Contracheques**, clique em **Nova remessa**. Dê um nome
-    (ex.: “Folha — março/2026”) e informe o período e a natureza.
+    (ex.: “Folha — março/2026”), escolha a natureza e informe a **data de
+    pagamento** — ela vira o vencimento das ordens de pagamento.
   </Passo>
   <Passo titulo="Abra a remessa">
     Depois de salvar, clique na remessa na lista para abri-la.
   </Passo>
   <Passo titulo="Adicione os contracheques">
-    Em **Adicionar contracheque**, escolha o funcionário e envie o PDF. Repita
-    para cada funcionário — só aparecem na lista quem ainda não tem contracheque
-    nesta remessa.
+    Em **Adicionar contracheque**, escolha o funcionário, envie o PDF e informe
+    o **valor líquido**. Repita para cada funcionário — só aparecem na lista
+    quem ainda não tem contracheque nesta remessa.
   </Passo>
   <Passo titulo="Confira">
-    Cada item entra como **Bloqueado**. Use **Abrir** para conferir o PDF antes
-    de liberar.
+    O item entra **Liberado** (desmarque a caixa para entrar bloqueado). Use
+    **Abrir** para conferir o PDF.
   </Passo>
 </PassoAPasso>
 
 <Print src="pessoal/contracheques-remessa.png" alt="Tela de uma remessa de contracheques, com a tabela de itens (Funcionário, Arquivo, Situação, Ações) e o formulário 'Adicionar contracheque' abaixo." legenda="Dentro de uma remessa: itens por funcionário e o formulário para adicionar." />
+
+## A ordem de pagamento do contracheque
+
+Cada contracheque registrado gera uma **ordem de pagamento** no Financeiro, em
+favor do funcionário:
+
+- **Valor:** o líquido informado no contracheque.
+- **Vencimento:** a data de pagamento da remessa.
+- **Comprovante da despesa:** o PDF do contracheque, no lugar da nota fiscal.
+- **Centro de custo, departamento e forma de pagamento:** os da configuração.
+- **Para onde pagar:** a conta ou a chave Pix do funcionário vai na descrição
+  da ordem; quem prefere Pix sai com a forma Pix e a chave preenchida.
+
+A ordem nasce **Em autorização** e aparece em Financeiro → Ordens de pagamento
+com o tipo **Folha de pagamento**. A coluna **Ordem de pagamento** da remessa
+mostra o código e a situação de cada uma.
+
+- **Excluir o contracheque** cancela a ordem. Se a ordem já foi **paga**, a
+  exclusão fica bloqueada — o Financeiro precisa estornar antes.
+- **Contracheque sem ordem** (registrado antes de ligar a geração): use
+  **Gerar ordem** na linha e informe o valor líquido.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+## Configuração
+
+Em **Pessoal → Contracheques → Configuração**:
+
+<PassoAPasso>
+  <Passo titulo="Ligue a geração">
+    **Gerar ordem de pagamento a cada contracheque registrado** — desligada, o
+    contracheque é registrado sem ordem (e sem pedir o valor).
+  </Passo>
+  <Passo titulo="Centro de custo e departamento">
+    O **centro de custo da despesa** é obrigatório. Se ele não existir, o
+    Financeiro cadastra em Financeiro → Centros de custo.
+  </Passo>
+  <Passo titulo="Forma de pagamento padrão">
+    Usada em todas as ordens, exceto para quem marcou **pagar por Pix** nos
+    dados bancários.
+  </Passo>
+  <Passo titulo="Dados bancários dos funcionários">
+    A mesma página lista quem ainda não tem conta nem Pix. Clique em
+    **Cadastrar** para abrir a ficha do funcionário, no cartão **Dados
+    bancários**: banco, agência, conta, tipo, chave Pix, favorecido e se o
+    pagamento é por Pix.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Quem altera a conta do funcionário">
+  Só a **Gestão de Pessoal**. O próprio funcionário não troca, pelo sistema, a
+  conta em que recebe o salário.
+</Aviso>
 
 ## Liberar para o funcionário
 
@@ -71,6 +125,12 @@ excluir contracheques.
   nesta remessa — cada funcionário entra uma vez por remessa.
 - **“Não consigo mexer nos itens.”** A remessa está **Finalizada**. Reabra em
   **Editar remessa**.
+- **“Informe o valor líquido.”** Com a geração de ordens ligada, o valor é
+  obrigatório — é ele que vai para a ordem de pagamento.
+- **A ordem saiu sem vencimento.** A remessa não tem **data de pagamento**:
+  informe em **Editar remessa** (as próximas ordens já saem com ela).
+- **“Não consigo excluir o contracheque.”** A ordem dele já foi paga ou está
+  em processamento no Financeiro.
 - **O funcionário diz que não vê o contracheque.** Confira se o item está
   **Liberado**, não **Bloqueado**.
 

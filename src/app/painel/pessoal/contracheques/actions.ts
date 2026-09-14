@@ -7,8 +7,18 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
+import {
+  cancelarOrdemDoContracheque,
+  gerarOrdemDoContracheque,
+  obterConfigContracheques,
+} from "@/lib/db/contracheques-ordens"
+import {
+  naturezaRemessaContracheques,
+  notificarLiberacaoPessoal,
+  proximaOrdemRemessa,
+} from "@/lib/db/pessoal"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { parseValorBR } from "@/lib/valores"
 
 async function exigirAcesso() {
   await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
@@ -18,6 +28,7 @@ function revalidar(remessaId?: string) {
   revalidatePath("/painel/pessoal/contracheques")
   if (remessaId) revalidatePath(`/painel/pessoal/contracheques/${remessaId}`)
   revalidatePath("/painel/perfil/contracheques")
+  revalidatePath("/painel/financeiro/ordens")
 }
 
 const NATUREZAS = [
@@ -36,7 +47,13 @@ function lerCamposRemessa(formData: FormData) {
   if (!(NATUREZAS as readonly string[]).includes(natureza)) {
     return { erro: "Escolha a natureza da remessa." }
   }
+  const dataPagamento = String(formData.get("data_pagamento") ?? "")
+  if (dataPagamento && !/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento)) {
+    return { erro: "Data de pagamento inválida." }
+  }
   return {
+    // Só vai ao banco quando o campo existe no formulário (SQL da folha).
+    ...(formData.has("data_pagamento") ? { data_pagamento: dataPagamento || null } : {}),
     nome_remessa: nome,
     decimo_terceiro: natureza === "decimo_terceiro",
     ferias: natureza === "ferias",
@@ -174,6 +191,24 @@ export async function criarContracheque(
   const remessa = await remessaAberta(remessaId)
   if ("erro" in remessa) return remessa
 
+  // A ordem de pagamento exige o valor líquido (quando a geração está ligada
+  // e o registro não pediu para pular).
+  const config = await obterConfigContracheques()
+  const gerarOrdem = config.gerarOrdem && formData.get("gerar_ordem") !== "nao"
+  const valorBruto = String(formData.get("valor_liquido") ?? "").trim()
+  const valorLiquido = valorBruto ? parseValorBR(valorBruto) : null
+  if (valorBruto && (valorLiquido === null || valorLiquido <= 0)) {
+    return { erro: "Valor líquido inválido." }
+  }
+  if (gerarOrdem && !config.centroCustoId) {
+    return {
+      erro: "Defina o centro de custo da folha em Contracheques → Configuração antes de registrar (ou desligue ali a geração de ordens).",
+    }
+  }
+  if (gerarOrdem && valorLiquido === null) {
+    return { erro: "Informe o valor líquido — ele vira o valor da ordem de pagamento." }
+  }
+
   const admin = await createAdminClient()
   // Um contracheque por funcionário na remessa.
   const { data: existente } = await admin
@@ -211,29 +246,108 @@ export async function criarContracheque(
       ordem: remessa.ordem,
       liberado,
       arquivo: caminho,
+      ...(valorLiquido !== null && config.disponivel ? { valor_liquido: valorLiquido } : {}),
     })
     .select("id")
     .single()
   if (error || !criado) {
+    await admin.storage.from("pessoal").remove([caminho])
     return { erro: `Não foi possível criar: ${error?.message}` }
   }
 
+  const dadosRemessa = await dadosDaRemessa(remessaId)
+
+  let aviso = ""
+  if (gerarOrdem && valorLiquido !== null) {
+    const ordem = await gerarOrdemDoContracheque({
+      contrachequeId: criado.id,
+      funcionarioId,
+      remessa: dadosRemessa,
+      valorLiquido,
+      pdf: arquivo,
+    })
+    if (ordem.erro) {
+      // Sem ordem, o registro não vale: o pedido é que um gere o outro.
+      await admin.from("pessoal_contracheques").delete().eq("id", criado.id)
+      await admin.storage.from("pessoal").remove([caminho])
+      return { erro: ordem.erro }
+    }
+    aviso = ordem.semDadosBancarios
+      ? " Ordem de pagamento gerada — o funcionário não tem conta nem Pix cadastrados; complete na ficha dele antes do pagamento."
+      : " Ordem de pagamento gerada."
+  }
+
   if (liberado) {
-    const { data: r } = await admin
-      .from("pessoal_contracheques_remessas")
-      .select("nome_remessa")
-      .eq("id", remessaId)
-      .maybeSingle()
     await notificarLiberacaoPessoal(
       funcionarioId,
       "contracheque",
-      r?.nome_remessa ?? null,
+      dadosRemessa.nome,
       criado.id
     )
   }
 
   revalidar(remessaId)
-  return { ok: "Contracheque adicionado." }
+  return { ok: `Contracheque adicionado.${aviso}` }
+}
+
+async function dadosDaRemessa(remessaId: string) {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("pessoal_contracheques_remessas")
+    .select("*")
+    .eq("id", remessaId)
+    .maybeSingle()
+  return {
+    id: remessaId,
+    nome: (data?.nome_remessa as string | null) ?? null,
+    natureza: data ? naturezaRemessaContracheques(data) : "Mensal",
+    dataPagamento: (data?.data_pagamento as string | null) ?? null,
+  }
+}
+
+/**
+ * Gera a ordem de um contracheque que ficou sem (registrado antes da
+ * configuração ou com a geração pulada). Reusa o PDF que já está no bucket.
+ */
+export async function gerarOrdemContrachequeAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirAcesso()
+  const id = String(formData.get("id") ?? "")
+  const remessaId = String(formData.get("remessa_id") ?? "")
+  if (!id || !remessaId) return { erro: "Contracheque inválido." }
+  const valorLiquido = parseValorBR(String(formData.get("valor_liquido") ?? ""))
+  if (valorLiquido === null || valorLiquido <= 0) return { erro: "Informe o valor líquido." }
+
+  const admin = await createAdminClient()
+  const { data: item } = await admin
+    .from("pessoal_contracheques")
+    .select("id, funcionario_id, arquivo, ordem_pagamento_id")
+    .eq("id", id)
+    .eq("remessa_id", remessaId)
+    .maybeSingle()
+  if (!item?.funcionario_id) return { erro: "Contracheque não encontrado." }
+  if (item.ordem_pagamento_id) return { erro: "Este contracheque já tem ordem de pagamento." }
+  if (!(await obterConfigContracheques()).centroCustoId) {
+    return { erro: "Defina o centro de custo da folha em Contracheques → Configuração." }
+  }
+  if (!item.arquivo || /^(https?:)?\/\//.test(item.arquivo)) {
+    return { erro: "O PDF deste contracheque é do sistema antigo — envie-o de novo para gerar a ordem." }
+  }
+  const { data: pdf, error: erroPdf } = await admin.storage.from("pessoal").download(item.arquivo)
+  if (erroPdf || !pdf) return { erro: `Não foi possível ler o PDF: ${erroPdf?.message}` }
+
+  const ordem = await gerarOrdemDoContracheque({
+    contrachequeId: id,
+    funcionarioId: item.funcionario_id,
+    remessa: await dadosDaRemessa(remessaId),
+    valorLiquido,
+    pdf,
+  })
+  if (ordem.erro) return { erro: ordem.erro }
+  revalidar(remessaId)
+  return { ok: "Ordem de pagamento gerada." }
 }
 
 export async function alternarLiberadoContracheque(
@@ -295,6 +409,24 @@ export async function excluirContracheque(
   if ("erro" in remessa) return remessa
 
   const admin = await createAdminClient()
+  const { data: item } = await admin
+    .from("pessoal_contracheques")
+    .select("*")
+    .eq("id", id)
+    .eq("remessa_id", remessaId)
+    .maybeSingle()
+  if (!item) return { erro: "Contracheque não encontrado." }
+
+  // A ordem gerada cai junto (cancelada, não apagada); se já foi paga, trava.
+  const ordemId = typeof item.ordem_pagamento_id === "string" ? item.ordem_pagamento_id : null
+  if (ordemId) {
+    const { erro } = await cancelarOrdemDoContracheque(
+      ordemId,
+      "contracheque excluído na remessa de contracheques do Pessoal."
+    )
+    if (erro) return { erro }
+  }
+
   const { error, count } = await admin
     .from("pessoal_contracheques")
     .delete({ count: "exact" })
@@ -304,5 +436,5 @@ export async function excluirContracheque(
   if (count === 0) return { erro: "Contracheque não encontrado." }
 
   revalidar(remessaId)
-  return { ok: "Contracheque excluído." }
+  return { ok: ordemId ? "Contracheque excluído e ordem de pagamento cancelada." : "Contracheque excluído." }
 }

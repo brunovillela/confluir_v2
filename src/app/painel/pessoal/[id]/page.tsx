@@ -26,7 +26,13 @@ import {
   rotuloNivelSalarial,
   type CarreiraFuncionario,
 } from "@/lib/db/carreira"
+import {
+  dadosBancariosDoFuncionario,
+  type DadosBancarios,
+} from "@/lib/db/contracheques-ordens"
 import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
+
+import { DadosBancariosFuncionario } from "./dados-bancarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -124,10 +130,10 @@ export default async function FuncionarioPage({
   const perfil = await buscarPerfilFuncionario(id)
   if (!perfil) notFound()
 
-  // Anuênios e níveis salariais são remuneração — só a gestão vê.
-  const carreira: CarreiraFuncionario = temGestao
-    ? await carreiraDoFuncionario(id)
-    : { anuenios: [], niveis: [] }
+  // Anuênios, níveis salariais e conta bancária são remuneração — só a gestão vê.
+  const [carreira, dadosBancarios]: [CarreiraFuncionario, DadosBancarios | null] = temGestao
+    ? await Promise.all([carreiraDoFuncionario(id), dadosBancariosDoFuncionario(id)])
+    : [{ anuenios: [], niveis: [] }, null]
 
   const {
     usuario,
@@ -239,6 +245,8 @@ export default async function FuncionarioPage({
           </div>
         </CardContent>
       </Card>
+
+      {temGestao && <DadosBancariosFuncionario usuarioId={id} dados={dadosBancarios} />}
 
       {temContracheque && (
         <div className="grid items-start gap-4 lg:grid-cols-2">

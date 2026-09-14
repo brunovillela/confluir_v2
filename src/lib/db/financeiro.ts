@@ -714,3 +714,20 @@ export async function usoCentroCusto(
   }
 }
 
+
+/**
+ * URL do anexo que faz papel de nota fiscal na ordem. Três origens: URL legada
+ * do Bubble (passa direto); `ordens/…` no bucket `comprovantes` (contracheque
+ * da folha de pagamento); demais caminhos, notas das compras no bucket
+ * `compras`.
+ */
+export async function urlNotaFiscalOrdem(valor: unknown): Promise<string | null> {
+  if (typeof valor !== "string" || !valor.trim()) return null
+  if (/^https?:\/\//.test(valor)) return valor
+  if (valor.startsWith("//")) return `https:${valor}`
+  const admin = await createAdminClient()
+  const { data } = await admin.storage
+    .from(valor.startsWith("ordens/") ? "comprovantes" : "compras")
+    .createSignedUrl(valor, 3600)
+  return data?.signedUrl ?? null
+}

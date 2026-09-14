@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { obterConfigContracheques } from "@/lib/db/contracheques-ordens"
 
 import { RemessaContrachequesForm } from "../remessa-form"
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Nova remessa de contracheques — Co
 
 export default async function NovaRemessaContrachequesPage() {
   await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
+  const config = await obterConfigContracheques()
 
   return (
     <>
@@ -27,7 +29,7 @@ export default async function NovaRemessaContrachequesPage() {
           adiantamento, 13º, férias ou complementar).
         </p>
       </div>
-      <RemessaContrachequesForm />
+      <RemessaContrachequesForm comDataPagamento={config.disponivel} />
     </>
   )
 }

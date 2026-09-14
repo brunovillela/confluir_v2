@@ -487,6 +487,8 @@ export type RemessaContracheques = {
   ferias: boolean | null
   adiantamento: boolean | null
   complementar_mensal: boolean | null
+  /** Dia do pagamento (vencimento das ordens) — supabase/pessoal-contracheques-ordens.sql. */
+  data_pagamento?: string | null
   created_at: string | null
   itens: number
 }
@@ -536,9 +538,8 @@ export async function listarRemessasContracheques(): Promise<
   const [remessas, porRemessa] = await Promise.all([
     admin
       .from("pessoal_contracheques_remessas")
-      .select(
-        "id, nome_remessa, ordem, finalizada, decimo_terceiro, ferias, adiantamento, complementar_mensal, created_at"
-      )
+      // "*": data_pagamento só existe depois do SQL da folha.
+      .select("*")
       .eq("emp_proprietaria_id", await tenantAtual())
       .order("ordem", { ascending: false, nullsFirst: false }),
     remessaIdsEmLotes("pessoal_contracheques"),
@@ -565,6 +566,8 @@ export type ContrachequeDaRemessa = {
   funcionarioNome: string | null
   liberado: boolean | null
   arquivo: string | null
+  valor_liquido?: number | null
+  ordem_pagamento_id?: string | null
   created_at: string | null
 }
 
@@ -574,7 +577,8 @@ export async function contrachequesDaRemessa(
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("pessoal_contracheques")
-    .select("id, funcionario_id, liberado, arquivo, created_at")
+    // "*": valor e ordem só existem depois do SQL da folha.
+    .select("*")
     .eq("remessa_id", remessaId)
   if (error) throw new Error(`Falha ao listar contracheques: ${error.message}`)
   const itens = data ?? []

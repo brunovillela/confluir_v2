@@ -2,7 +2,7 @@ import { createElement } from "react"
 import { renderToBuffer } from "@react-pdf/renderer"
 
 import { requirePermissao } from "@/lib/auth"
-import { detalheOrdem } from "@/lib/db/financeiro"
+import { detalheOrdem, urlNotaFiscalOrdem } from "@/lib/db/financeiro"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ExtratoOrdemPDF, type ExtratoOrdemProps } from "@/lib/pdf/extrato-ordem"
@@ -57,7 +57,7 @@ export async function GET(
 
   const [org, notaFiscalUrl, boletoUrl, comprovanteUrl] = await Promise.all([
     obterOrganizacao(),
-    resolverArquivo(detalhe.ordem.arquivo_nota_fiscal),
+    urlNotaFiscalOrdem(detalhe.ordem.arquivo_nota_fiscal),
     resolverArquivo(detalhe.ordem.arquivo_boleto),
     resolverArquivo(detalhe.ordem.arquivo_pagamento),
   ])
