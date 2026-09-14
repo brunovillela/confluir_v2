@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ContatosEmergencia } from "@/components/contatos-emergencia"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { TrilhaEtapas } from "@/components/trilha-etapas"
 import { requirePermissao } from "@/lib/auth"
@@ -39,6 +40,7 @@ import {
   obterTermosAceitos,
   type TermoAceito,
 } from "@/lib/db/filiacao-termos"
+import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 import { buscarPerfilFiliado } from "@/lib/db/filiados"
 import { listarProntuario } from "@/lib/db/prontuario"
 import {
@@ -52,6 +54,10 @@ import { podeAcessar } from "@/lib/permissoes"
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
 import { CondicaoBadge } from "../condicao-badge"
 import { avancarEtapa } from "../acompanhamento/actions"
+import {
+  excluirContatoEmergenciaAction,
+  salvarContatoEmergenciaAction,
+} from "./emergencia-actions"
 
 export const metadata: Metadata = { title: "Filiado — Confluir" }
 
@@ -134,6 +140,10 @@ export default async function FiliadoPage({
     listarProntuario(id, 5),
   ])
   if (!perfil) notFound()
+  const emergencia = await listarContatosEmergencia({
+    filiadoId: perfil.filiacao.id as string,
+    cpf: typeof perfil.filiacao.cpf === "string" ? perfil.filiacao.cpf : null,
+  })
 
   const {
     filiacao: f,
@@ -372,6 +382,33 @@ export default async function FiliadoPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Contatos de emergência</CardTitle>
+          <CardDescription>
+            Quem avisar em caso de acidente ou urgência. O filiado também pode
+            cadastrar os seus em Meu cadastro, no portal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {emergencia.disponivel ? (
+            <ContatosEmergencia
+              contatos={emergencia.contatos}
+              salvar={salvarContatoEmergenciaAction}
+              excluir={excluirContatoEmergenciaAction}
+              podeEditar={podeEditar}
+              campos={{ filiado_id: String(f.id) }}
+              mostrarOrigem
+            />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Rode <code>supabase/filiacao-contatos-emergencia.sql</code> no
+              Supabase para ativar os contatos de emergência.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {(contatos.emails.length > 0 || contatos.telefones.length > 0 || contatos.enderecos.length > 0) && (
         <Card>

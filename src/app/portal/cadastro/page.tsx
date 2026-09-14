@@ -16,7 +16,11 @@ import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { marcosDaTrilha } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
 
+import { ContatosEmergencia } from "@/components/contatos-emergencia"
+import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
+
 import { PortalShell } from "../portal-shell"
+import { excluirMeuContatoEmergencia, salvarMeuContatoEmergencia } from "./actions"
 import { CadastroForm } from "./cadastro-form"
 
 export const metadata: Metadata = { title: "Meu cadastro — Confluir" }
@@ -37,7 +41,10 @@ export default async function CadastroPage({
 }) {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
-  const cadastro = await cadastroDoFiliado(filiado.cpf)
+  const [cadastro, emergencia] = await Promise.all([
+    cadastroDoFiliado(filiado.cpf),
+    listarContatosEmergencia({ cpf: filiado.cpf, filiadoId: filiado.filiacaoId }),
+  ])
 
   // Trilha de etapas (só quando há filiação/desfiliação em andamento).
   const trilha = cadastro
@@ -56,7 +63,8 @@ export default async function CadastroPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu cadastro</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Você pode atualizar telefones, emails e endereço. Os demais dados são
+          Você pode atualizar telefones, emails, endereço e contatos de
+          emergência. Os demais dados são
           alterados pela equipe de filiação do sindicato.
         </p>
       </div>
@@ -135,6 +143,27 @@ export default async function CadastroPage({
               endereco_estado: cadastro.endereco_estado,
             }}
           />
+
+          {emergencia.disponivel && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Contatos de emergência</CardTitle>
+                <CardDescription>
+                  Quem o sindicato deve avisar se você sofrer um acidente ou
+                  precisar de ajuda durante uma atividade. Até 5 pessoas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ContatosEmergencia
+                  contatos={emergencia.contatos}
+                  salvar={salvarMeuContatoEmergencia}
+                  excluir={excluirMeuContatoEmergencia}
+                  podeEditar
+                  preview={preview}
+                />
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </PortalShell>

@@ -262,3 +262,21 @@ export function marcosDaTrilha(
   }))
   return { processo, marcos }
 }
+
+// ── Contatos de emergência ──────────────────────────────────────────────────
+
+/** Tipos de vínculo do contato de emergência com o filiado. */
+export const VINCULOS_EMERGENCIA = [
+  "Cônjuge ou companheiro(a)",
+  "Filho(a)",
+  "Pai ou mãe",
+  "Irmão(ã)",
+  "Outro parente",
+  "Amigo(a)",
+  "Vizinho(a)",
+  "Colega de trabalho",
+  "Outro",
+] as const
+
+/** Quantos contatos de emergência uma pessoa pode ter. */
+export const MAX_CONTATOS_EMERGENCIA = 5

@@ -5,6 +5,11 @@ import { redirect } from "next/navigation"
 
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import {
+  excluirContatoEmergencia,
+  lerContatoEmergencia,
+  salvarContatoEmergencia,
+} from "@/lib/db/filiacao-contatos-emergencia"
 import { atualizarRegistrosDoCpf } from "@/lib/db/filiado-portal"
 
 /**
@@ -66,4 +71,44 @@ export async function atualizarMeuCadastro(
 
   revalidatePath("/portal/cadastro")
   redirect("/portal/cadastro?salvo=1")
+}
+
+// ── Contatos de emergência (o próprio filiado) ──────────────────────────────
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function salvarMeuContatoEmergencia(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  // Sessão REAL do filiado: no "Ver como filiado" a gestão não escreve por ele.
+  const { filiado } = await requireSessaoPortal()
+  const lido = lerContatoEmergencia(formData)
+  if ("erro" in lido) return { erro: lido.erro }
+  const id = String(formData.get("contato_id") ?? "")
+  const { erro } = await salvarContatoEmergencia({
+    pessoa: { cpf: filiado.cpf, filiadoId: filiado.filiacaoId },
+    id: UUID.test(id) ? id : null,
+    dados: lido.dados,
+    origem: "portal",
+  })
+  if (erro) return { erro }
+  revalidatePath("/portal/cadastro")
+  return { ok: "Contato salvo." }
+}
+
+export async function excluirMeuContatoEmergencia(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { filiado } = await requireSessaoPortal()
+  const id = String(formData.get("contato_id") ?? "")
+  if (!UUID.test(id)) return { erro: "Contato inválido." }
+  const { erro } = await excluirContatoEmergencia(
+    { cpf: filiado.cpf, filiadoId: filiado.filiacaoId },
+    id
+  )
+  if (erro) return { erro }
+  revalidatePath("/portal/cadastro")
+  return { ok: "Contato excluído." }
 }
