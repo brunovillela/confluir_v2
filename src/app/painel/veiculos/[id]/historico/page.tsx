@@ -41,6 +41,8 @@ type Params = {
   pagina?: string
   porPagina?: string
   salvo?: string
+  excluida?: string
+  agendamento?: string
 }
 
 const dataISO = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "")
@@ -107,6 +109,16 @@ export default async function HistoricoVeiculoPage({
       {brutos.salvo && (
         <Alert variant="success">
           <AlertDescription>Movimentação corrigida.</AlertDescription>
+        </Alert>
+      )}
+      {brutos.excluida && (
+        <Alert variant="success">
+          <AlertDescription>
+            Movimentação excluída.
+            {brutos.agendamento
+              ? " O agendamento vinculado a ela voltou para \"Atendida (aguardando retirada)\" — cancele-o em Agendamentos se ele não vale mais."
+              : ""}
+          </AlertDescription>
         </Alert>
       )}
 

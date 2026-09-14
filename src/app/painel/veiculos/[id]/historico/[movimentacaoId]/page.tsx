@@ -13,6 +13,7 @@ import {
 import { horaSP, momentoBR } from "@/lib/veiculos-constantes"
 
 import { CabecalhoVeiculo } from "../../cabecalho-veiculo"
+import { ExcluirMovimentacao } from "./excluir-movimentacao"
 import { MovimentacaoEditarForm } from "./movimentacao-editar-form"
 
 export const metadata: Metadata = { title: "Corrigir movimentação — Confluir" }
@@ -76,6 +77,16 @@ export default async function EditarMovimentacaoPage({
               nome: c.usuarioNome ?? "(sem nome)",
             }))}
             sedes={sedes}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardContent>
+          <ExcluirMovimentacao
+            movimentacaoId={m.id}
+            resumo={`saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " (em aberto)" : `, entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}`}`}
+            temAgendamento={Boolean(m.agendamento_id)}
           />
         </CardContent>
       </Card>

@@ -963,6 +963,8 @@ export type Movimentacao = {
   observacao_retorno: string | null
   /** Informada pela recepção na saída (facultativa). */
   previsao_retorno: string | null
+  /** Solicitação a que a saída deu baixa (fluxo novo). */
+  agendamento_id: string | null
   aberta: boolean
 }
 
@@ -1054,6 +1056,7 @@ export async function listarMovimentacoes(filtros: {
       km_rodado: numero(m.km_rodado),
       observacao_retorno: texto(m.observacao_retorno),
       previsao_retorno: texto(m.previsao_retorno),
+      agendamento_id: texto(m.agendamento_id),
       aberta: !m.data_devolucao,
     }
   })
@@ -1160,6 +1163,47 @@ export async function editarMovimentacao(
   })
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   return {}
+}
+
+/**
+ * Gestão da frota exclui uma movimentação lançada por engano (saída duplicada,
+ * veículo errado). A situação do veículo sai da movimentação anterior, então
+ * nada mais precisa ser recalculado. Se a saída deu baixa num agendamento, a
+ * solicitação volta a "atendida" (aguardando retirada) — a gestão decide se
+ * cancela. Não há lixeira: o registro some.
+ */
+export async function excluirMovimentacao(
+  id: string
+): Promise<{ veiculoId?: string; agendamentoReaberto?: boolean; erro?: string }> {
+  const admin = await createAdminClient()
+  const { data: mov } = await admin
+    .from("veiculos_disponibilidade")
+    .select("id, veiculo_id, agendamento_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!mov) return { erro: "Movimentação não encontrada." }
+
+  const { error } = await admin.from("veiculos_disponibilidade").delete().eq("id", id)
+  if (error) {
+    // Chave estrangeira de outro registro (legado) apontando para esta.
+    if (error.code === "23503") {
+      return { erro: "Outro registro depende desta movimentação — ela não pode ser excluída. Corrija os dados em vez de excluir." }
+    }
+    return { erro: `Não foi possível excluir: ${error.message}` }
+  }
+
+  let agendamentoReaberto = false
+  if (mov.agendamento_id) {
+    const { data: reaberto } = await admin
+      .from("veiculos_agendamentos")
+      .update({ situacao: "atendida", updated_at: new Date().toISOString() })
+      .eq("id", mov.agendamento_id)
+      .in("situacao", ["retirada", "concluida"])
+      .select("id")
+    agendamentoReaberto = (reaberto ?? []).length > 0
+  }
+  return { veiculoId: mov.veiculo_id ? String(mov.veiculo_id) : undefined, agendamentoReaberto }
 }
 
 /**

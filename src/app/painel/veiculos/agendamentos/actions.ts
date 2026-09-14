@@ -11,6 +11,7 @@ import {
   criarAgendamento,
   editarAgendamento,
   editarMovimentacao,
+  excluirMovimentacao,
   negarAgendamento,
   registrarDevolucao,
   registrarRetirada,
@@ -272,6 +273,25 @@ export async function editarMovimentacaoAction(
       )
     )
   )
+}
+
+/** Gestão da frota exclui uma movimentação lançada por engano. */
+export async function excluirMovimentacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "movimentacao_id")
+  if (!UUID.test(id)) return { erro: "Movimentação inválida." }
+  if (texto(formData, "confirmacao") !== "EXCLUIR") {
+    return { erro: "Digite EXCLUIR para confirmar." }
+  }
+  const { veiculoId, agendamentoReaberto, erro } = await excluirMovimentacao(id)
+  if (erro) return { erro }
+  revalidar(veiculoId)
+  if (veiculoId) revalidatePath(`/painel/veiculos/${veiculoId}/historico`)
+  const aviso = agendamentoReaberto ? "&agendamento=1" : ""
+  redirect(veiculoId ? `/painel/veiculos/${veiculoId}/historico?excluida=1${aviso}` : "/painel/veiculos")
 }
 
 /** ENTRADA (devolução) do veículo — registrada pela recepção. */
