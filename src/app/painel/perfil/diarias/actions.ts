@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requireSessaoPainel } from "@/lib/auth"
+import { vinculoComSindicato } from "@/lib/db/perfil"
 import { type EstadoForm } from "@/lib/contas"
 import {
   cancelarSolicitacaoDiaria,
@@ -20,6 +21,10 @@ export async function solicitarDiaria(
   formData: FormData
 ): Promise<EstadoForm> {
   const sessao = await requireSessaoPainel()
+  // Pedido de funcionário (pago ao funcionário/em contracheque): só com vínculo em vigor.
+  if (!(await vinculoComSindicato(sessao.usuario.id as string)).ativo) {
+    return { erro: "Só funcionários do sindicato com vínculo em vigor fazem este pedido." }
+  }
 
   const diariaId = String(formData.get("diaria_id") ?? "")
   const quantidadeBruta = String(formData.get("quantidade") ?? "")

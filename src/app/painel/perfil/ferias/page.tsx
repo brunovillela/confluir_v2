@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { minhasFerias, resumoPeriodo } from "@/lib/db/ferias"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
@@ -35,6 +36,8 @@ export default async function MinhasFeriasPage({
   searchParams: Promise<{ salvo?: string }>
 }) {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const { salvo } = await searchParams
   const ferias = await minhasFerias(sessao.usuario.id)
 

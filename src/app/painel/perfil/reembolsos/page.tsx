@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table"
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import {
   listarTiposReembolso,
@@ -37,6 +38,8 @@ export default async function MeusReembolsosPage({
   searchParams: Promise<{ salvo?: string }>
 }) {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
   const { salvo } = await searchParams
   const [{ disponivel, reembolsos }, { tipos }] = await Promise.all([
     meusReembolsos(sessao.usuario.id as string),

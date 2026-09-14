@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { meusAsos } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
@@ -27,6 +28,8 @@ export const metadata: Metadata = { title: "Meus ASOs — Confluir" }
 /** Autosserviço: atestados de saúde ocupacional do próprio funcionário. */
 export default async function MeusAsosPage() {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const asos = await meusAsos(sessao.usuario.id)
   const urls = new Map<string, string | null>()
   for (const a of asos) {

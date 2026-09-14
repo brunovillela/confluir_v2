@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusAtestados, minhasAusencias } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
 
@@ -26,6 +27,8 @@ function dias(inicio: string | null, termino: string | null): string {
 
 export default async function MinhasAusenciasPage() {
   const { usuario } = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(usuario.id as string)
   const [ausencias, atestados] = await Promise.all([
     minhasAusencias(usuario.id),
     meusAtestados(usuario.id),

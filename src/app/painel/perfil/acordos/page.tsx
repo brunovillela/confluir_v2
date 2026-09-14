@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { acordosParaMeuPerfil } from "@/lib/db/acordos"
 import { estadoVigencia } from "@/lib/acordos-constantes"
 import { hojeSP } from "@/lib/db/comum"
@@ -25,7 +26,9 @@ export const metadata: Metadata = { title: "Acordos coletivos — Confluir" }
  * situação for "Vigente" — saem só quando arquivados (não vigentes).
  */
 export default async function MeusAcordosPage() {
-  await requireSessaoPainel()
+  const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const acordos = await acordosParaMeuPerfil()
   const hoje = hojeSP()
 

@@ -7,6 +7,7 @@ import { meusDocumentosPessoal } from "@/lib/db/pessoal"
 import { meusAsos } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { redirect } from "next/navigation"
 
 /**
  * Perfil do usuário logado (registro `usuarios`) + contatos (telefones,
@@ -65,7 +66,46 @@ export type Perfil = {
   matricula: string | null
   fotoUrl: string | null
   cargo: string | null
+  /** Tem ou teve vínculo trabalhista com o sindicato (acessa os documentos). */
   ehFuncionario: boolean
+  /** Vínculo em vigor (sem demissão) — pode pedir férias, diárias, reembolsos. */
+  funcionarioAtivo: boolean
+}
+
+/**
+ * Vínculo trabalhista COM O SINDICATO (empregador = tenant), o mais recente.
+ * Vínculo com outro empregador (filiado, diretor liberado pela empresa de
+ * origem) não faz de ninguém funcionário — mesma régua do módulo Pessoal.
+ */
+export async function vinculoComSindicato(
+  usuarioId: string
+): Promise<{ tem: boolean; ativo: boolean; cargo: string | null }> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("vinculos_trabalhistas")
+    .select("cargo, contrato_demissao, contrato_admissao")
+    .eq("trabalhador_id", usuarioId)
+    .eq("empregador_id", await tenantAtual())
+    .order("contrato_admissao", { ascending: false, nullsFirst: false })
+  const vinculos = data ?? []
+  const ativo = vinculos.find((v) => !v.contrato_demissao)
+  return {
+    tem: vinculos.length > 0,
+    ativo: Boolean(ativo),
+    cargo: texto((ativo ?? vinculos[0])?.cargo),
+  }
+}
+
+/**
+ * Guarda das páginas de funcionário do Meu perfil (contracheque, ponto,
+ * férias…). Quem não é funcionário volta ao perfil com o aviso; `ativo` exige
+ * vínculo em vigor (para pedidos: diárias, reembolsos do ACT).
+ */
+export async function exigirFuncionario(usuarioId: string, opcoes: { ativo?: boolean } = {}) {
+  const v = await vinculoComSindicato(usuarioId)
+  if (!v.tem || (opcoes.ativo && !v.ativo)) {
+    redirect(`/painel/perfil?area=${opcoes.ativo ? "funcionario-ativo" : "funcionario"}`)
+  }
 }
 
 export async function obterPerfil(usuarioId: string): Promise<Perfil | null> {
@@ -79,13 +119,7 @@ export async function obterPerfil(usuarioId: string): Promise<Perfil | null> {
     .maybeSingle()
   if (!u) return null
 
-  const { data: vinc } = await admin
-    .from("vinculos_trabalhistas")
-    .select("cargo, contrato_demissao")
-    .eq("trabalhador_id", usuarioId)
-    .order("contrato_admissao", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle()
+  const vinculo = await vinculoComSindicato(usuarioId)
 
   return {
     id: u.id as string,
@@ -101,8 +135,9 @@ export async function obterPerfil(usuarioId: string): Promise<Perfil | null> {
     escolaridade: texto(u.escolaridade),
     matricula: texto(u.empresa_matricula),
     fotoUrl: await urlFoto(texto(u.foto)),
-    cargo: texto(vinc?.cargo),
-    ehFuncionario: Boolean(vinc),
+    cargo: vinculo.cargo,
+    ehFuncionario: vinculo.tem,
+    funcionarioAtivo: vinculo.ativo,
   }
 }
 

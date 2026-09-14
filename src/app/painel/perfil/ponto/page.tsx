@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import { TabelaDocumentosPessoal } from "@/components/tabela-documentos-pessoal"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
 import { lerPaginacao } from "@/lib/paginacao"
 
@@ -22,6 +23,8 @@ export default async function MeuPontoPage({
   searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const { pontos } = await meusDocumentosPessoal(sessao.usuario.id)
   const params = await searchParams
   const paginacao = lerPaginacao(params, 10)

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import {
   carreiraDoFuncionario,
   formatarAliquota,
@@ -29,6 +30,8 @@ export const metadata: Metadata = { title: "Minha carreira — Confluir" }
 /** Autosserviço: anuênios e nível salarial do próprio funcionário (leitura). */
 export default async function MinhaCarreiraPage() {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const carreira = await carreiraDoFuncionario(sessao.usuario.id)
   // Lançamentos vêm ordenados do mais recente para o mais antigo.
   const anuenioAtual = carreira.anuenios[0] ?? null

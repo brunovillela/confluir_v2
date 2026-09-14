@@ -15,6 +15,7 @@ import {
   ReceiptText,
   Send,
   TreePalm,
+  Wallet,
   type LucideIcon,
 } from "lucide-react"
 
@@ -25,6 +26,8 @@ import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
+import { usuarioTemCaixa } from "@/lib/db/caixa"
+import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
   listarEnderecos,
   listarTelefones,
@@ -41,6 +44,7 @@ import {
   RemoverTelefone,
 } from "./perfil-forms"
 import { FotoPerfil } from "./foto-perfil"
+import { MinhaDiretoria } from "./minha-diretoria"
 
 export const metadata: Metadata = { title: "Meu perfil — Confluir" }
 
@@ -138,29 +142,54 @@ const GRUPOS: { titulo: string; itens: AreaPerfil[] }[] = [
       },
     ],
   },
-  {
-    titulo: "Conexões",
-    itens: [
-      {
-        titulo: "Telegram",
-        descricao: "Vincule seu Telegram para falar com o bot do Confluir",
-        href: "/painel/perfil/telegram",
-        icone: Send,
-      },
-    ],
-  },
 ]
 
-export default async function PerfilPage() {
+/** Áreas de qualquer usuário do painel — funcionário, diretor ou outro. */
+const TELEGRAM: AreaPerfil = {
+  titulo: "Telegram",
+  descricao: "Vincule seu Telegram para falar com o bot do Confluir",
+  href: "/painel/perfil/telegram",
+  icone: Send,
+}
+const MEU_CAIXA: AreaPerfil = {
+  titulo: "Meu caixa",
+  descricao: "Saldo, aportes e prestações de contas da sua conta de caixa",
+  href: "/painel/perfil/caixa",
+  icone: Wallet,
+}
+
+export default async function PerfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ area?: string }>
+}) {
   const { usuario } = await requireSessaoPainel()
-  const [perfil, telefones, enderecos] = await Promise.all([
+  const { area: avisoArea } = await searchParams
+  const [perfil, telefones, enderecos, temCaixa] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
+    usuarioTemCaixa(usuario.id).catch(() => false),
   ])
   if (!perfil) return null
 
-  const alertas = perfil.ehFuncionario ? await meusAlertas(usuario.id) : []
+  // Diretor (integrante do mandato vigente) tem outra área: mandato,
+  // liberação, custeios — não contracheque, ponto ou nível salarial.
+  const diretoria = await diretoriaDoUsuario(usuario.id, perfil.cpf).catch(() => null)
+  const [alertas, areaDiretor] = await Promise.all([
+    perfil.funcionarioAtivo ? meusAlertas(usuario.id) : Promise.resolve([]),
+    diretoria ? areaDoDiretor(diretoria.integranteId) : Promise.resolve(null),
+  ])
+  const papeis = [
+    perfil.ehFuncionario
+      ? `${perfil.cargo ?? "Funcionário(a)"}${perfil.funcionarioAtivo ? "" : " (desligado)"}`
+      : null,
+    diretoria
+      ? [diretoria.cargo ?? "Diretor(a)", diretoria.mandatoNome && `mandato ${diretoria.mandatoNome}`]
+          .filter(Boolean)
+          .join(", ")
+      : null,
+  ].filter(Boolean)
 
   return (
     <>
@@ -170,11 +199,21 @@ export default async function PerfilPage() {
             {perfil.nomeCompleto ?? "Meu perfil"}
           </h1>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            {perfil.cargo ?? (perfil.ehFuncionario ? "Funcionário" : "Usuário")}
-            {perfil.matricula ? ` · Matrícula ${perfil.matricula}` : ""}
+            {papeis.length ? papeis.join(" · ") : "Usuário"}
+            {perfil.ehFuncionario && perfil.matricula ? ` · Matrícula ${perfil.matricula}` : ""}
           </p>
         </div>
       </FotoPerfil>
+
+      {avisoArea && (
+        <Alert variant="info">
+          <AlertDescription>
+            {avisoArea === "funcionario-ativo"
+              ? "Diárias e reembolsos do acordo coletivo são pedidos de funcionário com vínculo em vigor com o sindicato."
+              : "Contracheques, ponto, férias, carreira, ASOs e informes são áreas de funcionário do sindicato — elas não se aplicam ao seu usuário."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {alertas.length > 0 && (
         <div className="grid gap-2">
@@ -312,6 +351,8 @@ export default async function PerfilPage() {
         </div>
       </div>
 
+      {diretoria && areaDiretor && <MinhaDiretoria diretoria={diretoria} area={areaDiretor} />}
+
       {/* Meus relatórios e documentos (funcionário) */}
       {perfil.ehFuncionario && (
         <div>
@@ -320,7 +361,8 @@ export default async function PerfilPage() {
             Seus dados de funcionário do sindicato
           </p>
           <div className="mt-4 grid gap-6">
-            {GRUPOS.map((g) => (
+            {GRUPOS.map((g) =>
+              g.titulo === "Financeiro" && !perfil.funcionarioAtivo ? null : (
               <section key={g.titulo}>
                 <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                   {g.titulo}
@@ -337,10 +379,21 @@ export default async function PerfilPage() {
                   ))}
                 </div>
               </section>
-            ))}
+              )
+            )}
           </div>
         </div>
       )}
+
+      <div>
+        <h2 className="text-lg font-semibold">Conexões e atalhos</h2>
+        <div className={`mt-4 ${GRADE_AREAS}`}>
+          {temCaixa && (
+            <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
+          )}
+          <CartaoArea titulo={TELEGRAM.titulo} descricao={TELEGRAM.descricao} href={TELEGRAM.href} icone={TELEGRAM.icone} />
+        </div>
+      </div>
     </>
   )
 }

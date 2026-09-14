@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { meusTreinamentos } from "@/lib/db/treinamentos"
 import { formatarData } from "@/lib/formato"
@@ -27,6 +28,8 @@ export const metadata: Metadata = { title: "Meus treinamentos — Confluir" }
 /** Autosserviço: treinamentos e certificados do próprio funcionário. */
 export default async function MeusTreinamentosPage() {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const treinamentos = await meusTreinamentos(sessao.usuario.id)
   const urls = new Map<string, string | null>()
   for (const t of treinamentos) {

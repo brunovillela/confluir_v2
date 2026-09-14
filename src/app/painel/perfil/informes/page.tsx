@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
+import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusInformes } from "@/lib/db/informes"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 
@@ -27,6 +28,8 @@ export const metadata: Metadata = {
 /** Autosserviço: informes de rendimentos liberados para o funcionário. */
 export default async function MeusInformesPage() {
   const sessao = await requireSessaoPainel()
+  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
+  await exigirFuncionario(sessao.usuario.id as string)
   const informes = await meusInformes(sessao.usuario.id)
   const urls = new Map<string, string | null>()
   for (const i of informes) {
