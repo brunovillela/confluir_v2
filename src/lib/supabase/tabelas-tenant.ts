@@ -33,6 +33,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "compras_propostas",
   "compras_solicitacoes",
   "comunicacao_canais",
+  "comunicacao_etiquetas_emissoes",
   "comunicacao_links",
   "comunicacao_links_config",
   "comunicacao_politica",

@@ -536,7 +536,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "noticias",
     titulo: "Comunicação",
-    descricao: "Notícias, IA que resume e escreve textos, QR Codes, slides para TV e página de links",
+    descricao: "Notícias, IA que resume e escreve textos, QR Codes, slides para TV, página de links e etiquetas para os Correios",
     icone: "Newspaper",
     ...permissaoDoModulo("/painel/comunicacao"),
     disponivel: true,
@@ -576,6 +576,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "pagina-links",
         titulo: "Página de links",
         resumo: "O link na bio: página pública com os canais da entidade e cliques por link",
+      },
+      {
+        slug: "etiquetas",
+        titulo: "Etiquetas para os Correios",
+        resumo: "Etiquetas Pimaco com o endereço dos filiados: qual comprar, folha de teste, lotes e remetente",
       },
     ],
   },

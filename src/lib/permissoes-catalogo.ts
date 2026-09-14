@@ -145,7 +145,13 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
   },
   {
     area: "Comunicação",
-    flags: [{ chave: "noticias", rotulo: "Notícias" }],
+    flags: [
+      { chave: "noticias", rotulo: "Notícias" },
+      {
+        chave: "comunicacao_etiquetas",
+        rotulo: "Etiquetas para os Correios (endereços dos filiados)",
+      },
+    ],
   },
   {
     area: "Institucional",

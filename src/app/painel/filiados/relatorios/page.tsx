@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle2, Hourglass, ShieldOff, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Hourglass, Mail, ShieldOff, SlidersHorizontal } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -80,6 +80,13 @@ export default async function RelatoriosPage() {
           href="/painel/filiados/relatorios/personalizado"
           icone={SlidersHorizontal}
           indicador="filtros e colunas"
+        />
+        <CartaoArea
+          titulo="Etiquetas para os Correios"
+          descricao="Etiquetas Pimaco com o endereço dos filiados de qualquer condição, para enviar publicações impressas"
+          href="/painel/comunicacao/etiquetas"
+          icone={Mail}
+          indicador="PDF e CSV"
         />
       </div>
 

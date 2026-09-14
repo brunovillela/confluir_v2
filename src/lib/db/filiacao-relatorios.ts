@@ -50,6 +50,14 @@ export type LinhaRelatorio = {
   idade: number | null
   cidade: string | null
   uf: string | null
+  /** UF como está no cadastro, para quando `uf` não normaliza. */
+  ufBruta: string | null
+  nomeSocial: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
   email: string | null
   telefone: string | null
   cadastro: string | null
@@ -151,7 +159,7 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
         admin
           .from("filiacoes")
           .select(
-            "id, nome_completo, cpf, matricula_sindical, filiacao_condicao, filiacao_excluida, sexo, nascimento_data, endereco_cidade, endereco_estado, email_pessoal, telefone_1, created_at, tl_lgpd_id, tl_desconto_id"
+            "id, nome_completo, nome_social, cpf, matricula_sindical, filiacao_condicao, filiacao_excluida, sexo, nascimento_data, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, email_pessoal, telefone_1, created_at, tl_lgpd_id, tl_desconto_id"
           )
           .eq("emp_proprietaria_id", emp)
           .order("id", { ascending: true })
@@ -336,6 +344,13 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
       idade: idadeEm(nascimento, hoje),
       cidade: texto(c.endereco_cidade),
       uf: normalizarUf(texto(c.endereco_estado)),
+      ufBruta: texto(c.endereco_estado),
+      nomeSocial: texto(c.nome_social),
+      cep: texto(c.endereco_cep),
+      logradouro: texto(c.endereco_logradouro),
+      numero: texto(c.endereco_numero),
+      complemento: texto(c.endereco_complemento),
+      bairro: texto(c.endereco_bairro),
       email: texto(c.email_pessoal),
       telefone: texto(c.telefone_1),
       cadastro: texto(c.created_at),
