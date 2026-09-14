@@ -3,6 +3,7 @@ import Link from "next/link"
 import {
   ArrowRight,
   Award,
+  Car,
   Cake,
   CalendarDays,
   ClipboardList,
@@ -14,6 +15,7 @@ import {
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -25,6 +27,7 @@ import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
 import { ultimoResumo } from "@/lib/db/comunicacao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
+import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
 import {
   resumoPainel,
   ultimasNoticias,
@@ -113,7 +116,7 @@ export default async function PainelPage({
   ).split(" ")[0]
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
 
-  const [resumo, noticias, meuCaixa, org, resumoIA] = await Promise.all([
+  const [resumo, noticias, meuCaixa, org, resumoIA, condutor] = await Promise.all([
     resumoPainel(sessao.usuario.id as string),
     ultimasNoticias(8),
     contaDoUsuario(sessao.usuario.id as string).catch(() => ({
@@ -122,6 +125,7 @@ export default async function PainelPage({
     })),
     obterOrganizacao(),
     ultimoResumo().catch(() => null),
+    buscarCondutorDoUsuario(sessao.usuario.id as string).catch(() => null),
   ])
   const siteUrl = org?.siteUrl ?? null
   const contaCaixa = meuCaixa.detalhe?.conta ?? null
@@ -131,14 +135,25 @@ export default async function PainelPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {saudacao()}
-          {nome ? `, ${nome}` : ""}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Hoje é {resumo.hoje} — bom trabalho.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {saudacao()}
+            {nome ? `, ${nome}` : ""}
+          </h1>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Hoje é {resumo.hoje} — bom trabalho.
+          </p>
+        </div>
+        {/* Todo condutor cadastrado solicita veículo, sem permissão ao módulo. */}
+        {condutor && (
+          <Button asChild>
+            <Link href="/painel/solicitar-veiculo">
+              <Car />
+              Solicitar veículo
+            </Link>
+          </Button>
+        )}
       </div>
 
       {salvo && (
@@ -183,11 +198,11 @@ export default async function PainelPage({
         </Link>
       )}
 
-      <MeusVeiculos usuarioId={sessao.usuario.id as string} />
-
       <div className="grid items-start gap-4 lg:grid-cols-4">
         {/* Coluna do dia (1/4) — grupos só aparecem com conteúdo */}
         <div className="grid gap-4 lg:col-span-1">
+          <MeusVeiculos usuarioId={sessao.usuario.id as string} condutor={condutor} />
+
           {resumo.aniversariantes.length > 0 && (
             <GrupoDoDia
               titulo="Aniversariantes de hoje"

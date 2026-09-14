@@ -138,13 +138,16 @@ export function EditarAgendamentoForm({
   valores,
   sedes,
   voltar = "/painel",
+  abertoInicial = false,
 }: {
   agendamentoId: string
   valores: ValoresAgendamento
   sedes: string[]
   voltar?: string
+  /** Já abre o formulário (página de solicitação chamada para editar). */
+  abertoInicial?: boolean
 }) {
-  const [aberto, setAberto] = useState(false)
+  const [aberto, setAberto] = useState(abertoInicial)
   const [estado, formAction, pendente] = useActionState(
     editarAgendamentoAction,
     {}
