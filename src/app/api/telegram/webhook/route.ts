@@ -7,13 +7,14 @@ import {
   resumoFeriasTelegram,
   ultimoContrachequeTelegram,
   usuarioPorChat,
-  veiculosDisponiveisTelegram,
+  frotaTelegram,
   vincularTelegramPorCodigo,
   type UsuarioTelegram,
 } from "@/lib/db/telegram"
 import { gerarTextoIA } from "@/lib/ia"
 import { podeAcessar } from "@/lib/permissoes"
 import { enviarTelegram } from "@/lib/telegram"
+import { mensagemFrota } from "@/lib/telegram-frota"
 
 export const runtime = "nodejs"
 
@@ -131,7 +132,7 @@ async function tratar(chatId: string, texto: string): Promise<void> {
         "/diarias — suas últimas solicitações de diária",
         "/informes — seus informes de rendimentos",
         "/asos — seus atestados de saúde ocupacional",
-        "/carros — veículos disponíveis na frota",
+        "/carros — frota agora: disponíveis por sede e com quem estão os carros",
         "/filiado &lt;nome ou CPF&gt; — consulta de filiação",
         "/eu — confirma sua conta vinculada",
         "/ajuda — esta mensagem",
@@ -188,7 +189,7 @@ async function tratar(chatId: string, texto: string): Promise<void> {
 
   // Texto livre → assistente por IA (sem acesso a dados sensíveis da pessoa).
   const { texto: resposta, erro } = await gerarTextoIA({
-    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis → /carros, consulta de filiação por nome/CPF → /filiado <termo>. Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
+    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, consulta de filiação por nome/CPF → /filiado <termo>. Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
     prompt: texto,
   })
   await enviarTelegram({
@@ -386,25 +387,14 @@ async function responderCarros(chatId: string, u: UsuarioTelegram): Promise<void
     await enviarTelegram({ chatId, texto: "Você não tem permissão para consultar a frota." })
     return
   }
-  const { disponivel, itens } = await veiculosDisponiveisTelegram(u.emp!)
-  if (!disponivel) {
+  const frota = await frotaTelegram(u.emp!)
+  if (!frota.disponivel) {
     await enviarTelegram({ chatId, texto: "A frota está indisponível no momento. Tente pelo painel." })
     return
   }
-  if (itens.length === 0) {
-    await enviarTelegram({ chatId, texto: "Nenhum carro disponível no momento (todos em uso, inativos ou em manutenção)." })
-    return
-  }
-  const linhas = itens.map((v) => {
-    const nome = v.marcaModelo ?? "Veículo"
-    const detalhe = [v.codigo, v.placa].filter(Boolean).join(" · ")
-    return `• <b>${nome}</b>${detalhe ? ` — ${detalhe}` : ""}`
-  })
-  await enviarTelegram({
-    chatId,
-    texto: [`${itens.length} veículo(s) disponível(is):`, "", ...linhas].join("\n"),
-  })
+  await enviarTelegram({ chatId, texto: mensagemFrota(frota, new Date()) })
 }
+
 
 async function responderFiliado(
   chatId: string,

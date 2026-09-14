@@ -680,54 +680,127 @@ export async function permissoesPorUsuario(
   return data ?? null
 }
 
-export type VeiculoDisponivelTelegram = {
+export type VeiculoFrotaTelegram = {
   codigo: string | null
   placa: string | null
   marcaModelo: string | null
 }
 
+export type VeiculoEmUsoTelegram = VeiculoFrotaTelegram & {
+  condutor: string | null
+  /** Instante (ISO) ou só a data da saída, quando o horário não foi registrado. */
+  saidaEm: string | null
+  saidaData: string | null
+  sedeSaida: string | null
+  destino: string | null
+  previsaoRetorno: string | null
+}
+
+export type FrotaTelegram = {
+  disponivel: boolean
+  /** Disponíveis agrupados pela sede da última entrada (onde o carro está). */
+  porSede: { sede: string | null; veiculos: VeiculoFrotaTelegram[] }[]
+  emUso: VeiculoEmUsoTelegram[]
+  emManutencao: VeiculoFrotaTelegram[]
+}
+
 /**
- * Veículos DISPONÍVEIS do tenant: ativos, fora de manutenção e sem movimentação
- * em aberto (última movimentação sem devolução). Espelha a derivação de
- * `listarVeiculos`/`ultimasMovimentacoes` em src/lib/db/veiculos.ts.
+ * Retrato da frota no momento da consulta: DISPONÍVEIS por sede (a da última
+ * entrada — onde o carro ficou) e EM USO com o condutor, a saída, o destino e
+ * a previsão de volta. Ativos só; manutenção à parte. Em uso = a última
+ * movimentação está aberta (view `veiculos_ultima_movimentacao`, de
+ * supabase/veiculos-horarios-situacao.sql). Espelha a coluna "Onde está" da
+ * frota em src/lib/db/veiculos.ts.
  */
-export async function veiculosDisponiveisTelegram(
-  empId: string
-): Promise<{ disponivel: boolean; itens: VeiculoDisponivelTelegram[] }> {
+export async function frotaTelegram(empId: string): Promise<FrotaTelegram> {
+  const vazio: FrotaTelegram = { disponivel: true, porSede: [], emUso: [], emManutencao: [] }
   const svc = createServiceClient()
   const { data: veiculos, error } = await svc
     .from("veiculos")
     .select("id, codigo, placa, marca_modelo, inativo, manutencao")
     .eq("emp_proprietaria_id", empId)
     .eq("inativo", false)
-  if (error) return { disponivel: !esquemaAusente(error), itens: [] }
-  // Em uso agora = a última movimentação do veículo está aberta (view de
-  // supabase/veiculos-horarios-situacao.sql). Sem a view, cai na regra antiga
-  // (saída aberta do fluxo novo); sem a tabela, ninguém em uso.
+  if (error) return { ...vazio, disponivel: !esquemaAusente(error) }
+
   const ultimas = await svc
     .from("veiculos_ultima_movimentacao")
-    .select("veiculo_id")
+    .select(
+      "veiculo_id, condutor_id, data_retirada, retirada_em, sede_retirada, sede_retirada_os, data_devolucao, sede_devolucao, sede_devolucao_os, destino, previsao_retorno"
+    )
     .eq("emp_proprietaria_id", empId)
-    .is("data_devolucao", null)
-  const abertas = ultimas.error
+  // Sem a view (SQL antigo): só as saídas abertas do fluxo novo, sem sede.
+  const movimentos = ultimas.error
     ? (
         await svc
           .from("veiculos_disponibilidade")
-          .select("veiculo_id")
+          .select("veiculo_id, condutor_id, data_retirada, sede_retirada, data_devolucao, destino, previsao_retorno")
           .eq("emp_proprietaria_id", empId)
           .is("data_devolucao", null)
           .not("registrado_por_id", "is", null)
       ).data
     : ultimas.data
-  const emUso = new Set((abertas ?? []).map((m) => String(m.veiculo_id)))
-  const itens = (veiculos ?? [])
-    .filter((v) => v.manutencao !== true && !emUso.has(String(v.id)))
-    .map((v) => ({
-      codigo: texto(v.codigo),
-      placa: texto(v.placa),
-      marcaModelo: texto(v.marca_modelo),
+  const ultimaPorVeiculo = new Map(
+    (movimentos ?? []).map((m) => [String(m.veiculo_id), m as Record<string, unknown>])
+  )
+
+  const condutorIds = [
+    ...new Set(
+      (movimentos ?? [])
+        .filter((m) => !m.data_devolucao && m.condutor_id)
+        .map((m) => String(m.condutor_id))
+    ),
+  ]
+  const nomes = new Map<string, string>()
+  if (condutorIds.length) {
+    const { data: us } = await svc
+      .from("usuarios")
+      .select("id, nome_guerra, nome_completo")
+      .in("id", condutorIds)
+    for (const u of us ?? []) {
+      const nome = texto(u.nome_guerra) ?? texto(u.nome_completo)
+      if (nome) nomes.set(String(u.id), nome)
+    }
+  }
+
+  const ficha = (v: Record<string, unknown>): VeiculoFrotaTelegram => ({
+    codigo: texto(v.codigo),
+    placa: texto(v.placa),
+    marcaModelo: texto(v.marca_modelo),
+  })
+  const frota: FrotaTelegram = { ...vazio }
+  const sedes = new Map<string, VeiculoFrotaTelegram[]>()
+  for (const v of veiculos ?? []) {
+    const m = ultimaPorVeiculo.get(String(v.id))
+    if (m && !m.data_devolucao) {
+      frota.emUso.push({
+        ...ficha(v),
+        condutor: m.condutor_id ? (nomes.get(String(m.condutor_id)) ?? null) : null,
+        saidaEm: texto(m.retirada_em),
+        saidaData: texto(m.data_retirada),
+        sedeSaida: texto(m.sede_retirada_os) ?? texto(m.sede_retirada),
+        destino: texto(m.destino),
+        previsaoRetorno: texto(m.previsao_retorno),
+      })
+      continue
+    }
+    if (v.manutencao === true) {
+      frota.emManutencao.push(ficha(v))
+      continue
+    }
+    const sede = texto(m?.sede_devolucao_os) ?? texto(m?.sede_devolucao) ?? ""
+    sedes.set(sede, [...(sedes.get(sede) ?? []), ficha(v)])
+  }
+
+  const nome = (v: VeiculoFrotaTelegram) => v.marcaModelo ?? v.placa ?? ""
+  frota.porSede = [...sedes.entries()]
+    // Sedes em ordem alfabética; "sem sede registrada" por último.
+    .sort(([a], [b]) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "pt-BR")))
+    .map(([sede, lista]) => ({
+      sede: sede || null,
+      veiculos: lista.sort((a, b) => nome(a).localeCompare(nome(b), "pt-BR")),
     }))
-  return { disponivel: true, itens }
+  frota.emUso.sort((a, b) => nome(a).localeCompare(nome(b), "pt-BR"))
+  return frota
 }
 
 export type FiliadoTelegram = {
