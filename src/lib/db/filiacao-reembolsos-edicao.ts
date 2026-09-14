@@ -220,15 +220,34 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
   }
 
   // Pix do filiado, se a entidade guarda: já vai na ordem, para o Financeiro
-  // não pedir de novo.
-  const { data: bancos } = await admin
+  // não pedir de novo. `dados_bancarios` não tem emp_proprietaria_id (o tenant
+  // vem do registro pai, pela RLS) e a conta pode estar em qualquer registro
+  // da pessoa — busca por todos os do CPF.
+  let registrosDaPessoa = [String(filiado.id)]
+  if (cpf) {
+    const { data: outros } = await admin
+      .from("filiacoes")
+      .select("id, cpf")
+      .eq("emp_proprietaria_id", emp)
+      .ilike("cpf", `%${cpf.slice(-6)}%`)
+    registrosDaPessoa = [
+      ...new Set([
+        ...registrosDaPessoa,
+        ...(outros ?? [])
+          .filter((o) => String(o.cpf ?? "").replace(/\D/g, "") === cpf)
+          .map((o) => String(o.id)),
+      ]),
+    ]
+  }
+  const { data: bancos, error: erroBancos } = await admin
     .from("dados_bancarios")
-    .select("pix, favorito, prefere_pix")
-    .eq("emp_proprietaria_id", emp)
-    .eq("filiado_id", filiado.id)
+    .select("pix, favorito, prefere_pix, created_at")
+    .in("filiado_id", registrosDaPessoa)
     .not("pix", "is", null)
-    .order("favorito", { ascending: false })
+    .order("favorito", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
     .limit(1)
+  if (erroBancos) console.error("Falha ao ler o Pix do filiado para o reembolso:", erroBancos.message)
   const pix = texto(bancos?.[0]?.pix)
 
   const descricaoOrdem = `Reembolso de participação — ${nome} — ${dados.justificativa}`
