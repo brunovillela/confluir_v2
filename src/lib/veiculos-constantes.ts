@@ -136,3 +136,23 @@ export const COMBUSTIVEIS_VEICULO = [
 /** Tipos legados das ordens de pagamento do módulo (conferidos no banco). */
 export const TIPO_ORDEM_MULTA = "Multa de trânsito"
 export const TIPO_ORDEM_ALUGUEL = "Locação de veículos - Mensalidade"
+
+/** Quantos endereços cabem na cópia do aviso de infração. */
+export const MAX_EMAILS_COPIA_INFRACAO = 10
+
+/**
+ * Lista de e-mails digitada livremente (vírgula, ponto e vírgula, espaço ou
+ * uma por linha) → endereços válidos, minúsculos e sem repetição, e os
+ * trechos que não parecem e-mail (para avisar quem digitou).
+ */
+export function lerListaEmails(texto: string): { validos: string[]; invalidos: string[] } {
+  const validos: string[] = []
+  const invalidos: string[] = []
+  for (const bruto of texto.split(/[\s,;]+/)) {
+    const email = bruto.trim().toLowerCase()
+    if (!email) continue
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalidos.push(bruto.trim())
+    else if (!validos.includes(email)) validos.push(email)
+  }
+  return { validos, invalidos }
+}

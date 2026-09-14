@@ -5,8 +5,17 @@ import { tenantAtual } from "@/lib/tenant"
 import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
-import { SITE_URL } from "@/lib/env"
-import { formatarMoeda } from "@/lib/formato"
+import {
+  botaoEmail,
+  caixaAviso,
+  escaparHtml,
+  linkReserva,
+  paragrafo,
+  textoSuave,
+  tituloEmail,
+} from "@/lib/email-layout"
+import { formatarData, formatarMoeda } from "@/lib/formato"
+import { origemAtual } from "@/lib/tenant-url"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   TIPO_ORDEM_ALUGUEL,
@@ -76,11 +85,17 @@ async function notificarUsuario(
     .maybeSingle()
   if (!usuario?.email) return
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
+  const link = `${await origemAtual()}${rota}`
   await enviarEmail({
     email: usuario.email,
     nome,
     assunto: `${assunto} — {ENTIDADE}`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}${rota}">${SITE_URL}${rota}</a>.</p><p>Confluir — {ENTIDADE}</p>`,
+    html:
+      tituloEmail(escaparHtml(assunto)) +
+      paragrafo(`Olá${nome ? `, ${escaparHtml(String(nome).split(" ")[0])}` : ""}!`) +
+      paragrafo(escaparHtml(mensagem)) +
+      botaoEmail(link, "Abrir no Confluir") +
+      linkReserva(link),
   })
 }
 
@@ -1978,6 +1993,177 @@ export type NovaInfracao = {
   custo: number | null
   arquivo_notificacao_url: string | null
   registrado_por_id: string
+  /** Endereços que recebem cópia do aviso (já validados). */
+  emails_copia: string[]
+}
+
+// ── Aviso de infração por e-mail ────────────────────────────────────────────
+
+/**
+ * E-mails que recebem cópia de todo aviso de infração do tenant
+ * (supabase/veiculos-infracoes-aviso.sql). `disponivel: false` até o SQL rodar.
+ */
+export async function obterEmailsCopiaInfracoes(): Promise<{
+  disponivel: boolean
+  emails: string[]
+}> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_infracoes_config")
+    .select("emails_copia")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) {
+    if (esquemaAusente(error)) return { disponivel: false, emails: [] }
+    throw new Error(`Falha ao ler a configuração das infrações: ${error.message}`)
+  }
+  return {
+    disponivel: true,
+    emails: Array.isArray(data?.emails_copia) ? data.emails_copia.map(String) : [],
+  }
+}
+
+export async function salvarEmailsCopiaInfracoes(
+  emails: string[],
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("veiculos_infracoes_config").upsert(
+    {
+      emp_proprietaria_id: await tenantAtual(),
+      emails_copia: emails,
+      atualizada_por: usuarioId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "emp_proprietaria_id" }
+  )
+  if (error) {
+    if (esquemaAusente(error)) {
+      return { erro: "Rode supabase/veiculos-infracoes-aviso.sql no Supabase para configurar a cópia." }
+    }
+    return { erro: `Falha ao salvar: ${error.message}` }
+  }
+  return {}
+}
+
+/** Linhas da ficha da autuação, em HTML de e-mail (tabela simples). */
+function fichaInfracaoHtml(i: Infracao, condutorNome: string | null): string {
+  const linhas: [string, string | null][] = [
+    ["Veículo", [i.veiculoPlaca, i.veiculoModelo].filter(Boolean).join(" — ") || null],
+    ["Condutor", condutorNome],
+    ["Data", i.infracao_data ? formatarData(i.infracao_data) : null],
+    ["Gravidade", i.infracao_tipo],
+    ["Descrição", i.descricao],
+    ["Local", i.local],
+    ["Órgão autuador", i.orgao_autuador],
+    ["Nº do auto", i.auto_de],
+    ["Valor", i.custo !== null ? formatarMoeda(i.custo) : null],
+  ]
+  const celulas = linhas
+    .filter(([, v]) => v)
+    .map(
+      ([rotulo, valor]) =>
+        `<tr><td style="padding:6px 12px 6px 0;color:#64748b;font-size:13px;white-space:nowrap;vertical-align:top;">${rotulo}</td><td style="padding:6px 0;font-size:14px;color:#0f172a;">${escaparHtml(valor!)}</td></tr>`
+    )
+    .join("")
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border-collapse:collapse;">${celulas}</table>`
+}
+
+/**
+ * Aviso da infração: ao infrator (com o pedido de justificativa) e uma cópia
+ * a cada endereço configurado (com o nome do infrator). Um e-mail por
+ * destinatário — o envio não tem CC. Devolve quem recebeu e quem falhou, para
+ * o histórico.
+ */
+async function enviarAvisoInfracao(
+  infracaoId: string,
+  condutorId: string,
+  copias: string[]
+): Promise<{ infrator: string | null; infratorEnviado: boolean; copiasEnviadas: string[]; copiasFalhas: string[] }> {
+  const admin = await createAdminClient()
+  const [infracao, { data: condutor }] = await Promise.all([
+    buscarInfracao(infracaoId),
+    admin
+      .from("usuarios")
+      .select("email, nome_completo, nome_guerra")
+      .eq("id", condutorId)
+      .maybeSingle(),
+  ])
+  const resultado = {
+    infrator: texto(condutor?.email),
+    infratorEnviado: false,
+    copiasEnviadas: [] as string[],
+    copiasFalhas: [] as string[],
+  }
+  if (!infracao) return resultado
+  const nome = texto(condutor?.nome_completo) ?? texto(condutor?.nome_guerra)
+  const link = `${await origemAtual()}/painel/veiculos/infracoes/${infracaoId}`
+
+  if (resultado.infrator) {
+    const e = emailsDoAvisoDeInfracao({ infracao, condutorNome: nome, link, infratorAvisado: true })
+    resultado.infratorEnviado = await enviarEmail({
+      email: resultado.infrator,
+      nome,
+      ...e.infrator,
+    })
+  }
+
+  const { copia } = emailsDoAvisoDeInfracao({
+    infracao,
+    condutorNome: nome,
+    link,
+    infratorAvisado: resultado.infratorEnviado,
+  })
+  for (const email of copias) {
+    if (email === resultado.infrator) continue
+    const ok = await enviarEmail({ email, ...copia })
+    if (ok) resultado.copiasEnviadas.push(email)
+    else resultado.copiasFalhas.push(email)
+  }
+  return resultado
+}
+
+/** Assunto e miolo dos dois e-mails do aviso (a moldura entra no envio). */
+export function emailsDoAvisoDeInfracao(p: {
+  infracao: Infracao
+  condutorNome: string | null
+  link: string
+  infratorAvisado: boolean
+}): { infrator: { assunto: string; html: string }; copia: { assunto: string; html: string } } {
+  const { infracao, condutorNome: nome, link } = p
+  const ficha = fichaInfracaoHtml(infracao, nome)
+  const placa = infracao.veiculoPlaca ? ` (${infracao.veiculoPlaca})` : ""
+  return {
+    infrator: {
+      assunto: `Infração de trânsito registrada em seu nome${placa} — {ENTIDADE}`,
+      html:
+        tituloEmail("Infração de trânsito registrada") +
+        paragrafo(
+          `Olá${nome ? `, ${escaparHtml(nome.split(" ")[0])}` : ""}! Foi registrada uma infração de trânsito em seu nome, com um veículo da entidade:`
+        ) +
+        ficha +
+        caixaAviso(
+          "Apresente sua <strong>justificativa</strong> no Confluir. Infrações em atividade sindical são assumidas pela entidade; nas demais, o valor pode ser descontado em contracheque ou nas diárias, conforme a avaliação."
+        ) +
+        botaoEmail(link, "Ver a infração e justificar") +
+        linkReserva(link),
+    },
+    copia: {
+      assunto: `Cópia: infração de trânsito registrada${placa} — {ENTIDADE}`,
+      html:
+        tituloEmail("Infração de trânsito registrada") +
+        paragrafo("Foi registrada uma infração de trânsito com um veículo da entidade:") +
+        ficha +
+        textoSuave(
+          p.infratorAvisado
+            ? "O condutor foi avisado por e-mail e no sino do Confluir para apresentar a justificativa."
+            : "O condutor foi avisado no sino do Confluir — ele não tem e-mail cadastrado ou o envio falhou."
+        ) +
+        botaoEmail(link, "Abrir a infração") +
+        linkReserva(link) +
+        textoSuave("Você recebe esta cópia porque o seu endereço está na configuração dos avisos de infração."),
+    },
+  }
 }
 
 /** Registra a infração, notifica o infrator (sino + email) e abre o histórico. */
@@ -2011,17 +2197,30 @@ export async function criarInfracao(
     return { erro: `Não foi possível registrar a infração: ${error?.message}` }
   }
 
+  try {
+    await criarNotificacao({
+      usuarioId: nova.condutor_usuario_id,
+      texto: `Foi registrada uma infração de trânsito em seu nome (${nova.infracao_tipo}, ${nova.descricao}). Apresente sua justificativa na área de Veículos.`,
+    })
+  } catch (e) {
+    console.error("Falha ao notificar (veículos):", e)
+  }
+  const aviso = await enviarAvisoInfracao(data.id, nova.condutor_usuario_id, nova.emails_copia)
+
+  const partes = [
+    aviso.infratorEnviado
+      ? `infrator avisado no sino e por e-mail (${aviso.infrator})`
+      : aviso.infrator
+        ? `infrator avisado no sino; o e-mail para ${aviso.infrator} falhou`
+        : "infrator avisado no sino (sem e-mail cadastrado)",
+  ]
+  if (aviso.copiasEnviadas.length) partes.push(`cópia para ${aviso.copiasEnviadas.join(", ")}`)
+  if (aviso.copiasFalhas.length) partes.push(`cópia falhou para ${aviso.copiasFalhas.join(", ")}`)
   await registrarEventoInfracao(
     data.id,
     nova.registrado_por_id,
     "registro",
-    `Infração ${nova.infracao_tipo} de ${nova.infracao_data} registrada e infrator notificado.`
-  )
-  await notificarUsuario(
-    nova.condutor_usuario_id,
-    "Infração de trânsito registrada",
-    `Foi registrada uma infração de trânsito em seu nome (${nova.infracao_tipo}, ${nova.descricao}). Apresente sua justificativa na área de Veículos.`,
-    "/painel/veiculos/infracoes"
+    `Infração ${nova.infracao_tipo} de ${formatarData(nova.infracao_data)} registrada; ${partes.join("; ")}.`
   )
   return { id: data.id }
 }

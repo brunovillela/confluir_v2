@@ -10,11 +10,17 @@ import {
   criarInfracao,
   gerarOrdemMulta,
   registrarJustificativa,
+  salvarEmailsCopiaInfracoes,
   subirArquivoVeiculos,
 } from "@/lib/db/veiculos"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
-import { FORMAS_COBRANCA, type FormaCobranca } from "@/lib/veiculos-constantes"
+import {
+  FORMAS_COBRANCA,
+  lerListaEmails,
+  MAX_EMAILS_COPIA_INFRACAO,
+  type FormaCobranca,
+} from "@/lib/veiculos-constantes"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -48,6 +54,13 @@ export async function criarInfracaoAction(
   if (!tipo) return { erro: "Informe a gravidade." }
   if (!orgao) return { erro: "Informe o órgão autuador." }
   if (!descricao) return { erro: "Descreva a infração." }
+  const copia = lerListaEmails(texto(formData, "emails_copia"))
+  if (copia.invalidos.length) {
+    return { erro: `E-mail inválido na cópia do aviso: ${copia.invalidos.join(", ")}.` }
+  }
+  if (copia.validos.length > MAX_EMAILS_COPIA_INFRACAO) {
+    return { erro: `A cópia do aviso aceita até ${MAX_EMAILS_COPIA_INFRACAO} endereços.` }
+  }
 
   let arquivoUrl: string | null = null
   const arquivo = formData.get("arquivo_notificacao")
@@ -72,10 +85,32 @@ export async function criarInfracaoAction(
     custo: parseValorBR(texto(formData, "custo")),
     arquivo_notificacao_url: arquivoUrl,
     registrado_por_id: sessao.usuario.id,
+    emails_copia: copia.validos,
   })
   if (erro) return { erro }
   revalidar(id)
   redirect(`/painel/veiculos/infracoes/${id}?salvo=1`)
+}
+
+/** Lista padrão de endereços que recebem cópia de todo aviso de infração. */
+export async function salvarEmailsCopiaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const { validos, invalidos } = lerListaEmails(texto(formData, "emails_copia"))
+  if (invalidos.length) return { erro: `E-mail inválido: ${invalidos.join(", ")}.` }
+  if (validos.length > MAX_EMAILS_COPIA_INFRACAO) {
+    return { erro: `Informe até ${MAX_EMAILS_COPIA_INFRACAO} endereços.` }
+  }
+  const { erro } = await salvarEmailsCopiaInfracoes(validos, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath("/painel/veiculos/infracoes")
+  return {
+    ok: validos.length
+      ? `Cópia configurada para ${validos.length} endereço(s).`
+      : "Cópia desligada: só o infrator recebe o aviso.",
+  }
 }
 
 export async function justificarInfracaoAction(

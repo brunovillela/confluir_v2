@@ -20,11 +20,12 @@ import {
   listarInfracoes,
   listarUsuariosAtivos,
   listarVeiculos,
+  obterEmailsCopiaInfracoes,
 } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { NovaInfracaoForm } from "./infracao-forms"
+import { CopiaAvisoForm, NovaInfracaoForm } from "./infracao-forms"
 
 export const metadata: Metadata = { title: "Infrações de trânsito — Confluir" }
 
@@ -32,12 +33,13 @@ export default async function InfracoesPage() {
   const sessao = await requirePermissao("veiculos", ["veiculos_gestao"])
   const gestor = podeAcessar(sessao.permissoes, "veiculos_gestao")
 
-  const [infracoes, frota, usuarios] = await Promise.all([
+  const [infracoes, frota, usuarios, copia] = await Promise.all([
     gestor
       ? listarInfracoes({ limite: 200 })
       : listarInfracoes({ condutorId: sessao.usuario.id, limite: 100 }),
     gestor ? listarVeiculos({ situacao: "todos" }) : Promise.resolve([]),
     gestor ? listarUsuariosAtivos() : Promise.resolve([]),
+    gestor ? obterEmailsCopiaInfracoes() : Promise.resolve({ disponivel: false, emails: [] }),
   ])
 
   return (
@@ -62,7 +64,7 @@ export default async function InfracoesPage() {
       {gestor && (
         <GrupoColapsavel
           titulo="Registrar infração"
-          descricao="A notificação chega ao condutor por sino e email"
+          descricao="O aviso chega ao condutor por sino e e-mail, com cópia para os endereços configurados"
         >
           <NovaInfracaoForm
             veiculos={frota.map((v) => ({
@@ -70,7 +72,31 @@ export default async function InfracoesPage() {
               rotulo: `${v.placa ?? "s/ placa"} — ${v.marca_modelo ?? ""}`,
             }))}
             usuarios={usuarios.map((u) => ({ id: u.id, rotulo: u.nome }))}
+            emailsCopia={copia.disponivel ? copia.emails : null}
           />
+        </GrupoColapsavel>
+      )}
+
+      {gestor && (
+        <GrupoColapsavel
+          titulo="Configurar a cópia do aviso"
+          descricao={
+            !copia.disponivel
+              ? "Rode supabase/veiculos-infracoes-aviso.sql no Supabase para ativar"
+              : copia.emails.length
+                ? `Cópia para ${copia.emails.join(", ")}`
+                : "Sem cópia: só o infrator recebe o aviso"
+          }
+        >
+          {copia.disponivel ? (
+            <CopiaAvisoForm emails={copia.emails} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              A cópia do aviso fica disponível depois de rodar{" "}
+              <code>supabase/veiculos-infracoes-aviso.sql</code>. Até lá, o
+              infrator continua recebendo o aviso normalmente.
+            </p>
+          )}
         </GrupoColapsavel>
       )}
 

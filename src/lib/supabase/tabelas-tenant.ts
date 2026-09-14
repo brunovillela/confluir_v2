@@ -171,6 +171,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "veiculos_disponibilidade",
   "veiculos_infracoes_historico",
   "veiculos_checklist_config",
+  "veiculos_infracoes_config",
   "veiculos_manutencao_planos",
   "veiculos_manutencoes",
   "veiculos_checklist_itens",

@@ -18,6 +18,7 @@ import {
   criarInfracaoAction,
   gerarOrdemMultaAction,
   justificarInfracaoAction,
+  salvarEmailsCopiaAction,
 } from "./actions"
 
 const SELECT =
@@ -28,9 +29,12 @@ export type Opcao = { id: string; rotulo: string }
 export function NovaInfracaoForm({
   veiculos,
   usuarios,
+  emailsCopia,
 }: {
   veiculos: Opcao[]
   usuarios: Opcao[]
+  /** Lista padrão do tenant; null = SQL da cópia ainda não rodado. */
+  emailsCopia: string[] | null
 }) {
   const [estado, formAction, pendente] = useActionState(criarInfracaoAction, {})
   return (
@@ -150,16 +154,64 @@ export function NovaInfracaoForm({
             accept="application/pdf,image/jpeg,image/png"
           />
         </div>
+        <div className="grid gap-1.5 sm:col-span-2">
+          <Label htmlFor="emails_copia">Enviar cópia do aviso para</Label>
+          <Input
+            id="emails_copia"
+            name="emails_copia"
+            defaultValue={(emailsCopia ?? []).join(", ")}
+            placeholder="financeiro@entidade.org.br, frota@entidade.org.br"
+            disabled={emailsCopia === null}
+          />
+          <p className="text-muted-foreground text-xs">
+            {emailsCopia === null
+              ? "Cópia indisponível até rodar supabase/veiculos-infracoes-aviso.sql."
+              : "Vem com a lista padrão (Configurar a cópia do aviso, abaixo). Separe por vírgula; vale só para esta infração. Vazio: só o infrator recebe."}
+          </p>
+        </div>
       </div>
       <p className="text-muted-foreground text-sm">
-        Ao registrar, o condutor é notificado (sino e email) para apresentar a
-        justificativa.
+        Ao registrar, o condutor recebe o aviso no sino e por e-mail, com os
+        dados da autuação, para apresentar a justificativa. Quem recebeu fica no
+        histórico da infração.
       </p>
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       <div>
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <FileWarning />}
           Registrar infração
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** Lista padrão de endereços que recebem cópia de todo aviso de infração. */
+export function CopiaAvisoForm({ emails }: { emails: string[] }) {
+  const [estado, formAction, pendente] = useActionState(salvarEmailsCopiaAction, {})
+  return (
+    <form action={formAction} className="grid max-w-2xl gap-3">
+      <div className="grid gap-1.5">
+        <Label htmlFor="config_emails_copia">E-mails que recebem cópia</Label>
+        <Textarea
+          id="config_emails_copia"
+          name="emails_copia"
+          rows={3}
+          defaultValue={emails.join("\n")}
+          placeholder={"financeiro@entidade.org.br\nfrota@entidade.org.br"}
+        />
+        <p className="text-muted-foreground text-xs">
+          Um por linha ou separados por vírgula, até 10. A cópia leva os dados
+          da autuação e o nome do condutor. Deixe vazio para só o infrator
+          receber.
+        </p>
+      </div>
+      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
+      <div>
+        <Button type="submit" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Send />}
+          Salvar
         </Button>
       </div>
     </form>
