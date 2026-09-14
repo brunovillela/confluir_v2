@@ -90,10 +90,11 @@ export type BaseRelatorios = {
   geradoEm: string
 }
 
-let cache: { dados: BaseRelatorios; expira: number } | null = null
+// Por tenant: um cache único serviria a base de um sindicato a outro.
+const cache = new Map<string, { dados: BaseRelatorios; expira: number }>()
 
 export function invalidarCacheRelatorios() {
-  cache = null
+  cache.clear()
 }
 
 type Cadastro = Record<string, unknown>
@@ -137,10 +138,11 @@ function primeiroDiaDaCompetencia(ordem: number): string | null {
 }
 
 export async function baseRelatorios(): Promise<BaseRelatorios> {
-  if (cache && cache.expira > Date.now()) return cache.dados
+  const emp = await tenantAtual()
+  const guardado = cache.get(emp)
+  if (guardado && guardado.expira > Date.now()) return guardado.dados
 
   const admin = await createAdminClient()
-  const emp = await tenantAtual()
   const hoje = hojeSP()
 
   const [cadastros, vinculos, carencias, suspensoes, inadimplencia, termos] =
@@ -377,7 +379,7 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
     inadimplenciaConfigurada: inadimplencia.configurado,
     geradoEm: new Date().toISOString(),
   }
-  cache = { dados, expira: Date.now() + VALIDADE_CACHE_MS }
+  cache.set(emp, { dados, expira: Date.now() + VALIDADE_CACHE_MS })
   return dados
 }
 
