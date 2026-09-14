@@ -17,7 +17,7 @@ export async function gerarDescricaoCompra(input: {
   observacao?: string
   tipo?: string
 }): Promise<ResultadoIA> {
-  await requirePermissao("aquisicoes_compras_edicao")
+  await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
 
   const rascunho = (input.produto ?? "").trim()
   if (rascunho.length < 3) {

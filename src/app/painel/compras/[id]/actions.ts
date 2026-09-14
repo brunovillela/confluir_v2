@@ -8,6 +8,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { FORMAS_PAGAMENTO_COMPRAS } from "@/lib/compras-constantes"
 import {
   adicionarProposta,
+  buscarProcesso,
   cancelarProcesso,
   definirEscolhaProposta,
   encerrarCotacao,
@@ -20,6 +21,8 @@ import {
   removerProposta,
   subirPdfCompras,
 } from "@/lib/db/compras"
+import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
 function revalidarProcesso(id: string) {
@@ -37,9 +40,29 @@ function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
 }
 
-/** Operar o processo (cotar, escolher, comprar, gerar ordem). */
-async function requireOperacao() {
-  return requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_comprador"])
+/**
+ * Operar o processo (cotar, escolher, comprar, gerar ordem). O comprador é o
+ * setor central e opera qualquer processo; quem opera por "editar" fica nos
+ * departamentos que alcança em Compras.
+ */
+async function requireOperacao(formData: FormData) {
+  const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_comprador"])
+  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+    await garantirEscopoDoProcesso(sessao.usuario.id, texto(formData, "processo_id"))
+  }
+  return sessao
+}
+
+async function garantirEscopoDoProcesso(usuarioId: string, processoId: string) {
+  const escopo = await escopoComprasDoUsuario(usuarioId)
+  if (escopo.todos || !processoId) return
+  const processo = await buscarProcesso(processoId)
+  if (
+    processo &&
+    !compraNoEscopo(escopo, { departamentoId: processo.departamento_id, solicitanteId: processo.solicitante_id })
+  ) {
+    redirect("/painel/compras?fora=1")
+  }
 }
 
 export async function cancelarProcessoAction(
@@ -47,7 +70,7 @@ export async function cancelarProcessoAction(
   formData: FormData
 ): Promise<EstadoForm> {
   // Cancelar é operação de edição — não basta a flag base (só leitura).
-  const sessao = await requireOperacao()
+  const sessao = await requireOperacao(formData)
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
   const { erro } = await cancelarProcesso(id, sessao.usuario.id)
@@ -60,7 +83,7 @@ export async function iniciarCotacaoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOperacao()
+  const sessao = await requireOperacao(formData)
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
   const { erro } = await iniciarCotacao(id, sessao.usuario.id)
@@ -73,7 +96,7 @@ export async function encerrarCotacaoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireOperacao()
+  await requireOperacao(formData)
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
   const { erro } = await encerrarCotacao(id)
@@ -86,7 +109,7 @@ export async function reabrirCotacaoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireOperacao()
+  await requireOperacao(formData)
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
   const { erro } = await reabrirCotacao(id)
@@ -99,7 +122,7 @@ export async function adicionarPropostaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireOperacao()
+  await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   if (!processoId) return { erro: "Processo inválido." }
   const fornecedorId = texto(formData, "fornecedor_id")
@@ -141,7 +164,7 @@ export async function removerPropostaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireOperacao()
+  await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   const propostaId = texto(formData, "proposta_id")
   if (!processoId || !propostaId) return { erro: "Proposta inválida." }
@@ -155,7 +178,7 @@ export async function escolherPropostaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOperacao()
+  const sessao = await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   const propostaId = texto(formData, "proposta_id")
   if (!processoId || !propostaId) return { erro: "Proposta inválida." }
@@ -174,7 +197,7 @@ export async function registrarCompraAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOperacao()
+  const sessao = await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   if (!processoId) return { erro: "Processo inválido." }
   const dataCompra = dataISO(texto(formData, "data_compra"))
@@ -193,7 +216,7 @@ export async function gerarOrdemAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireOperacao()
+  await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   const fornecimentoId = texto(formData, "fornecimento_id")
   if (!processoId || !fornecimentoId) return { erro: "Fornecimento inválido." }
@@ -226,6 +249,7 @@ export async function registrarRecebimentoAction(
     "aquisicoes_compras_edicao",
   ])
   const processoId = texto(formData, "processo_id")
+  await garantirEscopoDoProcesso(sessao.usuario.id, processoId)
   const fornecimentoId = texto(formData, "fornecimento_id")
   if (!fornecimentoId) return { erro: "Fornecimento inválido." }
   const data = dataISO(texto(formData, "data")) ?? hojeSP()

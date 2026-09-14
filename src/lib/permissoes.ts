@@ -235,6 +235,7 @@ export const MODULOS: Modulo[] = [
     // abaixo tem gate próprio.
     chavesAlternativas: [
       "aquisicoes_compras_edicao",
+      "aquisicoes_compra_direta",
       "aquisicoes_avaliacoes",
       "aquisicoes_recebimentos",
       "aquisicoes_fornecedores",
@@ -247,6 +248,7 @@ export const MODULOS: Modulo[] = [
     icone: "ShoppingCart",
     descricao: "Registrar aquisição direta ou solicitação via Compras",
     chave: "aquisicoes_compras_edicao",
+    chavesAlternativas: ["aquisicoes_compra_direta"],
     oculto: true,
   },
   {

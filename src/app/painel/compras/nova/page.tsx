@@ -3,7 +3,10 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { requirePermissao } from "@/lib/auth"
+import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   listarCentrosCustoParaCompra,
   listarDepartamentos,
@@ -16,14 +19,21 @@ import { NovaCompraForm } from "./nova-compra-form"
 export const metadata: Metadata = { title: "Nova compra — Confluir" }
 
 export default async function NovaCompraPage() {
-  await requirePermissao("aquisicoes_compras_edicao")
+  const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
+  const viaCompras = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")
+  const direta = podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")
 
-  const [departamentos, centros, projetos, fornecedores] = await Promise.all([
+  const [todosDepartamentos, centros, projetos, fornecedores, escopo] = await Promise.all([
     listarDepartamentos(),
     listarCentrosCustoParaCompra(),
     listarProjetosAbertos(),
     listarFornecedores(),
+    escopoComprasDoUsuario(sessao.usuario.id),
   ])
+  // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
+  const departamentos = escopo.todos
+    ? todosDepartamentos
+    : todosDepartamentos.filter((d) => escopo.departamentoIds.includes(d.id))
 
   return (
     <>
@@ -40,7 +50,17 @@ export default async function NovaCompraPage() {
         </p>
       </div>
 
+      {!escopo.todos && (
+        <Alert variant="info">
+          <AlertDescription>
+            Você compra pelos departamentos: {departamentos.map((d) => d.nome).join(", ") || "nenhum"}.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <NovaCompraForm
+        permiteViaCompras={viaCompras}
+        permiteDireta={direta}
         departamentos={departamentos}
         centrosCusto={centros}
         projetos={projetos}

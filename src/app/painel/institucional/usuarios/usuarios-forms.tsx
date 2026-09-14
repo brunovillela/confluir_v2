@@ -32,6 +32,7 @@ import {
   gerarLinkRecuperacaoAction,
   onboardingEmLoteAction,
   revogarAcessoAction,
+  salvarDepartamentosComprasAction,
   salvarPerfisUsuarioAction,
   salvarPermissoesAction,
 } from "./actions"
@@ -438,6 +439,60 @@ export function RevogarAcesso({ acessoId }: { acessoId: string }) {
         Revogar acesso
       </Button>
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+    </form>
+  )
+}
+
+/** Compras: por quais departamentos a pessoa compra e vê compras. */
+export function DepartamentosComprasForm({
+  acessoId,
+  usuarioId,
+  departamentos,
+  marcados,
+}: {
+  acessoId: string
+  usuarioId: string
+  departamentos: { id: string; nome: string }[]
+  marcados: string[]
+}) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
+    salvarDepartamentosComprasAction,
+    {}
+  )
+  return (
+    <form action={formAction} className="grid gap-3">
+      <input type="hidden" name="acesso_id" value={acessoId} />
+      <input type="hidden" name="usuario_id" value={usuarioId} />
+      {departamentos.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          Nenhum departamento cadastrado em Institucional → Organização.
+        </p>
+      ) : (
+        <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+          {departamentos.map((d) => (
+            <li key={d.id}>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="departamento_id"
+                  value={d.id}
+                  defaultChecked={marcados.includes(d.id)}
+                  className="accent-primary"
+                />
+                {d.nome}
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
+      <div>
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar departamentos
+        </Button>
+      </div>
     </form>
   )
 }

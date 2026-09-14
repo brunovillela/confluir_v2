@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { ArrowLeft, FileText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -24,6 +24,7 @@ import {
   type OrdemDoProcesso,
 } from "@/lib/db/compras"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { podeAcessar } from "@/lib/permissoes"
 
 import {
@@ -112,6 +113,18 @@ export default async function ProcessoCompraPage({
 
   const processo = await buscarProcesso(id)
   if (!processo) notFound()
+  // O comprador (setor central) vê tudo; os demais, só os seus departamentos.
+  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+    const escopo = await escopoComprasDoUsuario(sessao.usuario.id)
+    if (
+      !compraNoEscopo(escopo, {
+        departamentoId: processo.departamento_id,
+        solicitanteId: processo.solicitante_id,
+      })
+    ) {
+      redirect("/painel/compras?fora=1")
+    }
+  }
 
   const podeOperar = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")
   const podeReceber = podeAcessar(sessao.permissoes, "aquisicoes_recebimentos", [

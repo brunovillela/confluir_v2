@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAcesso } from "@/lib/db/acessos"
+import { listarDepartamentos } from "@/lib/db/compras"
+import { departamentosComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { listarPerfis, perfisDoUsuario } from "@/lib/db/perfis"
 
 import {
   AcessoLogin,
+  DepartamentosComprasForm,
   PerfisUsuarioForm,
   PermissoesForm,
   RevogarAcesso,
@@ -31,9 +34,13 @@ export default async function AcessoPage({
   const acesso = await obterAcesso(id)
   if (!acesso) notFound()
 
-  const [perfis, perfisAtribuidos] = await Promise.all([
+  const [perfis, perfisAtribuidos, departamentos, deptosCompras] = await Promise.all([
     listarPerfis(),
     acesso.usuarioId ? perfisDoUsuario(acesso.usuarioId) : Promise.resolve([]),
+    listarDepartamentos(),
+    acesso.usuarioId
+      ? departamentosComprasDoUsuario(acesso.usuarioId)
+      : Promise.resolve({ disponivel: false, departamentoIds: [] }),
   ])
 
   return (
@@ -120,6 +127,34 @@ export default async function AcessoPage({
           )}
         </CardContent>
       </Card>
+
+      {acesso.usuarioId && (
+        <Card>
+          <CardContent className="grid gap-3 pt-6">
+            <div>
+              <p className="text-sm font-medium">Compras: departamentos</p>
+              <p className="text-muted-foreground text-xs">
+                Por quais departamentos a pessoa registra compras e vê as compras em Compras (além
+                das que ela mesma registrou). Nenhum marcado = todos os departamentos. O comprador
+                (setor central) continua operando todos os processos.
+              </p>
+            </div>
+            {deptosCompras.disponivel ? (
+              <DepartamentosComprasForm
+                acessoId={acesso.id}
+                usuarioId={acesso.usuarioId}
+                departamentos={departamentos}
+                marcados={deptosCompras.departamentoIds}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Rode <code>supabase/compras-restricao-departamento.sql</code> no Supabase para
+                restringir compras por departamento.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="grid gap-3 pt-6">

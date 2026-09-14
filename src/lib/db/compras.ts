@@ -1,6 +1,7 @@
 import "server-only"
 import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
+import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -120,6 +121,8 @@ export type OrdemDoProcesso = {
 
 export type ProcessoDetalhe = {
   id: string
+  /** Quem registrou (null no legado e antes do SQL da restrição). */
+  solicitante_id: string | null
   codigo: string | null
   situacao: SituacaoProcesso
   aquisicao_direta: boolean | null
@@ -252,6 +255,8 @@ export type FiltrosProcessos = {
   situacao?: SituacaoProcesso | "todas"
   aquisicao?: "direta" | "via_compras" | "todas"
   pagina?: number
+  /** Departamentos que a pessoa alcança (lib/db/compras-acesso.ts). */
+  escopo?: EscopoCompras
 }
 
 export type ListaProcessos = {
@@ -271,6 +276,8 @@ export async function listarProcessos(
     .from("compras_solicitacoes")
     .select("*", { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
+  const escopo = filtros.escopo ? filtroDoEscopo(filtros.escopo) : null
+  if (escopo) q = q.or(escopo)
 
   const busca = (filtros.busca ?? "").trim()
   if (busca) {
@@ -392,32 +399,42 @@ export type ResumoCompras = {
   aReceber: number | null
 }
 
-export async function resumoCompras(): Promise<ResumoCompras> {
+export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompras> {
   const admin = await createAdminClient()
+  const filtro = escopo ? filtroDoEscopo(escopo) : null
+  let cotacao = admin
+    .from("compras_solicitacoes")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("cancelado", false)
+    .eq("comprado", false)
+    .eq("em_cotacao", true)
+  let aguardando = admin
+    .from("compras_solicitacoes")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("cancelado", false)
+    .eq("comprado", false)
+    .eq("em_cotacao", false)
+    .not("cotacao_termino", "is", null)
+  if (filtro) {
+    cotacao = cotacao.or(filtro)
+    aguardando = aguardando.or(filtro)
+  }
+  const ordensBase = admin
+    .from("ordens_pagamento")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("tipo", "Compras")
+    .eq("situacao", "Em autorização")
+    .eq("excluido", false)
   const [emCotacao, aguardandoCompra, ordens, fornecimentos] =
     await Promise.all([
-      admin
-        .from("compras_solicitacoes")
-        .select("id", { count: "exact", head: true })
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .eq("cancelado", false)
-        .eq("comprado", false)
-        .eq("em_cotacao", true),
-      admin
-        .from("compras_solicitacoes")
-        .select("id", { count: "exact", head: true })
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .eq("cancelado", false)
-        .eq("comprado", false)
-        .eq("em_cotacao", false)
-        .not("cotacao_termino", "is", null),
-      admin
-        .from("ordens_pagamento")
-        .select("id", { count: "exact", head: true })
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .eq("tipo", "Compras")
-        .eq("situacao", "Em autorização")
-        .eq("excluido", false),
+      cotacao,
+      aguardando,
+      escopo && !escopo.todos
+        ? ordensBase.in("departamento_id", escopo.departamentoIds)
+        : ordensBase,
       admin
         .from("compras_fornecimentos")
         .select("id", { count: "exact", head: true })
@@ -601,6 +618,7 @@ export async function buscarProcesso(
     e_produto: (p.solicitacao_e_produto as boolean | null) ?? null,
     observacao: (p.solicitacao_observacao as string | null) ?? null,
     departamento_id: (p.solicitacao_departamento_id as string | null) ?? null,
+    solicitante_id: (p.solicitante_id as string | null) ?? null,
     departamentoNome:
       (depto.data?.departamento as string | undefined) ?? null,
     centro_custo_id: (p.solicitacao_centro_custo_id as string | null) ?? null,
@@ -646,18 +664,33 @@ export type NovaSolicitacao = {
   projeto_id: string | null
   data_limite: string | null
   local_entrega: string | null
+  /** Quem registrou (coluna de supabase/compras-restricao-departamento.sql). */
+  solicitante_id?: string | null
+}
+
+/**
+ * Insere em compras_solicitacoes; sem o SQL da restrição por departamento a
+ * coluna solicitante_id não existe — repete sem ela em vez de falhar.
+ */
+async function inserirSolicitacao(linha: Record<string, unknown>) {
+  const admin = await createAdminClient()
+  const tentativa = await admin.from("compras_solicitacoes").insert(linha).select("id").single()
+  if (tentativa.error && esquemaAusente(tentativa.error) && "solicitante_id" in linha) {
+    const { solicitante_id: _s, ...semSolicitante } = linha
+    void _s
+    return admin.from("compras_solicitacoes").insert(semSolicitante).select("id").single()
+  }
+  return tentativa
 }
 
 /** Via Compras: registra a solicitação do departamento; o setor de compras assume dali. */
 export async function criarSolicitacao(
   nova: NovaSolicitacao
 ): Promise<{ id?: string; erro?: string }> {
-  const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("compras_solicitacoes")
-    .insert({
+  const { data, error } = await inserirSolicitacao({
       codigo: gerarCodigoProcesso(),
       aquisicao_direta: false,
+      solicitante_id: nova.solicitante_id ?? null,
       solicitacao_produto: nova.produto,
       solicitacao_e_produto: nova.e_produto,
       solicitacao_observacao: nova.observacao,
@@ -672,14 +705,12 @@ export async function criarSolicitacao(
       recebido: false,
       estocavel: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
-  if (error) {
+  })
+  if (error || !data) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
-    return { erro: `Não foi possível registrar a solicitação: ${error.message}` }
+    return { erro: `Não foi possível registrar a solicitação: ${error?.message}` }
   }
-  return { id: data.id }
+  return { id: String(data.id) }
 }
 
 export type NovaCompraDireta = NovaSolicitacao & {
@@ -704,11 +735,10 @@ export async function criarCompraDireta(
   const admin = await createAdminClient()
   const codigo = gerarCodigoProcesso()
 
-  const { data: processo, error: erroProcesso } = await admin
-    .from("compras_solicitacoes")
-    .insert({
+  const { data: processo, error: erroProcesso } = await inserirSolicitacao({
       codigo,
       aquisicao_direta: true,
+      solicitante_id: nova.solicitante_id ?? nova.comprador_id,
       solicitacao_produto: nova.produto,
       solicitacao_e_produto: nova.e_produto,
       solicitacao_observacao: nova.observacao,
@@ -728,9 +758,7 @@ export async function criarCompraDireta(
       recebimento_recebido_por_id: nova.ja_recebido ? nova.recebedor_id : null,
       estocavel: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+  })
   if (erroProcesso || !processo) {
     if (esquemaAusente(erroProcesso)) return { erro: AVISO_SQL }
     return {

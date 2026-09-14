@@ -41,14 +41,21 @@ export function NovaCompraForm({
   centrosCusto,
   projetos,
   fornecedores,
+  permiteViaCompras = true,
+  permiteDireta = true,
 }: {
+  /** "Compras — editar": solicitação para o setor de compras. */
+  permiteViaCompras?: boolean
+  /** "Compras — registrar aquisição direta". */
+  permiteDireta?: boolean
   departamentos: Opcao[]
   centrosCusto: CentroOpcao[]
   projetos: ProjetoOpcao[]
   fornecedores: FornecedorOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarCompra, {})
-  const [direta, setDireta] = useState(false)
+  // Com uma só modalidade permitida, ela vem fixa.
+  const [direta, setDireta] = useState(!permiteViaCompras && permiteDireta)
   const [comProjeto, setComProjeto] = useState(false)
   const [jaRecebido, setJaRecebido] = useState(true)
 
@@ -143,6 +150,7 @@ export function NovaCompraForm({
               <Switch
                 checked={direta}
                 onCheckedChange={setDireta}
+                disabled={!permiteViaCompras || !permiteDireta}
                 aria-label="Alternar entre via Compras e aquisição direta"
               />
               <span

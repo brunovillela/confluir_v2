@@ -29,7 +29,8 @@ import {
   SITUACOES_PROCESSO,
   type SituacaoProcesso,
 } from "@/lib/compras-constantes";
-import { listarProcessos, resumoCompras } from "@/lib/db/compras";
+import { listarDepartamentos, listarProcessos, resumoCompras } from "@/lib/db/compras";
+import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso";
 import { resumoContratos } from "@/lib/db/contratos";
 import { formatarData, formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
@@ -40,6 +41,7 @@ const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]";
 
 type Params = {
+  fora?: string;
   busca?: string;
   situacao?: string;
   aquisicao?: string;
@@ -53,6 +55,7 @@ export default async function ComprasPage({
 }) {
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
+    "aquisicoes_compra_direta",
     "aquisicoes_avaliacoes",
     "aquisicoes_recebimentos",
     "aquisicoes_fornecedores",
@@ -73,14 +76,21 @@ export default async function ComprasPage({
   const busca = (brutos.busca ?? "").trim();
   const pagina = Number(brutos.pagina) > 0 ? Number(brutos.pagina) : 1;
 
-  const [resumo, lista, resumoContr] = await Promise.all([
-    resumoCompras(),
-    listarProcessos({ busca, situacao, aquisicao, pagina }),
+  const escopo = await escopoComprasDoUsuario(sessao.usuario.id);
+  const [resumo, lista, resumoContr, departamentos] = await Promise.all([
+    resumoCompras(escopo),
+    listarProcessos({ busca, situacao, aquisicao, pagina, escopo }),
     resumoContratos(),
+    escopo.todos ? Promise.resolve([]) : listarDepartamentos(),
   ]);
+  const nomesDosDepartamentos = departamentos
+    .filter((d) => escopo.departamentoIds.includes(d.id))
+    .map((d) => d.nome);
 
-  const podeCriar = podeAcessar(p, "aquisicoes_compras", [
-    "aquisicoes_compras_edicao",
+  // Criar exige escrita: "editar" (via Compras) ou a aquisição direta — a flag
+  // base é só leitura e abria o botão para uma página sem acesso.
+  const podeCriar = podeAcessar(p, "aquisicoes_compras_edicao", [
+    "aquisicoes_compra_direta",
   ]);
   const veComprador = podeAcessar(p, "aquisicoes_comprador", [
     "aquisicoes_compras_edicao",
@@ -130,6 +140,21 @@ export default async function ComprasPage({
           </Button>
         )}
       </div>
+
+      {brutos.fora && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Essa compra é de um departamento fora do seu alcance em Compras.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!escopo.todos && (
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Você vê as compras de{" "}
+          <strong>{nomesDosDepartamentos.join(", ") || "seus departamentos"}</strong> e as que você
+          registrou.
+        </p>
+      )}
 
       {(veComprador ||
         veAvaliacoes ||

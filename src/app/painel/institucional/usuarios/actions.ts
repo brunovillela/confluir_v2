@@ -12,9 +12,12 @@ import {
   emailConfigurado,
   gerarLinkRecuperacao,
   onboardingEmLote,
+  obterAcesso,
   revogarAcesso,
   type ResultadoLogin,
 } from "@/lib/db/acessos"
+import { listarDepartamentos } from "@/lib/db/compras"
+import { definirDepartamentosCompras } from "@/lib/db/compras-acesso"
 import { atribuirPerfis } from "@/lib/db/perfis"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
@@ -139,4 +142,31 @@ export async function revogarAcessoAction(
   if (erro) return { erro }
   revalidatePath("/painel/institucional/usuarios")
   redirect("/painel/institucional/usuarios")
+}
+
+/** Departamentos pelos quais a pessoa compra e vê compras (nenhum = todos). */
+export async function salvarDepartamentosComprasAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao(CHAVE, ALT)
+  const acessoId = texto(formData, "acesso_id")
+  const usuarioId = texto(formData, "usuario_id")
+  if (!acessoId || !usuarioId) return { erro: "Acesso inválido." }
+  const acesso = await obterAcesso(acessoId)
+  if (!acesso || acesso.usuarioId !== usuarioId) return { erro: "Acesso inválido." }
+
+  const validos = new Set((await listarDepartamentos()).map((d) => d.id))
+  const escolhidos = formData
+    .getAll("departamento_id")
+    .map(String)
+    .filter((id) => validos.has(id))
+  const { erro } = await definirDepartamentosCompras(usuarioId, [...new Set(escolhidos)], sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+  return {
+    ok: escolhidos.length
+      ? `Compras restritas a ${escolhidos.length} departamento(s).`
+      : "Sem restrição: a pessoa alcança todos os departamentos em Compras.",
+  }
 }

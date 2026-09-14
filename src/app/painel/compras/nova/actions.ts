@@ -11,6 +11,8 @@ import {
   criarSolicitacao,
   subirPdfCompras,
 } from "@/lib/db/compras"
+import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
@@ -25,14 +27,25 @@ export async function criarCompra(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  // Registrar compra é escrita — exige a flag de edição (não a base de leitura).
-  const sessao = await requirePermissao("aquisicoes_compras_edicao")
+  // Registrar compra é escrita: via Compras exige "editar"; aquisição direta,
+  // a permissão própria. E só pelos departamentos que a pessoa alcança.
+  const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
 
   const direta = texto(formData, "modalidade") === "direta"
+  if (direta && !podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")) {
+    return { erro: "Você não tem permissão para registrar aquisição direta — use a solicitação via Compras." }
+  }
+  if (!direta && !podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")) {
+    return { erro: "Você só tem permissão para registrar aquisição direta." }
+  }
   const produto = texto(formData, "produto")
   if (!produto) return { erro: "Descreva o produto ou serviço." }
   const departamentoId = texto(formData, "departamento_id")
   if (!departamentoId) return { erro: "Informe o departamento solicitante." }
+  const escopo = await escopoComprasDoUsuario(sessao.usuario.id)
+  if (!escopo.todos && !escopo.departamentoIds.includes(departamentoId)) {
+    return { erro: "Você não compra por esse departamento." }
+  }
   const centroCustoId = texto(formData, "centro_custo_id")
   if (!centroCustoId) {
     return { erro: "Informe o centro de custo da despesa." }
@@ -50,6 +63,7 @@ export async function criarCompra(
     projeto_id: texto(formData, "projeto_id") || null,
     data_limite: dataISO(texto(formData, "data_limite")),
     local_entrega: texto(formData, "local_entrega") || null,
+    solicitante_id: sessao.usuario.id,
   }
 
   if (!direta) {
