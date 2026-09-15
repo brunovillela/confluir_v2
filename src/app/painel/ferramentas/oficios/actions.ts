@@ -16,6 +16,7 @@ import {
   type DadosOficio,
 } from "@/lib/db/oficios"
 import {
+  anexarAssinadoAMao,
   cancelarEnvio,
   enviarParaAssinatura,
   reenviarConvite,
@@ -240,3 +241,18 @@ export async function cancelarEnvioAction(
   return { ok: "Envio cancelado. O ofício voltou ao rascunho, com o número reservado." }
 }
 
+export async function anexarAssinadoAMaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_oficios")
+  const id = texto(formData, "oficio_id")
+  if (!id) return { erro: "Ofício inválido." }
+  const arquivo = formData.get("arquivo")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione o PDF assinado." }
+
+  const { erro } = await anexarAssinadoAMao(id, arquivo)
+  if (erro) return { erro }
+  revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  return { ok: "Documento assinado anexado ao ofício." }
+}

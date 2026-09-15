@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Ban, Loader2, Mail, Send } from "lucide-react"
+import { Ban, FileUp, Loader2, Mail, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 
 import {
+  anexarAssinadoAMaoAction,
   cancelarEnvioAction,
   enviarParaAssinaturaAction,
   reenviarConviteAction,
@@ -105,6 +106,45 @@ export function EnviarParaAssinatura({
           {telegram.telefone ? ` (${telegram.telefone})` : ""}, pelo bot do Confluir.
         </p>
       )}
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
+/** Ofício assinado à mão: o PDF digitalizado fica junto do ofício. */
+export function AnexarAssinadoAMao({
+  oficioId,
+  temArquivo,
+}: {
+  oficioId: string
+  temArquivo: boolean
+}) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
+    anexarAssinadoAMaoAction,
+    {}
+  )
+  return (
+    <form action={formAction} className="grid gap-3">
+      <input type="hidden" name="oficio_id" value={oficioId} />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="arquivo-assinado">
+            {temArquivo ? "Substituir o PDF assinado" : "PDF assinado e digitalizado"}
+          </Label>
+          <Input
+            id="arquivo-assinado"
+            name="arquivo"
+            type="file"
+            accept="application/pdf"
+            required
+            className="w-full sm:w-96"
+          />
+        </div>
+        <Button type="submit" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <FileUp />}
+          Anexar
+        </Button>
+      </div>
       <Retorno estado={estado} />
     </form>
   )

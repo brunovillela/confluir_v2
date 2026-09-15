@@ -55,6 +55,7 @@ import {
 import { atualizarOficioAction } from "../actions"
 import {
   AcoesEnvioPendente,
+  AnexarAssinadoAMao,
   EnviarParaAssinatura,
 } from "./assinatura-acoes"
 import { OficioForm } from "../oficio-form"
@@ -378,6 +379,25 @@ export default async function OficioPage({
 
       {assinaturaDoCartao && <CartaoAssinatura assinatura={assinaturaDoCartao} oficioId={id} />}
 
+      {/* Emitido à mão: o PDF digitalizado fica junto do ofício */}
+      {!rascunho && !aguardando && !assinaturas.some((a) => a.situacao === "assinado") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileCheck2 className="size-4" />
+              Documento assinado à mão
+            </CardTitle>
+            <CardDescription>
+              {oficio.arquivoAssinadoUrl
+                ? "O ofício já tem um PDF assinado guardado — o botão “PDF assinado”, no topo, abre o arquivo."
+                : "Este ofício foi emitido sem assinatura eletrônica. Anexe aqui o PDF assinado e digitalizado para guardá-lo junto do ofício."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AnexarAssinadoAMao oficioId={id} temArquivo={Boolean(oficio.arquivoAssinadoUrl)} />
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

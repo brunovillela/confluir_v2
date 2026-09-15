@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto"
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 import { createElement } from "react"
 import { renderToBuffer } from "@react-pdf/renderer"
 import QRCode from "qrcode"
@@ -939,3 +939,52 @@ export async function verificarCertificado(certificado: string): Promise<Verific
   }
 }
 
+// ── Ofício assinado à mão (sem assinatura eletrônica) ───────────────────────
+
+/**
+ * Anexa o PDF do ofício assinado à mão (digitalizado) ao ofício já emitido.
+ * Guarda no mesmo lugar do PDF assinado eletronicamente e do que veio do
+ * sistema antigo — `oficios.arquivo_assinado`, bucket `documentos`.
+ */
+export async function anexarAssinadoAMao(
+  oficioId: string,
+  arquivo: File
+): Promise<{ erro?: string; caminho?: string }> {
+  if (arquivo.type !== "application/pdf") return { erro: "O arquivo deve ser um PDF." }
+  if (arquivo.size === 0) return { erro: "O arquivo está vazio." }
+  if (arquivo.size > 10 * 1024 * 1024) return { erro: "O arquivo deve ter no máximo 10 MB." }
+
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("oficios")
+    .select("situacao, arquivo_assinado")
+    .eq("id", oficioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!o) return { erro: "Ofício não encontrado." }
+  if (o.situacao === "Rascunho") return { erro: "Emita o ofício antes de anexar o documento assinado." }
+  if (o.situacao === "Aguardando assinatura") {
+    return { erro: "Este ofício está em assinatura eletrônica — cancele o envio antes de anexar um documento assinado à mão." }
+  }
+  const assinaturas = await assinaturasDoOficio(oficioId)
+  if (assinaturas.some((a) => a.situacao === "assinado")) {
+    return { erro: "Este ofício já tem assinatura eletrônica: o PDF assinado é gerado pelo próprio sistema." }
+  }
+
+  const caminho = `oficios/${oficioId}/assinado-mao-${randomUUID().slice(0, 8)}.pdf`
+  const { error } = await admin.storage
+    .from("documentos")
+    .upload(caminho, arquivo, { contentType: "application/pdf" })
+  if (error) return { erro: `Falha ao subir o arquivo: ${error.message}` }
+
+  const { error: erroBanco } = await admin
+    .from("oficios")
+    .update({ arquivo_assinado: caminho, updated_at: new Date().toISOString() })
+    .eq("id", oficioId)
+  if (erroBanco) {
+    await admin.storage.from("documentos").remove([caminho])
+    return { erro: `Falha ao gravar o arquivo no ofício: ${erroBanco.message}` }
+  }
+  // O anterior fica no bucket de propósito: histórico do que já circulou.
+  return { caminho }
+}
