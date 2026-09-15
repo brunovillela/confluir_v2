@@ -157,6 +157,15 @@ const conv = {
   s: (v) => (v == null || v === "" ? null : String(v).trim() || null),
 }
 
+/** "…T01:29:21.360Z" e "…T01:29:21.36+00:00" são o mesmo instante. */
+function mesmoValor(novo, atual, como) {
+  if (novo === atual) return true
+  if (como === "ts" && novo && atual) return new Date(novo).getTime() === new Date(atual).getTime()
+  if (como === "d" && novo && atual) return String(novo).slice(0, 10) === String(atual).slice(0, 10)
+  return false
+}
+const ehCdn = (v) => typeof v === "string" && (v.startsWith("//") || /cdn\.bubble\.io|amazonaws/i.test(v))
+
 // ── o mapa: por tabela, campo do Bubble → [coluna, conversor | ref] ─────────
 // ref: { tipo: "<tipo do Bubble>", tabela: "<tabela daqui>", semTenant? }
 
@@ -341,7 +350,10 @@ for (const [nome, parte] of Object.entries(PARTES)) {
         if (!valor) { semRef[coluna]++; continue }
       } else valor = conv[como](bruto)
       if (valor === null || valor === undefined) continue
-      if (ocupada && valor === linha[coluna]) continue // já igual
+      if (ocupada && mesmoValor(valor, linha[coluna], como)) continue // já igual
+      // Arquivo que o migrar-documentos já trouxe para o bucket fica: o Bubble
+      // só tem a URL do CDN, e voltar para ela desfaria a migração.
+      if (ocupada && ehCdn(valor) && !ehCdn(linha[coluna]) && typeof linha[coluna] === "string" && !/^https?:/i.test(linha[coluna])) continue
       patch[coluna] = valor
       porCampo[coluna]++
     }
