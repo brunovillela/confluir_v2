@@ -148,7 +148,7 @@ export default async function OficiosPage({
                             href={`/painel/ferramentas/oficios/${o.id}`}
                             className="text-primary font-medium hover:underline"
                           >
-                            {o.numero != null ? `${o.numero}/${o.ano}` : "— (rascunho)"}
+                            {o.numero != null ? `${o.numero}/${o.ano}` : o.situacao === "Rascunho" ? "— (rascunho)" : `s/nº ${o.ano ?? ""}`.trim()}
                           </Link>
                         </TableCell>
                         <TableCell>

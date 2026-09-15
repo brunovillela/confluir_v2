@@ -2,6 +2,7 @@ import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
+import { urlArquivoDocumento } from "@/lib/db/documentos"
 import { eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -186,6 +187,32 @@ export type DetalheOficio = {
   assinanteCargo: string | null
   situacao: string | null
   filiados: FiliadoOficio[]
+  /** Histórico do Bubble (supabase/historicos-oficios-diarias.sql). */
+  departamentoNome: string | null
+  redatorNome: string | null
+  arquivoAssinadoUrl: string | null
+  respostas: { nome: string; url: string }[]
+}
+
+/** Lista JSON de caminhos (ou um caminho solto) → caminhos. */
+function caminhosDe(valor: unknown): string[] {
+  const bruto = texto(valor)
+  if (!bruto) return []
+  if (bruto.startsWith("[")) {
+    try {
+      const lista = JSON.parse(bruto) as unknown[]
+      return lista.map((v) => texto(v)).filter((v): v is string => Boolean(v))
+    } catch {
+      return []
+    }
+  }
+  return [bruto]
+}
+
+/** "oficios/<id>/resposta-ab12cd34.pdf" ou URL do CDN → nome legível. */
+function nomeDoArquivo(caminho: string): string {
+  const ultimo = decodeURIComponent(caminho.split("/").pop() ?? caminho)
+  return ultimo.length > 60 ? `${ultimo.slice(0, 57)}…` : ultimo
 }
 
 export async function obterOficio(id: string): Promise<DetalheOficio | null> {
@@ -199,7 +226,10 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
   if (!o) return null
 
   const empresaId = texto(o.destinatario_empresa_id)
-  const [nomes, { data: filiados }] = await Promise.all([
+  const departamentoId = texto(o.departamento_id)
+  const redatorId = texto(o.redator_id)
+  const respostas = caminhosDe(o.arquivos_resposta)
+  const [nomes, { data: filiados }, departamento, redator, assinadoUrl, respostasUrls] = await Promise.all([
     empresaId ? nomesDasEmpresas([empresaId]) : Promise.resolve(new Map()),
     admin
       .from("oficios_filiados")
@@ -207,6 +237,14 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
       .eq("oficio_id", id)
       .order("ordem", { ascending: true })
       .order("nome", { ascending: true }),
+    departamentoId
+      ? admin.from("empresa_departamentos").select("departamento").eq("id", departamentoId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    redatorId
+      ? admin.from("usuarios").select("nome_completo").eq("id", redatorId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    urlArquivoDocumento(texto(o.arquivo_assinado)),
+    Promise.all(respostas.map((c) => urlArquivoDocumento(c))),
   ])
 
   return {
@@ -234,6 +272,12 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
       matricula: texto(f.matricula),
       vinculoId: texto(f.vinculo_id),
     })),
+    departamentoNome: texto(departamento.data?.departamento),
+    redatorNome: texto(redator.data?.nome_completo),
+    arquivoAssinadoUrl: assinadoUrl,
+    respostas: respostas.flatMap((c, i) =>
+      respostasUrls[i] ? [{ nome: nomeDoArquivo(c), url: respostasUrls[i] }] : []
+    ),
   }
 }
 

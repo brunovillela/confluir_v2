@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Download, Printer } from "lucide-react"
+import { ArrowLeft, Download, FileCheck2, Paperclip, Printer } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -82,6 +82,14 @@ export default async function OficioPage({
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
+          {oficio.arquivoAssinadoUrl && (
+            <Button size="sm" asChild>
+              <a href={oficio.arquivoAssinadoUrl} target="_blank" rel="noreferrer">
+                <FileCheck2 />
+                PDF assinado
+              </a>
+            </Button>
+          )}
           <Button variant="outline" size="sm" asChild>
             <Link href={`/oficio/${id}/pdf`} target="_blank">
               <Download />
@@ -102,7 +110,9 @@ export default async function OficioPage({
         <h1 className="text-2xl font-semibold tracking-tight">
           {oficio.numero != null
             ? `Ofício ${oficio.numero}/${oficio.ano}`
-            : "Ofício (rascunho)"}
+            : rascunho
+              ? "Ofício (rascunho)"
+              : `Ofício sem número${oficio.ano ? ` (${oficio.ano})` : ""}`}
         </h1>
         <Badge variant="outline">
           {oficio.tipo
@@ -151,6 +161,7 @@ export default async function OficioPage({
         <Card>
           <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
             <Campo rotulo="Destinatário" valor={oficio.destinatarioNome ?? oficio.destinatarioTexto} />
+            <Campo rotulo="Aos cuidados" valor={oficio.aosCuidados} />
             <Campo rotulo="Assunto" valor={oficio.assunto} />
             <Campo rotulo="Data" valor={oficio.data ? formatarData(oficio.data) : null} />
             <Campo
@@ -161,6 +172,30 @@ export default async function OficioPage({
                   : null
               }
             />
+            {oficio.departamentoNome && (
+              <Campo rotulo="Departamento" valor={oficio.departamentoNome} />
+            )}
+            {oficio.redatorNome && <Campo rotulo="Redator" valor={oficio.redatorNome} />}
+            {oficio.respostas.length > 0 && (
+              <div className="sm:col-span-2">
+                <p className="text-muted-foreground text-xs">Respostas recebidas</p>
+                <ul className="mt-1 grid gap-1">
+                  {oficio.respostas.map((r) => (
+                    <li key={r.url}>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
+                      >
+                        <Paperclip className="size-3.5" />
+                        {r.nome}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {oficio.corpo && (
               <div className="sm:col-span-2">
                 <p className="text-muted-foreground text-xs">Corpo</p>
