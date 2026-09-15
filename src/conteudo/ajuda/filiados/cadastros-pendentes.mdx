@@ -6,6 +6,23 @@ da ficha era visível.
 
 <RequerPermissao>Filiados</RequerPermissao>
 
+## Saúde dos cadastros
+
+Na tela inicial de **Filiados**, o cartão **Saúde dos cadastros** mostra, num
+medidor, quantos por cento dos cadastros ativos estão **completos** — sem
+nenhuma das pendências abaixo. A cor e a etiqueta dizem a faixa:
+
+| Completos | Faixa | Cor |
+| --- | --- | --- |
+| até 50% | Crítico | vermelho |
+| acima de 50% até 70% | Regular | amarelo |
+| acima de 70% até 85% | Confiável | verde |
+| acima de 85% | Excelente | azul |
+
+O link **Cadastros pendentes**, no canto do cartão, abre a lista para resolver.
+O cartão é apurado junto com a lista (a mesma varredura), então os números
+batem.
+
 ## O que conta como pendência
 
 **Filiados → Cadastros pendentes** mostra os filiados **ativos** (condição do
@@ -14,6 +31,8 @@ cadastro) com pelo menos uma destas inconsistências:
 - **CPF ausente ou inválido** — o CPF é a identidade do filiado no sistema.
 - **Nome incompleto** — sem nome, ou só um nome.
 - **Termo LGPD não aceito** — o cadastro não aponta para a versão em vigor.
+  Só conta para quem **tem conta na área do associado**, que é onde o filiado
+  aceita o termo; sem conta, a falta do aceite não é pendência.
 - **Termo de desconto não aceito** — idem, para a autorização de desconto.
 - **Sem vínculo em aberto** — não há vínculo de filiação sem data de saída.
 - **Vínculo incompleto** — no vínculo em aberto falta algo obrigatório: fonte
@@ -50,8 +69,8 @@ lista os campos.
   <Passo titulo="Termos legais">
     O aceite é registrado na ficha pública ou pela secretaria. Em 10/09/2026 o
     termo de desconto em vigor foi registrado como aceito para todos os ativos,
-    porque a ficha assinada já o menciona; o de LGPD continua pendente para
-    quem não o aceitou.
+    porque a ficha assinada já o menciona. O de LGPD fica pendente só para
+    quem tem conta na área do associado e ainda não o aceitou lá.
   </Passo>
 </PassoAPasso>
 

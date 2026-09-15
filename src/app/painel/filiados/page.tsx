@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 import {
   BadgePercent,
   Building2,
   ClipboardCheck,
   BarChart3,
-  FileWarning,
   FolderHeart,
   HandCoins,
   Handshake,
@@ -39,6 +39,7 @@ import { resumoFiliados } from "@/lib/db/filiados"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { BuscaRapida } from "./busca-rapida"
+import { SaudeCadastros, SaudeCadastrosCarregando } from "./saude-cadastros"
 
 export const metadata: Metadata = { title: "Filiados — Confluir" }
 
@@ -358,6 +359,8 @@ export default async function FiliadosPage({
     "filiacao_receitas",
   ])
   const podeRegistrar = podeAcessar(sessao.permissoes, "filiacao_gestao")
+  // Mesma guarda da página de cadastros pendentes (quem só vê receitas não entra).
+  const podeVerPendentes = podeAcessar(sessao.permissoes, "filiacao_filiados", ["filiacao_gestao"])
   const { periodo: periodoBruto } = await searchParams
   const periodo =
     periodoBruto === "semana" || periodoBruto === "ano" ? periodoBruto : "mes"
@@ -511,12 +514,6 @@ export default async function FiliadosPage({
             icone={BarChart3}
           />
         )}
-        <CartaoArea
-          titulo="Cadastros pendentes"
-          descricao="Filiados ativos com dado, termo ou histórico de vínculos incompleto"
-          href="/painel/filiados/cadastros-pendentes"
-          icone={FileWarning}
-        />
         {podeRegistrar && (
           <CartaoArea
             titulo="Fichas de filiação"
@@ -617,8 +614,13 @@ export default async function FiliadosPage({
       </div>
 
       {/* Gráficos */}
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 xl:grid-cols-3">
+        {podeVerPendentes && (
+          <Suspense fallback={<SaudeCadastrosCarregando />}>
+            <SaudeCadastros />
+          </Suspense>
+        )}
+        <Card className={podeVerPendentes ? "xl:col-span-2" : "xl:col-span-3"}>
           <CardHeader>
             <CardTitle className="text-base">Divisão por sexo</CardTitle>
             <CardDescription>
@@ -627,37 +629,6 @@ export default async function FiliadosPage({
           </CardHeader>
           <CardContent>
             <GraficoSexoComposto series={resumo.porSexo} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Filiados por fonte pagadora
-            </CardTitle>
-            <CardDescription>
-              Filiados ativos — 10 maiores fontes
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-1">
-            {resumo.porFonte.map((e) => (
-              <Link
-                key={e.id}
-                href={`/painel/filiados/lista?fonte=${e.id}&condicao=Ativo&situacao=todas`}
-                className="hover:bg-muted/60 -mx-2 rounded-md px-2 py-1 transition-colors"
-              >
-                <BarraHorizontal
-                  rotulo={e.fonte}
-                  total={e.total}
-                  maximo={maxFonte}
-                />
-              </Link>
-            ))}
-            {resumo.porFonte.length === 0 && (
-              <p className="text-muted-foreground py-4 text-center text-sm">
-                Nenhum vínculo ativo encontrado.
-              </p>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -706,36 +677,69 @@ export default async function FiliadosPage({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Registros por condição de filiação
-          </CardTitle>
-          <CardDescription>
-            Todos os registros — clique numa condição para abrir a lista
-            filtrada
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-1">
-          {resumo.porCondicao.map((c) => {
-            const rotulo = c.condicao ?? "Sem condição"
-            const filtro = c.condicao ?? "nenhuma"
-            return (
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Filiados por fonte pagadora
+            </CardTitle>
+            <CardDescription>
+              Filiados ativos — 10 maiores fontes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1">
+            {resumo.porFonte.map((e) => (
               <Link
-                key={rotulo}
-                href={`/painel/filiados/lista?condicao=${encodeURIComponent(filtro)}&situacao=todas`}
+                key={e.id}
+                href={`/painel/filiados/lista?fonte=${e.id}&condicao=Ativo&situacao=todas`}
                 className="hover:bg-muted/60 -mx-2 rounded-md px-2 py-1 transition-colors"
               >
                 <BarraHorizontal
-                  rotulo={rotulo}
-                  total={c.total}
-                  maximo={maxCondicao}
+                  rotulo={e.fonte}
+                  total={e.total}
+                  maximo={maxFonte}
                 />
               </Link>
-            )
-          })}
-        </CardContent>
-      </Card>
+            ))}
+            {resumo.porFonte.length === 0 && (
+              <p className="text-muted-foreground py-4 text-center text-sm">
+                Nenhum vínculo ativo encontrado.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Registros por condição de filiação
+            </CardTitle>
+            <CardDescription>
+              Todos os registros — clique numa condição para abrir a lista
+              filtrada
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1">
+            {resumo.porCondicao.map((c) => {
+              const rotulo = c.condicao ?? "Sem condição"
+              const filtro = c.condicao ?? "nenhuma"
+              return (
+                <Link
+                  key={rotulo}
+                  href={`/painel/filiados/lista?condicao=${encodeURIComponent(filtro)}&situacao=todas`}
+                  className="hover:bg-muted/60 -mx-2 rounded-md px-2 py-1 transition-colors"
+                >
+                  <BarraHorizontal
+                    rotulo={rotulo}
+                    total={c.total}
+                    maximo={maxCondicao}
+                  />
+                </Link>
+              )
+            })}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Aniversariantes de hoje */}
       <GrupoColapsavel
