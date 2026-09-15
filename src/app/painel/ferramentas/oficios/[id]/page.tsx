@@ -1,11 +1,21 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Download, FileCheck2, Paperclip, Printer } from "lucide-react"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Download,
+  FileCheck2,
+  Paperclip,
+  Printer,
+  ShieldCheck,
+} from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -22,6 +32,17 @@ import {
   obterOficio,
   proximoNumeroDoAno,
 } from "@/lib/db/oficios"
+import {
+  assinaturasDoOficio,
+  assinaturaVigente,
+  destinoDaAssinatura,
+  emailSugeridoDoIntegrante,
+  formatarMomento,
+  mascararTelefone,
+  ROTULO_EVENTO,
+  telegramDoIntegrante,
+  type Assinatura,
+} from "@/lib/db/oficios-assinatura"
 import { listarSedes } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import {
@@ -32,6 +53,10 @@ import {
 } from "@/lib/oficios-constantes"
 
 import { atualizarOficioAction } from "../actions"
+import {
+  AcoesEnvioPendente,
+  EnviarParaAssinatura,
+} from "./assinatura-acoes"
 import { OficioForm } from "../oficio-form"
 import {
   AdicionarManual,
@@ -57,7 +82,7 @@ export default async function OficioPage({
   const rascunho = oficio.situacao === "Rascunho"
   const automatico = eAutomatico(oficio.tipo)
 
-  const [empresas, { sedes }, assinantes, proximoNumero, candidatos] =
+  const [empresas, { sedes }, assinantes, proximoNumero, candidatos, assinaturas, emailSugerido] =
     await Promise.all([
       rascunho ? listarEmpresas() : Promise.resolve([]),
       rascunho ? listarSedes() : Promise.resolve({ disponivel: true, sedes: [] }),
@@ -70,7 +95,18 @@ export default async function OficioPage({
             {}
           )
         : Promise.resolve([]),
+      assinaturasDoOficio(id),
+      rascunho ? emailSugeridoDoIntegrante(oficio.assinanteIntegranteId) : Promise.resolve(null),
     ])
+  const telegram = rascunho
+    ? await telegramDoIntegrante(oficio.assinanteIntegranteId)
+    : { disponivel: false, telefone: null }
+  const aguardando = oficio.situacao === "Aguardando assinatura"
+  // Cartão de assinatura: a vigente (assinada ou pendente), senão a última.
+  const assinaturaDoCartao = assinaturaVigente(assinaturas) ?? assinaturas[0] ?? null
+  const ultimaRecusa = rascunho && assinaturas[0]?.situacao === "recusado" ? assinaturas[0] : null
+  const nomeAssinante =
+    assinantes.find((x) => x.id === oficio.assinanteIntegranteId)?.nome ?? oficio.assinanteNome
 
   return (
     <>
@@ -102,7 +138,7 @@ export default async function OficioPage({
               Imprimir
             </Link>
           </Button>
-          {rascunho && <CancelarOficio oficioId={id} />}
+          {(rascunho || aguardando) && <CancelarOficio oficioId={id} />}
         </div>
       </div>
 
@@ -124,7 +160,9 @@ export default async function OficioPage({
           className={
             oficio.situacao === "Emitido"
               ? "border-success/40 text-success-fg"
-              : oficio.situacao === "Cancelado"
+              : aguardando
+                ? "border-info/40 text-info-fg"
+                : oficio.situacao === "Cancelado"
                 ? "text-muted-foreground line-through"
                 : "border-warning/40 text-warning-fg"
           }
@@ -282,21 +320,166 @@ export default async function OficioPage({
         </Card>
       )}
 
-      {/* Emissão */}
+      {/* Emissão: por assinatura eletrônica ou, à mão, direto */}
       {rascunho && (
         <Card>
-          <CardContent className="pt-6">
-            <p className="mb-1 text-sm font-medium">Emitir ofício</p>
-            <p className="text-muted-foreground mb-3 text-sm">
-              Ao emitir, o número é atribuído e o documento fica travado. O número
-              sugerido é o próximo do ano — ajuste na primeira emissão se estiver
-              continuando de uma numeração anterior.
-            </p>
-            <EmitirOficio oficioId={id} proximoNumero={proximoNumero} />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="size-4" />
+              Enviar para assinatura eletrônica
+            </CardTitle>
+            <CardDescription>
+              Ao enviar, o ofício recebe o número e fica travado. Quem assina recebe um e-mail para
+              revisar o documento e assinar com um código de uso único; assinado, o ofício é emitido
+              com QR Code e certificado de verificação.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {ultimaRecusa && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {ultimaRecusa.nome ?? "O assinante"} recusou a assinatura em{" "}
+                  {formatarMomento(ultimaRecusa.recusadoEm)}: {ultimaRecusa.motivoRecusa}. Corrija e
+                  envie de novo — o número {oficio.numero}/{oficio.ano} continua reservado.
+                </AlertDescription>
+              </Alert>
+            )}
+            {oficio.assinanteIntegranteId ? (
+              <EnviarParaAssinatura
+                oficioId={id}
+                proximoNumero={proximoNumero}
+                numeroReservado={oficio.numero}
+                emailSugerido={emailSugerido}
+                assinante={nomeAssinante}
+                telegram={{
+                  disponivel: telegram.disponivel,
+                  telefone: telegram.telefone ? mascararTelefone(telegram.telefone) : null,
+                }}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Escolha o assinante (diretoria) acima e salve para poder enviar.
+              </p>
+            )}
+            <details className="rounded-md border px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Emitir sem assinatura eletrônica
+              </summary>
+              <p className="text-muted-foreground mt-2 mb-3 text-sm">
+                Para ofício assinado à mão: o número é atribuído e o documento fica travado, sem QR
+                Code nem certificado. O número sugerido é o próximo do ano — ajuste se estiver
+                continuando de uma numeração anterior.
+              </p>
+              <EmitirOficio oficioId={id} proximoNumero={oficio.numero ?? proximoNumero} />
+            </details>
           </CardContent>
         </Card>
       )}
+
+      {assinaturaDoCartao && <CartaoAssinatura assinatura={assinaturaDoCartao} oficioId={id} />}
+
     </>
+  )
+}
+
+function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura; oficioId: string }) {
+  const cancelamento = [...a.eventos].reverse().find((e) => e.tipo === "cancelado")
+  const passos = [
+    {
+      rotulo: "Enviado",
+      quando: a.enviadoEm,
+      detalhe: a.canal === "telegram" ? destinoDaAssinatura(a) : a.email,
+      falha: false,
+    },
+    { rotulo: "Aberto pelo assinante", quando: a.visualizadoEm, detalhe: null, falha: false },
+    a.situacao === "recusado"
+      ? { rotulo: "Recusado", quando: a.recusadoEm, detalhe: a.motivoRecusa, falha: true }
+      : a.situacao === "cancelado"
+        ? { rotulo: "Envio cancelado", quando: cancelamento?.quando ?? null, detalhe: cancelamento?.detalhe ?? null, falha: true }
+        : { rotulo: "Assinado", quando: a.assinadoEm, detalhe: a.assinadoEm && a.ip ? `IP ${a.ip}` : null, falha: false },
+  ]
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="size-4" />
+          Assinatura eletrônica
+        </CardTitle>
+        <CardDescription>
+          {a.nome ?? "Assinante"}
+          {a.cargo ? ` — ${a.cargo}` : ""}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <ol className="grid gap-3 sm:grid-cols-3">
+          {passos.map((p) => (
+            <li key={p.rotulo} className="flex items-start gap-2 text-sm">
+              {p.quando ? (
+                <CheckCircle2
+                  className={`mt-0.5 size-4 shrink-0 ${p.falha ? "text-destructive" : "text-success-fg"}`}
+                />
+              ) : (
+                <Circle className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+              )}
+              <span className="min-w-0">
+                <span className="block font-medium">{p.rotulo}</span>
+                <span className="text-muted-foreground block text-xs">
+                  {p.quando ? formatarMomento(p.quando) : "—"}
+                </span>
+                {p.detalhe && (
+                  <span className="text-muted-foreground block text-xs break-all">{p.detalhe}</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {a.situacao === "pendente" && <AcoesEnvioPendente oficioId={oficioId} />}
+
+        {a.situacao === "assinado" && a.certificado && (
+          <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">
+            <div>
+              <p className="text-muted-foreground text-xs">Certificado</p>
+              <p className="font-mono text-base font-semibold tracking-wider">{a.certificado}</p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/verificar/${a.certificado}`} target="_blank" rel="noreferrer">
+                <ShieldCheck />
+                Página de verificação
+              </a>
+            </Button>
+          </div>
+        )}
+
+        <details className="rounded-md border px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Trilha de auditoria ({a.eventos.length})
+          </summary>
+          <ul className="mt-3 grid gap-2 text-sm">
+            {a.eventos.map((e, i) => (
+              <li key={i} className="grid gap-0.5 sm:grid-cols-[11rem_1fr]">
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {formatarMomento(e.quando)}
+                </span>
+                <span>
+                  {ROTULO_EVENTO[e.tipo] ?? e.tipo}
+                  {(e.detalhe || e.ip) && (
+                    <span className="text-muted-foreground block text-xs">
+                      {[e.detalhe, e.ip ? `IP ${e.ip}` : null].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {a.hashDocumento && (
+            <p className="text-muted-foreground mt-3 text-xs break-all">
+              Resumo do conteúdo (SHA-256): <span className="font-mono">{a.hashDocumento}</span>
+            </p>
+          )}
+        </details>
+      </CardContent>
+    </Card>
   )
 }
 

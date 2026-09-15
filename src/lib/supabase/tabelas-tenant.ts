@@ -102,6 +102,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "lgpd_solicitacoes",
   "noticias",
   "oficios",
+  "oficios_assinaturas",
+  "oficios_assinaturas_eventos",
   "oposicao_campanha",
   "oposicao_campanha_fontes",
   "oposicao_eventos",

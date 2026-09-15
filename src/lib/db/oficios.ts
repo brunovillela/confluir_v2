@@ -351,26 +351,34 @@ async function proximoNumero(ano: number): Promise<number> {
   return (max ?? 0) + 1
 }
 
-export async function emitirOficio(
-  id: string,
-  numeroManual?: number | null
-): Promise<{ erro?: string; numero?: number; ano?: number }> {
+export type PreparoEmissao = {
+  ano: number
+  /** Número já reservado (envio recusado ou cancelado que voltou ao rascunho). */
+  numeroAtual: number | null
+  assinanteIntegranteId: string
+  assinanteNome: string | null
+  assinanteCargo: string | null
+}
+
+/** Confere se o rascunho pode sair (assinante, destinatário) e tira o snapshot do assinante. */
+export async function prepararEmissao(
+  id: string
+): Promise<{ erro: string } | PreparoEmissao> {
   const admin = await createAdminClient()
   const { data: o } = await admin
     .from("oficios")
     .select(
-      "situacao, data, assinante_integrante_id, destinatario_empresa_id, destinatario_texto"
+      "situacao, data, numero, ano, assinante_integrante_id, destinatario_empresa_id, destinatario_texto"
     )
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!o) return { erro: "Ofício não encontrado." }
-  if (o.situacao !== "Rascunho") return { erro: "O ofício já foi emitido ou cancelado." }
+  if (o.situacao !== "Rascunho") return { erro: "O ofício já foi emitido, enviado para assinatura ou cancelado." }
   if (!o.assinante_integrante_id) return { erro: "Selecione o assinante (diretoria) antes de emitir." }
   if (!o.destinatario_empresa_id && !texto(o.destinatario_texto))
     return { erro: "Informe o destinatário antes de emitir." }
 
-  // Snapshot do assinante a partir da diretoria.
   const { data: integrante } = await admin
     .from("diretoria_integrantes")
     .select("nome, cargo")
@@ -379,23 +387,50 @@ export async function emitirOficio(
   if (!integrante) return { erro: "Assinante não encontrado na diretoria." }
 
   const ano = anoDe(texto(o.data))
+  return {
+    ano,
+    numeroAtual: o.numero != null && o.ano === ano ? (o.numero as number) : null,
+    assinanteIntegranteId: String(o.assinante_integrante_id),
+    assinanteNome: texto(integrante.nome),
+    assinanteCargo: texto(integrante.cargo),
+  }
+}
 
-  // Tenta atribuir número; em colisão (unique), recomputa e repete.
-  for (let tentativa = 0; tentativa < 6; tentativa++) {
-    const numero = numeroManual && tentativa === 0 ? numeroManual : await proximoNumero(ano)
-    const { error } = await admin
+/**
+ * Atribui o número do ano e grava `campos` na mesma operação (só a partir do
+ * rascunho). Número já reservado é mantido; em colisão do unique, recomputa.
+ */
+export async function numerarOficio(
+  id: string,
+  preparo: PreparoEmissao,
+  numeroManual: number | null,
+  campos: Record<string, unknown>
+): Promise<{ erro?: string; numero?: number; ano?: number }> {
+  const admin = await createAdminClient()
+  const { ano } = preparo
+  const gravar = (numero: number) =>
+    admin
       .from("oficios")
       .update({
         numero,
         ano,
-        situacao: "Emitido",
-        emitido_em: new Date().toISOString(),
-        assinante_nome: texto(integrante.nome),
-        assinante_cargo: texto(integrante.cargo),
+        assinante_nome: preparo.assinanteNome,
+        assinante_cargo: preparo.assinanteCargo,
+        ...campos,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
       .eq("situacao", "Rascunho")
+
+  if (preparo.numeroAtual != null && (!numeroManual || numeroManual === preparo.numeroAtual)) {
+    const { error } = await gravar(preparo.numeroAtual)
+    return error ? { erro: `Falha ao emitir: ${error.message}` } : { numero: preparo.numeroAtual, ano }
+  }
+
+  // Tenta atribuir número; em colisão (unique), recomputa e repete.
+  for (let tentativa = 0; tentativa < 6; tentativa++) {
+    const numero = numeroManual && tentativa === 0 ? numeroManual : await proximoNumero(ano)
+    const { error } = await gravar(numero)
     if (!error) return { numero, ano }
     if (error.code !== "23505") return { erro: `Falha ao emitir: ${error.message}` }
     // 23505 = número já usado; se foi manual, avisa; senão repete com max+1.
@@ -406,6 +441,19 @@ export async function emitirOficio(
   return { erro: "Não foi possível atribuir o número. Tente novamente." }
 }
 
+/** Emissão sem assinatura eletrônica (documento assinado à mão). */
+export async function emitirOficio(
+  id: string,
+  numeroManual?: number | null
+): Promise<{ erro?: string; numero?: number; ano?: number }> {
+  const preparo = await prepararEmissao(id)
+  if ("erro" in preparo) return preparo
+  return numerarOficio(id, preparo, numeroManual ?? null, {
+    situacao: "Emitido",
+    emitido_em: new Date().toISOString(),
+  })
+}
+
 export async function cancelarOficio(id: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { error } = await admin
@@ -414,6 +462,12 @@ export async function cancelarOficio(id: string): Promise<{ erro?: string }> {
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
+  // Link de assinatura em aberto deixa de valer (a página mostra "cancelado").
+  await admin
+    .from("oficios_assinaturas")
+    .update({ situacao: "cancelado", updated_at: new Date().toISOString() })
+    .eq("oficio_id", id)
+    .eq("situacao", "pendente")
   return {}
 }
 

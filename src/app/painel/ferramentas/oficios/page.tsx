@@ -30,6 +30,7 @@ const SELECT_FILTRO =
 
 const CLASSE_SITUACAO: Record<string, string> = {
   Rascunho: "border-warning/40 text-warning-fg",
+  "Aguardando assinatura": "border-info/40 text-info-fg",
   Emitido: "border-success/40 text-success-fg",
   Cancelado: "text-muted-foreground line-through",
 }

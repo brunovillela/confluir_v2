@@ -17,7 +17,7 @@ export function eAutomatico(tipo: string | null): tipo is "desfiliacao" | "filia
   return tipo === "desfiliacao" || tipo === "filiacao"
 }
 
-export const SITUACOES_OFICIO = ["Rascunho", "Emitido", "Cancelado"] as const
+export const SITUACOES_OFICIO = ["Rascunho", "Aguardando assinatura", "Emitido", "Cancelado"] as const
 export type SituacaoOficio = (typeof SITUACOES_OFICIO)[number]
 
 /**

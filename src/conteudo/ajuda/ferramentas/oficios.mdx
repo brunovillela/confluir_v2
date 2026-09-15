@@ -1,5 +1,6 @@
 Os **ofícios** são os documentos oficiais da entidade, com **numeração por
-ano**, **signatário** da diretoria e geração de **PDF**.
+ano**, **signatário** da diretoria, **assinatura eletrônica** e geração de
+**PDF** com QR Code de verificação.
 
 <RequerPermissao>Ofícios</RequerPermissao>
 
@@ -10,13 +11,24 @@ ano**, **signatário** da diretoria e geração de **PDF**.
     Preencha destinatário, assunto e corpo. O **signatário** vem dos integrantes
     **vigentes** da diretoria. Há um campo opcional "Aos cuidados".
   </Passo>
-  <Passo titulo="Emissão">
-    Ao emitir, o ofício recebe o **número** (o próximo do ano é sugerido) e fica
-    **travado** — vira documento oficial.
+  <Passo titulo="Enviar para assinatura">
+    No cartão **Enviar para assinatura eletrônica**, escolha **por onde** vai o
+    convite — e-mail ou **Telegram** — confira o endereço (o sistema sugere o
+    último usado, o do usuário do painel ou o da filiação) e o **número** (o
+    próximo do ano é sugerido). Ao enviar, o ofício recebe o número, fica
+    **travado** em "Aguardando assinatura" e o assinante recebe o convite.
   </Passo>
-  <Passo titulo="PDF e impressão">
-    O ofício gera **PDF** (logo, dados da entidade no rodapé, sedes e paginação)
-    e também abre em versão para impressão.
+  <Passo titulo="O assinante assina">
+    Pelo botão **Revisar e assinar** do convite, o assinante lê o ofício
+    inteiro, marca que concorda, pede um **código de uso único** (chega no mesmo
+    canal, vale 10 minutos) e assina. Não precisa de login no Confluir.
+  </Passo>
+  <Passo titulo="Emitido, com QR Code e certificado">
+    Assinado, o ofício passa a **Emitido** sozinho. O PDF final leva o **QR
+    Code** ao lado do cabeçalho, o carimbo "Assinado eletronicamente em … ·
+    Certificado …" sob a assinatura e uma página final **Certificado de
+    assinatura eletrônica** com a trilha. Quem enviou recebe e-mail e
+    notificação.
   </Passo>
 </PassoAPasso>
 
@@ -24,6 +36,57 @@ ano**, **signatário** da diretoria e geração de **PDF**.
   Alguns tipos (filiação/desfiliação) **carregam a lista de pessoas** a partir da
   fonte pagadora, sem você digitar nome a nome.
 </Aviso>
+
+## Assinatura eletrônica
+
+### Quem assina não tem e-mail
+
+O Telegram resolve: se o assinante tem **conta vinculada e telefone
+confirmado** em Meu perfil → Telegram, a opção **Telegram** aparece no cartão
+de envio, e tanto o convite quanto o código chegam pelo bot. Sem e-mail e sem
+Telegram, resta **Emitir sem assinatura eletrônica** e anexar depois o PDF
+assinado à mão (abaixo).
+
+### Acompanhar
+
+O cartão **Assinatura eletrônica** do ofício mostra os três passos — enviado,
+aberto pelo assinante, assinado — com data e hora, e a **trilha de auditoria**:
+cada envio, abertura do link, código enviado ou digitado errado, assinatura,
+recusa e cancelamento, com endereço IP. Enquanto aguarda:
+
+- **Reenviar e-mail** — manda o convite de novo (lembrete) para o mesmo
+  endereço.
+- **Cancelar envio** — o link deixa de valer e o ofício volta ao rascunho **com
+  o número reservado**. Use para corrigir o texto ou o e-mail.
+
+Quando o assinante abre o link depois de assinado, recusado ou cancelado, a
+página mostra o **status atual** em vez do passo a passo.
+
+### Recusa
+
+O assinante pode **recusar** e dizer o motivo. O ofício volta ao rascunho, com
+o número reservado; o motivo aparece no alto do cartão de envio, e quem enviou
+recebe e-mail e notificação. Corrija e envie de novo.
+
+### Conferência pelo QR Code
+
+O QR Code abre a página **Verificação de assinatura** (sem login), que confirma
+o certificado, o número, o assunto, quem assinou, a **data e hora** e o **resumo
+SHA-256** do conteúdo — sem mostrar o texto do ofício. Se a entidade cancelar o
+ofício depois de assinado, a página avisa.
+
+<Aviso tipo="nota" titulo="Por que o conteúdo não muda depois do envio">
+  No envio, o sistema calcula um resumo (SHA-256) de tudo o que o PDF mostra. Na
+  assinatura, calcula de novo e só assina se for igual — o que o assinante leu é
+  o que ele assinou. A assinatura eletrônica segue a Lei nº 14.063/2020; não é
+  certificado digital ICP-Brasil.
+</Aviso>
+
+### Emitir sem assinatura eletrônica
+
+Para ofício assinado à mão, abra **Emitir sem assinatura eletrônica** no fim do
+cartão de envio: o número é atribuído e o documento fica travado, sem QR Code
+nem certificado.
 
 ## Ofícios do sistema anterior
 
@@ -40,7 +103,17 @@ texto). O detalhe mostra também o **departamento** emissor, o **redator**, o
 - **"Não aparece o signatário que quero."** O signatário vem dos integrantes
   **vigentes** da diretoria — confira o mandato em Institucional → Diretoria.
 - **"Emiti e agora não consigo editar."** Um ofício emitido fica **travado**
-  (é oficial). Emita um novo se precisar corrigir.
+  (é oficial). Emita um novo se precisar corrigir. Se ainda está **aguardando
+  assinatura**, use **Cancelar envio**: volta ao rascunho com o mesmo número.
+- **"O assinante não recebeu o convite."** Confira o destino na trilha, peça
+  para olhar a caixa de spam e use **Reenviar convite**. Destino errado:
+  cancele o envio e envie de novo com o endereço certo.
+- **"A opção Telegram não aparece."** O assinante ainda não vinculou a conta ou
+  não confirmou o telefone em **Meu perfil → Telegram** — e ele precisa ter
+  usuário no painel.
+- **"O código não chegou ou expirou."** O código vale 10 minutos; na página de
+  assinatura, **Enviar outro código** (um por minuto). Cinco erros seguidos
+  exigem um código novo.
 - **"Um ofício antigo aparece sem número."** O sistema anterior deixou dois
   ofícios com o mesmo número no mesmo ano; aqui a numeração não se repete, então
   o segundo entrou sem número — o assunto e o arquivo continuam lá.

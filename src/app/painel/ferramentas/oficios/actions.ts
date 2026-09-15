@@ -15,6 +15,12 @@ import {
   removerFiliado,
   type DadosOficio,
 } from "@/lib/db/oficios"
+import {
+  cancelarEnvio,
+  enviarParaAssinatura,
+  reenviarConvite,
+  type CanalAssinatura,
+} from "@/lib/db/oficios-assinatura"
 import { TIPOS_OFICIO, type TipoOficio } from "@/lib/oficios-constantes"
 
 function texto(formData: FormData, campo: string): string {
@@ -176,3 +182,61 @@ export async function removerFiliadoAction(
   if (oficioId) revalidatePath(`/painel/ferramentas/oficios/${oficioId}`)
   return { ok: "Removido." }
 }
+
+// ── Assinatura eletrônica ───────────────────────────────────────────────────
+
+export async function enviarParaAssinaturaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("ferramentas_oficios")
+  const id = texto(formData, "oficio_id")
+  if (!id) return { erro: "Ofício inválido." }
+  const numeroTxt = texto(formData, "numero")
+  const numero = numeroTxt ? Number.parseInt(numeroTxt, 10) : null
+
+  const canal: CanalAssinatura = texto(formData, "canal") === "telegram" ? "telegram" : "email"
+  const r = await enviarParaAssinatura({
+    oficioId: id,
+    email: texto(formData, "email"),
+    canal,
+    numeroManual: Number.isFinite(numero) ? numero : null,
+    usuarioId: sessao.usuario.id as string,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/ferramentas/oficios")
+  revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  return {
+    ok: r.entregue
+      ? `Ofício ${r.numero}/${r.ano} enviado para assinatura — convite em ${r.destino}.`
+      : `Ofício ${r.numero}/${r.ano} aguardando assinatura, mas o convite não saiu — use "Reenviar convite".`,
+  }
+}
+
+export async function reenviarConviteAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_oficios")
+  const id = texto(formData, "oficio_id")
+  const r = await reenviarConvite(id)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  return r.entregue
+    ? { ok: `Convite reenviado para ${r.destino}.` }
+    : { erro: "O convite não saiu. Tente de novo em instantes." }
+}
+
+export async function cancelarEnvioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_oficios")
+  const id = texto(formData, "oficio_id")
+  const r = await cancelarEnvio(id, texto(formData, "motivo") || null)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/ferramentas/oficios")
+  revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  return { ok: "Envio cancelado. O ofício voltou ao rascunho, com o número reservado." }
+}
+
