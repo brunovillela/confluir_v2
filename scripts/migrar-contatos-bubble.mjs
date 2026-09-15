@@ -127,8 +127,8 @@ const [filiacoes, usuarios, empresas, emailsA, telefonesA, enderecosA] = await P
   lerTudo("filiacoes", "id, bubble_id, email_pessoal, email_corporativo, telefone_1, telefone_2", (q) => q.eq("emp_proprietaria_id", TENANT)),
   lerTudo("usuarios", "id, bubble_id", (q) => q.eq("emp_proprietaria_id", TENANT)),
   lerTudo("empresa", "id, bubble_id"),
-  lerTudo("emails", "id, bubble_id"),
-  lerTudo("telefones", "id, bubble_id"),
+  lerTudo("emails", "id, bubble_id, email, filiado_id, usuario_id"),
+  lerTudo("telefones", "id, bubble_id, numero, filiado_id, usuario_id"),
   lerTudo("enderecos", "id, bubble_id"),
 ])
 const filiado = resolvedor(cadastrosB, filiacoes)
@@ -136,6 +136,10 @@ const usuario = resolvedor(usersB, usuarios)
 const empresa = resolvedor(empresasB, empresas)
 const jaAqui = (lista) => new Set(lista.map((l) => l.bubble_id).filter(Boolean))
 const emailsJa = jaAqui(emailsA), telefonesJa = jaAqui(telefonesA), enderecosJa = jaAqui(enderecosA)
+// Pessoa|valor que já existe aqui: a cópia repetida do Bubble, pulada na
+// primeira rodada, não pode entrar na segunda só porque o original chegou.
+const chavesAqui = (lista, campo, norm) =>
+  lista.map((l) => `${l.filiado_id ?? l.usuario_id}|${norm(l[campo])}`).filter((k) => !k.endsWith("|null"))
 
 /** Dono do contato, na ordem em que o Bubble o guarda. */
 function dono(x) {
@@ -152,7 +156,7 @@ const cE = contagem()
 const emailsNovos = []
 const emailsPorFiliado = new Map() // filiado_id → [{ email, favorito }]
 {
-  const vistos = new Set()
+  const vistos = new Set(chavesAqui(emailsA, "email", email))
   for (const x of emailsB) {
     const v = email(x.Email)
     if (!v) { cE.semValor++; continue }
@@ -190,7 +194,7 @@ const cT = contagem()
 const telefonesNovos = []
 const fonesPorFiliado = new Map()
 {
-  const vistos = new Set()
+  const vistos = new Set(chavesAqui(telefonesA, "numero", fone))
   for (const x of telefonesB) {
     const v = fone(x.Telefone)
     if (!v) { cT.semValor++; continue }
