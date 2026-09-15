@@ -49,9 +49,9 @@ export async function SaudeCadastros() {
 function CabecalhoSaude() {
   return (
     <CardHeader>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <div>
-          <CardTitle className="text-base">Saúde dos cadastros</CardTitle>
+          <CardTitle className="text-base whitespace-nowrap">Saúde dos cadastros</CardTitle>
           <CardDescription>Filiados ativos sem nenhuma pendência</CardDescription>
         </div>
         <Link
