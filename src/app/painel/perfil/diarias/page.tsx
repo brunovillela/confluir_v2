@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { HandCoins } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -23,6 +24,7 @@ import { exigirFuncionario } from "@/lib/db/perfil"
 import {
   listarTiposDiaria,
   minhasSolicitacoesDiaria,
+  tipoDiariaLiberado,
 } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -45,7 +47,9 @@ export default async function MinhasDiariasPage({
     listarTiposDiaria(),
   ])
 
-  const ativos = tipos.filter((t) => t.ativa && t.valor_reembolso !== null)
+  const ativos = tipos.filter(
+    (t) => t.ativa && t.valor_reembolso !== null && tipoDiariaLiberado(t, sessao.usuario.id as string)
+  )
 
   return (
     <>
@@ -55,7 +59,10 @@ export default async function MinhasDiariasPage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Solicite diárias por atividades específicas (viagens, representações)
-          e acompanhe a avaliação e o pagamento.
+          e acompanhe a avaliação e o pagamento.{" "}
+          <Link href="/painel/perfil/diarias/historico" className="text-primary underline-offset-4 hover:underline">
+            Diárias anteriores
+          </Link>
         </p>
       </div>
 

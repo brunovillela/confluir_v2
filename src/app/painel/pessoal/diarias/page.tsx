@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, HandCoins, Table2 } from "lucide-react"
+import { ArrowLeft, HandCoins, History, Table2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -102,12 +102,20 @@ export default async function DiariasPage({
               gera ordem de pagamento direta ao funcionário
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/painel/pessoal/diarias/tipos">
-              <Table2 />
-              Tipos de diária
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/diarias/historico">
+                <History />
+                Histórico
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/diarias/tipos">
+                <Table2 />
+                Tipos de diária
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

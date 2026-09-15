@@ -45,6 +45,15 @@ export type TipoDiaria = {
   categoria: string | null
   valor_reembolso: number | null
   ativa: boolean
+  descricao: string | null
+  permanente: boolean
+  /** Quem pode solicitar este tipo; vazio = todos (histórico do Bubble). */
+  usuariosAutorizados: string[]
+}
+
+/** O tipo vale para a pessoa? Lista vazia libera para todos. */
+export function tipoDiariaLiberado(tipo: TipoDiaria, usuarioId: string): boolean {
+  return tipo.usuariosAutorizados.length === 0 || tipo.usuariosAutorizados.includes(usuarioId)
 }
 
 export async function listarTiposDiaria(): Promise<{
@@ -70,6 +79,11 @@ export async function listarTiposDiaria(): Promise<{
         categoria: (t.diaria as string | null) ?? null,
         valor_reembolso: (t.valor_reembolso as number | null) ?? null,
         ativa: t.ativa !== false,
+        descricao: (t.descricao as string | null) ?? null,
+        permanente: t.permanente === true,
+        usuariosAutorizados: Array.isArray(t.usuarios_autorizados)
+          ? (t.usuarios_autorizados as string[])
+          : [],
       }))
       // Dropdown: ordem alfabética (padrão do sistema, DESIGN.md).
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
@@ -268,6 +282,9 @@ export async function criarSolicitacaoDiaria(
   }
   const tipo = tipos.find((t) => t.id === nova.diaria_id)
   if (!tipo || !tipo.ativa) return { erro: "Escolha um tipo de diária válido." }
+  if (!tipoDiariaLiberado(tipo, nova.funcionario_id)) {
+    return { erro: "Este tipo de diária é restrito a outras pessoas." }
+  }
 
   const valorUnitario = tipo.valor_reembolso
   const admin = await createAdminClient()
@@ -569,12 +586,18 @@ export async function descontosDaDiaria(
 
 // ── Tipos (gestão) ─────────────────────────────────────────────────────────
 
+/** Solicitações + lançamentos do histórico que usam o tipo (bloqueiam a exclusão). */
 export async function tipoDiariaEmUso(tipoId: string): Promise<number> {
   const admin = await createAdminClient()
-  const { count, error } = await admin
-    .from("pessoal_diarias_solicitacoes")
-    .select("id", { count: "exact", head: true })
-    .eq("diaria_id", tipoId)
-  if (error) return 0
-  return count ?? 0
+  const [solicitacoes, lancamentos] = await Promise.all([
+    admin
+      .from("pessoal_diarias_solicitacoes")
+      .select("id", { count: "exact", head: true })
+      .eq("diaria_id", tipoId),
+    admin
+      .from("pessoal_diarias_lancamentos")
+      .select("id", { count: "exact", head: true })
+      .eq("tipo_id", tipoId),
+  ])
+  return (solicitacoes.error ? 0 : (solicitacoes.count ?? 0)) + (lancamentos.error ? 0 : (lancamentos.count ?? 0))
 }

@@ -4,8 +4,10 @@ pagamento quando aprovada.
 
 ## Tipos de diária
 
-Em **Tipos de diária**, cadastre cada tipo com o nome e o valor de referência, e
-mantenha ativos apenas os que estão em uso.
+Em **Tipos de diária**, cadastre cada tipo com o nome, a descrição e o valor de
+referência, e mantenha ativos apenas os que estão em uso. Tipos trazidos do
+sistema anterior podem aparecer como **Permanente** ou **Restrito a N pessoas**:
+o restrito só aparece no formulário de quem está na lista.
 
 ## O ciclo da solicitação
 
@@ -29,6 +31,18 @@ mantenha ativos apenas os que estão em uso.
   sistema.
 </Aviso>
 
+## Histórico do sistema anterior
+
+No sistema anterior a diária era **lançada dia a dia** (tipo, atividade, local e
+valor, com as despesas e comprovantes de cada dia) e os lançamentos formavam uma
+**remessa** do beneficiário, que era enviada, avaliada e paga por ordem de
+pagamento. Essas remessas estão em **Diárias → Histórico**, só para consulta:
+filtre por ano ou busque por beneficiário, departamento ou código, e abra a
+remessa para ver a avaliação, a ordem de pagamento e os lançamentos.
+
+Cada pessoa vê as próprias remessas em **Meu perfil → Diárias anteriores** — o
+atalho aparece para quem tem alguma, diretor ou funcionário.
+
 <Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com funcionário, tipo, quantidade, valor, período e situação." legenda="Diárias: as solicitações e a avaliação da equipe." />
 
 ## Erros comuns
@@ -41,7 +55,9 @@ mantenha ativos apenas os que estão em uso.
 - **"O valor total veio errado."** O total é **quantidade × valor do tipo**;
   confira o valor de referência cadastrado no tipo de diária.
 - **"O tipo de diária não aparece na solicitação."** Ele pode estar **inativo** —
-  reative-o em Tipos de diária.
+  reative-o em Tipos de diária — ou **restrito** a outras pessoas.
+- **"Não consigo excluir um tipo antigo."** Tipos usados em solicitações ou em
+  lançamentos do histórico não podem ser excluídos — desative-os.
 
 <VejaTambem
   links={[

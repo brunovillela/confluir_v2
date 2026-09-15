@@ -113,8 +113,22 @@ export default async function TiposDiariaPage({
                   )}
                   {tipos.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell className="max-w-56 truncate font-medium">
-                        {t.nome}
+                      <TableCell className="max-w-64">
+                        <span className="block truncate font-medium">{t.nome}</span>
+                        {t.descricao && (
+                          <span className="text-muted-foreground line-clamp-2 text-xs">{t.descricao}</span>
+                        )}
+                        {(t.permanente || t.usuariosAutorizados.length > 0) && (
+                          <span className="text-muted-foreground mt-0.5 block text-xs">
+                            {[
+                              t.permanente && "Permanente",
+                              t.usuariosAutorizados.length > 0 &&
+                                `Restrito a ${t.usuariosAutorizados.length} pessoa${t.usuariosAutorizados.length === 1 ? "" : "s"}`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {formatarMoeda(t.valor_reembolso)}
@@ -171,6 +185,7 @@ export default async function TiposDiariaPage({
                   nome: emEdicao.nome,
                   categoria: emEdicao.categoria ?? "",
                   valorTexto: valorTexto(emEdicao.valor_reembolso),
+                  descricao: emEdicao.descricao ?? "",
                   ativa: emEdicao.ativa,
                 }
               : undefined

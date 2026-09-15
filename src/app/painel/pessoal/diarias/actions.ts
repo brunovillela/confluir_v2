@@ -74,10 +74,16 @@ function lerCamposTipo(formData: FormData) {
   }
   // `diaria` (categoria) é enum NOT NULL — sempre gravamos um valor válido.
   const diaria = categoriaDiariaValida(String(formData.get("categoria") ?? ""))
-  return { nome, diaria, valor_reembolso, ativa: formData.get("ativa") === "on" }
+  const descricao = String(formData.get("descricao") ?? "").trim() || null
+  return { nome, diaria, valor_reembolso, descricao, ativa: formData.get("ativa") === "on" }
 }
 
 function erroTipo(mensagem: string): EstadoForm {
+  if (/descricao/i.test(mensagem)) {
+    return {
+      erro: "Descrição ainda não disponível — rode supabase/historicos-oficios-diarias.sql no SQL Editor.",
+    }
+  }
   if (/nome|ativa|column|schema/i.test(mensagem)) {
     return {
       erro: "Tabela de tipos ainda não preparada — rode supabase/diarias.sql no SQL Editor.",

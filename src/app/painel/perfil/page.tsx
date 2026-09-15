@@ -17,6 +17,7 @@ import {
   TreePalm,
   Wallet,
   type LucideIcon,
+  History,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -27,6 +28,7 @@ import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
+import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
 import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
   listarEnderecos,
@@ -151,6 +153,12 @@ const TELEGRAM: AreaPerfil = {
   href: "/painel/perfil/telegram",
   icone: Send,
 }
+const DIARIAS_ANTERIORES: AreaPerfil = {
+  titulo: "Diárias anteriores",
+  descricao: "Remessas de diárias lançadas no sistema anterior",
+  href: "/painel/perfil/diarias/historico",
+  icone: History,
+}
 const MEU_CAIXA: AreaPerfil = {
   titulo: "Meu caixa",
   descricao: "Saldo, aportes e prestações de contas da sua conta de caixa",
@@ -165,11 +173,12 @@ export default async function PerfilPage({
 }) {
   const { usuario } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
-  const [perfil, telefones, enderecos, temCaixa] = await Promise.all([
+  const [perfil, telefones, enderecos, temCaixa, remessasAnteriores] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
     usuarioTemCaixa(usuario.id).catch(() => false),
+    contarRemessasDiaria(usuario.id).catch(() => 0),
   ])
   if (!perfil) return null
 
@@ -388,6 +397,14 @@ export default async function PerfilPage({
       <div>
         <h2 className="text-lg font-semibold">Conexões e atalhos</h2>
         <div className={`mt-4 ${GRADE_AREAS}`}>
+          {remessasAnteriores > 0 && (
+            <CartaoArea
+              titulo={DIARIAS_ANTERIORES.titulo}
+              descricao={DIARIAS_ANTERIORES.descricao}
+              href={DIARIAS_ANTERIORES.href}
+              icone={DIARIAS_ANTERIORES.icone}
+            />
+          )}
           {temCaixa && (
             <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
           )}

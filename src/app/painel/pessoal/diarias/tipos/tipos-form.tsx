@@ -30,6 +30,7 @@ export type TipoDiariaFormDados = {
   categoria: string
   /** Valor já em texto pt-BR para edição (ex.: '350,00'). */
   valorTexto: string
+  descricao: string
   ativa: boolean
 }
 
@@ -98,6 +99,16 @@ export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
                 Disponível para solicitação
               </label>
             </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="descricao">Descrição</Label>
+            <Input
+              id="descricao"
+              name="descricao"
+              placeholder="Ex.: Destinada a quem cumpre expediente fora da sede de lotação"
+              defaultValue={tipo?.descricao ?? ""}
+            />
           </div>
 
           <div className="flex items-center justify-end gap-2">
