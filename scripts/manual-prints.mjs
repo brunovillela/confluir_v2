@@ -28,9 +28,13 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 15/09: tela de Filiados com o medidor de saúde dos cadastros.
+  ["/painel/filiados", "filiados/lista.png", { fullPage: true }],
+  ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png", { fullPage: true }],
+
   // Rodada de 10/09: relatórios, cadastros pendentes, nova filiação, página do
   // veículo (visão geral, histórico, saída), portal eventos e departamentos.
-  ["/painel/filiados", "filiados/lista.png", { fullPage: true }],
+  /*
   ["/painel/filiados/77777777-7777-4777-8777-000000000001", "filiados/perfil.png", { fullPage: true }],
   ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png", { fullPage: true }],
   ["/painel/filiados/relatorios", "filiados/relatorios.png"],
@@ -46,6 +50,7 @@ const SHOTS = [
   ["/portal/eventos", "portal/eventos.png", { fullPage: true }],
   ["/portal/inicio", "portal/inicio.png", { fullPage: true }],
   ["/painel/institucional/organizacao", "institucional/organizacao.png", { scrollTo: "Departamentos", fullPage: true }],
+  */
 
   // Rodadas anteriores (mantidas como referência).
   /*
