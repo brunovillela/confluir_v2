@@ -80,7 +80,8 @@ export default async function CadastrosPendentesPage({
         <p className="text-muted-foreground mt-1 text-xs">
           Filiados ativos com alguma inconsistência: dado fundamental faltando,
           termo legal não aceito, histórico sem vínculo em aberto ou vínculo
-          incompleto.
+          incompleto. O termo LGPD só conta para quem tem conta na área do
+          associado.
         </p>
       </div>
 

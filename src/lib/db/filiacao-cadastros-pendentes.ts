@@ -12,6 +12,8 @@ import { tenantAtual } from "@/lib/tenant"
  * fundamental faltando (CPF, nome completo, termos legais), histórico de
  * vínculos ausente ou vínculo corrente incompleto (ver `pendenciasDoVinculo`).
  * Vínculo em fundo de pensão sem cargo e lotação NÃO é pendência (12/09/2026).
+ * Termo LGPD não aceito só é pendência de quem tem conta na área do associado —
+ * é lá que o filiado aceita o termo (decisão do Bruno, 15/09/2026).
  *
  * Substitui a tela "Fichas pendentes" (decisão do Bruno, 10/09/2026): a ficha
  * continua sendo uma das pendências, mas deixa de ser a única.
@@ -110,6 +112,26 @@ type LinhaVinculo = {
   regime_trabalho: string | null
 }
 
+/**
+ * CPFs com conta na área do associado. A conta vive no Supabase Auth (global,
+ * sem tenant) com o CPF em `user_metadata.cpf`; o cruzamento com `filiacoes`
+ * do tenant é que a torna do filiado daqui.
+ */
+async function cpfsComContaNoPortal(): Promise<Set<string>> {
+  const admin = await createAdminClient()
+  const cpfs = new Set<string>()
+  for (let pagina = 1; ; pagina++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 1000 })
+    if (error) throw new Error(`Falha ao ler as contas do portal: ${error.message}`)
+    for (const u of data.users) {
+      const cpf = u.user_metadata?.cpf
+      if (typeof cpf === "string" && cpf.length === 11) cpfs.add(cpf)
+    }
+    if (data.users.length < 1000) break
+  }
+  return cpfs
+}
+
 /** Ids dos termos em vigor (LGPD e desconto); null = tabela sem versão em vigor. */
 async function termosEmVigor(): Promise<{ lgpd: string | null; desconto: string | null }> {
   const admin = await createAdminClient()
@@ -140,7 +162,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [cadastros, vinculos, termos, fontes] = await Promise.all([
+  const [cadastros, vinculos, termos, fontes, comConta] = await Promise.all([
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
@@ -164,6 +186,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     ),
     termosEmVigor(),
     listarFontesPagadoras(),
+    cpfsComContaNoPortal(),
   ])
 
   // Fontes que são fundo de pensão: cargo e lotação não se aplicam ao vínculo.
@@ -195,7 +218,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     if (!cpf || !validarCpf(cpf)) tipos.push("cpf")
     const nome = (c.nome_completo ?? "").trim()
     if (!nome || !nome.includes(" ")) tipos.push("nome")
-    if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd) tipos.push("lgpd")
+    if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) tipos.push("lgpd")
     if (termos.desconto && c.tl_desconto_id !== termos.desconto) tipos.push("desconto")
 
     const v = correntePorFiliado.get(c.id) ?? null
