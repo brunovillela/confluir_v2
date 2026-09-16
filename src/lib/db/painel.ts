@@ -3,6 +3,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { VINCULOS_DO_QUADRO } from "@/lib/vinculos-instituicao"
 
 /**
  * Dados da home do painel: aniversariantes da equipe (funcionários e
@@ -111,7 +112,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
     admin
       .from("usuarios")
       .select("id, nome_completo, nome_guerra, vinculo_instituicao")
-      .in("vinculo_instituicao", ["Funcionário(a)", "Diretor(a)"])
+      .in("vinculo_instituicao", [...VINCULOS_DO_QUADRO])
       .eq("nascimento_dia", hoje.dia)
       .eq("nascimento_mes", hoje.mes)
       .not("inativo", "is", true)

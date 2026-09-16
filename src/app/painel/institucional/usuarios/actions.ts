@@ -21,6 +21,7 @@ import {
 import { listarDepartamentos } from "@/lib/db/compras"
 import { definirDepartamentosCompras } from "@/lib/db/compras-acesso"
 import { atribuirPerfis } from "@/lib/db/perfis"
+import { classificarPessoa } from "@/lib/db/quadro"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
 const CHAVE = "permissoes"
@@ -88,6 +89,24 @@ export async function novaPessoaAction(
   if (erro) return { erro }
   revalidatePath("/painel/institucional/usuarios")
   redirect(`/painel/institucional/usuarios/${id}?nova=1`)
+}
+
+/** Quadro da entidade: grava a classificação de uma pessoa. */
+export async function classificarPessoaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const r = await classificarPessoa({
+    usuarioId: texto(formData, "usuario_id"),
+    classificacao: texto(formData, "classificacao"),
+    excluirVinculos: formData.get("excluir_vinculos") === "on",
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/institucional/usuarios/quadro")
+  revalidatePath("/painel/pessoal", "layout")
+  revalidatePath("/painel")
+  return { ok: r.ok }
 }
 
 export async function salvarPermissoesAction(

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ShieldCheck } from "lucide-react"
+import { ArrowLeft, ShieldCheck, Users } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,12 +37,20 @@ export default async function UsuariosPage() {
             Institucional
           </Link>
         </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/painel/institucional/usuarios/perfis">
-            <ShieldCheck />
-            Perfis de acesso
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/painel/institucional/usuarios/quadro">
+              <Users />
+              Quadro da entidade
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/painel/institucional/usuarios/perfis">
+              <ShieldCheck />
+              Perfis de acesso
+            </Link>
+          </Button>
+        </div>
       </div>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
