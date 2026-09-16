@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 
 import {
   BENEFICIOS,
@@ -161,13 +162,14 @@ export async function suspensoesDoCpf(
   cpf: string,
   escopo?: EscopoSuspensao
 ): Promise<{ escopo: string; alvo: string | null; vigenciaAte: string | null }[]> {
-  if (!cpf) return []
+  const cpfDaPessoa = cpfConfiavel(cpf)
+  if (!cpfDaPessoa) return []
   const admin = await createAdminClient()
   let q = admin
     .from("filiacao_suspensoes")
     .select("escopo, alvo, vigencia_ate")
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("cpf", cpf)
+    .eq("cpf", cpfDaPessoa)
     .is("revogada_em", null)
   if (escopo) q = q.eq("escopo", escopo)
 
@@ -319,7 +321,9 @@ export async function datasDeFiliacao(cpf: string): Promise<DatasDeFiliacao> {
     primeira: null,
     origem: null,
   }
-  if (!cpf) return vazio
+  // CPF "0" juntaria as filiações de centenas de pessoas na carência de uma.
+  const cpfDaPessoa = cpfConfiavel(cpf)
+  if (!cpfDaPessoa) return vazio
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
@@ -327,7 +331,7 @@ export async function datasDeFiliacao(cpf: string): Promise<DatasDeFiliacao> {
     .from("filiacoes")
     .select("id")
     .eq("emp_proprietaria_id", emp)
-    .eq("cpf", cpf)
+    .in("cpf", grafiasDoCpf(cpfDaPessoa))
   const ids = (registros ?? []).map((r) => r.id as string)
   if (ids.length === 0) return vazio
 

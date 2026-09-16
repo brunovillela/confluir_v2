@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -200,7 +201,7 @@ async function cruzarPessoas(
     string,
     { filiado: boolean; temUsuario: boolean; temAcesso: boolean }
   >()
-  const unicos = [...new Set(cpfs.filter(Boolean))]
+  const unicos = [...new Set(cpfs.map((c) => cpfConfiavel(c)).filter((c): c is string => Boolean(c)))]
   if (unicos.length === 0) return mapa
   const admin = await createAdminClient()
 
@@ -370,7 +371,7 @@ export async function adicionarIntegrante(
       .select("cpf, nome_completo")
       .eq("id", dados.filiacao_id)
       .maybeSingle()
-    cpf = texto(fil?.cpf)
+    cpf = cpfConfiavel(texto(fil?.cpf))
     if (!nome) nome = texto(fil?.nome_completo) ?? ""
     if (cpf) {
       const { data: usr } = await admin
@@ -432,7 +433,7 @@ export async function atualizarIntegrante(
       .select("cpf, nome_completo")
       .eq("id", dados.filiacao_id)
       .maybeSingle()
-    const cpf = texto(fil?.cpf)
+    const cpf = cpfConfiavel(texto(fil?.cpf))
     patch.filiacao_id = dados.filiacao_id
     patch.cpf = cpf
     patch.nome = dados.nome || texto(fil?.nome_completo) || ""
@@ -530,7 +531,11 @@ export async function empregadoresPorIntegrante(
   for (const i of ints ?? []) resultado[i.id as string] = []
   if (integrantes.length === 0) return resultado
 
-  const cpfs = [...new Set(integrantes.map((i) => i.cpf as string))]
+  const cpfs = [
+    ...new Set(
+      integrantes.map((i) => cpfConfiavel(i.cpf as string | null)).filter((c): c is string => Boolean(c))
+    ),
+  ]
 
   // CPF → filiações (uma pessoa pode ter várias) e o inverso filiacao→cpf.
   const { data: fils } = await admin

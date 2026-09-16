@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { hojeSP, texto } from "@/lib/db/comum"
@@ -194,7 +195,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
     .maybeSingle()
   if (!filiado) return { erro: "Filiado não encontrado." }
   const nome = texto(filiado.nome_completo) ?? "Filiado"
-  const cpf = (texto(filiado.cpf) ?? "").replace(/\D/g, "") || null
+  const cpf = cpfConfiavel(texto(filiado.cpf))
 
   const config = await configReembolsoCompleta()
   if (config.orcamentoLimite && config.orcamentoMensal != null) {

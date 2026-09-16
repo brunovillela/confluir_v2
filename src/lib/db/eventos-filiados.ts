@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 
 import { type Evento } from "@/lib/db/eventos"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
@@ -37,7 +38,7 @@ export async function filiacaoDoCpf(
   cpf: string,
   tenantId: string
 ): Promise<{ id: string; nome: string | null } | null> {
-  if (!cpf || cpf.length !== 11) return null
+  if (!cpfConfiavel(cpf)) return null
   const service = createServiceClient()
   const { data } = await service
     .from("filiacoes")
@@ -244,7 +245,9 @@ export async function conciliarFiliados(
   if (linhas.length === 0) return { conferidas: 0, casadas: 0 }
 
   // Uma consulta para todos os CPFs, não uma por inscrição.
-  const cpfs = [...new Set(linhas.map((i) => i.cpf as string))]
+  const cpfs = [
+    ...new Set(linhas.map((i) => cpfConfiavel(i.cpf as string | null)).filter((c): c is string => Boolean(c))),
+  ]
   const { data: filiacoes } = await admin
     .from("filiacoes")
     .select("id, cpf, updated_at")

@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 import { createElement } from "react"
@@ -283,8 +284,8 @@ export async function emailSugeridoDoIntegrante(integranteId: string | null): Pr
     const { data: u } = await admin.from("usuarios").select("email").eq("id", i.usuario_id).maybeSingle()
     if (texto(u?.email)) return texto(u?.email)
   }
-  const cpf = String(i.cpf ?? "").replace(/\D/g, "")
-  if (cpf.length === 11) {
+  const cpf = cpfConfiavel(i.cpf as string | null)
+  if (cpf) {
     const { data: u } = await admin.from("usuarios").select("email").eq("cpf", cpf).eq("emp_proprietaria_id", emp).limit(1).maybeSingle()
     if (texto(u?.email)) return texto(u?.email)
   }
@@ -332,11 +333,11 @@ export async function telegramDoIntegrante(
     .maybeSingle()
   if (!i) return vazio
   const emp = await tenantAtual()
-  const cpf = String(i.cpf ?? "").replace(/\D/g, "")
+  const cpf = cpfConfiavel(i.cpf as string | null)
   const busca = admin.from("usuarios").select("telegram_chat_id, telegram_telefone")
   const { data: u } = texto(i.usuario_id)
     ? await busca.eq("id", i.usuario_id).maybeSingle()
-    : cpf.length === 11
+    : cpf
       ? await busca.eq("cpf", cpf).eq("emp_proprietaria_id", emp).limit(1).maybeSingle()
       : { data: null }
   const chatId = texto(u?.telegram_chat_id)

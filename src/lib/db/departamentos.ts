@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 
 import { nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarMandatos } from "@/lib/db/diretoria"
@@ -135,7 +136,7 @@ export async function pessoasParaDepartamento(): Promise<PessoaDepartamento[]> {
       .select("nome, cargo, cpf")
       .eq("mandato_id", vigente.id)
     const linhas = (integrantes ?? []) as Record<string, unknown>[]
-    const cpfs = [...new Set(linhas.map((i) => texto(i.cpf)).filter(Boolean))] as string[]
+    const cpfs = [...new Set(linhas.map((i) => cpfConfiavel(texto(i.cpf))).filter(Boolean))] as string[]
     const usuarioPorCpf = new Map<string, string>()
     if (cpfs.length > 0) {
       const { data: us } = await admin

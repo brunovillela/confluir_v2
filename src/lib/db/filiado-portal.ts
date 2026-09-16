@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -50,13 +51,15 @@ const CAMPOS_CADASTRO =
 
 /** Registro mais recente (não excluído) do CPF — base das telas do portal. */
 export async function cadastroDoFiliado(
-  cpf: string
+  cpfBruto: string
 ): Promise<CadastroFiliado | null> {
+  const cpf = cpfConfiavel(cpfBruto)
+  if (!cpf) return null
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("filiacoes")
     .select(CAMPOS_CADASTRO)
-    .eq("cpf", cpf)
+    .in("cpf", grafiasDoCpf(cpf))
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("filiacao_excluida", "is", true)
     .order("updated_at", { ascending: false, nullsFirst: false })
@@ -67,12 +70,14 @@ export async function cadastroDoFiliado(
 }
 
 /** Ids de todos os registros (não excluídos) do CPF. */
-export async function registrosDoCpf(cpf: string): Promise<string[]> {
+export async function registrosDoCpf(cpfBruto: string): Promise<string[]> {
+  const cpf = cpfConfiavel(cpfBruto)
+  if (!cpf) return []
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("filiacoes")
     .select("id")
-    .eq("cpf", cpf)
+    .in("cpf", grafiasDoCpf(cpf))
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("filiacao_excluida", "is", true)
   if (error) throw new Error(`Falha ao ler registros: ${error.message}`)

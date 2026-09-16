@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { MAX_CONTATOS_EMERGENCIA, VINCULOS_EMERGENCIA } from "@/lib/filiacao"
@@ -33,7 +34,8 @@ export async function listarContatosEmergencia(
   pessoa: PessoaFiliada
 ): Promise<{ disponivel: boolean; contatos: ContatoEmergencia[] }> {
   const admin = await createAdminClient()
-  const cpf = digitos(pessoa.cpf)
+  // Sem CPF confiável, os contatos são do cadastro, não "da pessoa".
+  const cpf = cpfConfiavel(pessoa.cpf)
   let consulta = admin
     .from(TABELA)
     .select("id, nome, telefone, vinculo, origem")

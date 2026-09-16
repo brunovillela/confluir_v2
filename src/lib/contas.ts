@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -55,13 +56,15 @@ export type Filiado = {
 export async function buscarFiliadoPorCpf(
   cpfLimpo: string
 ): Promise<Filiado | null> {
+  const cpf = cpfConfiavel(cpfLimpo)
+  if (!cpf) return null
   const admin = await createAdminClient()
   const { data } = await admin
     .from("filiacoes")
     .select(
       "id, nome_completo, email_pessoal, email_corporativo, filiacao_condicao, updated_at"
     )
-    .eq("cpf", cpfLimpo)
+    .in("cpf", grafiasDoCpf(cpf))
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("filiacao_excluida", "is", true)
     .order("updated_at", { ascending: false, nullsFirst: false })

@@ -13,6 +13,7 @@ import {
   ehDoBubble,
   urlDocumentoDoVinculo,
 } from "@/lib/db/filiacao-documentos"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { hojeSP } from "@/lib/db/comum"
 import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
@@ -681,12 +682,15 @@ export async function listarContribuicoesFiliado(id: string): Promise<{
     .maybeSingle()
   if (!filiacao) return null
 
+  // Outros registros da mesma pessoa só com CPF confiável: um CPF "0" juntaria
+  // as contribuições de centenas de pessoas.
   const idsDaPessoa = [id]
-  if (filiacao.cpf) {
+  const cpfDaPessoa = cpfConfiavel(filiacao.cpf)
+  if (cpfDaPessoa) {
     const { data: outros } = await admin
       .from("filiacoes")
       .select("id")
-      .eq("cpf", filiacao.cpf)
+      .in("cpf", grafiasDoCpf(cpfDaPessoa))
       .eq("emp_proprietaria_id", await tenantAtual())
       .neq("id", id)
     idsDaPessoa.push(...(outros ?? []).map((o) => o.id))
@@ -713,16 +717,19 @@ export async function buscarPerfilFiliado(
     .maybeSingle()
   if (!filiacao) return null
 
-  // Outros registros da mesma pessoa (mesmo CPF)
+  // Outros registros da mesma pessoa (mesmo CPF). Só com CPF CONFIÁVEL: em
+  // 16/09/2026, 507 cadastros tinham CPF "0" e o perfil de qualquer um deles
+  // juntava as filiações, vínculos e contribuições de todos.
   let outrosRegistros: FiliadoLinha[] = []
   const idsDaPessoa = [id]
-  if (filiacao.cpf) {
+  const cpfDaPessoa = cpfConfiavel(filiacao.cpf)
+  if (cpfDaPessoa) {
     const { data: outros } = await admin
       .from("filiacoes")
       .select(
         "id, nome_completo, cpf, matricula_sindical, filiacao_lotacao, filiacao_condicao, filiacao_excluida, created_at"
       )
-      .eq("cpf", filiacao.cpf)
+      .in("cpf", grafiasDoCpf(cpfDaPessoa))
       .eq("emp_proprietaria_id", await tenantAtual())
       .neq("id", id)
       .order("created_at", { ascending: false })
@@ -752,8 +759,8 @@ export async function buscarPerfilFiliado(
       // recebe.cpf é 100% null no snapshot)
       contribuicoesDaPessoa(idsDaPessoa),
       // Reembolsos: ordens de pagamento cujo beneficiário é a pessoa (via usuarios)
-      filiacao.cpf
-        ? admin.from("usuarios").select("id").eq("cpf", filiacao.cpf)
+      cpfDaPessoa
+        ? admin.from("usuarios").select("id").in("cpf", grafiasDoCpf(cpfDaPessoa))
         : Promise.resolve({ data: [] as { id: string }[] }),
     ])
 

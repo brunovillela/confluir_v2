@@ -1,4 +1,5 @@
 import "server-only"
+import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -27,10 +28,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * Centro de custo: herdado da FINALIDADE no momento da criação; a ordem já
  * nasce classificada.
  */
-
-function apenasDigitos(v: unknown): string {
-  return typeof v === "string" ? v.replace(/\D/g, "") : ""
-}
 
 const AVISO_SCHEMA = "Rode supabase/custeio-institucional.sql antes de usar o Custeio."
 
@@ -875,7 +872,7 @@ async function gerarOrdensCusteio(
   if (novos.length === 0) return { geradas: 0, puladas }
 
   // Favorecido: casa por CPF em `usuarios`; sem conta → avulso.
-  const cpf = apenasDigitos(c.beneficiario_cpf)
+  const cpf = cpfConfiavel(texto(c.beneficiario_cpf))
   let usuarioId: string | null = null
   if (cpf) {
     const { data: u } = await admin

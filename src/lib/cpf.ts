@@ -38,3 +38,26 @@ export function validarCpf(cpf: string): boolean {
 
   return digito1 === Number(limpo[9]) && digito2 === Number(limpo[10])
 }
+
+/**
+ * CPF que pode identificar uma PESSOA: 11 dígitos com verificadores certos.
+ * Devolve só os dígitos, ou null para "0", "000.000.000-00", máscara vazia e
+ * afins.
+ *
+ * Use sempre que um CPF lido de um cadastro servir para BUSCAR outros registros
+ * da "mesma pessoa". Em 16/09/2026 havia 507 cadastros com CPF "0": agrupar
+ * pelo texto do campo juntava as filiações, vínculos e contribuições de todos
+ * num único perfil.
+ */
+export function cpfConfiavel(valor: string | null | undefined): string | null {
+  const limpo = limparCpf(valor ?? "")
+  return validarCpf(limpo) ? limpo : null
+}
+
+/**
+ * As grafias em que um CPF confiável aparece gravado — só dígitos e com
+ * máscara (o legado tem os dois). Para `.in("cpf", grafiasDoCpf(cpf))`.
+ */
+export function grafiasDoCpf(cpf: string): string[] {
+  return [...new Set([cpf, formatarCpf(cpf)])]
+}
