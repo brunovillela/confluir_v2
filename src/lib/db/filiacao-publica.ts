@@ -4,6 +4,7 @@ import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
 
+import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { type FiliacaoCondicao } from "@/lib/filiacao"
 import { semAcento } from "@/lib/texto"
@@ -814,7 +815,8 @@ export async function avaliarSolicitacao(
         nome_completo: texto(s.nome_completo),
         nome_social: texto(s.nome_social),
         cpf: texto(s.cpf),
-        matricula_sindical: texto(s.matricula),
+        // "Matrícula" da ficha é a da empresa: vai para o vínculo, abaixo.
+        matricula_sindical: null,
         sexo: ["Masculino", "Feminino", "Outro"].includes(String(s.sexo))
           ? String(s.sexo)
           : null,
@@ -846,6 +848,7 @@ export async function avaliarSolicitacao(
       return { erro: `Falha ao criar a filiação: ${erroFil?.message ?? "?"}` }
     }
     filiacaoId = String(criada.id)
+    await atribuirMatriculaSindical(filiacaoId)
 
     if (texto(s.empregador_id)) {
       await admin.from("filiacao_vinculos").insert({

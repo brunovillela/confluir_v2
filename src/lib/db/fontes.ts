@@ -1,6 +1,7 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
+import { normalizarMatricula, matriculasEmUso, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -383,8 +384,33 @@ export async function importarFiliadosDaFonte(
     for (const v of data ?? []) jaVinculados.add(v.filiado_id)
   }
 
+  // Matrícula sindical dos registros novos: a da planilha, se ninguém usa;
+  // em branco, a próxima livre. Repetida (no banco ou na planilha) é erro da linha.
+  const novasBrutas = validas.filter((l) => !existentesPorCpf.has(l.cpf))
+  const usadas = novasBrutas.length ? await matriculasEmUso() : new Set<string>()
+  let proxima = novasBrutas.length ? await proximaMatriculaSindical() : 0
+  const novas: LinhaImportacao[] = []
+  for (const l of novasBrutas) {
+    const informada = normalizarMatricula(l.matricula_sindical)
+    if (informada && (usadas.has(informada) || informada.length > 7)) {
+      erros.push({
+        linha: l.linha,
+        motivo: informada.length > 7
+          ? `Matrícula sindical ${informada} tem dígitos demais`
+          : `Matrícula sindical ${informada} já está em uso — deixe em branco para usar a próxima livre`,
+      })
+      continue
+    }
+    let matricula = informada
+    if (!matricula) {
+      while (usadas.has(String(proxima))) proxima++
+      matricula = String(proxima++)
+    }
+    usadas.add(matricula)
+    novas.push({ ...l, matricula_sindical: matricula })
+  }
+
   // Cria os registros novos (em lotes, retornando os ids)
-  const novas = validas.filter((l) => !existentesPorCpf.has(l.cpf))
   const idPorCpf = new Map(existentesPorCpf)
   for (let de = 0; de < novas.length; de += 300) {
     const lote = novas.slice(de, de + 300)
@@ -397,6 +423,7 @@ export async function importarFiliadosDaFonte(
             nome_completo: l.nome_completo,
             cpf: l.cpf,
             matricula_sindical: l.matricula_sindical,
+            matricula_sindical_numero: l.matricula_sindical ? Number(l.matricula_sindical) : null,
             sexo: l.sexo,
             nascimento_data: nasc,
             nascimento_dia: nasc ? Number(nasc.slice(8, 10)) : null,

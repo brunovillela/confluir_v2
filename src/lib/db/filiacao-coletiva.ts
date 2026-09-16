@@ -1,6 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { CONDICAO_COLETIVA, type FiliacaoCondicao } from "@/lib/filiacao"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -609,7 +610,9 @@ export async function aplicarProcesso(
         .insert({
           nome_completo: item.nome,
           cpf: item.cpf,
-          matricula_sindical: item.matricula,
+          // A matrícula da lista é a da empresa (fica no vínculo); a sindical
+          // é atribuída logo abaixo.
+          matricula_sindical: null,
           email_corporativo: item.email,
           filiacao_condicao: CONDICAO_COLETIVA,
           filiacao_coletiva_id: coletivaId,
@@ -637,6 +640,7 @@ export async function aplicarProcesso(
         continue
       }
       resumo.criados++
+      await atribuirMatriculaSindical(String(criada.id))
       itensGravar.push({
         emp_proprietaria_id: emp,
         coletiva_id: coletivaId,

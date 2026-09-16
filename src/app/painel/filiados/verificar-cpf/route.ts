@@ -2,7 +2,7 @@ import { tenantAtual } from "@/lib/tenant"
 import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
-import { limparCpf, validarCpf } from "@/lib/cpf"
+import { grafiasDoCpf, limparCpf, validarCpf } from "@/lib/cpf"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -28,11 +28,16 @@ export async function GET(request: NextRequest) {
   const admin = await createAdminClient()
   const { data } = await admin
     .from("filiacoes")
-    .select("id")
-    .eq("cpf", cpf)
+    .select("id, nome_completo")
+    .in("cpf", grafiasDoCpf(cpf))
     .eq("emp_proprietaria_id", await tenantAtual())
+    .not("filiacao_excluida", "is", true)
     .limit(1)
     .maybeSingle()
 
-  return Response.json({ valido: true, existente: Boolean(data) })
+  return Response.json({
+    valido: true,
+    existente: Boolean(data),
+    nome: (data?.nome_completo as string | null) ?? null,
+  })
 }

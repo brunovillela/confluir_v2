@@ -26,14 +26,20 @@ import { limparCpf, validarCpf } from "@/lib/cpf"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { mascaraCpf, mascaraTelefone } from "@/lib/mascaras"
 
-import { registrarFiliacao } from "./actions"
+import { registrarFiliacao, type EstadoNovaFiliacao } from "./actions"
 
 export function NovaFiliacaoForm({
   fontes,
+  proximaMatricula,
 }: {
   fontes: { id: string; nome: string }[]
+  /** A próxima matrícula sindical livre, mostrada como sugestão. */
+  proximaMatricula: number
 }) {
-  const [estado, formAction, pendente] = useActionState(registrarFiliacao, {})
+  const [estado, formAction, pendente] = useActionState<EstadoNovaFiliacao, FormData>(
+    registrarFiliacao,
+    {}
+  )
   const [avisoCpf, setAvisoCpf] = useState<string | null>(null)
 
   async function verificarCpf(bruto: string) {
@@ -50,10 +56,10 @@ export function NovaFiliacaoForm({
       const r = await fetch(
         `/painel/filiados/verificar-cpf?cpf=${encodeURIComponent(cpf)}`
       )
-      const d = (await r.json()) as { valido: boolean; existente: boolean }
+      const d = (await r.json()) as { valido: boolean; existente: boolean; nome?: string | null }
       setAvisoCpf(
         d.existente
-          ? "Já existe um registro de filiação com este CPF."
+          ? `Já existe um registro de filiação com este CPF${d.nome ? ` (${d.nome})` : ""}.`
           : null
       )
     } catch {
@@ -67,6 +73,37 @@ export function NovaFiliacaoForm({
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
+      )}
+      {estado.parecidos && estado.parecidos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cadastros parecidos</CardTitle>
+            <CardDescription>Mesmo nome e mesma data de nascimento.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <ul className="grid gap-1 text-sm">
+              {estado.parecidos.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/painel/filiados/${p.id}`}
+                    target="_blank"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {p.nome ?? "Sem nome"}
+                  </Link>
+                  <span className="text-muted-foreground">
+                    {p.matricula ? ` · matrícula ${p.matricula}` : ""}
+                    {p.condicao ? ` · ${p.condicao}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="confirmar_outra_pessoa" className="size-4" />
+              Conferi: é outra pessoa, pode registrar.
+            </label>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -99,7 +136,15 @@ export function NovaFiliacaoForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="matricula_sindical">Matrícula sindical</Label>
-            <Input id="matricula_sindical" name="matricula_sindical" />
+            <Input
+              id="matricula_sindical"
+              name="matricula_sindical"
+              inputMode="numeric"
+              placeholder={`Automática: ${proximaMatricula}`}
+            />
+            <p className="text-muted-foreground text-xs">
+              Em branco, recebe a próxima livre. Só preencha para manter um número já usado no papel.
+            </p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="sexo">Sexo</Label>

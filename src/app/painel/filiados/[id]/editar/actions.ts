@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { corrigirIdentidade } from "@/lib/db/filiacao-identidade"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -103,4 +104,31 @@ export async function atualizarCadastroFiliado(
   revalidatePath(`/painel/filiados/${id}`)
   revalidatePath("/painel/filiados/lista")
   redirect(`/painel/filiados/${id}?salvo=1`)
+}
+
+/**
+ * Corrige CPF e matrícula sindical — identidade, por isso fora do formulário
+ * comum: confere repetição, registra antes e depois no prontuário.
+ */
+export async function corrigirIdentidadeAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("filiacao_gestao")
+  const id = String(formData.get("id") ?? "")
+  if (!id) return { erro: "Registro inválido." }
+
+  const { erro } = await corrigirIdentidade(
+    id,
+    {
+      cpf: String(formData.get("cpf") ?? ""),
+      matricula: String(formData.get("matricula_sindical") ?? ""),
+    },
+    sessao.usuario.id as string
+  )
+  if (erro) return { erro }
+  revalidatePath(`/painel/filiados/${id}`)
+  revalidatePath(`/painel/filiados/${id}/editar`)
+  revalidatePath("/painel/filiados/lista")
+  return { ok: "CPF e matrícula atualizados — a mudança ficou registrada no prontuário." }
 }

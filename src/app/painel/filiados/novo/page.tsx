@@ -8,6 +8,8 @@ import { requirePermissao } from "@/lib/auth"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 
 import { ImportarFiliados } from "../importar/importar-filiados"
+import { proximaMatriculaSindical } from "@/lib/db/filiacao-identidade"
+
 import { NovaFiliacaoForm } from "./nova-filiacao-form"
 
 export const metadata: Metadata = { title: "Nova filiação — Confluir" }
@@ -78,7 +80,7 @@ export default async function NovaFiliacaoPage({
           </CardContent>
         </Card>
       ) : (
-        <NovaFiliacaoForm fontes={fontes} />
+        <NovaFiliacaoForm fontes={fontes} proximaMatricula={await proximaMatriculaSindical()} />
       )}
     </>
   )

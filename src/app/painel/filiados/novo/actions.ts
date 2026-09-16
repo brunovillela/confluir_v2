@@ -7,7 +7,12 @@ import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { limparCpf, validarCpf } from "@/lib/cpf"
+import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
+import {
+  atribuirMatriculaSindical,
+  conferirIdentidade,
+  type CadastroParecido,
+} from "@/lib/db/filiacao-identidade"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
 import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -15,11 +20,16 @@ import { createAdminClient } from "@/lib/supabase/admin"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATA = /^\d{4}-\d{2}-\d{2}$/
 
+export type EstadoNovaFiliacao = EstadoForm & {
+  /** Mesmo nome e nascimento em outro cadastro: pede confirmação. */
+  parecidos?: CadastroParecido[]
+}
+
 /** Registra uma nova filiação (cadastro + vínculo opcional com a fonte). */
 export async function registrarFiliacao(
-  _prev: EstadoForm,
+  _prev: EstadoNovaFiliacao,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoNovaFiliacao> {
   await requirePermissao("filiacao_gestao")
 
   const texto = (campo: string) => {
@@ -34,27 +44,29 @@ export async function registrarFiliacao(
   const nome = texto("nome_completo")
   if (!nome) return { erro: "O nome completo é obrigatório." }
 
-  const cpf = limparCpf(String(formData.get("cpf") ?? ""))
-  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const nascimento = data("nascimento_data")
+  // CPF e matrícula repetidos bloqueiam; mesmo nome + nascimento pede
+  // confirmação — era assim que a refiliação virava um segundo cadastro.
+  const identidade = await conferirIdentidade({
+    cpf: String(formData.get("cpf") ?? ""),
+    matricula: texto("matricula_sindical"),
+    nome,
+    nascimento,
+    cpfObrigatorio: true,
+  })
+  if (identidade.erro) return { erro: identidade.erro }
+  if (identidade.parecidos.length > 0 && formData.get("confirmar_outra_pessoa") !== "on") {
+    return {
+      erro: "Já existe cadastro com o mesmo nome e a mesma data de nascimento. Se for a mesma pessoa, abra o cadastro existente e adicione o vínculo por lá; se for outra pessoa, confirme abaixo.",
+      parecidos: identidade.parecidos,
+    }
+  }
+  const cpf = identidade.cpf
 
   const admin = await createAdminClient()
 
-  const { data: existente } = await admin
-    .from("filiacoes")
-    .select("id")
-    .eq("cpf", cpf)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .limit(1)
-    .maybeSingle()
-  if (existente) {
-    return {
-      erro: "Já existe um registro de filiação com este CPF — abra o cadastro pela busca e, se for o caso, adicione um novo vínculo por lá.",
-    }
-  }
-
   const sexoBruto = String(formData.get("sexo") ?? "")
   const condicaoBruta = String(formData.get("filiacao_condicao") ?? "")
-  const nascimento = data("nascimento_data")
   const telefone = texto("telefone_1")
   const email = texto("email_pessoal")
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -72,7 +84,8 @@ export async function registrarFiliacao(
     .insert({
       nome_completo: nome,
       cpf,
-      matricula_sindical: texto("matricula_sindical"),
+      matricula_sindical: identidade.matricula,
+      matricula_sindical_numero: identidade.matricula ? Number(identidade.matricula) : null,
       sexo: ["Masculino", "Feminino", "Outro"].includes(sexoBruto)
         ? sexoBruto
         : null,
@@ -89,6 +102,9 @@ export async function registrarFiliacao(
   if (error || !criada) {
     return { erro: `Não foi possível registrar: ${error?.message ?? "?"}` }
   }
+
+  // Sem matrícula informada, recebe a próxima livre (a numeração é da entidade).
+  if (!identidade.matricula) await atribuirMatriculaSindical(String(criada.id))
 
   // Vínculo com a fonte pagadora (opcional)
   const fonte = String(formData.get("fonte_pagadora_id") ?? "")
@@ -112,6 +128,7 @@ export async function registrarFiliacao(
   }
 
   invalidarCacheFontes()
+  invalidarCacheCadastrosPendentes()
   revalidatePath("/painel/filiados")
   revalidatePath("/painel/filiados/lista")
   redirect(`/painel/filiados/${criada.id}?salvo=1`)

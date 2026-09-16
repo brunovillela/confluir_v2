@@ -6,10 +6,12 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { formatarCpf } from "@/lib/cpf"
+import { cpfConfiavel, formatarCpf } from "@/lib/cpf"
+import { proximaMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { EditarForm } from "./editar-form"
+import { IdentidadeForm } from "./identidade-form"
 
 export const metadata: Metadata = { title: "Editar filiado — Confluir" }
 
@@ -46,13 +48,20 @@ export default async function EditarFiliadoPage({
           {String(filiacao.nome_completo ?? "")} ·{" "}
           <span className="font-mono">
             {filiacao.cpf ? formatarCpf(String(filiacao.cpf)) : "sem CPF"}
-          </span>{" "}
-          — CPF e matrícula não são editáveis.
+          </span>
+          {filiacao.matricula_sindical ? ` · matrícula ${String(filiacao.matricula_sindical)}` : " · sem matrícula"}
         </p>
       </div>
 
-      <div className="max-w-3xl">
+      <div className="grid max-w-3xl gap-6">
         <EditarForm filiacao={filiacao} />
+        <IdentidadeForm
+          id={id}
+          cpf={String(filiacao.cpf ?? "")}
+          matricula={String(filiacao.matricula_sindical ?? "")}
+          cpfSuspeito={Boolean(filiacao.cpf) && !cpfConfiavel(String(filiacao.cpf))}
+          proximaMatricula={await proximaMatriculaSindical()}
+        />
       </div>
     </>
   )

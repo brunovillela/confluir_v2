@@ -1,8 +1,9 @@
 import "server-only"
 
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
+import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
-import { validarCpf } from "@/lib/cpf"
+import { cpfConfiavel, validarCpf } from "@/lib/cpf"
 import { pendenciasDoVinculo } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -12,6 +13,8 @@ import { tenantAtual } from "@/lib/tenant"
  * fundamental faltando (CPF, nome completo, termos legais), histórico de
  * vínculos ausente ou vínculo corrente incompleto (ver `pendenciasDoVinculo`).
  * Vínculo em fundo de pensão sem cargo e lotação NÃO é pendência (12/09/2026).
+ * CPF em outro cadastro e matrícula sindical ausente ou repetida entraram em
+ * 16/09/2026, depois da varredura de duplicidades (ver filiacao-identidade.ts).
  * Termo LGPD não aceito só é pendência de quem tem conta na área do associado —
  * é lá que o filiado aceita o termo (decisão do Bruno, 15/09/2026).
  *
@@ -27,6 +30,8 @@ const VALIDADE_CACHE_MS = 10 * 60 * 1000
 
 export const TIPOS_PENDENCIA = [
   "cpf",
+  "cpf_duplicado",
+  "matricula",
   "nome",
   "lgpd",
   "desconto",
@@ -37,6 +42,8 @@ export type TipoPendencia = (typeof TIPOS_PENDENCIA)[number]
 
 export const ROTULO_PENDENCIA: Record<TipoPendencia, string> = {
   cpf: "CPF ausente ou inválido",
+  cpf_duplicado: "CPF em outro cadastro",
+  matricula: "Matrícula sindical ausente ou repetida",
   nome: "Nome incompleto",
   lgpd: "Termo LGPD não aceito",
   desconto: "Termo de desconto não aceito",
@@ -162,7 +169,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [cadastros, vinculos, termos, fontes, comConta] = await Promise.all([
+  const [cadastros, vinculos, termos, fontes, comConta, identidades] = await Promise.all([
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
@@ -187,7 +194,29 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     termosEmVigor(),
     listarFontesPagadoras(),
     cpfsComContaNoPortal(),
+    // Todos os cadastros não excluídos (não só ativos): a repetição de CPF ou
+    // matrícula pode estar num cadastro antigo da mesma pessoa.
+    lerLotes<{ id: string; cpf: string | null; matricula_sindical: string | null }>((de, ate) =>
+      admin
+        .from("filiacoes")
+        .select("id, cpf, matricula_sindical")
+        .eq("emp_proprietaria_id", emp)
+        .not("filiacao_excluida", "is", true)
+        .order("id", { ascending: true })
+        .range(de, ate)
+    ),
   ])
+
+  const contagem = (chave: (x: { cpf: string | null; matricula_sindical: string | null }) => string | null) => {
+    const m = new Map<string, number>()
+    for (const x of identidades) {
+      const k = chave(x)
+      if (k) m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return m
+  }
+  const usosDoCpf = contagem((x) => cpfConfiavel(x.cpf))
+  const usosDaMatricula = contagem((x) => normalizarMatricula(x.matricula_sindical))
 
   // Fontes que são fundo de pensão: cargo e lotação não se aplicam ao vínculo.
   const fundosPensao = new Set(
@@ -205,6 +234,8 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
 
   const totais: Record<TipoPendencia, number> = {
     cpf: 0,
+    cpf_duplicado: 0,
+    matricula: 0,
     nome: 0,
     lgpd: 0,
     desconto: 0,
@@ -216,6 +247,9 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     const tipos: TipoPendencia[] = []
     const cpf = (c.cpf ?? "").replace(/\D/g, "")
     if (!cpf || !validarCpf(cpf)) tipos.push("cpf")
+    else if ((usosDoCpf.get(cpf) ?? 0) > 1) tipos.push("cpf_duplicado")
+    const matricula = normalizarMatricula(c.matricula_sindical)
+    if (!matricula || (usosDaMatricula.get(matricula) ?? 0) > 1) tipos.push("matricula")
     const nome = (c.nome_completo ?? "").trim()
     if (!nome || !nome.includes(" ")) tipos.push("nome")
     if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) tipos.push("lgpd")
