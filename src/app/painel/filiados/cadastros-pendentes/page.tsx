@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileWarning, Search, X } from "lucide-react"
+import { ArrowLeft, CopyCheck, FileWarning, Search, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -76,7 +76,15 @@ export default async function CadastrosPendentesPage({
             Filiados
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Cadastros pendentes</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Cadastros pendentes</h1>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/painel/filiados/duplicidades">
+              <CopyCheck />
+              Possíveis duplicidades
+            </Link>
+          </Button>
+        </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Filiados ativos com alguma inconsistência: dado fundamental faltando,
           termo legal não aceito, histórico sem vínculo em aberto ou vínculo
@@ -85,7 +93,7 @@ export default async function CadastrosPendentesPage({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Link href={urlTipo(null)} className="group">
           <Card className={!tipo ? "border-primary/50" : "group-hover:border-primary/40"}>
             <CardContent className="grid gap-1">
@@ -185,7 +193,7 @@ export default async function CadastrosPendentesPage({
                             {f.tipos.map((t) => (
                               <Badge
                                 key={t}
-                                variant={t === "vinculo" || t === "historico" ? "warning" : "outline"}
+                                variant={t === "vinculo" || t === "historico" || t === "cpf_duplicado" || t === "matricula" ? "warning" : "outline"}
                                 title={
                                   t === "vinculo"
                                     ? `Faltam: ${f.faltamNoVinculo.join(", ")}`

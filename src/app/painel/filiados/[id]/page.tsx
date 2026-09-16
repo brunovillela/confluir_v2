@@ -124,7 +124,7 @@ export default async function FiliadoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; etapa?: string }>
+  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; pendentes?: string }>
 }) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
@@ -134,7 +134,7 @@ export default async function FiliadoPage({
   const podeReembolsar = podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"])
 
   const { id } = await params
-  const { salvo, etapa } = await searchParams
+  const { salvo, etapa, mesclado, pendentes } = await searchParams
   const [perfil, prontuario] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
@@ -224,6 +224,27 @@ export default async function FiliadoPage({
         {salvo === "1" && (
           <Alert className="mb-4 border-success/40 text-success-fg">
             <AlertDescription>Cadastro atualizado com sucesso.</AlertDescription>
+          </Alert>
+        )}
+        {mesclado && (
+          <Alert className="mb-4 border-success/40 text-success-fg">
+            <AlertDescription>
+              {mesclado === "1" ? "1 cadastro duplicado incorporado" : `${mesclado} cadastros duplicados incorporados`} a este.
+              O histórico foi movido e a mesclagem ficou no prontuário.
+              {pendentes &&
+                ` Não foi possível mover: ${pendentes.split(",").join(", ")} (o cadastro principal já tinha o mesmo registro).`}
+            </AlertDescription>
+          </Alert>
+        )}
+        {typeof f.mesclado_em_id === "string" && (
+          <Alert variant="warning" className="mb-4">
+            <AlertDescription>
+              Este cadastro era duplicado e foi incorporado a outro.{" "}
+              <Link href={`/painel/filiados/${f.mesclado_em_id}`} className="font-medium underline underline-offset-4">
+                Abrir o cadastro que ficou
+              </Link>
+              .
+            </AlertDescription>
           </Alert>
         )}
         {etapa === "ok" && (

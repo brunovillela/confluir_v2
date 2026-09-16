@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, CopyCheck } from "lucide-react"
 
 import {
   faixaDaSaude,
@@ -9,10 +9,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
+import { listarDuplicidades } from "@/lib/db/filiacao-duplicidades"
 
-/** Cartão "Saúde dos cadastros": completos ÷ ativos, com atalho para os pendentes. */
+/** Cartão "Saúde dos cadastros": completos ÷ ativos, com atalho para os pendentes e as duplicidades. */
 export async function SaudeCadastros() {
-  const { ativos, linhas } = await cadastrosPendentes()
+  const [{ ativos, linhas }, duplicidades] = await Promise.all([
+    cadastrosPendentes(),
+    listarDuplicidades(),
+  ])
+  const gruposDuplicados = duplicidades.disponivel ? duplicidades.grupos.length : 0
   const completos = ativos - linhas.length
   const percentual = percentualSaude(completos, ativos)
   const faixa = faixaDaSaude(percentual)
@@ -41,6 +46,19 @@ export async function SaudeCadastros() {
             <span className="tabular-nums">{linhas.length.toLocaleString("pt-BR")}</span> com pendência
           </Link>
         </p>
+        {gruposDuplicados > 0 && (
+          <Link
+            href="/painel/filiados/duplicidades"
+            className="border-warning/40 bg-warning/10 hover:bg-warning/15 text-warning-fg mt-1 flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            <CopyCheck className="size-4" />
+            <span>
+              <span className="tabular-nums">{gruposDuplicados.toLocaleString("pt-BR")}</span>{" "}
+              {gruposDuplicados === 1 ? "possível duplicidade" : "possíveis duplicidades"} para conferir
+            </span>
+            <ArrowUpRight className="size-4" />
+          </Link>
+        )}
       </CardContent>
     </Card>
   )

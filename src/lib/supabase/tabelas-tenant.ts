@@ -70,6 +70,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "ferramentas_anomalias",
   "filiacao_coletiva",
   "filiacao_coletiva_itens",
+  "filiacao_duplicidades_ignoradas",
   "filiacao_contatos_emergencia",
   // supabase/filiacao-lacunas-modelo.sql (08/09)
   "filiacao_convenios",
