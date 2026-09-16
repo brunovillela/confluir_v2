@@ -186,6 +186,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Filiados ativos com dado, termo ou histórico de vínculos incompleto",
       },
       {
+        slug: "duplicidades",
+        titulo: "Possíveis duplicidades",
+        resumo: "A mesma pessoa em mais de um cadastro: mesclar ou descartar",
+      },
+      {
         slug: "relatorios",
         titulo: "Relatórios",
         resumo: "Em carência, plenos, inadimplentes e o relatório personalizado",

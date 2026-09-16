@@ -1,0 +1,98 @@
+Um filiado deve ter **um cadastro só**. Quando a mesma pessoa aparece em dois
+ou mais — uma refiliação cadastrada do zero, um CPF digitado no cadastro
+errado —, o histórico dela fica espalhado e os relatórios contam gente em
+dobro. **Possíveis duplicidades** junta esses casos para resolver um a um.
+
+<RequerPermissao>Gestão da filiação</RequerPermissao>
+
+## Onde fica
+
+Na tela de **Filiados**, o cartão **Saúde dos cadastros** mostra o aviso
+**N possíveis duplicidades para conferir** enquanto houver grupos na lista — é
+só clicar. Também se chega por **Filiados → Cadastros pendentes**, no botão
+**Possíveis duplicidades**, no alto da tela. Os cartões do topo dão o total de cada tipo e filtram a lista; a
+busca aceita nome, CPF ou matrícula.
+
+## Os três tipos de grupo
+
+- **Mesmo CPF** — dois ou mais cadastros com o mesmo CPF válido. É a evidência
+  mais forte. Se os nomes forem diferentes, o grupo avisa: aí não é duplicata,
+  é um CPF errado num dos cadastros.
+- **Mesma matrícula sindical** — a matrícula é da entidade e não se repete.
+  Mesma pessoa, mescle; pessoas diferentes, corrija a matrícula de uma delas.
+- **Mesmo nome** — nomes iguais sem CPF que os diferencie. A etiqueta **mesmo
+  nascimento** indica que a data de nascimento também bate; **só o nome** pede
+  mais cuidado, porque pode ser homônimo.
+
+A lista começa pelos grupos com **mais de um cadastro ativo**, que são os que
+mais atrapalham.
+
+<Aviso tipo="nota" titulo="CPF '0' não é duplicidade">
+  Cadastros com CPF impossível ("0", máscara vazia) não formam grupo: não são a
+  mesma pessoa, são um CPF que nunca foi preenchido direito. Eles aparecem em
+  Cadastros pendentes como <strong>CPF ausente ou inválido</strong>.
+</Aviso>
+
+## Mesclar
+
+<PassoAPasso>
+  <Passo titulo="Escolha o cadastro que fica">
+    Em **Mesclar**, cada cadastro mostra quantos vínculos, contribuições e
+    apontamentos de prontuário carrega. O sistema sugere o que tem mais
+    histórico; mude se outro for o certo. **Abrir cadastro** abre cada um em
+    outra aba para conferir.
+  </Passo>
+  <Passo titulo="Escolha os dados">
+    Onde os cadastros divergem — nome, CPF, matrícula, contato, endereço, termos
+    —, marque o valor certo. Campos vazios no principal são completados pelos
+    outros.
+  </Passo>
+  <Passo titulo="Confirme">
+    Marque que conferiu que é a mesma pessoa e clique em **Mesclar cadastros**.
+  </Passo>
+</PassoAPasso>
+
+Na mesclagem, tudo o que pertencia aos outros cadastros passa para o principal:
+vínculos de filiação e trabalhistas, contribuições, prontuário, contatos,
+dados bancários, reembolsos, hospedagens, atendimentos de saúde, processos,
+inscrições em eventos, pessoas de ofícios. **Nada é apagado**: os outros
+cadastros ficam excluídos, com um aviso que leva ao que ficou, e a mesclagem é
+registrada no prontuário do principal.
+
+## Não é duplicidade
+
+Para homônimos, clique em **Não é duplicidade** e diga o motivo. O grupo some da
+lista — e volta se um cadastro novo entrar nele.
+
+## Corrigir CPF ou matrícula de um cadastro
+
+Em **Editar cadastro**, o cartão **CPF e matrícula sindical** corrige esses
+dois campos. O sistema recusa CPF inválido, CPF que já está em outro cadastro e
+matrícula repetida, e registra no prontuário o valor de antes e o de depois.
+**Usar a próxima livre** preenche a próxima matrícula disponível — é o caminho
+quando duas pessoas diferentes têm a mesma matrícula.
+
+## Erros comuns
+
+- **"Não consigo mesclar: o CPF escolhido não é válido."** Escolha o CPF do
+  outro cadastro ou deixe em branco, e corrija depois em Editar cadastro.
+- **"Apareceu um aviso de que algo não pôde ser movido."** O principal já tinha
+  o mesmo registro (por exemplo, o mesmo ofício). Esse item fica no cadastro
+  incorporado, que continua acessível pelo aviso no topo dele.
+- **"Mesclei os cadastros errados."** A mesclagem não se desfaz pela tela — fale
+  com quem administra o sistema, que tem o registro exato do que foi movido.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Cadastros pendentes",
+      href: "/painel/ajuda/filiados/cadastros-pendentes",
+      descricao: "Onde ficam o botão e as pendências de CPF e matrícula",
+    },
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+      descricao: "Editar cadastro, CPF e matrícula",
+    },
+  ]}
+/>
