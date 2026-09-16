@@ -11,6 +11,69 @@ pessoa pode ver e editar.
   a área dele pelo portal, com regras próprias.
 </Aviso>
 
+## Dar acesso a uma pessoa
+
+<PassoAPasso>
+  <Passo titulo="Encontre a pessoa">
+    Em **Conceder acesso a uma pessoa**, busque por nome ou CPF. A busca procura
+    no cadastro de **usuários** — funcionários, diretores e quem já tem conta.
+  </Passo>
+  <Passo titulo="Não encontrou? Nova pessoa">
+    Clique em **Nova pessoa** e informe **nome completo**, **CPF**, **e-mail** e,
+    se houver, o **vínculo com a entidade** (funcionário, diretor, prestador de
+    serviço, jovem aprendiz ou estagiário). Clique em **Cadastrar e conceder acesso**.
+  </Passo>
+  <Passo titulo="Perfis e convite">
+    A página da pessoa abre em seguida: marque os **perfis de acesso** e clique
+    em **Conceder login** — o convite vai para o e-mail informado, e ela define a
+    própria senha.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A Nova pessoa não duplica cadastros">
+  Se o **CPF** já está no cadastro de usuários, a tela mostra quem é e oferece
+  **Conceder acesso** a esse cadastro, em vez de criar outro. O mesmo vale para
+  um cadastro antigo, sem CPF, com o **mesmo e-mail**. Um e-mail que já é de
+  **outra pessoa** é recusado: o login é pelo e-mail, e duas pessoas não podem
+  dividi-lo.
+</Aviso>
+
+Com **vínculo**, a pessoa passa a contar no quadro da entidade (aniversários do
+painel, convite em lote). **Sem vínculo** — um consultor, um contador externo
+—, ela tem só o acesso que você der.
+
+## Quadro da entidade
+
+Em **Usuários e permissões → Quadro da entidade** fica a classificação de cada
+pessoa: **Funcionário(a)**, **Diretor(a)**, **Prestador(a) de serviço**,
+**Jovem aprendiz** ou **Estagiário(a)**. Duas informações dizem quem é da
+entidade, e a tela mostra as duas lado a lado:
+
+- a **classificação** — decide quem aparece nos aniversários do painel, no
+  caixa (funcionários e diretores) e no convite em lote;
+- o **vínculo trabalhista com a entidade** — decide quem aparece no **Pessoal**.
+
+A tela abre em **A conferir**: quem tem alguma coisa que não bate, com o motivo
+e uma **sugestão** (clique nela para escolher):
+
+| Alerta | O que costuma ser |
+|---|---|
+| Classificado, mas só tem vínculo com outra empresa | Trabalhador de fonte pagadora que entrou no cadastro ao votar |
+| Vínculo com a entidade com a matrícula de outra empresa | O mesmo — o vínculo foi gravado com o empregador errado |
+| Ativo no Pessoal sem classificação | Funcionário, aprendiz ou estagiário que falta classificar |
+| Cadastro excluído com vínculo aberto | Ex-funcionário: registre a demissão no Pessoal |
+
+<Aviso tipo="atencao" titulo="Não é da entidade">
+  Escolher **Não é da entidade** tira a classificação. Se a pessoa tem vínculo
+  trabalhista com a entidade, a tela pede para confirmar a **exclusão do
+  vínculo** — e ela sai do Pessoal. Quem tem **contracheque, ponto ou férias**
+  lançados trabalha ou trabalhou aqui: a exclusão é recusada; se saiu, registre
+  a demissão no Pessoal.
+</Aviso>
+
+Diretores costumam ter vínculo com a empresa onde trabalham — isso não gera
+alerta, e a tela nunca sugere tirá-los do quadro.
+
 ## Perfis de acesso (o caminho recomendado)
 
 Em vez de marcar dezenas de permissões pessoa por pessoa, você define **perfis**
@@ -77,6 +140,9 @@ a caso. É a exceção; o normal é resolver pelo perfil.
 
 ## Erros comuns
 
+- **"A pessoa não aparece na busca."** Ela ainda não está no cadastro de
+  usuários: use **Nova pessoa**. Ser filiado não basta — o cadastro de filiação é
+  outro; se ela já tiver conta no portal, a Nova pessoa a encontra pelo CPF.
 - **"Dei o perfil, mas a pessoa não consegue entrar."** Ter permissões não é o
   mesmo que ter **login** — a pessoa precisa do convite/credencial de acesso
   (primeiro acesso). Ver [Introdução](/painel/ajuda/introducao).
