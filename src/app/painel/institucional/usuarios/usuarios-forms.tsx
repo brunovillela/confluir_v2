@@ -12,6 +12,7 @@ import {
   Send,
   Trash2,
   UserPlus,
+  UserRoundPlus,
 } from "lucide-react"
 
 import { FiliadoPicker } from "@/components/filiado-picker"
@@ -23,13 +24,16 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   type CandidatoOnboarding,
   type ResultadoLogin,
+  type ResultadoNovaPessoa,
 } from "@/lib/db/acessos"
+import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 import { CATALOGO_PERMISSOES } from "@/lib/permissoes-catalogo"
 
 import {
   concederAcessoAction,
   concederLoginAction,
   gerarLinkRecuperacaoAction,
+  novaPessoaAction,
   onboardingEmLoteAction,
   revogarAcessoAction,
   salvarDepartamentosComprasAction,
@@ -234,6 +238,124 @@ export function OnboardingLote({
 }
 
 export function ConcederAcesso() {
+  const [novaPessoa, setNovaPessoa] = useState(false)
+  if (novaPessoa) return <NovaPessoa aoCancelar={() => setNovaPessoa(false)} />
+  return (
+    <div className="grid gap-3">
+      <ConcederAcessoBusca />
+      <p className="text-muted-foreground text-sm">
+        Não encontrou a pessoa?{" "}
+        <Button type="button" variant="outline" size="sm" onClick={() => setNovaPessoa(true)}>
+          <UserRoundPlus />
+          Nova pessoa
+        </Button>
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Cadastro de quem ainda não está em Usuários. Se o CPF (ou o e-mail de um
+ * cadastro antigo sem CPF) já existe, mostra a pessoa e oferece o acesso a ela
+ * em vez de criar outra.
+ */
+function NovaPessoa({ aoCancelar }: { aoCancelar: () => void }) {
+  const [estado, formAction, pendente] = useActionState<ResultadoNovaPessoa, FormData>(
+    novaPessoaAction,
+    {}
+  )
+  const v = estado.valores
+  return (
+    <div className="grid max-w-xl gap-4">
+      {/* A key remonta os campos com o que foi digitado: o React limpa o form ao fim da action. */}
+      <form key={JSON.stringify(v ?? {})} action={formAction} className="grid gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="nova-nome">Nome completo</Label>
+          <Input id="nova-nome" name="nome_completo" required autoComplete="off" defaultValue={v?.nome} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="nova-cpf">CPF</Label>
+            <Input
+              id="nova-cpf"
+              name="cpf"
+              required
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              autoComplete="off"
+              defaultValue={v?.cpf}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nova-vinculo">Vínculo com a entidade</Label>
+            <select
+              id="nova-vinculo"
+              name="vinculo_instituicao"
+              defaultValue={v?.vinculo ?? ""}
+              className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+            >
+              <option value="">Nenhum (só o acesso)</option>
+              {VINCULOS_INSTITUICAO.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="nova-email">E-mail</Label>
+          <Input id="nova-email" name="email" type="email" required autoComplete="off" defaultValue={v?.email} />
+          <span className="text-muted-foreground text-xs">
+            O convite vai para este e-mail, e é com ele que a pessoa entra. Com
+            vínculo, ela passa a contar no quadro da entidade (aniversários do
+            painel, convite em lote); o Pessoal depende do vínculo trabalhista.
+          </span>
+        </div>
+        {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" size="sm" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <UserRoundPlus />}
+            Cadastrar e conceder acesso
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={aoCancelar}>
+            Voltar à busca
+          </Button>
+        </div>
+      </form>
+
+      {estado.existente && <PessoaJaCadastrada pessoa={estado.existente} />}
+    </div>
+  )
+}
+
+function PessoaJaCadastrada({ pessoa }: { pessoa: NonNullable<ResultadoNovaPessoa["existente"]> }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
+    concederAcessoAction,
+    {}
+  )
+  return (
+    <Alert variant="warning">
+      <AlertDescription className="grid gap-2">
+        <span>
+          {pessoa.motivo === "cpf" ? "Este CPF já está" : "Este e-mail já está"} no cadastro de{" "}
+          <strong>{pessoa.nome ?? "(sem nome)"}</strong>
+          {pessoa.email ? ` (${pessoa.email})` : ""}. Conceda o acesso a esse cadastro em vez de criar outro.
+        </span>
+        <form action={formAction}>
+          <input type="hidden" name="usuario_id" value={pessoa.usuarioId} />
+          <Button type="submit" size="sm" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <UserPlus />}
+            Conceder acesso a {pessoa.nome?.split(" ")[0] ?? "esta pessoa"}
+          </Button>
+        </form>
+        {estado.erro && <span className="text-destructive text-sm">{estado.erro}</span>}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+function ConcederAcessoBusca() {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     concederAcessoAction,
     {}

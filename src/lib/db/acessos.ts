@@ -3,6 +3,7 @@ import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
 import { garantirPerfilPadrao } from "@/lib/db/perfis"
@@ -12,6 +13,7 @@ import {
 } from "@/lib/permissoes-catalogo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { origemAtual } from "@/lib/tenant-url"
+import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
 /**
  * Acessos ao painel = registro de `permissoes` ligado a um `usuarios`
@@ -188,6 +190,118 @@ export async function atualizarAcesso(
   return {}
 }
 
+// ── Nova pessoa ─────────────────────────────────────────────────────────────
+
+export type PessoaExistente = {
+  usuarioId: string
+  nome: string | null
+  email: string | null
+  /** Por que achamos que é ela. */
+  motivo: "cpf" | "email"
+}
+
+export type ResultadoNovaPessoa = {
+  erro?: string
+  /** A pessoa já está em `usuarios`: conceder acesso a ela, não cadastrar de novo. */
+  existente?: PessoaExistente
+  usuarioId?: string
+  /** O que foi digitado, para o formulário não voltar vazio depois de uma recusa. */
+  valores?: { nome: string; cpf: string; email: string; vinculo: string }
+}
+
+/**
+ * Cadastra em `usuarios` quem ainda não está lá — sem isso a pessoa não
+ * aparece em "Conceder acesso" e não há como convidá-la. Nenhuma outra tela
+ * cria usuários: os que existem vieram da migração do Bubble (12 mil, a maior
+ * parte filiados com conta no portal), então a conferência de duplicidade é o
+ * centro da função.
+ *
+ * - CPF (obrigatório e válido) já em `usuarios` → devolve a pessoa existente.
+ * - E-mail já em `usuarios`: sem CPF lá, é provavelmente a mesma pessoa
+ *   (cadastro antigo) → existente; com outro CPF → erro, porque o login é
+ *   pelo e-mail e duas pessoas não podem dividi-lo.
+ */
+export async function cadastrarPessoa(dados: {
+  nome: string
+  cpf: string
+  email: string
+  vinculo: string | null
+}): Promise<ResultadoNovaPessoa> {
+  const nome = dados.nome.trim().replace(/\s+/g, " ")
+  const email = dados.email.trim().toLowerCase()
+  const cpf = cpfConfiavel(dados.cpf)
+  if (nome.split(" ").length < 2) return { erro: "Informe o nome completo." }
+  if (!cpf) return { erro: "CPF inválido. Confira os dígitos." }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "E-mail inválido." }
+  const vinculo =
+    dados.vinculo && (VINCULOS_INSTITUICAO as readonly string[]).includes(dados.vinculo)
+      ? dados.vinculo
+      : null
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const { data: porCpf } = await admin
+    .from("usuarios")
+    .select("id, nome_completo, email, deletado")
+    .eq("emp_proprietaria_id", emp)
+    .in("cpf", grafiasDoCpf(cpf))
+    .order("deletado", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (porCpf) {
+    if (porCpf.deletado) {
+      return { erro: "Este CPF pertence a um cadastro excluído do sistema. Fale com o suporte para reativá-lo." }
+    }
+    return {
+      existente: {
+        usuarioId: String(porCpf.id),
+        nome: texto(porCpf.nome_completo),
+        email: texto(porCpf.email),
+        motivo: "cpf",
+      },
+    }
+  }
+
+  const { data: porEmail } = await admin
+    .from("usuarios")
+    .select("id, nome_completo, email, cpf")
+    .eq("emp_proprietaria_id", emp)
+    .eq("email", email) // os e-mails de usuarios estão todos em minúsculas
+    .neq("deletado", true)
+    .limit(1)
+    .maybeSingle()
+  if (porEmail) {
+    if (cpfConfiavel(texto(porEmail.cpf))) {
+      return {
+        erro: `Este e-mail já é do cadastro de ${texto(porEmail.nome_completo) ?? "outra pessoa"}, com outro CPF. O login é pelo e-mail: use um e-mail só desta pessoa.`,
+      }
+    }
+    return {
+      existente: {
+        usuarioId: String(porEmail.id),
+        nome: texto(porEmail.nome_completo),
+        email: texto(porEmail.email),
+        motivo: "email",
+      },
+    }
+  }
+
+  const { data, error } = await admin
+    .from("usuarios")
+    .insert({
+      nome_completo: nome,
+      cpf,
+      email,
+      vinculo_instituicao: vinculo,
+      emp_proprietaria_id: emp,
+    })
+    .select("id")
+    .single()
+  if (error || !data) return { erro: `Não foi possível cadastrar: ${error?.message ?? "erro"}` }
+  return { usuarioId: String(data.id) }
+}
+
 /**
  * Concede acesso a uma pessoa: cria o registro de `permissoes` ligado ao
  * usuário (se ainda não houver). Todas as flags começam desligadas.
@@ -202,6 +316,13 @@ export async function concederAcesso(
     .eq("usuario_id", usuarioId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
+  // Quem estava inativo volta a valer: conceder acesso é trazer a pessoa de volta.
+  await admin
+    .from("usuarios")
+    .update({ inativo: false, updated_at: new Date().toISOString() })
+    .eq("id", usuarioId)
+    .eq("inativo", true)
+    .neq("deletado", true)
   if (existente) return { id: existente.id as string, jaExistia: true }
 
   const { data, error } = await admin
@@ -403,11 +524,7 @@ export async function sugerirUsuarios(
  * tabela de permissões. Cada convidado recebe um perfil de permissões VAZIO
  * (login + autosserviço); os módulos são liberados depois, um a um.
  */
-const VINCULOS_ONBOARDING = [
-  "Funcionário(a)",
-  "Diretor(a)",
-  "Prestador(a) de serviço",
-]
+const VINCULOS_ONBOARDING = [...VINCULOS_INSTITUICAO]
 
 /** E-mail (BREVO) configurado? O disparo do lote depende disso. */
 export function emailConfigurado(): boolean {

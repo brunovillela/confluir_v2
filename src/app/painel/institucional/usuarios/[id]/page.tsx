@@ -25,11 +25,14 @@ export const metadata: Metadata = { title: "Permissões — Confluir" }
 
 export default async function AcessoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ nova?: string }>
 }) {
   await requirePermissao("permissoes", ["configuracoes"])
   const { id } = await params
+  const { nova } = await searchParams
 
   const acesso = await obterAcesso(id)
   if (!acesso) notFound()
@@ -74,6 +77,15 @@ export default async function AcessoPage({
           {acesso.email ?? "sem e-mail"}
         </p>
       </div>
+
+      {nova && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Pessoa cadastrada. Escolha os perfis de acesso abaixo e clique em{" "}
+            <strong>Conceder login</strong> para enviar o convite por e-mail.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="grid gap-3 pt-6">

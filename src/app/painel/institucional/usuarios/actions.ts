@@ -7,6 +7,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarAcesso,
+  cadastrarPessoa,
   concederAcesso,
   concederLogin,
   emailConfigurado,
@@ -15,6 +16,7 @@ import {
   obterAcesso,
   revogarAcesso,
   type ResultadoLogin,
+  type ResultadoNovaPessoa,
 } from "@/lib/db/acessos"
 import { listarDepartamentos } from "@/lib/db/compras"
 import { definirDepartamentosCompras } from "@/lib/db/compras-acesso"
@@ -61,6 +63,31 @@ export async function concederAcessoAction(
   if (erro) return { erro }
   revalidatePath("/painel/institucional/usuarios")
   redirect(`/painel/institucional/usuarios/${id}`)
+}
+
+/**
+ * Nova pessoa: cadastra em `usuarios` e já concede o acesso, levando à página
+ * dela (perfis e convite). Se a pessoa já existe, devolve quem é para a tela
+ * oferecer o acesso a ela em vez de duplicar.
+ */
+export async function novaPessoaAction(
+  _prev: ResultadoNovaPessoa,
+  formData: FormData
+): Promise<ResultadoNovaPessoa> {
+  await requirePermissao(CHAVE, ALT)
+  const valores = {
+    nome: texto(formData, "nome_completo"),
+    cpf: texto(formData, "cpf"),
+    email: texto(formData, "email"),
+    vinculo: texto(formData, "vinculo_instituicao"),
+  }
+  const r = await cadastrarPessoa({ ...valores, vinculo: valores.vinculo || null })
+  if (r.erro || r.existente || !r.usuarioId) return { ...r, valores }
+
+  const { id, erro } = await concederAcesso(r.usuarioId)
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/usuarios")
+  redirect(`/painel/institucional/usuarios/${id}?nova=1`)
 }
 
 export async function salvarPermissoesAction(
