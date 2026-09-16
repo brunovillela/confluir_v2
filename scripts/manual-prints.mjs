@@ -28,9 +28,15 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 17/09: tela de Filiados com o aviso de possíveis duplicidades
+  // no cartão de saúde (demo: Marina Couto Ferreira em dois cadastros).
+  ["/painel/filiados", "filiados/lista.png", { fullPage: true, esperar: "possível duplicidade para conferir" }],
+
   // Rodada de 15/09: tela de Filiados com o medidor de saúde dos cadastros.
+  /*
   ["/painel/filiados", "filiados/lista.png", { fullPage: true }],
   ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png", { fullPage: true }],
+  */
 
   // Rodada de 10/09: relatórios, cadastros pendentes, nova filiação, página do
   // veículo (visão geral, histórico, saída), portal eventos e departamentos.
@@ -333,6 +339,12 @@ for (const [route, file, opts] of SHOTS) {
   // compilação a frio no dev podem não atingir networkidle em 30s).
   await p.goto(BASE + route, { waitUntil: "load", timeout: 60000 })
   await p.waitForTimeout(1200)
+  // opts.esperar: texto que só aparece quando o trecho em streaming (Suspense)
+  // terminou — sem isso o print pega o esqueleto de carregamento.
+  if (opts?.esperar) {
+    await p.getByText(opts.esperar, { exact: false }).first().waitFor({ timeout: 180000 })
+    await p.waitForTimeout(800)
+  }
   // O aviso de "fora do horário de trabalho" depende da hora em que o print
   // é tirado; não é parte da tela que o manual ensina.
   await p.evaluate(() => {
