@@ -13,6 +13,13 @@
 --    estrangeiras para filiacoes.id, descobertas no catálogo, mais as duas
 --    colunas sem chave declarada) e marca os outros como excluídos, apontando
 --    para o principal. Nada é apagado.
+--    VÍNCULOS REPETIDOS (17/09): o mesmo emprego registrado em DOIS cadastros
+--    da pessoa — mesma fonte, mesma matrícula na fonte, períodos que se
+--    sobrepõem — vira um vínculo só: fica o que tem documento (ou o do
+--    principal), com a filiação mais antiga e os campos vazios completados
+--    pelo outro; a cópia do removido vai para o prontuário. Vínculos repetidos
+--    DENTRO de um mesmo cadastro são legítimos e não são tocados, nem
+--    refiliações com períodos separados.
 -- 2. "NÃO É DUPLICIDADE": `filiacao_duplicidades_ignoradas` guarda os grupos
 --    conferidos (homônimos) para não voltarem à lista.
 -- ============================================================================
@@ -78,6 +85,17 @@ declare
   movidos jsonb := '{}'::jsonb;
   pendentes jsonb := '[]'::jsonb;
   nomes text;
+  todos uuid[] := array[p_principal] || p_secundarios;
+  par record;
+  v_fica filiacao_vinculos;
+  v_sai filiacao_vinculos;
+  aberto boolean;
+  unificados integer := 0;
+  sem_unificar uuid[] := '{}';
+  -- "vínculo:cadastro": o vínculo já absorveu um do cadastro. Cada vínculo
+  -- absorve no máximo UM de cada cadastro, para não fundir dois vínculos que
+  -- já conviviam num mesmo cadastro.
+  absorvidos text[] := '{}';
 begin
   if p_secundarios is null or array_length(p_secundarios, 1) is null then
     raise exception 'Escolha ao menos um cadastro para incorporar.';
@@ -124,7 +142,104 @@ begin
          updated_at = now()
    where id = p_principal;
 
-  -- 3. Tudo que aponta para os incorporados passa a apontar para o principal.
+  -- 3. Vínculos repetidos entre os cadastros (antes de movê-los): o mesmo
+  --    emprego — mesma fonte, mesma matrícula, períodos que se sobrepõem —
+  --    registrado em cadastros DIFERENTES vira um só. Um par por volta; cada
+  --    volta apaga um vínculo, então o laço termina.
+  loop
+    select a.id as fica, b.id as sai into par
+      from filiacao_vinculos a
+      join filiacao_vinculos b
+        on b.fonte_pagadora_id = a.fonte_pagadora_id
+       and b.filiado_id <> a.filiado_id
+       and nullif(ltrim(btrim(b.matricula), '0'), '') = nullif(ltrim(btrim(a.matricula), '0'), '')
+       and coalesce(a.data_filiacao, '-infinity'::date) <= coalesce(b.data_desfiliacao, 'infinity'::date)
+       and coalesce(b.data_filiacao, '-infinity'::date) <= coalesce(a.data_desfiliacao, 'infinity'::date)
+     where a.filiado_id = any(todos) and b.filiado_id = any(todos)
+       and a.emp_proprietaria_id = p_emp and b.emp_proprietaria_id = p_emp
+       and not (b.id = any(sem_unificar))
+       and not ((a.id::text || ':' || b.filiado_id::text) = any(absorvidos))
+       and not ((b.id::text || ':' || a.filiado_id::text) = any(absorvidos))
+     order by
+       (coalesce(a.ficha_filiacao, a.filiacao_ficha, a.carta_desfiliacao, a.filiacao_desfiliacao_carta) is not null) desc,
+       (a.filiado_id = p_principal) desc,
+       a.data_filiacao nulls last, a.created_at, a.id, b.id
+     limit 1;
+    exit when not found;
+
+    select * into v_fica from filiacao_vinculos where id = par.fica;
+    select * into v_sai from filiacao_vinculos where id = par.sai;
+    -- Se um dos dois segue aberto, o vínculo unificado segue aberto: dados de
+    -- saída do outro não passam para ele (ficam na cópia do prontuário).
+    aberto := v_fica.data_desfiliacao is null or v_sai.data_desfiliacao is null;
+    begin
+      for campo in
+        select c.column_name::text
+          from information_schema.columns c
+         where c.table_schema = 'public' and c.table_name = 'filiacao_vinculos'
+           and c.is_generated = 'NEVER'
+           and c.column_name not in (
+             'id', 'filiado_id', 'emp_proprietaria_id', 'created_at', 'bubble_id', 'slug',
+             'data_filiacao', 'data_desfiliacao', 'ficha_filiacao_aceita', 'carta_desfiliacao_aceita'
+           )
+           and not (aberto and c.column_name in (
+             'carta_desfiliacao', 'filiacao_desfiliacao_carta', 'filiacao_desfiliacao_comprovante',
+             'filiacao_data_saida', 'data_saida_demissao', 'fonte_pg_demissao'
+           ))
+      loop
+        execute format(
+          'update filiacao_vinculos set %1$I = (jsonb_populate_record(null::filiacao_vinculos, $1)).%1$I
+            where id = $2 and (%1$I is null or %1$I::text = '''') and coalesce($1 ->> %1$L, '''') <> ''''',
+          campo
+        ) using to_jsonb(v_sai), par.fica;
+      end loop;
+      update filiacao_vinculos
+         set data_filiacao = least(v_fica.data_filiacao, v_sai.data_filiacao),
+             data_desfiliacao = case when aberto then null
+                                     else greatest(v_fica.data_desfiliacao, v_sai.data_desfiliacao) end,
+             ficha_filiacao_aceita = coalesce(v_fica.ficha_filiacao_aceita, false) or coalesce(v_sai.ficha_filiacao_aceita, false),
+             carta_desfiliacao_aceita = case when aberto then v_fica.carta_desfiliacao_aceita
+               else coalesce(v_fica.carta_desfiliacao_aceita, false) or coalesce(v_sai.carta_desfiliacao_aceita, false) end
+       where id = par.fica;
+
+      -- O que aponta para o vínculo removido passa para o que fica.
+      for ref in
+        select cl.relname::text as tabela, att.attname::text as coluna
+          from pg_constraint con
+          join pg_class cl on cl.oid = con.conrelid
+          join pg_namespace ns on ns.oid = cl.relnamespace
+          join pg_attribute att on att.attrelid = con.conrelid and att.attnum = con.conkey[1]
+         where con.contype = 'f'
+           and con.confrelid = 'public.filiacao_vinculos'::regclass
+           and ns.nspname = 'public'
+        union
+        select c.table_name::text, c.column_name::text
+          from information_schema.columns c
+         where c.table_schema = 'public' and c.table_name = 'oficios_filiados' and c.column_name = 'vinculo_id'
+      loop
+        execute format('update %I set %I = $1 where %I = $2', ref.tabela, ref.coluna, ref.coluna)
+          using par.fica, par.sai;
+      end loop;
+
+      insert into filiacao_prontuario (filiacao_id, data, tipo, descricao, diretor_funcionario_id, emp_proprietaria_id, created_at, modified_at)
+      values (
+        p_principal, now(), 'Atualização cadastral',
+        'Vínculos repetidos unificados na mesclagem (mesma fonte, matrícula ' || btrim(v_fica.matricula) ||
+        '): ficou um só, com filiação em ' ||
+        coalesce(to_char(least(v_fica.data_filiacao, v_sai.data_filiacao), 'DD/MM/YYYY'), 'data não informada') ||
+        '. Cópia do vínculo removido: ' || jsonb_strip_nulls(to_jsonb(v_sai))::text,
+        p_usuario, p_emp, now(), now()
+      );
+      delete from filiacao_vinculos where id = par.sai;
+      absorvidos := absorvidos || (v_fica.id::text || ':' || v_sai.filiado_id::text);
+      unificados := unificados + 1;
+    exception when unique_violation or foreign_key_violation then
+      -- Algo impede juntar este par: os dois seguem, e o laço não volta a ele.
+      sem_unificar := sem_unificar || par.sai;
+    end;
+  end loop;
+
+  -- 4. Tudo que aponta para os incorporados passa a apontar para o principal.
   for ref in
     select cl.relname::text as tabela, att.attname::text as coluna
       from pg_constraint con
@@ -159,7 +274,7 @@ begin
   -- para o principal (mesclagens em cadeia).
   update filiacoes set mesclado_em_id = p_principal where mesclado_em_id = any(p_secundarios);
 
-  -- 4. Registro no prontuário do principal.
+  -- 5. Registro no prontuário do principal.
   insert into filiacao_prontuario (filiacao_id, data, tipo, descricao, diretor_funcionario_id, emp_proprietaria_id, created_at, modified_at)
   values (
     p_principal, now(), 'Atualização cadastral',
@@ -167,7 +282,7 @@ begin
     p_usuario, p_emp, now(), now()
   );
 
-  return jsonb_build_object('movidos', movidos, 'pendentes', pendentes);
+  return jsonb_build_object('movidos', movidos, 'pendentes', pendentes, 'vinculos_unificados', unificados);
 end;
 $$;
 

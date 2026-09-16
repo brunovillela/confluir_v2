@@ -47,7 +47,8 @@ export async function mesclarAction(_prev: EstadoForm, formData: FormData): Prom
   revalidatePath("/painel/filiados/cadastros-pendentes")
   revalidatePath(`/painel/filiados/${principal}`)
   const pendentes = r.pendentes?.length ? `&pendentes=${encodeURIComponent(r.pendentes.join(","))}` : ""
-  redirect(`/painel/filiados/${principal}?mesclado=${secundarios.length}${pendentes}`)
+  const vinculos = r.vinculosUnificados ? `&vinculos=${r.vinculosUnificados}` : ""
+  redirect(`/painel/filiados/${principal}?mesclado=${secundarios.length}${vinculos}${pendentes}`)
 }
 
 export async function ignorarAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {

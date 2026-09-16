@@ -124,7 +124,7 @@ export default async function FiliadoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; pendentes?: string }>
+  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; vinculos?: string; pendentes?: string }>
 }) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
@@ -134,7 +134,7 @@ export default async function FiliadoPage({
   const podeReembolsar = podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"])
 
   const { id } = await params
-  const { salvo, etapa, mesclado, pendentes } = await searchParams
+  const { salvo, etapa, mesclado, vinculos: vinculosUnificados, pendentes } = await searchParams
   const [perfil, prontuario] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
@@ -231,6 +231,10 @@ export default async function FiliadoPage({
             <AlertDescription>
               {mesclado === "1" ? "1 cadastro duplicado incorporado" : `${mesclado} cadastros duplicados incorporados`} a este.
               O histórico foi movido e a mesclagem ficou no prontuário.
+              {vinculosUnificados &&
+                (vinculosUnificados === "1"
+                  ? " 1 vínculo repetido (mesma fonte e matrícula, em cadastros diferentes) virou um só."
+                  : ` ${vinculosUnificados} vínculos repetidos (mesma fonte e matrícula, em cadastros diferentes) viraram um só.`)}
               {pendentes &&
                 ` Não foi possível mover: ${pendentes.split(",").join(", ")} (o cadastro principal já tinha o mesmo registro).`}
             </AlertDescription>

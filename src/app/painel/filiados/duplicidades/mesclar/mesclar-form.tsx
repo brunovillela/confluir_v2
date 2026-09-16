@@ -175,7 +175,9 @@ export function MesclarForm({
           <CardDescription>
             Passam para o principal: {somar("vinculos")} vínculo(s), {somar("contribuicoes")} contribuição(ões),{" "}
             {somar("prontuario")} apontamento(s) de prontuário, além de contatos, dados bancários, reembolsos,
-            hospedagens, atendimentos e processos. Nada é apagado, e a mesclagem fica registrada no prontuário.
+            hospedagens, atendimentos e processos. O mesmo emprego registrado em mais de um cadastro (mesma fonte,
+            mesma matrícula, períodos que se sobrepõem) vira um vínculo só, com a filiação mais antiga. A mesclagem
+            fica registrada no prontuário.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">

@@ -265,6 +265,8 @@ export type ResultadoMesclagem = {
   erro?: string
   movidos?: Record<string, number>
   pendentes?: string[]
+  /** Vínculos do mesmo emprego (mesma fonte e matrícula) que estavam em dois cadastros e viraram um. */
+  vinculosUnificados?: number
 }
 
 export async function mesclarCadastros(dados: {
@@ -306,8 +308,16 @@ export async function mesclarCadastros(dados: {
   }
   invalidarCacheDuplicidades()
   invalidarCacheCadastrosPendentes()
-  const resultado = (data ?? {}) as { movidos?: Record<string, number>; pendentes?: string[] }
-  return { movidos: resultado.movidos ?? {}, pendentes: resultado.pendentes ?? [] }
+  const resultado = (data ?? {}) as {
+    movidos?: Record<string, number>
+    pendentes?: string[]
+    vinculos_unificados?: number
+  }
+  return {
+    movidos: resultado.movidos ?? {},
+    pendentes: resultado.pendentes ?? [],
+    vinculosUnificados: resultado.vinculos_unificados ?? 0,
+  }
 }
 
 /** "Não é duplicidade": o grupo some da lista até entrar outro cadastro nele. */
