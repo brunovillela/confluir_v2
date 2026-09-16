@@ -55,9 +55,30 @@ mais atrapalham.
 Na mesclagem, tudo o que pertencia aos outros cadastros passa para o principal:
 vínculos de filiação e trabalhistas, contribuições, prontuário, contatos,
 dados bancários, reembolsos, hospedagens, atendimentos de saúde, processos,
-inscrições em eventos, pessoas de ofícios. **Nada é apagado**: os outros
-cadastros ficam excluídos, com um aviso que leva ao que ficou, e a mesclagem é
-registrada no prontuário do principal.
+inscrições em eventos, pessoas de ofícios. Os outros cadastros ficam
+excluídos, com um aviso que leva ao que ficou, e a mesclagem é registrada no
+prontuário do principal.
+
+### Vínculos repetidos
+
+Quem se refiliou com um cadastro novo costuma ter o **mesmo emprego** nos dois
+cadastros. Na mesclagem, dois vínculos viram um só quando:
+
+- estão em **cadastros diferentes** da pessoa;
+- são da **mesma fonte pagadora** e têm a **mesma matrícula na fonte**;
+- os **períodos se sobrepõem** (os dois abertos, por exemplo).
+
+Fica o vínculo que tem ficha ou carta anexada (ou, entre iguais, o do cadastro
+principal), com a **data de filiação mais antiga** dos dois. Campos vazios nele
+são completados pelo outro. Onde os dois divergem, vale o que ficou, e o
+prontuário guarda uma **cópia completa do vínculo removido**.
+
+Não são unificados:
+
+- vínculos repetidos que já estavam **no mesmo cadastro** — um filiado pode ter
+  mais de um vínculo na mesma fonte;
+- uma **refiliação com períodos separados** (saiu em 2023 e voltou em 2024): os
+  dois vínculos contam a história e continuam.
 
 ## Não é duplicidade
 
