@@ -1,5 +1,6 @@
 A **Diretoria** organiza os mandatos e os integrantes da entidade — e é dela
-que saem os signatários dos ofícios.
+que saem os signatários dos ofícios. Ela tem duas abas: **Mandatos** e
+**Instâncias**.
 
 <RequerPermissao>Mandatos e integrantes</RequerPermissao>
 
@@ -44,6 +45,63 @@ integrante **sem filiação** (convidado, dirigente de outra base) tem a ficha
 completa guardada no institucional, como antes. A CNH aparece para quem está no
 cadastro de condutores — é lá que ela é cadastrada e atualizada.
 
+## Instâncias
+
+**Instâncias** são as entidades em que o sindicato tem assento — conselhos,
+comissões, fóruns. Elas são cadastradas **fora** do mandato, na aba
+**Instâncias**; os diretores são vinculados a elas **dentro** do mandato.
+
+<PassoAPasso>
+  <Passo titulo="Cadastre a instância">
+    Na aba **Instâncias**, em *Nova instância*: nome e descrição.
+  </Passo>
+  <Passo titulo="Vincule o diretor no mandato">
+    Abra o mandato e, na seção **Instâncias**, use *Vincular diretor a uma
+    instância*: a instância, o diretor, o cargo nela, o período e o documento
+    de posse.
+  </Passo>
+  <Passo titulo="Veja a tag">
+    Na lista de integrantes do mandato, quem tem vínculo em andamento ganha uma
+    **tag com o nome da instância**. A página da instância lista todos os
+    vínculos, de todos os mandatos, só para consulta.
+  </Passo>
+</PassoAPasso>
+
+<Print src="institucional/diretoria-instancias.png" alt="Aba Instâncias da Diretoria, com as abas Mandatos e Instâncias no alto, o cartão Nova instância e a lista das instâncias cadastradas com o número de vínculos." legenda="Aba Instâncias: aqui se cadastra a instância; o vínculo do diretor é lançado no mandato." />
+
+## Liberações sindicais
+
+Em **Registrar liberação**, dentro do mandato, uma chave escolhe o jeito de lançar:
+
+- **Individual** — um diretor, o empregador, o tipo (permanente ou pontual), a
+  vigência e o documento que oficializou.
+- **Várias liberações** — para quando **um ofício libera várias pessoas**, o
+  caso mais comum.
+
+<PassoAPasso>
+  <Passo titulo="Escolha o ofício">
+    O ofício é o da **área de Ofícios** — emita-o lá primeiro. O empregador vem
+    preenchido com o destinatário do ofício, quando ele é uma fonte pagadora.
+  </Passo>
+  <Passo titulo="Adicione as pessoas">
+    Para cada pessoa, a **data de saída** e a **data de retorno**. A pessoa pode
+    ser um diretor do mandato ou um **trabalhador da base** — escolha
+    *Trabalhador da base* e busque o filiado; ele não precisa ser diretor. Sem
+    data de retorno, a liberação fica permanente.
+  </Passo>
+  <Passo titulo="Registre">
+    Uma liberação por pessoa é criada de uma vez, todas ligadas ao mesmo
+    ofício. Na tabela, o trabalhador da base aparece com a marca *base*, e a
+    coluna Documento leva ao ofício — que, por sua vez, lista as liberações
+    registradas com ele.
+  </Passo>
+</PassoAPasso>
+
+<Print src="institucional/liberacoes-lote.png" alt="Registrar liberação com a chave em Várias liberações: ofício escolhido da área de Ofícios, empregador Petro Fictícia, duas pessoas com saída e retorno — um diretor e um trabalhador da base buscado entre os filiados —, observação e o botão Registrar 2 liberações; abaixo, a tabela de liberações com a marca base e o link do ofício." legenda="Várias liberações pelo mesmo ofício, inclusive de trabalhadores da base." />
+
+No **Meu perfil** do diretor, a liberação aparece como *em vigor*, *prevista*
+(ainda não começou) ou *encerrada*.
+
 ## Signatários dos ofícios
 
 Os integrantes vigentes de um mandato são as pessoas oferecidas como
@@ -55,7 +113,16 @@ direto nos documentos.
 As atas ficam ancoradas no mandato: tipo, pauta, deliberações, presentes e o
 PDF da ata. Há também uma visão geral das atas na área própria.
 
-<Print src="institucional/diretoria.png" alt="Página de um mandato com a lista de integrantes e as atas de reunião." legenda="Mandato, integrantes e atas." />
+<Aviso tipo="dica" titulo="Suba o PDF e a IA preenche a ata">
+  Em *Nova ata*, o campo **Ata em PDF** fica no alto. Ao escolher o arquivo, a
+  IA lê a ata — digitada ou escaneada — e preenche tipo, data, título, hora,
+  local, pauta, deliberações, presentes e observações. **Confira antes de
+  salvar.** Numa ata já registrada, só os campos vazios são preenchidos.
+</Aviso>
+
+<Print src="institucional/ata-ia.png" alt="Nova ata com o arquivo ata-teste.pdf escolhido e a mensagem A IA preencheu 9 campos a partir da ata; abaixo, mandato, tipo Diretoria, data 10/09/2026, título, hora 18h30, local, pauta, deliberações, presentes e observações preenchidos." legenda="A IA leu o PDF da ata e preencheu os campos." />
+
+<Print src="institucional/diretoria.png" alt="Página de um mandato: integrantes por grupo com a tag da instância em que cada um representa a entidade, a seção Instâncias com os vínculos, as liberações sindicais e as atas de reunião." legenda="O mandato: integrantes com a tag da instância, vínculos às instâncias, liberações e atas." />
 
 ## Erros comuns
 
@@ -68,6 +135,11 @@ PDF da ata. Há também uma visão geral das atas na área própria.
   é filiado, a ficha e a filiação são o mesmo cadastro.
 - **"A CNH não aparece na ficha."** A pessoa não está em Veículos › Condutores
   (ou não tem conta de usuário com o mesmo CPF). Cadastre lá.
+- **"Não acho o ofício para vincular as liberações."** Só aparecem ofícios
+  **emitidos** na área de Ofícios. Emita-o lá e volte.
+- **"Não consigo vincular o diretor à instância na página dela."** O vínculo
+  é lançado **dentro do mandato**, na seção Instâncias; a página da instância é
+  só consulta.
 - **"O integrante saiu da diretoria mas continua aparecendo."** Encerre o
   **mandato** ou o vínculo do integrante para tirá-lo dos vigentes.
 
