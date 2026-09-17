@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react"
 import Link from "next/link"
-import { Check, Loader2, Pencil, Save, UserCheck, X } from "lucide-react"
+import { Building, Check, Loader2, Pencil, Save, UserCheck, X } from "lucide-react"
 
 import {
   FiliadoPicker,
@@ -79,6 +79,16 @@ export function IntegranteLinha({
           <p className="text-muted-foreground text-xs">
             {integrante.cargo ?? "—"}
           </p>
+          {integrante.instancias.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {integrante.instancias.map((nome) => (
+                <Badge key={nome} variant="outline" className="border-primary/40 text-primary gap-1 font-normal">
+                  <Building className="size-3" />
+                  {nome}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {integrante.podeAssinar && <Selo rotulo="Assina" ativo />}

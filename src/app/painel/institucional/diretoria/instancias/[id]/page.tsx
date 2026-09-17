@@ -14,16 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { CartaoEditavel } from "@/components/cartao-editavel"
-import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
-import { integrantesVigentes, obterInstancia } from "@/lib/db/diretoria"
+import { obterInstancia } from "@/lib/db/diretoria"
 import { formatarData } from "@/lib/formato"
 
-import {
-  AdicionarAssento,
-  InstanciaForm,
-  RemoverAssento,
-} from "../../diretoria-extra-forms"
+import { InstanciaForm } from "../../diretoria-extra-forms"
 
 export const metadata: Metadata = { title: "Instância — Confluir" }
 
@@ -35,10 +30,7 @@ export default async function InstanciaPage({
   await requirePermissao("diretoria_mandatos", ["configuracoes"])
   const { id } = await params
 
-  const [instancia, integrantes] = await Promise.all([
-    obterInstancia(id),
-    integrantesVigentes(),
-  ])
+  const instancia = await obterInstancia(id)
   if (!instancia) notFound()
 
   return (
@@ -84,32 +76,28 @@ export default async function InstanciaPage({
 
       {/* Assentos */}
       <div>
-        <h2 className="text-lg font-semibold">Assentos</h2>
+        <h2 className="text-lg font-semibold">Diretores vinculados</h2>
         <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-          Diretores que representam o sindicato nesta instância, com cargo,
-          mandato e documento de posse
+          Quem representa o sindicato nesta instância, em todos os mandatos. O vínculo é lançado
+          e removido dentro do mandato.
         </p>
 
         <div className="grid gap-4">
-          <GrupoColapsavel titulo="Adicionar assento">
-            <AdicionarAssento instanciaId={instancia.id} integrantes={integrantes} />
-          </GrupoColapsavel>
-
           <Card>
             <CardContent>
               {instancia.assentos.length === 0 ? (
                 <p className="text-muted-foreground py-6 text-center text-sm">
-                  Nenhum assento nesta instância ainda.
+                  Nenhum diretor vinculado. Vincule dentro do mandato.
                 </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Diretor</TableHead>
+                      <TableHead>Mandato da diretoria</TableHead>
                       <TableHead>Cargo</TableHead>
-                      <TableHead>Mandato</TableHead>
+                      <TableHead>Período</TableHead>
                       <TableHead>Documento</TableHead>
-                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -117,6 +105,18 @@ export default async function InstanciaPage({
                       <TableRow key={a.id}>
                         <TableCell className="font-medium">
                           {a.integranteNome ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {a.mandatoId ? (
+                            <Link
+                              href={`/painel/institucional/diretoria/${a.mandatoId}`}
+                              className="text-primary hover:underline"
+                            >
+                              {a.mandatoNome ?? "Mandato"}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">{a.cargo ?? "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-sm">
@@ -138,9 +138,6 @@ export default async function InstanciaPage({
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
                           )}
-                        </TableCell>
-                        <TableCell className="py-1">
-                          <RemoverAssento assentoId={a.id} instanciaId={instancia.id} />
                         </TableCell>
                       </TableRow>
                     ))}

@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+
+import { AbasDiretoria } from "../abas-diretoria"
 import { requirePermissao } from "@/lib/auth"
 import { listarInstancias } from "@/lib/db/diretoria"
 
@@ -36,12 +38,13 @@ export default async function InstanciasPage() {
         </Button>
       </div>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Instâncias</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Diretoria</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Entidades em que o sindicato tem assento, com os diretores que o
-          representam
+          Instâncias: entidades em que o sindicato tem assento. Cadastre aqui; os diretores são
+          vinculados a elas dentro de cada mandato.
         </p>
       </div>
+      <AbasDiretoria atual="instancias" />
 
       {!disponivel && (
         <Alert variant="warning">
@@ -71,7 +74,7 @@ export default async function InstanciasPage() {
                     <TableRow>
                       <TableHead>Instância</TableHead>
                       <TableHead>Descrição</TableHead>
-                      <TableHead>Assentos</TableHead>
+                      <TableHead>Vínculos</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { assinantesVigentes } from "@/lib/db/diretoria"
+import { assinantesVigentes, liberacoesDoOficio } from "@/lib/db/diretoria"
 import {
   candidatosDaEmpresa,
   listarEmpresas,
@@ -83,7 +83,7 @@ export default async function OficioPage({
   const rascunho = oficio.situacao === "Rascunho"
   const automatico = eAutomatico(oficio.tipo)
 
-  const [empresas, { sedes }, assinantes, proximoNumero, candidatos, assinaturas, emailSugerido] =
+  const [empresas, { sedes }, assinantes, proximoNumero, candidatos, assinaturas, emailSugerido, liberacoes] =
     await Promise.all([
       rascunho ? listarEmpresas() : Promise.resolve([]),
       rascunho ? listarSedes() : Promise.resolve({ disponivel: true, sedes: [] }),
@@ -98,6 +98,7 @@ export default async function OficioPage({
         : Promise.resolve([]),
       assinaturasDoOficio(id),
       rascunho ? emailSugeridoDoIntegrante(oficio.assinanteIntegranteId) : Promise.resolve(null),
+      rascunho ? Promise.resolve([]) : liberacoesDoOficio(id),
     ])
   const telegram = rascunho
     ? await telegramDoIntegrante(oficio.assinanteIntegranteId)
@@ -395,6 +396,35 @@ export default async function OficioPage({
           </CardHeader>
           <CardContent>
             <AnexarAssinadoAMao oficioId={id} temArquivo={Boolean(oficio.arquivoAssinadoUrl)} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Liberações sindicais oficializadas por este ofício (Institucional › Diretoria) */}
+      {liberacoes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Liberações sindicais deste ofício</CardTitle>
+            <CardDescription>Registradas no mandato, em Institucional › Diretoria.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-1.5 text-sm">
+              {liberacoes.map((l) => (
+                <li key={l.id} className="flex flex-wrap items-center gap-x-2">
+                  {l.mandatoId ? (
+                    <Link href={`/painel/institucional/diretoria/${l.mandatoId}`} className="text-primary font-medium hover:underline">
+                      {l.pessoaNome ?? "—"}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{l.pessoaNome ?? "—"}</span>
+                  )}
+                  {!l.ehDiretor && <Badge variant="outline" className="text-muted-foreground">base</Badge>}
+                  <span className="text-muted-foreground">
+                    saída {l.inicio ? formatarData(l.inicio) : "?"} · retorno {l.fim ? formatarData(l.fim) : "sem retorno (permanente)"}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

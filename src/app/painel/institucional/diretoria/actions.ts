@@ -9,6 +9,7 @@ import {
   adicionarAssento,
   adicionarIntegrante,
   adicionarLiberacao,
+  adicionarLiberacoesEmLote,
   atualizarInstancia,
   atualizarIntegrante,
   atualizarMandato,
@@ -20,6 +21,7 @@ import {
   removerIntegrante,
   removerLiberacao,
   type DadosMandato,
+  type MembroDoLote,
 } from "@/lib/db/diretoria"
 
 function texto(formData: FormData, campo: string): string {
@@ -188,6 +190,7 @@ export async function adicionarLiberacaoAction(
   const { erro } = await adicionarLiberacao(
     {
       integrante_id,
+      mandato_id: mandatoId || null,
       empresa_id: texto(formData, "empresa_id") || null,
       tipo: texto(formData, "tipo") === "pontual" ? "pontual" : "permanente",
       inicio: dataISO(texto(formData, "inicio")),
@@ -199,6 +202,43 @@ export async function adicionarLiberacaoAction(
   if (erro) return { erro }
   if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
   return { ok: "Liberação registrada." }
+}
+
+/**
+ * Várias liberações pelo mesmo ofício. Cada linha do formulário vem com a chave
+ * em "membros" e os campos membro_<chave>_{integrante,filiacao,inicio,fim}.
+ */
+export async function adicionarLiberacoesLoteAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const mandatoId = texto(formData, "mandato_id")
+  if (!mandatoId) return { erro: "Mandato inválido." }
+  const oficioId = texto(formData, "oficio_id")
+  if (!oficioId) return { erro: "Escolha o ofício que oficializou as liberações." }
+
+  const membros: MembroDoLote[] = texto(formData, "membros")
+    .split(",")
+    .filter(Boolean)
+    .map((chave) => ({
+      integranteId: texto(formData, `membro_${chave}_integrante`) || null,
+      filiacaoId: texto(formData, `membro_${chave}_filiacao`) || null,
+      inicio: dataISO(texto(formData, `membro_${chave}_inicio`)),
+      fim: dataISO(texto(formData, `membro_${chave}_fim`)),
+    }))
+
+  const { erro, criadas } = await adicionarLiberacoesEmLote({
+    mandatoId,
+    empresaId: texto(formData, "empresa_id") || null,
+    oficioId,
+    observacao: texto(formData, "observacao") || null,
+    membros,
+  })
+  if (erro) return { erro }
+  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  revalidatePath(`/painel/ferramentas/oficios/${oficioId}`)
+  return { ok: `${criadas} liberaç${criadas === 1 ? "ão registrada" : "ões registradas"}.` }
 }
 
 export async function removerLiberacaoAction(
@@ -258,11 +298,14 @@ export async function adicionarAssentoAction(
 ): Promise<EstadoForm> {
   await requirePermissao(CHAVE, ALT)
   const instanciaId = texto(formData, "instancia_id")
-  if (!instanciaId) return { erro: "Instância inválida." }
+  const mandatoId = texto(formData, "mandato_id")
+  if (!instanciaId) return { erro: "Escolha a instância." }
+  if (!texto(formData, "integrante_id")) return { erro: "Escolha o diretor." }
   const documento = formData.get("documento")
   const { erro } = await adicionarAssento(
     instanciaId,
     {
+      mandato_id: mandatoId || null,
       integrante_id: texto(formData, "integrante_id") || null,
       cargo: texto(formData, "cargo") || null,
       mandato_inicio: dataISO(texto(formData, "mandato_inicio")),
@@ -272,7 +315,8 @@ export async function adicionarAssentoAction(
   )
   if (erro) return { erro }
   revalidatePath(`/painel/institucional/diretoria/instancias/${instanciaId}`)
-  return { ok: "Assento adicionado." }
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  return { ok: "Vínculo à instância registrado." }
 }
 
 export async function removerAssentoAction(
@@ -282,10 +326,12 @@ export async function removerAssentoAction(
   await requirePermissao(CHAVE, ALT)
   const id = texto(formData, "assento_id")
   const instanciaId = texto(formData, "instancia_id")
+  const mandatoId = texto(formData, "mandato_id")
   if (!id) return { erro: "Assento inválido." }
   const { erro } = await removerAssento(id)
   if (erro) return { erro }
   if (instanciaId)
     revalidatePath(`/painel/institucional/diretoria/instancias/${instanciaId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
   return { ok: "Assento removido." }
 }

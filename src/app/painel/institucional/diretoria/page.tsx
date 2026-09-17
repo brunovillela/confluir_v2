@@ -17,6 +17,7 @@ import { requirePermissao } from "@/lib/auth"
 import { listarMandatos } from "@/lib/db/diretoria"
 import { formatarData } from "@/lib/formato"
 
+import { AbasDiretoria } from "./abas-diretoria"
 import { MandatoForm } from "./diretoria-forms"
 
 export const metadata: Metadata = { title: "Diretoria — Confluir" }
@@ -41,6 +42,7 @@ export default async function DiretoriaPage() {
           Mandatos e integrantes — os signatários de ofícios saem do mandato vigente
         </p>
       </div>
+      <AbasDiretoria atual="mandatos" />
 
       <Card>
         <CardContent className="pt-6">

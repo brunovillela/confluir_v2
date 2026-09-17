@@ -1,4 +1,6 @@
 import "server-only"
+import { randomUUID } from "node:crypto"
+
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -17,6 +19,9 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 const AVISO_SQL =
   "Diretoria ainda não configurada — rode supabase/organizacao-diretoria.sql no Supabase."
+
+const AVISO_SQL_LOTE =
+  "Liberações em lote e instâncias no mandato ainda não configuradas — rode supabase/diretoria-liberacoes-lote.sql no Supabase."
 
 function hojeISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -95,6 +100,8 @@ export type Integrante = {
   ehFiliado: boolean
   temUsuario: boolean
   temAcesso: boolean
+  /** Instâncias em que tem assento vigente (nome). */
+  instancias: string[]
 }
 
 export type Grupo = { id: string; nome: string; ordem: number }
@@ -148,12 +155,13 @@ export async function obterMandato(id: string): Promise<DetalheMandato | null> {
     }
   }
 
-  const [liberados, grupos, cruzamento] = await Promise.all([
+  const [liberados, grupos, cruzamento, instancias] = await Promise.all([
     integrantesLiberadosHoje(ints.map((i) => i.id as string)),
     comGrupos ? listarGrupos(id) : Promise.resolve([]),
     comGrupos
       ? cruzarPessoas(ints.map((i) => texto(i.cpf)).filter(Boolean) as string[])
       : Promise.resolve(new Map()),
+    instanciasVigentesPorIntegrante(ints.map((i) => i.id as string)),
   ])
   const nomeGrupo = new Map(grupos.map((g) => [g.id, g.nome]))
 
@@ -183,9 +191,39 @@ export async function obterMandato(id: string): Promise<DetalheMandato | null> {
         ehFiliado: Boolean(i.filiacao_id) || (c?.filiado ?? false),
         temUsuario: c?.temUsuario ?? false,
         temAcesso: c?.temAcesso ?? false,
+        instancias: instancias.get(i.id as string) ?? [],
       }
     }),
   }
+}
+
+/** Nomes das instâncias com assento vigente (sem fim ou fim >= hoje), por integrante. */
+async function instanciasVigentesPorIntegrante(ids: string[]): Promise<Map<string, string[]>> {
+  const mapa = new Map<string, string[]>()
+  const unicos = [...new Set(ids.filter(Boolean))]
+  if (unicos.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("diretoria_instancia_assentos")
+    .select("integrante_id, instancia_id, mandato_fim")
+    .in("integrante_id", unicos)
+  if (error || !data?.length) return mapa
+  const hoje = hojeISO()
+  const vigentes = data.filter((a) => !a.mandato_fim || String(a.mandato_fim) >= hoje)
+  const { data: insts } = await admin
+    .from("diretoria_instancias")
+    .select("id, nome")
+    .in("id", [...new Set(vigentes.map((a) => String(a.instancia_id)))])
+  const nome = new Map((insts ?? []).map((i) => [String(i.id), texto(i.nome) ?? "Instância"]))
+  for (const a of vigentes) {
+    const k = String(a.integrante_id)
+    const n = nome.get(String(a.instancia_id))
+    if (!n) continue
+    const lista = mapa.get(k) ?? []
+    if (!lista.includes(n)) lista.push(n)
+    mapa.set(k, lista)
+  }
+  return mapa
 }
 
 /**
@@ -630,14 +668,21 @@ async function subirDocumento(
 
 export type Liberacao = {
   id: string
-  integranteId: string
-  integranteNome: string | null
+  integranteId: string | null
+  /** Quem foi liberado: o diretor ou o trabalhador da base. */
+  pessoaNome: string | null
+  /** false = trabalhador da base, liberado sem ser diretor. */
+  ehDiretor: boolean
+  filiacaoId: string | null
   empresaId: string | null
   empresaNome: string | null
   tipo: string | null
   inicio: string | null
   fim: string | null
   documentoUrl: string | null
+  oficioId: string | null
+  oficioRotulo: string | null
+  loteId: string | null
   observacao: string | null
   vigente: boolean
 }
@@ -658,58 +703,77 @@ async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
   return mapa
 }
 
-/** Liberações dos integrantes de um mandato. */
+/**
+ * Liberações de um mandato: as lançadas nele (mandato_id) e, das antigas, as
+ * dos seus integrantes. Inclui trabalhadores da base liberados sem ser diretores.
+ */
 export async function listarLiberacoes(
   mandatoId: string
-): Promise<{ disponivel: boolean; liberacoes: Liberacao[] }> {
+): Promise<{ disponivel: boolean; lote: boolean; liberacoes: Liberacao[] }> {
   const admin = await createAdminClient()
   const { data: ints } = await admin
     .from("diretoria_integrantes")
     .select("id, nome")
     .eq("mandato_id", mandatoId)
   const integrantes = ints ?? []
-  const nomeIntegrante = new Map(
-    integrantes.map((i) => [i.id as string, texto(i.nome)])
-  )
-  if (integrantes.length === 0) return { disponivel: true, liberacoes: [] }
+  const nomeIntegrante = new Map(integrantes.map((i) => [i.id as string, texto(i.nome)]))
+  const idsIntegrantes = integrantes.map((i) => String(i.id))
 
-  const { data, error } = await admin
+  let lote = true
+  let { data, error } = await admin
     .from("diretoria_liberacoes")
     .select("*")
-    .in(
-      "integrante_id",
-      integrantes.map((i) => i.id)
+    .or(
+      idsIntegrantes.length
+        ? `mandato_id.eq.${mandatoId},integrante_id.in.(${idsIntegrantes.join(",")})`
+        : `mandato_id.eq.${mandatoId}`
     )
     .order("inicio", { ascending: false, nullsFirst: false })
+  if (error && esquemaAusente(error)) {
+    // Antes de diretoria-liberacoes-lote.sql não há mandato_id.
+    lote = false
+    if (idsIntegrantes.length === 0) return { disponivel: true, lote, liberacoes: [] }
+    ;({ data, error } = await admin
+      .from("diretoria_liberacoes")
+      .select("*")
+      .in("integrante_id", idsIntegrantes)
+      .order("inicio", { ascending: false, nullsFirst: false }))
+  }
   if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, liberacoes: [] }
+    if (esquemaAusente(error)) return { disponivel: false, lote: false, liberacoes: [] }
     throw new Error(`Falha ao listar liberações: ${error.message}`)
   }
 
   const linhas = data ?? []
-  const empresas = await nomesDasEmpresas(
-    linhas.map((l) => l.empresa_id as string).filter(Boolean)
-  )
-  const urls = await Promise.all(
-    linhas.map((l) => urlDocumentoDiretoria(texto(l.documento_url)))
-  )
+  const [empresas, oficios, urls] = await Promise.all([
+    nomesDasEmpresas(linhas.map((l) => l.empresa_id as string).filter(Boolean)),
+    rotulosDosOficios(linhas.map((l) => texto(l.oficio_id)).filter((v): v is string => Boolean(v))),
+    Promise.all(linhas.map((l) => urlDocumentoDiretoria(texto(l.documento_url)))),
+  ])
   const hoje = hojeISO()
 
   return {
     disponivel: true,
+    lote,
     liberacoes: linhas.map((l, i) => {
       const inicio = texto(l.inicio)
       const fim = texto(l.fim)
+      const integranteId = texto(l.integrante_id)
       return {
         id: l.id as string,
-        integranteId: l.integrante_id as string,
-        integranteNome: nomeIntegrante.get(l.integrante_id as string) ?? null,
+        integranteId,
+        pessoaNome: (integranteId ? nomeIntegrante.get(integranteId) : null) ?? texto(l.nome),
+        ehDiretor: Boolean(integranteId),
+        filiacaoId: texto(l.filiacao_id),
         empresaId: texto(l.empresa_id),
         empresaNome: l.empresa_id ? (empresas.get(l.empresa_id as string) ?? null) : null,
         tipo: texto(l.tipo),
         inicio,
         fim,
         documentoUrl: urls[i],
+        oficioId: texto(l.oficio_id),
+        oficioRotulo: l.oficio_id ? (oficios.get(String(l.oficio_id)) ?? "Ofício") : null,
+        loteId: texto(l.lote_id),
         observacao: texto(l.observacao),
         vigente: (!inicio || inicio <= hoje) && (!fim || fim >= hoje),
       }
@@ -717,8 +781,23 @@ export async function listarLiberacoes(
   }
 }
 
+/** "Ofício nº 12/2026 — Liberação de diretores" por id. */
+async function rotulosDosOficios(ids: string[]): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const unicos = [...new Set(ids)]
+  if (unicos.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin.from("oficios").select("id, numero, ano, assunto").in("id", unicos)
+  for (const o of data ?? []) {
+    const numero = o.numero ? `nº ${o.numero}/${o.ano}` : "rascunho"
+    mapa.set(String(o.id), `Ofício ${numero}${texto(o.assunto) ? ` — ${texto(o.assunto)}` : ""}`)
+  }
+  return mapa
+}
+
 export type DadosLiberacao = {
   integrante_id: string
+  mandato_id: string | null
   empresa_id: string | null
   tipo: string
   inicio: string | null
@@ -737,16 +816,116 @@ export async function adicionarLiberacao(
     documento_url = up.caminho ?? null
   }
   const admin = await createAdminClient()
-  const { error } = await admin.from("diretoria_liberacoes").insert({
-    ...dados,
-    documento_url,
-    emp_proprietaria_id: await tenantAtual(),
-  })
+  const emp = await tenantAtual()
+  let { error } = await admin.from("diretoria_liberacoes").insert({ ...dados, documento_url, emp_proprietaria_id: emp })
+  if (error && esquemaAusente(error)) {
+    // Sem a coluna mandato_id (SQL do lote não rodado), grava como antes.
+    const { mandato_id: _m, ...semMandato } = dados
+    void _m
+    ;({ error } = await admin.from("diretoria_liberacoes").insert({ ...semMandato, documento_url, emp_proprietaria_id: emp }))
+  }
   if (error) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Falha ao adicionar liberação: ${error.message}` }
   }
   return {}
+}
+
+export type MembroDoLote = {
+  integranteId: string | null
+  filiacaoId: string | null
+  inicio: string | null
+  fim: string | null
+}
+
+/**
+ * Várias liberações de uma vez, pelo mesmo ofício: cada pessoa com a sua data
+ * de saída e de retorno. A pessoa é um diretor do mandato ou um trabalhador da
+ * base (filiação) — que não precisa ser diretor.
+ */
+export async function adicionarLiberacoesEmLote(dados: {
+  mandatoId: string
+  empresaId: string | null
+  oficioId: string | null
+  observacao: string | null
+  membros: MembroDoLote[]
+}): Promise<{ erro?: string; criadas?: number }> {
+  const membros = dados.membros.filter((m) => m.integranteId || m.filiacaoId)
+  if (membros.length === 0) return { erro: "Adicione ao menos uma pessoa." }
+  const semSaida = membros.find((m) => !m.inicio)
+  if (semSaida) return { erro: "Informe a data de saída de cada pessoa." }
+  const invertida = membros.find((m) => m.inicio && m.fim && m.fim < m.inicio)
+  if (invertida) return { erro: "A data de retorno não pode ser anterior à de saída." }
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const idsIntegrantes = membros.map((m) => m.integranteId).filter((v): v is string => Boolean(v))
+  const idsFiliacoes = membros.map((m) => m.filiacaoId).filter((v): v is string => Boolean(v))
+  const [{ data: ints }, { data: fils }] = await Promise.all([
+    idsIntegrantes.length
+      ? admin.from("diretoria_integrantes").select("id, nome, cpf, mandato_id").eq("emp_proprietaria_id", emp).in("id", idsIntegrantes)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    idsFiliacoes.length
+      ? admin.from("filiacoes").select("id, nome_completo, cpf").eq("emp_proprietaria_id", emp).in("id", idsFiliacoes)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+  ])
+  const integrante = new Map((ints ?? []).map((i) => [String(i.id), i]))
+  const filiacao = new Map((fils ?? []).map((f) => [String(f.id), f]))
+  if (idsIntegrantes.some((id) => integrante.get(id)?.mandato_id !== dados.mandatoId)) {
+    return { erro: "Algum diretor escolhido não é deste mandato." }
+  }
+  if (idsFiliacoes.some((id) => !filiacao.has(id))) return { erro: "Algum trabalhador escolhido não foi encontrado." }
+
+  const loteId = randomUUID()
+  const linhas = membros.map((m) => {
+    const i = m.integranteId ? integrante.get(m.integranteId) : null
+    const f = m.filiacaoId ? filiacao.get(m.filiacaoId) : null
+    return {
+      mandato_id: dados.mandatoId,
+      integrante_id: m.integranteId,
+      filiacao_id: m.integranteId ? null : m.filiacaoId,
+      nome: texto(i?.nome) ?? texto(f?.nome_completo),
+      cpf: cpfConfiavel(texto(i?.cpf) ?? texto(f?.cpf)),
+      empresa_id: dados.empresaId,
+      oficio_id: dados.oficioId,
+      lote_id: loteId,
+      tipo: m.fim ? "pontual" : "permanente",
+      inicio: m.inicio,
+      fim: m.fim,
+      observacao: dados.observacao,
+      emp_proprietaria_id: emp,
+    }
+  })
+  const { error } = await admin.from("diretoria_liberacoes").insert(linhas)
+  if (error) {
+    if (esquemaAusente(error)) return { erro: AVISO_SQL_LOTE }
+    return { erro: `Falha ao registrar as liberações: ${error.message}` }
+  }
+  return { criadas: linhas.length }
+}
+
+/** Liberações registradas com um ofício — para a página do ofício. */
+export async function liberacoesDoOficio(
+  oficioId: string
+): Promise<{ id: string; pessoaNome: string | null; ehDiretor: boolean; inicio: string | null; fim: string | null; mandatoId: string | null }[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("diretoria_liberacoes")
+    .select("id, integrante_id, nome, inicio, fim, mandato_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("oficio_id", oficioId)
+    .order("nome")
+  if (error) return []
+  const nomes = await nomesDosIntegrantes((data ?? []).map((l) => texto(l.integrante_id)).filter((v): v is string => Boolean(v)))
+  return (data ?? []).map((l) => ({
+    id: String(l.id),
+    pessoaNome: (l.integrante_id ? nomes.get(String(l.integrante_id)) : null) ?? texto(l.nome),
+    ehDiretor: Boolean(l.integrante_id),
+    inicio: texto(l.inicio),
+    fim: texto(l.fim),
+    mandatoId: texto(l.mandato_id),
+  }))
 }
 
 export async function removerLiberacao(id: string): Promise<{ erro?: string }> {
@@ -817,6 +996,10 @@ export type Assento = {
   id: string
   integranteId: string | null
   integranteNome: string | null
+  instanciaId: string
+  instanciaNome: string | null
+  mandatoId: string | null
+  mandatoNome: string | null
   cargo: string | null
   mandatoInicio: string | null
   mandatoFim: string | null
@@ -846,9 +1029,10 @@ export async function obterInstancia(id: string): Promise<DetalheInstancia | nul
     .eq("instancia_id", id)
     .order("created_at", { ascending: true })
   const assentos = as ?? []
-  const nomes = await nomesDosIntegrantes(
-    assentos.map((a) => a.integrante_id as string).filter(Boolean)
-  )
+  const [nomes, mandatos] = await Promise.all([
+    nomesDosIntegrantes(assentos.map((a) => a.integrante_id as string).filter(Boolean)),
+    mandatosDosAssentos(assentos),
+  ])
   const urls = await Promise.all(
     assentos.map((a) => urlDocumentoDiretoria(texto(a.documento_url)))
   )
@@ -861,12 +1045,74 @@ export async function obterInstancia(id: string): Promise<DetalheInstancia | nul
       id: a.id as string,
       integranteId: texto(a.integrante_id),
       integranteNome: a.integrante_id ? (nomes.get(a.integrante_id as string) ?? null) : null,
+      instanciaId: id,
+      instanciaNome: texto(inst.nome),
+      mandatoId: mandatos.idDoAssento.get(String(a.id)) ?? null,
+      mandatoNome: mandatos.nomeDoAssento.get(String(a.id)) ?? null,
       cargo: texto(a.cargo),
       mandatoInicio: texto(a.mandato_inicio),
       mandatoFim: texto(a.mandato_fim),
       documentoUrl: urls[i],
     })),
   }
+}
+
+/** Mandato de cada assento: o gravado nele ou, nos antigos, o do integrante. */
+async function mandatosDosAssentos(
+  assentos: Record<string, unknown>[]
+): Promise<{ idDoAssento: Map<string, string>; nomeDoAssento: Map<string, string> }> {
+  const admin = await createAdminClient()
+  const semMandato = assentos.filter((a) => !a.mandato_id && a.integrante_id).map((a) => String(a.integrante_id))
+  const { data: ints } = semMandato.length
+    ? await admin.from("diretoria_integrantes").select("id, mandato_id").in("id", semMandato)
+    : { data: [] as Record<string, unknown>[] }
+  const mandatoDoIntegrante = new Map((ints ?? []).map((i) => [String(i.id), String(i.mandato_id)]))
+  const idDoAssento = new Map<string, string>()
+  for (const a of assentos) {
+    const m = texto(a.mandato_id) ?? (a.integrante_id ? mandatoDoIntegrante.get(String(a.integrante_id)) : undefined)
+    if (m) idDoAssento.set(String(a.id), m)
+  }
+  const { data: ms } = idDoAssento.size
+    ? await admin.from("diretoria_mandatos").select("id, mandato").in("id", [...new Set(idDoAssento.values())])
+    : { data: [] as Record<string, unknown>[] }
+  const nomeMandato = new Map((ms ?? []).map((m) => [String(m.id), texto(m.mandato) ?? "Mandato"]))
+  const nomeDoAssento = new Map<string, string>()
+  for (const [assento, mandato] of idDoAssento) nomeDoAssento.set(assento, nomeMandato.get(mandato) ?? "Mandato")
+  return { idDoAssento, nomeDoAssento }
+}
+
+/** Vínculos dos diretores de um mandato às instâncias. */
+export async function assentosDoMandato(mandatoId: string): Promise<Assento[]> {
+  const admin = await createAdminClient()
+  const { data: ints } = await admin.from("diretoria_integrantes").select("id, nome").eq("mandato_id", mandatoId)
+  const ids = (ints ?? []).map((i) => String(i.id))
+  if (ids.length === 0) return []
+  const { data, error } = await admin
+    .from("diretoria_instancia_assentos")
+    .select("*")
+    .in("integrante_id", ids)
+    .order("created_at", { ascending: true })
+  if (error) return []
+  const assentos = data ?? []
+  const { data: insts } = assentos.length
+    ? await admin.from("diretoria_instancias").select("id, nome").in("id", [...new Set(assentos.map((a) => String(a.instancia_id)))])
+    : { data: [] as Record<string, unknown>[] }
+  const nomeInstancia = new Map((insts ?? []).map((i) => [String(i.id), texto(i.nome)]))
+  const nomeIntegrante = new Map((ints ?? []).map((i) => [String(i.id), texto(i.nome)]))
+  const urls = await Promise.all(assentos.map((a) => urlDocumentoDiretoria(texto(a.documento_url))))
+  return assentos.map((a, n) => ({
+    id: String(a.id),
+    integranteId: texto(a.integrante_id),
+    integranteNome: a.integrante_id ? (nomeIntegrante.get(String(a.integrante_id)) ?? null) : null,
+    instanciaId: String(a.instancia_id),
+    instanciaNome: nomeInstancia.get(String(a.instancia_id)) ?? null,
+    mandatoId,
+    mandatoNome: null,
+    cargo: texto(a.cargo),
+    mandatoInicio: texto(a.mandato_inicio),
+    mandatoFim: texto(a.mandato_fim),
+    documentoUrl: urls[n],
+  }))
 }
 
 async function nomesDosIntegrantes(ids: string[]): Promise<Map<string, string>> {
@@ -917,6 +1163,7 @@ export async function atualizarInstancia(
 }
 
 export type DadosAssento = {
+  mandato_id?: string | null
   integrante_id: string | null
   cargo: string | null
   mandato_inicio: string | null
@@ -935,12 +1182,13 @@ export async function adicionarAssento(
     documento_url = up.caminho ?? null
   }
   const admin = await createAdminClient()
-  const { error } = await admin.from("diretoria_instancia_assentos").insert({
-    ...dados,
-    instancia_id: instanciaId,
-    documento_url,
-    emp_proprietaria_id: await tenantAtual(),
-  })
+  const linha = { ...dados, instancia_id: instanciaId, documento_url, emp_proprietaria_id: await tenantAtual() }
+  let { error } = await admin.from("diretoria_instancia_assentos").insert(linha)
+  if (error && esquemaAusente(error)) {
+    const { mandato_id: _m, ...semMandato } = linha
+    void _m
+    ;({ error } = await admin.from("diretoria_instancia_assentos").insert(semMandato))
+  }
   if (error) return { erro: `Falha ao adicionar assento: ${error.message}` }
   return {}
 }
@@ -1021,12 +1269,11 @@ export async function liberacoesDoIntegrante(
     .order("inicio", { ascending: false, nullsFirst: false })
   if (error) return []
   const linhas = data ?? []
-  const empresas = await nomesDasEmpresas(
-    linhas.map((l) => l.empresa_id as string).filter(Boolean)
-  )
-  const urls = await Promise.all(
-    linhas.map((l) => urlDocumentoDiretoria(texto(l.documento_url)))
-  )
+  const [empresas, oficios, urls] = await Promise.all([
+    nomesDasEmpresas(linhas.map((l) => l.empresa_id as string).filter(Boolean)),
+    rotulosDosOficios(linhas.map((l) => texto(l.oficio_id)).filter((v): v is string => Boolean(v))),
+    Promise.all(linhas.map((l) => urlDocumentoDiretoria(texto(l.documento_url)))),
+  ])
   const hoje = hojeISO()
   return linhas.map((l, i) => {
     const inicio = texto(l.inicio)
@@ -1034,7 +1281,9 @@ export async function liberacoesDoIntegrante(
     return {
       id: l.id as string,
       integranteId: l.integrante_id as string,
-      integranteNome: null,
+      pessoaNome: texto(l.nome),
+      ehDiretor: true,
+      filiacaoId: texto(l.filiacao_id),
       empresaId: texto(l.empresa_id),
       empresaNome: l.empresa_id
         ? (empresas.get(l.empresa_id as string) ?? null)
@@ -1043,6 +1292,9 @@ export async function liberacoesDoIntegrante(
       inicio,
       fim,
       documentoUrl: urls[i],
+      oficioId: texto(l.oficio_id),
+      oficioRotulo: l.oficio_id ? (oficios.get(String(l.oficio_id)) ?? "Ofício") : null,
+      loteId: texto(l.lote_id),
       observacao: texto(l.observacao),
       vigente: (!inicio || inicio <= hoje) && (!fim || fim >= hoje),
     }

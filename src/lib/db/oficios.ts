@@ -113,6 +113,35 @@ export async function listarOficios(filtro: {
   }
 }
 
+/**
+ * Ofícios emitidos para vincular a outro registro (ex.: liberações sindicais
+ * em lote): "Nº 12/2026 — Liberação de diretores — Petro Fictícia".
+ */
+export async function oficiosEmitidosParaVinculo(): Promise<
+  { id: string; rotulo: string; destinatarioEmpresaId: string | null }[]
+> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("oficios")
+    .select("id, numero, ano, assunto, destinatario_empresa_id, destinatario_texto")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("situacao", "Emitido")
+    .order("ano", { ascending: false })
+    .order("numero", { ascending: false })
+    .limit(300)
+  if (error) return []
+  const linhas = data ?? []
+  const nomes = await nomesDasEmpresas(linhas.map((o) => o.destinatario_empresa_id as string).filter(Boolean))
+  return linhas.map((o) => {
+    const destino = o.destinatario_empresa_id ? nomes.get(String(o.destinatario_empresa_id)) : texto(o.destinatario_texto)
+    return {
+      id: String(o.id),
+      rotulo: [`Nº ${o.numero}/${o.ano}`, texto(o.assunto), destino].filter(Boolean).join(" — "),
+      destinatarioEmpresaId: texto(o.destinatario_empresa_id),
+    }
+  })
+}
+
 async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
   const mapa = new Map<string, string>()
   const unicos = [...new Set(ids.filter(Boolean))]

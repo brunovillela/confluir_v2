@@ -231,11 +231,17 @@ export function InstanciaForm({
   )
 }
 
+/**
+ * Vínculo de um diretor do mandato a uma instância (assento). As instâncias são
+ * cadastradas fora, em Diretoria › Instâncias; aqui só se escolhe.
+ */
 export function AdicionarAssento({
-  instanciaId,
+  mandatoId,
+  instancias,
   integrantes,
 }: {
-  instanciaId: string
+  mandatoId: string
+  instancias: { id: string; nome: string | null }[]
   integrantes: OpcaoIntegrante[]
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
@@ -244,11 +250,24 @@ export function AdicionarAssento({
   )
   return (
     <form action={formAction} className="grid gap-3">
-      <input type="hidden" name="instancia_id" value={instanciaId} />
+      <input type="hidden" name="mandato_id" value={mandatoId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="as-integrante">Diretor representante</Label>
-          <select id="as-integrante" name="integrante_id" className={INPUT}>
+          <Label htmlFor="as-instancia">Instância *</Label>
+          <select id="as-instancia" name="instancia_id" required className={INPUT} defaultValue="">
+            <option value="" disabled>
+              {instancias.length ? "(selecione)" : "Cadastre a instância em Diretoria › Instâncias"}
+            </option>
+            {instancias.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.nome ?? "(sem nome)"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="as-integrante">Diretor representante *</Label>
+          <select id="as-integrante" name="integrante_id" required className={INPUT}>
             <option value="">(selecione)</option>
             {integrantes.map((i) => (
               <option key={i.id} value={i.id}>
@@ -285,7 +304,7 @@ export function AdicionarAssento({
       <div>
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Plus />}
-          Adicionar assento
+          Vincular à instância
         </Button>
       </div>
     </form>
@@ -295,9 +314,11 @@ export function AdicionarAssento({
 export function RemoverAssento({
   assentoId,
   instanciaId,
+  mandatoId,
 }: {
   assentoId: string
   instanciaId: string
+  mandatoId?: string
 }) {
   const [, formAction, pendente] = useActionState<EstadoForm, FormData>(
     removerAssentoAction,
@@ -307,11 +328,12 @@ export function RemoverAssento({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover este assento?")) e.preventDefault()
+        if (!confirm("Remover o vínculo a esta instância?")) e.preventDefault()
       }}
     >
       <input type="hidden" name="assento_id" value={assentoId} />
       <input type="hidden" name="instancia_id" value={instanciaId} />
+      {mandatoId && <input type="hidden" name="mandato_id" value={mandatoId} />}
       <Button
         type="submit"
         variant="ghost"

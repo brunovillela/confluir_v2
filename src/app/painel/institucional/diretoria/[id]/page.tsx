@@ -19,11 +19,15 @@ import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
 import {
+  assentosDoMandato,
   empregadoresPorIntegrante,
   integrantesDoMandato,
+  listarInstancias,
   listarLiberacoes,
   obterMandato,
 } from "@/lib/db/diretoria"
+import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { oficiosEmitidosParaVinculo } from "@/lib/db/oficios"
 import { listarAtas } from "@/lib/db/atas"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 import { formatarData } from "@/lib/formato"
@@ -36,9 +40,11 @@ import {
 } from "../diretoria-forms"
 import type { Integrante } from "@/lib/db/diretoria"
 import {
-  AdicionarLiberacao,
+  AdicionarAssento,
+  RemoverAssento,
   RemoverLiberacao,
 } from "../diretoria-extra-forms"
+import { RegistrarLiberacoes } from "../liberacoes-forms"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
 import { IntegranteLinha } from "./integrante-linha"
@@ -56,13 +62,31 @@ export default async function MandatoPage({
   const mandato = await obterMandato(id)
   if (!mandato) notFound()
 
-  const [{ disponivel, liberacoes }, integrantesOpc, empregadores, atas] =
-    await Promise.all([
-      listarLiberacoes(id),
-      integrantesDoMandato(id),
-      empregadoresPorIntegrante(id),
-      listarAtas({ mandatoId: id }),
-    ])
+  const [
+    { disponivel, lote, liberacoes },
+    integrantesOpc,
+    empregadores,
+    atas,
+    assentos,
+    { disponivel: instanciasDisponiveis, instancias },
+    oficios,
+    fontes,
+  ] = await Promise.all([
+    listarLiberacoes(id),
+    integrantesDoMandato(id),
+    empregadoresPorIntegrante(id),
+    listarAtas({ mandatoId: id }),
+    assentosDoMandato(id),
+    listarInstancias(),
+    oficiosEmitidosParaVinculo(),
+    listarFontesPagadoras(),
+  ])
+  const empresas = fontes.map((f) => ({
+    id: f.id,
+    nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
+    cnpj_cpf: f.cnpj_cpf,
+    bloqueado: false,
+  }))
 
   const periodo = `${mandato.dataInicio ? formatarData(mandato.dataInicio) : "?"} – ${mandato.dataTermino ? formatarData(mandato.dataTermino) : "?"}`
 
@@ -213,12 +237,99 @@ export default async function MandatoPage({
         )}
       </div>
 
+      {/* Instâncias: vínculos dos diretores deste mandato */}
+      <div>
+        <h2 className="text-lg font-semibold">Instâncias</h2>
+        <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
+          Em que instâncias cada diretor deste mandato representa a entidade. As instâncias são
+          cadastradas em{" "}
+          <Link href="/painel/institucional/diretoria/instancias" className="text-primary hover:underline">
+            Diretoria › Instâncias
+          </Link>
+          .
+        </p>
+        {instanciasDisponiveis ? (
+          <div className="grid gap-4">
+            <GrupoColapsavel titulo="Vincular diretor a uma instância">
+              <AdicionarAssento mandatoId={mandato.id} instancias={instancias} integrantes={integrantesOpc} />
+            </GrupoColapsavel>
+            <Card>
+              <CardContent>
+                {assentos.length === 0 ? (
+                  <p className="text-muted-foreground py-6 text-center text-sm">
+                    Nenhum diretor deste mandato vinculado a instâncias.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Instância</TableHead>
+                        <TableHead>Diretor</TableHead>
+                        <TableHead>Cargo</TableHead>
+                        <TableHead>Período</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead className="w-10" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {assentos.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell>
+                            <Link
+                              href={`/painel/institucional/diretoria/instancias/${a.instanciaId}`}
+                              className="text-primary font-medium hover:underline"
+                            >
+                              {a.instanciaNome ?? "—"}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-sm">{a.integranteNome ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{a.cargo ?? "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {a.mandatoInicio ? formatarData(a.mandatoInicio) : "?"}
+                            {" – "}
+                            {a.mandatoFim ? formatarData(a.mandatoFim) : "?"}
+                          </TableCell>
+                          <TableCell>
+                            {a.documentoUrl ? (
+                              <a
+                                href={a.documentoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
+                              >
+                                <ExternalLink className="size-3.5" />
+                                abrir
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-1">
+                            <RemoverAssento assentoId={a.id} instanciaId={a.instanciaId} mandatoId={mandato.id} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Alert variant="warning">
+            <AlertDescription>
+              As instâncias usam tabelas novas — rode <code>supabase/diretoria-liberacoes-instancias.sql</code> no Supabase.
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+
       {/* Liberações sindicais */}
       <div>
         <h2 className="text-lg font-semibold">Liberações sindicais</h2>
         <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-          Empregadores que liberam o diretor para a atividade sindical, com
-          vigência e o documento que oficializou
+          Empregadores que liberam diretores — e trabalhadores da base — para a atividade
+          sindical, com saída, retorno e o ofício ou documento que oficializou
         </p>
 
         {!disponivel && (
@@ -233,10 +344,13 @@ export default async function MandatoPage({
         {disponivel && (
           <div className="grid gap-4">
             <GrupoColapsavel titulo="Registrar liberação">
-              <AdicionarLiberacao
+              <RegistrarLiberacoes
                 mandatoId={mandato.id}
                 integrantes={integrantesOpc}
                 empregadoresPorIntegrante={empregadores}
+                oficios={oficios}
+                empresas={empresas}
+                loteDisponivel={lote}
               />
             </GrupoColapsavel>
 
@@ -250,7 +364,7 @@ export default async function MandatoPage({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Diretor</TableHead>
+                        <TableHead>Pessoa</TableHead>
                         <TableHead>Empregador</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Vigência</TableHead>
@@ -263,7 +377,12 @@ export default async function MandatoPage({
                         <TableRow key={l.id}>
                           <TableCell className="font-medium">
                             <span className="flex items-center gap-2">
-                              {l.integranteNome ?? "—"}
+                              {l.pessoaNome ?? "—"}
+                              {!l.ehDiretor && (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  base
+                                </Badge>
+                              )}
                               {l.vigente && (
                                 <Badge variant="outline" className="border-success/40 text-success-fg">
                                   vigente
@@ -281,7 +400,15 @@ export default async function MandatoPage({
                             {l.fim ? formatarData(l.fim) : "permanente"}
                           </TableCell>
                           <TableCell>
-                            {l.documentoUrl ? (
+                            {l.oficioId ? (
+                              <Link
+                                href={`/painel/ferramentas/oficios/${l.oficioId}`}
+                                className="text-primary line-clamp-1 max-w-56 text-sm hover:underline"
+                                title={l.oficioRotulo ?? undefined}
+                              >
+                                {l.oficioRotulo}
+                              </Link>
+                            ) : l.documentoUrl ? (
                               <a
                                 href={l.documentoUrl}
                                 target="_blank"
