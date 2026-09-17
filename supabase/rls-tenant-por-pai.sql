@@ -35,7 +35,7 @@ declare
   spec constant jsonb := $json$[
     {"t":"notificacoes","fk":[["usuario_id","usuarios",false]]},
     {"t":"cnh","fk":[["usuario_id","usuarios",false]]},
-    {"t":"dados_bancarios","fk":[["usuario_id","usuarios",false],["fornecedor_id","empresa",true]]},
+    {"t":"dados_bancarios","fk":[["usuario_id","usuarios",false],["fornecedor_id","empresa",true],["filiado_id","filiacoes",false]]},
     {"t":"aso","fk":[["funcionario_id","usuarios",false]]},
     {"t":"pes_atestados_medicos","fk":[["funcionario_id","usuarios",false]]},
     {"t":"pessoal_contracheques","fk":[["funcionario_id","usuarios",false],["remessa_id","pessoal_contracheques_remessas",false]]},
