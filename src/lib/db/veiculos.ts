@@ -3,6 +3,7 @@ import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
+import { rotuladorDeAutores } from "@/lib/db/contas-funcao"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
 import {
@@ -968,6 +969,9 @@ export type Movimentacao = {
   /** Solicitação a que a saída deu baixa (fluxo novo). */
   agendamento_id: string | null
   aberta: boolean
+  /** Quem registrou a saída e a entrada; numa conta de função, com quem ocupava o posto. */
+  saidaRegistradaPor: string | null
+  entradaRegistradaPor: string | null
 }
 
 export async function listarMovimentacoes(filtros: {
@@ -1016,9 +1020,15 @@ export async function listarMovimentacoes(filtros: {
   }
   const brutos = (data ?? []) as Record<string, unknown>[]
 
-  const nomes = await nomesDosUsuarios(
-    brutos.map((m) => String(m.condutor_id ?? "")).filter(Boolean)
-  )
+  const [nomes, autor] = await Promise.all([
+    nomesDosUsuarios(brutos.map((m) => String(m.condutor_id ?? "")).filter(Boolean)),
+    rotuladorDeAutores(
+      brutos.flatMap((m) => [
+        String(m.registrado_por_id ?? ""),
+        String(m.devolucao_registrada_por_id ?? ""),
+      ])
+    ),
+  ])
   const veiculoIds = [
     ...new Set(brutos.map((m) => String(m.veiculo_id ?? "")).filter(Boolean)),
   ]
@@ -1060,6 +1070,14 @@ export async function listarMovimentacoes(filtros: {
       previsao_retorno: texto(m.previsao_retorno),
       agendamento_id: texto(m.agendamento_id),
       aberta: !m.data_devolucao,
+      saidaRegistradaPor: autor(
+        texto(m.registrado_por_id),
+        texto(m.retirada_em) ?? texto(m.data_retirada) ?? texto(m.created_at)
+      ),
+      entradaRegistradaPor: autor(
+        texto(m.devolucao_registrada_por_id),
+        texto(m.devolucao_em) ?? texto(m.data_devolucao)
+      ),
     }
   })
 }
@@ -1227,7 +1245,13 @@ async function gravarMovimentacao(
     if (opcoes.soAberta) q = q.is("data_devolucao", null)
     return q
   }
-  const { error } = await executar(campos)
+  let { error } = await executar(campos)
+  // Sem supabase/contas-funcao.sql: grava sem quem registrou a entrada.
+  if (error && esquemaAusente(error) && "devolucao_registrada_por_id" in campos) {
+    campos = { ...campos }
+    delete campos.devolucao_registrada_por_id
+    ;({ error } = await executar(campos))
+  }
   if (error && esquemaAusente(error) && ("retirada_em" in campos || "devolucao_em" in campos)) {
     const semHorario = { ...campos }
     delete semHorario.retirada_em
@@ -1367,6 +1391,8 @@ export type Devolucao = {
   observacao: string | null
   /** Quem registra confirmou o km fora do normal (ver KM_POR_HORA_LIMITE). */
   kmConfirmado?: boolean
+  /** Quem registra a entrada (a recepção). */
+  registradoPorId?: string
 }
 
 export async function registrarDevolucao(
@@ -1420,6 +1446,7 @@ export async function registrarDevolucao(
         hodometroRetirada !== null ? dev.hodometro - hodometroRetirada : null,
       observacao_retorno: observacao,
       disponivel: true,
+      ...(dev.registradoPorId ? { devolucao_registrada_por_id: dev.registradoPorId } : {}),
       updated_at: new Date().toISOString(),
   }, { soAberta: true })
   if (error) return { erro: `Não foi possível registrar a devolução: ${error.message}` }

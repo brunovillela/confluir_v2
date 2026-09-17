@@ -226,6 +226,11 @@ export default async function HistoricoVeiculoPage({
                   <TableCell className="whitespace-nowrap">
                     {momentoBR(m.data_retirada, m.retirada_em)}
                     {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
+                    {m.saidaRegistradaPor && (
+                      <span className="text-muted-foreground block text-xs">
+                        por {m.saidaRegistradaPor}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {m.aberta ? (
@@ -236,7 +241,15 @@ export default async function HistoricoVeiculoPage({
                         Fora
                       </Badge>
                     ) : (
-                      `${momentoBR(m.data_devolucao, m.devolucao_em)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
+                      <>
+                        {momentoBR(m.data_devolucao, m.devolucao_em)}
+                        {m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}
+                        {m.entradaRegistradaPor && (
+                          <span className="text-muted-foreground block text-xs">
+                            por {m.entradaRegistradaPor}
+                          </span>
+                        )}
+                      </>
                     )}
                   </TableCell>
                   <TableCell>{m.condutorNome ?? "—"}</TableCell>

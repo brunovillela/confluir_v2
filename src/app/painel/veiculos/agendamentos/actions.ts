@@ -299,7 +299,7 @@ export async function registrarEntradaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("veiculos_recepcao", RECEPCAO)
+  const sessao = await requirePermissao("veiculos_recepcao", RECEPCAO)
   const movimentacaoId = texto(formData, "movimentacao_id")
   const veiculoId = texto(formData, "veiculo_id")
   const hodometro = parseHodometro(texto(formData, "hodometro"))
@@ -316,6 +316,7 @@ export async function registrarEntradaAction(
     sede,
     observacao: texto(formData, "observacao") || null,
     kmConfirmado: formData.get("confirmar_km") === "on",
+    registradoPorId: sessao.usuario.id,
   })
   if (erro) return { erro }
   revalidar(UUID.test(veiculoId) ? veiculoId : undefined)

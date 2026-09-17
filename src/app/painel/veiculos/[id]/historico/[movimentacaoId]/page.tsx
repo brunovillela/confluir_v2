@@ -42,7 +42,7 @@ export default async function EditarMovimentacaoPage({
       <CabecalhoVeiculo
         veiculo={veiculo}
         titulo="Corrigir movimentação"
-        descricao={`Saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " · em aberto" : ` · entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}`}`}
+        descricao={`Saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.saidaRegistradaPor ? ` (registrada por ${m.saidaRegistradaPor})` : ""}${m.aberta ? " · em aberto" : ` · entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}${m.entradaRegistradaPor ? ` (registrada por ${m.entradaRegistradaPor})` : ""}`}`}
       />
 
       <Alert variant="info">
