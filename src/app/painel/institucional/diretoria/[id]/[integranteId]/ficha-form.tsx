@@ -1,10 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Loader2, Save } from "lucide-react"
+import { ArrowUpRight, Loader2, Save } from "lucide-react"
 
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,7 +17,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import type { FichaDiretor } from "@/lib/db/diretoria"
+import type { FichaDiretor, OrigemDaFicha } from "@/lib/db/diretoria-ficha"
+import { formatarData } from "@/lib/formato"
 
 import { salvarFichaAction } from "./actions"
 
@@ -25,6 +28,15 @@ const SELECT =
 const CAMISAS = ["PP", "P", "M", "G", "GG", "XG", "XGG"]
 const SANGUINEOS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 const CHAVES_PIX = ["CPF", "CNPJ", "E-mail", "Telefone", "Aleatória"]
+
+/** Selo no título do cartão: de onde vem o dado. */
+function Origem({ filiacao }: { filiacao: boolean }) {
+  return filiacao ? (
+    <Badge variant="outline" className="border-primary/40 text-primary ml-2 align-middle font-normal">
+      Da filiação
+    </Badge>
+  ) : null
+}
 
 function Campo({
   id,
@@ -50,12 +62,15 @@ export function FichaDiretorForm({
   mandatoId,
   ficha,
   empresas,
+  origem,
 }: {
   integranteId: string
   mandatoId: string
   ficha: FichaDiretor | null
   empresas: EmpresaOpcao[]
+  origem: OrigemDaFicha
 }) {
+  const daFiliacao = Boolean(origem.filiacao)
   const [estado, formAction, pendente] = useActionState(salvarFichaAction, {})
   const [temRestricao, setTemRestricao] = useState(ficha?.tem_restricao ?? false)
   const v = (k: keyof FichaDiretor) => (ficha?.[k] as string | null) ?? ""
@@ -76,9 +91,32 @@ export function FichaDiretorForm({
         </Alert>
       )}
 
+      {origem.filiacao && (
+        <Alert variant="info">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Dados pessoais, endereço, dados bancários, contato de emergência e vínculos vêm do
+              cadastro de filiação{origem.filiacao.matricula ? ` (matrícula ${origem.filiacao.matricula})` : ""}.
+              O que você alterar aqui é gravado <strong>na filiação</strong>. Camisa, tipo sanguíneo e
+              acessibilidade são só do institucional.
+            </span>
+            <Link
+              href={`/painel/filiados/${origem.filiacao.id}`}
+              className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
+            >
+              Abrir filiação
+              <ArrowUpRight className="size-4" />
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados pessoais</CardTitle>
+          <CardTitle className="text-base">
+            Dados pessoais
+            <Origem filiacao={daFiliacao} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo id="data_nascimento" rotulo="Data de nascimento">
@@ -122,7 +160,10 @@ export function FichaDiretorForm({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Endereço</CardTitle>
+          <CardTitle className="text-base">
+            Endereço
+            <Origem filiacao={daFiliacao} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo id="cep" rotulo="CEP">
@@ -149,6 +190,38 @@ export function FichaDiretorForm({
         </CardContent>
       </Card>
 
+      {daFiliacao ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Vínculo empregatício
+              <Origem filiacao />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {origem.vinculos.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum vínculo em aberto na filiação.</p>
+            ) : (
+              <ul className="grid gap-1.5">
+                {origem.vinculos.map((vinculo, n) => (
+                  <li key={n} className="text-sm">
+                    <strong>{vinculo.empresa ?? "Fonte pagadora"}</strong>
+                    {[
+                      vinculo.matricula ? `matrícula ${vinculo.matricula}` : null,
+                      vinculo.lotacao,
+                      vinculo.regime,
+                      vinculo.desde ? `filiado desde ${formatarData(vinculo.desde)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .map((parte) => ` · ${parte}`)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-muted-foreground text-xs">Vínculos são mantidos no cadastro de filiação.</p>
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Vínculo empregatício</CardTitle>
@@ -173,10 +246,14 @@ export function FichaDiretorForm({
           </Campo>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados bancários</CardTitle>
+          <CardTitle className="text-base">
+            Dados bancários
+            <Origem filiacao={daFiliacao} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo id="banco" rotulo="Banco">
@@ -230,6 +307,15 @@ export function FichaDiretorForm({
               <Input id="telefone_emergencia" name="telefone_emergencia" inputMode="tel" defaultValue={v("telefone_emergencia")} />
             </Campo>
           </div>
+          {daFiliacao && (
+            <p className="text-muted-foreground text-xs">
+              O contato de emergência é o primeiro da filiação
+              {origem.outrosContatos > 0
+                ? ` — há mais ${origem.outrosContatos} lá, que continuam como estão`
+                : ""}
+              . Acessibilidade é só do institucional.
+            </p>
+          )}
         </CardContent>
       </Card>
 

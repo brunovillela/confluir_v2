@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Building2, FileText } from "lucide-react"
+import { ArrowLeft, Building2, FileText, IdCard } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,9 +16,9 @@ import { requirePermissao } from "@/lib/auth"
 import {
   empregadoresPorIntegrante,
   liberacoesDoIntegrante,
-  obterFichaDiretor,
   obterIntegrante,
 } from "@/lib/db/diretoria"
+import { obterFichaDiretor, origemDaFicha } from "@/lib/db/diretoria-ficha"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 import type { EmpresaOpcao } from "@/components/empresa-combobox"
@@ -40,8 +40,9 @@ export default async function DiretorPage({
   const integrante = await obterIntegrante(integranteId)
   if (!integrante) notFound()
 
-  const [ficha, fontes, liberacoes, empregadoresMapa] = await Promise.all([
+  const [ficha, origem, fontes, liberacoes, empregadoresMapa] = await Promise.all([
     obterFichaDiretor(integranteId),
+    origemDaFicha(integranteId),
     listarFontesPagadoras(),
     liberacoesDoIntegrante(integranteId),
     empregadoresPorIntegrante(integrante.mandatoId),
@@ -92,7 +93,51 @@ export default async function DiretorPage({
         mandatoId={mandatoId}
         ficha={ficha}
         empresas={empresas}
+        origem={origem}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IdCard className="size-4" />
+            CNH
+            {origem.cnh && (
+              <Badge variant="outline" className="border-primary/40 text-primary font-normal">
+                Do cadastro de condutores
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            A carteira de habilitação é mantida em Veículos › Condutores — não precisa ser cadastrada aqui.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          {origem.cnh ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span>Nº {origem.cnh.numero ?? "—"}</span>
+              <span>Categoria {origem.cnh.categoria ?? "—"}</span>
+              <span className={origem.cnh.vencida ? "text-destructive" : undefined}>
+                Validade {origem.cnh.validade ? formatarData(origem.cnh.validade) : "—"}
+                {origem.cnh.vencida ? " (vencida)" : ""}
+              </span>
+              <Badge variant="outline" className={origem.cnh.autorizado ? "border-success/40 text-success-fg" : "text-muted-foreground"}>
+                {origem.cnh.autorizado ? "Autorizado a conduzir" : "Não autorizado"}
+              </Badge>
+              {origem.cnh.arquivoUrl && (
+                <a href={origem.cnh.arquivoUrl} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
+                  <FileText className="size-4" />
+                  Ver CNH
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">Não está no cadastro de condutores.</p>
+          )}
+          <Link href="/painel/veiculos/condutores" className="text-primary text-sm hover:underline">
+            Abrir condutores
+          </Link>
+        </CardContent>
+      </Card>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>

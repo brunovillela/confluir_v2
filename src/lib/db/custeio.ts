@@ -4,6 +4,7 @@ import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
+import { obterFichaDiretor } from "@/lib/db/diretoria-ficha"
 import {
   vencimentoParcela,
   MAX_PARCELAS,
@@ -392,11 +393,8 @@ async function resolverSnapshot(
       .eq("emp_proprietaria_id", empId)
       .maybeSingle()
     if (!integrante) return SNAPSHOT_VAZIO
-    const { data: ficha } = await admin
-      .from("diretoria_ficha")
-      .select("banco, agencia, conta_corrente, pix, tipo_chave_pix")
-      .eq("integrante_id", beneficiarioId)
-      .maybeSingle()
+    // Com filiação, os dados bancários são os da filiação (ver diretoria-ficha.ts).
+    const ficha = await obterFichaDiretor(beneficiarioId)
     return {
       beneficiario_nome: texto(integrante.nome),
       beneficiario_cpf: texto(integrante.cpf),

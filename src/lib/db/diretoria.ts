@@ -997,99 +997,13 @@ export async function obterIntegrante(
   }
 }
 
-export type FichaDiretor = {
-  data_nascimento: string | null
-  email_particular: string | null
-  telefone_particular: string | null
-  telefone_whatsapp: boolean
-  tamanho_camisa: string | null
-  tipo_sanguineo: string | null
-  cep: string | null
-  logradouro: string | null
-  numero: string | null
-  complemento: string | null
-  bairro: string | null
-  cidade: string | null
-  estado: string | null
-  tipo_vinculo: string | null
-  empregador_id: string | null
-  matricula_empregador: string | null
-  base_operacional: string | null
-  banco: string | null
-  agencia: string | null
-  conta_corrente: string | null
-  pix: string | null
-  tipo_chave_pix: string | null
-  tem_restricao: boolean
-  restricao_descricao: string | null
-  contato_emergencia: string | null
-  telefone_emergencia: string | null
-}
-
-const CAMPOS_FICHA: (keyof FichaDiretor)[] = [
-  "data_nascimento", "email_particular", "telefone_particular", "tamanho_camisa",
-  "tipo_sanguineo", "cep", "logradouro", "numero", "complemento", "bairro",
-  "cidade", "estado", "tipo_vinculo", "empregador_id", "matricula_empregador",
-  "base_operacional", "banco", "agencia", "conta_corrente", "pix",
-  "tipo_chave_pix", "restricao_descricao", "contato_emergencia",
-  "telefone_emergencia",
-]
-
-export async function obterFichaDiretor(
-  integranteId: string
-): Promise<FichaDiretor | null> {
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("diretoria_ficha")
-    .select("*")
-    .eq("integrante_id", integranteId)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .maybeSingle()
-  if (!data) return null
-  const ficha = {
-    telefone_whatsapp: Boolean(data.telefone_whatsapp),
-    tem_restricao: Boolean(data.tem_restricao),
-  } as FichaDiretor
-  for (const c of CAMPOS_FICHA) {
-    ;(ficha as Record<string, unknown>)[c] = texto(data[c])
-  }
-  return ficha
-}
-
-export async function salvarFichaDiretor(
-  integranteId: string,
-  dados: FichaDiretor
-): Promise<{ erro?: string }> {
-  const empId = await tenantAtual()
-  const admin = await createAdminClient()
-
-  const { data: i } = await admin
-    .from("diretoria_integrantes")
-    .select("id")
-    .eq("id", integranteId)
-    .eq("emp_proprietaria_id", empId)
-    .maybeSingle()
-  if (!i) return { erro: "Diretor não encontrado." }
-
-  const { error } = await admin.from("diretoria_ficha").upsert(
-    {
-      integrante_id: integranteId,
-      ...dados,
-      emp_proprietaria_id: empId,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "integrante_id" }
-  )
-  if (error) {
-    if (esquemaAusente(error)) {
-      return {
-        erro: "Ficha ainda não configurada — rode supabase/diretoria-ficha.sql.",
-      }
-    }
-    return { erro: `Falha ao salvar a ficha: ${error.message}` }
-  }
-  return {}
-}
+// Tipo, leitura e gravação da ficha moram em diretoria-ficha.ts (dados da
+// filiação refletidos). Reexportados aqui para quem já importava deste módulo.
+export {
+  obterFichaDiretor,
+  salvarFichaDiretor,
+  type FichaDiretor,
+} from "@/lib/db/diretoria-ficha"
 
 /** Liberações sindicais de UM integrante (reusa o shape de listarLiberacoes). */
 export async function liberacoesDoIntegrante(

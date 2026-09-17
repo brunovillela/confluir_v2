@@ -15,7 +15,7 @@ export async function salvarFichaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("diretoria_mandatos")
+  const sessao = await requirePermissao("diretoria_mandatos")
 
   const integranteId = String(formData.get("integrante_id") ?? "")
   const mandatoId = String(formData.get("mandato_id") ?? "")
@@ -50,12 +50,16 @@ export async function salvarFichaAction(
     telefone_emergencia: txt(formData, "telefone_emergencia"),
   }
 
-  const { erro } = await salvarFichaDiretor(integranteId, dados)
+  const { erro, filiacaoAtualizada } = await salvarFichaDiretor(integranteId, dados, sessao.usuario.id as string)
   if (erro) return { erro }
   if (mandatoId) {
     revalidatePath(
       `/painel/institucional/diretoria/${mandatoId}/${integranteId}`
     )
+  }
+  if (filiacaoAtualizada?.length) {
+    revalidatePath("/painel/filiados", "layout")
+    return { ok: `Ficha salva. Atualizado também no cadastro da filiação: ${filiacaoAtualizada.join(", ")}.` }
   }
   return { ok: "Ficha salva." }
 }
