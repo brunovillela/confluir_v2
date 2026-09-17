@@ -28,12 +28,26 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 17/09: Veículos com as preventivas da demo (V-001 se
+  // aproximando, V-002 em dia e em uso, V-003 vencida), sedes cadastradas e a
+  // tela de Manutenções.
+  ["/painel/veiculos", "veiculos/painel.png", { fullPage: true, esperar: "Preventiva vencida" }],
+  ["/painel/veiculos/agendamentos", "veiculos/agendamentos.png", { fullPage: true }],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000002", "veiculos/veiculo.png", { fullPage: true, esperar: "Próxima preventiva" }],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000001", "veiculos/veiculo-preventiva.png", { esperar: "Manutenção preventiva se aproximando" }],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000002/historico", "veiculos/historico.png"],
+  ["/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao", "veiculos/movimentacao.png", { esperar: "Registrar saída" }],
+  ["/painel/veiculos/manutencoes", "veiculos/manutencoes.png", { fullPage: true }],
+  ["/painel/veiculos/infracoes/41000000-0000-4000-8000-000000000001", "veiculos/infracao.png"],
+
   // Rodada de 16/09 (tarde): Usuários e permissões — Nova pessoa, Quadro da
   // entidade (demo: Rodrigo Alves Prado, da fonte, classificado como
   // prestador) e a página da pessoa com perfis e ajustes finos.
+  /*
   ["/painel/institucional/usuarios", "institucional/usuarios-nova-pessoa.png", { abrir: ["Conceder acesso a uma pessoa", "Nova pessoa"] }],
   ["/painel/institucional/usuarios/quadro", "institucional/quadro.png", { esperar: "Sugestão:" }],
   ["/painel/institucional/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png", { scrollTo: "Ajustes finos" }],
+  */
 
   // Rodada de 17/09: tela de Filiados com o aviso de possíveis duplicidades
   // no cartão de saúde (demo: Marina Couto Ferreira em dois cadastros).
