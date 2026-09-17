@@ -112,6 +112,18 @@ export default async function UsuariosPage() {
                           admin
                         </Badge>
                       )}
+                      {a.contaFuncao && (
+                        <>
+                          <Badge variant="outline" className="ml-2">
+                            conta de função
+                          </Badge>
+                          <span className="text-muted-foreground block text-xs font-normal">
+                            {a.ocupanteAtual
+                              ? `No posto: ${a.ocupanteAtual}`
+                              : "Ninguém registrado no posto hoje"}
+                          </span>
+                        </>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">{a.email ?? "—"}</TableCell>
                     <TableCell className="tabular-nums text-sm">

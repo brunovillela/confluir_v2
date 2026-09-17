@@ -11,6 +11,7 @@ import {
   Save,
   Send,
   Trash2,
+  UserCog,
   UserPlus,
   UserRoundPlus,
 } from "lucide-react"
@@ -40,6 +41,7 @@ import {
   salvarPerfisUsuarioAction,
   salvarPermissoesAction,
 } from "./actions"
+import { NovaContaFuncao } from "./contas-funcao-forms"
 
 /** Perfil (RBAC) exibido no seletor — tipo local (client não importa server-only). */
 export type PerfilOpcao = {
@@ -238,18 +240,24 @@ export function OnboardingLote({
 }
 
 export function ConcederAcesso() {
-  const [novaPessoa, setNovaPessoa] = useState(false)
-  if (novaPessoa) return <NovaPessoa aoCancelar={() => setNovaPessoa(false)} />
+  const [modo, setModo] = useState<"busca" | "pessoa" | "conta">("busca")
+  if (modo === "pessoa") return <NovaPessoa aoCancelar={() => setModo("busca")} />
+  if (modo === "conta") return <NovaContaFuncao aoCancelar={() => setModo("busca")} />
   return (
     <div className="grid gap-3">
       <ConcederAcessoBusca />
-      <p className="text-muted-foreground text-sm">
-        Não encontrou a pessoa?{" "}
-        <Button type="button" variant="outline" size="sm" onClick={() => setNovaPessoa(true)}>
+      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+        Não encontrou a pessoa?
+        <Button type="button" variant="outline" size="sm" onClick={() => setModo("pessoa")}>
           <UserRoundPlus />
           Nova pessoa
         </Button>
-      </p>
+        <span>E-mail coletivo de um posto (recepcao@)?</span>
+        <Button type="button" variant="outline" size="sm" onClick={() => setModo("conta")}>
+          <UserCog />
+          Nova conta de função
+        </Button>
+      </div>
     </div>
   )
 }

@@ -7,8 +7,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { rotuloMotivo } from "@/lib/contas-funcao-constantes"
 import { obterAcesso } from "@/lib/db/acessos"
+import { hojeSP } from "@/lib/db/comum"
+import { AVISO_SQL_CONTAS, listarOcupacoes, ocupanteNoDia } from "@/lib/db/contas-funcao"
+import { formatarData } from "@/lib/formato"
 import { listarDepartamentos } from "@/lib/db/compras"
 import { departamentosComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { listarPerfis, perfisDoUsuario } from "@/lib/db/perfis"
@@ -20,6 +32,7 @@ import {
   PermissoesForm,
   RevogarAcesso,
 } from "../usuarios-forms"
+import { AcoesOcupacao, RegistrarOcupacao } from "../contas-funcao-forms"
 
 export const metadata: Metadata = { title: "Permissões — Confluir" }
 
@@ -28,23 +41,28 @@ export default async function AcessoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ nova?: string }>
+  searchParams: Promise<{ nova?: string; conta?: string }>
 }) {
   await requirePermissao("permissoes", ["configuracoes"])
   const { id } = await params
-  const { nova } = await searchParams
+  const { nova, conta } = await searchParams
 
   const acesso = await obterAcesso(id)
   if (!acesso) notFound()
 
-  const [perfis, perfisAtribuidos, departamentos, deptosCompras] = await Promise.all([
+  const hoje = hojeSP()
+  const [perfis, perfisAtribuidos, departamentos, deptosCompras, posto] = await Promise.all([
     listarPerfis(),
     acesso.usuarioId ? perfisDoUsuario(acesso.usuarioId) : Promise.resolve([]),
     listarDepartamentos(),
     acesso.usuarioId
       ? departamentosComprasDoUsuario(acesso.usuarioId)
       : Promise.resolve({ disponivel: false, departamentoIds: [] }),
+    acesso.contaFuncao && acesso.usuarioId
+      ? listarOcupacoes(acesso.usuarioId)
+      : Promise.resolve(null),
   ])
+  const noPosto = posto ? ocupanteNoDia(posto.ocupacoes, hoje) : null
 
   return (
     <>
@@ -63,6 +81,7 @@ export default async function AcessoPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             {acesso.nome ?? "(sem nome)"}
           </h1>
+          {acesso.contaFuncao && <Badge variant="outline">Conta de função</Badge>}
           {acesso.temLogin ? (
             <Badge variant="outline" className="border-success/40 text-success-fg">
               Login ativo
@@ -87,9 +106,125 @@ export default async function AcessoPage({
         </Alert>
       )}
 
+      {conta && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Conta de função criada. Registre abaixo quem ocupa o posto, escolha os
+            perfis de acesso do posto e clique em <strong>Conceder login</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {posto && (
+        <Card>
+          <CardContent className="grid gap-4 pt-6">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">Quem ocupa o posto</p>
+                <p className="text-muted-foreground text-xs">
+                  A conta é usada por quem está no posto. Cada ação feita com ela
+                  é atribuída a quem ocupava o posto no dia — por isso registre
+                  toda troca, inclusive as férias.
+                </p>
+              </div>
+              {posto.disponivel && (
+                <p className="text-sm">
+                  Hoje:{" "}
+                  <strong>
+                    {noPosto ? (noPosto.pessoaNome ?? "(sem nome)") : "ninguém registrado"}
+                  </strong>
+                  {noPosto && noPosto.motivo !== "titular"
+                    ? ` · ${rotuloMotivo(noPosto.motivo).toLowerCase()}`
+                    : ""}
+                </p>
+              )}
+            </div>
+
+            {!posto.disponivel ? (
+              <Alert variant="warning">
+                <AlertDescription>{AVISO_SQL_CONTAS}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {posto.ocupacoes.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pessoa</TableHead>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead>Período</TableHead>
+                        <TableHead>Registrado por</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {posto.ocupacoes.map((o) => (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-medium">
+                            {o.pessoaNome ?? "(sem nome)"}
+                            {o.id === noPosto?.id && (
+                              <Badge
+                                variant="outline"
+                                className="border-success/40 text-success-fg ml-2"
+                              >
+                                no posto
+                              </Badge>
+                            )}
+                            {o.observacao && (
+                              <span className="text-muted-foreground block text-xs font-normal">
+                                {o.observacao}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{rotuloMotivo(o.motivo)}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {o.fim
+                              ? `${formatarData(o.inicio)} a ${formatarData(o.fim)}`
+                              : `desde ${formatarData(o.inicio)}`}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {o.registradoPorNome ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <AcoesOcupacao
+                              acessoId={acesso.id}
+                              ocupacaoId={o.id}
+                              aberta={!o.fim}
+                              pessoa={o.pessoaNome ?? "esta pessoa"}
+                              hoje={hoje}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                <div className="rounded-lg border p-4">
+                  <p className="mb-3 text-sm font-medium">Registrar quem entra no posto</p>
+                  <RegistrarOcupacao acessoId={acesso.id} hoje={hoje} />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="grid gap-3 pt-6">
           <p className="text-sm font-medium">Acesso ao painel (login)</p>
+          {acesso.contaFuncao && (
+            <Alert variant="info">
+              <AlertDescription>
+                <span>
+                  <strong>Na troca de quem ocupa o posto:</strong> 1) troque a senha
+                  da caixa {acesso.email ?? "do e-mail"} no provedor de e-mail, para
+                  quem saiu perder o acesso a ela; 2) registre a troca acima; 3) quem
+                  entra usa <em>Esqueci minha senha</em> com o e-mail do posto (ou
+                  gere o link aqui) e define uma senha nova — a antiga deixa de valer.
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
           {!acesso.temLogin && (
             <Alert variant="warning">
               <AlertDescription>

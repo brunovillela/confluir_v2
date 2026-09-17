@@ -19,6 +19,12 @@ import {
   type ResultadoNovaPessoa,
 } from "@/lib/db/acessos"
 import { listarDepartamentos } from "@/lib/db/compras"
+import {
+  criarContaFuncao,
+  encerrarOcupacao,
+  excluirOcupacao,
+  registrarOcupacao,
+} from "@/lib/db/contas-funcao"
 import { definirDepartamentosCompras } from "@/lib/db/compras-acesso"
 import { atribuirPerfis } from "@/lib/db/perfis"
 import { classificarPessoa } from "@/lib/db/quadro"
@@ -89,6 +95,79 @@ export async function novaPessoaAction(
   if (erro) return { erro }
   revalidatePath("/painel/institucional/usuarios")
   redirect(`/painel/institucional/usuarios/${id}?nova=1`)
+}
+
+export type ResultadoContaFuncao = {
+  erro?: string
+  valores?: { nome: string; email: string }
+}
+
+/** Conta de função (ex.: Recepção): cria a conta do posto e o acesso dela. */
+export async function novaContaFuncaoAction(
+  _prev: ResultadoContaFuncao,
+  formData: FormData
+): Promise<ResultadoContaFuncao> {
+  await requirePermissao(CHAVE, ALT)
+  const valores = { nome: texto(formData, "nome"), email: texto(formData, "email") }
+  const r = await criarContaFuncao(valores)
+  if (r.erro || !r.usuarioId) return { erro: r.erro ?? "Não foi possível criar a conta.", valores }
+
+  const { id, erro } = await concederAcesso(r.usuarioId)
+  if (erro) return { erro, valores }
+  revalidatePath("/painel/institucional/usuarios")
+  redirect(`/painel/institucional/usuarios/${id}?conta=1`)
+}
+
+/** Registra quem ocupa o posto de uma conta de função. */
+export async function registrarOcupacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao(CHAVE, ALT)
+  const acessoId = texto(formData, "acesso_id")
+  const acesso = await obterAcesso(acessoId)
+  if (!acesso?.usuarioId || !acesso.contaFuncao) return { erro: "Conta de função não encontrada." }
+  const r = await registrarOcupacao(
+    {
+      contaId: acesso.usuarioId,
+      pessoaId: texto(formData, "pessoa_id"),
+      inicio: texto(formData, "inicio"),
+      fim: texto(formData, "fim") || null,
+      motivo: texto(formData, "motivo"),
+      observacao: texto(formData, "observacao") || null,
+    },
+    sessao.usuario.id
+  )
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/institucional/usuarios")
+  revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+  return { ok: r.ok }
+}
+
+export async function encerrarOcupacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const acessoId = texto(formData, "acesso_id")
+  const { erro } = await encerrarOcupacao(texto(formData, "ocupacao_id"), texto(formData, "fim"))
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/usuarios")
+  revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+  return { ok: "Período encerrado." }
+}
+
+export async function excluirOcupacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const acessoId = texto(formData, "acesso_id")
+  const { erro } = await excluirOcupacao(texto(formData, "ocupacao_id"))
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/usuarios")
+  revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+  return { ok: "Período excluído." }
 }
 
 /** Quadro da entidade: grava a classificação de uma pessoa. */

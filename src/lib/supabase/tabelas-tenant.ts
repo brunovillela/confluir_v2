@@ -171,6 +171,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "saude_profissionais",
   "telefones",
   "usuarios",
+  "usuarios_ocupacoes",
   "veiculo_contratos_aluguel",
   "veiculos",
   "veiculos_abastecimentos",

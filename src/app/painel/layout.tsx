@@ -6,6 +6,7 @@ import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
+import { ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { urlFoto } from "@/lib/db/perfil"
@@ -19,14 +20,19 @@ export default async function PainelLayout({
 }) {
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
-  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl] = await Promise.all([
+  const contaFuncao = sessao.usuario.conta_funcao === true
+  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
     obterOrganizacao(),
     jornadaDoUsuario(sessao.usuario.id),
     urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
+    contaFuncao ? ocupantesAtuais([sessao.usuario.id]) : Promise.resolve(null),
   ])
+  // Conta de função (ex.: Recepção): no lugar do e-mail, quem está no posto —
+  // lembrete de registrar a troca quando o nome não é o de quem está usando.
+  const ocupante = ocupantes?.get(sessao.usuario.id)
   const outrasAreas = areas.filter((a) => a.href !== "/painel")
   const tenantNome =
     organizacao?.nomeFantasia ?? organizacao?.nomeRazao ?? null
@@ -38,7 +44,11 @@ export default async function PainelLayout({
         sessao.user.email ??
         "Usuário"
     ),
-    email: String(sessao.usuario.email ?? sessao.user.email ?? ""),
+    email: contaFuncao
+      ? ocupante
+        ? `No posto: ${ocupante}`
+        : "Ninguém registrado no posto"
+      : String(sessao.usuario.email ?? sessao.user.email ?? ""),
     fotoUrl,
   }
 

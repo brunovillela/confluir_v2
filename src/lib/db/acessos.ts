@@ -1,11 +1,12 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
+import { ehContaFuncao, ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { garantirPerfilPadrao } from "@/lib/db/perfis"
 import {
   CATALOGO_PERMISSOES,
@@ -36,6 +37,10 @@ export type AcessoLinha = {
   temLogin: boolean
   totalPermissoes: number
   ehAdmin: boolean
+  /** Conta do posto (ex.: Recepção), usada por quem o ocupa. */
+  contaFuncao: boolean
+  /** Numa conta de função, quem ocupa o posto hoje. */
+  ocupanteAtual: string | null
 }
 
 export async function listarAcessos(): Promise<AcessoLinha[]> {
@@ -49,6 +54,9 @@ export async function listarAcessos(): Promise<AcessoLinha[]> {
   const linhas = (data ?? []) as Record<string, unknown>[]
   const usuarioIds = linhas.map((p) => p.usuario_id as string).filter(Boolean)
   const usuarios = await usuariosPorId(usuarioIds)
+  const ocupantes = await ocupantesAtuais(
+    usuarioIds.filter((id) => usuarios.get(id)?.contaFuncao)
+  )
 
   return linhas
     .map((p) => {
@@ -61,6 +69,8 @@ export async function listarAcessos(): Promise<AcessoLinha[]> {
         temLogin: u?.temLogin ?? false,
         totalPermissoes: CHAVES_PERMISSAO.filter((c) => p[c] === true).length,
         ehAdmin: p.permissoes === true || p.configuracoes === true,
+        contaFuncao: u?.contaFuncao ?? false,
+        ocupanteAtual: ocupantes.get(p.usuario_id as string) ?? null,
       }
     })
     .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
@@ -106,22 +116,34 @@ export async function pessoasComAcesso(): Promise<PessoaAcesso[]> {
   return pessoas
 }
 
-type UsuarioInfo = { nome: string | null; email: string | null; temLogin: boolean }
+type UsuarioInfo = {
+  nome: string | null
+  email: string | null
+  temLogin: boolean
+  contaFuncao: boolean
+}
 
 async function usuariosPorId(ids: string[]): Promise<Map<string, UsuarioInfo>> {
   const mapa = new Map<string, UsuarioInfo>()
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data } = await admin
+  const colunas = "id, nome_completo, nome_guerra, email, auth_user_id"
+  const comConta = await admin
     .from("usuarios")
-    .select("id, nome_completo, nome_guerra, email, auth_user_id")
+    .select(`${colunas}, conta_funcao`)
     .in("id", unicos)
+  // Sem supabase/contas-funcao.sql ainda: ninguém é conta de função.
+  const data: Record<string, unknown>[] | null =
+    comConta.error && esquemaAusente(comConta.error)
+      ? (await admin.from("usuarios").select(colunas).in("id", unicos)).data
+      : comConta.data
   for (const u of data ?? []) {
     mapa.set(u.id as string, {
       nome: texto(u.nome_completo) ?? texto(u.nome_guerra),
       email: texto(u.email),
       temLogin: Boolean(u.auth_user_id),
+      contaFuncao: u.conta_funcao === true,
     })
   }
   return mapa
@@ -135,6 +157,7 @@ export type DetalheAcesso = {
   nome: string | null
   email: string | null
   temLogin: boolean
+  contaFuncao: boolean
   alcada: number | null
   flags: Record<string, boolean>
 }
@@ -163,6 +186,7 @@ export async function obterAcesso(id: string): Promise<DetalheAcesso | null> {
     nome: u?.nome ?? null,
     email: u?.email ?? null,
     temLogin: u?.temLogin ?? false,
+    contaFuncao: u?.contaFuncao ?? false,
     alcada: numero(bruto.alcada_aprovacao),
     flags,
   }
@@ -272,6 +296,11 @@ export async function cadastrarPessoa(dados: {
     .limit(1)
     .maybeSingle()
   if (porEmail) {
+    if (await ehContaFuncao(String(porEmail.id))) {
+      return {
+        erro: `Este e-mail é da conta de função ${texto(porEmail.nome_completo) ?? ""}. Quem ocupa o posto é registrado na página da conta; para o acesso pessoal, use um e-mail só desta pessoa.`,
+      }
+    }
     if (cpfConfiavel(texto(porEmail.cpf))) {
       return {
         erro: `Este e-mail já é do cadastro de ${texto(porEmail.nome_completo) ?? "outra pessoa"}, com outro CPF. O login é pelo e-mail: use um e-mail só desta pessoa.`,
@@ -490,21 +519,27 @@ export async function sugerirUsuarios(
   const admin = await createAdminClient()
   const digitos = termo.replace(/\D/g, "")
 
-  let query = admin
-    .from("usuarios")
-    .select("id, nome_completo, cpf")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .neq("inativo", true)
-    .neq("deletado", true)
+  const emp = await tenantAtual()
 
-  query =
-    digitos.length >= 3
-      ? query.ilike("cpf", `%${digitos}%`)
-      : query.ilike("nome_completo", `%${termo}%`)
-
-  const { data } = await query
-    .order("nome_completo", { ascending: true, nullsFirst: false })
-    .limit(limite)
+  // Contas de função ficam de fora: aqui se buscam pessoas.
+  const buscar = (semContas: boolean) => {
+    let query = admin
+      .from("usuarios")
+      .select("id, nome_completo, cpf")
+      .eq("emp_proprietaria_id", emp)
+      .neq("inativo", true)
+      .neq("deletado", true)
+    if (semContas) query = query.not("conta_funcao", "is", true)
+    query =
+      digitos.length >= 3
+        ? query.ilike("cpf", `%${digitos}%`)
+        : query.ilike("nome_completo", `%${termo}%`)
+    return query
+      .order("nome_completo", { ascending: true, nullsFirst: false })
+      .limit(limite)
+  }
+  let { data, error } = await buscar(true)
+  if (error && esquemaAusente(error)) ({ data, error } = await buscar(false))
 
   return (data ?? []).map((u) => ({
     id: u.id as string,
