@@ -44,6 +44,51 @@ Com **vínculo**, a pessoa passa a contar no quadro da entidade (aniversários d
 painel, convite em lote). **Sem vínculo** — um consultor, um contador externo
 —, ela tem só o acesso que você der.
 
+## Contas de função (e-mails coletivos)
+
+Um e-mail coletivo como **recepcao@** é usado por quem ocupa o posto — e quem
+cobre as férias ou substitui o prestador usa o mesmo e-mail. Para isso existe a
+**conta de função**: a conta é do **posto**, não de uma pessoa, e o sistema
+guarda **quem ocupou o posto em cada período**.
+
+<PassoAPasso>
+  <Passo titulo="Crie a conta do posto">
+    Em **Conceder acesso a uma pessoa**, clique em **Nova conta de função** e
+    informe o **nome do posto** (Recepção) e o **e-mail do posto**. A conta não
+    tem CPF e não entra no quadro da entidade.
+  </Passo>
+  <Passo titulo="Registre quem ocupa o posto">
+    Na página da conta, em **Quem ocupa o posto**, escolha a pessoa, o motivo e o
+    período. O prestador precisa estar no cadastro de usuários — se não estiver,
+    cadastre-o em **Nova pessoa**, com o vínculo *Prestador(a) de serviço*.
+  </Passo>
+  <Passo titulo="Dê os perfis e o login">
+    Marque os **perfis de acesso** do posto (recepção de veículos, hospedagem,
+    eventos…) e clique em **Conceder login**: o convite vai para o e-mail do posto.
+  </Passo>
+</PassoAPasso>
+
+Os motivos são **Titular do posto**, **Cobrindo férias**, **Cobrindo
+afastamento** e **Substituição temporária**. Uma cobertura vale **sobre o
+titular** nos dias dela e precisa do último dia. Um **titular novo** encerra
+sozinho, na véspera, o titular que estava em aberto — é a substituição
+definitiva.
+
+<Aviso tipo="atencao" titulo="Na troca de quem ocupa o posto">
+  **1)** Troque a senha da caixa de e-mail no **provedor** (Google, Microsoft…),
+  para quem saiu perder o acesso a ela. **2)** Registre a troca em **Quem ocupa o
+  posto**. **3)** Quem entra usa **Esqueci minha senha** com o e-mail do posto — o
+  link chega na caixa que só ela lê — e define uma senha nova. A antiga deixa de
+  valer.
+</Aviso>
+
+Cada ação feita com a conta é atribuída a quem ocupava o posto no dia: no
+histórico de uso de um veículo, por exemplo, a entrada aparece como *por
+Recepção (nome da pessoa)*. Na barra lateral, quem entra com a conta vê **No
+posto:** e o nome registrado — se não for o seu, avise quem cuida dos usuários.
+
+<Print src="institucional/conta-funcao.png" alt="Página da conta de função Recepção: o selo Conta de função, o cartão Quem ocupa o posto com a titular desde agosto e a cobertura de férias de setembro marcada como no posto, o formulário Registrar quem entra no posto e, abaixo, o passo a passo da troca de senha no cartão de login." legenda="A conta do posto e o histórico de quem o ocupou." />
+
 ## Quadro da entidade
 
 Em **Usuários e permissões → Quadro da entidade** fica a classificação de cada
@@ -147,6 +192,9 @@ a caso. É a exceção; o normal é resolver pelo perfil.
 - **"A pessoa não aparece na busca."** Ela ainda não está no cadastro de
   usuários: use **Nova pessoa**. Ser filiado não basta — o cadastro de filiação é
   outro; se ela já tiver conta no portal, a Nova pessoa a encontra pelo CPF.
+- **"Quero passar o recepcao@ para outra pessoa."** Não transfira o e-mail de
+  uma pessoa: crie uma **conta de função** para o posto e registre quem o ocupa
+  a cada troca.
 - **"Dei o perfil, mas a pessoa não consegue entrar."** Ter permissões não é o
   mesmo que ter **login** — a pessoa precisa do convite/credencial de acesso
   (primeiro acesso). Ver [Introdução](/painel/ajuda/introducao).
