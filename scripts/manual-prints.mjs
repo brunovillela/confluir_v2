@@ -28,13 +28,23 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 17/09 (fim da tarde): ficha do integrante que reflete a filiação
+  // e a CNH (demo: Mariana Souza Ribeiro, filiada, diretora e condutora).
+  [
+    "/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/fe700000-0000-4000-8000-000000000002",
+    "institucional/ficha-integrante.png",
+    { fullPage: true, esperar: "Da filiação" },
+  ],
+
   // Rodada de 17/09 (tarde): devolução com km fora do normal. Pede uma saída
   // aberta há ~2 h no V-001 (criada e apagada pelo script de apoio da rodada).
+  /*
   [
     "/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao",
     "veiculos/entrada-km-anormal.png",
     { esperar: "Registrar entrada", preencher: [["#hodometro", "10.500"]], altura: 760 },
   ],
+  */
 
   // Rodada de 17/09: Veículos com as preventivas da demo (V-001 se
   // aproximando, V-002 em dia e em uso, V-003 vencida), sedes cadastradas e a
