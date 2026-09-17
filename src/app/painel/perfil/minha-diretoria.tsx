@@ -13,6 +13,11 @@ import {
 } from "@/lib/custeio-constantes"
 import { formatarData, formatarMoeda, formatarTelefone } from "@/lib/formato"
 
+/** Hoje em São Paulo (AAAA-MM-DD): liberação que ainda não começou é "prevista", não "encerrada". */
+function hojeISO(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+}
+
 function periodo(inicio: string | null, fim: string | null): string {
   if (inicio && fim) return `${formatarData(inicio)} a ${formatarData(fim)}`
   if (inicio) return `desde ${formatarData(inicio)}`
@@ -94,6 +99,10 @@ export function MinhaDiretoria({
                     {l.vigente ? (
                       <Badge variant="outline" className="border-success/40 text-success-fg">
                         em vigor
+                      </Badge>
+                    ) : l.inicio && l.inicio > hojeISO() ? (
+                      <Badge variant="outline" className="border-primary/40 text-primary">
+                        prevista
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
