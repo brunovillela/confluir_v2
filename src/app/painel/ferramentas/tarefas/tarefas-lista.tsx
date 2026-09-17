@@ -86,6 +86,11 @@ export function TarefasLista({
                     </span>{" "}
                     <span className="line-clamp-1 inline">{t.paiNome ?? "—"}</span>
                   </Link>
+                ) : t.paiTipo ? (
+                  // Pai sem id: vínculo restrito (anomalia para quem não tem a permissão).
+                  <span className="text-muted-foreground" title="Sem acesso ao conteúdo">
+                    {ROTULOS_PAI_TAREFA[t.paiTipo]}
+                  </span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}

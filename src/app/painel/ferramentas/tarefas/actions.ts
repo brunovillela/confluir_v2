@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  anomaliaDaTarefa,
   atualizarTarefa,
   criarTarefa,
   definirConclusaoTarefa,
@@ -30,6 +32,18 @@ function revalidarTarefa(formData: FormData): void {
   if (projetoId) revalidatePath(`/painel/ferramentas/projetos/${projetoId}`)
 }
 
+/**
+ * Tarefas e Demandas mexem em qualquer tarefa. Quem só tem Anomalias mexe nas
+ * tarefas DAS ANOMALIAS — conferido no banco para a tarefa existente, não pelo
+ * que veio no formulário.
+ */
+async function exigirPermissaoDaTarefa(tarefaId: string | null, anomaliaDoForm: string): Promise<string | null> {
+  const sessao = await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas", "ferramentas_anomalias"])
+  if (podeAcessar(sessao.permissoes, "ferramentas_tarefas", ["ferramentas_demandas"])) return null
+  const anomalia = tarefaId ? await anomaliaDaTarefa(tarefaId) : anomaliaDoForm || null
+  return anomalia ? null : "Sem permissão para esta tarefa."
+}
+
 function lerDados(formData: FormData): DadosTarefa {
   return {
     titulo: texto(formData, "titulo"),
@@ -47,7 +61,8 @@ export async function criarTarefaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas"])
+  const semPermissao = await exigirPermissaoDaTarefa(null, texto(formData, "anomalia_id"))
+  if (semPermissao) return { erro: semPermissao }
   const dados = lerDados(formData)
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
 
@@ -61,9 +76,10 @@ export async function atualizarTarefaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas"])
   const id = texto(formData, "tarefa_id")
   if (!id) return { erro: "Tarefa inválida." }
+  const semPermissao = await exigirPermissaoDaTarefa(id, "")
+  if (semPermissao) return { erro: semPermissao }
   const dados = lerDados(formData)
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
 
@@ -77,10 +93,11 @@ export async function alternarConclusaoTarefaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas"])
   const id = texto(formData, "tarefa_id")
   const concluir = texto(formData, "concluir") === "1"
   if (!id) return { erro: "Tarefa inválida." }
+  const semPermissao = await exigirPermissaoDaTarefa(id, "")
+  if (semPermissao) return { erro: semPermissao }
 
   const { erro } = await definirConclusaoTarefa(id, concluir)
   if (erro) return { erro }

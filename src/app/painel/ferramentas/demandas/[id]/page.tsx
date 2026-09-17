@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
@@ -13,6 +14,7 @@ import {
   resumoExclusaoDemanda,
 } from "@/lib/db/nucleo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { AdicionarTarefa } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
@@ -27,10 +29,9 @@ export default async function DemandaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const sessao = await requirePermissao("ferramentas_demandas", [
-    "ferramentas_tarefas",
-    "ferramentas_anomalias",
-  ])
+  const sessao = await requirePermissao("ferramentas_demandas", ["ferramentas_tarefas"])
+  // Quem só tem Tarefas trabalha nas tarefas; editar a demanda é de Demandas.
+  const editor = podeAcessar(sessao.permissoes, "ferramentas_demandas")
   const { id } = await params
   const { salvo } = await searchParams
 
@@ -58,12 +59,14 @@ export default async function DemandaPage({
             Demandas
           </Link>
         </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/painel/ferramentas/demandas/${id}/editar`}>
-            <Pencil />
-            Editar
-          </Link>
-        </Button>
+        {editor && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/painel/ferramentas/demandas/${id}/editar`}>
+              <Pencil />
+              Editar
+            </Link>
+          </Button>
+        )}
       </div>
 
       {salvo && (
@@ -87,7 +90,11 @@ export default async function DemandaPage({
               : ""}
           </p>
         </div>
-        <SituacaoDemanda demandaId={id} situacao={demanda.situacao} />
+        {editor ? (
+          <SituacaoDemanda demandaId={id} situacao={demanda.situacao} />
+        ) : (
+          demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
+        )}
       </div>
 
       {demanda.descricao && (
@@ -118,7 +125,7 @@ export default async function DemandaPage({
         </CardContent>
       </Card>
 
-      {podeExcluir && (
+      {podeExcluir && editor && (
         <Card>
           <CardContent className="grid gap-3">
             <div>

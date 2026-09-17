@@ -639,7 +639,7 @@ export const MODULOS: Modulo[] = [
     icone: "ListChecks",
     descricao: "Frentes de atuação com prazo, responsável e tarefas",
     chave: "ferramentas_demandas",
-    chavesAlternativas: ["ferramentas_tarefas", "ferramentas_anomalias"],
+    chavesAlternativas: ["ferramentas_tarefas"],
     oculto: true,
   },
   {

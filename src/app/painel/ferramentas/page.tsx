@@ -5,6 +5,7 @@ import {
   FolderKanban,
   ListChecks,
   ScrollText,
+  TriangleAlert,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -39,12 +40,20 @@ const AREAS: Area[] = [
     chavesAlternativas: ["ferramentas_projetos_edicao"],
   },
   {
-    titulo: "Demandas, tarefas e anomalias",
-    descricao: "Frentes de atuação, tarefas com responsável e não conformidades",
+    titulo: "Demandas e tarefas",
+    descricao: "Frentes de atuação e tarefas com responsável",
     href: "/painel/ferramentas/demandas",
     icone: ListChecks,
     chave: "ferramentas_demandas",
-    chavesAlternativas: ["ferramentas_tarefas", "ferramentas_anomalias"],
+    chavesAlternativas: ["ferramentas_tarefas"],
+  },
+  {
+    // Cartão próprio: não conformidades só aparecem para quem tem a permissão.
+    titulo: "Anomalias",
+    descricao: "Não conformidades, causa raiz e providências",
+    href: "/painel/ferramentas/anomalias",
+    icone: TriangleAlert,
+    chave: "ferramentas_anomalias",
   },
   {
     titulo: "Documentos",

@@ -38,11 +38,9 @@ export default async function DemandasPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  const sessao = await requirePermissao("ferramentas_demandas", [
-    "ferramentas_tarefas",
-    "ferramentas_anomalias",
-  ])
+  const sessao = await requirePermissao("ferramentas_demandas", ["ferramentas_tarefas"])
   const editor = podeAcessar(sessao.permissoes, "ferramentas_demandas")
+  const veAnomalias = podeAcessar(sessao.permissoes, "ferramentas_anomalias")
 
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
@@ -80,12 +78,14 @@ export default async function DemandasPage({
               Tarefas
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/painel/ferramentas/anomalias">
-              <TriangleAlert />
-              Anomalias
-            </Link>
-          </Button>
+          {veAnomalias && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/painel/ferramentas/anomalias">
+                <TriangleAlert />
+                Anomalias
+              </Link>
+            </Button>
+          )}
           {editor && (
             <Button asChild>
               <Link href="/painel/ferramentas/demandas/nova">

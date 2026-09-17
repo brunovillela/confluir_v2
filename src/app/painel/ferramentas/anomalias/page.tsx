@@ -16,6 +16,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarAnomalias, resumoAnomalias } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   derivarEstagioAnomalia,
   ROTULOS_ESTAGIO_ANOMALIA,
@@ -33,7 +34,8 @@ export default async function AnomaliasPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  await requirePermissao("ferramentas_anomalias")
+  const sessao = await requirePermissao("ferramentas_anomalias")
+  const veDemandas = podeAcessar(sessao.permissoes, "ferramentas_demandas", ["ferramentas_tarefas"])
 
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
@@ -57,12 +59,14 @@ export default async function AnomaliasPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/painel/ferramentas/demandas">
-              <ListChecks />
-              Demandas
-            </Link>
-          </Button>
+          {veDemandas && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/painel/ferramentas/demandas">
+                <ListChecks />
+                Demandas
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link href="/painel/ferramentas/anomalias/nova">
               <Plus />

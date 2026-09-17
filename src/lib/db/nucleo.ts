@@ -588,6 +588,18 @@ export async function atualizarTarefa(
   return {}
 }
 
+/** A anomalia a que a tarefa pertence (ou null) — decide quem pode mexer nela. */
+export async function anomaliaDaTarefa(id: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("demandas_check_tarefas")
+    .select("anomalia_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return (data?.anomalia_id as string | null) ?? null
+}
+
 export async function definirConclusaoTarefa(
   id: string,
   concluido: boolean

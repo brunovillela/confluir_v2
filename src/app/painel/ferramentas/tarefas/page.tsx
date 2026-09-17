@@ -7,6 +7,7 @@ import { ListChecks, TriangleAlert } from "lucide-react"
 
 import { requirePermissao } from "@/lib/auth"
 import { listarPessoasAtribuiveis, listarTarefas } from "@/lib/db/nucleo"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { AdicionarTarefa } from "./tarefa-forms"
 import { TarefasLista } from "./tarefas-lista"
@@ -23,7 +24,8 @@ export default async function TarefasPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas"])
+  const sessao = await requirePermissao("ferramentas_tarefas", ["ferramentas_demandas"])
+  const veAnomalias = podeAcessar(sessao.permissoes, "ferramentas_anomalias")
 
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
@@ -34,10 +36,15 @@ export default async function TarefasPage({
       ? brutos.status
       : "pendentes"
 
-  const [{ disponivel, tarefas }, pessoas] = await Promise.all([
+  const [{ disponivel, tarefas: todas }, pessoas] = await Promise.all([
     listarTarefas({ busca, status }),
     listarPessoasAtribuiveis(),
   ])
+  // Tarefa de anomalia qualquer um executa; o CONTEÚDO da anomalia (nome e
+  // link) só vai para quem tem a permissão de Anomalias — nem chega ao cliente.
+  const tarefas = veAnomalias
+    ? todas
+    : todas.map((t) => (t.paiTipo === "anomalia" ? { ...t, paiId: null, paiNome: null } : t))
 
   return (
     <>
@@ -55,12 +62,14 @@ export default async function TarefasPage({
               Demandas
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/painel/ferramentas/anomalias">
-              <TriangleAlert />
-              Anomalias
-            </Link>
-          </Button>
+          {veAnomalias && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/painel/ferramentas/anomalias">
+                <TriangleAlert />
+                Anomalias
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
