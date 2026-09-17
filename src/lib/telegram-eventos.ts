@@ -14,6 +14,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "informe", rotulo: "Informe de rendimentos liberado" },
   { chave: "reembolso", rotulo: "Reembolso avaliado" },
   { chave: "treinamento", rotulo: "Matrícula em treinamento" },
+  { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida" },
 ] as const
 
 export type EventoTelegram = (typeof EVENTOS_TELEGRAM)[number]["chave"]

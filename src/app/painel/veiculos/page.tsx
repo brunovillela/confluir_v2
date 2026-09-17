@@ -34,7 +34,7 @@ import {
   type VeiculoLinha,
 } from "@/lib/db/veiculos";
 import { totalVencidos } from "@/lib/db/veiculos-checklist";
-import { totalPreventivasVencidas } from "@/lib/db/veiculos-manutencoes";
+import { preventivasEmAlerta, vencimentoDoPlano } from "@/lib/db/veiculos-manutencoes";
 import { formatarData } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 import { momentoBR } from "@/lib/veiculos-constantes";
@@ -67,13 +67,15 @@ export default async function VeiculosPage({
       : "ativos";
   const busca = (brutos.busca ?? "").trim();
 
-  const [resumo, veiculos, checklistsVencidos, preventivasVencidas] =
+  const [resumo, veiculos, checklistsVencidos, preventivas] =
     await Promise.all([
       resumoVeiculos(),
       listarVeiculos({ busca, situacao }),
       totalVencidos(),
-      totalPreventivasVencidas(),
+      preventivasEmAlerta(),
     ]);
+  const preventivasVencidas = preventivas.filter((p) => p.vencido).length;
+  const preventivasProximas = preventivas.length - preventivasVencidas;
 
   const hoje = new Date().toISOString().slice(0, 10);
   const alertas = [
@@ -86,6 +88,11 @@ export default async function VeiculosPage({
       chave: `seguro-${s.id}`,
       texto: `Seguro do veículo ${s.placa ?? ""} ${s.vencimento < hoje ? "venceu" : "vence"} em ${formatarData(s.vencimento)}`,
       href: `/painel/veiculos/${s.id}`,
+    })),
+    ...preventivas.map((p) => ({
+      chave: `preventiva-${p.plano.id}`,
+      texto: `Preventiva ${p.vencido ? "vencida" : "se aproximando"}: ${p.plano.descricao} — ${p.veiculoRotulo}${vencimentoDoPlano(p) ? ` (${vencimentoDoPlano(p)})` : ""}`,
+      href: `/painel/veiculos/${p.plano.veiculo_id}`,
     })),
     ...resumo.contratosVencendo.map((c) => ({
       chave: `contrato-${c.id}`,
@@ -111,9 +118,12 @@ export default async function VeiculosPage({
       href: "/painel/veiculos/manutencoes",
       icone: Wrench,
       indicador:
-        preventivasVencidas > 0
-          ? `${preventivasVencidas} vencida${preventivasVencidas === 1 ? "" : "s"}`
-          : undefined,
+        [
+          preventivasVencidas > 0 ? `${preventivasVencidas} vencida${preventivasVencidas === 1 ? "" : "s"}` : null,
+          preventivasProximas > 0 ? `${preventivasProximas} próxima${preventivasProximas === 1 ? "" : "s"}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
     },
     recepcao && {
       titulo: "Agendamentos",

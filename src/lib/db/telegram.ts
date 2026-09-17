@@ -1,4 +1,5 @@
 import "server-only"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { randomInt, randomUUID } from "node:crypto"
 
@@ -217,10 +218,12 @@ export async function confirmarCodigoTelefone(
 export async function enviarPushTelegram(
   usuarioId: string,
   mensagem: string,
-  evento: EventoTelegram
+  evento: EventoTelegram,
+  /** Fora de requisição (cron), o chamador passa o service role. */
+  client?: SupabaseClient
 ): Promise<void> {
   try {
-    const admin = await createAdminClient()
+    const admin = client ?? (await createAdminClient())
     let chatId: string | null = null
     let prefsBruto: unknown = null
     let telefoneOk = true // sem a coluna (SQL não rodou) não bloqueia o push

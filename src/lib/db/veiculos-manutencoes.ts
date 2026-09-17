@@ -1,5 +1,7 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -82,6 +84,31 @@ export type SituacaoPlano = {
   motivo: "data" | "km" | null
 }
 
+// ── Contexto ─────────────────────────────────────────────────────────────────
+
+/**
+ * Cliente e tenant das leituras de preventiva. Na tela vêm da requisição; no
+ * aviso diário (cron, sem sessão) o tick passa o service role e o tenant.
+ */
+export type ContextoFrota = { admin: SupabaseClient; emp: string }
+
+async function contextoFrota(ctx?: ContextoFrota): Promise<ContextoFrota> {
+  return ctx ?? { admin: await createAdminClient(), emp: await tenantAtual() }
+}
+
+/** Todas as linhas, em páginas de 1.000 — o teto do PostgREST sem `.range`. */
+async function todasAsLinhas(
+  pagina: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null }>
+): Promise<Record<string, unknown>[]> {
+  const linhas: Record<string, unknown>[] = []
+  for (let de = 0; ; de += 1000) {
+    const { data } = await pagina(de, de + 999)
+    linhas.push(...((data ?? []) as Record<string, unknown>[]))
+    if (!data || data.length < 1000) break
+  }
+  return linhas
+}
+
 // ── Hodômetro atual ──────────────────────────────────────────────────────────
 
 /**
@@ -142,10 +169,13 @@ export async function hodometroAtual(
   return maior
 }
 
-/** Hodômetro atual de VÁRIOS veículos — uma consulta por fonte, não por carro. */
-async function hodometrosDaFrota(): Promise<Map<string, number>> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+/**
+ * Hodômetro atual de VÁRIOS veículos — uma consulta por fonte, não por carro.
+ * Paginada: só os abastecimentos passam de mil linhas, e ler a primeira página
+ * subestimava a rodagem (o alerta de km disparava tarde).
+ */
+async function hodometrosDaFrota(ctx?: ContextoFrota): Promise<Map<string, number>> {
+  const { admin, emp } = await contextoFrota(ctx)
   const mapa = new Map<string, number>()
 
   const guardar = (id: unknown, valor: unknown) => {
@@ -158,31 +188,45 @@ async function hodometrosDaFrota(): Promise<Map<string, number>> {
 
   // Escritas uma a uma (e não num laço com `select` montado por template):
   // o tipador do supabase-js precisa da string literal para analisar a consulta.
-  const abastecimentos = await admin
-    .from("veiculos_abastecimentos")
-    .select("veiculo_id, hodometro")
-    .eq("emp_proprietaria_id", emp)
-  for (const l of abastecimentos.data ?? []) guardar(l.veiculo_id, l.hodometro)
+  const abastecimentos = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_abastecimentos")
+      .select("veiculo_id, hodometro")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  )
+  for (const l of abastecimentos) guardar(l.veiculo_id, l.hodometro)
 
-  const checklists = await admin
-    .from("veiculos_checklists")
-    .select("veiculo_id, hodometro")
-    .eq("emp_proprietaria_id", emp)
-  for (const l of checklists.data ?? []) guardar(l.veiculo_id, l.hodometro)
+  const checklists = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_checklists")
+      .select("veiculo_id, hodometro")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  )
+  for (const l of checklists) guardar(l.veiculo_id, l.hodometro)
 
-  const devolucoes = await admin
-    .from("veiculos_disponibilidade")
-    .select("veiculo_id, hodometro_devolucao")
-    .eq("emp_proprietaria_id", emp)
-  for (const l of devolucoes.data ?? []) {
-    guardar(l.veiculo_id, l.hodometro_devolucao)
-  }
+  const devolucoes = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_disponibilidade")
+      .select("veiculo_id, hodometro_devolucao")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  )
+  for (const l of devolucoes) guardar(l.veiculo_id, l.hodometro_devolucao)
 
-  const manutencoes = await admin
-    .from("veiculos_manutencoes")
-    .select("veiculo_id, hodometro")
-    .eq("emp_proprietaria_id", emp)
-  for (const l of manutencoes.data ?? []) guardar(l.veiculo_id, l.hodometro)
+  const manutencoes = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_manutencoes")
+      .select("veiculo_id, hodometro")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  )
+  for (const l of manutencoes) guardar(l.veiculo_id, l.hodometro)
 
   return mapa
 }
@@ -208,10 +252,10 @@ function mapPlano(p: Record<string, unknown>): PlanoManutencao {
 }
 
 export async function listarPlanos(
-  veiculoId?: string
+  veiculoId?: string,
+  ctx?: ContextoFrota
 ): Promise<{ ativo: boolean; planos: PlanoManutencao[] }> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+  const { admin, emp } = await contextoFrota(ctx)
   let q = admin
     .from("veiculos_manutencao_planos")
     .select(
@@ -292,13 +336,12 @@ function situacaoDoPlano(
   }
 }
 
-async function rotulosDosVeiculos(): Promise<Map<string, string>> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data } = await admin
-    .from("veiculos")
-    .select("id, codigo, placa, marca_modelo")
-    .eq("emp_proprietaria_id", emp)
+/** Rótulo de cada veículo; `soAtivos` deixa de fora os inativos (não geram alerta). */
+async function rotulosDosVeiculos(ctx?: ContextoFrota, soAtivos = false): Promise<Map<string, string>> {
+  const { admin, emp } = await contextoFrota(ctx)
+  let q = admin.from("veiculos").select("id, codigo, placa, marca_modelo").eq("emp_proprietaria_id", emp)
+  if (soAtivos) q = q.not("inativo", "is", true)
+  const { data } = await q
   return new Map(
     (data ?? []).map((v) => [
       v.id as string,
@@ -309,17 +352,20 @@ async function rotulosDosVeiculos(): Promise<Map<string, string>> {
 }
 
 /** Última execução de cada plano (a que define o próximo vencimento). */
-async function ultimasPorPlano(): Promise<
+async function ultimasPorPlano(ctx?: ContextoFrota): Promise<
   Map<string, { realizada_em: string | null; hodometro: number | null }>
 > {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data } = await admin
-    .from("veiculos_manutencoes")
-    .select("plano_id, realizada_em, hodometro")
-    .eq("emp_proprietaria_id", emp)
-    .not("plano_id", "is", null)
-    .order("realizada_em", { ascending: false })
+  const { admin, emp } = await contextoFrota(ctx)
+  const data = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_manutencoes")
+      .select("plano_id, realizada_em, hodometro")
+      .eq("emp_proprietaria_id", emp)
+      .not("plano_id", "is", null)
+      .order("realizada_em", { ascending: false })
+      .order("id")
+      .range(de, ate)
+  )
 
   const mapa = new Map<
     string,
@@ -337,21 +383,25 @@ async function ultimasPorPlano(): Promise<
 }
 
 /** Situação de todas as preventivas programadas da frota. */
-export async function situacaoDosPlanos(veiculoId?: string): Promise<{
+export async function situacaoDosPlanos(
+  veiculoId?: string,
+  ctx?: ContextoFrota
+): Promise<{
   ativo: boolean
   linhas: SituacaoPlano[]
 }> {
-  const { ativo, planos } = await listarPlanos(veiculoId)
+  const { ativo, planos } = await listarPlanos(veiculoId, ctx)
   if (!ativo) return { ativo: false, linhas: [] }
 
   const [rotulos, ultimas, hodometros] = await Promise.all([
-    rotulosDosVeiculos(),
-    ultimasPorPlano(),
-    hodometrosDaFrota(),
+    rotulosDosVeiculos(ctx, true),
+    ultimasPorPlano(ctx),
+    hodometrosDaFrota(ctx),
   ])
 
   const linhas = planos
-    .filter((p) => p.ativo)
+    // veículo inativo (fora do mapa de rótulos) não gera alerta
+    .filter((p) => p.ativo && rotulos.has(p.veiculo_id))
     .map((p) =>
       situacaoDoPlano(
         p,
@@ -373,11 +423,29 @@ export async function situacaoDosPlanos(veiculoId?: string): Promise<{
   return { ativo: true, linhas }
 }
 
-/** Quantas preventivas estão vencidas (indicador do hub). */
-export async function totalPreventivasVencidas(): Promise<number> {
+/** Preventivas vencidas e próximas da frota (alertas e indicador do hub). */
+export async function preventivasEmAlerta(): Promise<SituacaoPlano[]> {
   const { ativo, linhas } = await situacaoDosPlanos()
-  if (!ativo) return 0
-  return linhas.filter((l) => l.vencido).length
+  if (!ativo) return []
+  return linhas.filter((l) => l.vencido || l.proximo)
+}
+
+/**
+ * Quando a preventiva vence, pelos critérios que o plano tem: "20/10/2026 ou
+ * aos 60.000 km". Estável enquanto a base não muda — o aviso diário usa este
+ * texto para não repetir a mesma notificação.
+ */
+export function vencimentoDoPlano(s: SituacaoPlano): string {
+  const partes = [
+    s.proximaData ? formatarDataBR(s.proximaData) : null,
+    s.proximoHodometro !== null ? `aos ${s.proximoHodometro.toLocaleString("pt-BR")} km` : null,
+  ].filter(Boolean)
+  return partes.join(" ou ")
+}
+
+function formatarDataBR(iso: string): string {
+  const [a, m, d] = iso.slice(0, 10).split("-")
+  return `${d}/${m}/${a}`
 }
 
 // ── Prontuário ───────────────────────────────────────────────────────────────
