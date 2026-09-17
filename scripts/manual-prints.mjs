@@ -28,9 +28,18 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 16/09 (tarde): Usuários e permissões — Nova pessoa, Quadro da
+  // entidade (demo: Rodrigo Alves Prado, da fonte, classificado como
+  // prestador) e a página da pessoa com perfis e ajustes finos.
+  ["/painel/institucional/usuarios", "institucional/usuarios-nova-pessoa.png", { abrir: ["Conceder acesso a uma pessoa", "Nova pessoa"] }],
+  ["/painel/institucional/usuarios/quadro", "institucional/quadro.png", { esperar: "Sugestão:" }],
+  ["/painel/institucional/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png", { scrollTo: "Ajustes finos" }],
+
   // Rodada de 17/09: tela de Filiados com o aviso de possíveis duplicidades
   // no cartão de saúde (demo: Marina Couto Ferreira em dois cadastros).
+  /*
   ["/painel/filiados", "filiados/lista.png", { fullPage: true, esperar: "possível duplicidade para conferir" }],
+  */
 
   // Rodada de 15/09: tela de Filiados com o medidor de saúde dos cadastros.
   /*
@@ -360,9 +369,9 @@ for (const [route, file, opts] of SHOTS) {
     await p.waitForTimeout(300)
   }
   // opts.abrir: clica no título de um cartão colapsável — um print do cartão
-  // fechado não mostra o que ele guarda.
-  if (opts?.abrir) {
-    await p.getByText(opts.abrir, { exact: false }).first().click()
+  // fechado não mostra o que ele guarda. Uma lista clica em sequência.
+  for (const alvo of opts?.abrir ? [].concat(opts.abrir) : []) {
+    await p.getByText(alvo, { exact: false }).first().click()
     await p.waitForTimeout(600)
   }
   // opts.altura: encolhe o quadro para páginas curtas, que de outro modo saem
