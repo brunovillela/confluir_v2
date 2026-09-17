@@ -23,6 +23,45 @@ export function parseHodometro(bruto: string): number | null {
   return Number.isSafeInteger(n) ? n : null
 }
 
+/**
+ * Acima desta média (km por hora com o veículo) o hodômetro da devolução pede
+ * confirmação: um dígito a mais vira centenas de km rodados.
+ */
+export const KM_POR_HORA_LIMITE = 100
+
+/**
+ * Média de km por hora entre a saída e agora. A saída antiga sem hora conta do
+ * início do dia (00h em São Paulo), o que só alarga o período. Menos de uma
+ * hora conta como uma: 100 km na primeira hora ainda são normais.
+ */
+export function quilometragemAnormal(dados: {
+  hodometroSaida: number | null
+  hodometroEntrada: number | null
+  dataSaida: string | null
+  saidaEm: string | null
+  agora?: Date
+}): { kmRodados: number; horas: number; media: number } | null {
+  const { hodometroSaida, hodometroEntrada } = dados
+  if (hodometroSaida === null || hodometroEntrada === null || hodometroEntrada <= hodometroSaida) return null
+  const inicio = dados.saidaEm ?? (dados.dataSaida ? `${dados.dataSaida}T00:00:00-03:00` : null)
+  const t0 = inicio ? new Date(inicio).getTime() : NaN
+  if (Number.isNaN(t0)) return null
+  const horasReais = ((dados.agora ?? new Date()).getTime() - t0) / 3_600_000
+  const horas = Math.max(1, horasReais)
+  const kmRodados = hodometroEntrada - hodometroSaida
+  const media = kmRodados / horas
+  return media > KM_POR_HORA_LIMITE ? { kmRodados, horas, media } : null
+}
+
+/** "3 h", "1 dia e 4 h" — para o aviso de km anormal. */
+export function duracaoBR(horas: number): string {
+  const h = Math.round(horas)
+  if (h < 24) return `${h} h`
+  const d = Math.floor(h / 24)
+  const resto = h % 24
+  return `${d} ${d === 1 ? "dia" : "dias"}${resto ? ` e ${resto} h` : ""}`
+}
+
 /** Momento de uma saída/entrada: com hora quando se sabe, só a data quando não. */
 export function momentoBR(data: string | null, em: string | null): string {
   if (em) {

@@ -145,6 +145,8 @@ export default async function MovimentacaoVeiculoPage({
                   sedes={sedes}
                   sedePadrao={movimentacaoAberta.sede_retirada}
                   hodometroSaida={movimentacaoAberta.hodometro_retirada}
+                  dataSaida={movimentacaoAberta.data_retirada}
+                  saidaEm={movimentacaoAberta.retirada_em}
                 />
               </>
             ) : (

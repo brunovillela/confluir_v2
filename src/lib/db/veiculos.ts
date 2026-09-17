@@ -18,6 +18,8 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
+  duracaoBR,
+  quilometragemAnormal,
   TIPO_ORDEM_ALUGUEL,
   TIPO_ORDEM_MULTA,
   type FormaCobranca,
@@ -1363,6 +1365,8 @@ export type Devolucao = {
   hodometro: number
   sede: string
   observacao: string | null
+  /** Quem registra confirmou o km fora do normal (ver KM_POR_HORA_LIMITE). */
+  kmConfirmado?: boolean
 }
 
 export async function registrarDevolucao(
@@ -1371,7 +1375,7 @@ export async function registrarDevolucao(
   const admin = await createAdminClient()
   const { data: mov } = await admin
     .from("veiculos_disponibilidade")
-    .select("id, hodometro_retirada, agendamento_id, data_devolucao")
+    .select("id, hodometro_retirada, agendamento_id, data_devolucao, data_retirada, retirada_em")
     .eq("id", dev.movimentacao_id)
     .maybeSingle()
   if (!mov) return { erro: "Movimentação não encontrada." }
@@ -1383,6 +1387,29 @@ export async function registrarDevolucao(
     }
   }
 
+  // Km anormal (mais de KM_POR_HORA_LIMITE por hora com o veículo): grava, mas
+  // só com a confirmação de quem registra — e a confirmação fica na observação,
+  // para a gestão conferir depois.
+  const anormal = quilometragemAnormal({
+    hodometroSaida: hodometroRetirada,
+    hodometroEntrada: dev.hodometro,
+    dataSaida: texto(mov.data_retirada),
+    saidaEm: texto(mov.retirada_em),
+  })
+  if (anormal && !dev.kmConfirmado) {
+    return {
+      erro: `Quilometragem fora do normal: ${anormal.kmRodados.toLocaleString("pt-BR")} km em ${duracaoBR(anormal.horas)} (média de ${Math.round(anormal.media)} km/h). Confira o hodômetro ou confirme que o valor está certo.`,
+    }
+  }
+  const observacao = anormal
+    ? [
+        dev.observacao,
+        `Km fora do normal confirmado na entrada: ${anormal.kmRodados.toLocaleString("pt-BR")} km em ${duracaoBR(anormal.horas)} (média de ${Math.round(anormal.media)} km/h) — o hodômetro pode estar errado.`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : dev.observacao
+
   const { error } = await gravarMovimentacao("update", dev.movimentacao_id, {
       data_devolucao: hojeSP(),
       devolucao_em: new Date().toISOString(),
@@ -1391,7 +1418,7 @@ export async function registrarDevolucao(
       sede_devolucao: dev.sede,
       km_rodado:
         hodometroRetirada !== null ? dev.hodometro - hodometroRetirada : null,
-      observacao_retorno: dev.observacao,
+      observacao_retorno: observacao,
       disponivel: true,
       updated_at: new Date().toISOString(),
   }, { soAberta: true })

@@ -6,7 +6,12 @@ import { Check, KeyRound, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { momentoBR, parseHodometro } from "@/lib/veiculos-constantes"
+import {
+  duracaoBR,
+  momentoBR,
+  parseHodometro,
+  quilometragemAnormal,
+} from "@/lib/veiculos-constantes"
 
 import {
   registrarEntradaAction,
@@ -242,18 +247,29 @@ export function EntradaVeiculoForm({
   sedes,
   sedePadrao,
   hodometroSaida,
+  dataSaida,
+  saidaEm,
 }: {
   veiculoId: string
   movimentacaoId: string
   sedes: string[]
   sedePadrao?: string | null
   hodometroSaida: number | null
+  /** Momento da saída — base da média de km por hora. */
+  dataSaida: string | null
+  saidaEm: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(
     registrarEntradaAction,
     {}
   )
   const [hodometro, setHodometro] = useState("")
+  const anormal = quilometragemAnormal({
+    hodometroSaida,
+    hodometroEntrada: parseHodometro(hodometro),
+    dataSaida,
+    saidaEm,
+  })
   return (
     <form action={formAction} className="grid gap-4">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
@@ -302,6 +318,18 @@ export function EntradaVeiculoForm({
           />
         </div>
       </div>
+      {anormal && (
+        <label className="border-warning/50 bg-warning/10 flex items-start gap-2 rounded-md border p-3 text-sm">
+          <input type="checkbox" name="confirmar_km" required className="mt-0.5 size-4" />
+          <span>
+            <strong>Quilometragem fora do normal:</strong>{" "}
+            {anormal.kmRodados.toLocaleString("pt-BR")} km em {duracaoBR(anormal.horas)} com o
+            veículo (média de {Math.round(anormal.media)} km/h). Confira o hodômetro. Se o valor
+            estiver certo, confirme: <em>registro ciente de que o km pode estar errado</em>. A
+            confirmação fica anotada na movimentação.
+          </span>
+        </label>
+      )}
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       <div>
         <Button type="submit" disabled={pendente}>

@@ -315,6 +315,7 @@ export async function registrarEntradaAction(
     hodometro,
     sede,
     observacao: texto(formData, "observacao") || null,
+    kmConfirmado: formData.get("confirmar_km") === "on",
   })
   if (erro) return { erro }
   revalidar(UUID.test(veiculoId) ? veiculoId : undefined)
