@@ -985,6 +985,10 @@ export async function obterIntegrante(
     .select("mandato")
     .eq("id", i.mandato_id)
     .maybeSingle()
+  // "Acesso ao painel" é ter conta de login, não só um cadastro de usuário.
+  const { data: u } = i.usuario_id
+    ? await admin.from("usuarios").select("auth_user_id").eq("id", i.usuario_id).maybeSingle()
+    : { data: null }
   return {
     id: i.id as string,
     mandatoId: i.mandato_id as string,
@@ -993,7 +997,7 @@ export async function obterIntegrante(
     cargo: texto(i.cargo),
     cpf: texto(i.cpf),
     ehFiliado: Boolean(i.filiacao_id),
-    temUsuario: Boolean(i.usuario_id),
+    temUsuario: Boolean(u?.auth_user_id),
   }
 }
 
