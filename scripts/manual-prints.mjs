@@ -28,9 +28,18 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
+  // Rodada de 17/09 (tarde): devolução com km fora do normal. Pede uma saída
+  // aberta há ~2 h no V-001 (criada e apagada pelo script de apoio da rodada).
+  [
+    "/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao",
+    "veiculos/entrada-km-anormal.png",
+    { esperar: "Registrar entrada", preencher: [["#hodometro", "10.500"]], altura: 760 },
+  ],
+
   // Rodada de 17/09: Veículos com as preventivas da demo (V-001 se
   // aproximando, V-002 em dia e em uso, V-003 vencida), sedes cadastradas e a
   // tela de Manutenções.
+  /*
   ["/painel/veiculos", "veiculos/painel.png", { fullPage: true, esperar: "Preventiva vencida" }],
   ["/painel/veiculos/agendamentos", "veiculos/agendamentos.png", { fullPage: true }],
   ["/painel/veiculos/4e000000-0000-4000-8000-000000000002", "veiculos/veiculo.png", { fullPage: true, esperar: "Próxima preventiva" }],
@@ -39,6 +48,7 @@ const SHOTS = [
   ["/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao", "veiculos/movimentacao.png", { esperar: "Registrar saída" }],
   ["/painel/veiculos/manutencoes", "veiculos/manutencoes.png", { fullPage: true }],
   ["/painel/veiculos/infracoes/41000000-0000-4000-8000-000000000001", "veiculos/infracao.png"],
+  */
 
   // Rodada de 16/09 (tarde): Usuários e permissões — Nova pessoa, Quadro da
   // entidade (demo: Rodrigo Alves Prado, da fonte, classificado como
@@ -393,6 +403,12 @@ for (const [route, file, opts] of SHOTS) {
   if (opts?.altura) {
     await p.setViewportSize({ width: 1440, height: opts.altura })
     await p.waitForTimeout(300)
+  }
+  // opts.preencher: [[seletor, valor], …] — campos digitados antes do print,
+  // para mostrar o que a tela faz com eles (ex.: o aviso de km fora do normal).
+  for (const [seletor, valor] of opts?.preencher ?? []) {
+    await p.fill(seletor, valor)
+    await p.waitForTimeout(800)
   }
   // opts.buscar: preenche o campo e dispara a busca — o print de uma tela de
   // busca vazia não mostra o que a tela faz.
