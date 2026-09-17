@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
-import { Loader2, Trash2 } from "lucide-react"
+import { useActionState, useRef, useState, useTransition } from "react"
+import { Loader2, Sparkles, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import {
   criarAtaAction,
   excluirAtaAction,
 } from "./actions"
+import { extrairAtaDePdf } from "./ia-actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -40,15 +41,75 @@ export function AtaForm({
     {}
   )
   const mandatoDefault = ata?.mandatoId ?? mandatoPadrao ?? ""
+  const formRef = useRef<HTMLFormElement>(null)
+  const [lendo, iniciarLeitura] = useTransition()
+  const [leitura, setLeitura] = useState<{ ok?: string; erro?: string } | null>(null)
+
+  // Subiu o PDF: a IA lê a ata e preenche o formulário. Numa ata já salva, só
+  // os campos vazios — o que alguém digitou não é sobrescrito.
+  function lerComIA(arquivo: File | undefined) {
+    setLeitura(null)
+    if (!arquivo || arquivo.type !== "application/pdf") return
+    const dados = new FormData()
+    dados.set("documento", arquivo)
+    iniciarLeitura(async () => {
+      const r = await extrairAtaDePdf(dados)
+      const form = formRef.current
+      if (r.erro || !r.valores || !form) {
+        setLeitura({ erro: r.erro ?? "Não foi possível ler a ata." })
+        return
+      }
+      let preenchidos = 0
+      for (const [campo, valor] of Object.entries(r.valores)) {
+        const el = form.elements.namedItem(campo) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+        if (!el || !valor) continue
+        if (ata && el.value.trim()) continue
+        el.value = valor
+        preenchidos++
+      }
+      setLeitura({
+        ok: preenchidos
+          ? `A IA preencheu ${preenchidos} ${preenchidos === 1 ? "campo" : "campos"} a partir da ata. Confira antes de salvar.`
+          : "A IA leu a ata, mas os campos já estavam preenchidos.",
+      })
+    })
+  }
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form ref={formRef} action={formAction} className="grid gap-5">
       {ata && <input type="hidden" name="ata_id" value={ata.id} />}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+
+      <div className="bg-muted/40 grid gap-2 rounded-md border p-4">
+        <Label htmlFor="documento" className="flex items-center gap-1.5">
+          <Sparkles className="text-primary size-4" />
+          Ata em PDF{ata ? " (vazio mantém a atual)" : ""}
+        </Label>
+        <input
+          id="documento"
+          name="documento"
+          type="file"
+          accept="application/pdf"
+          className={FILE}
+          onChange={(e) => lerComIA(e.target.files?.[0])}
+        />
+        <p className="text-muted-foreground text-xs">
+          Ao escolher o arquivo, a IA lê a ata e preenche título, tipo, data, hora, local, pauta,
+          deliberações e presentes{ata ? " que estiverem vazios" : ""}. Confira antes de salvar.
+        </p>
+        {lendo && (
+          <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+            <Loader2 className="size-4 animate-spin" />
+            Lendo a ata com IA…
+          </p>
+        )}
+        {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
+        {leitura?.erro && <p className="text-destructive text-sm">{leitura.erro}</p>}
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="grid gap-1.5">
@@ -155,21 +216,8 @@ export function AtaForm({
         />
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="documento">
-          Ata em PDF{ata ? " (vazio mantém o atual)" : ""}
-        </Label>
-        <input
-          id="documento"
-          name="documento"
-          type="file"
-          accept="application/pdf"
-          className={FILE}
-        />
-      </div>
-
       <div className="flex gap-2">
-        <Button type="submit" disabled={pendente}>
+        <Button type="submit" disabled={pendente || lendo}>
           {pendente && <Loader2 className="animate-spin" />}
           {ata ? "Salvar ata" : "Criar ata"}
         </Button>
