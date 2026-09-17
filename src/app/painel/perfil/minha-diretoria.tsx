@@ -48,7 +48,7 @@ export function MinhaDiretoria({
   diretoria: DiretoriaDoUsuario
   area: AreaDoDiretor
 }) {
-  const { ficha } = area
+  const { ficha, lotacoes } = area
   return (
     <div>
       <h2 className="text-lg font-semibold">Minha diretoria</h2>
@@ -185,7 +185,12 @@ export function MinhaDiretoria({
                     .filter(Boolean)
                     .join(" · ")}
                 />
-                <Linha rotulo="Base operacional" valor={ficha.base_operacional} />
+                {/* Filiado: a lotação vem dos vínculos da filiação; sem filiação, a base da ficha. */}
+                {lotacoes ? (
+                  <Linha rotulo={lotacoes.length > 1 ? "Lotações" : "Lotação"} valor={lotacoes.join("; ") || null} />
+                ) : (
+                  <Linha rotulo="Base operacional" valor={ficha.base_operacional} />
+                )}
                 <Linha
                   rotulo="Conta para custeio"
                   valor={[ficha.banco, ficha.agencia && `ag. ${ficha.agencia}`, mascarar(ficha.conta_corrente)]

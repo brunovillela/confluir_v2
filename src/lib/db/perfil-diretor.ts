@@ -2,6 +2,7 @@ import "server-only"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { obterFichaDiretor, type FichaDiretor } from "@/lib/db/diretoria"
+import { origemDaFicha } from "@/lib/db/diretoria-ficha"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -119,6 +120,11 @@ export type AreaDoDiretor = {
   assentos: MeuAssento[]
   custeios: MeuCusteio[]
   ficha: FichaDiretor | null
+  /**
+   * Lotações dos vínculos em aberto da filiação ("Refinaria · Petro Fictícia").
+   * null = diretor sem filiação: vale a base operacional da ficha.
+   */
+  lotacoes: string[] | null
 }
 
 /** Tudo o que o Meu perfil mostra ao diretor. Cada bloco degrada para vazio. */
@@ -127,7 +133,7 @@ export async function areaDoDiretor(integranteId: string): Promise<AreaDoDiretor
   const emp = await tenantAtual()
   const hoje = hojeISO()
 
-  const [liberacoesRes, assentosRes, custeiosRes, ficha] = await Promise.all([
+  const [liberacoesRes, assentosRes, custeiosRes, ficha, origem] = await Promise.all([
     admin
       .from("diretoria_liberacoes")
       .select("id, empresa_id, tipo, inicio, fim, observacao")
@@ -146,6 +152,7 @@ export async function areaDoDiretor(integranteId: string): Promise<AreaDoDiretor
       .order("created_at", { ascending: false })
       .limit(50),
     obterFichaDiretor(integranteId).catch(() => null),
+    origemDaFicha(integranteId).catch(() => null),
   ])
 
   const empresaIds = [...new Set((liberacoesRes.data ?? []).map((l) => texto(l.empresa_id)).filter(Boolean))] as string[]
@@ -211,5 +218,8 @@ export async function areaDoDiretor(integranteId: string): Promise<AreaDoDiretor
       }
     }),
     ficha,
+    lotacoes: origem?.filiacao
+      ? origem.vinculos.map((v) => [v.lotacao, v.empresa].filter(Boolean).join(" · ")).filter(Boolean)
+      : null,
   }
 }
