@@ -112,16 +112,36 @@ async function todasAsLinhas(
 // ── Hodômetro atual ──────────────────────────────────────────────────────────
 
 /**
- * O hodômetro do veículo NÃO tem uma casa só: ele aparece nos abastecimentos,
- * nos checklists, nas devoluções e nas próprias manutenções. O valor corrente é
- * o MAIOR entre todas essas fontes — usar só uma delas subestima a rodagem e
- * faz o alerta de quilometragem disparar tarde.
+ * Km da última movimentação: a entrada, se o veículo voltou; a saída, se está
+ * fora. A última é a da view `veiculos_ultima_movimentacao` — pela data e hora
+ * da SAÍDA, a mesma ordem do histórico.
+ */
+function kmDaMovimentacao(l: Record<string, unknown>): number | null {
+  const valor = l.data_devolucao ? (l.hodometro_devolucao ?? l.hodometro_retirada) : l.hodometro_retirada
+  const v = Number(valor ?? NaN)
+  return valor !== null && Number.isFinite(v) ? v : null
+}
+
+/**
+ * O hodômetro do veículo é o da ÚLTIMA MOVIMENTAÇÃO (saída ou entrada). O maior
+ * valor entre as fontes deixava um km digitado errado valendo para sempre.
+ * Veículo sem movimentação cai no maior valor entre abastecimentos, checklists,
+ * devoluções e manutenções.
  */
 export async function hodometroAtual(
   veiculoId: string
 ): Promise<number | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+
+  const { data: ultima } = await admin
+    .from("veiculos_ultima_movimentacao")
+    .select("data_devolucao, hodometro_retirada, hodometro_devolucao")
+    .eq("emp_proprietaria_id", emp)
+    .eq("veiculo_id", veiculoId)
+    .maybeSingle()
+  const daMovimentacao = ultima ? kmDaMovimentacao(ultima) : null
+  if (daMovimentacao !== null) return daMovimentacao
 
   const consultas: PromiseLike<{ data: unknown[] | null }>[] = [
     admin
@@ -171,8 +191,8 @@ export async function hodometroAtual(
 
 /**
  * Hodômetro atual de VÁRIOS veículos — uma consulta por fonte, não por carro.
- * Paginada: só os abastecimentos passam de mil linhas, e ler a primeira página
- * subestimava a rodagem (o alerta de km disparava tarde).
+ * Mesma regra de `hodometroAtual`: a última movimentação vale; sem ela, o maior
+ * valor das outras fontes. Paginada: só os abastecimentos passam de mil linhas.
  */
 async function hodometrosDaFrota(ctx?: ContextoFrota): Promise<Map<string, number>> {
   const { admin, emp } = await contextoFrota(ctx)
@@ -227,6 +247,19 @@ async function hodometrosDaFrota(ctx?: ContextoFrota): Promise<Map<string, numbe
       .range(de, ate)
   )
   for (const l of manutencoes) guardar(l.veiculo_id, l.hodometro)
+
+  const ultimas = await todasAsLinhas((de, ate) =>
+    admin
+      .from("veiculos_ultima_movimentacao")
+      .select("veiculo_id, data_devolucao, hodometro_retirada, hodometro_devolucao")
+      .eq("emp_proprietaria_id", emp)
+      .order("veiculo_id")
+      .range(de, ate)
+  )
+  for (const l of ultimas) {
+    const km = kmDaMovimentacao(l)
+    if (typeof l.veiculo_id === "string" && km !== null) mapa.set(l.veiculo_id, km)
+  }
 
   return mapa
 }

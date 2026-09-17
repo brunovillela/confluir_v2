@@ -1270,22 +1270,30 @@ export async function ultimaEntradaDoVeiculo(veiculoId: string): Promise<{
   condutorNome: string | null
 } | null> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("veiculos_disponibilidade")
+  const emp = await tenantAtual()
+  // A última movimentação (pela saída, como no histórico) — não a entrada de
+  // data mais recente: uma entrada lançada com a data errada passava na frente.
+  const { data: ultima } = await admin
+    .from("veiculos_ultima_movimentacao")
     .select("*")
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", emp)
     .eq("veiculo_id", veiculoId)
-    .not("hodometro_devolucao", "is", null)
-    .order("data_devolucao", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(10)
-  if (error || !data?.length) return null
-  const linhas = (data as Record<string, unknown>[]).sort((a, b) => {
-    const dia = String(b.data_devolucao ?? "").localeCompare(String(a.data_devolucao ?? ""))
-    if (dia !== 0) return dia
-    return String(b.devolucao_em ?? b.created_at ?? "").localeCompare(String(a.devolucao_em ?? a.created_at ?? ""))
-  })
-  const l = linhas[0]
+    .maybeSingle()
+  let l = ultima && numero(ultima.hodometro_devolucao) !== null ? (ultima as Record<string, unknown>) : null
+  if (!l) {
+    const { data, error } = await admin
+      .from("veiculos_disponibilidade")
+      .select("*")
+      .eq("emp_proprietaria_id", emp)
+      .eq("veiculo_id", veiculoId)
+      .not("hodometro_devolucao", "is", null)
+      .order("data_retirada", { ascending: false, nullsFirst: false })
+      .order("retirada_em", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+    if (error || !data?.length) return null
+    l = data[0] as Record<string, unknown>
+  }
   const hodometro = numero(l.hodometro_devolucao)
   if (hodometro === null) return null
   const nomes = l.condutor_id ? await nomesDosUsuarios([String(l.condutor_id)]) : new Map<string, string>()
