@@ -605,6 +605,8 @@ export type Agendamento = {
   veiculoPlaca: string | null
   veiculoModelo: string | null
   atendidoPorNome: string | null
+  /** Quem registrou em nome do condutor (recepção); null = o próprio condutor. */
+  solicitadoPorNome: string | null
   negado_motivo: string | null
   created_at: string | null
   legado: boolean
@@ -614,12 +616,15 @@ async function montarAgendamentos(
   brutos: Record<string, unknown>[]
 ): Promise<Agendamento[]> {
   const admin = await createAdminClient()
-  const nomes = await nomesDosUsuarios(
-    brutos.flatMap((a) => [
-      String(a.condutor_id ?? ""),
-      String(a.atendido_por_id ?? ""),
-    ])
-  )
+  const [nomes, autor] = await Promise.all([
+    nomesDosUsuarios(
+      brutos.flatMap((a) => [
+        String(a.condutor_id ?? ""),
+        String(a.atendido_por_id ?? ""),
+      ])
+    ),
+    rotuladorDeAutores(brutos.map((a) => String(a.solicitado_por_id ?? ""))),
+  ])
   const veiculoIds = [
     ...new Set(
       brutos.map((a) => String(a.veiculo_id ?? "")).filter(Boolean)
@@ -661,6 +666,10 @@ async function montarAgendamentos(
       atendidoPorNome: a.atendido_por_id
         ? (nomes.get(String(a.atendido_por_id)) ?? null)
         : null,
+      solicitadoPorNome:
+        a.solicitado_por_id && a.solicitado_por_id !== a.condutor_id
+          ? autor(texto(a.solicitado_por_id), texto(a.created_at))
+          : null,
       negado_motivo: texto(a.negado_motivo),
       created_at: texto(a.created_at),
       legado: Boolean(a.bubble_id),
@@ -707,11 +716,21 @@ export type NovoAgendamento = {
   sede_retirada: string
 }
 
-/** Condutor apto a solicitar: cadastro autorizado e CNH em dia. */
+/**
+ * Condutor apto a solicitar: cadastro autorizado e CNH em dia. `nomeTerceiro`
+ * = a recepção pede em nome dele, e a mensagem fala dele, não de "você".
+ */
 async function validarCondutorSolicitante(
-  usuarioId: string
+  usuarioId: string,
+  nomeTerceiro?: string
 ): Promise<string | null> {
   const condutor = await buscarCondutorDoUsuario(usuarioId)
+  if (nomeTerceiro) {
+    if (!condutor) return `${nomeTerceiro} não tem cadastro de condutor.`
+    if (!condutor.autorizado) return `${nomeTerceiro} não está autorizado(a) a dirigir.`
+    if (condutor.cnhVencida) return `A CNH de ${nomeTerceiro} está vencida.`
+    return null
+  }
   if (!condutor) {
     return "Você não tem cadastro de condutor — procure a gestão da frota."
   }
@@ -743,9 +762,16 @@ export async function criarAgendamento(
   if (erroCondutor) return { erro: erroCondutor }
   const erroDatas = validarDatasAgendamento(novo.data_retirada, novo.data_retorno)
   if (erroDatas) return { erro: erroDatas }
+  const { erro } = await inserirAgendamento(novo, null)
+  return erro ? { erro } : {}
+}
 
+async function inserirAgendamento(
+  novo: NovoAgendamento,
+  solicitadoPorId: string | null
+): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin.from("veiculos_agendamentos").insert({
+  const linha: Record<string, unknown> = {
     situacao: "solicitada",
     atendido: false,
     motivo: novo.motivo,
@@ -756,12 +782,55 @@ export async function criarAgendamento(
     condutor_id: novo.condutor_usuario_id,
     empresa_id: await tenantAtual(),
     emp_proprietaria_id: await tenantAtual(),
-  })
-  if (error) {
-    if (esquemaAusente(error)) return { erro: AVISO_SQL }
-    return { erro: `Não foi possível solicitar: ${error.message}` }
+    ...(solicitadoPorId ? { solicitado_por_id: solicitadoPorId } : {}),
   }
-  return {}
+  let { data, error } = await admin.from("veiculos_agendamentos").insert(linha).select("id").single()
+  // Sem supabase/veiculos-reserva-terceiros.sql: grava sem quem lançou.
+  if (error && esquemaAusente(error) && "solicitado_por_id" in linha) {
+    delete linha.solicitado_por_id
+    ;({ data, error } = await admin.from("veiculos_agendamentos").insert(linha).select("id").single())
+  }
+  if (error || !data) {
+    if (error && esquemaAusente(error)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível solicitar: ${error?.message ?? "erro"}` }
+  }
+  return { id: String(data.id) }
+}
+
+/**
+ * A recepção solicita em nome de outra pessoa (um diretor ou funcionário pede
+ * a reserva). O condutor é quem vai dirigir e precisa estar apto; com o
+ * veículo escolhido, a solicitação já sai atendida (reservada).
+ */
+export async function reservarParaTerceiro(
+  novo: NovoAgendamento & { veiculo_id: string | null },
+  recepcaoId: string
+): Promise<{ erro?: string; atendida?: boolean }> {
+  const nomes = await nomesDosUsuarios([novo.condutor_usuario_id])
+  const nome = nomes.get(novo.condutor_usuario_id) ?? "O condutor"
+  const erroCondutor = await validarCondutorSolicitante(novo.condutor_usuario_id, nome)
+  if (erroCondutor) return { erro: erroCondutor }
+  const erroDatas = validarDatasAgendamento(novo.data_retirada, novo.data_retorno)
+  if (erroDatas) return { erro: erroDatas }
+
+  const { id, erro } = await inserirAgendamento(novo, recepcaoId)
+  if (erro || !id) return { erro: erro ?? "Não foi possível solicitar." }
+
+  if (novo.veiculo_id) {
+    // atenderAgendamento avisa o condutor do veículo reservado.
+    const r = await atenderAgendamento(id, novo.veiculo_id, recepcaoId)
+    if (r.erro) {
+      return { erro: `A solicitação foi registrada, mas o veículo não foi reservado: ${r.erro}` }
+    }
+    return { atendida: true }
+  }
+  await notificarUsuario(
+    novo.condutor_usuario_id,
+    "Solicitação de veículo em seu nome",
+    `A recepção registrou uma solicitação de veículo em seu nome para ${formatarData(novo.data_retirada)} (${novo.motivo}, destino ${novo.destino}). Você será avisado quando o veículo for reservado.`,
+    "/painel"
+  )
+  return { atendida: false }
 }
 
 export type EdicaoAgendamento = Omit<NovoAgendamento, "condutor_usuario_id">

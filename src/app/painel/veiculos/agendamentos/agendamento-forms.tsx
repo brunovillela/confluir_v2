@@ -6,6 +6,7 @@ import { ArrowLeftRight, Check, Loader2, Pencil, Send, Undo2, X } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { type EstadoForm } from "@/lib/contas"
 
 import {
   atenderAgendamentoAction,
@@ -13,6 +14,7 @@ import {
   cancelarAgendamentoRecepcaoAction,
   editarAgendamentoAction,
   negarAgendamentoAction,
+  reservarParaTerceiroAction,
   solicitarVeiculoAction,
 } from "./actions"
 
@@ -126,6 +128,82 @@ export function SolicitarVeiculoForm({
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Send />}
           Solicitar veículo
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Recepção: solicita em nome de outra pessoa (um diretor ou funcionário pede a
+ * reserva). Com o veículo escolhido, a solicitação já sai reservada.
+ */
+export function ReservarParaTerceiroForm({
+  condutores,
+  sedes,
+  veiculos,
+}: {
+  condutores: OpcaoCondutor[]
+  sedes: string[]
+  veiculos: OpcaoVeiculo[]
+}) {
+  const [versao, setVersao] = useState(0)
+  const [estado, formAction, pendente] = useActionState(
+    async (prev: EstadoForm, formData: FormData) => {
+      const r = await reservarParaTerceiroAction(prev, formData)
+      if (r.ok) setVersao((n) => n + 1)
+      return r
+    },
+    {}
+  )
+  return (
+    <form key={versao} action={formAction} className="grid max-w-2xl gap-4">
+      <div className="grid gap-1.5">
+        <Label htmlFor="terceiro-condutor">Para quem é a reserva *</Label>
+        <select
+          id="terceiro-condutor"
+          name="condutor_usuario_id"
+          required
+          defaultValue=""
+          className={SELECT}
+        >
+          <option value="" disabled>
+            Escolha quem vai dirigir
+          </option>
+          {condutores.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+        <span className="text-muted-foreground text-xs">
+          Só aparecem condutores autorizados e com a CNH em dia. A pessoa é
+          avisada e vê a solicitação no painel inicial dela.
+        </span>
+      </div>
+      <CamposAgendamento sedes={sedes} />
+      <div className="grid gap-1.5 sm:max-w-sm">
+        <Label htmlFor="terceiro-veiculo">Veículo</Label>
+        <select id="terceiro-veiculo" name="veiculo_id" defaultValue="" className={SELECT}>
+          <option value="">Escolher depois (vai para a fila)</option>
+          {veiculos.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.rotulo}
+            </option>
+          ))}
+        </select>
+      </div>
+      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {estado.ok && (
+        <p className="text-success-fg flex items-center gap-1.5 text-sm">
+          <Check className="size-4" />
+          {estado.ok}
+        </p>
+      )}
+      <div>
+        <Button type="submit" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Send />}
+          Registrar reserva
         </Button>
       </div>
     </form>

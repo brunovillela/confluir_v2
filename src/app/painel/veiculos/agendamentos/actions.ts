@@ -15,6 +15,7 @@ import {
   negarAgendamento,
   registrarDevolucao,
   registrarRetirada,
+  reservarParaTerceiro,
 } from "@/lib/db/veiculos"
 import { instanteSP, parseHodometro } from "@/lib/veiculos-constantes"
 
@@ -25,7 +26,8 @@ import { instanteSP, parseHodometro } from "@/lib/veiculos-constantes"
  *   checada na camada de dados, não por permissão do módulo.
  * • RECEPÇÃO (`veiculos_recepcao`, ou gestão) — atende/transfere veículo,
  *   nega, cancela qualquer solicitação e registra SAÍDA e ENTRADA do veículo
- *   na página do veículo.
+ *   na página do veículo. Também SOLICITA EM NOME de outra pessoa (18/09): um
+ *   diretor ou funcionário pede, e a recepção reserva para ele.
  */
 
 function texto(formData: FormData, campo: string): string {
@@ -129,6 +131,45 @@ export async function cancelarAgendamentoAction(
 // ── Recepção ───────────────────────────────────────────────────────────────
 
 const RECEPCAO = ["veiculos_gestao"]
+
+/** A recepção solicita (e pode já reservar o veículo) em nome de outra pessoa. */
+export async function reservarParaTerceiroAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_recepcao", RECEPCAO)
+  const condutorId = texto(formData, "condutor_usuario_id")
+  const motivo = texto(formData, "motivo")
+  const destinoViagem = texto(formData, "destino")
+  const dataRetirada = dataISO(texto(formData, "data_retirada"))
+  const sede = texto(formData, "sede")
+  const veiculoId = texto(formData, "veiculo_id")
+  if (!UUID.test(condutorId)) return { erro: "Escolha para quem é a reserva." }
+  if (!motivo) return { erro: "Informe o motivo." }
+  if (!destinoViagem) return { erro: "Informe o destino." }
+  if (!dataRetirada) return { erro: "Informe a data de retirada." }
+  if (!sede) return { erro: "Informe a sede de retirada." }
+
+  const { erro, atendida } = await reservarParaTerceiro(
+    {
+      condutor_usuario_id: condutorId,
+      motivo,
+      destino: destinoViagem,
+      data_retirada: dataRetirada,
+      data_retorno: dataISO(texto(formData, "data_retorno")),
+      sede_retirada: sede,
+      veiculo_id: UUID.test(veiculoId) ? veiculoId : null,
+    },
+    sessao.usuario.id
+  )
+  if (erro) return { erro }
+  revalidar(UUID.test(veiculoId) ? veiculoId : undefined)
+  return {
+    ok: atendida
+      ? "Reserva registrada com o veículo — a pessoa foi avisada."
+      : "Solicitação registrada na fila — a pessoa foi avisada.",
+  }
+}
 
 /** Atende (vincula veículo) ou transfere o veículo de uma solicitação. */
 export async function atenderAgendamentoAction(

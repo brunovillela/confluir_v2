@@ -16,8 +16,10 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { SituacaoAgendamentoBadge } from "@/components/veiculos"
 import { requirePermissao } from "@/lib/auth"
+import { nomesDasSedes } from "@/lib/db/organizacao"
 import {
   listarAgendamentos,
+  listarCondutores,
   listarMovimentacoes,
   listarVeiculos,
 } from "@/lib/db/veiculos"
@@ -26,6 +28,7 @@ import { momentoBR } from "@/lib/veiculos-constantes"
 
 import {
   CancelarAgendamentoForm,
+  ReservarParaTerceiroForm,
   TransferirVeiculoForm,
   TriagemAgendamentoForm,
 } from "./agendamento-forms"
@@ -46,7 +49,7 @@ export default async function AgendamentosPage({
   await requirePermissao("veiculos_recepcao", ["veiculos_gestao"])
   const { salvo } = await searchParams
 
-  const [fila, encerradas, movimentacoesAbertas, frota] = await Promise.all([
+  const [fila, encerradas, movimentacoesAbertas, frota, condutoresRes, sedes] = await Promise.all([
     listarAgendamentos({ situacoes: ["solicitada", "atendida", "retirada"] }),
     listarAgendamentos({
       situacoes: ["concluida", "cancelada", "negada"],
@@ -54,7 +57,12 @@ export default async function AgendamentosPage({
     }),
     listarMovimentacoes({ emUsoAgora: true }),
     listarVeiculos({ situacao: "ativos" }),
+    listarCondutores(),
+    nomesDasSedes(),
   ])
+  const condutoresAptos = condutoresRes.condutores
+    .filter((c) => c.apto)
+    .map((c) => ({ id: c.usuario_id, nome: c.usuarioNome ?? "(sem nome)" }))
 
   const veiculosDisponiveis = frota
     .filter((v) => !v.inativo && !v.manutencao && v.emUso === false)
@@ -83,7 +91,8 @@ export default async function AgendamentosPage({
           Agendamentos de veículos
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Recepção: atender, transferir e cancelar solicitações. A saída e a
+          Recepção: atender, transferir e cancelar solicitações e reservar para
+          outra pessoa. A saída e a
           entrada do veículo se registram na página do veículo.
         </p>
       </div>
@@ -101,6 +110,17 @@ export default async function AgendamentosPage({
           </AlertDescription>
         </Alert>
       )}
+
+      <GrupoColapsavel
+        titulo="Reservar para outra pessoa"
+        descricao="Um diretor ou funcionário pediu a reserva: registre em nome dele e, se quiser, já reserve o veículo"
+      >
+        <ReservarParaTerceiroForm
+          condutores={condutoresAptos}
+          sedes={sedes}
+          veiculos={veiculosDisponiveis}
+        />
+      </GrupoColapsavel>
 
       <GrupoColapsavel
         titulo="Fila de solicitações"
@@ -131,6 +151,7 @@ export default async function AgendamentosPage({
                     </span>
                     <span className="text-muted-foreground">
                       Solicitado em {formatarData(a.created_at)}
+                      {a.solicitadoPorNome ? ` por ${a.solicitadoPorNome}` : ""}
                     </span>
                   </div>
                   <p className="text-sm">
@@ -185,6 +206,7 @@ export default async function AgendamentosPage({
                   <p className="text-muted-foreground text-sm">
                     {a.motivo ?? "—"}
                     {a.destino ? ` · destino: ${a.destino}` : ""}
+                    {a.solicitadoPorNome ? ` · reservado por ${a.solicitadoPorNome}` : ""}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     {a.veiculo_id && (
