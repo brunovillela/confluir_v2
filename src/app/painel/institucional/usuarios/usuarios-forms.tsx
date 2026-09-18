@@ -268,13 +268,45 @@ export function ConcederAcesso() {
  * em vez de criar outra.
  */
 function NovaPessoa({ aoCancelar }: { aoCancelar: () => void }) {
+  // Só cadastro: a pessoa usa uma conta de função (recepcao@) e não terá acesso
+  // próprio — e-mail opcional, nada entra em Usuários e permissões. A escolha
+  // fica fora do <form> (o React limpa o form ao fim da action e desmarcaria a
+  // caixa) e segue para a action por aqui.
+  const [soCadastro, setSoCadastro] = useState(false)
   const [estado, formAction, pendente] = useActionState<ResultadoNovaPessoa, FormData>(
-    novaPessoaAction,
+    (prev, formData) => {
+      formData.set("so_cadastro", soCadastro ? "1" : "")
+      return novaPessoaAction(prev, formData)
+    },
     {}
   )
   const v = estado.valores
   return (
     <div className="grid max-w-xl gap-4">
+      <label className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={soCadastro}
+          onChange={(e) => setSoCadastro(e.target.checked)}
+          className="accent-primary mt-1"
+        />
+        <span>
+          Vai usar uma conta de função, como recepcao@ (sem acesso próprio)
+          <span className="text-muted-foreground block text-xs">
+            Só cadastra a pessoa, para registrá-la no posto. Não cria acesso nem login, e o
+            e-mail fica opcional.
+          </span>
+        </span>
+      </label>
+      {estado.cadastrado && (
+        <Alert variant="success">
+          <AlertDescription>
+            <strong>{estado.cadastrado}</strong> foi cadastrada sem acesso próprio. Para ela usar
+            a conta do posto, abra a conta de função na lista abaixo e registre-a em{" "}
+            <strong>Quem ocupa o posto</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* A key remonta os campos com o que foi digitado: o React limpa o form ao fim da action. */}
       <form key={JSON.stringify(v ?? {})} action={formAction} className="grid gap-3">
         <div className="grid gap-1.5">
@@ -312,19 +344,26 @@ function NovaPessoa({ aoCancelar }: { aoCancelar: () => void }) {
           </div>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="nova-email">E-mail</Label>
-          <Input id="nova-email" name="email" type="email" required autoComplete="off" defaultValue={v?.email} />
+          <Label htmlFor="nova-email">E-mail{soCadastro ? " (opcional)" : ""}</Label>
+          <Input
+            id="nova-email"
+            name="email"
+            type="email"
+            required={!soCadastro}
+            autoComplete="off"
+            defaultValue={v?.email}
+          />
           <span className="text-muted-foreground text-xs">
-            O convite vai para este e-mail, e é com ele que a pessoa entra. Com
-            vínculo, ela passa a contar no quadro da entidade (aniversários do
-            painel, convite em lote); o Pessoal depende do vínculo trabalhista.
+            {soCadastro
+              ? "Ela entra com o login do posto, não com este e-mail."
+              : "O convite vai para este e-mail, e é com ele que a pessoa entra. Com vínculo, ela passa a contar no quadro da entidade (aniversários do painel, convite em lote); o Pessoal depende do vínculo trabalhista."}
           </span>
         </div>
         {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="sm" disabled={pendente}>
             {pendente ? <Loader2 className="animate-spin" /> : <UserRoundPlus />}
-            Cadastrar e conceder acesso
+            {soCadastro ? "Cadastrar" : "Cadastrar e conceder acesso"}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={aoCancelar}>
             Voltar à busca
@@ -332,7 +371,19 @@ function NovaPessoa({ aoCancelar }: { aoCancelar: () => void }) {
         </div>
       </form>
 
-      {estado.existente && <PessoaJaCadastrada pessoa={estado.existente} />}
+      {estado.existente &&
+        (soCadastro ? (
+          <Alert variant="warning">
+            <AlertDescription>
+              {estado.existente.motivo === "cpf" ? "Este CPF já está" : "Este e-mail já está"} no
+              cadastro de <strong>{estado.existente.nome ?? "(sem nome)"}</strong> — não precisa
+              cadastrar de novo. Abra a conta de função e registre-a em{" "}
+              <strong>Quem ocupa o posto</strong>.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <PessoaJaCadastrada pessoa={estado.existente} />
+        ))}
     </div>
   )
 }

@@ -30,7 +30,7 @@ pessoa pode ver e editar.
   </Passo>
 </PassoAPasso>
 
-<Print src="institucional/usuarios-nova-pessoa.png" alt="Tela de Usuários e permissões com o cartão Conceder acesso a uma pessoa aberto no formulário Nova pessoa (nome completo, CPF, vínculo com a entidade e e-mail), os botões Quadro da entidade e Perfis de acesso no alto e, abaixo, a lista de acessos com a conta de função Recepção e quem está no posto." legenda="Nova pessoa: cadastra quem ainda não está no sistema e já concede o acesso." />
+<Print src="institucional/usuarios-nova-pessoa.png" alt="Tela de Usuários e permissões com o formulário Nova pessoa aberto e a opção Vai usar uma conta de função marcada: nome completo, CPF, vínculo Prestador(a) de serviço, e-mail marcado como opcional e o botão Cadastrar; abaixo, a lista de acessos com a conta de função Recepção." legenda="Nova pessoa: sem a opção, cadastra e concede o acesso; com ela, só cadastra quem vai usar o login de um posto." />
 
 <Aviso tipo="nota" titulo="A Nova pessoa não duplica cadastros">
   Se o **CPF** já está no cadastro de usuários, a tela mostra quem é e oferece
@@ -43,6 +43,14 @@ pessoa pode ver e editar.
 Com **vínculo**, a pessoa passa a contar no quadro da entidade (aniversários do
 painel, convite em lote). **Sem vínculo** — um consultor, um contador externo
 —, ela tem só o acesso que você der.
+
+<Aviso tipo="dica" titulo="Quem só vai usar uma conta de função">
+  Para quem vai entrar pelo login de um posto, como **recepcao@**, marque **Vai
+  usar uma conta de função (sem acesso próprio)**. O e-mail fica opcional, o
+  botão passa a ser **Cadastrar** e a pessoa é só cadastrada: nada entra na
+  lista de acessos e nenhum login é criado. Depois, registre-a no posto (veja
+  abaixo). Também dá para cadastrá-la direto na página da conta de função.
+</Aviso>
 
 ## Contas de função (e-mails coletivos)
 
@@ -59,14 +67,19 @@ guarda **quem ocupou o posto em cada período**.
   </Passo>
   <Passo titulo="Registre quem ocupa o posto">
     Na página da conta, em **Quem ocupa o posto**, escolha a pessoa, o motivo e o
-    período. O prestador precisa estar no cadastro de usuários — se não estiver,
-    cadastre-o em **Nova pessoa**, com o vínculo *Prestador(a) de serviço*.
+    período. Se a pessoa não aparecer na busca, clique em **Cadastrar pessoa**
+    logo abaixo: informe nome, CPF e vínculo (já vem *Prestador(a) de serviço*).
+    Não pede e-mail nem cria acesso — ela entra com o login do posto — e já volta
+    escolhida no campo. Se o CPF já estiver cadastrado, o sistema escolhe o
+    cadastro existente em vez de criar outro.
   </Passo>
   <Passo titulo="Dê os perfis e o login">
     Marque os **perfis de acesso** do posto (recepção de veículos, hospedagem,
     eventos…) e clique em **Conceder login**: o convite vai para o e-mail do posto.
   </Passo>
 </PassoAPasso>
+
+<Print src="institucional/conta-funcao-cadastrar-pessoa.png" alt="Página da conta de função Recepção com o painel Cadastrar quem vai ocupar o posto aberto dentro de Registrar quem entra no posto: nome completo, CPF, vínculo Prestador(a) de serviço e o botão Cadastrar pessoa; abaixo, a busca da pessoa, o motivo e o período." legenda="Cadastrar pessoa: o ocupante entra sem e-mail e sem acesso próprio, e já vem escolhido para registrar no posto." />
 
 Os motivos são **Titular do posto**, **Cobrindo férias**, **Cobrindo
 afastamento** e **Substituição temporária**. Uma cobertura vale **sobre o

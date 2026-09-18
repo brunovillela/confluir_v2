@@ -88,8 +88,19 @@ export async function novaPessoaAction(
     email: texto(formData, "email"),
     vinculo: texto(formData, "vinculo_instituicao"),
   }
-  const r = await cadastrarPessoa({ ...valores, vinculo: valores.vinculo || null })
+  // Quem só vai usar uma conta de função (recepcao@) é cadastrado sem acesso
+  // próprio: o e-mail fica opcional e nada entra em Usuários e permissões.
+  const soCadastro = formData.get("so_cadastro") === "1"
+  const r = await cadastrarPessoa({
+    ...valores,
+    vinculo: valores.vinculo || null,
+    emailOpcional: soCadastro,
+  })
   if (r.erro || r.existente || !r.usuarioId) return { ...r, valores }
+  if (soCadastro) {
+    revalidatePath("/painel/institucional/usuarios")
+    return { cadastrado: valores.nome.trim().replace(/\s+/g, " ") }
+  }
 
   const { id, erro } = await concederAcesso(r.usuarioId)
   if (erro) return { erro }
@@ -116,6 +127,40 @@ export async function novaContaFuncaoAction(
   if (erro) return { erro, valores }
   revalidatePath("/painel/institucional/usuarios")
   redirect(`/painel/institucional/usuarios/${id}?conta=1`)
+}
+
+export type ResultadoOcupante = {
+  erro?: string
+  /** A pessoa cadastrada (ou a já existente com o mesmo CPF), para já vir escolhida. */
+  pessoa?: { id: string; nome: string | null; cpf: string; jaExistia: boolean }
+}
+
+/**
+ * Cadastra, na página da conta de função, quem vai ocupar o posto: nome, CPF e
+ * vínculo, sem e-mail e sem acesso próprio — a pessoa entra pela conta do
+ * posto. CPF já cadastrado devolve a pessoa existente, sem duplicar.
+ */
+export async function cadastrarOcupanteAction(
+  _prev: ResultadoOcupante,
+  formData: FormData
+): Promise<ResultadoOcupante> {
+  await requirePermissao(CHAVE, ALT)
+  const cpf = texto(formData, "cpf")
+  const r = await cadastrarPessoa({
+    nome: texto(formData, "nome_completo"),
+    cpf,
+    email: "",
+    vinculo: texto(formData, "vinculo_instituicao") || null,
+    emailOpcional: true,
+  })
+  if (r.erro) return { erro: r.erro }
+  if (r.existente) {
+    return { pessoa: { id: r.existente.usuarioId, nome: r.existente.nome, cpf, jaExistia: true } }
+  }
+  if (!r.usuarioId) return { erro: "Não foi possível cadastrar." }
+  return {
+    pessoa: { id: r.usuarioId, nome: texto(formData, "nome_completo"), cpf, jaExistia: false },
+  }
 }
 
 /** Registra quem ocupa o posto de uma conta de função. */

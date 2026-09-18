@@ -229,6 +229,8 @@ export type ResultadoNovaPessoa = {
   /** A pessoa já está em `usuarios`: conceder acesso a ela, não cadastrar de novo. */
   existente?: PessoaExistente
   usuarioId?: string
+  /** Cadastrada sem acesso próprio (usa uma conta de função): o nome, para o aviso. */
+  cadastrado?: string
   /** O que foi digitado, para o formulário não voltar vazio depois de uma recusa. */
   valores?: { nome: string; cpf: string; email: string; vinculo: string }
 }
@@ -244,19 +246,23 @@ export type ResultadoNovaPessoa = {
  * - E-mail já em `usuarios`: sem CPF lá, é provavelmente a mesma pessoa
  *   (cadastro antigo) → existente; com outro CPF → erro, porque o login é
  *   pelo e-mail e duas pessoas não podem dividi-lo.
+ * - `emailOpcional`: quem não terá acesso próprio (usa uma conta de função,
+ *   como recepcao@) pode ficar sem e-mail; informado, passa pelas mesmas regras.
  */
 export async function cadastrarPessoa(dados: {
   nome: string
   cpf: string
   email: string
   vinculo: string | null
+  emailOpcional?: boolean
 }): Promise<ResultadoNovaPessoa> {
   const nome = dados.nome.trim().replace(/\s+/g, " ")
   const email = dados.email.trim().toLowerCase()
   const cpf = cpfConfiavel(dados.cpf)
   if (nome.split(" ").length < 2) return { erro: "Informe o nome completo." }
   if (!cpf) return { erro: "CPF inválido. Confira os dígitos." }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "E-mail inválido." }
+  if (!email && !dados.emailOpcional) return { erro: "Informe o e-mail." }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "E-mail inválido." }
   const vinculo =
     dados.vinculo && (VINCULOS_INSTITUICAO as readonly string[]).includes(dados.vinculo)
       ? dados.vinculo
@@ -287,14 +293,16 @@ export async function cadastrarPessoa(dados: {
     }
   }
 
-  const { data: porEmail } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, email, cpf")
-    .eq("emp_proprietaria_id", emp)
-    .eq("email", email) // os e-mails de usuarios estão todos em minúsculas
-    .neq("deletado", true)
-    .limit(1)
-    .maybeSingle()
+  const { data: porEmail } = email
+    ? await admin
+        .from("usuarios")
+        .select("id, nome_completo, email, cpf")
+        .eq("emp_proprietaria_id", emp)
+        .eq("email", email) // os e-mails de usuarios estão todos em minúsculas
+        .neq("deletado", true)
+        .limit(1)
+        .maybeSingle()
+    : { data: null }
   if (porEmail) {
     if (await ehContaFuncao(String(porEmail.id))) {
       return {
@@ -321,7 +329,7 @@ export async function cadastrarPessoa(dados: {
     .insert({
       nome_completo: nome,
       cpf,
-      email,
+      email: email || null,
       vinculo_instituicao: vinculo,
       emp_proprietaria_id: emp,
     })
