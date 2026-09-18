@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { dadosImpressao } from "@/lib/db/oficios"
+import { podeVerOficio } from "@/lib/db/oficios-acesso"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { limparFormatacaoBubble } from "@/lib/oficios-constantes"
 
@@ -64,6 +65,7 @@ export default async function ImpressaoOficioPage({
   await requirePermissao("ferramentas_oficios")
   const { id } = await params
 
+  if (!(await podeVerOficio(id))) notFound()
   const dados = await dadosImpressao(id)
   if (!dados) notFound()
   const { oficio, cidade, organizacao, sedes } = dados

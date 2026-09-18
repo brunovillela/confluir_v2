@@ -5,6 +5,7 @@ import {
   renderizarPdfOficio,
 } from "@/lib/db/oficios-assinatura"
 import { dadosImpressao } from "@/lib/db/oficios"
+import { podeVerOficio } from "@/lib/db/oficios-acesso"
 
 export const runtime = "nodejs"
 
@@ -14,6 +15,7 @@ export async function GET(
 ) {
   await requirePermissao("ferramentas_oficios")
   const { id } = await params
+  if (!(await podeVerOficio(id))) return new Response("Não encontrado", { status: 404 })
 
   const [dados, assinaturas] = await Promise.all([dadosImpressao(id), assinaturasDoOficio(id)])
   if (!dados) return new Response("Não encontrado", { status: 404 })

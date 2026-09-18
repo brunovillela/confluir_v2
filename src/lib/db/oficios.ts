@@ -3,6 +3,7 @@ import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { urlArquivoDocumento } from "@/lib/db/documentos"
+import { type EscopoOficios } from "@/lib/db/oficios-acesso"
 import { eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -18,6 +19,16 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 
 const AVISO_SQL = "Ofícios ainda não configurados — rode supabase/oficios.sql no Supabase."
+
+/**
+ * Departamentos a que a consulta se restringe: `null` = todos (sem filtro);
+ * lista vazia = o escopo não alcança nada. Quem não vê todos não vê os ofícios
+ * sem departamento.
+ */
+function idsDoEscopo(escopo?: EscopoOficios): string[] | null {
+  if (!escopo || escopo.todos) return null
+  return escopo.departamentos.map((d) => d.id)
+}
 
 function anoDe(data: string | null): number {
   return data ? Number(data.slice(0, 4)) : new Date().getFullYear()
@@ -62,21 +73,28 @@ export type OficioLinha = {
   assunto: string | null
   destinatarioNome: string | null
   situacao: string | null
+  departamentoId: string | null
 }
 
 export async function listarOficios(filtro: {
   ano?: number
   situacao?: string
   busca?: string
-} = {}): Promise<{ disponivel: boolean; oficios: OficioLinha[] }> {
+  departamentoId?: string
+} = {}, escopo?: EscopoOficios): Promise<{ disponivel: boolean; oficios: OficioLinha[] }> {
+  const ids = idsDoEscopo(escopo)
+  if (ids?.length === 0) return { disponivel: true, oficios: [] }
   const admin = await createAdminClient()
   let query = admin
     .from("oficios")
     .select(
-      "id, tipo, numero, ano, data, assunto, situacao, destinatario_empresa_id, destinatario_texto"
+      "id, tipo, numero, ano, data, assunto, situacao, destinatario_empresa_id, destinatario_texto, departamento_id"
     )
     .eq("emp_proprietaria_id", await tenantAtual())
+  if (ids) query = query.in("departamento_id", ids)
 
+  if (filtro.departamentoId === "sem") query = query.is("departamento_id", null)
+  else if (filtro.departamentoId) query = query.eq("departamento_id", filtro.departamentoId)
   if (filtro.ano) query = query.eq("ano", filtro.ano)
   if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
   const busca = (filtro.busca ?? "").trim()
@@ -109,6 +127,7 @@ export async function listarOficios(filtro: {
         ? (nomes.get(o.destinatario_empresa_id as string) ?? null)
         : texto(o.destinatario_texto),
       situacao: texto(o.situacao),
+      departamentoId: texto(o.departamento_id),
     })),
   }
 }
@@ -117,14 +136,18 @@ export async function listarOficios(filtro: {
  * Ofícios emitidos para vincular a outro registro (ex.: liberações sindicais
  * em lote): "Nº 12/2026 — Liberação de diretores — Petro Fictícia".
  */
-export async function oficiosEmitidosParaVinculo(): Promise<
+export async function oficiosEmitidosParaVinculo(escopo?: EscopoOficios): Promise<
   { id: string; rotulo: string; destinatarioEmpresaId: string | null }[]
 > {
+  const ids = idsDoEscopo(escopo)
+  if (ids?.length === 0) return []
   const admin = await createAdminClient()
-  const { data, error } = await admin
+  let query = admin
     .from("oficios")
     .select("id, numero, ano, assunto, destinatario_empresa_id, destinatario_texto")
     .eq("emp_proprietaria_id", await tenantAtual())
+  if (ids) query = query.in("departamento_id", ids)
+  const { data, error } = await query
     .eq("situacao", "Emitido")
     .order("ano", { ascending: false })
     .order("numero", { ascending: false })
@@ -158,7 +181,7 @@ async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
   return mapa
 }
 
-export async function resumoOficios(): Promise<{
+export async function resumoOficios(escopo?: EscopoOficios): Promise<{
   total: number
   rascunhos: number
   anoAtual: number
@@ -167,11 +190,15 @@ export async function resumoOficios(): Promise<{
   const admin = await createAdminClient()
   const ano = new Date().getFullYear()
   const empId = await tenantAtual()
-  const base = () =>
-    admin
+  const ids = idsDoEscopo(escopo)
+  if (ids?.length === 0) return { total: 0, rascunhos: 0, anoAtual: ano, emitidosAno: 0 }
+  const base = () => {
+    const q = admin
       .from("oficios")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", empId)
+    return ids ? q.in("departamento_id", ids) : q
+  }
   // Contagens no banco (o teto de 1.000 linhas do PostgREST subestimaria em JS).
   const [{ count: total }, { count: rascunhos }, { count: emitidosAno }] =
     await Promise.all([
@@ -216,7 +243,8 @@ export type DetalheOficio = {
   assinanteCargo: string | null
   situacao: string | null
   filiados: FiliadoOficio[]
-  /** Histórico do Bubble (supabase/historicos-oficios-diarias.sql). */
+  /** Departamento do ofício — decide quem o vê (ver oficios-acesso.ts). */
+  departamentoId: string | null
   departamentoNome: string | null
   redatorNome: string | null
   arquivoAssinadoUrl: string | null
@@ -301,6 +329,7 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
       matricula: texto(f.matricula),
       vinculoId: texto(f.vinculo_id),
     })),
+    departamentoId,
     departamentoNome: texto(departamento.data?.departamento),
     redatorNome: texto(redator.data?.nome_completo),
     arquivoAssinadoUrl: assinadoUrl,
@@ -322,16 +351,19 @@ export type DadosOficio = {
   assunto: string | null
   corpo: string | null
   assinante_integrante_id: string | null
+  departamento_id: string | null
 }
 
 export async function criarOficio(
-  dados: DadosOficio
+  dados: DadosOficio,
+  redatorId?: string
 ): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("oficios")
     .insert({
       ...dados,
+      ...(redatorId ? { redator_id: redatorId } : {}),
       situacao: "Rascunho",
       emp_proprietaria_id: await tenantAtual(),
     })

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarOficios, resumoOficios } from "@/lib/db/oficios"
+import { escopoOficios } from "@/lib/db/oficios-acesso"
 import { formatarData } from "@/lib/formato"
 import {
   ROTULOS_TIPO_OFICIO,
@@ -35,7 +36,7 @@ const CLASSE_SITUACAO: Record<string, string> = {
   Cancelado: "text-muted-foreground line-through",
 }
 
-type Params = { situacao?: string; busca?: string }
+type Params = { situacao?: string; busca?: string; departamento?: string }
 
 export default async function OficiosPage({
   searchParams,
@@ -52,10 +53,19 @@ export default async function OficiosPage({
     ? brutos.situacao
     : ""
 
+  const escopo = await escopoOficios()
+  const departamento =
+    brutos.departamento === "sem" && escopo.todos
+      ? "sem"
+      : escopo.departamentos.some((d) => d.id === brutos.departamento)
+        ? (brutos.departamento as string)
+        : ""
   const [resumo, { disponivel, oficios }] = await Promise.all([
-    resumoOficios().catch(() => null),
-    listarOficios({ busca, situacao }),
+    resumoOficios(escopo).catch(() => null),
+    listarOficios({ busca, situacao, departamentoId: departamento || undefined }, escopo),
   ])
+  const nomeDepto = new Map(escopo.departamentos.map((d) => [d.id, d.nome]))
+  const semDepartamento = !escopo.todos && escopo.departamentos.length === 0
 
   return (
     <>
@@ -85,6 +95,23 @@ export default async function OficiosPage({
         </Alert>
       )}
 
+      {disponivel && semDepartamento && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Você não está em nenhum departamento, por isso não vê ofícios. Cada
+            pessoa vê os ofícios dos seus departamentos — peça o vínculo em
+            Institucional › Organização › Departamentos.
+          </AlertDescription>
+        </Alert>
+      )}
+      {disponivel && !semDepartamento && (
+        <p className="text-muted-foreground -mt-2 text-xs">
+          {escopo.todos
+            ? "Você vê os ofícios de todos os departamentos."
+            : `Você vê os ofícios de: ${escopo.departamentos.map((d) => d.nome).join(", ")}.`}
+        </p>
+      )}
+
       {disponivel && resumo && (
         <div className="grid gap-4 sm:grid-cols-3">
           <CardResumo rotulo="Ofícios" valor={resumo.total} />
@@ -109,6 +136,17 @@ export default async function OficiosPage({
               placeholder="Assunto"
               className={`${SELECT_FILTRO} w-64 max-w-full`}
             />
+            {escopo.departamentos.length > 1 || escopo.todos ? (
+              <select name="departamento" defaultValue={departamento} className={SELECT_FILTRO}>
+                <option value="">Todos os departamentos</option>
+                {escopo.departamentos.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nome}
+                  </option>
+                ))}
+                {escopo.todos && <option value="sem">Sem departamento</option>}
+              </select>
+            ) : null}
             <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO}>
               <option value="">Todas as situações</option>
               {SITUACOES_OFICIO.map((s) => (
@@ -137,6 +175,7 @@ export default async function OficiosPage({
                       <TableHead>Tipo</TableHead>
                       <TableHead>Assunto</TableHead>
                       <TableHead>Destinatário</TableHead>
+                      <TableHead>Departamento</TableHead>
                       <TableHead>Data</TableHead>
                       <TableHead>Situação</TableHead>
                     </TableRow>
@@ -161,6 +200,11 @@ export default async function OficiosPage({
                         <TableCell className="max-w-48">
                           <span className="line-clamp-1">
                             {o.destinatarioNome ?? "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-40 text-sm">
+                          <span className="line-clamp-1">
+                            {o.departamentoId ? (nomeDepto.get(o.departamentoId) ?? "—") : "—"}
                           </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">

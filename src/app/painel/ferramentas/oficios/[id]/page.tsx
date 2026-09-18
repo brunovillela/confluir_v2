@@ -25,6 +25,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import {
+  departamentosParaEscolha,
+  escopoOficios,
+  podeVerDepartamento,
+} from "@/lib/db/oficios-acesso"
 import { assinantesVigentes, liberacoesDoOficio } from "@/lib/db/diretoria"
 import {
   candidatosDaEmpresa,
@@ -77,8 +82,10 @@ export default async function OficioPage({
   await requirePermissao("ferramentas_oficios")
   const { id } = await params
 
-  const oficio = await obterOficio(id)
+  const [oficio, escopo] = await Promise.all([obterOficio(id), escopoOficios()])
   if (!oficio) notFound()
+  // Ofício de outro departamento: para quem está fora, ele não existe.
+  if (!podeVerDepartamento(escopo, oficio.departamentoId)) notFound()
 
   const rascunho = oficio.situacao === "Rascunho"
   const automatico = eAutomatico(oficio.tipo)
@@ -190,10 +197,13 @@ export default async function OficioPage({
                 assunto: oficio.assunto,
                 corpo: oficio.corpo,
                 assinanteIntegranteId: oficio.assinanteIntegranteId,
+                departamentoId: oficio.departamentoId,
               }}
               empresas={empresas.map((e) => ({ ...e }))}
               sedes={sedes.map((s) => ({ id: s.id, nome: s.nome ?? "Sede" }))}
               assinantes={assinantes}
+              departamentos={departamentosParaEscolha(escopo, oficio.departamentoId)}
+              semDepartamentoPermitido={escopo.todos}
             />
           </CardContent>
         </Card>

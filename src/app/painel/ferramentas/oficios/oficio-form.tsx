@@ -34,6 +34,7 @@ export type OficioFormDados = {
   assunto?: string | null
   corpo?: string | null
   assinanteIntegranteId?: string | null
+  departamentoId?: string | null
 }
 
 export function OficioForm({
@@ -42,12 +43,18 @@ export function OficioForm({
   empresas,
   sedes,
   assinantes,
+  departamentos,
+  semDepartamentoPermitido,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: OficioFormDados
   empresas: EmpresaOpcao[]
   sedes: { id: string; nome: string }[]
   assinantes: { id: string; nome: string; cargo: string | null }[]
+  /** Departamentos que a pessoa pode escolher (os dela, ou todos). */
+  departamentos: { id: string; nome: string }[]
+  /** Quem vê todos os ofícios pode deixar sem departamento. */
+  semDepartamentoPermitido: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
   const [tipo, setTipo] = useState<TipoOficio>(
@@ -127,6 +134,29 @@ export function OficioForm({
             className={SELECT}
           />
         </div>
+      </div>
+
+      <div className="grid gap-1.5 sm:max-w-sm">
+        <Label htmlFor="departamento_id">Departamento{semDepartamentoPermitido ? "" : " *"}</Label>
+        <select
+          id="departamento_id"
+          name="departamento_id"
+          required={!semDepartamentoPermitido}
+          defaultValue={dados?.departamentoId ?? (departamentos.length === 1 ? departamentos[0].id : "")}
+          className={SELECT}
+        >
+          <option value="" disabled={!semDepartamentoPermitido}>
+            {semDepartamentoPermitido ? "(sem departamento)" : "(selecione)"}
+          </option>
+          {departamentos.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nome}
+            </option>
+          ))}
+        </select>
+        <span className="text-muted-foreground text-xs">
+          Só quem é do departamento vê o ofício.
+        </span>
       </div>
 
       <div className="grid gap-1.5">

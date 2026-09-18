@@ -2,11 +2,13 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { assinantesVigentes } from "@/lib/db/diretoria"
 import { listarEmpresas } from "@/lib/db/oficios"
+import { departamentosParaEscolha, escopoOficios } from "@/lib/db/oficios-acesso"
 import { listarSedes } from "@/lib/db/organizacao"
 
 import { criarOficioAction } from "../actions"
@@ -17,11 +19,13 @@ export const metadata: Metadata = { title: "Novo ofício — Confluir" }
 export default async function NovoOficioPage() {
   await requirePermissao("ferramentas_oficios")
 
-  const [empresas, { sedes }, assinantes] = await Promise.all([
+  const [empresas, { sedes }, assinantes, escopo] = await Promise.all([
     listarEmpresas(),
     listarSedes(),
     assinantesVigentes(),
+    escopoOficios(),
   ])
+  const semDepartamento = !escopo.todos && escopo.departamentos.length === 0
 
   return (
     <>
@@ -35,16 +39,27 @@ export default async function NovoOficioPage() {
       </div>
       <h1 className="text-2xl font-semibold tracking-tight">Novo ofício</h1>
 
-      <Card>
-        <CardContent className="pt-6">
-          <OficioForm
-            action={criarOficioAction}
-            empresas={empresas.map((e) => ({ ...e }))}
-            sedes={sedes.map((s) => ({ id: s.id, nome: s.nome ?? "Sede" }))}
-            assinantes={assinantes}
-          />
-        </CardContent>
-      </Card>
+      {semDepartamento ? (
+        <Alert variant="warning">
+          <AlertDescription>
+            Você não está em nenhum departamento, e cada ofício pertence a um. Peça
+            o vínculo em Institucional › Organização › Departamentos.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <OficioForm
+              action={criarOficioAction}
+              empresas={empresas.map((e) => ({ ...e }))}
+              sedes={sedes.map((s) => ({ id: s.id, nome: s.nome ?? "Sede" }))}
+              assinantes={assinantes}
+              departamentos={departamentosParaEscolha(escopo)}
+              semDepartamentoPermitido={escopo.todos}
+            />
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

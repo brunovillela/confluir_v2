@@ -16,6 +16,14 @@ import {
   type DadosOficio,
 } from "@/lib/db/oficios"
 import {
+  FORA_DO_ESCOPO,
+  escopoOficios,
+  departamentoAtualDoOficio,
+  podeVerFiliadoDoOficio,
+  podeVerOficio,
+  validarDepartamentoDoOficio,
+} from "@/lib/db/oficios-acesso"
+import {
   anexarAssinadoAMao,
   cancelarEnvio,
   enviarParaAssinatura,
@@ -49,20 +57,28 @@ function lerDados(formData: FormData): DadosOficio {
     assunto: texto(formData, "assunto") || null,
     corpo: texto(formData, "corpo") || null,
     assinante_integrante_id: texto(formData, "assinante_integrante_id") || null,
+    departamento_id: texto(formData, "departamento_id") || null,
   }
+}
+
+/** Ofício fora dos departamentos de quem está na sessão → mensagem de erro. */
+async function foraDoEscopo(oficioId: string): Promise<string | null> {
+  return (await podeVerOficio(oficioId)) ? null : FORA_DO_ESCOPO
 }
 
 export async function criarOficioAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_oficios")
+  const sessao = await requirePermissao("ferramentas_oficios")
   const dados = lerDados(formData)
   if (!dados.assunto) return { erro: "Informe o assunto." }
   if (!dados.destinatario_empresa_id && !dados.destinatario_texto)
     return { erro: "Informe o destinatário." }
+  const erroDepto = validarDepartamentoDoOficio(await escopoOficios(), dados.departamento_id)
+  if (erroDepto) return { erro: erroDepto }
 
-  const { id, erro } = await criarOficio(dados)
+  const { id, erro } = await criarOficio(dados, String(sessao.usuario.id))
   if (erro) return { erro }
   revalidatePath("/painel/ferramentas/oficios")
   redirect(`/painel/ferramentas/oficios/${id}`)
@@ -77,6 +93,10 @@ export async function atualizarOficioAction(
   if (!id) return { erro: "Ofício inválido." }
   const dados = lerDados(formData)
   if (!dados.assunto) return { erro: "Informe o assunto." }
+  const escopo = await escopoOficios()
+  if (!(await podeVerOficio(id, escopo))) return { erro: FORA_DO_ESCOPO }
+  const erroDepto = validarDepartamentoDoOficio(escopo, dados.departamento_id, await departamentoAtualDoOficio(id))
+  if (erroDepto) return { erro: erroDepto }
 
   const { erro } = await atualizarOficio(id, dados)
   if (erro) return { erro }
@@ -91,6 +111,8 @@ export async function emitirOficioAction(
   await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const numeroTxt = texto(formData, "numero")
   const numero = numeroTxt ? Number.parseInt(numeroTxt, 10) : null
 
@@ -111,6 +133,8 @@ export async function cancelarOficioAction(
   await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const { erro } = await cancelarOficio(id)
   if (erro) return { erro }
   revalidatePath("/painel/ferramentas/oficios")
@@ -127,6 +151,8 @@ export async function adicionarManualAction(
   const nome = texto(formData, "nome")
   if (!oficioId) return { erro: "Ofício inválido." }
   if (!nome) return { erro: "Informe o nome." }
+  const fora = await foraDoEscopo(oficioId)
+  if (fora) return { erro: fora }
 
   const { erro } = await adicionarFiliados(oficioId, [
     { nome, matricula: texto(formData, "matricula") || null },
@@ -150,6 +176,8 @@ export async function adicionarCandidatosAction(
     .map((v) => String(v).trim())
     .filter(Boolean)
   if (!oficioId || !empresaId) return { erro: "Dados inválidos." }
+  const fora = await foraDoEscopo(oficioId)
+  if (fora) return { erro: fora }
   if (selecionados.length === 0) return { erro: "Selecione ao menos um nome." }
   if (tipoOf === "manual") return { erro: "Ofício manual não tem lista automática." }
 
@@ -178,6 +206,7 @@ export async function removerFiliadoAction(
   const id = texto(formData, "filiado_id")
   const oficioId = texto(formData, "oficio_id")
   if (!id) return { erro: "Item inválido." }
+  if (!(await podeVerFiliadoDoOficio(id))) return { erro: FORA_DO_ESCOPO }
   const { erro } = await removerFiliado(id)
   if (erro) return { erro }
   if (oficioId) revalidatePath(`/painel/ferramentas/oficios/${oficioId}`)
@@ -193,6 +222,8 @@ export async function enviarParaAssinaturaAction(
   const sessao = await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const numeroTxt = texto(formData, "numero")
   const numero = numeroTxt ? Number.parseInt(numeroTxt, 10) : null
 
@@ -220,6 +251,8 @@ export async function reenviarConviteAction(
 ): Promise<EstadoForm> {
   await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const r = await reenviarConvite(id)
   if (r.erro) return { erro: r.erro }
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
@@ -234,6 +267,8 @@ export async function cancelarEnvioAction(
 ): Promise<EstadoForm> {
   await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const r = await cancelarEnvio(id, texto(formData, "motivo") || null)
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/ferramentas/oficios")
@@ -248,6 +283,8 @@ export async function anexarAssinadoAMaoAction(
   await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione o PDF assinado." }
 
