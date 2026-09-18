@@ -85,7 +85,7 @@ export async function listarDepartamentosCompletos(): Promise<Departamento[]> {
   const emCompras = contar(comprasRes.data)
   const emDemandas = contar(demandasRes.data)
 
-  const nomes = await nomesDosUsuarios([
+  const nomes = await nomesDePessoas([
     ...linhas.map((d) => String(d.coordenador_id ?? "")),
     ...integrantes.map((i) => String(i.usuario_id ?? "")),
   ])
@@ -358,4 +358,50 @@ export async function departamentosPorUsuario(usuarioIds: string[]): Promise<Map
   for (const i of integ ?? []) somar(String(i.usuario_id), String(i.departamento_id))
   for (const lista of mapa.values()) lista.sort((a, b) => a.localeCompare(b, "pt-BR"))
   return mapa
+}
+
+/**
+ * Nome de cada pessoa por usuário. Muitos cadastros de usuário vieram do
+ * Bubble SEM nome (só CPF e e-mail — em 18/09, 3.287 no tenant real); para
+ * eles o nome vem da diretoria (integrante ligado ao usuário ou ao CPF) e,
+ * sem isso, da filiação pelo CPF.
+ */
+async function nomesDePessoas(ids: string[]): Promise<Map<string, string>> {
+  const nomes = await nomesDosUsuarios(ids)
+  const faltam = [...new Set(ids.filter((id) => id && !nomes.has(id)))]
+  if (faltam.length === 0) return nomes
+  const admin = await createAdminClient()
+  const { data: us } = await admin.from("usuarios").select("id, cpf").in("id", faltam)
+  const cpfDe = new Map(
+    ((us ?? []) as Record<string, unknown>[]).map((u) => [String(u.id), cpfConfiavel(texto(u.cpf))])
+  )
+  const cpfs = [...new Set([...cpfDe.values()].filter((c): c is string => Boolean(c)))]
+  const [{ data: dir }, { data: fil }] = await Promise.all([
+    admin.from("diretoria_integrantes").select("usuario_id, cpf, nome").or(
+      [`usuario_id.in.(${faltam.join(",")})`, ...(cpfs.length ? [`cpf.in.(${cpfs.join(",")})`] : [])].join(",")
+    ),
+    cpfs.length
+      ? admin.from("filiacoes").select("cpf, nome_completo").in("cpf", cpfs)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+  ])
+  const porUsuario = new Map<string, string>()
+  const porCpf = new Map<string, string>()
+  for (const d of (dir ?? []) as Record<string, unknown>[]) {
+    const nome = texto(d.nome)
+    if (!nome) continue
+    if (d.usuario_id) porUsuario.set(String(d.usuario_id), nome)
+    const cpf = cpfConfiavel(texto(d.cpf))
+    if (cpf) porCpf.set(cpf, nome)
+  }
+  for (const f of (fil ?? []) as Record<string, unknown>[]) {
+    const cpf = cpfConfiavel(texto(f.cpf))
+    const nome = texto(f.nome_completo)
+    if (cpf && nome && !porCpf.has(cpf)) porCpf.set(cpf, nome)
+  }
+  for (const id of faltam) {
+    const cpf = cpfDe.get(id)
+    const nome = porUsuario.get(id) ?? (cpf ? porCpf.get(cpf) : undefined)
+    if (nome) nomes.set(id, nome)
+  }
+  return nomes
 }

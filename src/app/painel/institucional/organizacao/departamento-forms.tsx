@@ -72,11 +72,16 @@ export function DepartamentoForm({
     if (!marcado && id === coordenador) setCoordenador("")
   }
   const vinculaveis = pessoas.filter((p) => p.usuarioId)
-  // O coordenador atual pode não estar entre as pessoas vinculáveis (ex.: saiu do quadro).
-  const extra =
-    departamento?.coordenadorId && !vinculaveis.some((p) => p.usuarioId === departamento.coordenadorId)
+  // Quem já está vinculado mas não aparece entre funcionários e diretoria (saiu
+  // do quadro, ou o diretor tem outro cadastro de usuário com o mesmo CPF): fica
+  // à vista e marcado — senão, salvar o desvincularia sem ninguém ver.
+  const naLista = new Set(vinculaveis.map((p) => p.usuarioId))
+  const extra = [
+    ...(departamento?.integrantes ?? []).map((i) => ({ usuarioId: i.usuarioId, nome: i.nome })),
+    ...(departamento?.coordenadorId && coordenadorFora
       ? [{ usuarioId: departamento.coordenadorId, nome: departamento.coordenadorNome ?? "(coordenador atual)" }]
-      : []
+      : []),
+  ].filter((p) => !naLista.has(p.usuarioId))
   const opcoesCoordenador = [...vinculaveis, ...extra].filter((p) => marcados.has(p.usuarioId ?? ""))
   const semPessoas = (departamento?.integrantes.length ?? 0) === 0 && !departamento?.coordenadorId
   const semConta = pessoas.filter((p) => !p.usuarioId)
@@ -165,22 +170,33 @@ export function DepartamentoForm({
             </p>
           )}
           {extra.length > 0 && (
-            <label className="flex cursor-pointer items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="integrantes"
-                value={extra[0].usuarioId}
-                checked={marcados.has(extra[0].usuarioId)}
-                onChange={(e) => alternar(extra[0].usuarioId, e.target.checked)}
-                className="accent-primary mt-1"
-              />
-              <span>
-                {extra[0].nome}
-                <span className="text-muted-foreground block text-xs">
-                  coordenador atual, fora do quadro de funcionários e da diretoria vigente
-                </span>
-              </span>
-            </label>
+            <div className="grid gap-1.5">
+              <p className="text-muted-foreground text-xs font-medium">
+                Vinculados, fora da lista de funcionários e da diretoria vigente
+              </p>
+              <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                {extra.map((p) => (
+                  <li key={p.usuarioId}>
+                    <label className="flex cursor-pointer items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="integrantes"
+                        value={p.usuarioId}
+                        checked={marcados.has(p.usuarioId)}
+                        onChange={(e) => alternar(p.usuarioId, e.target.checked)}
+                        className="accent-primary mt-1"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate">{p.nome}</span>
+                        <span className="text-muted-foreground block truncate text-xs">
+                          saiu do quadro ou tem outro cadastro com o mesmo CPF
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {vinculaveis.length === 0 ? (
             <p className="text-muted-foreground text-sm">
