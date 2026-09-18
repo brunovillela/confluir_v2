@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
-import { Check, Loader2, Plus, Save, Trash2 } from "lucide-react"
+import { useActionState, useState } from "react"
+import { Archive, ArchiveRestore, Check, Loader2, Plus, Save } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,11 @@ import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import type { Departamento, PessoaDepartamento } from "@/lib/db/departamentos"
 
-import { excluirDepartamentoAction, salvarDepartamentoAction } from "./actions"
+import {
+  reativarDepartamentoAction,
+  salvarDepartamentoAction,
+  tornarLegadoAction,
+} from "./actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,8 +29,9 @@ function Sucesso({ estado }: { estado: EstadoForm }) {
 }
 
 /**
- * Cadastro/edição de um departamento: nome, coordenador e as pessoas
- * vinculadas (funcionários e diretores com conta). Sem `departamento`, cria.
+ * Cadastro/edição de um departamento: nome, pessoas vinculadas (funcionários e
+ * diretores com conta) e o coordenador, escolhido ENTRE as pessoas marcadas.
+ * Sem `departamento`, cria. Departamento não se exclui: vira legado.
  */
 export function DepartamentoForm({
   departamento,
@@ -39,12 +44,41 @@ export function DepartamentoForm({
     salvarDepartamentoAction,
     {}
   )
-  const [estadoExcluir, acaoExcluir, pendenteExcluir] = useActionState(
-    excluirDepartamentoAction,
+  const [estadoLegado, acaoLegado, pendenteLegado] = useActionState(
+    tornarLegadoAction,
     {}
   )
-  const vinculados = new Set(departamento?.integrantes.map((i) => i.usuarioId) ?? [])
+  // O coordenador atual que ainda não está entre as pessoas (dado antigo) já
+  // entra marcado: ao salvar, ele passa a ser uma das pessoas vinculadas.
+  const coordenadorFora = Boolean(
+    departamento?.coordenadorId &&
+      !departamento.integrantes.some((i) => i.usuarioId === departamento.coordenadorId)
+  )
+  const [marcados, setMarcados] = useState<Set<string>>(
+    () =>
+      new Set([
+        ...(departamento?.integrantes.map((i) => i.usuarioId) ?? []),
+        ...(coordenadorFora && departamento?.coordenadorId ? [departamento.coordenadorId] : []),
+      ])
+  )
+  const [coordenador, setCoordenador] = useState(departamento?.coordenadorId ?? "")
+  const alternar = (id: string, marcado: boolean) => {
+    setMarcados((atual) => {
+      const novo = new Set(atual)
+      if (marcado) novo.add(id)
+      else novo.delete(id)
+      return novo
+    })
+    if (!marcado && id === coordenador) setCoordenador("")
+  }
   const vinculaveis = pessoas.filter((p) => p.usuarioId)
+  // O coordenador atual pode não estar entre as pessoas vinculáveis (ex.: saiu do quadro).
+  const extra =
+    departamento?.coordenadorId && !vinculaveis.some((p) => p.usuarioId === departamento.coordenadorId)
+      ? [{ usuarioId: departamento.coordenadorId, nome: departamento.coordenadorNome ?? "(coordenador atual)" }]
+      : []
+  const opcoesCoordenador = [...vinculaveis, ...extra].filter((p) => marcados.has(p.usuarioId ?? ""))
+  const semPessoas = (departamento?.integrantes.length ?? 0) === 0 && !departamento?.coordenadorId
   const semConta = pessoas.filter((p) => !p.usuarioId)
   const funcionarios = vinculaveis.filter((p) => p.origem === "funcionario")
   const diretores = vinculaveis.filter((p) => p.origem === "diretor")
@@ -62,7 +96,8 @@ export function DepartamentoForm({
                   type="checkbox"
                   name="integrantes"
                   value={p.usuarioId ?? ""}
-                  defaultChecked={vinculados.has(p.usuarioId ?? "")}
+                  checked={marcados.has(p.usuarioId ?? "")}
+                  onChange={(e) => alternar(p.usuarioId ?? "", e.target.checked)}
                   className="accent-primary mt-1"
                 />
                 <span className="min-w-0">
@@ -103,26 +138,50 @@ export function DepartamentoForm({
               id={`${prefixo}-coordenador`}
               name="coordenador_id"
               className={SELECT}
-              defaultValue={departamento?.coordenadorId ?? ""}
+              value={coordenador}
+              onChange={(e) => setCoordenador(e.target.value)}
             >
               <option value="">Sem coordenador</option>
-              {departamento?.coordenadorId &&
-                !vinculaveis.some((p) => p.usuarioId === departamento.coordenadorId) && (
-                  <option value={departamento.coordenadorId}>
-                    {departamento.coordenadorNome ?? "(coordenador atual)"}
-                  </option>
-                )}
-              {vinculaveis.map((p) => (
+              {opcoesCoordenador.map((p) => (
                 <option key={p.usuarioId} value={p.usuarioId ?? ""}>
                   {p.nome}
                 </option>
               ))}
             </select>
+            <span className="text-muted-foreground text-xs">
+              {opcoesCoordenador.length === 0
+                ? "Marque as pessoas do departamento abaixo; o coordenador é uma delas."
+                : "Escolhido entre as pessoas marcadas abaixo."}
+            </span>
           </div>
         </div>
 
         <div className="grid gap-3">
           <p className="text-sm font-medium">Pessoas do departamento</p>
+          {coordenadorFora && (
+            <p className="text-warning-fg text-xs">
+              {departamento?.coordenadorNome ?? "O coordenador"} coordena o departamento mas
+              não estava entre as pessoas — já vem marcado; salve para confirmar.
+            </p>
+          )}
+          {extra.length > 0 && (
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="integrantes"
+                value={extra[0].usuarioId}
+                checked={marcados.has(extra[0].usuarioId)}
+                onChange={(e) => alternar(extra[0].usuarioId, e.target.checked)}
+                className="accent-primary mt-1"
+              />
+              <span>
+                {extra[0].nome}
+                <span className="text-muted-foreground block text-xs">
+                  coordenador atual, fora do quadro de funcionários e da diretoria vigente
+                </span>
+              </span>
+            </label>
+          )}
           {vinculaveis.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               Nenhum funcionário ativo ou diretor com conta de usuário para vincular.
@@ -153,35 +212,53 @@ export function DepartamentoForm({
 
       {departamento && (
         <form
-          action={acaoExcluir}
+          action={acaoLegado}
           onSubmit={(e) => {
-            if (!confirm(`Excluir o departamento “${departamento.nome}”?`)) e.preventDefault()
+            if (
+              !confirm(
+                `Tornar “${departamento.nome}” legado? Ele sai das listas de escolha e continua nos registros antigos. Dá para reativar depois.`
+              )
+            )
+              e.preventDefault()
           }}
-          className="flex flex-wrap items-center gap-3 border-t pt-3"
+          className="grid gap-1.5 border-t pt-3"
         >
           <input type="hidden" name="departamento_id" value={departamento.id} />
-          <Button
-            type="submit"
-            size="sm"
-            variant="ghost"
-            className="text-destructive"
-            disabled={pendenteExcluir || departamento.usoEmCompras + departamento.usoEmDemandas > 0}
-          >
-            {pendenteExcluir ? <Loader2 className="animate-spin" /> : <Trash2 />}
-            Excluir departamento
-          </Button>
-          {departamento.usoEmCompras + departamento.usoEmDemandas > 0 && (
-            <span className="text-muted-foreground text-xs">
-              Em uso em {departamento.usoEmCompras > 0 ? `Compras (${departamento.usoEmCompras})` : ""}
-              {departamento.usoEmCompras > 0 && departamento.usoEmDemandas > 0 ? " e " : ""}
-              {departamento.usoEmDemandas > 0 ? `Demandas (${departamento.usoEmDemandas})` : ""} — não pode ser excluído.
-            </span>
-          )}
-          {estadoExcluir.erro && (
-            <span className="text-destructive text-xs">{estadoExcluir.erro}</span>
-          )}
+          <div>
+            <Button
+              type="submit"
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={pendenteLegado || !semPessoas}
+            >
+              {pendenteLegado ? <Loader2 className="animate-spin" /> : <Archive />}
+              Excluir (tornar legado)
+            </Button>
+          </div>
+          <span className="text-muted-foreground text-xs">
+            {semPessoas
+              ? "O departamento não é apagado: compras, ofícios e contas continuam apontando para ele. Ele sai das listas de escolha e pode ser reativado."
+              : "Para excluir, primeiro desmarque todas as pessoas, deixe sem coordenador e salve. Depois ele vira legado — não é apagado, porque compras e ofícios apontam para ele."}
+          </span>
+          {estadoLegado.erro && <span className="text-destructive text-xs">{estadoLegado.erro}</span>}
         </form>
       )}
     </div>
+  )
+}
+
+/** Departamento legado: volta às listas de escolha. */
+export function ReativarDepartamento({ departamentoId }: { departamentoId: string }) {
+  const [estado, acao, pendente] = useActionState(reativarDepartamentoAction, {})
+  return (
+    <form action={acao} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="departamento_id" value={departamentoId} />
+      <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <ArchiveRestore />}
+        Reativar
+      </Button>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+    </form>
   )
 }

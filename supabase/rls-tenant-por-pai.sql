@@ -49,7 +49,8 @@ declare
     {"t":"juridico_processos_filiados","fk":[["processo_id","juridico_processos",false]]},
     {"t":"oficios_filiados","fk":[["oficio_id","oficios",false]]},
     {"t":"saude_atendimentos_acessos","fk":[["atendimento_id","saude_atendimentos",false]]},
-    {"t":"saude_atendimentos_relatorio","fk":[["atendimento_id","saude_atendimentos",false]]}
+    {"t":"saude_atendimentos_relatorio","fk":[["atendimento_id","saude_atendimentos",false]]},
+    {"t":"empresa_departamentos_integrantes","fk":[["departamento_id","empresa_departamentos",false]]}
   ]$json$::jsonb;
   ent jsonb;
   fk jsonb;

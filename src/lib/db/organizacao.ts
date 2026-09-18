@@ -187,6 +187,14 @@ export type Sede = {
   telefones: string | null
 }
 
+/** "Rua X, 120 — Macaé/RJ" (null sem endereço). */
+export function enderecoDaSede(sede: Sede): string | null {
+  if (!sede.logradouro && !sede.cidade) return null
+  const rua = [sede.logradouro, sede.numero].filter(Boolean).join(", ")
+  const cidade = [sede.cidade, sede.estado].filter(Boolean).join("/")
+  return [rua, cidade].filter(Boolean).join(" — ")
+}
+
 const COLS_SEDE =
   "id, nome, cep, logradouro, numero, complemento, bairro, cidade, estado, telefones"
 

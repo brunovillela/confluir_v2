@@ -232,6 +232,7 @@ export const TABELAS_TENANT_POR_PAI: ReadonlySet<string> = new Set([
   "oficios_filiados",
   "saude_atendimentos_acessos",
   "saude_atendimentos_relatorio",
+  "empresa_departamentos_integrantes",
 ])
 
 /** Escreve pelo cliente do tenant (RLS gateia) em vez do service role. */

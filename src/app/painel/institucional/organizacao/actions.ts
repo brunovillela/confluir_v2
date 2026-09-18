@@ -1,12 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import {
   atualizarDepartamento,
   criarDepartamento,
-  excluirDepartamento,
+  reativarDepartamento,
+  tornarLegado,
 } from "@/lib/db/departamentos"
 import { type EstadoForm } from "@/lib/contas"
 import {
@@ -46,7 +48,7 @@ export async function salvarOrganizacaoAction(
     if (res.erro) return { erro: res.erro }
   }
 
-  revalidatePath("/painel/institucional/organizacao")
+  revalidatePath("/painel/institucional/organizacao", "layout")
   return { ok: "Organização salva." }
 }
 
@@ -71,25 +73,44 @@ export async function salvarDepartamentoAction(
     coordenadorId: UUID.test(coordenador) ? coordenador : null,
     integrantes,
   }
-  const { erro } = id
-    ? await atualizarDepartamento(id, dados)
-    : await criarDepartamento(dados)
-  if (erro) return { erro }
-  revalidatePath("/painel/institucional/organizacao")
-  return { ok: id ? "Departamento salvo." : "Departamento criado." }
+  if (id) {
+    const { erro } = await atualizarDepartamento(id, dados)
+    if (erro) return { erro }
+    revalidatePath("/painel/institucional/organizacao", "layout")
+    return { ok: "Departamento salvo." }
+  }
+  const { id: novoId, erro } = await criarDepartamento(dados)
+  if (erro || !novoId) return { erro: erro ?? "Não foi possível criar o departamento." }
+  revalidatePath("/painel/institucional/organizacao", "layout")
+  // Criado: abre a página do departamento.
+  redirect(`/painel/institucional/organizacao/departamentos/${novoId}`)
 }
 
-export async function excluirDepartamentoAction(
+/** Desativa o departamento (legado): só sem pessoas e sem coordenador. */
+export async function tornarLegadoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
   await requirePermissao("configuracoes")
   const id = texto(formData, "departamento_id")
   if (!UUID.test(id)) return { erro: "Departamento inválido." }
-  const { erro } = await excluirDepartamento(id)
+  const { erro } = await tornarLegado(id)
   if (erro) return { erro }
-  revalidatePath("/painel/institucional/organizacao")
-  return { ok: "Departamento excluído." }
+  revalidatePath("/painel/institucional/organizacao", "layout")
+  return { ok: "Departamento tornado legado." }
+}
+
+export async function reativarDepartamentoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("configuracoes")
+  const id = texto(formData, "departamento_id")
+  if (!UUID.test(id)) return { erro: "Departamento inválido." }
+  const { erro } = await reativarDepartamento(id)
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/organizacao", "layout")
+  return { ok: "Departamento reativado." }
 }
 
 export async function salvarSedeAction(
@@ -112,6 +133,6 @@ export async function salvarSedeAction(
   })
   if (erro) return { erro }
 
-  revalidatePath("/painel/institucional/organizacao")
+  revalidatePath("/painel/institucional/organizacao", "layout")
   return { ok: "Sede salva." }
 }

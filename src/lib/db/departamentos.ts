@@ -1,7 +1,7 @@
 import "server-only"
 import { cpfConfiavel } from "@/lib/cpf"
 
-import { nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarMandatos } from "@/lib/db/diretoria"
 import { listarFuncionarios } from "@/lib/db/pessoal"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -19,7 +19,12 @@ import { tenantAtual } from "@/lib/tenant"
  * lista como indisponível.
  *
  * Quem lê os departamentos: Compras (departamento da solicitação e alçada
- * por departamento), Demandas e o quadro de pessoas atribuíveis (coordenadores).
+ * por departamento), Demandas, Ofícios (quem vê cada ofício) e o quadro de
+ * pessoas atribuíveis (coordenadores).
+ *
+ * O coordenador é uma das pessoas vinculadas. Departamento não se apaga: vira
+ * LEGADO (supabase/departamentos-ajustes.sql) depois de retiradas as pessoas —
+ * compras, ofícios e contas continuam apontando para ele.
  */
 
 export type IntegranteDepartamento = { usuarioId: string; nome: string }
@@ -30,21 +35,27 @@ export type Departamento = {
   coordenadorId: string | null
   coordenadorNome: string | null
   integrantes: IntegranteDepartamento[]
-  /** Referências que impedem a exclusão. */
+  /** Referências (informativo: o departamento vira legado, não é apagado). */
   usoEmCompras: number
   usoEmDemandas: number
+  /** Desativado: fora das listas de escolha, mantido nos registros antigos. */
+  legado: boolean
 }
 
 export async function listarDepartamentosCompletos(): Promise<Departamento[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data, error } = await admin
-    .from("empresa_departamentos")
-    .select("id, departamento, coordenador_id")
-    .eq("emp_proprietaria_id", emp)
-    .order("departamento", { ascending: true })
+  const consulta = (colunas: string) =>
+    admin
+      .from("empresa_departamentos")
+      .select(colunas)
+      .eq("emp_proprietaria_id", emp)
+      .order("departamento", { ascending: true })
+  let { data, error } = await consulta("id, departamento, coordenador_id, legado")
+  // Sem supabase/departamentos-ajustes.sql: nenhum é legado.
+  if (error && esquemaAusente(error)) ({ data, error } = await consulta("id, departamento, coordenador_id"))
   if (error) throw new Error(`Falha ao listar departamentos: ${error.message}`)
-  const linhas = (data ?? []) as Record<string, unknown>[]
+  const linhas = (data ?? []) as unknown as Record<string, unknown>[]
   const ids = linhas.map((d) => String(d.id))
   if (ids.length === 0) return []
 
@@ -97,6 +108,7 @@ export async function listarDepartamentosCompletos(): Promise<Departamento[]> {
         .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
       usoEmCompras: emCompras.get(id) ?? 0,
       usoEmDemandas: emDemandas.get(id) ?? 0,
+      legado: d.legado === true,
     }
   })
 }
@@ -185,9 +197,19 @@ export type DadosDepartamento = {
   integrantes: string[]
 }
 
+/** O coordenador é uma das pessoas vinculadas ao departamento. */
+function erroCoordenador(dados: DadosDepartamento): string | null {
+  if (dados.coordenadorId && !dados.integrantes.includes(dados.coordenadorId)) {
+    return "O coordenador precisa ser uma das pessoas vinculadas ao departamento — marque-o na lista."
+  }
+  return null
+}
+
 export async function criarDepartamento(
   dados: DadosDepartamento
 ): Promise<{ id?: string; erro?: string }> {
+  const erroCoord = erroCoordenador(dados)
+  if (erroCoord) return { erro: erroCoord }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { data, error } = await admin
@@ -212,6 +234,8 @@ export async function atualizarDepartamento(
   id: string,
   dados: DadosDepartamento
 ): Promise<{ erro?: string }> {
+  const erro = erroCoordenador(dados)
+  if (erro) return { erro }
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("empresa_departamentos")
@@ -248,31 +272,90 @@ async function definirIntegrantes(
   return {}
 }
 
-/** Exclui só departamento sem uso em Compras e Demandas; integrantes vão junto. */
-export async function excluirDepartamento(id: string): Promise<{ erro?: string }> {
+/**
+ * Desativa o departamento (legado) em vez de apagar: compras, ofícios e contas
+ * continuam apontando para ele. Só depois de retiradas as pessoas e o
+ * coordenador — ninguém fica ligado a um departamento que não existe mais.
+ */
+export async function tornarLegado(id: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [compras, demandas] = await Promise.all([
+  const [{ data: dep }, { count }] = await Promise.all([
     admin
-      .from("permissoes_compras_depto")
-      .select("departamento_id", { count: "exact", head: true })
-      .eq("departamento_id", id),
+      .from("empresa_departamentos")
+      .select("id, coordenador_id")
+      .eq("id", id)
+      .eq("emp_proprietaria_id", emp)
+      .maybeSingle(),
     admin
-      .from("demandas_departamentos")
-      .select("departamento_id", { count: "exact", head: true })
+      .from("empresa_departamentos_integrantes")
+      .select("usuario_id", { count: "exact", head: true })
       .eq("departamento_id", id),
   ])
-  if ((compras.count ?? 0) > 0 || (demandas.count ?? 0) > 0) {
+  if (!dep) return { erro: "Departamento não encontrado." }
+  if ((count ?? 0) > 0 || dep.coordenador_id) {
     return {
-      erro: "Este departamento é usado em Compras ou Demandas — desvincule antes de excluir.",
+      erro: "Antes de tornar legado, retire as pessoas vinculadas e o coordenador e salve o departamento.",
     }
   }
-  await admin.from("empresa_departamentos_integrantes").delete().eq("departamento_id", id)
   const { error } = await admin
     .from("empresa_departamentos")
-    .delete()
+    .update({ legado: true, legado_em: new Date().toISOString() })
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
-  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  if (error) {
+    return {
+      erro: esquemaAusente(error)
+        ? "Rode supabase/departamentos-ajustes.sql no Supabase para tornar departamentos legados."
+        : `Não foi possível tornar legado: ${error.message}`,
+    }
+  }
   return {}
+}
+
+export async function reativarDepartamento(id: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("empresa_departamentos")
+    .update({ legado: false, legado_em: null })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível reativar: ${error.message}` }
+  return {}
+}
+
+/**
+ * Departamentos (nomes) de várias pessoas de uma vez — integrante ou
+ * coordenador; legados ficam de fora. Para a linha do membro do mandato.
+ */
+export async function departamentosPorUsuario(usuarioIds: string[]): Promise<Map<string, string[]>> {
+  const mapa = new Map<string, string[]>()
+  const unicos = [...new Set(usuarioIds.filter(Boolean))]
+  if (unicos.length === 0) return mapa
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const comLegado = await admin
+    .from("empresa_departamentos")
+    .select("id, departamento, coordenador_id, legado")
+    .eq("emp_proprietaria_id", emp)
+  const deps = ((comLegado.error
+    ? (await admin.from("empresa_departamentos").select("id, departamento, coordenador_id").eq("emp_proprietaria_id", emp)).data
+    : comLegado.data) ?? []) as Record<string, unknown>[]
+  const ativos = deps.filter((d) => d.legado !== true)
+  const nome = new Map(ativos.map((d) => [String(d.id), texto(d.departamento) ?? "(sem nome)"]))
+  const somar = (usuario: string, depId: string) => {
+    const n = nome.get(depId)
+    if (!n) return
+    const lista = mapa.get(usuario) ?? []
+    if (!lista.includes(n)) lista.push(n)
+    mapa.set(usuario, lista)
+  }
+  for (const d of ativos) if (d.coordenador_id && unicos.includes(String(d.coordenador_id))) somar(String(d.coordenador_id), String(d.id))
+  const { data: integ } = await admin
+    .from("empresa_departamentos_integrantes")
+    .select("departamento_id, usuario_id")
+    .in("usuario_id", unicos)
+  for (const i of integ ?? []) somar(String(i.usuario_id), String(i.departamento_id))
+  for (const lista of mapa.values()) lista.sort((a, b) => a.localeCompare(b, "pt-BR"))
+  return mapa
 }

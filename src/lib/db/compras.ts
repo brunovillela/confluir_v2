@@ -1522,13 +1522,20 @@ export async function listarFornecedores(
 
 export type OpcaoLookup = { id: string; nome: string }
 
+/** Departamentos para ESCOLHER — os legados (desativados) ficam de fora. */
 export async function listarDepartamentos(): Promise<OpcaoLookup[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("empresa_departamentos")
-    .select("id, departamento")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("departamento", { ascending: true })
+  const emp = await tenantAtual()
+  const consulta = (semLegados: boolean) => {
+    const q = admin
+      .from("empresa_departamentos")
+      .select("id, departamento")
+      .eq("emp_proprietaria_id", emp)
+    return (semLegados ? q.not("legado", "is", true) : q).order("departamento", { ascending: true })
+  }
+  let { data, error } = await consulta(true)
+  // Sem supabase/departamentos-ajustes.sql ainda não há legado.
+  if (error && esquemaAusente(error)) ({ data, error } = await consulta(false))
   if (error) throw new Error(`Falha ao listar departamentos: ${error.message}`)
   return (data ?? []).map((d) => ({
     id: String(d.id),
