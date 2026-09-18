@@ -24,7 +24,7 @@ function revalidar(id?: string, mandatoId?: string) {
   revalidatePath("/painel/institucional/atas")
   if (id) revalidatePath(`/painel/institucional/atas/${id}`)
   if (mandatoId) {
-    revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+    revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   }
 }
 

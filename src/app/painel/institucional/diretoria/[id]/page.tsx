@@ -1,36 +1,26 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Building, ExternalLink, Plus } from "lucide-react"
+import { ArrowLeft, Building, FileText, UserCheck } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
+import { listarAtas } from "@/lib/db/atas"
+import { departamentosPorUsuario } from "@/lib/db/departamentos"
 import {
   assentosDoMandato,
-  empregadoresPorIntegrante,
-  integrantesDoMandato,
-  listarInstancias,
   listarLiberacoes,
   obterMandato,
 } from "@/lib/db/diretoria"
-import { listarFontesPagadoras } from "@/lib/db/fontes"
-import { oficiosEmitidosParaVinculo } from "@/lib/db/oficios"
-import { listarAtas } from "@/lib/db/atas"
-import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
+import type { Integrante } from "@/lib/db/diretoria"
 import { formatarData } from "@/lib/formato"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
 import {
   AdicionarIntegrante,
@@ -38,19 +28,15 @@ import {
   MandatoForm,
   RemoverGrupo,
 } from "../diretoria-forms"
-import type { Integrante } from "@/lib/db/diretoria"
-import {
-  AdicionarAssento,
-  RemoverAssento,
-  RemoverLiberacao,
-} from "../diretoria-extra-forms"
-import { RegistrarLiberacoes } from "../liberacoes-forms"
-import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
-
 import { IntegranteLinha } from "./integrante-linha"
 
 export const metadata: Metadata = { title: "Mandato — Confluir" }
 
+/**
+ * O mandato: dados, atalhos para Instâncias, Liberações e Atas (páginas
+ * próprias, pedido do Bruno em 18/09) e os integrantes por grupo — cada linha
+ * com departamento, instâncias, liberação e situação (licenciado/excluído).
+ */
 export default async function MandatoPage({
   params,
 }: {
@@ -62,31 +48,18 @@ export default async function MandatoPage({
   const mandato = await obterMandato(id)
   if (!mandato) notFound()
 
-  const [
-    { disponivel, lote, liberacoes },
-    integrantesOpc,
-    empregadores,
-    atas,
-    assentos,
-    { disponivel: instanciasDisponiveis, instancias },
-    oficios,
-    fontes,
-  ] = await Promise.all([
+  const [{ liberacoes }, atas, assentos, departamentos] = await Promise.all([
     listarLiberacoes(id),
-    integrantesDoMandato(id),
-    empregadoresPorIntegrante(id),
     listarAtas({ mandatoId: id }),
     assentosDoMandato(id),
-    listarInstancias(),
-    oficiosEmitidosParaVinculo(),
-    listarFontesPagadoras(),
+    departamentosPorUsuario(
+      mandato.integrantes.map((i) => i.usuarioId).filter((u): u is string => Boolean(u))
+    ),
   ])
-  const empresas = fontes.map((f) => ({
-    id: f.id,
-    nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
-    cnpj_cpf: f.cnpj_cpf,
-    bloqueado: false,
-  }))
+  const hoje = new Date().toISOString().slice(0, 10)
+  const assentosVigentes = assentos.filter((a) => !a.mandatoFim || a.mandatoFim >= hoje).length
+  const liberacoesVigentes = liberacoes.filter((l) => l.vigente).length
+  const base = `/painel/institucional/diretoria/${mandato.id}`
 
   const periodo = `${mandato.dataInicio ? formatarData(mandato.dataInicio) : "?"} – ${mandato.dataTermino ? formatarData(mandato.dataTermino) : "?"}`
 
@@ -102,12 +75,6 @@ export default async function MandatoPage({
           <Link href="/painel/institucional/diretoria">
             <ArrowLeft />
             Diretoria
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/painel/institucional/diretoria/instancias">
-            <Building />
-            Instâncias
           </Link>
         </Button>
       </div>
@@ -147,12 +114,37 @@ export default async function MandatoPage({
         />
       </CartaoEditavel>
 
+      <div className={GRADE_AREAS}>
+        <CartaoArea
+          titulo="Instâncias"
+          descricao="Onde os diretores deste mandato representam a entidade"
+          href={`${base}/instancias`}
+          icone={Building}
+          indicador={`${assentosVigentes} ${assentosVigentes === 1 ? "vínculo vigente" : "vínculos vigentes"}`}
+        />
+        <CartaoArea
+          titulo="Liberações sindicais"
+          descricao="Saída e retorno de diretores e da base, com o ofício"
+          href={`${base}/liberacoes`}
+          icone={UserCheck}
+          indicador={`${liberacoesVigentes} ${liberacoesVigentes === 1 ? "vigente" : "vigentes"} · ${liberacoes.length} no total`}
+        />
+        <CartaoArea
+          titulo="Atas de reunião"
+          descricao="Reuniões deste mandato, com a ata em PDF"
+          href={`${base}/atas`}
+          icone={FileText}
+          indicador={`${atas.length} ${atas.length === 1 ? "ata" : "atas"}`}
+        />
+      </div>
+
       {/* Integrantes por grupo */}
       <div>
         <h2 className="text-lg font-semibold">Integrantes</h2>
         <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-          Organizados por grupo (Diretoria Executiva, Colegiada, Conselho
-          Fiscal…). Cada diretor é vinculado à pessoa pelo CPF, cruzando com{" "}
+          Por grupo (Diretoria Executiva, Colegiada, Conselho Fiscal…). Cada linha
+          mostra o departamento da pessoa, as instâncias, se está liberada e se está
+          licenciada ou excluída. O vínculo com a pessoa é pelo CPF, cruzando com{" "}
           <strong>Filiado</strong>, <strong>Usuário</strong> e{" "}
           <strong>Acesso</strong> ao painel.
         </p>
@@ -230,257 +222,12 @@ export default async function MandatoPage({
                     membros={g.membros}
                     mandatoId={mandato.id}
                     grupos={mandato.grupos}
+                    departamentos={departamentos}
                   />
                 ))
             )}
           </div>
         )}
-      </div>
-
-      {/* Instâncias: vínculos dos diretores deste mandato */}
-      <div>
-        <h2 className="text-lg font-semibold">Instâncias</h2>
-        <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-          Em que instâncias cada diretor deste mandato representa a entidade. As instâncias são
-          cadastradas em{" "}
-          <Link href="/painel/institucional/diretoria/instancias" className="text-primary hover:underline">
-            Diretoria › Instâncias
-          </Link>
-          .
-        </p>
-        {instanciasDisponiveis ? (
-          <div className="grid gap-4">
-            <GrupoColapsavel titulo="Vincular diretor a uma instância">
-              <AdicionarAssento mandatoId={mandato.id} instancias={instancias} integrantes={integrantesOpc} />
-            </GrupoColapsavel>
-            <Card>
-              <CardContent>
-                {assentos.length === 0 ? (
-                  <p className="text-muted-foreground py-6 text-center text-sm">
-                    Nenhum diretor deste mandato vinculado a instâncias.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Instância</TableHead>
-                        <TableHead>Diretor</TableHead>
-                        <TableHead>Cargo</TableHead>
-                        <TableHead>Período</TableHead>
-                        <TableHead>Documento</TableHead>
-                        <TableHead className="w-10" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {assentos.map((a) => (
-                        <TableRow key={a.id}>
-                          <TableCell>
-                            <Link
-                              href={`/painel/institucional/diretoria/instancias/${a.instanciaId}`}
-                              className="text-primary font-medium hover:underline"
-                            >
-                              {a.instanciaNome ?? "—"}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-sm">{a.integranteNome ?? "—"}</TableCell>
-                          <TableCell className="text-sm">{a.cargo ?? "—"}</TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {a.mandatoInicio ? formatarData(a.mandatoInicio) : "?"}
-                            {" – "}
-                            {a.mandatoFim ? formatarData(a.mandatoFim) : "?"}
-                          </TableCell>
-                          <TableCell>
-                            {a.documentoUrl ? (
-                              <a
-                                href={a.documentoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
-                              >
-                                <ExternalLink className="size-3.5" />
-                                abrir
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-1">
-                            <RemoverAssento assentoId={a.id} instanciaId={a.instanciaId} mandatoId={mandato.id} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <Alert variant="warning">
-            <AlertDescription>
-              As instâncias usam tabelas novas — rode <code>supabase/diretoria-liberacoes-instancias.sql</code> no Supabase.
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* Liberações sindicais */}
-      <div>
-        <h2 className="text-lg font-semibold">Liberações sindicais</h2>
-        <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-          Empregadores que liberam diretores — e trabalhadores da base — para a atividade
-          sindical, com saída, retorno e o ofício ou documento que oficializou
-        </p>
-
-        {!disponivel && (
-          <Alert variant="warning">
-            <AlertDescription>
-              As liberações usam tabelas novas — rode{" "}
-              <code>supabase/diretoria-liberacoes-instancias.sql</code> no Supabase.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {disponivel && (
-          <div className="grid gap-4">
-            <GrupoColapsavel titulo="Registrar liberação">
-              <RegistrarLiberacoes
-                mandatoId={mandato.id}
-                integrantes={integrantesOpc}
-                empregadoresPorIntegrante={empregadores}
-                oficios={oficios}
-                empresas={empresas}
-                loteDisponivel={lote}
-              />
-            </GrupoColapsavel>
-
-            <Card>
-              <CardContent>
-                {liberacoes.length === 0 ? (
-                  <p className="text-muted-foreground py-6 text-center text-sm">
-                    Nenhuma liberação registrada.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Pessoa</TableHead>
-                        <TableHead>Empregador</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Vigência</TableHead>
-                        <TableHead>Documento</TableHead>
-                        <TableHead className="w-10" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {liberacoes.map((l) => (
-                        <TableRow key={l.id}>
-                          <TableCell className="font-medium">
-                            <span className="flex items-center gap-2">
-                              {l.pessoaNome ?? "—"}
-                              {!l.ehDiretor && (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                  base
-                                </Badge>
-                              )}
-                              {l.vigente && (
-                                <Badge variant="outline" className="border-success/40 text-success-fg">
-                                  vigente
-                                </Badge>
-                              )}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm">{l.empresaNome ?? "—"}</TableCell>
-                          <TableCell className="text-sm capitalize">
-                            {l.tipo ?? "—"}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {l.inicio ? formatarData(l.inicio) : "?"}
-                            {" – "}
-                            {l.fim ? formatarData(l.fim) : "permanente"}
-                          </TableCell>
-                          <TableCell>
-                            {l.oficioId ? (
-                              <Link
-                                href={`/painel/ferramentas/oficios/${l.oficioId}`}
-                                className="text-primary line-clamp-1 max-w-56 text-sm hover:underline"
-                                title={l.oficioRotulo ?? undefined}
-                              >
-                                {l.oficioRotulo}
-                              </Link>
-                            ) : l.documentoUrl ? (
-                              <a
-                                href={l.documentoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary inline-flex items-center gap-1 text-sm hover:underline"
-                              >
-                                <ExternalLink className="size-3.5" />
-                                abrir
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-1">
-                            <RemoverLiberacao liberacaoId={l.id} mandatoId={mandato.id} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-
-      {/* Atas de reunião (deste mandato) */}
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold">Atas de reunião</h2>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              Reuniões deste mandato, com a ata em PDF
-            </p>
-          </div>
-          <Button size="sm" asChild>
-            <Link href={`/painel/institucional/atas/novo?mandato=${mandato.id}`}>
-              <Plus />
-              Nova ata
-            </Link>
-          </Button>
-        </div>
-        <Card className="mt-3">
-          <CardContent>
-            {atas.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                Nenhuma ata registrada neste mandato.
-              </p>
-            ) : (
-              <ul className="grid gap-2">
-                {atas.map((a) => (
-                  <li
-                    key={a.id}
-                    className="border-b pb-2 last:border-b-0 last:pb-0"
-                  >
-                    <Link
-                      href={`/painel/institucional/atas/${a.id}`}
-                      className="text-primary line-clamp-1 font-medium hover:underline"
-                    >
-                      {a.titulo ?? "(sem título)"}
-                    </Link>
-                    <p className="text-muted-foreground text-xs">
-                      {a.data ? formatarData(a.data) : "sem data"} ·{" "}
-                      {ROTULO_TIPO_REUNIAO[a.tipo]}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </>
   )
@@ -491,19 +238,23 @@ function GrupoMembros({
   membros,
   mandatoId,
   grupos,
+  departamentos,
 }: {
   titulo: string
   membros: Integrante[]
   mandatoId: string
   grupos: { id: string; nome: string }[]
+  departamentos: Map<string, string[]>
 }) {
+  const afastados = membros.filter((m) => m.situacao !== "exercicio").length
   return (
     <Card>
       <CardContent>
         <p className="mb-1 text-sm font-semibold">
           {titulo}{" "}
           <span className="text-muted-foreground font-normal">
-            ({membros.length})
+            ({membros.length}
+            {afastados ? ` · ${afastados} licenciado(s) ou excluído(s)` : ""})
           </span>
         </p>
         <div>
@@ -513,6 +264,7 @@ function GrupoMembros({
               integrante={i}
               mandatoId={mandatoId}
               grupos={grupos}
+              departamentos={i.usuarioId ? (departamentos.get(i.usuarioId) ?? []) : []}
             />
           ))}
         </div>

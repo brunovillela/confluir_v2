@@ -74,7 +74,7 @@ export async function atualizarMandatoAction(
 
   const { erro } = await atualizarMandato(id, dados)
   if (erro) return { erro }
-  revalidatePath(`/painel/institucional/diretoria/${id}`)
+  revalidatePath(`/painel/institucional/diretoria/${id}`, "layout")
   revalidatePath("/painel/institucional/diretoria")
   return { ok: "Mandato salvo." }
 }
@@ -100,7 +100,7 @@ export async function adicionarIntegranteAction(
     filiacao_id: filiacaoId || null,
   })
   if (erro) return { erro }
-  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Integrante adicionado." }
 }
 
@@ -117,7 +117,7 @@ export async function criarGrupoAction(
   if (!nome) return { erro: "Informe o nome do grupo." }
   const { erro } = await criarGrupo(mandatoId, nome, inteiro(texto(formData, "ordem")))
   if (erro) return { erro }
-  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Grupo criado." }
 }
 
@@ -131,7 +131,7 @@ export async function removerGrupoAction(
   if (!id) return { erro: "Grupo inválido." }
   const { erro } = await removerGrupo(id)
   if (erro) return { erro }
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Grupo removido." }
 }
 
@@ -154,9 +154,20 @@ export async function atualizarIntegranteAction(
     pode_assinar: texto(formData, "pode_assinar") === "1",
     grupo_id: texto(formData, "grupo_id") || null,
     filiacao_id: filiacaoId || null,
+    ...(formData.has("situacao")
+      ? {
+          situacao: (["exercicio", "licenciado", "excluido"].includes(texto(formData, "situacao"))
+            ? texto(formData, "situacao")
+            : "exercicio") as "exercicio" | "licenciado" | "excluido",
+          situacao_desde: /^\d{4}-\d{2}-\d{2}$/.test(texto(formData, "situacao_desde"))
+            ? texto(formData, "situacao_desde")
+            : null,
+          situacao_motivo: texto(formData, "situacao_motivo") || null,
+        }
+      : {}),
   })
   if (erro) return { erro }
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Integrante salvo." }
 }
 
@@ -171,7 +182,7 @@ export async function removerIntegranteAction(
 
   const { erro } = await removerIntegrante(id)
   if (erro) return { erro }
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Integrante removido." }
 }
 
@@ -200,7 +211,7 @@ export async function adicionarLiberacaoAction(
     documento instanceof File ? documento : undefined
   )
   if (erro) return { erro }
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Liberação registrada." }
 }
 
@@ -236,7 +247,7 @@ export async function adicionarLiberacoesLoteAction(
     membros,
   })
   if (erro) return { erro }
-  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   revalidatePath(`/painel/ferramentas/oficios/${oficioId}`)
   return { ok: `${criadas} liberaç${criadas === 1 ? "ão registrada" : "ões registradas"}.` }
 }
@@ -251,7 +262,7 @@ export async function removerLiberacaoAction(
   if (!id) return { erro: "Liberação inválida." }
   const { erro } = await removerLiberacao(id)
   if (erro) return { erro }
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Liberação removida." }
 }
 
@@ -315,7 +326,7 @@ export async function adicionarAssentoAction(
   )
   if (erro) return { erro }
   revalidatePath(`/painel/institucional/diretoria/instancias/${instanciaId}`)
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Vínculo à instância registrado." }
 }
 
@@ -332,6 +343,6 @@ export async function removerAssentoAction(
   if (erro) return { erro }
   if (instanciaId)
     revalidatePath(`/painel/institucional/diretoria/instancias/${instanciaId}`)
-  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`)
+  if (mandatoId) revalidatePath(`/painel/institucional/diretoria/${mandatoId}`, "layout")
   return { ok: "Assento removido." }
 }

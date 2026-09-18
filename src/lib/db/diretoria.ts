@@ -102,6 +102,18 @@ export type Integrante = {
   temAcesso: boolean
   /** Instâncias em que tem assento vigente (nome). */
   instancias: string[]
+  /** Conta de usuário (gravada ou achada pelo CPF) — liga aos departamentos. */
+  usuarioId: string | null
+  /** Em exercício, licenciado ou excluído (supabase/diretoria-situacao.sql). */
+  situacao: SituacaoIntegrante
+  situacaoDesde: string | null
+  situacaoMotivo: string | null
+}
+
+export type SituacaoIntegrante = "exercicio" | "licenciado" | "excluido"
+
+function situacaoDe(v: unknown): SituacaoIntegrante {
+  return v === "licenciado" || v === "excluido" ? v : "exercicio"
 }
 
 export type Grupo = { id: string; nome: string; ordem: number }
@@ -135,12 +147,18 @@ export async function obterMandato(id: string): Promise<DetalheMandato | null> {
   let ints: Record<string, unknown>[] = []
   let erroBasico = false
   {
-    const r = await admin
-      .from("diretoria_integrantes")
-      .select("id, nome, cargo, ordem, pode_assinar, grupo_id, cpf, filiacao_id")
-      .eq("mandato_id", id)
-      .order("ordem", { ascending: true })
-      .order("nome", { ascending: true })
+    const ler = (colunas: string) =>
+      admin
+        .from("diretoria_integrantes")
+        .select(colunas)
+        .eq("mandato_id", id)
+        .order("ordem", { ascending: true })
+        .order("nome", { ascending: true })
+    let r = await ler(
+      "id, nome, cargo, ordem, pode_assinar, grupo_id, cpf, filiacao_id, usuario_id, situacao, situacao_desde, situacao_motivo"
+    )
+    // Sem supabase/diretoria-situacao.sql: todos em exercício.
+    if (r.error) r = await ler("id, nome, cargo, ordem, pode_assinar, grupo_id, cpf, filiacao_id, usuario_id")
     if (r.error) {
       comGrupos = false
       const r2 = await admin
@@ -151,7 +169,7 @@ export async function obterMandato(id: string): Promise<DetalheMandato | null> {
       erroBasico = !!r2.error
       ints = (r2.data ?? []) as Record<string, unknown>[]
     } else {
-      ints = (r.data ?? []) as Record<string, unknown>[]
+      ints = (r.data ?? []) as unknown as Record<string, unknown>[]
     }
   }
 
@@ -192,6 +210,10 @@ export async function obterMandato(id: string): Promise<DetalheMandato | null> {
         temUsuario: c?.temUsuario ?? false,
         temAcesso: c?.temAcesso ?? false,
         instancias: instancias.get(i.id as string) ?? [],
+        usuarioId: texto(i.usuario_id) ?? c?.usuarioId ?? null,
+        situacao: situacaoDe(i.situacao),
+        situacaoDesde: texto(i.situacao_desde),
+        situacaoMotivo: texto(i.situacao_motivo),
       }
     }),
   }
@@ -234,10 +256,10 @@ async function instanciasVigentesPorIntegrante(ids: string[]): Promise<Map<strin
  */
 async function cruzarPessoas(
   cpfs: string[]
-): Promise<Map<string, { filiado: boolean; temUsuario: boolean; temAcesso: boolean }>> {
+): Promise<Map<string, { filiado: boolean; temUsuario: boolean; temAcesso: boolean; usuarioId: string | null }>> {
   const mapa = new Map<
     string,
-    { filiado: boolean; temUsuario: boolean; temAcesso: boolean }
+    { filiado: boolean; temUsuario: boolean; temAcesso: boolean; usuarioId: string | null }
   >()
   const unicos = [...new Set(cpfs.map((c) => cpfConfiavel(c)).filter((c): c is string => Boolean(c)))]
   if (unicos.length === 0) return mapa
@@ -261,7 +283,7 @@ async function cruzarPessoas(
     for (const p of perms ?? []) if (p.usuario_id) permissoesPorUsuario.add(p.usuario_id as string)
   }
 
-  for (const cpf of unicos) mapa.set(cpf, { filiado: false, temUsuario: false, temAcesso: false })
+  for (const cpf of unicos) mapa.set(cpf, { filiado: false, temUsuario: false, temAcesso: false, usuarioId: null })
   for (const f of fis ?? []) {
     const e = mapa.get(f.cpf as string)
     if (e) e.filiado = true
@@ -270,6 +292,7 @@ async function cruzarPessoas(
     const e = mapa.get(u.cpf as string)
     if (!e) continue
     e.temUsuario = true
+    e.usuarioId ??= String(u.id)
     if (u.auth_user_id && permissoesPorUsuario.has(u.id as string)) e.temAcesso = true
   }
   return mapa
@@ -449,6 +472,9 @@ export type EdicaoIntegrante = {
   grupo_id: string | null
   /** Se enviado, RELIGA a pessoa: rederiva CPF/nome e o vínculo com usuário. */
   filiacao_id?: string | null
+  situacao?: SituacaoIntegrante
+  situacao_desde?: string | null
+  situacao_motivo?: string | null
 }
 
 export async function atualizarIntegrante(
@@ -462,6 +488,11 @@ export async function atualizarIntegrante(
     pode_assinar: dados.pode_assinar,
     grupo_id: dados.grupo_id ?? null,
     updated_at: new Date().toISOString(),
+  }
+  if (dados.situacao) {
+    patch.situacao = dados.situacao
+    patch.situacao_desde = dados.situacao === "exercicio" ? null : (dados.situacao_desde ?? null)
+    patch.situacao_motivo = dados.situacao === "exercicio" ? null : (dados.situacao_motivo ?? null)
   }
 
   // Religar filiado: rederiva CPF + nome + usuario_id pelo CPF.
@@ -496,7 +527,12 @@ export async function atualizarIntegrante(
     .update(patch)
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
-  if (error) return { erro: `Falha ao salvar integrante: ${error.message}` }
+  if (error) {
+    if (esquemaAusente(error) && dados.situacao) {
+      return { erro: "A situação do membro usa colunas novas — rode supabase/diretoria-situacao.sql no Supabase." }
+    }
+    return { erro: `Falha ao salvar integrante: ${error.message}` }
+  }
   return {}
 }
 
@@ -519,12 +555,17 @@ export async function assinantesVigentes(): Promise<
   const atual = mandatos.find((m) => m.vigente)
   if (!atual) return []
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("diretoria_integrantes")
-    .select("id, nome, cargo")
-    .eq("mandato_id", atual.id)
-    .eq("pode_assinar", true)
-    .order("ordem", { ascending: true })
+  const ler = (emExercicio: boolean) => {
+    const q = admin
+      .from("diretoria_integrantes")
+      .select("id, nome, cargo")
+      .eq("mandato_id", atual.id)
+      .eq("pode_assinar", true)
+    // Licenciado e excluído não assinam (supabase/diretoria-situacao.sql).
+    return (emExercicio ? q.eq("situacao", "exercicio") : q).order("ordem", { ascending: true })
+  }
+  let { data, error } = await ler(true)
+  if (error) ({ data, error } = await ler(false))
   if (error) return []
   return (data ?? []).map((i) => ({
     id: i.id as string,
