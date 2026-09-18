@@ -8,11 +8,10 @@ institucionais, os usuários do painel e as ajudas institucionais.
 
 <PassoAPasso>
   <Passo titulo="Organização">
-    Razão social, CNPJ, logo e os endereços das sedes — dados que aparecem em
-    ofícios, fichas e rodapés. Também os **departamentos**: nome, coordenador(a)
-    e as pessoas vinculadas (funcionários ativos e diretores do mandato vigente
-    com conta de usuário). Compras e Demandas usam essa lista; um departamento
-    em uso nelas não pode ser excluído.
+    Os **dados da organização** (razão social, CNPJ, logo, site) aparecem para
+    leitura, com o botão **Editar organização**. As **sedes** e os
+    **departamentos** ficam em cartões; cada cartão abre a própria página, com o
+    botão de editar. Esses dados aparecem em ofícios, fichas e rodapés.
   </Passo>
   <Passo titulo="Diretoria e Atas">
     Os mandatos e integrantes da diretoria (base dos signatários de ofícios) e
@@ -30,12 +29,42 @@ institucionais, os usuários do painel e as ajudas institucionais.
 
 <Print src="institucional/painel.png" alt="Hub do módulo Institucional com os cartões de cada área." legenda="As áreas do Institucional." />
 
-<Print src="institucional/organizacao.png" alt="Tela Organização com a seção Departamentos: um grupo por departamento, com coordenador e quantidade de pessoas, e o formulário de novo departamento." legenda="Departamentos em Organização: coordenador e pessoas vinculadas por departamento." />
+## Departamentos
+
+Em **Organização**, os departamentos aparecem em cartões, com a coordenação e o
+número de pessoas. **Novo departamento** abre o formulário; ao criar, você cai
+na página do departamento. Clicando no cartão, a página mostra as **pessoas
+vinculadas** — a coordenação primeiro — e o botão **Editar departamento**.
+
+Cada departamento tem as **pessoas vinculadas** (funcionários ativos e
+diretores do mandato vigente com conta de usuário) e o **coordenador(a)**, que é
+**uma dessas pessoas**: marque as pessoas primeiro — só as marcadas aparecem
+como opção de coordenador.
+
+Compras, Demandas e **Ofícios** usam essa lista. Em Ofícios, cada pessoa vê os
+ofícios dos **seus** departamentos (como integrante ou coordenadora) — por isso
+mantenha as pessoas vinculadas em dia.
+
+<Print src="institucional/organizacao.png" alt="Tela Organização: Dados da organização para leitura com o botão Editar organização; as sedes em cartões; os departamentos em cartões com a coordenação e o número de pessoas, e o botão Novo departamento." legenda="Organização: dados com Editar organização, e sedes e departamentos em cartões." />
+
+<Print src="institucional/departamento.png" alt="Página do departamento Administrativo: coordenação de Ana Beatriz Nogueira e as pessoas vinculadas em cartões, cada uma com o cargo, a coordenadora com o selo coordenação, e o botão Editar departamento." legenda="A página do departamento: as pessoas vinculadas e o botão de editar." />
+
+<Aviso tipo="atencao" titulo="Excluir é tornar legado">
+  Um departamento não é apagado: compras, ofícios e contas continuam apontando
+  para ele. Para excluir, **desmarque todas as pessoas, deixe sem coordenador e
+  salve** (em **Editar departamento**); depois use **Excluir (tornar legado)**. O legado sai das listas de
+  escolha (nova compra, ofício, contratos…), continua nos registros antigos e
+  fica em **Departamentos legados**, onde pode ser **reativado**.
+</Aviso>
 
 ## Erros comuns
 
 - **"Vejo uma área e não as outras."** Cada uma tem **permissão própria**
   (Organização, Mandatos e integrantes, Ajudas, Custeio, Usuários).
+- **"O coordenador que quero não aparece."** Ele precisa estar entre as
+  **pessoas marcadas** do departamento — marque-o na lista primeiro.
+- **"Excluir (tornar legado) está bloqueado."** Ainda há pessoas ou coordenador
+  no departamento: desmarque todos, deixe sem coordenador e salve.
 - **"Mudei o logo/razão e não refletiu no ofício."** Os dados da **Organização**
   (logo, razão social, sedes) alimentam ofícios, fichas e rodapés — confira o
   cadastro em Organização.

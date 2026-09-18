@@ -8,8 +8,16 @@ que saem os signatários dos ofícios. Ela tem duas abas: **Mandatos** e
 
 <PassoAPasso>
   <Passo titulo="Mandato">
-    Um período de gestão, com início e fim. Os integrantes são vinculados ao
-    mandato, em seus cargos.
+    Um período de gestão, com início e fim. A página do mandato mostra os dados
+    (lápis para editar), três cartões — **Instâncias**, **Liberações sindicais** e
+    **Atas de reunião**, cada um com o total e a própria página — e os
+    **integrantes por grupo**.
+  </Passo>
+  <Passo titulo="A linha de cada integrante">
+    Mostra o cargo, o **departamento** da pessoa em Organização (ou *sem
+    departamento*), as **instâncias** em que representa a entidade, o selo
+    **Liberado** quando há liberação vigente e a **situação**: licenciado ou
+    excluído, com a data e o motivo.
   </Passo>
   <Passo titulo="Ficha do integrante">
     Cada integrante tem uma ficha: dados pessoais, endereço, vínculo, dados
@@ -17,6 +25,14 @@ que saem os signatários dos ofícios. Ela tem duas abas: **Mandatos** e
     filiação ou em Condutores aparece de lá.
   </Passo>
 </PassoAPasso>
+
+## Licenciado ou excluído
+
+No lápis do integrante, **Situação no mandato**: *Em exercício* (o padrão),
+*Licenciado* ou *Excluído*, com **desde** e **motivo**. A pessoa continua na
+lista do mandato, marcada — o excluído aparece riscado. **Licenciado e excluído
+não assinam ofícios**: saem da lista de assinantes, mesmo com *Assina ofícios*
+marcado.
 
 ## A ficha reflete os outros cadastros
 
@@ -56,7 +72,7 @@ comissões, fóruns. Elas são cadastradas **fora** do mandato, na aba
     Na aba **Instâncias**, em *Nova instância*: nome e descrição.
   </Passo>
   <Passo titulo="Vincule o diretor no mandato">
-    Abra o mandato e, na seção **Instâncias**, use *Vincular diretor a uma
+    Abra o mandato e, no cartão **Instâncias**, use *Vincular diretor a uma
     instância*: a instância, o diretor, o cargo nela, o período e o documento
     de posse.
   </Passo>
@@ -71,7 +87,8 @@ comissões, fóruns. Elas são cadastradas **fora** do mandato, na aba
 
 ## Liberações sindicais
 
-Em **Registrar liberação**, dentro do mandato, uma chave escolhe o jeito de lançar:
+No mandato, abra o cartão **Liberações sindicais**. Em **Registrar liberação**,
+uma chave escolhe o jeito de lançar:
 
 - **Individual** — um diretor, o empregador, o tipo (permanente ou pontual), a
   vigência e o documento que oficializou.
@@ -110,8 +127,9 @@ direto nos documentos.
 
 ## Atas de reunião
 
-As atas ficam ancoradas no mandato: tipo, pauta, deliberações, presentes e o
-PDF da ata. Há também uma visão geral das atas na área própria.
+As atas ficam ancoradas no mandato — no cartão **Atas de reunião** — com tipo,
+pauta, deliberações, presentes e o PDF da ata. Há também uma visão geral das
+atas na área própria.
 
 <Aviso tipo="dica" titulo="Suba o PDF e a IA preenche a ata">
   Em *Nova ata*, o campo **Ata em PDF** fica no alto. Ao escolher o arquivo, a
@@ -122,7 +140,7 @@ PDF da ata. Há também uma visão geral das atas na área própria.
 
 <Print src="institucional/ata-ia.png" alt="Nova ata com o arquivo ata-teste.pdf escolhido e a mensagem A IA preencheu 9 campos a partir da ata; abaixo, mandato, tipo Diretoria, data 10/09/2026, título, hora 18h30, local, pauta, deliberações, presentes e observações preenchidos." legenda="A IA leu o PDF da ata e preencheu os campos." />
 
-<Print src="institucional/diretoria.png" alt="Página de um mandato: integrantes por grupo com a tag da instância em que cada um representa a entidade, a seção Instâncias com os vínculos, as liberações sindicais e as atas de reunião." legenda="O mandato: integrantes com a tag da instância, vínculos às instâncias, liberações e atas." />
+<Print src="institucional/diretoria.png" alt="Página de um mandato: dados do mandato com o lápis, os cartões Instâncias, Liberações sindicais e Atas de reunião com os totais, e os integrantes por grupo — cada linha com o cargo, o departamento, a instância, os selos (Licenciado, Assina, Filiado, Usuário, Acesso) e a data e o motivo da licença." legenda="O mandato: cartões para instâncias, liberações e atas, e cada integrante com departamento, instâncias e situação." />
 
 ## Erros comuns
 
@@ -130,7 +148,11 @@ PDF da ata. Há também uma visão geral das atas na área própria.
   **vigentes** do mandato são oferecidos como assinantes — confira o período do
   mandato e o cargo do integrante.
 - **"A ata não aparece."** As atas ficam **ancoradas no mandato**; abra o
-  mandato para incluir ou ver a ata (há também a visão geral na área própria).
+  cartão **Atas de reunião** do mandato (há também a visão geral na área própria).
+- **"O integrante aparece sem departamento."** Vincule a pessoa em
+  Institucional → Organização → Departamentos (ela precisa ter conta de usuário).
+- **"Uma diretora licenciada ainda aparece como assinante."** Confira a
+  **Situação no mandato** no lápis dela — licenciado e excluído saem dos assinantes.
 - **"Mudei o telefone na ficha e mudou no filiado."** É o esperado: para quem
   é filiado, a ficha e a filiação são o mesmo cadastro.
 - **"A CNH não aparece na ficha."** A pessoa não está em Veículos › Condutores
@@ -138,7 +160,7 @@ PDF da ata. Há também uma visão geral das atas na área própria.
 - **"Não acho o ofício para vincular as liberações."** Só aparecem ofícios
   **emitidos** na área de Ofícios. Emita-o lá e volte.
 - **"Não consigo vincular o diretor à instância na página dela."** O vínculo
-  é lançado **dentro do mandato**, na seção Instâncias; a página da instância é
+  é lançado **dentro do mandato**, no cartão Instâncias; a página da instância é
   só consulta.
 - **"O integrante saiu da diretoria mas continua aparecendo."** Encerre o
   **mandato** ou o vínculo do integrante para tirá-lo dos vigentes.
