@@ -41,8 +41,8 @@ const SHOTS = [
   /*
   [
     "/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao",
-    "veiculos/entrada-km-anormal.png",
-    { esperar: "Registrar entrada", preencher: [["#hodometro", "10.500"]], altura: 760 },
+    "veiculos/devolucao-km-anormal.png",
+    { esperar: "Registrar devolução", preencher: [["#hodometro", "10.500"]], altura: 760 },
   ],
   */
 

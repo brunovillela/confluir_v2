@@ -15,9 +15,9 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
   </Passo>
   <Passo titulo="Agendamentos">
     A solicitação de um veículo pelo condutor, feita no **painel inicial**.
-    A **recepção** registra a saída e a entrada na página do veículo, pelo
+    A **recepção** registra a saída e a devolução na página do veículo, pelo
     hodômetro, e gerencia as solicitações.
-    <RequerPermissao>Recepção (entrada/saída e agendamentos)</RequerPermissao>
+    <RequerPermissao>Recepção (saída/devolução e agendamentos)</RequerPermissao>
   </Passo>
   <Passo titulo="Checklist da frota">
     A verificação periódica dos veículos, com prazo por frota ou por carro e
@@ -50,9 +50,9 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
 ## Situação de cada veículo
 
 Na lista da frota, cada veículo mostra a situação e **desde quando** ela vale:
-**Disponível** (desde a última entrada), **Em uso** (desde a saída),
+**Disponível** (desde a última devolução), **Em uso** (desde a saída),
 **Manutenção** ou **Inativo** (desde quando a gestão marcou). A coluna **Onde
-está** diz o local de agora: o disponível está na **sede da última entrada**; o
+está** diz o local de agora: o disponível está na **sede da última devolução**; o
 que está fora mostra o destino e de onde saiu. Os indicadores do topo resumem a
 frota (ativa, em uso agora, em manutenção, solicitações pendentes).
 
@@ -78,9 +78,9 @@ Abrir um veículo mostra a **visão geral** dele, nesta ordem:
 <PassoAPasso>
   <Passo titulo="Cabeçalho e botões">
     Placa, situação (disponível, em uso, em manutenção, inativo), modelo e o
-    hodômetro atual — o km da última movimentação (a entrada, se o veículo
+    hodômetro atual — o km da última movimentação (a devolução, se o veículo
     voltou; a saída, se está fora). Ao lado, os botões que levam às áreas do veículo:
-    **Registrar saída** ou **Registrar entrada** (muda conforme o veículo está
+    **Registrar saída** ou **Registrar devolução** (muda conforme o veículo está
     na garagem ou fora; só recepção e gestão), **Manutenções**, **Checklist**,
     **Abastecimentos**, **Infrações** e **Histórico de uso**. O gestor ainda
     tem **Inativar veículo**; o botão **Enviar para manutenção** fica dentro
@@ -104,9 +104,9 @@ Abrir um veículo mostra a **visão geral** dele, nesta ordem:
   </Passo>
 </PassoAPasso>
 
-<Print src="veiculos/veiculo.png" alt="Página de um veículo: placa com a situação Em uso e o hodômetro da última movimentação no cabeçalho, botões de registrar entrada, manutenções, checklist, abastecimentos, infrações e histórico de uso, avisos de veículo fora, checklist nunca realizado e da próxima preventiva, indicadores de km rodado, usos, média e consumo, rankings de condutores, dados do veículo e histórico de uso." legenda="A visão geral do veículo: botões no topo, avisos, indicadores e histórico." />
+<Print src="veiculos/veiculo.png" alt="Página de um veículo: placa com a situação Em uso e o hodômetro da última movimentação no cabeçalho, botões de registrar devolução, manutenções, checklist, abastecimentos, infrações e histórico de uso, avisos de veículo fora, checklist nunca realizado e da próxima preventiva, indicadores de km rodado, usos, média e consumo, rankings de condutores, dados do veículo e histórico de uso." legenda="A visão geral do veículo: botões no topo, avisos, indicadores e histórico." />
 
-O botão **Histórico de uso** abre todas as saídas e entradas do veículo, com
+O botão **Histórico de uso** abre todas as saídas e devoluções do veículo, com
 filtros por período, condutor e situação, paginação e o total de km do filtro.
 Quem tem gestão vê um lápis em cada linha para **corrigir um lançamento**
 errado (hodômetro, datas, condutor, sedes, destino): a quilometragem rodada e
@@ -119,7 +119,7 @@ passa a vir da movimentação anterior; se a saída tinha dado baixa numa
 solicitação, ela volta para *Atendida (aguardando retirada)*, e a gestão decide
 se cancela.
 
-<Print src="veiculos/historico.png" alt="Histórico de uso de um veículo com os filtros de período, condutor e situação, o total de movimentações e km, e a tabela de saídas e entradas com o lápis de correção." legenda="O histórico completo: filtros, total do recorte e correção de lançamento pela gestão." />
+<Print src="veiculos/historico.png" alt="Histórico de uso de um veículo com os filtros de período, condutor e situação, o total de movimentações e km, e a tabela de saídas e devoluções com o lápis de correção." legenda="O histórico completo: filtros, total do recorte e correção de lançamento pela gestão." />
 
 <Aviso tipo="nota" titulo="Dados do sistema antigo nos indicadores">
   Movimentações antigas que nunca foram fechadas contam um dia cada, não até
