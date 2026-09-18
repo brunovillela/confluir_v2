@@ -71,14 +71,20 @@ Em Manutenções → **Preventivas programadas** → *Nova programação*.
 
 ### De onde vem a quilometragem atual
 
-O hodômetro do veículo não é digitado num lugar só: ele aparece nos
-**abastecimentos**, nos **checklists**, nas **devoluções** de agendamento e nas
-próprias **manutenções**. O sistema usa sempre o maior valor entre todas essas
-fontes.
+O hodômetro atual do veículo é o da **última movimentação** — a mesma que
+aparece no topo do **Histórico de uso**:
 
-Consequência prática: quanto mais essas rotinas forem alimentadas, mais cedo o
-alerta por quilometragem dispara. Se ninguém registra hodômetro em lugar nenhum,
-o alerta por km simplesmente não tem como funcionar — só o de data.
+- se o veículo **voltou**, vale o km registrado na **entrada**;
+- se o veículo está **fora**, vale o km registrado na **saída**.
+
+Um km digitado errado numa movimentação antiga, num abastecimento ou num
+checklist não vale para sempre: a próxima movimentação corrige o indicador.
+Para consertar a última, a gestão da frota corrige o lançamento no Histórico
+de uso.
+
+Só o veículo que **nunca teve movimentação** usa outra regra: o maior km entre
+**abastecimentos**, **checklists** e **manutenções**. Se nada disso tem
+hodômetro, o alerta por km não tem como funcionar — só o de data.
 
 ## Registrar uma manutenção
 
@@ -136,9 +142,13 @@ quilometragem depende de quanto o carro ainda vai rodar até lá.
 - **"Cadastrei a programação mas nenhum alerta apareceu."** Falta o ponto de
   partida: sem *última feita em* nem *hodômetro na última*, e sem nenhuma
   manutenção apontando para ela, o sistema não tem de onde contar.
-- **"O alerta por quilometragem não dispara."** O veículo não tem hodômetro
-  registrado em nenhuma fonte. Registre nos abastecimentos, nos checklists ou
-  na própria manutenção.
+- **"O alerta por quilometragem não dispara."** Confira o km da última
+  movimentação no Histórico de uso — é ele que conta. Veículo sem nenhuma
+  movimentação precisa de hodômetro nos abastecimentos, nos checklists ou na
+  própria manutenção.
+- **"O hodômetro do veículo está errado."** O valor vem da última movimentação:
+  a gestão da frota corrige esse lançamento no **Histórico de uso** (lápis na
+  linha).
 - **"A oficina não aparece na busca do local."** Ela precisa estar cadastrada
   como fornecedor, em Compras → Fornecedores.
 - **"Registrei a preventiva e ela continua vencida."** Você deixou o campo

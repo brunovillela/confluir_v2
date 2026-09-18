@@ -86,7 +86,9 @@ sem horário conhecido aparecem só com a data.
     **hodômetro** e a sede. **Destino** e **previsão de retorno** são facultativos.
     A tela mostra a **última entrada** do veículo (km, dia e hora, sede e
     condutor) e já preenche o hodômetro com esse valor: confira no painel e
-    ajuste. Um valor menor que o da última entrada ganha um aviso.
+    ajuste. Um valor menor que o da última entrada ganha um aviso. A última
+    entrada é a da **última movimentação** do histórico (a ordem é pela saída),
+    mesmo que alguém tenha lançado a entrada com a data errada.
   </Passo>
   <Passo titulo="Veículo fora → Registrar entrada">
     O bloco mostra desde quando o veículo está fora, com quem, o destino e a
@@ -145,6 +147,10 @@ mantém a leitura de consumo (km/litro) coerente ao longo do tempo.
   para liberá-lo.
 - **"A quilometragem rodada saiu errada."** Confira os hodômetros de **saída**
   e **entrada**; a rodagem é a diferença entre eles.
+- **"A saída veio com o km errado."** O km sugerido é o da entrada da última
+  movimentação. Se ela foi digitada errado, a gestão da frota a corrige no
+  **Histórico de uso** — isso também acerta o hodômetro mostrado na página do
+  veículo.
 - **"A importação de abastecimentos recusou linhas."** Todo abastecimento novo
   exige **veículo** e **hodômetro** — confira essas colunas na planilha.
 - **"Não deixa escolher um condutor."** Verifique a **CNH** dele (vencida) e se
