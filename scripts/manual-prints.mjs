@@ -28,13 +28,38 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 17/09 (fim da tarde): ficha do integrante que reflete a filiação
-  // e a CNH (demo: Mariana Souza Ribeiro, filiada, diretora e condutora).
+  // Rodada de 18/09: todos os prints de Filiados.
+  ["/painel/filiados", "filiados/lista.png", { fullPage: true, esperar: "Saúde dos cadastros" }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000001", "filiados/perfil.png", { fullPage: true }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/perfil-outros-contatos.png", { scrollTo: "Outros contatos" }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/perfil-reembolsos.png", { scrollTo: "O que a entidade reembolsou" }],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/vinculo-reconstruido.png", { scrollTo: "Histórico de filiação" }],
+  ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png"],
+  ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png"],
+  ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
+  ["/painel/filiados/solicitacoes/88888888-8888-4888-8888-000000000001", "filiados/solicitacao-avaliacao.png"],
+  ["/painel/filiados/convenios", "filiados/convenios.png"],
+  ["/painel/filiados/convenios/e0e0e0e0-0000-4000-8000-000600000001", "filiados/convenio-editar.png", { fullPage: true }],
+  ["/painel/filiados/direitos", "filiados/direitos.png", { fullPage: true }],
+  ["/painel/filiados/inadimplentes", "filiados/inadimplentes.png"],
+  ["/painel/filiados/novo?modo=massa", "filiados/importar.png"],
+  ["/painel/filiados/prontuarios", "filiados/prontuarios.png"],
+  ["/painel/filiados/receitas", "filiados/receitas.png"],
+  ["/painel/filiados/receitas/60100000-0000-4000-8000-000000000001", "filiados/receita-remessa.png"],
+  ["/painel/filiados/reembolsos", "filiados/reembolsos.png"],
+  ["/painel/filiados/reembolsos/novo?filiado=77777777-7777-4777-8777-000000000005", "filiados/reembolso-novo.png"],
+  ["/painel/filiados/relatorios", "filiados/relatorios.png"],
+  ["/painel/filiados/relatorios/carencia", "filiados/relatorio-carencia.png"],
+  ["/painel/filiados/relatorios/personalizado?condicao=Ativo", "filiados/relatorio-personalizado.png", { fullPage: true }],
+
+  // Rodada de 17/09 (fim da tarde): ficha do integrante (já capturado).
+  /*
   [
     "/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/fe700000-0000-4000-8000-000000000002",
     "institucional/ficha-integrante.png",
     { fullPage: true, esperar: "Da filiação" },
   ],
+  */
 
   // Rodada de 17/09 (tarde): devolução com km fora do normal. Pede uma saída
   // aberta há ~2 h no V-001 (criada e apagada pelo script de apoio da rodada).
