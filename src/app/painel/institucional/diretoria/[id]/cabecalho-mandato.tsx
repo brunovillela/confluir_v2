@@ -21,7 +21,9 @@ export function CabecalhoMandato({
   const nome = mandato ? `Mandato ${mandato}` : "Mandato"
   return (
     <>
-      <RotuloTrilha valores={{ [mandatoId]: nome }} />
+      <RotuloTrilha
+        valores={{ [mandatoId]: nome, instancias: "Instâncias", liberacoes: "Liberações", atas: "Atas" }}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/painel/institucional/diretoria/${mandatoId}`}>
