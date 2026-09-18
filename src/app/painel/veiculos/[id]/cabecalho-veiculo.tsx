@@ -1,8 +1,26 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import type { VeiculoDetalhe } from "@/lib/db/veiculos"
+
+/** Rótulos da trilha nas páginas do veículo: a placa no lugar de "Detalhe" e os nomes acentuados. */
+export function TrilhaVeiculo({ veiculo }: { veiculo: VeiculoDetalhe }) {
+  return (
+    <RotuloTrilha
+      valores={{
+        [veiculo.id]: veiculo.placa ?? "Veículo",
+        movimentacao: "Saída e devolução",
+        historico: "Histórico",
+        abastecimentos: "Abastecimentos",
+        manutencoes: "Manutenções",
+        infracoes: "Infrações",
+        checklist: "Checklist",
+      }}
+    />
+  )
+}
 
 /** Cabeçalho das subpáginas do veículo: volta para a visão geral dele. */
 export function CabecalhoVeiculo({
@@ -18,6 +36,7 @@ export function CabecalhoVeiculo({
 }) {
   return (
     <div>
+      <TrilhaVeiculo veiculo={veiculo} />
       <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
         <Link href={`/painel/veiculos/${veiculo.id}`}>
           <ArrowLeft />

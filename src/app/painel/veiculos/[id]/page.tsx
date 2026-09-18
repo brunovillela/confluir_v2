@@ -55,6 +55,7 @@ import { podeAcessar } from "@/lib/permissoes"
 
 import { atualizarVeiculoAction } from "../actions"
 import { VeiculoForm } from "../veiculo-form"
+import { TrilhaVeiculo } from "./cabecalho-veiculo"
 import { InativarVeiculoBotao } from "./veiculo-acoes"
 
 export const metadata: Metadata = { title: "Veículo — Confluir" }
@@ -145,6 +146,7 @@ export default async function VeiculoPage({
 
   return (
     <>
+      <TrilhaVeiculo veiculo={veiculo} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/painel/veiculos">
