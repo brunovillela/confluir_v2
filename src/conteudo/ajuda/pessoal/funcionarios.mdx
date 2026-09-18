@@ -40,6 +40,48 @@ férias, carreira, ASOs, treinamentos e mais.
 
 <Print src="pessoal/funcionarios-ficha.png" alt="Ficha individual de um funcionário, com dados cadastrais no topo e cartões por área do departamento." legenda="Ficha do funcionário: dados cadastrais e histórico por área." />
 
+### Editar o cadastro
+
+No cartão **Dados cadastrais**, a **Gestão de Pessoal** clica no lápis e corrige
+nome completo, como a pessoa é chamada, CPF, nascimento e WhatsApp. O CPF é
+conferido e não pode repetir o de outro cadastro. O e-mail não se edita aqui:
+ele é o login da pessoa e muda em Institucional → Usuários e permissões.
+
+### Editar o vínculo e desligar
+
+Cada vínculo com a entidade aparece como uma linha com cargo, lotação, regime,
+matrícula e admissão, e a etiqueta **Ativo** ou **Desligado em …**. O lápis da
+linha abre a edição de todos esses campos, inclusive **Desligamento
+(demissão)**.
+
+<PassoAPasso>
+  <Passo titulo="Abra a ficha e clique no lápis do vínculo">
+    Na seção **Vínculos com a entidade**.
+  </Passo>
+  <Passo titulo="Preencha a data de desligamento">
+    A data não pode ser anterior à admissão.
+  </Passo>
+  <Passo titulo="Salve o vínculo">
+    A pessoa passa a **Desligado**, sai da lista de ativos e continua em
+    **Desligados** e **Todos**, com todo o histórico. Para reativar, apague a
+    data e salve de novo.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/funcionarios-vinculo-edicao.png" alt="Ficha do funcionário com o vínculo em edição: campos de cargo, lotação, regime, matrícula, admissão e desligamento, botão Salvar vínculo e, abaixo, o botão Excluir vínculo." legenda="Edição do vínculo: a data de desligamento desliga a pessoa; apagá-la reativa." />
+
+### Excluir o vínculo de quem nunca fez parte da entidade
+
+Há cadastros que chegaram ao quadro por engano — um trabalhador de outra
+empresa, por exemplo. Para esses, a edição do vínculo tem o botão **Excluir
+vínculo (nunca fez parte da entidade)**. Sem outro vínculo, a pessoa sai do
+Pessoal e você volta à lista com o aviso de exclusão. O cadastro de usuário
+continua existindo (pode ser filiado ou diretor).
+
+A exclusão é **recusada** quando a pessoa tem contracheque, ponto ou férias
+registrados: esses lançamentos provam que ela trabalhou aqui. Nesse caso, use o
+desligamento.
+
 ### Dados bancários
 
 Na ficha, a **Gestão de Pessoal** cadastra a conta do funcionário — banco,
@@ -50,8 +92,10 @@ contracheques não vê este cartão.
 
 ## Regras e travas
 
-- A situação **Desligado** aparece automaticamente quando há data de demissão
-  registrada; não é um campo manual da lista.
+- A situação **Desligado** vem da data de desligamento do vínculo — preencha-a
+  na ficha; apagá-la reativa a pessoa.
+- Excluir vínculo é só para quem nunca trabalhou na entidade; com contracheque,
+  ponto ou férias, o sistema recusa.
 - A busca cobre nome, cargo, lotação e matrícula ao mesmo tempo — não precisa
   escolher o campo.
 
@@ -60,7 +104,9 @@ contracheques não vê este cartão.
 - **“Não encontro alguém que sei que existe.”** Verifique o filtro de situação:
   se a pessoa foi desligada, ela só aparece em **Desligados** ou **Todos**.
 - **Nome em branco.** Registros migrados sem nome aparecem como “(sem nome)” —
-  complete o cadastro pela ficha.
+  complete o cadastro pela ficha, no lápis de **Dados cadastrais**.
+- **“Aparece no quadro alguém que nunca trabalhou aqui.”** Abra a ficha,
+  clique no lápis do vínculo e use **Excluir vínculo**.
 
 <VejaTambem
   links={[

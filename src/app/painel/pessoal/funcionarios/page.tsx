@@ -34,6 +34,7 @@ type ParamsBusca = {
   situacao?: string
   ordem?: string
   dir?: string
+  vinculo_excluido?: string
 }
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosFuncionarios> {
@@ -112,7 +113,8 @@ export default async function FuncionariosPage({
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
 
-  const filtros = normalizarFiltros(await searchParams)
+  const params = await searchParams
+  const filtros = normalizarFiltros(params)
   const lista = await listarFuncionarios(filtros)
 
   return (
@@ -132,6 +134,12 @@ export default async function FuncionariosPage({
           {lista.total.toLocaleString("pt-BR")} no total
         </p>
       </div>
+
+      {params.vinculo_excluido && (
+        <p className="border-success/40 bg-success/10 text-success-fg rounded-md border px-3 py-2 text-sm">
+          Vínculo excluído. A pessoa não tinha outro vínculo com a entidade e saiu da lista de funcionários.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <form method="GET" className="flex min-w-0 flex-1 items-center gap-2">

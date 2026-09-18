@@ -33,6 +33,8 @@ import {
 import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
 
 import { DadosBancariosFuncionario } from "./dados-bancarios"
+import { DadosCadastrais, VinculoFuncionario } from "./cadastro-forms"
+import { obterDadosCadastrais } from "@/lib/db/pessoal-cadastro"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -127,7 +129,7 @@ export default async function FuncionarioPage({
     temGestao || podeAcessar(sessao.permissoes, "pessoal_contracheque")
 
   const { id } = await params
-  const perfil = await buscarPerfilFuncionario(id)
+  const [perfil, cadastro] = await Promise.all([buscarPerfilFuncionario(id), obterDadosCadastrais(id)])
   if (!perfil) notFound()
 
   // Anuênios, níveis salariais e conta bancária são remuneração — só a gestão vê.
@@ -191,58 +193,38 @@ export default async function FuncionarioPage({
         </p>
       </div>
 
+      <DadosCadastrais
+        usuarioId={id}
+        podeEditar={temGestao}
+        dados={{
+          nomeCompleto: cadastro?.nomeCompleto ?? usuario.nome_completo ?? "",
+          nomeGuerra: cadastro?.nomeGuerra ?? usuario.nome_guerra,
+          cpf: cadastro?.cpf ?? null,
+          dataNascimento: cadastro?.dataNascimento ?? null,
+          whatsapp: cadastro?.whatsapp ?? null,
+          email: usuario.email,
+        }}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Vínculos com o sindicato
+            Vínculos com a entidade
             <span className="text-muted-foreground ml-2 text-sm font-normal">
               {vinculos.length} registro{vinculos.length === 1 ? "" : "s"}
             </span>
           </CardTitle>
+          {temGestao && (
+            <p className="text-muted-foreground text-xs">
+              O lápis edita o vínculo — inclusive a data de desligamento — e permite
+              excluir o vínculo de quem nunca fez parte da entidade.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Lotação
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    Regime
-                  </TableHead>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead>Admissão</TableHead>
-                  <TableHead>Demissão</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vinculos.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="max-w-52 truncate font-medium">
-                      {v.cargo ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden max-w-40 truncate md:table-cell">
-                      {v.lotacao ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden max-w-48 truncate lg:table-cell">
-                      {v.regime_trabalho ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {v.matricula ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">
-                      {formatarData(v.contrato_admissao)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">
-                      {formatarData(v.contrato_demissao)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {vinculos.map((v) => (
+            <VinculoFuncionario key={v.id} usuarioId={id} vinculo={v} podeEditar={temGestao} />
+          ))}
         </CardContent>
       </Card>
 

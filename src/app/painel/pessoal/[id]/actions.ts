@@ -1,12 +1,18 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 import { salvarDadosBancariosFuncionario } from "@/lib/db/contracheques-ordens"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
+import {
+  atualizarDadosCadastrais,
+  atualizarVinculoFuncionario,
+  excluirVinculoFuncionario,
+} from "@/lib/db/pessoal-cadastro"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -54,4 +60,72 @@ export async function salvarDadosBancariosAction(
   revalidatePath(`/painel/pessoal/${usuarioId}`)
   revalidatePath("/painel/pessoal/contracheques/configuracao")
   return { ok: "Dados bancários salvos." }
+}
+
+// ── Cadastro e vínculos do funcionário (18/09) ──────────────────────────────
+
+const txtForm = (formData: FormData, campo: string) =>
+  String(formData.get(campo) ?? "").replace(/\s+/g, " ").trim() || null
+
+/** Dados cadastrais do funcionário (nome, apelido, CPF, nascimento, WhatsApp). */
+export async function salvarDadosCadastraisAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("pessoal_gestao")
+  const usuarioId = String(formData.get("usuario_id") ?? "")
+  if (!UUID.test(usuarioId)) return { erro: "Funcionário inválido." }
+  const r = await atualizarDadosCadastrais(usuarioId, {
+    nomeCompleto: txtForm(formData, "nome_completo") ?? "",
+    nomeGuerra: txtForm(formData, "nome_guerra"),
+    cpf: txtForm(formData, "cpf"),
+    dataNascimento: txtForm(formData, "data_nascimento"),
+    whatsapp: txtForm(formData, "whatsapp"),
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/pessoal/${usuarioId}`)
+  revalidatePath("/painel/pessoal", "layout")
+  return { ok: r.ok }
+}
+
+/** Vínculo com a entidade: cargo, lotação, regime, matrícula, admissão e desligamento. */
+export async function salvarVinculoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("pessoal_gestao")
+  const usuarioId = String(formData.get("usuario_id") ?? "")
+  const vinculoId = String(formData.get("vinculo_id") ?? "")
+  if (!UUID.test(vinculoId)) return { erro: "Vínculo inválido." }
+  const r = await atualizarVinculoFuncionario(vinculoId, {
+    cargo: txtForm(formData, "cargo"),
+    lotacao: txtForm(formData, "lotacao"),
+    regime: txtForm(formData, "regime_trabalho"),
+    matricula: txtForm(formData, "matricula"),
+    admissao: txtForm(formData, "contrato_admissao"),
+    demissao: txtForm(formData, "contrato_demissao"),
+  })
+  if (r.erro) return { erro: r.erro }
+  if (UUID.test(usuarioId)) revalidatePath(`/painel/pessoal/${usuarioId}`)
+  revalidatePath("/painel/pessoal", "layout")
+  return { ok: r.ok }
+}
+
+/** Exclui o vínculo de quem nunca fez parte da entidade. */
+export async function excluirVinculoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("pessoal_gestao")
+  const usuarioId = String(formData.get("usuario_id") ?? "")
+  const vinculoId = String(formData.get("vinculo_id") ?? "")
+  if (!UUID.test(vinculoId)) return { erro: "Vínculo inválido." }
+  const r = await excluirVinculoFuncionario(vinculoId)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/pessoal", "layout")
+  revalidatePath("/painel/institucional/usuarios/quadro")
+  // Sem vínculo restante a ficha deixa de existir: volta à lista.
+  if (r.restantes === 0) redirect("/painel/pessoal/funcionarios?vinculo_excluido=1")
+  if (UUID.test(usuarioId)) revalidatePath(`/painel/pessoal/${usuarioId}`)
+  return { ok: r.ok }
 }
