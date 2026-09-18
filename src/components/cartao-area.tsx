@@ -1,4 +1,4 @@
-import type { ComponentType } from "react"
+import type { ComponentType, ReactNode } from "react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,8 @@ export const GRADE_AREAS =
 /**
  * Card de navegação para um hub de módulo/área. Padrão único do sistema: ícone
  * laranja (`text-primary`) no topo, título, descrição menor e, opcionalmente,
- * um indicador (ex.: "128 registros") ou o selo "Em breve". Substitui os
+ * um indicador (ex.: "128 registros"), um selo próprio (`selo`, ex.: "Disponível")
+ * ou o selo "Em breve". Substitui os
  * `CardArea`/`AreaCard` que eram duplicados em cada hub.
  */
 export function CartaoArea({
@@ -26,6 +27,7 @@ export function CartaoArea({
   icone: Icone,
   indicador,
   emBreve,
+  selo,
 }: {
   titulo: string
   descricao: string
@@ -33,6 +35,7 @@ export function CartaoArea({
   icone: ComponentType<{ className?: string }>
   indicador?: string | null
   emBreve?: boolean
+  selo?: ReactNode
 }) {
   const clicavel = Boolean(href) && !emBreve
 
@@ -47,7 +50,7 @@ export function CartaoArea({
       <CardContent>
         <div className="flex items-start justify-between gap-2">
           <Icone className="text-primary size-6" />
-          {emBreve && <Badge variant="secondary">Em breve</Badge>}
+          {emBreve ? <Badge variant="secondary">Em breve</Badge> : selo}
         </div>
         <p className="mt-3 font-medium">{titulo}</p>
         <p className="text-muted-foreground mt-1 text-xs">{descricao}</p>

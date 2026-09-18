@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
@@ -34,7 +35,7 @@ function dadosDe(formData: FormData): DadosLinha {
 }
 
 function revalidar() {
-  revalidatePath("/painel/institucional/linhas")
+  revalidatePath("/painel/institucional/linhas", "layout")
 }
 
 export async function criarLinhaAction(
@@ -71,5 +72,5 @@ export async function excluirLinhaAction(
   const { erro } = await excluirLinhaInstitucional(id)
   if (erro) return { erro }
   revalidar()
-  return { ok: "Linha removida." }
+  redirect("/painel/institucional/linhas?removida=1")
 }

@@ -61,7 +61,8 @@ mantenha as pessoas vinculadas em dia.
 
 Os celulares da entidade: **número** (com DDD), **operadora**, **chip** (o
 ICCID impresso no chip) e **com quem a linha está** — um funcionário ativo ou um
-diretor do mandato vigente. Sem responsável, a linha fica "na entidade".
+diretor do mandato vigente. Sem responsável, a linha fica "na entidade" e
+aparece como **Disponível**.
 
 <RequerPermissao>Linhas institucionais</RequerPermissao>
 
@@ -72,21 +73,32 @@ diretor do mandato vigente. Sem responsável, a linha fica "na entidade".
     observação. O mesmo número não entra duas vezes.
   </Passo>
   <Passo titulo="Trocar de mãos">
-    Clique no lápis da linha e escolha a nova pessoa em **Com quem está**. Quem
+    As linhas ficam em cartões, cinco por fileira, com o número, com quem está (ou
+    o selo **Disponível**) e a operadora. Clique no cartão: a página da linha
+    mostra os dados e o botão **Editar linha** — escolha a nova pessoa em **Com
+    quem está** e salve. Na mesma página, **Remover linha** tira do cadastro uma
+    linha cancelada ou devolvida à operadora. Quem
     saiu do quadro continua aparecendo na lista enquanto estiver com a linha,
     em "Fora do quadro atual" — escolha outra pessoa ou "Sem responsável" para
     devolvê-la à entidade.
   </Passo>
   <Passo titulo="Encontrar">
     A busca aceita parte do número, do chip, a operadora ou o nome da pessoa.
+    Os botões **Todas**, **Disponíveis** e **Em uso** filtram pela
+    disponibilidade — cada um mostra quantas linhas tem — e valem junto com a
+    busca. Para entregar uma linha a alguém, comece por **Disponíveis**.
   </Passo>
 </PassoAPasso>
 
-<Print src="institucional/linhas.png" alt="Tela Linhas institucionais: contagem de linhas e quantas têm responsável, o grupo Adicionar linha, a busca por número, chip, operadora ou pessoa e os cartões de cada linha com número, operadora, com quem está e o chip." legenda="Linhas institucionais: cada celular da entidade e com quem está." />
+<Print src="institucional/linhas.png" alt="Tela Linhas institucionais: contagem de linhas e quantas estão disponíveis, o grupo Adicionar linha, a busca por número, chip, operadora ou pessoa, os botões Todas, Disponíveis e Em uso com a contagem de cada um e as linhas em cartões na grade de cinco por fileira, com o número, com quem está (ou o selo Disponível) e a operadora." legenda="Linhas institucionais: os celulares em cartões, com o filtro de disponibilidade." />
+
+<Print src="institucional/linha.png" alt="Página de uma linha: o número no título com o selo Em uso, a frase Com Ana Beatriz Nogueira, os dados (número, operadora, chip, com quem está e observação) com o botão Editar linha e, abaixo, Remover linha." legenda="A página da linha: os dados, Editar linha e Remover linha." />
 
 As linhas que existiam no sistema anterior vieram com número, operadora e chip,
-mas **sem responsável** — lá não havia esse campo. Preencha **Com quem está**
-em cada uma.
+mas **sem responsável** — lá não havia esse campo. Parte delas ganhou o
+responsável deduzido pelo telefone: quando o número da linha estava no cadastro
+de uma pessoa (telefone, WhatsApp ou ficha de filiação), a linha foi atribuída a
+ela. Confira essas e preencha **Com quem está** nas demais.
 
 ## Erros comuns
 

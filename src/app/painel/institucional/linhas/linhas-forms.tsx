@@ -152,7 +152,7 @@ export function AdicionarLinha({ responsaveis }: { responsaveis: ResponsavelLinh
   )
 }
 
-/** Formulário de edição (children do CartaoEditavel de cada linha). */
+/** Formulário de edição (na página da linha, atrás de Editar linha). */
 export function EditarLinha({
   linha,
   responsaveis,
@@ -176,7 +176,15 @@ export function EditarLinha({
   )
 }
 
-export function BotaoExcluirLinha({ id, numero }: { id: string; numero: string }) {
+export function BotaoExcluirLinha({
+  id,
+  numero,
+  comRotulo,
+}: {
+  id: string
+  numero: string
+  comRotulo?: boolean
+}) {
   const [estado, formAction, pendente] = useActionState(excluirLinhaAction, {})
   return (
     <form
@@ -187,8 +195,16 @@ export function BotaoExcluirLinha({ id, numero }: { id: string; numero: string }
     >
       <input type="hidden" name="id" value={id} />
       {estado.erro && <p className="text-destructive mb-1 text-xs">{estado.erro}</p>}
-      <Button type="submit" variant="ghost" size="sm" disabled={pendente} aria-label="Remover linha">
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        disabled={pendente}
+        aria-label="Remover linha"
+        className={comRotulo ? "text-destructive" : undefined}
+      >
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 className="text-destructive" />}
+        {comRotulo && "Remover linha"}
       </Button>
     </form>
   )
