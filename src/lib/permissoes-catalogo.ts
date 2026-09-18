@@ -108,7 +108,6 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "ferramentas_agendas", rotulo: "Agenda" },
       { chave: "ferramentas_oficios", rotulo: "Ofícios" },
       { chave: "ferramentas_oficios_todos", rotulo: "Ofícios — todos os departamentos" },
-      { chave: "ferramentas_linhas_telefone", rotulo: "Linhas telefônicas" },
       { chave: "ferramentas_ci", rotulo: "Comunicação interna" },
       { chave: "ferramentas_busca_pessoas", rotulo: "Busca de pessoas" },
     ],
@@ -161,6 +160,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "configuracoes", rotulo: "Organização (identidade e sedes)" },
       { chave: "registro_mte", rotulo: "Registro sindical (MTE)" },
       { chave: "ferramentas_emails_internos", rotulo: "E-mails institucionais" },
+      { chave: "ferramentas_linhas_telefone", rotulo: "Linhas institucionais" },
       { chave: "apoio_institucional", rotulo: "Ajudas institucionais" },
       {
         chave: "apoio_institucional_edicao",

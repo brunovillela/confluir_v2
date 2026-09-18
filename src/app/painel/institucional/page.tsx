@@ -7,6 +7,7 @@ import {
   Mail,
   ScrollText,
   ShieldCheck,
+  Smartphone,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -67,6 +68,14 @@ const AREAS: Area[] = [
     chavesAlternativas: ["configuracoes"],
   },
   {
+    titulo: "Linhas institucionais",
+    descricao: "Celulares da entidade: número, operadora, chip e com quem está",
+    href: "/painel/institucional/linhas",
+    icone: Smartphone,
+    chave: "ferramentas_linhas_telefone",
+    chavesAlternativas: ["configuracoes"],
+  },
+  {
     titulo: "Ajudas institucionais",
     descricao: "Apoios da entidade a organizações apoiadas e o cadastro das entidades",
     href: "/painel/institucional/ajudas",
@@ -102,6 +111,7 @@ export default async function ConfiguracoesPage() {
     "diretoria_mandatos",
     "registro_mte",
     "ferramentas_emails_internos",
+    "ferramentas_linhas_telefone",
     "diretoria_reunioes",
     "apoio_institucional",
     "apoio_institucional_edicao",
