@@ -18,7 +18,7 @@ import { MovimentacaoEditarForm } from "./movimentacao-editar-form"
 
 export const metadata: Metadata = { title: "Corrigir movimentação — Confluir" }
 
-/** Gestão da frota corrige um lançamento de saída/entrada. */
+/** Gestão da frota corrige um lançamento de saída/devolução. */
 export default async function EditarMovimentacaoPage({
   params,
 }: {
@@ -42,7 +42,7 @@ export default async function EditarMovimentacaoPage({
       <CabecalhoVeiculo
         veiculo={veiculo}
         titulo="Corrigir movimentação"
-        descricao={`Saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.saidaRegistradaPor ? ` (registrada por ${m.saidaRegistradaPor})` : ""}${m.aberta ? " · em aberto" : ` · entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}${m.entradaRegistradaPor ? ` (registrada por ${m.entradaRegistradaPor})` : ""}`}`}
+        descricao={`Saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.saidaRegistradaPor ? ` (registrada por ${m.saidaRegistradaPor})` : ""}${m.aberta ? " · em aberto" : ` · devolução em ${momentoBR(m.data_devolucao, m.devolucao_em)}${m.entradaRegistradaPor ? ` (registrada por ${m.entradaRegistradaPor})` : ""}`}`}
       />
 
       <Alert variant="info">
@@ -85,7 +85,7 @@ export default async function EditarMovimentacaoPage({
         <CardContent>
           <ExcluirMovimentacao
             movimentacaoId={m.id}
-            resumo={`saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " (em aberto)" : `, entrada em ${momentoBR(m.data_devolucao, m.devolucao_em)}`}`}
+            resumo={`saída em ${momentoBR(m.data_retirada, m.retirada_em)}${m.condutorNome ? ` com ${m.condutorNome}` : ""}${m.aberta ? " (em aberto)" : `, devolução em ${momentoBR(m.data_devolucao, m.devolucao_em)}`}`}
             temAgendamento={Boolean(m.agendamento_id)}
           />
         </CardContent>

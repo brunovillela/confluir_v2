@@ -144,14 +144,14 @@ export function MovimentacaoEditarForm({
       </fieldset>
 
       <fieldset className="grid gap-4">
-        <legend className="mb-2 text-sm font-medium">Entrada</legend>
+        <legend className="mb-2 text-sm font-medium">Devolução</legend>
         <p className="text-muted-foreground -mt-2 text-xs">
-          Deixe data e hodômetro da entrada em branco para manter (ou tornar) a
+          Deixe data e hodômetro da devolução em branco para manter (ou tornar) a
           movimentação em aberto.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="data_devolucao">Data da entrada</Label>
+            <Label htmlFor="data_devolucao">Data da devolução</Label>
             <Input
               id="data_devolucao"
               name="data_devolucao"
@@ -161,7 +161,7 @@ export function MovimentacaoEditarForm({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="hora_devolucao">Hora da entrada</Label>
+            <Label htmlFor="hora_devolucao">Hora da devolução</Label>
             <Input
               id="hora_devolucao"
               name="hora_devolucao"
@@ -171,7 +171,7 @@ export function MovimentacaoEditarForm({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="hodometro_devolucao">Hodômetro na entrada</Label>
+            <Label htmlFor="hodometro_devolucao">Hodômetro na devolução</Label>
             <Input
               id="hodometro_devolucao"
               name="hodometro_devolucao"
@@ -181,7 +181,7 @@ export function MovimentacaoEditarForm({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="sede_devolucao">Sede de entrada</Label>
+            <Label htmlFor="sede_devolucao">Sede de devolução</Label>
             <select
               id="sede_devolucao"
               name="sede_devolucao"
@@ -200,7 +200,7 @@ export function MovimentacaoEditarForm({
             </select>
           </div>
           <div className="grid gap-1.5 sm:col-span-2 lg:col-span-3">
-            <Label htmlFor="observacao_retorno">Observação da entrada</Label>
+            <Label htmlFor="observacao_retorno">Observação da devolução</Label>
             <Input
               id="observacao_retorno"
               name="observacao_retorno"

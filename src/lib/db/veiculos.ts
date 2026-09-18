@@ -118,10 +118,10 @@ export type VeiculoLinha = {
   /** Movimentação aberta (veículo na rua) — null = SQL não rodado. */
   emUso: boolean | null
   condutorEmUsoNome: string | null
-  /** Desde quando a situação atual vale (saída, entrada, manutenção, inativação). */
+  /** Desde quando a situação atual vale (saída, devolução, manutenção, inativação). */
   desde: { data: string | null; em: string | null } | null
   /**
-   * Onde o veículo está: disponível = sede da última entrada; em manutenção =
+   * Onde o veículo está: disponível = sede da última devolução; em manutenção =
    * último local conhecido. Em uso = null (está fora; ver `destino`).
    */
   onde: string | null
@@ -227,7 +227,7 @@ export type UltimaMovimentacao = {
 /**
  * A movimentação MAIS RECENTE de cada veículo (view
  * `veiculos_ultima_movimentacao`, supabase/veiculos-horarios-situacao.sql).
- * Aberta = veículo em uso; fechada = disponível na sede da entrada. As 221
+ * Aberta = veículo em uso; fechada = disponível na sede da devolução. As 221
  * saídas antigas que o Bubble nunca fechou não contam: cada uma tem outra
  * movimentação depois dela.
  *
@@ -1026,7 +1026,7 @@ export type Movimentacao = {
   sede_devolucao: string | null
   data_retirada: string | null
   data_devolucao: string | null
-  /** Instante da saída/entrada — null nas antigas sem horário conhecido. */
+  /** Instante da saída/devolução — null nas antigas sem horário conhecido. */
   retirada_em: string | null
   devolucao_em: string | null
   hodometro_retirada: number | null
@@ -1038,7 +1038,7 @@ export type Movimentacao = {
   /** Solicitação a que a saída deu baixa (fluxo novo). */
   agendamento_id: string | null
   aberta: boolean
-  /** Quem registrou a saída e a entrada; numa conta de função, com quem ocupava o posto. */
+  /** Quem registrou a saída e a devolução; numa conta de função, com quem ocupava o posto. */
   saidaRegistradaPor: string | null
   entradaRegistradaPor: string | null
 }
@@ -1181,23 +1181,23 @@ export async function editarMovimentacao(
     dados.hodometro_devolucao !== null &&
     dados.hodometro_devolucao < dados.hodometro_retirada
   ) {
-    return { erro: "O hodômetro da entrada não pode ser menor que o da saída." }
+    return { erro: "O hodômetro da devolução não pode ser menor que o da saída." }
   }
   if (
     dados.data_retirada &&
     dados.data_devolucao &&
     dados.data_devolucao < dados.data_retirada
   ) {
-    return { erro: "A data da entrada não pode ser anterior à da saída." }
+    return { erro: "A data da devolução não pode ser anterior à da saída." }
   }
   if (dados.retirada_em && dados.devolucao_em && dados.devolucao_em < dados.retirada_em) {
-    return { erro: "O horário da entrada não pode ser anterior ao da saída." }
+    return { erro: "O horário da devolução não pode ser anterior ao da saída." }
   }
   if (dados.data_devolucao && dados.hodometro_devolucao === null) {
-    return { erro: "Com data de entrada, informe também o hodômetro da entrada." }
+    return { erro: "Com data de devolução, informe também o hodômetro da devolução." }
   }
   if (!dados.data_devolucao && dados.hodometro_devolucao !== null) {
-    return { erro: "Com hodômetro da entrada, informe também a data da entrada." }
+    return { erro: "Com hodômetro da devolução, informe também a data da devolução." }
   }
 
   const admin = await createAdminClient()
@@ -1315,7 +1315,7 @@ async function gravarMovimentacao(
     return q
   }
   let { error } = await executar(campos)
-  // Sem supabase/contas-funcao.sql: grava sem quem registrou a entrada.
+  // Sem supabase/contas-funcao.sql: grava sem quem registrou a devolução.
   if (error && esquemaAusente(error) && "devolucao_registrada_por_id" in campos) {
     campos = { ...campos }
     delete campos.devolucao_registrada_por_id
@@ -1330,7 +1330,7 @@ async function gravarMovimentacao(
   return { error }
 }
 
-/** A entrada mais recente do veículo — ponto de partida do hodômetro na saída. */
+/** A devolução mais recente do veículo — ponto de partida do hodômetro na saída. */
 export async function ultimaEntradaDoVeiculo(veiculoId: string): Promise<{
   hodometro: number
   data: string | null
@@ -1340,8 +1340,8 @@ export async function ultimaEntradaDoVeiculo(veiculoId: string): Promise<{
 } | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  // A última movimentação (pela saída, como no histórico) — não a entrada de
-  // data mais recente: uma entrada lançada com a data errada passava na frente.
+  // A última movimentação (pela saída, como no histórico) — não a devolução de
+  // data mais recente: uma devolução lançada com a data errada passava na frente.
   const { data: ultima } = await admin
     .from("veiculos_ultima_movimentacao")
     .select("*")
@@ -1410,7 +1410,7 @@ export async function registrarRetirada(
 
   const ultima = (await ultimasMovimentacoes(nova.veiculo_id))?.get(nova.veiculo_id)
   if (ultima?.aberta) {
-    return { erro: "Este veículo está fora: registre a entrada antes de uma nova saída." }
+    return { erro: "Este veículo está fora: registre a devolução antes de uma nova saída." }
   }
 
   const condutor = await buscarCondutorDoUsuario(nova.condutor_usuario_id)
@@ -1468,7 +1468,7 @@ export type Devolucao = {
   observacao: string | null
   /** Quem registra confirmou o km fora do normal (ver KM_POR_HORA_LIMITE). */
   kmConfirmado?: boolean
-  /** Quem registra a entrada (a recepção). */
+  /** Quem registra a devolução (a recepção). */
   registradoPorId?: string
 }
 
@@ -1507,7 +1507,7 @@ export async function registrarDevolucao(
   const observacao = anormal
     ? [
         dev.observacao,
-        `Km fora do normal confirmado na entrada: ${anormal.kmRodados.toLocaleString("pt-BR")} km em ${duracaoBR(anormal.horas)} (média de ${Math.round(anormal.media)} km/h) — o hodômetro pode estar errado.`,
+        `Km fora do normal confirmado na devolução: ${anormal.kmRodados.toLocaleString("pt-BR")} km em ${duracaoBR(anormal.horas)} (média de ${Math.round(anormal.media)} km/h) — o hodômetro pode estar errado.`,
       ]
         .filter(Boolean)
         .join(" · ")

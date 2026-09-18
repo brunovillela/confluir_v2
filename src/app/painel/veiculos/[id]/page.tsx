@@ -68,7 +68,7 @@ function diasAte(iso: string | null): number | null {
 
 /**
  * Visão geral do veículo: avisos, indicadores de uso, dados e histórico.
- * As áreas com formulário (entrada/saída, manutenções, checklist,
+ * As áreas com formulário (saída/devolução, manutenções, checklist,
  * abastecimentos, infrações) vivem em subpáginas, nos botões do topo.
  */
 export default async function VeiculoPage({
@@ -189,7 +189,7 @@ export default async function VeiculoPage({
                 <Button size="sm" asChild>
                   <Link href={`/painel/veiculos/${veiculo.id}/movimentacao`}>
                     {veiculo.emUso ? <LogIn /> : <KeyRound />}
-                    {veiculo.emUso ? "Registrar entrada" : "Registrar saída"}
+                    {veiculo.emUso ? "Registrar devolução" : "Registrar saída"}
                   </Link>
                 </Button>
               )}
@@ -263,7 +263,7 @@ export default async function VeiculoPage({
               <Button asChild size="sm" variant="outline">
                 <Link href={`/painel/veiculos/${veiculo.id}/movimentacao`}>
                   <LogIn />
-                  Registrar entrada
+                  Registrar devolução
                 </Link>
               </Button>
             )}
@@ -522,7 +522,7 @@ export default async function VeiculoPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Saída</TableHead>
-                <TableHead>Entrada</TableHead>
+                <TableHead>Devolução</TableHead>
                 <TableHead>Condutor</TableHead>
                 <TableHead>Destino</TableHead>
                 <TableHead className="text-right">Hodômetro</TableHead>

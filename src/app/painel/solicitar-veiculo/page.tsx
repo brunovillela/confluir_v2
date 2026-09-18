@@ -65,7 +65,7 @@ export default async function SolicitarVeiculoPage({
           {emEdicao ? "Editar solicitação de veículo" : "Solicitar veículo"}
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          A recepção atende a solicitação e escolhe o veículo; a saída e a entrada são registradas
+          A recepção atende a solicitação e escolhe o veículo; a saída e a devolução são registradas
           na portaria. Suas solicitações em aberto ficam no painel inicial.
         </p>
       </div>

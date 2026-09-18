@@ -83,7 +83,7 @@ export async function MeusVeiculos({
               )}
               {a.situacao === "retirada" && (
                 <p className="text-muted-foreground text-xs">
-                  Veículo com você — a entrada é registrada pela recepção na devolução.
+                  Veículo com você — a recepção registra a devolução quando você entregar o veículo.
                 </p>
               )}
             </li>

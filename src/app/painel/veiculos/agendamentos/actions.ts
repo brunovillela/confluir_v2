@@ -25,7 +25,7 @@ import { instanteSP, parseHodometro } from "@/lib/veiculos-constantes"
  *   inicial. Basta a sessão: a aptidão (cadastro autorizado, CNH em dia) é
  *   checada na camada de dados, não por permissão do módulo.
  * • RECEPÇÃO (`veiculos_recepcao`, ou gestão) — atende/transfere veículo,
- *   nega, cancela qualquer solicitação e registra SAÍDA e ENTRADA do veículo
+ *   nega, cancela qualquer solicitação e registra SAÍDA e DEVOLUÇÃO do veículo
  *   na página do veículo. Também SOLICITA EM NOME de outra pessoa (18/09): um
  *   diretor ou funcionário pede, e a recepção reserva para ele.
  */
@@ -275,18 +275,18 @@ export async function editarMovimentacaoAction(
   const hodRet = numeroOuNulo("hodometro_retirada")
   const hodDev = numeroOuNulo("hodometro_devolucao")
   if (hodRet.invalido) return { erro: "Hodômetro da saída inválido." }
-  if (hodDev.invalido) return { erro: "Hodômetro da entrada inválido." }
+  if (hodDev.invalido) return { erro: "Hodômetro da devolução inválido." }
   const dataRet = texto(formData, "data_retirada")
   const dataDev = texto(formData, "data_devolucao")
   const previsao = texto(formData, "previsao_retorno")
   if (dataRet && !dataISO(dataRet)) return { erro: "Data da saída inválida." }
-  if (dataDev && !dataISO(dataDev)) return { erro: "Data da entrada inválida." }
+  if (dataDev && !dataISO(dataDev)) return { erro: "Data da devolução inválida." }
   if (previsao && !dataISO(previsao)) return { erro: "Previsão de retorno inválida." }
   if (!dataRet) return { erro: "Informe a data da saída." }
   const horaRet = texto(formData, "hora_retirada")
   const horaDev = texto(formData, "hora_devolucao")
   if (horaRet && !/^\d{2}:\d{2}$/.test(horaRet)) return { erro: "Hora da saída inválida." }
-  if (horaDev && !/^\d{2}:\d{2}$/.test(horaDev)) return { erro: "Hora da entrada inválida." }
+  if (horaDev && !/^\d{2}:\d{2}$/.test(horaDev)) return { erro: "Hora da devolução inválida." }
   const condutor = texto(formData, "condutor_usuario_id")
 
   const { erro } = await editarMovimentacao(id, {
@@ -335,7 +335,7 @@ export async function excluirMovimentacaoAction(
   redirect(veiculoId ? `/painel/veiculos/${veiculoId}/historico?excluida=1${aviso}` : "/painel/veiculos")
 }
 
-/** ENTRADA (devolução) do veículo — registrada pela recepção. */
+/** DEVOLUÇÃO do veículo — registrada pela recepção. */
 export async function registrarEntradaAction(
   _prev: EstadoForm,
   formData: FormData
@@ -347,9 +347,9 @@ export async function registrarEntradaAction(
   const sede = texto(formData, "sede")
   if (!UUID.test(movimentacaoId)) return { erro: "Movimentação inválida." }
   if (hodometro === null || hodometro < 0) {
-    return { erro: "Informe o hodômetro na entrada." }
+    return { erro: "Informe o hodômetro na devolução." }
   }
-  if (!sede) return { erro: "Informe a sede de entrada." }
+  if (!sede) return { erro: "Informe a sede de devolução." }
 
   const { erro } = await registrarDevolucao({
     movimentacao_id: movimentacaoId,

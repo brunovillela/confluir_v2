@@ -71,7 +71,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "veiculos_gestao", rotulo: "Gestão de veículos" },
       {
         chave: "veiculos_recepcao",
-        rotulo: "Recepção (entrada/saída e agendamentos)",
+        rotulo: "Recepção (saída/devolução e agendamentos)",
       },
       { chave: "veiculos_checklist", rotulo: "Checklist da frota" },
       { chave: "veiculos_manutencao", rotulo: "Manutenções" },

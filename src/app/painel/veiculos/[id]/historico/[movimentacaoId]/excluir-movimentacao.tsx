@@ -53,7 +53,7 @@ export function ExcluirMovimentacao({
         <AlertDescription>
           <p>
             Vai ser excluída a movimentação <strong>{resumo}</strong>. Não há como desfazer: a saída,
-            a entrada, o hodômetro e a quilometragem somem do histórico, e a situação do veículo passa
+            a devolução, o hodômetro e a quilometragem somem do histórico, e a situação do veículo passa
             a vir da movimentação anterior.
           </p>
           {temAgendamento && (

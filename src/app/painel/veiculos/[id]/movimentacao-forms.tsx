@@ -30,7 +30,7 @@ export type ReservaVinculavel = {
   atendida: boolean
 }
 
-/** A entrada mais recente do veículo, mostrada para conferir o hodômetro. */
+/** A devolução mais recente do veículo, mostrada para conferir o hodômetro. */
 export type UltimaEntrada = {
   hodometro: number
   data: string | null
@@ -68,7 +68,7 @@ export function SaidaVeiculoForm({
   sedePadrao?: string | null
   condutores: OpcaoCondutor[]
   reservas: ReservaVinculavel[]
-  /** Km e momento da última entrada — ponto de partida do hodômetro. */
+  /** Km e momento da última devolução — ponto de partida do hodômetro. */
   ultimaEntrada: UltimaEntrada | null
 }) {
   const [estado, formAction, pendente] = useActionState(registrarSaidaAction, {})
@@ -102,7 +102,7 @@ export function SaidaVeiculoForm({
 
       {ultimaEntrada ? (
         <div className="bg-muted/50 rounded-md border px-3 py-2 text-sm">
-          <span className="text-muted-foreground">Última entrada: </span>
+          <span className="text-muted-foreground">Última devolução: </span>
           <strong className="tabular-nums">{ultimaEntrada.hodometro.toLocaleString("pt-BR")} km</strong>
           {" · "}
           {momentoBR(ultimaEntrada.data, ultimaEntrada.em)}
@@ -114,7 +114,7 @@ export function SaidaVeiculoForm({
         </div>
       ) : (
         <p className="text-muted-foreground text-xs">
-          Nenhuma entrada com hodômetro registrada para este veículo.
+          Nenhuma devolução com hodômetro registrada para este veículo.
         </p>
       )}
 
@@ -185,7 +185,7 @@ export function SaidaVeiculoForm({
           <AvisoHodometro
             digitado={hodometro}
             referencia={ultimaEntrada?.hodometro ?? null}
-            rotulo="o da última entrada"
+            rotulo="o da última devolução"
           />
         </div>
         <div className="grid gap-1.5">
@@ -240,7 +240,7 @@ export function SaidaVeiculoForm({
   )
 }
 
-/** ENTRADA — o veículo está fora. A recepção registra a devolução. */
+/** DEVOLUÇÃO — o veículo está fora. A recepção registra a devolução. */
 export function EntradaVeiculoForm({
   veiculoId,
   movimentacaoId,
@@ -277,7 +277,7 @@ export function EntradaVeiculoForm({
       <input type="hidden" name="voltar" value={`/painel/veiculos/${veiculoId}`} />
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="grid gap-1.5">
-          <Label htmlFor="hodometro">Hodômetro na entrada *</Label>
+          <Label htmlFor="hodometro">Hodômetro na devolução *</Label>
           <Input
             id="hodometro"
             name="hodometro"
@@ -291,7 +291,7 @@ export function EntradaVeiculoForm({
           <AvisoHodometro digitado={hodometro} referencia={hodometroSaida} rotulo="o da saída" />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="sede">Sede de entrada *</Label>
+          <Label htmlFor="sede">Sede de devolução *</Label>
           <select
             id="sede"
             name="sede"
@@ -334,7 +334,7 @@ export function EntradaVeiculoForm({
       <div>
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Check />}
-          Registrar entrada
+          Registrar devolução
         </Button>
       </div>
     </form>

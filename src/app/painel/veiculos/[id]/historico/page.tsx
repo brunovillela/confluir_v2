@@ -103,7 +103,7 @@ export default async function HistoricoVeiculoPage({
       <CabecalhoVeiculo
         veiculo={veiculo}
         titulo="Histórico de uso"
-        descricao="Todas as saídas e entradas registradas, do fluxo novo e do legado"
+        descricao="Todas as saídas e devoluções registradas, do fluxo novo e do legado"
       />
 
       {brutos.salvo && (
@@ -210,7 +210,7 @@ export default async function HistoricoVeiculoPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Saída</TableHead>
-                <TableHead>Entrada</TableHead>
+                <TableHead>Devolução</TableHead>
                 <TableHead>Condutor</TableHead>
                 <TableHead>Destino</TableHead>
                 <TableHead>Previsão</TableHead>

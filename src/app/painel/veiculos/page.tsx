@@ -396,7 +396,7 @@ function OndeEsta({ veiculo: v }: { veiculo: VeiculoLinha }) {
     <span>{v.onde}</span>
   ) : (
     <span className="text-muted-foreground text-xs">
-      sem entrada registrada
+      sem devolução registrada
     </span>
   );
 }

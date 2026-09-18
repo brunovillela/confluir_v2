@@ -112,7 +112,7 @@ async function todasAsLinhas(
 // ── Hodômetro atual ──────────────────────────────────────────────────────────
 
 /**
- * Km da última movimentação: a entrada, se o veículo voltou; a saída, se está
+ * Km da última movimentação: a devolução, se o veículo voltou; a saída, se está
  * fora. A última é a da view `veiculos_ultima_movimentacao` — pela data e hora
  * da SAÍDA, a mesma ordem do histórico.
  */
@@ -123,7 +123,7 @@ function kmDaMovimentacao(l: Record<string, unknown>): number | null {
 }
 
 /**
- * O hodômetro do veículo é o da ÚLTIMA MOVIMENTAÇÃO (saída ou entrada). O maior
+ * O hodômetro do veículo é o da ÚLTIMA MOVIMENTAÇÃO (saída ou devolução). O maior
  * valor entre as fontes deixava um km digitado errado valendo para sempre.
  * Veículo sem movimentação cai no maior valor entre abastecimentos, checklists,
  * devoluções e manutenções.

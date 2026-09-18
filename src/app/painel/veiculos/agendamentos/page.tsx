@@ -38,7 +38,7 @@ export const metadata: Metadata = { title: "Agendamentos de veículos — Conflu
 /**
  * Gestão dos agendamentos pela RECEPÇÃO (controle de acesso): atende ou
  * transfere o veículo, nega, cancela e acompanha quem está na rua. A saída
- * e a entrada se registram na PÁGINA DO VEÍCULO; o condutor solicita no
+ * e a devolução se registram na PÁGINA DO VEÍCULO; o condutor solicita no
  * painel inicial.
  */
 export default async function AgendamentosPage({
@@ -93,7 +93,7 @@ export default async function AgendamentosPage({
         <p className="text-muted-foreground mt-1 text-xs">
           Recepção: atender, transferir e cancelar solicitações e reservar para
           outra pessoa. A saída e a
-          entrada do veículo se registram na página do veículo.
+          devolução do veículo se registram na página do veículo.
         </p>
       </div>
 
@@ -236,7 +236,7 @@ export default async function AgendamentosPage({
 
       <GrupoColapsavel
         titulo="Veículos na rua"
-        descricao="Movimentações em aberto — a entrada se registra na página do veículo"
+        descricao="Movimentações em aberto — a devolução se registra na página do veículo"
         resumo={
           <span className="text-muted-foreground text-sm tabular-nums">
             {naRua.length}
@@ -282,7 +282,7 @@ export default async function AgendamentosPage({
                       <Button size="sm" variant="outline" asChild>
                         <Link href={`/painel/veiculos/${m.veiculo_id}/movimentacao`}>
                           <LogIn />
-                          Registrar entrada
+                          Registrar devolução
                         </Link>
                       </Button>
                     )}

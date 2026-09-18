@@ -62,7 +62,7 @@ export function duracaoBR(horas: number): string {
   return `${d} ${d === 1 ? "dia" : "dias"}${resto ? ` e ${resto} h` : ""}`
 }
 
-/** Momento de uma saída/entrada: com hora quando se sabe, só a data quando não. */
+/** Momento de uma saída/devolução: com hora quando se sabe, só a data quando não. */
 export function momentoBR(data: string | null, em: string | null): string {
   if (em) {
     const d = new Date(em)

@@ -701,7 +701,7 @@ export type VeiculoEmUsoTelegram = VeiculoFrotaTelegram & {
 
 export type FrotaTelegram = {
   disponivel: boolean
-  /** Disponíveis agrupados pela sede da última entrada (onde o carro está). */
+  /** Disponíveis agrupados pela sede da última devolução (onde o carro está). */
   porSede: { sede: string | null; veiculos: VeiculoFrotaTelegram[] }[]
   emUso: VeiculoEmUsoTelegram[]
   emManutencao: VeiculoFrotaTelegram[]
@@ -709,7 +709,7 @@ export type FrotaTelegram = {
 
 /**
  * Retrato da frota no momento da consulta: DISPONÍVEIS por sede (a da última
- * entrada — onde o carro ficou) e EM USO com o condutor, a saída, o destino e
+ * devolução — onde o carro ficou) e EM USO com o condutor, a saída, o destino e
  * a previsão de volta. Ativos só; manutenção à parte. Em uso = a última
  * movimentação está aberta (view `veiculos_ultima_movimentacao`, de
  * supabase/veiculos-horarios-situacao.sql). Espelha a coluna "Onde está" da

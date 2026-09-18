@@ -19,10 +19,10 @@ import { momentoBR } from "@/lib/veiculos-constantes"
 import { CabecalhoVeiculo } from "../cabecalho-veiculo"
 import { EntradaVeiculoForm, SaidaVeiculoForm } from "../movimentacao-forms"
 
-export const metadata: Metadata = { title: "Entrada e saída do veículo — Confluir" }
+export const metadata: Metadata = { title: "Saída e devolução do veículo — Confluir" }
 
 /**
- * Recepção (controle de acesso): fora → registrar ENTRADA; na garagem →
+ * Recepção (controle de acesso): fora → registrar DEVOLUÇÃO; na garagem →
  * registrar SAÍDA, com destino e previsão de retorno facultativos.
  */
 export default async function MovimentacaoVeiculoPage({
@@ -88,7 +88,7 @@ export default async function MovimentacaoVeiculoPage({
     <>
       <CabecalhoVeiculo
         veiculo={veiculo}
-        titulo={veiculo.emUso ? "Registrar entrada" : "Registrar saída"}
+        titulo={veiculo.emUso ? "Registrar devolução" : "Registrar saída"}
         descricao="Controle de acesso: o registro é feito na hora em que o veículo passa pela portaria"
         acoes={
           <Badge
