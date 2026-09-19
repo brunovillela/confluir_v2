@@ -554,15 +554,37 @@ export async function resolverFiliadosLoteDetalhado(
     }
   }
 
-  const porMatricula = new Map<string, string>()
-  const aprender = (matricula: string | null, filiadoId: string | null) => {
-    if (!matricula || !filiadoId) return
-    const chave = matricula.replace(/^0+/, "")
-    if (chave && !porMatricula.has(chave)) porMatricula.set(chave, filiadoId)
-  }
+  // A mesma matrícula pode estar em vínculos de pessoas diferentes: pensionistas
+  // usam a do titular falecido, e depois que a Petros passou a descontar pela
+  // matrícula PETROS (09/2026) a antiga matrícula Petrobras de um inativo pode
+  // coincidir com a Petros de quem paga hoje. Nesses casos vale quem pagou na
+  // remessa anterior desta fonte; se ainda empatar, a matrícula não decide.
+  const pagantesAnteriores = new Set(
+    vizinhos.filter((l) => l.fonte_pg_id === fonteId && l.filiado_id).map((l) => l.filiado_id as string)
+  )
+  const candidatosVinculo = new Map<string, Set<string>>()
+  const chaveDe = (matricula: string | null) => (matricula ?? "").replace(/^0+/, "")
   for (const v of vinculos) {
-    aprender(v.matricula, v.filiado_id)
-    aprender(v.fonte_pg_matricula, v.filiado_id)
+    for (const m of [v.matricula, v.fonte_pg_matricula]) {
+      const chave = chaveDe(m)
+      if (!chave || !v.filiado_id) continue
+      const s = candidatosVinculo.get(chave) ?? new Set<string>()
+      s.add(v.filiado_id)
+      candidatosVinculo.set(chave, s)
+    }
+  }
+  const porMatricula = new Map<string, string>()
+  const ambiguas = new Set<string>()
+  for (const [chave, pessoas] of candidatosVinculo) {
+    const lista = [...pessoas]
+    const preferidas = lista.length > 1 ? lista.filter((id) => pagantesAnteriores.has(id)) : lista
+    if (preferidas.length === 1) porMatricula.set(chave, preferidas[0])
+    else ambiguas.add(chave)
+  }
+  const aprender = (matricula: string | null, filiadoId: string | null) => {
+    const chave = chaveDe(matricula)
+    if (!chave || !filiadoId || ambiguas.has(chave)) return
+    if (!porMatricula.has(chave)) porMatricula.set(chave, filiadoId)
   }
   for (const l of [...atuais, ...vizinhos]) {
     if (l.fonte_pg_id === fonteId) aprender(l.fonte_pg_matricula, l.filiado_id)
