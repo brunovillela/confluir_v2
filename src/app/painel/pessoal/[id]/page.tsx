@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -156,6 +157,7 @@ export default async function FuncionarioPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: usuario.nome_completo ?? usuario.nome_guerra ?? "Funcionário" }} />
       <div>
         <div className="mb-3">
           <Button variant="ghost" size="sm" asChild className="-ml-2">

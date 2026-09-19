@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -94,6 +95,7 @@ export default async function RemessaContrachequesPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: remessa.nome_remessa ?? "Remessa" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/contracheques">
