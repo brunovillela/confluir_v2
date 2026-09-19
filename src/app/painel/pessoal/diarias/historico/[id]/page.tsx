@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -28,6 +29,12 @@ export default async function RemessaDiariaPage({
 
   return (
     <>
+      <RotuloTrilha
+        valores={{
+          historico: "Histórico",
+          [id]: remessa.beneficiarioNome ?? "Remessa de diárias",
+        }}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/diarias/historico">

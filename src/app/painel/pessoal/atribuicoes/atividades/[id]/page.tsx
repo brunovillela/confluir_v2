@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, ShieldAlert, Trash2 } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -63,6 +64,7 @@ export default async function AtividadePage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: atividade.nome ?? "(sem nome)" }} />
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
           <Link href="/painel/pessoal/atribuicoes/atividades">

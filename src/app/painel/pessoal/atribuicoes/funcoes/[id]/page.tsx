@@ -10,6 +10,7 @@ import {
   TriangleAlert,
 } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -71,6 +72,7 @@ export default async function FuncaoPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ funcoes: "Funções", [id]: funcao.nome ?? "(sem nome)" }} />
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
           <Link href="/painel/pessoal/atribuicoes/funcoes">

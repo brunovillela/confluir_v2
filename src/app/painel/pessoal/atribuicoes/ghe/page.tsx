@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, Lightbulb, Users } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +32,7 @@ export default async function GhePage({
 
   return (
     <>
+      <RotuloTrilha valores={{ ghe: "GHEs" }} />
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
           <Link href="/painel/pessoal/atribuicoes">

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -35,6 +36,7 @@ export default async function EditarAnuenioPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: "Editar lançamento de anuênio" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/anuenios">

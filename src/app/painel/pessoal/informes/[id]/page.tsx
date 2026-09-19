@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -84,6 +85,11 @@ export default async function RemessaInformesPage({
 
   return (
     <>
+      <RotuloTrilha
+        valores={{
+          [id]: `Ano-base ${remessa.ano_referencia_os ?? "(sem ano)"}`,
+        }}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/informes">
