@@ -2,6 +2,7 @@ import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { texto } from "@/lib/db/comum"
 
 /**
  * Hospedagem — convênio com hotéis parceiros:
@@ -641,6 +642,67 @@ export async function efetivarReserva(
 }
 
 /**
+ * Quem já está no quarto manda na regra de dividir: **só dá para acrescentar
+ * hóspede se TODOS os que já estão lá aceitaram quarto coletivo no cupom**.
+ * Quem não aceitou fica sozinho, mesmo que o quarto comporte mais gente e mesmo
+ * que a reserva esteja marcada como coletiva.
+ *
+ * Quarto vazio não tem dono: o primeiro hóspede pode ser qualquer um (é ele
+ * quem define o quarto).
+ */
+export function podeDividirQuarto(
+  jaAlocados: Pick<Cupom, "sexo" | "aceita_quarto_coletivo">[]
+): { pode: boolean; motivo: string | null; sexo: string | null } {
+  if (jaAlocados.length === 0) return { pode: true, motivo: null, sexo: null }
+  if (jaAlocados.some((c) => c.aceita_quarto_coletivo !== true)) {
+    return {
+      pode: false,
+      motivo:
+        jaAlocados.length === 1
+          ? "O hóspede desta reserva não aceitou dividir o quarto — ela fica só com ele."
+          : "Há hóspede nesta reserva que não aceitou dividir o quarto.",
+      sexo: null,
+    }
+  }
+  const sexos = [...new Set(jaAlocados.map((c) => texto(c.sexo)))]
+  if (!sexos[0] || sexos.length > 1) {
+    return {
+      pode: false,
+      motivo: !sexos[0]
+        ? "O cupom de quem está na reserva não tem o sexo informado — sem isso não dá para dividir o quarto."
+        : "Os hóspedes desta reserva não têm o mesmo sexo informado no cupom.",
+      sexo: null,
+    }
+  }
+  return { pode: true, motivo: null, sexo: sexos[0] }
+}
+
+/**
+ * Cupons que podem entrar NESTA reserva: aguardando, do mesmo hotel e — quando
+ * já há gente no quarto — só de quem também aceitou quarto coletivo e é do
+ * mesmo sexo. Em ordem alfabética, que é como o dropdown pergunta pelo nome.
+ */
+export async function cuponsParaVincular(
+  servicoId: string,
+  hotelId: string,
+  jaAlocados: Pick<Cupom, "sexo" | "aceita_quarto_coletivo">[]
+): Promise<{ pode: boolean; motivo: string | null; cupons: CupomLinha[] }> {
+  void servicoId
+  const divisao = podeDividirQuarto(jaAlocados)
+  if (!divisao.pode) return { pode: false, motivo: divisao.motivo, cupons: [] }
+
+  const disponiveis = await cuponsAguardando(hotelId)
+  // Quarto vazio: qualquer cupom serve. Com gente dentro, só quem divide.
+  const cupons =
+    jaAlocados.length === 0
+      ? disponiveis
+      : disponiveis.filter(
+          (c) => c.aceita_quarto_coletivo === true && texto(c.sexo) === divisao.sexo
+        )
+  return { pode: true, motivo: null, cupons }
+}
+
+/**
  * Regra do quarto coletivo: só pessoas do MESMO sexo (informado no cupom) e
  * que aceitaram quarto coletivo. Retorna a mensagem de erro ou null.
  */
@@ -743,6 +805,20 @@ export async function vincularCupomAReserva(
   if (!cupom) {
     return { erro: "O cupom já foi reservado, cancelado ou é de outro hotel." }
   }
+
+  // Dividir quarto depende de quem JÁ está nele: se o hóspede alocado não
+  // aceitou dividir, a reserva fica só com ele — venha de onde vier o pedido.
+  const divisao = podeDividirQuarto(vinculados ?? [])
+  if (!divisao.pode) return { erro: divisao.motivo ?? "Esta reserva não aceita outro hóspede." }
+  if (divisao.sexo) {
+    if (cupom.aceita_quarto_coletivo !== true) {
+      return { erro: "Este cupom não aceitou quarto coletivo — só entra num quarto sozinho." }
+    }
+    if (texto(cupom.sexo) !== divisao.sexo) {
+      return { erro: "Quarto dividido só com hóspedes do mesmo sexo." }
+    }
+  }
+
   const composicao = [...(vinculados ?? []), cupom]
   const erroComposicao = validarComposicaoColetiva(
     servico.coletivo === true,

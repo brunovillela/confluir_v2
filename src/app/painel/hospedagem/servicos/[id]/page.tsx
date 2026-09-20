@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { buscarServico, cuponsAguardando } from "@/lib/db/hospedagem"
+import { buscarServico, cuponsParaVincular } from "@/lib/db/hospedagem"
 import { formatarCpf } from "@/lib/cpf"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -56,10 +56,12 @@ export default async function ServicoPage({
   if (!detalhe) notFound()
   const { servico, hotel, cupons } = detalhe
 
-  const disponiveis =
+  // Mesma regra da área do hotel: quem já está no quarto decide se ele pode
+  // ser dividido, e com quem.
+  const vincular =
     podeEditar && servico.finalizado !== true && servico.hotel_id
-      ? await cuponsAguardando(servico.hotel_id)
-      : []
+      ? await cuponsParaVincular(servico.id, servico.hotel_id, cupons)
+      : { pode: false, motivo: null, cupons: [] }
 
   const finalizado = servico.finalizado === true
 
@@ -255,17 +257,33 @@ export default async function ServicoPage({
             </Table>
           </div>
 
-          {podeEditar && !finalizado && (
+          {podeEditar && !finalizado && vincular.pode && (
             <div className="border-t pt-4">
               <p className="mb-2 text-sm font-medium">Vincular cupom</p>
+              {cupons.length > 0 && (
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Só aparecem cupons de quem também aceitou dividir o quarto e é do mesmo
+                  sexo de quem já está nele.
+                </p>
+              )}
               <VincularCupomForm
                 servicoId={servico.id}
-                disponiveis={disponiveis.map((c) => ({
+                vazio={
+                  cupons.length > 0
+                    ? "Nenhum cupom compatível: os candidatos precisam aceitar dividir o quarto e ser do mesmo sexo de quem já está nele."
+                    : "Nenhum cupom aguardando reserva neste hotel."
+                }
+                disponiveis={vincular.cupons.map((c) => ({
                   id: c.id,
                   filiadoNome: c.filiadoNome,
                   check_in: c.check_in,
                 }))}
               />
+            </div>
+          )}
+          {podeEditar && !finalizado && !vincular.pode && vincular.motivo && (
+            <div className="border-t pt-4">
+              <p className="text-muted-foreground text-xs">{vincular.motivo}</p>
             </div>
           )}
         </CardContent>

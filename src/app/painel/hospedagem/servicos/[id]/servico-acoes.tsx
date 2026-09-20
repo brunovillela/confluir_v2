@@ -5,6 +5,7 @@ import { Check, Link2, Loader2, LockOpen, SquareCheckBig, Undo2, X } from "lucid
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 
 import { definirFinalizado, desvincularCupom, marcarComparecimento, vincularCupom } from "../actions"
 
@@ -148,23 +149,24 @@ export function VincularCupomForm({
   servicoId,
   disponiveis,
   action = vincularCupom,
+  preview = false,
+  vazio = "Nenhum cupom aguardando reserva neste hotel.",
 }: {
   servicoId: string
   disponiveis: CupomDisponivel[]
   action?: AcaoForm
+  preview?: boolean
+  /** O que dizer quando não há cupom para oferecer (muda com o filtro). */
+  vazio?: string
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
 
   if (disponiveis.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        Nenhum cupom aguardando reserva neste hotel.
-      </p>
-    )
+    return <p className="text-muted-foreground text-sm">{vazio}</p>
   }
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form {...formVisualizacao(preview, formAction)} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -192,10 +194,12 @@ export function VincularCupomForm({
             )
           })}
         </select>
-        <Button type="submit" variant="secondary" size="sm" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Link2 />}
-          Vincular
-        </Button>
+        <AcaoVisualizacao preview={preview} nota="Quem vincula o cupom é o hotel.">
+          <Button type="submit" variant="secondary" size="sm" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <Link2 />}
+            Vincular
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )
