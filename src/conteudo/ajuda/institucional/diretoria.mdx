@@ -142,6 +142,49 @@ atas na área própria.
 
 <Print src="institucional/diretoria.png" alt="Página de um mandato: dados do mandato com o lápis, os cartões Instâncias, Liberações sindicais e Atas de reunião com os totais, e os integrantes por grupo — cada linha com o cargo, o departamento, a instância, os selos (Licenciado, Assina, Filiado, Usuário, Acesso) e a data e o motivo da licença." legenda="O mandato: cartões para instâncias, liberações e atas, e cada integrante com departamento, instâncias e situação." />
 
+## Diárias da diretoria
+
+Diretor também recebe diária, e ela mora aqui — na aba **Diárias**, não em
+Pessoal. O motor é o mesmo das diárias de funcionário, mas a porta é outra: só
+entra quem tem a permissão **Diárias da diretoria**, então quem cuida de folha e
+ponto não vê nem avalia a diretoria (e vice-versa).
+
+No alto ficam os números do ano: quantas aguardam avaliação, quantas foram
+aprovadas, o valor das diárias e o das despesas extras — e, logo abaixo, **o
+aprovado por departamento**, que é como a contabilidade enxerga.
+
+<PassoAPasso>
+  <Passo titulo="Lançar">
+    **Lançar diária** abre o formulário: o diretor, o departamento que banca a
+    atividade, o tipo, a quantidade, o período e a atividade. Quase nenhum
+    diretor tem conta no sistema, então quem costuma lançar é a secretaria — o
+    sistema guarda quem digitou. Quem tem conta pede a própria em
+    *Meu perfil → Minhas diárias*.
+  </Passo>
+  <Passo titulo="Acrescentar as despesas">
+    Na tela da diária, enquanto ela aguarda avaliação, entram as **despesas
+    extras** — hospedagem, alimentação, passagem — com valor e comprovante.
+  </Passo>
+  <Passo titulo="Avaliar">
+    Aprovada, a diária gera **uma ordem de pagamento** com o total (diária mais
+    despesas), já classificada na conta do departamento.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="O departamento decide a conta contábil">
+  O departamento do diretor vem do cadastro dele (Organização → Departamentos)
+  ou do próprio cargo, e pode ser trocado no lançamento quando a atividade é de
+  outra área. É ele que escolhe a conta — no plano de contas, "Deslocamento
+  Diretores" existe repetido em cada departamento.
+</Aviso>
+
+<Print src="institucional/diretoria-diarias.png" alt="Aba Diárias da Diretoria: os quatro números do ano (aguardando avaliação, aprovadas, valor das diárias e das despesas extras), o aprovado por departamento, o botão Lançar diária, os filtros por diretor, situação e departamento, e a tabela com diretor, departamento, tipo, valor com o acréscimo em despesas, período e situação." legenda="Diárias da diretoria: os números do ano, o gasto por departamento e a lista." />
+
+<Print src="institucional/diretoria-diaria.png" alt="Tela de uma diária aguardando avaliação: dados da solicitação com diretor, departamento, tipo, quantidade, valor, período e motivo; o cartão de despesas extras com a passagem lançada e o link do comprovante; e o cartão de avaliação com os botões Aprovar e gerar ordem e Reprovar." legenda="Dentro da diária: as despesas extras entram antes da avaliação." />
+
+As diárias de cada diretor também aparecem **na ficha dele**, com o total
+aprovado no ano.
+
 ## Erros comuns
 
 - **"O signatário não aparece ao emitir um ofício."** Só os integrantes
@@ -164,6 +207,16 @@ atas na área própria.
   só consulta.
 - **"O integrante saiu da diretoria mas continua aparecendo."** Encerre o
   **mandato** ou o vínculo do integrante para tirá-lo dos vigentes.
+- **"A aba Diárias não aparece."** Ela só aparece para quem tem a permissão
+  **Diárias da diretoria** — peça a quem administra os acessos.
+- **"O diretor não aparece no formulário de diária."** Só entram integrantes
+  **em exercício do mandato vigente** que tenham cadastro de usuário. Ligue a
+  pessoa a um usuário no lápis dela, no mandato.
+- **"Não há tipo de diária para escolher."** Os tipos ficam em Pessoal →
+  Diárias → Tipos de diária, e cada um diz se vale para funcionários, para a
+  diretoria ou para os dois.
+- **"A diária do diretor apareceu na conta errada."** Confira o departamento da
+  solicitação e o de-para em Diárias → Centros de custo.
 
 <VejaTambem
   links={[

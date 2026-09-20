@@ -28,29 +28,36 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 18/09: todos os prints de Filiados.
-  ["/painel/filiados", "filiados/lista.png", { fullPage: true, esperar: "Saúde dos cadastros" }],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000001", "filiados/perfil.png", { fullPage: true }],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/perfil-outros-contatos.png", { scrollTo: "Outros contatos" }],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/perfil-reembolsos.png", { scrollTo: "O que a entidade reembolsou" }],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/vinculo-reconstruido.png", { scrollTo: "Histórico de filiação" }],
-  ["/painel/filiados/cadastros-pendentes", "filiados/cadastros-pendentes.png"],
-  ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png"],
-  ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
-  ["/painel/filiados/solicitacoes/88888888-8888-4888-8888-000000000001", "filiados/solicitacao-avaliacao.png"],
-  ["/painel/filiados/convenios", "filiados/convenios.png"],
-  ["/painel/filiados/convenios/e0e0e0e0-0000-4000-8000-000600000001", "filiados/convenio-editar.png", { fullPage: true }],
-  ["/painel/filiados/direitos", "filiados/direitos.png", { fullPage: true }],
-  ["/painel/filiados/inadimplentes", "filiados/inadimplentes.png"],
-  ["/painel/filiados/novo?modo=massa", "filiados/importar.png"],
-  ["/painel/filiados/prontuarios", "filiados/prontuarios.png"],
-  ["/painel/filiados/receitas", "filiados/receitas.png"],
-  ["/painel/filiados/receitas/60100000-0000-4000-8000-000000000001", "filiados/receita-remessa.png"],
-  ["/painel/filiados/reembolsos", "filiados/reembolsos.png"],
-  ["/painel/filiados/reembolsos/novo?filiado=77777777-7777-4777-8777-000000000005", "filiados/reembolso-novo.png"],
-  ["/painel/filiados/relatorios", "filiados/relatorios.png"],
-  ["/painel/filiados/relatorios/carencia", "filiados/relatorio-carencia.png"],
-  ["/painel/filiados/relatorios/personalizado?condicao=Ativo", "filiados/relatorio-personalizado.png", { fullPage: true }],
+  // Rodada de 20/09: Pessoal e Diretoria (diárias da diretoria, despesas
+  // extras e centros de custo). Seed: scripts/seed-prints-diarias-diretoria.mjs
+  ['/painel/pessoal', 'pessoal/painel-visao-geral.png', { fullPage: true }],
+  ['/painel/pessoal/funcionarios', 'pessoal/funcionarios-lista.png'],
+  ['/painel/pessoal/33333333-3333-4333-8333-000000000001', 'pessoal/funcionarios-ficha.png', { fullPage: true }],
+  ['/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001', 'pessoal/contracheques-remessa.png'],
+  ['/painel/pessoal/ponto', 'pessoal/ponto-remessas.png'],
+  ['/painel/pessoal/ferias', 'pessoal/ferias-periodos.png'],
+  ['/painel/pessoal/niveis', 'pessoal/niveis.png'],
+  ['/painel/pessoal/anuenios', 'pessoal/anuenios.png'],
+  ['/painel/pessoal/diarias', 'pessoal/diarias.png', { fullPage: true, esperar: 'Aguardando avaliação' }],
+  ['/painel/pessoal/diarias/contas?quadro=diretor', 'pessoal/diarias-contas.png', { fullPage: true, esperar: 'Tipos de despesa extra' }],
+  ['/painel/pessoal/diarias/tipos', 'pessoal/diarias-tipos.png', { fullPage: true, esperar: 'Vale para' }],
+  ['/painel/pessoal/atestados', 'pessoal/atestados.png'],
+  ['/painel/pessoal/aso', 'pessoal/aso.png'],
+  ['/painel/pessoal/treinamentos', 'pessoal/treinamentos.png'],
+  ['/painel/pessoal/reembolsos', 'pessoal/reembolsos.png'],
+  ['/painel/pessoal/informes', 'pessoal/informes.png'],
+  ['/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001', 'institucional/diretoria.png', { fullPage: true }],
+  ['/painel/institucional/diretoria/instancias', 'institucional/diretoria-instancias.png'],
+  ['/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/fe700000-0000-4000-8000-000000000002', 'institucional/ficha-integrante.png', { fullPage: true, esperar: 'Diárias' }],
+  ['/painel/institucional/diretoria/diarias', 'institucional/diretoria-diarias.png', { fullPage: true, esperar: 'Aprovado por departamento' }],
+  ['/painel/institucional/diretoria/diarias/d1a51000-0000-4000-8000-000000000002', 'institucional/diretoria-diaria.png', { fullPage: true, esperar: 'Despesas extras' }],
+
+  /* Rodada de 18/09: todos os prints de Filiados (já capturados).
+  ['/painel/filiados', 'filiados/lista.png', { fullPage: true, esperar: 'Saúde dos cadastros' }],
+  ['/painel/filiados/77777777-7777-4777-8777-000000000001', 'filiados/perfil.png', { fullPage: true }],
+  ['/painel/filiados/cadastros-pendentes', 'filiados/cadastros-pendentes.png'],
+  ['/painel/filiados/relatorios', 'filiados/relatorios.png'],
+  */
 
   // Rodada de 17/09 (fim da tarde): ficha do integrante (já capturado).
   /*

@@ -2,33 +2,75 @@ As **diárias** cobrem despesas de viagens e deslocamentos. A equipe cadastra os
 tipos, o funcionário solicita, e a solicitação é avaliada — gerando uma ordem de
 pagamento quando aprovada.
 
+<Aviso tipo="dica" titulo="Diretor tem a área dele">
+  Esta tela é a das diárias de **funcionário**. As da **diretoria** ficam em
+  Institucional → Diretoria → Diárias, com permissão própria: quem cuida de
+  folha e ponto não avalia a diretoria. O motor é o mesmo — tipos, despesas
+  extras e contas são compartilhados.
+</Aviso>
+
 ## Tipos de diária
 
 Em **Tipos de diária**, cadastre cada tipo com o nome, a descrição e o valor de
-referência, e mantenha ativos apenas os que estão em uso. Tipos trazidos do
-sistema anterior podem aparecer como **Permanente** ou **Restrito a N pessoas**:
-o restrito só aparece no formulário de quem está na lista.
+referência, e mantenha ativos apenas os que estão em uso. Cada tipo diz também
+em **Vale para** se serve a funcionários, à diretoria ou aos dois — é o que
+decide em qual das duas telas ele aparece. Tipos trazidos do sistema anterior
+podem aparecer como **Permanente** ou **Restrito a N pessoas**: o restrito só
+aparece no formulário de quem está na lista.
+
+<Print src="pessoal/diarias-tipos.png" alt="Tipos de diária: formulário para adicionar com nome, valor, categoria, o campo Vale para (Funcionários, Diretoria ou os dois) e a marcação de disponível, e a tabela de tipos com nome, valor, para quem vale e situação." legenda="Os tipos: o campo Vale para separa funcionários e diretoria." />
 
 ## O ciclo da solicitação
 
 <PassoAPasso>
   <Passo titulo="Solicitar">
-    A solicitação registra o funcionário, o tipo, a quantidade, o período e o
-    motivo. O valor total é calculado pela quantidade × valor do tipo.
+    Em *Meu perfil → Minhas diárias*, o botão **Solicitar diária** abre o
+    formulário: o tipo, a quantidade, o período e o motivo. O valor total é
+    calculado pela quantidade × valor do tipo.
+  </Passo>
+  <Passo titulo="Acrescentar as despesas">
+    Enquanto a diária aguarda avaliação, quem pediu pode lançar as **despesas
+    extras** — hospedagem, alimentação, passagem, táxi, pedágio — com valor e
+    comprovante. A equipe também lança pela tela da diária.
   </Passo>
   <Passo titulo="Avaliar">
     Enquanto está **aguardando**, aparece a ação **Avaliar** — a equipe aprova ou
     reprova. Também é possível cancelar.
   </Passo>
   <Passo titulo="Pagamento">
-    Ao aprovar, a diária gera uma **ordem de pagamento** no Financeiro.
+    Ao aprovar, a diária gera uma **ordem de pagamento** no Financeiro, com a
+    diária e as despesas somadas.
   </Passo>
 </PassoAPasso>
 
+No alto da lista ficam os números do ano: quantas diárias aguardam avaliação (e
+quanto somam), quantas foram aprovadas, o valor das diárias e o das despesas
+extras.
+
+<Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com os quatro números do ano no topo, filtros de busca e situação, e a tabela com funcionário, tipo, quantidade, valor (com o acréscimo em despesas), período e situação." legenda="Diárias: os números do ano, as solicitações e a avaliação da equipe." />
+
+## Despesas extras e centros de custo
+
+A despesa extra está **submetida à diária** — mesma solicitação, mesma avaliação,
+mesmo pagamento —, mas vai para **outra conta contábil**. Por isso a ordem de
+pagamento sai com **rateio**: um pagamento só, uma linha por conta. O rateio
+aparece no bloco *Centro de custo* da ordem, no Financeiro.
+
+Em **Diárias → Centros de custo** se diz qual conta cada gasto usa. A conta sai
+de três coisas: o **quadro** de quem recebe (funcionário ou diretoria), o
+**departamento** que banca e o **tipo de gasto** (a diária ou cada despesa).
+Funcionários usam uma conta só; na diretoria, cada departamento pode ter a sua,
+e o **padrão** vale para quem não tiver conta própria.
+
+Nada disso é obrigatório: sem conta definida, a ordem vai para o Financeiro
+classificar na autorização, como sempre foi.
+
+<Print src="pessoal/diarias-contas.png" alt="Centros de custo das diárias: os botões Funcionário e Diretoria, os departamentos, um select de conta para a diária e para cada tipo de despesa, e o cartão Tipos de despesa extra com hospedagem, alimentação, passagem, táxi, pedágio e outra despesa." legenda="Centros de custo: a conta de cada gasto, por quadro e por departamento." />
+
 <Aviso tipo="atencao" titulo="Precisa da configuração">
-  As diárias dependem de uma configuração inicial (o arquivo `diarias.sql`). Sem
-  ela, a área mostra um aviso para configurar — fale com quem administra o
-  sistema.
+  As diárias dependem de uma configuração inicial (os arquivos `diarias.sql` e
+  `diarias-diretoria.sql`). Sem ela, a área mostra um aviso para configurar —
+  fale com quem administra o sistema.
 </Aviso>
 
 ## Histórico do sistema anterior
@@ -36,26 +78,33 @@ o restrito só aparece no formulário de quem está na lista.
 No sistema anterior a diária era **lançada dia a dia** (tipo, atividade, local e
 valor, com as despesas e comprovantes de cada dia) e os lançamentos formavam uma
 **remessa** do beneficiário, que era enviada, avaliada e paga por ordem de
-pagamento. Essas remessas estão em **Diárias → Histórico**, só para consulta:
-filtre por ano ou busque por beneficiário, departamento ou código, e abra a
-remessa para ver a avaliação, a ordem de pagamento e os lançamentos.
+pagamento. Essas remessas estão em **Diárias → Histórico**, só para consulta —
+o botão mostra quantas são. Filtre por ano ou busque por beneficiário,
+departamento ou código, e abra a remessa para ver a avaliação, a ordem de
+pagamento e os lançamentos.
 
 Cada pessoa vê as próprias remessas em **Meu perfil → Diárias anteriores** — o
 atalho aparece para quem tem alguma, diretor ou funcionário.
-
-<Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com funcionário, tipo, quantidade, valor, período e situação." legenda="Diárias: as solicitações e a avaliação da equipe." />
 
 ## Erros comuns
 
 - **"A área pede para configurar."** Falta rodar a configuração inicial
   (`diarias.sql`) — fale com quem administra o sistema.
+- **"A lista está vazia, mas havia diárias no sistema antigo."** Elas estão em
+  **Histórico** — a lista principal mostra só as solicitações novas.
 - **"Aprovei a diária, mas o pagamento não saiu."** Ao aprovar, a diária gera
   uma **ordem de pagamento** no Financeiro que nasce **Em autorização** — ela
   ainda passa pela alçada antes de ser paga.
 - **"O valor total veio errado."** O total é **quantidade × valor do tipo**;
-  confira o valor de referência cadastrado no tipo de diária.
+  confira o valor de referência cadastrado no tipo de diária. As despesas extras
+  aparecem somadas à parte.
 - **"O tipo de diária não aparece na solicitação."** Ele pode estar **inativo** —
-  reative-o em Tipos de diária — ou **restrito** a outras pessoas.
+  reative-o em Tipos de diária —, **restrito** a outras pessoas ou marcado em
+  **Vale para** como sendo do outro quadro.
+- **"Não consigo lançar a despesa."** Depois de avaliada, a diária não aceita
+  mudança nas despesas — o rateio da ordem já foi fechado.
+- **"A despesa caiu na conta da diária."** Defina a conta daquele tipo de
+  despesa em Diárias → Centros de custo.
 - **"Não consigo excluir um tipo antigo."** Tipos usados em solicitações ou em
   lançamentos do histórico não podem ser excluídos — desative-os.
 
@@ -65,6 +114,11 @@ atalho aparece para quem tem alguma, diretor ou funcionário.
       titulo: "Reembolsos",
       href: "/painel/ajuda/pessoal/reembolsos",
       descricao: "O fluxo parecido para despesas do ACT",
+    },
+    {
+      titulo: "Diretoria",
+      href: "/painel/ajuda/institucional/diretoria",
+      descricao: "As diárias dos diretores, por departamento",
     },
   ]}
 />
