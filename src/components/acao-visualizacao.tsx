@@ -8,6 +8,13 @@ import { Eye } from "lucide-react"
  * fim da página" — se o botão some da visualização, o atendente orienta às
  * cegas.
  *
+ * Envolve SÓ o controle que grava — o botão de enviar, de cancelar, de
+ * excluir. Campo de texto, seletor de hotel, lápis que abre um formulário,
+ * link que navega e botão que só mexe no estado da tela continuam
+ * funcionando: é com eles que o atendente percorre a tela junto com o
+ * filiado. Formulário inteiro desligado obriga o atendente a adivinhar o que
+ * o filiado está vendo.
+ *
  * A trava de verdade não está aqui: as actions do portal leem a sessão real,
  * então a gestão não escreve pelo filiado nem se burlar o `disabled`. Isto é
  * só a camada visual dessa mesma regra.
@@ -42,4 +49,21 @@ export function AcaoVisualizacao({
       )}
     </div>
   )
+}
+
+/**
+ * Props do <form> na visualização: os campos seguem editáveis, mas o envio
+ * não acontece. Sem isso, um Enter dentro de um campo dispararia a action
+ * mesmo com o botão desligado — e a action grava na conta de quem está
+ * logado (a gestão), não na do filiado visualizado.
+ *
+ *   <form {...formVisualizacao(preview, formAction)}>
+ */
+export function formVisualizacao(
+  preview: boolean,
+  action: (formData: FormData) => void
+): Pick<React.ComponentProps<"form">, "action" | "onSubmit"> {
+  return preview
+    ? { onSubmit: (e) => e.preventDefault() }
+    : { action }
 }

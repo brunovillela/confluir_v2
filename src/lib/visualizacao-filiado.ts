@@ -2,6 +2,7 @@ import "server-only"
 
 import { createHmac } from "node:crypto"
 
+import { cache } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -83,7 +84,7 @@ export type VisualizacaoPortal = {
  * o filiado-alvo, com `preview: true`. Retorna null quando nem uma coisa nem
  * outra se aplica (o require redireciona).
  */
-export async function getVisualizacaoPortal(): Promise<VisualizacaoPortal | null> {
+export const getVisualizacaoPortal = cache(async (): Promise<VisualizacaoPortal | null> => {
   const jar = await cookies()
   const dados = lerToken(jar.get(COOKIE_VISUALIZACAO)?.value)
 
@@ -126,7 +127,7 @@ export async function getVisualizacaoPortal(): Promise<VisualizacaoPortal | null
   const sessao = await getSessaoPortal()
   if (!sessao) return null
   return { filiado: sessao.filiado, preview: false }
-}
+})
 
 export async function requireVisualizacaoPortal(): Promise<VisualizacaoPortal> {
   const v = await getVisualizacaoPortal()

@@ -133,20 +133,16 @@ export default async function PortalHospedagemPage({
         naoComparecimento={regraFaltas}
       />
 
-      <AcaoVisualizacao
+      <SolicitarCupomForm
+        hoteis={hoteis.map((h) => ({
+          id: h.id,
+          nome: h.nome,
+          garantida: ehGarantida(h),
+          maxNoites: configDoHotel(h).maxNoites,
+        }))}
+        hoje={hoje}
         preview={preview}
-        nota="Somente o próprio associado pode solicitar um cupom."
-      >
-        <SolicitarCupomForm
-          hoteis={hoteis.map((h) => ({
-            id: h.id,
-            nome: h.nome,
-            garantida: ehGarantida(h),
-            maxNoites: configDoHotel(h).maxNoites,
-          }))}
-          hoje={hoje}
-        />
-      </AcaoVisualizacao>
+      />
 
       {hoteisGarantidos.length > 0 && (
         <Card>

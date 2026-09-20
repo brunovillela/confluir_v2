@@ -4,7 +4,7 @@ import { useActionState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,8 +47,10 @@ export function CadastroForm({
   const [estado, formAction, pendente] = useActionState(atualizarMeuCadastro, {})
 
   return (
-    <form action={formAction} className="grid gap-4">
-      <fieldset disabled={somenteLeitura} className="contents">
+    <form
+      {...formVisualizacao(somenteLeitura === true, formAction)}
+      className="grid gap-4"
+    >
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -182,7 +184,6 @@ export function CadastroForm({
         </CardContent>
       </Card>
 
-      </fieldset>
       <div className="flex justify-end">
         <AcaoVisualizacao
           preview={somenteLeitura === true}

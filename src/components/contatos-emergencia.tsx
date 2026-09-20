@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react"
 import { Loader2, Pencil, Phone, Plus, Trash2, X } from "lucide-react"
 
-import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,7 @@ export function ContatosEmergencia({
             contato={c}
             salvar={salvar}
             ocultos={ocultos}
+            preview={preview}
             aoFechar={() => setEditando(null)}
           />
         ) : (
@@ -98,20 +99,22 @@ export function ContatosEmergencia({
               </a>
             </div>
             {podeEditar && (
-              <AcaoVisualizacao preview={preview} nota="">
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Editar ${c.nome}`}
-                    onClick={() => {
-                      setNovo(false)
-                      setEditando(c.id)
-                    }}
-                  >
-                    <Pencil />
-                  </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                {/* O lápis só abre o formulário no lugar da linha: continua
+                    valendo na visualização da gestão. */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Editar ${c.nome}`}
+                  onClick={() => {
+                    setNovo(false)
+                    setEditando(c.id)
+                  }}
+                >
+                  <Pencil />
+                </Button>
+                <AcaoVisualizacao preview={preview} nota="">
                   <form action={acaoExcluir}>
                     {ocultos}
                     <input type="hidden" name="contato_id" value={c.id} />
@@ -129,8 +132,8 @@ export function ContatosEmergencia({
                       <Trash2 />
                     </Button>
                   </form>
-                </div>
-              </AcaoVisualizacao>
+                </AcaoVisualizacao>
+              </div>
             )}
           </div>
         )
@@ -138,24 +141,22 @@ export function ContatosEmergencia({
 
       {podeEditar &&
         (novo ? (
-          <ContatoForm salvar={salvar} ocultos={ocultos} aoFechar={() => setNovo(false)} />
+          <ContatoForm salvar={salvar} ocultos={ocultos} preview={preview} aoFechar={() => setNovo(false)} />
         ) : contatos.length < MAX_CONTATOS_EMERGENCIA ? (
-          <AcaoVisualizacao preview={preview}>
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setEditando(null)
-                  setNovo(true)
-                }}
-              >
-                <Plus />
-                Adicionar contato
-              </Button>
-            </div>
-          </AcaoVisualizacao>
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditando(null)
+                setNovo(true)
+              }}
+            >
+              <Plus />
+              Adicionar contato
+            </Button>
+          </div>
         ) : (
           <p className="text-muted-foreground text-xs">
             Limite de {MAX_CONTATOS_EMERGENCIA} contatos atingido — exclua um para incluir outro.
@@ -169,11 +170,13 @@ function ContatoForm({
   contato,
   salvar,
   ocultos,
+  preview = false,
   aoFechar,
 }: {
   contato?: ContatoEmergenciaTela
   salvar: Acao
   ocultos: React.ReactNode
+  preview?: boolean
   aoFechar: () => void
 }) {
   const [estado, formAction, pendente] = useActionState(async (prev: EstadoForm, formData: FormData) => {
@@ -185,7 +188,10 @@ function ContatoForm({
   const p = contato ? `ce-${contato.id}` : "ce-novo"
 
   return (
-    <form action={formAction} className="bg-muted/30 grid gap-3 rounded-lg border p-3">
+    <form
+      {...formVisualizacao(preview, formAction)}
+      className="bg-muted/30 grid gap-3 rounded-lg border p-3"
+    >
       {ocultos}
       {contato && <input type="hidden" name="contato_id" value={contato.id} />}
       {estado.erro && (
@@ -235,10 +241,12 @@ function ContatoForm({
           <X />
           Cancelar
         </Button>
-        <Button type="submit" size="sm" disabled={pendente}>
-          {pendente && <Loader2 className="animate-spin" />}
-          {contato ? "Salvar contato" : "Adicionar contato"}
-        </Button>
+        <AcaoVisualizacao preview={preview} nota="">
+          <Button type="submit" size="sm" disabled={pendente}>
+            {pendente && <Loader2 className="animate-spin" />}
+            {contato ? "Salvar contato" : "Adicionar contato"}
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

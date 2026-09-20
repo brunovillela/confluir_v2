@@ -22,7 +22,6 @@ import {
 } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
-import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 
 import { PortalShell } from "../portal-shell"
 import { EmailVotacaoForm } from "./email-form"
@@ -117,17 +116,12 @@ export default async function VotacaoPortalPage() {
                       </p>
                     </div>
                   ) : (
-                    <AcaoVisualizacao
-                      preview={preview}
-                      nota="O voto é secreto e pessoal — só o associado vota."
-                    >
-                      <Button size="sm" asChild>
-                        <Link href={`/portal/votacao/${a.assembleiaId}`}>
-                          <Vote />
-                          Votar agora
-                        </Link>
-                      </Button>
-                    </AcaoVisualizacao>
+                    <Button size="sm" asChild>
+                      <Link href={`/portal/votacao/${a.assembleiaId}`}>
+                        <Vote />
+                        Votar agora
+                      </Link>
+                    </Button>
                   )
                 ) : a.rodadaId ? (
                   <Button variant="outline" size="sm" asChild>
@@ -158,18 +152,11 @@ export default async function VotacaoPortalPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {preview ? (
-            <p className="text-muted-foreground text-sm">
-              {emailVot.email
-                ? `E-mail de votação: ${emailVot.email}`
-                : "Nenhum e-mail de votação verificado."}
-            </p>
-          ) : (
-            <EmailVotacaoForm
-              emailAtual={emailVot.email}
-              pendente={emailVot.pendente}
-            />
-          )}
+          <EmailVotacaoForm
+            emailAtual={emailVot.email}
+            pendente={emailVot.pendente}
+            preview={preview}
+          />
         </CardContent>
       </Card>
 

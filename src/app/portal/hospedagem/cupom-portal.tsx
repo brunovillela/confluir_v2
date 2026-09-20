@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 import { BedDouble, Check, ListPlus, Loader2, Ticket, X } from "lucide-react"
 
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,9 +42,12 @@ function somarDias(data: string, dias: number): string {
 export function SolicitarCupomForm({
   hoteis,
   hoje,
+  preview = false,
 }: {
   hoteis: HotelDoPortal[]
   hoje: string
+  /** "Ver como filiado": escolher hotel e datas funciona; enviar, não. */
+  preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoPedidoHospedagem, FormData>(
     solicitarCupom,
@@ -62,7 +66,10 @@ export function SolicitarCupomForm({
         <CardTitle className="text-base">Solicitar hospedagem</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form action={formAction} className="grid gap-4 sm:grid-cols-2">
+        <form
+          {...formVisualizacao(preview, formAction)}
+          className="grid gap-4 sm:grid-cols-2"
+        >
           {estado.erro && (
             <div className="sm:col-span-2">
               <Alert variant="destructive">
@@ -139,16 +146,21 @@ export function SolicitarCupomForm({
               : "A retirada do cupom não garante a reserva nem o serviço — a reserva é confirmada pelo hotel. Mesmo aceitando quarto coletivo, a sua tarifa será a referente à quantidade de pessoas no quarto, conforme a reserva."}
           </p>
           <div className="flex justify-end sm:col-span-2">
-            <Button type="submit" disabled={pendente}>
-              {pendente ? (
-                <Loader2 className="animate-spin" />
-              ) : garantida ? (
-                <BedDouble />
-              ) : (
-                <Ticket />
-              )}
-              {garantida ? "Reservar" : "Solicitar cupom"}
-            </Button>
+            <AcaoVisualizacao
+              preview={preview}
+              nota="Somente o próprio associado pode solicitar um cupom."
+            >
+              <Button type="submit" disabled={pendente}>
+                {pendente ? (
+                  <Loader2 className="animate-spin" />
+                ) : garantida ? (
+                  <BedDouble />
+                ) : (
+                  <Ticket />
+                )}
+                {garantida ? "Reservar" : "Solicitar cupom"}
+              </Button>
+            </AcaoVisualizacao>
           </div>
         </form>
 

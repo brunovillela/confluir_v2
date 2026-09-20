@@ -3,17 +3,18 @@
 import { useActionState } from "react"
 import { Loader2, ShieldCheck } from "lucide-react"
 
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { registrarAceiteLgpd } from "./actions"
 
-export function AceiteLgpdForm() {
+export function AceiteLgpdForm({ preview = false }: { preview?: boolean }) {
   const [estado, formAction, pendente] = useActionState(registrarAceiteLgpd, {})
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form {...formVisualizacao(preview, formAction)} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -25,10 +26,15 @@ export function AceiteLgpdForm() {
         termos acima.
       </label>
       <div>
-        <Button type="submit" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
-          Registrar aceite
-        </Button>
+        <AcaoVisualizacao
+          preview={preview}
+          nota="O aceite é um ato do próprio titular — a gestão não pode dá-lo por ele."
+        >
+          <Button type="submit" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+            Registrar aceite
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

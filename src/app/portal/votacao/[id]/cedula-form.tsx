@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { CheckCircle2, Loader2, Vote } from "lucide-react"
 
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { EstadoForm } from "@/lib/contas"
@@ -13,11 +14,15 @@ export function CedulaForm({
   perguntas,
   acao,
   camposOcultos,
+  preview = false,
 }: {
   assembleiaId: string
   perguntas: PerguntaVoto[]
   acao: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   camposOcultos?: Record<string, string>
+  /** "Ver como filiado": a cédula aparece para o atendente mostrar como é,
+   *  mas o voto não sai daqui — ele é secreto e pessoal. */
+  preview?: boolean
 }) {
   const [estado, action, pendente] = useActionState(acao, {})
 
@@ -31,7 +36,7 @@ export function CedulaForm({
   }
 
   return (
-    <form action={action} className="grid gap-6">
+    <form {...formVisualizacao(preview, action)} className="grid gap-6">
       <input type="hidden" name="assembleia_id" value={assembleiaId} />
       {camposOcultos &&
         Object.entries(camposOcultos).map(([nome, valor]) => (
@@ -77,10 +82,15 @@ export function CedulaForm({
       </Alert>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Vote />}
-          Confirmar voto
-        </Button>
+        <AcaoVisualizacao
+          preview={preview}
+          nota="O voto é secreto e pessoal — só o associado, na conta dele."
+        >
+          <Button type="submit" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <Vote />}
+            Confirmar voto
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

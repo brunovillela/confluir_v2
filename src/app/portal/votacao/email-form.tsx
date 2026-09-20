@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { CheckCircle2, Loader2, MailCheck } from "lucide-react"
 
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,9 +21,12 @@ import {
 export function EmailVotacaoForm({
   emailAtual,
   pendente,
+  preview = false,
 }: {
   emailAtual: string | null
   pendente: string | null
+  /** "Ver como filiado": o e-mail é do associado — só ele verifica o dele. */
+  preview?: boolean
 }) {
   const [estEnvio, actEnvio, pendEnvio] = useActionState(
     enviarCodigoEmailVotacao,
@@ -45,7 +49,7 @@ export function EmailVotacaoForm({
         </p>
       )}
 
-      <form action={actEnvio} className="grid gap-2 sm:max-w-md">
+      <form {...formVisualizacao(preview, actEnvio)} className="grid gap-2 sm:max-w-md">
         <Label htmlFor="email">
           {emailAtual ? "Trocar o e-mail de votação" : "E-mail de votação"}
         </Label>
@@ -68,9 +72,11 @@ export function EmailVotacaoForm({
             defaultValue={pendente ?? ""}
             required
           />
-          <Button type="submit" variant="outline" disabled={pendEnvio}>
-            {pendEnvio ? <Loader2 className="animate-spin" /> : "Enviar código"}
-          </Button>
+          <AcaoVisualizacao preview={preview} nota="">
+            <Button type="submit" variant="outline" disabled={pendEnvio}>
+              {pendEnvio ? <Loader2 className="animate-spin" /> : "Enviar código"}
+            </Button>
+          </AcaoVisualizacao>
         </div>
         <p className="text-muted-foreground text-xs">
           Se for o mesmo e-mail com que você entra no portal, ele já vale.
@@ -78,7 +84,7 @@ export function EmailVotacaoForm({
       </form>
 
       {aguardandoCodigo && (
-        <form action={actConf} className="grid gap-2 sm:max-w-md">
+        <form {...formVisualizacao(preview, actConf)} className="grid gap-2 sm:max-w-md">
           <Label htmlFor="codigo">Código enviado por e-mail</Label>
           {estEnvio.ok && (
             <Alert>
@@ -107,9 +113,11 @@ export function EmailVotacaoForm({
               className="tracking-[0.4em]"
               required
             />
-            <Button type="submit" disabled={pendConf}>
-              {pendConf ? <Loader2 className="animate-spin" /> : "Confirmar"}
-            </Button>
+            <AcaoVisualizacao preview={preview} nota="">
+              <Button type="submit" disabled={pendConf}>
+                {pendConf ? <Loader2 className="animate-spin" /> : "Confirmar"}
+              </Button>
+            </AcaoVisualizacao>
           </div>
         </form>
       )}

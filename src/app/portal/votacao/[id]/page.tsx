@@ -58,15 +58,16 @@ export default async function CedulaPage({
           <CardTitle className="text-base">Cédula</CardTitle>
           <CardDescription>Escolha uma opção em cada pergunta.</CardDescription>
         </CardHeader>
-        <CardContent>
-          {preview ? (
+        <CardContent className="grid gap-4">
+          {preview && (
             <Alert variant="warning">
               <AlertDescription>
-                Visualização da gestão — a votação só pode ser feita pelo próprio
-                filiado, na conta dele.
+                Visualização da gestão — a cédula está aqui para você acompanhar
+                o filiado, mas o voto só pode ser dado por ele, na conta dele.
               </AlertDescription>
             </Alert>
-          ) : !eleg ? (
+          )}
+          {!eleg ? (
             <Alert variant="warning">
               <AlertDescription>
                 Você não está apto a votar nesta assembleia, ou a votação não está
@@ -97,6 +98,7 @@ export default async function CedulaPage({
               assembleiaId={id}
               perguntas={perguntas}
               acao={votarNaAssembleia}
+              preview={preview}
             />
           )}
         </CardContent>

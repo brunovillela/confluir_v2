@@ -6,6 +6,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { empregadoresAtivos } from "@/lib/db/votacao-portal"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   estadoPrazo,
@@ -536,6 +537,50 @@ export async function oposicoesParaFiliado(
     })
   }
   return out
+}
+
+/**
+ * A aba "Oposição" some da visualização da gestão (é um fluxo com sessão
+ * própria), MENOS quando ela diz algo sobre ESTE filiado: ele já se opôs
+ * alguma vez, ou hoje trabalha numa fonte pagadora com campanha aberta
+ * dentro do prazo. Campanha aberta sem fonte marcada vale para todos.
+ */
+export async function oposicaoRelevanteParaFiliado(
+  cpf: string
+): Promise<boolean> {
+  const cpfLimpo = (cpf ?? "").replace(/D/g, "")
+  if (!cpfLimpo) return false
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const { data: historico } = await admin
+    .from("oposicao_opositor")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("cpf", cpfLimpo)
+    .limit(1)
+  if ((historico ?? []).length > 0) return true
+
+  const hoje = hojeSP()
+  const noPrazo = (await campanhasAbertas()).filter(
+    (c) => estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje) === "aberto"
+  )
+  if (noPrazo.length === 0) return false
+
+  const { data: escopo } = await admin
+    .from("oposicao_campanha_fontes")
+    .select("campanha_id, empresa_id")
+    .eq("emp_proprietaria_id", emp)
+    .in(
+      "campanha_id",
+      noPrazo.map((c) => c.id)
+    )
+  const comEscopo = new Set((escopo ?? []).map((f) => String(f.campanha_id)))
+  if (noPrazo.some((c) => !comEscopo.has(c.id))) return true
+
+  const fontes = await empregadoresAtivos(cpfLimpo)
+  if (fontes.size === 0) return false
+  return (escopo ?? []).some((f) => fontes.has(String(f.empresa_id)))
 }
 
 export type CampanhaPublica = {

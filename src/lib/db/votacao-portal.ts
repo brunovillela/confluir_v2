@@ -208,8 +208,13 @@ function txt(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : null
 }
 
-/** fonte_pagadora_id dos empregadores ATIVOS do CPF (sem desfiliação/demissão). */
-async function empregadoresAtivos(cpf: string): Promise<Set<string>> {
+/**
+ * fonte_pagadora_id dos empregadores ATIVOS do CPF (sem desfiliação/demissão).
+ * Exportada porque a Oposição usa a MESMA régua para saber se o filiado
+ * trabalha numa fonte com campanha aberta — duas cópias da regra iriam
+ * divergir na primeira mudança.
+ */
+export async function empregadoresAtivos(cpf: string): Promise<Set<string>> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { data: filiacoes } = await admin

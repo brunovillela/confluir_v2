@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { sairDoPortal } from "@/lib/actions/sessao"
 import { encerrarVisualizacaoFiliado } from "@/lib/actions/visualizacao"
 import { areasDaConta } from "@/lib/auth"
+import { oposicaoRelevanteParaFiliado } from "@/lib/db/oposicao"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 const NAV = [
   { titulo: "Início", href: "/portal/inicio" },
@@ -25,6 +27,18 @@ const NAV = [
 /** Dados da visualização pela gestão (somente leitura). */
 type Preview = { filiadoNome?: string | null; gestorNome?: string | null }
 
+/**
+ * A Oposição é um fluxo com sessão própria (do trabalhador), então na
+ * visualização ela fica fora da navegação — menos quando tem a ver com ESTE
+ * filiado: já houve oposição dele, ou a fonte pagadora onde ele trabalha tem
+ * campanha aberta. Aí o atendente precisa ver a aba para falar dela.
+ */
+async function oposicaoNaNavegacao(): Promise<boolean> {
+  const vis = await getVisualizacaoPortal()
+  if (!vis?.filiado.cpf) return false
+  return oposicaoRelevanteParaFiliado(vis.filiado.cpf)
+}
+
 /** Casca da área logada do portal do associado (header + navegação). */
 export async function PortalShell({
   children,
@@ -38,7 +52,10 @@ export async function PortalShell({
   const outrasAreas = preview
     ? []
     : (await areasDaConta()).filter((a) => a.href !== "/portal/inicio")
-  const nav = preview ? NAV.filter((i) => i.href !== "/portal/oposicao") : NAV
+  const nav =
+    preview && !(await oposicaoNaNavegacao())
+      ? NAV.filter((i) => i.href !== "/portal/oposicao")
+      : NAV
 
   return (
     <div className="flex min-h-svh flex-col">

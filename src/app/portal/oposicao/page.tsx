@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, LogOut } from "lucide-react"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Marca } from "@/components/marca"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -23,6 +24,7 @@ import {
   estadoPrazo,
   ROTULO_SITUACAO_OPOSITOR,
 } from "@/lib/oposicao-constantes"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { AcessoNaoFiliado } from "./oposicao-portal-forms"
 
@@ -44,6 +46,11 @@ export default async function OposicaoPortalPage({
   const sessao = await getSessaoTrabalhador()
   const { desistiu } = await searchParams
   const entidade = await nomeEntidade()
+  // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
+  // Quem atende costuma ser filiado também — sem esta precedência, a tela
+  // mostraria a oposição DO ATENDENTE dentro da visualização de outra pessoa.
+  const vis = await getVisualizacaoPortal()
+  const preview = vis?.preview ? vis : null
 
   return (
     <div className="mx-auto grid min-h-dvh max-w-2xl gap-6 px-4 py-8">
@@ -79,7 +86,29 @@ export default async function OposicaoPortalPage({
         </Alert>
       )}
 
-      {!sessao ? (
+      {preview ? (
+        <>
+          <Alert variant="warning">
+            <AlertDescription>
+              Visualizando a oposição de{" "}
+              <strong>{preview.filiado.nome_completo ?? "filiado"}</strong> —
+              somente leitura. Registrar oposição e abrir o comprovante são atos
+              do próprio trabalhador, na conta dele.
+            </AlertDescription>
+          </Alert>
+          <ListaCampanhas
+            cpf={preview.filiado.cpf}
+            nome={preview.filiado.nome_completo}
+            perfil="filiado"
+            preview
+          />
+          <div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/portal/inicio">Voltar ao portal do associado</Link>
+            </Button>
+          </div>
+        </>
+      ) : !sessao ? (
         <>
           <Card>
             <CardHeader>
@@ -113,10 +142,13 @@ async function ListaCampanhas({
   cpf,
   nome,
   perfil,
+  preview = false,
 }: {
   cpf: string
   nome: string | null
   perfil: "filiado" | "nao_filiado"
+  /** Visualização da gestão: mostra a situação, não deixa agir. */
+  preview?: boolean
 }) {
   const campanhas = await campanhasAbertas()
   const hoje = hojeSP()
@@ -169,20 +201,30 @@ async function ListaCampanhas({
                       Sua oposição já foi registrada —{" "}
                       {ROTULO_SITUACAO_OPOSITOR[minha.situacao]}.
                     </span>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/portal/oposicao/comprovante/${minha.id}`}>
-                        Ver comprovante
-                      </Link>
-                    </Button>
+                    <AcaoVisualizacao
+                      preview={preview}
+                      nota="O comprovante abre na conta do trabalhador."
+                    >
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/portal/oposicao/comprovante/${minha.id}`}>
+                          Ver comprovante
+                        </Link>
+                      </Button>
+                    </AcaoVisualizacao>
                   </AlertDescription>
                 </Alert>
               ) : prazo === "aberto" ? (
-                <Button asChild>
-                  <Link href={`/portal/oposicao/${campanha.id}`}>
-                    Registrar oposição
-                    <ArrowRight />
-                  </Link>
-                </Button>
+                <AcaoVisualizacao
+                  preview={preview}
+                  nota="Só o próprio trabalhador registra a oposição dele."
+                >
+                  <Button asChild>
+                    <Link href={`/portal/oposicao/${campanha.id}`}>
+                      Registrar oposição
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                </AcaoVisualizacao>
               ) : (
                 <Alert variant="warning">
                   <AlertDescription>

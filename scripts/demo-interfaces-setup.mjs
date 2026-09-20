@@ -11,7 +11,10 @@ const EMAIL = "demo@confluir.local"
 const TENANT = "11111111-1111-4111-8111-111111111111"
 const HOTEL = "40010000-0000-4000-8000-000000000001"
 const VINCULO = "40060000-0000-4000-8000-000000000001" // id fixo do vínculo demo
-const CPF_FILIADO = "11122233301" // Roberto Alves Pereira (filiacao_condicao=Ativo)
+// O CPF precisa passar no `cpfConfiavel` (dígitos verificadores): desde a
+// limpeza de duplicidades, getSessaoPortal recusa CPF inventado, e o antigo
+// "11122233301" (Roberto Alves Pereira) derrubava o login do portal na demo.
+const CPF_FILIADO = "22233344405" // Mariana Souza Ribeiro (Ativa, com vínculo)
 
 const env = Object.fromEntries(
   readFileSync(".env.local", "utf8")
