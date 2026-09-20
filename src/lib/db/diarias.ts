@@ -2,6 +2,16 @@ import "server-only"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
+import {
+  contaDoGasto,
+  listarContasDiaria,
+  type QuadroDiaria,
+} from "@/lib/db/diarias-config"
+import {
+  despesasDasSolicitacoes,
+  somaDespesas,
+  type DespesaDiaria,
+} from "@/lib/db/diarias-despesas"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import {
@@ -41,6 +51,8 @@ export type TipoDiaria = {
   id: string
   /** Nome livre; tipos legados sem nome caem no enum `diaria`. */
   nome: string
+  /** Para qual quadro vale: funcionario | diretor | ambos (padrão dos antigos). */
+  quadro: "funcionario" | "diretor" | "ambos"
   /** Categoria (enum legado `diaria`): Nacional | Internacional | Local | Outro. */
   categoria: string | null
   valor_reembolso: number | null
@@ -51,8 +63,16 @@ export type TipoDiaria = {
   usuariosAutorizados: string[]
 }
 
-/** O tipo vale para a pessoa? Lista vazia libera para todos. */
-export function tipoDiariaLiberado(tipo: TipoDiaria, usuarioId: string): boolean {
+/**
+ * O tipo vale para a pessoa? Lista vazia libera para todos. `quadro` filtra
+ * pela condição em que ela recebe — os tipos antigos são de funcionário.
+ */
+export function tipoDiariaLiberado(
+  tipo: TipoDiaria,
+  usuarioId: string,
+  quadro?: QuadroDiaria
+): boolean {
+  if (quadro && tipo.quadro !== "ambos" && tipo.quadro !== quadro) return false
   return tipo.usuariosAutorizados.length === 0 || tipo.usuariosAutorizados.includes(usuarioId)
 }
 
@@ -76,6 +96,11 @@ export async function listarTiposDiaria(): Promise<{
       .map((t) => ({
         id: String(t.id),
         nome: String(t.nome ?? t.diaria ?? "(sem nome)"),
+        quadro: (["funcionario", "diretor", "ambos"] as const).includes(
+          t.quadro as "funcionario"
+        )
+          ? (t.quadro as TipoDiaria["quadro"])
+          : "funcionario",
         categoria: (t.diaria as string | null) ?? null,
         valor_reembolso: (t.valor_reembolso as number | null) ?? null,
         ativa: t.ativa !== false,
@@ -94,6 +119,16 @@ export type SolicitacaoDiaria = {
   id: string
   funcionario_id: string | null
   funcionarioNome: string | null
+  /** Em que condição a pessoa recebe — decide a conta contábil e quem avalia. */
+  beneficiarioTipo: QuadroDiaria
+  departamentoId: string | null
+  departamentoNome: string | null
+  /** Quem lançou, quando não foi o beneficiário (a secretaria pelo diretor). */
+  solicitanteId: string | null
+  solicitanteNome: string | null
+  /** Despesas extras anexadas (hospedagem, alimentação, passagem). */
+  despesas: DespesaDiaria[]
+  valorDespesas: number
   diaria_id: string | null
   tipoNome: string | null
   quantidade: number | null
@@ -113,8 +148,12 @@ export type SolicitacaoDiaria = {
   created_at: string | null
 }
 
-const SELECT_SOLICITACAO =
-  "id, funcionario_id, diaria_id, quantidade, motivo, data_inicio, data_termino, situacao, valor_unitario, valor_total, avaliador_id, avaliacao_data, avaliacao_observacao, ordem_pagamento_id, created_at"
+/**
+ * `select('*')` porque as colunas novas (beneficiario_tipo, departamento_id,
+ * solicitante_id) só existem depois de supabase/diarias-diretoria.sql — pedir
+ * coluna ausente derruba a leitura inteira.
+ */
+const SELECT_SOLICITACAO = "*"
 
 async function normalizarSolicitacoes(
   brutas: Record<string, unknown>[]
@@ -123,9 +162,14 @@ async function normalizarSolicitacoes(
   const pessoas = [
     ...new Set(
       brutas
-        .flatMap((s) => [s.funcionario_id, s.avaliador_id])
+        .flatMap((s) => [s.funcionario_id, s.avaliador_id, s.solicitante_id])
         .filter((v): v is string => Boolean(v))
         .map(String)
+    ),
+  ]
+  const deptoIds = [
+    ...new Set(
+      brutas.map((s) => s.departamento_id).filter((v): v is string => Boolean(v))
     ),
   ]
   const tipoIds = [
@@ -141,7 +185,7 @@ async function normalizarSolicitacoes(
     ),
   ]
 
-  const [nomes, tipos, ordens] = await Promise.all([
+  const [nomes, tipos, ordens, deptos, despesas] = await Promise.all([
     nomesDosUsuarios(pessoas),
     tipoIds.length
       ? admin.from("financeiro_diarias").select("*").in("id", tipoIds)
@@ -152,7 +196,18 @@ async function normalizarSolicitacoes(
           .select("id, codigo, situacao")
           .in("id", ordemIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    deptoIds.length
+      ? admin.from("empresa_departamentos").select("id, departamento").in("id", deptoIds)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    despesasDasSolicitacoes(brutas.map((s) => String(s.id))),
   ])
+
+  const nomeDepto = new Map(
+    ((deptos.data ?? []) as Record<string, unknown>[]).map((d) => [
+      String(d.id),
+      String(d.departamento ?? "(sem nome)"),
+    ])
+  )
 
   const nomeTipo = new Map(
     ((tipos.data ?? []) as Record<string, unknown>[]).map((t) => [
@@ -167,12 +222,25 @@ async function normalizarSolicitacoes(
     ])
   )
 
-  return brutas.map((s) => ({
+  return brutas.map((s) => {
+    const daSolicitacao = despesas.get(String(s.id)) ?? []
+    return {
     id: String(s.id),
     funcionario_id: (s.funcionario_id as string | null) ?? null,
     funcionarioNome: s.funcionario_id
       ? (nomes.get(String(s.funcionario_id)) ?? null)
       : null,
+    beneficiarioTipo: s.beneficiario_tipo === "diretor" ? "diretor" : "funcionario",
+    departamentoId: (s.departamento_id as string | null) ?? null,
+    departamentoNome: s.departamento_id
+      ? (nomeDepto.get(String(s.departamento_id)) ?? null)
+      : null,
+    solicitanteId: (s.solicitante_id as string | null) ?? null,
+    solicitanteNome: s.solicitante_id
+      ? (nomes.get(String(s.solicitante_id)) ?? null)
+      : null,
+    despesas: daSolicitacao,
+    valorDespesas: somaDespesas(daSolicitacao),
     diaria_id: (s.diaria_id as string | null) ?? null,
     tipoNome: s.diaria_id ? (nomeTipo.get(String(s.diaria_id)) ?? null) : null,
     quantidade: (s.quantidade as number | null) ?? null,
@@ -196,27 +264,39 @@ async function normalizarSolicitacoes(
       ? (ordem.get(String(s.ordem_pagamento_id))?.situacao ?? null)
       : null,
     created_at: (s.created_at as string | null) ?? null,
-  }))
+    }
+  })
 }
 
-export async function listarSolicitacoesDiaria(): Promise<{
+/**
+ * Solicitações do painel. `quadro` separa as portas: Pessoal lista as de
+ * funcionário, Diretoria as da diretoria. Sem filtro, vêm as duas (é o que o
+ * Financeiro precisa para somar).
+ */
+export async function listarSolicitacoesDiaria(
+  filtro: { quadro?: QuadroDiaria; beneficiarioId?: string } = {}
+): Promise<{
   disponivel: boolean
   solicitacoes: SolicitacaoDiaria[]
 }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_diarias_solicitacoes")
-    .select(SELECT_SOLICITACAO)
-    .order("created_at", { ascending: false })
+  let query = admin.from("pessoal_diarias_solicitacoes").select(SELECT_SOLICITACAO)
+  if (filtro.beneficiarioId) query = query.eq("funcionario_id", filtro.beneficiarioId)
+  const { data, error } = await query.order("created_at", { ascending: false })
   if (error) {
     if (esquemaAusente(error)) return { disponivel: false, solicitacoes: [] }
     throw new Error(`Falha ao listar solicitações: ${error.message}`)
   }
+  // Filtra pelo quadro DEPOIS de normalizar: antes do SQL da diretoria a
+  // coluna não existe e tudo é de funcionário.
+  const solicitacoes = await normalizarSolicitacoes(
+    (data ?? []) as Record<string, unknown>[]
+  )
   return {
     disponivel: true,
-    solicitacoes: await normalizarSolicitacoes(
-      (data ?? []) as Record<string, unknown>[]
-    ),
+    solicitacoes: filtro.quadro
+      ? solicitacoes.filter((s) => s.beneficiarioTipo === filtro.quadro)
+      : solicitacoes,
   }
 }
 
@@ -271,24 +351,31 @@ export type NovaSolicitacaoDiaria = {
   motivo: string
   data_inicio: string | null
   data_termino: string | null
+  /** Condição em que a pessoa recebe; padrão funcionário. */
+  beneficiario_tipo?: QuadroDiaria
+  /** Departamento que banca a atividade (dá a conta da diária de diretor). */
+  departamento_id?: string | null
+  /** Quem lançou, quando não foi o próprio beneficiário. */
+  solicitante_id?: string | null
 }
 
 export async function criarSolicitacaoDiaria(
   nova: NovaSolicitacaoDiaria
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; id?: string }> {
   const { disponivel, tipos } = await listarTiposDiaria()
   if (!disponivel) {
     return { erro: "Diárias ainda não configuradas — rode supabase/diarias.sql." }
   }
+  const quadro: QuadroDiaria = nova.beneficiario_tipo ?? "funcionario"
   const tipo = tipos.find((t) => t.id === nova.diaria_id)
   if (!tipo || !tipo.ativa) return { erro: "Escolha um tipo de diária válido." }
-  if (!tipoDiariaLiberado(tipo, nova.funcionario_id)) {
+  if (!tipoDiariaLiberado(tipo, nova.funcionario_id, quadro)) {
     return { erro: "Este tipo de diária é restrito a outras pessoas." }
   }
 
   const valorUnitario = tipo.valor_reembolso
   const admin = await createAdminClient()
-  const { error } = await admin.from("pessoal_diarias_solicitacoes").insert({
+  const basicos = {
     funcionario_id: nova.funcionario_id,
     diaria_id: nova.diaria_id,
     quantidade: nova.quantidade,
@@ -302,14 +389,33 @@ export async function criarSolicitacaoDiaria(
         ? null
         : Math.round(valorUnitario * nova.quantidade * 100) / 100,
     emp_proprietaria_id: await tenantAtual(),
-  })
+  }
+  const comColunasNovas: Record<string, unknown> = {
+    ...basicos,
+    beneficiario_tipo: quadro,
+    departamento_id: nova.departamento_id ?? null,
+    solicitante_id: nova.solicitante_id ?? null,
+  }
+  const inserir = (novas: boolean) =>
+    admin
+      .from("pessoal_diarias_solicitacoes")
+      .insert(novas ? comColunasNovas : (basicos as Record<string, unknown>))
+      .select("id")
+      .maybeSingle()
+
+  // PGRST204 = coluna desconhecida: o SQL da diretoria ainda não rodou. A
+  // solicitação de funcionário continua funcionando (sem as colunas novas).
+  let { data: criada, error } = await inserir(true)
+  if (error?.code === "PGRST204" && quadro === "funcionario") {
+    ;({ data: criada, error } = await inserir(false))
+  }
   if (error) {
     if (esquemaAusente(error)) {
       return { erro: "Diárias ainda não configuradas — rode supabase/diarias.sql." }
     }
     return { erro: `Não foi possível solicitar: ${error.message}` }
   }
-  return {}
+  return { id: criada ? String((criada as { id: string }).id) : undefined }
 }
 
 /** Cancela a PRÓPRIA solicitação, apenas enquanto aguardando avaliação. */
@@ -418,7 +524,7 @@ export async function avaliarSolicitacaoDiaria(
   if (solicitacao.situacao !== "aguardando") {
     return { erro: "Esta solicitação já foi avaliada ou cancelada." }
   }
-  if (aprovar && solicitacao.valor_total === null) {
+  if (aprovar && solicitacao.valor_total === null && solicitacao.valorDespesas === 0) {
     return {
       erro: "O tipo desta diária não tem valor de reembolso — defina o valor na tabela de tipos e peça uma nova solicitação.",
     }
@@ -461,7 +567,41 @@ export async function avaliarSolicitacaoDiaria(
       }
     }
     const totalDesconto = abatidas.reduce((s, c) => s + c.valor, 0)
-    const liquido = (solicitacao.valor_total ?? 0) - totalDesconto
+    // A diária entra líquida (as infrações saem dela); as despesas extras vão
+    // por inteiro, cada uma na sua conta.
+    const liquidoDiaria = (solicitacao.valor_total ?? 0) - totalDesconto
+    const liquido = liquidoDiaria + solicitacao.valorDespesas
+
+    // Contas: quadro × departamento × tipo de gasto. Sem de-para configurado,
+    // a ordem sai sem conta e o financeiro classifica na autorização.
+    const { contas } = await listarContasDiaria()
+    const contaDiaria = contaDoGasto(
+      contas,
+      solicitacao.beneficiarioTipo,
+      solicitacao.departamentoId,
+      null
+    )
+    const linhasRateio: {
+      centro_custo_despesa_id: string | null
+      descricao: string
+      valor: number
+    }[] = [
+      {
+        centro_custo_despesa_id: contaDiaria,
+        descricao: `Diária — ${solicitacao.tipoNome ?? "(sem tipo)"}`,
+        valor: Math.round(liquidoDiaria * 100) / 100,
+      },
+      ...solicitacao.despesas.map((d) => ({
+        centro_custo_despesa_id: contaDoGasto(
+          contas,
+          solicitacao.beneficiarioTipo,
+          solicitacao.departamentoId,
+          d.tipoId
+        ),
+        descricao: [d.tipoNome ?? "Despesa", d.descricao].filter(Boolean).join(" — "),
+        valor: d.valor,
+      })),
+    ]
 
     const periodo =
       solicitacao.data_inicio &&
@@ -469,9 +609,14 @@ export async function avaliarSolicitacaoDiaria(
     const descricao = [
       `Diária — ${solicitacao.tipoNome ?? "(sem tipo)"} × ${solicitacao.quantidade ?? 1}`,
       `(${formatarMoeda(solicitacao.valor_unitario)} cada)`,
-      `para ${solicitacao.funcionarioNome ?? "funcionário"}.`,
+      solicitacao.beneficiarioTipo === "diretor"
+        ? `para ${solicitacao.funcionarioNome ?? "diretor(a)"} (diretoria${solicitacao.departamentoNome ? ` — ${solicitacao.departamentoNome}` : ""}).`
+        : `para ${solicitacao.funcionarioNome ?? "funcionário"}.`,
       `Motivo: ${solicitacao.motivo ?? "—"}.`,
       periodo ? `${periodo}.` : null,
+      solicitacao.despesas.length > 0
+        ? `Com ${solicitacao.despesas.length} despesa(s) extra(s) (${formatarMoeda(solicitacao.valorDespesas)}): ${solicitacao.despesas.map((d) => d.tipoNome ?? "despesa").join(", ")}.`
+        : null,
       totalDesconto > 0
         ? `Descontadas ${abatidas.length} infração(ões) de trânsito (${formatarMoeda(totalDesconto)}); valor líquido ${formatarMoeda(liquido)}.`
         : null,
@@ -486,9 +631,13 @@ export async function avaliarSolicitacaoDiaria(
         tipo: "Diária",
         descricao,
         situacao: "Em autorização",
-        // valor_inicial_cobranca = valor devido LÍQUIDO (já sem as infrações).
+        // valor_inicial_cobranca = valor devido LÍQUIDO (já sem as infrações),
+        // somando a diária e as despesas extras.
         valor_inicial_cobranca: liquido,
         beneficiario_usuario_id: solicitacao.funcionario_id,
+        // Conta PREDOMINANTE = a da diária; as despesas ficam no rateio.
+        centro_custo_despesa_id: contaDiaria,
+        departamento_id: solicitacao.departamentoId,
         emp_proprietaria_id: await tenantAtual(),
       })
       .select("id")
@@ -500,21 +649,47 @@ export async function avaliarSolicitacaoDiaria(
       }
     }
     ordemId = ordem.id
+
+    // Rateio: só quando há mais de uma linha (despesa extra). Diária sozinha
+    // já está inteira no centro de custo da ordem.
+    if (linhasRateio.length > 1) {
+      const empId = await tenantAtual()
+      const { error: erroRateio } = await admin.from("ordens_pagamento_rateio").insert(
+        linhasRateio.map((l, i) => ({
+          ordem_id: ordemId,
+          centro_custo_despesa_id: l.centro_custo_despesa_id,
+          departamento_id: solicitacao.departamentoId,
+          descricao: l.descricao,
+          valor: l.valor,
+          ordem: i,
+          emp_proprietaria_id: empId,
+        }))
+      )
+      // Rateio é detalhe contábil: se a tabela ainda não existe, a ordem vale.
+      if (erroRateio && !esquemaAusente(erroRateio)) {
+        console.error("Falha ao gravar o rateio da diária:", erroRateio.message)
+      }
+    }
   }
 
-  const { data: alteradas, error } = await admin
-    .from("pessoal_diarias_solicitacoes")
-    .update({
-      situacao: aprovar ? "aprovada" : "reprovada",
-      avaliador_id: avaliadorId,
-      avaliacao_data: new Date().toISOString(),
-      avaliacao_observacao: observacao,
-      ordem_pagamento_id: ordemId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("situacao", "aguardando")
-    .select("id")
+  const avaliacao = {
+    situacao: aprovar ? "aprovada" : "reprovada",
+    avaliador_id: avaliadorId,
+    avaliacao_data: new Date().toISOString(),
+    avaliacao_observacao: observacao,
+    ordem_pagamento_id: ordemId,
+    updated_at: new Date().toISOString(),
+  }
+  const salvar = (comDespesas: boolean) =>
+    admin
+      .from("pessoal_diarias_solicitacoes")
+      // valor_despesas = fotografia do que foi aprovado em despesa extra.
+      .update(comDespesas ? { ...avaliacao, valor_despesas: solicitacao.valorDespesas } : avaliacao)
+      .eq("id", id)
+      .eq("situacao", "aguardando")
+      .select("id")
+  let { data: alteradas, error } = await salvar(true)
+  if (error?.code === "PGRST204") ({ data: alteradas, error } = await salvar(false))
   if (error || (alteradas ?? []).length === 0) {
     // Erro ou corrida (outra pessoa avaliou): desfaz a ordem e as baixas.
     if (ordemId) await admin.from("ordens_pagamento").delete().eq("id", ordemId)

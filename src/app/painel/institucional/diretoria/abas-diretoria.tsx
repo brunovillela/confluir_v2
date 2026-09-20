@@ -1,11 +1,30 @@
 import Link from "next/link"
-import { Building, Users } from "lucide-react"
+import { Building, HandCoins, Users } from "lucide-react"
 
-/** As duas sub-áreas da Diretoria: mandatos (e seus integrantes) e instâncias. */
-export function AbasDiretoria({ atual }: { atual: "mandatos" | "instancias" }) {
+/**
+ * As sub-áreas da Diretoria: mandatos (e seus integrantes), instâncias e as
+ * diárias — esta última só aparece para quem tem a permissão própria dela.
+ */
+export function AbasDiretoria({
+  atual,
+  comDiarias = false,
+}: {
+  atual: "mandatos" | "instancias" | "diarias"
+  comDiarias?: boolean
+}) {
   const abas = [
     { chave: "mandatos", rotulo: "Mandatos", href: "/painel/institucional/diretoria", icone: Users },
     { chave: "instancias", rotulo: "Instâncias", href: "/painel/institucional/diretoria/instancias", icone: Building },
+    ...(comDiarias
+      ? [
+          {
+            chave: "diarias" as const,
+            rotulo: "Diárias",
+            href: "/painel/institucional/diretoria/diarias",
+            icone: HandCoins,
+          },
+        ]
+      : []),
   ] as const
   return (
     <nav aria-label="Áreas da Diretoria" className="bg-muted inline-flex w-fit rounded-md p-1">

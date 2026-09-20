@@ -24,7 +24,11 @@ import { InstanciaForm } from "../diretoria-extra-forms"
 export const metadata: Metadata = { title: "Instâncias — Confluir" }
 
 export default async function InstanciasPage() {
-  await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  const sessao = await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  // A aba de diárias só aparece para quem tem a permissão dela.
+  const veDiarias =
+    sessao.permissoes["diretoria_diarias"] === true ||
+    sessao.permissoes["configuracoes"] === true
   const { disponivel, instancias } = await listarInstancias()
 
   return (
@@ -44,7 +48,7 @@ export default async function InstanciasPage() {
           vinculados a elas dentro de cada mandato.
         </p>
       </div>
-      <AbasDiretoria atual="instancias" />
+      <AbasDiretoria atual="instancias" comDiarias={veDiarias} />
 
       {!disponivel && (
         <Alert variant="warning">

@@ -96,6 +96,7 @@ export default async function TiposDiariaPage({
                   <TableRow className="bg-muted/50">
                     <TableHead>Nome</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="hidden sm:table-cell">Vale para</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -104,7 +105,7 @@ export default async function TiposDiariaPage({
                   {tipos.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="text-muted-foreground h-20 text-center text-sm"
                       >
                         Nenhum tipo de diária cadastrado.
@@ -132,6 +133,13 @@ export default async function TiposDiariaPage({
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {formatarMoeda(t.valor_reembolso)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden text-sm sm:table-cell">
+                        {t.quadro === "diretor"
+                          ? "Diretoria"
+                          : t.quadro === "ambos"
+                            ? "Funcionários e diretoria"
+                            : "Funcionários"}
                       </TableCell>
                       <TableCell>
                         {t.ativa ? (
@@ -187,6 +195,7 @@ export default async function TiposDiariaPage({
                   valorTexto: valorTexto(emEdicao.valor_reembolso),
                   descricao: emEdicao.descricao ?? "",
                   ativa: emEdicao.ativa,
+                  quadro: emEdicao.quadro,
                 }
               : undefined
           }

@@ -32,6 +32,8 @@ export type TipoDiariaFormDados = {
   valorTexto: string
   descricao: string
   ativa: boolean
+  /** funcionario | diretor | ambos — decide em qual porta o tipo aparece. */
+  quadro: string
 }
 
 export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
@@ -91,6 +93,19 @@ export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
                     {c}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="quadro">Vale para</Label>
+              <select
+                id="quadro"
+                name="quadro"
+                className={SELECT}
+                defaultValue={tipo?.quadro ?? "funcionario"}
+              >
+                <option value="funcionario">Funcionários</option>
+                <option value="diretor">Diretoria</option>
+                <option value="ambos">Funcionários e diretoria</option>
               </select>
             </div>
             <div className="grid content-end pb-1">

@@ -25,6 +25,7 @@ import type { EmpresaOpcao } from "@/components/empresa-combobox"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
+import { DiariasDoIntegrante } from "./diarias-do-integrante"
 import { FichaDiretorForm } from "./ficha-form"
 
 export const metadata: Metadata = { title: "Ficha do diretor — Confluir" }
@@ -34,7 +35,11 @@ export default async function DiretorPage({
 }: {
   params: Promise<{ id: string; integranteId: string }>
 }) {
-  await requirePermissao("diretoria_mandatos")
+  const sessao = await requirePermissao("diretoria_mandatos")
+  // As diárias do diretor só para quem tem a permissão própria delas.
+  const veDiarias =
+    sessao.permissoes["diretoria_diarias"] === true ||
+    sessao.permissoes["configuracoes"] === true
   const { id: mandatoId, integranteId } = await params
 
   const integrante = await obterIntegrante(integranteId)
@@ -95,6 +100,10 @@ export default async function DiretorPage({
         empresas={empresas}
         origem={origem}
       />
+
+      {veDiarias && integrante.usuarioId && (
+        <DiariasDoIntegrante usuarioId={integrante.usuarioId} nome={integrante.nome} />
+      )}
 
       <Card>
         <CardHeader>

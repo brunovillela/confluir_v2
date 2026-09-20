@@ -9,6 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   avaliarSolicitacaoDiaria,
+  buscarSolicitacaoDiaria,
   tipoDiariaEmUso,
 } from "@/lib/db/diarias"
 import { categoriaDiariaValida } from "@/lib/diarias-constantes"
@@ -23,14 +24,25 @@ function revalidar(id?: string) {
   revalidatePath("/painel/pessoal/diarias")
   revalidatePath("/painel/pessoal/diarias/tipos")
   revalidatePath("/painel/perfil/diarias")
-  if (id) revalidatePath(`/painel/pessoal/diarias/${id}`)
+  revalidatePath("/painel/institucional/diretoria/diarias")
+  if (id) {
+    revalidatePath(`/painel/pessoal/diarias/${id}`)
+    revalidatePath(`/painel/institucional/diretoria/diarias/${id}`)
+  }
 }
 
 export async function avaliarDiaria(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const sessao = await exigirAcesso()
+  const id0 = String(formData.get("id") ?? "")
+  // Quem avalia depende do quadro: diária de diretor é da Diretoria, com
+  // permissão própria — o RH não aprova a diretoria e vice-versa.
+  const alvo = id0 ? await buscarSolicitacaoDiaria(id0) : null
+  const daDiretoria = alvo?.beneficiarioTipo === "diretor"
+  const sessao = daDiretoria
+    ? await requirePermissao("diretoria_diarias", ["configuracoes"])
+    : await exigirAcesso()
 
   const id = String(formData.get("id") ?? "")
   const decisao = String(formData.get("decisao") ?? "")
@@ -56,7 +68,11 @@ export async function avaliarDiaria(
   if (erro) return { erro }
 
   revalidar(id)
-  redirect(`/painel/pessoal/diarias/${id}?salvo=1`)
+  redirect(
+    daDiretoria
+      ? `/painel/institucional/diretoria/diarias/${id}?salvo=1`
+      : `/painel/pessoal/diarias/${id}?salvo=1`
+  )
 }
 
 // ── Tipos de diária ────────────────────────────────────────────────────────
@@ -74,11 +90,20 @@ function lerCamposTipo(formData: FormData) {
   }
   // `diaria` (categoria) é enum NOT NULL — sempre gravamos um valor válido.
   const diaria = categoriaDiariaValida(String(formData.get("categoria") ?? ""))
+  const quadroBruto = String(formData.get("quadro") ?? "funcionario")
+  const quadro = ["funcionario", "diretor", "ambos"].includes(quadroBruto)
+    ? quadroBruto
+    : "funcionario"
   const descricao = String(formData.get("descricao") ?? "").trim() || null
-  return { nome, diaria, valor_reembolso, descricao, ativa: formData.get("ativa") === "on" }
+  return { nome, diaria, valor_reembolso, descricao, quadro, ativa: formData.get("ativa") === "on" }
 }
 
 function erroTipo(mensagem: string): EstadoForm {
+  if (/quadro/i.test(mensagem)) {
+    return {
+      erro: "O campo “Vale para” ainda não existe no banco — rode supabase/diarias-diretoria.sql no SQL Editor.",
+    }
+  }
   if (/descricao/i.test(mensagem)) {
     return {
       erro: "Descrição ainda não disponível — rode supabase/historicos-oficios-diarias.sql no SQL Editor.",

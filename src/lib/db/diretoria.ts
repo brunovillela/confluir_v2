@@ -1256,6 +1256,8 @@ export type CabecalhoIntegrante = {
   cpf: string | null
   ehFiliado: boolean
   temUsuario: boolean
+  /** Cadastro em `usuarios` (pode existir sem conta de login). */
+  usuarioId: string | null
 }
 
 export async function obterIntegrante(
@@ -1287,6 +1289,7 @@ export async function obterIntegrante(
     cpf: texto(i.cpf),
     ehFiliado: Boolean(i.filiacao_id),
     temUsuario: Boolean(u?.auth_user_id),
+    usuarioId: texto(i.usuario_id),
   }
 }
 

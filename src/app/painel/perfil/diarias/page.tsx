@@ -19,7 +19,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SituacaoDiariaBadge } from "@/components/diarias"
+import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
 import { requireSessaoPainel } from "@/lib/auth"
+import { listarTiposDespesaDiaria } from "@/lib/db/diarias-config"
+import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
+import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import {
   listarTiposDiaria,
@@ -28,6 +32,7 @@ import {
 } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
+import { adicionarMinhaDespesa, removerMinhaDespesa } from "./actions"
 import { CancelarDiariaBotao, SolicitarDiariaForm } from "./solicitacao-form"
 
 export const metadata: Metadata = { title: "Minhas diárias — Confluir" }
@@ -39,16 +44,32 @@ export default async function MinhasDiariasPage({
   searchParams: Promise<{ salvo?: string }>
 }) {
   const sessao = await requireSessaoPainel()
-  // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
-  await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
+  // Pedem diária: funcionário com vínculo em vigor E diretor em exercício —
+  // quem não é nem um nem outro volta ao perfil.
+  const quadro = await quadroParaDiaria(sessao.usuario.id as string)
+  if (!quadro) {
+    await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
+  }
   const { salvo } = await searchParams
-  const [{ disponivel, solicitacoes }, { tipos }] = await Promise.all([
+  const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa] = await Promise.all([
     minhasSolicitacoesDiaria(sessao.usuario.id as string),
     listarTiposDiaria(),
+    listarTiposDespesaDiaria(),
   ])
 
   const ativos = tipos.filter(
-    (t) => t.ativa && t.valor_reembolso !== null && tipoDiariaLiberado(t, sessao.usuario.id as string)
+    (t) =>
+      t.ativa &&
+      t.valor_reembolso !== null &&
+      tipoDiariaLiberado(t, sessao.usuario.id as string, quadro?.quadro)
+  )
+  const emAvaliacao = solicitacoes.filter((s) => s.situacao === "aguardando")
+  const urlsComprovantes = new Map(
+    await Promise.all(
+      emAvaliacao
+        .flatMap((s) => s.despesas)
+        .map(async (d) => [d.id, await urlComprovanteDespesa(d.comprovante)] as const)
+    )
   )
 
   return (
@@ -91,6 +112,25 @@ export default async function MinhasDiariasPage({
           }))}
         />
       )}
+
+      {emAvaliacao.map((s) => (
+        <DespesasDaDiaria
+          key={s.id}
+          solicitacaoId={s.id}
+          despesas={s.despesas.map((d) => ({
+            id: d.id,
+            tipoNome: d.tipoNome,
+            descricao: d.descricao,
+            valor: d.valor,
+            comprovanteUrl: urlsComprovantes.get(d.id) ?? null,
+          }))}
+          tipos={tiposDespesa.tipos
+            .filter((t) => t.ativa)
+            .map((t) => ({ id: t.id, nome: t.nome, exigeComprovante: t.exigeComprovante }))}
+          acaoAdicionar={adicionarMinhaDespesa}
+          acaoRemover={removerMinhaDespesa}
+        />
+      ))}
 
       <Card>
         <CardHeader>

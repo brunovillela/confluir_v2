@@ -226,6 +226,16 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Centros de custo das diárias",
+    href: "/painel/pessoal/diarias/contas",
+    icone: "Landmark",
+    descricao: "De-para das contas por quadro, departamento e tipo de gasto",
+    // Serve às duas portas: quem cuida das diárias da diretoria também entra.
+    chave: "pessoal_gestao",
+    chavesAlternativas: ["pessoal_diarias", "diretoria_diarias", "configuracoes"],
+    oculto: true,
+  },
+  {
     titulo: "Compras",
     href: "/painel/compras",
     icone: "ShoppingCart",
@@ -717,6 +727,16 @@ export const MODULOS: Modulo[] = [
     icone: "Users",
     descricao: "Mandatos e integrantes da diretoria",
     chave: "diretoria_mandatos",
+    chavesAlternativas: ["configuracoes"],
+    oculto: true,
+  },
+  {
+    titulo: "Diárias da diretoria",
+    href: "/painel/institucional/diretoria/diarias",
+    icone: "HandCoins",
+    descricao: "Diárias e despesas dos diretores, por departamento",
+    // Permissão PRÓPRIA: quem cuida de folha e ponto não entra aqui.
+    chave: "diretoria_diarias",
     chavesAlternativas: ["configuracoes"],
     oculto: true,
   },

@@ -4,16 +4,21 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requireSessaoPainel } from "@/lib/auth"
-import { vinculoComSindicato } from "@/lib/db/perfil"
 import { type EstadoForm } from "@/lib/contas"
 import {
   cancelarSolicitacaoDiaria,
   criarSolicitacaoDiaria,
 } from "@/lib/db/diarias"
+import {
+  adicionarDespesaDiaria,
+  removerDespesaDiaria,
+} from "@/lib/db/diarias-despesas"
+import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 
 function revalidar() {
   revalidatePath("/painel/perfil/diarias")
   revalidatePath("/painel/pessoal/diarias")
+  revalidatePath("/painel/institucional/diretoria/diarias")
 }
 
 export async function solicitarDiaria(
@@ -21,9 +26,13 @@ export async function solicitarDiaria(
   formData: FormData
 ): Promise<EstadoForm> {
   const sessao = await requireSessaoPainel()
-  // Pedido de funcionário (pago ao funcionário/em contracheque): só com vínculo em vigor.
-  if (!(await vinculoComSindicato(sessao.usuario.id as string)).ativo) {
-    return { erro: "Só funcionários do sindicato com vínculo em vigor fazem este pedido." }
+  // Funcionário com vínculo em vigor OU diretor em exercício — o quadro decide
+  // a conta contábil e quem avalia.
+  const quadro = await quadroParaDiaria(sessao.usuario.id as string)
+  if (!quadro) {
+    return {
+      erro: "Só funcionários com vínculo em vigor ou diretores em exercício fazem este pedido.",
+    }
   }
 
   const diariaId = String(formData.get("diaria_id") ?? "")
@@ -53,6 +62,8 @@ export async function solicitarDiaria(
     motivo,
     data_inicio: dataInicio || null,
     data_termino: dataTermino || null,
+    beneficiario_tipo: quadro.quadro,
+    departamento_id: quadro.departamentoId,
   })
   if (erro) return { erro }
 
@@ -77,4 +88,44 @@ export async function cancelarMinhaDiaria(
 
   revalidar()
   return { ok: "Solicitação cancelada." }
+}
+
+// ── Despesas extras da própria diária ──────────────────────────────────────
+
+export async function adicionarMinhaDespesa(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+
+  const arquivo = formData.get("comprovante")
+  const { erro } = await adicionarDespesaDiaria({
+    solicitacaoId: String(formData.get("solicitacao_id") ?? ""),
+    tipoId: String(formData.get("tipo_id") ?? "").trim() || null,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+    valor: Number(
+      String(formData.get("valor") ?? "").replace(/\./g, "").replace(",", ".")
+    ),
+    arquivo: arquivo instanceof File ? arquivo : null,
+    exigirBeneficiario: sessao.usuario.id as string,
+  })
+  if (erro) return { erro }
+
+  revalidar()
+  return { ok: "Despesa lançada." }
+}
+
+export async function removerMinhaDespesa(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+
+  const { erro } = await removerDespesaDiaria(String(formData.get("id") ?? ""), {
+    exigirBeneficiario: sessao.usuario.id as string,
+  })
+  if (erro) return { erro }
+
+  revalidar()
+  return { ok: "Despesa excluída." }
 }

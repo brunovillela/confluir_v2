@@ -30,6 +30,7 @@ import {
   type CentroCusto,
   urlNotaFiscalOrdem,
 } from "@/lib/db/financeiro"
+import { rateioDaOrdem } from "@/lib/db/ordens-rateio"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -150,10 +151,11 @@ export default async function OrdemPage({
       .createSignedUrl(valor, 3600)
     return data?.signedUrl ?? null
   }
-  const [urlComprovante, urlBoleto, urlNotaFiscal] = await Promise.all([
+  const [urlComprovante, urlBoleto, urlNotaFiscal, rateio] = await Promise.all([
     resolverArquivo(ordem.arquivo_pagamento),
     resolverArquivo(ordem.arquivo_boleto),
     urlNotaFiscalOrdem(ordem.arquivo_nota_fiscal),
+    rateioDaOrdem(id),
   ])
 
   const centros = editandoPagamento ? await listarCentrosCusto() : []
@@ -368,6 +370,28 @@ export default async function OrdemPage({
             titulo="Centro de custo — receita"
             centro={detalhe.centroCustoReceita}
           />
+          {rateio.length > 0 && (
+            <div className="sm:col-span-2">
+              <p className="text-sm font-medium">Rateio entre contas</p>
+              <ul className="mt-2 grid gap-1 text-sm">
+                {rateio.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0">
+                      {l.centroCustoNome ?? "Sem conta definida"}
+                      {l.descricao && (
+                        <span className="text-muted-foreground"> — {l.descricao}</span>
+                      )}
+                    </span>
+                    <span className="tabular-nums">{formatarMoeda(l.valor)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground mt-2 text-xs">
+                O pagamento é um só; a despesa se divide entre as contas acima (a primeira é a da
+                ordem).
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

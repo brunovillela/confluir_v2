@@ -23,7 +23,11 @@ import { MandatoForm } from "./diretoria-forms"
 export const metadata: Metadata = { title: "Diretoria — Confluir" }
 
 export default async function DiretoriaPage() {
-  await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  const sessao = await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  // A aba de diárias só aparece para quem tem a permissão dela.
+  const veDiarias =
+    sessao.permissoes["diretoria_diarias"] === true ||
+    sessao.permissoes["configuracoes"] === true
   const mandatos = await listarMandatos()
 
   return (
@@ -42,7 +46,7 @@ export default async function DiretoriaPage() {
           Mandatos e integrantes — os signatários de ofícios saem do mandato vigente
         </p>
       </div>
-      <AbasDiretoria atual="mandatos" />
+      <AbasDiretoria atual="mandatos" comDiarias={veDiarias} />
 
       <Card>
         <CardContent className="pt-6">

@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
-import { Loader2, Send, X } from "lucide-react"
+import { useActionState, useState } from "react"
+import { Loader2, Plus, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,30 @@ import { cancelarMinhaDiaria, solicitarDiaria } from "./actions"
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
+/**
+ * Pedir diária. Fica FECHADO até clicarem no botão (pedido do Bruno, 20/09:
+ * nada de formulário sempre exposto).
+ */
 export function SolicitarDiariaForm({
   tipos,
+  rotulo = "Solicitar diária",
 }: {
   tipos: { id: string; rotulo: string }[]
+  rotulo?: string
 }) {
+  const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(solicitarDiaria, {})
+
+  if (!aberto) {
+    return (
+      <div className="flex justify-end">
+        <Button onClick={() => setAberto(true)} disabled={tipos.length === 0}>
+          <Plus />
+          {rotulo}
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <Card>
@@ -90,7 +108,10 @@ export function SolicitarDiariaForm({
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+              Fechar
+            </Button>
             <Button type="submit" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <Send />}
               Enviar solicitação
