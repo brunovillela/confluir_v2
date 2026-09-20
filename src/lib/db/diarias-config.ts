@@ -3,6 +3,7 @@ import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { semAcento } from "@/lib/texto"
 
 /**
  * Configuração das diárias: os TIPOS DE DESPESA EXTRA que podem acompanhar
@@ -222,8 +223,15 @@ export async function centrosDeCustoDespesa(): Promise<
     linhas.push(...((data ?? []) as Record<string, unknown>[]))
     if (!data || data.length < 1000) break
   }
+  // Onde mora a palavra "Despesa" varia por organização: no tenant real é
+  // `tipo_da_conta` (e o classificador é o código 5.1.02…); no demo é o
+  // contrário. Aceita qualquer um dos dois.
+  const ehDespesa = (c: Record<string, unknown>) =>
+    [c.tipo_da_conta, c.classificador].some((v) =>
+      semAcento(String(v ?? "")).startsWith("despesa")
+    )
   return linhas
-    .filter((c) => c.usavel !== false && String(c.tipo_da_conta ?? "").startsWith("Despesa"))
+    .filter((c) => c.usavel !== false && ehDespesa(c))
     .map((c) => ({
       id: String(c.id),
       nome: String(c.nome_da_conta ?? "(sem nome)"),
