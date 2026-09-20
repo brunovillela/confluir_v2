@@ -170,11 +170,17 @@ const ordemOrigem = (a: CatResumo, b: CatResumo) =>
   (partesNumeroCat(a.numero).sequencia ?? 99) - (partesNumeroCat(b.numero).sequencia ?? 99) ||
   (a.criadoEm ?? "").localeCompare(b.criadoEm ?? "")
 
-export async function classificarCat(
+/**
+ * A regra em si, sobre uma lista de CATs já lida. Separada de classificarCat
+ * para que a carga de planilha (scripts/importar-cat-csv.mjs) classifique com
+ * o mesmo critério da tela sem passar pela sessão: o script lê a base com a
+ * service role.
+ */
+export function classificarContra(
+  cats: CatResumo[],
   entrada: EntradaCat,
   opcoes: { ignorarId?: string; soNumero?: boolean } = {}
-): Promise<ClassificacaoCat & { disponivel: boolean }> {
-  const { cats, disponivel } = await catsDaBase()
+): ClassificacaoCat {
   const outras = cats.filter((c) => c.id !== opcoes.ignorarId)
   const num = partesNumeroCat(entrada.numero_cat)
   const pessoa = { cpf: entrada.trabalhador_cpf ?? null, nome: entrada.trabalhador_nome ?? null }
@@ -189,7 +195,6 @@ export async function classificarCat(
         avisos.push("O acidentado da CAT da base é outro — confira se o número foi digitado certo.")
       }
       return {
-        disponivel,
         classe: "duplicada",
         motivo: `Já existe CAT com o número ${iguais[0].numero}.`,
         relacionadas: iguais,
@@ -211,7 +216,6 @@ export async function classificarCat(
         avisos.push("O acidentado da CAT de origem é outro — confira o número antes de gravar.")
       }
       return {
-        disponivel,
         classe: "atualizacao",
         motivo: `Mesmo acidente da CAT ${origem.numero} (sequência /${String(num.sequencia).padStart(2, "0")}).`,
         relacionadas: mesmoAcidente,
@@ -222,7 +226,7 @@ export async function classificarCat(
     }
   }
   if (opcoes.soNumero) {
-    return { disponivel, classe: "nova", motivo: "Número não encontrado na base.", relacionadas: [], origemId: null, mudancas: [], avisos }
+    return { classe: "nova", motivo: "Número não encontrado na base.", relacionadas: [], origemId: null, mudancas: [], avisos }
   }
 
   // 3. Campo 6 (recibo da CAT de origem) aponta para uma CAT da base.
@@ -231,7 +235,6 @@ export async function classificarCat(
     const origem = outras.filter((c) => digitos(c.numero) === recibo || digitos(c.recibo) === recibo).sort(ordemOrigem)
     if (origem.length > 0) {
       return {
-        disponivel,
         classe: "atualizacao",
         motivo: `O campo 6 (CAT de origem) aponta para a CAT ${origem[0].numero ?? "sem número"}.`,
         relacionadas: origem,
@@ -251,7 +254,6 @@ export async function classificarCat(
       const mudancas = mudancasEntre(mesmoDia[0], entrada)
       const atualiza = Boolean(tipoAtualizacao) || mudancas.some((m) => m.startsWith("Evolução para óbito"))
       return {
-        disponivel,
         classe: atualiza ? "atualizacao" : "possivel_duplicada",
         motivo: atualiza
           ? `Mesmo acidentado e mesma data do acidente da CAT ${mesmoDia[0].numero ?? "sem número"}.`
@@ -269,7 +271,15 @@ export async function classificarCat(
       `É uma CAT de ${tipoAtualizacao === "obito" ? "comunicação de óbito" : "reabertura"}, mas a CAT de origem não está na base.`
     )
   }
-  return { disponivel, classe: "nova", motivo: "Nenhuma CAT parecida na base.", relacionadas: [], origemId: null, mudancas: [], avisos }
+  return { classe: "nova", motivo: "Nenhuma CAT parecida na base.", relacionadas: [], origemId: null, mudancas: [], avisos }
+}
+
+export async function classificarCat(
+  entrada: EntradaCat,
+  opcoes: { ignorarId?: string; soNumero?: boolean } = {}
+): Promise<ClassificacaoCat & { disponivel: boolean }> {
+  const { cats, disponivel } = await catsDaBase()
+  return { ...classificarContra(cats, entrada, opcoes), disponivel }
 }
 
 // ── Sub-área: grupos para tratar ─────────────────────────────────────────────
