@@ -28,29 +28,16 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 20/09: Pessoal e Diretoria (diárias da diretoria, despesas
-  // extras e centros de custo). Seed: scripts/seed-prints-diarias-diretoria.mjs
-  ['/painel/pessoal', 'pessoal/painel-visao-geral.png', { fullPage: true }],
-  ['/painel/pessoal/funcionarios', 'pessoal/funcionarios-lista.png'],
-  ['/painel/pessoal/33333333-3333-4333-8333-000000000001', 'pessoal/funcionarios-ficha.png', { fullPage: true }],
-  ['/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001', 'pessoal/contracheques-remessa.png'],
-  ['/painel/pessoal/ponto', 'pessoal/ponto-remessas.png'],
-  ['/painel/pessoal/ferias', 'pessoal/ferias-periodos.png'],
-  ['/painel/pessoal/niveis', 'pessoal/niveis.png'],
-  ['/painel/pessoal/anuenios', 'pessoal/anuenios.png'],
-  ['/painel/pessoal/diarias', 'pessoal/diarias.png', { fullPage: true, esperar: 'Aguardando avaliação' }],
-  ['/painel/pessoal/diarias/contas?quadro=diretor', 'pessoal/diarias-contas.png', { fullPage: true, esperar: 'Tipos de despesa extra' }],
-  ['/painel/pessoal/diarias/tipos', 'pessoal/diarias-tipos.png', { fullPage: true, esperar: 'Vale para' }],
-  ['/painel/pessoal/atestados', 'pessoal/atestados.png'],
-  ['/painel/pessoal/aso', 'pessoal/aso.png'],
-  ['/painel/pessoal/treinamentos', 'pessoal/treinamentos.png'],
-  ['/painel/pessoal/reembolsos', 'pessoal/reembolsos.png'],
-  ['/painel/pessoal/informes', 'pessoal/informes.png'],
-  ['/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001', 'institucional/diretoria.png', { fullPage: true }],
-  ['/painel/institucional/diretoria/instancias', 'institucional/diretoria-instancias.png'],
-  ['/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/fe700000-0000-4000-8000-000000000002', 'institucional/ficha-integrante.png', { fullPage: true, esperar: 'Diárias' }],
-  ['/painel/institucional/diretoria/diarias', 'institucional/diretoria-diarias.png', { fullPage: true, esperar: 'Aprovado por departamento' }],
-  ['/painel/institucional/diretoria/diarias/d1a51000-0000-4000-8000-000000000002', 'institucional/diretoria-diaria.png', { fullPage: true, esperar: 'Despesas extras' }],
+  // Rodada de 20/09 (2): Hospedagem — painel do sindicato e área do hotel.
+  ['/painel/hospedagem', 'hospedagem/painel.png', { fullPage: true }],
+  ['/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001', 'hospedagem/hotel-ficha.png', { fullPage: true, esperar: 'Visualizar área' }],
+  ['/painel/hospedagem/servicos/40310000-0000-4000-8000-000000000001', 'hospedagem/reserva.png', { fullPage: true }],
+  ['/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001', 'hospedagem/faturamento.png', { scrollTo: 'Faturas em aberto' }],
+  ['/hotel/inicio', 'hotel/inicio.png', { fullPage: true }],
+  ['/hotel/contas', 'hotel/contas.png', { fullPage: true }],
+  ['/hotel/faturamento', 'hotel/faturamento.png', { fullPage: true }],
+  ['/hotel/reservas/40310000-0000-4000-8000-000000000001', 'hotel/reserva.png', { fullPage: true }],
+  ['/hotel/acordo', 'hotel/acordo.png', { fullPage: true }],
 
   /* Rodada de 18/09: todos os prints de Filiados (já capturados).
   ['/painel/filiados', 'filiados/lista.png', { fullPage: true, esperar: 'Saúde dos cadastros' }],
