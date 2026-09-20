@@ -38,6 +38,8 @@ export type ResumoPessoal = {
   certificadosVencidos: number
   /** null = tabela ainda não criada (rodar SQL). */
   diariasAguardando: number | null
+  /** Remessas do sistema anterior (só leitura) — o cartão aponta o caminho. */
+  diariasNoHistorico: number | null
   reembolsosAguardando: number | null
   reembolsosAPagar: number | null
 }
@@ -89,6 +91,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     diariasAguardando,
     reembolsosAguardando,
     reembolsosAPagar,
+    diariasNoHistorico,
   ] = await Promise.all([
     listarFuncionarios({ situacao: "ativos" }),
     contar(() =>
@@ -204,6 +207,9 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
         .eq("situacao", "aprovado")
         .limit(1)
     ),
+    contar(() =>
+      admin.from("pessoal_diarias_remessas").select("id", { count: "exact" }).limit(1)
+    ),
   ])
 
   // Certificados vencidos: validade = data_termino + vencimento_meses do tipo.
@@ -239,6 +245,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     treinamentosTotal: (treinamentos.data ?? []).length,
     certificadosVencidos,
     diariasAguardando,
+    diariasNoHistorico,
     reembolsosAguardando,
     reembolsosAPagar,
   }

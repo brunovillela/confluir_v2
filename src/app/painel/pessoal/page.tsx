@@ -262,7 +262,9 @@ export default async function PessoalPage() {
       descricao:
         r.diariasAguardando === null
           ? "Rode supabase/diarias.sql para ativar"
-          : "Solicitações pagas por ordem direta",
+          : (r.diariasNoHistorico ?? 0) > 0
+            ? `Solicitações pagas por ordem direta · ${r.diariasNoHistorico!.toLocaleString("pt-BR")} no histórico`
+            : "Solicitações pagas por ordem direta",
       icone: HandCoins,
     },
     {

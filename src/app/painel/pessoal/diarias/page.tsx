@@ -20,6 +20,7 @@ import {
   listarSolicitacoesDiaria,
   SITUACOES_DIARIA,
 } from "@/lib/db/diarias"
+import { contarRemessasHistorico } from "@/lib/db/diarias-historico"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -50,7 +51,10 @@ export default async function DiariasPage({
   await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
 
   const brutos = await searchParams
-  const { disponivel, solicitacoes } = await listarSolicitacoesDiaria()
+  const [{ disponivel, solicitacoes }, noHistorico] = await Promise.all([
+    listarSolicitacoesDiaria(),
+    contarRemessasHistorico(),
+  ])
 
   const params = {
     busca: (brutos.busca ?? "").trim(),
@@ -107,6 +111,9 @@ export default async function DiariasPage({
               <Link href="/painel/pessoal/diarias/historico">
                 <History />
                 Histórico
+                {noHistorico > 0 && (
+                  <> ({noHistorico.toLocaleString("pt-BR")})</>
+                )}
               </Link>
             </Button>
             <Button variant="outline" asChild>
@@ -181,6 +188,19 @@ export default async function DiariasPage({
                         Nenhuma solicitação de diária
                         {params.busca && <> para “{params.busca}”</>}.
                       </p>
+                      {noHistorico > 0 && (
+                        <p className="text-sm">
+                          As diárias lançadas no sistema anterior estão no{" "}
+                          <Link
+                            href="/painel/pessoal/diarias/historico"
+                            className="text-primary underline-offset-4 hover:underline"
+                          >
+                            histórico ({noHistorico.toLocaleString("pt-BR")}{" "}
+                            remessas)
+                          </Link>
+                          .
+                        </p>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

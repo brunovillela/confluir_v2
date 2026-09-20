@@ -228,3 +228,12 @@ export async function lancamentosDasRemessas(
   }
   return porRemessa
 }
+
+/** Quantas remessas antigas o tenant tem — o atalho do histórico mostra o número. */
+export async function contarRemessasHistorico(): Promise<number> {
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("pessoal_diarias_remessas")
+    .select("id", { count: "exact", head: true })
+  return error ? 0 : (count ?? 0)
+}
