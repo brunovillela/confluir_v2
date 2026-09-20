@@ -12,6 +12,7 @@ import {
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -67,6 +68,7 @@ export default async function AtendimentoPage({
       ])
     return (
       <>
+        <RotuloTrilha valores={{ [id]: atendimento.assistidoNome ?? "Atendimento" }} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Editar atendimento
@@ -104,6 +106,7 @@ export default async function AtendimentoPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: atendimento.assistidoNome ?? "Atendimento" }} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

@@ -5,6 +5,7 @@ import { CircleCheck, Pencil, ShieldAlert, TriangleAlert } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -41,6 +42,7 @@ export default async function AssistidoPage({
   if (editar === "1") {
     return (
       <>
+        <RotuloTrilha valores={{ [id]: assistido.nome ?? "Assistido" }} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Editar assistido
@@ -76,6 +78,7 @@ export default async function AssistidoPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: assistido.nome ?? "Assistido" }} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

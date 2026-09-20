@@ -5,6 +5,7 @@ import { CircleCheck, FileText, Pencil, Users } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -50,6 +51,7 @@ export default async function ReuniaoCipaPage({
     const empresas = await empresasParaSelecao()
     return (
       <>
+        <RotuloTrilha valores={{ [id]: reuniao.empresaNome ?? "Reunião de CIPA" }} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Editar reunião
@@ -71,6 +73,7 @@ export default async function ReuniaoCipaPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ [id]: reuniao.empresaNome ?? "Reunião de CIPA" }} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
