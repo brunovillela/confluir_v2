@@ -28,7 +28,21 @@ novas, uma a uma ou em massa.
 
 <PassoAPasso>
   <Passo titulo="Formulário individual">
-    Preenche **todos os campos** do formulário oficial, um a um.
+    Primeiro informe o **número da CAT** e clique em **Verificar**: o número é
+    comparado com as CATs da base antes de você digitar os 50 campos. Se a CAT
+    **já foi lançada**, o sistema avisa e mostra o link para ela — não é preciso
+    digitar de novo. Se for uma **atualização** (mesmo número com outra
+    sequência, como …/02 de uma …/01), o formulário já abre com os dados do
+    acidente da CAT de origem. Número novo abre o formulário em branco. CAT sem
+    número (parcial) usa **A CAT não tem número**.
+  </Passo>
+  <Passo titulo="Ler de PDF com IA">
+    A IA lê o formulário e pré-preenche os campos, e em seguida compara com a
+    base e diz se a CAT é **nova**, **já lançada**, **atualização** de outra
+    (reabertura, comunicação de óbito, **evolução para óbito**) ou **possível
+    duplicidade** — com o link das CATs parecidas e o que muda. Se já foi
+    lançada, dá para **atualizar a CAT existente** com os dados do PDF: o
+    sistema mostra quais campos são diferentes.
   </Passo>
   <Passo titulo="Importação em massa (CSV)">
     Casa cada coluna da planilha pelo **número do campo** do formulário e valida
@@ -36,6 +50,37 @@ novas, uma a uma ou em massa.
     importado, para você corrigir e reenviar.
   </Passo>
 </PassoAPasso>
+
+### Nova, já lançada ou atualização
+
+| Situação | Como o sistema reconhece | O que acontece |
+|---|---|---|
+| **Já lançada** | Mesmo número de CAT | Não deixa lançar de novo; mostra a CAT existente |
+| **Atualização** | Mesmo número com outra sequência (…/01 × …/02); campo 6 com o recibo da CAT de origem; ou mesmo acidentado e data com reabertura/óbito | Ao salvar, a CAT fica **ligada à de origem** — as duas aparecem juntas na página de cada uma |
+| **Possível duplicidade** | Mesmo acidentado e mesma data do acidente, número diferente | Pede a confirmação "é outra CAT" antes de salvar |
+| **Nova** | Nada parecido na base | Salva normalmente |
+
+O acidentado é o mesmo quando o **CPF** bate ou, sem CPF, quando o **nome**
+bate (sem acento).
+
+<Print src="saude/cat-verificar-numero.png" alt="Incluir CAT, Cadastro individual: depois de verificar o número 2019.000.111-1/03, o aviso Atualização de uma CAT da base mostra a CAT de origem 2019.000.111-1/01 e a de óbito 2019.000.111-1/02, e o formulário abre com o número e os dados do acidente (empregador, acidentado) já preenchidos." legenda="Verificação do número: uma reabertura (…/03) já abre com os dados do acidente da CAT de origem." />
+
+## Duplicidades e atualizações
+
+Na listagem, **Duplicidades e atualizações** (com a quantidade de casos) reúne
+o que já está na base e precisa de tratamento:
+
+- **Mesmo número** — a mesma CAT lançada mais de uma vez;
+- **Atualização sem vínculo** — a …/02 de um acidente ainda não ligada à …/01;
+- **Mesmo acidentado e data** — números diferentes para o mesmo acidente.
+
+Em cada grupo, marque a CAT que **fica** (ou a **de origem**) e escolha:
+**É a mesma CAT: manter a marcada** (as outras viram cópia descartada), **É
+atualização: ligar à marcada como origem**, ou **Não é duplicidade** (o grupo
+sai da lista). Descartar **não apaga nada**: a cópia sai das listas, do painel
+e da exportação e pode ser **restaurada** na página da CAT que ficou.
+
+<Print src="saude/cat-duplicidades.png" alt="Duplicidades e atualizações: contagem por tipo (mesmo número, atualização sem vínculo, mesmo acidentado e data) e um cartão por grupo, com as CATs lado a lado, a escolha da CAT que fica ou da de origem e os botões É a mesma CAT, É atualização e Não é duplicidade." legenda="Cada grupo: marque a CAT que fica (ou a de origem) e escolha o que fazer." />
 
 <Aviso tipo="atencao" titulo="Dados históricos com limitações">
   Parte das CATs migradas veio com a **descrição truncada** e **sem código**
@@ -50,6 +95,9 @@ novas, uma a uma ou em massa.
   (**tudo ou nada**): corrija a linha apontada e reenvie a planilha inteira.
 - **"As colunas não bateram na importação."** O casamento é pelo **número do
   campo** do formulário oficial — confira o cabeçalho da planilha.
+- **"O sistema diz que a CAT já foi lançada, mas o acidentado é outro."** O
+  número provavelmente foi digitado errado em uma das duas — confira o
+  formulário original antes de salvar.
 - **"A CAT não aparece ligada ao filiado."** Registros antigos vieram **sem
   CPF**; a ligação automática depende desse dado.
 - **"Um mesmo tipo/município aparece escrito de várias formas."** São grafias
