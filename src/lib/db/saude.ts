@@ -1,4 +1,5 @@
 import "server-only"
+import { invalidarCacheCatDuplicidades } from "@/lib/db/cat-duplicidades"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -66,9 +67,11 @@ async function buscarTodos<T>(
     count?: number | null
   }>
   const lote = (de: number, comContagem: boolean): Resposta => {
+    // Cópias descartadas (duplicada_de_id) ficam fora do painel e da exportação.
     let q: unknown = admin
       .from("saude_cat")
       .select(colunas, comContagem ? { count: "exact" } : undefined)
+      .is("duplicada_de_id", null)
     if (aplicar) q = aplicar(q)
     return (
       q as {
@@ -251,6 +254,7 @@ export async function listarCats(
   let consulta = admin
     .from("saude_cat")
     .select(COLUNAS_LISTA, { count: "exact" })
+    .is("duplicada_de_id", null)
   consulta = aplicarFiltros(consulta, filtros)
 
   const { data, error, count } = await consulta
@@ -449,6 +453,7 @@ export async function criarCat(
     return { erro: error.message }
   }
   invalidarCacheFacetas()
+  invalidarCacheCatDuplicidades()
   return { id: (data as { id: string }).id }
 }
 
@@ -467,6 +472,7 @@ export async function atualizarCat(
     return { erro: error.message }
   }
   invalidarCacheFacetas()
+  invalidarCacheCatDuplicidades()
   return {}
 }
 
@@ -535,6 +541,7 @@ export async function importarCats(
   }
 
   invalidarCacheFacetas()
+  invalidarCacheCatDuplicidades()
   return { gravados: inseridos.length }
 }
 

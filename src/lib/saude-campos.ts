@@ -137,6 +137,35 @@ export function nomeCampo(campo: CampoCat): string {
 }
 
 /**
+ * Registro de saude_cat → valores do formulário (`campo_<n>`), no formato que
+ * cada campo aceita: Sim/Não nos booleanos, "código – descrição" nos códigos.
+ */
+export function valoresDoRegistro(cat: Record<string, unknown>): Record<string, string> {
+  const valores: Record<string, string> = {}
+  for (const campo of CAMPOS_CAT) {
+    const descricao = cat[campo.coluna]
+    const codigo = campo.colunaCodigo ? cat[campo.colunaCodigo] : null
+    let texto = ""
+    if (campo.tipo === "bool") {
+      texto = descricao === true ? "Sim" : descricao === false ? "Não" : ""
+    } else if (codigo && descricao) {
+      texto = `${codigo} – ${descricao}`
+    } else if (descricao != null) {
+      texto = String(descricao)
+    }
+    valores[nomeCampo(campo)] = texto
+  }
+  return valores
+}
+
+/**
+ * Campos do ACIDENTE e do acidentado — os que se repetem numa CAT de
+ * reabertura ou de óbito do mesmo acidente. Os demais (tipo, número, recibo,
+ * óbito, atendimento, atestado) são próprios de cada CAT.
+ */
+export const CAMPOS_DO_ACIDENTE = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+
+/**
  * Casa um cabeçalho de planilha com um campo.
  *
  * A numeração do formulário vem primeiro porque é o que sobrevive às

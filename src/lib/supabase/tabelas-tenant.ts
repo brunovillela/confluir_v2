@@ -167,6 +167,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "saude_atendimentos",
   "saude_atendimentos_tipos",
   "saude_cat",
+  "saude_cat_duplicidades_ignoradas",
   "saude_cipa_agenda",
   "saude_cipa_representantes",
   "saude_profissionais",

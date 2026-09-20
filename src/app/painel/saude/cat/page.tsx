@@ -5,6 +5,7 @@ import {
   ArrowUp,
   CircleCheck,
   ClipboardList,
+  CopyCheck,
   Download,
   Filter,
   Plus,
@@ -25,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { listarGruposCat } from "@/lib/db/cat-duplicidades"
 import { facetasCat, listarCats, type FiltrosCat } from "@/lib/db/saude"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
@@ -96,6 +98,9 @@ export default async function CatsPage({
     ),
   }
 
+  // Grupos a tratar em Duplicidades e atualizações (varredura em cache de 10 min).
+  const gruposDuplicidade = podeIncluir ? (await listarGruposCat()).grupos.length : 0
+
   const { linhas, total, disponivel } = await listarCats(
     filtros,
     ordem,
@@ -156,6 +161,19 @@ export default async function CatsPage({
               Exportar CSV
             </Link>
           </Button>
+          {podeIncluir && (
+            <Button variant="outline" asChild>
+              <Link href="/painel/saude/cat/duplicidades">
+                <CopyCheck />
+                Duplicidades e atualizações
+                {gruposDuplicidade > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {gruposDuplicidade.toLocaleString("pt-BR")}
+                  </Badge>
+                )}
+              </Link>
+            </Button>
+          )}
           {podeIncluir && (
             <Button asChild>
               <Link href="/painel/saude/cat/nova">

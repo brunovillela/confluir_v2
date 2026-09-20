@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 
-import { CatForm, ImportarCatsForm } from "../cat-forms"
+import { ImportarCatsForm } from "../cat-forms"
+import { DigitarCat } from "../digitar-cat"
 
 export const metadata: Metadata = { title: "Incluir CAT — Confluir" }
 
@@ -90,10 +91,11 @@ export default async function NovaCatPage() {
           Cadastro individual
         </h2>
         <p className="text-muted-foreground mb-3 text-sm">
-          Os 50 campos do formulário oficial. Só o nome do acidentado e a data
-          do acidente são obrigatórios — o resto pode ficar em branco.
+          Primeiro o número da CAT, para conferir se ela já está na base; depois
+          os 50 campos do formulário oficial. Só o nome do acidentado e a data do
+          acidente são obrigatórios — o resto pode ficar em branco.
         </p>
-        <CatForm />
+        <DigitarCat />
       </div>
     </>
   )

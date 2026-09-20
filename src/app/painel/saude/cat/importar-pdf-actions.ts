@@ -3,14 +3,30 @@
 import { extractText, getDocumentProxy } from "unpdf"
 
 import { requirePermissao } from "@/lib/auth"
+import type { ClassificacaoCat } from "@/lib/cat-classificacao"
+import { classificarCat, type EntradaCat } from "@/lib/db/cat-duplicidades"
+import { buscarCat, type RegistroCat } from "@/lib/db/saude"
 import { gerarJsonIA, gerarJsonIADePdf } from "@/lib/ia"
-import { CAMPOS_CAT, nomeCampo, type TipoCampo } from "@/lib/saude-campos"
+import {
+  CAMPOS_CAT,
+  nomeCampo,
+  valorParaColunas,
+  valoresDoRegistro,
+  type TipoCampo,
+} from "@/lib/saude-campos"
 import * as n from "@/lib/saude-normalizacao"
 
 export type EstadoExtracaoCat = {
   valores?: Record<string, string>
   avisos?: string[]
   erro?: string
+  /** Nova, já lançada, atualização ou possível duplicidade. */
+  classificacao?: ClassificacaoCat
+  /**
+   * CAT já lançada: os valores dela completados pelo PDF, para atualizar a
+   * existente em vez de lançar de novo — e os campos em que o PDF difere.
+   */
+  existente?: { id: string; numero: string | null; valores: Record<string, string>; diferentes: string[] }
 }
 
 const DICA_TIPO: Partial<Record<TipoCampo, string>> = {
@@ -110,5 +126,37 @@ export async function extrairCatDePdf(
   if (Object.keys(valores).length === 0) {
     return { erro: "A IA não conseguiu extrair campos deste PDF." }
   }
-  return { valores, avisos: avisos.length ? avisos : undefined }
+
+  // Compara com a base: a CAT já foi lançada? É reabertura/óbito de outra?
+  let registro: RegistroCat = {}
+  for (const campo of CAMPOS_CAT) {
+    registro = { ...registro, ...valorParaColunas(campo, valores[nomeCampo(campo)] ?? "") }
+  }
+  const { disponivel, ...classificacao } = await classificarCat(registro as EntradaCat)
+
+  let existente: EstadoExtracaoCat["existente"]
+  if (disponivel && classificacao.classe === "duplicada" && classificacao.relacionadas.length === 1) {
+    const alvo = classificacao.relacionadas[0]
+    const cat = (await buscarCat(alvo.id)) as Record<string, unknown> | null
+    if (cat) {
+      const naBase = valoresDoRegistro(cat)
+      const juntos: Record<string, string> = { ...naBase }
+      const diferentes: string[] = []
+      for (const campo of CAMPOS_CAT) {
+        const nome = nomeCampo(campo)
+        const doPdf = valores[nome]
+        if (!doPdf) continue
+        if (naBase[nome] && naBase[nome] !== doPdf) diferentes.push(`${campo.n} — ${campo.rotulo}`)
+        juntos[nome] = doPdf
+      }
+      existente = { id: alvo.id, numero: alvo.numero, valores: juntos, diferentes }
+    }
+  }
+
+  return {
+    valores,
+    avisos: avisos.length ? avisos : undefined,
+    classificacao: disponivel ? classificacao : undefined,
+    existente,
+  }
 }

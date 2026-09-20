@@ -18,6 +18,7 @@ import {
   atualizarCatAction,
   criarCatAction,
   importarCatsAction,
+  type EstadoCat,
 } from "./actions"
 
 const SELECT =
@@ -53,19 +54,28 @@ export function ImportarCatsForm() {
 export function CatForm({
   valores,
   id,
+  origemId,
+  pedirConfirmacao,
 }: {
   /** Valores atuais por nome de campo (`campo_<n>`), na edição. */
   valores?: Record<string, string>
   id?: string
+  /** CAT de origem, quando esta é uma reabertura/óbito do mesmo acidente. */
+  origemId?: string | null
+  /** Já se sabe que é possível duplicidade: mostra a confirmação desde o início. */
+  pedirConfirmacao?: boolean
 }) {
-  const [estado, formAction, pendente] = useActionState(
+  const [estado, formAction, pendente] = useActionState<EstadoCat, FormData>(
     id ? atualizarCatAction : criarCatAction,
     {}
   )
 
+  // Depois de um erro, o formulário reabre com o que foi digitado (a key o remonta).
+  const atuais = estado.valores ?? valores
   return (
-    <form action={formAction} className="grid gap-4">
+    <form key={estado.tentativa ?? 0} action={formAction} className="grid gap-4">
       {id && <input type="hidden" name="id" value={id} />}
+      {origemId && <input type="hidden" name="cat_origem_id" value={origemId} />}
 
       {BLOCOS.map((bloco) => (
         <Card key={bloco}>
@@ -76,7 +86,7 @@ export function CatForm({
                 <Campo
                   key={campo.n}
                   campo={campo}
-                  valor={valores?.[nomeCampo(campo)] ?? ""}
+                  valor={atuais?.[nomeCampo(campo)] ?? ""}
                 />
               ))}
             </div>
@@ -85,6 +95,14 @@ export function CatForm({
       ))}
 
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {!id && (estado.confirmar || pedirConfirmacao) && (
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input type="checkbox" name="confirmar_possivel" className="accent-primary mt-1" />
+          <span>
+            Conferi: é <strong>outra CAT</strong>, não a mesma que já está na base.
+          </span>
+        </label>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={pendente}>

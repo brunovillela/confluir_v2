@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CircleCheck, Pencil, TriangleAlert, UserRound } from "lucide-react"
+import { CircleCheck, Copy, Link2, Pencil, TriangleAlert, UserRound } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -12,13 +12,15 @@ import {
   buscarSugestaoFiliado,
   filiadosAtivosPorCpf,
 } from "@/lib/db/filiados"
+import { relacoesDaCat } from "@/lib/db/cat-duplicidades"
 import { buscarCat } from "@/lib/db/saude"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
-import { CAMPOS_CAT, nomeCampo } from "@/lib/saude-campos"
+import { valoresDoRegistro } from "@/lib/saude-campos"
 import { rotuloTipoAcidente } from "@/lib/saude-constantes"
 
 import { CatForm } from "../cat-forms"
+import { RestaurarCopia } from "../restaurar-copia"
 import { VincularFiliado } from "../vincular-filiado"
 
 export const metadata: Metadata = { title: "CAT — Confluir" }
@@ -46,21 +48,7 @@ export default async function CatPage({
 
   // Edição reusa o mesmo formulário do cadastro, preenchido.
   if (editar === "1" && podeEditar) {
-    const valores: Record<string, string> = {}
-    for (const campo of CAMPOS_CAT) {
-      const descricao = cat[campo.coluna]
-      const codigo = campo.colunaCodigo ? cat[campo.colunaCodigo] : null
-      let texto = ""
-      if (campo.tipo === "bool") {
-        texto = descricao === true ? "Sim" : descricao === false ? "Não" : ""
-      } else if (codigo && descricao) {
-        // Volta ao formato "código – descrição" que o campo aceita.
-        texto = `${codigo} – ${descricao}`
-      } else if (descricao != null) {
-        texto = String(descricao)
-      }
-      valores[nomeCampo(campo)] = texto
-    }
+    const valores = valoresDoRegistro(cat)
     return (
       <>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -97,12 +85,15 @@ export default async function CatPage({
   // Vínculo com filiado: o atual (se houver) e, quando não há e a CAT traz CPF,
   // as filiações ativas com aquele CPF (atalho de vínculo, só para quem edita).
   const filiadoId = t("filiado_id")
-  const [filiadoAtual, sugestoesCpf] = await Promise.all([
+  const duplicadaDe = t("duplicada_de_id")
+  const [filiadoAtual, sugestoesCpf, relacoes] = await Promise.all([
     filiadoId ? buscarSugestaoFiliado(filiadoId) : Promise.resolve(null),
     !filiadoId && podeEditar
       ? filiadosAtivosPorCpf(t("trabalhador_cpf"))
       : Promise.resolve([]),
+    relacoesDaCat(id, t("cat_origem_id")),
   ])
+  const numeroOuSem = (n: string | null) => n ?? "CAT sem número"
 
   return (
     <>
@@ -149,6 +140,76 @@ export default async function CatPage({
           <CircleCheck />
           <AlertDescription>CAT salva.</AlertDescription>
         </Alert>
+      )}
+
+      {duplicadaDe && (
+        <Alert variant="warning">
+          <Copy />
+          <AlertDescription>
+            <span className="flex flex-wrap items-center gap-2">
+              Esta CAT é uma <strong>cópia descartada</strong> — fica fora das listas.{" "}
+              <Link href={`/painel/saude/cat/${duplicadaDe}`} className="font-medium underline">
+                Abrir a CAT que ficou
+              </Link>
+              {podeEditar && <RestaurarCopia id={id} />}
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {(relacoes.origem || relacoes.atualizacoes.length > 0 || relacoes.copias.length > 0) && (
+        <Card>
+          <CardContent className="grid gap-2 text-sm">
+            <p className="flex items-center gap-2 font-medium">
+              <Link2 className="text-muted-foreground size-4" />
+              CATs do mesmo acidente
+            </p>
+            {relacoes.origem && (
+              <p>
+                Atualização da CAT de origem{" "}
+                <Link href={`/painel/saude/cat/${relacoes.origem.id}`} className="font-medium tabular-nums underline">
+                  {numeroOuSem(relacoes.origem.numero)}
+                </Link>
+                <span className="text-muted-foreground"> · acidente em {formatarData(relacoes.origem.dataAcidente)}</span>
+              </p>
+            )}
+            {relacoes.atualizacoes.length > 0 && (
+              <div>
+                <p className="text-muted-foreground text-xs">Atualizações desta CAT (reabertura, óbito):</p>
+                <ul className="grid gap-0.5">
+                  {relacoes.atualizacoes.map((a) => (
+                    <li key={a.id}>
+                      <Link href={`/painel/saude/cat/${a.id}`} className="font-medium tabular-nums underline">
+                        {numeroOuSem(a.numero)}
+                      </Link>
+                      <span className="text-muted-foreground">
+                        {a.tipo ? ` · ${a.tipo}` : ""}
+                        {a.houveMorte ? " · óbito" : ""}
+                        {a.dataObito ? ` em ${formatarData(a.dataObito)}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {relacoes.copias.length > 0 && (
+              <div>
+                <p className="text-muted-foreground text-xs">Cópias descartadas desta CAT (fora das listas):</p>
+                <ul className="grid gap-0.5">
+                  {relacoes.copias.map((c) => (
+                    <li key={c.id} className="flex flex-wrap items-center gap-2">
+                      <Link href={`/painel/saude/cat/${c.id}`} className="tabular-nums underline">
+                        {numeroOuSem(c.numero)}
+                      </Link>
+                      <span className="text-muted-foreground text-xs">lançada em {formatarData(c.criadoEm)}</span>
+                      {podeEditar && <RestaurarCopia id={c.id} />}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {b("descricao_truncada") === true && (

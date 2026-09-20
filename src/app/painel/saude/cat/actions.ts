@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { decodificarCsv, parseCsv } from "@/lib/csv"
+import { classificarCat, type EntradaCat } from "@/lib/db/cat-duplicidades"
 import {
   atualizarCat,
   criarCat,
@@ -23,6 +24,25 @@ import {
   type CampoCat,
 } from "@/lib/saude-campos"
 import { nz } from "@/lib/saude-normalizacao"
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Estado do formulário da CAT: `confirmar` pede o "salvar mesmo assim";
+ * `valores` devolve o que foi digitado quando há erro — o React limpa o form ao
+ * fim da action, e sem isso os 50 campos se perdiam.
+ */
+export type EstadoCat = EstadoForm & {
+  confirmar?: boolean
+  valores?: Record<string, string>
+  tentativa?: number
+}
+
+function comDigitado(formData: FormData, estado: EstadoCat): EstadoCat {
+  const valores: Record<string, string> = {}
+  for (const campo of CAMPOS_CAT) valores[nomeCampo(campo)] = String(formData.get(nomeCampo(campo)) ?? "")
+  return { ...estado, valores, tentativa: Date.now() }
+}
 
 const PERMISSAO = "saude_cat"
 const ALTERNATIVAS = ["saude_gestao"]
@@ -55,29 +75,49 @@ function registroDoFormulario(formData: FormData): RegistroCat {
 }
 
 export async function criarCatAction(
-  _prev: EstadoForm,
+  _prev: EstadoCat,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoCat> {
   await requirePermissao(PERMISSAO, ALTERNATIVAS)
 
   const registro = registroDoFormulario(formData)
   if (!registro.trabalhador_nome) {
-    return { erro: "Informe o nome do acidentado (campo 11)." }
+    return comDigitado(formData, { erro: "Informe o nome do acidentado (campo 11)." })
   }
   if (!registro.data_acidente) {
-    return { erro: "Informe a data do acidente (campo 19) em DD/MM/AAAA." }
+    return comDigitado(formData, { erro: "Informe a data do acidente (campo 19) em DD/MM/AAAA." })
   }
 
   const numero = registro.numero_cat
   if (typeof numero === "string" && numero) {
     const existentes = await numerosCatExistentes([numero])
     if (existentes.has(numero)) {
-      return { erro: `Já existe uma CAT com o número ${numero}.` }
+      return comDigitado(formData, { erro: `Já existe uma CAT com o número ${numero}.` })
     }
   }
 
+  // Nova, já lançada, atualização ou possível duplicidade — a mesma regra da
+  // leitura por IA e da verificação do número, repetida aqui no servidor.
+  const classificacao = await classificarCat(registro as EntradaCat)
+  if (classificacao.classe === "duplicada") {
+    return comDigitado(formData, { erro: `${classificacao.motivo} Abra a CAT existente em vez de lançar de novo.` })
+  }
+  if (classificacao.classe === "possivel_duplicada" && formData.get("confirmar_possivel") !== "on") {
+    return comDigitado(formData, {
+      erro: `${classificacao.motivo} Se for outra CAT, marque a confirmação e salve de novo.`,
+      confirmar: true,
+    })
+  }
+  const origemInformada = String(formData.get("cat_origem_id") ?? "")
+  const origem = UUID.test(origemInformada)
+    ? origemInformada
+    : classificacao.classe === "atualizacao"
+      ? classificacao.origemId
+      : null
+  if (origem) registro.cat_origem_id = origem
+
   const { id, erro } = await criarCat(registro)
-  if (erro || !id) return { erro: erro ?? "Não foi possível gravar a CAT." }
+  if (erro || !id) return comDigitado(formData, { erro: erro ?? "Não foi possível gravar a CAT." })
 
   revalidatePath("/painel/saude/cat")
   revalidatePath("/painel/saude")
@@ -85,21 +125,21 @@ export async function criarCatAction(
 }
 
 export async function atualizarCatAction(
-  _prev: EstadoForm,
+  _prev: EstadoCat,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoCat> {
   await requirePermissao(PERMISSAO, ALTERNATIVAS)
 
   const id = String(formData.get("id") ?? "")
-  if (!id) return { erro: "Registro não identificado." }
+  if (!id) return comDigitado(formData, { erro: "Registro não identificado." })
 
   const registro = registroDoFormulario(formData)
   if (!registro.trabalhador_nome) {
-    return { erro: "Informe o nome do acidentado (campo 11)." }
+    return comDigitado(formData, { erro: "Informe o nome do acidentado (campo 11)." })
   }
 
   const { erro } = await atualizarCat(id, registro)
-  if (erro) return { erro }
+  if (erro) return comDigitado(formData, { erro })
 
   revalidatePath("/painel/saude/cat")
   revalidatePath(`/painel/saude/cat/${id}`)
