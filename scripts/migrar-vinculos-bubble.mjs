@@ -201,7 +201,17 @@ function camposDe(v) {
  * Mescla o real por cima do que já existe: Bubble preenchido manda; Bubble
  * vazio não apaga; arquivo já no nosso bucket não é trocado por URL.
  */
-function mesclar(existente, real) {
+/**
+ * `soVazio`: no COMPLETAR (vínculo que já casava) só entra em coluna vazia —
+ * é o que o cabeçalho promete, e protege correção feita aqui depois. Sem ele
+ * (SUBSTITUIR do reconstruído pelo real) o valor do Bubble manda, porque o
+ * reconstruído era derivação.
+ *
+ * Por que a trava importa (19/09/2026): a matrícula do vínculo Petros passou a
+ * ser a matrícula PETROS (scripts/atualizar-matricula-petros.mjs) e o Bubble
+ * ainda tem a matrícula Petrobras — sem isto, 3.281 vínculos voltariam atrás.
+ */
+function mesclar(existente, real, soVazio = false) {
   const patch = {}
   for (const [k, v] of Object.entries(real)) {
     const atual = existente[k]
@@ -211,6 +221,7 @@ function mesclar(existente, real) {
       continue
     }
     if (vazio(v)) continue
+    if (soVazio && !vazio(atual)) continue
     if (v !== atual) patch[k] = v
   }
   // URL original preservada nas colunas legadas, como o migrar-documentos faz
@@ -231,7 +242,7 @@ for (const v of ordenados) {
   const existente = (v.Supabase_id && aquiPorId.get(v.Supabase_id)) || aquiPorBubble.get(v._id) || null
   const real = camposDe(v)
   if (existente) {
-    const patch = mesclar(existente, real)
+    const patch = mesclar(existente, real, true)
     if (Object.keys(patch).length) completar.push({ id: existente.id, patch })
     continue
   }
