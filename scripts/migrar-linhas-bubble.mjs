@@ -31,7 +31,9 @@ const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
 const i = args.indexOf("--tenant")
 const TENANT = i >= 0 ? args[i + 1] : "c763cb99-edfd-4840-8453-ed3fcb66d4a1"
-const RAIZ = env.BUBBLE_API_ROOT.replace(/\/obj\/?$/, "") + "/obj/"
+// Sem "version-test": os dados de PRODUÇÃO do Bubble (a versão de teste está
+// quase vazia — 51 linhas contra 71 na de produção).
+const RAIZ = env.BUBBLE_API_ROOT.replace(/\/obj\/?$/, "").replace("/version-test", "") + "/obj/"
 
 const digitos = (v) => String(v ?? "").replace(/\D/g, "")
 const vazioNull = (v) => (String(v ?? "").trim() ? String(v).trim() : null)
