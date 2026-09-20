@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import {
   buscarServico,
   cuponsParaVincular,
@@ -73,7 +74,11 @@ export default async function ReservaHotelPage({
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/inicio">

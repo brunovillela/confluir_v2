@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { cuponsAguardando, listarTarifas } from "@/lib/db/hospedagem"
 
 import { ServicoForm } from "@/app/painel/hospedagem/servicos/servico-form"
@@ -22,7 +23,11 @@ export default async function NovaReservaHotelPage() {
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/inicio">

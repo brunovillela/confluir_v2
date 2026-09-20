@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import {
   contasDoHotel,
   descreverConta,
@@ -26,7 +27,11 @@ export default async function NovaFaturaPage() {
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/faturamento">

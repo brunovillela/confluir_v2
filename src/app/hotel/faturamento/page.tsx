@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import {
   listarFaturas,
   urlArquivoHospedagem,
@@ -128,7 +129,11 @@ export default async function FaturamentoPage({
   const fechadas = faturas.filter((f) => !f.aberta)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Faturamento</h1>

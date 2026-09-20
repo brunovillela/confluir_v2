@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { contasDoHotel } from "@/lib/db/hospedagem"
 
 import { HotelShell } from "../hotel-shell"
@@ -14,7 +15,11 @@ export default async function ContasHotelPage() {
   const { disponivel, contas } = await contasDoHotel(hotel.id)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dados bancários</h1>
         <p className="text-muted-foreground mt-1 text-xs">

@@ -28,16 +28,10 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 20/09 (2): Hospedagem — painel do sindicato e área do hotel.
-  ['/painel/hospedagem', 'hospedagem/painel.png', { fullPage: true }],
-  ['/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001', 'hospedagem/hotel-ficha.png', { fullPage: true, esperar: 'Visualizar área' }],
-  ['/painel/hospedagem/servicos/40310000-0000-4000-8000-000000000001', 'hospedagem/reserva.png', { fullPage: true }],
-  ['/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001', 'hospedagem/faturamento.png', { scrollTo: 'Faturas em aberto' }],
+  // Rodada de 20/09 (3): área do hotel dividida em abas.
   ['/hotel/inicio', 'hotel/inicio.png', { fullPage: true }],
-  ['/hotel/contas', 'hotel/contas.png', { fullPage: true }],
-  ['/hotel/faturamento', 'hotel/faturamento.png', { fullPage: true }],
-  ['/hotel/reservas/40310000-0000-4000-8000-000000000001', 'hotel/reserva.png', { fullPage: true }],
-  ['/hotel/acordo', 'hotel/acordo.png', { fullPage: true }],
+  ['/hotel/cupons', 'hotel/cupons.png', { fullPage: true }],
+  ['/hotel/reservas', 'hotel/reservas.png', { fullPage: true }],
 
   /* Rodada de 18/09: todos os prints de Filiados (já capturados).
   ['/painel/filiados', 'filiados/lista.png', { fullPage: true, esperar: 'Saúde dos cadastros' }],

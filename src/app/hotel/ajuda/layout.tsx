@@ -1,5 +1,6 @@
 import { AjudaNav, type NavArea } from "@/components/ajuda/ajuda-nav"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { AREAS_AJUDA_HOTEL } from "@/lib/ajuda/manifesto-hotel"
 
 import { HotelShell } from "../hotel-shell"
@@ -25,7 +26,11 @@ export default async function HotelAjudaLayout({
   }))
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
         <aside className="lg:w-56 lg:shrink-0">
           <div className="lg:sticky lg:top-24">

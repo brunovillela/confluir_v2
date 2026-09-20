@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { contratoDoHotel, listarTarifas } from "@/lib/db/hospedagem"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -67,7 +68,11 @@ export default async function AcordoPage() {
   const fim = contrato?.vigenciaTermino ?? null
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Acordo e orientações

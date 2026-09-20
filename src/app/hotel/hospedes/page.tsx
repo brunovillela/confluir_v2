@@ -53,7 +53,11 @@ export default async function HotelHospedesPage({
 
   if (!ehGarantida(hotel)) {
     return (
-      <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+      <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
         <h1 className="text-2xl font-semibold tracking-tight">Hóspedes por quarto</h1>
         <Alert>
           <AlertDescription>
@@ -75,7 +79,11 @@ export default async function HotelHospedesPage({
   const hospedes = mapa.quartos.reduce((n, q) => n + q.hospedes.length, 0)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
+    <HotelShell
+      nomeHotel={hotel.nome ?? "Hotel parceiro"}
+      garantida={ehGarantida(hotel)}
+      preview={preview ? { gestorNome } : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Hóspedes por quarto</h1>
