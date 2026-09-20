@@ -36,6 +36,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
+import zlib from "node:zlib"
 import { join } from "node:path"
 
 const args = process.argv.slice(2)
@@ -462,6 +463,8 @@ const ARQUIVOS = [
   { tabela: "oficios", coluna: "arquivos_resposta", lista: true, bucket: "documentos", pasta: (l) => `oficios/${l.id}/resposta` },
   // bucket pessoal só aceita PDF: foto JPEG vira PDF de uma página (jpegEmPdf).
   { tabela: "pessoal_diarias_despesas", coluna: "comprovante", bucket: "pessoal", soPdf: true, pasta: (l) => `diarias/despesas/${l.id}/comprovante` },
+  // Recibos do reembolso do ACT (scripts/migrar-reembolsos-act-bubble.mjs).
+  { tabela: "pessoal_reembolsos_act", coluna: "comprovante_url", bucket: "pessoal", soPdf: true, pasta: (l) => `reembolsos-act/${l.id}/recibo` },
 ]
 function tipoDoArquivo(buf) {
   if (buf.subarray(0, 5).toString("latin1") === "%PDF-") return { ext: "pdf", mime: "application/pdf" }
@@ -485,11 +488,16 @@ function jpegEmPdf(jpeg) {
     i += 2 + tamanho
   }
   if (!largura || !altura) return null
+  const cor = componentes === 1 ? "/DeviceGray" : componentes === 4 ? "/DeviceCMYK" : "/DeviceRGB"
+  return pdfDeImagem(largura, altura, cor, "/DCTDecode", jpeg)
+}
+
+/** Página A4 com a imagem inteira, centralizada. `stream` já vem no filtro dado. */
+function pdfDeImagem(largura, altura, cor, filtro, stream) {
   const [pw, ph, margem] = [595.28, 841.89, 28]
   const escala = Math.min((pw - 2 * margem) / largura, (ph - 2 * margem) / altura)
   const [w, h] = [largura * escala, altura * escala]
   const [x, y] = [(pw - w) / 2, (ph - h) / 2]
-  const cor = componentes === 1 ? "/DeviceGray" : componentes === 4 ? "/DeviceCMYK" : "/DeviceRGB"
   const conteudo = `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im0 Do Q`
   const NL = "\n"
   const partes = []
@@ -506,13 +514,84 @@ function jpegEmPdf(jpeg) {
   obj(1, "<< /Type /Catalog /Pages 2 0 R >>")
   obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
   obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`)
-  obj(4, `<< /Type /XObject /Subtype /Image /Width ${largura} /Height ${altura} /ColorSpace ${cor} /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>`, jpeg)
+  obj(4, `<< /Type /XObject /Subtype /Image /Width ${largura} /Height ${altura} /ColorSpace ${cor} /BitsPerComponent 8 /Filter ${filtro} /Length ${stream.length} >>`, stream)
   obj(5, `<< /Length ${Buffer.byteLength(conteudo)} >>`, Buffer.from(conteudo, "latin1"))
   const xref = tam
   add(`xref${NL}0 6${NL}0000000000 65535 f ${NL}`)
   for (const n of [1, 2, 3, 4, 5]) add(`${String(offsets[n]).padStart(10, "0")} 00000 n ${NL}`)
   add(`trailer${NL}<< /Size 6 /Root 1 0 R >>${NL}startxref${NL}${xref}${NL}%%EOF${NL}`)
   return Buffer.concat(partes)
+}
+
+/**
+ * PNG (8 bits, RGB/gray/RGBA) → PDF de uma página A4. Diferente do JPEG, o PNG
+ * não entra cru no PDF: é preciso desfazer os filtros por linha e regravar os
+ * pixels como fluxo Flate. Recibos vindos de captura de tela chegam assim.
+ */
+function pngEmPdf(png) {
+  let i = 8
+  let largura = 0, altura = 0, profundidade = 0, cor = 0
+  const dados = []
+  while (i + 8 <= png.length) {
+    const tamanho = png.readUInt32BE(i)
+    const tipo = png.subarray(i + 4, i + 8).toString("latin1")
+    const corpo = png.subarray(i + 8, i + 8 + tamanho)
+    if (tipo === "IHDR") {
+      largura = corpo.readUInt32BE(0)
+      altura = corpo.readUInt32BE(4)
+      profundidade = corpo[8]
+      cor = corpo[9]
+      if (corpo[12] !== 0) return null // entrelaçado (Adam7): fora
+    } else if (tipo === "IDAT") dados.push(corpo)
+    else if (tipo === "IEND") break
+    i += 12 + tamanho
+  }
+  const canais = { 0: 1, 2: 3, 4: 2, 6: 4 }[cor]
+  if (!largura || !altura || profundidade !== 8 || !canais) return null
+
+  const cru = zlib.inflateSync(Buffer.concat(dados))
+  const bpp = canais
+  const linha = largura * bpp
+  if (cru.length < altura * (linha + 1)) return null
+  const saida = Buffer.alloc(altura * linha)
+  let anterior = Buffer.alloc(linha)
+  for (let y = 0; y < altura; y++) {
+    const filtro = cru[y * (linha + 1)]
+    const atual = Buffer.from(cru.subarray(y * (linha + 1) + 1, (y + 1) * (linha + 1)))
+    for (let x = 0; x < linha; x++) {
+      const a = x >= bpp ? atual[x - bpp] : 0
+      const b = anterior[x]
+      const c = x >= bpp ? anterior[x - bpp] : 0
+      let v = atual[x]
+      if (filtro === 1) v += a
+      else if (filtro === 2) v += b
+      else if (filtro === 3) v += (a + b) >> 1
+      else if (filtro === 4) {
+        const p = a + b - c
+        const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c)
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c
+      }
+      atual[x] = v & 0xff
+    }
+    atual.copy(saida, y * linha)
+    anterior = atual
+  }
+
+  // Alfa fora: o fundo vira branco (o PDF não guarda transparência aqui).
+  const saida3 = cor === 6 || cor === 4
+    ? Buffer.alloc(largura * altura * (cor === 6 ? 3 : 1))
+    : saida
+  if (cor === 6 || cor === 4) {
+    const canaisCor = cor === 6 ? 3 : 1
+    for (let p = 0, q = 0; p < saida.length; p += bpp, q += canaisCor) {
+      const alfa = saida[p + canaisCor] / 255
+      for (let k = 0; k < canaisCor; k++) {
+        saida3[q + k] = Math.round(saida[p + k] * alfa + 255 * (1 - alfa))
+      }
+    }
+  }
+  const espaco = cor === 0 || cor === 4 ? "/DeviceGray" : "/DeviceRGB"
+  return pdfDeImagem(largura, altura, espaco, "/FlateDecode", zlib.deflateSync(saida3))
 }
 
 async function baixar(url) {
@@ -556,7 +635,7 @@ async function migrarDocumentos() {
         if (!ehUrlCdn(url)) { novos.push(url); continue }
         let { buf, tipo, erro } = await baixar(url)
         if (buf && a.soPdf && tipo.ext !== "pdf") {
-          const pdf = tipo.ext === "jpg" ? jpegEmPdf(buf) : null
+          const pdf = tipo.ext === "jpg" ? jpegEmPdf(buf) : tipo.ext === "png" ? pngEmPdf(buf) : null
           if (pdf) { buf = pdf; tipo = { ext: "pdf", mime: "application/pdf" } }
           else { buf = null; erro = `${tipo.ext} não convertido (bucket ${a.bucket} só aceita PDF)` }
         }
