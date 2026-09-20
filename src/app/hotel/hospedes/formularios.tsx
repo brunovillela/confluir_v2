@@ -4,6 +4,7 @@ import { useActionState } from "react"
 import { Check, Loader2, Printer } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Input } from "@/components/ui/input"
 
 import { anotarQuartoAction } from "./actions"
@@ -12,15 +13,20 @@ export function AnotarQuartoForm({
   noite,
   quarto,
   atual,
+  preview = false,
 }: {
   noite: string
   quarto: number
   atual: string | null
+  preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(anotarQuartoAction, {})
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2 print:hidden">
+    <form
+      {...formVisualizacao(preview, formAction)}
+      className="flex flex-wrap items-center gap-2 print:hidden"
+    >
       <input type="hidden" name="noite" value={noite} />
       <input type="hidden" name="quarto" value={quarto} />
       <Input
@@ -31,10 +37,14 @@ export function AnotarQuartoForm({
         className="h-8 w-44"
         maxLength={30}
       />
-      <Button type="submit" size="sm" variant="outline" disabled={pendente}>
-        {pendente ? <Loader2 className="animate-spin" /> : <Check />}
-        Anotar
-      </Button>
+      {/* Nota vazia: a anotação de quarto se repete por linha; a tarja do
+          topo já avisa que é visualização. */}
+      <AcaoVisualizacao preview={preview} nota="">
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Check />}
+          Anotar
+        </Button>
+      </AcaoVisualizacao>
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
       {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
     </form>

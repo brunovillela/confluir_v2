@@ -1,11 +1,13 @@
 import Link from "next/link"
-import { ArrowLeftRight } from "lucide-react"
+import { ArrowLeftRight, Eye } from "lucide-react"
 
 import { Marca } from "@/components/marca"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { areasDaConta } from "@/lib/auth"
+
+import { encerrarVisualizacaoHotel } from "@/lib/actions/visualizacao-hotel"
 
 import { sairDoHotel } from "./actions"
 
@@ -22,17 +24,40 @@ const NAV = [
 /** Casca da área logada do hotel parceiro (header + navegação + container). */
 export async function HotelShell({
   nomeHotel,
+  preview,
   children,
 }: {
   nomeHotel: string
+  /** Gestão olhando a área do hotel (somente leitura) — ver a tarja. */
+  preview?: { gestorNome?: string | null }
   children: React.ReactNode
 }) {
-  // Alternador de interface para contas com mais de um perfil.
-  const outrasAreas = (await areasDaConta()).filter(
-    (a) => a.href !== "/hotel/inicio"
-  )
+  // Alternador de interface para contas com mais de um perfil. Na
+  // visualização não aparece: é da gestão, não do hotel.
+  const outrasAreas = preview
+    ? []
+    : (await areasDaConta()).filter((a) => a.href !== "/hotel/inicio")
   return (
     <div className="flex min-h-svh flex-col">
+      {preview && (
+        <div className="border-warning/40 bg-warning/10 text-warning-fg border-b">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
+            <span className="flex items-center gap-2">
+              <Eye className="size-4 shrink-0" />
+              <span>
+                Visualizando a área de <strong>{nomeHotel}</strong> — somente leitura
+                {preview.gestorNome ? ` · ${preview.gestorNome}` : ""}
+              </span>
+            </span>
+            <form action={encerrarVisualizacaoHotel}>
+              <Button variant="outline" size="sm" type="submit">
+                Sair da visualização
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <header className="bg-background sticky top-0 z-10 border-b">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -51,11 +76,13 @@ export async function HotelShell({
               </Button>
             ))}
             <ThemeToggle />
-            <form action={sairDoHotel}>
-              <Button variant="outline" size="sm" type="submit">
-                Sair
-              </Button>
-            </form>
+            {!preview && (
+              <form action={sairDoHotel}>
+                <Button variant="outline" size="sm" type="submit">
+                  Sair
+                </Button>
+              </form>
+            )}
           </div>
         </div>
         <nav className="mx-auto w-full max-w-5xl overflow-x-auto px-4">

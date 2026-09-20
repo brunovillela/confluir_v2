@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import {
   buscarServico,
   cuponsAguardando,
@@ -53,7 +53,7 @@ export default async function ReservaHotelPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
 
   const { id } = await params
   const { salvo } = await searchParams
@@ -69,7 +69,7 @@ export default async function ReservaHotelPage({
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/inicio">
@@ -272,7 +272,11 @@ export default async function ReservaHotelPage({
               Nenhum relatório enviado para esta reserva.
             </p>
           )}
-          <RelatorioForm servicoId={servico.id} temRelatorio={!!servico.relatorio} />
+          <RelatorioForm
+            servicoId={servico.id}
+            temRelatorio={!!servico.relatorio}
+            preview={preview}
+          />
         </CardContent>
       </Card>
     </HotelShell>

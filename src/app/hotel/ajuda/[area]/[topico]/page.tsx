@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { Artigo } from "@/components/ajuda/artigo"
 import { EmProducao } from "@/components/ajuda/em-producao"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { artigoAjudaHotel } from "@/lib/ajuda/manifesto-hotel"
 
 type Params = { params: Promise<{ area: string; topico: string }> }
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function TopicoHotelPage({ params }: Params) {
-  await requireSessaoHotel()
+  await requireVisualizacaoHotel()
 
   const { area, topico } = await params
   if (topico === "index") notFound() // o overview mora em /hotel/ajuda/<area>

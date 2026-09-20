@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import {
   Card,
   CardContent,
@@ -56,10 +57,12 @@ export function FaturaForm({
   servicos,
   contas,
   vencimentoMinimo,
+  preview = false,
 }: {
   servicos: ServicoFaturavel[]
   contas: ContaOpcao[]
   vencimentoMinimo: string
+  preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarFaturaHotel, {})
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
@@ -83,7 +86,7 @@ export function FaturaForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form {...formVisualizacao(preview, formAction)} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -249,10 +252,12 @@ export function FaturaForm({
         <Button variant="ghost" asChild>
           <Link href="/hotel/faturamento">Cancelar</Link>
         </Button>
-        <Button type="submit" disabled={pendente || marcados.size === 0}>
-          {pendente && <Loader2 className="animate-spin" />}
-          Emitir fatura e gerar ordem
-        </Button>
+        <AcaoVisualizacao preview={preview} nota="A fatura é emitida pelo hotel.">
+          <Button type="submit" disabled={pendente || marcados.size === 0}>
+            {pendente && <Loader2 className="animate-spin" />}
+            Emitir fatura e gerar ordem
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

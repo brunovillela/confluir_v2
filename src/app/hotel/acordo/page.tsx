@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { contratoDoHotel, listarTarifas } from "@/lib/db/hospedagem"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -56,7 +56,7 @@ const FAQ = [
 ]
 
 export default async function AcordoPage() {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
   const [tarifas, contrato] = await Promise.all([
     listarTarifas(hotel.id),
     contratoDoHotel(hotel.id),
@@ -67,7 +67,7 @@ export default async function AcordoPage() {
   const fim = contrato?.vigenciaTermino ?? null
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Acordo e orientações

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { Artigo } from "@/components/ajuda/artigo"
 import { EmProducao } from "@/components/ajuda/em-producao"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { areaAjudaHotel } from "@/lib/ajuda/manifesto-hotel"
 
 type Params = { params: Promise<{ area: string }> }
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function AreaHotelPage({ params }: Params) {
-  await requireSessaoHotel()
+  await requireVisualizacaoHotel()
 
   const { area } = await params
   const meta = areaAjudaHotel(area)

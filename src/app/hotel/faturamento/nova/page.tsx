@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import {
   contasDoHotel,
   descreverConta,
@@ -18,7 +18,7 @@ import { FaturaForm } from "./fatura-form"
 export const metadata: Metadata = { title: "Nova fatura — Confluir" }
 
 export default async function NovaFaturaPage() {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
 
   const [servicos, contasRes] = await Promise.all([
     servicosFaturaveis(hotel),
@@ -26,7 +26,7 @@ export default async function NovaFaturaPage() {
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/faturamento">
@@ -66,6 +66,7 @@ export default async function NovaFaturaPage() {
         contas={contasRes.contas
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, tipo: c.tipo, rotulo: descreverConta(c) }))}
+        preview={preview}
       />
     </HotelShell>
   )

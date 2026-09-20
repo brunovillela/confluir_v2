@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import {
   cuponsAguardando,
   listarServicos,
@@ -39,7 +39,7 @@ export default async function HotelInicioPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
   const params = await searchParams
 
   const [cupons, todosServicos, tarifas] = await Promise.all([
@@ -90,7 +90,7 @@ export default async function HotelInicioPage({
   ]
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

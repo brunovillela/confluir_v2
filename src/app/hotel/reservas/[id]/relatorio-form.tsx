@@ -5,6 +5,7 @@ import { Loader2, Upload } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Input } from "@/components/ui/input"
 
 import { subirRelatorioHotel } from "../actions"
@@ -13,14 +14,16 @@ import { subirRelatorioHotel } from "../actions"
 export function RelatorioForm({
   servicoId,
   temRelatorio,
+  preview = false,
 }: {
   servicoId: string
   temRelatorio: boolean
+  preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(subirRelatorioHotel, {})
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form {...formVisualizacao(preview, formAction)} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -41,10 +44,15 @@ export function RelatorioForm({
           className="max-w-xs"
           aria-label="Arquivo do relatório"
         />
-        <Button type="submit" variant="secondary" size="sm" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Upload />}
-          {temRelatorio ? "Substituir relatório" : "Enviar relatório"}
-        </Button>
+        <AcaoVisualizacao
+          preview={preview}
+          nota="O relatório assinado é enviado pelo hotel."
+        >
+          <Button type="submit" variant="secondary" size="sm" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <Upload />}
+            {temRelatorio ? "Substituir relatório" : "Enviar relatório"}
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

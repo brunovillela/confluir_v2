@@ -6,6 +6,7 @@ import { Loader2, Plus } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,7 +36,14 @@ export type ContaLinha = {
   ativo: boolean
 }
 
-export function ContasHotel({ contas }: { contas: ContaLinha[] }) {
+export function ContasHotel({
+  contas,
+  preview = false,
+}: {
+  contas: ContaLinha[]
+  /** Gestão visualizando: os botões que gravam ficam na tela, desligados. */
+  preview?: boolean
+}) {
   const [estadoCriar, criarAction, criando] = useActionState(criarContaHotel, {})
   const [estadoAlt, altAction, alternando] = useActionState(alternarContaHotel, {})
   const [tipo, setTipo] = useState<"pix" | "deposito">("pix")
@@ -117,9 +125,10 @@ export function ContasHotel({ contas }: { contas: ContaLinha[] }) {
                       )}
                     </TableCell>
                     <TableCell>
-                      <form action={altAction}>
+                      <form {...formVisualizacao(preview, altAction)}>
                         <input type="hidden" name="id" value={c.id} />
                         <input type="hidden" name="ativo" value={String(!c.ativo)} />
+                        <AcaoVisualizacao preview={preview} nota="">
                         <Button
                           type="submit"
                           variant="ghost"
@@ -134,6 +143,7 @@ export function ContasHotel({ contas }: { contas: ContaLinha[] }) {
                           {alternando && <Loader2 className="animate-spin" />}
                           {c.ativo ? "Desativar" : "Reativar"}
                         </Button>
+                        </AcaoVisualizacao>
                       </form>
                     </TableCell>
                   </TableRow>
@@ -149,7 +159,7 @@ export function ContasHotel({ contas }: { contas: ContaLinha[] }) {
           <CardTitle className="text-base">Nova conta</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={criarAction} className="grid gap-4 sm:grid-cols-2">
+          <form {...formVisualizacao(preview, criarAction)} className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="tipo">Tipo *</Label>
               <select
@@ -198,10 +208,15 @@ export function ContasHotel({ contas }: { contas: ContaLinha[] }) {
               </>
             )}
             <div className="flex justify-end sm:col-span-2">
-              <Button type="submit" variant="secondary" disabled={criando}>
-                {criando ? <Loader2 className="animate-spin" /> : <Plus />}
-                Cadastrar conta
-              </Button>
+              <AcaoVisualizacao
+                preview={preview}
+                nota="Só o pessoal do hotel cadastra a conta que vai receber."
+              >
+                <Button type="submit" variant="secondary" disabled={criando}>
+                  {criando ? <Loader2 className="animate-spin" /> : <Plus />}
+                  Cadastrar conta
+                </Button>
+              </AcaoVisualizacao>
             </div>
           </form>
         </CardContent>

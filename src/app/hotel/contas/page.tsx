@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { contasDoHotel } from "@/lib/db/hospedagem"
 
 import { HotelShell } from "../hotel-shell"
@@ -10,11 +10,11 @@ import { ContasHotel } from "./contas-form"
 export const metadata: Metadata = { title: "Dados bancários — Confluir" }
 
 export default async function ContasHotelPage() {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
   const { disponivel, contas } = await contasDoHotel(hotel.id)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dados bancários</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -43,6 +43,7 @@ export default async function ContasHotelPage() {
             chave_pix: c.chave_pix,
             ativo: c.ativo,
           }))}
+          preview={preview}
         />
       )}
     </HotelShell>

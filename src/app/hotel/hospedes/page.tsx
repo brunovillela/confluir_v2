@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import {
   ehGarantida,
   mapaDaNoite,
@@ -47,13 +47,13 @@ export default async function HotelHospedesPage({
 }: {
   searchParams: Promise<{ noite?: string }>
 }) {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
   const { noite: noiteParam } = await searchParams
   const noite = noiteParam && DATA.test(noiteParam) ? noiteParam : hojeEmSP()
 
   if (!ehGarantida(hotel)) {
     return (
-      <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+      <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
         <h1 className="text-2xl font-semibold tracking-tight">Hóspedes por quarto</h1>
         <Alert>
           <AlertDescription>
@@ -75,7 +75,7 @@ export default async function HotelHospedesPage({
   const hospedes = mapa.quartos.reduce((n, q) => n + q.hospedes.length, 0)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Hóspedes por quarto</h1>
@@ -160,7 +160,12 @@ export default async function HotelHospedesPage({
                   </div>
                 </div>
                 <CardDescription>
-                  <AnotarQuartoForm noite={noite} quarto={q.quarto} atual={q.quartoHotel} />
+                  <AnotarQuartoForm
+                    noite={noite}
+                    quarto={q.quarto}
+                    atual={q.quartoHotel}
+                    preview={preview}
+                  />
                 </CardDescription>
               </CardHeader>
               <CardContent>

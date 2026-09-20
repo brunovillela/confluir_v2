@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -57,6 +58,7 @@ export function ServicoForm({
   tarifas,
   hotelFixo,
   action = criarServico,
+  preview = false,
 }: {
   hoteis: HotelOpcao[]
   cuponsAguardando: CupomOpcao[]
@@ -64,6 +66,8 @@ export function ServicoForm({
   /** Interface do hotel: hotel já definido pela sessão, sem select. */
   hotelFixo?: string
   action?: typeof criarServico
+  /** Gestão vendo a área do hotel: escolhe e simula, mas não efetiva. */
+  preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
   const [hotelId, setHotelId] = useState(hotelFixo ?? "")
@@ -95,7 +99,7 @@ export function ServicoForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form {...formVisualizacao(preview, formAction)} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -239,13 +243,15 @@ export function ServicoForm({
             Cancelar
           </Link>
         </Button>
-        <Button
-          type="submit"
-          disabled={pendente || (selecionados.length > 0 && !tarifaPrevista)}
-        >
-          {pendente && <Loader2 className="animate-spin" />}
-          Efetivar reserva
-        </Button>
+        <AcaoVisualizacao preview={preview} nota="Quem efetiva a reserva é o hotel.">
+          <Button
+            type="submit"
+            disabled={pendente || (selecionados.length > 0 && !tarifaPrevista)}
+          >
+            {pendente && <Loader2 className="animate-spin" />}
+            Efetivar reserva
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

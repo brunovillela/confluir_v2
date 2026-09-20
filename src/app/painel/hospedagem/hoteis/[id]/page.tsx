@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink, Eye } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { iniciarVisualizacaoHotel } from "@/lib/actions/visualizacao-hotel"
 import {
   buscarHotel,
   listarFaturas,
@@ -150,12 +151,22 @@ export default async function HotelPage({
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/hospedagem/hoteis">
-            <ArrowLeft />
-            Hotéis parceiros
-          </Link>
-        </Button>
+        <div className="mb-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" asChild className="-ml-2">
+            <Link href="/painel/hospedagem/hoteis">
+              <ArrowLeft />
+              Hotéis parceiros
+            </Link>
+          </Button>
+          {/* Atende o hotel ao telefone vendo a mesma tela que ele vê. */}
+          <form action={iniciarVisualizacaoHotel}>
+            <input type="hidden" name="hotelId" value={hotel.id} />
+            <Button variant="outline" size="sm" type="submit">
+              <Eye />
+              Visualizar área
+            </Button>
+          </form>
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {hotel.nome ?? "(sem nome)"}
         </h1>

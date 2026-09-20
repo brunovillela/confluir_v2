@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { cuponsAguardando, listarTarifas } from "@/lib/db/hospedagem"
 
 import { ServicoForm } from "@/app/painel/hospedagem/servicos/servico-form"
@@ -14,7 +14,7 @@ import { criarReservaHotel } from "../actions"
 export const metadata: Metadata = { title: "Registrar reserva — Confluir" }
 
 export default async function NovaReservaHotelPage() {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
 
   const [cupons, tarifas] = await Promise.all([
     cuponsAguardando(hotel.id),
@@ -22,7 +22,7 @@ export default async function NovaReservaHotelPage() {
   ])
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/hotel/inicio">
@@ -41,6 +41,7 @@ export default async function NovaReservaHotelPage() {
         hoteis={[]}
         hotelFixo={hotel.id}
         action={criarReservaHotel}
+        preview={preview}
         cuponsAguardando={cupons.map((c) => ({
           id: c.id,
           hotel_id: c.hotel_id,

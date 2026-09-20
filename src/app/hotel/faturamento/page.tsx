@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import {
   listarFaturas,
   urlArquivoHospedagem,
@@ -120,7 +120,7 @@ export default async function FaturamentoPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
   const { salvo } = await searchParams
 
   const faturas = await listarFaturas(hotel.id)
@@ -128,7 +128,7 @@ export default async function FaturamentoPage({
   const fechadas = faturas.filter((f) => !f.aberta)
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Faturamento</h1>

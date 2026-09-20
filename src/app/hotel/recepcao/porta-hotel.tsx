@@ -12,6 +12,7 @@ import { Camera, Check, IdCard, Loader2, Search, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Input } from "@/components/ui/input"
 import type { ReservaNaPorta } from "@/lib/db/hospedagem-garantida"
 
@@ -44,7 +45,7 @@ const ROTULO: Record<ReservaNaPorta["situacao"], string> = {
   aguardando_confirmacao: "vaga não confirmada",
 }
 
-export function PortaHotel() {
+export function PortaHotel({ preview = false }: { preview?: boolean }) {
   const [termo, setTermo] = useState("")
   const [reservas, setReservas] = useState<ReservaNaPorta[]>([])
   const [buscando, setBuscando] = useState(false)
@@ -302,16 +303,25 @@ export function PortaHotel() {
                     />
                     Conferi o documento oficial com foto
                   </label>
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="h-14 w-full px-6 sm:ml-auto sm:w-auto"
-                    disabled={!conferido || confirmando === r.cupomId}
-                    onClick={() => confirmar(r)}
+                  <AcaoVisualizacao
+                    preview={preview}
+                    nota="Quem registra a entrada é a recepção do hotel."
                   >
-                    {confirmando === r.cupomId ? <Loader2 className="animate-spin" /> : <Check />}
-                    Registrar entrada
-                  </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="h-14 w-full px-6 sm:ml-auto sm:w-auto"
+                      disabled={!conferido || confirmando === r.cupomId}
+                      onClick={() => confirmar(r)}
+                    >
+                      {confirmando === r.cupomId ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Check />
+                      )}
+                      Registrar entrada
+                    </Button>
+                  </AcaoVisualizacao>
                 </div>
               )}
             </div>

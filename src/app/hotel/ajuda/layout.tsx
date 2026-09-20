@@ -1,5 +1,5 @@
 import { AjudaNav, type NavArea } from "@/components/ajuda/ajuda-nav"
-import { requireSessaoHotel } from "@/lib/auth"
+import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
 import { AREAS_AJUDA_HOTEL } from "@/lib/ajuda/manifesto-hotel"
 
 import { HotelShell } from "../hotel-shell"
@@ -14,7 +14,7 @@ export default async function HotelAjudaLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { hotel } = await requireSessaoHotel()
+  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
 
   const areas: NavArea[] = AREAS_AJUDA_HOTEL.map((a) => ({
     slug: a.slug,
@@ -25,7 +25,7 @@ export default async function HotelAjudaLayout({
   }))
 
   return (
-    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"}>
+    <HotelShell nomeHotel={hotel.nome ?? "Hotel parceiro"} preview={preview ? { gestorNome } : undefined}>
       <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
         <aside className="lg:w-56 lg:shrink-0">
           <div className="lg:sticky lg:top-24">
