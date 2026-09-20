@@ -46,4 +46,6 @@ supabase/.temp/
 
 # Vinculo local com o projeto da Vercel (vercel link)
 .vercel
-.auditoria-bubble/
+# Cache local da auditoria do Bubble, inclusive as copias datadas
+# (.auditoria-bubble-ate-1909 e afins)
+.auditoria-bubble*/
