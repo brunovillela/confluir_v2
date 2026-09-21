@@ -149,6 +149,21 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "votacao",
+    titulo: "Votação",
+    descricao: "Assembleias em que você está apto, o voto online e o histórico",
+    icone: "Vote",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Votar nas assembleias",
+        resumo: "Assembleias abertas, e-mail de votação e minhas votações",
+      },
+    ],
+  },
+  {
     slug: "lgpd",
     titulo: "LGPD e meus dados",
     descricao: "Seus direitos sobre os dados pessoais",

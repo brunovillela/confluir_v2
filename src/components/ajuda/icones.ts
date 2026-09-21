@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Users,
+  Vote,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -51,6 +52,7 @@ export const ICONES_AJUDA: Record<string, LucideIcon> = {
   ShieldCheck,
   ShoppingCart,
   Users,
+  Vote,
   Wrench,
 }
 

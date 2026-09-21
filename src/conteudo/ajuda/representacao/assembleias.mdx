@@ -54,6 +54,53 @@ vezes, mesmo participando de assembleias diferentes da rodada).
 A cédula em si é uma **tela pública** que o votante acessa para se identificar e
 votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
 
+<Aviso tipo="nota" titulo="Apto da rodada vale em todas as assembleias dela">
+  Quem está na lista da rodada pode votar em qualquer assembleia daquela rodada
+  (online, urna ou área do filiado) — uma vez só. Se o apto foi ligado a uma
+  assembleia específica, vale só nela.
+</Aviso>
+
+## Lista de aptos: importar, cadastrar e conferir
+
+Na página da rodada ficam os aptos a votar.
+
+<PassoAPasso>
+  <Passo titulo="Baixe a planilha modelo">
+    Em **Importar aptos (CSV)**, clique em **Baixar planilha modelo**. Ela já vem
+    com as colunas `cpf`, `nome`, `matricula` e `email` e abre direto no Excel.
+    As linhas de exemplo começam com "EXEMPLO" no nome — apague-as ou deixe:
+    são ignoradas na importação.
+  </Passo>
+  <Passo titulo="Preencha e importe">
+    Basta uma coluna que identifique a pessoa. O **CPF é opcional** — as empresas
+    não o enviam por causa da LGPD; o eleitor informa no primeiro acesso. Salve
+    em CSV e escolha o arquivo em **Importar**. CPF que já é apto na rodada é
+    ignorado; o resumo mostra quantos entraram, quantos foram ignorados e as
+    linhas com erro. Limite de 20.000 linhas por arquivo.
+  </Passo>
+  <Passo titulo="Cadastre ou corrija um a um">
+    **Novo eleitor** cadastra uma pessoa só (nome e e-mail já bastam). O lápis
+    de cada apto corrige os dados. E-mail repetido na rodada é recusado.
+  </Passo>
+  <Passo titulo="Confira os conflitos">
+    O aviso **CPF em conflito** aparece quando alguém que entrou pelo e-mail
+    informou um CPF que não confere (de filiado com outro nome ou nascimento, ou
+    de outro apto da rodada). Passe o mouse para ver o motivo e resolva com o
+    eleitor.
+  </Passo>
+</PassoAPasso>
+
+<Print src="representacao/aptos-importar.png" alt="Página da rodada com o painel de importação de aptos aberto e o link para baixar a planilha modelo." legenda="Importação de aptos com a planilha modelo." />
+
+### Ver como o eleitor
+
+Para ajudar um eleitor com dificuldade, use o botão **Visualizar área do
+eleitor** (ícone de olho) na linha do apto. A tela de votação dele abre com uma
+tarja de **somente leitura**: você vê exatamente o que ele vê — inclusive o
+passo do primeiro acesso, se ainda faltar —, mas os botões que gravam (dados do
+primeiro acesso e voto) ficam desligados. **Sair da visualização** volta para a
+rodada. A visualização dura 30 minutos e exige a permissão de assembleias.
+
 <Print src="representacao/campanha.png" alt="Estrutura de uma campanha com suas rodadas e, dentro delas, as assembleias por local e data." legenda="Campanha → rodada → assembleias." />
 
 ## Modalidades de votação
