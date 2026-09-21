@@ -43,10 +43,12 @@ export async function solicitarTokenEleitor(
     .maybeSingle()
   if (!assembleia) return { erro: "Assembleia não encontrada." }
 
+  // Apto da assembleia: amarrado a ela ou só na rodada dela.
+  const { escopoAptos, filtroAptos } = await import("@/lib/db/votacao-escopo")
   const { data: apto } = await admin
     .from("voto_assembleias_aptos")
     .select("id")
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
     .eq("cpf", cpf)
     .limit(1)
     .maybeSingle()

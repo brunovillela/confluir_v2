@@ -4,6 +4,11 @@ import { createHash, randomInt, randomUUID } from "node:crypto"
 import { derivarModalidade, type Modalidade } from "@/lib/assembleias-constantes"
 import { enviarEmail } from "@/lib/email"
 import { direitoDoFiliado } from "@/lib/db/filiacao-direitos"
+import {
+  assembleiaPrincipalDasRodadas,
+  escopoAptos,
+  filtroAptos,
+} from "@/lib/db/votacao-escopo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -269,22 +274,48 @@ export async function assembleiasDoFiliado(
     .select("id, assembleia_id, rod_assembleia_id, hora_voto, presenca_em")
     .eq("emp_proprietaria_id", emp)
     .or(filtros.join(","))
-    .not("assembleia_id", "is", null)
   if (!aptos || aptos.length === 0) return []
 
-  // Voto único: presença registrada na urna (mesmo antes do voto digital cair)
-  // já conta como participação — impede votar online numa assembleia híbrida.
-  const votouPorAssembleia = new Map<string, boolean>()
+  // Apto só na RODADA (a lista que a gestão sobe) vale em todas as assembleias
+  // dela; apto amarrado a uma assembleia vale só nela. Ver votacao-escopo.ts.
+  const rodadasSoltas = [
+    ...new Set(
+      aptos
+        .filter((a) => !a.assembleia_id && a.rod_assembleia_id)
+        .map((a) => String(a.rod_assembleia_id))
+    ),
+  ]
+  const { data: daRodada } = rodadasSoltas.length
+    ? await admin
+        .from("voto_assembleias")
+        .select("id, rod_assembleia_id")
+        .eq("emp_proprietaria_id", emp)
+        .in("rod_assembleia_id", rodadasSoltas)
+    : { data: [] as { id: string; rod_assembleia_id: string }[] }
+
+  // Voto único POR RODADA: presença registrada na urna (mesmo antes do voto
+  // digital cair) já conta — impede votar online numa assembleia híbrida.
+  const votouNaRodada = new Map<string, boolean>()
   for (const a of aptos) {
-    const aid = String(a.assembleia_id)
-    votouPorAssembleia.set(
-      aid,
-      votouPorAssembleia.get(aid) ||
-        Boolean(a.hora_voto) ||
-        Boolean(a.presenca_em)
+    const r = txt(a.rod_assembleia_id)
+    if (r) votouNaRodada.set(r, votouNaRodada.get(r) || Boolean(a.hora_voto) || Boolean(a.presenca_em))
+  }
+  const votouPorAssembleia = new Map<string, boolean>()
+  const marcar = (aid: string, votou: boolean) =>
+    votouPorAssembleia.set(aid, votouPorAssembleia.get(aid) || votou)
+  for (const a of aptos) {
+    if (!a.assembleia_id) continue
+    const r = txt(a.rod_assembleia_id)
+    marcar(
+      String(a.assembleia_id),
+      Boolean(a.hora_voto) || Boolean(a.presenca_em) || (r ? (votouNaRodada.get(r) ?? false) : false)
     )
   }
+  for (const a of daRodada ?? []) {
+    marcar(String(a.id), votouNaRodada.get(String(a.rod_assembleia_id)) ?? false)
+  }
   const assembleiaIds = [...votouPorAssembleia.keys()]
+  if (assembleiaIds.length === 0) return []
 
   const { data: assembleias } = await admin
     .from("voto_assembleias")
@@ -524,8 +555,7 @@ export async function registrarVotoFiliado(
     .from("voto_assembleias_aptos")
     .update({ hora_voto: agora })
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
-    .or(filtros.join(","))
+    .or(filtroAptos(await escopoAptos(assembleiaId), filtros))
     .is("hora_voto", null)
 
   // 3) apontamento GENÉRICO no prontuário (sem revelar o voto). Best-effort.
@@ -580,17 +610,41 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
   if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
-    .select("assembleia_id, hora_voto, presenca_urna_id")
+    .select("assembleia_id, rod_assembleia_id, hora_voto, presenca_urna_id")
     .eq("emp_proprietaria_id", emp)
     .or(filtros.join(","))
     .not("hora_voto", "is", null)
-    .not("assembleia_id", "is", null)
   if (!aptos || aptos.length === 0) return []
+
+  // Apto só na rodada: a participação aparece na assembleia da urna em que a
+  // presença foi registrada, ou na assembleia principal da rodada.
+  const urnasDaPresenca = [
+    ...new Set(
+      aptos
+        .filter((a) => !a.assembleia_id && a.presenca_urna_id)
+        .map((a) => String(a.presenca_urna_id))
+    ),
+  ]
+  const { data: urnasAss } = urnasDaPresenca.length
+    ? await admin.from("voto_urnas").select("id, assembleia_id").in("id", urnasDaPresenca)
+    : { data: [] as { id: string; assembleia_id: string }[] }
+  const assembleiaDaUrna = new Map((urnasAss ?? []).map((u) => [String(u.id), String(u.assembleia_id)]))
+  const principal = await assembleiaPrincipalDasRodadas([
+    ...new Set(
+      aptos
+        .filter((a) => !a.assembleia_id && a.rod_assembleia_id)
+        .map((a) => String(a.rod_assembleia_id))
+    ),
+  ])
 
   const votouEm = new Map<string, string>()
   const urnaDaAssembleia = new Map<string, string>()
   for (const a of aptos) {
-    const id = String(a.assembleia_id)
+    const id =
+      txt(a.assembleia_id) ??
+      (a.presenca_urna_id ? assembleiaDaUrna.get(String(a.presenca_urna_id)) : undefined) ??
+      (a.rod_assembleia_id ? principal.get(String(a.rod_assembleia_id)) : undefined)
+    if (!id) continue
     if (!votouEm.has(id)) votouEm.set(id, String(a.hora_voto))
     const urnaId = txt(a.presenca_urna_id)
     if (urnaId && !urnaDaAssembleia.has(id)) urnaDaAssembleia.set(id, urnaId)
@@ -758,11 +812,12 @@ export async function elegibilidadeEleitorEmail(
   const emp = await tenantAtual()
   const alvo = email.trim().toLowerCase()
 
+  const escopo = await escopoAptos(assembleiaId)
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
     .select("hora_voto, presenca_em, cpf")
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(escopo))
     .eq("email_corporativo", alvo)
   if (!aptos || aptos.length === 0) return null
   // Voto único: presença na urna também conta (assembleia híbrida). Com o CPF
@@ -774,7 +829,7 @@ export async function elegibilidadeEleitorEmail(
         .from("voto_assembleias_aptos")
         .select("hora_voto, presenca_em")
         .eq("emp_proprietaria_id", emp)
-        .eq("assembleia_id", assembleiaId)
+        .or(filtroAptos(escopo))
         .in("cpf", cpfs)
     : { data: [] as { hora_voto: string | null; presenca_em: string | null }[] }
   const jaVotou = [...aptos, ...(pelosCpfs ?? [])].some(
@@ -878,11 +933,12 @@ export async function registrarVotoEleitorEmail(
   // Marca a participação pelo e-mail E pelo CPF informado no primeiro acesso:
   // se a mesma pessoa também está na lista pelo CPF, esse outro registro fica
   // votado junto e ela não vota de novo pela área do filiado.
+  const escopo = await escopoAptos(assembleiaId)
   const { data: meus } = await admin
     .from("voto_assembleias_aptos")
     .select("cpf")
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(escopo))
     .eq("email_corporativo", alvo)
   const cpfs = [...new Set((meus ?? []).map((m) => m.cpf).filter((c): c is string => Boolean(c)))]
   const filtros = [`email_corporativo.eq.${alvo}`, ...cpfs.map((c) => `cpf.eq.${c}`)]
@@ -890,8 +946,7 @@ export async function registrarVotoEleitorEmail(
     .from("voto_assembleias_aptos")
     .update({ hora_voto: agora })
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
-    .or(filtros.join(","))
+    .or(filtroAptos(escopo, filtros))
     .is("hora_voto", null)
   return { ok: true }
 }
@@ -1056,27 +1111,34 @@ export async function dadosUrna(
     .maybeSingle()
   if (!a || derivarModalidade(a) !== "urna") return null
 
-  let q = admin
+  const escopo = await escopoAptos(assembleiaId)
+  const termo = busca.trim()
+  const escapado = termo.replace(/[%_,()]/g, " ")
+  const q = admin
     .from("voto_assembleias_aptos")
     .select("id, nome_completo, cpf, matricula, hora_voto")
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
+    .or(
+      filtroAptos(
+        escopo,
+        termo
+          ? [
+              `nome_completo.ilike.%${escapado}%`,
+              `cpf.ilike.%${escapado}%`,
+              `matricula.ilike.%${escapado}%`,
+            ]
+          : []
+      )
+    )
     .order("nome_completo", { ascending: true })
     .limit(50)
-  const termo = busca.trim()
-  if (termo) {
-    const escapado = termo.replace(/[%_,()]/g, " ")
-    q = q.or(
-      `nome_completo.ilike.%${escapado}%,cpf.ilike.%${escapado}%,matricula.ilike.%${escapado}%`
-    )
-  }
   const [{ data: aptos }, contagem, perguntas, empRes] = await Promise.all([
     q,
     admin
       .from("voto_assembleias_aptos")
       .select("hora_voto")
       .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId),
+      .or(filtroAptos(escopo)),
     perguntasDaAssembleia(assembleiaId),
     txt(a.empresa_id)
       ? admin.from("empresa").select("nome_fantasia, nome_razao").eq("id", a.empresa_id).maybeSingle()
@@ -1114,7 +1176,7 @@ export async function aptoUrna(
     .select("nome_completo, cpf, hora_voto")
     .eq("id", aptoId)
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
     .maybeSingle()
   if (!data) return null
   return {
@@ -1146,7 +1208,7 @@ export async function registrarVotoUrna(
     .select("id, cpf, hora_voto")
     .eq("id", aptoId)
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
     .maybeSingle()
   if (!apto) return { erro: "Eleitor não encontrado na lista de aptos." }
   if (apto.hora_voto) return { erro: "Este eleitor já votou." }
@@ -1216,7 +1278,7 @@ export async function existeAptoPorEmail(
     .from("voto_assembleias_aptos")
     .select("id")
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
     .eq("email_corporativo", email.trim().toLowerCase())
     .limit(1)
     .maybeSingle()

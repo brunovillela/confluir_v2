@@ -57,7 +57,15 @@ export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
             Colunas: cpf, nome, matricula, email — basta uma que identifique a
             pessoa. O CPF é opcional (as empresas não enviam); o eleitor informa no
             primeiro acesso à votação. CPF já apto nesta rodada é ignorado. Limite de
-            20.000 linhas.
+            20.000 linhas.{" "}
+            <a
+              href="/modelos/aptos-a-votar.csv"
+              download
+              className="text-primary font-medium underline underline-offset-2"
+            >
+              Baixar planilha modelo
+            </a>{" "}
+            (linhas com nome começando por “EXEMPLO” são ignoradas).
           </p>
         </div>
         <div className="flex gap-2">

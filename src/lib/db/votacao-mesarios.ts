@@ -12,6 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
 
+import { escopoAptos, filtroAptos, filtroAptosDeVarias } from "./votacao-escopo"
 import { perguntasDaAssembleia, type PerguntaVoto } from "./votacao-portal"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ async function contarPresenca(
     .from("voto_assembleias_aptos")
     .select("presenca_urna_id, hora_voto")
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
   const porUrna = new Map<string, number>()
   for (const a of data ?? []) {
     const u = txt(a.presenca_urna_id)
@@ -432,9 +433,9 @@ export async function urnasDoMesario(): Promise<{
       assembleiaIds.length
         ? admin
             .from("voto_assembleias_aptos")
-            .select("assembleia_id, presenca_urna_id")
+            .select("assembleia_id, rod_assembleia_id, presenca_urna_id")
             .eq("emp_proprietaria_id", emp)
-            .in("assembleia_id", assembleiaIds)
+            .or(filtroAptosDeVarias(assembleiaIds, rodadas as string[]))
         : Promise.resolve({ data: [] }),
       admin
         .from("voto_urna_terminais")
@@ -449,9 +450,24 @@ export async function urnasDoMesario(): Promise<{
   )
   const totalPorAssembleia = new Map<string, number>()
   const presencaPorUrna = new Map<string, number>()
-  for (const a of aptos ?? []) {
-    const ass = String(a.assembleia_id)
-    totalPorAssembleia.set(ass, (totalPorAssembleia.get(ass) ?? 0) + 1)
+  // Apto só na rodada conta em todas as assembleias (com urna) dessa rodada.
+  const assembleiasDaRodada = new Map<string, Set<string>>()
+  for (const u of urnas) {
+    const r = txt(u.rod_assembleia_id)
+    if (!r) continue
+    const conj = assembleiasDaRodada.get(r) ?? new Set<string>()
+    conj.add(String(u.assembleia_id))
+    assembleiasDaRodada.set(r, conj)
+  }
+  for (const a of (aptos ?? []) as {
+    assembleia_id: string | null
+    rod_assembleia_id: string | null
+    presenca_urna_id: string | null
+  }[]) {
+    const alvos = a.assembleia_id
+      ? [String(a.assembleia_id)]
+      : [...(assembleiasDaRodada.get(String(a.rod_assembleia_id)) ?? [])]
+    for (const ass of alvos) totalPorAssembleia.set(ass, (totalPorAssembleia.get(ass) ?? 0) + 1)
     const u = txt(a.presenca_urna_id)
     if (u) presencaPorUrna.set(u, (presencaPorUrna.get(u) ?? 0) + 1)
   }
@@ -566,20 +582,28 @@ export async function operacaoUrna(
   const estadoDia = await estadoDiaUrna(urnaId)
   const eventos = await listarEventos(urnaId)
 
-  let q = admin
+  // Aptos da assembleia da urna: amarrados a ela ou só na rodada dela.
+  const escopo = await escopoAptos(urna.assembleiaId)
+  const termo = busca.trim()
+  const escapado = termo.replace(/[%_,()]/g, " ")
+  const q = admin
     .from("voto_assembleias_aptos")
     .select("id, nome_completo, cpf, matricula, hora_voto, presenca_em")
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", urna.assembleiaId)
+    .or(
+      filtroAptos(
+        escopo,
+        termo
+          ? [
+              `nome_completo.ilike.%${escapado}%`,
+              `cpf.ilike.%${escapado}%`,
+              `matricula.ilike.%${escapado}%`,
+            ]
+          : []
+      )
+    )
     .order("nome_completo", { ascending: true })
     .limit(50)
-  const termo = busca.trim()
-  if (termo) {
-    const escapado = termo.replace(/[%_,()]/g, " ")
-    q = q.or(
-      `nome_completo.ilike.%${escapado}%,cpf.ilike.%${escapado}%,matricula.ilike.%${escapado}%`
-    )
-  }
 
   const [{ data: aptos }, { data: todos }, { data: term }, assembleiaNome] =
     await Promise.all([
@@ -588,7 +612,7 @@ export async function operacaoUrna(
         .from("voto_assembleias_aptos")
         .select("hora_voto, presenca_em")
         .eq("emp_proprietaria_id", emp)
-        .eq("assembleia_id", urna.assembleiaId),
+        .or(filtroAptos(escopo)),
       admin
         .from("voto_urna_terminais")
         .select("id")
@@ -978,7 +1002,7 @@ export async function registrarPresenca(
     .select("id, cpf, hora_voto, presenca_em")
     .eq("id", aptoId)
     .eq("emp_proprietaria_id", emp)
-    .eq("assembleia_id", urna.assembleiaId)
+    .or(filtroAptos(await escopoAptos(urna.assembleiaId)))
     .maybeSingle()
   if (!apto) return { erro: "Eleitor não está na lista de aptos desta urna." }
   if (apto.hora_voto) return { erro: "Este eleitor já votou." }
@@ -1616,7 +1640,7 @@ export async function acompanhamentoAssembleia(
       .from("voto_assembleias_aptos")
       .select("nome_completo, cpf, hora_voto, presenca_urna_id")
       .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId),
+      .or(filtroAptos(await escopoAptos(assembleiaId))),
     admin
       .from("voto_em_separado")
       .select(

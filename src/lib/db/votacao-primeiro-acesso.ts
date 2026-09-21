@@ -1,6 +1,7 @@
 import "server-only"
 
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -41,7 +42,7 @@ async function aptosDoEmail(email: string, assembleiaId: string): Promise<AptoLi
     .from("voto_assembleias_aptos")
     .select("id, cpf, nome_completo, hora_voto, presenca_em, rod_assembleia_id")
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("assembleia_id", assembleiaId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
     .eq("email_corporativo", email.trim().toLowerCase())
   return (data ?? []) as AptoLinha[]
 }

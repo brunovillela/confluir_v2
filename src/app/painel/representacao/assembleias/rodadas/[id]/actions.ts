@@ -397,6 +397,7 @@ export async function importarAptosCsv(
     matricula: string | null
     email: string | null
   }[] = []
+  let exemplos = 0
   for (let i = 1; i < linhasCsv.length; i++) {
     const bruta = linhasCsv[i]
     if (bruta.every((c) => c.trim() === "")) continue
@@ -404,6 +405,11 @@ export async function importarAptosCsv(
       {}
     for (const [indice, campo] of colunas) {
       campos[campo] = (bruta[indice] ?? "").trim()
+    }
+    // linhas de exemplo da planilha modelo esquecidas no arquivo
+    if (/^exemplo\b/i.test(campos.nome ?? "")) {
+      exemplos++
+      continue
     }
     const cpfBruto = (campos.cpf ?? "").trim()
     const cpf = limparCpf(cpfBruto)
@@ -431,7 +437,8 @@ export async function importarAptosCsv(
   const { resultado, erro } = await importarAptos(rodadaId, linhas)
   if (erro || !resultado) return { erro: erro ?? "Falha na importação." }
   resultado.erros = [...erros, ...resultado.erros]
-  resultado.totalLinhas += erros.length
+  resultado.totalLinhas += erros.length + exemplos
+  resultado.ignorados += exemplos
   revalidarRodada(rodadaId)
   return { resultado }
 }
