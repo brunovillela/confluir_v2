@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, UsersRound } from "lucide-react"
+import { ArrowLeft, Eye, UsersRound } from "lucide-react"
 
 import { ApuracaoBadge } from "@/components/assembleias"
 import { Paginacao } from "@/components/paginacao"
@@ -24,6 +24,7 @@ import {
   periodoTerminado,
 } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
+import { iniciarVisualizacaoEleitor } from "@/lib/actions/visualizacao-eleitor"
 import {
   contarAptosPorVoto,
   listarAptos,
@@ -271,6 +272,15 @@ export default async function RodadaPage({
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
                       {a.cpf ? formatarCnpjCpf(a.cpf) : "—"}
+                      {a.cpf_conflito && (
+                        <Badge
+                          variant="outline"
+                          className="border-destructive/40 text-destructive ml-1.5"
+                          title={`Informou ${formatarCnpjCpf(a.cpf_conflito)} — ${a.conflito_motivo ?? "conflito"}`}
+                        >
+                          CPF em conflito
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="tabular-nums">
                       {a.matricula ?? "—"}
@@ -283,6 +293,21 @@ export default async function RodadaPage({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {/* Vê a cédula como esse eleitor vê, sem poder votar. */}
+                        <form action={iniciarVisualizacaoEleitor}>
+                          <input type="hidden" name="aptoId" value={a.id} />
+                          <input type="hidden" name="rodadaId" value={rodada.id} />
+                          <Button
+                            type="submit"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            aria-label="Visualizar área do eleitor"
+                            title="Visualizar área do eleitor"
+                          >
+                            <Eye />
+                          </Button>
+                        </form>
                         <EditarEleitorBotao rodadaId={rodada.id} apto={a} />
                         <RemoverAptoBotao
                           rodadaId={rodada.id}

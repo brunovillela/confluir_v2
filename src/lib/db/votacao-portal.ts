@@ -760,13 +760,24 @@ export async function elegibilidadeEleitorEmail(
 
   const { data: aptos } = await admin
     .from("voto_assembleias_aptos")
-    .select("hora_voto, presenca_em")
+    .select("hora_voto, presenca_em, cpf")
     .eq("emp_proprietaria_id", emp)
     .eq("assembleia_id", assembleiaId)
     .eq("email_corporativo", alvo)
   if (!aptos || aptos.length === 0) return null
-  // Voto único: presença na urna também conta (assembleia híbrida).
-  const jaVotou = aptos.some(
+  // Voto único: presença na urna também conta (assembleia híbrida). Com o CPF
+  // informado no primeiro acesso, outro registro da MESMA pessoa (vindo pelo
+  // CPF) também conta — senão ela votaria pelas duas portas.
+  const cpfs = [...new Set(aptos.map((a) => a.cpf).filter((c): c is string => Boolean(c)))]
+  const { data: pelosCpfs } = cpfs.length
+    ? await admin
+        .from("voto_assembleias_aptos")
+        .select("hora_voto, presenca_em")
+        .eq("emp_proprietaria_id", emp)
+        .eq("assembleia_id", assembleiaId)
+        .in("cpf", cpfs)
+    : { data: [] as { hora_voto: string | null; presenca_em: string | null }[] }
+  const jaVotou = [...aptos, ...(pelosCpfs ?? [])].some(
     (a) => Boolean(a.hora_voto) || Boolean(a.presenca_em)
   )
 
@@ -864,12 +875,23 @@ export async function registrarVotoEleitorEmail(
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
 
+  // Marca a participação pelo e-mail E pelo CPF informado no primeiro acesso:
+  // se a mesma pessoa também está na lista pelo CPF, esse outro registro fica
+  // votado junto e ela não vota de novo pela área do filiado.
+  const { data: meus } = await admin
+    .from("voto_assembleias_aptos")
+    .select("cpf")
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+    .eq("email_corporativo", alvo)
+  const cpfs = [...new Set((meus ?? []).map((m) => m.cpf).filter((c): c is string => Boolean(c)))]
+  const filtros = [`email_corporativo.eq.${alvo}`, ...cpfs.map((c) => `cpf.eq.${c}`)]
   await admin
     .from("voto_assembleias_aptos")
     .update({ hora_voto: agora })
     .eq("emp_proprietaria_id", emp)
     .eq("assembleia_id", assembleiaId)
-    .eq("email_corporativo", alvo)
+    .or(filtros.join(","))
     .is("hora_voto", null)
   return { ok: true }
 }

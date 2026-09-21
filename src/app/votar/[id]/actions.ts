@@ -208,10 +208,56 @@ export async function votarPublico(
   if (typeof cpf === "string" && cpf.length === 11) {
     r = await registrarVotoFiliado(cpf, assembleiaId, escolhas)
   } else if (user?.email) {
+    // Sem os dados do primeiro acesso não há voto: é o que impede a mesma
+    // pessoa votar pelo e-mail e, de novo, pelo CPF.
+    const { precisaInformarDados } = await import("@/lib/db/votacao-primeiro-acesso")
+    if (await precisaInformarDados(user.email, assembleiaId)) {
+      return { erro: "Informe CPF, nome e data de nascimento antes de votar." }
+    }
     r = await registrarVotoEleitorEmail(user.email, assembleiaId, escolhas)
   } else {
     return { erro: "Sessão de votação expirada. Identifique-se novamente." }
   }
   if (r.erro) return { erro: r.erro }
   return { ok: "Voto registrado. Obrigado por participar." }
+}
+
+// ── Primeiro acesso de quem entrou pelo e-mail: CPF, nome e nascimento ──────
+
+/**
+ * Antes da cédula, o eleitor identificado só pelo e-mail corporativo informa
+ * CPF, nome completo e data de nascimento — é o que evita a mesma pessoa votar
+ * pelas duas portas. O e-mail vem da SESSÃO (OTP), nunca do formulário.
+ */
+export type EstadoDadosEleitor = EstadoForm & {
+  /** O que foi digitado — o React 19 limpa o formulário depois da action. */
+  valores?: { cpf: string; nome: string; nascimento: string }
+  tentativa?: number
+}
+
+export async function informarDadosEleitor(
+  prev: EstadoDadosEleitor,
+  formData: FormData
+): Promise<EstadoDadosEleitor> {
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const valores = {
+    cpf: String(formData.get("cpf") ?? ""),
+    nome: String(formData.get("nome") ?? ""),
+    nascimento: String(formData.get("nascimento") ?? ""),
+  }
+  const falha = (erro: string): EstadoDadosEleitor => ({
+    erro,
+    valores,
+    tentativa: (prev.tentativa ?? 0) + 1,
+  })
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.email) return falha("Sessão expirada. Identifique-se novamente.")
+
+  const { registrarDadosEleitor } = await import("@/lib/db/votacao-primeiro-acesso")
+  const { erro } = await registrarDadosEleitor({ email: user.email, assembleiaId, ...valores })
+  if (erro) return falha(erro)
+  redirect(`/votar/${assembleiaId}`)
 }

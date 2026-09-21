@@ -455,20 +455,24 @@ export async function excluirApto(
 /** Lê e valida os campos comuns do formulário de eleitor. */
 function dadosEleitor(formData: FormData):
   | {
-      cpf: string
+      cpf: string | null
       nome_completo: string | null
       matricula: string | null
       email: string | null
     }
   | { erro: string } {
-  const cpf = limparCpf(texto(formData, "cpf"))
-  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
-  return {
-    cpf,
-    nome_completo: texto(formData, "nome") || null,
-    matricula: texto(formData, "matricula") || null,
-    email: texto(formData, "email") || null,
+  // CPF é OPCIONAL: nenhuma empregadora envia o dado (LGPD). O eleitor informa
+  // no primeiro acesso à votação. Sem CPF, é preciso outro jeito de achá-lo.
+  const cpfBruto = texto(formData, "cpf")
+  const cpf = cpfBruto ? limparCpf(cpfBruto) : null
+  if (cpf && !validarCpf(cpf)) return { erro: "CPF inválido." }
+  const nome_completo = texto(formData, "nome") || null
+  const matricula = texto(formData, "matricula") || null
+  const email = texto(formData, "email") || null
+  if (!cpf && !email && !matricula && !nome_completo) {
+    return { erro: "Informe ao menos o e-mail, a matrícula ou o nome do eleitor." }
   }
+  return { cpf, nome_completo, matricula, email }
 }
 
 export async function cadastrarEleitor(

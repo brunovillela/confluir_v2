@@ -120,6 +120,9 @@ export type AptoLinha = {
   matricula: string | null
   email_corporativo: string | null
   hora_voto: string | null
+  /** CPF informado no primeiro acesso que colidiu com outro apto (gestão resolve). */
+  cpf_conflito?: string | null
+  conflito_motivo?: string | null
 }
 
 // ── Resumo (hub) ───────────────────────────────────────────────────────────
@@ -1161,9 +1164,9 @@ export async function listarAptos(
 
   let q = admin
     .from("voto_assembleias_aptos")
-    .select("id, cpf, nome_completo, matricula, email_corporativo, hora_voto", {
-      count: "exact",
-    })
+    // "*": as colunas do conflito (supabase/aptos-primeiro-acesso.sql) podem
+    // ainda não existir.
+    .select("*", { count: "exact" })
     .eq("rod_assembleia_id", rodadaId)
   if (filtros.busca?.trim()) {
     const termo = filtros.busca.trim()
@@ -1191,7 +1194,16 @@ export async function listarAptos(
   if (error) throw new Error(`Falha ao listar aptos: ${error.message}`)
 
   return {
-    linhas: data ?? [],
+    linhas: ((data ?? []) as Record<string, unknown>[]).map((a) => ({
+      id: String(a.id),
+      cpf: (a.cpf as string | null) ?? null,
+      nome_completo: (a.nome_completo as string | null) ?? null,
+      matricula: (a.matricula as string | null) ?? null,
+      email_corporativo: (a.email_corporativo as string | null) ?? null,
+      hora_voto: (a.hora_voto as string | null) ?? null,
+      cpf_conflito: (a.cpf_conflito as string | null) ?? null,
+      conflito_motivo: (a.conflito_motivo as string | null) ?? null,
+    })),
     total: count ?? 0,
     pagina,
     totalPaginas: Math.max(1, Math.ceil((count ?? 0) / porPagina)),
@@ -1219,27 +1231,48 @@ export async function contarAptosPorVoto(
   return { total: t, votaram: v, ausentes: t - v }
 }
 
-/** Cadastra um único eleitor na rodada (CPF único por rodada). */
+/** Outro eleitor da mesma rodada com o mesmo CPF ou e-mail? Devolve o aviso. */
+async function aptoRepetido(
+  rodadaId: string,
+  cpf: string | null,
+  email: string | null,
+  ignorarId: string | null
+): Promise<string | null> {
+  const admin = await createAdminClient()
+  const procurar = async (coluna: "cpf" | "email_corporativo", valor: string) => {
+    let q = admin
+      .from("voto_assembleias_aptos")
+      .select("id")
+      .eq("rod_assembleia_id", rodadaId)
+      .ilike(coluna, valor)
+    if (ignorarId) q = q.neq("id", ignorarId)
+    const { data } = await q.limit(1).maybeSingle()
+    return Boolean(data)
+  }
+  if (cpf && (await procurar("cpf", cpf))) return "Já há outro eleitor com este CPF nesta rodada."
+  if (email && (await procurar("email_corporativo", email.trim().toLowerCase()))) {
+    return "Já há outro eleitor com este e-mail nesta rodada."
+  }
+  return null
+}
+
+/**
+ * Cadastra um único eleitor na rodada. O CPF é OPCIONAL (as empregadoras não
+ * enviam — LGPD): quando vem, é único na rodada; sem ele, o e-mail corporativo
+ * é que não pode repetir, porque é por ele que a pessoa entra para votar.
+ */
 export async function cadastrarApto(
   rodadaId: string,
   dados: {
-    cpf: string
+    cpf: string | null
     nome_completo: string | null
     matricula: string | null
     email: string | null
   }
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  const { data: existente } = await admin
-    .from("voto_assembleias_aptos")
-    .select("id")
-    .eq("rod_assembleia_id", rodadaId)
-    .eq("cpf", dados.cpf)
-    .limit(1)
-    .maybeSingle()
-  if (existente) {
-    return { erro: "Este CPF já está na lista de aptos desta rodada." }
-  }
+  const repetido = await aptoRepetido(rodadaId, dados.cpf, dados.email, null)
+  if (repetido) return { erro: repetido }
   const { error } = await admin.from("voto_assembleias_aptos").insert({
     rod_assembleia_id: rodadaId,
     cpf: dados.cpf,
@@ -1255,7 +1288,7 @@ export async function cadastrarApto(
 export async function atualizarApto(
   id: string,
   dados: {
-    cpf: string
+    cpf: string | null
     nome_completo: string | null
     matricula: string | null
     email: string | null
@@ -1269,17 +1302,8 @@ export async function atualizarApto(
     .maybeSingle()
   if (!atual) return { erro: "Eleitor não encontrado." }
 
-  const { data: duplicado } = await admin
-    .from("voto_assembleias_aptos")
-    .select("id")
-    .eq("rod_assembleia_id", atual.rod_assembleia_id)
-    .eq("cpf", dados.cpf)
-    .neq("id", id)
-    .limit(1)
-    .maybeSingle()
-  if (duplicado) {
-    return { erro: "Já há outro eleitor com este CPF nesta rodada." }
-  }
+  const repetido = await aptoRepetido(String(atual.rod_assembleia_id), dados.cpf, dados.email, id)
+  if (repetido) return { erro: repetido }
 
   const { error } = await admin
     .from("voto_assembleias_aptos")

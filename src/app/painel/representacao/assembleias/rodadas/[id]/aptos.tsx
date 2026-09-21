@@ -54,8 +54,10 @@ export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
             required
           />
           <p className="text-muted-foreground text-xs">
-            Coluna obrigatória: cpf. Opcionais: nome, matricula, email. CPF já
-            apto nesta rodada é ignorado. Limite de 20.000 linhas.
+            Colunas: cpf, nome, matricula, email — basta uma que identifique a
+            pessoa. O CPF é opcional (as empresas não enviam); o eleitor informa no
+            primeiro acesso à votação. CPF já apto nesta rodada é ignorado. Limite de
+            20.000 linhas.
           </p>
         </div>
         <div className="flex gap-2">
@@ -186,11 +188,10 @@ function EleitorDialog({
             </Alert>
           )}
           <div className="grid gap-1.5">
-            <Label htmlFor={`cpf-${apto?.id ?? "novo"}`}>CPF *</Label>
+            <Label htmlFor={`cpf-${apto?.id ?? "novo"}`}>CPF (opcional)</Label>
             <Input
               id={`cpf-${apto?.id ?? "novo"}`}
               name="cpf"
-              required
               inputMode="numeric"
               defaultValue={apto?.cpf ?? ""}
               placeholder="Somente números"
