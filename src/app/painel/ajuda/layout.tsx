@@ -32,7 +32,7 @@ export default async function AjudaLayout({
           <AjudaNav areas={areas} />
         </div>
       </aside>
-      <div className="min-w-0 max-w-3xl flex-1">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
 }
