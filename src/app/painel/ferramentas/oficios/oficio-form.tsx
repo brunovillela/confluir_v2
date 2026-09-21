@@ -57,9 +57,7 @@ export function OficioForm({
   semDepartamentoPermitido: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
-  const [tipo, setTipo] = useState<TipoOficio>(
-    (dados?.tipo as TipoOficio) ?? "desfiliacao"
-  )
+  const [tipo, setTipo] = useState<TipoOficio>((dados?.tipo as TipoOficio) ?? "desfiliacao")
   const novo = !dados?.id
   // No cadastro novo, assunto/corpo seguem o padrão do tipo; na edição, os valores salvos.
   const assuntoDefault = novo ? PADRAO_OFICIO[tipo].assunto : (dados?.assunto ?? "")
@@ -78,12 +76,9 @@ export function OficioForm({
     }
     setIaPendente(true)
     const form = corpoRef.current?.form
-    const assunto = (
-      form?.elements.namedItem("assunto") as HTMLInputElement | null
-    )?.value
-    const destinatario = (
-      form?.elements.namedItem("destinatario_texto") as HTMLInputElement | null
-    )?.value
+    const assunto = (form?.elements.namedItem("assunto") as HTMLInputElement | null)?.value
+    const destinatario = (form?.elements.namedItem("destinatario_texto") as HTMLInputElement | null)
+      ?.value
     const { texto, erro } = await melhorarOficio({
       corpo,
       assunto,
@@ -99,146 +94,152 @@ export function OficioForm({
   }
 
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    // Duas colunas na tela larga: à esquerda os dados do ofício, à direita só
+    // o corpo do texto — é onde se passa mais tempo, então ganha a altura toda.
+    <form action={formAction} className="grid gap-6 lg:grid-cols-2">
       {dados?.id && <input type="hidden" name="oficio_id" value={dados.id} />}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="tipo">Tipo *</Label>
+      <div className="grid content-start gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="tipo">Tipo *</Label>
+            <select
+              id="tipo"
+              name="tipo"
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoOficio)}
+              className={SELECT}
+            >
+              {TIPOS_OFICIO.map((t) => (
+                <option key={t} value={t}>
+                  {ROTULOS_TIPO_OFICIO[t]}
+                </option>
+              ))}
+            </select>
+            {eAutomatico(tipo) && (
+              <span className="text-muted-foreground text-xs">
+                Automático — a lista de pessoas é puxada da fonte pagadora depois de salvar.
+              </span>
+            )}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="data">Data do documento</Label>
+            <input
+              id="data"
+              name="data"
+              type="date"
+              defaultValue={dados?.data ?? ""}
+              className={SELECT}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-1.5 sm:max-w-sm">
+          <Label htmlFor="departamento_id">
+            Departamento{semDepartamentoPermitido ? "" : " *"}
+          </Label>
           <select
-            id="tipo"
-            name="tipo"
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoOficio)}
+            id="departamento_id"
+            name="departamento_id"
+            required={!semDepartamentoPermitido}
+            defaultValue={
+              dados?.departamentoId ?? (departamentos.length === 1 ? departamentos[0].id : "")
+            }
             className={SELECT}
           >
-            {TIPOS_OFICIO.map((t) => (
-              <option key={t} value={t}>
-                {ROTULOS_TIPO_OFICIO[t]}
+            <option value="" disabled={!semDepartamentoPermitido}>
+              {semDepartamentoPermitido ? "(sem departamento)" : "(selecione)"}
+            </option>
+            {departamentos.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nome}
               </option>
             ))}
           </select>
-          {eAutomatico(tipo) && (
-            <span className="text-muted-foreground text-xs">
-              Automático — a lista de pessoas é puxada da fonte pagadora depois de salvar.
-            </span>
-          )}
+          <span className="text-muted-foreground text-xs">
+            Só quem é do departamento vê o ofício.
+          </span>
         </div>
+
         <div className="grid gap-1.5">
-          <Label htmlFor="data">Data do documento</Label>
-          <input
-            id="data"
-            name="data"
-            type="date"
-            defaultValue={dados?.data ?? ""}
-            className={SELECT}
+          <Label>Destinatário (empresa / fonte pagadora)</Label>
+          <EmpresaCombobox
+            empresas={empresas}
+            name="destinatario_empresa_id"
+            defaultId={dados?.destinatarioEmpresaId ?? undefined}
+          />
+          <Input
+            name="destinatario_texto"
+            defaultValue={dados?.destinatarioTexto ?? ""}
+            placeholder="Ou destinatário livre (ofício manual)"
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="aos_cuidados">Aos cuidados (A/C) — opcional</Label>
+          <Input
+            id="aos_cuidados"
+            name="aos_cuidados"
+            defaultValue={dados?.aosCuidados ?? ""}
+            placeholder="Ex.: Sr. João da Silva — Departamento de Pessoal"
+          />
+          <span className="text-muted-foreground text-xs">Só aparece no ofício se preenchido.</span>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="sede_id">Sede (cidade do cabeçalho)</Label>
+            <select
+              id="sede_id"
+              name="sede_id"
+              defaultValue={dados?.sedeId ?? ""}
+              className={SELECT}
+            >
+              <option value="">(selecione)</option>
+              {sedes.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="assinante_integrante_id">Assinante (diretoria)</Label>
+            <select
+              id="assinante_integrante_id"
+              name="assinante_integrante_id"
+              defaultValue={dados?.assinanteIntegranteId ?? ""}
+              className={SELECT}
+            >
+              <option value="">(selecione)</option>
+              {assinantes.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nome}
+                  {a.cargo ? ` — ${a.cargo}` : ""}
+                </option>
+              ))}
+            </select>
+            {assinantes.length === 0 && (
+              <span className="text-warning-fg text-xs">
+                Nenhum assinante — cadastre a diretoria vigente em Institucional.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="assunto">Assunto *</Label>
+          <Input
+            key={`assunto-${novo ? tipo : "e"}`}
+            id="assunto"
+            name="assunto"
+            required
+            defaultValue={assuntoDefault}
           />
         </div>
       </div>
 
-      <div className="grid gap-1.5 sm:max-w-sm">
-        <Label htmlFor="departamento_id">Departamento{semDepartamentoPermitido ? "" : " *"}</Label>
-        <select
-          id="departamento_id"
-          name="departamento_id"
-          required={!semDepartamentoPermitido}
-          defaultValue={dados?.departamentoId ?? (departamentos.length === 1 ? departamentos[0].id : "")}
-          className={SELECT}
-        >
-          <option value="" disabled={!semDepartamentoPermitido}>
-            {semDepartamentoPermitido ? "(sem departamento)" : "(selecione)"}
-          </option>
-          {departamentos.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.nome}
-            </option>
-          ))}
-        </select>
-        <span className="text-muted-foreground text-xs">
-          Só quem é do departamento vê o ofício.
-        </span>
-      </div>
-
-      <div className="grid gap-1.5">
-        <Label>Destinatário (empresa / fonte pagadora)</Label>
-        <EmpresaCombobox
-          empresas={empresas}
-          name="destinatario_empresa_id"
-          defaultId={dados?.destinatarioEmpresaId ?? undefined}
-        />
-        <Input
-          name="destinatario_texto"
-          defaultValue={dados?.destinatarioTexto ?? ""}
-          placeholder="Ou destinatário livre (ofício manual)"
-        />
-      </div>
-
-      <div className="grid gap-1.5">
-        <Label htmlFor="aos_cuidados">Aos cuidados (A/C) — opcional</Label>
-        <Input
-          id="aos_cuidados"
-          name="aos_cuidados"
-          defaultValue={dados?.aosCuidados ?? ""}
-          placeholder="Ex.: Sr. João da Silva — Departamento de Pessoal"
-        />
-        <span className="text-muted-foreground text-xs">
-          Só aparece no ofício se preenchido.
-        </span>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="sede_id">Sede (cidade do cabeçalho)</Label>
-          <select
-            id="sede_id"
-            name="sede_id"
-            defaultValue={dados?.sedeId ?? ""}
-            className={SELECT}
-          >
-            <option value="">(selecione)</option>
-            {sedes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="assinante_integrante_id">Assinante (diretoria)</Label>
-          <select
-            id="assinante_integrante_id"
-            name="assinante_integrante_id"
-            defaultValue={dados?.assinanteIntegranteId ?? ""}
-            className={SELECT}
-          >
-            <option value="">(selecione)</option>
-            {assinantes.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nome}
-                {a.cargo ? ` — ${a.cargo}` : ""}
-              </option>
-            ))}
-          </select>
-          {assinantes.length === 0 && (
-            <span className="text-warning-fg text-xs">
-              Nenhum assinante — cadastre a diretoria vigente em Institucional.
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-1.5">
-        <Label htmlFor="assunto">Assunto *</Label>
-        <Input
-          key={`assunto-${novo ? tipo : "e"}`}
-          id="assunto"
-          name="assunto"
-          required
-          defaultValue={assuntoDefault}
-        />
-      </div>
-
-      <div className="grid gap-1.5">
+      <div className="grid content-start gap-1.5">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="corpo">Corpo</Label>
           <Button
@@ -249,11 +250,7 @@ export function OficioForm({
             disabled={iaPendente}
             className="h-7 px-2 text-xs"
           >
-            {iaPendente ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <Sparkles />
-            )}
+            {iaPendente ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {iaPendente ? "Gerando…" : "Melhorar com IA"}
           </Button>
         </div>
@@ -262,9 +259,9 @@ export function OficioForm({
           id="corpo"
           name="corpo"
           ref={corpoRef}
-          rows={5}
+          rows={18}
           defaultValue={corpoDefault}
-          className={AREA}
+          className={`${AREA} min-h-72 lg:min-h-[28rem]`}
         />
         {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
         {eAutomatico(tipo) && (
@@ -274,13 +271,15 @@ export function OficioForm({
         )}
       </div>
 
-      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
-      {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
-      <div>
-        <Button type="submit" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
-          {novo ? "Criar ofício" : "Salvar alterações"}
-        </Button>
+      <div className="grid gap-2 lg:col-span-2">
+        {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+        {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
+        <div>
+          <Button type="submit" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+            {novo ? "Criar ofício" : "Salvar alterações"}
+          </Button>
+        </div>
       </div>
     </form>
   )

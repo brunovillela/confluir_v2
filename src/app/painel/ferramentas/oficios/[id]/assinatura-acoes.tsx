@@ -84,16 +84,15 @@ export function EnviarParaAssinatura({
             className="w-full sm:w-80"
           />
         </div>
+        {/* Número não se edita: é o último do ano + 1, atribuído no envio. */}
         <div className="grid gap-1.5">
-          <Label htmlFor="numero-envio">Número</Label>
-          <Input
-            id="numero-envio"
-            name="numero"
-            type="number"
-            min={1}
-            defaultValue={numeroReservado ?? proximoNumero}
-            className="w-28 tabular-nums"
-          />
+          <span className="text-sm font-medium">Número</span>
+          <span className="border-input bg-muted/40 flex h-9 items-center rounded-md border px-3 text-sm tabular-nums">
+            {numeroReservado ?? proximoNumero}
+            {numeroReservado == null && (
+              <span className="text-muted-foreground ml-1 text-xs">(previsto)</span>
+            )}
+          </span>
         </div>
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Send />}

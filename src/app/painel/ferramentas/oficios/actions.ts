@@ -113,13 +113,8 @@ export async function emitirOficioAction(
   if (!id) return { erro: "Ofício inválido." }
   const fora = await foraDoEscopo(id)
   if (fora) return { erro: fora }
-  const numeroTxt = texto(formData, "numero")
-  const numero = numeroTxt ? Number.parseInt(numeroTxt, 10) : null
-
-  const { erro, numero: n, ano } = await emitirOficio(
-    id,
-    Number.isFinite(numero) ? numero : null
-  )
+  // O número NÃO vem do formulário: é o último do ano + 1, decidido aqui.
+  const { erro, numero: n, ano } = await emitirOficio(id, null)
   if (erro) return { erro }
   revalidatePath("/painel/ferramentas/oficios")
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
@@ -224,15 +219,13 @@ export async function enviarParaAssinaturaAction(
   if (!id) return { erro: "Ofício inválido." }
   const fora = await foraDoEscopo(id)
   if (fora) return { erro: fora }
-  const numeroTxt = texto(formData, "numero")
-  const numero = numeroTxt ? Number.parseInt(numeroTxt, 10) : null
-
   const canal: CanalAssinatura = texto(formData, "canal") === "telegram" ? "telegram" : "email"
   const r = await enviarParaAssinatura({
     oficioId: id,
     email: texto(formData, "email"),
     canal,
-    numeroManual: Number.isFinite(numero) ? numero : null,
+    // Número não se escolhe: último do ano + 1 (ou o já reservado).
+    numeroManual: null,
     usuarioId: sessao.usuario.id as string,
   })
   if (r.erro) return { erro: r.erro }

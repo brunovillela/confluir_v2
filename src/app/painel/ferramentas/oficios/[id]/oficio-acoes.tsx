@@ -33,16 +33,14 @@ export function EmitirOficio({
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="oficio_id" value={oficioId} />
-      <label className="grid gap-1 text-xs">
+      {/* Número não se edita: é o último do ano + 1, atribuído na emissão. */}
+      <div className="grid gap-1 text-xs">
         Número
-        <input
-          name="numero"
-          type="number"
-          min={1}
-          defaultValue={proximoNumero}
-          className={`${INPUT} w-28 tabular-nums`}
-        />
-      </label>
+        <span className={`${INPUT} bg-muted/40 flex w-28 items-center tabular-nums`}>
+          {proximoNumero}
+          <span className="text-muted-foreground ml-1">(previsto)</span>
+        </span>
+      </div>
       <Button type="submit" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Send />}
         Emitir
