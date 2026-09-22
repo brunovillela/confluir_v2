@@ -36,6 +36,11 @@ function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
 }
 
+/** "14:30" do <input type="time"> → "14:30:00". */
+function horaISO(valor: string): string | null {
+  return /^\d{2}:\d{2}$/.test(valor) ? `${valor}:00` : null
+}
+
 function revalidarRodada(rodadaId: string) {
   revalidatePath(`/painel/representacao/assembleias/rodadas/${rodadaId}`)
 }
@@ -223,6 +228,8 @@ function dadosAssembleia(formData: FormData): {
     somente_filiados: boolean
     data_inicio: string | null
     data_termino: string | null
+    hora_inicio: string | null
+    hora_termino: string | null
   }
   erro?: string
 } {
@@ -245,6 +252,8 @@ function dadosAssembleia(formData: FormData): {
       somente_filiados: texto(formData, "somente_filiados") === "on",
       data_inicio: dataISO(texto(formData, "data_inicio")),
       data_termino: dataISO(texto(formData, "data_termino")),
+      hora_inicio: horaISO(texto(formData, "hora_inicio")),
+      hora_termino: horaISO(texto(formData, "hora_termino")),
     },
   }
 }

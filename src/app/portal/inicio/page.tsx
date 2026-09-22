@@ -31,7 +31,8 @@ import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
 import { ultimasNoticias } from "@/lib/db/painel"
 import { situacaoColetivaDoFiliado } from "@/lib/db/filiacao-coletiva"
-import { assembleiasDoFiliado } from "@/lib/db/votacao-portal"
+import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
+import { minhasVotacoes, assembleiasDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { PortalShell } from "../portal-shell"
@@ -83,7 +84,7 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas] = await Promise.all([
+  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas, votacoes] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
@@ -92,6 +93,7 @@ export default async function PortalInicioPage() {
     eventosParaFiliado(filiado.cpf, await tenantAtual())
       .then((l) => l.filter((e) => e.aberta && !e.inscrito))
       .catch(() => []),
+    minhasVotacoes(filiado.cpf).then((l) => l.slice(0, 3)),
   ])
 
   return (
@@ -322,6 +324,44 @@ export default async function PortalInicioPage() {
               <li>
                 <Button asChild size="sm">
                   <Link href="/portal/eventos">Ver e inscrever-se</Link>
+                </Button>
+              </li>
+            </ul>
+          </Card>
+        )}
+
+        {votacoes.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Suas últimas votações</CardTitle>
+              <CardDescription>
+                Participação registrada — o sistema nunca mostra em quem você votou.
+              </CardDescription>
+            </CardHeader>
+            <ul className="grid gap-2 px-6 pb-5">
+              {votacoes.map((v) => (
+                <li key={v.assembleiaId} className="text-sm">
+                  <span className="font-medium">{v.nome ?? v.tema ?? "Assembleia"}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    {v.quando ? `Voto computado em ${formatarDataHora(v.quando)}` : "Participação registrada"}
+                    {v.comprovante ? ` · ${ROTULO_CANAL[v.comprovante.canal]}` : ""}
+                  </span>
+                  {v.comprovante && (
+                    <span className="text-muted-foreground block text-xs">
+                      Comprovante{" "}
+                      <Link
+                        href={`/comprovante/${v.comprovante.codigo}`}
+                        className="text-foreground font-mono tracking-wider underline underline-offset-2"
+                      >
+                        {v.comprovante.codigo}
+                      </Link>
+                    </span>
+                  )}
+                </li>
+              ))}
+              <li>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/portal/votacao">Ver todas as votações</Link>
                 </Button>
               </li>
             </ul>

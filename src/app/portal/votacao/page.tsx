@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, Info, ShieldCheck, Vote } from "lucide-react"
+import { CalendarClock, FileCheck2, Info, ShieldCheck, Vote } from "lucide-react"
 
 import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   assembleiasDoFiliado,
   minhasVotacoes,
@@ -103,6 +104,13 @@ export default async function VotacaoPortalPage() {
                     >
                       Você já votou
                     </Badge>
+                  ) : a.abreEm ? (
+                    <div className="max-w-xs sm:text-right">
+                      <Badge variant="outline">Ainda não abriu</Badge>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        A votação abre em {formatarDataHora(a.abreEm)}.
+                      </p>
+                    </div>
                   ) : a.carencia ? (
                     // Recusa EXPLICADA: sumir com o botão faria a pessoa achar
                     // que o sistema está quebrado.
@@ -204,6 +212,35 @@ export default async function VotacaoPortalPage() {
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
+                {v.comprovante && (
+                  <div className="bg-muted/40 mt-2 grid gap-1 rounded-md border p-2.5 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Comprovante{" "}
+                        <span className="text-foreground font-mono tracking-wider">
+                          {v.comprovante.codigo}
+                        </span>
+                      </span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/comprovante/${v.comprovante.codigo}`}>
+                          <FileCheck2 />
+                          Ver comprovante
+                        </Link>
+                      </Button>
+                    </div>
+                    <p className="text-muted-foreground">
+                      {ROTULO_CANAL[v.comprovante.canal]}
+                      {v.comprovante.quando
+                        ? ` · voto computado em ${formatarDataHora(v.comprovante.quando)}`
+                        : ""}
+                    </p>
+                    {v.comprovante.hash && (
+                      <p className="text-muted-foreground font-mono break-all">
+                        SHA-256 {v.comprovante.hash}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {v.apuracaoEncerrada && v.resultado ? (
                   <div className="mt-2 grid gap-2">
                     {v.resultado.map((p) => (

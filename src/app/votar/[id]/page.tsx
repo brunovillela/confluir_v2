@@ -19,6 +19,7 @@ import {
   type AssembleiaDoFiliado,
 } from "@/lib/db/votacao-portal"
 import { precisaInformarDados } from "@/lib/db/votacao-primeiro-acesso"
+import { formatarDataHora } from "@/lib/formato"
 import { createClient } from "@/lib/supabase/server"
 import { getVisualizacaoEleitor } from "@/lib/visualizacao-eleitor"
 
@@ -153,6 +154,13 @@ function Cedula({
           <Alert variant="warning">
             <AlertDescription>
               Esta assembleia é presencial — não há cédula online.
+            </AlertDescription>
+          </Alert>
+        ) : eleg.abreEm ? (
+          <Alert variant="info">
+            <AlertDescription>
+              A votação ainda não começou. Ela abre em{" "}
+              <strong>{formatarDataHora(eleg.abreEm)}</strong>.
             </AlertDescription>
           </Alert>
         ) : eleg.jaVotou ? (

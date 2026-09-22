@@ -1061,6 +1061,7 @@ export async function registrarPresenca(
     .eq("id", aptoId)
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível registrar: ${error.message}` }
+  await comprovarVotoUrna([aptoId], urna.assembleiaId, "urna_fisica", agora)
   await lancarProntuario(emp, apto.cpf ? String(apto.cpf) : null, urna.assembleiaId)
   return { ok: true, liberado: false }
 }
@@ -1361,9 +1362,29 @@ export async function registrarVotoTerminal(
     .update({ hora_voto: agora })
     .eq("id", aptoId as string)
     .eq("emp_proprietaria_id", emp)
+  await comprovarVotoUrna([aptoId as string], assembleiaId, "urna_digital", agora)
   await limparLiberacao(emp, String(term.id))
   await lancarProntuario(emp, apto.cpf ? String(apto.cpf) : null, assembleiaId)
   return { ok: true }
+}
+
+/**
+ * Comprovante de quem votou na urna. Sem e-mail (o eleitor está no local e
+ * leva o comprovante na tela/no papel); o código fica na área do filiado e
+ * na página de conferência. Nunca lança.
+ */
+async function comprovarVotoUrna(
+  aptoIds: string[],
+  assembleiaId: string,
+  canal: "urna_digital" | "urna_fisica",
+  quando: string
+): Promise<void> {
+  try {
+    const { emitirComprovante } = await import("@/lib/db/voto-comprovante")
+    await emitirComprovante({ aptoIds, assembleiaId, canal, quando })
+  } catch {
+    // comprovante é extra: o voto já está registrado
+  }
 }
 
 async function limparLiberacao(emp: string, termId: string): Promise<void> {

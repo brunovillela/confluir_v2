@@ -9,6 +9,12 @@ import {
   escopoAptos,
   filtroAptos,
 } from "@/lib/db/votacao-escopo"
+import {
+  abreEmISO,
+  colunasHorario,
+  fimDaJanelaISO,
+  situacaoDaAssembleia,
+} from "@/lib/db/assembleias-horarios"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -195,8 +201,10 @@ export type AssembleiaDoFiliado = {
   modalidade: Modalidade
   online: boolean
   inicio: string | null
-  /** Fim da assembleia — base da contagem regressiva (online). */
+  /** Fim da assembleia (data + hora) — base da contagem regressiva (online). */
   termino: string | null
+  /** Quando a votação ainda não abriu: o momento em que abre. */
+  abreEm: string | null
   apuracaoEncerrada: boolean
   /** Já votou? (apto.hora_voto preenchido) */
   jaVotou: boolean
@@ -317,14 +325,18 @@ export async function assembleiasDoFiliado(
   const assembleiaIds = [...votouPorAssembleia.keys()]
   if (assembleiaIds.length === 0) return []
 
-  const { data: assembleias } = await admin
+  // O select é montado com as colunas de horário quando elas existem, então o
+  // tipo vem solto — as leituras passam por txt()/derivarModalidade().
+  const { data: brutas } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
+      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id" +
+        (await colunasHorario())
     )
     .eq("emp_proprietaria_id", emp)
     .in("id", assembleiaIds)
-  if (!assembleias || assembleias.length === 0) return []
+  const assembleias = (brutas ?? []) as unknown as Record<string, unknown>[]
+  if (assembleias.length === 0) return []
 
   // Empregador da assembleia (empresa_id) ou da rodada.
   const rodIds = [
@@ -385,12 +397,19 @@ export async function assembleiasDoFiliado(
     const modalidade = derivarModalidade(a)
     const online = modalidade === "online"
     const inicio = txt(a.data_inicio) ?? txt(a.periodo_inicio)
-    const termino = txt(a.data_termino) ?? txt(a.periodo_termino) ?? txt(rod?.termino)
+    const fonte = {
+      data_inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
+      hora_inicio: txt(a.hora_inicio),
+      data_termino: txt(a.data_termino) ?? txt(a.periodo_termino),
+      hora_termino: txt(a.hora_termino),
+    }
+    const terminoRodada = txt(rod?.termino)
 
-    // Só interessa o que ainda está em andamento: não encerrado e, quando há
-    // fim, que o fim não tenha passado.
+    // Só interessa o que ainda está em andamento: não encerrado e dentro da
+    // janela da assembleia (data + hora).
     if (apuracaoEncerrada) continue
-    if (termino && new Date(termino).getTime() < agora) continue
+    if (situacaoDaAssembleia(fonte, terminoRodada, agora) === "encerrada") continue
+    const termino = fimDaJanelaISO(fonte, terminoRodada)
 
     saida.push({
       assembleiaId: String(a.id),
@@ -403,6 +422,7 @@ export async function assembleiasDoFiliado(
       online,
       inicio,
       termino,
+      abreEm: abreEmISO(fonte, agora),
       apuracaoEncerrada,
       jaVotou: votouPorAssembleia.get(String(a.id)) ?? false,
       somenteFiliados: a.somente_filiados === true,
@@ -506,6 +526,9 @@ export async function registrarVotoFiliado(
   if (!eleg) return { erro: "Você não está apto a votar nesta assembleia." }
   if (!eleg.online) return { erro: "Esta assembleia não é de votação online." }
   if (eleg.jaVotou) return { erro: "Você já votou nesta assembleia." }
+  if (eleg.abreEm) {
+    return { erro: "A votação desta assembleia ainda não começou." }
+  }
   // A carência é conferida AQUI, e não só na tela: sem isto bastaria um POST
   // direto para votar antes do prazo.
   if (eleg.carencia) {
@@ -558,6 +581,16 @@ export async function registrarVotoFiliado(
     .or(filtroAptos(await escopoAptos(assembleiaId), filtros))
     .is("hora_voto", null)
 
+  // 2b) comprovante de participação + e-mail de confirmação (best-effort: o
+  //     voto já está registrado, nada aqui pode derrubá-lo).
+  await comprovarVoto({
+    filtroOu: filtroAptos(await escopoAptos(assembleiaId), filtros),
+    assembleiaId,
+    quando: agora,
+    email: emailVot.email ?? filiado.email,
+    nome: filiado.nome_completo ?? null,
+  })
+
   // 3) apontamento GENÉRICO no prontuário (sem revelar o voto). Best-effort.
   if (filiado?.filiacaoId) {
     const nomeAss = eleg.nome ? ` "${eleg.nome}"` : ""
@@ -587,6 +620,8 @@ export type MinhaVotacao = {
   /** Urna presencial em que votou (registro do eleitor), quando houver. */
   urna: string | null
   apuracaoEncerrada: boolean
+  /** Comprovante da participação (código, canal, resumo) — nunca o voto. */
+  comprovante: import("@/lib/db/voto-comprovante").ComprovanteDoEleitor | null
   /**
    * Resultado FINAL por opção (só quando apurado). Cada pergunta com suas
    * opções + branco/nulo. Nunca resultados parciais.
@@ -608,13 +643,19 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
 
   const filtros = [`cpf.eq.${cpf}`]
   if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
-  const { data: aptos } = await admin
+  // Select montado (as colunas do comprovante só entram depois do SQL), por
+  // isso o tipo vem solto.
+  const { data: aptosBrutos } = await admin
     .from("voto_assembleias_aptos")
-    .select("assembleia_id, rod_assembleia_id, hora_voto, presenca_urna_id")
+    .select(
+      "assembleia_id, rod_assembleia_id, hora_voto, presenca_urna_id" +
+        (await (await import("@/lib/db/voto-comprovante")).colunasComprovante())
+    )
     .eq("emp_proprietaria_id", emp)
     .or(filtros.join(","))
     .not("hora_voto", "is", null)
-  if (!aptos || aptos.length === 0) return []
+  const aptos = (aptosBrutos ?? []) as unknown as Record<string, unknown>[]
+  if (aptos.length === 0) return []
 
   // Apto só na rodada: a participação aparece na assembleia da urna em que a
   // presença foi registrada, ou na assembleia principal da rodada.
@@ -637,7 +678,12 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
     ),
   ])
 
+  const { comprovanteDaLinha } = await import("@/lib/db/voto-comprovante")
   const votouEm = new Map<string, string>()
+  const comprovantePor = new Map<
+    string,
+    import("@/lib/db/voto-comprovante").ComprovanteDoEleitor
+  >()
   const urnaDaAssembleia = new Map<string, string>()
   for (const a of aptos) {
     const id =
@@ -646,6 +692,8 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
       (a.rod_assembleia_id ? principal.get(String(a.rod_assembleia_id)) : undefined)
     if (!id) continue
     if (!votouEm.has(id)) votouEm.set(id, String(a.hora_voto))
+    const comp = comprovanteDaLinha(a)
+    if (comp && !comprovantePor.has(id)) comprovantePor.set(id, comp)
     const urnaId = txt(a.presenca_urna_id)
     if (urnaId && !urnaDaAssembleia.has(id)) urnaDaAssembleia.set(id, urnaId)
   }
@@ -786,6 +834,7 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
         empregador: nomeEmpresa.get(String(txt(a.empresa_id))) ?? null,
         modalidade: derivarModalidade(a),
         quando: votouEm.get(String(a.id)) ?? null,
+        comprovante: comprovantePor.get(String(a.id)) ?? null,
         urna:
           nomeUrna.get(urnaDaAssembleia.get(String(a.id)) ?? "") ?? null,
         apuracaoEncerrada: apurado,
@@ -836,14 +885,16 @@ export async function elegibilidadeEleitorEmail(
     (a) => Boolean(a.hora_voto) || Boolean(a.presenca_em)
   )
 
-  const { data: a } = await admin
+  const { data: aBruta } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id"
+      "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id" +
+        (await colunasHorario())
     )
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
+  const a = aBruta as unknown as Record<string, unknown> | null
   if (!a) return null
   // Este caminho é o do eleitor identificado só por E-MAIL — quem não é
   // filiado. Pleito interno não é dele, mesmo que o e-mail esteja na lista de
@@ -860,9 +911,18 @@ export async function elegibilidadeEleitorEmail(
     rod = data
   }
   const apuracaoEncerrada = a.apuracao_encerrada === true || rod?.apuracao_encerrada === true
-  const termino = txt(a.data_termino) ?? txt(a.periodo_termino) ?? txt(rod?.termino)
+  const fonte = {
+    data_inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
+    hora_inicio: txt(a.hora_inicio),
+    data_termino: txt(a.data_termino) ?? txt(a.periodo_termino),
+    hora_termino: txt(a.hora_termino),
+  }
+  const terminoRodada = txt(rod?.termino)
   if (apuracaoEncerrada) return null
-  if (termino && new Date(termino).getTime() < Date.now()) return null
+  // Antes da abertura a assembleia continua visível (a tela diz quando abre);
+  // depois do término, não.
+  if (situacaoDaAssembleia(fonte, terminoRodada) === "encerrada") return null
+  const termino = fimDaJanelaISO(fonte, terminoRodada)
 
   const empId = txt(a.empresa_id) ?? txt(rod?.empresa_id)
   const campId = txt(a.campanha_id) ?? txt(rod?.campanha_id)
@@ -882,6 +942,7 @@ export async function elegibilidadeEleitorEmail(
     online: derivarModalidade(a) === "online",
     inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
     termino,
+    abreEm: abreEmISO(fonte),
     apuracaoEncerrada,
     jaVotou,
     somenteFiliados: false,
@@ -903,6 +964,7 @@ export async function registrarVotoEleitorEmail(
   if (!eleg) return { erro: "Você não está apto a votar nesta assembleia." }
   if (!eleg.online) return { erro: "Esta assembleia não é de votação online." }
   if (eleg.jaVotou) return { erro: "Você já votou nesta assembleia." }
+  if (eleg.abreEm) return { erro: "A votação desta assembleia ainda não começou." }
 
   const perguntas = await perguntasDaAssembleia(assembleiaId)
   if (perguntas.length === 0) return { erro: "A cédula ainda não tem perguntas." }
@@ -936,7 +998,7 @@ export async function registrarVotoEleitorEmail(
   const escopo = await escopoAptos(assembleiaId)
   const { data: meus } = await admin
     .from("voto_assembleias_aptos")
-    .select("cpf")
+    .select("cpf, nome_completo")
     .eq("emp_proprietaria_id", emp)
     .or(filtroAptos(escopo))
     .eq("email_corporativo", alvo)
@@ -948,7 +1010,53 @@ export async function registrarVotoEleitorEmail(
     .eq("emp_proprietaria_id", emp)
     .or(filtroAptos(escopo, filtros))
     .is("hora_voto", null)
+
+  await comprovarVoto({
+    filtroOu: filtroAptos(escopo, filtros),
+    assembleiaId,
+    quando: agora,
+    email: alvo,
+    nome: (meus?.[0] as { nome_completo?: string | null } | undefined)?.nome_completo ?? null,
+  })
   return { ok: true }
+}
+
+/**
+ * Emite o comprovante nos aptos que acabaram de ser marcados e manda o e-mail
+ * de confirmação. Nunca lança: comprovante é um extra do voto, que já está
+ * gravado quando esta função roda.
+ */
+async function comprovarVoto(dados: {
+  filtroOu: string
+  assembleiaId: string
+  quando: string
+  email: string | null
+  nome: string | null
+}): Promise<void> {
+  try {
+    const { aptosVotantes, emitirComprovante, enviarEmailComprovante } = await import(
+      "@/lib/db/voto-comprovante"
+    )
+    const aptoIds = await aptosVotantes(dados.filtroOu, dados.quando)
+    if (aptoIds.length === 0) return
+    const comprovante = await emitirComprovante({
+      aptoIds,
+      assembleiaId: dados.assembleiaId,
+      canal: "online",
+      quando: dados.quando,
+    })
+    if (!comprovante || !dados.email) return
+    await enviarEmailComprovante({
+      aptoIds,
+      assembleiaId: dados.assembleiaId,
+      comprovante,
+      canal: "online",
+      email: dados.email,
+      nome: dados.nome,
+    })
+  } catch {
+    // e-mail/coluna indisponível não invalida o voto
+  }
 }
 
 // ── Datas da rodada (assembleia presencial — "confira as datas") ───────────

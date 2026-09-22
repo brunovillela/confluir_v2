@@ -134,6 +134,30 @@ function CamposAssembleia({
             defaultValue={assembleia?.data_termino ?? ""}
           />
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${prefixo}-hora-inicio`}>Hora de início</Label>
+          <Input
+            id={`${prefixo}-hora-inicio`}
+            name="hora_inicio"
+            type="time"
+            defaultValue={assembleia?.hora_inicio ?? ""}
+          />
+          <p className="text-muted-foreground text-xs">
+            Em branco, a votação abre à 0h do dia de início.
+          </p>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${prefixo}-hora-termino`}>Hora de término</Label>
+          <Input
+            id={`${prefixo}-hora-termino`}
+            name="hora_termino"
+            type="time"
+            defaultValue={assembleia?.hora_termino ?? ""}
+          />
+          <p className="text-muted-foreground text-xs">
+            Em branco, fecha às 23h59 do dia de término.
+          </p>
+        </div>
         <div className="grid gap-1.5 md:col-span-2">
           <Label htmlFor={`${prefixo}-descricao`}>Descrição</Label>
           <textarea
@@ -317,7 +341,7 @@ function AssembleiaItem({
           </p>
           <p className="text-muted-foreground text-xs">
             {assembleia.data_inicio || assembleia.data_termino
-              ? `${formatarData(assembleia.data_inicio)} a ${formatarData(assembleia.data_termino)}`
+              ? `${formatarData(assembleia.data_inicio)}${assembleia.hora_inicio ? ` ${assembleia.hora_inicio}` : ""} a ${formatarData(assembleia.data_termino)}${assembleia.hora_termino ? ` ${assembleia.hora_termino}` : ""}`
               : "Sem datas definidas"}
             {assembleia.descricao ? ` · ${assembleia.descricao}` : ""}
           </p>

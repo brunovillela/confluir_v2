@@ -1,4 +1,6 @@
 import "server-only"
+import { horaCurta } from "@/lib/assembleias-constantes"
+import { colunasHorario } from "@/lib/db/assembleias-horarios"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -106,6 +108,9 @@ export type AssembleiaLinha = {
   modalidade: Modalidade
   data_inicio: string | null
   data_termino: string | null
+  /** Hora de abertura/encerramento (HH:MM); nulo = dia inteiro. */
+  hora_inicio: string | null
+  hora_termino: string | null
   voto_em_separado: boolean
   /** Pleito interno: só filiados votam, e a carência se aplica. */
   somente_filiados: boolean
@@ -884,7 +889,8 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
   const { data, error } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata"
+      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata" +
+        (await colunasHorario())
     )
     .eq("rod_assembleia_id", rodadaId)
     .order("data_inicio", { ascending: true, nullsFirst: false })
@@ -893,21 +899,38 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
     if (esquemaAusente(error)) return { linhas: [], esquemaPronto: false }
     throw new Error(`Falha ao listar assembleias: ${error.message}`)
   }
+  // Select montado (horários só depois do SQL): tipo solto de propósito.
+  const linhasBrutas = (data ?? []) as unknown as Record<string, unknown>[]
   return {
     esquemaPronto: true,
-    linhas: (data ?? []).map((a) => ({
-      id: a.id,
-      nome: a.nome_assembleia,
-      descricao: a.descricao,
+    linhas: linhasBrutas.map((a) => ({
+      id: String(a.id),
+      nome: (a.nome_assembleia as string | null) ?? null,
+      descricao: (a.descricao as string | null) ?? null,
       modalidade: derivarModalidade(a),
-      data_inicio: a.data_inicio,
-      data_termino: a.data_termino,
+      data_inicio: (a.data_inicio as string | null) ?? null,
+      data_termino: (a.data_termino as string | null) ?? null,
+      hora_inicio: horaCurta(a.hora_inicio as string | null),
+      hora_termino: horaCurta(a.hora_termino as string | null),
       voto_em_separado: a.voto_em_separado === true,
       somente_filiados: a.somente_filiados === true,
-      edital: a.edital,
-      ata: a.ata,
+      edital: (a.edital as string | null) ?? null,
+      ata: (a.ata as string | null) ?? null,
     })),
   }
+}
+
+/**
+ * Horários só entram na gravação depois do SQL que cria as colunas
+ * (supabase/voto-horarios-comprovante.sql) — antes disso o insert/update
+ * falharia inteiro por causa de um campo extra.
+ */
+async function horariosSeExistirem(dados: {
+  hora_inicio: string | null
+  hora_termino: string | null
+}): Promise<Record<string, unknown>> {
+  if (!(await colunasHorario())) return {}
+  return { hora_inicio: dados.hora_inicio, hora_termino: dados.hora_termino }
 }
 
 export async function criarAssembleia(dados: {
@@ -921,6 +944,8 @@ export async function criarAssembleia(dados: {
   somente_filiados: boolean
   data_inicio: string | null
   data_termino: string | null
+  hora_inicio: string | null
+  hora_termino: string | null
 }): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
@@ -935,6 +960,7 @@ export async function criarAssembleia(dados: {
       somente_filiados: dados.somente_filiados,
       data_inicio: dados.data_inicio,
       data_termino: dados.data_termino,
+      ...(await horariosSeExistirem(dados)),
       codigo: gerarCodigo(),
       apuracao_encerrada: false,
       contador_votos: 0,
@@ -965,6 +991,8 @@ export async function atualizarAssembleia(
     voto_em_separado: boolean
     data_inicio: string | null
     data_termino: string | null
+    hora_inicio: string | null
+    hora_termino: string | null
     edital?: string
     ata?: string
   }
@@ -978,6 +1006,7 @@ export async function atualizarAssembleia(
     voto_em_separado: dados.voto_em_separado,
     data_inicio: dados.data_inicio,
     data_termino: dados.data_termino,
+    ...(await horariosSeExistirem(dados)),
   }
   if (dados.edital !== undefined) atualizacao.edital = dados.edital
   if (dados.ata !== undefined) atualizacao.ata = dados.ata
