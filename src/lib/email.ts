@@ -6,9 +6,12 @@ import { caixaAviso, COR, escaparHtml, layoutEmail } from "@/lib/email-layout"
 import { origemAtual } from "@/lib/tenant-url"
 
 /**
- * Envio de email transacional via Brevo (mesmo provedor do SMTP de auth).
+ * Envio de email transacional pelo provedor configurado.
+ *   EMAIL_PROVEDOR=resend  → API do Resend (RESEND_API_KEY)
+ *   (padrão)               → API do Brevo (BREVO_API_KEY)
  * Requer no .env.local:
  *   BREVO_API_KEY=xkeysib-…      (Brevo → SMTP & API → API Keys)
+ *   RESEND_API_KEY=re_…          (Resend → API Keys), quando EMAIL_PROVEDOR=resend
  *   EMAIL_REMETENTE=nao-responda@sindipetronf.org.br
  *
  * Sem as variáveis o envio é PULADO silenciosamente (retorna false) — as
@@ -32,7 +35,8 @@ export async function enviarEmail(destino: {
   assunto: string
   html: string
 }): Promise<boolean> {
-  const chave = process.env.BREVO_API_KEY
+  const usaResend = process.env.EMAIL_PROVEDOR === "resend"
+  const chave = usaResend ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
   const remetente = process.env.EMAIL_REMETENTE
   if (!chave || !remetente) return false
 
@@ -53,6 +57,32 @@ export async function enviarEmail(destino: {
     titulo: escaparHtml(assunto),
     rodape,
   })
+
+  // Resend (EMAIL_PROVEDOR=resend): mesmo conteúdo, outro provedor. Existe
+  // para migrar o canal do app sem mexer em código — só na variável.
+  if (process.env.EMAIL_PROVEDOR === "resend") {
+    // Testes: o Resend não tem modo sandbox — não enviamos nada.
+    if (process.env.EMAIL_SANDBOX === "1") return true
+    try {
+      const resposta = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${chave}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `Confluir — ${entidade} <${remetente}>`,
+          to: [destino.email],
+          subject: assunto,
+          html: htmlContent,
+          ...(emailContato ? { reply_to: emailContato } : {}),
+        }),
+      })
+      return resposta.ok
+    } catch {
+      return false
+    }
+  }
 
   try {
     const resposta = await fetch("https://api.brevo.com/v3/smtp/email", {

@@ -26,7 +26,8 @@ SaaS de gestão organizacional para sindicatos. Migração do Bubble.io para Nex
      `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery` (ajuste o `type` por template: `invite`, `magiclink`, `recovery`). Use `{{ .RedirectTo }}`, não `{{ .SiteURL }}`: o app já manda o redirect com o subdomínio do tenant e o `?next=` certo (multi-tenant). O *Reset Password* está assim desde 11/09/2026.
    - Cite o prazo do link no texto (hoje 2 horas = "Email OTP Expiration" 7200 s, espelhado em `src/lib/auth-email-constantes.ts`).
    - No template *Magic Link*, inclua também `{{ .Token }}` (código de 6 dígitos) — é o que o eleitor digita na votação (Porta 3).
-3. **SMTP**: configure um provedor de email próprio (o SMTP embutido do Supabase tem limite baixo e não serve para produção).
+3. **SMTP**: configure um provedor de email próprio (o SMTP embutido do Supabase tem limite baixo e não serve para produção). A troca para o Resend, com o porquê e o passo a passo, está em [docs/email-resend.md](docs/email-resend.md); para conferir a entrega dos dois canais, `node scripts/testar-email.mjs alguem@dominio.com --auth`.
+   - Canal do app (aviso de votação, comprovante, convites): `BREVO_API_KEY` por padrão, ou `EMAIL_PROVEDOR=resend` + `RESEND_API_KEY`. `EMAIL_REMETENTE` precisa ser de domínio verificado no provedor em uso. `EMAIL_SANDBOX=1` descarta os envios em teste (só na Brevo; no Resend o app não envia).
 
 ## Segurança — modelo de acesso a dados
 
