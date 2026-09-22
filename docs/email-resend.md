@@ -111,7 +111,7 @@ Com o Resend estável por alguns dias, dá para unificar:
 
 1. `EMAIL_PROVEDOR=resend` e `RESEND_API_KEY=re_…` no `.env.local` e na Vercel
    (Production), e redeploy.
-2. `node scripts/testar-email.mjs alguem@hotmail.com` e conferir a entrega.
+2. `node scripts/testar-email.mjs voce@hotmail.com` e conferir a entrega.
 3. Rodar o aviso de votação numa rodada de teste antes de usar numa real.
 
 Para voltar atrás, basta remover `EMAIL_PROVEDOR` e redeployar — o código cai na
