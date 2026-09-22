@@ -8,7 +8,6 @@ import {
   type EstadoForm,
 } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
-import { origemAtual } from "@/lib/tenant-url"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -85,16 +84,14 @@ export async function enviarMagicLinkFiliado(
   // Cria a conta na hora se não existir, já com o CPF como identidade.
   // Se a conta já existe, o metadata original é preservado (o CPF gravado
   // na criação continua valendo — ver getSessaoPortal).
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro: erroCodigo } = await enviarCodigoAcesso({
     email: filiado.email,
-    options: {
-      shouldCreateUser: true,
-      data: { tipo: "filiado", cpf },
-      emailRedirectTo: `${await origemAtual()}/auth/confirm?next=/portal/inicio`,
-    },
+    metadata: { tipo: "filiado", cpf },
+    next: "/portal/inicio",
+    contexto: "Use o código abaixo para entrar na sua área do filiado.",
   })
-  if (error) {
+  if (erroCodigo) {
     return { erro: "Não foi possível enviar o link. Tente novamente." }
   }
 

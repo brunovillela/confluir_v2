@@ -146,10 +146,16 @@ export async function solicitarRedefinicaoSenha(
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
 
+  // Canal do app primeiro: o SMTP do Supabase já ficou fora do ar (22/09/2026)
+  // e derrubou junto a redefinição de senha.
+  const { enviarLinkRedefinicao } = await import("@/lib/codigo-acesso")
+  const tentativa = await enviarLinkRedefinicao(email, await origemAtual())
   const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
-  })
+  const { error } = tentativa.enviado
+    ? { error: null }
+    : await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
+      })
 
   // A resposta ao usuário é DE PROPÓSITO a mesma em todos os casos — dizer
   // "email não cadastrado" entregaria quem tem conta. Mas o erro precisa

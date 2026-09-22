@@ -62,12 +62,14 @@ export async function enviarCodigoFiliado(
       erro: "CPF não localizado ou sem e-mail. Use o acesso do trabalhador ao lado.",
     }
   }
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
     email: filiado.email,
-    options: { shouldCreateUser: true, data: { tipo: "filiado", cpf } },
+    metadata: { tipo: "filiado", cpf },
+    next: "/portal/oposicao",
+    contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
   })
-  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  if (erro) return { erro }
   return { ok: `Código enviado para ${mascararEmail(filiado.email)}.` }
 }
 
@@ -109,12 +111,14 @@ export async function enviarCodigoTrabalhador(
       erro: "Este CPF é de um filiado — use o acesso do filiado (por CPF).",
     }
   }
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
     email,
-    options: { shouldCreateUser: true, data: { tipo: "nao_filiado", cpf, nome } },
+    metadata: { tipo: "nao_filiado", cpf, nome },
+    next: "/portal/oposicao",
+    contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
   })
-  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  if (erro) return { erro }
   return { ok: `Código enviado para ${mascararEmail(email)}.` }
 }
 

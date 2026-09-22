@@ -34,12 +34,14 @@ export async function enviarCodigoMesario(
       erro: "Este e-mail não está cadastrado como mesário. Fale com a organização.",
     }
   }
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
     email,
-    options: { shouldCreateUser: true, data: { tipo: "mesario" } },
+    metadata: { tipo: "mesario" },
+    next: "/mesario",
+    contexto: "Use o código abaixo para abrir o ambiente do mesário.",
   })
-  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  if (erro) return { erro }
   return { ok: `Código enviado para ${mascararEmail(email)}. Digite-o abaixo.` }
 }
 

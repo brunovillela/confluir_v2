@@ -52,10 +52,14 @@ export async function recuperarSenhaHotel(
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
 
+  const { enviarLinkRedefinicao } = await import("@/lib/codigo-acesso")
+  const tentativa = await enviarLinkRedefinicao(email, SITE_URL)
   const supabase = await createClient()
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
-  })
+  const { error } = tentativa.enviado
+    ? { error: null }
+    : await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
+      })
 
   // Mesma razão do /login: mensagem neutra na tela, erro real no log.
   if (error) {

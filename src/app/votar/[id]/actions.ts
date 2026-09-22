@@ -19,15 +19,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
-/**
- * Nos testes automatizados (EMAIL_SANDBOX=1, fora de produção) o código NÃO é
- * pedido ao Supabase: ele sairia de verdade pelo SMTP, e endereço de domínio
- * fictício vira recusa no mesmo canal que manda os códigos dos eleitores. O
- * teste pega o código por admin.generateLink, que não envia nada.
- */
-function semEnvioDeCodigo(): boolean {
-  return process.env.EMAIL_SANDBOX === "1" && process.env.NODE_ENV !== "production"
-}
 
 /**
  * Porta 3 — eleitores: CPF + token temporário por email.
@@ -84,19 +75,14 @@ export async function solicitarTokenEleitor(
   }
 
   // Cria a conta na hora se não existir, com o CPF como identidade.
-  const supabase = await createClient()
-  const { error } = semEnvioDeCodigo()
-    ? { error: null }
-    : await supabase.auth.signInWithOtp({
-        email: filiado.email,
-        options: {
-          shouldCreateUser: true,
-          data: { tipo: "filiado", cpf },
-        },
-      })
-  if (error) {
-    return { erro: "Não foi possível enviar o código. Tente novamente." }
-  }
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
+    email: filiado.email,
+    metadata: { tipo: "filiado", cpf },
+    next: `/votar/${assembleiaId}`,
+    contexto: "Use o código abaixo para abrir a sua cédula de votação.",
+  })
+  if (erro) return { erro }
 
   return {
     ok: `Código enviado para ${mascararEmail(filiado.email)}. Digite-o abaixo.`,
@@ -160,14 +146,14 @@ export async function solicitarTokenEmail(
     }
   }
 
-  const supabase = await createClient()
-  const { error } = semEnvioDeCodigo()
-    ? { error: null }
-    : await supabase.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: true, data: { tipo: "eleitor" } },
-      })
-  if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
+    email,
+    metadata: { tipo: "eleitor" },
+    next: `/votar/${assembleiaId}`,
+    contexto: "Use o código abaixo para abrir a sua cédula de votação.",
+  })
+  if (erro) return { erro }
 
   return {
     ok: `Código enviado para ${mascararEmail(email)}. Digite-o abaixo.`,
