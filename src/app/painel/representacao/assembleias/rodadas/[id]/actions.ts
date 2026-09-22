@@ -552,7 +552,7 @@ export async function enviarAvisoAptosTeste(rodadaId: string): Promise<EstadoFor
 
 export async function reabrirAvisosAptos(
   rodadaId: string,
-  quais: "falhas" | "todos"
+  quais: "falhas" | "todos" | "nao_votaram"
 ): Promise<EstadoForm> {
   await requirePermissao("assembleias")
   const { reabrirAvisos } = await import("@/lib/db/votacao-aviso")
@@ -563,6 +563,8 @@ export async function reabrirAvisosAptos(
     ok:
       quais === "falhas"
         ? "As falhas voltaram para a fila de envio."
-        : "Todos os aptos voltaram para a fila — o próximo envio avisa a lista inteira de novo.",
+        : quais === "nao_votaram"
+          ? "Quem ainda não votou voltou para a fila — o próximo envio avisa só essas pessoas."
+          : "Todos os aptos voltaram para a fila — o próximo envio avisa a lista inteira de novo.",
   }
 }

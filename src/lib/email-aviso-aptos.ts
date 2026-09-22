@@ -34,6 +34,8 @@ export type DadosAvisoAptos = {
   assembleias: AssembleiaDoAviso[]
   /** Endereço do botão: a cédula online (/votar/…) ou a área do filiado. */
   link: string
+  /** Assembleia online da rodada — base do link pessoal de cada eleitor. */
+  assembleiaOnlineId: string | null
   /** Há assembleia com voto online (online ou híbrida)? */
   temOnline: boolean
   /** Há assembleia presencial (urna, híbrida ou reunião)? */
@@ -45,6 +47,11 @@ export type DestinatarioAviso = {
   email: string
   /** "email" = entra pelo e-mail corporativo; "cpf" = filiado, entra pelo CPF. */
   porta: "email" | "cpf"
+  /**
+   * Link PESSOAL que abre a cédula direto, sem código (o código por e-mail
+   * não chega em parte das caixas). Quando existe, é ele o botão.
+   */
+  linkPessoal?: string | null
 }
 
 const ESTILO_LISTA = `margin:0 0 20px;padding-left:22px;`
@@ -110,12 +117,33 @@ export function montarEmailAvisoAptos(
   if (quando) partes.push(caixaAviso(`A votação acontece ${quando}.`))
   if (dados.assembleias.length > 0) partes.push(listaAssembleias(dados.assembleias))
 
-  partes.push(botaoEmail(dados.link, dados.temOnline ? "Ir para a votação" : "Acessar o Confluir"))
+  const alvo = destino.linkPessoal ?? dados.link
+  partes.push(botaoEmail(alvo, dados.temOnline ? "Ir para a votação" : "Acessar o Confluir"))
 
   partes.push(
     `<h2 style="margin:0 0 12px;font-size:17px;line-height:1.4;font-weight:600;color:${COR.navy};">Como votar</h2>`
   )
-  if (dados.temOnline) {
+  if (dados.temOnline && destino.linkPessoal) {
+    partes.push(
+      passos([
+        "Clique em <strong>Ir para a votação</strong>. O link é seu e abre a cédula direto, sem código.",
+        "Se for a sua primeira vez, confirme CPF, nome completo e data de nascimento — é uma vez só e garante que cada pessoa vote uma única vez.",
+        "Marque suas respostas e confirme o voto.",
+      ])
+    )
+    partes.push(
+      caixaAviso(
+        "<strong>Não repasse este e-mail.</strong> O link acima é pessoal: quem o abrir vota no seu lugar."
+      )
+    )
+    if (dados.temPresencial) {
+      partes.push(
+        paragrafo(
+          "Prefere votar presencialmente? Compareça a uma das assembleias presenciais listadas acima, com um documento com foto. O voto é um só: quem vota online não vota na urna, e vice-versa."
+        )
+      )
+    }
+  } else if (dados.temOnline) {
     partes.push(
       destino.porta === "email"
         ? passos([
@@ -161,7 +189,7 @@ export function montarEmailAvisoAptos(
       "O voto é secreto: o sistema registra que você votou, nunca em quem votou. Ninguém do sindicato pede o seu código — não o repasse."
     )
   )
-  partes.push(linkReserva(dados.link))
+  partes.push(linkReserva(alvo))
   partes.push(
     textoSuave("Não reconhece esta votação ou recebeu por engano? Responda a este e-mail.")
   )

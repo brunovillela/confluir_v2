@@ -155,6 +155,7 @@ export async function dadosDoAviso(
         data_termino,
       })),
       link: online ? `${origem}/votar/${online.id}` : `${origem}/portal/votacao`,
+      assembleiaOnlineId: online?.id ?? null,
       temOnline: Boolean(online),
       temPresencial: lista.some((a) => a.modalidade !== "online"),
     },
@@ -168,11 +169,20 @@ export async function enviarAvisoTeste(
 ): Promise<{ erro?: string }> {
   const { dados, erro } = await dadosDoAviso(rodadaId)
   if (!dados) return { erro }
+  // O teste mostra o e-mail como ele chega, com o botão do link pessoal — mas
+  // o token é de um apto que não existe: clicar não vota por ninguém.
+  const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
+  const origem = await origemAtual()
+  const linkPessoal = dados.assembleiaOnlineId
+    ? `${origem}/votar/${dados.assembleiaOnlineId}/entrar?t=${encodeURIComponent(
+        gerarTokenAcesso("00000000-0000-4000-8000-000000000000", dados.assembleiaOnlineId)
+      )}`
+    : null
   const ok = await enviarEmail({
     email: destino.email,
     nome: destino.nome,
     assunto: `[Teste] ${assuntoAvisoAptos(dados)}`,
-    html: montarEmailAvisoAptos(dados, { ...destino, porta: "email" }),
+    html: montarEmailAvisoAptos(dados, { ...destino, porta: "email", linkPessoal }),
   })
   return ok ? {} : { erro: "O provedor de e-mail não aceitou o envio (ou o envio não está configurado)." }
 }
@@ -240,18 +250,40 @@ export async function enviarLoteAviso(
     }
   }
 
+  // Link pessoal: abre a cédula direto, sem depender do código por e-mail.
+  const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
+  const origem = await origemAtual()
+  const linkPessoal = (aptoId: string): string | null => {
+    if (!dados.assembleiaOnlineId) return null
+    const t = encodeURIComponent(gerarTokenAcesso(aptoId, dados.assembleiaOnlineId))
+    return `${origem}/votar/${dados.assembleiaOnlineId}/entrar?t=${t}`
+  }
+
   // Destino de cada apto.
   const planos = aptos.map((a) => {
     const corporativo = a.email_corporativo?.trim().toLowerCase() ?? ""
     if (EMAIL_VALIDO.test(corporativo)) {
-      return { apto: a, destino: { nome: a.nome_completo, email: corporativo, porta: "email" } as DestinatarioAviso }
+      return {
+        apto: a,
+        destino: {
+          nome: a.nome_completo,
+          email: corporativo,
+          porta: "email",
+          linkPessoal: linkPessoal(a.id),
+        } as DestinatarioAviso,
+      }
     }
     const cpf = cpfConfiavel(a.cpf)
     const doFiliado = cpf ? emailPorCpf.get(cpf) : undefined
     return {
       apto: a,
       destino: doFiliado
-        ? ({ nome: a.nome_completo, email: doFiliado, porta: "cpf" } as DestinatarioAviso)
+        ? ({
+            nome: a.nome_completo,
+            email: doFiliado,
+            porta: "cpf",
+            linkPessoal: linkPessoal(a.id),
+          } as DestinatarioAviso)
         : null,
     }
   })
@@ -338,7 +370,7 @@ export async function enviarLoteAviso(
 /** Devolve à fila os aptos cujo envio falhou (ou todos, para reenviar). */
 export async function reabrirAvisos(
   rodadaId: string,
-  quais: "falhas" | "todos"
+  quais: "falhas" | "todos" | "nao_votaram"
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   let q = admin
@@ -346,7 +378,12 @@ export async function reabrirAvisos(
     .update({ aviso_email_em: null, aviso_email_para: null, aviso_email_erro: null })
     .eq("rod_assembleia_id", rodadaId)
     .eq("emp_proprietaria_id", await tenantAtual())
-  q = quais === "falhas" ? q.eq("aviso_email_erro", "falha") : q.not("aviso_email_em", "is", null)
+  q =
+    quais === "falhas"
+      ? q.eq("aviso_email_erro", "falha")
+      : quais === "nao_votaram"
+        ? q.not("aviso_email_em", "is", null).is("hora_voto", null)
+        : q.not("aviso_email_em", "is", null)
   const { error } = await q
   return error ? { erro: `Não foi possível reabrir: ${error.message}` } : {}
 }

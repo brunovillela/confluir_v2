@@ -205,6 +205,21 @@ export async function votarPublico(
     }
   }
 
+  // Quem entrou pelo LINK PESSOAL: identidade no cookie assinado (apto).
+  const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
+  const porLink = await eleitorPorLink(assembleiaId)
+  if (porLink) {
+    if (!porLink.cpf && porLink.email) {
+      const { precisaInformarDados } = await import("@/lib/db/votacao-primeiro-acesso")
+      if (await precisaInformarDados(porLink.email, assembleiaId)) {
+        return { erro: "Informe CPF, nome e data de nascimento antes de votar." }
+      }
+    }
+    const { registrarVotoPorLink } = await import("@/lib/db/votacao-portal")
+    const rl = await registrarVotoPorLink(porLink.aptoId, assembleiaId, escolhas)
+    return rl.erro ? { erro: rl.erro } : { ok: "Voto registrado. Obrigado por participar." }
+  }
+
   const cpf = user?.user_metadata?.cpf
   let r: { erro?: string; ok?: boolean }
   if (typeof cpf === "string" && cpf.length === 11) {
@@ -256,10 +271,13 @@ export async function informarDadosEleitor(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user?.email) return falha("Sessão expirada. Identifique-se novamente.")
+  const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
+  const porLink = await eleitorPorLink(assembleiaId)
+  const email = user?.email ?? porLink?.email ?? null
+  if (!email) return falha("Sessão expirada. Identifique-se novamente.")
 
   const { registrarDadosEleitor } = await import("@/lib/db/votacao-primeiro-acesso")
-  const { erro } = await registrarDadosEleitor({ email: user.email, assembleiaId, ...valores })
+  const { erro } = await registrarDadosEleitor({ email, assembleiaId, ...valores })
   if (erro) return falha(erro)
   redirect(`/votar/${assembleiaId}`)
 }

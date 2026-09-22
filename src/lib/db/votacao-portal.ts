@@ -1392,3 +1392,57 @@ export async function existeAptoPorEmail(
     .maybeSingle()
   return Boolean(data)
 }
+
+// ── Voto pelo LINK PESSOAL do e-mail (sem código) ──────────────────────────
+
+/** O apto do link, conferindo que ele pertence mesmo a esta assembleia. */
+async function aptoNoEscopo(
+  aptoId: string,
+  assembleiaId: string
+): Promise<{ id: string; cpf: string | null; email: string | null; nome: string | null } | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_assembleias_aptos")
+    .select("id, cpf, email_corporativo, nome_completo")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", aptoId)
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: String(data.id),
+    cpf: txt(data.cpf),
+    email: txt(data.email_corporativo),
+    nome: txt(data.nome_completo),
+  }
+}
+
+/** Elegibilidade de quem entrou pelo link pessoal. */
+export async function elegibilidadePorLink(
+  aptoId: string,
+  assembleiaId: string
+): Promise<AssembleiaDoFiliado | null> {
+  const apto = await aptoNoEscopo(aptoId, assembleiaId)
+  if (!apto) return null
+  if (apto.email) return elegibilidadeEleitorEmail(apto.email, assembleiaId)
+  if (apto.cpf) return elegibilidadeParaVotar(apto.cpf, assembleiaId)
+  return null
+}
+
+/**
+ * Registra o voto de quem entrou pelo link. A identidade vem do COOKIE
+ * assinado (apto), nunca de campo do formulário; daí em diante vale o mesmo
+ * caminho de sempre — o voto continua secreto e a trava de voto único é a do
+ * apto.
+ */
+export async function registrarVotoPorLink(
+  aptoId: string,
+  assembleiaId: string,
+  escolhas: { perguntaId: string; opcaoId: string }[]
+): Promise<{ erro?: string; ok?: boolean }> {
+  const apto = await aptoNoEscopo(aptoId, assembleiaId)
+  if (!apto) return { erro: "Este link não vale para esta assembleia." }
+  if (apto.email) return registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas)
+  if (apto.cpf) return registrarVotoFiliado(apto.cpf, assembleiaId, escolhas)
+  return { erro: "Cadastro de eleitor sem e-mail nem CPF — procure o sindicato." }
+}

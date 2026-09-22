@@ -201,6 +201,22 @@ export function AvisoAptos({
               Tentar de novo as falhas
             </Button>
           )}
+          {resumo.enviados > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={travado}
+              onClick={() =>
+                executar(
+                  () => reabrirAvisosAptos(rodadaId, "nao_votaram"),
+                  "Reenviar o aviso a quem ainda não votou? Quem já votou não recebe de novo."
+                )
+              }
+            >
+              <RotateCcw />
+              Reenviar a quem não votou
+            </Button>
+          )}
           {resumo.enviados + resumo.semEmail + resumo.duplicados > 0 && (
             <Button
               variant="ghost"

@@ -15,12 +15,14 @@ import { encerrarVisualizacaoEleitor } from "@/lib/actions/visualizacao-eleitor"
 import {
   elegibilidadeEleitorEmail,
   elegibilidadeParaVotar,
+  elegibilidadePorLink,
   perguntasDaAssembleia,
   type AssembleiaDoFiliado,
 } from "@/lib/db/votacao-portal"
 import { precisaInformarDados } from "@/lib/db/votacao-primeiro-acesso"
 import { formatarDataHora } from "@/lib/formato"
 import { createClient } from "@/lib/supabase/server"
+import { eleitorPorLink } from "@/lib/acesso-eleitor"
 import { getVisualizacaoEleitor } from "@/lib/visualizacao-eleitor"
 
 import { CedulaForm } from "@/app/portal/votacao/[id]/cedula-form"
@@ -33,10 +35,13 @@ export const metadata: Metadata = { title: "Votação — Confluir" }
 
 export default async function VotarPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ erro?: string }>
 }) {
   const { id } = await params
+  const linkRecusado = (await searchParams).erro === "link"
 
   // Gestão vendo a área de um apto (somente leitura): mesma tela, identidade
   // do apto para EXIBIR, sessão real da gestão para qualquer gravação.
@@ -82,6 +87,21 @@ export default async function VotarPage({
     )
   }
 
+  // Eleitor que entrou pelo LINK PESSOAL do e-mail (sem código): a identidade
+  // está no cookie assinado, conferido a cada request.
+  const porLink = await eleitorPorLink(id)
+  if (porLink) {
+    const eleg = await elegibilidadePorLink(porLink.aptoId, id)
+    const precisaDados =
+      !porLink.cpf && porLink.email ? await precisaInformarDados(porLink.email, id) : false
+    const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
+    return (
+      <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+        <Cedula id={id} eleg={eleg} perguntas={perguntas} precisaDados={precisaDados} />
+      </AuthShell>
+    )
+  }
+
   // Sessão do eleitor (criada pelo OTP) — a identidade é o CPF do metadata.
   const supabase = await createClient()
   const {
@@ -97,6 +117,14 @@ export default async function VotarPage({
   if (!user) {
     return (
       <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+        {linkRecusado && (
+          <Alert variant="warning" className="mb-4">
+            <AlertDescription>
+              Este link de votação não é mais válido. Identifique-se abaixo para receber um
+              código, ou peça um novo link ao sindicato.
+            </AlertDescription>
+          </Alert>
+        )}
         <VotarForm assembleiaId={id} />
       </AuthShell>
     )
