@@ -516,3 +516,44 @@ export async function salvarEleitor(
   revalidarRodada(rodadaId)
   return { ok: "Eleitor atualizado." }
 }
+
+// ── Aviso por e-mail aos aptos ─────────────────────────────────────────────
+
+export async function enviarLoteAvisoAptos(
+  rodadaId: string
+): Promise<{ resultado?: import("@/lib/db/votacao-aviso").ResultadoLoteAviso; erro?: string }> {
+  await requirePermissao("assembleias")
+  const { enviarLoteAviso } = await import("@/lib/db/votacao-aviso")
+  const r = await enviarLoteAviso(rodadaId)
+  if (r.resultado && r.resultado.restantes === 0) revalidarRodada(rodadaId)
+  return r
+}
+
+export async function enviarAvisoAptosTeste(rodadaId: string): Promise<EstadoForm> {
+  const sessao = await requirePermissao("assembleias")
+  const email = sessao.user.email
+  if (!email) return { erro: "A sua conta não tem e-mail." }
+  const { enviarAvisoTeste } = await import("@/lib/db/votacao-aviso")
+  const { erro } = await enviarAvisoTeste(rodadaId, {
+    email,
+    nome: sessao.usuario.nome_completo ?? null,
+  })
+  return erro ? { erro } : { ok: `E-mail de teste enviado para ${email}.` }
+}
+
+export async function reabrirAvisosAptos(
+  rodadaId: string,
+  quais: "falhas" | "todos"
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { reabrirAvisos } = await import("@/lib/db/votacao-aviso")
+  const { erro } = await reabrirAvisos(rodadaId, quais)
+  if (erro) return { erro }
+  revalidarRodada(rodadaId)
+  return {
+    ok:
+      quais === "falhas"
+        ? "As falhas voltaram para a fila de envio."
+        : "Todos os aptos voltaram para a fila — o próximo envio avisa a lista inteira de novo.",
+  }
+}

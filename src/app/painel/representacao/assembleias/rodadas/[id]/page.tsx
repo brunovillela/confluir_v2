@@ -33,6 +33,7 @@ import {
   obterRodada,
   urlArquivoAssembleias,
 } from "@/lib/db/assembleias"
+import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 
@@ -43,6 +44,7 @@ import {
   RemoverAptoBotao,
 } from "./aptos"
 import { AssembleiasDaRodada } from "./assembleias-rodada"
+import { AvisoAptos } from "./aviso-aptos"
 import { Perguntas } from "./perguntas"
 import { RodadaForm } from "./rodada-form"
 
@@ -80,7 +82,7 @@ export default async function RodadaPage({
   const rodada = await obterRodada(id)
   if (!rodada) notFound()
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -88,6 +90,7 @@ export default async function RodadaPage({
       contarAptosPorVoto(id),
       urlArquivoAssembleias(rodada.edital_url),
       urlArquivoAssembleias(rodada.card_grafico_url),
+      resumoAvisoAptos(id),
     ])
 
   // Travas de edição (regras de 2026-07-20) — o servidor revalida nas actions.
@@ -184,6 +187,18 @@ export default async function RodadaPage({
         esquemaPronto={assembleias.esquemaPronto}
         editavel={motivoAssembleias === null}
         motivoBloqueio={motivoAssembleias}
+      />
+
+      <AvisoAptos
+        rodadaId={rodada.id}
+        resumo={aviso}
+        bloqueio={
+          periodoTerminado(rodada.termino)
+            ? "O período desta rodada já terminou."
+            : assembleias.linhas.length === 0
+              ? "Cadastre ao menos uma assembleia antes de avisar os aptos — o e-mail diz onde e como votar."
+              : null
+        }
       />
 
       <Card>

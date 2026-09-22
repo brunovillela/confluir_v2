@@ -72,6 +72,10 @@ export async function enviarEmail(destino: {
           : {}),
         subject: assunto,
         htmlContent,
+        // Testes: o Brevo aceita e descarta, sem entregar (EMAIL_SANDBOX=1).
+        ...(process.env.EMAIL_SANDBOX === "1"
+          ? { headers: { "X-Sib-Sandbox": "drop" } }
+          : {}),
       }),
     })
     return resposta.ok
