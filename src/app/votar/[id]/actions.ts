@@ -20,6 +20,16 @@ import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
 
 /**
+ * Nos testes automatizados (EMAIL_SANDBOX=1, fora de produção) o código NÃO é
+ * pedido ao Supabase: ele sairia de verdade pelo SMTP, e endereço de domínio
+ * fictício vira recusa no mesmo canal que manda os códigos dos eleitores. O
+ * teste pega o código por admin.generateLink, que não envia nada.
+ */
+function semEnvioDeCodigo(): boolean {
+  return process.env.EMAIL_SANDBOX === "1" && process.env.NODE_ENV !== "production"
+}
+
+/**
  * Porta 3 — eleitores: CPF + token temporário por email.
  *
  * O template de email "Magic Link" no Supabase precisa exibir {{ .Token }}
@@ -75,13 +85,15 @@ export async function solicitarTokenEleitor(
 
   // Cria a conta na hora se não existir, com o CPF como identidade.
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
-    email: filiado.email,
-    options: {
-      shouldCreateUser: true,
-      data: { tipo: "filiado", cpf },
-    },
-  })
+  const { error } = semEnvioDeCodigo()
+    ? { error: null }
+    : await supabase.auth.signInWithOtp({
+        email: filiado.email,
+        options: {
+          shouldCreateUser: true,
+          data: { tipo: "filiado", cpf },
+        },
+      })
   if (error) {
     return { erro: "Não foi possível enviar o código. Tente novamente." }
   }
@@ -149,10 +161,12 @@ export async function solicitarTokenEmail(
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true, data: { tipo: "eleitor" } },
-  })
+  const { error } = semEnvioDeCodigo()
+    ? { error: null }
+    : await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true, data: { tipo: "eleitor" } },
+      })
   if (error) return { erro: "Não foi possível enviar o código. Tente de novo." }
 
   return {

@@ -40,7 +40,8 @@ if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destino)) {
 }
 
 // Guarda contra endereço de exemplo: recusa suja a reputação de envio.
-const INVENTADOS = /^(alguem|alguém|fulano|ciclano|beltrano|teste|test|exemplo|example|alguem\d*)@/
+const INVENTADOS =
+  /^(alguem|alguém|fulano|ciclano|beltrano|teste|test|exemplo|example|seu|sua|meu|minha|nome|usuario|user|email|e-mail|voce|você)([._-]?(email|mail|nome|conta|endereco))?\d*@/
 if (INVENTADOS.test(destino) || /@(example|exemplo)\./.test(destino)) {
   console.error(
     `"${destino}" parece um endereço de exemplo. Use uma caixa sua de verdade:\n` +
@@ -52,6 +53,47 @@ if (INVENTADOS.test(destino) || /@(example|exemplo)\./.test(destino)) {
 }
 
 const agora = () => new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+
+/**
+ * Já bateu na porta e voltou recusado? Então não insista. Vale para recusa
+ * definitiva (hardBounces), temporária (softBounces — inclui "domínio não
+ * existe") e bloqueio do provedor.
+ */
+async function jaRecusado(email) {
+  for (const tipo of ["hardBounces", "softBounces", "blocked", "invalid"]) {
+    const r = await fetch(
+      `https://api.brevo.com/v3/smtp/statistics/events?limit=5&days=30&event=${tipo}&email=${encodeURIComponent(email)}`,
+      { headers: { "api-key": env.BREVO_API_KEY, accept: "application/json" } }
+    )
+    if (!r.ok) continue
+    const e = ((await r.json()).events ?? [])[0]
+    if (e) return { ...e, tipo }
+  }
+  return null
+}
+
+/** O sistema conhece este endereço? (filiado, usuário, apto ou conta) */
+async function conhecido(email) {
+  const { createClient } = require("@supabase/supabase-js")
+  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
+  const tem = async (tabela, colunas) => {
+    for (const c of colunas) {
+      const { count } = await db
+        .from(tabela)
+        .select("id", { count: "exact", head: true })
+        .ilike(c, email)
+      if ((count ?? 0) > 0) return true
+    }
+    return false
+  }
+  if (await tem("filiacoes", ["email_pessoal", "email_corporativo"])) return true
+  if (await tem("usuarios", ["email"])) return true
+  if (await tem("voto_assembleias_aptos", ["email_corporativo"])) return true
+  const { data } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  return (data?.users ?? []).some((u) => (u.email ?? "").toLowerCase() === email)
+}
 
 /** Eventos recentes daquele destinatário no provedor (Brevo). */
 async function eventosBrevo(email) {
@@ -95,6 +137,25 @@ if (soConferir) {
 }
 
 if (!soConferir) {
+// ── Antes de enviar: o endereço é real? ────────────────────────────────────
+const recusaAnterior = await jaRecusado(destino)
+if (recusaAnterior) {
+  console.error(
+    `Este endereço já voltou como INEXISTENTE em ${recusaAnterior.date?.slice(0, 16)}:\n` +
+      `  ${String(recusaAnterior.reason ?? "").slice(0, 120)}\n` +
+      "Insistir só piora a reputação de envio. Confira o endereço."
+  )
+  process.exit(1)
+}
+if (!process.argv.includes("--confirmo") && !(await conhecido(destino))) {
+  console.error(
+    `O sistema não conhece "${destino}" (não é de filiado, usuário, apto nem conta).\n` +
+      "Se for a sua caixa mesmo, repita o comando com --confirmo.\n" +
+      "Endereço digitado errado vira recusa, e recusa derruba a entrega de todo mundo."
+  )
+  process.exit(1)
+}
+
 // ── Canal do app ───────────────────────────────────────────────────────────
 const assunto = `Teste de entrega do Confluir (${agora()})`
 const html = `<p>Teste de entrega do Confluir.</p><p>Canal do aplicativo · ${
@@ -151,7 +212,20 @@ if (comAuth) {
     email: destino,
     options: { shouldCreateUser: true, data: { tipo: "teste_entrega" } },
   })
-  console.log("   ", error ? `erro: ${error.message}` : "código pedido ao Supabase")
+  if (error) {
+    const detalhe = [error.message, error.code, error.status]
+      .filter((v) => v !== undefined && v !== null && v !== "")
+      .join(" · ")
+    console.log("   ", `recusado pelo Supabase: ${detalhe || JSON.stringify(error)}`)
+    if (/rate|limit|segur/i.test(String(error.message ?? error.code ?? ""))) {
+      console.log(
+        "    → é o limite de envio do Auth (Authentication → Rate Limits). Suba o",
+        "'Rate limit for sending emails' antes de uma votação."
+      )
+    }
+  } else {
+    console.log("   ", "código pedido ao Supabase")
+  }
   if (!jaExiste && !error) {
     const { data: depois } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
     contaCriada = (depois?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === destino)
