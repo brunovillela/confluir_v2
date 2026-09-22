@@ -19,7 +19,7 @@ import {
   perguntasDaAssembleia,
   type AssembleiaDoFiliado,
 } from "@/lib/db/votacao-portal"
-import { precisaInformarDados } from "@/lib/db/votacao-primeiro-acesso"
+import { precisaConfirmarCpf, precisaInformarDados } from "@/lib/db/votacao-primeiro-acesso"
 import { formatarDataHora } from "@/lib/formato"
 import { createClient } from "@/lib/supabase/server"
 import { eleitorPorLink } from "@/lib/acesso-eleitor"
@@ -28,6 +28,7 @@ import { getVisualizacaoEleitor } from "@/lib/visualizacao-eleitor"
 import { CedulaForm } from "@/app/portal/votacao/[id]/cedula-form"
 
 import { votarPublico } from "./actions"
+import { ConfirmarCpfForm } from "./confirmar-cpf-form"
 import { DadosEleitorForm } from "./dados-eleitor-form"
 import { VotarForm } from "./votar-form"
 
@@ -38,10 +39,12 @@ export default async function VotarPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ erro?: string }>
+  searchParams: Promise<{ erro?: string; aviso?: string }>
 }) {
   const { id } = await params
-  const linkRecusado = (await searchParams).erro === "link"
+  const busca = await searchParams
+  const linkRecusado = busca.erro === "link"
+  const avisouNaoSouEu = busca.aviso === "nao-sou-eu"
 
   // Gestão vendo a área de um apto (somente leitura): mesma tela, identidade
   // do apto para EXIBIR, sessão real da gestão para qualquer gravação.
@@ -54,6 +57,9 @@ export default async function VotarPage({
       !visualizado.cpf && visualizado.email
         ? await precisaInformarDados(visualizado.email, id)
         : false
+    const precisaCpf = visualizado.email
+      ? await precisaConfirmarCpf(visualizado.email, id)
+      : false
     const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
     return (
       <>
@@ -80,6 +86,7 @@ export default async function VotarPage({
             eleg={eleg}
             perguntas={perguntas}
             precisaDados={precisaDados}
+            precisaCpf={precisaCpf}
             preview
           />
         </AuthShell>
@@ -94,10 +101,17 @@ export default async function VotarPage({
     const eleg = await elegibilidadePorLink(porLink.aptoId, id)
     const precisaDados =
       !porLink.cpf && porLink.email ? await precisaInformarDados(porLink.email, id) : false
+    const precisaCpf = porLink.email ? await precisaConfirmarCpf(porLink.email, id) : false
     const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
     return (
       <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
-        <Cedula id={id} eleg={eleg} perguntas={perguntas} precisaDados={precisaDados} />
+        <Cedula
+          id={id}
+          eleg={eleg}
+          perguntas={perguntas}
+          precisaDados={precisaDados}
+          precisaCpf={precisaCpf}
+        />
       </AuthShell>
     )
   }
@@ -117,6 +131,14 @@ export default async function VotarPage({
   if (!user) {
     return (
       <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+        {avisouNaoSouEu && (
+          <Alert variant="success" className="mb-4">
+            <AlertDescription>
+              Obrigado. Avisamos o sindicato de que este e-mail não é seu, e o link foi
+              desativado.
+            </AlertDescription>
+          </Alert>
+        )}
         {linkRecusado && (
           <Alert variant="warning" className="mb-4">
             <AlertDescription>
@@ -138,11 +160,18 @@ export default async function VotarPage({
       : null
   // Quem entrou pelo e-mail informa CPF, nome e nascimento no primeiro acesso.
   const precisaDados = !cpf && user.email ? await precisaInformarDados(user.email, id) : false
+  const precisaCpf = !cpf && user.email ? await precisaConfirmarCpf(user.email, id) : false
   const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
 
   return (
     <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
-      <Cedula id={id} eleg={eleg} perguntas={perguntas} precisaDados={precisaDados} />
+      <Cedula
+        id={id}
+        eleg={eleg}
+        perguntas={perguntas}
+        precisaDados={precisaDados}
+        precisaCpf={precisaCpf}
+      />
     </AuthShell>
   )
 }
@@ -153,12 +182,14 @@ function Cedula({
   eleg,
   perguntas,
   precisaDados,
+  precisaCpf = false,
   preview = false,
 }: {
   id: string
   eleg: AssembleiaDoFiliado | null
   perguntas: Awaited<ReturnType<typeof perguntasDaAssembleia>>
   precisaDados: boolean
+  precisaCpf?: boolean
   preview?: boolean
 }) {
   return (
@@ -201,6 +232,8 @@ function Cedula({
           </Alert>
         ) : precisaDados ? (
           <DadosEleitorForm assembleiaId={id} preview={preview} />
+        ) : precisaCpf ? (
+          <ConfirmarCpfForm assembleiaId={id} preview={preview} />
         ) : perguntas.length === 0 ? (
           <Alert variant="warning">
             <AlertDescription>

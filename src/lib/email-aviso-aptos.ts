@@ -52,6 +52,8 @@ export type DestinatarioAviso = {
    * não chega em parte das caixas). Quando existe, é ele o botão.
    */
   linkPessoal?: string | null
+  /** Endereço do "Não sou eu" — desativa o link e avisa o sindicato. */
+  linkNaoSouEu?: string | null
 }
 
 const ESTILO_LISTA = `margin:0 0 20px;padding-left:22px;`
@@ -133,7 +135,12 @@ export function montarEmailAvisoAptos(
     )
     partes.push(
       caixaAviso(
-        "<strong>Não repasse este e-mail.</strong> O link acima é pessoal: quem o abrir vota no seu lugar."
+        `<strong>Não repasse este e-mail.</strong> O link acima é pessoal e vota em nome de <strong>${escaparHtml(
+          destino.nome ?? "você"
+        )}</strong>: quem o abrir vota no seu lugar.` +
+          (destino.linkNaoSouEu
+            ? ` Este e-mail não é seu? <a href="${destino.linkNaoSouEu}" style="color:${COR.laranjaAcao};font-weight:600;">Clique aqui em “Não sou eu”</a> — o link é desativado na hora e o sindicato confere o cadastro.`
+            : "")
       )
     )
     if (dados.temPresencial) {

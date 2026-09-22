@@ -33,6 +33,7 @@ type AptoLinha = {
   hora_voto: string | null
   presenca_em: string | null
   rod_assembleia_id: string | null
+  dados_informados_em?: string | null
 }
 
 /** Os aptos desta assembleia com aquele e-mail corporativo. */
@@ -40,11 +41,88 @@ async function aptosDoEmail(email: string, assembleiaId: string): Promise<AptoLi
   const admin = await createAdminClient()
   const { data } = await admin
     .from("voto_assembleias_aptos")
-    .select("id, cpf, nome_completo, hora_voto, presenca_em, rod_assembleia_id")
+    .select(
+      "id, cpf, nome_completo, hora_voto, presenca_em, rod_assembleia_id, dados_informados_em"
+    )
     .eq("emp_proprietaria_id", await tenantAtual())
     .or(filtroAptos(await escopoAptos(assembleiaId)))
     .eq("email_corporativo", email.trim().toLowerCase())
   return (data ?? []) as AptoLinha[]
+}
+
+/**
+ * Quando a LISTA já traz o CPF, não há primeiro acesso — e aí ninguém confere
+ * quem está do outro lado. Então, antes da cédula, a pessoa digita o próprio
+ * CPF e ele tem de ser o do cadastro. É a trava de quem recebeu o link por um
+ * e-mail cadastrado errado.
+ */
+export async function precisaConfirmarCpf(
+  email: string,
+  assembleiaId: string
+): Promise<boolean> {
+  const aptos = await aptosDoEmail(email, assembleiaId)
+  if (aptos.length === 0) return false
+  if (!aptos.some((a) => a.cpf)) return false
+  // Sem a coluna (SQL do primeiro acesso não rodado), não trava nada.
+  if (aptos.every((a) => a.dados_informados_em === undefined)) return false
+  return aptos.every((a) => !a.dados_informados_em)
+}
+
+/** Confere o CPF digitado contra o da lista e libera a cédula. */
+export async function confirmarCpfEleitor(dados: {
+  email: string
+  assembleiaId: string
+  cpf: string
+}): Promise<{ erro?: string }> {
+  const cpf = limparCpf(dados.cpf)
+  if (!validarCpf(cpf)) return { erro: "CPF inválido — confira os números." }
+  const aptos = await aptosDoEmail(dados.email, dados.assembleiaId)
+  if (aptos.length === 0) return { erro: "Este e-mail não está na lista de aptos desta votação." }
+  const doCadastro = aptos.map((a) => limparCpf(a.cpf ?? "")).filter(Boolean)
+  const admin = await createAdminClient()
+  const ids = aptos.map((a) => a.id)
+  if (!doCadastro.includes(cpf)) {
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({
+        cpf_conflito: cpf,
+        conflito_motivo: "CPF digitado na confirmação não confere com o da lista de aptos.",
+        conflito_em: new Date().toISOString(),
+      })
+      .in("id", ids)
+    return {
+      erro: "O CPF informado não confere com o cadastro desta lista. Se este e-mail não é seu, avise o sindicato — pode ser um endereço cadastrado errado.",
+    }
+  }
+  const agora = new Date().toISOString()
+  await admin
+    .from("voto_assembleias_aptos")
+    .update({
+      dados_informados_em: agora,
+      cpf_conflito: null,
+      conflito_motivo: null,
+      conflito_em: null,
+      updated_at: agora,
+    })
+    .in("id", ids)
+  return {}
+}
+
+/**
+ * "Não sou eu": quem recebeu o aviso num e-mail que não é dele avisa o
+ * sindicato. O apto fica marcado para a secretaria e o link para de abrir a
+ * cédula.
+ */
+export const MARCA_NAO_RECONHECE = "O destinatário informou que este e-mail não é dele."
+
+export async function marcarEmailNaoReconhecido(aptoId: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_assembleias_aptos")
+    .update({ conflito_motivo: MARCA_NAO_RECONHECE, conflito_em: new Date().toISOString() })
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  return error ? { erro: "Não foi possível registrar o aviso." } : {}
 }
 
 /** O eleitor do e-mail ainda precisa informar os dados? (nenhum apto com CPF) */
@@ -64,6 +142,16 @@ export function nomesConferem(a: string | null, b: string | null): boolean {
   const pb = partes(b)
   if (pa.length < 2 || pb.length < 2) return false
   return pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]
+}
+
+/** Dá para comparar? (nome com pelo menos dois pedaços úteis) */
+function temSobrenome(nome: string | null): boolean {
+  return (
+    semAcento(nome ?? "")
+      .replace(/[^a-z ]/g, " ")
+      .split(/\s+/)
+      .filter((p) => p.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(p)).length >= 2
+  )
 }
 
 function nascimentoValido(v: string): boolean {
@@ -102,6 +190,19 @@ export async function registrarDadosEleitor(dados: {
       .from("voto_assembleias_aptos")
       .update({ cpf_conflito: cpf, conflito_motivo: motivo, conflito_em: new Date().toISOString() })
       .in("id", meusIds)
+  }
+
+  // 1b. O nome declarado tem de bater com o NOME DA LISTA de aptos. É o que
+  //     protege quem teve o e-mail digitado errado: se o link cair na caixa de
+  //     outra pessoa, ela não consegue votar no lugar do titular.
+  const nomeDaLista = meus.map((a) => a.nome_completo).find(Boolean) ?? null
+  if (nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
+    await marcarConflito(
+      `Nome declarado ("${nome}") não confere com o nome da lista de aptos ("${nomeDaLista}").`
+    )
+    return {
+      erro: "O nome informado não confere com o cadastro desta lista de aptos. Se este e-mail não é seu, avise o sindicato — pode ser um endereço cadastrado errado.",
+    }
   }
 
   // 2. CPF de filiado: nome e nascimento têm de bater com o cadastro.

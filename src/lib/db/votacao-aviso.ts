@@ -253,10 +253,11 @@ export async function enviarLoteAviso(
   // Link pessoal: abre a cédula direto, sem depender do código por e-mail.
   const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
   const origem = await origemAtual()
-  const linkPessoal = (aptoId: string): string | null => {
-    if (!dados.assembleiaOnlineId) return null
+  const links = (aptoId: string): { pessoal: string | null; naoSouEu: string | null } => {
+    if (!dados.assembleiaOnlineId) return { pessoal: null, naoSouEu: null }
     const t = encodeURIComponent(gerarTokenAcesso(aptoId, dados.assembleiaOnlineId))
-    return `${origem}/votar/${dados.assembleiaOnlineId}/entrar?t=${t}`
+    const base = `${origem}/votar/${dados.assembleiaOnlineId}`
+    return { pessoal: `${base}/entrar?t=${t}`, naoSouEu: `${base}/nao-sou-eu?t=${t}` }
   }
 
   // Destino de cada apto.
@@ -269,7 +270,8 @@ export async function enviarLoteAviso(
           nome: a.nome_completo,
           email: corporativo,
           porta: "email",
-          linkPessoal: linkPessoal(a.id),
+          linkPessoal: links(a.id).pessoal,
+          linkNaoSouEu: links(a.id).naoSouEu,
         } as DestinatarioAviso,
       }
     }
@@ -282,7 +284,8 @@ export async function enviarLoteAviso(
             nome: a.nome_completo,
             email: doFiliado,
             porta: "cpf",
-            linkPessoal: linkPessoal(a.id),
+            linkPessoal: links(a.id).pessoal,
+            linkNaoSouEu: links(a.id).naoSouEu,
           } as DestinatarioAviso)
         : null,
     }

@@ -5,6 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { cache } from "react"
 import { cookies } from "next/headers"
 
+import { MARCA_NAO_RECONHECE } from "@/lib/db/votacao-primeiro-acesso"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -74,11 +75,13 @@ export async function aptoDoToken(
   const admin = await createAdminClient()
   const { data } = await admin
     .from("voto_assembleias_aptos")
-    .select("id, nome_completo, cpf, email_corporativo")
+    .select("id, nome_completo, cpf, email_corporativo, conflito_motivo")
     .eq("id", dados.a)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!data) return null
+  // Quem avisou "não sou eu" derruba o link: ele não abre mais a cédula.
+  if (data.conflito_motivo === MARCA_NAO_RECONHECE) return null
   return {
     id: String(data.id),
     nome: (data.nome_completo as string | null) ?? null,
@@ -131,11 +134,12 @@ export const eleitorPorLink = cache(
     const admin = await createAdminClient()
     const { data } = await admin
       .from("voto_assembleias_aptos")
-      .select("id, nome_completo, cpf, email_corporativo")
+      .select("id, nome_completo, cpf, email_corporativo, conflito_motivo")
       .eq("id", dados.a)
       .eq("emp_proprietaria_id", await tenantAtual())
       .maybeSingle()
     if (!data) return null
+    if (data.conflito_motivo === MARCA_NAO_RECONHECE) return null
     return {
       aptoId: String(data.id),
       assembleiaId,

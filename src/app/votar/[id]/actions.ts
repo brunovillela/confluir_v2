@@ -209,10 +209,15 @@ export async function votarPublico(
   const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
   const porLink = await eleitorPorLink(assembleiaId)
   if (porLink) {
-    if (!porLink.cpf && porLink.email) {
-      const { precisaInformarDados } = await import("@/lib/db/votacao-primeiro-acesso")
-      if (await precisaInformarDados(porLink.email, assembleiaId)) {
+    if (porLink.email) {
+      const { precisaConfirmarCpf, precisaInformarDados } = await import(
+        "@/lib/db/votacao-primeiro-acesso"
+      )
+      if (!porLink.cpf && (await precisaInformarDados(porLink.email, assembleiaId))) {
         return { erro: "Informe CPF, nome e data de nascimento antes de votar." }
+      }
+      if (await precisaConfirmarCpf(porLink.email, assembleiaId)) {
+        return { erro: "Confirme o seu CPF antes de votar." }
       }
     }
     const { registrarVotoPorLink } = await import("@/lib/db/votacao-portal")
@@ -227,9 +232,14 @@ export async function votarPublico(
   } else if (user?.email) {
     // Sem os dados do primeiro acesso não há voto: é o que impede a mesma
     // pessoa votar pelo e-mail e, de novo, pelo CPF.
-    const { precisaInformarDados } = await import("@/lib/db/votacao-primeiro-acesso")
+    const { precisaConfirmarCpf, precisaInformarDados } = await import(
+      "@/lib/db/votacao-primeiro-acesso"
+    )
     if (await precisaInformarDados(user.email, assembleiaId)) {
       return { erro: "Informe CPF, nome e data de nascimento antes de votar." }
+    }
+    if (await precisaConfirmarCpf(user.email, assembleiaId)) {
+      return { erro: "Confirme o seu CPF antes de votar." }
     }
     r = await registrarVotoEleitorEmail(user.email, assembleiaId, escolhas)
   } else {
@@ -278,6 +288,40 @@ export async function informarDadosEleitor(
 
   const { registrarDadosEleitor } = await import("@/lib/db/votacao-primeiro-acesso")
   const { erro } = await registrarDadosEleitor({ email, assembleiaId, ...valores })
+  if (erro) return falha(erro)
+  redirect(`/votar/${assembleiaId}`)
+}
+
+/**
+ * Confirmação do CPF quando a lista já tem o CPF do eleitor (não há primeiro
+ * acesso). O e-mail vem da SESSÃO — do OTP ou do link pessoal —, nunca do
+ * formulário.
+ */
+export async function confirmarCpfEleitor(
+  prev: EstadoDadosEleitor,
+  formData: FormData
+): Promise<EstadoDadosEleitor> {
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const cpf = String(formData.get("cpf") ?? "")
+  const falha = (erro: string): EstadoDadosEleitor => ({
+    erro,
+    valores: { cpf, nome: "", nascimento: "" },
+    tentativa: (prev.tentativa ?? 0) + 1,
+  })
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
+  const porLink = await eleitorPorLink(assembleiaId)
+  const email = user?.email ?? porLink?.email ?? null
+  if (!email) return falha("Sessão expirada. Identifique-se novamente.")
+
+  const { confirmarCpfEleitor: confirmar } = await import(
+    "@/lib/db/votacao-primeiro-acesso"
+  )
+  const { erro } = await confirmar({ email, assembleiaId, cpf })
   if (erro) return falha(erro)
   redirect(`/votar/${assembleiaId}`)
 }
