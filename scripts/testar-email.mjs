@@ -1,17 +1,19 @@
-// Testa a ENTREGA dos dois canais de e-mail do Confluir, um de cada vez.
+// Testa a ENTREGA dos dois canais de e-mail do Confluir e diz o que aconteceu.
 //
-//   node scripts/testar-email.mjs alguem@dominio.com            → só o canal do app
-//   node scripts/testar-email.mjs alguem@dominio.com --auth     → também o canal do Supabase Auth
+//   node scripts/testar-email.mjs voce@gmail.com               → canal do app
+//   node scripts/testar-email.mjs voce@hotmail.com --auth      → app + códigos (Supabase)
+//   node scripts/testar-email.mjs voce@hotmail.com --conferir  → só consulta, não envia
 //
-// Canal APP  = o que manda aviso de votação, comprovante, convite (API do
-//              provedor: Brevo hoje, Resend quando EMAIL_PROVEDOR=resend).
-// Canal AUTH = o que manda os CÓDIGOS de acesso (SMTP configurado no painel do
-//              Supabase). É o canal que a Microsoft engoliu em 22/09/2026 —
-//              por isso este teste existe: depois de trocar o SMTP, rode com
-//              --auth para um endereço @hotmail.com e para um @gmail.com.
+// Canal APP  = aviso de votação, comprovante, convites (API do provedor: Brevo
+//              hoje; Resend com EMAIL_PROVEDOR=resend).
+// Canal AUTH = os CÓDIGOS de acesso, pelo SMTP configurado no painel do
+//              Supabase. É o canal que a Microsoft engoliu em 22/09/2026, por
+//              isso o teste manda o MESMO e-mail que o eleitor recebe
+//              ("Confirme seu email"), criando e apagando uma conta descartável.
 //
-// O teste do canal AUTH usa "recuperação de senha": só sai e-mail se a conta
-// existir, e nada é alterado.
+// USE SÓ CAIXAS QUE VOCÊ CONTROLA. Endereço inventado (alguem@hotmail.com) é a
+// caixa de outra pessoa ou não existe: vira recusa, e recusa derruba a
+// reputação de envio — exatamente o problema que estamos consertando.
 
 import { readFileSync } from "node:fs"
 import { createRequire } from "node:module"
@@ -27,60 +29,168 @@ const env = Object.fromEntries(
     })
 )
 
-const destino = process.argv[2]
+const destino = (process.argv[2] ?? "").trim().toLowerCase()
 const comAuth = process.argv.includes("--auth")
-if (!destino || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destino)) {
-  console.error("Uso: node scripts/testar-email.mjs alguem@dominio.com [--auth]")
+const soConferir = process.argv.includes("--conferir")
+const usaResend = env.EMAIL_PROVEDOR === "resend"
+
+if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destino)) {
+  console.error("Uso: node scripts/testar-email.mjs voce@dominio.com [--auth] [--conferir]")
   process.exit(1)
 }
 
-const remetente = env.EMAIL_REMETENTE
-const usaResend = env.EMAIL_PROVEDOR === "resend"
-const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+// Guarda contra endereço de exemplo: recusa suja a reputação de envio.
+const INVENTADOS = /^(alguem|alguém|fulano|ciclano|beltrano|teste|test|exemplo|example|alguem\d*)@/
+if (INVENTADOS.test(destino) || /@(example|exemplo)\./.test(destino)) {
+  console.error(
+    `"${destino}" parece um endereço de exemplo. Use uma caixa sua de verdade:\n` +
+      "  · um endereço da Microsoft (hotmail/outlook/live) que você abra, e\n" +
+      "  · um do Gmail, para comparar.\n" +
+      "Mandar para endereço inventado gera recusa e piora a entrega de todo mundo."
+  )
+  process.exit(1)
+}
+
+const agora = () => new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+
+/** Eventos recentes daquele destinatário no provedor (Brevo). */
+async function eventosBrevo(email) {
+  const r = await fetch(
+    `https://api.brevo.com/v3/smtp/statistics/events?limit=30&days=1&email=${encodeURIComponent(email)}`,
+    { headers: { "api-key": env.BREVO_API_KEY, accept: "application/json" } }
+  )
+  if (!r.ok) return []
+  return (await r.json()).events ?? []
+}
+
+/** Estado de uma mensagem do Resend pelo id. */
+async function eventoResend(id) {
+  const r = await fetch(`https://api.resend.com/emails/${id}`, {
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+  })
+  if (!r.ok) return null
+  const j = await r.json()
+  return j.last_event ?? j.status ?? null
+}
+
+function mostrar(eventos) {
+  if (eventos.length === 0) {
+    console.log("   (nenhum evento ainda — o provedor pode levar alguns segundos)")
+    return
+  }
+  for (const e of eventos) {
+    console.log(
+      "   ",
+      (e.date ?? "").slice(11, 19),
+      String(e.event).padEnd(12),
+      (e.subject ?? "").slice(0, 44),
+      e.reason ? `· ${e.reason}` : ""
+    )
+  }
+}
+
+if (soConferir) {
+  console.log(`Eventos recentes de ${destino}:`)
+  mostrar(await eventosBrevo(destino))
+}
+
+if (!soConferir) {
+// ── Canal do app ───────────────────────────────────────────────────────────
+const assunto = `Teste de entrega do Confluir (${agora()})`
 const html = `<p>Teste de entrega do Confluir.</p><p>Canal do aplicativo · ${
   usaResend ? "Resend" : "Brevo"
-} · ${agora}</p><p>Se você recebeu isto, este canal está entregando neste provedor de e-mail.</p>`
+} · ${agora()}</p><p>Se você recebeu isto, este canal está entregando no seu provedor de e-mail.</p>`
 
-console.log(`Canal APP (${usaResend ? "Resend" : "Brevo"}) → ${destino}`)
+console.log(`1. Canal do APP (${usaResend ? "Resend" : "Brevo"}) → ${destino}`)
+let idResend = null
 if (usaResend) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: `Confluir <${remetente}>`,
+      from: `Confluir <${env.EMAIL_REMETENTE}>`,
       to: [destino],
-      subject: `Teste de entrega do Confluir (${agora})`,
+      subject: assunto,
       html,
     }),
   })
-  console.log("  ", r.status, (await r.text()).slice(0, 200))
+  const corpo = await r.json().catch(() => ({}))
+  idResend = corpo.id ?? null
+  console.log("   ", r.status, idResend ? `id ${idResend}` : JSON.stringify(corpo).slice(0, 160))
 } else {
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": env.BREVO_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
-      sender: { email: remetente, name: "Confluir" },
+      sender: { email: env.EMAIL_REMETENTE, name: "Confluir" },
       to: [{ email: destino }],
-      subject: `Teste de entrega do Confluir (${agora})`,
+      subject: assunto,
       htmlContent: html,
     }),
   })
-  console.log("  ", r.status, (await r.text()).slice(0, 200))
+  console.log("   ", r.status, (await r.text()).slice(0, 120))
 }
 
+// ── Canal dos códigos (SMTP do Supabase) ───────────────────────────────────
+let contaCriada = null
 if (comAuth) {
+  console.log(`2. Canal dos CÓDIGOS (SMTP do Supabase) → ${destino}`)
   const { createClient } = require("@supabase/supabase-js")
-  const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+  const publico = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
   })
-  console.log(`Canal AUTH (SMTP do Supabase) → ${destino}`)
-  const { error } = await supabase.auth.resetPasswordForEmail(destino)
-  console.log("  ", error ? `erro: ${error.message}` : "pedido aceito pelo Supabase")
-  console.log(
-    "   (só chega se existir conta com este e-mail; confira a caixa e o lixo eletrônico)"
-  )
+  const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
+  const { data: lista } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const jaExiste = (lista?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === destino)
+
+  // Manda o MESMO e-mail do eleitor ("Confirme seu email"). Se a conta não
+  // existia, ela é criada só para o teste e apagada no fim.
+  const { error } = await publico.auth.signInWithOtp({
+    email: destino,
+    options: { shouldCreateUser: true, data: { tipo: "teste_entrega" } },
+  })
+  console.log("   ", error ? `erro: ${error.message}` : "código pedido ao Supabase")
+  if (!jaExiste && !error) {
+    const { data: depois } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    contaCriada = (depois?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === destino)
+  }
+}
+
+// ── O que o provedor diz ───────────────────────────────────────────────────
+console.log("\nEsperando o provedor responder (até 60 s)…")
+for (let i = 0; i < 6; i++) {
+  await new Promise((r) => setTimeout(r, 10000))
+  if (usaResend && idResend) {
+    const estado = await eventoResend(idResend)
+    console.log(`   ${10 * (i + 1)}s · canal do app: ${estado ?? "sem resposta ainda"}`)
+    if (["delivered", "bounced", "complained"].includes(estado)) break
+  } else {
+    const eventos = await eventosBrevo(destino)
+    const houve = eventos.some((e) =>
+      ["delivered", "hardBounces", "softBounces", "blocked", "spam"].includes(e.event)
+    )
+    if (houve || i === 5) {
+      console.log(`   ${10 * (i + 1)}s:`)
+      mostrar(eventos)
+      if (houve) break
+    }
+  }
+}
+
+if (contaCriada) {
+  const { createClient } = require("@supabase/supabase-js")
+  const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
+  await admin.auth.admin.deleteUser(contaCriada.id)
+  console.log(`\nConta descartável do teste apagada (${destino}).`)
 }
 
 console.log(
-  "\nConfira a entrega no painel do provedor: Brevo → Transactional → Logs; Resend → Emails."
+  "\nLeitura: 'requests' é só o aceite do provedor — o que importa é 'delivered'.\n" +
+    "Sem nenhum evento depois de 'requests', a mensagem foi engolida pelo destino\n" +
+    "(foi o que aconteceu com hotmail/outlook no canal dos códigos em 22/09/2026)."
 )
+}

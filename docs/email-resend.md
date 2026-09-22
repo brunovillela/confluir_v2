@@ -85,14 +85,23 @@ primeiro acesso de um eleitor novo cai justamente no *Confirm signup*.
 ### 5. Testar a entrega
 
 ```bash
-node scripts/testar-email.mjs alguem@hotmail.com --auth
+node scripts/testar-email.mjs voce@hotmail.com --auth
 ```
 
-Rode para **um endereço da Microsoft e um do Gmail**. O script manda um e-mail
-pelo canal do app e dispara uma recuperação de senha pelo canal do Supabase (só
-chega se a conta existir; nada é alterado). Confira as duas caixas, inclusive o
-lixo eletrônico, e o painel do Resend em **Emails** — cada mensagem mostra
-`delivered`, `bounced` ou `complained`.
+Rode para **duas caixas suas**: uma da Microsoft (hotmail/outlook/live) e uma do
+Gmail. O script manda um e-mail pelo canal do app e, com `--auth`, pede ao
+Supabase o mesmo "Confirme seu email" que o eleitor recebe — criando e apagando
+uma conta descartável. Depois ele espera até 60 s e mostra o que o provedor
+respondeu.
+
+> **Só endereços que você controla.** Endereço inventado (`alguem@hotmail.com`)
+> é caixa de outra pessoa ou inexistente: vira recusa, e recusa derruba a
+> reputação de envio — o script recusa esses endereços.
+
+Leitura do resultado: `requests` é só o aceite do provedor; o que vale é
+`delivered`. Ficar só em `requests` é o sintoma do problema de 22/09 — a
+mensagem foi engolida pelo destino. Para consultar sem enviar nada:
+`node scripts/testar-email.mjs voce@hotmail.com --conferir`.
 
 Pronto quando: os dois provedores receberem o e-mail do canal AUTH.
 
