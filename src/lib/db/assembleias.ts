@@ -197,6 +197,8 @@ const POR_PAGINA = 25
 export async function listarCampanhas(filtros: {
   busca?: string
   situacao?: "abertas" | "finalizadas" | "todas"
+  /** Só campanhas com esta empresa entre as fontes pagadoras. */
+  empresaId?: string
   pagina?: number
 }): Promise<{
   linhas: CampanhaLinha[]
@@ -212,6 +214,22 @@ export async function listarCampanhas(filtros: {
     .select("id, tema, finalizado, created_at", { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
   if (filtros.busca) q = q.ilike("tema", `%${filtros.busca}%`)
+  if (filtros.empresaId) {
+    // O vínculo com a empresa vive em voto_campanha_fontes.
+    const { data: vinculos, error: erroVinculo } = await admin
+      .from("voto_campanha_fontes")
+      .select("campanha_id")
+      .eq("empresa_id", filtros.empresaId)
+    if (erroVinculo && !esquemaAusente(erroVinculo)) {
+      throw new Error(`Falha ao filtrar por empresa: ${erroVinculo.message}`)
+    }
+    const ids = [...new Set((vinculos ?? []).map((v) => String(v.campanha_id)))]
+    // Sem campanha alguma para a empresa: devolve vazio sem ir ao banco.
+    if (ids.length === 0) {
+      return { linhas: [], total: 0, pagina, totalPaginas: 1 }
+    }
+    q = q.in("id", ids)
+  }
   if (filtros.situacao === "abertas") q = q.not("finalizado", "is", true)
   if (filtros.situacao === "finalizadas") q = q.eq("finalizado", true)
 
@@ -1862,4 +1880,31 @@ export async function validarJanelaDaAssembleia(
 function formatarDataBR(iso: string): string {
   const [a, m, d] = iso.slice(0, 10).split("-")
   return d && m && a ? `${d}/${m}/${a}` : iso
+}
+
+/** Empresas que aparecem como fonte pagadora em alguma campanha (filtro). */
+export async function empresasDasCampanhas(): Promise<
+  { id: string; nome: string }[]
+> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("voto_campanha_fontes")
+    .select("empresa_id, empresa:empresa_id (nome_fantasia, nome_razao)")
+    .limit(2000)
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao listar as empresas das campanhas: ${error.message}`)
+  }
+  const porId = new Map<string, string>()
+  for (const v of data ?? []) {
+    const e = v.empresa as unknown as {
+      nome_fantasia: string | null
+      nome_razao: string | null
+    } | null
+    const nome = e?.nome_fantasia?.trim() || e?.nome_razao?.trim()
+    if (v.empresa_id && nome) porId.set(String(v.empresa_id), nome)
+  }
+  return [...porId.entries()]
+    .map(([id, nome]) => ({ id, nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }

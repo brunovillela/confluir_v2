@@ -230,10 +230,33 @@ export default async function PainelPage({
             </GrupoDoDia>
           )}
 
+          {resumo.aniversariantesFiliados.length > 0 && (
+            <GrupoDoDia
+              titulo="Filiados aniversariantes"
+              descricao="Base filiada que faz aniversário hoje"
+              icone={Cake}
+            >
+              <ul className="grid gap-2">
+                {resumo.aniversariantesFiliados.map((a) => (
+                  <li key={a.id} className="grid gap-0.5 text-sm">
+                    <span className="truncate font-medium">
+                      {a.nome ?? "(sem nome)"}
+                    </span>
+                    {a.lotacao && (
+                      <span className="text-muted-foreground truncate text-xs">
+                        {a.lotacao}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </GrupoDoDia>
+          )}
+
           {resumo.aniversariosEmprego.length > 0 && (
             <GrupoDoDia
-              titulo="Aniversário de emprego"
-              descricao="Tempo de casa completado hoje"
+              titulo="Aniversário de sindicato"
+              descricao="Funcionários que completam tempo de casa hoje"
               icone={Award}
             >
               <ul className="grid gap-2">
@@ -281,11 +304,19 @@ export default async function PainelPage({
                         {a.nome ?? "(sem nome)"}
                       </span>
                       <span className="text-muted-foreground block truncate text-xs">
-                        {a.motivo ?? "Ausência"}
+                        {[a.tipo, a.motivo && a.motivo !== a.tipo ? a.motivo : null]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {a.termino ? <>até {formatarData(a.termino)}</> : "hoje"}
+                    <span className="text-muted-foreground shrink-0 text-right text-xs">
+                      {a.retorno ? (
+                        <>volta em {formatarData(a.retorno)}</>
+                      ) : a.termino ? (
+                        <>até {formatarData(a.termino)}</>
+                      ) : (
+                        "sem retorno previsto"
+                      )}
                     </span>
                   </li>
                 ))}
@@ -312,6 +343,15 @@ export default async function PainelPage({
                       {(e.local || e.tipo) && (
                         <span className="text-muted-foreground block truncate text-xs">
                           {[e.local, e.tipo].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                      {e.empresas && e.empresas.length > 0 && (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {e.empresas.map((nome) => (
+                            <Badge key={nome} variant="outline" className="text-xs">
+                              {nome}
+                            </Badge>
+                          ))}
                         </span>
                       )}
                     </span>

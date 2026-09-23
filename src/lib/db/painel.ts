@@ -35,14 +35,26 @@ export type EventoDoDia = {
   termino: string | null
   dia_todo: boolean | null
   tipo: string | null
+  /** Assembleia: as empresas cuja base vota (fonte pagadora da campanha). */
+  empresas?: string[]
 }
 
 export type AusenciaDoDia = {
   id: string
   nome: string | null
+  /** Tipo derivado do vínculo do registro: atestado, férias ou ausência. */
+  tipo: string
   motivo: string | null
-  /** Último dia da ausência (retorno previsto no dia seguinte). */
+  /** Último dia da ausência. */
   termino: string | null
+  /** Primeiro dia de volta ao trabalho (dia seguinte ao término). */
+  retorno: string | null
+}
+
+export type AniversarianteFiliado = {
+  id: string
+  nome: string | null
+  lotacao: string | null
 }
 
 export type TarefaPendente = {
@@ -66,6 +78,7 @@ export type Noticia = {
 export type ResumoPainel = {
   hoje: string
   aniversariantes: AniversarianteEquipe[]
+  aniversariantesFiliados: AniversarianteFiliado[]
   aniversariosEmprego: AniversarioEmprego[]
   agenda: EventoDoDia[]
   ausencias: AusenciaDoDia[]
@@ -107,8 +120,14 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
   const inicioDia = `${hoje.iso}T00:00:00-03:00`
   const fimDia = `${hoje.iso}T23:59:59-03:00`
 
-  const [aniversariantesRes, vinculosRes, agendaRes, ausenciasRes, tarefasRes] =
-    await Promise.all([
+  const [
+    aniversariantesRes,
+    filiadosAniversarioRes,
+    vinculosRes,
+    agendaRes,
+    ausenciasRes,
+    tarefasRes,
+  ] = await Promise.all([
     admin
       .from("usuarios")
       .select("id, nome_completo, nome_guerra, vinculo_instituicao")
@@ -118,6 +137,17 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       .not("inativo", "is", true)
       .not("deletado", "is", true)
       .order("nome_completo", { ascending: true }),
+    // Filiados que fazem aniversário hoje (dia/mês já vêm prontos na tabela).
+    admin
+      .from("filiacoes")
+      .select("id, nome_completo, filiacao_lotacao")
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("nascimento_dia", hoje.dia)
+      .eq("nascimento_mes", hoje.mes)
+      .eq("filiacao_condicao", "Ativo")
+      .not("filiacao_excluida", "is", true)
+      .order("nome_completo", { ascending: true })
+      .limit(60),
     // ~50 vínculos — o filtro por dia/mês da admissão é feito em memória.
     admin
       .from("vinculos_trabalhistas")
@@ -128,7 +158,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       .not("trabalhador_id", "is", null),
     admin
       .from("agenda")
-      .select("id, atividade, local, inicio, termino, dia_todo, tipo")
+      .select("id, atividade, local, inicio, termino, dia_todo, tipo, assembleia_id")
       .eq("emp_proprietaria_id", await tenantAtual())
       .or(
         `and(inicio.gte.${inicioDia},inicio.lte.${fimDia}),and(inicio.lt.${inicioDia},termino.gte.${inicioDia})`
@@ -138,7 +168,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
     // Ausentes hoje (dado migrado tem linhas sem datas — exigem início)
     admin
       .from("pessoal_ausencias")
-      .select("id, motivo, inicio, termino, funcionario_id")
+      .select("id, motivo, inicio, termino, funcionario_id, atestado_id, ferias_id")
       .eq("emp_proprietaria_id", await tenantAtual())
       .or(
         `and(inicio.lte.${hoje.iso},termino.gte.${hoje.iso}),and(inicio.eq.${hoje.iso},termino.is.null)`
@@ -219,18 +249,47 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
     }
   }
 
+  // Assembleia na agenda: quais empresas têm base votando (é o que a equipe
+  // pergunta primeiro ao ver "Assembleia" no dia).
+  const empresasPorEvento = await empresasDasAssembleias(
+    (agendaRes.data ?? []).map((e) => ({
+      id: String(e.id),
+      assembleiaId: (e.assembleia_id as string | null) ?? null,
+    }))
+  )
+
   return {
     hoje: hoje.rotulo,
     aniversariantes,
+    aniversariantesFiliados: (filiadosAniversarioRes.data ?? []).map((f) => ({
+      id: String(f.id),
+      nome: (f.nome_completo as string | null) ?? null,
+      lotacao: (f.filiacao_lotacao as string | null) ?? null,
+    })),
     aniversariosEmprego,
-    agenda: (agendaRes.data ?? []) as EventoDoDia[],
+    agenda: (agendaRes.data ?? []).map((e) => ({
+      id: String(e.id),
+      atividade: (e.atividade as string | null) ?? null,
+      local: (e.local as string | null) ?? null,
+      inicio: (e.inicio as string | null) ?? null,
+      termino: (e.termino as string | null) ?? null,
+      dia_todo: (e.dia_todo as boolean | null) ?? null,
+      tipo: (e.tipo as string | null) ?? null,
+      empresas: empresasPorEvento.get(String(e.id)) ?? [],
+    })),
     ausencias: (ausenciasRes.data ?? []).map((a) => ({
       id: a.id,
       nome: a.funcionario_id
         ? (nomesUsuarios.get(a.funcionario_id) ?? null)
         : null,
+      tipo: a.atestado_id
+        ? "Afastamento médico"
+        : a.ferias_id
+          ? "Férias"
+          : (a.motivo?.trim() || "Ausência"),
       motivo: a.motivo,
       termino: a.termino,
+      retorno: diaSeguinte(a.termino as string | null),
     })),
     tarefas: (tarefasRes.data ?? []).map((t) => ({
       id: t.id,
@@ -394,4 +453,112 @@ export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
     cacheNoticias.set(tenant, { expira: Date.now() + 30 * 60_000, noticias })
   }
   return noticias.slice(0, limite)
+}
+
+/** '2026-09-25' → '2026-09-26' (primeiro dia de volta ao trabalho). */
+function diaSeguinte(iso: string | null): string | null {
+  const dia = (iso ?? "").slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null
+  const d = new Date(`${dia}T12:00:00-03:00`)
+  d.setDate(d.getDate() + 1)
+  return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
+}
+
+/**
+ * Empresas cuja base vota em cada evento de assembleia da agenda: a empresa
+ * da própria assembleia, a da rodada e as fontes pagadoras da campanha.
+ */
+async function empresasDasAssembleias(
+  eventos: { id: string; assembleiaId: string | null }[]
+): Promise<Map<string, string[]>> {
+  const porEvento = new Map<string, string[]>()
+  const comAssembleia = eventos.filter((e) => e.assembleiaId)
+  if (comAssembleia.length === 0) return porEvento
+
+  const admin = await createAdminClient()
+  const { data: assembleias, error } = await admin
+    .from("voto_assembleias")
+    .select("id, empresa_id, campanha_id, rod_assembleia_id")
+    .in("id", comAssembleia.map((e) => e.assembleiaId as string))
+  if (error) return porEvento
+
+  // Empresa da rodada e campanha da rodada (quando a assembleia não traz).
+  const rodadaIds = [
+    ...new Set(
+      (assembleias ?? [])
+        .map((a) => a.rod_assembleia_id as string | null)
+        .filter((v): v is string => Boolean(v))
+    ),
+  ]
+  const rodadas = new Map<string, { empresa: string | null; campanha: string | null }>()
+  if (rodadaIds.length > 0) {
+    const { data } = await admin
+      .from("voto_rod_assembleias")
+      .select("id, empresa_id, campanha_id")
+      .in("id", rodadaIds)
+    for (const r of data ?? []) {
+      rodadas.set(String(r.id), {
+        empresa: (r.empresa_id as string | null) ?? null,
+        campanha: (r.campanha_id as string | null) ?? null,
+      })
+    }
+  }
+
+  // Fontes pagadoras das campanhas envolvidas.
+  const campanhaIds = [
+    ...new Set(
+      (assembleias ?? []).flatMap((a) => {
+        const daRodada = a.rod_assembleia_id
+          ? rodadas.get(String(a.rod_assembleia_id))?.campanha
+          : null
+        return [(a.campanha_id as string | null) ?? null, daRodada ?? null]
+      }).filter((v): v is string => Boolean(v))
+    ),
+  ]
+  const fontesPorCampanha = new Map<string, string[]>()
+  if (campanhaIds.length > 0) {
+    const { data } = await admin
+      .from("voto_campanha_fontes")
+      .select("campanha_id, empresa_id")
+      .in("campanha_id", campanhaIds)
+    for (const v of data ?? []) {
+      const lista = fontesPorCampanha.get(String(v.campanha_id)) ?? []
+      if (v.empresa_id) lista.push(String(v.empresa_id))
+      fontesPorCampanha.set(String(v.campanha_id), lista)
+    }
+  }
+
+  // Nomes de todas as empresas citadas, num lote só.
+  const idsEmpresa = new Set<string>()
+  const porAssembleia = new Map<string, string[]>()
+  for (const a of assembleias ?? []) {
+    const daRodada = a.rod_assembleia_id ? rodadas.get(String(a.rod_assembleia_id)) : null
+    const campanha = (a.campanha_id as string | null) ?? daRodada?.campanha ?? null
+    const ids = [
+      (a.empresa_id as string | null) ?? null,
+      daRodada?.empresa ?? null,
+      ...(campanha ? (fontesPorCampanha.get(campanha) ?? []) : []),
+    ].filter((v): v is string => Boolean(v))
+    const unicos = [...new Set(ids)]
+    unicos.forEach((id) => idsEmpresa.add(id))
+    porAssembleia.set(String(a.id), unicos)
+  }
+  const nomes = new Map<string, string>()
+  if (idsEmpresa.size > 0) {
+    const { data } = await admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao")
+      .in("id", [...idsEmpresa])
+    for (const e of data ?? []) {
+      const nome = (e.nome_fantasia as string | null)?.trim() || (e.nome_razao as string | null)?.trim()
+      if (nome) nomes.set(String(e.id), nome)
+    }
+  }
+
+  for (const e of comAssembleia) {
+    const ids = porAssembleia.get(String(e.assembleiaId)) ?? []
+    const lista = ids.map((id) => nomes.get(id)).filter((n): n is string => Boolean(n))
+    if (lista.length > 0) porEvento.set(e.id, [...new Set(lista)].sort())
+  }
+  return porEvento
 }

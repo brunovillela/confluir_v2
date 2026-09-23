@@ -15,7 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { listarCampanhas, resumoAssembleias } from "@/lib/db/assembleias"
+import {
+  empresasDasCampanhas,
+  listarCampanhas,
+  resumoAssembleias,
+} from "@/lib/db/assembleias"
 import { formatarData } from "@/lib/formato"
 
 export const metadata: Metadata = { title: "Assembleias — Confluir" }
@@ -26,6 +30,7 @@ const SELECT_FILTRO =
 type Params = {
   busca?: string
   situacao?: string
+  empresa?: string
   pagina?: string
 }
 
@@ -42,16 +47,23 @@ export default async function AssembleiasPage({
       ? brutos.situacao
       : "todas"
   const busca = (brutos.busca ?? "").trim()
+  const empresaId = (brutos.empresa ?? "").trim()
   const pagina = Number(brutos.pagina) > 0 ? Number(brutos.pagina) : 1
 
-  const [resumo, lista] = await Promise.all([
+  const [resumo, lista, empresas] = await Promise.all([
     resumoAssembleias(),
-    listarCampanhas({ busca, situacao, pagina }),
+    listarCampanhas({ busca, situacao, empresaId: empresaId || undefined, pagina }),
+    empresasDasCampanhas(),
   ])
 
   const filtrosQuery = (mudancas: Record<string, string>) => {
     const q = new URLSearchParams()
-    const estado: Record<string, string> = { busca, situacao, ...mudancas }
+    const estado: Record<string, string> = {
+      busca,
+      situacao,
+      empresa: empresaId,
+      ...mudancas,
+    }
     for (const [chave, valor] of Object.entries(estado)) {
       if (valor && valor !== "todas") q.set(chave, valor)
     }
@@ -114,6 +126,21 @@ export default async function AssembleiasPage({
           <option value="abertas">Abertas</option>
           <option value="finalizadas">Finalizadas</option>
         </select>
+        {empresas.length > 0 && (
+          <select
+            name="empresa"
+            defaultValue={empresaId}
+            className={`${SELECT_FILTRO} max-w-64`}
+            aria-label="Empresa (fonte pagadora)"
+          >
+            <option value="">Todas as empresas</option>
+            {empresas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
+        )}
         <Button type="submit" variant="outline" size="sm">
           Filtrar
         </Button>
