@@ -94,7 +94,7 @@ export async function solicitarPrimeiroAcesso(
   const admin = await createAdminClient()
   const { data: usuario } = await admin
     .from("usuarios")
-    .select("id, auth_user_id, inativo, deletado")
+    .select("id, auth_user_id, inativo, deletado, nome_completo")
     .ilike("email", email)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -117,21 +117,17 @@ export async function solicitarPrimeiroAcesso(
     }
   }
 
-  const { data: convite, error } = await admin.auth.admin.inviteUserByEmail(
+  const { enviarConvitePrimeiroAcesso } = await import("@/lib/codigo-acesso")
+  const { usuarioId, erro } = await enviarConvitePrimeiroAcesso({
     email,
-    {
-      data: { tipo: "funcionario" },
-      redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
-    }
-  )
-  if (error || !convite.user) {
-    return { erro: "Não foi possível enviar o convite. Tente novamente." }
-  }
+    nome: (usuario.nome_completo as string | null) ?? null,
+    metadata: { tipo: "funcionario" },
+    origem: await origemAtual(),
+  })
+  if (!usuarioId) return { erro: erro ?? "Não foi possível enviar o convite." }
 
-  await admin
-    .from("usuarios")
-    .update({ auth_user_id: convite.user.id })
-    .eq("id", usuario.id)
+  await admin.from("usuarios").update({ auth_user_id: usuarioId }).eq("id", usuario.id)
+  if (erro) return { erro }
 
   return respostaGenerica
 }

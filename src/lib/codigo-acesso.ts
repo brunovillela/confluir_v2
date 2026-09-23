@@ -145,3 +145,49 @@ export async function enviarLinkRedefinicao(
   })
   return { enviado, motivo: enviado ? undefined : "provedor recusou o envio" }
 }
+
+/**
+ * Convite de primeiro acesso pelo canal do app. Cria a conta (sem e-mail do
+ * Supabase) e manda o link de definição de senha na moldura do Confluir.
+ * Devolve o id da conta, que o chamador guarda no cadastro.
+ */
+export async function enviarConvitePrimeiroAcesso(dados: {
+  email: string
+  nome?: string | null
+  metadata?: Record<string, unknown>
+  origem: string
+}): Promise<{ usuarioId?: string; erro?: string }> {
+  const email = dados.email.trim().toLowerCase()
+  const admin = await createAdminClient()
+
+  // generateLink "invite" cria a conta e devolve o link — sem enviar nada.
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { data: dados.metadata ?? {} },
+  })
+  if (error || !data?.user) {
+    return { erro: "Não foi possível criar o acesso. Tente novamente." }
+  }
+  const link = linkConfirmacaoEmail(dados.origem, data.properties, "/definir-senha")
+  if (!link) return { erro: "Não foi possível montar o link do convite." }
+
+  const corpo = [
+    tituloEmail("Seu acesso ao Confluir"),
+    paragrafo(
+      dados.nome
+        ? `Olá, ${dados.nome.trim().split(/\s+/)[0]}. Criamos o seu acesso ao Confluir.`
+        : "Criamos o seu acesso ao Confluir."
+    ),
+    paragrafo(`<a href="${link}" style="font-weight:600;">Clique aqui para criar a sua senha</a> e entrar.`),
+    caixaAviso(
+      `Este link vale por <strong>${textoValidade()}</strong> e funciona uma vez só. Se vencer, use "Esqueci minha senha" na tela de entrada, com este mesmo e-mail.`
+    ),
+    textoSuave("Não esperava este convite? Fale com a secretaria antes de criar a senha."),
+  ].join("\n")
+
+  const enviado = await enviarEmail({ email, nome: dados.nome, assunto: "Confluir | Seu acesso", html: corpo })
+  return enviado
+    ? { usuarioId: data.user.id }
+    : { usuarioId: data.user.id, erro: "A conta foi criada, mas o e-mail do convite não saiu." }
+}

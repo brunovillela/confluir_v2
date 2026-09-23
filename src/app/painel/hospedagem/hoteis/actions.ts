@@ -250,17 +250,20 @@ export async function criarUsuarioHotel(
     .maybeSingle()
   if (!hotel) return { erro: "Hotel não encontrado." }
 
-  const { data: convite, error: erroConvite } =
-    await admin.auth.admin.inviteUserByEmail(email, {
-      data: { tipo: "hotel" },
-      redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
-    })
+  const { enviarConvitePrimeiroAcesso } = await import("@/lib/codigo-acesso")
+  const convite = await enviarConvitePrimeiroAcesso({
+    email,
+    nome,
+    metadata: { tipo: "hotel" },
+    origem: SITE_URL,
+  })
+  const erroConvite = convite.erro ? { message: convite.erro } : null
 
   const { error } = await admin.from("hospedagem_hotel_usuarios").insert({
     hotel_id: hotelId,
     email,
     nome,
-    auth_user_id: convite?.user?.id ?? null,
+    auth_user_id: convite.usuarioId ?? null,
     ativo: true,
     emp_proprietaria_id: await tenantAtual(),
   })
