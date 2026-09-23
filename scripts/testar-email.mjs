@@ -224,7 +224,12 @@ if (comAuth) {
       )
     }
   } else {
-    console.log("   ", "código pedido ao Supabase")
+    console.log("   ", "código pedido ao Supabase — sem erro")
+    console.log(
+      "    → este e-mail sai pelo SMTP configurado no Supabase (hoje o Resend):\n" +
+        "      confira a caixa de entrada e, se precisar, o painel do Resend em Emails.\n" +
+        "      Ele NÃO aparece no log da Brevo abaixo."
+    )
   }
   if (!jaExiste && !error) {
     const { data: depois } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -233,7 +238,7 @@ if (comAuth) {
 }
 
 // ── O que o provedor diz ───────────────────────────────────────────────────
-console.log("\nEsperando o provedor responder (até 60 s)…")
+console.log("\nEsperando o provedor do canal do APP responder (até 60 s)…")
 for (let i = 0; i < 6; i++) {
   await new Promise((r) => setTimeout(r, 10000))
   if (usaResend && idResend) {

@@ -124,6 +124,11 @@ usuário = login SMTP, senha = SMTP key). Nada no banco depende do provedor.
 
 ## Armadilhas conhecidas
 
+- **`535 "Invalid username"` nos Auth Logs = usuário errado no SMTP.** O
+  usuário do Resend é a palavra `resend`, não o e-mail da conta. Trocar o host
+  para `smtp.resend.com` e deixar o usuário antigo derruba TODO o canal de uma
+  vez — foi o que aconteceu em 22/09/2026, das 20h às 22h.
+
 - **Não dispare OTP para domínio inexistente em teste.** Em 22/09 os meus testes
   pediram código para `@empresa-demo.com.br`, que não existe: 22 recusas em
   poucas horas, no mesmo canal que manda os códigos dos eleitores. Teste sempre
