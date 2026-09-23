@@ -19,8 +19,6 @@ import {
 } from "@/components/ui/table"
 import {
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
-  MOTIVO_PERGUNTAS_BLOQUEADAS,
-  periodoIniciado,
   periodoTerminado,
 } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
@@ -32,6 +30,7 @@ import {
   listarPerguntas,
   obterRodada,
   urlArquivoAssembleias,
+  validarEdicaoPerguntas,
 } from "@/lib/db/assembleias"
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
@@ -93,13 +92,9 @@ export default async function RodadaPage({
       resumoAvisoAptos(id),
     ])
 
-  // Travas de edição (regras de 2026-07-20) — o servidor revalida nas actions.
-  const motivoPerguntas =
-    assembleias.linhas.length > 0
-      ? MOTIVO_PERGUNTAS_BLOQUEADAS.assembleias
-      : periodoIniciado(rodada.inicio, rodada.termino)
-        ? MOTIVO_PERGUNTAS_BLOQUEADAS.periodo
-        : null
+  // Travas de edição — a MESMA função que as actions usam, para a tela nunca
+  // prometer o que o servidor recusa.
+  const motivoPerguntas = await validarEdicaoPerguntas(rodada.id)
   const temPerguntaComOpcoes = perguntas.some((p) => p.opcoes.length > 0)
   const motivoAssembleias = periodoTerminado(rodada.termino)
     ? MOTIVO_ASSEMBLEIAS_BLOQUEADAS.periodo

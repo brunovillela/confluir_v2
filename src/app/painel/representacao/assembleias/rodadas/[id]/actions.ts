@@ -25,6 +25,7 @@ import {
   subirArquivoAssembleias,
   validarEdicaoAssembleias,
   validarEdicaoPerguntas,
+  validarJanelaDaAssembleia,
   type ResultadoImportacaoAptos,
 } from "@/lib/db/assembleias"
 
@@ -273,6 +274,8 @@ export async function novaAssembleia(
 
   const { dados, erro: erroDados } = dadosAssembleia(formData)
   if (erroDados || !dados) return { erro: erroDados }
+  const foraDaJanela = await validarJanelaDaAssembleia(rodadaId, dados)
+  if (foraDaJanela) return { erro: foraDaJanela }
 
   const { erro } = await criarAssembleia({ rod_assembleia_id: rodadaId, ...dados })
   if (erro) return { erro }
@@ -294,6 +297,8 @@ export async function salvarAssembleia(
 
   const { dados, erro: erroDados } = dadosAssembleia(formData)
   if (erroDados || !dados) return { erro: erroDados }
+  const foraDaJanela = await validarJanelaDaAssembleia(rodadaId, dados)
+  if (foraDaJanela) return { erro: foraDaJanela }
 
   const completos: Parameters<typeof atualizarAssembleia>[1] = { ...dados }
   const edital = formData.get("edital")

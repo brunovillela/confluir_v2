@@ -93,14 +93,21 @@ export function periodoTerminado(termino: string | null): boolean {
   return termino !== null && termino < hojeLocalISO()
 }
 
+/**
+ * Perguntas e opções ficam abertas até a PRIMEIRA assembleia da rodada começar
+ * (regra do usuário, 23/09/2026). Antes disso a equipe ainda ajusta o texto;
+ * depois, mexer mudaria a cédula de quem já está votando.
+ */
 export const MOTIVO_PERGUNTAS_BLOQUEADAS = {
-  assembleias:
-    "A rodada já tem assembleias cadastradas — perguntas e opções não podem mais ser alteradas.",
-  periodo:
-    "O período da rodada já começou — perguntas e opções não podem mais ser alteradas.",
+  assembleiaIniciada:
+    "A primeira assembleia da rodada já começou — perguntas e opções não podem mais ser alteradas.",
+  votos:
+    "Já há voto registrado nesta rodada — perguntas e opções não podem mais ser alteradas.",
 } as const
 
 export const MOTIVO_ASSEMBLEIAS_BLOQUEADAS = {
+  foraDaRodada:
+    "O período da assembleia precisa caber no período da rodada.",
   semPerguntas:
     "Cadastre pelo menos uma pergunta com opções de resposta antes de criar assembleias.",
   periodo:

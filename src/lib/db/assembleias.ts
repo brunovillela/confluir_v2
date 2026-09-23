@@ -1,6 +1,6 @@
 import "server-only"
 import { horaCurta } from "@/lib/assembleias-constantes"
-import { colunasHorario } from "@/lib/db/assembleias-horarios"
+import { colunasHorario, situacaoDaAssembleia } from "@/lib/db/assembleias-horarios"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -9,7 +9,6 @@ import {
   derivarModalidade,
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
   MOTIVO_PERGUNTAS_BLOQUEADAS,
-  periodoIniciado,
   periodoTerminado,
   ROTULOS_MODALIDADE,
   temVotoOnline,
@@ -655,21 +654,36 @@ export async function validarEdicaoPerguntas(
   rodadaId: string
 ): Promise<string | null> {
   const admin = await createAdminClient()
-  const [{ inicio, termino }, assembleias] = await Promise.all([
-    periodoDaRodada(rodadaId),
-    admin
-      .from("voto_assembleias")
-      .select("id", { count: "exact", head: true })
-      .eq("rod_assembleia_id", rodadaId),
-  ])
-  const totalAssembleias = esquemaAusente(assembleias.error)
-    ? 0
-    : (assembleias.count ?? 0)
-  if (totalAssembleias > 0) return MOTIVO_PERGUNTAS_BLOQUEADAS.assembleias
-  if (periodoIniciado(inicio, termino)) {
-    return MOTIVO_PERGUNTAS_BLOQUEADAS.periodo
+  const { termino } = await periodoDaRodada(rodadaId)
+
+  // Voto registrado fecha a porta na hora, mesmo que a janela ainda pareça
+  // aberta (urna, reunião, ajuste de horário depois do começo).
+  const { count: votos } = await admin
+    .from("voto_online")
+    .select("id", { count: "exact", head: true })
+    .eq("rod_assembleia_id", rodadaId)
+  if ((votos ?? 0) > 0) return MOTIVO_PERGUNTAS_BLOQUEADAS.votos
+
+  const { data, error } = await admin
+    .from("voto_assembleias")
+    .select(
+      "id, data_inicio, data_termino" + (await colunasHorario())
+    )
+    .eq("rod_assembleia_id", rodadaId)
+  if (error) {
+    if (esquemaAusente(error)) return null
+    throw new Error(`Falha ao conferir as assembleias: ${error.message}`)
   }
-  return null
+  const agora = Date.now()
+  const comecou = (linhasBrutas(data)).some(
+    (a) => situacaoDaAssembleia(a, termino, agora) !== "antes"
+  )
+  return comecou ? MOTIVO_PERGUNTAS_BLOQUEADAS.assembleiaIniciada : null
+}
+
+/** Select montado (horários só depois do SQL): o tipo vem solto. */
+function linhasBrutas(data: unknown): Record<string, unknown>[] {
+  return (data ?? []) as Record<string, unknown>[]
 }
 
 /**
@@ -1781,4 +1795,49 @@ export async function reabrirApuracao(
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
   return {}
+}
+
+/**
+ * A janela da assembleia tem de caber no período da RODADA (regra do usuário,
+ * 23/09/2026). Sem isso dava para marcar uma assembleia que começa antes ou
+ * termina depois do que o edital anunciou — e a votação online usa o término
+ * da rodada como limite, então a assembleia "extra" nunca abriria de verdade.
+ * `null` = pode salvar.
+ */
+export async function validarJanelaDaAssembleia(
+  rodadaId: string,
+  dados: {
+    data_inicio: string | null
+    data_termino: string | null
+    hora_inicio: string | null
+    hora_termino: string | null
+  }
+): Promise<string | null> {
+  const { inicio, termino } = await periodoDaRodada(rodadaId)
+  const dia = (v: string | null) => (v ?? "").slice(0, 10) || null
+  const ini = dia(dados.data_inicio)
+  const fim = dia(dados.data_termino)
+
+  if (ini && fim && ini > fim) {
+    return "O início da assembleia não pode ser depois do término."
+  }
+  if (ini && fim && ini === fim && dados.hora_inicio && dados.hora_termino) {
+    if (dados.hora_inicio >= dados.hora_termino) {
+      return "No mesmo dia, a hora de início precisa ser antes da hora de término."
+    }
+  }
+  const periodo = `${inicio ? formatarDataBR(inicio) : "?"} a ${termino ? formatarDataBR(termino) : "?"}`
+  if (inicio && ini && ini < dia(inicio)!) {
+    return `${MOTIVO_ASSEMBLEIAS_BLOQUEADAS.foraDaRodada} A rodada vai de ${periodo}.`
+  }
+  if (termino && fim && fim > dia(termino)!) {
+    return `${MOTIVO_ASSEMBLEIAS_BLOQUEADAS.foraDaRodada} A rodada vai de ${periodo}.`
+  }
+  return null
+}
+
+/** '2026-09-22' → '22/09/2026' (mensagem de erro, sem depender do cliente). */
+function formatarDataBR(iso: string): string {
+  const [a, m, d] = iso.slice(0, 10).split("-")
+  return d && m && a ? `${d}/${m}/${a}` : iso
 }
