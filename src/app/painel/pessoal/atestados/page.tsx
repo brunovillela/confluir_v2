@@ -347,7 +347,7 @@ export default async function AtestadosPage({
                 <TableRow className="bg-muted/50">
                   <TableHead>Funcionário</TableHead>
                   <TableHead>Período</TableHead>
-                  <TableHead>Motivo</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -387,8 +387,13 @@ export default async function AtestadosPage({
                         <> – {formatarData(a.termino)}</>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-64 truncate">
-                      {a.motivo ?? "—"}
+                    <TableCell className="max-w-64">
+                      <span className="block truncate">{a.motivo ?? "—"}</span>
+                      {a.observacao && (
+                        <span className="text-muted-foreground block truncate text-xs">
+                          {a.observacao}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
