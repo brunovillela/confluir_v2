@@ -1,90 +1,133 @@
-Na **votação pública** de uma assembleia, o eleitor acessa um link próprio da
-assembleia e se identifica pelo **CPF** (filiado) ou pelo **e-mail
-corporativo** (quem não é filiado) — sem login no sistema.
+Na **votação pública** de uma assembleia, o eleitor vota sem login no sistema.
+Desde 22/09/2026 o caminho normal é o **link pessoal** que vai no e-mail de
+aviso: ele abre a cédula direto, sem código. O código por e-mail continua
+existindo para quem chega pelo endereço da assembleia.
 
-## Como o eleitor se identifica
+## Caminho 1 — link pessoal (o que a maioria usa)
 
 <PassoAPasso>
-  <Passo titulo="Abrir o link da assembleia">
-    Cada assembleia tem o seu endereço (`/votar/…`), divulgado pelo sindicato.
-    O acesso é temporário e expira ao fim da votação.
+  <Passo titulo="O eleitor recebe o aviso">
+    O e-mail "Você está habilitado a votar" traz o botão **Ir para a votação**,
+    com um link que vale só para aquela pessoa e aquela assembleia.
   </Passo>
-  <Passo titulo="Escolher a porta de entrada">
-    **Sou filiado (CPF):** o eleitor digita o CPF; o sistema confere que ele está
-    na **lista de aptos** e que a filiação está ativa, e envia um **código** ao
-    e-mail cadastrado. **Não sou filiado (e-mail):** o eleitor digita o e-mail
-    corporativo que veio na lista de aptos da empresa e recebe o código nele.
+  <Passo titulo="Clica e cai na cédula">
+    Sem código, sem senha. O link para de funcionar depois que ela vota.
   </Passo>
-  <Passo titulo="Confirmar o código">
-    Com o código recebido por e-mail, a identidade é confirmada.
+  <Passo titulo="Confirma quem é (uma vez só)">
+    Se a lista da empresa não trouxe o CPF, ela informa CPF, nome completo e
+    data de nascimento. Se a lista **já** tem o CPF, ela só digita o próprio CPF
+    para conferir. Nas próximas vezes, nada disso reaparece.
   </Passo>
-  <Passo titulo="Primeiro acesso: CPF, nome e nascimento">
-    Quem entrou pelo **e-mail** e ainda não tem CPF na lista informa, **uma única
-    vez**, CPF, nome completo e data de nascimento antes da cédula. É o que
-    impede a mesma pessoa de votar pelo e-mail e, de novo, pelo CPF. Nos acessos
-    seguintes o passo não aparece.
-  </Passo>
-  <Passo titulo="Votar">
-    A cédula é liberada. Depois de votar, a tela mostra que o voto foi
-    registrado e não abre de novo.
+  <Passo titulo="Vota">
+    Marca as respostas, confirma, e recebe o comprovante por e-mail.
   </Passo>
 </PassoAPasso>
 
-<Print src="fluxos-publicos/votacao.png" alt="Tela pública de votação com as opções de entrar pelo CPF ou pelo e-mail corporativo." legenda="Votação: identificação do eleitor por CPF ou e-mail e código." />
+<Print src="fluxos-publicos/aviso-email.png" alt="E-mail de aviso com o botão Ir para a votação, o passo a passo e o alerta de que o link é pessoal." legenda="O aviso com o link pessoal de voto." />
+
+<Aviso tipo="atencao" titulo="O link é pessoal — e o e-mail avisa isso">
+  Quem abrir o link vota no lugar do titular. Por isso o e-mail diz de quem ele
+  é ("vota em nome de Fulano de Tal") e traz o **Não sou eu**: um clique
+  desativa o link na hora e marca o cadastro para a secretaria conferir. É a
+  saída de quem recebeu por causa de um e-mail digitado errado pela empresa.
+</Aviso>
+
+## Caminho 2 — código por e-mail
+
+Quem abre o endereço da assembleia (`/votar/…`) direto se identifica ali:
+
+<PassoAPasso>
+  <Passo titulo="Escolher a porta">
+    **Sou filiado (CPF):** digita o CPF; o sistema confere a lista de aptos e a
+    filiação ativa, e manda o código ao e-mail cadastrado. **Não sou filiado
+    (e-mail):** digita o e-mail corporativo que veio na lista da empresa.
+  </Passo>
+  <Passo titulo="Digitar o código">
+    O código chega no e-mail e vale por 2 horas, uma vez só.
+  </Passo>
+  <Passo titulo="Confirmar a identidade e votar">
+    Daí em diante é igual ao caminho do link.
+  </Passo>
+</PassoAPasso>
+
+<Print src="fluxos-publicos/votacao.png" alt="Tela pública de votação com as opções de entrar pelo CPF ou pelo e-mail corporativo." legenda="Identificação por CPF ou e-mail, quando o eleitor chega pelo endereço da assembleia." />
+
+## A conferência de identidade
+
+É o que impede uma pessoa de votar no lugar de outra quando o e-mail da lista
+está errado. O sistema confere com a base da entidade — a da Receita Federal só
+seria possível contratando o Serpro.
+
+<PassoAPasso>
+  <Passo titulo="Sem CPF na lista: primeiro acesso">
+    A pessoa informa CPF, nome completo e nascimento. O **nome precisa bater com
+    o da lista**; o CPF, se for de filiado, precisa bater com o cadastro; e o
+    CPF não pode já estar em outro apto que votou.
+  </Passo>
+  <Passo titulo="Com CPF na lista: confirmação">
+    A pessoa digita o próprio CPF e ele tem de ser o do cadastro. Sem isso, a
+    cédula não abre.
+  </Passo>
+</PassoAPasso>
 
 <Print src="fluxos-publicos/votacao-primeiro-acesso.png" alt="Formulário do primeiro acesso pedindo CPF, nome completo e data de nascimento antes da cédula." legenda="Primeiro acesso de quem entrou pelo e-mail." />
 
-## Como os dados do primeiro acesso são conferidos
+<Aviso tipo="nota" titulo="Nome escrito errado não impede o voto">
+  A comparação de nomes aceita o que a vida real produz: acento, partícula ("de",
+  "da"), **Júnior/Filho/Neto**, sobrenome acrescentado depois do casamento e erro
+  de uma ou duas letras — de qualquer um dos lados, porque a lista da empresa
+  erra tanto quanto o eleitor. O que ela recusa é sobrenome final diferente, que
+  é o caso de outra pessoa.
 
-A conferência é feita com a base da entidade (a da Receita Federal só é possível
-contratando o Serpro):
-
-- o CPF precisa ter dígitos válidos, o nome precisa ter sobrenome e a data de
-  nascimento precisa ser plausível;
-- se o CPF é de um **filiado**, nome e nascimento têm de bater com o cadastro;
-- se o CPF já está em **outro apto** da mesma votação, ele só é juntado quando o
-  nome confere — e nunca quando esse outro apto já votou.
-
-Quando algo não confere, o CPF **não** é gravado, a cédula não abre e o apto
-ganha o aviso **CPF em conflito** na lista da rodada, para a equipe resolver.
-
-<Aviso tipo="atencao" titulo="Só quem está apto vota">
-  O CPF ou o e-mail precisa constar na lista de aptos da **rodada** da
-  assembleia. Pelo CPF, a filiação também precisa estar ativa e com e-mail
-  cadastrado. Fora disso, a tela avisa que o eleitor não está apto ou não foi
-  localizado.
+  Se o nome está errado **na lista**, tentar de novo não adianta. A tela oferece
+  **"Meu nome está diferente na lista"**: o cadastro fica marcado com o nome que
+  a pessoa declarou, o acesso dela continua valendo, e ela vota assim que a
+  secretaria corrigir.
 </Aviso>
 
-A montagem das perguntas e a apuração ficam no módulo de **Assembleias**, em
-Representação — é lá que a equipe prepara a rodada e acompanha o resultado.
+Tudo o que é recusado vira aviso na lista de aptos da rodada — **CPF em
+conflito** ou **Conferir cadastro** —, com o motivo ao passar o mouse.
+
+## O comprovante
+
+Depois do voto sai um e-mail de confirmação com o código do comprovante, o
+momento em que o voto foi computado, o canal e um resumo SHA-256. O mesmo
+comprovante fica na área do filiado e pode ser conferido por qualquer um em
+`/comprovante/<código>`, sem login.
+
+<Print src="fluxos-publicos/comprovante-email.png" alt="E-mail de comprovante com código, data, canal e a explicação de como a votação é protegida." legenda="O comprovante que chega depois do voto." />
+
+<Aviso tipo="nota" titulo="O comprovante nunca mostra o voto">
+  O código e o resumo nascem do registro de **participação**, que fica separado
+  das escolhas. Nem o sindicato consegue ligar um ao outro — por isso o
+  comprovante prova que a pessoa votou, e nada além disso.
+</Aviso>
 
 ## Erros comuns
 
+- **"Não recebi o e-mail."** Confira o endereço na lista de aptos e o lixo
+  eletrônico. Na rodada, **Reenviar a quem não votou** manda de novo só para
+  quem falta.
+- **"O link diz que não é mais válido."** Ou a pessoa já votou, ou clicou em
+  "Não sou eu", ou o link foi copiado pela metade. Ela ainda pode entrar pelo
+  endereço da assembleia, com código.
 - **"Aparece 'CPF não está na lista' ou 'não localizado'."** O CPF precisa
-  constar na **lista de aptos** da rodada e ter uma **filiação ativa** com
-  e-mail — confira a aptidão na rodada. Quem não é filiado entra pelo **e-mail
-  corporativo**.
-- **"O e-mail não está na lista de aptos."** Tem de ser exatamente o e-mail que
-  veio na lista da empresa. Na rodada, a equipe pode corrigir o apto.
-- **"Os dados não conferem com o cadastro."** O CPF informado é de um filiado
-  com outro nome ou outra data de nascimento. O eleitor procura o sindicato; a
-  equipe vê o motivo no aviso **CPF em conflito** do apto.
-- **"O código não chega."** Pelo CPF, ele vai para o **e-mail cadastrado** do
-  filiado; pelo e-mail, para o próprio e-mail corporativo. Confira o spam.
-- **"O link não abre mais."** O acesso é **temporário** e **expira** ao fim da
-  votação.
+  constar na lista da **rodada** e ter filiação ativa com e-mail. Quem não é
+  filiado entra pelo **e-mail corporativo**.
+- **"Os dados não conferem."** Nome ou nascimento diferentes do cadastro, ou o
+  CPF já está em outro apto. A equipe vê o motivo no aviso do apto, na rodada.
+- **"Recebi o link de outra pessoa."** Clique em **Não sou eu** no e-mail.
+- **"A votação ainda não começou."** A assembleia tem hora de abertura; a tela
+  diz o dia e a hora em que abre.
 - **"A pessoa tentou votar duas vezes."** O voto é **único** por eleitor na
-  rodada, pelo CPF ou pelo e-mail, mesmo em assembleias diferentes.
-- **"Quero ver o que o eleitor está vendo."** No painel, na lista de aptos da
-  rodada, o botão **Visualizar área do eleitor** abre a tela dele em modo de
-  leitura.
+  rodada — pelo link, pelo CPF ou pelo e-mail, em qualquer assembleia dela.
 
 <VejaTambem
   links={[
     {
       titulo: "Assembleias (no painel)",
       href: "/painel/ajuda/representacao/assembleias",
-      descricao: "Campanha, rodada, perguntas e aptos",
+      descricao: "Campanha, rodada, perguntas, aptos e o aviso por e-mail",
     },
   ]}
 />

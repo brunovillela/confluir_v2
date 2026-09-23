@@ -97,8 +97,13 @@ Na página da rodada ficam os aptos a votar.
 Com a lista pronta e ao menos uma assembleia cadastrada, o cartão **Aviso por
 e-mail aos aptos** manda a cada pessoa o e-mail "Você está habilitado a votar",
 na identidade visual do Confluir: nome da rodada, período, onde votar, o botão
-**Ir para a votação** e o passo a passo — que muda conforme a pessoa entra pelo
-e-mail corporativo (com o primeiro acesso) ou pelo CPF de filiado.
+**Ir para a votação** e o passo a passo.
+
+O botão desse e-mail é um **link pessoal**: abre a cédula direto, sem código.
+Ele existe porque o código por e-mail chega mal em algumas caixas — em 22/09
+nenhum dos códigos mandados para Hotmail/Outlook chegou, enquanto o e-mail do
+aviso chegou. O e-mail também diz de quem é o link e traz **Não sou eu**, para
+quem recebeu por causa de um endereço cadastrado errado.
 
 <PassoAPasso>
   <Passo titulo="Confira com um teste">
@@ -123,9 +128,27 @@ e-mail corporativo (com o primeiro acesso) ou pelo CPF de filiado.
 <Print src="representacao/aviso-email.png" alt="E-mail 'Você está habilitado a votar' com o período, as assembleias, o botão Ir para a votação e o passo a passo." legenda="O e-mail que o apto recebe (versão de quem entra pelo e-mail corporativo)." />
 
 Quem entrar na lista depois do envio aparece como **pendente** e recebe só o
-dele no próximo clique. Para mandar um **lembrete** à lista inteira, use
-**Reenviar para todos**. O e-mail vai para o e-mail corporativo da lista; sem
+dele no próximo clique. **Reenviar a quem não votou** devolve à fila só quem
+falta votar — é o botão do meio da votação. **Reenviar para todos** manda um
+lembrete à lista inteira. O e-mail vai para o e-mail corporativo da lista; sem
 ele, para o e-mail do filiado dono do CPF.
+
+### Quando o cadastro não confere
+
+Dois selos aparecem na lista de aptos, e os dois significam "a secretaria
+precisa olhar":
+
+- **CPF em conflito** — o CPF informado é de um filiado com outro nome ou
+  nascimento, ou já está em outro apto da rodada, ou não bate com o CPF da
+  lista na hora da confirmação.
+- **Conferir cadastro** — o eleitor avisou que o **nome da lista está errado**
+  (botão "Meu nome está diferente na lista") ou que **o e-mail não é dele**
+  (botão "Não sou eu").
+
+Passe o mouse no selo para ver o motivo e, quando houver, o que a pessoa
+declarou. Corrija no lápis da linha: feito isso, quem avisou nome errado volta
+pelo mesmo link e vota. No caso do "Não sou eu", o link antigo fica desativado —
+corrija o endereço e mande o aviso de novo.
 
 ### Ver como o eleitor
 
@@ -160,6 +183,19 @@ Cada assembleia tem uma **modalidade**, escolhida ao criá-la:
     sistema; quem for ao local vota na urna. A contagem é única.
   </Passo>
 </PassoAPasso>
+
+### Data e hora de abertura
+
+Cada assembleia tem **início** e **término** com **hora** (em branco, vale o dia
+inteiro: 0h às 23h59). A janela abre e fecha a votação online: antes da hora, a
+cédula avisa o dia e a hora em que abre e ninguém consegue votar; depois do
+término, a assembleia sai da lista de quem pode votar.
+
+<Aviso tipo="nota" titulo="Por que isso importa">
+  Sem hora, a votação fechava no começo do dia do término — quem deixava para o
+  último dia perdia o voto. Com hora de término (por exemplo, 18:00), o
+  encerramento é o que o edital diz.
+</Aviso>
 
 ## Presencial com urnas: mesários e terminais
 
@@ -299,6 +335,23 @@ pelo e-mail (código por e-mail) e, para cada urna:
     Ao concluir, os números da urna entram no **resultado final** da assembleia.
   </Passo>
 </PassoAPasso>
+
+## Comprovante de votação
+
+Todo voto gera um **comprovante de participação**: um código (VT-XXXX-XXXX),
+o momento em que o voto foi computado, o canal (online, urna digital ou urna
+física) e um resumo SHA-256. Quem vota online recebe o comprovante por e-mail;
+quem vota na urna recebe o código na área do filiado. Qualquer pessoa pode
+conferir um código em `/comprovante/<código>`, sem login.
+
+<Aviso tipo="atencao" titulo="O comprovante não liga a pessoa ao voto — nem para a gestão">
+  O código vive no registro de **participação**, que é uma tabela separada das
+  escolhas. Não existe, em lugar nenhum do sistema, ligação entre o comprovante e
+  a cédula. Se um eleitor pedir "provem em quem eu votei", a resposta é que não
+  há como — e é assim de propósito.
+</Aviso>
+
+<Print src="representacao/comprovante-publico.png" alt="Página pública de conferência do comprovante, com código, data, canal, resumo e as garantias da votação." legenda="A conferência pública, pelo código do comprovante." />
 
 ## Apuração
 

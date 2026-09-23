@@ -193,7 +193,7 @@ export function montarEmailAvisoAptos(
 
   partes.push(
     textoSuave(
-      "O voto é secreto: o sistema registra que você votou, nunca em quem votou. Ninguém do sindicato pede o seu código — não o repasse."
+      "O voto é secreto: o sistema registra que você votou, nunca em quem votou. Ninguém do sindicato pede o seu código nem o seu link de votação — não repasse a ninguém."
     )
   )
   partes.push(linkReserva(alvo))
