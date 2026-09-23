@@ -422,3 +422,21 @@ export async function avisarNomeDivergente(
     tentativa: (prev.tentativa ?? 0) + 1,
   }
 }
+
+/**
+ * Confirmação humana do "Não sou eu" (POST). A página só mostra o botão; é o
+ * envio do formulário que desativa o link — antivírus de e-mail abre
+ * endereços, não envia formulários.
+ */
+export async function confirmarNaoSouEu(formData: FormData): Promise<void> {
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const token = String(formData.get("t") ?? "")
+  const { aptoDoToken, encerrarSessaoPorLink } = await import("@/lib/acesso-eleitor")
+  const apto = token ? await aptoDoToken(token, assembleiaId) : null
+  if (apto) {
+    const { marcarEmailNaoReconhecido } = await import("@/lib/db/votacao-primeiro-acesso")
+    await marcarEmailNaoReconhecido(apto.id)
+    await encerrarSessaoPorLink()
+  }
+  redirect(`/votar/${assembleiaId}/nao-sou-eu?feito=1`)
+}
