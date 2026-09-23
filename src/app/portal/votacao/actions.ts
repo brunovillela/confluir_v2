@@ -33,7 +33,7 @@ export async function enviarCodigoEmailVotacao(
   return { ok: r.ok }
 }
 
-/** Confirma o código de 6 dígitos e verifica o e-mail de votação. */
+/** Confirma o código do e-mail e verifica o e-mail de votação. */
 export async function confirmarCodigoEmailVotacao(
   _prev: EstadoForm,
   formData: FormData

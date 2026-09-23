@@ -156,14 +156,14 @@ export function montarEmailAvisoAptos(
         ? passos([
             "Clique em <strong>Ir para a votação</strong>.",
             `Escolha <strong>Não sou filiado (e-mail)</strong> e informe este e-mail: <strong>${escaparHtml(destino.email)}</strong>.`,
-            "Digite o código de 6 dígitos que chegará neste mesmo e-mail.",
+            "Digite o código que chegará neste mesmo e-mail.",
             "No primeiro acesso, confirme seu CPF, nome completo e data de nascimento. É uma vez só e garante que cada pessoa vote uma única vez.",
             "Marque suas respostas e confirme o voto.",
           ])
         : passos([
             "Clique em <strong>Ir para a votação</strong>.",
             "Escolha <strong>Sou filiado (CPF)</strong> e informe seu CPF.",
-            "Digite o código de 6 dígitos enviado ao e-mail cadastrado no sindicato.",
+            "Digite o código enviado ao e-mail cadastrado no sindicato.",
             "Marque suas respostas e confirme o voto.",
           ])
     )

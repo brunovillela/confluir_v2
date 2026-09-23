@@ -12,7 +12,7 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * LINK PESSOAL DE VOTO — a porta que não depende de um segundo e-mail.
  *
- * Por que existe (22/09/2026): o código de 6 dígitos sai pelo SMTP do Supabase
+ * Por que existe (22/09/2026): o código de acesso saía pelo SMTP do Supabase
  * e as caixas da Microsoft (hotmail/outlook/live) engoliram 15 de 15 códigos
  * sem devolver recusa; o e-mail do próprio app, que vai pela API da Brevo,
  * chegou. Então o aviso "você está habilitado a votar" passa a levar um link

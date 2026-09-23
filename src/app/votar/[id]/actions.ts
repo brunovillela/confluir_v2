@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/server"
  * Porta 3 — eleitores: CPF + token temporário por email.
  *
  * O template de email "Magic Link" no Supabase precisa exibir {{ .Token }}
- * (código de 6 dígitos) para este fluxo — ver README.
+ * (o código numérico) para este fluxo — ver README.
  */
 export async function solicitarTokenEleitor(
   _prev: EstadoForm,
@@ -89,7 +89,7 @@ export async function solicitarTokenEleitor(
   }
 }
 
-/** Confirma o token de 6 dígitos e autentica o eleitor, abrindo a cédula. */
+/** Confirma o código recebido por e-mail e autentica o eleitor, abrindo a cédula. */
 export async function confirmarTokenEleitor(
   _prev: EstadoForm,
   formData: FormData
