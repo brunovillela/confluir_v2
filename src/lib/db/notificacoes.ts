@@ -1,5 +1,6 @@
 import "server-only"
 
+import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -106,4 +107,36 @@ export async function marcarTodasLidas(usuarioId: string): Promise<void> {
     .update({ notificado: true })
     .eq("usuario_id", usuarioId)
     .eq("notificado", false)
+}
+
+/**
+ * Aviso para o SETOR DE FILIAÇÃO (quem tem a permissão de filiados). Usado
+ * quando a votação encontra uma divergência de cadastro que só esse setor
+ * resolve — por exemplo, o nome na lista da empregadora diferente do nome da
+ * ficha de filiação. Best-effort: nunca derruba a ação que originou o aviso.
+ */
+export async function avisarSetorFiliacao(texto: string): Promise<number> {
+  try {
+    const admin = await createAdminClient()
+    const { data } = await admin
+      .from("permissoes")
+      .select("usuario_id")
+      .or("filiacao_filiados.eq.true,filiacao_gestao.eq.true")
+      .limit(50)
+    const ids = [...new Set((data ?? []).map((p) => String(p.usuario_id)).filter(Boolean))]
+    if (ids.length === 0) return 0
+    const { data: ativos } = await admin
+      .from("usuarios")
+      .select("id")
+      .in("id", ids)
+      .not("inativo", "is", true)
+      .not("deletado", "is", true)
+      .eq("emp_proprietaria_id", await tenantAtual())
+    for (const u of ativos ?? []) {
+      await criarNotificacao({ usuarioId: String(u.id), texto })
+    }
+    return (ativos ?? []).length
+  } catch {
+    return 0
+  }
 }

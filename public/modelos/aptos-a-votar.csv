@@ -1,4 +1,4 @@
-﻿cpf;nome;matricula;email
-529.982.247-25;EXEMPLO Maria da Silva Souza;123456;maria.souza@empresa.com.br
-;EXEMPLO Joao Pereira Santos;654321;joao.santos@empresa.com.br
-;EXEMPLO Ana Lima;789012;
+﻿cpf;nome;matricula;email;telefone
+529.982.247-25;EXEMPLO Maria da Silva Souza;123456;maria.souza@empresa.com.br;(22) 99999-0001
+;EXEMPLO Joao Pereira Santos;654321;joao.santos@empresa.com.br;
+;EXEMPLO Ana Lima;789012;;(22) 98888-0002

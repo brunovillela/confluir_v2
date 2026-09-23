@@ -350,13 +350,19 @@ export type EstadoImportacaoAptos = EstadoForm & {
 
 const MAX_LINHAS = 20_000
 
-const SINONIMOS: Record<string, "cpf" | "nome" | "matricula" | "email"> = {
+const SINONIMOS: Record<
+  string,
+  "cpf" | "nome" | "matricula" | "email" | "telefone"
+> = {
   cpf: "cpf",
   nome: "nome",
   nomecompleto: "nome",
   matricula: "matricula",
   email: "email",
   emailcorporativo: "email",
+  telefone: "telefone",
+  celular: "telefone",
+  whatsapp: "telefone",
 }
 
 export async function importarAptosCsv(
@@ -385,7 +391,10 @@ export async function importarAptosCsv(
     }
   }
 
-  const colunas = new Map<number, "cpf" | "nome" | "matricula" | "email">()
+  const colunas = new Map<
+    number,
+    "cpf" | "nome" | "matricula" | "email" | "telefone"
+  >()
   linhasCsv[0].forEach((titulo, i) => {
     const campo = SINONIMOS[normalizarCabecalho(titulo)]
     if (campo && ![...colunas.values()].includes(campo)) colunas.set(i, campo)
@@ -410,13 +419,15 @@ export async function importarAptosCsv(
     nome_completo: string | null
     matricula: string | null
     email: string | null
+    telefone: string | null
   }[] = []
   let exemplos = 0
   for (let i = 1; i < linhasCsv.length; i++) {
     const bruta = linhasCsv[i]
     if (bruta.every((c) => c.trim() === "")) continue
-    const campos: Partial<Record<"cpf" | "nome" | "matricula" | "email", string>> =
-      {}
+    const campos: Partial<
+      Record<"cpf" | "nome" | "matricula" | "email" | "telefone", string>
+    > = {}
     for (const [indice, campo] of colunas) {
       campos[campo] = (bruta[indice] ?? "").trim()
     }
@@ -445,6 +456,7 @@ export async function importarAptosCsv(
       nome_completo: campos.nome || null,
       matricula: campos.matricula || null,
       email: campos.email || null,
+      telefone: campos.telefone || null,
     })
   }
 
@@ -480,6 +492,7 @@ function dadosEleitor(formData: FormData):
       nome_completo: string | null
       matricula: string | null
       email: string | null
+      telefone: string | null
     }
   | { erro: string } {
   // CPF é OPCIONAL: nenhuma empregadora envia o dado (LGPD). O eleitor informa
@@ -490,10 +503,11 @@ function dadosEleitor(formData: FormData):
   const nome_completo = texto(formData, "nome") || null
   const matricula = texto(formData, "matricula") || null
   const email = texto(formData, "email") || null
+  const telefone = texto(formData, "telefone") || null
   if (!cpf && !email && !matricula && !nome_completo) {
     return { erro: "Informe ao menos o e-mail, a matrícula ou o nome do eleitor." }
   }
-  return { cpf, nome_completo, matricula, email }
+  return { cpf, nome_completo, matricula, email, telefone }
 }
 
 export async function cadastrarEleitor(

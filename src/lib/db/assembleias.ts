@@ -1,3 +1,5 @@
+import { cache as cacheReact } from "react"
+
 import "server-only"
 import { horaCurta } from "@/lib/assembleias-constantes"
 import { colunasHorario, situacaoDaAssembleia } from "@/lib/db/assembleias-horarios"
@@ -123,6 +125,7 @@ export type AptoLinha = {
   nome_completo: string | null
   matricula: string | null
   email_corporativo: string | null
+  telefone?: string | null
   hora_voto: string | null
   /** CPF informado no primeiro acesso que colidiu com outro apto (gestão resolve). */
   cpf_conflito?: string | null
@@ -679,6 +682,18 @@ export async function validarEdicaoPerguntas(
     (a) => situacaoDaAssembleia(a, termino, agora) !== "antes"
   )
   return comecou ? MOTIVO_PERGUNTAS_BLOQUEADAS.assembleiaIniciada : null
+}
+
+/** A coluna de telefone existe? (supabase/aptos-telefone.sql) */
+const temTelefone = cacheReact(async (): Promise<boolean> => {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("voto_assembleias_aptos").select("telefone").limit(1)
+  return !error
+})
+
+/** Só manda o telefone quando a coluna existe — senão o insert falha inteiro. */
+async function telefoneSeExistir(telefone: string | null): Promise<Record<string, unknown>> {
+  return (await temTelefone()) ? { telefone } : {}
 }
 
 /** Select montado (horários só depois do SQL): o tipo vem solto. */
@@ -1243,6 +1258,7 @@ export async function listarAptos(
       nome_completo: (a.nome_completo as string | null) ?? null,
       matricula: (a.matricula as string | null) ?? null,
       email_corporativo: (a.email_corporativo as string | null) ?? null,
+      telefone: (a.telefone as string | null) ?? null,
       hora_voto: (a.hora_voto as string | null) ?? null,
       cpf_conflito: (a.cpf_conflito as string | null) ?? null,
       conflito_motivo: (a.conflito_motivo as string | null) ?? null,
@@ -1311,6 +1327,7 @@ export async function cadastrarApto(
     nome_completo: string | null
     matricula: string | null
     email: string | null
+    telefone?: string | null
   }
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
@@ -1322,6 +1339,7 @@ export async function cadastrarApto(
     nome_completo: dados.nome_completo,
     matricula: dados.matricula,
     email_corporativo: dados.email,
+    ...(await telefoneSeExistir(dados.telefone ?? null)),
     emp_proprietaria_id: await tenantAtual(),
   })
   return error ? { erro: `Falha ao cadastrar o eleitor: ${error.message}` } : {}
@@ -1335,6 +1353,7 @@ export async function atualizarApto(
     nome_completo: string | null
     matricula: string | null
     email: string | null
+    telefone?: string | null
   }
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
@@ -1355,6 +1374,7 @@ export async function atualizarApto(
       nome_completo: dados.nome_completo,
       matricula: dados.matricula,
       email_corporativo: dados.email,
+      ...(await telefoneSeExistir(dados.telefone ?? null)),
     })
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -1378,6 +1398,7 @@ export async function importarAptos(
     nome_completo: string | null
     matricula: string | null
     email: string | null
+    telefone?: string | null
   }[]
 ): Promise<{ resultado?: ResultadoImportacaoAptos; erro?: string }> {
   const admin = await createAdminClient()
@@ -1414,6 +1435,7 @@ export async function importarAptos(
       nome_completo: l.nome_completo,
       matricula: l.matricula,
       email_corporativo: l.email,
+      ...(await telefoneSeExistir(l.telefone ?? null)),
       emp_proprietaria_id: await tenantAtual(),
     })
   }

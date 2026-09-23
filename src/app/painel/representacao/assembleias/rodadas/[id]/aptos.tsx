@@ -25,7 +25,7 @@ import {
   salvarEleitor,
 } from "./actions"
 
-/** Importação de aptos por CSV (colunas: cpf, nome, matricula, email). */
+/** Importação de aptos por CSV (colunas: cpf, nome, matricula, email, telefone). */
 export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(importarAptosCsv, {})
@@ -54,8 +54,9 @@ export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
             required
           />
           <p className="text-muted-foreground text-xs">
-            Colunas: cpf, nome, matricula, email — basta uma que identifique a
-            pessoa. O CPF é opcional (as empresas não enviam); o eleitor informa no
+            Colunas: cpf, nome, matricula, email, telefone — basta uma que
+            identifique a pessoa (o telefone é opcional e serve para mandar o link
+            por WhatsApp/Telegram). O CPF é opcional (as empresas não enviam); o eleitor informa no
             primeiro acesso à votação. CPF já apto nesta rodada é ignorado. Limite de
             20.000 linhas.{" "}
             <a
@@ -232,6 +233,19 @@ function EleitorDialog({
                 type="email"
                 defaultValue={apto?.email_corporativo ?? ""}
               />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`telefone-${apto?.id ?? "novo"}`}>Telefone</Label>
+              <Input
+                id={`telefone-${apto?.id ?? "novo"}`}
+                name="telefone"
+                type="tel"
+                placeholder="(22) 99999-0000"
+                defaultValue={apto?.telefone ?? ""}
+              />
+              <p className="text-muted-foreground text-xs">
+                Para mandar o link por WhatsApp ou Telegram quando o e-mail não chega.
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -343,6 +343,11 @@ export async function registrarDadosEleitor(dados: {
       .from("voto_assembleias_aptos")
       .update({ conflito_motivo: divergenciaDaLista, conflito_em: new Date().toISOString() })
       .in("id", meusIds)
+    // O setor de filiação é quem acerta cadastro — avisa pelo sino do painel.
+    const { avisarSetorFiliacao } = await import("@/lib/db/notificacoes")
+    await avisarSetorFiliacao(
+      `Possível divergência de cadastro: ${divergenciaDaLista} Confira a ficha do filiado e a lista de aptos da rodada.`
+    )
   }
 
   // Nome vazio no apto: completa com o declarado (a lista da empresa vem crua).
