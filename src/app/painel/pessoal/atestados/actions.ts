@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { tipoDeAusenciaValido } from "@/lib/ausencias"
+
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
@@ -164,11 +166,17 @@ function lerCamposAusencia(formData: FormData) {
   if (termino && termino < inicio) {
     return { erro: "O término não pode ser antes do início." }
   }
+  // O tipo é lista fechada; o detalhe do caso vai na observação.
+  const motivo = String(formData.get("motivo") ?? "").trim()
+  if (!tipoDeAusenciaValido(motivo)) {
+    return { erro: "Escolha o tipo da ausência." }
+  }
   return {
     funcionario_id,
     inicio,
     termino: termino || null,
-    motivo: String(formData.get("motivo") ?? "").trim() || null,
+    motivo,
+    observacao: String(formData.get("observacao") ?? "").trim() || null,
   }
 }
 

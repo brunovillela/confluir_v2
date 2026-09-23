@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { TIPOS_AUSENCIA } from "@/lib/ausencias"
 
 import {
   atualizarAtestadoAction,
@@ -19,16 +20,6 @@ import {
   excluirAtestadoAction,
   excluirAusenciaAction,
 } from "./actions"
-
-/** Tipos de ausência em uso na entidade (vieram do Bubble). */
-const TIPOS_DE_AUSENCIA = [
-  "Falta justificada",
-  "Afastamento médico",
-  "Férias",
-  "Compensação de banco de horas",
-  "Licença",
-  "Trabalho externo",
-]
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -268,6 +259,7 @@ export type AusenciaFormDados = {
   inicio: string | null
   termino: string | null
   motivo: string | null
+  observacao?: string | null
 }
 
 export function AusenciaForm({
@@ -324,24 +316,38 @@ export function AusenciaForm({
                 />
               </div>
             </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="motivo">Motivo (tipo da ausência)</Label>
-              <Input
+            <div className="grid gap-1.5">
+              <Label htmlFor="motivo">Tipo da ausência *</Label>
+              <select
                 id="motivo"
                 name="motivo"
-                list="tipos-de-ausencia"
-                placeholder="Ex.: Falta justificada"
+                required
                 defaultValue={ausencia?.motivo ?? ""}
-              />
-              {/* Os tipos que a entidade já usa (vieram do Bubble) ficam como
-                  sugestão; texto livre continua valendo para os casos raros. */}
-              <datalist id="tipos-de-ausencia">
-                {TIPOS_DE_AUSENCIA.map((t) => (
-                  <option key={t} value={t} />
+                className={SELECT}
+              >
+                <option value="" disabled>
+                  Escolha…
+                </option>
+                {TIPOS_AUSENCIA.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <p className="text-muted-foreground text-xs">
                 É o que aparece no painel, na coluna do dia.
+              </p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="observacao">Observação</Label>
+              <Input
+                id="observacao"
+                name="observacao"
+                placeholder="Ex.: Seminário da Mulher"
+                defaultValue={ausencia?.observacao ?? ""}
+              />
+              <p className="text-muted-foreground text-xs">
+                O detalhe do caso, quando houver.
               </p>
             </div>
           </div>

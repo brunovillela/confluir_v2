@@ -1,3 +1,4 @@
+import { cache as cacheReact } from "react"
 import "server-only"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -172,6 +173,7 @@ export type Ausencia = {
   inicio: string | null
   termino: string | null
   motivo: string | null
+  observacao?: string | null
   atestado_id: string | null
   created_at: string | null
 }
@@ -180,11 +182,14 @@ export async function listarAusencias(): Promise<Ausencia[]> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("pessoal_ausencias")
-    .select("id, funcionario_id, inicio, termino, motivo, atestado_id, created_at")
+    .select(
+      "id, funcionario_id, inicio, termino, motivo, atestado_id, created_at" +
+        ((await temObservacao()) ? ", observacao" : "")
+    )
     .eq("emp_proprietaria_id", await tenantAtual())
     .order("inicio", { ascending: false, nullsFirst: false })
   if (error) throw new Error(`Falha ao listar ausências: ${error.message}`)
-  const linhas = (data ?? []) as Omit<Ausencia, "funcionarioNome">[]
+  const linhas = (data ?? []) as unknown as Omit<Ausencia, "funcionarioNome">[]
   const nomes = await nomesDosUsuarios([
     ...new Set(
       linhas.map((a) => a.funcionario_id).filter((v): v is string => !!v)
@@ -225,7 +230,23 @@ export type DadosAusencia = {
   funcionario_id: string
   inicio: string
   termino: string | null
+  /** Tipo da ausência (lista fechada em src/lib/ausencias.ts). */
   motivo: string | null
+  /** Detalhe do caso — qual seminário, qual licença. */
+  observacao?: string | null
+}
+
+/** A coluna de observação existe? (supabase/ausencias-observacao.sql) */
+const temObservacao = cacheReact(async (): Promise<boolean> => {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("pessoal_ausencias").select("observacao").limit(1)
+  return !error
+})
+
+/** Sem a coluna, a observação é descartada em vez de derrubar o registro. */
+async function comObservacao(dados: DadosAusencia): Promise<Record<string, unknown>> {
+  const { observacao, ...resto } = dados
+  return (await temObservacao()) ? { ...resto, observacao: observacao ?? null } : resto
 }
 
 export async function criarAusencia(
@@ -233,7 +254,7 @@ export async function criarAusencia(
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_ausencias").insert({
-    ...dados,
+    ...(await comObservacao(dados)),
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível criar: ${error.message}` }
@@ -247,7 +268,10 @@ export async function atualizarAusencia(
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("pessoal_ausencias")
-    .update({ ...dados, updated_at: new Date().toISOString() }, { count: "exact" })
+    .update(
+      { ...(await comObservacao(dados)), updated_at: new Date().toISOString() },
+      { count: "exact" }
+    )
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }

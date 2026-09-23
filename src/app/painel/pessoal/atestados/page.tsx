@@ -432,6 +432,7 @@ export default async function AtestadosPage({
                     inicio: ausenciaEmEdicao.inicio,
                     termino: ausenciaEmEdicao.termino,
                     motivo: ausenciaEmEdicao.motivo,
+                    observacao: ausenciaEmEdicao.observacao ?? null,
                   }
                 : undefined
             }
