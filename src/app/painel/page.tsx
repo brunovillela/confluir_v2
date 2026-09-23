@@ -304,9 +304,7 @@ export default async function PainelPage({
                         {a.nome ?? "(sem nome)"}
                       </span>
                       <span className="text-muted-foreground block truncate text-xs">
-                        {[a.tipo, a.motivo && a.motivo !== a.tipo ? a.motivo : null]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {a.tipo}
                       </span>
                     </span>
                     <span className="text-muted-foreground shrink-0 text-right text-xs">

@@ -20,6 +20,16 @@ import {
   excluirAusenciaAction,
 } from "./actions"
 
+/** Tipos de ausência em uso na entidade (vieram do Bubble). */
+const TIPOS_DE_AUSENCIA = [
+  "Falta justificada",
+  "Afastamento médico",
+  "Férias",
+  "Compensação de banco de horas",
+  "Licença",
+  "Trabalho externo",
+]
+
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
@@ -315,13 +325,24 @@ export function AusenciaForm({
               </div>
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="motivo">Motivo</Label>
+              <Label htmlFor="motivo">Motivo (tipo da ausência)</Label>
               <Input
                 id="motivo"
                 name="motivo"
-                placeholder="Ex.: consulta médica"
+                list="tipos-de-ausencia"
+                placeholder="Ex.: Falta justificada"
                 defaultValue={ausencia?.motivo ?? ""}
               />
+              {/* Os tipos que a entidade já usa (vieram do Bubble) ficam como
+                  sugestão; texto livre continua valendo para os casos raros. */}
+              <datalist id="tipos-de-ausencia">
+                {TIPOS_DE_AUSENCIA.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+              <p className="text-muted-foreground text-xs">
+                É o que aparece no painel, na coluna do dia.
+              </p>
             </div>
           </div>
 

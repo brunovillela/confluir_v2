@@ -42,7 +42,7 @@ export type EventoDoDia = {
 export type AusenciaDoDia = {
   id: string
   nome: string | null
-  /** Tipo derivado do vínculo do registro: atestado, férias ou ausência. */
+  /** Tipo da ausência: o motivo registrado (lista) ou, sem ele, o vínculo. */
   tipo: string
   motivo: string | null
   /** Último dia da ausência. */
@@ -282,11 +282,12 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       nome: a.funcionario_id
         ? (nomesUsuarios.get(a.funcionario_id) ?? null)
         : null,
-      tipo: a.atestado_id
-        ? "Afastamento médico"
-        : a.ferias_id
-          ? "Férias"
-          : (a.motivo?.trim() || "Ausência"),
+      // O motivo É o tipo (lista do Bubble: falta justificada, afastamento
+      // médico, férias, compensação…). Só quando ele vem vazio é que o
+      // vínculo com atestado ou férias diz o que foi.
+      tipo:
+        a.motivo?.trim() ||
+        (a.atestado_id ? "Afastamento médico" : a.ferias_id ? "Férias" : "Ausência"),
       motivo: a.motivo,
       termino: a.termino,
       retorno: diaSeguinte(a.termino as string | null),
