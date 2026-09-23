@@ -390,3 +390,49 @@ export async function reabrirAvisos(
   const { error } = await q
   return error ? { erro: `Não foi possível reabrir: ${error.message}` } : {}
 }
+
+/**
+ * Reenvia a UM eleitor o e-mail com o link pessoal de voto — o mesmo formato
+ * do aviso da rodada.
+ *
+ * Por que não mandamos um código aqui (23/09/2026): a Microsoft descarta em
+ * silêncio o e-mail curto com o código (22 pedidos, 0 entregas), enquanto o
+ * e-mail do aviso, pelo mesmo remetente e no mesmo minuto, entrega (11 de 14).
+ * O conteúdo é que pesa — então a porta de entrada passa a ser o link.
+ */
+export async function enviarLinkDeVoto(
+  assembleiaId: string,
+  apto: { id: string; nome: string | null; email: string }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data: assembleia } = await admin
+    .from("voto_assembleias")
+    .select("rod_assembleia_id")
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  const rodadaId = (assembleia?.rod_assembleia_id as string | null) ?? null
+  if (!rodadaId) return { erro: "Assembleia sem rodada vinculada." }
+
+  const { dados, erro } = await dadosDoAviso(rodadaId)
+  if (!dados) return { erro }
+
+  const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
+  const origem = await origemAtual()
+  const t = encodeURIComponent(gerarTokenAcesso(apto.id, assembleiaId))
+  const base = `${origem}/votar/${assembleiaId}`
+
+  const ok = await enviarEmail({
+    email: apto.email,
+    nome: apto.nome,
+    assunto: assuntoAvisoAptos(dados),
+    html: montarEmailAvisoAptos(dados, {
+      nome: apto.nome,
+      email: apto.email,
+      porta: "email",
+      linkPessoal: `${base}/entrar?t=${t}`,
+      linkNaoSouEu: `${base}/nao-sou-eu?t=${t}`,
+    }),
+  })
+  return ok ? {} : { erro: "Não foi possível enviar o e-mail. Tente de novo." }
+}

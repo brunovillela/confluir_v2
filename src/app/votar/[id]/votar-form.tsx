@@ -55,20 +55,36 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
   )
 
   const est = modo === "cpf" ? estCpf : estEmail
-  const aguardandoCodigo = Boolean(est.ok)
+  // "link" = mandamos o link pessoal por e-mail; não há código para digitar.
+  const linkEnviado = est.modo === "link"
+  const aguardandoCodigo = Boolean(est.ok) && !linkEnviado
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Votação online</CardTitle>
         <CardDescription>
-          {aguardandoCodigo
-            ? "Digite o código enviado ao seu e-mail."
-            : "Identifique-se para receber o código de acesso."}
+          {linkEnviado
+            ? "Procure o e-mail e clique no botão para votar."
+            : aguardandoCodigo
+              ? "Digite o código enviado ao seu e-mail."
+              : "Identifique-se para receber o seu link de votação."}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        {!aguardandoCodigo && (
+        {linkEnviado && (
+          <div className="grid gap-3">
+            <Alert variant="success">
+              <AlertDescription>{est.ok}</AlertDescription>
+            </Alert>
+            <p className="text-muted-foreground text-xs">
+              O link é pessoal e abre a cédula direto, sem código. Confira também
+              o lixo eletrônico. Se o e-mail não chegar, fale com o sindicato.
+            </p>
+          </div>
+        )}
+
+        {!aguardandoCodigo && !linkEnviado && (
           <div className="bg-muted grid grid-cols-2 gap-1 rounded-lg p-1 text-sm">
             {(
               [
@@ -94,7 +110,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
         )}
 
         {/* Passo 1 — pedir o código */}
-        {!aguardandoCodigo && modo === "cpf" && (
+        {!aguardandoCodigo && !linkEnviado && modo === "cpf" && (
           <form action={actCpf} className="grid gap-4">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             {estCpf.erro && (
@@ -108,12 +124,12 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
             </div>
             <Button type="submit" disabled={pendCpf}>
               {pendCpf && <Loader2 className="animate-spin" />}
-              Receber código
+              Receber meu link de votação
             </Button>
           </form>
         )}
 
-        {!aguardandoCodigo && modo === "email" && (
+        {!aguardandoCodigo && !linkEnviado && modo === "email" && (
           <form action={actEmail} className="grid gap-4">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             {estEmail.erro && (
@@ -127,7 +143,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
             </div>
             <Button type="submit" disabled={pendEmail}>
               {pendEmail && <Loader2 className="animate-spin" />}
-              Receber código
+              Receber meu link de votação
             </Button>
           </form>
         )}

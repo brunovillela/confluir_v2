@@ -21,15 +21,53 @@ import { createClient } from "@/lib/supabase/server"
 
 
 /**
+ * `modo: "link"` = mandamos o LINK pessoal de voto, não um código. É o padrão
+ * desde 23/09/2026: a Microsoft descarta em silêncio o e-mail do código (22
+ * pedidos, 0 entregas) e entrega o do aviso, feito no mesmo minuto, pelo mesmo
+ * remetente. Quem não é apto desta assembleia segue pelo caminho do código.
+ */
+export type EstadoAcesso = EstadoForm & { modo?: "link" | "codigo" }
+
+/** O apto desta assembleia, por e-mail ou CPF, com um e-mail para escrever. */
+async function aptoParaLink(
+  assembleiaId: string,
+  por: { email?: string; cpf?: string }
+): Promise<{ id: string; nome: string | null; email: string } | null> {
+  const { escopoAptos, filtroAptos } = await import("@/lib/db/votacao-escopo")
+  const admin = await createAdminClient()
+  let q = admin
+    .from("voto_assembleias_aptos")
+    .select("id, nome_completo, email_corporativo")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .or(filtroAptos(await escopoAptos(assembleiaId)))
+  q = por.email
+    ? q.eq("email_corporativo", por.email)
+    : q.eq("cpf", por.cpf ?? "")
+  const { data } = await q.limit(1).maybeSingle()
+  if (!data) return null
+  const doCadastro = (data.email_corporativo as string | null) ?? null
+  const email =
+    doCadastro ??
+    por.email ??
+    (por.cpf ? ((await buscarFiliadoPorCpf(por.cpf))?.email ?? null) : null)
+  if (!email) return null
+  return {
+    id: String(data.id),
+    nome: (data.nome_completo as string | null) ?? null,
+    email,
+  }
+}
+
+/**
  * Porta 3 — eleitores: CPF + token temporário por email.
  *
  * O template de email "Magic Link" no Supabase precisa exibir {{ .Token }}
  * (o código numérico) para este fluxo — ver README.
  */
 export async function solicitarTokenEleitor(
-  _prev: EstadoForm,
+  _prev: EstadoAcesso,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoAcesso> {
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
 
@@ -71,6 +109,19 @@ export async function solicitarTokenEleitor(
   if (!filiado.ativo) {
     return {
       erro: "A filiação deste CPF não está ativa. Procure a mesa da assembleia.",
+    }
+  }
+
+  // Caminho preferido: o LINK pessoal, no e-mail que a Microsoft entrega.
+  const paraLink = await aptoParaLink(assembleiaId, { cpf })
+  if (paraLink) {
+    const { enviarLinkDeVoto } = await import("@/lib/db/votacao-aviso")
+    const { erro } = await enviarLinkDeVoto(assembleiaId, paraLink)
+    if (!erro) {
+      return {
+        modo: "link",
+        ok: `Enviamos o seu link de votação para ${mascararEmail(paraLink.email)}. Abra o e-mail e clique em "Ir para a votação".`,
+      }
     }
   }
 
@@ -122,9 +173,9 @@ export async function confirmarTokenEleitor(
 
 /** Envia o código para o e-mail corporativo, se ele estiver na lista de aptos. */
 export async function solicitarTokenEmail(
-  _prev: EstadoForm,
+  _prev: EstadoAcesso,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoAcesso> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase()
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -143,6 +194,18 @@ export async function solicitarTokenEmail(
   if (!(await existeAptoPorEmail(email, assembleiaId))) {
     return {
       erro: "Este e-mail não está na lista de aptos a votar nesta assembleia.",
+    }
+  }
+
+  const paraLink = await aptoParaLink(assembleiaId, { email })
+  if (paraLink) {
+    const { enviarLinkDeVoto } = await import("@/lib/db/votacao-aviso")
+    const { erro: erroLink } = await enviarLinkDeVoto(assembleiaId, paraLink)
+    if (!erroLink) {
+      return {
+        modo: "link",
+        ok: `Enviamos o seu link de votação para ${mascararEmail(paraLink.email)}. Abra o e-mail e clique em "Ir para a votação".`,
+      }
     }
   }
 
