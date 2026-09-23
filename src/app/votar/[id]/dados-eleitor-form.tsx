@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { informarDadosEleitor, type EstadoDadosEleitor } from "./actions"
+import { NomeDivergente } from "./nome-divergente"
 
 /**
  * Primeiro acesso de quem entrou pelo e-mail corporativo: CPF, nome e
@@ -67,9 +68,18 @@ export function DadosEleitorForm({
       </div>
 
       {estado.erro && (
-        <Alert variant="destructive">
-          <AlertDescription>{estado.erro}</AlertDescription>
-        </Alert>
+        <>
+          <Alert variant="destructive">
+            <AlertDescription>{estado.erro}</AlertDescription>
+          </Alert>
+          {/^O nome informado não confere/.test(estado.erro) && (
+            <NomeDivergente
+              assembleiaId={assembleiaId}
+              nome={v?.nome ?? ""}
+              preview={preview}
+            />
+          )}
+        </>
       )}
 
       <AcaoVisualizacao preview={preview} nota="Só o próprio eleitor informa os dados dele.">

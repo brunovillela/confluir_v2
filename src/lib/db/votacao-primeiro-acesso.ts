@@ -131,17 +131,72 @@ export async function precisaInformarDados(email: string, assembleiaId: string):
   return aptos.length > 0 && aptos.every((a) => !a.cpf)
 }
 
-/** "Maria da Silva Souza" ~ "MARIA SOUZA": primeiro e último nome batem. */
+const PARTICULAS = ["de", "da", "do", "das", "dos", "e"]
+const SUFIXOS = ["junior", "jr", "filho", "neto", "sobrinho", "segundo", "terceiro"]
+
+/** Pedaços úteis do nome: sem acento, sem partículas e sem sufixo de família. */
+function partesDoNome(v: string | null): string[] {
+  const p = semAcento(v ?? "")
+    .replace(/[^a-z ]/g, " ")
+    .split(/\s+/)
+    .filter((x) => x.length > 1 && !PARTICULAS.includes(x))
+  // "João Silva Júnior" e "João Silva" são a mesma pessoa.
+  while (p.length > 2 && SUFIXOS.includes(p[p.length - 1])) p.pop()
+  return p
+}
+
+/** Distância de edição, limitada — só interessa saber se é 0, 1 ou 2. */
+function distancia(a: string, b: string): number {
+  if (a === b) return 0
+  if (Math.abs(a.length - b.length) > 2) return 3
+  const linha = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = linha[0]
+    linha[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const guardado = linha[j]
+      linha[j] = Math.min(
+        linha[j] + 1,
+        linha[j - 1] + 1,
+        anterior + (a[i - 1] === b[j - 1] ? 0 : 1)
+      )
+      anterior = guardado
+    }
+  }
+  return linha[b.length]
+}
+
+/** Mesmo pedaço de nome, tolerando erro de digitação proporcional ao tamanho. */
+function mesmoPedaco(a: string, b: string): boolean {
+  if (a === b) return true
+  const tamanho = Math.max(a.length, b.length)
+  if (tamanho < 5) return false
+  return distancia(a, b) <= (tamanho >= 8 ? 2 : 1)
+}
+
+/**
+ * "Maria da Silva Souza" ~ "MARIA SOUZA": a mesma pessoa, escrita de jeitos
+ * diferentes. A comparação aceita o que a vida real produz — acento, partícula,
+ * "Júnior", sobrenome a mais depois do casamento e erro de digitação de uma ou
+ * duas letras (de qualquer um dos lados: a lista da empresa erra tanto quanto o
+ * eleitor). O que ela NÃO aceita é sobrenome final diferente sem parentesco de
+ * escrita, que é o caso de duas pessoas distintas.
+ */
 export function nomesConferem(a: string | null, b: string | null): boolean {
-  const partes = (v: string | null) =>
-    semAcento(v ?? "")
-      .replace(/[^a-z ]/g, " ")
-      .split(/\s+/)
-      .filter((p) => p.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(p))
-  const pa = partes(a)
-  const pb = partes(b)
+  const pa = partesDoNome(a)
+  const pb = partesDoNome(b)
   if (pa.length < 2 || pb.length < 2) return false
-  return pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]
+  if (!mesmoPedaco(pa[0], pb[0])) return false
+
+  const sobraA = pa.slice(1)
+  const sobraB = pb.slice(1)
+  // Último sobrenome igual (ou quase) resolve a maioria.
+  if (mesmoPedaco(sobraA[sobraA.length - 1], sobraB[sobraB.length - 1])) return true
+  // Senão, um dos lados precisa ser um recorte do outro: "Maria Souza" dentro
+  // de "Maria Souza Lima" (casamento), nunca "Maria Souza" × "Maria Lima".
+  const contido = (menor: string[], maior: string[]) =>
+    menor.every((x) => maior.some((y) => mesmoPedaco(x, y)))
+  return contido(sobraA, sobraB) || contido(sobraB, sobraA)
 }
 
 /** Dá para comparar? (nome com pelo menos dois pedaços úteis) */
@@ -279,4 +334,37 @@ export async function registrarDadosEleitor(dados: {
     .in("id", meusIds)
     .is("nome_completo", null)
   return {}
+}
+
+/**
+ * "Meu nome está diferente na lista": quando a lista da empregadora traz o nome
+ * errado, tentar de novo nunca resolve — quem conserta é a secretaria. O
+ * eleitor avisa por aqui e o apto fica marcado, com o nome que ele declarou.
+ * O acesso NÃO é derrubado: corrigido o cadastro, ele entra e vota.
+ */
+export const MARCA_NOME_DIVERGENTE = "O eleitor avisou que o nome da lista está escrito errado."
+
+export async function marcarNomeDivergente(dados: {
+  email: string
+  assembleiaId: string
+  nomeDeclarado: string
+}): Promise<{ erro?: string }> {
+  const nome = dados.nomeDeclarado.trim().replace(/\s+/g, " ")
+  if (nome.split(" ").filter((p) => p.length > 1).length < 2) {
+    return { erro: "Informe o seu nome completo antes de avisar." }
+  }
+  const aptos = await aptosDoEmail(dados.email, dados.assembleiaId)
+  if (aptos.length === 0) return { erro: "Este e-mail não está na lista de aptos desta votação." }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_assembleias_aptos")
+    .update({
+      conflito_motivo: `${MARCA_NOME_DIVERGENTE} Nome informado: "${nome}".`,
+      conflito_em: new Date().toISOString(),
+    })
+    .in(
+      "id",
+      aptos.map((a) => a.id)
+    )
+  return error ? { erro: "Não foi possível registrar o aviso." } : {}
 }

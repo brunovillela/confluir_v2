@@ -284,6 +284,17 @@ export default async function RodadaPage({
                   <TableRow key={a.id}>
                     <TableCell className="max-w-72 truncate">
                       {a.nome_completo ?? "—"}
+                      {/* Aviso do próprio eleitor ou da conferência: a
+                          secretaria corrige o cadastro e ele vota. */}
+                      {!a.cpf_conflito && a.conflito_motivo && (
+                        <Badge
+                          variant="outline"
+                          className="border-warning/40 text-warning-fg ml-1.5"
+                          title={a.conflito_motivo}
+                        >
+                          Conferir cadastro
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
                       {a.cpf ? formatarCnpjCpf(a.cpf) : "—"}

@@ -325,3 +325,37 @@ export async function confirmarCpfEleitor(
   if (erro) return falha(erro)
   redirect(`/votar/${assembleiaId}`)
 }
+
+/**
+ * "Meu nome está diferente na lista": o eleitor avisa que a lista da empresa
+ * traz o nome errado. Marca o apto para a secretaria corrigir — sem derrubar o
+ * acesso dele.
+ */
+export async function avisarNomeDivergente(
+  prev: EstadoDadosEleitor,
+  formData: FormData
+): Promise<EstadoDadosEleitor> {
+  const assembleiaId = String(formData.get("assembleia_id") ?? "")
+  const nome = String(formData.get("nome") ?? "")
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
+  const porLink = await eleitorPorLink(assembleiaId)
+  const email = user?.email ?? porLink?.email ?? null
+  if (!email) {
+    return { erro: "Sessão expirada. Identifique-se novamente.", tentativa: (prev.tentativa ?? 0) + 1 }
+  }
+
+  const { marcarNomeDivergente } = await import("@/lib/db/votacao-primeiro-acesso")
+  const { erro } = await marcarNomeDivergente({ email, assembleiaId, nomeDeclarado: nome })
+  if (erro) {
+    return { erro, valores: prev.valores, tentativa: (prev.tentativa ?? 0) + 1 }
+  }
+  return {
+    ok: "Avisamos o sindicato. Assim que o seu nome for corrigido na lista, é só voltar a este link e votar.",
+    tentativa: (prev.tentativa ?? 0) + 1,
+  }
+}
