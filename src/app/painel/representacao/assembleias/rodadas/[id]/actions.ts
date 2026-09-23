@@ -573,3 +573,20 @@ export async function reabrirAvisosAptos(
           : "Todos os aptos voltaram para a fila — o próximo envio avisa a lista inteira de novo.",
   }
 }
+
+/**
+ * Link pessoal de voto de UM apto, para a secretaria mandar por WhatsApp,
+ * Telegram ou ditar ao telefone quando o e-mail não chega. É o mesmo link do
+ * aviso: pessoal, vale só para aquela assembleia e para de servir depois do
+ * voto.
+ */
+export async function linkDeVotoDoApto(aptoId: string): Promise<{
+  link?: string
+  mensagem?: string
+  nome?: string | null
+  erro?: string
+}> {
+  await requirePermissao("assembleias")
+  const { linkPessoalDoApto } = await import("@/lib/db/votacao-aviso")
+  return await linkPessoalDoApto(aptoId)
+}

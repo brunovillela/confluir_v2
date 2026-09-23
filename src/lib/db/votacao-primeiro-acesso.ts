@@ -247,20 +247,12 @@ export async function registrarDadosEleitor(dados: {
       .in("id", meusIds)
   }
 
-  // 1b. O nome declarado tem de bater com o NOME DA LISTA de aptos. É o que
-  //     protege quem teve o e-mail digitado errado: se o link cair na caixa de
-  //     outra pessoa, ela não consegue votar no lugar do titular.
   const nomeDaLista = meus.map((a) => a.nome_completo).find(Boolean) ?? null
-  if (nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
-    await marcarConflito(
-      `Nome declarado ("${nome}") não confere com o nome da lista de aptos ("${nomeDaLista}").`
-    )
-    return {
-      erro: "O nome informado não confere com o cadastro desta lista de aptos. Se este e-mail não é seu, avise o sindicato — pode ser um endereço cadastrado errado.",
-    }
-  }
 
-  // 2. CPF de filiado: nome e nascimento têm de bater com o cadastro.
+  // 2. CPF de filiado: nome e nascimento têm de bater com o cadastro DA
+  //    ENTIDADE — que é o registro mais confiável e vem ANTES da lista da
+  //    empregadora. Os dois podem divergir (nome de solteira na lista, nome
+  //    de casada na filiação): quem manda é o da entidade.
   const { data: filiado } = await admin
     .from("filiacoes")
     .select("id, nome_completo, nascimento_data")
@@ -269,6 +261,7 @@ export async function registrarDadosEleitor(dados: {
     .limit(1)
     .maybeSingle()
   let identidadeConferida = false
+  let divergenciaDaLista: string | null = null
   if (filiado) {
     const nomeOk = nomesConferem(nome, filiado.nome_completo as string | null)
     const nascCadastro = filiado.nascimento_data ? String(filiado.nascimento_data).slice(0, 10) : null
@@ -280,6 +273,24 @@ export async function registrarDadosEleitor(dados: {
       }
     }
     identidadeConferida = true
+    // A lista da empresa está com outro nome: não barra (quem manda é o
+    // cadastro da entidade), mas fica anotado — a marca é gravada DEPOIS da
+    // atualização final, que limpa os conflitos antigos.
+    if (nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
+      divergenciaDaLista = `Nome da lista ("${nomeDaLista}") difere do cadastro de filiação ("${filiado.nome_completo ?? nome}"). O voto foi liberado pelo cadastro da entidade.`
+    }
+  }
+
+  // 2b. CPF que NÃO é de filiado: a única referência é a lista da empresa.
+  //     É o que protege quem teve o e-mail digitado errado — se o link cair
+  //     na caixa de outra pessoa, ela não vota no lugar do titular.
+  if (!filiado && nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
+    await marcarConflito(
+      `Nome declarado ("${nome}") não confere com o nome da lista de aptos ("${nomeDaLista}").`
+    )
+    return {
+      erro: "O nome informado não confere com o cadastro desta lista de aptos. Se este e-mail não é seu, avise o sindicato — pode ser um endereço cadastrado errado.",
+    }
   }
 
   // 3. CPF já em OUTRO apto da mesma votação.
@@ -326,6 +337,13 @@ export async function registrarDadosEleitor(dados: {
     ;({ error } = await admin.from("voto_assembleias_aptos").update({ cpf, updated_at: agora }).in("id", meusIds))
   }
   if (error) return { erro: `Não foi possível salvar os seus dados: ${error.message}` }
+
+  if (divergenciaDaLista) {
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({ conflito_motivo: divergenciaDaLista, conflito_em: new Date().toISOString() })
+      .in("id", meusIds)
+  }
 
   // Nome vazio no apto: completa com o declarado (a lista da empresa vem crua).
   await admin

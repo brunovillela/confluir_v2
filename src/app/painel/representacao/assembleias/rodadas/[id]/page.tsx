@@ -44,6 +44,7 @@ import {
 } from "./aptos"
 import { AssembleiasDaRodada } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
+import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
 import { RodadaForm } from "./rodada-form"
 
@@ -329,6 +330,9 @@ export default async function RodadaPage({
                             <Eye />
                           </Button>
                         </form>
+                        {!a.hora_voto && (
+                          <LinkDeVotoBotao aptoId={a.id} nome={a.nome_completo} />
+                        )}
                         <EditarEleitorBotao rodadaId={rodada.id} apto={a} />
                         <RemoverAptoBotao
                           rodadaId={rodada.id}

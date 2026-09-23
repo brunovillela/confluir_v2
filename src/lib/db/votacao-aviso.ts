@@ -436,3 +436,47 @@ export async function enviarLinkDeVoto(
   })
   return ok ? {} : { erro: "Não foi possível enviar o e-mail. Tente de novo." }
 }
+
+/**
+ * O link pessoal de um apto + uma mensagem pronta para colar no WhatsApp ou no
+ * Telegram. Serve para quando o e-mail não chega: a secretaria manda o link
+ * por outro caminho, sem que ninguém precise de código.
+ */
+export async function linkPessoalDoApto(aptoId: string): Promise<{
+  link?: string
+  mensagem?: string
+  nome?: string | null
+  erro?: string
+}> {
+  const admin = await createAdminClient()
+  const { data: apto } = await admin
+    .from("voto_assembleias_aptos")
+    .select("id, nome_completo, rod_assembleia_id, assembleia_id, hora_voto")
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!apto) return { erro: "Eleitor não encontrado." }
+  if (apto.hora_voto) return { erro: "Este eleitor já votou — o link não abre mais a cédula." }
+
+  const rodadaId = (apto.rod_assembleia_id as string | null) ?? null
+  if (!rodadaId) return { erro: "Eleitor sem rodada vinculada." }
+  const { dados, erro } = await dadosDoAviso(rodadaId)
+  if (!dados) return { erro }
+  const assembleiaId = (apto.assembleia_id as string | null) ?? dados.assembleiaOnlineId
+  if (!assembleiaId) {
+    return { erro: "Esta rodada não tem assembleia online — não há link de voto." }
+  }
+
+  const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
+  const origem = await origemAtual()
+  const link = `${origem}/votar/${assembleiaId}/entrar?t=${encodeURIComponent(
+    gerarTokenAcesso(String(apto.id), assembleiaId)
+  )}`
+  const nome = (apto.nome_completo as string | null) ?? null
+  const primeiro = nome ? nome.trim().split(/\s+/)[0] : null
+  const mensagem =
+    `${primeiro ? `Olá, ${primeiro}! ` : "Olá! "}` +
+    `Você está habilitado a votar na ${dados.rodadaNome}. ` +
+    `Este link é pessoal e abre a sua cédula direto, sem código — não repasse a ninguém:\n${link}`
+  return { link, mensagem, nome }
+}
