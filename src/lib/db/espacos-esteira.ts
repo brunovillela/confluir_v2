@@ -124,6 +124,21 @@ export async function listarSolicitacoes(filtros: {
   }
 }
 
+/** O histórico é lido meses depois — o tipo cru não serve de rótulo. */
+export const ROTULO_EVENTO: Record<string, string> = {
+  analise: "Pedido assumido",
+  visita_agendada: "Visita agendada",
+  visita_realizada: "Visita realizada",
+  visita_dispensada: "Visita dispensada",
+  autorizacao_autorizada: "Autorizado",
+  autorizacao_negada: "Autorização negada",
+  custeio: "Custeio lançado",
+  custeio_pago: "Custeio pago",
+  confirmada: "Cessão confirmada",
+  recusada: "Pedido recusado",
+  cancelada: "Pedido cancelado",
+}
+
 export type PassoVisita = {
   exigida: boolean
   facultativa: boolean
@@ -374,14 +389,21 @@ export async function agendarVisita(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   if (!dados.quando) return { erro: "Informe a data e a hora da visita." }
+  const quandoISO = new Date(dados.quando).toISOString()
   const r = await atualizar(id, {
-    visita_agendada_em: new Date(dados.quando).toISOString(),
+    visita_agendada_em: quandoISO,
     visita_responsavel_id: dados.responsavelId,
     visita_dispensada: false,
   })
   if (!r.erro) {
-    await registrarEvento(id, "visita_agendada", dados.quando, usuarioId)
-    await avisarSolicitante(id, "visita", dados.quando)
+    // Na trilha e no e-mail vai a data legível, não o valor do campo.
+    const legivel = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(quandoISO))
+    await registrarEvento(id, "visita_agendada", legivel, usuarioId)
+    await avisarSolicitante(id, "visita", legivel)
   }
   return r
 }

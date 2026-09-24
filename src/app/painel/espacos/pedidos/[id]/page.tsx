@@ -12,6 +12,7 @@ import { requirePermissao } from "@/lib/auth"
 import { formatarCpf } from "@/lib/cpf"
 import { listarResponsaveisPossiveis } from "@/lib/db/espacos"
 import {
+  ROTULO_EVENTO,
   ROTULO_SITUACAO,
   obterSolicitacao,
   pendenciasParaConfirmar,
@@ -239,7 +240,9 @@ export default async function PedidoPage({
                 <ul className="grid gap-2 text-xs">
                   {pedido.eventos.map((e, i) => (
                     <li key={i} className="border-l-2 pl-2">
-                      <p className="font-medium">{e.tipo.replace(/_/g, " ")}</p>
+                      <p className="font-medium">
+                        {ROTULO_EVENTO[e.tipo] ?? e.tipo.replace(/_/g, " ")}
+                      </p>
                       <p className="text-muted-foreground">
                         {formatarDataHora(e.quando)}
                         {e.quem ? ` · ${e.quem}` : ""}

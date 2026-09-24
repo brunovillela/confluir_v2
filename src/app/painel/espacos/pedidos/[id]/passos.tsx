@@ -186,9 +186,6 @@ export function Visita({
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
-                {visita.facultativa && (
-                  <ButtonDispensar id={id} />
-                )}
                 <Button type="submit" size="sm" disabled={agendando}>
                   {agendando && <Loader2 className="animate-spin" />}
                   Agendar e avisar
@@ -196,6 +193,13 @@ export function Visita({
               </div>
             </form>
           )
+        )}
+        {/* Fora do formulário acima: <form> dentro de <form> é inválido, e o
+            navegador descarta o interno — o botão acabaria submetendo o outro. */}
+        {podeGerir && visita.facultativa && !visita.agendadaEm && !visita.realizadaEm && (
+          <div className="flex justify-end">
+            <ButtonDispensar id={id} />
+          </div>
         )}
       </CardContent>
     </Card>
@@ -394,18 +398,23 @@ export function Custeio({
                   ? "Sem custeio"
                   : `Total ${formatarMoeda(custeio.valor)}`}
               </span>
-              <div className="flex gap-2">
-                {custeio.valor !== null && custeio.valor > 0 && !custeio.pagoEm && (
-                  <MarcarPago id={id} />
-                )}
-                <Button type="submit" size="sm" disabled={pendente}>
-                  {pendente && <Loader2 className="animate-spin" />}
-                  Salvar custeio
-                </Button>
-              </div>
+              <Button type="submit" size="sm" disabled={pendente}>
+                {pendente && <Loader2 className="animate-spin" />}
+                Salvar custeio
+              </Button>
             </div>
           </form>
         )}
+        {/* Fora do formulário do custeio — form aninhado é descartado pelo
+            navegador, e o clique iria parar no formulário de cima. */}
+        {podeGerir &&
+          custeio.valor !== null &&
+          custeio.valor > 0 &&
+          !custeio.pagoEm && (
+            <div className="flex justify-end">
+              <MarcarPago id={id} />
+            </div>
+          )}
       </CardContent>
     </Card>
   )
