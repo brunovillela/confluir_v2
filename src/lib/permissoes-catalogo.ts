@@ -138,6 +138,14 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     ],
   },
   {
+    area: "Cessão de espaços",
+    flags: [
+      { chave: "espacos", rotulo: "Cessão de espaços" },
+      { chave: "espacos_gestao", rotulo: "Cessão — cadastrar espaço e agenda" },
+      { chave: "espacos_autorizacao", rotulo: "Cessão — autorizar (avaliação política)" },
+    ],
+  },
+  {
     area: "Eventos",
     flags: [
       { chave: "eventos", rotulo: "Eventos" },

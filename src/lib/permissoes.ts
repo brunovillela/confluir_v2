@@ -484,6 +484,14 @@ export const MODULOS: Modulo[] = [
     chavesAlternativas: ["patrimonio_leitura"],
   },
   {
+    titulo: "Cessão de espaços",
+    href: "/painel/espacos",
+    icone: "DoorOpen",
+    descricao: "Espaços cedíveis, agenda de cessão e bloqueios",
+    chave: "espacos",
+    chavesAlternativas: ["espacos_gestao"],
+  },
+  {
     titulo: "Itens patrimoniais",
     href: "/painel/patrimonio/itens",
     icone: "Boxes",
