@@ -1,7 +1,8 @@
 A entidade cede auditório, salão, teatro e área de convivência para
-trabalhadores, entidades parceiras e, às vezes, terceiros. Esta área guarda
-**o que pode ser cedido** e **quando** — a solicitação, o termo e a
-autorização vêm nas etapas seguintes do módulo.
+trabalhadores, entidades parceiras e, às vezes, terceiros. Esta área cobre o
+caminho inteiro: **o que pode ser cedido**, **quando**, o **pedido** feito por
+um link público, a **análise** (visita técnica, autorização e custeio) e o
+**termo** de cessão.
 
 <RequerPermissao>Cessão de espaços</RequerPermissao>
 
@@ -205,6 +206,44 @@ espaço sem autorização vai direto ao custeio.
   que responde, meses depois, por que um pedido foi recusado.
 </Aviso>
 
+## O termo de cessão
+
+O termo tem **dois níveis**, e entender essa separação evita retrabalho:
+
+<PassoAPasso>
+  <Passo titulo="O modelo, que é da entidade">
+    Um texto só, em **Cessão de espaços › Termo**, que vale para todas as
+    cessões. O que muda de uma para outra entra por **marcador** —
+    `{{inicio}}`, `{{montagem}}`, `{{exigencias}}`, `{{custeio}}` e outros.
+  </Passo>
+  <Passo titulo="O termo de cada cessão">
+    No pedido, **Gerar o termo** monta o texto com os dados daquele pedido e o
+    **congela**. Revisar o modelo depois não altera termo nenhum já gerado.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A IA escreve o modelo, não o termo de cada cessão">
+  Pedir para a IA redigir o termo inteiro a cada cessão seria pedir variação
+  justamente onde não pode haver: obrigação de parte, responsabilidade por
+  dano, prazo de cancelamento. Ela ajuda a escrever o **padrão**, uma vez; os
+  dados vêm do registro. A sugestão cai no editor para você ler e ajustar — nada
+  é publicado sozinho.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Salvar cria uma versão nova">
+  Não se edita um texto que já pode ter sido usado numa cessão. As versões
+  antigas ficam guardadas, com a data, e dá para voltar a usá-las.
+</Aviso>
+
+O botão **Ver prévia com exemplo** mostra como o texto fica preenchido, com
+valores fictícios — serve para conferir se algum marcador ficou fora do lugar.
+Marcador que não existe é avisado ao salvar, porque sairia em branco.
+
+<Print src="espacos/termo.png" alt="Pedido de uso com o cartão do termo de cessão gerado, mostrando o texto preenchido, a versão do modelo e os botões de baixar PDF e gerar de novo." legenda="O termo gerado no pedido, com o código da versão do modelo." />
+
+O **PDF** sai com a logomarca da entidade, as cláusulas destacadas e as duas
+linhas de assinatura — há cessão que se resolve no papel, na recepção.
+
 ## Erros comuns
 
 - **&quot;O espaço não aparece para solicitar.&quot;** Confira se ele está
@@ -225,6 +264,9 @@ espaço sem autorização vai direto ao custeio.
   pela **lotação** do espaço. Se o evento é maior, o espaço é outro.
 - **&quot;Não consigo confirmar a cessão.&quot;** O cartão de fechamento lista o
   que falta — visita não realizada, autorização pendente ou custeio não pago.
+- **&quot;Mudei o modelo e o termo do pedido continua igual.&quot;** É assim de
+  propósito: o termo é congelado quando gerado. Use **Gerar de novo** no pedido
+  para trazer a versão nova.
 - **&quot;Não aparece o botão de autorizar.&quot;** É uma permissão à parte
   (<RequerPermissao>Cessão — autorizar</RequerPermissao>), pedida em
   Institucional → Usuários e permissões.
