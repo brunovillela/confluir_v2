@@ -137,6 +137,11 @@ export const ROTULO_EVENTO: Record<string, string> = {
   confirmada: "Cessão confirmada",
   recusada: "Pedido recusado",
   cancelada: "Pedido cancelado",
+  termo_gerado: "Termo gerado",
+  termo_enviado: "Termo enviado para assinatura",
+  termo_assinado: "Termo assinado pelas duas partes",
+  termo_recusado: "Assinatura recusada",
+  termo_cancelado: "Assinatura cancelada",
 }
 
 export type PassoVisita = {
@@ -379,7 +384,8 @@ export async function assumirPedido(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   const r = await atualizar(id, { analista_id: usuarioId, situacao: "em_analise" })
-  if (!r.erro) await registrarEvento(id, "analise", "Pedido assumido", usuarioId)
+  // Sem detalhe: o rótulo do evento já diz "Pedido assumido".
+  if (!r.erro) await registrarEvento(id, "analise", null, usuarioId)
   return r
 }
 

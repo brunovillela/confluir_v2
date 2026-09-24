@@ -1,0 +1,100 @@
+O termo de cessão tem **dois níveis**: um modelo padrão da entidade,
+versionado, e a cópia gerada para cada cessão — que é a que se assina.
+
+<RequerPermissao>Cessão — cadastrar espaço e agenda</RequerPermissao>
+
+## O termo de cessão
+
+O termo tem **dois níveis**, e entender essa separação evita retrabalho:
+
+<PassoAPasso>
+  <Passo titulo="O modelo, que é da entidade">
+    Um texto só, em **Cessão de espaços › Termo**, que vale para todas as
+    cessões. O que muda de uma para outra entra por **marcador** —
+    `{{inicio}}`, `{{montagem}}`, `{{exigencias}}`, `{{custeio}}` e outros.
+  </Passo>
+  <Passo titulo="O termo de cada cessão">
+    No pedido, **Gerar o termo** monta o texto com os dados daquele pedido e o
+    **congela**. Revisar o modelo depois não altera termo nenhum já gerado.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A IA escreve o modelo, não o termo de cada cessão">
+  Pedir para a IA redigir o termo inteiro a cada cessão seria pedir variação
+  justamente onde não pode haver: obrigação de parte, responsabilidade por
+  dano, prazo de cancelamento. Ela ajuda a escrever o **padrão**, uma vez; os
+  dados vêm do registro. A sugestão cai no editor para você ler e ajustar — nada
+  é publicado sozinho.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Salvar cria uma versão nova">
+  Não se edita um texto que já pode ter sido usado numa cessão. As versões
+  antigas ficam guardadas, com a data, e dá para voltar a usá-las.
+</Aviso>
+
+O botão **Ver prévia com exemplo** mostra como o texto fica preenchido, com
+valores fictícios — serve para conferir se algum marcador ficou fora do lugar.
+Marcador que não existe é avisado ao salvar, porque sairia em branco.
+
+<Print src="espacos/termo.png" alt="Tela do modelo do termo, com o cartão de escrever com ajuda da IA, o editor do texto com os marcadores e a lista de marcadores disponíveis." legenda="A tela do modelo: a IA sugere, você ajusta, e salvar cria uma versão." />
+
+O **PDF** sai com a logomarca da entidade, as cláusulas destacadas e as duas
+linhas de assinatura — há cessão que se resolve no papel, na recepção.
+
+## A assinatura do termo
+
+São **duas** assinaturas, em ordem: o **cedente** (a entidade) assina primeiro
+e só então o link vai para o **concessionário**. Assinar um documento que a
+outra parte ainda pode mudar não seria assinatura.
+
+<PassoAPasso>
+  <Passo titulo="Enviar">
+    Informe quem assina por cada parte e o e-mail de cada um. O primeiro
+    recebe um link pessoal; o segundo é avisado quando chegar a vez dele.
+  </Passo>
+  <Passo titulo="Assinar">
+    Quem recebe o link lê o termo inteiro na tela, pede um código de 6 dígitos
+    por e-mail e confirma. Ficam registrados data, hora e IP, e cada parte
+    ganha um **certificado**.
+  </Passo>
+  <Passo titulo="Recusar">
+    Quem não concordar recusa pelo mesmo link, com motivo. A entidade ajusta o
+    que for preciso, gera o termo de novo e envia outra vez.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Se o termo mudar no meio, a assinatura é recusada">
+  O conteúdo é preso a um resumo criptográfico no momento do envio. Se alguém
+  gerar o termo de novo depois disso, quem tentar assinar recebe um aviso e
+  nada é registrado — o envio precisa ser refeito.
+</Aviso>
+
+<Print src="espacos/assinatura.png" alt="A página que o assinante abre pelo link do e-mail, com o termo inteiro na tela e o aviso de que já assinou, com data e certificado." legenda="O que o assinante vê pelo link — aqui, já assinado." />
+
+
+## Erros comuns
+
+- **&quot;Mudei o modelo e o termo do pedido continua igual.&quot;** É assim de
+  propósito: o termo é congelado quando gerado. Use **Gerar de novo** no pedido
+  para trazer a versão nova.
+- **&quot;Quem recebeu o link diz que não é a vez dele.&quot;** É o segundo
+  assinante: o cedente assina primeiro, e o aviso sai automaticamente depois.
+- **&quot;A assinatura foi recusada dizendo que o termo mudou.&quot;** Alguém
+  gerou o termo de novo depois do envio. Envie para assinatura outra vez.
+- **&quot;Não há modelo em vigor.&quot;** Escreva o texto em Cessão de espaços
+  › Termo. O sistema não gera termo sem modelo.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Analisar um pedido",
+      href: "/painel/ajuda/espacos/pedidos",
+      descricao: "Visita, autorização e custeio antes do termo",
+    },
+    {
+      titulo: "Assinatura de ofícios",
+      href: "/painel/ajuda/ferramentas/oficios",
+      descricao: "O mesmo mecanismo de assinatura, em outro documento",
+    },
+  ]}
+/>

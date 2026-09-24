@@ -1,0 +1,75 @@
+Depois que o pedido chega, a equipe assume e leva pela esteira. Cada pedido
+passa só pelos passos que o **seu espaço** exige.
+
+<RequerPermissao>Cessão de espaços</RequerPermissao>
+
+
+Em **Pedidos de uso** fica a fila. Cada pedido passa só pelos passos que o
+**seu espaço** exige: espaço com visita dispensada não abre o passo de visita,
+espaço sem autorização vai direto ao custeio.
+
+<PassoAPasso>
+  <Passo titulo="Assumir">
+    Marca seu nome no pedido e o leva para análise. É como a equipe sabe quem
+    está cuidando de quê.
+  </Passo>
+  <Passo titulo="Visita técnica">
+    Agende a data e escolha o responsável — o solicitante é avisado por e-mail.
+    Depois da visita, registre o **parecer**: é ele que diz o que foi combinado
+    e o que a pessoa precisa providenciar. Visita facultativa pode ser
+    dispensada.
+  </Passo>
+  <Passo titulo="Autorização">
+    A avaliação política, com **permissão própria** — quem organiza a agenda não
+    é necessariamente quem decide se a entidade cede o espaço. Negar **exige
+    motivo**, e o motivo vai para o solicitante.
+  </Passo>
+  <Passo titulo="Custeio">
+    Os itens que o solicitante paga (limpeza, som, segurança), somados
+    automaticamente. **Marcar como pago** libera o passo.
+  </Passo>
+  <Passo titulo="Confirmar">
+    Só aparece quando não falta nada. Enquanto faltar, a tela diz exatamente o
+    quê.
+  </Passo>
+</PassoAPasso>
+
+<Print src="espacos/pedido.png" alt="Página de um pedido de uso com os cartões de visita técnica, autorização, custeio e fechamento, e ao lado o pedido, o contato, as exigências acordadas e o histórico." legenda="O pedido: os passos à esquerda, o que foi pedido e a trilha à direita." />
+
+<Aviso tipo="nota" titulo="Todo passo que muda a vida de quem pediu, avisa quem pediu">
+  Visita agendada, cessão confirmada, pedido recusado ou cancelado disparam
+  e-mail para o solicitante. Recusa silenciosa vira telefonema.
+</Aviso>
+
+<Aviso tipo="nota" titulo="O histórico responde “por quê”">
+  Cada passo fica registrado com quem fez e quando, incluindo os pareceres. É o
+  que responde, meses depois, por que um pedido foi recusado.
+</Aviso>
+
+
+## Erros comuns
+
+- **&quot;Não consigo confirmar a cessão.&quot;** O cartão de fechamento lista o
+  que falta — visita não realizada, autorização pendente ou custeio não pago.
+- **&quot;Não aparece o botão de autorizar.&quot;** É uma permissão à parte
+  (<RequerPermissao>Cessão — autorizar</RequerPermissao>), pedida em
+  Institucional → Usuários e permissões.
+- **&quot;Recusei sem querer.&quot;** Recusa e cancelamento encerram o pedido e
+  avisam o solicitante. Se foi engano, peça um pedido novo pelo link público.
+- **&quot;O solicitante não soube da visita.&quot;** Agendar dispara e-mail. Se
+  ele não recebeu, confira o endereço no cartão de contato.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "O termo de cessão",
+      href: "/painel/ajuda/espacos/termo",
+      descricao: "Modelo padrão, geração e as duas assinaturas",
+    },
+    {
+      titulo: "O pedido pelo link público",
+      href: "/painel/ajuda/espacos/publico",
+      descricao: "O que o solicitante vê e informa",
+    },
+  ]}
+/>

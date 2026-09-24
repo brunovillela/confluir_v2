@@ -30,8 +30,9 @@ const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 const SHOTS = [
   // Rodada de 24/09: "Assembleias" virou "Votações" — o cartão do hub mudou de
   // nome, e a lista ganhou destaque, ordenação e páginas.
-  // Rodada de 24/09: Cessão de espaços, fase 1 (seed: scripts/seed-espacos-demo.mjs).
-  ['/painel/espacos/9e000000-0000-4000-8000-000000000001', 'espacos/detalhe.png', { fullPage: true, esperar: 'Quando pode ser cedido' }],
+  // Rodada de 24/09 (módulo completo) — seed: scripts/seed-espacos-demo.mjs
+  ["/painel/espacos/9e000000-0000-4000-8000-000000000001", "espacos/detalhe.png", { fullPage: true, esperar: "Quando pode ser cedido" }],
+  ["/painel/espacos/pedidos/9e000000-0000-4000-8000-0000000000a1", "espacos/pedido.png", { fullPage: true, esperar: "Assinatura do termo" }],
 
   ['/painel/representacao', 'representacao/painel.png'],
   ['/painel/representacao/votacoes', 'representacao/votacoes-lista.png', { esperar: 'Votações' }],

@@ -1,8 +1,7 @@
 A entidade cede auditório, salão, teatro e área de convivência para
-trabalhadores, entidades parceiras e, às vezes, terceiros. Esta área cobre o
-caminho inteiro: **o que pode ser cedido**, **quando**, o **pedido** feito por
-um link público, a **análise** (visita técnica, autorização e custeio) e o
-**termo** de cessão.
+trabalhadores, entidades parceiras e, às vezes, terceiros. Este artigo trata do
+**cadastro**: o que pode ser cedido, quando, e com que regras. O pedido, a
+análise e o termo têm artigos próprios.
 
 <RequerPermissao>Cessão de espaços</RequerPermissao>
 
@@ -120,159 +119,6 @@ e bebida alcoólica pede mais um segurança — o evento precisa dos dois.
   </Passo>
 </PassoAPasso>
 
-## O link público
-
-Cada espaço tem um endereço próprio — **/espaco/&lt;nome-do-espaço&gt;** —, que a
-entidade divulga. Ele mostra a descrição, os horários de cessão e, quando o
-espaço permite, a **agenda dos próximos 21 dias**, com o que já está ocupado
-riscado.
-
-Quem solicita responde sobre o público e o evento, e **vê na hora** o que aquilo
-vai exigir, com a conta aberta: de onde veio cada bombeiro e cada segurança.
-Exigência sem explicação vira discussão no dia do evento.
-
-<Print src="espacos/publico.png" alt="Página pública de um espaço com a descrição, os horários, a agenda dos próximos 21 dias, o formulário do pedido e o cartão que calcula bombeiros e seguranças pelas respostas." legenda="O link público: agenda, pedido e as exigências calculadas ao vivo." />
-
-<PassoAPasso>
-  <Passo titulo="Quem pode pedir">
-    **Qualquer pessoa** preenche direto. **Somente filiados** pede o CPF antes,
-    conferido na base — quem não está com a filiação ativa não passa. **Público
-    interno** exige estar logado no sistema.
-  </Passo>
-  <Passo titulo="O código por e-mail">
-    Depois de enviar, chega um código de 6 dígitos. Enquanto ele não for
-    digitado, o pedido fica em rascunho e **não aparece para a equipe** — um
-    e-mail digitado errado não vira trabalho nem cessão para a pessoa errada.
-  </Passo>
-  <Passo titulo="O número do pedido">
-    Confirmado o código, o pedido ganha número sequencial e entra na fila.
-  </Passo>
-</PassoAPasso>
-
-<Aviso tipo="nota" titulo="O que já foi pedido não muda quando a regra muda">
-  As exigências são **copiadas** para o pedido no momento em que ele é feito. A
-  entidade pode rever as faixas amanhã: quem pediu hoje continua com o que foi
-  combinado. Num documento que fala de segurança de pessoas, isso não pode
-  mudar sozinho.
-</Aviso>
-
-<Aviso tipo="nota" titulo="Montagem e desmontagem ocupam o espaço">
-  Quem pede informa quando precisa entrar para montar e até quando vai ocupar
-  para desmontar. É esse período inteiro que conta para o choque com outro
-  pedido — e o choque considera também os espaços que **dividem ambiente**.
-</Aviso>
-
-## A esteira do pedido
-
-Em **Pedidos de uso** fica a fila. Cada pedido passa só pelos passos que o
-**seu espaço** exige: espaço com visita dispensada não abre o passo de visita,
-espaço sem autorização vai direto ao custeio.
-
-<PassoAPasso>
-  <Passo titulo="Assumir">
-    Marca seu nome no pedido e o leva para análise. É como a equipe sabe quem
-    está cuidando de quê.
-  </Passo>
-  <Passo titulo="Visita técnica">
-    Agende a data e escolha o responsável — o solicitante é avisado por e-mail.
-    Depois da visita, registre o **parecer**: é ele que diz o que foi combinado
-    e o que a pessoa precisa providenciar. Visita facultativa pode ser
-    dispensada.
-  </Passo>
-  <Passo titulo="Autorização">
-    A avaliação política, com **permissão própria** — quem organiza a agenda não
-    é necessariamente quem decide se a entidade cede o espaço. Negar **exige
-    motivo**, e o motivo vai para o solicitante.
-  </Passo>
-  <Passo titulo="Custeio">
-    Os itens que o solicitante paga (limpeza, som, segurança), somados
-    automaticamente. **Marcar como pago** libera o passo.
-  </Passo>
-  <Passo titulo="Confirmar">
-    Só aparece quando não falta nada. Enquanto faltar, a tela diz exatamente o
-    quê.
-  </Passo>
-</PassoAPasso>
-
-<Print src="espacos/pedido.png" alt="Página de um pedido de uso com os cartões de visita técnica, autorização, custeio e fechamento, e ao lado o pedido, o contato, as exigências acordadas e o histórico." legenda="O pedido: os passos à esquerda, o que foi pedido e a trilha à direita." />
-
-<Aviso tipo="nota" titulo="Todo passo que muda a vida de quem pediu, avisa quem pediu">
-  Visita agendada, cessão confirmada, pedido recusado ou cancelado disparam
-  e-mail para o solicitante. Recusa silenciosa vira telefonema.
-</Aviso>
-
-<Aviso tipo="nota" titulo="O histórico responde “por quê”">
-  Cada passo fica registrado com quem fez e quando, incluindo os pareceres. É o
-  que responde, meses depois, por que um pedido foi recusado.
-</Aviso>
-
-## O termo de cessão
-
-O termo tem **dois níveis**, e entender essa separação evita retrabalho:
-
-<PassoAPasso>
-  <Passo titulo="O modelo, que é da entidade">
-    Um texto só, em **Cessão de espaços › Termo**, que vale para todas as
-    cessões. O que muda de uma para outra entra por **marcador** —
-    `{{inicio}}`, `{{montagem}}`, `{{exigencias}}`, `{{custeio}}` e outros.
-  </Passo>
-  <Passo titulo="O termo de cada cessão">
-    No pedido, **Gerar o termo** monta o texto com os dados daquele pedido e o
-    **congela**. Revisar o modelo depois não altera termo nenhum já gerado.
-  </Passo>
-</PassoAPasso>
-
-<Aviso tipo="nota" titulo="A IA escreve o modelo, não o termo de cada cessão">
-  Pedir para a IA redigir o termo inteiro a cada cessão seria pedir variação
-  justamente onde não pode haver: obrigação de parte, responsabilidade por
-  dano, prazo de cancelamento. Ela ajuda a escrever o **padrão**, uma vez; os
-  dados vêm do registro. A sugestão cai no editor para você ler e ajustar — nada
-  é publicado sozinho.
-</Aviso>
-
-<Aviso tipo="nota" titulo="Salvar cria uma versão nova">
-  Não se edita um texto que já pode ter sido usado numa cessão. As versões
-  antigas ficam guardadas, com a data, e dá para voltar a usá-las.
-</Aviso>
-
-O botão **Ver prévia com exemplo** mostra como o texto fica preenchido, com
-valores fictícios — serve para conferir se algum marcador ficou fora do lugar.
-Marcador que não existe é avisado ao salvar, porque sairia em branco.
-
-<Print src="espacos/termo.png" alt="Pedido de uso com o cartão do termo de cessão gerado, mostrando o texto preenchido, a versão do modelo e os botões de baixar PDF e gerar de novo." legenda="O termo gerado no pedido, com o código da versão do modelo." />
-
-O **PDF** sai com a logomarca da entidade, as cláusulas destacadas e as duas
-linhas de assinatura — há cessão que se resolve no papel, na recepção.
-
-## A assinatura do termo
-
-São **duas** assinaturas, em ordem: o **cedente** (a entidade) assina primeiro
-e só então o link vai para o **concessionário**. Assinar um documento que a
-outra parte ainda pode mudar não seria assinatura.
-
-<PassoAPasso>
-  <Passo titulo="Enviar">
-    Informe quem assina por cada parte e o e-mail de cada um. O primeiro
-    recebe um link pessoal; o segundo é avisado quando chegar a vez dele.
-  </Passo>
-  <Passo titulo="Assinar">
-    Quem recebe o link lê o termo inteiro na tela, pede um código de 6 dígitos
-    por e-mail e confirma. Ficam registrados data, hora e IP, e cada parte
-    ganha um **certificado**.
-  </Passo>
-  <Passo titulo="Recusar">
-    Quem não concordar recusa pelo mesmo link, com motivo. A entidade ajusta o
-    que for preciso, gera o termo de novo e envia outra vez.
-  </Passo>
-</PassoAPasso>
-
-<Aviso tipo="nota" titulo="Se o termo mudar no meio, a assinatura é recusada">
-  O conteúdo é preso a um resumo criptográfico no momento do envio. Se alguém
-  gerar o termo de novo depois disso, quem tentar assinar recebe um aviso e
-  nada é registrado — o envio precisa ser refeito.
-</Aviso>
-
-<Print src="espacos/assinatura.png" alt="Pedido com o cartão de assinatura do termo mostrando cedente e concessionário assinados, com data e certificado de cada um." legenda="As duas assinaturas, com data e certificado." />
 
 ## Erros comuns
 
@@ -287,22 +133,19 @@ outra parte ainda pode mudar não seria assinatura.
   complete em Patrimônio › Recintos.
 - **&quot;Bloqueei por engano.&quot;** Encerrar guarda o histórico; excluir
   apaga. Use encerrar quando o bloqueio existiu de verdade.
-- **&quot;A pessoa diz que enviou o pedido, mas ele não aparece.&quot;** Falta
-  ela digitar o **código** que foi para o e-mail. Sem isso o pedido fica em
-  rascunho. Confira o endereço que ela informou.
-- **&quot;O público estimado não aceita o número.&quot;** O campo é limitado
-  pela **lotação** do espaço. Se o evento é maior, o espaço é outro.
-- **&quot;Não consigo confirmar a cessão.&quot;** O cartão de fechamento lista o
-  que falta — visita não realizada, autorização pendente ou custeio não pago.
-- **&quot;Mudei o modelo e o termo do pedido continua igual.&quot;** É assim de
-  propósito: o termo é congelado quando gerado. Use **Gerar de novo** no pedido
-  para trazer a versão nova.
-- **&quot;Não aparece o botão de autorizar.&quot;** É uma permissão à parte
-  (<RequerPermissao>Cessão — autorizar</RequerPermissao>), pedida em
-  Institucional → Usuários e permissões.
 
 <VejaTambem
   links={[
+    {
+      titulo: "O pedido pelo link público",
+      href: "/painel/ajuda/espacos/publico",
+      descricao: "Como o solicitante pede e o que ele vê",
+    },
+    {
+      titulo: "Analisar um pedido",
+      href: "/painel/ajuda/espacos/pedidos",
+      descricao: "Visita técnica, autorização e custeio",
+    },
     {
       titulo: "Recintos",
       href: "/painel/ajuda/patrimonio/recintos",

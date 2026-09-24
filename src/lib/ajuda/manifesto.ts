@@ -400,6 +400,21 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Cadastrar um espaço cedível",
         resumo: "Ambientes, lotação, regras da cessão, agenda e bloqueios",
       },
+      {
+        slug: "publico",
+        titulo: "O pedido pelo link público",
+        resumo: "Quem pode pedir, a agenda à vista e as exigências calculadas",
+      },
+      {
+        slug: "pedidos",
+        titulo: "Analisar um pedido",
+        resumo: "Visita técnica, autorização, custeio e confirmação",
+      },
+      {
+        slug: "termo",
+        titulo: "O termo de cessão",
+        resumo: "Modelo versionado com ajuda da IA e a assinatura das duas partes",
+      },
     ],
   },
   {
