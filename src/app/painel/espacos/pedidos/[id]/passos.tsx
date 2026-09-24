@@ -85,6 +85,7 @@ export function Visita({
     responsavelId: string | null
     realizadaEm: string | null
     parecer: string | null
+    participante: string | null
   }
   responsaveis: { id: string; nome: string; vinculo: string }[]
   podeGerir: boolean
@@ -124,11 +125,14 @@ export function Visita({
               <CheckCircle2 className="text-success size-4" />
               Realizada em {formatarDataHora(visita.realizadaEm)}
             </p>
-            {visita.responsavelNome && (
-              <p className="text-muted-foreground text-xs">
-                Responsável: {visita.responsavelNome}
-              </p>
-            )}
+            <p className="text-muted-foreground text-xs">
+              {visita.participante
+                ? `Compareceu: ${visita.participante}`
+                : "Sem registro de quem compareceu"}
+              {visita.responsavelNome
+                ? ` · acompanhou: ${visita.responsavelNome}`
+                : ""}
+            </p>
             {visita.parecer && (
               <p className="mt-1 whitespace-pre-line">{visita.parecer}</p>
             )}
@@ -144,12 +148,27 @@ export function Visita({
                 <input type="hidden" name="id" value={id} />
                 <Aviso estado={registro} />
                 <div className="grid gap-1.5">
-                  <Label htmlFor="parecer">Parecer da visita</Label>
+                  <Label htmlFor="participante">
+                    Quem compareceu pelo solicitante *
+                  </Label>
+                  <Input
+                    id="participante"
+                    name="participante"
+                    required
+                    placeholder="Nome de quem veio ver o espaço"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    A visita é obrigação de quem recebe o espaço: é nela que se
+                    resolve tudo que precisa ser acertado.
+                  </p>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="parecer">O que ficou acertado</Label>
                   <Textarea
                     id="parecer"
                     name="parecer"
                     rows={3}
-                    placeholder="O que foi combinado, o que o solicitante precisa providenciar…"
+                    placeholder="Acessos, energia, som, limpeza, o que o solicitante providencia…"
                   />
                 </div>
                 <div className="flex justify-end">

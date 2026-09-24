@@ -64,7 +64,7 @@ export async function registrarVisitaAction(
   const id = txt(fd, "id")
   const { erro } = await registrarVisita(
     id,
-    txt(fd, "parecer"),
+    { parecer: txt(fd, "parecer"), participante: txt(fd, "participante") },
     sessao.usuario.id as string
   )
   if (erro) return { erro }

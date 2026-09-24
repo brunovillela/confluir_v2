@@ -153,6 +153,8 @@ export type PassoVisita = {
   responsavelNome: string | null
   realizadaEm: string | null
   parecer: string | null
+  /** Quem compareceu pelo solicitante — a visita é obrigação de quem recebe. */
+  participante: string | null
 }
 
 export type SolicitacaoDetalhe = {
@@ -307,6 +309,7 @@ export async function obterSolicitacao(
       responsavelNome: nome(data.visita_responsavel_id),
       realizadaEm: texto(data.visita_realizada_em),
       parecer: texto(data.visita_parecer),
+      participante: texto(data.visita_participante),
     },
     autorizacao: {
       exigida: espaco?.exige_autorizacao !== false,
@@ -414,16 +417,32 @@ export async function agendarVisita(
   return r
 }
 
+/**
+ * A visita é obrigação de QUEM RECEBE o espaço — ele vem, vê o lugar e acerta
+ * o que for preciso. Por isso o registro guarda os dois lados: o parecer (o
+ * que ficou acertado) e quem compareceu pelo solicitante.
+ */
 export async function registrarVisita(
   id: string,
-  parecer: string,
+  dados: { parecer: string; participante: string },
   usuarioId: string
 ): Promise<{ erro?: string }> {
+  if (!dados.participante.trim()) {
+    return { erro: "Informe quem compareceu pelo solicitante." }
+  }
   const r = await atualizar(id, {
     visita_realizada_em: new Date().toISOString(),
-    visita_parecer: parecer.trim() || null,
+    visita_parecer: dados.parecer.trim() || null,
+    visita_participante: dados.participante.trim(),
   })
-  if (!r.erro) await registrarEvento(id, "visita_realizada", parecer, usuarioId)
+  if (!r.erro) {
+    await registrarEvento(
+      id,
+      "visita_realizada",
+      [dados.participante.trim(), dados.parecer.trim()].filter(Boolean).join(" — "),
+      usuarioId
+    )
+  }
   return r
 }
 
@@ -615,7 +634,7 @@ async function avisarSolicitante(
       assunto: `Visita técnica agendada — ${nomeEspaco}`,
       corpo:
         paragrafo(
-          `A visita técnica do seu pedido ${escaparHtml(numero)} para <strong>${escaparHtml(nomeEspaco)}</strong> foi agendada.`
+          `A visita técnica do seu pedido ${escaparHtml(numero)} para <strong>${escaparHtml(nomeEspaco)}</strong> foi agendada. <strong>Sua presença é necessária</strong>: é na visita que se acerta tudo o que o evento precisa — acessos, energia, som, limpeza e o que mais couber.`
         ) +
         (detalhe ? caixaAviso(`Data e hora: ${escaparHtml(detalhe)}`) : ""),
     },

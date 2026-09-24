@@ -4,7 +4,6 @@ import { esquemaAusente, texto } from "@/lib/db/comum"
 import {
   faltaNoRecinto,
   horaCompleta,
-  janelasSobrepostas,
   motivoInelegivel,
   slugDoNome,
   type Janela,
@@ -585,21 +584,22 @@ export async function criarJanelas(
     return { erro: "Informe a duração do bloco, em minutos." }
   }
 
+  // Faixas do mesmo dia PODEM se sobrepor, de propósito: "dia inteiro" e
+  // "tarde" são duas ofertas do mesmo espaço, e quem pede escolhe uma. Quem
+  // impede a dupla-marcação é a AGENDA — ceder qualquer uma das duas ocupa o
+  // período e derruba a outra. Recusar aqui só tirava uma opção do cardápio.
+  // Repetir a MESMA faixa, isso sim, é engano de digitação.
   const existentes = await listarJanelas(espacoId)
-  for (const dia of dados.dias) {
-    const nova: Janela = {
-      dia_semana: dia,
-      hora_inicio: inicio,
-      hora_termino: termino,
-      modo: dados.modo,
-      slot_minutos: dados.slotMinutos,
-      rotulo: dados.rotulo,
-    }
-    const choque = existentes.find((j) => janelasSobrepostas(j, nova))
-    if (choque) {
-      return {
-        erro: `Já existe uma faixa nesse dia que se sobrepõe (${choque.hora_inicio.slice(0, 5)} às ${choque.hora_termino.slice(0, 5)}).`,
-      }
+  const igual = existentes.find(
+    (j) =>
+      dados.dias.includes(j.dia_semana) &&
+      j.hora_inicio.slice(0, 5) === inicio.slice(0, 5) &&
+      j.hora_termino.slice(0, 5) === termino.slice(0, 5) &&
+      j.modo === dados.modo
+  )
+  if (igual) {
+    return {
+      erro: `Essa faixa já existe nesse dia (${igual.hora_inicio.slice(0, 5)} às ${igual.hora_termino.slice(0, 5)}).`,
     }
   }
 

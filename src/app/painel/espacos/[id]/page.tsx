@@ -19,11 +19,13 @@ import {
   obterEspaco,
 } from "@/lib/db/espacos"
 import { rotuloPublico, rotuloVisita } from "@/lib/espacos-constantes"
+import { origemAtual } from "@/lib/tenant-url"
 
 import { listarRegras } from "@/lib/db/espacos-solicitacao"
 
 import { EspacoForm } from "../espaco-form"
 import { Bloqueios, Janelas } from "./agenda"
+import { LinkPublico } from "./link-publico"
 import { Exigencias } from "./exigencias"
 
 export const metadata: Metadata = { title: "Espaço — Confluir" }
@@ -43,7 +45,7 @@ export default async function EspacoPage({
   const espaco = await obterEspaco(id)
   if (!espaco) notFound()
 
-  const [janelas, bloqueios, ambientes, sedes, responsaveis, compartilhados, regras] =
+  const [janelas, bloqueios, ambientes, sedes, responsaveis, compartilhados, regras, origem] =
     await Promise.all([
       listarJanelas(id),
       listarBloqueios(id),
@@ -52,6 +54,7 @@ export default async function EspacoPage({
       listarResponsaveisPossiveis(),
       espacosQueCompartilhamAmbiente(id),
       listarRegras(id),
+      origemAtual(),
     ])
 
   const meusAmbientes = ambientes.filter((a) => espaco.recintoIds.includes(a.id))
@@ -232,6 +235,15 @@ export default async function EspacoPage({
               )}
             </CardContent>
           </Card>
+
+          {espaco.slug && (
+            <LinkPublico
+              url={`${origem}/espaco/${espaco.slug}`}
+              espaco={espaco.nome}
+              ativo={espaco.ativo}
+              temJanela={janelas.length > 0}
+            />
+          )}
 
           <Janelas espacoId={id} janelas={janelas} podeGerir={podeGerir} />
           <Exigencias espacoId={id} regras={regras} podeGerir={podeGerir} />
