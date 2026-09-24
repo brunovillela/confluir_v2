@@ -16,6 +16,10 @@ import {
   registrarVisita,
 } from "@/lib/db/espacos-esteira"
 import { gerarTermoDaCessao } from "@/lib/db/espacos-termo"
+import {
+  cancelarAssinaturaCessao,
+  enviarTermoParaAssinatura,
+} from "@/lib/db/cessao-assinatura"
 
 type Estado = { erro?: string; ok?: string }
 
@@ -173,4 +177,34 @@ export async function gerarTermoAction(
   if (erro) return { erro }
   depois(id)
   return { ok: `Termo gerado a partir da versão ${codigo ?? "vigente"}.` }
+}
+
+// ── Assinatura do termo ──────────────────────────────────────────────────────
+
+export async function enviarAssinaturaAction(
+  _prev: Estado,
+  fd: FormData
+): Promise<Estado> {
+  const sessao = await requirePermissao("espacos_gestao")
+  const id = txt(fd, "id")
+  const { erro } = await enviarTermoParaAssinatura(
+    id,
+    {
+      cedenteNome: txt(fd, "cedente_nome"),
+      cedenteEmail: txt(fd, "cedente_email"),
+      concessionarioNome: txt(fd, "concessionario_nome"),
+      concessionarioEmail: txt(fd, "concessionario_email"),
+    },
+    sessao.usuario.id as string
+  )
+  if (erro) return { erro }
+  depois(id)
+  return { ok: "Enviado. O cedente assina primeiro; depois o link vai para o concessionário." }
+}
+
+export async function cancelarAssinaturaAction(fd: FormData): Promise<void> {
+  const sessao = await requirePermissao("espacos_gestao")
+  const id = txt(fd, "id")
+  await cancelarAssinaturaCessao(id, sessao.usuario.id as string)
+  depois(id)
 }

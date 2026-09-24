@@ -19,7 +19,9 @@ import {
   cancelarAction,
   confirmarAction,
   custeioAction,
+  cancelarAssinaturaAction,
   dispensarVisitaAction,
+  enviarAssinaturaAction,
   gerarTermoAction,
   pagamentoAction,
   recusarAction,
@@ -566,6 +568,148 @@ export function Termo({
           </form>
         ) : (
           <p className="text-muted-foreground text-sm">Termo ainda não gerado.</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function Assinatura({
+  id,
+  assinaturas,
+  assinadoEm,
+  sugestao,
+  podeGerir,
+}: {
+  id: string
+  assinaturas: {
+    id: string
+    nome: string | null
+    email: string | null
+    papel: "cedente" | "concessionario"
+    situacao: string
+    assinadoEm: string | null
+    certificado: string | null
+    motivoRecusa: string | null
+  }[]
+  assinadoEm: string | null
+  sugestao: { concessionarioNome: string; concessionarioEmail: string }
+  podeGerir: boolean
+}) {
+  const [estado, enviar, enviando] = useActionState(enviarAssinaturaAction, {})
+  const pendentes = assinaturas.filter((a) => a.situacao === "pendente")
+  const recusada = assinaturas.find((a) => a.situacao === "recusado")
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">Assinatura do termo</CardTitle>
+          {assinadoEm && (
+            <Badge variant="outline" className="border-success/40 text-success-fg">
+              assinado pelas duas partes
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <Aviso estado={estado} />
+
+        {assinaturas.length > 0 && (
+          <ul className="grid gap-1.5">
+            {assinaturas.map((a) => (
+              <li key={a.id} className="rounded-md border p-2 text-sm">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">
+                    {a.papel === "cedente" ? "Cedente" : "Concessionário"}
+                  </span>
+                  <span>{a.nome ?? "—"}</span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      a.situacao === "assinado"
+                        ? "border-success/40 text-success-fg"
+                        : a.situacao === "recusado"
+                          ? "border-destructive/40 text-destructive"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {a.situacao}
+                  </Badge>
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {a.email}
+                  {a.assinadoEm ? ` · assinou em ${formatarDataHora(a.assinadoEm)}` : ""}
+                  {a.certificado && a.situacao === "assinado" ? ` · ${a.certificado}` : ""}
+                  {a.motivoRecusa ? ` · recusou: ${a.motivoRecusa}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {recusada && (
+          <Alert variant="warning">
+            <AlertDescription>
+              Uma das partes recusou. Ajuste o que for preciso, gere o termo de
+              novo e envie outra vez.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {podeGerir && !assinadoEm && (
+          <form action={enviar} className="grid gap-3 rounded-md border p-3">
+            <input type="hidden" name="id" value={id} />
+            <p className="text-muted-foreground text-sm">
+              O <strong>cedente</strong> assina primeiro; só então o link vai
+              para o concessionário. Enviar de novo cancela os links anteriores.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="cedente_nome">Quem assina pela entidade *</Label>
+                <Input id="cedente_nome" name="cedente_nome" required />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="cedente_email">E-mail *</Label>
+                <Input id="cedente_email" name="cedente_email" type="email" required />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="concessionario_nome">Quem assina pelo solicitante *</Label>
+                <Input
+                  id="concessionario_nome"
+                  name="concessionario_nome"
+                  required
+                  defaultValue={sugestao.concessionarioNome}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="concessionario_email">E-mail *</Label>
+                <Input
+                  id="concessionario_email"
+                  name="concessionario_email"
+                  type="email"
+                  required
+                  defaultValue={sugestao.concessionarioEmail}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" size="sm" disabled={enviando}>
+                {enviando && <Loader2 className="animate-spin" />}
+                {assinaturas.length > 0 ? "Enviar de novo" : "Enviar para assinatura"}
+              </Button>
+            </div>
+          </form>
+        )}
+        {podeGerir && pendentes.length > 0 && !assinadoEm && (
+          <div className="flex justify-end">
+            <form action={cancelarAssinaturaAction}>
+              <input type="hidden" name="id" value={id} />
+              <Button type="submit" variant="ghost" size="sm">
+                Cancelar a assinatura pendente
+              </Button>
+            </form>
+          </div>
         )}
       </CardContent>
     </Card>

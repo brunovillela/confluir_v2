@@ -216,7 +216,7 @@ async function registrarEvento(
   extra: { detalhe?: string | null; ip?: string | null; userAgent?: string | null } = {}
 ): Promise<void> {
   const admin = await createAdminClient()
-  await admin.from("oficios_assinaturas_eventos").insert({
+  await admin.from("documento_assinatura_eventos").insert({
     assinatura_id: assinatura.id,
     tipo,
     detalhe: extra.detalhe ?? null,
@@ -231,7 +231,7 @@ async function eventosDe(ids: string[]): Promise<Map<string, EventoAssinatura[]>
   if (ids.length === 0) return mapa
   const admin = await createAdminClient()
   const { data } = await admin
-    .from("oficios_assinaturas_eventos")
+    .from("documento_assinatura_eventos")
     .select("assinatura_id, tipo, detalhe, ip, user_agent, created_at")
     .in("assinatura_id", ids)
     .order("created_at", { ascending: true })
@@ -255,7 +255,7 @@ async function eventosDe(ids: string[]): Promise<Map<string, EventoAssinatura[]>
 export async function assinaturasDoOficio(oficioId: string): Promise<Assinatura[]> {
   const admin = await createAdminClient()
   const { data, error } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .select("*")
     .eq("oficio_id", oficioId)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -439,7 +439,7 @@ export async function enviarParaAssinatura(dados: {
   let criada: Record<string, unknown> | null = null
   for (let tentativa = 0; tentativa < 3 && !criada; tentativa++) {
     const { data, error } = await admin
-      .from("oficios_assinaturas")
+      .from("documento_assinaturas")
       .insert({
         oficio_id: dados.oficioId,
         integrante_id: preparo.assinanteIntegranteId,
@@ -465,7 +465,7 @@ export async function enviarParaAssinatura(dados: {
       return {
         erro: /canal|telegram_chat_id/.test(error.message)
           ? "Envio pelo Telegram ainda não configurado — rode supabase/oficios-assinatura-telegram.sql."
-          : /oficios_assinaturas/.test(error.message)
+          : /documento_assinaturas/.test(error.message)
             ? "Assinatura eletrônica ainda não configurada — rode supabase/oficios-assinatura.sql."
             : `Falha ao criar a assinatura: ${error.message}`,
       }
@@ -501,7 +501,7 @@ export async function cancelarEnvio(oficioId: string, motivo: string | null): Pr
   const admin = await createAdminClient()
   const agora = new Date().toISOString()
   const { error } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .update({ situacao: "cancelado", codigo_hash: null, updated_at: agora })
     .eq("id", a.id)
     .eq("situacao", "pendente")
@@ -529,7 +529,7 @@ export async function envelopePorToken(token: string): Promise<Envelope | null> 
   if (!UUID.test(token)) return null
   const admin = await createAdminClient()
   const { data } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .select("*")
     .eq("token", token)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -555,7 +555,7 @@ export async function registrarAbertura(
   if (ultima && Date.now() - new Date(ultima.quando).getTime() < 10 * 60 * 1000) return
   const admin = await createAdminClient()
   if (!a.visualizadoEm) {
-    await admin.from("oficios_assinaturas").update({ visualizado_em: new Date().toISOString() }).eq("id", a.id)
+    await admin.from("documento_assinaturas").update({ visualizado_em: new Date().toISOString() }).eq("id", a.id)
   }
   await registrarEvento(a, "visualizado", contexto)
 }
@@ -580,7 +580,7 @@ export async function solicitarCodigo(
   const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0")
   const admin = await createAdminClient()
   const { error } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .update({
       codigo_hash: hashCodigo(codigo, a.token),
       codigo_expira_em: new Date(Date.now() + VALIDADE_CODIGO_MIN * 60 * 1000).toISOString(),
@@ -642,7 +642,7 @@ export async function assinar(
 
   const admin = await createAdminClient()
   const { data: segredo } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .select("codigo_hash, codigo_expira_em, codigo_tentativas")
     .eq("id", a.id)
     .single()
@@ -656,7 +656,7 @@ export async function assinar(
   }
   if (codigo.length !== 6 || !conferirCodigo(codigo, a.token, String(segredo.codigo_hash))) {
     await admin
-      .from("oficios_assinaturas")
+      .from("documento_assinaturas")
       .update({ codigo_tentativas: (segredo.codigo_tentativas ?? 0) + 1 })
       .eq("id", a.id)
     await registrarEvento(a, "codigo_invalido", contexto)
@@ -670,7 +670,7 @@ export async function assinar(
 
   const assinadoEm = new Date().toISOString()
   const { data: gravada, error } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .update({
       situacao: "assinado",
       assinado_em: assinadoEm,
@@ -712,7 +712,7 @@ export async function recusar(
   const admin = await createAdminClient()
   const agora = new Date().toISOString()
   const { data: gravada } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .update({
       situacao: "recusado",
       recusado_em: agora,
@@ -916,7 +916,7 @@ export async function verificarCertificado(certificado: string): Promise<Verific
   if (!/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/.test(codigo)) return null
   const admin = await createAdminClient()
   const { data } = await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .select("*")
     .eq("certificado", codigo)
     .eq("emp_proprietaria_id", await tenantAtual())

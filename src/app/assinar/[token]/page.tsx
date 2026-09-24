@@ -17,6 +17,12 @@ import {
 } from "@/lib/db/oficios-assinatura"
 import { formatarData } from "@/lib/formato"
 
+import {
+  envelopeCessaoPorToken,
+  registrarAberturaCessao,
+} from "@/lib/db/cessao-assinatura"
+
+import { AssinarCessao } from "./cessao"
 import { AssinarForm, RecusarForm } from "./assinatura-forms"
 
 export const metadata: Metadata = {
@@ -42,6 +48,20 @@ export default async function AssinarOficioPage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
+
+  // O envelope agora serve a mais de um tipo de documento. A cessão tem tela
+  // própria (dois assinantes, ordem entre eles); o caminho do ofício segue
+  // exatamente como estava.
+  const cessao = await envelopeCessaoPorToken(token)
+  if (cessao) {
+    const h = await headers()
+    await registrarAberturaCessao(cessao, {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null,
+      userAgent: h.get("user-agent"),
+    })
+    return <AssinarCessao envelope={cessao} token={token} />
+  }
+
   const envelope = await envelopePorToken(token)
 
   if (!envelope) {

@@ -252,22 +252,34 @@ export type TermoDaCessao = {
   texto: string | null
   codigo: string | null
   geradoEm: string | null
+  /** Preenchido quando as DUAS partes assinaram (fase 5). */
+  assinadoEm: string | null
+}
+
+const VAZIO: TermoDaCessao = {
+  texto: null,
+  codigo: null,
+  geradoEm: null,
+  assinadoEm: null,
 }
 
 export async function termoDaCessao(
   solicitacaoId: string
 ): Promise<TermoDaCessao> {
   const admin = await createAdminClient()
+  // `select("*")` de propósito: `termo_assinado_em` só existe depois do SQL da
+  // assinatura, e pedir a coluna pelo nome quebraria antes disso.
   const { data, error } = await admin
     .from("cessao_solicitacoes")
-    .select("termo_texto, termo_codigo, termo_gerado_em")
+    .select("*")
     .eq("id", solicitacaoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
-  if (error || !data) return { texto: null, codigo: null, geradoEm: null }
+  if (error || !data) return VAZIO
   return {
     texto: texto(data.termo_texto),
     codigo: texto(data.termo_codigo),
     geradoEm: texto(data.termo_gerado_em),
+    assinadoEm: texto(data.termo_assinado_em),
   }
 }

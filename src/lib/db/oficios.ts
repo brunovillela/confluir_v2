@@ -525,7 +525,7 @@ export async function cancelarOficio(id: string): Promise<{ erro?: string }> {
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
   // Link de assinatura em aberto deixa de valer (a página mostra "cancelado").
   await admin
-    .from("oficios_assinaturas")
+    .from("documento_assinaturas")
     .update({ situacao: "cancelado", updated_at: new Date().toISOString() })
     .eq("oficio_id", id)
     .eq("situacao", "pendente")

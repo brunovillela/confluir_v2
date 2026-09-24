@@ -18,10 +18,19 @@ import {
   pendenciasParaConfirmar,
 } from "@/lib/db/espacos-esteira"
 import { termoDaCessao } from "@/lib/db/espacos-termo"
+import { assinaturasDaCessao } from "@/lib/db/cessao-assinatura"
 import { GATILHOS_CONDICAO, totalExigencias } from "@/lib/espacos-constantes"
 import { formatarDataHora } from "@/lib/formato"
 
-import { Assumir, Autorizacao, Custeio, Fechamento, Termo, Visita } from "./passos"
+import {
+  Assinatura,
+  Assumir,
+  Autorizacao,
+  Custeio,
+  Fechamento,
+  Termo,
+  Visita,
+} from "./passos"
 
 export const metadata: Metadata = { title: "Pedido de uso — Confluir" }
 
@@ -35,10 +44,11 @@ export default async function PedidoPage({
   const podeAutorizar = sessao.permissoes?.espacos_autorizacao === true
   const { id } = await params
 
-  const [pedido, responsaveis, termo] = await Promise.all([
+  const [pedido, responsaveis, termo, assinaturas] = await Promise.all([
     obterSolicitacao(id),
     listarResponsaveisPossiveis(),
     termoDaCessao(id),
+    assinaturasDaCessao(id),
   ])
   if (!pedido) notFound()
 
@@ -127,6 +137,28 @@ export default async function PedidoPage({
             exigido={pedido.espacoExigeTermo}
             podeGerir={podeGerir && !encerrado}
           />
+
+          {pedido.espacoExigeTermo && termo.texto && (
+            <Assinatura
+              id={id}
+              assinaturas={assinaturas.map((a) => ({
+                id: a.id,
+                nome: a.nome,
+                email: a.email,
+                papel: a.papel,
+                situacao: a.situacao,
+                assinadoEm: a.assinadoEm,
+                certificado: a.certificado,
+                motivoRecusa: a.motivoRecusa,
+              }))}
+              assinadoEm={termo.assinadoEm}
+              sugestao={{
+                concessionarioNome: pedido.representanteNome ?? pedido.solicitante,
+                concessionarioEmail: pedido.email ?? "",
+              }}
+              podeGerir={podeGerir}
+            />
+          )}
 
           <Fechamento
             id={id}
