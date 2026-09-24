@@ -197,8 +197,24 @@ async function mapaBubble(tabela) {
       ...(cd ? { created_at: cd.iso } : {}),
     }
   }).filter((r) => r.bubble_id)
-  const { count } = await upsert("patrimonio_recinto", linhas)
-  console.log(`1. recintos: ${src.length} lidos → ${count} ${APLICAR ? "gravados" : "(dry-run)"}`)
+
+  // Recinto sem NOME ou sem SEDE é resto de formulário salvo duas vezes no
+  // Bubble — o CSV tem dois desses, e eles foram excluídos do Supabase em
+  // 24/09/2026 (o Bubble não é mais a fonte de patrimônio). Sem esta guarda,
+  // o upsert por bubble_id os traz de volta a cada re-execução.
+  const incompletos = linhas.filter((r) => !r.nome_recinto || !r.sede)
+  const bons = linhas.filter((r) => r.nome_recinto && r.sede)
+  for (const r of incompletos) {
+    console.log(
+      `   ignorado (${!r.nome_recinto ? "sem nome" : "sem sede"}): ${r.nome_recinto ?? r.codigo ?? r.bubble_id}`
+    )
+  }
+
+  const { count } = await upsert("patrimonio_recinto", bons)
+  console.log(
+    `1. recintos: ${src.length} lidos → ${count} ${APLICAR ? "gravados" : "(dry-run)"}` +
+      (incompletos.length ? ` · ${incompletos.length} ignorados por cadastro incompleto` : "")
+  )
 }
 const recintoMap = APLICAR ? await mapaBubble("patrimonio_recinto") : new Map(parse(ARQ.recinto).map((r) => [txt(r["unique id"]), "«id»"]))
 
