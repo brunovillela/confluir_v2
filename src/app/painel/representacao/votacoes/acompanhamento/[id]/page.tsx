@@ -13,9 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { paisDaAssembleia } from "@/lib/db/assembleias"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
 import { formatarCpf } from "@/lib/cpf"
 import { formatarDataHora } from "@/lib/formato"
+
+import { TrilhaVotacoes } from "../../trilha"
 
 export const metadata: Metadata = { title: "Acompanhamento — Confluir" }
 
@@ -40,13 +43,26 @@ export default async function AcompanhamentoPage({
       ? Math.round((dados.votaram / dados.totalAptos) * 100)
       : null
 
+  const pais = await paisDaAssembleia(id)
+
   return (
     <>
+      <TrilhaVotacoes
+        campanhaId={pais.campanhaId}
+        rodadaId={pais.rodadaId}
+        assembleia={`/painel/representacao/votacoes/acompanhamento/${id}`}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/painel/representacao/votacoes">
+          <Link
+            href={
+              pais.rodadaId
+                ? `/painel/representacao/votacoes/rodadas/${pais.rodadaId}`
+                : "/painel/representacao/votacoes"
+            }
+          >
             <ArrowLeft />
-            Assembleias
+            {pais.rodadaId ? "Rodada de assembleias" : "Votações"}
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">

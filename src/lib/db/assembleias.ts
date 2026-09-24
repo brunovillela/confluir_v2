@@ -734,6 +734,29 @@ export async function criarRodada(dados: {
   return { id: res.data.id }
 }
 
+/**
+ * A rodada e a campanha de uma assembleia — só o que a trilha de breadcrumbs
+ * precisa para voltar aos níveis de cima (as rotas são irmãs, não aninhadas).
+ */
+export async function paisDaAssembleia(
+  assembleiaId: string
+): Promise<{ rodadaId: string | null; campanhaId: string | null }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("voto_assembleias")
+    .select("rod_assembleia_id, campanha_id, rodada:rod_assembleia_id (campanha_id)")
+    .eq("id", assembleiaId)
+    .maybeSingle()
+  if (error || !data) return { rodadaId: null, campanhaId: null }
+  const linha = data as unknown as Record<string, unknown>
+  const rodada = linha.rodada as { campanha_id?: string | null } | null
+  return {
+    rodadaId: (linha.rod_assembleia_id as string | null) ?? null,
+    // A campanha da rodada manda; a coluna da assembleia é a reserva.
+    campanhaId: rodada?.campanha_id ?? (linha.campanha_id as string | null) ?? null,
+  }
+}
+
 export async function obterRodada(id: string): Promise<RodadaDetalhe | null> {
   const admin = await createAdminClient()
   const { data, error } = await admin

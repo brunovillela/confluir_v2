@@ -14,10 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { dadosApuracao } from "@/lib/db/assembleias"
+import { dadosApuracao, paisDaAssembleia } from "@/lib/db/assembleias"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
 import { formatarData } from "@/lib/formato"
 
+import { TrilhaVotacoes } from "../../trilha"
 import { ApuracaoForm } from "./apuracao-form"
 import { EmSeparadoValidacao } from "./emseparado-validacao"
 
@@ -38,13 +39,26 @@ export default async function ApuracaoPage({
   const participacao =
     dados.aptos > 0 ? Math.round((dados.votantes / dados.aptos) * 100) : null
 
+  const pais = await paisDaAssembleia(id)
+
   return (
     <>
+      <TrilhaVotacoes
+        campanhaId={pais.campanhaId}
+        rodadaId={pais.rodadaId}
+        assembleia={`/painel/representacao/votacoes/apuracao/${id}`}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/painel/representacao/votacoes">
+          <Link
+            href={
+              pais.rodadaId
+                ? `/painel/representacao/votacoes/rodadas/${pais.rodadaId}`
+                : "/painel/representacao/votacoes"
+            }
+          >
             <ArrowLeft />
-            Assembleias
+            {pais.rodadaId ? "Rodada de assembleias" : "Votações"}
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">

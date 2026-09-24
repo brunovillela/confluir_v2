@@ -7,8 +7,10 @@ import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { paisDaAssembleia } from "@/lib/db/assembleias"
 import { dadosUrnasAssembleia } from "@/lib/db/votacao-mesarios"
 
+import { TrilhaVotacoes } from "../../trilha"
 import { UrnasEMesarios } from "./urnas-mesarios"
 
 export const metadata: Metadata = { title: "Urnas e mesários — Confluir" }
@@ -23,13 +25,26 @@ export default async function UrnasAssembleiaPage({
   const dados = await dadosUrnasAssembleia(id)
   if (!dados) notFound()
 
+  const pais = await paisDaAssembleia(id)
+
   return (
     <>
+      <TrilhaVotacoes
+        campanhaId={pais.campanhaId}
+        rodadaId={pais.rodadaId}
+        assembleia={`/painel/representacao/votacoes/urnas/${id}`}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/painel/representacao/votacoes">
+          <Link
+            href={
+              pais.rodadaId
+                ? `/painel/representacao/votacoes/rodadas/${pais.rodadaId}`
+                : "/painel/representacao/votacoes"
+            }
+          >
             <ArrowLeft />
-            Assembleias
+            {pais.rodadaId ? "Rodada de assembleias" : "Votações"}
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">

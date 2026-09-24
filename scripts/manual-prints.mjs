@@ -32,6 +32,9 @@ const SHOTS = [
   // nome, e a lista ganhou destaque, ordenação e páginas.
   ['/painel/representacao', 'representacao/painel.png'],
   ['/painel/representacao/votacoes', 'representacao/votacoes-lista.png', { esperar: 'Votações' }],
+  // A campanha subiu para antes das rodadas, e a trilha virou
+  // Votações › Campanhas › Rodadas de assembleias › Assembleia.
+  ['/painel/representacao/votacoes/campanhas/aa000000-0000-4000-8000-000000000001', 'representacao/campanha.png', { fullPage: true }],
 
   /* Rodada de 20/09 (3): área do hotel dividida em abas.
   ['/hotel/inicio', 'hotel/inicio.png', { fullPage: true }],

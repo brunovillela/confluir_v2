@@ -23,6 +23,7 @@ import {
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { formatarData } from "@/lib/formato"
 
+import { TrilhaVotacoes } from "../../trilha"
 import { CampanhaForm, type FonteOpcao } from "../campanha-form"
 import { NovaRodadaForm } from "./nova-rodada-form"
 
@@ -54,9 +55,10 @@ export default async function CampanhaPage({
 
   return (
     <>
+      <TrilhaVotacoes campanhaId={campanha.id} />
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/painel/representacao/votacoes" aria-label="Voltar para assembleias">
+          <Link href="/painel/representacao/votacoes" aria-label="Voltar para votações">
             <ArrowLeft />
           </Link>
         </Button>
@@ -77,6 +79,12 @@ export default async function CampanhaPage({
           </AlertDescription>
         </Alert>
       )}
+
+      {/* A campanha vem antes das rodadas: é o registro desta página, e as
+          rodadas são o que nasce dele. */}
+      <div className="max-w-3xl">
+        <CampanhaForm campanha={campanha} fontes={opcoes} />
+      </div>
 
       <Card>
         <CardHeader>
@@ -144,10 +152,6 @@ export default async function CampanhaPage({
           )}
         </CardContent>
       </Card>
-
-      <div className="max-w-3xl">
-        <CampanhaForm campanha={campanha} fontes={opcoes} />
-      </div>
     </>
   )
 }

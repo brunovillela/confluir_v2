@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
       { source: "/painel/representacao/assembleias", destination: "/painel/representacao/votacoes", permanent: true },
       { source: "/painel/representacao/assembleias/:path*", destination: "/painel/representacao/votacoes/:path*", permanent: true },
       { source: "/painel/ajuda/representacao/assembleias", destination: "/painel/ajuda/representacao/votacoes", permanent: true },
+      // `/campanhas` e `/rodadas` sozinhos nunca foram página (o detalhe é que
+      // é rota: `/campanhas/<id>`). Quem chegar lá vai para a lista.
+      { source: "/painel/representacao/votacoes/campanhas", destination: "/painel/representacao/votacoes", permanent: false },
+      { source: "/painel/representacao/votacoes/rodadas", destination: "/painel/representacao/votacoes", permanent: false },
       // "Configurações" virou "Institucional"; Registro sindical (MTE) saiu de Representação p/ lá.
       { source: "/painel/representacao/registro-mte", destination: "/painel/institucional/registro-mte", permanent: true },
       { source: "/painel/representacao/registro-mte/:path*", destination: "/painel/institucional/registro-mte/:path*", permanent: true },

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { MODULOS } from "@/lib/permissoes"
 
-import { useRotulosTrilha } from "./trilha-rotulos"
+import { useRotulosTrilha, useTrilhaPropria } from "./trilha-rotulos"
 
 type Trilha = { titulo: string; href: string; segmento: string }
 
@@ -47,8 +47,12 @@ function montarTrilha(pathname: string): Trilha[] {
 
 export function AppHeader({ acoes }: { acoes?: React.ReactNode }) {
   const pathname = usePathname()
-  const trilha = montarTrilha(pathname)
   const rotulos = useRotulosTrilha()
+  const propria = useTrilhaPropria()
+  // A página pode declarar a própria trilha quando a rota não descreve a
+  // hierarquia (ver TrilhaPropria).
+  const trilha: Trilha[] =
+    propria?.map((d) => ({ ...d, segmento: d.href })) ?? montarTrilha(pathname)
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky top-0 z-(--z-sticky) flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur print:hidden">

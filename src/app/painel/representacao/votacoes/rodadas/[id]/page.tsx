@@ -46,6 +46,7 @@ import { AssembleiasDaRodada } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
 import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
+import { TrilhaVotacoes } from "../../trilha"
 import { RodadaForm } from "./rodada-form"
 
 export const metadata: Metadata = { title: "Rodada de assembleias — Confluir" }
@@ -105,6 +106,7 @@ export default async function RodadaPage({
 
   return (
     <>
+      <TrilhaVotacoes campanhaId={rodada.campanha_id} rodadaId={rodada.id} />
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link

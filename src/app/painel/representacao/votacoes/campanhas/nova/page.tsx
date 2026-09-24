@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 
+import { TrilhaVotacoes } from "../../trilha"
 import { CampanhaForm, type FonteOpcao } from "../campanha-form"
 
 export const metadata: Metadata = { title: "Nova campanha — Confluir" }
@@ -22,9 +23,16 @@ export default async function NovaCampanhaPage() {
 
   return (
     <>
+      {/* Ainda não há campanha: o degrau "Campanhas" não teria para onde ir. */}
+      <TrilhaVotacoes
+        folha={{
+          titulo: "Nova campanha",
+          href: "/painel/representacao/votacoes/campanhas/nova",
+        }}
+      />
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/painel/representacao/votacoes" aria-label="Voltar para assembleias">
+          <Link href="/painel/representacao/votacoes" aria-label="Voltar para votações">
             <ArrowLeft />
           </Link>
         </Button>
