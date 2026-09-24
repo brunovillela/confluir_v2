@@ -230,29 +230,6 @@ export default async function PainelPage({
             </GrupoDoDia>
           )}
 
-          {resumo.aniversariantesFiliados.length > 0 && (
-            <GrupoDoDia
-              titulo="Filiados aniversariantes"
-              descricao="Base filiada que faz aniversário hoje"
-              icone={Cake}
-            >
-              <ul className="grid gap-2">
-                {resumo.aniversariantesFiliados.map((a) => (
-                  <li key={a.id} className="grid gap-0.5 text-sm">
-                    <span className="truncate font-medium">
-                      {a.nome ?? "(sem nome)"}
-                    </span>
-                    {a.lotacao && (
-                      <span className="text-muted-foreground truncate text-xs">
-                        {a.lotacao}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
           {resumo.aniversariosEmprego.length > 0 && (
             <GrupoDoDia
               titulo="Aniversário de sindicato"

@@ -51,12 +51,6 @@ export type AusenciaDoDia = {
   retorno: string | null
 }
 
-export type AniversarianteFiliado = {
-  id: string
-  nome: string | null
-  lotacao: string | null
-}
-
 export type TarefaPendente = {
   id: string
   nome: string | null
@@ -78,7 +72,6 @@ export type Noticia = {
 export type ResumoPainel = {
   hoje: string
   aniversariantes: AniversarianteEquipe[]
-  aniversariantesFiliados: AniversarianteFiliado[]
   aniversariosEmprego: AniversarioEmprego[]
   agenda: EventoDoDia[]
   ausencias: AusenciaDoDia[]
@@ -122,32 +115,23 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
 
   const [
     aniversariantesRes,
-    filiadosAniversarioRes,
     vinculosRes,
     agendaRes,
     ausenciasRes,
     tarefasRes,
   ] = await Promise.all([
+    // Só o quadro DESTA entidade: sem o filtro por tenant o painel mostrava
+    // funcionários e diretores de outros sindicatos.
     admin
       .from("usuarios")
       .select("id, nome_completo, nome_guerra, vinculo_instituicao")
+      .eq("emp_proprietaria_id", await tenantAtual())
       .in("vinculo_instituicao", [...VINCULOS_DO_QUADRO])
       .eq("nascimento_dia", hoje.dia)
       .eq("nascimento_mes", hoje.mes)
       .not("inativo", "is", true)
       .not("deletado", "is", true)
       .order("nome_completo", { ascending: true }),
-    // Filiados que fazem aniversário hoje (dia/mês já vêm prontos na tabela).
-    admin
-      .from("filiacoes")
-      .select("id, nome_completo, filiacao_lotacao")
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .eq("nascimento_dia", hoje.dia)
-      .eq("nascimento_mes", hoje.mes)
-      .eq("filiacao_condicao", "Ativo")
-      .not("filiacao_excluida", "is", true)
-      .order("nome_completo", { ascending: true })
-      .limit(60),
     // ~50 vínculos — o filtro por dia/mês da admissão é feito em memória.
     admin
       .from("vinculos_trabalhistas")
@@ -261,11 +245,6 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
   return {
     hoje: hoje.rotulo,
     aniversariantes,
-    aniversariantesFiliados: (filiadosAniversarioRes.data ?? []).map((f) => ({
-      id: String(f.id),
-      nome: (f.nome_completo as string | null) ?? null,
-      lotacao: (f.filiacao_lotacao as string | null) ?? null,
-    })),
     aniversariosEmprego,
     agenda: (agendaRes.data ?? []).map((e) => ({
       id: String(e.id),
