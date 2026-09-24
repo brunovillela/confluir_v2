@@ -124,7 +124,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
   {
     area: "Representação Sindical",
     flags: [
-      { chave: "assembleias", rotulo: "Assembleias e votações" },
+      { chave: "assembleias", rotulo: "Votações e assembleias" },
       { chave: "oposicao", rotulo: "Oposição à contribuição assistencial" },
       { chave: "acordos_coletivos", rotulo: "Acordos coletivos" },
       { chave: "empregadores", rotulo: "Empregadores e fontes pagadoras" },

@@ -25,8 +25,8 @@ export async function iniciarVisualizacaoEleitor(formData: FormData): Promise<vo
   const aptoId = String(formData.get("aptoId") ?? "")
   const rodadaId = String(formData.get("rodadaId") ?? "")
   const voltar = rodadaId
-    ? `/painel/representacao/assembleias/rodadas/${rodadaId}`
-    : "/painel/representacao/assembleias"
+    ? `/painel/representacao/votacoes/rodadas/${rodadaId}`
+    : "/painel/representacao/votacoes"
   if (!aptoId) redirect(voltar)
 
   const admin = await createAdminClient()
@@ -72,7 +72,7 @@ export async function encerrarVisualizacaoEleitor(): Promise<void> {
   jar.delete(COOKIE_VISUALIZACAO_ELEITOR)
   redirect(
     rodadaId
-      ? `/painel/representacao/assembleias/rodadas/${rodadaId}`
-      : "/painel/representacao/assembleias"
+      ? `/painel/representacao/votacoes/rodadas/${rodadaId}`
+      : "/painel/representacao/votacoes"
   )
 }

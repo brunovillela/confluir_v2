@@ -230,12 +230,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "index",
         titulo: "Visão geral da Representação",
-        resumo: "Assembleias, oposição, acordos e empregadores",
+        resumo: "Votações, oposição, acordos e empregadores",
       },
       {
-        slug: "assembleias",
-        titulo: "Assembleias",
-        resumo: "Campanha, rodada, perguntas, aptos e o voto",
+        slug: "votacoes",
+        titulo: "Votações",
+        resumo: "Campanha, rodada, assembleias, perguntas, aptos e o voto",
       },
       {
         slug: "votacao-presencial",

@@ -56,7 +56,7 @@ export default async function CampanhaPage({
     <>
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/painel/representacao/assembleias" aria-label="Voltar para assembleias">
+          <Link href="/painel/representacao/votacoes" aria-label="Voltar para assembleias">
             <ArrowLeft />
           </Link>
         </Button>
@@ -111,7 +111,7 @@ export default async function CampanhaPage({
                   <TableRow key={r.id}>
                     <TableCell className="max-w-72">
                       <Link
-                        href={`/painel/representacao/assembleias/rodadas/${r.id}`}
+                        href={`/painel/representacao/votacoes/rodadas/${r.id}`}
                         className="text-primary line-clamp-2 font-medium hover:underline"
                       >
                         {r.nome ?? "(sem nome)"}

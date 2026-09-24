@@ -24,7 +24,7 @@ export default async function NovaCampanhaPage() {
     <>
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/painel/representacao/assembleias" aria-label="Voltar para assembleias">
+          <Link href="/painel/representacao/votacoes" aria-label="Voltar para assembleias">
             <ArrowLeft />
           </Link>
         </Button>

@@ -27,7 +27,7 @@ export default async function UrnasAssembleiaPage({
     <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/painel/representacao/assembleias">
+          <Link href="/painel/representacao/votacoes">
             <ArrowLeft />
             Assembleias
           </Link>
@@ -39,7 +39,7 @@ export default async function UrnasAssembleiaPage({
           <ModalidadeBadge modalidade={dados.modalidade} />
           <Button variant="outline" size="sm" asChild className="ml-auto">
             <a
-              href={`/painel/representacao/assembleias/cedula/${dados.assembleiaId}`}
+              href={`/painel/representacao/votacoes/cedula/${dados.assembleiaId}`}
               target="_blank"
               rel="noopener noreferrer"
             >

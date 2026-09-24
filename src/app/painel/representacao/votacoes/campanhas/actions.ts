@@ -36,8 +36,8 @@ export async function salvarCampanha(
   if (!id) {
     const { id: novoId, erro } = await criarCampanha({ tema, fonteIds })
     if (erro) return { erro }
-    revalidatePath("/painel/representacao/assembleias")
-    redirect(`/painel/representacao/assembleias/campanhas/${novoId}?criada=1`)
+    revalidatePath("/painel/representacao/votacoes")
+    redirect(`/painel/representacao/votacoes/campanhas/${novoId}?criada=1`)
   }
 
   const { erro } = await atualizarCampanha(id, {
@@ -46,8 +46,8 @@ export async function salvarCampanha(
     fonteIds,
   })
   if (erro) return { erro }
-  revalidatePath("/painel/representacao/assembleias")
-  revalidatePath(`/painel/representacao/assembleias/campanhas/${id}`)
+  revalidatePath("/painel/representacao/votacoes")
+  revalidatePath(`/painel/representacao/votacoes/campanhas/${id}`)
   return { ok: "Campanha salva." }
 }
 
@@ -81,6 +81,6 @@ export async function novaRodada(
     ),
   })
   if (erro || !id) return { erro: erro ?? "Falha ao criar a rodada." }
-  revalidatePath(`/painel/representacao/assembleias/campanhas/${campanhaId}`)
-  redirect(`/painel/representacao/assembleias/rodadas/${id}?criada=1`)
+  revalidatePath(`/painel/representacao/votacoes/campanhas/${campanhaId}`)
+  redirect(`/painel/representacao/votacoes/rodadas/${id}?criada=1`)
 }

@@ -28,10 +28,16 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 20/09 (3): área do hotel dividida em abas.
+  // Rodada de 24/09: "Assembleias" virou "Votações" — o cartão do hub mudou de
+  // nome, e a lista ganhou destaque, ordenação e páginas.
+  ['/painel/representacao', 'representacao/painel.png'],
+  ['/painel/representacao/votacoes', 'representacao/votacoes-lista.png', { esperar: 'Votações' }],
+
+  /* Rodada de 20/09 (3): área do hotel dividida em abas.
   ['/hotel/inicio', 'hotel/inicio.png', { fullPage: true }],
   ['/hotel/cupons', 'hotel/cupons.png', { fullPage: true }],
   ['/hotel/reservas', 'hotel/reservas.png', { fullPage: true }],
+  */
 
   /* Rodada de 18/09: todos os prints de Filiados (já capturados).
   ['/painel/filiados', 'filiados/lista.png', { fullPage: true, esperar: 'Saúde dos cadastros' }],

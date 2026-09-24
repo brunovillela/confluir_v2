@@ -357,13 +357,13 @@ function AssembleiaItem({
           {temUrna(assembleia.modalidade) && (
             <>
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/representacao/assembleias/urnas/${assembleia.id}`}>
+                <Link href={`/painel/representacao/votacoes/urnas/${assembleia.id}`}>
                   <Vote />
                   Urnas e mesários
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/representacao/assembleias/acompanhamento/${assembleia.id}`}>
+                <Link href={`/painel/representacao/votacoes/acompanhamento/${assembleia.id}`}>
                   <Activity />
                   Acompanhar
                 </Link>
@@ -371,7 +371,7 @@ function AssembleiaItem({
             </>
           )}
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/painel/representacao/assembleias/apuracao/${assembleia.id}`}>
+            <Link href={`/painel/representacao/votacoes/apuracao/${assembleia.id}`}>
               <Gavel />
               Apurar
             </Link>

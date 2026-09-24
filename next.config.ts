@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
       // Empregadores (antigas "Fontes pagadoras") saíram de Filiados para Representação.
       { source: "/painel/filiados/fontes", destination: "/painel/representacao/empregadores", permanent: true },
       { source: "/painel/filiados/fontes/:path*", destination: "/painel/representacao/empregadores/:path*", permanent: true },
+      // "Assembleias" virou "Votações": a assembleia é UMA das modalidades de
+      // votação (tem online, urna, reunião), então o nome da área era menor que
+      // a área. Links antigos (e-mails de aviso aos aptos, favoritos) seguem valendo.
+      { source: "/painel/representacao/assembleias", destination: "/painel/representacao/votacoes", permanent: true },
+      { source: "/painel/representacao/assembleias/:path*", destination: "/painel/representacao/votacoes/:path*", permanent: true },
+      { source: "/painel/ajuda/representacao/assembleias", destination: "/painel/ajuda/representacao/votacoes", permanent: true },
       // "Configurações" virou "Institucional"; Registro sindical (MTE) saiu de Representação p/ lá.
       { source: "/painel/representacao/registro-mte", destination: "/painel/institucional/registro-mte", permanent: true },
       { source: "/painel/representacao/registro-mte/:path*", destination: "/painel/institucional/registro-mte/:path*", permanent: true },

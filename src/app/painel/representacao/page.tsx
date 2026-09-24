@@ -24,9 +24,9 @@ type Area = {
 
 const AREAS: Area[] = [
   {
-    titulo: "Assembleias",
-    descricao: "Campanhas, rodadas, aptos e votações da categoria",
-    href: "/painel/representacao/assembleias",
+    titulo: "Votações",
+    descricao: "Campanhas, rodadas, assembleias e aptos a votar",
+    href: "/painel/representacao/votacoes",
     icone: Vote,
     chave: "assembleias",
   },

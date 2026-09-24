@@ -43,7 +43,7 @@ function horaISO(valor: string): string | null {
 }
 
 function revalidarRodada(rodadaId: string) {
-  revalidatePath(`/painel/representacao/assembleias/rodadas/${rodadaId}`)
+  revalidatePath(`/painel/representacao/votacoes/rodadas/${rodadaId}`)
 }
 
 // ── Dados da rodada ────────────────────────────────────────────────────────

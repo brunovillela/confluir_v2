@@ -2,7 +2,11 @@ import { cache as cacheReact } from "react"
 
 import "server-only"
 import { horaCurta } from "@/lib/assembleias-constantes"
-import { colunasHorario, situacaoDaAssembleia } from "@/lib/db/assembleias-horarios"
+import {
+  colunasHorario,
+  janelaDaAssembleia,
+  situacaoDaAssembleia,
+} from "@/lib/db/assembleias-horarios"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -12,6 +16,7 @@ import {
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
   MOTIVO_PERGUNTAS_BLOQUEADAS,
   periodoTerminado,
+  PRAZO_EM_BREVE_MS,
   ROTULOS_MODALIDADE,
   temVotoOnline,
   type Modalidade,
@@ -35,6 +40,19 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
+/**
+ * A assembleia que faz a campanha merecer destaque na lista: a que está
+ * votando agora ou a próxima a abrir dentro de `DIAS_EM_BREVE`.
+ */
+export type AtividadeCampanha = {
+  tipo: "em_curso" | "em_breve"
+  assembleia: string | null
+  /** Abertura (ISO) — em "em breve", é a data que a lista mostra. */
+  inicio: string | null
+  /** Fechamento (ISO) — em "em curso", é até quando dá para votar. */
+  termino: string | null
+}
+
 export type CampanhaLinha = {
   id: string
   tema: string | null
@@ -42,7 +60,20 @@ export type CampanhaLinha = {
   fontes: string[]
   rodadas: number
   created_at: string | null
+  atividade: AtividadeCampanha | null
 }
+
+/** Colunas da tabela de campanhas pelas quais dá para ordenar. */
+export const ORDENS_CAMPANHA = [
+  "atividade",
+  "tema",
+  "rodadas",
+  "situacao",
+  "registro",
+] as const
+export type OrdemCampanha = (typeof ORDENS_CAMPANHA)[number]
+
+export const POR_PAGINA_OPCOES = [25, 50, 100] as const
 
 export type CampanhaDetalhe = {
   id: string
@@ -194,20 +225,58 @@ export async function resumoAssembleias(): Promise<ResumoAssembleias> {
 
 const POR_PAGINA = 25
 
+/**
+ * Teto de campanhas carregadas de uma vez quando a ordenação é por um dado
+ * CALCULADO (rodadas, atividade) — esses não existem como coluna, então a
+ * ordem precisa ser feita em memória sobre o conjunto inteiro. Hoje o maior
+ * tenant tem 67 campanhas; o teto existe só para não crescer sem limite, e
+ * `.range` explícito é obrigatório porque o PostgREST corta em 1.000 linhas.
+ */
+const TETO_ORDEM_EM_MEMORIA = 2000
+
+/** Colunas reais do banco por trás de cada ordem (as demais são calculadas). */
+const COLUNA_DA_ORDEM: Partial<Record<OrdemCampanha, string>> = {
+  tema: "tema",
+  situacao: "finalizado",
+  registro: "created_at",
+}
+
 export async function listarCampanhas(filtros: {
   busca?: string
   situacao?: "abertas" | "finalizadas" | "todas"
   /** Só campanhas com esta empresa entre as fontes pagadoras. */
   empresaId?: string
   pagina?: number
+  porPagina?: number
+  ordem?: OrdemCampanha
+  /** true = crescente. O padrão de cada ordem vale quando não vem nada. */
+  asc?: boolean
 }): Promise<{
   linhas: CampanhaLinha[]
   total: number
   pagina: number
   totalPaginas: number
+  porPagina: number
+  ordem: OrdemCampanha
+  asc: boolean
 }> {
   const admin = await createAdminClient()
   const pagina = filtros.pagina && filtros.pagina > 0 ? filtros.pagina : 1
+  const porPagina = POR_PAGINA_OPCOES.includes(
+    filtros.porPagina as (typeof POR_PAGINA_OPCOES)[number]
+  )
+    ? (filtros.porPagina as number)
+    : POR_PAGINA
+  // O padrão é por atividade: o que está em votação, e o que abre em breve,
+  // sobe para o topo. Empate cai no mais recente, que é a ordem de sempre.
+  const ordem: OrdemCampanha = ORDENS_CAMPANHA.includes(
+    filtros.ordem as OrdemCampanha
+  )
+    ? (filtros.ordem as OrdemCampanha)
+    : "atividade"
+  // Padrões que fazem sentido em cada coluna: tema de A a Z; o resto do maior
+  // para o menor (mais recente, mais rodadas, em curso primeiro).
+  const asc = filtros.asc ?? ordem === "tema"
 
   let q = admin
     .from("voto_campanha")
@@ -226,38 +295,169 @@ export async function listarCampanhas(filtros: {
     const ids = [...new Set((vinculos ?? []).map((v) => String(v.campanha_id)))]
     // Sem campanha alguma para a empresa: devolve vazio sem ir ao banco.
     if (ids.length === 0) {
-      return { linhas: [], total: 0, pagina, totalPaginas: 1 }
+      return { linhas: [], total: 0, pagina, totalPaginas: 1, porPagina, ordem, asc }
     }
     q = q.in("id", ids)
   }
   if (filtros.situacao === "abertas") q = q.not("finalizado", "is", true)
   if (filtros.situacao === "finalizadas") q = q.eq("finalizado", true)
 
-  const de = (pagina - 1) * POR_PAGINA
-  const { data, error, count } = await q
-    .order("created_at", { ascending: false })
-    .range(de, de + POR_PAGINA - 1)
+  // Rodadas e atividade não são colunas: para ordenar por elas, carrega o
+  // conjunto filtrado e ordena em memória. Nas colunas reais, o banco ordena e
+  // pagina — é o caminho que escala.
+  const colunaDb = COLUNA_DA_ORDEM[ordem]
+  const de = (pagina - 1) * porPagina
+  const { data, error, count } = colunaDb
+    ? await q
+        .order(colunaDb, { ascending: asc, nullsFirst: false })
+        .range(de, de + porPagina - 1)
+    : await q
+        .order("created_at", { ascending: false })
+        .range(0, TETO_ORDEM_EM_MEMORIA - 1)
   if (error) throw new Error(`Falha ao listar campanhas: ${error.message}`)
 
   const ids = (data ?? []).map((c) => c.id)
-  const [fontesPorCampanha, rodadasPorCampanha] = await Promise.all([
-    fontesDasCampanhas(ids),
-    contarPorCampo("voto_rod_assembleias", "campanha_id", ids),
-  ])
+  const [fontesPorCampanha, rodadasPorCampanha, atividadePorCampanha] =
+    await Promise.all([
+      fontesDasCampanhas(ids),
+      contarPorCampo("voto_rod_assembleias", "campanha_id", ids),
+      atividadeDasCampanhas(ids),
+    ])
 
-  return {
-    linhas: (data ?? []).map((c) => ({
-      id: c.id,
-      tema: c.tema,
-      finalizado: c.finalizado === true,
-      fontes: fontesPorCampanha.get(c.id) ?? [],
-      rodadas: rodadasPorCampanha.get(c.id) ?? 0,
-      created_at: c.created_at,
-    })),
-    total: count ?? 0,
-    pagina,
-    totalPaginas: Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA)),
+  let linhas: CampanhaLinha[] = (data ?? []).map((c) => ({
+    id: c.id,
+    tema: c.tema,
+    finalizado: c.finalizado === true,
+    fontes: fontesPorCampanha.get(c.id) ?? [],
+    rodadas: rodadasPorCampanha.get(c.id) ?? 0,
+    created_at: c.created_at,
+    atividade: atividadePorCampanha.get(c.id) ?? null,
+  }))
+
+  const total = count ?? linhas.length
+  let totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  if (!colunaDb) {
+    linhas.sort(comparadorCalculado(ordem, asc))
+    totalPaginas = Math.max(1, Math.ceil(linhas.length / porPagina))
+    linhas = linhas.slice(de, de + porPagina)
   }
+
+  return { linhas, total, pagina, totalPaginas, porPagina, ordem, asc }
+}
+
+/** Peso da atividade na ordenação: em curso vem antes de em breve, e do resto. */
+function pesoAtividade(a: AtividadeCampanha | null): number {
+  if (a?.tipo === "em_curso") return 2
+  if (a?.tipo === "em_breve") return 1
+  return 0
+}
+
+function comparadorCalculado(
+  ordem: OrdemCampanha,
+  asc: boolean
+): (a: CampanhaLinha, b: CampanhaLinha) => number {
+  const sinal = asc ? 1 : -1
+  return (a, b) => {
+    const diferenca =
+      ordem === "rodadas"
+        ? a.rodadas - b.rodadas
+        : pesoAtividade(a.atividade) - pesoAtividade(b.atividade)
+    if (diferenca !== 0) return sinal * diferenca
+    // Empate: a mais recente primeiro, para a ordem não sair sorteada.
+    return (b.created_at ?? "").localeCompare(a.created_at ?? "")
+  }
+}
+
+/**
+ * Para cada campanha, a assembleia que está votando AGORA ou a próxima a abrir
+ * dentro de `DIAS_EM_BREVE`. Assembleia sem data de início não conta: o dado
+ * migrado do Bubble tem muitas assim, e elas não estão "em curso" — só não têm
+ * data. Sem término próprio, vale o término da rodada.
+ */
+async function atividadeDasCampanhas(
+  campanhaIds: string[]
+): Promise<Map<string, AtividadeCampanha>> {
+  const porCampanha = new Map<string, AtividadeCampanha>()
+  if (campanhaIds.length === 0) return porCampanha
+  const admin = await createAdminClient()
+
+  const { data: rodadas, error: erroRodadas } = await admin
+    .from("voto_rod_assembleias")
+    .select("id, campanha_id, termino")
+    .in("campanha_id", campanhaIds)
+  if (erroRodadas) {
+    if (esquemaAusente(erroRodadas)) return porCampanha
+    throw new Error(`Falha ao ler as rodadas: ${erroRodadas.message}`)
+  }
+  const campanhaDaRodada = new Map<string, string>()
+  const terminoDaRodada = new Map<string, string | null>()
+  for (const r of linhasBrutas(rodadas)) {
+    const id = String(r.id)
+    campanhaDaRodada.set(id, String(r.campanha_id))
+    terminoDaRodada.set(id, (r.termino as string | null) ?? null)
+  }
+  const rodadaIds = [...campanhaDaRodada.keys()]
+  if (rodadaIds.length === 0) return porCampanha
+
+  const { data: assembleias, error } = await admin
+    .from("voto_assembleias")
+    .select(
+      "nome_assembleia, rod_assembleia_id, data_inicio, data_termino" +
+        (await colunasHorario())
+    )
+    .in("rod_assembleia_id", rodadaIds)
+  if (error) {
+    if (esquemaAusente(error)) return porCampanha
+    throw new Error(`Falha ao ler as assembleias: ${error.message}`)
+  }
+
+  const agora = Date.now()
+  for (const a of linhasBrutas(assembleias)) {
+    const rodadaId = String(a.rod_assembleia_id)
+    const campanhaId = campanhaDaRodada.get(rodadaId)
+    if (!campanhaId) continue
+    const janela = janelaDaAssembleia(a, terminoDaRodada.get(rodadaId))
+    if (janela.inicio === null) continue
+
+    let candidata: AtividadeCampanha | null = null
+    if (janela.inicio <= agora) {
+      // Em curso: começou e ainda não fechou. Sem término, não dá para afirmar
+      // que está aberta — assembleia antiga sem data de fim cairia aqui para
+      // sempre.
+      if (janela.termino !== null && janela.termino >= agora) {
+        candidata = {
+          tipo: "em_curso",
+          assembleia: (a.nome_assembleia as string | null) ?? null,
+          inicio: new Date(janela.inicio).toISOString(),
+          termino: new Date(janela.termino).toISOString(),
+        }
+      }
+    } else if (janela.inicio - agora <= PRAZO_EM_BREVE_MS) {
+      candidata = {
+        tipo: "em_breve",
+        assembleia: (a.nome_assembleia as string | null) ?? null,
+        inicio: new Date(janela.inicio).toISOString(),
+        termino: janela.termino === null ? null : new Date(janela.termino).toISOString(),
+      }
+    }
+    if (!candidata) continue
+
+    const atual = porCampanha.get(campanhaId)
+    if (!atual || melhorAtividade(candidata, atual)) {
+      porCampanha.set(campanhaId, candidata)
+    }
+  }
+  return porCampanha
+}
+
+/** Em curso ganha de em breve; entre iguais, a que acontece primeiro. */
+function melhorAtividade(nova: AtividadeCampanha, atual: AtividadeCampanha): boolean {
+  if (pesoAtividade(nova) !== pesoAtividade(atual)) {
+    return pesoAtividade(nova) > pesoAtividade(atual)
+  }
+  const chave = (a: AtividadeCampanha) =>
+    a.tipo === "em_curso" ? (a.termino ?? "") : (a.inicio ?? "")
+  return chave(nova) < chave(atual)
 }
 
 /** Nomes das fontes vinculadas, por campanha. Vazio se o SQL não rodou. */

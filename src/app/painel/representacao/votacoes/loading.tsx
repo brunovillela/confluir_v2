@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function AssembleiasLoading() {
+export default function VotacoesLoading() {
   return (
     <>
       <div className="space-y-2">

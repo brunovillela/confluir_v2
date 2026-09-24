@@ -17,7 +17,7 @@ export async function encerrarApuracaoAction(
 
   const r = await encerrarApuracao(id)
   if (r.erro) return { erro: r.erro }
-  revalidatePath(`/painel/representacao/assembleias/apuracao/${id}`)
+  revalidatePath(`/painel/representacao/votacoes/apuracao/${id}`)
   return { ok: "Apuração encerrada. O resultado final ficou disponível." }
 }
 
@@ -30,7 +30,7 @@ export async function reabrirApuracaoAction(
   if (!id) return { erro: "Assembleia inválida." }
   const r = await reabrirApuracao(id)
   if (r.erro) return { erro: r.erro }
-  revalidatePath(`/painel/representacao/assembleias/apuracao/${id}`)
+  revalidatePath(`/painel/representacao/votacoes/apuracao/${id}`)
   return { ok: "Apuração reaberta." }
 }
 
@@ -48,6 +48,6 @@ export async function validarEmSeparadoAction(
   if (!id) return { erro: "Registro inválido." }
   const r = await validarEmSeparado(id, status)
   if (r.erro) return { erro: r.erro }
-  revalidatePath(`/painel/representacao/assembleias/apuracao/${assembleiaId}`)
+  revalidatePath(`/painel/representacao/votacoes/apuracao/${assembleiaId}`)
   return { ok: status === "deferido" ? "Voto deferido." : "Voto indeferido." }
 }

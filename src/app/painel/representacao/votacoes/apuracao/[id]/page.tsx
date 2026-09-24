@@ -42,7 +42,7 @@ export default async function ApuracaoPage({
     <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/painel/representacao/assembleias">
+          <Link href="/painel/representacao/votacoes">
             <ArrowLeft />
             Assembleias
           </Link>

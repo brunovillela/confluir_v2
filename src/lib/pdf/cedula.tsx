@@ -11,7 +11,7 @@ import {
  * Modelo de CÉDULA de votação (@react-pdf/renderer): logo do sindicato,
  * dados da votação (campanha/rodada/assembleia), perguntas e opções com
  * área de marcação. Renderizada no route handler
- * `/painel/representacao/assembleias/cedula/[id]`.
+ * `/painel/representacao/votacoes/cedula/[id]`.
  */
 
 export type DadosCedula = {

@@ -110,8 +110,8 @@ export default async function RodadaPage({
           <Link
             href={
               rodada.campanha_id
-                ? `/painel/representacao/assembleias/campanhas/${rodada.campanha_id}`
-                : "/painel/representacao/assembleias"
+                ? `/painel/representacao/votacoes/campanhas/${rodada.campanha_id}`
+                : "/painel/representacao/votacoes"
             }
             aria-label="Voltar para a campanha"
           >
@@ -213,7 +213,7 @@ export default async function RodadaPage({
           <div className="flex flex-wrap items-center gap-3">
             <form
               className="flex flex-wrap items-center gap-2"
-              action={`/painel/representacao/assembleias/rodadas/${rodada.id}`}
+              action={`/painel/representacao/votacoes/rodadas/${rodada.id}`}
             >
               {votou && <input type="hidden" name="votou" value={votou} />}
               {porPagina !== APTOS_PADRAO && (

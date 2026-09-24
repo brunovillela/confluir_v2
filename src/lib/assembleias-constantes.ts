@@ -170,6 +170,14 @@ export function situacaoJanela(j: Janela, agora = Date.now()): SituacaoJanela {
   return "aberta"
 }
 
+/**
+ * "Em breve" na lista de campanhas: uma assembleia que abre dentro deste prazo.
+ * Sete dias é o horizonte de quem prepara a votação (avisar aptos, montar
+ * urnas, conferir a lista) — mais que isso não é "breve", é agenda.
+ */
+export const DIAS_EM_BREVE = 7
+export const PRAZO_EM_BREVE_MS = DIAS_EM_BREVE * 24 * 60 * 60 * 1000
+
 /** 'HH:MM:SS' → '14:30'; vazio vira null. */
 export function horaCurta(hora: string | null | undefined): string | null {
   const h = (hora ?? "").trim()
