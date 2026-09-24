@@ -20,6 +20,7 @@ import {
   confirmarAction,
   custeioAction,
   dispensarVisitaAction,
+  gerarTermoAction,
   pagamentoAction,
   recusarAction,
   registrarVisitaAction,
@@ -490,6 +491,82 @@ export function Fechamento({
             </Button>
           </form>
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function Termo({
+  id,
+  termo,
+  exigido,
+  podeGerir,
+}: {
+  id: string
+  termo: { texto: string | null; codigo: string | null; geradoEm: string | null }
+  exigido: boolean
+  podeGerir: boolean
+}) {
+  const [estado, gerar, gerando] = useActionState(gerarTermoAction, {})
+  if (!exigido) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">Termo de cessão</CardTitle>
+          {termo.codigo && (
+            <Badge variant="outline" className="font-mono text-xs">
+              versão {termo.codigo}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <Aviso estado={estado} />
+        {termo.texto ? (
+          <>
+            <p className="text-muted-foreground text-xs">
+              Gerado em {formatarDataHora(termo.geradoEm)} — o texto abaixo está
+              congelado nesta cessão.
+            </p>
+            <pre className="bg-muted/40 max-h-80 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+              {termo.texto}
+            </pre>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/painel/espacos/pedidos/${id}/termo`} target="_blank" rel="noreferrer">
+                  Baixar PDF
+                </a>
+              </Button>
+              {podeGerir && (
+                <form action={gerar}>
+                  <input type="hidden" name="id" value={id} />
+                  <Button type="submit" variant="ghost" size="sm" disabled={gerando}>
+                    {gerando && <Loader2 className="animate-spin" />}
+                    Gerar de novo
+                  </Button>
+                </form>
+              )}
+            </div>
+          </>
+        ) : podeGerir ? (
+          <form action={gerar} className="grid gap-2">
+            <input type="hidden" name="id" value={id} />
+            <p className="text-muted-foreground text-sm">
+              O termo é montado a partir do modelo em vigor, com os dados deste
+              pedido: período, montagem, responsáveis, exigências e custeio.
+            </p>
+            <div className="flex justify-end">
+              <Button type="submit" size="sm" disabled={gerando}>
+                {gerando && <Loader2 className="animate-spin" />}
+                Gerar o termo
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-muted-foreground text-sm">Termo ainda não gerado.</p>
+        )}
       </CardContent>
     </Card>
   )

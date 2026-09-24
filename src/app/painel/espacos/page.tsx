@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { DoorOpen, Inbox, Plus } from "lucide-react"
+import { DoorOpen, FileSignature, Inbox, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +46,14 @@ export default async function EspacosPage() {
               <Link href="/painel/espacos/pedidos">
                 <Inbox />
                 Pedidos de uso
+              </Link>
+            </Button>
+          )}
+          {podeGerir && esquemaPronto && (
+            <Button variant="outline" asChild>
+              <Link href="/painel/espacos/termo">
+                <FileSignature />
+                Termo
               </Link>
             </Button>
           )}

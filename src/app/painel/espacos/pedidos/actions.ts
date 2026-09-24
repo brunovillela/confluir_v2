@@ -15,6 +15,7 @@ import {
   registrarPagamento,
   registrarVisita,
 } from "@/lib/db/espacos-esteira"
+import { gerarTermoDaCessao } from "@/lib/db/espacos-termo"
 
 type Estado = { erro?: string; ok?: string }
 
@@ -159,4 +160,17 @@ export async function cancelarAction(_prev: Estado, fd: FormData): Promise<Estad
   if (erro) return { erro }
   depois(id)
   return { ok: "Pedido cancelado." }
+}
+
+/** Gera (ou regera) o termo desta cessão a partir do modelo em vigor. */
+export async function gerarTermoAction(
+  _prev: Estado,
+  fd: FormData
+): Promise<Estado> {
+  const sessao = await requirePermissao("espacos_gestao")
+  const id = txt(fd, "id")
+  const { erro, codigo } = await gerarTermoDaCessao(id, sessao.usuario.id as string)
+  if (erro) return { erro }
+  depois(id)
+  return { ok: `Termo gerado a partir da versão ${codigo ?? "vigente"}.` }
 }

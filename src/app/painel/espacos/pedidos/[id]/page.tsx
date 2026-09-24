@@ -17,10 +17,11 @@ import {
   obterSolicitacao,
   pendenciasParaConfirmar,
 } from "@/lib/db/espacos-esteira"
+import { termoDaCessao } from "@/lib/db/espacos-termo"
 import { GATILHOS_CONDICAO, totalExigencias } from "@/lib/espacos-constantes"
 import { formatarDataHora } from "@/lib/formato"
 
-import { Assumir, Autorizacao, Custeio, Fechamento, Visita } from "./passos"
+import { Assumir, Autorizacao, Custeio, Fechamento, Termo, Visita } from "./passos"
 
 export const metadata: Metadata = { title: "Pedido de uso — Confluir" }
 
@@ -34,9 +35,10 @@ export default async function PedidoPage({
   const podeAutorizar = sessao.permissoes?.espacos_autorizacao === true
   const { id } = await params
 
-  const [pedido, responsaveis] = await Promise.all([
+  const [pedido, responsaveis, termo] = await Promise.all([
     obterSolicitacao(id),
     listarResponsaveisPossiveis(),
+    termoDaCessao(id),
   ])
   if (!pedido) notFound()
 
@@ -116,6 +118,13 @@ export default async function PedidoPage({
           <Custeio
             id={id}
             custeio={pedido.custeio}
+            podeGerir={podeGerir && !encerrado}
+          />
+
+          <Termo
+            id={id}
+            termo={termo}
+            exigido={pedido.espacoExigeTermo}
             podeGerir={podeGerir && !encerrado}
           />
 

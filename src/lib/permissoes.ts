@@ -501,6 +501,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Termo de cessão",
+    href: "/painel/espacos/termo",
+    icone: "DoorOpen",
+    descricao: "Modelo padrão do termo, versionado",
+    chave: "espacos_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Itens patrimoniais",
     href: "/painel/patrimonio/itens",
     icone: "Boxes",
