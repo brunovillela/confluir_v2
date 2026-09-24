@@ -441,6 +441,10 @@ export async function enviarParaAssinatura(dados: {
     const { data, error } = await admin
       .from("documento_assinaturas")
       .insert({
+        // O envelope serve a mais de um documento desde 24/09/2026; o par
+        // (tipo, id) é o vínculo novo, e `oficio_id` segue para o cascade.
+        documento_tipo: "oficio",
+        documento_id: dados.oficioId,
         oficio_id: dados.oficioId,
         integrante_id: preparo.assinanteIntegranteId,
         nome: preparo.assinanteNome,

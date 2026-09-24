@@ -244,6 +244,36 @@ Marcador que não existe é avisado ao salvar, porque sairia em branco.
 O **PDF** sai com a logomarca da entidade, as cláusulas destacadas e as duas
 linhas de assinatura — há cessão que se resolve no papel, na recepção.
 
+## A assinatura do termo
+
+São **duas** assinaturas, em ordem: o **cedente** (a entidade) assina primeiro
+e só então o link vai para o **concessionário**. Assinar um documento que a
+outra parte ainda pode mudar não seria assinatura.
+
+<PassoAPasso>
+  <Passo titulo="Enviar">
+    Informe quem assina por cada parte e o e-mail de cada um. O primeiro
+    recebe um link pessoal; o segundo é avisado quando chegar a vez dele.
+  </Passo>
+  <Passo titulo="Assinar">
+    Quem recebe o link lê o termo inteiro na tela, pede um código de 6 dígitos
+    por e-mail e confirma. Ficam registrados data, hora e IP, e cada parte
+    ganha um **certificado**.
+  </Passo>
+  <Passo titulo="Recusar">
+    Quem não concordar recusa pelo mesmo link, com motivo. A entidade ajusta o
+    que for preciso, gera o termo de novo e envia outra vez.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Se o termo mudar no meio, a assinatura é recusada">
+  O conteúdo é preso a um resumo criptográfico no momento do envio. Se alguém
+  gerar o termo de novo depois disso, quem tentar assinar recebe um aviso e
+  nada é registrado — o envio precisa ser refeito.
+</Aviso>
+
+<Print src="espacos/assinatura.png" alt="Pedido com o cartão de assinatura do termo mostrando cedente e concessionário assinados, com data e certificado de cada um." legenda="As duas assinaturas, com data e certificado." />
+
 ## Erros comuns
 
 - **&quot;O espaço não aparece para solicitar.&quot;** Confira se ele está
