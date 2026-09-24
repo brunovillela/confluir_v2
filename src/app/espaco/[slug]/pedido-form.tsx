@@ -284,10 +284,8 @@ export function PedidoForm({
                   <span className="text-muted-foreground">
                     {" — "}
                     {[
-                      e.bombeiros > 0 &&
-                        `${e.bombeiros} bombeiro${e.bombeiros === 1 ? "" : "s"} civil${e.bombeiros === 1 ? "" : "is"}`,
-                      e.segurancas > 0 &&
-                        `${e.segurancas} segurança${e.segurancas === 1 ? "" : "s"}`,
+                      e.bombeiros > 0 && bombeiros(e.bombeiros),
+                      e.segurancas > 0 && segurancas(e.segurancas),
                       e.observacao,
                     ]
                       .filter(Boolean)
@@ -297,10 +295,8 @@ export function PedidoForm({
               ))}
             </ul>
             <p className="text-sm font-medium">
-              Total: {exigencias.bombeiros} bombeiro
-              {exigencias.bombeiros === 1 ? "" : "s"} civil
-              {exigencias.bombeiros === 1 ? "" : "is"} e {exigencias.segurancas}{" "}
-              segurança{exigencias.segurancas === 1 ? "" : "s"}.
+              Total: {bombeiros(exigencias.bombeiros)} e{" "}
+              {segurancas(exigencias.segurancas)}.
             </p>
           </CardContent>
         </Card>
@@ -315,6 +311,12 @@ export function PedidoForm({
     </form>
   )
 }
+
+/** O plural é irregular: um bombeiro CIVIL, dois bombeiros CIVIS. */
+const bombeiros = (n: number) =>
+  n === 1 ? "1 bombeiro civil" : `${n} bombeiros civis`
+const segurancas = (n: number) =>
+  n === 1 ? "1 segurança" : `${n} seguranças`
 
 function IdentificacaoFiliado({
   aoEncontrar,

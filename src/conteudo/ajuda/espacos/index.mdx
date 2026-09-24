@@ -97,6 +97,70 @@ prioritária ou outro motivo.
   que terminou.
 </Aviso>
 
+## Bombeiros civis e seguranças
+
+Cada espaço tem suas regras, e elas **somam**: 200 pessoas pedem dois bombeiros
+e bebida alcoólica pede mais um segurança — o evento precisa dos dois.
+
+<PassoAPasso>
+  <Passo titulo="Por quantidade de pessoas">
+    Faixas — de 1 a 50, de 51 a 200, a partir de 201 — cada uma com quantos
+    bombeiros e seguranças exige. As faixas **não podem se cruzar**: o sistema
+    recusa cadastrar 30–80 quando já existe 1–50.
+  </Passo>
+  <Passo titulo="Por condição do evento">
+    Público infantil, idoso ou com mobilidade reduzida, bebida alcoólica e
+    evento de possível estresse emocional (assembleia, debate). Cada uma
+    acrescenta ao que a faixa já pediu.
+  </Passo>
+  <Passo titulo="Exigência que não é gente">
+    O campo **Outra exigência** entra na conta como texto: ambulância de
+    plantão, rampa, brinquedoteca sinalizada.
+  </Passo>
+</PassoAPasso>
+
+## O link público
+
+Cada espaço tem um endereço próprio — **/espaco/&lt;nome-do-espaço&gt;** —, que a
+entidade divulga. Ele mostra a descrição, os horários de cessão e, quando o
+espaço permite, a **agenda dos próximos 21 dias**, com o que já está ocupado
+riscado.
+
+Quem solicita responde sobre o público e o evento, e **vê na hora** o que aquilo
+vai exigir, com a conta aberta: de onde veio cada bombeiro e cada segurança.
+Exigência sem explicação vira discussão no dia do evento.
+
+<Print src="espacos/publico.png" alt="Página pública de um espaço com a descrição, os horários, a agenda dos próximos 21 dias, o formulário do pedido e o cartão que calcula bombeiros e seguranças pelas respostas." legenda="O link público: agenda, pedido e as exigências calculadas ao vivo." />
+
+<PassoAPasso>
+  <Passo titulo="Quem pode pedir">
+    **Qualquer pessoa** preenche direto. **Somente filiados** pede o CPF antes,
+    conferido na base — quem não está com a filiação ativa não passa. **Público
+    interno** exige estar logado no sistema.
+  </Passo>
+  <Passo titulo="O código por e-mail">
+    Depois de enviar, chega um código de 6 dígitos. Enquanto ele não for
+    digitado, o pedido fica em rascunho e **não aparece para a equipe** — um
+    e-mail digitado errado não vira trabalho nem cessão para a pessoa errada.
+  </Passo>
+  <Passo titulo="O número do pedido">
+    Confirmado o código, o pedido ganha número sequencial e entra na fila.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="O que já foi pedido não muda quando a regra muda">
+  As exigências são **copiadas** para o pedido no momento em que ele é feito. A
+  entidade pode rever as faixas amanhã: quem pediu hoje continua com o que foi
+  combinado. Num documento que fala de segurança de pessoas, isso não pode
+  mudar sozinho.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Montagem e desmontagem ocupam o espaço">
+  Quem pede informa quando precisa entrar para montar e até quando vai ocupar
+  para desmontar. É esse período inteiro que conta para o choque com outro
+  pedido — e o choque considera também os espaços que **dividem ambiente**.
+</Aviso>
+
 ## Erros comuns
 
 - **&quot;O espaço não aparece para solicitar.&quot;** Confira se ele está
@@ -110,6 +174,11 @@ prioritária ou outro motivo.
   complete em Patrimônio › Recintos.
 - **&quot;Bloqueei por engano.&quot;** Encerrar guarda o histórico; excluir
   apaga. Use encerrar quando o bloqueio existiu de verdade.
+- **&quot;A pessoa diz que enviou o pedido, mas ele não aparece.&quot;** Falta
+  ela digitar o **código** que foi para o e-mail. Sem isso o pedido fica em
+  rascunho. Confira o endereço que ela informou.
+- **&quot;O público estimado não aceita o número.&quot;** O campo é limitado
+  pela **lotação** do espaço. Se o evento é maior, o espaço é outro.
 
 <VejaTambem
   links={[
