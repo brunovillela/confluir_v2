@@ -20,8 +20,11 @@ import {
 } from "@/lib/db/espacos"
 import { rotuloPublico, rotuloVisita } from "@/lib/espacos-constantes"
 
+import { listarRegras } from "@/lib/db/espacos-solicitacao"
+
 import { EspacoForm } from "../espaco-form"
 import { Bloqueios, Janelas } from "./agenda"
+import { Exigencias } from "./exigencias"
 
 export const metadata: Metadata = { title: "Espaço — Confluir" }
 
@@ -40,7 +43,7 @@ export default async function EspacoPage({
   const espaco = await obterEspaco(id)
   if (!espaco) notFound()
 
-  const [janelas, bloqueios, ambientes, sedes, responsaveis, compartilhados] =
+  const [janelas, bloqueios, ambientes, sedes, responsaveis, compartilhados, regras] =
     await Promise.all([
       listarJanelas(id),
       listarBloqueios(id),
@@ -48,6 +51,7 @@ export default async function EspacoPage({
       listarSedes(),
       listarResponsaveisPossiveis(),
       espacosQueCompartilhamAmbiente(id),
+      listarRegras(id),
     ])
 
   const meusAmbientes = ambientes.filter((a) => espaco.recintoIds.includes(a.id))
@@ -230,6 +234,7 @@ export default async function EspacoPage({
           </Card>
 
           <Janelas espacoId={id} janelas={janelas} podeGerir={podeGerir} />
+          <Exigencias espacoId={id} regras={regras} podeGerir={podeGerir} />
           <Bloqueios espacoId={id} bloqueios={bloqueios} podeGerir={podeGerir} />
         </>
       )}

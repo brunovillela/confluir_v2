@@ -14,7 +14,10 @@ import {
   excluirJanela,
   type DadosEspaco,
 } from "@/lib/db/espacos"
+import { criarRegra, excluirRegra } from "@/lib/db/espacos-solicitacao"
+import { tenantAtual } from "@/lib/tenant"
 import {
+  gatilhoValido,
   modoValido,
   motivoValido,
   publicoValido,
@@ -182,4 +185,45 @@ export async function excluirBloqueioAction(fd: FormData): Promise<void> {
   if (id) await excluirBloqueio(id)
   revalidatePath(`${AQUI}/${espacoId}`)
   revalidatePath(AQUI)
+}
+
+// ── Regras de segurança ──────────────────────────────────────────────────────
+
+export async function criarRegraAction(
+  _prev: Estado,
+  fd: FormData
+): Promise<Estado> {
+  await requirePermissao("espacos_gestao")
+  const espacoId = txt(fd, "espaco_id")
+  if (!espacoId) return { erro: "Espaço não identificado." }
+  const gatilho = txt(fd, "gatilho")
+  if (!gatilhoValido(gatilho)) return { erro: "Escolha o que dispara a regra." }
+
+  const numero = (nome: string): number | null => {
+    const v = txt(fd, nome)
+    return v === "" ? null : Number(v)
+  }
+  const { erro } = await criarRegra(
+    espacoId,
+    {
+      gatilho,
+      de: numero("de"),
+      ate: numero("ate"),
+      bombeiros: numero("bombeiros") ?? 0,
+      segurancas: numero("segurancas") ?? 0,
+      observacao: txt(fd, "observacao") || null,
+    },
+    await tenantAtual()
+  )
+  if (erro) return { erro }
+  revalidatePath(`${AQUI}/${espacoId}`)
+  return { ok: "Regra adicionada." }
+}
+
+export async function excluirRegraAction(fd: FormData): Promise<void> {
+  await requirePermissao("espacos_gestao")
+  const id = txt(fd, "id")
+  const espacoId = txt(fd, "espaco_id")
+  if (id) await excluirRegra(id)
+  revalidatePath(`${AQUI}/${espacoId}`)
 }

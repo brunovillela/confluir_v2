@@ -193,6 +193,195 @@ export function bloqueioVigente(
   return true
 }
 
+// ── Exigências de segurança ──────────────────────────────────────────────────
+
+export const GATILHOS = [
+  {
+    chave: "publico",
+    rotulo: "Quantidade de pessoas",
+    pergunta: null,
+  },
+  {
+    chave: "infantil",
+    rotulo: "Público infantil",
+    pergunta: "Haverá presença relevante de crianças?",
+  },
+  {
+    chave: "idoso",
+    rotulo: "Público idoso",
+    pergunta: "Haverá presença relevante de pessoas idosas?",
+  },
+  {
+    chave: "mobilidade",
+    rotulo: "Mobilidade reduzida",
+    pergunta: "Haverá presença relevante de pessoas com mobilidade reduzida?",
+  },
+  {
+    chave: "bebida",
+    rotulo: "Bebida alcoólica",
+    pergunta: "Haverá consumo de bebida alcoólica?",
+  },
+  {
+    chave: "estresse",
+    rotulo: "Possível estresse emocional",
+    pergunta:
+      "É um evento de possível estresse emocional (assembleia, debate, negociação)?",
+  },
+] as const
+export type Gatilho = (typeof GATILHOS)[number]["chave"]
+
+export const rotuloGatilho = (g: string | null | undefined) =>
+  GATILHOS.find((x) => x.chave === g)?.rotulo ?? "—"
+export const gatilhoValido = (g: string): g is Gatilho =>
+  GATILHOS.some((x) => x.chave === g)
+
+/** Os gatilhos que são pergunta de sim ou não no formulário. */
+export const GATILHOS_CONDICAO = GATILHOS.filter((g) => g.pergunta !== null)
+
+export type RegraExigencia = {
+  gatilho: Gatilho
+  /** Faixa de público — só no gatilho 'publico'. `ate` nulo = sem teto. */
+  de: number | null
+  ate: number | null
+  bombeiros: number
+  segurancas: number
+  observacao: string | null
+}
+
+export type RespostasEvento = {
+  publicoEstimado: number | null
+  infantil: boolean
+  idoso: boolean
+  mobilidade: boolean
+  bebida: boolean
+  estresse: boolean
+}
+
+export type ExigenciaCalculada = {
+  gatilho: Gatilho
+  motivo: string
+  bombeiros: number
+  segurancas: number
+  observacao: string | null
+}
+
+const RESPOSTA_DO_GATILHO: Record<
+  Exclude<Gatilho, "publico">,
+  keyof Omit<RespostasEvento, "publicoEstimado">
+> = {
+  infantil: "infantil",
+  idoso: "idoso",
+  mobilidade: "mobilidade",
+  bebida: "bebida",
+  estresse: "estresse",
+}
+
+/**
+ * As exigências que aquele pedido dispara, com a conta à vista.
+ *
+ * A faixa de público e as condições do evento SOMAM: 200 pessoas pedem dois
+ * bombeiros, e bebida alcoólica pede mais um — são três, não dois. O
+ * solicitante vê cada linha e de onde ela veio, porque exigência sem
+ * explicação vira discussão no dia do evento.
+ *
+ * Do gatilho 'publico' vale UMA faixa só, a que contém o número estimado.
+ */
+export function calcularExigencias(
+  regras: RegraExigencia[],
+  respostas: RespostasEvento
+): ExigenciaCalculada[] {
+  const saida: ExigenciaCalculada[] = []
+
+  const publico = respostas.publicoEstimado
+  if (publico !== null && publico > 0) {
+    const faixa = regras
+      .filter((r) => r.gatilho === "publico")
+      .find(
+        (r) => publico >= (r.de ?? 0) && (r.ate === null || publico <= r.ate)
+      )
+    if (faixa) {
+      saida.push({
+        gatilho: "publico",
+        motivo:
+          faixa.ate === null
+            ? `Público a partir de ${faixa.de} pessoas`
+            : `Público de ${faixa.de} a ${faixa.ate} pessoas`,
+        bombeiros: faixa.bombeiros,
+        segurancas: faixa.segurancas,
+        observacao: faixa.observacao,
+      })
+    }
+  }
+
+  for (const g of GATILHOS_CONDICAO) {
+    const chave = g.chave as Exclude<Gatilho, "publico">
+    if (!respostas[RESPOSTA_DO_GATILHO[chave]]) continue
+    const regra = regras.find((r) => r.gatilho === chave)
+    if (!regra) continue
+    if (regra.bombeiros === 0 && regra.segurancas === 0 && !regra.observacao) {
+      continue
+    }
+    saida.push({
+      gatilho: chave,
+      motivo: g.rotulo,
+      bombeiros: regra.bombeiros,
+      segurancas: regra.segurancas,
+      observacao: regra.observacao,
+    })
+  }
+
+  return saida
+}
+
+export function totalExigencias(lista: ExigenciaCalculada[]): {
+  bombeiros: number
+  segurancas: number
+} {
+  return {
+    bombeiros: lista.reduce((s, e) => s + e.bombeiros, 0),
+    segurancas: lista.reduce((s, e) => s + e.segurancas, 0),
+  }
+}
+
+// ── Disponibilidade ──────────────────────────────────────────────────────────
+
+export type Periodo = { inicio: number; termino: number }
+
+/** Dois períodos que se tocam. Fim exato = início do outro NÃO é choque. */
+export function periodosChocam(a: Periodo, b: Periodo): boolean {
+  return a.inicio < b.termino && b.inicio < a.termino
+}
+
+/**
+ * Um dia é oferecido quando há janela naquele dia da semana. Devolve os blocos
+ * do dia já descontados os bloqueios e as cessões que ocupam o espaço.
+ *
+ * O fuso é fixo em -03:00, como no resto do sistema: a conta não pode mudar
+ * conforme o relógio de quem abre a tela.
+ */
+export function blocosDoDia(
+  diaISO: string,
+  janelas: Janela[],
+  ocupados: Periodo[]
+): { inicio: string; termino: string; livre: boolean }[] {
+  // Meio-dia em São Paulo cai no MESMO dia em UTC (15:00), então getUTCDay()
+  // dá o dia da semana certo sem depender do fuso de quem roda o código.
+  const d = new Date(`${diaISO}T12:00:00-03:00`)
+  if (Number.isNaN(d.getTime())) return []
+  const doDia = janelas.filter((j) => j.dia_semana === d.getUTCDay())
+  const blocos = doDia.flatMap((j) => blocosDaJanela(j))
+  return blocos.map((b) => {
+    const periodo = {
+      inicio: new Date(`${diaISO}T${b.inicio}:00-03:00`).getTime(),
+      termino: new Date(`${diaISO}T${b.termino}:00-03:00`).getTime(),
+    }
+    return {
+      ...b,
+      livre: !ocupados.some((o) => periodosChocam(periodo, o)),
+    }
+  })
+}
+
 /** Endereço público do espaço: "Área Gourmet" → "area-gourmet". */
 export function slugDoNome(nome: string): string {
   return nome
