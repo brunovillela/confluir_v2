@@ -1,0 +1,122 @@
+A entidade cede auditório, salão, teatro e área de convivência para
+trabalhadores, entidades parceiras e, às vezes, terceiros. Esta área guarda
+**o que pode ser cedido** e **quando** — a solicitação, o termo e a
+autorização vêm nas etapas seguintes do módulo.
+
+<RequerPermissao>Cessão de espaços</RequerPermissao>
+
+## Espaço não é o mesmo que ambiente
+
+Os ambientes da entidade já estão cadastrados em **Patrimônio › Recintos**:
+auditório, pátio, teatro, cozinha, hall. O **espaço cedível** é outra coisa —
+é o que a pessoa pede, e quase nunca é um ambiente só. Quem pega o teatro leva
+junto o hall e a sala de projeção; a área gourmet vem com a cozinha.
+
+<PassoAPasso>
+  <Passo titulo="Um espaço, vários ambientes">
+    No cadastro, marque **todos** os ambientes que a cessão ocupa. Não é
+    burocracia: é assim que o sistema sabe que ceder um espaço impede o outro.
+  </Passo>
+  <Passo titulo="Um ambiente, vários espaços">
+    O mesmo teatro pode ser oferecido como &quot;Teatro — plateia&quot; e
+    &quot;Teatro — mesas&quot;, com lotações diferentes. São dois espaços que
+    dividem o mesmo ambiente, e a página avisa quais vão conflitar.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A lotação é do espaço">
+  Teatro + hall não comporta a soma das partes, e a mesma sala muda de lotação
+  conforme o arranjo — plateia, mesas ou de pé. Por isso a lotação é informada
+  no espaço, e não herdada do ambiente. É ela que vai definir quantos bombeiros
+  civis e seguranças a cessão exige.
+</Aviso>
+
+## Quando um ambiente não pode ser escolhido
+
+Só entram no espaço os ambientes com o cadastro completo: **nome, sede e
+descrição física**. Os incompletos aparecem numa lista à parte, apagados,
+dizendo o que falta e com o atalho para completar em Patrimônio.
+
+<Aviso tipo="nota" titulo="Por que não some da lista">
+  Esconder faria você procurar o Teatro, não achar e abrir um chamado. Ele
+  aparece — com o motivo à vista.
+</Aviso>
+
+## As regras da cessão
+
+Cada espaço decide o que exige, e isso comanda a esteira da solicitação:
+
+<PassoAPasso>
+  <Passo titulo="Quem pode solicitar">
+    **Qualquer pessoa**, **público interno** (funcionários e diretores) ou
+    **somente filiados**.
+  </Passo>
+  <Passo titulo="Visita técnica">
+    **Obrigatória**, **facultativa** ou **dispensada**. O responsável vem
+    sugerido do ambiente principal, e pode ser trocado por qualquer funcionário
+    ou diretor — inclusive em cada cessão.
+  </Passo>
+  <Passo titulo="Termo e autorização">
+    Se o espaço exige **termo de cessão** e se passa por **autorização**
+    (a avaliação política) antes de confirmar.
+  </Passo>
+  <Passo titulo="Agenda no link público">
+    Ligada, quem acessa o link do espaço vê a ocupação. Desligue quando a
+    agenda daquele espaço não deve ficar à vista.
+  </Passo>
+</PassoAPasso>
+
+## A agenda: faixas por dia da semana
+
+Cada faixa diz um dia, um horário e a **forma de cessão**:
+
+- **Horário livre** — quem solicita escolhe início e fim dentro da faixa.
+- **Blocos fixos** — a faixa é dividida em blocos de duração igual (dois blocos
+  de 2 h entre 8 h e 12 h, por exemplo), e a pessoa escolhe um bloco.
+
+Dá para marcar vários dias de uma vez: marcando terça e quinta, nascem duas
+faixas iguais. Terça de manhã pode ser por bloco e terça à noite livre — são
+duas faixas.
+
+<Aviso tipo="nota" titulo="Faixas do mesmo dia não podem se sobrepor">
+  O sistema recusa cadastrar 11 h–14 h numa terça que já tem 8 h–12 h. Exclua a
+  faixa existente e refaça, ou ajuste o horário.
+</Aviso>
+
+<Print src="espacos/detalhe.png" alt="Página de um espaço cedível com os dados, os ambientes vinculados, o aviso de conflito com outro espaço, as faixas de horário por dia da semana e os bloqueios de agenda." legenda="A página do espaço: regras, ambientes, agenda e bloqueios." />
+
+## Bloqueios de agenda
+
+Um bloqueio tira o espaço de circulação num período — manutenção, agenda
+prioritária ou outro motivo.
+
+<Aviso tipo="nota" titulo="Bloqueio sem data para acabar">
+  Deixe o **término em branco** quando não se sabe quando acaba: a obra que
+  ainda não tem prazo, o espaço reservado para uma pauta em aberto. O bloqueio
+  vale até alguém clicar em **Encerrar** — e fica no histórico, com a data em
+  que terminou.
+</Aviso>
+
+## Erros comuns
+
+- **&quot;O espaço não aparece para solicitar.&quot;** Confira se ele está
+  **disponível** e se tem ao menos uma **faixa de horário** — sem faixa, não há
+  quando ceder.
+- **&quot;Marquei um ambiente e outro espaço parou de aceitar pedido.&quot;** É
+  o esperado: dois espaços que dividem ambiente não podem ser cedidos ao mesmo
+  tempo. A página lista quais são.
+- **&quot;O Teatro não está na lista de ambientes.&quot;** Falta dado no
+  cadastro dele — abra a lista de ambientes bloqueados, veja o que falta e
+  complete em Patrimônio › Recintos.
+- **&quot;Bloqueei por engano.&quot;** Encerrar guarda o histórico; excluir
+  apaga. Use encerrar quando o bloqueio existiu de verdade.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Recintos",
+      href: "/painel/ajuda/patrimonio/recintos",
+      descricao: "Onde os ambientes são cadastrados",
+    },
+  ]}
+/>

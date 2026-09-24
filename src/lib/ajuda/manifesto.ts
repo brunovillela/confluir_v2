@@ -388,6 +388,21 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     ],
   },
   {
+    slug: "espacos",
+    titulo: "Cessão de espaços",
+    descricao: "Os espaços que a entidade cede, com agenda e bloqueios",
+    icone: "DoorOpen",
+    ...permissaoDoModulo("/painel/espacos"),
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Cadastrar um espaço cedível",
+        resumo: "Ambientes, lotação, regras da cessão, agenda e bloqueios",
+      },
+    ],
+  },
+  {
     slug: "patrimonio",
     titulo: "Patrimônio",
     descricao: "Bens patrimoniais: itens, recintos, notas fiscais e cautelas",
