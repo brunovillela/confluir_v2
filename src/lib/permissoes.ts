@@ -492,6 +492,15 @@ export const MODULOS: Modulo[] = [
     chavesAlternativas: ["espacos_gestao"],
   },
   {
+    titulo: "Pedidos de uso de espaço",
+    href: "/painel/espacos/pedidos",
+    icone: "DoorOpen",
+    descricao: "Fila da cessão: visita técnica, autorização e custeio",
+    chave: "espacos",
+    chavesAlternativas: ["espacos_gestao", "espacos_autorizacao"],
+    oculto: true,
+  },
+  {
     titulo: "Itens patrimoniais",
     href: "/painel/patrimonio/itens",
     icone: "Boxes",

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { DoorOpen, Plus } from "lucide-react"
+import { DoorOpen, Inbox, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -40,14 +40,24 @@ export default async function EspacosPage() {
             Os espaços que a entidade pode ceder, com a agenda e os bloqueios
           </p>
         </div>
-        {podeGerir && esquemaPronto && (
-          <Button asChild>
-            <Link href="/painel/espacos/novo">
-              <Plus />
-              Novo espaço
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {esquemaPronto && (
+            <Button variant="outline" asChild>
+              <Link href="/painel/espacos/pedidos">
+                <Inbox />
+                Pedidos de uso
+              </Link>
+            </Button>
+          )}
+          {podeGerir && esquemaPronto && (
+            <Button asChild>
+              <Link href="/painel/espacos/novo">
+                <Plus />
+                Novo espaço
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {!esquemaPronto && (

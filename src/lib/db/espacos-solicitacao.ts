@@ -5,6 +5,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto"
 import { buscarFiliadoPorCpf } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
+import { avisarEquipeNovoPedido } from "@/lib/db/espacos-esteira"
 import { enviarEmail } from "@/lib/email"
 import {
   botaoEmail,
@@ -573,6 +574,18 @@ export async function confirmarPedido(
       updated_at: new Date().toISOString(),
     })
     .eq("id", data.id)
+
+  // Só agora a equipe fica sabendo: antes do código, o pedido não existe para
+  // ninguém além de quem digitou.
+  const { data: espaco } = await db
+    .from("cessao_espacos")
+    .select("nome")
+    .eq("id", data.espaco_id)
+    .maybeSingle()
+  await avisarEquipeNovoPedido(
+    String(data.id),
+    `nº ${numero} — ${texto(espaco?.nome) ?? "espaço"}`
+  )
   return { numero }
 }
 
