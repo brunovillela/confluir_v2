@@ -43,20 +43,27 @@ export function limparFormatacaoBubble(texto: string | null): string {
     .trim()
 }
 
-/** Assunto e corpo padrão por tipo (o corpo é editável). */
-export const PADRAO_OFICIO: Record<
-  TipoOficio,
-  { assunto: string; corpo: string }
-> = {
-  desfiliacao: {
-    assunto: "Desfiliação de trabalhadores",
-    corpo:
-      "Solicitamos a exclusão dos trabalhador(es) listado(s) abaixo como sócios do Sindipetro-NF.",
-  },
-  filiacao: {
-    assunto: "Filiação de trabalhadores",
-    corpo:
-      "Solicitamos a inclusão dos trabalhador(es) listado(s) abaixo como sócios do Sindipetro-NF, com o respectivo desconto em folha da contribuição associativa.",
-  },
-  manual: { assunto: "", corpo: "" },
+/**
+ * Assunto e corpo padrão por tipo (o corpo é editável). `entidade` é o nome
+ * da organização do tenant — nada de nome de sindicato fixo no código.
+ */
+export function padraoOficio(
+  tipo: TipoOficio,
+  entidade: string | null
+): { assunto: string; corpo: string } {
+  const socios = entidade ? `como sócios da entidade ${entidade}` : "como sócios desta entidade"
+  switch (tipo) {
+    case "desfiliacao":
+      return {
+        assunto: "Desfiliação de trabalhadores",
+        corpo: `Solicitamos a exclusão dos trabalhador(es) listado(s) abaixo ${socios}.`,
+      }
+    case "filiacao":
+      return {
+        assunto: "Filiação de trabalhadores",
+        corpo: `Solicitamos a inclusão dos trabalhador(es) listado(s) abaixo ${socios}, com o respectivo desconto em folha da contribuição associativa.`,
+      }
+    case "manual":
+      return { assunto: "", corpo: "" }
+  }
 }

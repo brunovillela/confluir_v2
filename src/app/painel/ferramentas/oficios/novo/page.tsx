@@ -9,7 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import { assinantesVigentes } from "@/lib/db/diretoria"
 import { listarEmpresas } from "@/lib/db/oficios"
 import { departamentosParaEscolha, escopoOficios } from "@/lib/db/oficios-acesso"
-import { listarSedes } from "@/lib/db/organizacao"
+import { listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
 
 import { criarOficioAction } from "../actions"
 import { OficioForm } from "../oficio-form"
@@ -19,11 +19,12 @@ export const metadata: Metadata = { title: "Novo ofício — Confluir" }
 export default async function NovoOficioPage() {
   await requirePermissao("ferramentas_oficios")
 
-  const [empresas, { sedes }, assinantes, escopo] = await Promise.all([
+  const [empresas, { sedes }, assinantes, escopo, organizacao] = await Promise.all([
     listarEmpresas(),
     listarSedes(),
     assinantesVigentes(),
     escopoOficios(),
+    obterOrganizacao(),
   ])
   const semDepartamento = !escopo.todos && escopo.departamentos.length === 0
 
@@ -56,6 +57,7 @@ export default async function NovoOficioPage() {
               assinantes={assinantes}
               departamentos={departamentosParaEscolha(escopo)}
               semDepartamentoPermitido={escopo.todos}
+              entidade={organizacao?.nomeFantasia ?? organizacao?.nomeRazao ?? null}
             />
           </CardContent>
         </Card>

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import {
   EXPLICACAO_TIPO_OFICIO,
-  PADRAO_OFICIO,
+  padraoOficio,
   ROTULOS_TIPO_OFICIO,
   TIPOS_OFICIO,
   eAutomatico,
@@ -50,6 +50,7 @@ export function OficioForm({
   assinantes,
   departamentos,
   semDepartamentoPermitido,
+  entidade = null,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: OficioFormDados
@@ -60,6 +61,8 @@ export function OficioForm({
   departamentos: { id: string; nome: string }[]
   /** Quem vê todos os ofícios pode deixar sem departamento. */
   semDepartamentoPermitido: boolean
+  /** Nome da organização, para o texto padrão de filiação/desfiliação. */
+  entidade?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
   // Ofício novo começa SEM tipo: o resto do formulário só abre depois da escolha.
@@ -70,8 +73,8 @@ export function OficioForm({
   )
   const novo = !dados?.id
   // No cadastro novo, assunto/corpo seguem o padrão do tipo; na edição, os valores salvos.
-  const assuntoDefault = novo && tipo ? PADRAO_OFICIO[tipo].assunto : (dados?.assunto ?? "")
-  const corpoDefault = novo && tipo ? PADRAO_OFICIO[tipo].corpo : (dados?.corpo ?? "")
+  const assuntoDefault = novo && tipo ? padraoOficio(tipo, entidade).assunto : (dados?.assunto ?? "")
+  const corpoDefault = novo && tipo ? padraoOficio(tipo, entidade).corpo : (dados?.corpo ?? "")
 
   const corpoRef = useRef<HTMLTextAreaElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
