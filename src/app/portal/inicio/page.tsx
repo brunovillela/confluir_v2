@@ -24,6 +24,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { tenantAtual } from "@/lib/tenant"
+import { nomeEntidade } from "@/lib/db/organizacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { eventosParaFiliado } from "@/lib/db/eventos-portal"
@@ -84,7 +85,7 @@ export default async function PortalInicioPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
-  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas, votacoes] = await Promise.all([
+  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas, votacoes, entidade] = await Promise.all([
     ultimasNoticias(5),
     eventosDoAplicativo(5),
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
@@ -94,6 +95,7 @@ export default async function PortalInicioPage() {
       .then((l) => l.filter((e) => e.aberta && !e.inscrito))
       .catch(() => []),
     minhasVotacoes(filiado.cpf).then((l) => l.slice(0, 3)),
+    nomeEntidade(),
   ])
 
   return (
@@ -103,7 +105,7 @@ export default async function PortalInicioPage() {
           Olá, {nome.split(" ")[0]}
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Bem-vindo(a) ao portal do associado do Sindipetro-NF.
+          Bem-vindo(a) ao portal do associado — {entidade}.
         </p>
       </div>
 

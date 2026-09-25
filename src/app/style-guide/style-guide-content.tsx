@@ -554,7 +554,7 @@ export function StyleGuideContent() {
           <AccordionItem value="a">
             <AccordionTrigger>O que é o Confluir?</AccordionTrigger>
             <AccordionContent>
-              Sistema de gestão organizacional do Sindipetro-NF.
+              Sistema de gestão organizacional para sindicatos e entidades.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="b">

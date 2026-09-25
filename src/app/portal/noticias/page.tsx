@@ -5,6 +5,7 @@ import { ExternalLink, Newspaper } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ultimasNoticias } from "@/lib/db/painel"
+import { nomeEntidade } from "@/lib/db/organizacao"
 
 import { PortalShell } from "../portal-shell"
 
@@ -12,14 +13,14 @@ export const metadata: Metadata = { title: "Notícias — Portal do Associado" }
 
 export default async function PortalNoticiasPage() {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
-  const noticias = await ultimasNoticias(20)
+  const [noticias, entidade] = await Promise.all([ultimasNoticias(20), nomeEntidade()])
 
   return (
     <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Notícias</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Últimas notícias do Sindipetro-NF.
+          Últimas notícias publicadas por {entidade}.
         </p>
       </div>
 

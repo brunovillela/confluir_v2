@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
-import { obterOrganizacao } from "@/lib/db/organizacao"
+import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 
 
@@ -35,9 +35,10 @@ export default async function LgpdPage({
 }) {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
-  const [cadastro, org] = await Promise.all([
+  const [cadastro, org, entidade] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
     obterOrganizacao(),
+    nomeEntidade(),
   ])
   const emailContato = org?.emailContato ?? null
 
@@ -107,12 +108,12 @@ export default async function LgpdPage({
         <CardHeader>
           <CardTitle className="text-base">Termo de tratamento de dados</CardTitle>
           <CardDescription>
-            Como o Sindipetro-NF usa seus dados pessoais
+            Como {entidade} usa seus dados pessoais
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <p className="text-muted-foreground text-sm">
-            O Sindipetro-NF trata seus dados cadastrais (identificação, contato,
+            {entidade} trata seus dados cadastrais (identificação, contato,
             endereço e vínculos de filiação) para as finalidades da atividade
             sindical: gestão da filiação e das contribuições, comunicação com o
             associado, prestação de serviços e benefícios (como convênios de
@@ -123,7 +124,7 @@ export default async function LgpdPage({
             legal.
           </p>
           {!aceiteLgpd && (
-            <AceiteLgpdForm preview={preview} />
+            <AceiteLgpdForm preview={preview} entidade={entidade} />
           )}
         </CardContent>
       </Card>

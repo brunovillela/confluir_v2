@@ -403,8 +403,7 @@ export default async function PainelPage({
               <div>
                 <CardTitle className="text-base">Resumo do dia</CardTitle>
                 <CardDescription>
-                  Últimas notícias do Sindipetro-NF — clique na manchete para
-                  ler
+                  Últimas notícias — clique na manchete para ler
                 </CardDescription>
               </div>
               <Newspaper className="text-muted-foreground size-4" />

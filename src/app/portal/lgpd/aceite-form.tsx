@@ -10,7 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 import { registrarAceiteLgpd } from "./actions"
 
-export function AceiteLgpdForm({ preview = false }: { preview?: boolean }) {
+export function AceiteLgpdForm({
+  preview = false,
+  entidade,
+}: {
+  preview?: boolean
+  /** Nome da entidade que trata os dados (a do tenant). */
+  entidade: string
+}) {
   const [estado, formAction, pendente] = useActionState(registrarAceiteLgpd, {})
 
   return (
@@ -22,8 +29,8 @@ export function AceiteLgpdForm({ preview = false }: { preview?: boolean }) {
       )}
       <label className="flex items-start gap-2 text-sm">
         <Checkbox name="li_e_aceito" className="mt-0.5" />
-        Li e aceito o tratamento dos meus dados pessoais pelo Sindipetro-NF nos
-        termos acima.
+        Li e aceito o tratamento dos meus dados pessoais pela entidade{" "}
+        {entidade} nos termos acima.
       </label>
       <div>
         <AcaoVisualizacao

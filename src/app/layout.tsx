@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Confluir — Sindipetro-NF",
-  description: "Sistema de gestão organizacional do Sindipetro-NF",
+  title: "Confluir",
+  description: "Sistema de gestão organizacional para sindicatos e entidades",
 }
 
 export default function RootLayout({
