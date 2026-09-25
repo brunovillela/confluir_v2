@@ -23,11 +23,12 @@ import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
 import { requirePermissao } from "@/lib/auth"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
-import { listarViagens, opcoesDoFormViagem } from "@/lib/db/viagens"
+import { filtrarViagens, listarViagens, opcoesDoFormViagem } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
-import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
+import { lerFiltroViagens, ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
 
 import { lancarViagem } from "./actions"
+import { FiltrosViagens } from "./filtros"
 
 export const metadata: Metadata = { title: "Passagens e hospedagens — Confluir" }
 
@@ -35,16 +36,24 @@ export const metadata: Metadata = { title: "Passagens e hospedagens — Confluir
  * Gestão das viagens: tudo o que foi pedido, e o lançamento em nome de
  * diretor sem conta, funcionário ou convidado de evento.
  */
-export default async function ViagensPage() {
+export default async function ViagensPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
   await requirePermissao("viagens_gestao")
-  const [{ disponivel, viagens }, opcoes, diretores, funcionarios] = await Promise.all([
+  const params = await searchParams
+  const filtro = lerFiltroViagens(params)
+  const [{ disponivel, viagens: todas }, opcoes, diretores, funcionarios] = await Promise.all([
     listarViagens(),
     opcoesDoFormViagem(),
     diretoresParaDiaria().catch(() => []),
     funcionariosParaSelecao().catch(() => []),
   ])
 
-  const abertas = viagens.filter(
+  const viagens = filtrarViagens(todas, filtro)
+  const filtrando = Object.values(filtro).some(Boolean)
+  const abertas = todas.filter(
     (v) => v.situacao === "solicitada" || v.situacao === "em_atendimento"
   ).length
 
@@ -94,13 +103,15 @@ export default async function ViagensPage() {
             <Plane className="text-muted-foreground size-4" />
           </div>
           <CardDescription>
-            {viagens.length} no total · {abertas} aguardando atendimento
+            {filtrando ? `${viagens.length} de ${todas.length} no filtro` : `${todas.length} no total`} ·{" "}
+            {abertas} aguardando atendimento
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          {todas.length > 0 && <FiltrosViagens filtro={filtro} viagens={todas} />}
           {viagens.length === 0 ? (
             <p className="text-muted-foreground py-6 text-center text-sm">
-              Nenhuma viagem pedida ainda.
+              {filtrando ? "Nenhuma viagem neste filtro." : "Nenhuma viagem pedida ainda."}
             </p>
           ) : (
             <div className="overflow-x-auto">

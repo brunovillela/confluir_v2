@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ItensViagemDetalhe, SituacaoViagemBadge } from "@/components/viagens"
 import { requireSessaoPainel } from "@/lib/auth"
 import { buscarViagem } from "@/lib/db/viagens"
+import { urlVoucher } from "@/lib/db/viagens-atendimento"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
 
@@ -36,6 +37,11 @@ export default async function MinhaViagemPage({
   }
 
   const paraSi = viagem.beneficiarioUsuarioId === usuarioId
+  const vouchers = new Map(
+    await Promise.all(
+      viagem.itens.map(async (i) => [i.id, await urlVoucher(i.voucher)] as const)
+    )
+  )
 
   return (
     <>
@@ -101,7 +107,7 @@ export default async function MinhaViagemPage({
           <CardTitle className="text-base">Passagens e hospedagens</CardTitle>
         </CardHeader>
         <CardContent>
-          <ItensViagemDetalhe itens={viagem.itens} />
+          <ItensViagemDetalhe itens={viagem.itens} vouchers={vouchers} />
         </CardContent>
       </Card>
     </>

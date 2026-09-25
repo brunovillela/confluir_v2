@@ -6,9 +6,11 @@ import { listarEventos } from "@/lib/db/eventos"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { semAcento } from "@/lib/texto"
 import {
   type BeneficiarioViagem,
   type CriterioHorario,
+  type FiltroViagens,
   type ItemViagemEntrada,
   type ModalPassagem,
   type SituacaoViagem,
@@ -43,9 +45,16 @@ export type ItemViagem = {
   checkout: string | null
   necessidadesEspeciais: string | null
   observacoes: string | null
+  fornecedorId: string | null
+  /** Agência ou operadora que emitiu a reserva. */
+  fornecedorNome: string | null
   localizador: string | null
   reservaDescricao: string | null
   valor: number | null
+  /** Caminho do bilhete/voucher no bucket `compras`. */
+  voucher: string | null
+  /** A gestão já registrou a reserva deste item. */
+  reservado: boolean
 }
 
 export type Viagem = {
@@ -68,6 +77,7 @@ export type Viagem = {
   motivo: string
   situacao: SituacaoViagem
   motivoSituacao: string | null
+  atendidoPorNome: string | null
   atendidoEm: string | null
   createdAt: string
   itens: ItemViagem[]
@@ -76,7 +86,7 @@ export type Viagem = {
 }
 
 const SELECT_VIAGEM =
-  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, motivo, situacao, motivo_situacao, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), viagens_itens(*)"
+  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, motivo, situacao, motivo_situacao, atendido_por, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), viagens_itens(*, fornecedor:empresa!viagens_itens_fornecedor_id_fkey(nome_fantasia, nome_razao))"
 
 function hora(v: unknown): string | null {
   const s = texto(v)
@@ -103,17 +113,30 @@ function mapItem(i: Record<string, unknown>): ItemViagem {
     checkout: texto(i.checkout),
     necessidadesEspeciais: texto(i.necessidades_especiais),
     observacoes: texto(i.observacoes),
+    fornecedorId: texto(i.fornecedor_id),
+    fornecedorNome: nomeEmpresa(i.fornecedor),
     localizador: texto(i.localizador),
     reservaDescricao: texto(i.reserva_descricao),
     valor: i.valor === null || i.valor === undefined ? null : Number(i.valor),
+    voucher: texto(i.voucher),
+    reservado: !!(texto(i.localizador) || texto(i.reserva_descricao)),
   }
+}
+
+function nomeEmpresa(v: unknown): string | null {
+  const e = v as { nome_fantasia?: unknown; nome_razao?: unknown } | null
+  return e ? (texto(e.nome_fantasia) ?? texto(e.nome_razao)) : null
 }
 
 async function normalizar(linhas: Record<string, unknown>[]): Promise<Viagem[]> {
   const nomes = await nomesDosUsuarios(
-    linhas.flatMap((l) => [texto(l.beneficiario_usuario_id), texto(l.solicitante_id)]).filter(
-      (v): v is string => !!v
-    )
+    linhas
+      .flatMap((l) => [
+        texto(l.beneficiario_usuario_id),
+        texto(l.solicitante_id),
+        texto(l.atendido_por),
+      ])
+      .filter((v): v is string => !!v)
   )
   return linhas.map((l) => {
     const itens = ((l.viagens_itens ?? []) as Record<string, unknown>[])
@@ -149,6 +172,7 @@ async function normalizar(linhas: Record<string, unknown>[]): Promise<Viagem[]> 
       motivo: String(l.motivo ?? ""),
       situacao: l.situacao as SituacaoViagem,
       motivoSituacao: texto(l.motivo_situacao),
+      atendidoPorNome: texto(l.atendido_por) ? (nomes.get(String(l.atendido_por)) ?? null) : null,
       atendidoEm: texto(l.atendido_em),
       createdAt: String(l.created_at),
       itens,
@@ -181,20 +205,51 @@ export async function minhasViagens(usuarioId: string): Promise<{
   return { disponivel: true, viagens: await normalizar((data ?? []) as Record<string, unknown>[]) }
 }
 
-/** Todas as viagens do tenant, mais recentes primeiro (gestão). */
+/**
+ * Todas as viagens do tenant, mais recentes primeiro (gestão). Em páginas de
+ * 1.000: sem `.range` o PostgREST corta em 1.000 linhas calado.
+ */
 export async function listarViagens(): Promise<{ disponivel: boolean; viagens: Viagem[] }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("viagens_solicitacoes")
-    .select(SELECT_VIAGEM)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("created_at", { ascending: false })
-    .range(0, 999)
-  if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, viagens: [] }
-    throw new Error(`Falha ao listar as viagens: ${error.message}`)
+  const emp = await tenantAtual()
+  const linhas: Record<string, unknown>[] = []
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await admin
+      .from("viagens_solicitacoes")
+      .select(SELECT_VIAGEM)
+      .eq("emp_proprietaria_id", emp)
+      .order("created_at", { ascending: false })
+      .range(de, de + 999)
+    if (error) {
+      if (esquemaAusente(error)) return { disponivel: false, viagens: [] }
+      throw new Error(`Falha ao listar as viagens: ${error.message}`)
+    }
+    linhas.push(...((data ?? []) as Record<string, unknown>[]))
+    if (!data || data.length < 1000) break
   }
-  return { disponivel: true, viagens: await normalizar((data ?? []) as Record<string, unknown>[]) }
+  return { disponivel: true, viagens: await normalizar(linhas) }
+}
+
+/**
+ * Filtro da lista da gestão. Tipo: a viagem tem ao menos um item daquele
+ * tipo. Período: pela primeira data da viagem (ida ou check-in).
+ */
+export function filtrarViagens(viagens: Viagem[], filtro: FiltroViagens): Viagem[] {
+  const pessoa = filtro.pessoa ? semAcento(filtro.pessoa) : ""
+  return viagens.filter(
+    (v) =>
+      (!pessoa || semAcento(v.beneficiarioNome).includes(pessoa)) &&
+      (!filtro.tipo || v.itens.some((i) => i.tipo === filtro.tipo)) &&
+      (!filtro.situacao ||
+        (filtro.situacao === "abertas"
+          ? v.situacao === "solicitada" || v.situacao === "em_atendimento"
+          : v.situacao === filtro.situacao)) &&
+      (!filtro.quadro || v.beneficiarioTipo === filtro.quadro) &&
+      (!filtro.eventoId || v.eventoId === filtro.eventoId) &&
+      (!filtro.fornecedorId || v.itens.some((i) => i.fornecedorId === filtro.fornecedorId)) &&
+      (!filtro.de || (v.inicio !== null && v.inicio >= filtro.de)) &&
+      (!filtro.ate || (v.inicio !== null && v.inicio <= filtro.ate))
+  )
 }
 
 export async function buscarViagem(id: string): Promise<Viagem | null> {

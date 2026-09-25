@@ -11,6 +11,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "ponto", rotulo: "Espelho de ponto liberado" },
   { chave: "ferias", rotulo: "Férias autorizadas" },
   { chave: "diarias", rotulo: "Diárias avaliadas" },
+  { chave: "viagens", rotulo: "Viagem reservada, recusada ou cancelada" },
   { chave: "informe", rotulo: "Informe de rendimentos liberado" },
   { chave: "reembolso", rotulo: "Reembolso avaliado" },
   { chave: "treinamento", rotulo: "Matrícula em treinamento" },

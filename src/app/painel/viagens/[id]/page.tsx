@@ -6,15 +6,23 @@ import { ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ItensViagemDetalhe, SituacaoViagemBadge } from "@/components/viagens"
+import {
+  CamposItemViagem,
+  SituacaoViagemBadge,
+  TituloItemViagem,
+} from "@/components/viagens"
 import { requirePermissao } from "@/lib/auth"
+import { listarFornecedores } from "@/lib/db/compras"
 import { buscarViagem } from "@/lib/db/viagens"
-import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
+import { urlVoucher } from "@/lib/db/viagens-atendimento"
+import { formatarCnpjCpf, formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
+
+import { AcoesViagem, ItemAtendimento, ReservaItemForm } from "./atendimento"
 
 export const metadata: Metadata = { title: "Viagem — Confluir" }
 
-/** Uma viagem na gestão. O atendimento por item entra na fase 2. */
+/** Uma viagem na gestão: os dados de quem viaja, a reserva de cada item e o fecho. */
 export default async function ViagemGestaoPage({
   params,
   searchParams,
@@ -27,7 +35,15 @@ export default async function ViagemGestaoPage({
   const viagem = await buscarViagem(id)
   if (!viagem) notFound()
 
+  const encerrada = viagem.situacao === "cancelada" || viagem.situacao === "recusada"
+  const [fornecedores, vouchers] = await Promise.all([
+    encerrada ? Promise.resolve([]) : listarFornecedores(),
+    Promise.all(viagem.itens.map(async (i) => [i.id, await urlVoucher(i.voucher)] as const)),
+  ])
+  const urls = new Map(vouchers)
   const convidado = viagem.beneficiarioTipo === "convidado"
+  const pendentes = viagem.itens.filter((i) => !i.reservado).length
+  const total = viagem.itens.reduce((s, i) => s + (i.valor ?? 0), 0)
 
   return (
     <>
@@ -47,6 +63,11 @@ export default async function ViagemGestaoPage({
         <p className="text-muted-foreground mt-1 text-xs">
           Pedida em {formatarDataHora(viagem.createdAt)}
           {viagem.solicitanteNome ? ` por ${viagem.solicitanteNome}` : ""}
+          {viagem.atendidoEm &&
+            ` · atendida em ${formatarDataHora(viagem.atendidoEm)}${viagem.atendidoPorNome ? ` por ${viagem.atendidoPorNome}` : ""}`}
+          {!viagem.atendidoEm &&
+            viagem.atendidoPorNome &&
+            ` · com ${viagem.atendidoPorNome}`}
         </p>
       </div>
 
@@ -55,6 +76,15 @@ export default async function ViagemGestaoPage({
           <AlertDescription>Viagem lançada.</AlertDescription>
         </Alert>
       )}
+      {encerrada && viagem.motivoSituacao && (
+        <Alert>
+          <AlertDescription>
+            {viagem.situacao === "recusada" ? "Recusada" : "Cancelada"}: {viagem.motivoSituacao}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <AcoesViagem id={viagem.id} situacao={viagem.situacao} pendentes={pendentes} />
 
       <Card>
         <CardHeader>
@@ -91,10 +121,45 @@ export default async function ViagemGestaoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Passagens e hospedagens</CardTitle>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <CardTitle className="text-base">Passagens e hospedagens</CardTitle>
+            {total > 0 && (
+              <span className="text-muted-foreground text-sm">
+                Total reservado: <strong className="text-foreground">{formatarMoeda(total)}</strong>
+              </span>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
-          <ItensViagemDetalhe itens={viagem.itens} />
+        <CardContent className="grid gap-3">
+          {viagem.itens.map((item, indice) => (
+            <ItemAtendimento
+              key={item.id}
+              titulo={<TituloItemViagem item={item} indice={indice} />}
+              reservado={item.reservado}
+              editavel={!encerrada}
+              resumo={
+                <CamposItemViagem item={item} voucherUrl={urls.get(item.id) ?? null} mostrarValor />
+              }
+            >
+              <ReservaItemForm
+                item={{
+                  id: item.id,
+                  fornecedorId: item.fornecedorId,
+                  localizador: item.localizador,
+                  reservaDescricao: item.reservaDescricao,
+                  valor: item.valor,
+                }}
+                fornecedores={fornecedores.map((f) => ({
+                  id: f.id,
+                  nome: f.nome,
+                  cnpj_cpf: f.cnpj_cpf,
+                  bloqueado: f.bloqueado,
+                }))}
+                temVoucher={!!item.voucher}
+                tipo={item.tipo}
+              />
+            </ItemAtendimento>
+          ))}
         </CardContent>
       </Card>
     </>

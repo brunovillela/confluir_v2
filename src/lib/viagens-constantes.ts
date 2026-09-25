@@ -39,6 +39,40 @@ export const ROTULO_MODAL: Record<ModalPassagem, string> = {
   rodoviaria: "Rodoviária",
 }
 
+/** Filtro da lista da gestão; vem da URL (searchParams). */
+export type FiltroViagens = {
+  pessoa?: string
+  tipo?: TipoItemViagem
+  /** Uma situação ou "abertas" (solicitada + em atendimento). */
+  situacao?: SituacaoViagem | "abertas"
+  quadro?: BeneficiarioViagem
+  eventoId?: string
+  fornecedorId?: string
+  de?: string
+  ate?: string
+}
+
+export function lerFiltroViagens(p: Record<string, string | undefined>): FiltroViagens {
+  const data = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined)
+  const uuid = (v?: string) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : undefined)
+  return {
+    pessoa: p.pessoa?.trim() || undefined,
+    tipo: p.tipo === "passagem" || p.tipo === "hospedagem" ? p.tipo : undefined,
+    situacao:
+      p.situacao === "abertas" || SITUACOES_VIAGEM.includes(p.situacao as SituacaoViagem)
+        ? (p.situacao as SituacaoViagem | "abertas")
+        : undefined,
+    quadro:
+      p.quadro === "diretor" || p.quadro === "funcionario" || p.quadro === "convidado"
+        ? p.quadro
+        : undefined,
+    eventoId: uuid(p.evento),
+    fornecedorId: uuid(p.agencia),
+    de: data(p.de),
+    ate: data(p.ate),
+  }
+}
+
 export type ItemPassagemEntrada = {
   tipo: "passagem"
   modal: ModalPassagem
