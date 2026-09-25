@@ -12,6 +12,7 @@ import {
   HeartPulse,
   MapPin,
   Phone,
+  Plane,
   ReceiptText,
   Send,
   TreePalm,
@@ -158,6 +159,12 @@ const DIARIAS_ANTERIORES: AreaPerfil = {
   descricao: "Remessas de diárias lançadas no sistema anterior",
   href: "/painel/perfil/diarias/historico",
   icone: History,
+}
+const MINHAS_VIAGENS: AreaPerfil = {
+  titulo: "Minhas viagens",
+  descricao: "Pedidos de passagem e hospedagem e o histórico",
+  href: "/painel/perfil/viagens",
+  icone: Plane,
 }
 const MEU_CAIXA: AreaPerfil = {
   titulo: "Meu caixa",
@@ -397,6 +404,14 @@ export default async function PerfilPage({
       <div>
         <h2 className="text-lg font-semibold">Conexões e atalhos</h2>
         <div className={`mt-4 ${GRADE_AREAS}`}>
+          {(perfil.funcionarioAtivo || diretoria) && (
+            <CartaoArea
+              titulo={MINHAS_VIAGENS.titulo}
+              descricao={MINHAS_VIAGENS.descricao}
+              href={MINHAS_VIAGENS.href}
+              icone={MINHAS_VIAGENS.icone}
+            />
+          )}
           {remessasAnteriores > 0 && (
             <CartaoArea
               titulo={DIARIAS_ANTERIORES.titulo}

@@ -118,8 +118,13 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "diretoria_mandatos", rotulo: "Mandatos e integrantes" },
       { chave: "diretoria_diarias", rotulo: "Diárias da diretoria" },
       { chave: "diretoria_reunioes", rotulo: "Reuniões" },
-      { chave: "diretoria_passagens", rotulo: "Passagens" },
     ],
+  },
+  {
+    // Substitui `diretoria_passagens`, herdada do Bubble e sem tela
+    // (supabase/viagens.sql copia quem a tinha).
+    area: "Viagens",
+    flags: [{ chave: "viagens_gestao", rotulo: "Passagens e hospedagens — atender e lançar" }],
   },
   {
     area: "Representação Sindical",

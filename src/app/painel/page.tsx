@@ -10,6 +10,7 @@ import {
   ExternalLink,
   IdCard,
   Newspaper,
+  Plane,
   UserRoundX,
 } from "lucide-react"
 
@@ -26,6 +27,7 @@ import {
 import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
 import { ultimoResumo } from "@/lib/db/comunicacao"
+import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
 import {
@@ -116,7 +118,7 @@ export default async function PainelPage({
   ).split(" ")[0]
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
 
-  const [resumo, noticias, meuCaixa, org, resumoIA, condutor] = await Promise.all([
+  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, quadroViagem] = await Promise.all([
     resumoPainel(sessao.usuario.id as string),
     ultimasNoticias(8),
     contaDoUsuario(sessao.usuario.id as string).catch(() => ({
@@ -126,6 +128,7 @@ export default async function PainelPage({
     obterOrganizacao(),
     ultimoResumo().catch(() => null),
     buscarCondutorDoUsuario(sessao.usuario.id as string).catch(() => null),
+    quadroParaDiaria(sessao.usuario.id as string).catch(() => null),
   ])
   const siteUrl = org?.siteUrl ?? null
   const contaCaixa = meuCaixa.detalhe?.conta ?? null
@@ -145,14 +148,27 @@ export default async function PainelPage({
             Hoje é {resumo.hoje} — bom trabalho.
           </p>
         </div>
-        {/* Todo condutor cadastrado solicita veículo, sem permissão ao módulo. */}
-        {condutor && (
-          <Button asChild>
-            <Link href="/painel/solicitar-veiculo">
-              <Car />
-              Solicitar veículo
-            </Link>
-          </Button>
+        {(condutor || quadroViagem) && (
+          <div className="flex flex-wrap gap-2">
+            {/* Diretor em exercício e funcionário ativo pedem passagem e hospedagem. */}
+            {quadroViagem && (
+              <Button asChild variant={condutor ? "outline" : "default"}>
+                <Link href="/painel/perfil/viagens?novo=1">
+                  <Plane />
+                  Solicitar viagem
+                </Link>
+              </Button>
+            )}
+            {/* Todo condutor cadastrado solicita veículo, sem permissão ao módulo. */}
+            {condutor && (
+              <Button asChild>
+                <Link href="/painel/solicitar-veiculo">
+                  <Car />
+                  Solicitar veículo
+                </Link>
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

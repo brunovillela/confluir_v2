@@ -118,7 +118,7 @@ join (values
   ('Diretoria / Coordenação', 'custeio_institucional_autorizacao'),
   ('Diretoria / Coordenação', 'diretoria_mandatos'),
   ('Diretoria / Coordenação', 'diretoria_reunioes'),
-  ('Diretoria / Coordenação', 'diretoria_passagens'),
+  ('Diretoria / Coordenação', 'viagens_gestao'),
   ('Diretoria / Coordenação', 'assembleias'),
   ('Diretoria / Coordenação', 'oposicao'),
   ('Diretoria / Coordenação', 'acordos_coletivos'),

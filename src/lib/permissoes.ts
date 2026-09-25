@@ -288,6 +288,13 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Viagens",
+    href: "/painel/viagens",
+    icone: "Plane",
+    descricao: "Passagens e hospedagens de diretores, funcionários e convidados",
+    chave: "viagens_gestao",
+  },
+  {
     titulo: "Veículos",
     href: "/painel/veiculos",
     icone: "Car",
