@@ -7,7 +7,7 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   definirContaDiaria,
   salvarTipoDespesaDiaria,
-  type QuadroDiaria,
+  type QuadroConta,
 } from "@/lib/db/diarias-config"
 
 /**
@@ -19,6 +19,8 @@ async function exigirAcesso() {
   return requirePermissao("pessoal_gestao", [
     "pessoal_diarias",
     "diretoria_diarias",
+    // Viagens configura as contas dos convidados (passagem e hospedagem).
+    "viagens_gestao",
     "configuracoes",
   ])
 }
@@ -34,8 +36,10 @@ export async function salvarContasDiaria(
 ): Promise<EstadoForm> {
   await exigirAcesso()
 
-  const quadro = String(formData.get("quadro") ?? "funcionario") as QuadroDiaria
-  if (!["funcionario", "diretor"].includes(quadro)) return { erro: "Quadro inválido." }
+  const quadro = String(formData.get("quadro") ?? "funcionario") as QuadroConta
+  if (!["funcionario", "diretor", "convidado"].includes(quadro)) {
+    return { erro: "Quadro inválido." }
+  }
   const departamentoId = String(formData.get("departamento_id") ?? "").trim() || null
 
   let salvas = 0

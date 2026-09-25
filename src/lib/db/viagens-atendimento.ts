@@ -88,6 +88,9 @@ export async function registrarReservaItem(
   if ((ENCERRADAS as readonly string[]).includes(viagem.situacao)) {
     return { erro: "Esta viagem foi encerrada — não recebe mais reservas." }
   }
+  if (viagem.itens.find((i) => i.id === itemId)?.faturaId) {
+    return { erro: "Este item já está numa fatura — desfaça a fatura para alterar a reserva." }
+  }
   if (!reserva.localizador && !reserva.reservaDescricao) {
     return { erro: "Informe o localizador ou descreva a reserva." }
   }

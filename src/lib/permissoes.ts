@@ -231,8 +231,9 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "De-para das contas por quadro, departamento e tipo de gasto",
     // Serve às duas portas: quem cuida das diárias da diretoria também entra.
+    // Viagens entra pelas contas de passagem e hospedagem dos convidados.
     chave: "pessoal_gestao",
-    chavesAlternativas: ["pessoal_diarias", "diretoria_diarias", "configuracoes"],
+    chavesAlternativas: ["pessoal_diarias", "diretoria_diarias", "viagens_gestao", "configuracoes"],
     oculto: true,
   },
   {

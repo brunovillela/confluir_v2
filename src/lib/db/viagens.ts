@@ -55,6 +55,8 @@ export type ItemViagem = {
   voucher: string | null
   /** A gestão já registrou a reserva deste item. */
   reservado: boolean
+  /** Fatura da agência que cobrou o item (viagens-faturas.sql). */
+  faturaId: string | null
 }
 
 export type Viagem = {
@@ -120,6 +122,7 @@ function mapItem(i: Record<string, unknown>): ItemViagem {
     valor: i.valor === null || i.valor === undefined ? null : Number(i.valor),
     voucher: texto(i.voucher),
     reservado: !!(texto(i.localizador) || texto(i.reserva_descricao)),
+    faturaId: texto(i.fatura_id),
   }
 }
 

@@ -24,9 +24,16 @@ import { semAcento } from "@/lib/texto"
 
 export type QuadroDiaria = "funcionario" | "diretor"
 
-export const ROTULO_QUADRO: Record<QuadroDiaria, string> = {
+/**
+ * Quadros do de-para de contas. "convidado" não recebe diária: é o convidado
+ * de evento cuja passagem ou hospedagem sai por Viagens (viagens-faturas.sql).
+ */
+export type QuadroConta = QuadroDiaria | "convidado"
+
+export const ROTULO_QUADRO: Record<QuadroConta, string> = {
   funcionario: "Funcionário",
   diretor: "Diretoria",
+  convidado: "Convidados",
 }
 
 export type TipoDespesaDiaria = {
@@ -40,7 +47,7 @@ export type TipoDespesaDiaria = {
 
 export type ContaDiaria = {
   id: string
-  quadro: QuadroDiaria
+  quadro: QuadroConta
   departamentoId: string | null
   despesaTipoId: string | null
   centroCustoId: string
@@ -127,7 +134,7 @@ export async function listarContasDiaria(): Promise<{
     disponivel: true,
     contas: (data ?? []).map((c) => ({
       id: String(c.id),
-      quadro: (c.quadro as QuadroDiaria) ?? "funcionario",
+      quadro: (c.quadro as QuadroConta) ?? "funcionario",
       departamentoId: texto(c.departamento_id),
       despesaTipoId: texto(c.despesa_tipo_id),
       centroCustoId: String(c.centro_custo_id),
@@ -140,7 +147,7 @@ export async function listarContasDiaria(): Promise<{
  * `despesaTipoId` nulo é a diária em si; `departamentoId` nulo é o padrão.
  */
 export async function definirContaDiaria(dados: {
-  quadro: QuadroDiaria
+  quadro: QuadroConta
   departamentoId: string | null
   despesaTipoId: string | null
   centroCustoId: string | null
@@ -189,10 +196,24 @@ export async function definirContaDiaria(dados: {
   return {}
 }
 
+/**
+ * Os tipos de despesa "Passagem" e "Hospedagem" (semente de
+ * diarias-diretoria.sql), que dão a conta dos itens de Viagens. Achados pelo
+ * nome — renomeá-los desliga a sugestão de conta na fatura.
+ */
+export function tiposDeViagem(tipos: TipoDespesaDiaria[]): {
+  passagem: string | null
+  hospedagem: string | null
+} {
+  const achar = (nome: string) =>
+    tipos.find((t) => semAcento(t.nome) === nome)?.id ?? null
+  return { passagem: achar("passagem"), hospedagem: achar("hospedagem") }
+}
+
 /** Resolve a conta de um gasto pela cascata departamento → padrão do quadro. */
 export function contaDoGasto(
   contas: ContaDiaria[],
-  quadro: QuadroDiaria,
+  quadro: QuadroConta,
   departamentoId: string | null,
   despesaTipoId: string | null
 ): string | null {

@@ -194,6 +194,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "veiculos_checklist_respostas",
   "veiculos_checklists",
   "veiculos_verificacao",
+  "viagens_faturas",
   "viagens_itens",
   "viagens_solicitacoes",
   "vinculos_trabalhistas",

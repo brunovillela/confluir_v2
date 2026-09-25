@@ -1,8 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Plane } from "lucide-react"
+import { Plane, ReceiptText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -52,6 +54,10 @@ export default async function ViagensPage({
   ])
 
   const viagens = filtrarViagens(todas, filtro)
+  const aFaturar = todas
+    .filter((v) => v.situacao !== "recusada")
+    .flatMap((v) => v.itens)
+    .filter((i) => i.reservado && !i.faturaId).length
   const filtrando = Object.values(filtro).some(Boolean)
   const abertas = todas.filter(
     (v) => v.situacao === "solicitada" || v.situacao === "em_atendimento"
@@ -59,11 +65,26 @@ export default async function ViagensPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Passagens e hospedagens</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Viagens de diretores, funcionários e convidados que o sindicato contrata e paga.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Passagens e hospedagens</h1>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Viagens de diretores, funcionários e convidados que o sindicato contrata e paga.
+          </p>
+        </div>
+        {disponivel && (
+          <Button asChild variant="outline">
+            <Link href="/painel/viagens/faturas">
+              <ReceiptText />
+              Faturas
+              {aFaturar > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {aFaturar} a faturar
+                </Badge>
+              )}
+            </Link>
+          </Button>
+        )}
       </div>
 
       {!disponivel && (

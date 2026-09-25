@@ -20,7 +20,8 @@ import {
   listarContasDiaria,
   listarTiposDespesaDiaria,
   ROTULO_QUADRO,
-  type QuadroDiaria,
+  tiposDeViagem,
+  type QuadroConta,
 } from "@/lib/db/diarias-config"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 
@@ -41,11 +42,13 @@ export default async function ContasDiariaPage({
   await requirePermissao("pessoal_gestao", [
     "pessoal_diarias",
     "diretoria_diarias",
+    "viagens_gestao",
     "configuracoes",
   ])
 
   const brutos = await searchParams
-  const quadro: QuadroDiaria = brutos.quadro === "diretor" ? "diretor" : "funcionario"
+  const quadro: QuadroConta =
+    brutos.quadro === "diretor" || brutos.quadro === "convidado" ? brutos.quadro : "funcionario"
   const departamentoId = (brutos.departamento ?? "").trim() || null
 
   const [{ disponivel, tipos }, { contas }, centros, departamentos] = await Promise.all([
@@ -57,10 +60,19 @@ export default async function ContasDiariaPage({
   const nomeCentro = new Map(centros.map((c) => [c.id, c.nome]))
   const nomeDepartamento = new Map(departamentos.map((d) => [d.id, d.nome]))
 
-  const gastos: GastoParaConta[] = [
-    { chave: "diaria", rotulo: "A diária", tipoId: null },
-    ...tipos.filter((t) => t.ativa).map((t) => ({ chave: t.id, rotulo: t.nome, tipoId: t.id })),
-  ].map(({ chave, rotulo, tipoId }) => {
+  // Convidado não recebe diária: só passagem e hospedagem, que saem por Viagens.
+  const deViagem = tiposDeViagem(tipos)
+  const ativos = tipos.filter((t) => t.ativa)
+  const gastos: GastoParaConta[] = (
+    quadro === "convidado"
+      ? ativos
+          .filter((t) => t.id === deViagem.passagem || t.id === deViagem.hospedagem)
+          .map((t) => ({ chave: t.id, rotulo: t.nome, tipoId: t.id as string | null }))
+      : [
+          { chave: "diaria", rotulo: "A diária", tipoId: null as string | null },
+          ...ativos.map((t) => ({ chave: t.id, rotulo: t.nome, tipoId: t.id as string | null })),
+        ]
+  ).map(({ chave, rotulo, tipoId }) => {
     const exata = contas.find(
       (c) =>
         c.quadro === quadro &&
@@ -115,7 +127,7 @@ export default async function ContasDiariaPage({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {(["funcionario", "diretor"] as const).map((q) => (
+        {(["funcionario", "diretor", "convidado"] as const).map((q) => (
           <Button
             key={q}
             size="sm"
@@ -127,10 +139,10 @@ export default async function ContasDiariaPage({
         ))}
       </div>
 
-      {quadro === "diretor" && (
+      {quadro !== "funcionario" && (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant={departamentoId ? "outline" : "secondary"} asChild>
-            <Link href="/painel/pessoal/diarias/contas?quadro=diretor">Padrão</Link>
+            <Link href={`/painel/pessoal/diarias/contas?quadro=${quadro}`}>Padrão</Link>
           </Button>
           {departamentos
             .filter((d) => !d.legado)
@@ -143,7 +155,7 @@ export default async function ContasDiariaPage({
                   variant={departamentoId === d.id ? "secondary" : "outline"}
                   asChild
                 >
-                  <Link href={`/painel/pessoal/diarias/contas?quadro=diretor&departamento=${d.id}`}>
+                  <Link href={`/painel/pessoal/diarias/contas?quadro=${quadro}&departamento=${d.id}`}>
                     {d.nome}
                     {definidas > 0 && (
                       <Badge variant="outline" className="ml-1.5">
@@ -166,7 +178,9 @@ export default async function ContasDiariaPage({
           <CardDescription>
             {quadro === "diretor"
               ? "Cada departamento tem as contas dele; o padrão vale para quem não tiver conta própria."
-              : "Os funcionários usam uma conta só, sem separação por departamento."}
+              : quadro === "convidado"
+                ? "Passagem e hospedagem de convidados de evento, pagas por Viagens. O departamento é o que banca a viagem; o padrão vale para quem não tiver conta própria."
+                : "Os funcionários usam uma conta só, sem separação por departamento."}
           </CardDescription>
         </CardHeader>
         <CardContent>

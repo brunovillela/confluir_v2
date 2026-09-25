@@ -731,7 +731,7 @@ export type NovaCompraDireta = NovaSolicitacao & {
  */
 export async function criarCompraDireta(
   nova: NovaCompraDireta
-): Promise<{ id?: string; erro?: string }> {
+): Promise<{ id?: string; ordemId?: string; erro?: string }> {
   const admin = await createAdminClient()
   const codigo = gerarCodigoProcesso()
 
@@ -823,7 +823,7 @@ export async function criarCompraDireta(
       erro: `Não foi possível registrar o fornecimento: ${erroFornecimento.message}`,
     }
   }
-  return { id: processo.id }
+  return { id: processo.id, ordemId: String(ordem.id) }
 }
 
 /** Cancela um processo ainda não comprado. */

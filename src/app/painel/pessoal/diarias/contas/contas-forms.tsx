@@ -38,7 +38,7 @@ export function ContasDoQuadro({
   gastos,
   contas,
 }: {
-  quadro: "funcionario" | "diretor"
+  quadro: "funcionario" | "diretor" | "convidado"
   departamentoId: string | null
   gastos: GastoParaConta[]
   contas: ContaOpcao[]

@@ -134,9 +134,21 @@ export default async function ViagemGestaoPage({
           {viagem.itens.map((item, indice) => (
             <ItemAtendimento
               key={item.id}
-              titulo={<TituloItemViagem item={item} indice={indice} />}
+              titulo={
+                <>
+                  <TituloItemViagem item={item} indice={indice} />
+                  {item.faturaId && (
+                    <Link
+                      href={`/painel/viagens/faturas/${item.faturaId}`}
+                      className="border-info/40 text-info-fg rounded-full border px-2 py-0.5 text-xs hover:underline"
+                    >
+                      Faturado
+                    </Link>
+                  )}
+                </>
+              }
               reservado={item.reservado}
-              editavel={!encerrada}
+              editavel={!encerrada && !item.faturaId}
               resumo={
                 <CamposItemViagem item={item} voucherUrl={urls.get(item.id) ?? null} mostrarValor />
               }

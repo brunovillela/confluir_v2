@@ -31,10 +31,13 @@ export function EmpresaCombobox({
   empresas,
   name,
   defaultId,
+  onChange,
 }: {
   empresas: EmpresaOpcao[]
   name: string
   defaultId?: string
+  /** Avisa a escolha (id) ou a limpeza (null) a quem precisa reagir a ela. */
+  onChange?: (id: string | null) => void
 }) {
   const [aberto, setAberto] = useState(false)
   const [busca, setBusca] = useState("")
@@ -78,6 +81,7 @@ export function EmpresaCombobox({
               setSelecionado(null)
               setBusca("")
               setAberto(true)
+              onChange?.(null)
             }}
           >
             <X className="size-4" />
@@ -121,6 +125,7 @@ export function EmpresaCombobox({
                 onClick={() => {
                   setSelecionado(f)
                   setAberto(false)
+                  onChange?.(f.id)
                 }}
                 className={cn(
                   "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm",
