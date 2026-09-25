@@ -30,7 +30,7 @@ import {
   reenviarConvite,
   type CanalAssinatura,
 } from "@/lib/db/oficios-assinatura"
-import { TIPOS_OFICIO, type TipoOficio } from "@/lib/oficios-constantes"
+import { TIPOS_OFICIO, eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -61,6 +61,20 @@ function lerDados(formData: FormData): DadosOficio {
   }
 }
 
+/** Tipo escolhido e destinatário coerente com ele → mensagem de erro, ou null. */
+function erroTipoEDestino(formData: FormData, dados: DadosOficio): string | null {
+  if (!(TIPOS_OFICIO as readonly string[]).includes(texto(formData, "tipo")))
+    return "Escolha o tipo do ofício."
+  if (eAutomatico(dados.tipo)) {
+    // Ofício antigo (Bubble) com destinatário só em texto segue editável.
+    if (!dados.destinatario_empresa_id && !dados.destinatario_texto)
+      return "Escolha a empresa (fonte pagadora) — é dela que sai a lista de nomes."
+  } else if (!dados.destinatario_empresa_id && !dados.destinatario_texto) {
+    return "Informe o destinatário."
+  }
+  return null
+}
+
 /** Ofício fora dos departamentos de quem está na sessão → mensagem de erro. */
 async function foraDoEscopo(oficioId: string): Promise<string | null> {
   return (await podeVerOficio(oficioId)) ? null : FORA_DO_ESCOPO
@@ -72,9 +86,12 @@ export async function criarOficioAction(
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("ferramentas_oficios")
   const dados = lerDados(formData)
+  const erroTipo = erroTipoEDestino(formData, dados)
+  if (erroTipo) return { erro: erroTipo }
+  // Ofício novo de filiação/desfiliação sempre nasce ligado à empresa.
+  if (eAutomatico(dados.tipo) && !dados.destinatario_empresa_id)
+    return { erro: "Escolha a empresa (fonte pagadora) — é dela que sai a lista de nomes." }
   if (!dados.assunto) return { erro: "Informe o assunto." }
-  if (!dados.destinatario_empresa_id && !dados.destinatario_texto)
-    return { erro: "Informe o destinatário." }
   const erroDepto = validarDepartamentoDoOficio(await escopoOficios(), dados.departamento_id)
   if (erroDepto) return { erro: erroDepto }
 
@@ -92,6 +109,8 @@ export async function atualizarOficioAction(
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
   const dados = lerDados(formData)
+  const erroTipo = erroTipoEDestino(formData, dados)
+  if (erroTipo) return { erro: erroTipo }
   if (!dados.assunto) return { erro: "Informe o assunto." }
   const escopo = await escopoOficios()
   if (!(await podeVerOficio(id, escopo))) return { erro: FORA_DO_ESCOPO }

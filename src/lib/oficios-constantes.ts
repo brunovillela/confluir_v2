@@ -3,13 +3,23 @@
  * Ver [[confluir-ferramentas-administrativas]].
  */
 
-export const TIPOS_OFICIO = ["desfiliacao", "filiacao", "manual"] as const
+export const TIPOS_OFICIO = ["filiacao", "desfiliacao", "manual"] as const
 export type TipoOficio = (typeof TIPOS_OFICIO)[number]
 
 export const ROTULOS_TIPO_OFICIO: Record<TipoOficio, string> = {
   desfiliacao: "Desfiliação",
   filiacao: "Filiação",
   manual: "Manual",
+}
+
+/** O que cada tipo faz, mostrado no formulário na hora de escolher. */
+export const EXPLICACAO_TIPO_OFICIO: Record<TipoOficio, string> = {
+  filiacao:
+    "Pede à empresa (fonte pagadora) que passe a descontar em folha a contribuição de quem se filiou. Depois de salvar, o sistema lista os filiados dessa empresa que ainda não foram oficiados, para você marcar quem entra.",
+  desfiliacao:
+    "Pede à empresa (fonte pagadora) que pare de descontar a contribuição de quem se desfiliou. Depois de salvar, o sistema lista os desfiliados dessa empresa que ainda não foram oficiados, para você marcar quem entra.",
+  manual:
+    "Qualquer outro ofício: convite, solicitação, resposta, comunicado. Você escreve o texto, e o destinatário pode ser uma empresa cadastrada ou qualquer pessoa ou órgão.",
 }
 
 /** Ofícios automáticos puxam a lista de pessoas dos vínculos. */
