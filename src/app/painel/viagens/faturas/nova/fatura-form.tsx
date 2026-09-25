@@ -1,7 +1,7 @@
 "use client"
 
 import { startTransition, useActionState, useMemo, useState } from "react"
-import { BedDouble, Loader2, Plane, Send } from "lucide-react"
+import { BedDouble, Loader2, Send } from "lucide-react"
 
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { IconePassagem } from "@/components/viagens"
 import { formatarMoeda } from "@/lib/formato"
 
 import { registrarFaturaAction } from "../actions"
@@ -21,6 +22,7 @@ export type ItemParaFatura = {
   viagemNumero: number | null
   beneficiarioNome: string
   tipo: "passagem" | "hospedagem"
+  modal: "aerea" | "rodoviaria" | null
   descricao: string
   fornecedorId: string | null
   localizador: string | null
@@ -185,7 +187,7 @@ export function FaturaForm({
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5 font-medium">
                       {i.tipo === "passagem" ? (
-                        <Plane className="text-muted-foreground size-3.5 shrink-0" />
+                        <IconePassagem modal={i.modal} className="text-muted-foreground size-3.5 shrink-0" />
                       ) : (
                         <BedDouble className="text-muted-foreground size-3.5 shrink-0" />
                       )}

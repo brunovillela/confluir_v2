@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Search } from "lucide-react"
+import { Download, Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,21 @@ import {
   SITUACOES_VIAGEM,
   type FiltroViagens,
 } from "@/lib/viagens-constantes"
+
+/** O filtro de volta para a URL (mesmos nomes que lerFiltroViagens lê). */
+function consultaDoFiltro(f: FiltroViagens): string {
+  const p = new URLSearchParams()
+  if (f.pessoa) p.set("pessoa", f.pessoa)
+  if (f.tipo) p.set("tipo", f.tipo)
+  if (f.situacao) p.set("situacao", f.situacao)
+  if (f.quadro) p.set("quadro", f.quadro)
+  if (f.eventoId) p.set("evento", f.eventoId)
+  if (f.fornecedorId) p.set("agencia", f.fornecedorId)
+  if (f.de) p.set("de", f.de)
+  if (f.ate) p.set("ate", f.ate)
+  const s = p.toString()
+  return s ? `?${s}` : ""
+}
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -116,6 +131,13 @@ export function FiltrosViagens({ filtro, viagens }: { filtro: FiltroViagens; via
       <div className="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-4">
         <Button asChild variant="ghost" size="sm">
           <Link href="/painel/viagens">Limpar</Link>
+        </Button>
+        {/* Rota de download: <a> comum, não Link (não é página). */}
+        <Button asChild variant="outline" size="sm">
+          <a href={`/painel/viagens/exportar${consultaDoFiltro(filtro)}`}>
+            <Download />
+            CSV
+          </a>
         </Button>
         <Button type="submit" size="sm">
           <Search />

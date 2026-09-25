@@ -1,0 +1,75 @@
+A agência manda **uma fatura** cobrindo vários bilhetes e hotéis, de viagens
+diferentes. Em **Viagens → Faturas** a equipe lança essa fatura, e ela segue o
+mesmo caminho de qualquer compra: aquisição direta em Compras, ordem de
+pagamento em autorização, avaliação por alçada e pagamento pelo Financeiro.
+
+<RequerPermissao>Passagens e hospedagens — atender e lançar</RequerPermissao>
+
+## Lançar a fatura
+
+<PassoAPasso>
+  <Passo titulo="Escolher a agência">
+    Em **Faturas → Nova fatura**, escolha a agência. Aparecem os itens
+    **reservados com ela** que ainda não foram faturados (e os reservados sem
+    agência informada).
+  </Passo>
+  <Passo titulo="Preencher os dados">
+    Número, PDF da fatura (ou da nota fiscal), emissão, vencimento e forma de
+    pagamento. O departamento da compra pode ficar automático — é o que mais
+    pesa nos itens.
+  </Passo>
+  <Passo titulo="Marcar os itens">
+    Marque os itens que a fatura cobra. Cada linha traz o **valor** da reserva e
+    a **conta** sugerida; os dois podem ser trocados se a fatura vier diferente.
+  </Passo>
+  <Passo titulo="Taxa da agência">
+    A taxa de emissão ou de serviço vai à parte e é **rateada na proporção dos
+    itens**. O total aparece embaixo enquanto você preenche.
+  </Passo>
+  <Passo titulo="Lançar e enviar para pagamento">
+    O sistema registra a compra direta, gera a ordem de pagamento em
+    autorização e divide a despesa entre as contas.
+  </Passo>
+</PassoAPasso>
+
+<Print src="viagens/fatura-nova.png" alt="Nova fatura com a agência escolhida: número, PDF, emissão, vencimento, forma de pagamento e departamento da compra; dois itens marcados, cada um com o valor e o select de conta mostrando Sem conta no de-para — escolha; a taxa da agência, a observação e o total de dois itens." legenda="A fatura sendo lançada: os itens da agência, com valor e conta." />
+
+## De onde vem a conta
+
+A conta de cada item sai do **mesmo de-para das diárias**, em *Pessoal → Diárias
+→ Centros de custo*: o **quadro** de quem viaja, o **departamento** que banca e
+o **tipo de gasto** — os tipos *Passagem* e *Hospedagem*. Convidados têm a aba
+própria, **Convidados**, com a divisão por departamento.
+
+<Print src="viagens/contas-convidados.png" alt="Centros de custo das diárias com a aba Convidados escolhida: os botões Padrão, Administrativo e Operacional e as contas de Hospedagem e Passagem." legenda="As contas dos convidados: passagem e hospedagem, por departamento." />
+
+<Aviso tipo="atencao" titulo="Sem conta, escolha na linha">
+  Item sem conta no de-para aparece com o aviso *Sem conta no de-para — escolha*,
+  e a fatura não é lançada enquanto ele não tiver conta. Vale configurar as
+  contas de passagem e hospedagem de diretores e convidados uma vez só. As
+  contas são achadas pelo nome dos tipos de despesa *Passagem* e *Hospedagem* —
+  não os renomeie.
+</Aviso>
+
+## A fatura lançada
+
+A página da fatura mostra o resumo, os itens cobrados com a conta de cada um, o
+**rateio da ordem** e os links para o PDF, a **ordem de pagamento** e a
+**compra**. No Financeiro, a ordem aparece com o rateio no bloco de centro de
+custo; em Compras → Avaliações, entra na fila da alçada como qualquer compra.
+
+<Print src="viagens/fatura.png" alt="Fatura lançada: resumo com itens, taxa, total, vencimento, forma de pagamento e departamento; os links PDF da fatura, Ordem em autorização e Compra; a tabela de itens cobrados com viagem, conta e valor; e o rateio da ordem em três contas." legenda="A fatura: itens, contas e o rateio que foi para o Financeiro." />
+
+Na viagem, o item faturado ganha o selo **Faturado**, que leva à fatura.
+
+## Desfazer
+
+Lançou errado? Enquanto a ordem está **em autorização**, **Desfazer fatura**
+apaga a ordem e a compra e devolve os itens para *a faturar*. Depois de
+autorizada, peça ao Financeiro para cancelar a ordem antes.
+
+<VejaTambem links={[
+  { titulo: "Atendimento", href: "/painel/ajuda/viagens/atendimento", descricao: "Reservas e o aviso por e-mail" },
+  { titulo: "Diárias", href: "/painel/ajuda/pessoal/diarias", descricao: "O de-para das contas" },
+  { titulo: "Comprar", href: "/painel/ajuda/compras/comprar", descricao: "Aquisição direta e alçada" },
+]} />

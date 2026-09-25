@@ -73,6 +73,7 @@ export default async function NovaFaturaPage() {
               viagemNumero: i.viagemNumero,
               beneficiarioNome: i.beneficiarioNome,
               tipo: i.tipo,
+              modal: i.modal,
               descricao: i.descricao,
               fornecedorId: i.fornecedorId,
               localizador: i.localizador,

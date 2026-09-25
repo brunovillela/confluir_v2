@@ -13,7 +13,7 @@ import { listarViagens } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
-import type { BeneficiarioViagem, TipoItemViagem } from "@/lib/viagens-constantes"
+import type { BeneficiarioViagem, ModalPassagem, TipoItemViagem } from "@/lib/viagens-constantes"
 
 /**
  * Faturas das agências. Uma fatura cobre vários itens (bilhetes, diárias de
@@ -35,6 +35,7 @@ export type ItemFaturavel = {
   departamentoId: string | null
   departamentoNome: string | null
   tipo: TipoItemViagem
+  modal: ModalPassagem | null
   /** "Rio → Brasília · 05/10/2026" ou "Brasília · 05/10 a 07/10/2026". */
   descricao: string
   fornecedorId: string | null
@@ -87,6 +88,7 @@ export async function itensFaturaveis(): Promise<{
         departamentoId: v.departamentoId,
         departamentoNome: v.departamentoNome,
         tipo: i.tipo,
+        modal: i.modal,
         descricao: descreverItem(i),
         fornecedorId: i.fornecedorId,
         localizador: i.localizador,
@@ -396,6 +398,7 @@ export type ItemDaFatura = {
   viagemNumero: number | null
   beneficiarioNome: string
   tipo: TipoItemViagem
+  modal: ModalPassagem | null
   descricao: string
   localizador: string | null
   valor: number | null
@@ -441,6 +444,7 @@ export async function buscarFatura(id: string): Promise<{
     viagemNumero: v.numero,
     beneficiarioNome: v.beneficiarioNome,
     tipo: i.tipo,
+    modal: i.modal,
     descricao: descreverItem(i),
     localizador: i.localizador,
     valor: i.valor,

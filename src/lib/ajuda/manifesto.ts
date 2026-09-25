@@ -351,6 +351,34 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     ],
   },
   {
+    slug: "viagens",
+    titulo: "Viagens",
+    descricao: "Passagens e hospedagens de diretores, funcionários e convidados",
+    icone: "Plane",
+    // O pedido é de todo diretor e funcionário, não só da equipe: a área fica
+    // aberta a quem entra no painel, como Meu perfil.
+    chave: null,
+    chavesAlternativas: [],
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Visão geral de Viagens",
+        resumo: "Como pedir passagem e hospedagem e acompanhar em Minhas viagens",
+      },
+      {
+        slug: "atendimento",
+        titulo: "Atendimento",
+        resumo: "A lista com filtros e CSV, lançar por convidado, reservas e o aviso",
+      },
+      {
+        slug: "faturas",
+        titulo: "Faturas",
+        resumo: "Fatura da agência, contas do de-para, rateio e desfazer",
+      },
+    ],
+  },
+  {
     slug: "veiculos",
     titulo: "Veículos",
     descricao: "Frota, checklist, manutenções, agendamentos e infrações",

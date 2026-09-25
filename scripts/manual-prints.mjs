@@ -28,17 +28,26 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 24/09: "Assembleias" virou "Votações" — o cartão do hub mudou de
-  // nome, e a lista ganhou destaque, ordenação e páginas.
-  // Rodada de 24/09 (módulo completo) — seed: scripts/seed-espacos-demo.mjs
+  // Rodada de 25/09: Viagens (passagens e hospedagens) — seed:
+  // scripts/seed-prints-viagens.mjs (depois: --limpar tira o demo da diretoria).
+  ["/painel/viagens", "viagens/lista.png", { fullPage: true, esperar: "Ana Paula Mendes" }],
+  ["/painel/viagens", "viagens/lancar.png", { abrir: ["Lançar viagem", "Convidado(a)"], fullPage: true }],
+  // Clicar nos botões rola a página; volta ao topo antes do print inteiro.
+  ["/painel/perfil/viagens?novo=1", "viagens/solicitar.png", { abrir: ["Acrescentar passagem", "Acrescentar hospedagem"], scrollTo: "Minhas viagens", fullPage: true }],
+  ["/painel/perfil/viagens", "viagens/minhas.png", { esperar: "Plenária estadual" }],
+  ["/painel/perfil/viagens/7a100000-0000-4000-8000-000000000005", "viagens/minha-viagem.png", { fullPage: true, esperar: "Reservado" }],
+  ["/painel/viagens/7a100000-0000-4000-8000-000000000002", "viagens/atendimento.png", { fullPage: true, abrir: ["Registrar reserva"] }],
+  ["/painel/viagens/faturas/nova", "viagens/fatura-nova.png", { fullPage: true, preencher: [["input[role=combobox]", "Tech"]], apos: ["Tech Suprimentos", "css=input[name^=item_]"] }],
+  ["/painel/viagens/faturas/7a300000-0000-4000-8000-000000000001", "viagens/fatura.png", { fullPage: true, esperar: "Rateio da ordem" }],
+  ["/painel/pessoal/diarias/contas?quadro=convidado", "viagens/contas-convidados.png", { altura: 760 }],
+
+  /* Rodada de 24/09: "Assembleias" virou "Votações" (já capturado).
   ["/painel/espacos/9e000000-0000-4000-8000-000000000001", "espacos/detalhe.png", { fullPage: true, esperar: "Quando pode ser cedido" }],
   ["/painel/espacos/pedidos/9e000000-0000-4000-8000-0000000000a1", "espacos/pedido.png", { fullPage: true, esperar: "Assinatura do termo" }],
-
   ['/painel/representacao', 'representacao/painel.png'],
   ['/painel/representacao/votacoes', 'representacao/votacoes-lista.png', { esperar: 'Votações' }],
-  // A campanha subiu para antes das rodadas, e a trilha virou
-  // Votações › Campanhas › Rodadas de assembleias › Assembleia.
   ['/painel/representacao/votacoes/campanhas/aa000000-0000-4000-8000-000000000001', 'representacao/campanha.png', { fullPage: true }],
+  */
 
   /* Rodada de 20/09 (3): área do hotel dividida em abas.
   ['/hotel/inicio', 'hotel/inicio.png', { fullPage: true }],
@@ -445,6 +454,16 @@ for (const [route, file, opts] of SHOTS) {
   for (const [seletor, valor] of opts?.preencher ?? []) {
     await p.fill(seletor, valor)
     await p.waitForTimeout(800)
+  }
+  // opts.apos: cliques DEPOIS do preencher (escolher a opção que a digitação
+  // abriu). Texto clica o primeiro que bater; "css=<seletor>" clica todos.
+  for (const alvo of opts?.apos ?? []) {
+    if (alvo.startsWith("css=")) {
+      for (const el of await p.locator(alvo.slice(4)).all()) await el.click()
+    } else {
+      await p.getByText(alvo, { exact: false }).first().click()
+    }
+    await p.waitForTimeout(600)
   }
   // opts.buscar: preenche o campo e dispara a busca — o print de uma tela de
   // busca vazia não mostra o que a tela faz.

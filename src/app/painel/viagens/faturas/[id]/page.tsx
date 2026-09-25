@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, BedDouble, ExternalLink, FileText, Plane } from "lucide-react"
+import { ArrowLeft, BedDouble, ExternalLink, FileText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { IconePassagem } from "@/components/viagens"
 import { requirePermissao } from "@/lib/auth"
 import { urlArquivoCompras } from "@/lib/db/compras"
 import { buscarFatura } from "@/lib/db/viagens-faturas"
@@ -129,7 +130,7 @@ export default async function FaturaViagensPage({
                     <TableCell className="whitespace-normal">
                       <span className="flex items-center gap-1.5">
                         {i.tipo === "passagem" ? (
-                          <Plane className="text-muted-foreground size-3.5 shrink-0" />
+                          <IconePassagem modal={i.modal} className="text-muted-foreground size-3.5 shrink-0" />
                         ) : (
                           <BedDouble className="text-muted-foreground size-3.5 shrink-0" />
                         )}

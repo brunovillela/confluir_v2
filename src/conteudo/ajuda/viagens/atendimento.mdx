@@ -1,0 +1,83 @@
+A equipe de viagens trabalha em **Viagens**, no menu do painel: a lista de todos
+os pedidos, o lançamento em nome de outra pessoa e a reserva de cada item.
+
+<RequerPermissao>Passagens e hospedagens — atender e lançar</RequerPermissao>
+
+## A lista
+
+Cada linha é uma viagem: o número, quem viaja (e em que condição), os itens com
+as datas, o departamento que banca e a situação. Os filtros combinam entre si:
+
+- **Pessoa** — parte do nome de quem viaja, sem se preocupar com acento.
+- **Serviço** — só passagens ou só hospedagens.
+- **Situação** — *Aguardando atendimento* junta as solicitadas e as em
+  atendimento.
+- **Quem viaja** — diretores, funcionários ou convidados.
+- **Evento**, **agência** e o **período** da viagem.
+
+O botão **CSV** baixa o que está filtrado, **uma linha por item** — bilhete ou
+estadia —, com agência, localizador, valor e se já foi faturado. É o arquivo
+para conferir com a agência.
+
+<Print src="viagens/lista.png" alt="Passagens e hospedagens: o botão Faturas com três itens a faturar, o botão Lançar viagem, os filtros de pessoa, serviço, situação, quem viaja, evento, agência e período, os botões Limpar, CSV e Filtrar, e a lista com seis viagens em situações diferentes." legenda="A lista da equipe, com os filtros e a exportação." />
+
+## Lançar em nome de outra pessoa
+
+**Lançar viagem** abre o mesmo formulário do pedido, com uma parte a mais:
+**quem vai viajar**. Escolha diretor, funcionário ou **convidado**. Para o
+convidado, informe o nome como está no documento, CPF, nascimento, telefone e o
+**e-mail** — obrigatório, porque é por ele que vão as reservas.
+
+Ao escolher um diretor, o departamento que banca vem do cadastro dele.
+
+<Print src="viagens/lancar.png" alt="Formulário Lançar viagem com Convidado(a) escolhido: nome completo, CPF, data de nascimento, e-mail com a nota Recebe o aviso com as reservas, telefone, motivo, departamento, evento e o primeiro item de passagem." legenda="Lançar por um convidado: os dados que a companhia aérea pede." />
+
+## Atender
+
+Abra a viagem pela lista. No alto ficam as ações; abaixo, os dados de quem viaja
+e os itens.
+
+<PassoAPasso>
+  <Passo titulo="Iniciar atendimento">
+    Marca que a equipe começou a cotar. A partir daí, quem pediu não cancela
+    mais sozinho — a reserva pode já ter custo.
+  </Passo>
+  <Passo titulo="Registrar a reserva de cada item">
+    No item, **Registrar reserva** abre o formulário com o pedido à vista:
+    agência ou operadora, **localizador**, **detalhes da reserva** (voo,
+    horários, hotel, endereço), valor e o PDF do bilhete ou voucher. O
+    localizador ou os detalhes bastam; o que estiver aqui vai no e-mail.
+  </Passo>
+  <Passo titulo="Concluir e avisar">
+    Só libera quando **todos** os itens têm reserva. Marca a viagem como
+    atendida e manda o aviso.
+  </Passo>
+</PassoAPasso>
+
+<Print src="viagens/atendimento.png" alt="Viagem em atendimento: os botões Concluir e avisar (ainda bloqueado), Recusar e Cancelar viagem com o aviso de que falta a reserva de um item; a passagem rodoviária já reservada, com localizador, empresa, detalhes e valor; e a hospedagem marcada Falta reservar, com o formulário da reserva aberto." legenda="O atendimento: um item reservado, o outro sendo preenchido." />
+
+<Aviso tipo="atencao" titulo="Item faturado não muda">
+  Depois que um item entra numa fatura, a reserva dele fica travada (o valor já
+  foi cobrado). Para corrigir, desfaça a fatura enquanto a ordem ainda está em
+  autorização.
+</Aviso>
+
+## O aviso por e-mail
+
+Ao concluir, saem e-mails para **quem viaja** e para **quem pediu**, se for
+outra pessoa. Cada um traz os itens com o que foi pedido e o que foi reservado,
+e o link do bilhete ou voucher, que vale por 7 dias. Quem tem acesso ao sistema
+recebe também a notificação no sino e no Telegram, e o e-mail leva um botão para
+a viagem. O convidado recebe só o e-mail.
+
+## Recusar ou cancelar
+
+**Recusar** é para o pedido que não será atendido; **Cancelar viagem** vale
+também depois de atendida, quando a viagem não vai mais acontecer. Os dois pedem
+o **motivo**, que vai no e-mail. Uma viagem cancelada com reserva ainda pode ser
+faturada — a agência pode cobrar a multa.
+
+<VejaTambem links={[
+  { titulo: "Visão geral de Viagens", href: "/painel/ajuda/viagens", descricao: "O pedido e o acompanhamento" },
+  { titulo: "Faturas", href: "/painel/ajuda/viagens/faturas", descricao: "Da fatura da agência à ordem de pagamento" },
+]} />

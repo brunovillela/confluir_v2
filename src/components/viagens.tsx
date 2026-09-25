@@ -1,4 +1,4 @@
-import { BedDouble, CircleCheck, FileText, Plane } from "lucide-react"
+import { BedDouble, Bus, CircleCheck, FileText, Plane } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import type { ItemViagem } from "@/lib/db/viagens"
@@ -36,7 +36,7 @@ export function ResumoItensViagem({ itens }: { itens: ItemViagem[] }) {
         <li key={i.id} className="flex items-start gap-1.5">
           {i.tipo === "passagem" ? (
             <>
-              <Plane className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
+              <IconePassagem modal={i.modal} className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
               <span>
                 {i.origem} → {i.destino}
                 {i.dataViagem && (
@@ -70,7 +70,7 @@ export function TituloItemViagem({ item, indice }: { item: ItemViagem; indice: n
   return (
     <span className="flex items-center gap-2 font-semibold">
       {item.tipo === "passagem" ? (
-        <Plane className="text-muted-foreground size-4" />
+        <IconePassagem modal={item.modal} className="text-muted-foreground size-4" />
       ) : (
         <BedDouble className="text-muted-foreground size-4" />
       )}
@@ -195,4 +195,15 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
       <dd className="whitespace-pre-line">{valor ?? "—"}</dd>
     </div>
   )
+}
+
+/** Avião para passagem aérea, ônibus para rodoviária. */
+export function IconePassagem({
+  modal,
+  className,
+}: {
+  modal: "aerea" | "rodoviaria" | null
+  className?: string
+}) {
+  return modal === "rodoviaria" ? <Bus className={className} /> : <Plane className={className} />
 }

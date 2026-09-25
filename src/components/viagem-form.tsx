@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { IconePassagem } from "@/components/viagens"
 import { type EstadoForm } from "@/lib/contas"
 import type { BeneficiarioViagem, CriterioHorario, ModalPassagem } from "@/lib/viagens-constantes"
 
@@ -305,7 +306,7 @@ export function ViagemForm({
                 <fieldset key={item.chave} className="grid gap-4 rounded-lg border p-4">
                   <div className="flex items-center justify-between gap-2">
                     <legend className="flex items-center gap-2 text-sm font-semibold">
-                      <Plane className="text-muted-foreground size-4" />
+                      <IconePassagem modal={item.modal} className="text-muted-foreground size-4" />
                       Item {indice + 1} — passagem
                     </legend>
                     {itens.length > 1 && (
