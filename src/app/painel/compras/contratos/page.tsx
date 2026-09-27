@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileText, Plus, ScrollText, Tags } from "lucide-react"
+import { ArrowLeft, FilePen, FileText, Plus, ScrollText, Tags } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -136,6 +136,12 @@ export default async function ContratosPage({
             </Button>
             {podeEditar && (
               <>
+                <Button variant="outline" asChild>
+                  <Link href="/painel/compras/contratos/minutas">
+                    <FilePen />
+                    Minutas
+                  </Link>
+                </Button>
                 <Button variant="outline" asChild>
                   <Link href="/painel/compras/contratos/categorias">
                     <Tags />

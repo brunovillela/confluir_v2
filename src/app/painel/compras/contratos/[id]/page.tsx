@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FileText, LinkIcon, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, FilePen, FileText, LinkIcon, Pencil, Plus } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -35,6 +35,8 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
+import { rotuloTipoMinuta } from "@/lib/contratos-minutas-constantes"
+import { listarMinutas } from "@/lib/db/contratos-minutas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -105,6 +107,8 @@ export default async function ContratoPage({
   const aqui = `/painel/compras/contratos/${c.id}`
 
   const opcoes = editando ? await carregarOpcoesContrato() : null
+  // Minutas ficam com quem edita contratos (podem citar dados de categoria sigilosa).
+  const minutas = podeEditar ? (await listarMinutas({ contratoId: c.id })).minutas : []
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
@@ -296,6 +300,46 @@ export default async function ContratoPage({
           )}
         </CardContent>
       </Card>
+
+      {podeEditar && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">Minutas</CardTitle>
+                <CardDescription>
+                  Textos redigidos com a IA a partir deste contrato
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/compras/contratos/minutas/nova?contrato=${c.id}`}>
+                  <FilePen />
+                  Redigir minuta
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {minutas.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhuma minuta vinculada.</p>
+            ) : (
+              <ul className="grid gap-1.5 text-sm">
+                {minutas.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-center gap-2">
+                    <Link href={`/painel/compras/contratos/minutas/${m.id}`} className="font-medium hover:underline">
+                      {m.titulo ?? rotuloTipoMinuta(m.tipo)}
+                    </Link>
+                    <span className="text-muted-foreground text-xs">
+                      {m.finalizada ? "finalizada" : `rascunho · v${m.versao}`}
+                      {m.pendencias > 0 ? ` · ${m.pendencias} a preencher` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {podeEditar && (
         <GrupoColapsavel

@@ -18,7 +18,12 @@ export const MODELO_IA = process.env.MODELO_IA?.trim() || "claude-opus-5"
 const MAX_TOKENS_TEXTO = 4096
 const MAX_TOKENS_JSON = 16000
 
-export type ResultadoIA = { texto?: string; erro?: string }
+export type ResultadoIA = {
+  texto?: string
+  erro?: string
+  /** O texto bateu no teto de tokens e veio cortado no fim. */
+  truncado?: boolean
+}
 
 /** Mensagem amigável a partir de um erro do SDK da Anthropic. */
 function erroIA(e: unknown): string {
@@ -57,9 +62,12 @@ function textoDaResposta(msg: Anthropic.Message): string {
 export async function gerarTextoIA({
   system,
   prompt,
+  maxTokens = MAX_TOKENS_TEXTO,
 }: {
   system: string
   prompt: string
+  /** Documentos longos (minuta de contrato) pedem mais que o padrão de 4096. */
+  maxTokens?: number
 }): Promise<ResultadoIA> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -70,7 +78,7 @@ export async function gerarTextoIA({
     const client = new Anthropic({ apiKey })
     const resposta = await client.messages.create({
       model: MODELO_IA,
-      max_tokens: MAX_TOKENS_TEXTO,
+      max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: prompt }],
     })
@@ -82,7 +90,7 @@ export async function gerarTextoIA({
     }
     const texto = textoDaResposta(resposta)
     if (!texto) return { erro: "A IA não retornou texto." }
-    return { texto }
+    return { texto, truncado: resposta.stop_reason === "max_tokens" }
   } catch (e) {
     return { erro: erroIA(e) }
   }
