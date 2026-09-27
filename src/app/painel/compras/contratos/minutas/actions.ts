@@ -32,6 +32,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BASE = "/painel/compras/contratos/minutas"
 const txt = (fd: FormData, nome: string) => String(fd.get(nome) ?? "").trim()
 const opcional = (fd: FormData, nome: string) => txt(fd, nome) || null
+/** Textarea chega com quebras CRLF (padrão do envio de formulário): normaliza para LF. */
+const textoDoForm = (fd: FormData) =>
+  String(fd.get("texto") ?? "")
+    .replace(/\r\n?/g, "\n")
+    .trim()
 const idOuNull = (fd: FormData, nome: string) => (UUID.test(txt(fd, nome)) ? txt(fd, nome) : null)
 
 /** Quem cria e edita minuta é quem edita contratos. */
@@ -117,7 +122,7 @@ export async function salvarTextoMinutaAction(
 ): Promise<EstadoMinuta> {
   const { usuarioId } = await sessaoEdicao()
   const id = txt(fd, "id")
-  const texto = String(fd.get("texto") ?? "").trim()
+  const texto = textoDoForm(fd)
   if (!UUID.test(id)) return { erro: "Minuta inválida." }
   if (texto.length < 50) return { erro: "O texto da minuta está vazio ou curto demais." }
   const { erro, versao } = await novaVersaoMinuta({ id, texto, origem: "edicao", usuarioId })
@@ -140,7 +145,7 @@ export async function ajustarMinutaAction(
   const minuta = await obterMinuta(id)
   if (!minuta?.texto) return { erro: "Minuta não encontrada." }
   // O texto na tela pode ter edição ainda não salva: ela vale como base.
-  const base = String(fd.get("texto") ?? "").trim() || minuta.texto
+  const base = textoDoForm(fd) || minuta.texto
   if (base !== minuta.texto) {
     const salvo = await novaVersaoMinuta({ id, texto: base, origem: "edicao", usuarioId })
     if (salvo.erro) return { erro: salvo.erro }
@@ -247,7 +252,7 @@ export async function salvarClausulaFixaAction(
 ): Promise<EstadoMinuta> {
   await sessaoEdicao()
   const titulo = txt(fd, "titulo")
-  const texto = String(fd.get("texto") ?? "").trim()
+  const texto = textoDoForm(fd)
   if (titulo.length < 3) return { erro: "Informe o título da cláusula." }
   if (texto.length < 20) return { erro: "Escreva o texto da cláusula." }
   const tipos = fd

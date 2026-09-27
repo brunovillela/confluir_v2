@@ -180,7 +180,7 @@ async function qualificacaoDaEmpresa(
   const admin = await createAdminClient()
   const { data: e } = await admin
     .from("empresa")
-    .select("nome_razao, nome_fantasia, cnpj_cpf, pessoa_juridica")
+    .select("nome_razao, nome_fantasia, cnpj_cpf")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -194,7 +194,8 @@ async function qualificacaoDaEmpresa(
     .maybeSingle()
   const nome = txt(e.nome_razao) ?? txt(e.nome_fantasia)
   const doc = txt(e.cnpj_cpf)
-  const pj = e.pessoa_juridica !== false && (doc?.replace(/\D/g, "").length ?? 14) > 11
+  // O número decide (14 dígitos = CNPJ): a marcação pessoa_juridica do legado não é confiável.
+  const pj = (doc?.replace(/\D/g, "").length ?? 0) === 14
   const endereco = end
     ? [
         [txt(end.logradouro), txt(end.numero)].filter(Boolean).join(", "),
