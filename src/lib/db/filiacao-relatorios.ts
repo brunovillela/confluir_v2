@@ -5,7 +5,13 @@ import { lerCarencias, listarSuspensoes } from "@/lib/db/filiacao-direitos"
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
 import { relatorioInadimplencia } from "@/lib/db/filiacao-inadimplencia"
 import { lerLotes } from "@/lib/db/fontes"
-import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
+import {
+  FILIACAO_CONDICOES,
+  GRUPOS_CONDICAO,
+  ROTULOS_FORMA_RECEBIMENTO,
+  formaRecebimento,
+  type FormaRecebimento,
+} from "@/lib/filiacao"
 import { conferirCarencia, type Direito } from "@/lib/filiacao-direitos-constantes"
 import {
   COLUNAS_PADRAO,
@@ -61,6 +67,7 @@ export type LinhaRelatorio = {
   email: string | null
   telefone: string | null
   cadastro: string | null
+  formaRecebimento: FormaRecebimento | null
   // vínculo corrente (em aberto mais recente; senão o mais recente)
   vinculoAberto: boolean
   fonteId: string | null
@@ -159,7 +166,7 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
         admin
           .from("filiacoes")
           .select(
-            "id, nome_completo, nome_social, cpf, matricula_sindical, filiacao_condicao, filiacao_excluida, sexo, nascimento_data, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, email_pessoal, telefone_1, created_at, tl_lgpd_id, tl_desconto_id"
+            "id, nome_completo, nome_social, cpf, matricula_sindical, filiacao_condicao, filiacao_excluida, sexo, nascimento_data, endereco_cep, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, email_pessoal, telefone_1, created_at, tl_lgpd_id, tl_desconto_id, forma_recebimento"
           )
           .eq("emp_proprietaria_id", emp)
           .order("id", { ascending: true })
@@ -354,6 +361,7 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
       email: texto(c.email_pessoal),
       telefone: texto(c.telefone_1),
       cadastro: texto(c.created_at),
+      formaRecebimento: formaRecebimento(c.forma_recebimento),
       vinculoAberto: v ? aberto(v) : false,
       fonteId: v ? texto(v.fonte_pagadora_id) : null,
       fonte: v && v.fonte_pagadora_id ? (nomeFonte.get(String(v.fonte_pagadora_id)) ?? null) : null,
@@ -416,6 +424,8 @@ export type FiltrosRelatorio = {
   ficha?: string
   lgpd?: string
   desconto?: string
+  /** "todas", "nao_informado" ou uma das FORMAS_RECEBIMENTO. */
+  formaRecebimento?: string
   vinculo?: string
   filiacaoDe?: string
   filiacaoAte?: string
@@ -499,6 +509,10 @@ export function filtrarRelatorio(
     if (filtros.lgpd === "nao" && l.lgpd) return false
     if (filtros.desconto === "aceito" && !l.desconto) return false
     if (filtros.desconto === "nao" && l.desconto) return false
+    if (filtros.formaRecebimento && filtros.formaRecebimento !== "todas") {
+      const alvo = filtros.formaRecebimento === "nao_informado" ? null : filtros.formaRecebimento
+      if (l.formaRecebimento !== alvo) return false
+    }
     if (filtros.vinculo === "aberto" && !l.vinculoAberto) return false
     if (filtros.vinculo === "sem_aberto" && l.vinculoAberto) return false
     if (de && (!l.filiacao || l.filiacao < de)) return false
@@ -598,6 +612,8 @@ export function valorDaColuna(l: LinhaRelatorio, coluna: ColunaRelatorio): strin
       return simNao(l.lgpd)
     case "desconto":
       return simNao(l.desconto)
+    case "formaRecebimento":
+      return l.formaRecebimento ? ROTULOS_FORMA_RECEBIMENTO[l.formaRecebimento] : ""
     case "cidade":
       return l.cidade ?? ""
     case "uf":

@@ -19,6 +19,32 @@ export const FILIACAO_CONDICOES = [
 export type FiliacaoCondicao = (typeof FILIACAO_CONDICOES)[number]
 
 /**
+ * Como a entidade recebe a contribuição do filiado (`filiacoes.forma_recebimento`).
+ * Fica na filiação, não no vínculo: Pix e boleto são da pessoa, não de uma fonte.
+ * null = não informado.
+ */
+export const FORMAS_RECEBIMENTO = ["consignado", "pix", "boleto"] as const
+export type FormaRecebimento = (typeof FORMAS_RECEBIMENTO)[number]
+
+export const ROTULOS_FORMA_RECEBIMENTO: Record<FormaRecebimento, string> = {
+  consignado: "Consignado (desconto em folha)",
+  pix: "Pix",
+  boleto: "Boleto",
+}
+
+export const EXPLICACAO_FORMA_RECEBIMENTO: Record<FormaRecebimento, string> = {
+  consignado: "A empresa ou o fundo de pensão desconta no contracheque e repassa à entidade.",
+  pix: "O próprio filiado paga todo mês por Pix.",
+  boleto: "A entidade emite um boleto por mês para o filiado pagar.",
+}
+
+export function formaRecebimento(valor: unknown): FormaRecebimento | null {
+  return (FORMAS_RECEBIMENTO as readonly unknown[]).includes(valor)
+    ? (valor as FormaRecebimento)
+    : null
+}
+
+/**
  * Condição do filiado NA FONTE PAGADORA (por vínculo) — não confundir com a
  * condição sindical acima. Mesmos rótulos que o Bubble usava no cadastro.
  * Padrão por tipo de fonte: empresa → ativa; fundo de pensão → aposentado.

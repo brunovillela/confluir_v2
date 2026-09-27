@@ -23,7 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
+import {
+  EXPLICACAO_FORMA_RECEBIMENTO,
+  FILIACAO_CONDICOES,
+  FORMAS_RECEBIMENTO,
+  ROTULOS_FORMA_RECEBIMENTO,
+} from "@/lib/filiacao"
 import { mascaraCep, mascaraTelefone } from "@/lib/mascaras"
 
 import { atualizarCadastroFiliado } from "./actions"
@@ -183,6 +188,44 @@ export function EditarForm({ filiacao }: { filiacao: Cadastro }) {
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Forma de recebimento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <legend className="sr-only">Como a entidade recebe a contribuição</legend>
+            {[
+              { valor: "", rotulo: "Não informado", explicacao: "Ainda não se sabe como o filiado contribui." },
+              ...FORMAS_RECEBIMENTO.map((forma) => ({
+                valor: forma,
+                rotulo: ROTULOS_FORMA_RECEBIMENTO[forma],
+                explicacao: EXPLICACAO_FORMA_RECEBIMENTO[forma],
+              })),
+            ].map((o) => (
+              <label
+                key={o.valor || "nao_informado"}
+                className="border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 hover:bg-muted/50 flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors"
+              >
+                <input
+                  type="radio"
+                  name="forma_recebimento"
+                  value={o.valor}
+                  defaultChecked={valor(filiacao, "forma_recebimento") === o.valor}
+                  className="accent-primary mt-0.5 size-4 shrink-0"
+                />
+                <span className="grid gap-1">
+                  <span className="text-sm font-medium">{o.rotulo}</span>
+                  <span className="text-muted-foreground text-xs leading-relaxed">
+                    {o.explicacao}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
         </CardContent>
       </Card>
 

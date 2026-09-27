@@ -8,7 +8,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { corrigirIdentidade } from "@/lib/db/filiacao-identidade"
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
+import { FILIACAO_CONDICOES, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /** Campos do cadastro editáveis pela tela. CPF e matrícula ficam de fora — são identidade. */
@@ -72,6 +72,8 @@ export async function atualizarCadastroFiliado(
     ? condicao
     : null
 
+  dados.forma_recebimento = formaRecebimento(String(formData.get("forma_recebimento") ?? ""))
+
   const nascimento = String(formData.get("nascimento_data") ?? "")
   dados.nascimento_data = /^\d{4}-\d{2}-\d{2}$/.test(nascimento)
     ? nascimento
@@ -88,11 +90,19 @@ export async function atualizarCadastroFiliado(
   }
 
   const admin = await createAdminClient()
-  const { error, count } = await admin
-    .from("filiacoes")
-    .update(dados, { count: "exact" })
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+  const empId = await tenantAtual()
+  const gravar = (d: Record<string, unknown>) =>
+    admin.from("filiacoes").update(d, { count: "exact" }).eq("id", id).eq("emp_proprietaria_id", empId)
+
+  let { error, count } = await gravar(dados)
+  // Coluna ainda não criada: salva o resto e avisa qual SQL falta rodar.
+  let semFormaRecebimento = false
+  if (error && /forma_recebimento/.test(error.message)) {
+    const resto = { ...dados }
+    delete resto.forma_recebimento
+    ;({ error, count } = await gravar(resto))
+    semFormaRecebimento = !error
+  }
 
   if (error) {
     return { erro: `Não foi possível salvar: ${error.message}` }
@@ -103,6 +113,11 @@ export async function atualizarCadastroFiliado(
 
   revalidatePath(`/painel/filiados/${id}`)
   revalidatePath("/painel/filiados/lista")
+  if (semFormaRecebimento) {
+    return {
+      erro: "O cadastro foi salvo, mas a forma de recebimento não: falta rodar supabase/filiacao-forma-recebimento.sql.",
+    }
+  }
   redirect(`/painel/filiados/${id}?salvo=1`)
 }
 

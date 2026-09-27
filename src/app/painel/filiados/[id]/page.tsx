@@ -34,7 +34,12 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { TrilhaEtapas } from "@/components/trilha-etapas"
 import { requirePermissao } from "@/lib/auth"
 import { iniciarVisualizacaoFiliado } from "@/lib/actions/visualizacao"
-import { marcosDaTrilha, proximaCondicao } from "@/lib/filiacao"
+import {
+  ROTULOS_FORMA_RECEBIMENTO,
+  formaRecebimento,
+  marcosDaTrilha,
+  proximaCondicao,
+} from "@/lib/filiacao"
 import { formatarCpf } from "@/lib/cpf"
 import {
   obterTermosAceitos,
@@ -348,6 +353,14 @@ export default async function FiliadoPage({
               <Campo rotulo="Atualizado em">
                 {formatarData(f.updated_at as string | null)}
               </Campo>
+              <div className="col-span-2">
+                <Campo rotulo="Forma de recebimento">
+                  {(() => {
+                    const forma = formaRecebimento(f.forma_recebimento)
+                    return forma ? ROTULOS_FORMA_RECEBIMENTO[forma] : "Não informada"
+                  })()}
+                </Campo>
+              </div>
             </dl>
           </CardContent>
         </Card>

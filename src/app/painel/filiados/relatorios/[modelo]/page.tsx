@@ -34,7 +34,14 @@ import {
   valorDaColuna,
   type FiltrosRelatorio,
 } from "@/lib/db/filiacao-relatorios"
-import { CONDICOES_NA_FONTE, FILIACAO_CONDICOES, GRUPOS_CONDICAO, REGIMES_TRABALHO } from "@/lib/filiacao"
+import {
+  CONDICOES_NA_FONTE,
+  FILIACAO_CONDICOES,
+  FORMAS_RECEBIMENTO,
+  GRUPOS_CONDICAO,
+  REGIMES_TRABALHO,
+  ROTULOS_FORMA_RECEBIMENTO,
+} from "@/lib/filiacao"
 import {
   COLUNAS_RELATORIO,
   OPCOES_TERNARIAS,
@@ -70,6 +77,7 @@ const CHAVES_FILTRO: (keyof FiltrosRelatorio)[] = [
   "ficha",
   "lgpd",
   "desconto",
+  "formaRecebimento",
   "vinculo",
   "filiacaoDe",
   "filiacaoAte",
@@ -311,6 +319,16 @@ export default async function RelatorioPage({
                   <Filtro nome="ficha" rotulo="Ficha de filiação" valor={filtros.ficha ?? "todas"} opcoes={OPCOES_TERNARIAS.ficha} />
                   <Filtro nome="lgpd" rotulo="Termo LGPD" valor={filtros.lgpd ?? "todas"} opcoes={OPCOES_TERNARIAS.lgpd} />
                   <Filtro nome="desconto" rotulo="Termo de desconto" valor={filtros.desconto ?? "todas"} opcoes={OPCOES_TERNARIAS.desconto} />
+                  <Filtro
+                    nome="formaRecebimento"
+                    rotulo="Forma de recebimento"
+                    valor={filtros.formaRecebimento ?? "todas"}
+                    opcoes={[
+                      { valor: "todas", rotulo: "Todas" },
+                      ...FORMAS_RECEBIMENTO.map((f) => ({ valor: f, rotulo: ROTULOS_FORMA_RECEBIMENTO[f] })),
+                      { valor: "nao_informado", rotulo: "Não informada" },
+                    ]}
+                  />
                 </div>
               </GrupoColapsavel>
             )}

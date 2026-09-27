@@ -61,6 +61,7 @@ export const COLUNAS_RELATORIO = [
   { chave: "ficha", rotulo: "Ficha de filiação" },
   { chave: "lgpd", rotulo: "Termo LGPD" },
   { chave: "desconto", rotulo: "Termo de desconto" },
+  { chave: "formaRecebimento", rotulo: "Forma de recebimento" },
   { chave: "cidade", rotulo: "Cidade" },
   { chave: "uf", rotulo: "UF" },
   { chave: "email", rotulo: "E-mail" },

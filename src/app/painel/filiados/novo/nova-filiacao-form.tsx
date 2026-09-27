@@ -23,7 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { limparCpf, validarCpf } from "@/lib/cpf"
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
+import {
+  EXPLICACAO_FORMA_RECEBIMENTO,
+  FILIACAO_CONDICOES,
+  FORMAS_RECEBIMENTO,
+  ROTULOS_FORMA_RECEBIMENTO,
+} from "@/lib/filiacao"
 import { mascaraCpf, mascaraTelefone } from "@/lib/mascaras"
 
 import { registrarFiliacao, type EstadoNovaFiliacao } from "./actions"
@@ -174,6 +179,27 @@ export function NovaFiliacaoForm({
                 {FILIACAO_CONDICOES.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="forma_recebimento">Forma de recebimento</Label>
+            <Select name="forma_recebimento" defaultValue="nao_informado">
+              <SelectTrigger id="forma_recebimento" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nao_informado">Não informado</SelectItem>
+                {FORMAS_RECEBIMENTO.map((forma) => (
+                  <SelectItem key={forma} value={forma}>
+                    <span className="grid">
+                      <span>{ROTULOS_FORMA_RECEBIMENTO[forma]}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {EXPLICACAO_FORMA_RECEBIMENTO[forma]}
+                      </span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

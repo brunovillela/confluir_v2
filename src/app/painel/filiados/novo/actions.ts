@@ -14,7 +14,7 @@ import {
   type CadastroParecido,
 } from "@/lib/db/filiacao-identidade"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
-import { FILIACAO_CONDICOES } from "@/lib/filiacao"
+import { FILIACAO_CONDICOES, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -79,26 +79,33 @@ export async function registrarFiliacao(
     ? condicaoBruta
     : "Ativo"
 
-  const { data: criada, error } = await admin
-    .from("filiacoes")
-    .insert({
-      nome_completo: nome,
-      cpf,
-      matricula_sindical: identidade.matricula,
-      matricula_sindical_numero: identidade.matricula ? Number(identidade.matricula) : null,
-      sexo: ["Masculino", "Feminino", "Outro"].includes(sexoBruto)
-        ? sexoBruto
-        : null,
-      nascimento_data: nascimento,
-      nascimento_dia: nascimento ? Number(nascimento.slice(8, 10)) : null,
-      nascimento_mes: nascimento ? Number(nascimento.slice(5, 7)) : null,
-      email_pessoal: email,
-      telefone_1: telefone ? telefone.replace(/\D/g, "") : null,
-      filiacao_condicao: condicao,
-      emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+  const forma = formaRecebimento(String(formData.get("forma_recebimento") ?? ""))
+  const registro = {
+    nome_completo: nome,
+    cpf,
+    matricula_sindical: identidade.matricula,
+    matricula_sindical_numero: identidade.matricula ? Number(identidade.matricula) : null,
+    sexo: ["Masculino", "Feminino", "Outro"].includes(sexoBruto)
+      ? sexoBruto
+      : null,
+    nascimento_data: nascimento,
+    nascimento_dia: nascimento ? Number(nascimento.slice(8, 10)) : null,
+    nascimento_mes: nascimento ? Number(nascimento.slice(5, 7)) : null,
+    email_pessoal: email,
+    telefone_1: telefone ? telefone.replace(/\D/g, "") : null,
+    filiacao_condicao: condicao,
+    emp_proprietaria_id: await tenantAtual(),
+    // Só vai quando escolhida: sem o SQL da coluna, o cadastro segue funcionando.
+    ...(forma ? { forma_recebimento: forma } : {}),
+  }
+  const inserir = (r: Record<string, unknown>) =>
+    admin.from("filiacoes").insert(r).select("id").single()
+  let { data: criada, error } = await inserir(registro)
+  if (error && forma && /forma_recebimento/.test(error.message)) {
+    const resto: Record<string, unknown> = { ...registro }
+    delete resto.forma_recebimento
+    ;({ data: criada, error } = await inserir(resto))
+  }
   if (error || !criada) {
     return { erro: `Não foi possível registrar: ${error?.message ?? "?"}` }
   }
