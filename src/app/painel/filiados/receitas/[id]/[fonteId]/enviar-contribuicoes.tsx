@@ -258,9 +258,9 @@ export function EnviarContribuicoes({
               </div>
             )}
             <div className="grid gap-1.5">
-              <Label htmlFor="valor">Valor *</Label>
+              <Label htmlFor="contrib-valor">Valor *</Label>
               <Input
-                id="valor"
+                id="contrib-valor"
                 name="valor"
                 inputMode="decimal"
                 placeholder="0,00"
