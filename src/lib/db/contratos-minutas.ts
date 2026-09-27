@@ -271,7 +271,8 @@ export async function criarMinuta(dados: {
     .insert({
       emp_proprietaria_id: empId,
       titulo: dados.titulo,
-      tipo: dados.parametros.tipo,
+      tipo: dados.parametros.tipoNome,
+      tipo_id: dados.parametros.tipoId,
       parametros: dados.parametros,
       contrato_id: dados.contratoId,
       texto: dados.texto,
@@ -337,7 +338,9 @@ export async function novaVersaoMinuta(dados: {
       versao,
       atualizado_por_id: dados.usuarioId,
       updated_at: new Date().toISOString(),
-      ...(dados.parametros ? { parametros: dados.parametros, tipo: dados.parametros.tipo } : {}),
+      ...(dados.parametros
+        ? { parametros: dados.parametros, tipo: dados.parametros.tipoNome, tipo_id: dados.parametros.tipoId }
+        : {}),
     })
     .eq("id", dados.id)
     .eq("emp_proprietaria_id", empId)
@@ -387,7 +390,7 @@ export async function parametrosDoContrato(
   const admin = await createAdminClient()
   const { data: c } = await admin
     .from("contratos")
-    .select("id, objeto, valor, vigencia_inicio, vigencia_termino, fornecedor_id, aditivo")
+    .select("id, objeto, valor, vigencia_inicio, vigencia_termino, fornecedor_id")
     .eq("id", contratoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -396,7 +399,6 @@ export async function parametrosDoContrato(
   const inicio = data(c.vigencia_inicio)
   const fim = data(c.vigencia_termino)
   return {
-    tipo: c.aditivo ? "aditivo" : "prestacao_servicos",
     outraParteId: txt(c.fornecedor_id),
     objeto: txt(c.objeto) ?? "",
     valor:

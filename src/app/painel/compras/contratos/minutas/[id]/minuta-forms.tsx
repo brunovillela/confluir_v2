@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { pendenciasDaMinuta } from "@/lib/contratos-minutas-constantes"
+import { clausulasAusentes, pendenciasDaMinuta } from "@/lib/contratos-minutas-constantes"
 
 import {
   ajustarMinutaAction,
@@ -24,11 +24,21 @@ const SELECT =
  * Texto da minuta (editável) + pedido de ajuste à IA. O ajuste parte do que
  * está NA TELA — edição não salva entra como versão antes do ajuste.
  */
-export function EditorMinuta({ id, texto: inicial }: { id: string; texto: string }) {
+export function EditorMinuta({
+  id,
+  texto: inicial,
+  clausulasFixas,
+}: {
+  id: string
+  texto: string
+  /** Cláusulas fixas copiadas na criação da minuta. */
+  clausulasFixas: { titulo: string; texto: string }[]
+}) {
   const [texto, setTexto] = useState(inicial)
   const [salvo, salvarAcao, salvando] = useActionState(salvarTextoMinutaAction, {})
   const [ajuste, ajustarAcao, ajustando] = useActionState(ajustarMinutaAction, {})
   const pendencias = useMemo(() => pendenciasDaMinuta(texto), [texto])
+  const ausentes = useMemo(() => clausulasAusentes(texto, clausulasFixas), [texto, clausulasFixas])
   const alterado = texto !== inicial
 
   return (
@@ -56,6 +66,38 @@ export function EditorMinuta({ id, texto: inicial }: { id: string; texto: string
       </form>
 
       <div className="grid content-start gap-4">
+        {clausulasFixas.length > 0 && (
+          <div
+            className={
+              ausentes.length > 0
+                ? "border-destructive/50 grid gap-2 rounded-lg border p-3"
+                : "grid gap-2 rounded-lg border p-3"
+            }
+          >
+            <p className="text-sm font-medium">
+              Cláusulas fixas{" "}
+              <span className="text-muted-foreground font-normal">
+                ({clausulasFixas.length - ausentes.length}/{clausulasFixas.length} no texto)
+              </span>
+            </p>
+            <ul className="grid gap-1 text-xs">
+              {clausulasFixas.map((c, i) => {
+                const falta = ausentes.some((a) => a.texto === c.texto)
+                return (
+                  <li key={i} className={falta ? "text-destructive" : "text-muted-foreground"}>
+                    {falta ? "✗" : "✓"} {c.titulo}
+                  </li>
+                )
+              })}
+            </ul>
+            {ausentes.length > 0 && (
+              <p className="text-destructive text-xs">
+                O texto de alguma cláusula fixa foi alterado ou removido. Peça à IA para reincluí-la
+                literalmente, ou cole o texto de volta.
+              </p>
+            )}
+          </div>
+        )}
         <div className="grid gap-2 rounded-lg border p-3">
           <p className="text-sm font-medium">
             A preencher{" "}

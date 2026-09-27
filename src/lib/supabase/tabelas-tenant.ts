@@ -50,6 +50,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "contratos_categorias",
   "contratos_minutas",
   "contratos_minutas_versoes",
+  "contratos_minuta_tipos",
+  "contratos_clausulas_fixas",
   "demandas",
   "demandas_check",
   "demandas_check_tarefas",

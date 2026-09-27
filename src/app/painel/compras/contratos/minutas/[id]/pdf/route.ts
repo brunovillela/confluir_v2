@@ -2,7 +2,6 @@ import { createElement } from "react"
 import { renderToBuffer } from "@react-pdf/renderer"
 
 import { getSessaoPainel } from "@/lib/auth"
-import { rotuloTipoMinuta } from "@/lib/contratos-minutas-constantes"
 import { obterMinuta } from "@/lib/db/contratos-minutas"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
@@ -28,7 +27,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     logo: await logoDataUri(org?.logoUrl ?? null),
     rodape: [
       minuta.finalizada ? null : "MINUTA",
-      minuta.titulo ?? rotuloTipoMinuta(minuta.tipo),
+      minuta.titulo ?? minuta.tipo ?? "Minuta",
       `versão ${minuta.versao}`,
     ]
       .filter(Boolean)

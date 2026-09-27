@@ -3,72 +3,55 @@
  * Ver supabase/contratos-minutas.sql e src/lib/db/contratos-minutas.ts.
  */
 
-export const TIPOS_MINUTA = [
-  {
-    chave: "prestacao_servicos",
-    rotulo: "Prestação de serviços",
-    explicacao: "Uma empresa ou profissional presta um serviço à entidade (ou a entidade presta a alguém).",
-  },
-  {
-    chave: "fornecimento",
-    rotulo: "Compra e fornecimento",
-    explicacao: "Compra de bens ou fornecimento contínuo de produtos, com entrega e garantia.",
-  },
-  {
-    chave: "locacao_imovel",
-    rotulo: "Locação de imóvel",
-    explicacao: "Aluguel de imóvel (sede, sala, espaço), com prazo, reajuste e conservação.",
-  },
-  {
-    chave: "locacao_bens",
-    rotulo: "Locação de bens ou equipamentos",
-    explicacao: "Aluguel de veículos, equipamentos, som, estrutura para evento.",
-  },
-  {
-    chave: "comodato",
-    rotulo: "Comodato",
-    explicacao: "Empréstimo gratuito de bem, com devolução no prazo e no estado combinados.",
-  },
-  {
-    chave: "patrocinio",
-    rotulo: "Patrocínio ou apoio",
-    explicacao: "A entidade patrocina ou recebe patrocínio/apoio, com contrapartidas.",
-  },
-  {
-    chave: "parceria",
-    rotulo: "Convênio ou parceria",
-    explicacao: "Cooperação com outra entidade, empresa ou órgão, com obrigações de cada lado.",
-  },
-  {
-    chave: "confidencialidade",
-    rotulo: "Confidencialidade",
-    explicacao: "Acordo de sigilo sobre informações trocadas entre as partes.",
-  },
-  {
-    chave: "aditivo",
-    rotulo: "Termo aditivo",
-    explicacao: "Altera um contrato existente (prazo, valor, objeto) sem refazê-lo.",
-  },
-  {
-    chave: "distrato",
-    rotulo: "Distrato",
-    explicacao: "Encerra um contrato antes do fim, com quitação e obrigações finais.",
-  },
-  {
-    chave: "outro",
-    rotulo: "Outro",
-    explicacao: "Descreva o tipo de contrato no campo de objeto e nas instruções.",
-  },
-] as const
-
-export type TipoMinuta = (typeof TIPOS_MINUTA)[number]["chave"]
-
-export function tipoMinuta(valor: unknown): TipoMinuta | null {
-  return TIPOS_MINUTA.some((t) => t.chave === valor) ? (valor as TipoMinuta) : null
+/**
+ * Tipos de contrato e cláusulas fixas são CONFIGURADOS pela entidade
+ * (contratos_minuta_tipos / contratos_clausulas_fixas). A minuta guarda uma
+ * cópia do tipo e das cláusulas usados — mudar a configuração depois não
+ * reescreve minuta já redigida.
+ */
+export type TipoMinutaConfig = {
+  id: string
+  nome: string
+  descricao: string | null
+  orientacao: string | null
+  ativo: boolean
+  ordem: number
 }
 
-export function rotuloTipoMinuta(valor: string | null): string {
-  return TIPOS_MINUTA.find((t) => t.chave === valor)?.rotulo ?? "Contrato"
+export type ClausulaFixa = {
+  id: string
+  titulo: string
+  texto: string
+  ativa: boolean
+  ordem: number
+  /** Vazio = vale para todos os tipos. */
+  tipos: string[]
+}
+
+/** Cláusulas ativas que valem para o tipo escolhido, na ordem configurada. */
+export function clausulasDoTipo(clausulas: ClausulaFixa[], tipoId: string | null): ClausulaFixa[] {
+  return clausulas
+    .filter((c) => c.ativa && (c.tipos.length === 0 || (tipoId !== null && c.tipos.includes(tipoId))))
+    .sort((a, b) => a.ordem - b.ordem)
+}
+
+/** Sem acento, minúsculo, só letras e números: compara texto de cláusula com a minuta. */
+function normalizar(t: string): string {
+  return t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+/** Cláusulas fixas cujo texto não aparece (na íntegra) na minuta. */
+export function clausulasAusentes(
+  texto: string | null,
+  clausulas: { titulo: string; texto: string }[]
+): { titulo: string; texto: string }[] {
+  const corpo = normalizar(texto ?? "")
+  return clausulas.filter((c) => !corpo.includes(normalizar(c.texto)))
 }
 
 /** Papel da entidade no contrato. */
@@ -80,7 +63,12 @@ export type PapelEntidade = (typeof PAPEIS_ENTIDADE)[number]["chave"]
 
 /** O que o usuário informa. Tudo texto: vai para o prompt e fica guardado. */
 export type ParametrosMinuta = {
-  tipo: TipoMinuta
+  tipoId: string | null
+  tipoNome: string
+  /** Orientação do tipo para a IA (cópia do momento da criação). */
+  tipoOrientacao: string | null
+  /** Cláusulas fixas que valiam na criação (cópia). */
+  clausulasFixas: { titulo: string; texto: string }[]
   papelEntidade: PapelEntidade
   /** Outra parte: fornecedor cadastrado (id) e/ou qualificação livre. */
   outraParteId: string | null

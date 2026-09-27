@@ -35,7 +35,6 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
-import { rotuloTipoMinuta } from "@/lib/contratos-minutas-constantes"
 import { listarMinutas } from "@/lib/db/contratos-minutas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -327,7 +326,7 @@ export default async function ContratoPage({
                 {minutas.map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-2">
                     <Link href={`/painel/compras/contratos/minutas/${m.id}`} className="font-medium hover:underline">
-                      {m.titulo ?? rotuloTipoMinuta(m.tipo)}
+                      {m.titulo ?? m.tipo ?? "Minuta"}
                     </Link>
                     <span className="text-muted-foreground text-xs">
                       {m.finalizada ? "finalizada" : `rascunho · v${m.versao}`}

@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   PAPEIS_ENTIDADE,
-  TIPOS_MINUTA,
+  clausulasDoTipo,
+  type ClausulaFixa,
   type ParametrosMinuta,
+  type TipoMinutaConfig,
 } from "@/lib/contratos-minutas-constantes"
 
 import { criarMinutaAction } from "../actions"
@@ -51,6 +53,8 @@ function Campo({
 }
 
 export function NovaMinutaForm({
+  tipos,
+  clausulas,
   fornecedores,
   assinantes,
   sedes,
@@ -58,6 +62,8 @@ export function NovaMinutaForm({
   contratoId,
   inicial,
 }: {
+  tipos: TipoMinutaConfig[]
+  clausulas: ClausulaFixa[]
   fornecedores: EmpresaOpcao[]
   assinantes: { id: string; nome: string; cargo: string | null }[]
   sedes: { id: string; nome: string; cidade: string | null }[]
@@ -66,32 +72,52 @@ export function NovaMinutaForm({
   inicial: Partial<ParametrosMinuta>
 }) {
   const [estado, acao, pendente] = useActionState(criarMinutaAction, {})
-  const [tipo, setTipo] = useState<string>(inicial.tipo ?? "")
+  const [tipo, setTipo] = useState<string>(inicial.tipoId ?? "")
+  const fixas = clausulasDoTipo(clausulas, tipo || null)
 
   return (
     <form action={acao} className="grid gap-8">
       <fieldset className="grid gap-2">
         <legend className="mb-2 text-sm font-medium">1. Tipo de contrato *</legend>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {TIPOS_MINUTA.map((t) => (
-            <label key={t.chave} className={CARTAO}>
+          {tipos.map((t) => (
+            <label key={t.id} className={CARTAO}>
               <input
                 type="radio"
-                name="tipo"
-                value={t.chave}
+                name="tipo_id"
+                value={t.id}
                 required
-                checked={tipo === t.chave}
-                onChange={() => setTipo(t.chave)}
+                checked={tipo === t.id}
+                onChange={() => setTipo(t.id)}
                 className="accent-primary mt-0.5 size-4 shrink-0"
               />
               <span className="grid gap-0.5">
-                <span className="text-sm font-medium">{t.rotulo}</span>
-                <span className="text-muted-foreground text-xs leading-relaxed">{t.explicacao}</span>
+                <span className="text-sm font-medium">{t.nome}</span>
+                {t.descricao && (
+                  <span className="text-muted-foreground text-xs leading-relaxed">{t.descricao}</span>
+                )}
               </span>
             </label>
           ))}
         </div>
       </fieldset>
+
+      {tipo && (
+        <div className="bg-muted/40 grid gap-1 rounded-lg p-3 text-sm">
+          <p className="font-medium">Cláusulas fixas da entidade que entram nesta minuta ({fixas.length})</p>
+          {fixas.length === 0 ? (
+            <p className="text-muted-foreground text-xs">
+              Nenhuma. Elas se configuram em Minutas › Configuração.
+            </p>
+          ) : (
+            <ul className="text-muted-foreground grid gap-0.5 text-xs">
+              {fixas.map((c) => (
+                <li key={c.id}>• {c.titulo}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {!tipo ? (
         <p className="text-muted-foreground text-sm">Escolha o tipo para preencher o restante.</p>

@@ -13,6 +13,11 @@ import {
   listarMinutas,
   parametrosDoContrato,
 } from "@/lib/db/contratos-minutas"
+import {
+  AVISO_SQL_CONFIG,
+  listarClausulasFixas,
+  listarTiposMinuta,
+} from "@/lib/db/contratos-minutas-config"
 import { assinantesVigentes } from "@/lib/db/diretoria"
 import { listarSedes } from "@/lib/db/organizacao"
 
@@ -31,7 +36,7 @@ export default async function NovaMinutaPage({
   await requirePermissao("aquisicoes_contratos_edicao")
   const { contrato } = await searchParams
 
-  const [{ disponivel }, fornecedores, assinantes, { sedes }, contratos, doContrato] =
+  const [{ disponivel }, fornecedores, assinantes, { sedes }, contratos, doContrato, config, fixas] =
     await Promise.all([
       listarMinutas(),
       listarFornecedores(),
@@ -39,7 +44,10 @@ export default async function NovaMinutaPage({
       listarSedes(),
       opcoesContratos(),
       contrato ? parametrosDoContrato(contrato) : Promise.resolve(null),
+      listarTiposMinuta(),
+      listarClausulasFixas(),
     ])
+  const tipos = config.tipos.filter((t) => t.ativo)
 
   return (
     <>
@@ -57,14 +65,26 @@ export default async function NovaMinutaPage({
         </p>
       </div>
 
-      {!disponivel ? (
+      {!disponivel || !config.disponivel ? (
         <Alert variant="warning">
-          <AlertDescription>{AVISO_SQL_MINUTAS}</AlertDescription>
+          <AlertDescription>{!disponivel ? AVISO_SQL_MINUTAS : AVISO_SQL_CONFIG}</AlertDescription>
+        </Alert>
+      ) : tipos.length === 0 ? (
+        <Alert variant="warning">
+          <AlertDescription>
+            Nenhum tipo de contrato ativo.{" "}
+            <Link href="/painel/compras/contratos/minutas/configuracao" className="underline">
+              Configure os tipos
+            </Link>{" "}
+            antes de criar minutas.
+          </AlertDescription>
         </Alert>
       ) : (
         <Card>
           <CardContent className="pt-6">
             <NovaMinutaForm
+              tipos={tipos}
+              clausulas={fixas.clausulas}
               fornecedores={fornecedores.map((f) => ({
                 id: f.id,
                 nome: f.nome,

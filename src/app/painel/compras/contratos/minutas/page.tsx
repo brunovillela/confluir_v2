@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FilePen, Plus } from "lucide-react"
+import { ArrowLeft, FilePen, Plus, Settings2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { rotuloTipoMinuta } from "@/lib/contratos-minutas-constantes"
 import { AVISO_SQL_MINUTAS, listarMinutas } from "@/lib/db/contratos-minutas"
 import { formatarData } from "@/lib/formato"
 
@@ -48,12 +47,20 @@ export default async function MinutasPage({
             </p>
           </div>
           {disponivel && (
-            <Button asChild>
-              <Link href="/painel/compras/contratos/minutas/nova">
-                <Plus />
-                Nova minuta
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/painel/compras/contratos/minutas/configuracao">
+                  <Settings2 />
+                  Cláusulas fixas e tipos
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/painel/compras/contratos/minutas/nova">
+                  <Plus />
+                  Nova minuta
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -102,7 +109,7 @@ export default async function MinutasPage({
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground hidden text-sm md:table-cell">
-                      {rotuloTipoMinuta(m.tipo)}
+                      {m.tipo ?? "—"}
                     </TableCell>
                     <TableCell className="hidden text-sm md:table-cell">
                       {m.contratoId ? (

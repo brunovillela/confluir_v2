@@ -10,10 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import {
-  ORIGENS_VERSAO,
-  rotuloTipoMinuta,
-} from "@/lib/contratos-minutas-constantes"
+import { ORIGENS_VERSAO } from "@/lib/contratos-minutas-constantes"
 import { opcoesContratos } from "@/lib/db/contratos"
 import { obterMinuta } from "@/lib/db/contratos-minutas"
 import { formatarDataHora } from "@/lib/formato"
@@ -70,7 +67,7 @@ export default async function MinutaPage({
               )}
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
-              {rotuloTipoMinuta(minuta.tipo)} · versão {minuta.versao}
+              {minuta.tipo ?? "Contrato"} · versão {minuta.versao}
               {minuta.contratoId && (
                 <>
                   {" · "}
@@ -128,7 +125,12 @@ export default async function MinutaPage({
       <Card>
         <CardContent className="pt-6">
           {/* key: depois de ajuste/restauração o editor recomeça do texto novo. */}
-          <EditorMinuta key={`${minuta.versao}`} id={id} texto={minuta.texto ?? ""} />
+          <EditorMinuta
+            key={`${minuta.versao}`}
+            id={id}
+            texto={minuta.texto ?? ""}
+            clausulasFixas={minuta.parametros.clausulasFixas ?? []}
+          />
         </CardContent>
       </Card>
 
