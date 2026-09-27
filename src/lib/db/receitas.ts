@@ -7,6 +7,8 @@ import {
   listarFontesPagadoras,
   nomesDeEmpresas,
 } from "@/lib/db/fontes"
+import { limparCpf } from "@/lib/cpf"
+import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -286,7 +288,7 @@ export async function detalheRemessa(
       id: fonteId,
       nome:
         fonteId === "sem_fonte"
-          ? "(sem fonte identificada)"
+          ? "Sem fonte pagadora"
           : (nomes.get(fonteId) ?? "(sem nome)"),
       pagantes: v.pagantes,
       total: v.total,
@@ -329,7 +331,8 @@ export async function detalheRemessa(
  */
 export async function relatorioFonteRemessa(
   remessaId: string,
-  fonteId: string
+  /** null = lançamentos sem fonte pagadora (Pix/boleto direto à entidade). */
+  fonteId: string | null
 ): Promise<RelatorioFonte> {
   const [todos, stats, vinculos] = await Promise.all([
     lancamentosDaRemessa(remessaId),
@@ -436,9 +439,10 @@ async function lancamentosRemessaVizinha(
  * Petrobras (12 mil vínculos) ficavam com o mapa de matrículas capado.
  */
 async function vinculosDaFonte(
-  fonteId: string,
+  fonteId: string | null,
   opcoes: { somenteAbertos?: boolean } = {}
 ) {
+  if (!fonteId) return []
   const admin = await createAdminClient()
   const empId = await tenantAtual()
   return lerLotes<{
@@ -530,7 +534,8 @@ type ItemResolver = {
  * no filiado errado). Devolve também COMO casou, p/ o preview revisar por-nome.
  */
 export async function resolverFiliadosLoteDetalhado(
-  fonteId: string,
+  /** null = lista sem fonte: casa só por CPF e nome. */
+  fonteId: string | null,
   remessaId: string,
   itens: ItemResolver[]
 ): Promise<ResolucaoFiliado[]> {
@@ -545,7 +550,9 @@ export async function resolverFiliadosLoteDetalhado(
   const porNome = new Map<string, string>()
   const nomesAmbiguos = new Set<string>()
   for (const r of stats.registros) {
-    if (r.cpf && !porCpf.has(r.cpf)) porCpf.set(r.cpf, r.id)
+    // O legado tem CPF com e sem máscara; a lista chega só com dígitos.
+    const cpf = r.cpf ? limparCpf(r.cpf) : ""
+    if (cpf.length === 11 && !porCpf.has(cpf)) porCpf.set(cpf, r.id)
     const nomeChave = normalizarNome(r.nome_completo)
     if (nomeChave) {
       const existente = porNome.get(nomeChave)
@@ -610,10 +617,65 @@ export async function resolverFiliadosLoteDetalhado(
 
 /** Compat: mesma assinatura de antes (usada pela importação manual de CSV). */
 export async function resolverFiliadosLote(
-  fonteId: string,
+  fonteId: string | null,
   remessaId: string,
   itens: { cpf: string | null; matriculaFonte: string | null }[]
 ): Promise<(string | null)[]> {
   const det = await resolverFiliadosLoteDetalhado(fonteId, remessaId, itens)
   return det.map((d) => d.filiadoId)
+}
+
+// ── Forma de recebimento ───────────────────────────────────────────────────
+
+/**
+ * Forma gravada em cada lançamento (por id — só os da página exibida, para
+ * não pesar a leitura da remessa inteira, que usa o índice cobrindo).
+ */
+export async function formasDosLancamentos(
+  ids: string[]
+): Promise<Map<string, FormaRecebimento | null>> {
+  const mapa = new Map<string, FormaRecebimento | null>()
+  if (ids.length === 0) return mapa
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  for (let de = 0; de < ids.length; de += 200) {
+    const { data } = await admin
+      .from("filiacao_recebe")
+      .select("id, forma_recebimento")
+      .in("id", ids.slice(de, de + 200))
+      .eq("emp_proprietaria_id", empId)
+    for (const r of data ?? []) mapa.set(r.id as string, formaRecebimento(r.forma_recebimento))
+  }
+  return mapa
+}
+
+/**
+ * Leva a forma da lista importada para o cadastro de quem pagou. Só troca se
+ * a remessa for igual ou mais nova que a que definiu a forma atual
+ * (`forma_recebimento_ordem`) — subir uma remessa antiga não desfaz a forma
+ * de hoje. Forma definida à mão (ordem null) é trocada pela próxima lista.
+ */
+export async function registrarFormaNoCadastro(
+  remessaId: string,
+  filiadoIds: (string | null)[],
+  forma: FormaRecebimento
+): Promise<void> {
+  const ids = [...new Set(filiadoIds.filter((v): v is string => Boolean(v)))]
+  if (ids.length === 0) return
+  const remessa = await buscarRemessa(remessaId)
+  const ordem = remessa?.ordem ?? null
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  for (let de = 0; de < ids.length; de += 200) {
+    let q = admin
+      .from("filiacoes")
+      .update({ forma_recebimento: forma, forma_recebimento_ordem: ordem })
+      .in("id", ids.slice(de, de + 200))
+      .eq("emp_proprietaria_id", empId)
+    q = ordem
+      ? q.or(`forma_recebimento_ordem.is.null,forma_recebimento_ordem.lte.${ordem}`)
+      : q.is("forma_recebimento_ordem", null)
+    const { error } = await q
+    if (error) throw new Error(`Falha ao atualizar a forma no cadastro: ${error.message}`)
+  }
 }

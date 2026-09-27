@@ -28,9 +28,13 @@ const brl = (n: number) =>
 export function ImportarRelatorioIa({
   remessaId,
   fonteId,
+  forma,
 }: {
   remessaId: string
+  /** uuid da fonte ou "sem-fonte". */
   fonteId: string
+  /** Forma de recebimento escolhida para a lista. */
+  forma: string
 }) {
   const [estado, extrairAction, extraindo] = useActionState(
     extrairContribuicoesIa,
@@ -47,7 +51,7 @@ export function ImportarRelatorioIa({
     if (!estado.itens) return
     setConfirmando(true)
     setErroConfirm(null)
-    const r = await registrarContribuicoesIa(remessaId, fonteId, estado.itens)
+    const r = await registrarContribuicoesIa(remessaId, fonteId, estado.itens, forma)
     setConfirmando(false)
     if (r.erro) {
       setErroConfirm(r.erro)

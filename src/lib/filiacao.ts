@@ -32,6 +32,13 @@ export const ROTULOS_FORMA_RECEBIMENTO: Record<FormaRecebimento, string> = {
   boleto: "Boleto",
 }
 
+/** Para tabelas: sem o complemento entre parênteses. */
+export const ROTULO_CURTO_FORMA_RECEBIMENTO: Record<FormaRecebimento, string> = {
+  consignado: "Consignado",
+  pix: "Pix",
+  boleto: "Boleto",
+}
+
 export const EXPLICACAO_FORMA_RECEBIMENTO: Record<FormaRecebimento, string> = {
   consignado: "A empresa ou o fundo de pensão desconta no contracheque e repassa à entidade.",
   pix: "O próprio filiado paga todo mês por Pix.",

@@ -26,12 +26,15 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { nomesDeEmpresas } from "@/lib/db/fontes"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
   buscarRemessa,
+  formasDosLancamentos,
   listarRemessas,
   recebimentosDaRemessa,
   relatorioFonteRemessa,
 } from "@/lib/db/receitas"
+import { ROTULO_CURTO_FORMA_RECEBIMENTO } from "@/lib/filiacao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -69,11 +72,13 @@ export default async function RelatorioFontePage({
   const { id, fonteId } = await params
   const sp = await searchParams
   const busca = sp.busca ?? ""
+  // "sem-fonte": lançamentos sem fonte pagadora (Pix/boleto direto à entidade).
+  const semFonte = fonteId === "sem-fonte"
 
-  const [remessa, cargaRelatorio, recebimentos, nomes, todasRemessas] =
+  const [remessa, cargaRelatorio, recebimentos, nomes, todasRemessas, regras] =
     await Promise.all([
     buscarRemessa(id),
-    relatorioFonteRemessa(id, fonteId).then(
+    relatorioFonteRemessa(id, semFonte ? null : fonteId).then(
       (relatorio) => ({ relatorio, erro: null as string | null }),
       (e: unknown) => ({
         relatorio: null,
@@ -84,8 +89,9 @@ export default async function RelatorioFontePage({
       })
     ),
     recebimentosDaRemessa(id),
-    nomesDeEmpresas([fonteId]),
+    semFonte ? Promise.resolve(new Map<string, string>()) : nomesDeEmpresas([fonteId]),
     listarRemessas(),
+    regrasFiliacao(),
   ])
   if (!remessa) notFound()
 
@@ -93,8 +99,10 @@ export default async function RelatorioFontePage({
     .filter((r) => r.id !== id)
     .map((r) => ({ id: r.id, rotulo: `${r.rotulo} ${r.tipo ?? ""}`.trim() }))
 
-  const nomeFonte = nomes.get(fonteId) ?? "(sem nome)"
-  const recebimento = recebimentos.get(fonteId) ?? null
+  const nomeFonte = semFonte ? "Sem fonte pagadora" : (nomes.get(fonteId) ?? "(sem nome)")
+  const recebimento = semFonte ? null : (recebimentos.get(fonteId) ?? null)
+  // Com a regra "a filiação depende de fonte", nada novo entra sem fonte.
+  const podeEnviar = !semFonte || !regras.exigeFonte
 
   // Comprovante: caminho no Storage vira link assinado; URLs antigas passam direto
   let urlComprovante: string | null = null
@@ -140,6 +148,7 @@ export default async function RelatorioFontePage({
     (paginaAtual - 1) * POR_PAGINA,
     paginaAtual * POR_PAGINA
   )
+  const formas = await formasDosLancamentos(daPagina.map((l) => l.id))
   const urlPagina = (p: number) =>
     `/painel/filiados/receitas/${id}/${fonteId}?${new URLSearchParams({
       ...(busca ? { busca } : {}),
@@ -171,12 +180,16 @@ export default async function RelatorioFontePage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
           Remessa {remessa.tipo ?? ""} {remessa.rotulo} —{" "}
-          <Link
-            href={`/painel/representacao/empregadores/${fonteId}`}
-            className="underline-offset-4 hover:underline"
-          >
-            {nomeFonte}
-          </Link>
+          {semFonte ? (
+            nomeFonte
+          ) : (
+            <Link
+              href={`/painel/representacao/empregadores/${fonteId}`}
+              className="underline-offset-4 hover:underline"
+            >
+              {nomeFonte}
+            </Link>
+          )}
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           {stats.pagantes.toLocaleString("pt-BR")} filiado
@@ -218,6 +231,7 @@ export default async function RelatorioFontePage({
 
       <div className="grid items-start gap-4 xl:grid-cols-2">
         <div className="grid gap-4 xl:order-2">
+      {!semFonte && (
       <GrupoColapsavel
         titulo="Recebimento"
         descricao="Depósito bancário desta fonte na remessa"
@@ -256,23 +270,39 @@ export default async function RelatorioFontePage({
           />
         </div>
       </GrupoColapsavel>
+      )}
 
       <GrupoColapsavel
         titulo="Enviar relação de pagamentos"
-        descricao="Importa a remessa de contribuições (CSV) ou inclui um filiado por vez"
+        descricao={
+          semFonte
+            ? "Pagamentos feitos direto à entidade, sem fonte pagadora"
+            : "Importa a remessa de contribuições (CSV) ou inclui um filiado por vez"
+        }
       >
-        <EnviarContribuicoes
-          remessaId={id}
-          fonteId={fonteId}
-          ativosNaoPagantes={ativosNaoPagantes}
-        />
+        {podeEnviar ? (
+          <EnviarContribuicoes
+            remessaId={id}
+            fonteId={fonteId}
+            ativosNaoPagantes={ativosNaoPagantes}
+          />
+        ) : (
+          <Alert variant="warning">
+            <AlertDescription>
+              Pela regra da entidade, todo recebimento fica vinculado a uma fonte pagadora —
+              envie a lista pela fonte (inclusive Pix e boleto). A regra fica em Institucional ›
+              Organização › Regras de filiação.
+            </AlertDescription>
+          </Alert>
+        )}
       </GrupoColapsavel>
 
       <GrupoColapsavel
-        titulo="Gerenciar lançamentos desta fonte"
-        descricao="Mover para outra remessa ou excluir a relação enviada"
+        titulo={semFonte ? "Gerenciar lançamentos sem fonte" : "Gerenciar lançamentos desta fonte"}
+        descricao={semFonte ? "Excluir a relação enviada" : "Mover para outra remessa ou excluir a relação enviada"}
       >
         <div className="grid gap-6">
+          {!semFonte && (
           <div className="grid gap-1.5">
             <p className="text-sm font-medium">Trocar remessa</p>
             <p className="text-muted-foreground text-xs">
@@ -284,9 +314,10 @@ export default async function RelatorioFontePage({
               opcoes={opcoesRemessa}
             />
           </div>
+          )}
           <div className="border-destructive/30 grid gap-2 rounded-md border border-dashed p-3">
             <p className="text-destructive text-sm font-medium">
-              Excluir todos os lançamentos desta fonte
+              {semFonte ? "Excluir todos os lançamentos sem fonte" : "Excluir todos os lançamentos desta fonte"}
             </p>
             <ExcluirLancamentosFonte
               remessaId={id}
@@ -297,6 +328,7 @@ export default async function RelatorioFontePage({
         </div>
       </GrupoColapsavel>
 
+      {!semFonte && (
       <GrupoColapsavel
         titulo="Filiados ativos não pagantes"
         descricao="Ativos com vínculo nesta fonte fora da relação enviada"
@@ -312,6 +344,7 @@ export default async function RelatorioFontePage({
           linhas={ativosNaoPagantes}
         />
       </GrupoColapsavel>
+      )}
 
       <GrupoColapsavel
         titulo="Pagantes não ativos"
@@ -353,7 +386,9 @@ export default async function RelatorioFontePage({
                 {stats.pagantes.toLocaleString("pt-BR")})
               </CardTitle>
               <CardDescription>
-                Trabalhadores descontados informados pela fonte
+                {semFonte
+                  ? "Pagamentos feitos direto à entidade"
+                  : "Trabalhadores descontados informados pela fonte"}
               </CardDescription>
             </div>
             <form method="GET" className="relative">
@@ -373,7 +408,9 @@ export default async function RelatorioFontePage({
             <p className="text-muted-foreground py-6 text-center text-sm">
               {termo
                 ? `Nenhum pagante encontrado para “${busca.trim()}”.`
-                : "Nenhum lançamento nesta fonte."}
+                : semFonte
+                  ? "Nenhum lançamento sem fonte nesta remessa."
+                  : "Nenhum lançamento nesta fonte."}
             </p>
           ) : (
             <Table>
@@ -381,8 +418,9 @@ export default async function RelatorioFontePage({
                 <TableRow>
                   <TableHead>Filiado</TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Matrícula na fonte
+                    {semFonte ? "CPF" : "Matrícula na fonte"}
                   </TableHead>
+                  <TableHead>Forma</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
@@ -401,7 +439,15 @@ export default async function RelatorioFontePage({
                       </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground hidden font-mono text-xs md:table-cell">
-                      {l.matriculaFonte ?? "—"}
+                      {(semFonte ? l.cpf : l.matriculaFonte) ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                      {(() => {
+                        const forma = formas.get(l.id)
+                        // Lançamento antigo (sem forma) veio pela fonte: desconto em folha.
+                        if (forma) return ROTULO_CURTO_FORMA_RECEBIMENTO[forma]
+                        return semFonte ? "—" : "Consignado"
+                      })()}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap tabular-nums">
                       {formatarMoeda(l.valor)}

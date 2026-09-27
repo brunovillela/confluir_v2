@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 import { detalheRemessa } from "@/lib/db/receitas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -50,7 +51,7 @@ export default async function RemessaPage({
 
   const { id } = await params
   const sp = await searchParams
-  const detalhe = await detalheRemessa(id)
+  const [detalhe, regras] = await Promise.all([detalheRemessa(id), regrasFiliacao()])
   if (!detalhe) notFound()
   const { remessa, totais, fontes, fontesSemInformacao, erroCarga } = detalhe
 
@@ -126,12 +127,23 @@ export default async function RemessaPage({
               informação
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/painel/filiados/receitas/${id}/editar`}>
-              <Pencil />
-              Editar remessa
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/* Sem a regra "depende de fonte", Pix/boleto podem entrar direto. */}
+            {!regras.exigeFonte && (
+              <Button size="sm" asChild>
+                <Link href={`/painel/filiados/receitas/${id}/sem-fonte`}>
+                  <Banknote />
+                  Recebimentos sem fonte
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/filiados/receitas/${id}/editar`}>
+                <Pencil />
+                Editar remessa
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -204,18 +216,13 @@ export default async function RemessaPage({
                   {fontes.map((f) => (
                     <TableRow key={f.id}>
                       <TableCell className="max-w-56 font-medium">
-                        {f.id === "sem_fonte" ? (
-                          <span className="text-muted-foreground">
-                            {f.nome}
-                          </span>
-                        ) : (
-                          <Link
-                            href={`/painel/filiados/receitas/${remessa.id}/${f.id}`}
-                            className="hover:underline"
-                          >
-                            <span className="block truncate">{f.nome}</span>
-                          </Link>
-                        )}
+                        {/* "sem_fonte" (chave do agregado) abre a página /sem-fonte. */}
+                        <Link
+                          href={`/painel/filiados/receitas/${remessa.id}/${f.id === "sem_fonte" ? "sem-fonte" : f.id}`}
+                          className="hover:underline"
+                        >
+                          <span className="block truncate">{f.nome}</span>
+                        </Link>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {f.pagantes.toLocaleString("pt-BR")}
@@ -247,14 +254,12 @@ export default async function RemessaPage({
                         )}
                       </TableCell>
                       <TableCell>
-                        {f.id !== "sem_fonte" && (
-                          <Link
-                            href={`/painel/filiados/receitas/${remessa.id}/${f.id}`}
-                            aria-label={`Abrir relatório de ${f.nome}`}
-                          >
-                            <ChevronRight className="text-muted-foreground size-4" />
-                          </Link>
-                        )}
+                        <Link
+                          href={`/painel/filiados/receitas/${remessa.id}/${f.id === "sem_fonte" ? "sem-fonte" : f.id}`}
+                          aria-label={`Abrir relatório de ${f.nome}`}
+                        >
+                          <ChevronRight className="text-muted-foreground size-4" />
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

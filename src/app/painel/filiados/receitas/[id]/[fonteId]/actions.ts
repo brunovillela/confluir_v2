@@ -10,10 +10,13 @@ import { type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv, normalizarCabecalho, parseCsv } from "@/lib/csv"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
   invalidarCacheRemessa,
+  registrarFormaNoCadastro,
   resolverFiliadosLote,
 } from "@/lib/db/receitas"
+import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -36,11 +39,40 @@ function parseValor(bruto: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function idsDoForm(formData: FormData): { remessaId: string; fonteId: string } | null {
+/** Segmento da URL (e valor de `fonte_id` nos forms) dos lançamentos sem fonte. */
+const SEM_FONTE = "sem-fonte"
+
+/**
+ * `fonteId` é o segmento da URL (uuid ou "sem-fonte"); `fonteDb` é o que vai
+ * para `fonte_pg_id` (null nos lançamentos sem fonte pagadora).
+ */
+function idsDoForm(
+  formData: FormData
+): { remessaId: string; fonteId: string; fonteDb: string | null } | null {
   const remessaId = String(formData.get("remessa_id") ?? "")
   const fonteId = String(formData.get("fonte_id") ?? "")
-  if (!UUID.test(remessaId) || !UUID.test(fonteId)) return null
-  return { remessaId, fonteId }
+  if (!UUID.test(remessaId)) return null
+  if (fonteId === SEM_FONTE) return { remessaId, fonteId, fonteDb: null }
+  if (!UUID.test(fonteId)) return null
+  return { remessaId, fonteId, fonteDb: fonteId }
+}
+
+/**
+ * Forma escolhida para a lista e, se for sem fonte, a regra da entidade:
+ * com "a filiação depende de fonte", todo recebimento entra por uma fonte.
+ */
+async function formaDaLista(
+  formData: FormData,
+  fonteDb: string | null
+): Promise<{ forma: FormaRecebimento } | { erro: string }> {
+  const forma = formaRecebimento(String(formData.get("forma_recebimento") ?? ""))
+  if (!forma) return { erro: "Escolha a forma de recebimento desta lista." }
+  if (!fonteDb && (await regrasFiliacao()).exigeFonte) {
+    return {
+      erro: "Pela regra da entidade, todo recebimento fica vinculado a uma fonte pagadora — envie a lista pela fonte.",
+    }
+  }
+  return { forma }
 }
 
 function voltar(remessaId: string, fonteId: string, flag: string): never {
@@ -59,7 +91,7 @@ export async function registrarRecebimento(
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
 
   const ids = idsDoForm(formData)
-  if (!ids) return { erro: "Remessa ou fonte inválida." }
+  if (!ids?.fonteDb) return { erro: "Remessa ou fonte inválida." }
   const { remessaId, fonteId } = ids
 
   const data = String(formData.get("data") ?? "")
@@ -153,7 +185,10 @@ export async function importarContribuicoes(
 
   const ids = idsDoForm(formData)
   if (!ids) return { erro: "Remessa ou fonte inválida." }
-  const { remessaId, fonteId } = ids
+  const { remessaId, fonteId, fonteDb } = ids
+  const escolha = await formaDaLista(formData, fonteDb)
+  if ("erro" in escolha) return { erro: escolha.erro }
+  const { forma } = escolha
 
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
@@ -177,6 +212,9 @@ export async function importarContribuicoes(
     return {
       erro: "A planilha precisa da coluna “valor” e de “cpf” ou “matricula” — baixe o modelo.",
     }
+  }
+  if (!fonteDb && !colunas.includes("cpf")) {
+    return { erro: "Sem fonte pagadora não há matrícula: a planilha precisa da coluna “cpf”." }
   }
 
   const erros: { linha: number; motivo: string }[] = []
@@ -217,7 +255,7 @@ export async function importarContribuicoes(
     itens.push({ linha: numeroLinha, cpf: cpf || null, matriculaFonte: matricula, valor })
   }
 
-  const resolvidos = await resolverFiliadosLote(fonteId, remessaId, itens)
+  const resolvidos = await resolverFiliadosLote(fonteDb, remessaId, itens)
 
   const admin = await createAdminClient()
   let identificados = 0
@@ -232,11 +270,12 @@ export async function importarContribuicoes(
         else naoEncontrados++
         return {
           remessa_id: remessaId,
-          fonte_pg_id: fonteId,
+          fonte_pg_id: fonteDb,
           filiado_id: filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
           valor: item.valor,
+          forma_recebimento: forma,
           emp_proprietaria_id: empId,
         }
       })
@@ -245,6 +284,7 @@ export async function importarContribuicoes(
       return { erro: `Falha ao gravar os lançamentos: ${error.message}` }
     }
   }
+  await registrarFormaNoCadastro(remessaId, resolvidos, forma)
 
   invalidarCacheRemessa(remessaId)
   revalidatePath(`/painel/filiados/receitas/${remessaId}`)
@@ -267,7 +307,10 @@ export async function incluirContribuicao(
 
   const ids = idsDoForm(formData)
   if (!ids) return { erro: "Remessa ou fonte inválida." }
-  const { remessaId, fonteId } = ids
+  const { remessaId, fonteId, fonteDb } = ids
+  const escolha = await formaDaLista(formData, fonteDb)
+  if ("erro" in escolha) return { erro: escolha.erro }
+  const { forma } = escolha
 
   const valor = parseValor(String(formData.get("valor") ?? ""))
   const admin = await createAdminClient()
@@ -278,7 +321,7 @@ export async function incluirContribuicao(
   let cpf: string | null
   let matricula: string | null
 
-  if (escolhido) {
+  if (escolhido && fonteDb) {
     // Filiado escolhido na lista de ativos da fonte fora da relação. A lista
     // veio da página, então o servidor reconfere: o registro é desta
     // organização e ainda não está na relação desta fonte nesta remessa.
@@ -296,7 +339,7 @@ export async function incluirContribuicao(
           .from("filiacao_recebe")
           .select("id")
           .eq("remessa_id", remessaId)
-          .eq("fonte_pg_id", fonteId)
+          .eq("fonte_pg_id", fonteDb)
           .eq("filiado_id", escolhido)
           .eq("emp_proprietaria_id", empId)
           .limit(1)
@@ -305,7 +348,7 @@ export async function incluirContribuicao(
           .from("filiacao_vinculos")
           .select("matricula, fonte_pg_matricula")
           .eq("filiado_id", escolhido)
-          .eq("fonte_pagadora_id", fonteId)
+          .eq("fonte_pagadora_id", fonteDb)
           .eq("emp_proprietaria_id", empId)
           .is("data_desfiliacao", null)
           .is("filiacao_data_saida", null)
@@ -330,8 +373,11 @@ export async function incluirContribuicao(
     const cpfBruto = String(formData.get("cpf") ?? "").trim()
     const cpfLimpo = cpfBruto ? limparCpf(cpfBruto) : ""
     if (cpfBruto && !validarCpf(cpfLimpo)) return { erro: "CPF inválido." }
-    matricula =
-      String(formData.get("matricula") ?? "").replace(/\D/g, "") || null
+    // Sem fonte não há matrícula na fonte: casa só pelo CPF.
+    matricula = fonteDb
+      ? String(formData.get("matricula") ?? "").replace(/\D/g, "") || null
+      : null
+    if (!fonteDb && !cpfLimpo) return { erro: "Informe o CPF do filiado." }
     if (!cpfLimpo && !matricula) {
       return {
         erro: "Escolha um filiado na lista ou informe o CPF ou a matrícula na fonte.",
@@ -340,7 +386,7 @@ export async function incluirContribuicao(
     if (valor === null) return { erro: "Informe o valor da contribuição." }
     cpf = cpfLimpo || null
 
-    const [resolvido] = await resolverFiliadosLote(fonteId, remessaId, [
+    const [resolvido] = await resolverFiliadosLote(fonteDb, remessaId, [
       { cpf, matriculaFonte: matricula },
     ])
     if (!resolvido) {
@@ -353,14 +399,16 @@ export async function incluirContribuicao(
 
   const { error } = await admin.from("filiacao_recebe").insert({
     remessa_id: remessaId,
-    fonte_pg_id: fonteId,
+    fonte_pg_id: fonteDb,
     filiado_id: filiadoId,
     cpf,
     fonte_pg_matricula: matricula,
     valor,
+    forma_recebimento: forma,
     emp_proprietaria_id: empId,
   })
   if (error) return { erro: `Não foi possível incluir: ${error.message}` }
+  await registrarFormaNoCadastro(remessaId, [filiadoId], forma)
 
   invalidarCacheRemessa(remessaId)
   voltar(remessaId, fonteId, "contribuicao")
@@ -377,7 +425,8 @@ export async function trocarRemessa(
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
 
   const ids = idsDoForm(formData)
-  if (!ids) return { erro: "Remessa ou fonte inválida." }
+  // Só a fonte move junto a comprovação do depósito; sem fonte não se aplica.
+  if (!ids?.fonteDb) return { erro: "Remessa ou fonte inválida." }
   const destino = String(formData.get("remessa_destino") ?? "")
   if (!UUID.test(destino)) return { erro: "Escolha a remessa de destino." }
   if (destino === ids.remessaId) {
@@ -534,12 +583,14 @@ export async function excluirLancamentosDaFonte(
   if (!ids) return { erro: "Remessa ou fonte inválida." }
 
   const admin = await createAdminClient()
-  const { error, count } = await admin
+  const apagar = admin
     .from("filiacao_recebe")
     .delete({ count: "exact" })
     .eq("remessa_id", ids.remessaId)
-    .eq("fonte_pg_id", ids.fonteId)
     .eq("emp_proprietaria_id", await tenantAtual())
+  const { error, count } = ids.fonteDb
+    ? await apagar.eq("fonte_pg_id", ids.fonteDb)
+    : await apagar.is("fonte_pg_id", null)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
 
   invalidarCacheRemessa(ids.remessaId)

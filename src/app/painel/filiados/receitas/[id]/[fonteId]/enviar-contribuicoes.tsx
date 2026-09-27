@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { RelatorioFonte } from "@/lib/db/receitas"
+import {
+  EXPLICACAO_FORMA_RECEBIMENTO,
+  FORMAS_RECEBIMENTO,
+  ROTULOS_FORMA_RECEBIMENTO,
+  type FormaRecebimento,
+} from "@/lib/filiacao"
 import { mascaraCpf } from "@/lib/mascaras"
 import { cn } from "@/lib/utils"
 
@@ -18,9 +24,11 @@ const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 /**
- * Envio da relação de pagamentos: em massa (CSV) ou um filiado por vez.
- * No individual, o filiado vem da lista de ativos da fonte que ainda não
- * estão na relação (em ordem alfabética) OU do CPF / matrícula na fonte.
+ * Envio da relação de pagamentos: primeiro a FORMA de recebimento da lista
+ * (vai para cada lançamento e para o cadastro de quem pagou); depois em massa
+ * (CSV), relatório (IA) ou um filiado por vez. No individual com fonte, o
+ * filiado vem da lista de ativos da fonte fora da relação OU do CPF /
+ * matrícula na fonte; sem fonte ("sem-fonte"), só pelo CPF.
  */
 export function EnviarContribuicoes({
   remessaId,
@@ -28,10 +36,13 @@ export function EnviarContribuicoes({
   ativosNaoPagantes,
 }: {
   remessaId: string
+  /** uuid da fonte ou "sem-fonte". */
   fonteId: string
   /** Ativos com vínculo em aberto na fonte fora da relação, já em ordem alfabética. */
   ativosNaoPagantes: RelatorioFonte["ativosNaoPagantes"]
 }) {
+  const semFonte = fonteId === "sem-fonte"
+  const [forma, setForma] = useState<FormaRecebimento | "">("")
   const [modo, setModo] = useState<"massa" | "individual" | "ia">("massa")
   const [filiadoId, setFiliadoId] = useState("")
   const [massa, massaAction, massaPendente] = useActionState(
@@ -61,6 +72,46 @@ export function EnviarContribuicoes({
 
   return (
     <div className="grid gap-4">
+      <fieldset className="grid gap-2">
+        <legend className="mb-2 text-sm font-medium">
+          1. Forma de recebimento desta lista *
+        </legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {FORMAS_RECEBIMENTO.map((f) => (
+            <label
+              key={f}
+              className="border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 hover:bg-muted/50 flex cursor-pointer gap-2.5 rounded-lg border p-2.5 transition-colors"
+            >
+              <input
+                type="radio"
+                name="forma_escolhida"
+                value={f}
+                checked={forma === f}
+                onChange={() => setForma(f)}
+                className="accent-primary mt-0.5 size-4 shrink-0"
+              />
+              <span className="grid gap-0.5">
+                <span className="text-sm font-medium">{ROTULOS_FORMA_RECEBIMENTO[f]}</span>
+                <span className="text-muted-foreground text-xs leading-relaxed">
+                  {EXPLICACAO_FORMA_RECEBIMENTO[f]}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Cada recebimento da lista é gravado com esta forma, e o cadastro de quem pagou
+          passa a mostrá-la — a não ser que ele já tenha uma forma vinda de remessa mais nova.
+        </p>
+      </fieldset>
+
+      {!forma ? (
+        <p className="text-muted-foreground text-sm">
+          Escolha a forma de recebimento para enviar a lista.
+        </p>
+      ) : (
+      <>
+      <p className="text-sm font-medium">2. Envie a lista</p>
       <div className="bg-muted/60 inline-flex w-fit items-center gap-1 rounded-full p-1">
         {botaoModo("massa", "Em massa (CSV)")}
         {botaoModo("ia", "Relatório (IA)")}
@@ -71,6 +122,7 @@ export function EnviarContribuicoes({
         <form action={massaAction} className="grid gap-3">
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="fonte_id" value={fonteId} />
+          <input type="hidden" name="forma_recebimento" value={forma} />
           <div className="grid gap-1.5">
             <Label htmlFor="arquivo">Relação de pagamentos (CSV)</Label>
             <Input
@@ -81,8 +133,10 @@ export function EnviarContribuicoes({
               required
             />
             <p className="text-muted-foreground text-xs">
-              Colunas: cpf e/ou matricula (na fonte) + valor. Quem não for
-              encontrado entra como “não encontrado no cadastro”.
+              {semFonte
+                ? "Colunas: cpf + valor (sem fonte não há matrícula)."
+                : "Colunas: cpf e/ou matricula (na fonte) + valor."}{" "}
+              Quem não for encontrado entra como “não encontrado no cadastro”.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -137,11 +191,13 @@ export function EnviarContribuicoes({
         <form action={individualAction} className="grid gap-3">
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="fonte_id" value={fonteId} />
+          <input type="hidden" name="forma_recebimento" value={forma} />
           {individual.erro && (
             <Alert variant="destructive">
               <AlertDescription>{individual.erro}</AlertDescription>
             </Alert>
           )}
+          {!semFonte && (
           <div className="grid gap-1.5">
             <Label htmlFor="filiado_id">Filiado ativo desta fonte</Label>
             <select
@@ -174,12 +230,14 @@ export function EnviarContribuicoes({
                 : "Ativos com vínculo em aberto na fonte que ainda não estão na relação. Se a pessoa não estiver aqui, informe o CPF ou a matrícula na fonte."}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          )}
+          <div className={cn("grid gap-3", semFonte ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
             <div className="grid gap-1.5">
-              <Label htmlFor="cpf">CPF</Label>
+              <Label htmlFor="cpf">CPF{semFonte ? " *" : ""}</Label>
               <Input
                 id="cpf"
                 name="cpf"
+                required={semFonte}
                 inputMode="numeric"
                 placeholder="000.000.000-00"
                 disabled={Boolean(filiadoId)}
@@ -188,15 +246,17 @@ export function EnviarContribuicoes({
                 }}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="matricula">Matrícula na fonte</Label>
-              <Input
-                id="matricula"
-                name="matricula"
-                inputMode="numeric"
-                disabled={Boolean(filiadoId)}
-              />
-            </div>
+            {!semFonte && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="matricula">Matrícula na fonte</Label>
+                <Input
+                  id="matricula"
+                  name="matricula"
+                  inputMode="numeric"
+                  disabled={Boolean(filiadoId)}
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="valor">Valor *</Label>
               <Input
@@ -222,7 +282,9 @@ export function EnviarContribuicoes({
       )}
 
       {modo === "ia" && (
-        <ImportarRelatorioIa remessaId={remessaId} fonteId={fonteId} />
+        <ImportarRelatorioIa remessaId={remessaId} fonteId={fonteId} forma={forma} />
+      )}
+      </>
       )}
     </div>
   )

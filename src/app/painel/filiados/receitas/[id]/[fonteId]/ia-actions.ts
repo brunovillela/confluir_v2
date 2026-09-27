@@ -7,11 +7,14 @@ import * as XLSX from "xlsx"
 import { requirePermissao } from "@/lib/auth"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv } from "@/lib/csv"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
   invalidarCacheRemessa,
+  registrarFormaNoCadastro,
   resolverFiliadosLoteDetalhado,
   type ViaCasamento,
 } from "@/lib/db/receitas"
+import { formaRecebimento } from "@/lib/filiacao"
 import { gerarJsonIA, gerarJsonIADePdf } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -19,6 +22,14 @@ import { tenantAtual } from "@/lib/tenant"
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_ITENS = 20000
+/** Segmento da URL dos lançamentos sem fonte pagadora (ver actions.ts). */
+const SEM_FONTE = "sem-fonte"
+
+/** uuid → a própria fonte; "sem-fonte" → null; outra coisa → undefined (inválido). */
+function fonteDoSegmento(fonteId: string): string | null | undefined {
+  if (fonteId === SEM_FONTE) return null
+  return UUID.test(fonteId) ? fonteId : undefined
+}
 const MAX_TEXTO = 120000
 
 /** '1.234,56' | '1234,56' | '1234.56' → número (ou null). */
@@ -73,8 +84,8 @@ export async function extrairContribuicoesIa(
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
 
   const remessaId = String(formData.get("remessa_id") ?? "")
-  const fonteId = String(formData.get("fonte_id") ?? "")
-  if (!UUID.test(remessaId) || !UUID.test(fonteId)) {
+  const fonteDb = fonteDoSegmento(String(formData.get("fonte_id") ?? ""))
+  if (!UUID.test(remessaId) || fonteDb === undefined) {
     return { erro: "Remessa ou fonte inválida." }
   }
 
@@ -182,7 +193,7 @@ export async function extrairContribuicoesIa(
     }
   }
 
-  const resolvidos = await resolverFiliadosLoteDetalhado(fonteId, remessaId, base)
+  const resolvidos = await resolverFiliadosLoteDetalhado(fonteDb, remessaId, base)
   const itens: PreviewContribuicao[] = base.map((b, i) => ({
     ...b,
     via: resolvidos[i]?.via ?? null,
@@ -202,11 +213,20 @@ export async function extrairContribuicoesIa(
 export async function registrarContribuicoesIa(
   remessaId: string,
   fonteId: string,
-  itens: ItemContribuicao[]
+  itens: ItemContribuicao[],
+  formaEscolhida: string
 ): Promise<{ identificados?: number; naoEncontrados?: number; erro?: string }> {
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
-  if (!UUID.test(remessaId) || !UUID.test(fonteId)) {
+  const fonteDb = fonteDoSegmento(fonteId)
+  if (!UUID.test(remessaId) || fonteDb === undefined) {
     return { erro: "Remessa ou fonte inválida." }
+  }
+  const forma = formaRecebimento(formaEscolhida)
+  if (!forma) return { erro: "Escolha a forma de recebimento desta lista." }
+  if (!fonteDb && (await regrasFiliacao()).exigeFonte) {
+    return {
+      erro: "Pela regra da entidade, todo recebimento fica vinculado a uma fonte pagadora — envie a lista pela fonte.",
+    }
   }
   if (!Array.isArray(itens) || itens.length === 0) {
     return { erro: "Nada para registrar." }
@@ -227,7 +247,7 @@ export async function registrarContribuicoesIa(
   }
   if (limpos.length === 0) return { erro: "Nada válido para registrar." }
 
-  const resolvidos = await resolverFiliadosLoteDetalhado(fonteId, remessaId, limpos)
+  const resolvidos = await resolverFiliadosLoteDetalhado(fonteDb, remessaId, limpos)
 
   const admin = await createAdminClient()
   const empId = await tenantAtual()
@@ -242,17 +262,23 @@ export async function registrarContribuicoesIa(
         else naoEncontrados++
         return {
           remessa_id: remessaId,
-          fonte_pg_id: fonteId,
+          fonte_pg_id: fonteDb,
           filiado_id: filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
           valor: item.valor,
+          forma_recebimento: forma,
           emp_proprietaria_id: empId,
         }
       })
     )
     if (error) return { erro: `Falha ao gravar os lançamentos: ${error.message}` }
   }
+  await registrarFormaNoCadastro(
+    remessaId,
+    resolvidos.map((r) => r?.filiadoId ?? null),
+    forma
+  )
 
   invalidarCacheRemessa(remessaId)
   revalidatePath(`/painel/filiados/receitas/${remessaId}`)
