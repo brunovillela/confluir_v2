@@ -11,12 +11,19 @@ import {
   listarDepartamentosCompletos,
   pessoasParaDepartamento,
 } from "@/lib/db/departamentos"
-import { enderecoDaSede, listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
+import {
+  enderecoDaSede,
+  listarSedes,
+  obterOrganizacao,
+  regrasFiliacao,
+} from "@/lib/db/organizacao"
+import { OPCOES_EXIGE_FONTE } from "@/lib/filiacao"
 import { formatarCnpjCpf } from "@/lib/formato"
 
 import { AbrirFormulario } from "./abrir-formulario"
 import { DepartamentoForm } from "./departamento-forms"
 import { OrganizacaoForm } from "./organizacao-forms"
+import { RegrasFiliacaoForm } from "./regras-filiacao-form"
 
 export const metadata: Metadata = { title: "Organização — Confluir" }
 
@@ -28,12 +35,14 @@ export const metadata: Metadata = { title: "Organização — Confluir" }
 export default async function OrganizacaoPage() {
   await requirePermissao("configuracoes")
 
-  const [org, { disponivel, sedes }, departamentos, pessoas] = await Promise.all([
+  const [org, { disponivel, sedes }, departamentos, pessoas, regras] = await Promise.all([
     obterOrganizacao(),
     listarSedes(),
     listarDepartamentosCompletos(),
     pessoasParaDepartamento(),
+    regrasFiliacao(),
   ])
+  const regraAtual = OPCOES_EXIGE_FONTE.find((o) => (o.valor === "sim") === regras.exigeFonte)!
   const ativos = departamentos.filter((d) => !d.legado)
   const legados = departamentos.filter((d) => d.legado)
 
@@ -98,6 +107,38 @@ export default async function OrganizacaoPage() {
             <p className="text-muted-foreground text-sm">
               Registro da organização não encontrado.
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <p className="mb-3 font-medium">Regras de filiação</p>
+          {!regras.disponivel ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                Esta regra usa uma coluna nova — rode{" "}
+                <code>supabase/empresa-filiacao-exige-fonte.sql</code> no Supabase. Até lá,
+                vale o funcionamento de sempre: todo recebimento entra por uma fonte pagadora.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <AbrirFormulario
+              rotulo="Editar regras"
+              resumo={
+                <dl className="grid gap-1 text-sm">
+                  <dt className="text-muted-foreground text-xs">
+                    A filiação depende de uma fonte pagadora?
+                  </dt>
+                  <dd className="font-medium">{regraAtual.rotulo}</dd>
+                  <dd className="text-muted-foreground max-w-2xl text-xs leading-relaxed">
+                    {regraAtual.explicacao}
+                  </dd>
+                </dl>
+              }
+            >
+              <RegrasFiliacaoForm exigeFonte={regras.exigeFonte} />
+            </AbrirFormulario>
           )}
         </CardContent>
       </Card>

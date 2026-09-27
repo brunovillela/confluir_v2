@@ -45,6 +45,25 @@ export function formaRecebimento(valor: unknown): FormaRecebimento | null {
 }
 
 /**
+ * Regra do tenant (`empresa.filiacao_exige_fonte`): a filiação depende de uma
+ * fonte pagadora? Configurada em Institucional › Organização.
+ */
+export const OPCOES_EXIGE_FONTE = [
+  {
+    valor: "sim",
+    rotulo: "Sim, sempre ligada a uma fonte pagadora",
+    explicacao:
+      "Todo recebimento fica vinculado a uma fonte pagadora, qualquer que seja a forma: consignado, Pix ou boleto. Quem paga por Pix continua ligado à empresa ou ao fundo de pensão.",
+  },
+  {
+    valor: "nao",
+    rotulo: "Não, pode existir sem fonte pagadora",
+    explicacao:
+      "O filiado pode contribuir direto à entidade, por Pix ou boleto, sem estar ligado a uma empresa ou fundo de pensão.",
+  },
+] as const
+
+/**
  * Condição do filiado NA FONTE PAGADORA (por vínculo) — não confundir com a
  * condição sindical acima. Mesmos rótulos que o Bubble usava no cadastro.
  * Padrão por tipo de fonte: empresa → ativa; fundo de pensão → aposentado.

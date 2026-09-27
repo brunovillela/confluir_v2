@@ -148,6 +148,44 @@ export async function atualizarOrganizacao(
   return {}
 }
 
+// ── Regras de filiação (configuração do tenant) ─────────────────────────────
+
+export type RegrasFiliacao = {
+  /** Todo recebimento fica vinculado a uma fonte pagadora, qualquer que seja a forma. */
+  exigeFonte: boolean
+  /** false enquanto supabase/empresa-filiacao-exige-fonte.sql não rodou. */
+  disponivel: boolean
+}
+
+export async function regrasFiliacao(): Promise<RegrasFiliacao> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa")
+    .select("filiacao_exige_fonte")
+    .eq("id", await tenantAtual())
+    .maybeSingle()
+  // Sem a coluna vale o comportamento de sempre: tudo entra por fonte.
+  if (error) return { exigeFonte: true, disponivel: false }
+  return { exigeFonte: data?.filiacao_exige_fonte !== false, disponivel: true }
+}
+
+export async function salvarRegrasFiliacao(regras: {
+  exigeFonte: boolean
+}): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("empresa")
+    .update({ filiacao_exige_fonte: regras.exigeFonte, updated_at: new Date().toISOString() })
+    .eq("id", await tenantAtual())
+  if (error) {
+    if (esquemaAusente(error)) {
+      return { erro: "Rode supabase/empresa-filiacao-exige-fonte.sql para habilitar esta regra." }
+    }
+    return { erro: `Falha ao salvar a regra: ${error.message}` }
+  }
+  return {}
+}
+
 /** Sobe o logo no bucket público e grava o caminho em `empresa.logomarca`. */
 export async function subirLogo(
   arquivo: File

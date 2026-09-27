@@ -14,6 +14,7 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarOrganizacao,
   atualizarSede,
+  salvarRegrasFiliacao,
   subirLogo,
 } from "@/lib/db/organizacao"
 
@@ -135,4 +136,18 @@ export async function salvarSedeAction(
 
   revalidatePath("/painel/institucional/organizacao", "layout")
   return { ok: "Sede salva." }
+}
+
+/** Regra do tenant: a filiação depende de uma fonte pagadora? */
+export async function salvarRegrasFiliacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("configuracoes")
+  const valor = texto(formData, "exige_fonte")
+  if (valor !== "sim" && valor !== "nao") return { erro: "Escolha uma das opções." }
+  const { erro } = await salvarRegrasFiliacao({ exigeFonte: valor === "sim" })
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/organizacao")
+  return { ok: "Regra salva." }
 }
