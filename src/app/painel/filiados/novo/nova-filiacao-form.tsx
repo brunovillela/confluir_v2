@@ -36,8 +36,11 @@ import { registrarFiliacao, type EstadoNovaFiliacao } from "./actions"
 export function NovaFiliacaoForm({
   fontes,
   proximaMatricula,
+  exigeFonte = false,
 }: {
   fontes: { id: string; nome: string }[]
+  /** Regra da entidade: a filiação depende de fonte → o vínculo é obrigatório. */
+  exigeFonte?: boolean
   /** A próxima matrícula sindical livre, mostrada como sugestão. */
   proximaMatricula: number
 }) {
@@ -228,15 +231,17 @@ export function NovaFiliacaoForm({
         <CardHeader>
           <CardTitle className="text-base">Vínculo com fonte pagadora</CardTitle>
           <CardDescription>
-            Opcional — cria o primeiro vínculo do histórico de filiação.
+            {exigeFonte
+              ? "Obrigatório pela regra da entidade: a filiação depende de uma fonte pagadora."
+              : "Opcional — cria o primeiro vínculo do histórico de filiação."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="fonte_pagadora_id">Fonte pagadora</Label>
-            <Select name="fonte_pagadora_id">
+            <Label htmlFor="fonte_pagadora_id">Fonte pagadora{exigeFonte ? " *" : ""}</Label>
+            <Select name="fonte_pagadora_id" required={exigeFonte}>
               <SelectTrigger id="fonte_pagadora_id" className="w-full">
-                <SelectValue placeholder="Sem vínculo por enquanto" />
+                <SelectValue placeholder={exigeFonte ? "Escolha a fonte" : "Sem vínculo por enquanto"} />
               </SelectTrigger>
               <SelectContent>
                 {fontes.map((f) => (

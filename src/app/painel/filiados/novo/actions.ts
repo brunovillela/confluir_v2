@@ -14,6 +14,7 @@ import {
   type CadastroParecido,
 } from "@/lib/db/filiacao-identidade"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 import { FILIACAO_CONDICOES, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -62,6 +63,17 @@ export async function registrarFiliacao(
     }
   }
   const cpf = identidade.cpf
+
+  // Regra da entidade: se a filiação depende de fonte, o cadastro já nasce com
+  // vínculo. Conferido ANTES de criar, para não sobrar filiado sem fonte.
+  if (
+    !UUID.test(String(formData.get("fonte_pagadora_id") ?? "")) &&
+    (await regrasFiliacao()).exigeFonte
+  ) {
+    return {
+      erro: "Pela regra da entidade, a filiação depende de uma fonte pagadora — escolha a fonte do vínculo.",
+    }
+  }
 
   const admin = await createAdminClient()
 

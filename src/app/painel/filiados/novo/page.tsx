@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { regrasFiliacao } from "@/lib/db/organizacao"
 
 import { ImportarFiliados } from "../importar/importar-filiados"
 import { proximaMatriculaSindical } from "@/lib/db/filiacao-identidade"
@@ -27,6 +28,7 @@ export default async function NovaFiliacaoPage({
   const { modo } = await searchParams
   const massa = modo === "massa"
 
+  const { exigeFonte } = await regrasFiliacao()
   const fontes = (await listarFontesPagadoras())
     .filter((f) => f.inativa !== true)
     .map((f) => ({
@@ -80,7 +82,11 @@ export default async function NovaFiliacaoPage({
           </CardContent>
         </Card>
       ) : (
-        <NovaFiliacaoForm fontes={fontes} proximaMatricula={await proximaMatriculaSindical()} />
+        <NovaFiliacaoForm
+          fontes={fontes}
+          proximaMatricula={await proximaMatriculaSindical()}
+          exigeFonte={exigeFonte}
+        />
       )}
     </>
   )
