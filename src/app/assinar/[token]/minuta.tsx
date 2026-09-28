@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock, Download, ExternalLink, ShieldCheck } from "lucide-react"
 
 import { Marca } from "@/components/marca"
+import { VisualizadorPdf } from "@/components/visualizador-pdf"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -139,15 +140,7 @@ export function AssinarMinuta({ envelope, token }: { envelope: EnvelopeMinuta; t
               </div>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <iframe src={pdf} title={envelope.titulo} className="bg-muted h-[75vh] w-full rounded-md border" />
-              <details>
-                <summary className="text-muted-foreground cursor-pointer text-xs">
-                  O PDF não abriu? Ver o texto aqui
-                </summary>
-                <pre className="bg-muted/40 mt-2 max-h-[32rem] overflow-auto rounded-md p-4 text-sm whitespace-pre-wrap">
-                  {envelope.texto}
-                </pre>
-              </details>
+              <VisualizadorPdf src={pdf} titulo={envelope.titulo} texto={envelope.texto} />
             </CardContent>
           </Card>
         )}

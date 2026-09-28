@@ -392,6 +392,9 @@ export async function atualizarDadosMinuta(
 }
 
 export async function excluirMinuta(id: string, usuarioId: string): Promise<{ erro?: string }> {
+  // Contrato em assinatura ou assinado não some — é prova.
+  const travada = await minutaTravada(id)
+  if (travada) return { erro: "Minuta em assinatura ou assinada não pode ser excluída." }
   const admin = await createAdminClient()
   const { error } = await admin
     .from("contratos_minutas")

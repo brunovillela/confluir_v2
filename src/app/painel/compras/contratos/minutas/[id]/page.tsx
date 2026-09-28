@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { VisualizadorPdf } from "@/components/visualizador-pdf"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +52,7 @@ export default async function MinutaPage({
     restaurada?: string
     enviada?: string
     cancelada?: string
+    nao_excluida?: string
   }>
 }) {
   await requirePermissao("aquisicoes_contratos_edicao")
@@ -167,6 +169,11 @@ export default async function MinutaPage({
           </AlertDescription>
         </Alert>
       )}
+      {sp.nao_excluida === "1" && (
+        <Alert variant="destructive">
+          <AlertDescription>Minuta em assinatura ou assinada não pode ser excluída.</AlertDescription>
+        </Alert>
+      )}
       {sp.cancelada === "1" && (
         <Alert>
           <AlertDescription>
@@ -190,19 +197,13 @@ export default async function MinutaPage({
 
       <GrupoColapsavel titulo="Ver o PDF" descricao="O documento como sai para impressão e assinatura">
         <div className="grid gap-2">
-          <iframe
+          {/* key: versão nova (edição, ajuste, assinatura) redesenha o PDF. */}
+          <VisualizadorPdf
+            key={`${minuta.versao}-${minuta.assinadaEm ?? ""}-${rodada.length}`}
             src={`${base}/pdf`}
-            title={minuta.titulo ?? "Minuta"}
-            loading="lazy"
-            className="bg-muted h-[80vh] w-full rounded-md border"
+            titulo={minuta.titulo ?? "Minuta"}
+            texto={minuta.texto ?? ""}
           />
-          <p className="text-muted-foreground text-xs">
-            Se o navegador não mostrar o PDF aqui,{" "}
-            <a href={`${base}/pdf`} target="_blank" rel="noreferrer" className="underline">
-              abra em outra aba
-            </a>
-            .
-          </p>
         </div>
       </GrupoColapsavel>
 

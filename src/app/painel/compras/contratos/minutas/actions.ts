@@ -226,7 +226,8 @@ export async function excluirMinutaAction(fd: FormData): Promise<void> {
   const { usuarioId } = await sessaoEdicao()
   const id = txt(fd, "id")
   if (!UUID.test(id)) return
-  await excluirMinuta(id, usuarioId)
+  const { erro } = await excluirMinuta(id, usuarioId)
+  if (erro) redirect(`${BASE}/${id}?nao_excluida=1`)
   revalidatePath(BASE)
   redirect(`${BASE}?excluida=1`)
 }

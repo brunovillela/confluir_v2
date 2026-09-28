@@ -29,7 +29,7 @@ import { AssinarMinuta } from "./minuta"
 import { AssinarForm, RecusarForm } from "./assinatura-forms"
 
 export const metadata: Metadata = {
-  title: "Assinatura de ofício — Confluir",
+  title: "Assinatura eletrônica — Confluir",
   robots: { index: false },
 }
 
