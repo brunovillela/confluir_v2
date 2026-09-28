@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, FilePen, FileText, Plus, ScrollText, Tags } from "lucide-react"
 
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import {
   TiposContratoBadges,
   VigenciaContratoBadge,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
+import { listarMinutas } from "@/lib/db/contratos-minutas"
 import {
   ROTULOS_SITUACAO_CONTRATO,
   SITUACOES_CONTRATO,
@@ -80,7 +82,7 @@ export default async function ContratosPage({
     ? (brutos.categoria as string)
     : ""
 
-  const [resumo, contratos] = await Promise.all([
+  const [resumo, contratos, minutas] = await Promise.all([
     resumoContratos(podeEditar, false),
     listarContratos({
       busca,
@@ -90,7 +92,10 @@ export default async function ContratosPage({
       verSigilosos: podeEditar,
       apoioInstitucional: false,
     }),
+    podeEditar ? listarMinutas() : Promise.resolve({ disponivel: false, minutas: [] }),
   ])
+  const minutasDisponiveis = minutas.disponivel
+  const totalMinutas = minutas.minutas.length
 
   const paginacao = lerPaginacao(brutos, 30)
   const { linhas, pagina, totalPaginas, total } = paginar(contratos, paginacao)
@@ -127,37 +132,42 @@ export default async function ContratosPage({
               Contratos com fornecedores, aditivos e acompanhamento de vigência
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/painel/compras/contratos/rpa">
-                <ScrollText />
-                RPA
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/compras/contratos/novo">
+                <Plus />
+                Novo contrato
               </Link>
             </Button>
-            {podeEditar && (
-              <>
-                <Button variant="outline" asChild>
-                  <Link href="/painel/compras/contratos/minutas">
-                    <FilePen />
-                    Minutas
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link href="/painel/compras/contratos/categorias">
-                    <Tags />
-                    Categorias
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/painel/compras/contratos/novo">
-                    <Plus />
-                    Novo contrato
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
+          )}
         </div>
+      </div>
+
+      <div className={GRADE_AREAS}>
+        <CartaoArea
+          titulo="RPA"
+          descricao="Recibo de pagamento a autônomo, por valor bruto ou líquido"
+          href="/painel/compras/contratos/rpa"
+          icone={ScrollText}
+        />
+        {podeEditar && (
+          <>
+            <CartaoArea
+              titulo="Minutas"
+              descricao="A IA redige a minuta do contrato; você revisa e baixa em PDF ou Word"
+              href="/painel/compras/contratos/minutas"
+              icone={FilePen}
+              indicador={minutasDisponiveis ? `${totalMinutas} minuta${totalMinutas === 1 ? "" : "s"}` : null}
+            />
+            <CartaoArea
+              titulo="Categorias"
+              descricao="Agrupam os contratos; as sigilosas só aparecem para quem edita"
+              href="/painel/compras/contratos/categorias"
+              icone={Tags}
+              indicador={`${todasCategorias.length} categoria${todasCategorias.length === 1 ? "" : "s"}`}
+            />
+          </>
+        )}
       </div>
 
       {brutos.excluido === "1" && (
