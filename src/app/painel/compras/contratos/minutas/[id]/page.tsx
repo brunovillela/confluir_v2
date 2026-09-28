@@ -1,21 +1,38 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FileDown, FileText, History, RotateCcw } from "lucide-react"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  FileDown,
+  FileText,
+  History,
+  PenLine,
+  RotateCcw,
+} from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { ORIGENS_VERSAO } from "@/lib/contratos-minutas-constantes"
 import { opcoesContratos } from "@/lib/db/contratos"
-import { obterMinuta } from "@/lib/db/contratos-minutas"
+import { formatarMomentoAssinatura, hashTexto } from "@/lib/db/assinatura-comum"
+import { assinanteSugerido, obterMinuta } from "@/lib/db/contratos-minutas"
+import {
+  assinaturasDaMinuta,
+  mascararCpf,
+  ROTULO_PAPEL_MINUTA,
+  urlArquivoAssinado,
+} from "@/lib/db/minuta-assinatura"
 import { formatarDataHora } from "@/lib/formato"
 
 import { restaurarVersaoAction } from "../actions"
+import { AnexarAssinadoForm, CancelarAssinatura, EnviarAssinaturaForm } from "./assinatura-forms"
 import { DadosMinutaForm, EditorMinuta, ExcluirMinuta } from "./minuta-forms"
 
 export const metadata: Metadata = { title: "Minuta — Confluir" }
@@ -32,6 +49,8 @@ export default async function MinutaPage({
     truncado?: string
     ajustada?: string
     restaurada?: string
+    enviada?: string
+    cancelada?: string
   }>
 }) {
   await requirePermissao("aquisicoes_contratos_edicao")
@@ -41,6 +60,25 @@ export default async function MinutaPage({
   if (!minuta) notFound()
 
   const base = `/painel/compras/contratos/minutas/${id}`
+
+  // Assinatura: só a rodada sobre o texto ATUAL conta.
+  const hashAtual = minuta.texto ? hashTexto(minuta.texto) : null
+  const [todasAssinaturas, sugestao, urlExterno] = await Promise.all([
+    assinaturasDaMinuta(id),
+    assinanteSugerido(minuta.parametros.assinanteId ?? null),
+    urlArquivoAssinado(minuta.arquivoAssinado),
+  ])
+  const rodada = todasAssinaturas.filter(
+    (a) => a.hashDocumento === hashAtual && a.situacao !== "cancelado"
+  )
+  const emAssinatura = Boolean(minuta.assinaturaHash) && !minuta.assinadaEm
+  const assinada = Boolean(minuta.assinadaEm) || Boolean(minuta.arquivoAssinado)
+  const bloqueio = assinada
+    ? "Minuta assinada: o texto não pode mais mudar. Para alterar algo, redija um termo aditivo."
+    : emAssinatura
+      ? "Minuta em assinatura: o texto está travado. Cancele o envio (abaixo) para editar."
+      : null
+  const pendencias = /\[PREENCHER/i.test(minuta.texto ?? "")
 
   return (
     <>
@@ -121,6 +159,21 @@ export default async function MinutaPage({
           <AlertDescription>Versão {sp.restaurada} restaurada como a atual.</AlertDescription>
         </Alert>
       )}
+      {sp.enviada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Enviada para assinatura. O primeiro assinante recebeu o link por e-mail; os demais recebem
+            quando chegar a vez deles.
+          </AlertDescription>
+        </Alert>
+      )}
+      {sp.cancelada === "1" && (
+        <Alert>
+          <AlertDescription>
+            Envio cancelado. Os links deixaram de valer e o texto voltou a ser editável.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="pt-6">
@@ -130,9 +183,160 @@ export default async function MinutaPage({
             id={id}
             texto={minuta.texto ?? ""}
             clausulasFixas={minuta.parametros.clausulasFixas ?? []}
+            bloqueio={bloqueio}
           />
         </CardContent>
       </Card>
+
+      <GrupoColapsavel titulo="Ver o PDF" descricao="O documento como sai para impressão e assinatura">
+        <div className="grid gap-2">
+          <iframe
+            src={`${base}/pdf`}
+            title={minuta.titulo ?? "Minuta"}
+            loading="lazy"
+            className="bg-muted h-[80vh] w-full rounded-md border"
+          />
+          <p className="text-muted-foreground text-xs">
+            Se o navegador não mostrar o PDF aqui,{" "}
+            <a href={`${base}/pdf`} target="_blank" rel="noreferrer" className="underline">
+              abra em outra aba
+            </a>
+            .
+          </p>
+        </div>
+      </GrupoColapsavel>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PenLine className="size-4" />
+            Assinatura eletrônica
+          </CardTitle>
+          <CardDescription>
+            Link pessoal e código de uso único por e-mail, conferência do CPF, aceite expresso e trilha
+            com data, hora e IP. O PDF assinado traz o certificado de cada assinatura.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {minuta.arquivoAssinado && (
+            <Alert className="border-success/40 text-success-fg">
+              <CheckCircle2 />
+              <AlertDescription>
+                PDF assinado por certificado digital / gov.br anexado em{" "}
+                {formatarDataHora(minuta.arquivoAssinadoEm)}.{" "}
+                {urlExterno && (
+                  <a href={urlExterno} target="_blank" rel="noreferrer" className="underline">
+                    Abrir o PDF assinado
+                  </a>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          {minuta.assinadaEm && (
+            <Alert className="border-success/40 text-success-fg">
+              <CheckCircle2 />
+              <AlertDescription>
+                Assinada eletronicamente por todas as partes em{" "}
+                {formatarMomentoAssinatura(minuta.assinadaEm)} (horário de Brasília).
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {rodada.length > 0 && (
+            <ol className="grid gap-2 text-sm">
+              {rodada.map((a) => (
+                <li key={a.id} className="rounded-md border p-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <span className="text-muted-foreground tabular-nums">{a.ordem}. </span>
+                      <span className="font-medium">{a.nomeDeclarado ?? a.nome}</span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {ROTULO_PAPEL_MINUTA[a.papel]}
+                        {a.daEntidade ? " (entidade)" : ""} · CPF {mascararCpf(a.cpf)}
+                      </span>
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        a.situacao === "assinado"
+                          ? "border-success/40 text-success-fg"
+                          : a.situacao === "recusado"
+                            ? "border-destructive/40 text-destructive"
+                            : "text-muted-foreground"
+                      }
+                    >
+                      {a.situacao === "assinado"
+                        ? `assinou ${formatarMomentoAssinatura(a.assinadoEm)}`
+                        : a.situacao === "recusado"
+                          ? "recusou"
+                          : a.enviadoEm
+                            ? a.visualizadoEm
+                              ? "abriu, aguardando"
+                              : "link enviado"
+                            : "na fila"}
+                    </Badge>
+                  </div>
+                  {a.motivoRecusa && (
+                    <p className="text-destructive mt-1 text-xs">Motivo da recusa: {a.motivoRecusa}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {rodada.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={minuta.assinadaEm ? "default" : "outline"} asChild>
+                <a href={`${base}/pdf?baixar=1`}>
+                  <Download />
+                  {minuta.assinadaEm ? "Baixar contrato assinado" : "Baixar PDF com a certificação até aqui"}
+                </a>
+              </Button>
+              {emAssinatura && <CancelarAssinatura id={id} />}
+            </div>
+          )}
+
+          {!assinada && !emAssinatura && !minuta.finalizada && (
+            <p className="text-muted-foreground text-sm">
+              Revise a minuta e marque-a como <strong>finalizada</strong> (em “Dados da minuta”) para
+              enviar para assinatura.
+            </p>
+          )}
+          {!assinada && !emAssinatura && minuta.finalizada && pendencias && (
+            <p className="text-warning-fg text-sm">
+              Ainda há “[PREENCHER]” no texto. Complete tudo antes de enviar: um contrato não vai para
+              assinatura com lacunas.
+            </p>
+          )}
+          {!assinada && !emAssinatura && minuta.finalizada && !pendencias && (
+            <EnviarAssinaturaForm
+              id={id}
+              papelEntidade={minuta.parametros.papelEntidade ?? "contratante"}
+              entidade={sugestao}
+              outraParte={{ nome: minuta.parametros.outraParteNome ?? "" }}
+            />
+          )}
+
+          {!assinada && (
+            <details className="rounded-lg border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Assinar por fora, com certificado digital (ICP-Brasil) ou gov.br
+              </summary>
+              <div className="mt-3 grid gap-3">
+                <p className="text-muted-foreground text-xs">
+                  É a forma de maior força probatória: a assinatura com certificado ICP-Brasil se
+                  presume verdadeira (MP 2.200-2/2001, art. 10, § 1º). Baixe o PDF, colha as
+                  assinaturas no assinador do gov.br ou com o certificado de cada parte, e anexe o
+                  arquivo final aqui.
+                </p>
+                <AnexarAssinadoForm id={id} />
+              </div>
+            </details>
+          )}
+        </CardContent>
+      </Card>
+
 
       <GrupoColapsavel titulo="Dados da minuta" descricao="Título, contrato vinculado e se está finalizada">
         <DadosMinutaForm
@@ -169,7 +373,7 @@ export default async function MinutaPage({
                     {v.autor ? ` · ${v.autor}` : ""}
                   </span>
                 </span>
-                {v.versao !== minuta.versao && (
+                {v.versao !== minuta.versao && !bloqueio && (
                   <form action={restaurarVersaoAction}>
                     <input type="hidden" name="id" value={id} />
                     <input type="hidden" name="versao_id" value={v.id} />

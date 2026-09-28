@@ -1,4 +1,6 @@
 import { dadosImpressao } from "@/lib/db/oficios"
+import { envelopeMinutaPorToken } from "@/lib/db/minuta-assinatura"
+import { renderizarPdfMinuta } from "@/lib/db/minuta-pdf"
 import { envelopePorToken, renderizarPdfOficio } from "@/lib/db/oficios-assinatura"
 
 export const runtime = "nodejs"
@@ -13,6 +15,26 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
+  const baixarMinuta = new URL(req.url).searchParams.get("baixar") === "1"
+
+  // Minuta de contrato: o assinante vê o texto com a certificação até aqui.
+  const minuta = await envelopeMinutaPorToken(token)
+  if (minuta) {
+    if (minuta.assinatura.situacao === "cancelado") {
+      return new Response("Documento indisponível", { status: 404 })
+    }
+    const r = await renderizarPdfMinuta(minuta.minutaId, minuta.emp)
+    if (!r) return new Response("Documento indisponível", { status: 404 })
+    return new Response(new Uint8Array(r.pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${baixarMinuta ? "attachment" : "inline"}; filename="${r.nome}"`,
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex",
+      },
+    })
+  }
+
   const envelope = await envelopePorToken(token)
   if (!envelope || envelope.assinatura.situacao === "cancelado") {
     return new Response("Documento indisponível", { status: 404 })

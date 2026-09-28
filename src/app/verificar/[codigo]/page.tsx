@@ -4,6 +4,7 @@ import { AlertTriangle, BadgeCheck, Clock3 } from "lucide-react"
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { verificarCertificadoMinuta } from "@/lib/db/minuta-assinatura"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
 import { formatarData } from "@/lib/formato"
 
@@ -23,6 +24,8 @@ export default async function VerificarCertificadoPage({
   params: Promise<{ codigo: string }>
 }) {
   const { codigo } = await params
+  const contrato = await verificarCertificadoMinuta(decodeURIComponent(codigo))
+  if (contrato) return <VerificacaoContrato v={contrato} />
   const v = await verificarCertificado(decodeURIComponent(codigo))
 
   return (
@@ -107,5 +110,78 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
       <dd className="mt-0.5">{valor ?? "—"}</dd>
     </div>
+  )
+}
+
+/** Certificado de assinatura de contrato (minuta assinada eletronicamente). */
+function VerificacaoContrato({
+  v,
+}: {
+  v: NonNullable<Awaited<ReturnType<typeof verificarCertificadoMinuta>>>
+}) {
+  const valida = v.situacao === "assinado" && v.conteudoIntegro
+  return (
+    <main className="mx-auto w-full max-w-xl px-4 py-10">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Marca variante="completa" />
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Verificação de assinatura</h1>
+      </div>
+      <div className="grid gap-4">
+        {valida ? (
+          <Alert className="border-success/40 text-success-fg">
+            <BadgeCheck />
+            <AlertDescription>
+              Assinatura <strong>válida</strong>: corresponde a um contrato assinado eletronicamente e o
+              conteúdo não foi alterado desde então.
+              {v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
+            </AlertDescription>
+          </Alert>
+        ) : v.situacao === "assinado" ? (
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>
+              Esta pessoa assinou, mas o texto do contrato <strong>mudou depois</strong> ou o envio foi
+              cancelado. Esta assinatura não vale para o texto atual.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert>
+            <Clock3 />
+            <AlertDescription>
+              Este certificado <strong>não tem assinatura concluída</strong> ({v.situacao}).
+            </AlertDescription>
+          </Alert>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-mono text-lg tracking-wider">{v.certificado}</CardTitle>
+            <CardDescription>
+              {v.titulo}
+              {v.entidade ? ` · ${v.entidade}` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <Campo rotulo="Assinado por" valor={v.nome} />
+              <Campo rotulo="Papel" valor={v.papel} />
+              <Campo rotulo="CPF (conferido na assinatura)" valor={v.cpf} />
+              <Campo
+                rotulo="Data e hora da assinatura"
+                valor={v.assinadoEm ? `${formatarMomento(v.assinadoEm)} (horário de Brasília)` : null}
+              />
+              <div className="sm:col-span-2">
+                <dt className="text-muted-foreground text-xs">Resumo do conteúdo assinado (SHA-256)</dt>
+                <dd className="mt-0.5 font-mono text-xs break-all">{v.hash ?? "—"}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+        <p className="text-muted-foreground text-center text-xs">
+          A página de certificado ao fim do PDF do contrato traz a trilha completa de cada assinatura:
+          envio, abertura, código de uso único, conferência do CPF e assinatura, com data, hora, IP e
+          navegador.
+        </p>
+      </div>
+    </main>
   )
 }

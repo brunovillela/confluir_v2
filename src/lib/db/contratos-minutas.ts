@@ -3,6 +3,7 @@ import "server-only"
 import { assinantesVigentes } from "@/lib/db/diretoria"
 import { enderecoDaSede, listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
 import { esquemaAusente } from "@/lib/db/comum"
+import { minutaTravada } from "@/lib/db/minuta-assinatura"
 import { formatarCnpjCpf } from "@/lib/formato"
 import {
   pendenciasDaMinuta,
@@ -47,6 +48,12 @@ export type MinutaDetalhe = MinutaLista & {
   parametros: ParametrosMinuta
   texto: string | null
   versoes: VersaoMinuta[]
+  /** Hash congelado no envio para assinatura (trava a edição). */
+  assinaturaHash: string | null
+  assinadaEm: string | null
+  /** PDF assinado por fora (ICP-Brasil / gov.br). */
+  arquivoAssinado: string | null
+  arquivoAssinadoEm: string | null
 }
 
 type Linha = Record<string, unknown>
@@ -150,6 +157,10 @@ export async function obterMinuta(id: string): Promise<MinutaDetalhe | null> {
     ...paraLista(r, codigos),
     parametros: (r.parametros ?? {}) as ParametrosMinuta,
     texto: txt(r.texto),
+    assinaturaHash: txt(r.assinatura_hash),
+    assinadaEm: txt(r.assinada_em),
+    arquivoAssinado: txt(r.arquivo_assinado),
+    arquivoAssinadoEm: txt(r.arquivo_assinado_em),
     versoes: (versoesBrutas ?? []).map((v) => ({
       id: v.id as string,
       versao: Number(v.versao),
@@ -308,6 +319,9 @@ export async function novaVersaoMinuta(dados: {
   usuarioId: string
   parametros?: ParametrosMinuta
 }): Promise<{ versao?: number; erro?: string }> {
+  // Texto em assinatura (ou assinado) não muda: o hash congelado deixaria de bater.
+  const travada = await minutaTravada(dados.id)
+  if (travada) return { erro: travada }
   const admin = await createAdminClient()
   const empId = await tenantAtual()
   const { data: atual } = await admin
@@ -354,6 +368,10 @@ export async function atualizarDadosMinuta(
   dados: { titulo?: string; contratoId?: string | null; finalizada?: boolean },
   usuarioId: string
 ): Promise<{ erro?: string }> {
+  if (dados.finalizada === false) {
+    const travada = await minutaTravada(id)
+    if (travada) return { erro: travada }
+  }
   const admin = await createAdminClient()
   const mudancas: Record<string, unknown> = {
     atualizado_por_id: usuarioId,
@@ -408,4 +426,19 @@ export async function parametrosDoContrato(
         : null,
     vigencia: inicio || fim ? [inicio ? `de ${inicio}` : null, fim ? `até ${fim}` : null].filter(Boolean).join(" ") : null,
   }
+}
+
+/** Nome e e-mail sugeridos para quem assina pela entidade (diretoria). */
+export async function assinanteSugerido(
+  integranteId: string | null
+): Promise<{ nome: string; email: string; cpf: string }> {
+  if (!integranteId) return { nome: "", email: "", cpf: "" }
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("diretoria_integrantes")
+    .select("nome, email, cpf")
+    .eq("id", integranteId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return { nome: txt(data?.nome) ?? "", email: txt(data?.email) ?? "", cpf: txt(data?.cpf) ?? "" }
 }

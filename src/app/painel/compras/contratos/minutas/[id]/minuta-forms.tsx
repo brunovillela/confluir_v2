@@ -28,11 +28,14 @@ export function EditorMinuta({
   id,
   texto: inicial,
   clausulasFixas,
+  bloqueio = null,
 }: {
   id: string
   texto: string
   /** Cláusulas fixas copiadas na criação da minuta. */
   clausulasFixas: { titulo: string; texto: string }[]
+  /** Motivo da trava (em assinatura / assinada): o texto fica só leitura. */
+  bloqueio?: string | null
 }) {
   const [texto, setTexto] = useState(inicial)
   const [salvo, salvarAcao, salvando] = useActionState(salvarTextoMinutaAction, {})
@@ -49,9 +52,13 @@ export function EditorMinuta({
           name="texto"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
+          readOnly={Boolean(bloqueio)}
           className="min-h-[36rem] font-mono text-[13px] leading-relaxed [field-sizing:fixed]"
           aria-label="Texto da minuta"
         />
+        {bloqueio ? (
+          <p className="text-muted-foreground text-xs">{bloqueio}</p>
+        ) : (
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={salvando || ajustando || !alterado}>
             {salvando ? <Loader2 className="animate-spin" /> : <Save />}
@@ -63,6 +70,7 @@ export function EditorMinuta({
           {salvo.ok && !alterado && <span className="text-success-fg text-xs">{salvo.ok}</span>}
           {salvo.erro && <span className="text-destructive text-xs">{salvo.erro}</span>}
         </div>
+        )}
       </form>
 
       <div className="grid content-start gap-4">
@@ -116,6 +124,7 @@ export function EditorMinuta({
           )}
         </div>
 
+        {!bloqueio && (
         <form action={ajustarAcao} className="grid gap-2 rounded-lg border p-3">
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="texto" value={texto} />
@@ -144,6 +153,7 @@ export function EditorMinuta({
               : "Cada ajuste vira uma versão; dá para voltar a qualquer uma."}
           </span>
         </form>
+        )}
       </div>
     </div>
   )

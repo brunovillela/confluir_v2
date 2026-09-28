@@ -25,6 +25,12 @@ import {
   qualificacoesDaMinuta,
 } from "@/lib/db/contratos-minutas"
 import { ajustarMinutaIA, redigirMinutaIA } from "@/lib/db/contratos-minutas-ia"
+import {
+  anexarAssinadoExterno,
+  cancelarAssinaturaMinuta,
+  enviarMinutaParaAssinatura,
+  minutaTravada,
+} from "@/lib/db/minuta-assinatura"
 
 export type EstadoMinuta = { erro?: string; ok?: string }
 
@@ -144,6 +150,8 @@ export async function ajustarMinutaAction(
 
   const minuta = await obterMinuta(id)
   if (!minuta?.texto) return { erro: "Minuta não encontrada." }
+  const travada = await minutaTravada(id)
+  if (travada) return { erro: travada }
   // O texto na tela pode ter edição ainda não salva: ela vale como base.
   const base = textoDoForm(fd) || minuta.texto
   if (base !== minuta.texto) {
@@ -278,4 +286,57 @@ export async function excluirClausulaFixaAction(fd: FormData): Promise<void> {
   if (!UUID.test(id)) return
   await excluirClausulaFixa(id)
   revalidatePath(CONFIG)
+}
+
+// ── Assinatura eletrônica ───────────────────────────────────────────────────
+
+const assinante = (fd: FormData, prefixo: string) => ({
+  nome: txt(fd, `${prefixo}_nome`),
+  email: txt(fd, `${prefixo}_email`),
+  cpf: txt(fd, `${prefixo}_cpf`),
+})
+
+export async function enviarParaAssinaturaAction(
+  _prev: EstadoMinuta,
+  fd: FormData
+): Promise<EstadoMinuta> {
+  const { usuarioId } = await sessaoEdicao()
+  const id = txt(fd, "id")
+  if (!UUID.test(id)) return { erro: "Minuta inválida." }
+  const testemunhas = [assinante(fd, "t1"), assinante(fd, "t2")].filter(
+    (t) => t.nome || t.email || t.cpf
+  )
+  const { erro } = await enviarMinutaParaAssinatura(
+    id,
+    { entidade: assinante(fd, "ent"), outraParte: assinante(fd, "outra"), testemunhas },
+    usuarioId
+  )
+  if (erro) return { erro }
+  revalidatePath(`${BASE}/${id}`)
+  redirect(`${BASE}/${id}?enviada=1`)
+}
+
+export async function cancelarAssinaturaAction(fd: FormData): Promise<void> {
+  const { usuarioId } = await sessaoEdicao()
+  const id = txt(fd, "id")
+  if (!UUID.test(id)) return
+  await cancelarAssinaturaMinuta(id, usuarioId)
+  revalidatePath(`${BASE}/${id}`)
+  redirect(`${BASE}/${id}?cancelada=1`)
+}
+
+/** PDF assinado por fora (certificado ICP-Brasil ou gov.br). */
+export async function anexarAssinadoAction(
+  _prev: EstadoMinuta,
+  fd: FormData
+): Promise<EstadoMinuta> {
+  const { usuarioId } = await sessaoEdicao()
+  const id = txt(fd, "id")
+  const arquivo = fd.get("arquivo")
+  if (!UUID.test(id)) return { erro: "Minuta inválida." }
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o PDF assinado." }
+  const { erro } = await anexarAssinadoExterno(id, arquivo, usuarioId)
+  if (erro) return { erro }
+  revalidatePath(`${BASE}/${id}`)
+  return { ok: "PDF assinado anexado. A minuta está travada para edição." }
 }
