@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileSignature, GitCompareArrows, Plus, TriangleAlert } from "lucide-react"
+import { ArrowLeft, FileSignature, GitCompareArrows, Layers, Plus, TriangleAlert } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -88,6 +88,12 @@ export default async function AcordosPage({
             Acordos coletivos
           </h1>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/acordos/temas">
+                <Layers />
+                Comparar por tema
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/painel/representacao/acordos/comparacoes">
                 <GitCompareArrows />
