@@ -48,12 +48,22 @@ export async function criarEnvioDocumento(
 export async function confirmarDocumento(acordoId: string, caminho: string): Promise<{ erro?: string }> {
   if (!caminho.startsWith(`${acordoId}/`) || !caminho.endsWith(".pdf")) return { erro: "Arquivo inválido." }
   const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const { data: antes } = await admin
+    .from("acordo_coletivo")
+    .select("documento_url")
+    .eq("id", acordoId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
   const { error } = await admin
     .from("acordo_coletivo")
     .update({ documento_url: caminho, updated_at: new Date().toISOString() })
     .eq("id", acordoId)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", empId)
   if (error) return { erro: `Não foi possível gravar o documento: ${error.message}` }
+  // O PDF trocado não fica órfão no armazenamento.
+  const anterior = typeof antes?.documento_url === "string" ? antes.documento_url : null
+  if (anterior && anterior !== caminho) await admin.storage.from("acordos").remove([anterior])
   return {}
 }
 

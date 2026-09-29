@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { TEMAS_CLAUSULA, type TemaClausula } from "@/lib/acordos-constantes"
-import { createClient } from "@/lib/supabase/client"
 
 import {
   confirmarDocumentoAction,
@@ -58,6 +57,8 @@ export function EnviarDocumento({
       setResultado({ erro: envio.erro ?? "Não foi possível preparar o envio." })
       return
     }
+    // Carrega o cliente do Supabase só na hora do envio.
+    const { createClient } = await import("@/lib/supabase/client")
     const { error } = await createClient()
       .storage.from("acordos")
       .uploadToSignedUrl(envio.caminho, envio.token, arquivo, { contentType: "application/pdf" })
