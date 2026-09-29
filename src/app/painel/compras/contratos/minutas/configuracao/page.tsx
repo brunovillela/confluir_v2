@@ -6,6 +6,7 @@ import { AbrirFormulario } from "@/app/painel/institucional/organizacao/abrir-fo
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -28,6 +29,7 @@ export default async function ConfiguracaoMinutasPage() {
 
   return (
     <>
+      <RotuloTrilha valores={{ configuracao: "Configuração" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras/contratos/minutas">

@@ -28,7 +28,16 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 29/09: Acordos coletivos e Negociações sindicais — seed:
+  // Rodada de 29/09 (2): Minutas de contrato — usa a minuta assinada da Gráfica
+  // Modelo e as 2 cláusulas fixas que ficaram na demo depois do E2E de 27–28/09.
+  ["/painel/compras/contratos", "compras/contratos-subareas.png", { esperar: "Minutas", altura: 720 }],
+  ["/painel/compras/contratos/minutas/nova", "compras/minuta-nova.png", { abrir: ["Prestação de serviços por prazo determinado"], fullPage: true }],
+  // Minuta em revisão: seed scripts/seed-prints-minutas.mjs (texto original da IA, com [PREENCHER]).
+  ["/painel/compras/contratos/minutas/6d100000-0000-4000-8000-000000000001", "compras/minuta.png", { esperar: "Cláusulas fixas" }],
+  ["/painel/compras/contratos/minutas/86f92e2f-5137-43b6-b152-8fee213e3717", "compras/minuta-assinatura.png", { esperar: "Assinatura eletrônica", scrollTo: "Assinatura eletrônica", altura: 760 }],
+  ["/painel/compras/contratos/minutas/configuracao", "compras/minutas-configuracao.png", { esperar: "Configuração das minutas" }],
+
+  /* Rodada de 29/09: Acordos coletivos e Negociações sindicais — seed:
   // scripts/seed-prints-acordos.mjs, depois extrair as cláusulas pela tela.
   // Sem créditos da IA nesta rodada: o print da comparação fica para depois.
   ["/painel/representacao/acordos", "representacao/acordos-lista.png", { esperar: "ACT Petrobras 2023-2025", altura: 760 }],
@@ -38,6 +47,7 @@ const SHOTS = [
   ["/painel/representacao/negociacoes", "representacao/negociacoes-lista.png", { esperar: "ACT dos funcionários 2025/2027", altura: 560 }],
   ["/painel/representacao/negociacoes/ac200000-0000-4000-8000-000000000001", "representacao/negociacao.png", { esperar: "Linha do tempo", fullPage: true }],
   ["/painel/representacao/negociacoes/ac200000-0000-4000-8000-000000000001/quadro", "representacao/negociacao-quadro.png", { esperar: "Quadro comparativo" }],
+  */
 
   /* Rodada de 25/09: Viagens (passagens e hospedagens) — seed:
   // scripts/seed-prints-viagens.mjs (depois: --limpar tira o demo da diretoria).

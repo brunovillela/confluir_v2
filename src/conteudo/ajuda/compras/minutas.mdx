@@ -1,0 +1,172 @@
+Em **Compras → Contratos → Minutas**, a IA **redige a minuta** de um contrato a
+partir do que você informa: o tipo de contrato, as partes, o objeto, o valor, o
+prazo. Você revisa, pede ajustes, edita à mão, baixa em PDF ou Word e, quando
+estiver pronta, colhe as **assinaturas eletrônicas** das partes e das
+testemunhas.
+
+<RequerPermissao>Contratos — editar</RequerPermissao>
+
+<Aviso tipo="atencao" titulo="A IA não inventa dados">
+  O que não foi informado sai marcado como **[PREENCHER: …]** no texto — o CNPJ
+  que faltou, a data de início, o nome do banco. Uma minuta com [PREENCHER] não
+  pode ir para assinatura. A minuta é um rascunho de trabalho: revise o texto
+  inteiro e, nos contratos de maior risco, passe pela assessoria jurídica.
+</Aviso>
+
+## Redigir uma minuta
+
+**Nova minuta** — ou **Redigir minuta**, na página de um contrato já
+cadastrado, que traz objeto, valor, vigência e fornecedor preenchidos — abre o
+formulário em três partes:
+
+<PassoAPasso>
+  <Passo titulo="1. Tipo de contrato">
+    Prestação de serviços por prazo determinado, fornecimento de produtos com
+    valor fixo, locação… Cada tipo tem uma explicação e orienta a IA sobre o que
+    aquele contrato precisa conter. Os tipos são da entidade — ver *Configuração*, mais abaixo.
+  </Passo>
+  <Passo titulo="2. As partes">
+    Se a entidade é a **contratante** ou a **contratada**, o endereço da sede e
+    **quem assina pela entidade** (vem da diretoria vigente). A **outra parte**
+    sai do cadastro de fornecedores, com CNPJ ou CPF e endereço; quem não está
+    no cadastro pode ser informado por nome e qualificação.
+  </Passo>
+  <Passo titulo="3. O negócio">
+    Objeto, valor, vigência ou prazo, forma e prazo de pagamento, reajuste,
+    multas e rescisão, obrigações e cláusulas específicas, o foro (se vazio, a
+    comarca da sede) e **instruções para a IA** — "linguagem simples",
+    "incluir cláusula de não vínculo empregatício", "contrato curto".
+  </Passo>
+</PassoAPasso>
+
+**Redigir minuta com IA** leva de um a dois minutos. A minuta abre pronta, com
+as cláusulas numeradas e a qualificação das partes.
+
+<Print src="compras/minuta-nova.png" alt="Nova minuta: os tipos de contrato em cartões, com Prestação de serviços por prazo determinado escolhido; as cláusulas fixas que entram nesta minuta; as partes (contratante ou contratada, quem assina, sede, outra parte do cadastro ou digitada); o negócio (objeto, valor, pagamento, vigência, reajuste, obrigações, multas, foro, instruções para a IA); título, contrato vinculado e o botão Redigir minuta com IA." legenda="O formulário da minuta: tipo, partes e o negócio." />
+
+## Revisar
+
+Ao lado do texto ficam duas listas:
+
+- **Cláusulas fixas** — as cláusulas obrigatórias da entidade, cada uma com ✓
+  quando está no texto palavra por palavra, ou ✗ quando foi alterada ou sumiu;
+- **A preencher** — cada [PREENCHER] que ainda está no texto.
+
+Três jeitos de mexer no texto:
+
+- **Ajustar com IA** — escreva o pedido: *incluir cláusula de LGPD*, *trocar o
+  reajuste para INPC*, *o CNPJ da contratada é 12.345.678/0001-90*, *deixar mais
+  curto*. A IA reescreve a minuta inteira; pode levar até dois minutos.
+- **Editar à mão** — o texto é editável na própria página. Salve antes de sair:
+  o aviso *Há alterações não salvas* aparece enquanto houver mudança.
+- **Voltar a uma versão** — em **Versões**, cada redação, ajuste, edição e
+  restauração fica guardada. **Ver texto** mostra a versão, e dá para restaurar
+  qualquer uma.
+
+<Print src="compras/minuta.png" alt="Minuta em rascunho: o texto do contrato com vários [PREENCHER: …] na qualificação das partes; ao lado, Cláusulas fixas 2/2 no texto com os dois ✓, A preencher (40) com a lista do que falta, e o quadro Pedir ajuste à IA com o botão Ajustar com IA." legenda="A revisão: o texto, as cláusulas fixas conferidas e o que falta preencher." />
+
+<Aviso tipo="nota" titulo="Cláusula fixa não muda nem a pedido">
+  As cláusulas fixas entram literalmente e a IA não as retira nem as reescreve,
+  mesmo que o ajuste peça. Se precisar tirar uma cláusula fixa de um contrato
+  específico, edite o texto à mão — a lista vai mostrar o ✗.
+</Aviso>
+
+## Baixar e finalizar
+
+**PDF** e **Word** baixam a minuta. Enquanto ela não está **finalizada**, o
+PDF sai com a marca d'água *MINUTA*. Em **Dados da minuta** você muda o título,
+liga a minuta a um contrato cadastrado e marca como **finalizada**.
+
+## Assinatura eletrônica
+
+Minuta finalizada e sem [PREENCHER] pode ser assinada pelo sistema, no mesmo
+padrão das assinaturas de ofícios: link pessoal, código de uso único por
+e-mail, conferência do CPF, aceite expresso e trilha com data, hora e IP.
+
+<PassoAPasso>
+  <Passo titulo="Informar quem assina">
+    Nome completo, e-mail e CPF da **outra parte** e de quem assina **pela
+    entidade**, e, se quiser, de **duas testemunhas**.
+  </Passo>
+  <Passo titulo="Enviar para assinatura">
+    Cada um recebe o link quando chega a sua vez, nesta ordem: primeiro a outra
+    parte, depois a entidade, depois as testemunhas.
+  </Passo>
+  <Passo titulo="Cada um assina">
+    O assinante recebe um código por e-mail, lê o contrato inteiro, digita o
+    **nome** e o **CPF** — que precisa bater com o informado no envio — e
+    marca que leu e concorda com o conteúdo. Pode também recusar, com o motivo,
+    que chega à entidade.
+  </Passo>
+  <Passo titulo="Contrato assinado">
+    Com todas as assinaturas, **Baixar contrato assinado** traz o PDF com uma
+    página de certificação: cada assinatura com QR code, a trilha e o código
+    que confere a integridade do texto em **/verificar**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="Duas testemunhas">
+  Com duas testemunhas, o contrato assinado vale como **título executivo
+  extrajudicial**: dá para cobrar direto, sem processo de conhecimento. Informe
+  as duas ou nenhuma.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="Em assinatura, o texto trava">
+  Depois do envio, a minuta não aceita edição, ajuste, restauração nem
+  desfinalizar. Para mudar algo, **Cancelar envio** — os links deixam de valer e
+  as assinaturas já dadas nessa rodada são anuladas. Depois de assinada, o
+  texto não muda mais: alterações viram um termo aditivo. Minuta em assinatura
+  ou assinada também não pode ser excluída.
+</Aviso>
+
+<Print src="compras/minuta-assinatura.png" alt="Quadro Assinatura eletrônica de uma minuta assinada: o aviso de que foi assinada por todas as partes, a lista na ordem — contratada, contratante (entidade) e duas testemunhas — com nome, papel, CPF mascarado e a data e hora de cada assinatura, e o botão Baixar contrato assinado." legenda="A minuta assinada pelas quatro pessoas, na ordem." />
+
+Se o contrato foi assinado fora do sistema — com certificado digital
+ICP-Brasil ou pelo gov.br —, **Anexar PDF assinado** guarda o arquivo na
+minuta.
+
+## Configuração: cláusulas fixas e tipos
+
+**Cláusulas fixas e tipos**, na lista de minutas, é onde a entidade define:
+
+- **Cláusulas fixas** — título e texto exatamente como devem sair no contrato,
+  e para quais tipos valem (ou todos). A IA só numera e encaixa. Uma cláusula
+  desativada ou excluída não muda as minutas já redigidas.
+- **Tipos de contrato** — o nome, a **explicação** que aparece para quem
+  escolhe e a **orientação para a IA**: o que a minuta desse tipo precisa conter
+  (prazo, forma de preço, reajuste, entrega, garantias).
+
+<Print src="compras/minutas-configuracao.png" alt="Configuração das minutas: as cláusulas fixas Da responsabilidade por vícios do produto ou serviço e Da proteção de dados pessoais, as duas valendo para todos os tipos, com o botão Nova cláusula fixa; e a lista de tipos de contrato com a explicação de cada um." legenda="Cláusulas fixas e tipos de contrato da entidade." />
+
+<Aviso tipo="dica" titulo="Uma cláusula de aceite da assinatura eletrônica">
+  Vale cadastrar uma cláusula fixa em que as partes aceitam a assinatura
+  eletrônica como válida. Ela reforça o contrato assinado pelo sistema.
+</Aviso>
+
+## Erros comuns
+
+- **"Enviar para assinatura não aparece."** A minuta precisa estar
+  **finalizada** e sem nenhum [PREENCHER].
+- **"O ajuste não mudou a cláusula fixa."** É o esperado — ver o aviso acima.
+- **"A minuta saiu com aviso de texto cortado."** A minuta era longa demais
+  para uma resposta da IA. Ela foi salva; confira a última cláusula e, se
+  faltar algo, complete à mão ou peça um ajuste.
+- **"O ajuste veio cortado e não foi salvo."** O pedido fez a IA reescrever um
+  texto longo demais. Peça o ajuste em partes menores.
+- **"O assinante diz que o CPF não confere."** O CPF digitado tem que ser o
+  mesmo informado no envio. Cancele o envio e corrija o CPF.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "Cadastro, vigência, aditivos e ordens de pagamento",
+    },
+    {
+      titulo: "Ofícios",
+      href: "/painel/ajuda/ferramentas/oficios",
+      descricao: "A mesma assinatura eletrônica, nos ofícios",
+    },
+  ]}
+/>

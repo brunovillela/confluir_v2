@@ -354,6 +354,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Vigência derivada das datas, aditivos e geração de ordens",
       },
       {
+        slug: "minutas",
+        titulo: "Minutas de contrato",
+        resumo: "A IA redige, você revisa e ajusta, e as partes assinam eletronicamente",
+      },
+      {
         slug: "fornecedores",
         titulo: "Fornecedores",
         resumo: "Cadastro, endereços, dados bancários e excluir × inativar",
