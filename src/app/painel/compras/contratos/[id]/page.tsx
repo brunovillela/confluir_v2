@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FilePen, FileText, LinkIcon, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, FilePen, FileText, LinkIcon, Pencil, Plus, ReceiptText } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -35,6 +35,7 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
+import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { listarMinutas } from "@/lib/db/contratos-minutas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -85,6 +86,7 @@ export default async function ContratoPage({
     editar?: string
     geradas?: string
     puladas?: string
+    rpaExcluido?: string
     pagina?: string
     porPagina?: string
   }>
@@ -108,6 +110,13 @@ export default async function ContratoPage({
   const opcoes = editando ? await carregarOpcoesContrato() : null
   // Minutas ficam com quem edita contratos (podem citar dados de categoria sigilosa).
   const minutas = podeEditar ? (await listarMinutas({ contratoId: c.id })).minutas : []
+  // O RPA é a forma de pagamento do contrato com autônomo (fornecedor pessoa física).
+  const [{ ativo: rpaAtivo, linhas: rpas }, paraRpa] = await Promise.all([
+    listarRpas({ contratoId: c.id }),
+    contratoDoRpa(c.id),
+  ])
+  const aceitaRpa = Boolean(paraRpa?.fornecedorId && !paraRpa.fornecedorPessoaJuridica)
+  const mostrarRpa = aceitaRpa || rpas.length > 0
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
@@ -161,6 +170,12 @@ export default async function ContratoPage({
             {Number(brutos.puladas) > 0 &&
               ` ${brutos.puladas} vencimento(s) já tinham ordem e foram pulados.`}
           </AlertDescription>
+        </Alert>
+      )}
+
+      {brutos.rpaExcluido === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>RPA excluído, junto com a ordem de pagamento dele.</AlertDescription>
         </Alert>
       )}
 
@@ -270,6 +285,119 @@ export default async function ContratoPage({
         </CardContent>
       </Card>
 
+      {podeEditar && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">Minuta — o instrumento do contrato</CardTitle>
+                <CardDescription>
+                  O texto do contrato, redigido com a IA, revisado e assinado pelas partes
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/compras/contratos/minutas/nova?contrato=${c.id}`}>
+                  <FilePen />
+                  Redigir minuta
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {minutas.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nenhuma minuta ainda. <strong>Redigir minuta</strong> já traz o objeto, o valor, a
+                vigência e o fornecedor deste contrato.
+              </p>
+            ) : (
+              <ul className="grid gap-1.5 text-sm">
+                {minutas.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-center gap-2">
+                    <Link href={`/painel/compras/contratos/minutas/${m.id}`} className="font-medium hover:underline">
+                      {m.titulo ?? m.tipo ?? "Minuta"}
+                    </Link>
+                    <span className="text-muted-foreground text-xs">
+                      {m.finalizada ? "finalizada" : `rascunho · v${m.versao}`}
+                      {m.pendencias > 0 ? ` · ${m.pendencias} a preencher` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {mostrarRpa && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">RPA — pagamento a autônomo</CardTitle>
+                <CardDescription>
+                  Recibos do prestador deste contrato; cada um gera a ordem de pagamento do líquido
+                </CardDescription>
+              </div>
+              {podeEditar && aceitaRpa && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/painel/compras/contratos/rpa/novo?contrato=${c.id}`}>
+                    <ReceiptText />
+                    Emitir RPA
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!rpaAtivo ? (
+              <p className="text-warning-fg text-sm">
+                Rode supabase/contratos-rpa.sql para ligar os RPAs aos contratos.
+              </p>
+            ) : rpas.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum RPA emitido para este contrato.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nº</TableHead>
+                    <TableHead>Serviço em</TableHead>
+                    <TableHead className="text-right">Bruto</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead>Ordem</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rpas.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="tabular-nums">
+                        <Link
+                          href={`/painel/compras/contratos/rpa/${r.id}`}
+                          className="text-primary font-medium hover:underline"
+                        >
+                          {r.numero ?? "—"}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {r.data_servico ? formatarData(r.data_servico) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
+                        {formatarMoeda(r.valor_bruto)}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
+                        {formatarMoeda(r.valor_liquido)}
+                      </TableCell>
+                      <TableCell>
+                        {r.ordemId ? <SituacaoBadge situacao={r.ordemSituacao} /> : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -299,46 +427,6 @@ export default async function ContratoPage({
           )}
         </CardContent>
       </Card>
-
-      {podeEditar && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">Minutas</CardTitle>
-                <CardDescription>
-                  Textos redigidos com a IA a partir deste contrato
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/compras/contratos/minutas/nova?contrato=${c.id}`}>
-                  <FilePen />
-                  Redigir minuta
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {minutas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma minuta vinculada.</p>
-            ) : (
-              <ul className="grid gap-1.5 text-sm">
-                {minutas.map((m) => (
-                  <li key={m.id} className="flex flex-wrap items-center gap-2">
-                    <Link href={`/painel/compras/contratos/minutas/${m.id}`} className="font-medium hover:underline">
-                      {m.titulo ?? m.tipo ?? "Minuta"}
-                    </Link>
-                    <span className="text-muted-foreground text-xs">
-                      {m.finalizada ? "finalizada" : `rascunho · v${m.versao}`}
-                      {m.pendencias > 0 ? ` · ${m.pendencias} a preencher` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {podeEditar && (
         <GrupoColapsavel

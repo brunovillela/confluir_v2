@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { startTransition, useMemo, useState } from "react"
 import { useActionState } from "react"
 import { Loader2, Trash2 } from "lucide-react"
 
@@ -31,11 +31,17 @@ function lerValor(v: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
+/**
+ * Emissão do RPA de um contrato: o prestador é o fornecedor do contrato, e o
+ * recibo gera a ordem de pagamento do líquido (Pagar em + forma).
+ */
 export function RpaNovoForm({
-  fornecedores,
+  contrato,
+  hoje,
   config,
 }: {
-  fornecedores: { id: string; nome: string; pessoa_juridica: boolean }[]
+  contrato: { id: string; codigo: string | null; objeto: string | null; fornecedorNome: string | null }
+  hoje: string
   config: ConfigRpa
 }) {
   const [estado, action, pend] = useActionState(emitirRpa, {})
@@ -64,37 +70,36 @@ export function RpaNovoForm({
   }, [valorTxt, base, dependentes, reterInss, reterIrrf, reterIss, issTxt, config])
 
   return (
-    <form action={action} className="grid gap-4">
+    <form
+      // Pelo onSubmit, e não por `action`: o React 19 limpa o formulário
+      // depois de uma action, e um erro apagaria o serviço e as datas.
+      onSubmit={(e) => {
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget)
+        startTransition(() => action(dados))
+      }}
+      className="grid gap-4"
+    >
+      <input type="hidden" name="contrato_id" value={contrato.id} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="fornecedor_id">Prestador (fornecedor) *</Label>
-        <select
-          id="fornecedor_id"
-          name="fornecedor_id"
-          required
-          defaultValue=""
-          className={SELECT_CLS}
-        >
-          <option value="" disabled>
-            Escolha o prestador…
-          </option>
-          {fornecedores.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.nome}
-              {f.pessoa_juridica ? " (PJ)" : ""}
-            </option>
-          ))}
-        </select>
-        <p className="text-muted-foreground text-xs">
-          O RPA é próprio de prestador AUTÔNOMO (pessoa física). Cadastre-o em
-          Compras → Fornecedores, se ainda não existir.
-        </p>
-      </div>
+      <dl className="bg-muted/40 grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground text-xs">Contrato</dt>
+          <dd className="font-medium">
+            {contrato.codigo ?? "(sem código)"}
+            {contrato.objeto && <span className="text-muted-foreground font-normal"> — {contrato.objeto}</span>}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs">Prestador (fornecedor do contrato)</dt>
+          <dd className="font-medium">{contrato.fornecedorNome ?? "—"}</dd>
+        </div>
+      </dl>
 
       <div className="grid gap-1.5">
         <Label htmlFor="descricao_servico">Serviço prestado *</Label>
@@ -103,6 +108,7 @@ export function RpaNovoForm({
           name="descricao_servico"
           rows={2}
           required
+          defaultValue={contrato.objeto ?? ""}
           placeholder="Ex.: Manutenção elétrica da sede — troca do quadro de distribuição"
         />
       </div>
@@ -232,6 +238,31 @@ export function RpaNovoForm({
         </div>
       )}
 
+      <fieldset className="grid gap-3 rounded-lg border p-3">
+        <legend className="px-1 text-sm font-medium">Pagamento</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="pagar_em">Pagar em *</Label>
+            <input
+              id="pagar_em"
+              name="pagar_em"
+              type="date"
+              required
+              defaultValue={hoje}
+              className={SELECT_CLS}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="forma_pagamento">Forma de pagamento</Label>
+            <Input id="forma_pagamento" name="forma_pagamento" defaultValue="Pix" placeholder="Ex.: Pix, Transferência" />
+          </div>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong> para o prestador,
+          Em autorização e ligada ao contrato — ela segue a alçada como qualquer ordem.
+        </p>
+      </fieldset>
+
       <div className="grid gap-1.5">
         <Label htmlFor="observacoes">Observações</Label>
         <Textarea id="observacoes" name="observacoes" rows={2} />
@@ -240,7 +271,7 @@ export function RpaNovoForm({
       <div className="flex justify-end">
         <Button type="submit" disabled={pend}>
           {pend && <Loader2 className="animate-spin" />}
-          Emitir RPA
+          Emitir RPA e gerar a ordem
         </Button>
       </div>
     </form>
@@ -402,7 +433,7 @@ export function ExcluirRpa({ id }: { id: string }) {
       onSubmit={(e) => {
         if (
           !confirm(
-            "Excluir este RPA? O número dele fica vago e o recibo deixa de existir. Não pode ser desfeito."
+            "Excluir este RPA e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito."
           )
         ) {
           e.preventDefault()

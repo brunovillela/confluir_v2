@@ -16,6 +16,9 @@
  * configuração por tenant para atualizá-los.
  */
 
+/** Tipo da ordem de pagamento que o RPA gera (valor líquido, ligada ao contrato). */
+export const TIPO_ORDEM_RPA = "RPA"
+
 export type FaixaIrrf = {
   /** Limite superior da faixa (null = última faixa, sem teto). */
   ate: number | null

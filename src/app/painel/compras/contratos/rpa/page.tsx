@@ -61,9 +61,9 @@ export default async function RpaPage({
             RPA — Recibo de Pagamento a Autônomo
           </h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Recibo emitido ao prestador autônomo, que baixa, assina e devolve —
-            vale como comprovante fiscal do serviço. {linhas.length} recibo
-            {linhas.length === 1 ? "" : "s"}.
+            Recibo do prestador autônomo, emitido a partir do contrato dele — gera a
+            ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
+            serviço. {linhas.length} recibo{linhas.length === 1 ? "" : "s"}.
           </p>
         </div>
         {podeEditar && (
@@ -79,9 +79,9 @@ export default async function RpaPage({
       {!ativo && (
         <Alert variant="destructive">
           <AlertDescription>
-            O schema desta área ainda não foi criado — rode{" "}
-            <code>supabase/compras-rpa.sql</code> no SQL Editor do Supabase para
-            ativar.
+            O schema desta área ainda não está completo — rode{" "}
+            <code>supabase/compras-rpa.sql</code> e{" "}
+            <code>supabase/contratos-rpa.sql</code> no SQL Editor do Supabase.
           </AlertDescription>
         </Alert>
       )}
@@ -97,7 +97,7 @@ export default async function RpaPage({
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>Nº</TableHead>
-              <TableHead>Prestador</TableHead>
+              <TableHead>Prestador e contrato</TableHead>
               <TableHead className="hidden sm:table-cell">Serviço em</TableHead>
               <TableHead className="text-right">Bruto</TableHead>
               <TableHead className="hidden text-right md:table-cell">
@@ -131,8 +131,19 @@ export default async function RpaPage({
                       {r.numero ?? "—"}
                     </Link>
                   </TableCell>
-                  <TableCell className="max-w-56 truncate">
-                    {r.fornecedorNome ?? "—"}
+                  <TableCell className="max-w-72">
+                    <span className="block truncate">{r.fornecedorNome ?? "—"}</span>
+                    {r.contratoId ? (
+                      <Link
+                        href={`/painel/compras/contratos/${r.contratoId}`}
+                        className="text-muted-foreground block truncate text-xs tabular-nums hover:underline"
+                      >
+                        {r.contratoCodigo ?? "(sem código)"}
+                        {r.contratoObjeto ? ` — ${r.contratoObjeto}` : ""}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground block text-xs">sem contrato</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden whitespace-nowrap sm:table-cell">
                     {r.data_servico ? formatarData(r.data_servico) : "—"}

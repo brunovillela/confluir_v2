@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, FilePen, FileText, Plus, ScrollText, Tags } from "lucide-react"
 
-import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import {
   TiposContratoBadges,
   VigenciaContratoBadge,
@@ -129,45 +128,47 @@ export default async function ContratosPage({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Contratos</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              Contratos com fornecedores, aditivos e acompanhamento de vigência
+              Cada contrato reúne a minuta (o instrumento), os pagamentos — ordens e RPAs —, os
+              aditivos e a vigência. Abra o contrato para redigir a minuta ou emitir o RPA.
             </p>
           </div>
-          {podeEditar && (
-            <Button asChild>
-              <Link href="/painel/compras/contratos/novo">
-                <Plus />
-                Novo contrato
+          <div className="flex flex-wrap items-center gap-2">
+            {podeEditar && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/painel/compras/contratos/minutas">
+                  <FilePen />
+                  Todas as minutas
+                  {minutasDisponiveis && (
+                    <span className="text-muted-foreground tabular-nums">({totalMinutas})</span>
+                  )}
+                </Link>
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/painel/compras/contratos/rpa">
+                <ScrollText />
+                Todos os RPAs
               </Link>
             </Button>
-          )}
+            {podeEditar && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/painel/compras/contratos/categorias">
+                  <Tags />
+                  Categorias
+                  <span className="text-muted-foreground tabular-nums">({todasCategorias.length})</span>
+                </Link>
+              </Button>
+            )}
+            {podeEditar && (
+              <Button asChild>
+                <Link href="/painel/compras/contratos/novo">
+                  <Plus />
+                  Novo contrato
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className={GRADE_AREAS}>
-        <CartaoArea
-          titulo="RPA"
-          descricao="Recibo de pagamento a autônomo, por valor bruto ou líquido"
-          href="/painel/compras/contratos/rpa"
-          icone={ScrollText}
-        />
-        {podeEditar && (
-          <>
-            <CartaoArea
-              titulo="Minutas"
-              descricao="A IA redige a minuta do contrato; você revisa e baixa em PDF ou Word"
-              href="/painel/compras/contratos/minutas"
-              icone={FilePen}
-              indicador={minutasDisponiveis ? `${totalMinutas} minuta${totalMinutas === 1 ? "" : "s"}` : null}
-            />
-            <CartaoArea
-              titulo="Categorias"
-              descricao="Agrupam os contratos; as sigilosas só aparecem para quem edita"
-              href="/painel/compras/contratos/categorias"
-              icone={Tags}
-              indicador={`${todasCategorias.length} categoria${todasCategorias.length === 1 ? "" : "s"}`}
-            />
-          </>
-        )}
       </div>
 
       {brutos.excluido === "1" && (

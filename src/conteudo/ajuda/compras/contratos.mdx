@@ -1,23 +1,29 @@
 Um **contrato** registra uma relação contínua com um fornecedor — com objeto,
-valor, vigência e o arquivo do contrato — e sabe gerar as ordens de pagamento
-das suas parcelas.
+valor, vigência e o arquivo do contrato. É a raiz de tudo o que vem dele: a
+**minuta** (o instrumento, o texto que as partes assinam) e os **pagamentos** —
+as ordens das parcelas e, com autônomo, o **RPA**.
 
 <RequerPermissao>Contratos</RequerPermissao>
 
-## As subáreas
+## Contrato › Minuta › RPA
 
-No alto da lista de contratos, três cartões levam às áreas que acompanham os
-contratos:
+Tudo parte do contrato. Abra-o para ver, em ordem:
 
-- **RPA** — recibos de pagamento a autônomo (mais abaixo);
-- **Minutas** — a IA redige a minuta do contrato, você revisa, baixa em PDF ou
-  Word e colhe as assinaturas eletrônicas. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
-- **Categorias** — agrupam os contratos (mais abaixo).
+1. **Dados do contrato** — objeto, fornecedor, valor, vigência, departamento,
+   centro de custo, categoria e o arquivo;
+2. **Minuta — o instrumento do contrato** — o texto redigido com a IA,
+   revisado e assinado pelas partes. **Redigir minuta** já traz o objeto, o
+   valor, a vigência e o fornecedor. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
+3. **RPA — pagamento a autônomo** — quando o fornecedor é pessoa física, os
+   recibos dele e o botão **Emitir RPA** (mais abaixo);
+4. **Aditivos**, **Gerar ordens de pagamento** e a lista de **Ordens de
+   pagamento** do contrato — as parcelas e as ordens dos RPAs.
 
-Abaixo dos cartões ficam os totais de vigentes, vencendo em até 30 dias,
-vencidos e sem termo definido, e a lista com os filtros.
+<Print src="compras/contrato-hierarquia.png" alt="Contrato de manutenção elétrica com prestador pessoa física: Dados do contrato; Minuta — o instrumento do contrato, com o botão Redigir minuta; RPA — pagamento a autônomo, com o botão Emitir RPA e o RPA nº 1 com o valor bruto, o líquido e a ordem Em autorização." legenda="O contrato e o que nasce dele: a minuta e o RPA." />
 
-<Print src="compras/contratos-subareas.png" alt="Contratos: os cartões RPA, Minutas (2 minutas) e Categorias (1 categoria), os totais de vigentes, vencendo, vencidos e sem termo definido, os filtros e a lista de contratos." legenda="As subáreas no alto da lista de contratos." />
+Na lista de contratos ficam os totais de vigentes, vencendo em até 30 dias,
+vencidos e sem termo definido, os filtros e, no alto, os atalhos **Todas as
+minutas**, **Todos os RPAs** e **Categorias**, para ver tudo de uma vez.
 
 ## Vigência
 
@@ -43,7 +49,8 @@ contrato principal.
   </Passo>
   <Passo titulo="Rode de novo sem medo">
     A geração é idempotente: vencimentos que já têm ordem são pulados, então
-    rodar de novo só completa o que falta — nunca duplica.
+    rodar de novo só completa o que falta — nunca duplica. As ordens de RPA não
+    contam: uma parcela pode vencer no mesmo dia de um RPA.
   </Passo>
 </PassoAPasso>
 
@@ -61,10 +68,17 @@ Contratos podem ser organizados por **categoria**. Uma categoria marcada como
 
 ## RPA — Recibo de Pagamento a Autônomo
 
-O cartão **RPA**, no alto da lista de contratos, abre a emissão de recibos para
-prestadores **autônomos** (pessoa física do cadastro de fornecedores). O RPA em
-PDF é baixado, **assinado pelo prestador** e arquivado — vale como comprovante
-fiscal do serviço prestado.
+O RPA é a **forma de pagamento** do contrato com **autônomo**: o prestador é o
+fornecedor do contrato, que precisa ser **pessoa física** (CPF). Ele é emitido
+na página do contrato, em **Emitir RPA** — ou em **Todos os RPAs → Novo RPA**,
+que pede o contrato primeiro. O PDF é baixado, **assinado pelo prestador** e
+arquivado — vale como comprovante fiscal do serviço prestado.
+
+<Aviso tipo="nota" titulo="Serviço avulso também tem contrato">
+  Todo RPA pertence a um contrato. Para um serviço pontual de autônomo, cadastre
+  antes um contrato simples com ele — é o que liga o recibo, a ordem e o
+  histórico do prestador.
+</Aviso>
 
 <PassoAPasso>
   <Passo titulo="Escolha a base do valor">
@@ -78,16 +92,34 @@ fiscal do serviço prestado.
     recolhe o ISS por conta própria), e a alíquota do ISS é editável por
     recibo. Informe os dependentes para a dedução do IRRF.
   </Passo>
-  <Passo titulo="Emita e colha a assinatura">
-    O recibo ganha um número sequencial e o PDF sai com os valores
-    discriminados (bruto, retenções, líquido) e o termo de quitação. RPAs não
-    são editáveis — para corrigir, exclua e emita outro.
+  <Passo titulo="Diga quando e como pagar">
+    **Pagar em** e **Forma de pagamento** (Pix, transferência…) vão para a
+    ordem de pagamento.
+  </Passo>
+  <Passo titulo="Emita — a ordem nasce junto">
+    **Emitir RPA e gerar a ordem** dá ao recibo um número sequencial e cria a
+    **ordem de pagamento do valor líquido**, *Em autorização*, para o
+    prestador, com o departamento e o centro de custo do contrato. Ela aparece
+    nas ordens do contrato e no Financeiro (tipo *RPA*) e segue a alçada como
+    qualquer ordem.
+  </Passo>
+  <Passo titulo="Colha a assinatura">
+    O PDF sai com os valores discriminados (bruto, retenções, líquido) e o
+    termo de quitação. RPAs não são editáveis — para corrigir, exclua e emita
+    outro.
   </Passo>
 </PassoAPasso>
 
+<Print src="compras/rpa.png" alt="RPA nº 1: o cartão Contrato e pagamento com o contrato 2026.0901.0900.0010 e a ordem de pagamento Em autorização; o prestador pessoa física com CPF e endereço, o serviço, e os valores — bruto de R$ 1.800,00, INSS, ISS e o líquido de R$ 1.512,00." legenda="O RPA: o contrato a que pertence e a ordem que gerou." />
+
+<Aviso tipo="atencao" titulo="Excluir o RPA leva a ordem junto">
+  Enquanto a ordem está *Em autorização*, **Excluir RPA** apaga o recibo e a
+  ordem. Depois de autorizada, peça ao Financeiro para cancelar a ordem antes.
+</Aviso>
+
 <Aviso tipo="atencao" titulo="Tabelas mudam todo ano">
   O teto do INSS e a tabela progressiva do IRRF são atualizados anualmente pelo
-  governo. Em <strong>Tabelas de retenção</strong>, na área de RPA, confira com
+  governo. Em <strong>Tabelas de retenção</strong>, em Todos os RPAs, confira com
   a contabilidade e atualize os valores — os recibos já emitidos não mudam.
 </Aviso>
 

@@ -21,6 +21,7 @@ import {
   type SituacaoContrato,
   type Vigencia,
 } from "@/lib/contratos-constantes"
+import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -824,13 +825,15 @@ export async function gerarOrdensContrato(
     vencimentoParcela(params.primeiroVencimento, params.periodicidade, i)
   )
 
-  // Idempotência: pula vencimentos que já têm ordem deste contrato.
+  // Idempotência: pula vencimentos que já têm ordem deste contrato. As ordens
+  // de RPA também são do contrato, mas não são parcelas — ficam de fora.
   const { data: existentes, error: erroExist } = await admin
     .from("ordens_pagamento")
     .select("vencimento")
     .eq("contrato_id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .not("excluido", "is", true)
+    .or(`tipo.is.null,tipo.neq.${TIPO_ORDEM_RPA}`)
   if (erroExist) {
     if (esquemaAusente(erroExist)) {
       return { erro: "Rode supabase/contratos-ordens.sql antes de gerar ordens." }

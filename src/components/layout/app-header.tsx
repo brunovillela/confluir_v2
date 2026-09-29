@@ -21,6 +21,15 @@ import { useRotulosTrilha, useTrilhaPropria } from "./trilha-rotulos"
 
 type Trilha = { titulo: string; href: string; segmento: string }
 
+/** Segmentos de rota que não viram rótulo só com a maiúscula (sigla ou acento). */
+const ROTULOS_SEGMENTO: Record<string, string> = {
+  rpa: "RPA",
+  configuracao: "Configuração",
+  configuracoes: "Configurações",
+  solicitacoes: "Solicitações",
+  comparacoes: "Comparações",
+}
+
 /** Monta a trilha de breadcrumbs a partir da rota, usando os títulos dos módulos. */
 function montarTrilha(pathname: string): Trilha[] {
   const segmentos = pathname.split("/").filter(Boolean)
@@ -34,6 +43,7 @@ function montarTrilha(pathname: string): Trilha[] {
     const modulo = MODULOS.find((m) => m.href === href)
     const titulo =
       modulo?.titulo ??
+      ROTULOS_SEGMENTO[segmento] ??
       (pareceUuid.test(segmento)
         ? "Detalhe"
         : decodeURIComponent(segmento)

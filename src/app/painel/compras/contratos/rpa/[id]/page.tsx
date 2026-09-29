@@ -47,9 +47,15 @@ export default async function RpaDetalhePage({
       <div className="flex items-start justify-between gap-3">
         <div>
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-            <Link href="/painel/compras/contratos/rpa">
+            <Link
+              href={
+                rpa.contratoId
+                  ? `/painel/compras/contratos/${rpa.contratoId}`
+                  : "/painel/compras/contratos/rpa"
+              }
+            >
               <ArrowLeft />
-              RPAs
+              {rpa.contratoId ? (rpa.contratoCodigo ?? "Contrato") : "RPAs"}
             </Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -71,11 +77,55 @@ export default async function RpaDetalhePage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            RPA emitido. Baixe o PDF, colha a assinatura do prestador e arquive
-            — o recibo assinado vale como comprovante fiscal do serviço.
+            RPA emitido{rpa.ordemId ? " e ordem de pagamento gerada (Em autorização)" : ""}.
+            Baixe o PDF, colha a assinatura do prestador e arquive — o recibo
+            assinado vale como comprovante fiscal do serviço.
           </AlertDescription>
         </Alert>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Contrato e pagamento</CardTitle>
+          <CardDescription>
+            O RPA é uma forma de pagamento do contrato: a ordem do valor líquido nasce junto com o
+            recibo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+          <div className="grid grid-cols-[9rem_1fr] gap-2">
+            <span className="text-muted-foreground">Contrato</span>
+            <span>
+              {rpa.contratoId ? (
+                <Link
+                  href={`/painel/compras/contratos/${rpa.contratoId}`}
+                  className="text-primary tabular-nums hover:underline"
+                >
+                  {rpa.contratoCodigo ?? "(sem código)"}
+                  {rpa.contratoObjeto ? ` — ${rpa.contratoObjeto}` : ""}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">Sem contrato (RPA anterior à ligação com contratos)</span>
+              )}
+            </span>
+          </div>
+          <div className="grid grid-cols-[9rem_1fr] gap-2">
+            <span className="text-muted-foreground">Ordem de pagamento</span>
+            <span>
+              {rpa.ordemId ? (
+                <Link
+                  href={`/painel/financeiro/ordens/${rpa.ordemId}`}
+                  className="text-primary tabular-nums hover:underline"
+                >
+                  {rpa.ordemCodigo ?? "(sem código)"} · {rpa.ordemSituacao ?? "—"}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">Nenhuma</span>
+              )}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>
