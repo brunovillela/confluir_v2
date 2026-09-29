@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
@@ -1771,16 +1771,21 @@ export async function consumoDoVeiculo(
   veiculoId: string
 ): Promise<ConsumoVeiculo | null> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("veiculos_abastecimentos")
-    .select("volume_abastecido, valor_abastecimento, hodometro")
-    .eq("veiculo_id", veiculoId)
-    .order("data_hora_abastecimento", { ascending: true })
-  if (error) {
-    if (esquemaAusente(error)) return null
-    throw new Error(`Falha ao calcular consumo: ${error.message}`)
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotes((de, ate) =>
+      admin
+        .from("veiculos_abastecimentos")
+        .select("volume_abastecido, valor_abastecimento, hodometro")
+        .eq("veiculo_id", veiculoId)
+        .order("data_hora_abastecimento", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return null
+    throw new Error(`Falha ao calcular consumo: ${(e as Error).message}`)
   }
-  const linhas = (data ?? []) as Record<string, unknown>[]
   if (linhas.length === 0) return null
 
   const totalGasto = linhas.reduce(
@@ -1862,15 +1867,20 @@ export async function indicadoresDoVeiculo(
   veiculoId: string
 ): Promise<IndicadoresVeiculo> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("veiculos_disponibilidade")
-    .select("condutor_id, km_rodado, data_retirada, data_devolucao, registrado_por_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("veiculo_id", veiculoId)
-    .order("data_retirada", { ascending: false })
-    .range(0, 4999)
-  if (error) throw new Error(`Falha ao calcular indicadores: ${error.message}`)
-  const linhas = (data ?? []) as Record<string, unknown>[]
+  const emp = await tenantAtual()
+  // Todas as movimentações, em lotes (o PostgREST corta cada resposta em 1.000).
+  const linhas = await lerEmLotes((de, ate) =>
+    admin
+      .from("veiculos_disponibilidade")
+      .select("condutor_id, km_rodado, data_retirada, data_devolucao, registrado_por_id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("veiculo_id", veiculoId)
+      .order("data_retirada", { ascending: false })
+      .order("id")
+      .range(de, ate)
+  ).catch((e: Error) => {
+    throw new Error(`Falha ao calcular indicadores: ${e.message}`)
+  })
 
   const hoje = hojeSP()
   const ha12Meses = new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)

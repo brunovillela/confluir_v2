@@ -1,6 +1,6 @@
 import "server-only"
 
-import { hojeSP, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import {
   buscarCondutorDoUsuario,
   KM_MAX_POR_USO,
@@ -29,20 +29,6 @@ import type { SituacaoAgendamento, SituacaoCobranca } from "@/lib/veiculos-const
  */
 
 type Admin = Awaited<ReturnType<typeof createAdminClient>>
-
-/** Lê todas as linhas em lotes de 1.000 (teto do PostgREST sem .range). */
-async function todasAsLinhas(
-  consulta: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
-): Promise<Record<string, unknown>[]> {
-  const saida: Record<string, unknown>[] = []
-  for (let de = 0; de < 50_000; de += 1000) {
-    const { data, error } = await consulta(de, de + 999)
-    if (error) throw new Error(error.message)
-    saida.push(...((data ?? []) as Record<string, unknown>[]))
-    if ((data ?? []).length < 1000) break
-  }
-  return saida
-}
 
 function numero(v: unknown): number | null {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN
@@ -123,7 +109,7 @@ export async function indicadoresDoCondutor(usuarioId: string): Promise<Indicado
   const emp = await tenantAtual()
 
   const [movs, abast, infr, reservas, checklists] = await Promise.all([
-    todasAsLinhas((de, ate) =>
+    lerEmLotes((de, ate) =>
       admin
         .from("veiculos_disponibilidade")
         .select("veiculo_id, km_rodado, data_retirada, data_devolucao, devolucao_em, previsao_retorno, registrado_por_id, observacao_retorno")
@@ -132,7 +118,7 @@ export async function indicadoresDoCondutor(usuarioId: string): Promise<Indicado
         .order("id")
         .range(de, ate)
     ),
-    todasAsLinhas((de, ate) =>
+    lerEmLotes((de, ate) =>
       admin
         .from("veiculos_abastecimentos")
         .select("veiculo_id, volume_abastecido, valor_abastecimento, data_hora_abastecimento, combustivel")
@@ -142,7 +128,7 @@ export async function indicadoresDoCondutor(usuarioId: string): Promise<Indicado
         .range(de, ate)
     ),
     // Infrações não têm coluna de tenant: a RLS isola pelo veículo.
-    todasAsLinhas((de, ate) =>
+    lerEmLotes((de, ate) =>
       admin
         .from("veiculos_infracoes")
         .select("infracao_custo, cobranca_situacao, justificativa_sindical")
@@ -150,7 +136,7 @@ export async function indicadoresDoCondutor(usuarioId: string): Promise<Indicado
         .order("id")
         .range(de, ate)
     ),
-    todasAsLinhas((de, ate) =>
+    lerEmLotes((de, ate) =>
       admin
         .from("veiculos_agendamentos")
         .select("situacao, atendido, bubble_id")
@@ -159,7 +145,7 @@ export async function indicadoresDoCondutor(usuarioId: string): Promise<Indicado
         .order("id")
         .range(de, ate)
     ),
-    todasAsLinhas((de, ate) =>
+    lerEmLotes((de, ate) =>
       admin
         .from("veiculos_checklists")
         .select("pendencias")
