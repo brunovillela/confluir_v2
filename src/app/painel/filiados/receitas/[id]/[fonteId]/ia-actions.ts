@@ -126,7 +126,7 @@ export async function extrairContribuicoesIa(
   }
 
   // Digital/planilha → extrai do texto. PDF escaneado (sem texto) → VISÃO
-  // nativa do Claude sobre o próprio PDF.
+  // nativa do modelo sobre o próprio PDF.
   let extracao
   if (texto.length >= 20) {
     const conteudo = texto.length > MAX_TEXTO ? texto.slice(0, MAX_TEXTO) : texto

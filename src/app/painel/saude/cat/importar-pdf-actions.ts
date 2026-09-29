@@ -84,7 +84,7 @@ export async function extrairCatDePdf(
     // Pode ser um PDF só-imagem que o extrator não abre — segue para a visão.
   }
 
-  // Digital: extrai do texto. Escaneado/imagem: usa a VISÃO nativa do Claude
+  // Digital: extrai do texto. Escaneado/imagem: usa a VISÃO nativa do modelo
   // sobre o próprio PDF (mais lento e mais caro, mas lê o formulário na imagem).
   const { dados, erro } =
     texto.length >= 40
