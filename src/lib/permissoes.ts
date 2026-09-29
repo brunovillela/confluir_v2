@@ -638,8 +638,6 @@ export const MODULOS: Modulo[] = [
     icone: "FileSignature",
     descricao: "ACT e CCT, vigência, cláusulas e alertas",
     chave: "acordos_coletivos",
-    oculto: true,
-  },
     // Quem negocia abre os documentos da negociação (pauta, propostas) na
     // página do acordo; o que é sigiloso é filtrado lá.
     chavesAlternativas: ["negociacoes"],
@@ -651,6 +649,8 @@ export const MODULOS: Modulo[] = [
     icone: "Handshake",
     descricao: "Pauta, propostas por rodada, acordo final e linha do tempo",
     chave: "negociacoes",
+    oculto: true,
+  },
   {
     titulo: "Empregadores",
     href: "/painel/representacao/empregadores",
