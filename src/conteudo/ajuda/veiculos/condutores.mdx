@@ -1,0 +1,128 @@
+Em **Veículos → Condutores** fica quem pode dirigir a frota: o cadastro da
+**CNH**, a **autorização** e, clicando no nome, a **página do condutor**, com os
+indicadores e todo o histórico de uso.
+
+<RequerPermissao>Gestão de veículos</RequerPermissao>
+
+<Aviso tipo="nota" titulo="Só retira veículo quem está apto">
+  Um condutor está **apto** quando está autorizado e a CNH está dentro da
+  validade. CNH vencida ou autorização retirada impedem a saída na recepção.
+</Aviso>
+
+## Cadastrar e autorizar
+
+**Cadastrar condutor** vincula um **usuário do painel** — o condutor é sempre
+uma pessoa com conta — e registra a CNH: número, categoria, validade e o
+arquivo digitalizado (PDF ou imagem). A lista mostra a situação de cada um e o
+botão para **autorizar** ou **desautorizar**.
+
+<Print src="veiculos/condutores.png" alt="Condutores: o quadro Cadastrar condutor, a lista com condutor, CNH, categoria, validade, a situação Apto e o botão Desautorizar, e o quadro Atualizar cadastro de um condutor." legenda="A lista de condutores; o nome abre a página do condutor." />
+
+## Renovar a CNH e o histórico
+
+Quando a CNH é renovada, abra **Atualizar cadastro de um condutor** (ou
+**Atualizar CNH**, na página do condutor) e lance o número, a categoria e a
+validade novos. A carteira anterior não se perde: ela vai para o **Histórico de
+CNH** do condutor, marcada *substituída na renovação*, com a data e quem fez a
+troca.
+
+<Aviso tipo="atencao" titulo="Renovação é no mesmo cadastro">
+  Não cadastre de novo quem renovou a carteira — nem numa outra conta de
+  usuário da mesma pessoa. É isso que gera os cadastros repetidos (abaixo).
+</Aviso>
+
+## Cadastros repetidos
+
+Às vezes a mesma pessoa tem **dois usuários** — o e-mail institucional e o
+pessoal, por exemplo — e cada um virou um condutor, com uma CNH e parte dos
+lançamentos. Quando isso acontece, a lista ganha o quadro **Cadastros
+repetidos**, que junta os cadastros com o mesmo CPF (ou o mesmo nome, quando não
+há CPFs diferentes).
+
+<PassoAPasso>
+  <Passo titulo="Confira o grupo">
+    Cada grupo mostra os cadastros lado a lado, com a CNH, a validade e o uso, e
+    já vem com um marcado como **Sugerido** — o ativo, com a CNH mais nova e o
+    mais usado.
+  </Passo>
+  <Passo titulo="Unificar no marcado">
+    O cadastro marcado fica. Os outros saem da lista de condutores, a CNH deles
+    vai para o histórico (*veio da unificação*, com o e-mail da outra conta), a
+    autorização é somada e **todos os lançamentos** — saídas, reservas,
+    abastecimentos, infrações e checklists — passam para o que fica.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A outra conta de usuário continua existindo">
+  Unificar os condutores não apaga o usuário que sai. Juntar as duas contas de
+  usuário é outro procedimento, feito pelo suporte.
+</Aviso>
+
+## A página do condutor
+
+Clique no nome do condutor — na lista, ou nos rankings da página de um veículo
+— para ver tudo o que ele fez com a frota. No topo ficam a situação (*Apto*,
+*Com veículo agora*), a CNH, quem autorizou e quando, e o **Histórico de CNH**,
+quando houver carteiras anteriores.
+
+### Os indicadores
+
+- **Usos de veículo** e a data do último;
+- **Km rodados**, no total e nos últimos 12 meses;
+- **Dias com veículo** — a soma dos dias fora da garagem;
+- **Devoluções atrasadas** — comparadas com a previsão de devolução;
+- **Km fora do normal** — devoluções em que a recepção confirmou uma
+  quilometragem acima do esperado;
+- **Abastecimentos** — quantidade, valor e litros;
+- **Infrações** — valor e cobranças pendentes;
+- **Reservas** — quantas, com as negadas e as canceladas;
+- **Veículos mais usados**, com os usos, o km e os dias em cada um.
+
+<Print src="veiculos/condutor.png" alt="Página do condutor Eduardo Prado Martins: os selos Apto e Com veículo agora, a CNH e quem autorizou, o Histórico de CNH aberto com a carteira anterior substituída na renovação, os oito indicadores, os veículos mais usados e as abas das listas." legenda="O topo da página do condutor: CNH, histórico, indicadores e os veículos mais usados." />
+
+<Aviso tipo="nota" titulo="As mesmas regras da página do veículo">
+  Saídas antigas que nunca foram fechadas contam um dia cada, e um uso com mais
+  de 10.000 km numa saída só — erro de digitação de hodômetro — fica fora das
+  somas.
+</Aviso>
+
+### As listas
+
+Abaixo dos indicadores, cinco abas: **Movimentações**, **Reservas**,
+**Abastecimentos**, **Infrações** e **Checklists** (os que ele fez como
+inspetor). Cada aba tem os próprios filtros — veículo, período e o que for da
+lista, como *Só devoluções com km fora do normal* nas movimentações —, colunas
+que ordenam com um clique e paginação. **Limpar filtros** volta ao padrão: o
+mais recente primeiro.
+
+<Print src="veiculos/condutor-listas.png" alt="Aba Movimentações da página do condutor: os filtros de veículo, período e situação e Só devoluções com km fora do normal; a tabela com saída, devolução, veículo, destino e motivo e km, com uma devolução que atrasou em relação à previsão, uma marcada fora do normal e uma sem devolução." legenda="As movimentações do condutor, com atrasos e km fora do normal em destaque." />
+
+## Erros comuns
+
+- **"O condutor não aparece para retirar o veículo."** Confira na lista se ele
+  está **apto**: autorizado e com a CNH na validade.
+- **"Renovei a CNH e sumiu a antiga."** Ela está no **Histórico de CNH**, na
+  página do condutor.
+- **"A página do condutor mostra poucos usos."** Pode haver outro cadastro da
+  mesma pessoa com o resto dos lançamentos — veja se a lista mostra **Cadastros
+  repetidos**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral dos Veículos",
+      href: "/painel/ajuda/veiculos",
+      descricao: "A frota, a página do veículo e os indicadores",
+    },
+    {
+      titulo: "Agendamentos",
+      href: "/painel/ajuda/veiculos/agendamentos",
+      descricao: "Reservas, saída e devolução na recepção",
+    },
+    {
+      titulo: "Infrações",
+      href: "/painel/ajuda/veiculos/infracoes",
+      descricao: "Multas, cobrança do infrator e baixa",
+    },
+  ]}
+/>

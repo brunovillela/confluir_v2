@@ -428,6 +428,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Infrações",
         resumo: "Multas, cobrança do infrator e baixa no Financeiro",
       },
+      {
+        slug: "condutores",
+        titulo: "Condutores",
+        resumo: "CNH e autorização, histórico de CNH, cadastros repetidos e a página do condutor",
+      },
     ],
   },
   {
