@@ -66,7 +66,8 @@ export default async function CondutoresPage({
         <h1 className="text-2xl font-semibold tracking-tight">Condutores</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Cadastro de CNH e autorização — só condutor autorizado com CNH em dia
-          retira veículo
+          retira veículo. Clique no nome para ver os indicadores e o histórico
+          do condutor.
         </p>
       </div>
 
@@ -116,7 +117,12 @@ export default async function CondutoresPage({
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">
-                        {c.usuarioNome ?? "(sem nome)"}
+                        <Link
+                          href={`/painel/veiculos/condutores/${c.usuario_id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {c.usuarioNome ?? "(sem nome)"}
+                        </Link>
                       </TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums">
                         {c.cnh_numero ?? "—"}

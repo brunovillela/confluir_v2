@@ -378,6 +378,7 @@ export default async function VeiculoPage({
               <Ranking
                 linhas={indicadores.condutoresPorKm.map((c) => ({
                   id: c.id,
+                  href: gestor ? `/painel/veiculos/condutores/${c.id}` : null,
                   nome: c.nome,
                   valor: `${c.km.toLocaleString("pt-BR")} km`,
                   detalhe: `${c.usos} uso${c.usos === 1 ? "" : "s"}`,
@@ -391,6 +392,7 @@ export default async function VeiculoPage({
               <Ranking
                 linhas={indicadores.condutoresPorDias.map((c) => ({
                   id: c.id,
+                  href: gestor ? `/painel/veiculos/condutores/${c.id}` : null,
                   nome: c.nome,
                   valor: `${c.dias.toLocaleString("pt-BR")} ${c.dias === 1 ? "dia" : "dias"}`,
                   detalhe: `${c.usos} uso${c.usos === 1 ? "" : "s"}`,
@@ -626,7 +628,8 @@ function Indicador({
 function Ranking({
   linhas,
 }: {
-  linhas: { id: string; nome: string; valor: string; detalhe: string }[]
+  /** href: página do condutor (só para a gestão). */
+  linhas: { id: string; nome: string; valor: string; detalhe: string; href: string | null }[]
 }) {
   if (linhas.length === 0) {
     return <p className="text-muted-foreground">Sem dados.</p>
@@ -637,7 +640,13 @@ function Ranking({
         <li key={l.id} className="flex items-baseline justify-between gap-3">
           <span className="min-w-0 truncate">
             <span className="text-muted-foreground mr-2 tabular-nums">{i + 1}.</span>
-            {l.nome}
+            {l.href ? (
+              <Link href={l.href} className="text-primary hover:underline">
+                {l.nome}
+              </Link>
+            ) : (
+              l.nome
+            )}
           </span>
           <span className="shrink-0 text-right tabular-nums">
             <span className="font-medium">{l.valor}</span>

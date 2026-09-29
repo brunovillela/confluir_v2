@@ -612,7 +612,7 @@ export type Agendamento = {
   legado: boolean
 }
 
-async function montarAgendamentos(
+export async function montarAgendamentos(
   brutos: Record<string, unknown>[]
 ): Promise<Agendamento[]> {
   const admin = await createAdminClient()
@@ -1089,6 +1089,20 @@ export async function listarMovimentacoes(filtros: {
   }
   const brutos = (data ?? []) as Record<string, unknown>[]
 
+  // No mesmo dia, a saída mais tarde vem primeiro (quando o horário é conhecido).
+  brutos.sort((a, b) => {
+    const dia = String(b.data_retirada ?? "").localeCompare(String(a.data_retirada ?? ""))
+    if (dia !== 0) return dia
+    return String(b.retirada_em ?? b.created_at ?? "").localeCompare(String(a.retirada_em ?? a.created_at ?? ""))
+  })
+  return montarMovimentacoes(brutos)
+}
+
+/** Linhas cruas de veiculos_disponibilidade → Movimentacao (nomes, placas, autores). */
+export async function montarMovimentacoes(
+  brutos: Record<string, unknown>[]
+): Promise<Movimentacao[]> {
+  const admin = await createAdminClient()
   const [nomes, autor] = await Promise.all([
     nomesDosUsuarios(brutos.map((m) => String(m.condutor_id ?? "")).filter(Boolean)),
     rotuladorDeAutores(
@@ -1107,13 +1121,6 @@ export async function listarMovimentacoes(filtros: {
   const veiculoPorId = new Map(
     ((veiculos.data ?? []) as Record<string, unknown>[]).map((v) => [String(v.id), v])
   )
-
-  // No mesmo dia, a saída mais tarde vem primeiro (quando o horário é conhecido).
-  brutos.sort((a, b) => {
-    const dia = String(b.data_retirada ?? "").localeCompare(String(a.data_retirada ?? ""))
-    if (dia !== 0) return dia
-    return String(b.retirada_em ?? b.created_at ?? "").localeCompare(String(a.retirada_em ?? a.created_at ?? ""))
-  })
 
   return brutos.map((m) => {
     const veiculo = m.veiculo_id ? veiculoPorId.get(String(m.veiculo_id)) : undefined
@@ -1586,8 +1593,20 @@ export async function listarAbastecimentos(filtros: {
     }
     throw new Error(`Falha ao listar abastecimentos: ${error.message}`)
   }
-  const brutos = (data ?? []) as Record<string, unknown>[]
+  const total = count ?? 0
+  return {
+    linhas: await montarAbastecimentos((data ?? []) as Record<string, unknown>[]),
+    total,
+    pagina,
+    totalPaginas: Math.max(1, Math.ceil(total / ABASTECIMENTOS_POR_PAGINA)),
+  }
+}
 
+/** Linhas cruas de veiculos_abastecimentos → Abastecimento (nome e placa). */
+export async function montarAbastecimentos(
+  brutos: Record<string, unknown>[]
+): Promise<Abastecimento[]> {
+  const admin = await createAdminClient()
   const nomes = await nomesDosUsuarios(
     brutos.map((a) => String(a.usuario_id ?? "")).filter(Boolean)
   )
@@ -1604,9 +1623,7 @@ export async function listarAbastecimentos(filtros: {
     ])
   )
 
-  const total = count ?? 0
-  return {
-    linhas: brutos.map((a) => ({
+  return brutos.map((a) => ({
       id: String(a.id),
       veiculo_id: texto(a.veiculo_id),
       veiculoPlaca: a.veiculo_id
@@ -1621,11 +1638,7 @@ export async function listarAbastecimentos(filtros: {
       hodometro: numero(a.hodometro),
       data_hora: texto(a.data_hora_abastecimento),
       legado: Boolean(a.bubble_id),
-    })),
-    total,
-    pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / ABASTECIMENTOS_POR_PAGINA)),
-  }
+    }))
 }
 
 export type NovoAbastecimento = {
@@ -1837,7 +1850,7 @@ function diasEntre(inicio: string, fim: string): number {
  * Um uso acima disto é erro de digitação de hodômetro (o legado tem usos de
  * 78 mil km) — fica fora das somas para não distorcer o ranking.
  */
-const KM_MAX_POR_USO = 10_000
+export const KM_MAX_POR_USO = 10_000
 
 /**
  * Indicadores calculados sobre TODAS as movimentações do veículo (o legado do
@@ -1972,7 +1985,7 @@ export type Infracao = {
   legado: boolean
 }
 
-async function montarInfracoes(
+export async function montarInfracoes(
   brutos: Record<string, unknown>[]
 ): Promise<Infracao[]> {
   const admin = await createAdminClient()
