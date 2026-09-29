@@ -93,12 +93,13 @@ type ItemAnalise = { i: number; situacao: Situacao; a: string | null; b: string 
 
 async function analisarIA(
   itens: ItemAnalise[]
-): Promise<{ resultado: Map<number, { resumo: string; avaliacao: Avaliacao; motivo: string | null }>; falhas: number; lotes: number }> {
+): Promise<{ resultado: Map<number, { resumo: string; avaliacao: Avaliacao; motivo: string | null }>; falhas: number; lotes: number; erro: string | null }> {
   const resultado = new Map<number, { resumo: string; avaliacao: Avaliacao; motivo: string | null }>()
   const LOTE = 8
   const lotes: ItemAnalise[][] = []
   for (let de = 0; de < itens.length; de += LOTE) lotes.push(itens.slice(de, de + LOTE))
   let falhas = 0
+  let ultimoErro: string | null = null
   await Promise.all(
     lotes.map(async (lote) => {
       const corpo = lote.map((it) => ({
@@ -113,6 +114,7 @@ async function analisarIA(
       })
       if (erro || !dados) {
         falhas++
+        ultimoErro = erro ?? "resposta vazia"
         return
       }
       for (const r of Array.isArray(dados.itens) ? (dados.itens as Record<string, unknown>[]) : []) {
@@ -129,7 +131,7 @@ async function analisarIA(
       }
     })
   )
-  return { resultado, falhas, lotes: lotes.length }
+  return { resultado, falhas, lotes: lotes.length, erro: ultimoErro }
 }
 
 // ── Criação ──────────────────────────────────────────────────────────────────
@@ -200,7 +202,7 @@ export async function criarComparacao(
     .filter((x) => x.situacao !== "igual")
   const analise = await analisarIA(paraAnalisar)
   if (analise.falhas) {
-    avisos.push(`A IA não analisou ${analise.falhas} de ${analise.lotes} lote(s) de mudanças — use "Analisar com IA" nesses pares.`)
+    avisos.push(`A IA não analisou ${analise.falhas} de ${analise.lotes} lote(s) de mudanças${analise.erro ? ` (${analise.erro.replace(/\.$/, "")})` : ""} — use "Analisar com IA" nesses pares.`)
   }
 
   const { data: comp, error } = await admin
@@ -451,11 +453,17 @@ export async function analisarPar(parId: string): Promise<{ erro?: string }> {
   const ids = [p.clausula_a_id, p.clausula_b_id].filter(Boolean) as string[]
   const { data: cls } = await admin.from("acordo_clausulas").select("id, texto").in("id", ids)
   const texto = (id: string | null) => (id ? (cls?.find((c) => c.id === id)?.texto ?? null) : null)
-  const { resultado } = await analisarIA([
+  const { resultado, erro: erroIA } = await analisarIA([
     { i: 0, situacao: p.situacao as Situacao, a: texto(p.clausula_a_id), b: texto(p.clausula_b_id) },
   ])
   const r = resultado.get(0)
-  if (!r) return { erro: "A IA não conseguiu analisar este par agora. Tente de novo." }
+  if (!r) {
+    return {
+      erro: erroIA
+        ? `A IA não conseguiu analisar este par: ${erroIA}`
+        : "A IA não conseguiu analisar este par agora. Tente de novo.",
+    }
+  }
   const { error } = await admin
     .from("acordo_comparacao_pares")
     .update({

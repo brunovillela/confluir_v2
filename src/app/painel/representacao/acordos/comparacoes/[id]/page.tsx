@@ -92,7 +92,7 @@ export default async function ComparacaoPage({
 
   return (
     <>
-      <RotuloTrilha valores={{ [id]: "Comparação" }} />
+      <RotuloTrilha valores={{ comparacoes: "Comparações", [id]: "Comparação" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/representacao/acordos/comparacoes">
