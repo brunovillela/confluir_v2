@@ -239,12 +239,18 @@ export default async function ProcessoCompraPage({
             <Campo rotulo="Vinculado a projeto">
               {processo.projetoNome ?? "Não há"}
             </Campo>
-            <Campo rotulo="Limite para receber">
-              {formatarData(processo.data_limite)}
-            </Campo>
-            <Campo rotulo="Local de entrega preferencial">
-              {processo.local_entrega ?? "Não informado"}
-            </Campo>
+            {processo.entrega_no_ato ? (
+              <Campo rotulo="Entrega">No ato da compra</Campo>
+            ) : (
+              <>
+                <Campo rotulo="Limite para receber">
+                  {formatarData(processo.data_limite)}
+                </Campo>
+                <Campo rotulo="Local para receber">
+                  {processo.local_entrega ?? "Não informado"}
+                </Campo>
+              </>
+            )}
             {processo.observacao && (
               <Campo rotulo="Observações" colSpan>
                 <span className="whitespace-pre-wrap">{processo.observacao}</span>

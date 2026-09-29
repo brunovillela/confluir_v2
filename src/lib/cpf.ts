@@ -61,3 +61,26 @@ export function cpfConfiavel(valor: string | null | undefined): string | null {
 export function grafiasDoCpf(cpf: string): string[] {
   return [...new Set([cpf, formatarCpf(cpf)])]
 }
+
+/** CNPJ (14 dígitos) com dígitos verificadores certos. */
+export function validarCnpj(cnpj: string): boolean {
+  const limpo = limparCpf(cnpj)
+  if (limpo.length !== 14) return false
+  if (/^(\d)\1{13}$/.test(limpo)) return false
+
+  const digito = (base: string) => {
+    const pesos = base.length === 12
+      ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+      : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    const soma = base
+      .split("")
+      .reduce((acc, d, i) => acc + Number(d) * pesos[i], 0)
+    const resto = soma % 11
+    return resto < 2 ? 0 : 11 - resto
+  }
+
+  return (
+    digito(limpo.slice(0, 12)) === Number(limpo[12]) &&
+    digito(limpo.slice(0, 13)) === Number(limpo[13])
+  )
+}

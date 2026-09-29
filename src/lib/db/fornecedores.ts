@@ -291,6 +291,73 @@ async function cnpjDuplicado(
   return (data ?? []).length > 0
 }
 
+export type FornecedorEncontrado = {
+  id: string
+  nome: string
+  cnpj_cpf: string | null
+  bloqueado: boolean
+  /** Como foi achado: CNPJ/CPF é certeza; nome é só indício. */
+  por: "documento" | "nome"
+}
+
+/**
+ * Procura um fornecedor ativo do tenant pelo CNPJ/CPF (só dígitos) e, sem
+ * documento ou sem achar por ele, pela razão social/nome fantasia exatos
+ * (sem diferença de maiúsculas). Usado pela leitura da nota na compra direta.
+ */
+export async function buscarFornecedorExistente({
+  cnpjCpf,
+  nomes,
+}: {
+  cnpjCpf: string | null
+  nomes: string[]
+}): Promise<FornecedorEncontrado | null> {
+  const admin = await createAdminClient()
+  const tenant = await tenantAtual()
+  const colunas =
+    "id, nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado"
+  const montar = (
+    e: Record<string, unknown>,
+    por: FornecedorEncontrado["por"]
+  ): FornecedorEncontrado => ({
+    id: String(e.id),
+    nome:
+      [e.nome_fantasia, e.nome_razao].find(
+        (v): v is string => typeof v === "string" && v.trim() !== ""
+      ) ?? "(sem nome)",
+    cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
+    bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+    por,
+  })
+
+  if (cnpjCpf) {
+    const { data } = await admin
+      .from("empresa")
+      .select(colunas)
+      .eq("emp_proprietaria_id", tenant)
+      .eq("cnpj_cpf", cnpjCpf)
+      .not("inativa", "is", true)
+      .limit(1)
+    if (data?.[0]) return montar(data[0], "documento")
+  }
+
+  for (const nome of nomes) {
+    const termo = nome.trim().replace(/[,()%_]/g, " ").trim()
+    if (termo.length < 3) continue
+    const { data } = await admin
+      .from("empresa")
+      .select(colunas)
+      .eq("emp_proprietaria_id", tenant)
+      .not("inativa", "is", true)
+      .or(`nome_razao.ilike.${termo},nome_fantasia.ilike.${termo}`)
+      .limit(1)
+    // Mesmo nome com OUTRO CNPJ é outra empresa (filial, homônima).
+    const achado = data?.[0]
+    if (achado && (!cnpjCpf || !achado.cnpj_cpf)) return montar(achado, "nome")
+  }
+  return null
+}
+
 export async function criarFornecedor(
   dados: DadosFornecedor
 ): Promise<{ id?: string; erro?: string }> {

@@ -5,6 +5,10 @@ import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
+import {
+  debitarCaixaCompra,
+  type DetalhePagamento,
+} from "@/lib/db/compras-pagamento"
 
 /**
  * Compras — processos de aquisição (espelha o fluxo do Bubble, confirmado
@@ -139,6 +143,8 @@ export type ProcessoDetalhe = {
   projetoNome: string | null
   data_limite: string | null
   local_entrega: string | null
+  /** Entregue no ato da compra (supabase/compras-entrega-no-ato.sql). */
+  entrega_no_ato: boolean
   em_cotacao: boolean
   cotacao_inicio: string | null
   cotacao_termino: string | null
@@ -631,6 +637,7 @@ export async function buscarProcesso(
     projetoNome: (projeto.data?.descricao_sumaria as string | undefined) ?? null,
     data_limite: (p.solicitacao_data_limite as string | null) ?? null,
     local_entrega: (p.solicitacao_local as string | null) ?? null,
+    entrega_no_ato: p.solicitacao_entrega_no_ato === true,
     em_cotacao: p.em_cotacao === true,
     cotacao_inicio: (p.cotacao_inicio as string | null) ?? null,
     cotacao_termino: (p.cotacao_termino as string | null) ?? null,
@@ -664,6 +671,12 @@ export type NovaSolicitacao = {
   projeto_id: string | null
   data_limite: string | null
   local_entrega: string | null
+  /**
+   * Entregue no ato da compra (sem limite/local para receber). Coluna de
+   * supabase/compras-entrega-no-ato.sql — só vai no insert quando true, para
+   * quem não usa a marcação (fatura de viagens) não depender do SQL.
+   */
+  entrega_no_ato?: boolean
   /** Quem registrou (coluna de supabase/compras-restricao-departamento.sql). */
   solicitante_id?: string | null
 }
@@ -699,6 +712,7 @@ export async function criarSolicitacao(
       solicitacao_projeto_id: nova.projeto_id,
       solicitacao_data_limite: nova.data_limite,
       solicitacao_local: nova.local_entrega,
+      ...(nova.entrega_no_ato ? { solicitacao_entrega_no_ato: true } : {}),
       cancelado: false,
       em_cotacao: false,
       comprado: false,
@@ -723,6 +737,8 @@ export type NovaCompraDireta = NovaSolicitacao & {
   nota_fiscal_url: string | null
   ja_recebido: boolean
   recebedor_id: string
+  /** Com o quê foi paga (cartão, caixa, chave/conta, código Pix, texto). */
+  detalhe?: DetalhePagamento
 }
 
 /**
@@ -745,6 +761,9 @@ export async function criarCompraDireta(
       solicitacao_departamento_id: nova.departamento_id,
       solicitacao_centro_custo_id: nova.centro_custo_id,
       solicitacao_projeto_id: nova.projeto_id,
+      solicitacao_data_limite: nova.data_limite,
+      solicitacao_local: nova.local_entrega,
+      ...(nova.entrega_no_ato ? { solicitacao_entrega_no_ato: true } : {}),
       cancelado: false,
       em_cotacao: false,
       comprado: true,
@@ -783,6 +802,9 @@ export async function criarCompraDireta(
       centro_custo_despesa_id: nova.centro_custo_id,
       arquivo_nota_fiscal: nova.nota_fiscal_url,
       processo_compra_id: processo.id,
+      // Colunas de supabase/compras-pagamento.sql: só quando há detalhe, para
+      // quem não o informa (fatura de viagens) seguir sem depender do SQL.
+      ...(nova.detalhe ?? {}),
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
     })
@@ -821,6 +843,23 @@ export async function criarCompraDireta(
     if (esquemaAusente(erroFornecimento)) return { erro: AVISO_SQL }
     return {
       erro: `Não foi possível registrar o fornecimento: ${erroFornecimento.message}`,
+    }
+  }
+
+  // Em dinheiro: a compra sai do caixa escolhido.
+  if (nova.detalhe?.caixa_conta_id) {
+    const { erro } = await debitarCaixaCompra({
+      contaId: nova.detalhe.caixa_conta_id,
+      valor: nova.valor,
+      descricao: `Compra direta ${codigo} — ${nova.produto}`.slice(0, 500),
+      usuarioId: nova.comprador_id,
+      ordemId: String(ordem.id),
+    })
+    if (erro) {
+      await admin.from("compras_fornecimentos").delete().eq("processo_id", processo.id)
+      await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
+      await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+      return { erro }
     }
   }
   return { id: processo.id, ordemId: String(ordem.id) }
@@ -1703,6 +1742,37 @@ export async function subirPdfCompras(
   const { error } = await admin.storage
     .from("compras")
     .upload(caminho, arquivo, { contentType: "application/pdf" })
+  if (error) return { erro: `Falha ao subir o arquivo: ${error.message}` }
+  return { caminho }
+}
+
+/** Tipos aceitos como nota/cupom da aquisição direta (PDF ou foto). */
+export const TIPOS_COMPROVANTE_COMPRAS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+}
+
+/**
+ * Sobe a nota fiscal/cupom da aquisição direta — PDF ou imagem (cupom
+ * fotografado) — no bucket 'compras'. O teto de 4 MB é o do corpo da server
+ * action; o formulário já reduz fotos grandes antes de enviar.
+ */
+export async function subirComprovanteCompras(
+  prefixo: string,
+  arquivo: File
+): Promise<{ caminho?: string; erro?: string }> {
+  const ext = TIPOS_COMPROVANTE_COMPRAS[arquivo.type]
+  if (!ext) return { erro: "A nota deve ser um PDF ou uma imagem (JPG, PNG ou WEBP)." }
+  if (arquivo.size > 4 * 1024 * 1024) {
+    return { erro: "O arquivo deve ter no máximo 4 MB." }
+  }
+  const caminho = `${prefixo}/${Date.now()}.${ext}`
+  const admin = await createAdminClient()
+  const { error } = await admin.storage
+    .from("compras")
+    .upload(caminho, arquivo, { contentType: arquivo.type })
   if (error) return { erro: `Falha ao subir o arquivo: ${error.message}` }
   return { caminho }
 }

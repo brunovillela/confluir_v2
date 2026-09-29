@@ -35,6 +35,7 @@ import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { descreverPagoCom } from "@/lib/db/compras-pagamento"
 
 import { SituacaoBadge } from "../../situacao-badge"
 import { PagamentoForm } from "./pagamento-form"
@@ -130,6 +131,7 @@ export default async function OrdemPage({
   const { id } = await params
   const { editar, salvo, removido } = await searchParams
   const detalhe = await detalheOrdem(id)
+  const pagoCom = detalhe ? await descreverPagoCom(detalhe.ordem) : null
   if (!detalhe) notFound()
   const { ordem, favorecido, pagador, autorizador, contratoVinculado } =
     detalhe
@@ -310,6 +312,9 @@ export default async function OrdemPage({
               <Campo rotulo="Forma de pagamento">
                 {texto(ordem.forma_pagamento)}
               </Campo>
+              {pagoCom && (
+                <Campo rotulo="Pago com">{pagoCom}</Campo>
+              )}
               <Campo rotulo="Código PIX">{texto(ordem.pix_codigo)}</Campo>
               <Campo rotulo="Pagador">{pagador ?? "—"}</Campo>
               <Campo rotulo="Comprovante de pagamento">

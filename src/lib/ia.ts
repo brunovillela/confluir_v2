@@ -229,3 +229,28 @@ export async function gerarJsonIADePdf({
     { type: "input_text", text: prompt },
   ])
 }
+
+/**
+ * Extração estruturada a partir de uma IMAGEM (foto ou digitalização de um
+ * cupom, recibo…). `mimeType` é image/jpeg, image/png ou image/webp.
+ */
+export async function gerarJsonIADeImagem({
+  system,
+  prompt,
+  imagemBase64,
+  mimeType,
+}: {
+  system: string
+  prompt: string
+  imagemBase64: string
+  mimeType: string
+}): Promise<ResultadoJsonIA> {
+  return chamarJsonIA(system, [
+    {
+      type: "input_image",
+      image_url: `data:${mimeType};base64,${imagemBase64}`,
+      detail: "high",
+    },
+    { type: "input_text", text: prompt },
+  ])
+}

@@ -36,9 +36,49 @@ export function hojeLocalISO(): string {
 /** Formas aceitas nas compras (propostas e ordens de pagamento). */
 export const FORMAS_PAGAMENTO_COMPRAS = [
   "Pix",
+  "Pix (QR Code)",
   "Boleto",
   "Depósito bancário (TED)",
   "Cartão",
   "Dinheiro",
-  "Outro",
 ] as const
+
+export type FormaPagamentoCompras = (typeof FORMAS_PAGAMENTO_COMPRAS)[number]
+
+/**
+ * O que cada forma exige na aquisição direta — toda compra é auditada, então
+ * a ordem diz COM O QUÊ foi paga (cartão, caixa, chave/conta do fornecedor,
+ * código Pix, arquivo do boleto).
+ */
+export type DetalheForma =
+  | "cartao"
+  | "caixa"
+  | "pix_fornecedor"
+  | "conta_fornecedor"
+  | "pix_codigo"
+  | "boleto"
+
+export const DETALHE_DA_FORMA: Record<FormaPagamentoCompras, DetalheForma> = {
+  Pix: "pix_fornecedor",
+  "Pix (QR Code)": "pix_codigo",
+  Boleto: "boleto",
+  "Depósito bancário (TED)": "conta_fornecedor",
+  Cartão: "cartao",
+  Dinheiro: "caixa",
+}
+
+export const TIPOS_CARTAO = [
+  { valor: "credito", rotulo: "Crédito" },
+  { valor: "debito", rotulo: "Débito" },
+  { valor: "pre_pago", rotulo: "Pré-pago" },
+] as const
+
+export function rotuloTipoCartao(valor: string | null): string {
+  return TIPOS_CARTAO.find((t) => t.valor === valor)?.rotulo ?? valor ?? ""
+}
+
+/** Pix copia e cola (BR Code): payload EMV que sempre começa com "000201". */
+export function pixCodigoValido(codigo: string): boolean {
+  const c = codigo.replace(/\s/g, "")
+  return c.startsWith("000201") && c.length >= 40
+}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleDollarSign, Receipt, Wallet } from "lucide-react";
+import { CircleDollarSign, CreditCard, Receipt, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -90,6 +90,12 @@ export default async function FinanceiroPage() {
       descricao: "Plano de contas: códigos, classificadores e indicações",
       href: "/painel/financeiro/centros-custo",
       icone: CircleDollarSign,
+    },
+    veOrdens && {
+      titulo: "Cartões",
+      descricao: "Cartões da entidade usados para pagar compras",
+      href: "/painel/financeiro/cartoes",
+      icone: CreditCard,
     },
     veCaixa && {
       titulo: "Contas de caixa",
