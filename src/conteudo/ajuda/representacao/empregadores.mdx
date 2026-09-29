@@ -1,27 +1,88 @@
 Os **empregadores** (fontes pagadoras) são as empresas onde os filiados
 trabalham. É desse cadastro que o sistema sabe de onde vem o **desconto da
-contribuição** e para quem se enviam **ofícios** de filiação/desfiliação.
+contribuição** e para quem se enviam **ofícios** de filiação/desfiliação. A
+página de cada empregador reúne tudo o que a entidade tem com aquela empresa:
+filiados, acordos, votações, oposições, reuniões e setoriais.
 
 <RequerPermissao>Empregadores e fontes pagadoras</RequerPermissao>
 
-## Fontes pagadoras
+## A página do empregador
 
-Cada empregador reúne seus dados e a **documentação legal** — os instrumentos
-que embasam a representação junto àquela empresa. Aqui também fica o **registro
-sindical** junto ao MTE, que fundamenta a base territorial e de categoria.
+No topo ficam o nome, o CNPJ, o tipo (empregador ou fundo de pensão), a
+situação e os botões **Editar** e **Ver filiados da fonte**. Logo abaixo, os
+indicadores:
+
+- **Filiados ativos**, **vínculos em aberto**, **vínculos no histórico** e
+  **contribuições** ligadas à fonte;
+- o **acordo vigente**, as **reuniões com a empresa** e as **setoriais** dos
+  últimos 12 meses, e a **próxima agenda**.
+
+<Print src="representacao/empregador.png" alt="Página do empregador Petro Fictícia: o nome com o CNPJ e os selos Empregador e Ativa, os botões Editar e Ver filiados da fonte, os indicadores de filiados ativos, vínculos em aberto, vínculos no histórico e contribuições, os cartões de acordo vigente, reuniões com a empresa, setoriais e próxima agenda, e as abas Visão geral, Acordos, Votações, Oposições, Reuniões e Setoriais." legenda="O empregador: indicadores no alto e as abas com tudo o que a entidade tem com a empresa." />
+
+## As abas
+
+- **Visão geral** — os dados da fonte e a **documentação legal**: cartas,
+  atas, editais e demais documentos da representação.
+- **Acordos** — os acordos coletivos ligados a este empregador em Acordos
+  coletivos, com vigência e quantidade de cláusulas. Por padrão aparecem os
+  **fechados** (vigentes e arquivados); o filtro mostra também os em
+  negociação. <RequerPermissao>Acordos coletivos</RequerPermissao>
+- **Votações** — as campanhas de votação em que a empresa está entre as fontes.
+  <RequerPermissao>Votações e assembleias</RequerPermissao>
+- **Oposições** — as cartas de oposição dos trabalhadores da empresa.
+  <RequerPermissao>Oposição à contribuição assistencial</RequerPermissao>
+- **Reuniões** e **Setoriais** — o registro dos encontros (abaixo).
+
+Cada aba tem os próprios filtros, colunas que ordenam com um clique e
+paginação. Quem não tem a permissão de uma área não vê a aba dela.
+
+## Reuniões e setoriais
+
+Dois tipos de encontro, registrados do mesmo jeito:
+
+- **Reunião com o empregador** — sindicato × empresa: negociação, mesa
+  permanente, comissão, audiência;
+- **Setorial** — sindicato × trabalhadores da empresa, numa unidade ou local
+  de trabalho (a P-50, turno A; a base de Imbetiba).
+
+<PassoAPasso>
+  <Passo titulo="Nova reunião ou Nova setorial">
+    Na aba correspondente, abra o formulário: título, situação (agendada,
+    realizada, cancelada), data, início e término, modalidade (presencial,
+    on-line ou híbrida) com o local ou o link, e — na setorial — a unidade e
+    quantos trabalhadores estavam presentes.
+  </Passo>
+  <Passo titulo="Anexar a ata em PDF (opcional)">
+    Ao escolher o arquivo, a **IA lê a ata** — digital ou escaneada — e
+    preenche data, horário, local, pauta, resumo, encaminhamentos e
+    participantes. Numa reunião já registrada, ela só preenche os campos que
+    estiverem **vazios**. Confira antes de salvar.
+  </Passo>
+  <Passo titulo="Pauta, resumo e encaminhamentos">
+    A pauta, um assunto por linha; o resumo do que se discutiu; os
+    encaminhamentos — decisões, compromissos e prazos, um por linha.
+  </Passo>
+  <Passo titulo="Participantes">
+    **Pelo sindicato**, marque diretores e funcionários (a busca filtra pelo
+    nome) e, em **Outros pelo sindicato**, quem não tem conta no sistema. **Pela
+    empresa**, um por linha no formato *Nome — cargo*; na setorial, os
+    **trabalhadores** também podem ser listados (*Nome — função*).
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="A ata fica guardada">
+  A ata anexada abre pela página da reunião (**Abrir a ata**). Para trocar,
+  edite a reunião e anexe outra — ou use **remover ata**. O PDF pode ter até
+  25 MB.
+</Aviso>
+
+<Print src="representacao/reuniao-nova.png" alt="Formulário Nova reunião com o empregador: o campo Ata em PDF com a explicação de que a IA lê a ata e preenche os campos; título, situação, data, início e término, modalidade e local; pauta, resumo e encaminhamentos; e os participantes pelo sindicato, com a busca de diretores e funcionários, e pela empresa." legenda="Registrar uma reunião: a ata em PDF preenche o formulário." />
 
 <Aviso tipo="nota" titulo="Vínculo com o filiado">
   No perfil do filiado, os **vínculos** apontam para essas fontes pagadoras.
   Manter o cadastro em dia mantém a **base de descontos** e a comunicação com as
   empresas corretas.
 </Aviso>
-
-## Acordos coletivos
-
-<RequerPermissao>Acordos coletivos</RequerPermissao>
-
-Os **acordos coletivos** negociados também vivem na Representação, com sua
-documentação, ligados ao contexto das empresas abrangidas.
 
 ## Erros comuns
 
@@ -30,12 +91,21 @@ documentação, ligados ao contexto das empresas abrangidas.
   desconto e os ofícios.
 - **"O ofício foi para o endereço/empresa errado."** Confira os **dados do
   empregador** aqui; os ofícios usam esse cadastro.
-- **"Não acho o acordo coletivo de uma empresa."** Os acordos ficam na
-  Representação, ligados às empresas abrangidas — exigem a permissão **Acordos
-  coletivos**.
+- **"Não vejo a aba Acordos (ou Votações, ou Oposições)."** Cada uma depende da
+  permissão da área correspondente.
+- **"A aba Acordos está vazia."** O acordo precisa ter este empregador entre as
+  **fontes pagadoras**, em Acordos coletivos — e, por padrão, a aba mostra só os
+  vigentes e arquivados.
+- **"A IA não leu a ata."** O PDF pode estar ilegível ou não ser uma ata. Preencha
+  os campos à mão — a ata continua anexada.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Acordos coletivos",
+      href: "/painel/ajuda/representacao/acordos",
+      descricao: "Os acordos ligados aos empregadores",
+    },
     {
       titulo: "Perfil do filiado",
       href: "/painel/ajuda/filiados/perfil",

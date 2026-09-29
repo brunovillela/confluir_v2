@@ -28,10 +28,15 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 29/09 (7): hierarquia Contrato › Minuta › RPA — seed:
+  // Rodada de 29/09 (8): página do empregador com abas, reuniões e setoriais.
+  ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000001", "representacao/empregador.png", { esperar: "Filiados ativos", altura: 900 }],
+  ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000001/reunioes/nova?tipo=empregador", "representacao/reuniao-nova.png", { esperar: "Ata em PDF", fullPage: true }],
+
+  /* Rodada de 29/09 (7): hierarquia Contrato › Minuta › RPA — seed:
   // scripts/seed-prints-rpa.mjs (contrato de autônomo) + um RPA emitido pela tela.
   ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/contrato-hierarquia.png", { esperar: "RPA — pagamento a autônomo", scrollTo: "Dados do contrato", altura: 1100 }],
   ["/painel/compras/contratos/rpa/d6b033ca-666e-4ac8-9907-61b142f54251", "compras/rpa.png", { esperar: "Contrato e pagamento", scrollTo: "Contrato e pagamento", altura: 900 }],
+  */
 
   /* Rodada de 29/09 (6): a comparação de acordos, com a IA (OpenAI) de volta —
   // Petrobras 2020-2022 × 2023-2025 da semente scripts/seed-prints-acordos.mjs.
