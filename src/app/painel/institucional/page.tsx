@@ -5,6 +5,7 @@ import {
   HeartHandshake,
   Landmark,
   Mail,
+  Plane,
   ScrollText,
   ShieldCheck,
   Smartphone,
@@ -96,6 +97,14 @@ const AREAS: Area[] = [
     ],
   },
   {
+    titulo: "Viagens",
+    descricao:
+      "Passagens e hospedagens de diretores, funcionários e convidados de eventos",
+    href: "/painel/institucional/viagens",
+    icone: Plane,
+    chave: "viagens_gestao",
+  },
+  {
     titulo: "Usuários e permissões",
     descricao: "Quem acessa o painel e o que cada um pode ver e editar",
     href: "/painel/institucional/usuarios",
@@ -118,6 +127,7 @@ export default async function ConfiguracoesPage() {
     "custeio_institucional",
     "custeio_institucional_edicao",
     "custeio_institucional_autorizacao",
+    "viagens_gestao",
   ])
 
   const visiveis = AREAS.filter((a) =>

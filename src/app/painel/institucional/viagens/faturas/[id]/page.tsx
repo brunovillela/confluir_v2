@@ -43,7 +43,7 @@ export default async function FaturaViagensPage({
     <>
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link href="/painel/viagens/faturas">
+          <Link href="/painel/institucional/viagens/faturas">
             <ArrowLeft />
             Faturas
           </Link>
@@ -141,7 +141,7 @@ export default async function FaturaViagensPage({
                       )}
                     </TableCell>
                     <TableCell className="whitespace-normal">
-                      <Link href={`/painel/viagens/${i.viagemId}`} className="hover:text-primary">
+                      <Link href={`/painel/institucional/viagens/${i.viagemId}`} className="hover:text-primary">
                         nº {i.viagemNumero ?? "—"} · {i.beneficiarioNome}
                       </Link>
                     </TableCell>

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ItensViagemDetalhe, SituacaoViagemBadge } from "@/components/viagens"
 import { requireSessaoPainel } from "@/lib/auth"
-import { buscarViagem } from "@/lib/db/viagens"
+import { buscarViagem, nomeDoEvento } from "@/lib/db/viagens"
 import { urlVoucher } from "@/lib/db/viagens-atendimento"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
@@ -94,7 +94,7 @@ export default async function MinhaViagemPage({
             />
             <Campo rotulo="Motivo" valor={viagem.motivo} />
             <Campo rotulo="Departamento que banca" valor={viagem.departamentoNome} />
-            <Campo rotulo="Evento" valor={viagem.eventoTitulo} />
+            <Campo rotulo="Evento" valor={nomeDoEvento(viagem)} />
             {viagem.atendidoEm && (
               <Campo rotulo="Atendida em" valor={formatarData(viagem.atendidoEm)} />
             )}

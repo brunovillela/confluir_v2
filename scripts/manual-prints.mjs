@@ -30,15 +30,15 @@ const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 const SHOTS = [
   // Rodada de 25/09: Viagens (passagens e hospedagens) — seed:
   // scripts/seed-prints-viagens.mjs (depois: --limpar tira o demo da diretoria).
-  ["/painel/viagens", "viagens/lista.png", { fullPage: true, esperar: "Ana Paula Mendes" }],
-  ["/painel/viagens", "viagens/lancar.png", { abrir: ["Lançar viagem", "Convidado(a)"], fullPage: true }],
+  ["/painel/institucional/viagens", "viagens/lista.png", { fullPage: true, esperar: "Ana Paula Mendes" }],
+  ["/painel/institucional/viagens", "viagens/lancar.png", { abrir: ["Lançar viagem", "Convidado(a)"], fullPage: true }],
   // Clicar nos botões rola a página; volta ao topo antes do print inteiro.
   ["/painel/perfil/viagens?novo=1", "viagens/solicitar.png", { abrir: ["Acrescentar passagem", "Acrescentar hospedagem"], scrollTo: "Minhas viagens", fullPage: true }],
   ["/painel/perfil/viagens", "viagens/minhas.png", { esperar: "Plenária estadual" }],
   ["/painel/perfil/viagens/7a100000-0000-4000-8000-000000000005", "viagens/minha-viagem.png", { fullPage: true, esperar: "Reservado" }],
-  ["/painel/viagens/7a100000-0000-4000-8000-000000000002", "viagens/atendimento.png", { fullPage: true, abrir: ["Registrar reserva"] }],
-  ["/painel/viagens/faturas/nova", "viagens/fatura-nova.png", { fullPage: true, preencher: [["input[role=combobox]", "Tech"]], apos: ["Tech Suprimentos", "css=input[name^=item_]"] }],
-  ["/painel/viagens/faturas/7a300000-0000-4000-8000-000000000001", "viagens/fatura.png", { fullPage: true, esperar: "Rateio da ordem" }],
+  ["/painel/institucional/viagens/7a100000-0000-4000-8000-000000000002", "viagens/atendimento.png", { fullPage: true, abrir: ["Registrar reserva"] }],
+  ["/painel/institucional/viagens/faturas/nova", "viagens/fatura-nova.png", { fullPage: true, preencher: [["input[role=combobox]", "Tech"]], apos: ["Tech Suprimentos", "css=input[name^=item_]"] }],
+  ["/painel/institucional/viagens/faturas/7a300000-0000-4000-8000-000000000001", "viagens/fatura.png", { fullPage: true, esperar: "Rateio da ordem" }],
   ["/painel/pessoal/diarias/contas?quadro=convidado", "viagens/contas-convidados.png", { altura: 760 }],
 
   /* Rodada de 24/09: "Assembleias" virou "Votações" (já capturado).

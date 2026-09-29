@@ -22,7 +22,12 @@ import { ViagemForm } from "@/components/viagem-form"
 import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
 import { requireSessaoPainel } from "@/lib/auth"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
-import { minhasViagens, opcoesDoFormViagem, type Viagem } from "@/lib/db/viagens"
+import {
+  minhasViagens,
+  obterConfigViagens,
+  opcoesDoFormViagem,
+  type Viagem,
+} from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 
 import { solicitarViagem } from "./actions"
@@ -42,10 +47,11 @@ export default async function MinhasViagensPage({
   const sessao = await requireSessaoPainel()
   const usuarioId = sessao.usuario.id as string
   const { novo } = await searchParams
-  const [quadro, { disponivel, viagens }, opcoes] = await Promise.all([
+  const [quadro, { disponivel, viagens }, opcoes, config] = await Promise.all([
     quadroParaDiaria(usuarioId).catch(() => null),
     minhasViagens(usuarioId),
     opcoesDoFormViagem(),
+    obterConfigViagens().catch(() => null),
   ])
 
   const emAndamento = viagens.filter(
@@ -80,6 +86,8 @@ export default async function MinhasViagensPage({
             departamentoPadrao={quadro.departamentoId}
             eventos={opcoes.eventos}
             abertoInicial={novo === "1"}
+            orientacoes={config?.orientacoes ?? null}
+            antecedenciaDias={config?.antecedenciaDias ?? null}
           />
         ) : (
           <Alert variant="info">

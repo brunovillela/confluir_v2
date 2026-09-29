@@ -76,6 +76,8 @@ export type Viagem = {
   departamentoNome: string | null
   eventoId: string | null
   eventoTitulo: string | null
+  /** Evento de fora (congresso, audiência) — só o nome. */
+  eventoExterno: string | null
   motivo: string
   situacao: SituacaoViagem
   motivoSituacao: string | null
@@ -88,7 +90,7 @@ export type Viagem = {
 }
 
 const SELECT_VIAGEM =
-  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, motivo, situacao, motivo_situacao, atendido_por, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), viagens_itens(*, fornecedor:empresa!viagens_itens_fornecedor_id_fkey(nome_fantasia, nome_razao))"
+  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, evento_externo, motivo, situacao, motivo_situacao, atendido_por, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), viagens_itens(*, fornecedor:empresa!viagens_itens_fornecedor_id_fkey(nome_fantasia, nome_razao))"
 
 function hora(v: unknown): string | null {
   const s = texto(v)
@@ -172,6 +174,7 @@ async function normalizar(linhas: Record<string, unknown>[]): Promise<Viagem[]> 
       departamentoNome: texto(depto?.departamento),
       eventoId: texto(l.evento_id),
       eventoTitulo: texto(evento?.titulo),
+      eventoExterno: texto(l.evento_externo),
       motivo: String(l.motivo ?? ""),
       situacao: l.situacao as SituacaoViagem,
       motivoSituacao: texto(l.motivo_situacao),
@@ -308,6 +311,8 @@ export type NovaViagem = {
   solicitanteId: string
   departamentoId: string | null
   eventoId: string | null
+  /** Evento de fora; vale quando eventoId é nulo. */
+  eventoExterno?: string | null
   motivo: string
   itens: ItemViagemEntrada[]
 }
@@ -385,6 +390,7 @@ export async function criarViagem(nova: NovaViagem): Promise<{ erro?: string; id
       solicitante_id: nova.solicitanteId,
       departamento_id: nova.departamentoId,
       evento_id: nova.eventoId,
+      evento_externo: nova.eventoId ? null : (nova.eventoExterno ?? null),
       motivo: nova.motivo,
     })
     .select("id")
@@ -441,4 +447,164 @@ export async function cancelarMinhaViagem(
     .eq("situacao", "solicitada")
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   return {}
+}
+
+/** "Encontro de Formação" ou "Congresso da FUP (externo)" — o evento da viagem. */
+export function nomeDoEvento(v: Pick<Viagem, "eventoTitulo" | "eventoExterno">): string | null {
+  return v.eventoTitulo ?? (v.eventoExterno ? `${v.eventoExterno} (externo)` : null)
+}
+
+/**
+ * Lê o evento do formulário: um id de Eventos, "__externo" + o nome digitado
+ * em `evento_externo`, ou nada.
+ */
+export function lerEventoDoForm(formData: FormData): {
+  eventoId: string | null
+  eventoExterno: string | null
+} {
+  const valor = String(formData.get("evento_id") ?? "").trim()
+  if (valor === "__externo") {
+    return {
+      eventoId: null,
+      eventoExterno: String(formData.get("evento_externo") ?? "").trim() || null,
+    }
+  }
+  return { eventoId: valor || null, eventoExterno: null }
+}
+
+// ── Configuração ────────────────────────────────────────────────────────────
+
+export type ConfigViagens = {
+  disponivel: boolean
+  /** E-mails avisados a cada pedido novo. */
+  emailsAviso: string[]
+  /** Antecedência recomendada, em dias; nulo = sem alerta. */
+  antecedenciaDias: number | null
+  /** Texto no topo do formulário de pedido. */
+  orientacoes: string | null
+}
+
+export async function obterConfigViagens(): Promise<ConfigViagens> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("viagens_config")
+    .select("emails_aviso, antecedencia_dias, orientacoes")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) {
+    if (esquemaAusente(error)) {
+      return { disponivel: false, emailsAviso: [], antecedenciaDias: null, orientacoes: null }
+    }
+    throw new Error(`Falha ao ler a configuração de viagens: ${error.message}`)
+  }
+  return {
+    disponivel: true,
+    emailsAviso: separarEmails(texto(data?.emails_aviso) ?? ""),
+    antecedenciaDias:
+      data?.antecedencia_dias === null || data?.antecedencia_dias === undefined
+        ? null
+        : Number(data.antecedencia_dias),
+    orientacoes: texto(data?.orientacoes),
+  }
+}
+
+/** "a@x.org; b@x.org, c@x.org" → lista limpa, sem repetição. */
+export function separarEmails(bruto: string): string[] {
+  return [
+    ...new Set(
+      bruto
+        .split(/[;,\s]+/)
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ]
+}
+
+export async function salvarConfigViagens(
+  config: { emailsAviso: string[]; antecedenciaDias: number | null; orientacoes: string | null },
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const invalido = config.emailsAviso.find((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
+  if (invalido) return { erro: `E-mail inválido: ${invalido}` }
+  if (
+    config.antecedenciaDias !== null &&
+    (!Number.isInteger(config.antecedenciaDias) ||
+      config.antecedenciaDias < 0 ||
+      config.antecedenciaDias > 365)
+  ) {
+    return { erro: "A antecedência vai de 0 a 365 dias." }
+  }
+  const admin = await createAdminClient()
+  const { error } = await admin.from("viagens_config").upsert(
+    {
+      emp_proprietaria_id: await tenantAtual(),
+      emails_aviso: config.emailsAviso.join(", ") || null,
+      antecedencia_dias: config.antecedenciaDias,
+      orientacoes: config.orientacoes,
+      updated_by: usuarioId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "emp_proprietaria_id" }
+  )
+  if (error) {
+    if (esquemaAusente(error)) {
+      return { erro: "Rode supabase/viagens-config.sql antes de configurar." }
+    }
+    return { erro: `Não foi possível salvar: ${error.message}` }
+  }
+  return {}
+}
+
+/**
+ * Pedido em cima da hora: a primeira data da viagem cai antes de
+ * `pedida em + antecedência`. Nulo quando não há regra ou data.
+ */
+export function pedidoEmCimaDaHora(v: Viagem, antecedenciaDias: number | null): boolean {
+  if (antecedenciaDias === null || !v.inicio) return false
+  const limite = new Date(v.createdAt)
+  limite.setDate(limite.getDate() + antecedenciaDias)
+  return v.inicio < limite.toISOString().slice(0, 10)
+}
+
+/**
+ * Quem atende Viagens: a permissão dada direto à pessoa ou por um perfil.
+ * Perfis que concedem tudo (administração) ficam de fora da lista — a tela
+ * avisa que eles também entram.
+ */
+export async function equipeDeViagens(): Promise<{ id: string; nome: string; email: string | null }[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [diretas, porPerfil] = await Promise.all([
+    admin.from("permissoes").select("usuario_id").eq("viagens_gestao", true),
+    admin
+      .from("perfil_permissoes")
+      .select("perfil_id")
+      .eq("chave", "viagens_gestao")
+      .eq("emp_proprietaria_id", emp),
+  ])
+  const perfis = (porPerfil.data ?? []).map((p) => String(p.perfil_id))
+  const { data: vinculos } = perfis.length
+    ? await admin.from("usuario_perfis").select("usuario_id").in("perfil_id", perfis)
+    : { data: [] }
+  const ids = [
+    ...new Set(
+      [...(diretas.data ?? []), ...(vinculos ?? [])]
+        .map((l) => texto((l as { usuario_id?: unknown }).usuario_id))
+        .filter((v): v is string => !!v)
+    ),
+  ]
+  if (ids.length === 0) return []
+  const { data: usuarios } = await admin
+    .from("usuarios")
+    .select("id, nome_completo, nome_guerra, email, inativo, deletado")
+    .eq("emp_proprietaria_id", emp)
+    .in("id", ids)
+  return ((usuarios ?? []) as Record<string, unknown>[])
+    .filter((u) => u.inativo !== true && u.deletado !== true)
+    .map((u) => ({
+      id: String(u.id),
+      nome: texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "(sem nome)",
+      email: texto(u.email),
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }

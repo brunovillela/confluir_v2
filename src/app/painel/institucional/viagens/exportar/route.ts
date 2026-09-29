@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
-import { filtrarViagens, listarViagens } from "@/lib/db/viagens"
+import { filtrarViagens, listarViagens, nomeDoEvento } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         v.beneficiarioNome,
         ROTULO_BENEFICIARIO[v.beneficiarioTipo],
         v.departamentoNome ?? "",
-        v.eventoTitulo ?? "",
+        nomeDoEvento(v) ?? "",
         v.motivo,
         formatarData(v.createdAt),
         i.tipo === "passagem" ? "Passagem" : "Hospedagem",

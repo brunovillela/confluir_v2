@@ -17,8 +17,8 @@ function lerValor(bruto: FormDataEntryValue | null): number {
 }
 
 function revalidar() {
-  revalidatePath("/painel/viagens")
-  revalidatePath("/painel/viagens/faturas")
+  revalidatePath("/painel/institucional/viagens", "layout")
+  revalidatePath("/painel/institucional/viagens/faturas")
   revalidatePath("/painel/compras")
   revalidatePath("/painel/financeiro/ordens")
 }
@@ -66,7 +66,7 @@ export async function registrarFaturaAction(
   if (erro) return { erro }
 
   revalidar()
-  redirect(`/painel/viagens/faturas/${id}?salvo=1`)
+  redirect(`/painel/institucional/viagens/faturas/${id}?salvo=1`)
 }
 
 export async function desfazerFaturaAction(
@@ -77,5 +77,5 @@ export async function desfazerFaturaAction(
   const { erro } = await desfazerFatura(String(formData.get("id") ?? ""))
   if (erro) return { erro }
   revalidar()
-  redirect("/painel/viagens/faturas?desfeita=1")
+  redirect("/painel/institucional/viagens/faturas?desfeita=1")
 }

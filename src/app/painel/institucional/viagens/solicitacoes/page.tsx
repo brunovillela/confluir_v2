@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Plane, ReceiptText } from "lucide-react"
+import { ArrowLeft, Plane, ReceiptText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -22,17 +22,24 @@ import {
 } from "@/components/ui/table"
 import { ViagemForm } from "@/components/viagem-form"
 import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
-import { filtrarViagens, listarViagens, opcoesDoFormViagem } from "@/lib/db/viagens"
+import {
+  filtrarViagens,
+  listarViagens,
+  obterConfigViagens,
+  opcoesDoFormViagem,
+  pedidoEmCimaDaHora,
+} from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 import { lerFiltroViagens, ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
 
-import { lancarViagem } from "./actions"
+import { lancarViagem } from "../actions"
 import { FiltrosViagens } from "./filtros"
 
-export const metadata: Metadata = { title: "Passagens e hospedagens — Confluir" }
+export const metadata: Metadata = { title: "Solicitações de viagem — Confluir" }
 
 /**
  * Gestão das viagens: tudo o que foi pedido, e o lançamento em nome de
@@ -46,11 +53,12 @@ export default async function ViagensPage({
   await requirePermissao("viagens_gestao")
   const params = await searchParams
   const filtro = lerFiltroViagens(params)
-  const [{ disponivel, viagens: todas }, opcoes, diretores, funcionarios] = await Promise.all([
+  const [{ disponivel, viagens: todas }, opcoes, diretores, funcionarios, config] = await Promise.all([
     listarViagens(),
     opcoesDoFormViagem(),
     diretoresParaDiaria().catch(() => []),
     funcionariosParaSelecao().catch(() => []),
+    obterConfigViagens().catch(() => null),
   ])
 
   const viagens = filtrarViagens(todas, filtro)
@@ -65,16 +73,23 @@ export default async function ViagensPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ solicitacoes: "Solicitações" }} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Passagens e hospedagens</h1>
+          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
+            <Link href="/painel/institucional/viagens">
+              <ArrowLeft />
+              Passagens e hospedagens
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Solicitações</h1>
           <p className="text-muted-foreground mt-1 text-xs">
             Viagens de diretores, funcionários e convidados que o sindicato contrata e paga.
           </p>
         </div>
         {disponivel && (
           <Button asChild variant="outline">
-            <Link href="/painel/viagens/faturas">
+            <Link href="/painel/institucional/viagens/faturas">
               <ReceiptText />
               Faturas
               {aFaturar > 0 && (
@@ -101,6 +116,8 @@ export default async function ViagensPage({
           rotulo="Lançar viagem"
           departamentos={opcoes.departamentos}
           departamentoPadrao={null}
+          orientacoes={config?.orientacoes ?? null}
+          antecedenciaDias={config?.antecedenciaDias ?? null}
           eventos={opcoes.eventos}
           pessoas={{
             diretores: diretores.map((d) => ({
@@ -151,12 +168,12 @@ export default async function ViagensPage({
                   {viagens.map((v) => (
                     <TableRow key={v.id}>
                       <TableCell className="tabular-nums">
-                        <Link href={`/painel/viagens/${v.id}`} className="text-primary hover:underline">
+                        <Link href={`/painel/institucional/viagens/${v.id}`} className="text-primary hover:underline">
                           {v.numero ?? "—"}
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/painel/viagens/${v.id}`} className="hover:text-primary font-medium">
+                        <Link href={`/painel/institucional/viagens/${v.id}`} className="hover:text-primary font-medium">
                           {v.beneficiarioNome}
                         </Link>
                         <span className="text-muted-foreground block text-xs">
@@ -174,6 +191,10 @@ export default async function ViagensPage({
                       </TableCell>
                       <TableCell>
                         <SituacaoViagemBadge situacao={v.situacao} />
+                        {(v.situacao === "solicitada" || v.situacao === "em_atendimento") &&
+                          pedidoEmCimaDaHora(v, config?.antecedenciaDias ?? null) && (
+                            <span className="text-warning-fg mt-1 block text-xs">em cima da hora</span>
+                          )}
                       </TableCell>
                     </TableRow>
                   ))}

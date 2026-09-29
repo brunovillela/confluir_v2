@@ -7,7 +7,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
-import { criarViagem, lerItensDoForm } from "@/lib/db/viagens"
+import { criarViagem, lerEventoDoForm, lerItensDoForm } from "@/lib/db/viagens"
 import {
   concluirAtendimento,
   encerrarViagem,
@@ -35,6 +35,10 @@ export async function lancarViagem(
   if (!motivo) return { erro: "Descreva o motivo da viagem." }
   const lidos = lerItensDoForm(formData)
   if ("erro" in lidos) return { erro: lidos.erro }
+  const evento = lerEventoDoForm(formData)
+  if (formData.get("evento_id") === "__externo" && !evento.eventoExterno) {
+    return { erro: "Informe o nome do evento externo." }
+  }
 
   let beneficiarioUsuarioId: string | null = null
   let convidado: Parameters<typeof criarViagem>[0]["convidado"]
@@ -81,22 +85,22 @@ export async function lancarViagem(
     solicitanteId: sessao.usuario.id as string,
     departamentoId:
       String(formData.get("departamento_id") ?? "").trim() || departamentoDaPessoa,
-    eventoId: String(formData.get("evento_id") ?? "").trim() || null,
+    ...evento,
     motivo,
     itens: lidos.itens,
   })
   if (erro) return { erro }
 
-  revalidatePath("/painel/viagens")
+  revalidatePath("/painel/institucional/viagens", "layout")
   revalidatePath("/painel/perfil/viagens")
-  redirect(`/painel/viagens/${id}?salvo=1`)
+  redirect(`/painel/institucional/viagens/${id}?salvo=1`)
 }
 
 // ── Atendimento ────────────────────────────────────────────────────────────
 
 function revalidarViagem(id: string) {
-  revalidatePath("/painel/viagens")
-  revalidatePath(`/painel/viagens/${id}`)
+  revalidatePath("/painel/institucional/viagens", "layout")
+  revalidatePath(`/painel/institucional/viagens/${id}`)
   revalidatePath("/painel/perfil/viagens")
   revalidatePath(`/painel/perfil/viagens/${id}`)
 }

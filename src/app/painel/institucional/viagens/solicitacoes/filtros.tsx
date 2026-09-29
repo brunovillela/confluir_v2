@@ -130,11 +130,11 @@ export function FiltrosViagens({ filtro, viagens }: { filtro: FiltroViagens; via
       </div>
       <div className="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/painel/viagens">Limpar</Link>
+          <Link href="/painel/institucional/viagens/solicitacoes">Limpar</Link>
         </Button>
         {/* Rota de download: <a> comum, não Link (não é página). */}
         <Button asChild variant="outline" size="sm">
-          <a href={`/painel/viagens/exportar${consultaDoFiltro(filtro)}`}>
+          <a href={`/painel/institucional/viagens/exportar${consultaDoFiltro(filtro)}`}>
             <Download />
             CSV
           </a>

@@ -290,10 +290,12 @@ export const MODULOS: Modulo[] = [
   },
   {
     titulo: "Viagens",
-    href: "/painel/viagens",
+    href: "/painel/institucional/viagens",
     icone: "Plane",
     descricao: "Passagens e hospedagens de diretores, funcionários e convidados",
     chave: "viagens_gestao",
+    // Área de Institucional (decisão do Bruno, 25/09): fora do menu lateral.
+    oculto: true,
   },
   {
     titulo: "Veículos",
@@ -755,6 +757,7 @@ export const MODULOS: Modulo[] = [
       "custeio_institucional",
       "custeio_institucional_edicao",
       "custeio_institucional_autorizacao",
+      "viagens_gestao",
     ],
   },
   {

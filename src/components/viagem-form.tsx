@@ -106,11 +106,17 @@ export function ViagemForm({
   pessoas,
   abertoInicial = false,
   rotulo = "Solicitar viagem",
+  orientacoes = null,
+  antecedenciaDias = null,
 }: {
   acao: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   departamentos: Opcao[]
   departamentoPadrao: string | null
   eventos: Opcao[]
+  /** Política de viagens, das Configurações — aparece no topo do pedido. */
+  orientacoes?: string | null
+  /** Antecedência recomendada (dias); pedido mais em cima ganha alerta. */
+  antecedenciaDias?: number | null
   /** Modo gestão: diretores e funcionários que podem ser escolhidos. */
   pessoas?: { diretores: PessoaParaViagem[]; funcionarios: PessoaParaViagem[] }
   abertoInicial?: boolean
@@ -122,6 +128,7 @@ export function ViagemForm({
   const [beneficiario, setBeneficiario] = useState<BeneficiarioViagem>("diretor")
   const [pessoaId, setPessoaId] = useState("")
   const [departamentoId, setDepartamentoId] = useState(departamentoPadrao ?? "")
+  const [evento, setEvento] = useState("")
 
   if (!aberto) {
     return (
@@ -150,6 +157,18 @@ export function ViagemForm({
   // A `chave` só serve ao React; o servidor ignora campos que não conhece.
   const itensJson = JSON.stringify(itens)
 
+  // Primeira data informada (ida ou check-in) contra a antecedência pedida.
+  const primeiraData = itens
+    .map((i) => (i.tipo === "passagem" ? i.data : i.checkin))
+    .filter(Boolean)
+    .sort()[0]
+  const emCimaDaHora = (() => {
+    if (antecedenciaDias === null || !primeiraData) return false
+    const limite = new Date()
+    limite.setDate(limite.getDate() + antecedenciaDias)
+    return primeiraData < limite.toLocaleDateString("en-CA")
+  })()
+
   return (
     <Card>
       <CardHeader>
@@ -171,6 +190,11 @@ export function ViagemForm({
           }}
           className="grid gap-6"
         >
+          {orientacoes && (
+            <Alert variant="info">
+              <AlertDescription className="whitespace-pre-line">{orientacoes}</AlertDescription>
+            </Alert>
+          )}
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>
@@ -288,16 +312,38 @@ export function ViagemForm({
               </select>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="evento_id">Evento</Label>
-              <select id="evento_id" name="evento_id" className={SELECT} defaultValue="">
+              <Label htmlFor="evento_id">Evento (se houver)</Label>
+              <select
+                id="evento_id"
+                name="evento_id"
+                className={SELECT}
+                value={evento}
+                onChange={(e) => setEvento(e.target.value)}
+              >
                 <option value="">Nenhum</option>
-                {eventos.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nome}
-                  </option>
-                ))}
+                {eventos.length > 0 && (
+                  <optgroup label="Eventos do sindicato">
+                    {eventos.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.nome}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <option value="__externo">Evento externo (de outra entidade)…</option>
               </select>
             </div>
+            {evento === "__externo" && (
+              <div className="grid gap-1.5 sm:col-span-2">
+                <Label htmlFor="evento_externo">Nome do evento externo *</Label>
+                <Input
+                  id="evento_externo"
+                  name="evento_externo"
+                  required
+                  placeholder="Ex.: Congresso Nacional da FUP, audiência pública na Câmara"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4">
@@ -482,6 +528,16 @@ export function ViagemForm({
             </div>
           </div>
 
+          {emCimaDaHora && (
+            <Alert variant="warning">
+              <AlertDescription>
+                A viagem começa em menos de {antecedenciaDias}{" "}
+                {antecedenciaDias === 1 ? "dia" : "dias"} — a recomendação é pedir com pelo menos
+                essa antecedência. Dá para enviar, mas o preço e a disponibilidade podem não ser
+                os melhores.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
               Fechar

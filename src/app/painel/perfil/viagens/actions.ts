@@ -6,11 +6,17 @@ import { redirect } from "next/navigation"
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
-import { cancelarMinhaViagem, criarViagem, lerItensDoForm } from "@/lib/db/viagens"
+import {
+  cancelarMinhaViagem,
+  criarViagem,
+  lerEventoDoForm,
+  lerItensDoForm,
+} from "@/lib/db/viagens"
+import { avisarEquipeNovaViagem } from "@/lib/db/viagens-atendimento"
 
 function revalidar() {
   revalidatePath("/painel/perfil/viagens")
-  revalidatePath("/painel/viagens")
+  revalidatePath("/painel/institucional/viagens", "layout")
 }
 
 export async function solicitarViagem(
@@ -32,6 +38,10 @@ export async function solicitarViagem(
   if (!motivo) return { erro: "Descreva o motivo da viagem." }
   const lidos = lerItensDoForm(formData)
   if ("erro" in lidos) return { erro: lidos.erro }
+  const evento = lerEventoDoForm(formData)
+  if (formData.get("evento_id") === "__externo" && !evento.eventoExterno) {
+    return { erro: "Informe o nome do evento externo." }
+  }
 
   const { erro, id } = await criarViagem({
     beneficiarioTipo: quadro.quadro,
@@ -39,12 +49,14 @@ export async function solicitarViagem(
     solicitanteId: usuarioId,
     departamentoId:
       String(formData.get("departamento_id") ?? "").trim() || quadro.departamentoId,
-    eventoId: String(formData.get("evento_id") ?? "").trim() || null,
+    ...evento,
     motivo,
     itens: lidos.itens,
   })
-  if (erro) return { erro }
+  if (erro || !id) return { erro: erro ?? "Não foi possível registrar a viagem." }
 
+  // Aviso à equipe (Configurações): falha de e-mail não desfaz o pedido.
+  await avisarEquipeNovaViagem(id).catch((e) => console.error("Aviso de viagem nova:", e))
   revalidar()
   redirect(`/painel/perfil/viagens/${id}?salvo=1`)
 }

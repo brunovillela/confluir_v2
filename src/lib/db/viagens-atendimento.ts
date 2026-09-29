@@ -3,7 +3,14 @@ import "server-only"
 import { subirPdfCompras } from "@/lib/db/compras"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
-import { buscarViagem, type ItemViagem, type Viagem } from "@/lib/db/viagens"
+import {
+  buscarViagem,
+  nomeDoEvento,
+  obterConfigViagens,
+  pedidoEmCimaDaHora,
+  type ItemViagem,
+  type Viagem,
+} from "@/lib/db/viagens"
 import { enviarEmail } from "@/lib/email"
 import {
   botaoEmail,
@@ -205,6 +212,40 @@ export async function encerrarViagem(
   return { avisados: await avisar(atualizada, como) }
 }
 
+// ── Aviso à equipe de pedido novo ───────────────────────────────────────────
+
+/**
+ * Pedido feito pelo próprio diretor ou funcionário: avisa os e-mails das
+ * Configurações. Sem e-mail configurado, não faz nada (a fila está na lista).
+ */
+export async function avisarEquipeNovaViagem(id: string): Promise<void> {
+  const [config, v] = await Promise.all([obterConfigViagens(), buscarViagem(id)])
+  if (!v || config.emailsAviso.length === 0) return
+  const link = `${await origemAtual()}/painel/institucional/viagens/${v.id}`
+  const emCima = pedidoEmCimaDaHora(v, config.antecedenciaDias)
+  const evento = nomeDoEvento(v)
+  const corpo = [
+    tituloEmail("Pedido de viagem novo"),
+    paragrafo(
+      `<strong>${escaparHtml(v.beneficiarioNome)}</strong> pediu a viagem nº ${v.numero ?? "—"} — <em>${escaparHtml(v.motivo)}</em>${evento ? ` (${escaparHtml(evento)})` : ""}.`
+    ),
+    ...v.itens.map((item, i) => blocoItem(item, i, null)),
+    emCima
+      ? paragrafo(
+          `<strong>Atenção:</strong> a viagem começa com menos de ${config.antecedenciaDias} dias de antecedência.`
+        )
+      : "",
+    botaoEmail(link, "Atender no Confluir"),
+  ]
+  for (const email of config.emailsAviso) {
+    await enviarEmail({
+      email,
+      assunto: `Pedido de viagem nº ${v.numero ?? ""} — ${v.beneficiarioNome}`,
+      html: corpo.join("\n"),
+    }).catch(() => false)
+  }
+}
+
 // ── Aviso ───────────────────────────────────────────────────────────────────
 
 type Destinatario = {
@@ -267,7 +308,7 @@ async function destinatarios(v: Viagem): Promise<Destinatario[]> {
       nome: texto(u?.nome_guerra) ?? texto(u?.nome_completo) ?? v.solicitanteNome,
       usuarioId: v.solicitanteId,
       viaja: false,
-      link: `${origem}/painel/viagens/${v.id}`,
+      link: `${origem}/painel/institucional/viagens/${v.id}`,
     })
   }
   return lista

@@ -30,7 +30,7 @@ export default async function NovaFaturaPage() {
     <>
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link href="/painel/viagens/faturas">
+          <Link href="/painel/institucional/viagens/faturas">
             <ArrowLeft />
             Faturas
           </Link>

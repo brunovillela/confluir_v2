@@ -13,7 +13,12 @@ import {
 } from "@/components/viagens"
 import { requirePermissao } from "@/lib/auth"
 import { listarFornecedores } from "@/lib/db/compras"
-import { buscarViagem } from "@/lib/db/viagens"
+import {
+  buscarViagem,
+  nomeDoEvento,
+  obterConfigViagens,
+  pedidoEmCimaDaHora,
+} from "@/lib/db/viagens"
 import { urlVoucher } from "@/lib/db/viagens-atendimento"
 import { formatarCnpjCpf, formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
@@ -36,6 +41,10 @@ export default async function ViagemGestaoPage({
   if (!viagem) notFound()
 
   const encerrada = viagem.situacao === "cancelada" || viagem.situacao === "recusada"
+  const config = await obterConfigViagens().catch(() => null)
+  const emCimaDaHora =
+    (viagem.situacao === "solicitada" || viagem.situacao === "em_atendimento") &&
+    pedidoEmCimaDaHora(viagem, config?.antecedenciaDias ?? null)
   const [fornecedores, vouchers] = await Promise.all([
     encerrada ? Promise.resolve([]) : listarFornecedores(),
     Promise.all(viagem.itens.map(async (i) => [i.id, await urlVoucher(i.voucher)] as const)),
@@ -49,9 +58,9 @@ export default async function ViagemGestaoPage({
     <>
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link href="/painel/viagens">
+          <Link href="/painel/institucional/viagens/solicitacoes">
             <ArrowLeft />
-            Passagens e hospedagens
+            Solicitações
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">
@@ -74,6 +83,14 @@ export default async function ViagemGestaoPage({
       {salvo === "1" && (
         <Alert variant="success">
           <AlertDescription>Viagem lançada.</AlertDescription>
+        </Alert>
+      )}
+      {emCimaDaHora && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Pedido em cima da hora: a viagem começa antes dos {config?.antecedenciaDias} dias de
+            antecedência recomendados.
+          </AlertDescription>
         </Alert>
       )}
       {encerrada && viagem.motivoSituacao && (
@@ -114,7 +131,7 @@ export default async function ViagemGestaoPage({
             )}
             <Campo rotulo="Motivo" valor={viagem.motivo} />
             <Campo rotulo="Departamento que banca" valor={viagem.departamentoNome} />
-            <Campo rotulo="Evento" valor={viagem.eventoTitulo} />
+            <Campo rotulo="Evento" valor={nomeDoEvento(viagem)} />
           </dl>
         </CardContent>
       </Card>
@@ -139,7 +156,7 @@ export default async function ViagemGestaoPage({
                   <TituloItemViagem item={item} indice={indice} />
                   {item.faturaId && (
                     <Link
-                      href={`/painel/viagens/faturas/${item.faturaId}`}
+                      href={`/painel/institucional/viagens/faturas/${item.faturaId}`}
                       className="border-info/40 text-info-fg rounded-full border px-2 py-0.5 text-xs hover:underline"
                     >
                       Faturado

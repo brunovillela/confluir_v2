@@ -44,7 +44,7 @@ export default async function FaturasViagensPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-            <Link href="/painel/viagens">
+            <Link href="/painel/institucional/viagens">
               <ArrowLeft />
               Passagens e hospedagens
             </Link>
@@ -57,7 +57,7 @@ export default async function FaturasViagensPage({
         </div>
         {disponivel && (
           <Button asChild>
-            <Link href="/painel/viagens/faturas/nova">
+            <Link href="/painel/institucional/viagens/faturas/nova">
               <Plus />
               Nova fatura
               {itens.length > 0 && (
@@ -119,7 +119,7 @@ export default async function FaturasViagensPage({
                     <TableRow key={f.id}>
                       <TableCell>
                         <Link
-                          href={`/painel/viagens/faturas/${f.id}`}
+                          href={`/painel/institucional/viagens/faturas/${f.id}`}
                           className="text-primary font-medium hover:underline"
                         >
                           {f.numero}

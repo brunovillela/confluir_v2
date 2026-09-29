@@ -1,12 +1,15 @@
-A equipe de viagens trabalha em **Viagens**, no menu do painel: a lista de todos
-os pedidos, o lançamento em nome de outra pessoa e a reserva de cada item.
+A equipe de viagens trabalha em **Institucional → Viagens**. A área tem três
+partes: **Solicitações** (a lista de todos os pedidos, o lançamento em nome de
+outra pessoa e a reserva de cada item), **Faturas** e **Configurações**.
 
 <RequerPermissao>Passagens e hospedagens — atender e lançar</RequerPermissao>
 
 ## A lista
 
-Cada linha é uma viagem: o número, quem viaja (e em que condição), os itens com
-as datas, o departamento que banca e a situação. Os filtros combinam entre si:
+Em **Solicitações**, cada linha é uma viagem: o número, quem viaja (e em que
+condição), os itens com as datas, o departamento que banca e a situação. Pedido
+aberto feito com menos antecedência que a recomendada nas Configurações ganha a
+marca *em cima da hora*. Os filtros combinam entre si:
 
 - **Pessoa** — parte do nome de quem viaja, sem se preocupar com acento.
 - **Serviço** — só passagens ou só hospedagens.
@@ -76,6 +79,25 @@ a viagem. O convidado recebe só o e-mail.
 também depois de atendida, quando a viagem não vai mais acontecer. Os dois pedem
 o **motivo**, que vai no e-mail. Uma viagem cancelada com reserva ainda pode ser
 faturada — a agência pode cobrar a multa.
+
+## Configurações
+
+Em **Institucional → Viagens → Configurações** ficam as regras da entidade:
+
+- **Centros de custo** — o retrato das contas de passagem e hospedagem de
+  diretores, funcionários e convidados, com o atalho **Configurar** para o
+  de-para das diárias, onde elas moram. Ver [Faturas](/painel/ajuda/viagens/faturas).
+- **Avisar pedidos novos para** — e-mails, separados por vírgula, que recebem
+  cada pedido feito por um diretor ou funcionário, com os itens e o link para
+  atender. Em branco, ninguém é avisado e o pedido fica só na lista.
+- **Antecedência recomendada** — em dias. Quem pede com menos antecedência vê um
+  alerta no formulário, e o pedido fica marcado *em cima da hora* na lista e na
+  página da viagem. Não bloqueia o envio.
+- **Orientações no formulário** — a política de viagens da entidade (classe do
+  voo, teto da diária do hotel). Aparece no topo do formulário, para quem pede
+  e para a equipe que lança.
+- **Quem atende** — quem tem a permissão de Viagens, direto ou por perfil, com o
+  atalho para Usuários e permissões.
 
 <VejaTambem links={[
   { titulo: "Visão geral de Viagens", href: "/painel/ajuda/viagens", descricao: "O pedido e o acompanhamento" },
