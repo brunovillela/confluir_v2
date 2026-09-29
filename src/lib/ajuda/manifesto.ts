@@ -222,7 +222,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "representacao",
     titulo: "Representação Sindical",
-    descricao: "Assembleias, oposição, acordos coletivos e empregadores",
+    descricao: "Votações, oposição, acordos, negociações e empregadores",
     icone: "Megaphone",
     ...permissaoDoModulo("/painel/representacao"),
     disponivel: true,
@@ -246,6 +246,16 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "oposicao",
         titulo: "Oposição",
         resumo: "Cadastro público, assinatura gov.br e avaliação",
+      },
+      {
+        slug: "acordos",
+        titulo: "Acordos coletivos",
+        resumo: "Cláusulas tiradas do PDF, comparador de acordos e o mesmo tema entre empresas",
+      },
+      {
+        slug: "negociacoes",
+        titulo: "Negociações sindicais",
+        resumo: "Pauta, propostas por rodada, quadro vigente × pauta × proposta e o acordo final",
       },
       {
         slug: "filiacao-coletiva",

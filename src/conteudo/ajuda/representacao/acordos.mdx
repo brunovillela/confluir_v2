@@ -1,0 +1,183 @@
+Em **Representação → Acordos coletivos** ficam os ACT e as CCT da entidade: a
+vigência, as empresas abrangidas, o PDF assinado e o **texto de cada
+cláusula**, separado automaticamente do PDF. Com as cláusulas no sistema, dá
+para **comparar** duas versões de um acordo e ver o **mesmo assunto** nos
+acordos de empresas diferentes.
+
+<RequerPermissao>Acordos coletivos</RequerPermissao>
+
+## A lista
+
+Cada linha é um acordo: título, tipo (ACT ou CCT), as fontes pagadoras, a
+vigência e a situação — *Em negociação*, *Vigente* ou *Arquivado*. Acordos
+vigentes que vencem nos próximos 90 dias, ou que já venceram, aparecem num aviso
+no alto da página. A busca procura no título e na abrangência.
+
+No topo ficam os três caminhos: **Novo acordo**, **Comparar acordos** e
+**Comparar por tema**.
+
+<Print src="representacao/acordos-lista.png" alt="Acordos coletivos: os botões Comparar por tema, Comparar acordos e Novo acordo; o aviso de quatro acordos vigentes vencendo em até 90 dias ou já vencidos; a busca, os filtros de tipo e situação; e a lista com título, tipo, fontes, vigência e situação." legenda="A lista, com o aviso de vencimento no alto." />
+
+## Cadastrar um acordo
+
+**Novo acordo** pede os dados do instrumento: tipo, situação, número de
+registro no MTE, data-base, título, vigência, abrangência, as **fontes
+pagadoras** abrangidas (a CCT da categoria pode ficar sem nenhuma) e o PDF.
+
+<Aviso tipo="nota" titulo="Acordo com os funcionários da entidade">
+  Marque **Acordo com os funcionários da entidade** quando o sindicato é o
+  empregador. O acordo aparece no **Meu Perfil** dos funcionários enquanto a
+  situação for *Vigente*, mesmo com a vigência vencida; arquivar tira de lá.
+</Aviso>
+
+## As cláusulas, tiradas do PDF
+
+Na página do acordo, o quadro **Cláusulas** separa o texto do PDF cláusula por
+cláusula.
+
+<PassoAPasso>
+  <Passo titulo="Enviar o PDF">
+    Abra **Extrair as cláusulas do PDF** (ou **Trocar o PDF ou extrair de
+    novo**, se já houver cláusulas), escolha o arquivo e clique em **Enviar e
+    extrair cláusulas**. Não há limite prático de tamanho — um ACT de 17 MB
+    passa sem problema.
+  </Passo>
+  <Passo titulo="O sistema separa as cláusulas">
+    Os cabeçalhos *CLÁUSULA 1ª*, *Cláusula Primeira*, *Cláusula 1.* e as seções
+    numeradas viram cláusulas, com número, título e o **texto literal do PDF**.
+    Cabeçalhos e rodapés repetidos em toda página são retirados; o preâmbulo
+    (as partes e a qualificação) e os anexos ficam à parte.
+  </Passo>
+  <Passo titulo="A IA sugere o tema e o resumo">
+    Cada cláusula ganha um **tema** (salário, benefícios, jornada, saúde, PLR…)
+    e um **resumo** de uma linha. A IA não reescreve o texto: ela só classifica.
+  </Passo>
+  <Passo titulo="Revisar">
+    Confira a separação. **Editar cláusula** corrige número, título, tema e
+    texto; **Juntar com a próxima** une duas cláusulas que o sistema separou por
+    engano. Terminada a conferência, **Marcar como revisadas** troca o selo
+    *Extração automática — revise* por *Revisadas em …*.
+  </Passo>
+</PassoAPasso>
+
+Os botões de tema no alto da lista filtram as cláusulas: *Benefícios (10)*,
+*Jornada, turnos e escalas (5)* e assim por diante.
+
+<Print src="representacao/acordo-clausulas.png" alt="Página do acordo: dados do acordo com o PDF; o quadro Cláusulas com 38 cláusulas extraídas do PDF, o selo Extração automática — revise, o botão Marcar como revisadas, os botões de tema com a contagem e as primeiras cláusulas com número, título, tema e os ícones de editar, juntar com a próxima e excluir." legenda="As cláusulas separadas do PDF, com o filtro por tema." />
+
+<Aviso tipo="atencao" titulo="Extrair de novo substitui as cláusulas">
+  Enviar outro PDF ou extrair de novo **apaga as cláusulas atuais** — inclusive
+  as correções feitas à mão — e separa tudo outra vez.
+</Aviso>
+
+<Aviso tipo="nota" titulo="PDF escaneado">
+  O PDF precisa ter texto selecionável. Se for uma imagem escaneada, o sistema
+  avisa e não extrai; envie a versão digital do acordo. Sem PDF, as cláusulas
+  podem ser digitadas uma a uma em **Adicionar cláusula**.
+</Aviso>
+
+## Comparar dois acordos
+
+**Comparar acordos** — ou **Comparar com outro acordo**, na página do acordo —
+põe dois documentos lado a lado, cláusula por cláusula. Serve para as versões
+do mesmo ACT no tempo, para o vigente × a proposta da empresa e para acordos de
+empresas diferentes.
+
+<PassoAPasso>
+  <Passo titulo="Escolher A e B">
+    **A** é a base (o anterior, o vigente); **B** é o comparado (o novo, a
+    proposta, a outra empresa). Os dois precisam ter as cláusulas extraídas.
+  </Passo>
+  <Passo titulo="Comparar">
+    O sistema forma os pares — primeiro pelo título, depois pelo texto parecido,
+    e a IA sugere os que sobraram. Cada par recebe uma situação: **alterada**,
+    **nova** (só em B), **suprimida** (só em A) ou **igual**. A comparação leva
+    de alguns segundos a pouco mais de um minuto e fica guardada em
+    *Comparações feitas*.
+  </Passo>
+  <Passo titulo="Ler o que mudou">
+    Em cada cláusula que mudou, a IA escreve o **resumo da mudança** e sugere se
+    ela é **favorável**, **desfavorável** ou **neutra** para o trabalhador, com
+    o motivo.
+  </Passo>
+</PassoAPasso>
+
+<Print src="representacao/comparar-nova.png" alt="Comparar acordos: o quadro Nova comparação com A — base (ACT Petrobras 2020-2022, 100 cláusulas) e B — comparado (ACT Petrobras 2023-2025, 119 cláusulas), o botão Comparar e a lista Comparações feitas." legenda="Escolha a base e o comparado; cada um mostra quantas cláusulas tem." />
+
+No alto da comparação, os cartões contam as alteradas, novas, suprimidas e
+iguais, e as favoráveis, desfavoráveis e neutras — clicar num cartão filtra a
+lista. Os botões de tema filtram por assunto. As iguais ficam escondidas até
+você pedir por elas.
+
+<Aviso tipo="atencao" titulo="A avaliação é sugestão">
+  Favorável, desfavorável ou neutra é a leitura da IA. Confira no texto:
+  **Ver a diferença no texto** mostra as duas versões com o que entrou e o que
+  saiu destacado. Se discordar, clique na avaliação certa — ela ganha a marca
+  *(conferida)*. **Analisar de novo** pede outra leitura à IA.
+</Aviso>
+
+### Par errado
+
+Quando o sistema juntou duas cláusulas que não correspondem, **Desfazer par**
+separa as duas: a de A vira *suprimida* e a de B vira *nova*. Na suprimida,
+**Parear com uma cláusula nova de B…** liga à cláusula certa, e o par é
+analisado de novo.
+
+### Exportar
+
+**Planilha** baixa todos os pares com os textos, a situação, o resumo e a
+avaliação. **PDF** gera o relatório da comparação, sem os textos integrais,
+para levar à reunião.
+
+## Comparar por tema
+
+**Comparar por tema** responde à pergunta *como as outras empresas tratam
+isso?*. Escolha um **tema**, digite **palavras** (*sobreaviso*, *hora extra*)
+ou os dois, e de 2 a 8 acordos — sem escolher, entram os vigentes.
+
+O resultado é uma linha por assunto, com a cláusula de cada acordo lado a lado
+e os **valores citados** (percentuais, R$, prazos) em destaque. Os botões
+**Só o que mais de um acordo tem** e **Só o que um acordo tem** mostram o que é
+comum e o que é exclusivo de uma empresa. **Planilha** exporta o quadro.
+
+<Print src="representacao/acordos-tema.png" alt="Comparar por tema com as palavras hora extra em três acordos: 18 assuntos, cada linha com a cláusula da Petrobras, da Transpetro e da Halliburton lado a lado, os valores citados em destaque (100%, 4 horas, 30 dias) e Não tem onde o acordo não trata do assunto." legenda="O mesmo assunto em três empresas, com os valores em destaque." />
+
+<Aviso tipo="nota" titulo="Nomes diferentes, linhas diferentes">
+  O alinhamento é automático, pelo título e pelo texto parecidos. Uma empresa
+  que chama de *Serviço extraordinário* o que a outra chama de *Horas extras*
+  pode aparecer em linhas separadas — procure pelas palavras dos dois nomes.
+</Aviso>
+
+## Erros comuns
+
+- **"Não encontrei cláusulas no documento."** O PDF não tem cabeçalhos
+  *CLÁUSULA …* nem seções numeradas. Confira se é o acordo mesmo, e não um
+  ofício ou uma ata.
+- **"O acordo não aparece para comparar."** Ele ainda não tem cláusulas —
+  extraia do PDF primeiro.
+- **O tema ou o resumo vieram vazios.** A IA não respondeu na hora da extração.
+  O texto das cláusulas está completo; ajuste o tema em **Editar cláusula** ou
+  extraia de novo mais tarde.
+- **"Não vejo a pauta e as propostas da negociação aqui."** Documentos de uma
+  negociação em curso são sigilosos e só aparecem para quem tem a permissão de
+  Negociações sindicais. Ver [Negociações sindicais](/painel/ajuda/representacao/negociacoes).
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Negociações sindicais",
+      href: "/painel/ajuda/representacao/negociacoes",
+      descricao: "Pauta, propostas por rodada e o quadro comparativo",
+    },
+    {
+      titulo: "Empregadores",
+      href: "/painel/ajuda/representacao/empregadores",
+      descricao: "As fontes pagadoras que os acordos abrangem",
+    },
+    {
+      titulo: "Filiação coletiva",
+      href: "/painel/ajuda/representacao/filiacao-coletiva",
+      descricao: "Quando uma cláusula do ACT vira filiação",
+    },
+  ]}
+/>

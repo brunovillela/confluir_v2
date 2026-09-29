@@ -28,7 +28,18 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 25/09: Viagens (passagens e hospedagens) — seed:
+  // Rodada de 29/09: Acordos coletivos e Negociações sindicais — seed:
+  // scripts/seed-prints-acordos.mjs, depois extrair as cláusulas pela tela.
+  // Sem créditos da IA nesta rodada: o print da comparação fica para depois.
+  ["/painel/representacao/acordos", "representacao/acordos-lista.png", { esperar: "ACT Petrobras 2023-2025", altura: 760 }],
+  ["/painel/representacao/acordos/ac100000-0000-4000-8000-000000000005", "representacao/acordo-clausulas.png", { esperar: "cláusula(s)" }],
+  ["/painel/representacao/acordos/comparacoes?a=ac100000-0000-4000-8000-000000000001&b=ac100000-0000-4000-8000-000000000002", "representacao/comparar-nova.png", { esperar: "Nova comparação", altura: 640 }],
+  ["/painel/representacao/acordos/temas?termo=hora%20extra&a=ac100000-0000-4000-8000-000000000002&a=ac100000-0000-4000-8000-000000000003&a=ac100000-0000-4000-8000-000000000004", "representacao/acordos-tema.png", { esperar: "assunto(s)", scrollTo: "Todos os assuntos" }],
+  ["/painel/representacao/negociacoes", "representacao/negociacoes-lista.png", { esperar: "ACT dos funcionários 2025/2027", altura: 560 }],
+  ["/painel/representacao/negociacoes/ac200000-0000-4000-8000-000000000001", "representacao/negociacao.png", { esperar: "Linha do tempo", fullPage: true }],
+  ["/painel/representacao/negociacoes/ac200000-0000-4000-8000-000000000001/quadro", "representacao/negociacao-quadro.png", { esperar: "Quadro comparativo" }],
+
+  /* Rodada de 25/09: Viagens (passagens e hospedagens) — seed:
   // scripts/seed-prints-viagens.mjs (depois: --limpar tira o demo da diretoria).
   ["/painel/institucional/viagens", "viagens/lista.png", { fullPage: true, esperar: "Ana Paula Mendes" }],
   ["/painel/institucional/viagens", "viagens/lancar.png", { abrir: ["Lançar viagem", "Convidado(a)"], fullPage: true }],
@@ -40,6 +51,7 @@ const SHOTS = [
   ["/painel/institucional/viagens/faturas/nova", "viagens/fatura-nova.png", { fullPage: true, preencher: [["input[role=combobox]", "Tech"]], apos: ["Tech Suprimentos", "css=input[name^=item_]"] }],
   ["/painel/institucional/viagens/faturas/7a300000-0000-4000-8000-000000000001", "viagens/fatura.png", { fullPage: true, esperar: "Rateio da ordem" }],
   ["/painel/pessoal/diarias/contas?quadro=convidado", "viagens/contas-convidados.png", { altura: 760 }],
+  */
 
   /* Rodada de 24/09: "Assembleias" virou "Votações" (já capturado).
   ["/painel/espacos/9e000000-0000-4000-8000-000000000001", "espacos/detalhe.png", { fullPage: true, esperar: "Quando pode ser cedido" }],
