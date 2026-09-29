@@ -28,9 +28,15 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 29/09 (5): Ofícios — tipo antes do formulário e editor com formatação.
+  // Rodada de 29/09 (6): a comparação de acordos, com a IA (OpenAI) de volta —
+  // Petrobras 2020-2022 × 2023-2025 da semente scripts/seed-prints-acordos.mjs.
+  ["/painel/representacao/acordos/comparacoes/fc3722f5-e3ac-494e-aefc-2ae0a3a495f6", "representacao/comparacao.png", { esperar: "Favoráveis ao trabalhador" }],
+  ["/painel/representacao/acordos/comparacoes/fc3722f5-e3ac-494e-aefc-2ae0a3a495f6", "representacao/comparacao-diferenca.png", { esperar: "Favoráveis ao trabalhador", abrir: ["Ver a diferença no texto"], scrollTo: "O que mudou", altura: 1000 }],
+
+  /* Rodada de 29/09 (5): Ofícios — tipo antes do formulário e editor com formatação.
   ["/painel/ferramentas/oficios/novo", "ferramentas/oficio-novo.png", { esperar: "Tipo de ofício", altura: 640 }],
   ["/painel/ferramentas/oficios/fe800000-0000-4000-8000-000000000001", "ferramentas/oficios.png", { esperar: "Tipo de ofício", fullPage: true }],
+  */
 
   /* Rodada de 29/09 (4): Condutores — seed temporária: scripts/seed-prints-condutor.mjs
   // (rodar --limpar depois dos prints; a demo não guarda esses dados).
