@@ -1,6 +1,7 @@
 import {
   Document,
   Image,
+  Link,
   Page,
   StyleSheet,
   Text,
@@ -9,7 +10,7 @@ import {
 
 import type { DadosImpressao } from "@/lib/db/oficios"
 import { formatarCnpjCpf } from "@/lib/formato"
-import { limparFormatacaoBubble } from "@/lib/oficios-constantes"
+import { lerCorpo, linkSeguro, marcadoresDaLista, type Trecho } from "@/lib/oficio-formatacao"
 
 /**
  * PDF real do ofício (@react-pdf/renderer), espelhando a folha A4 de
@@ -71,7 +72,13 @@ const s = StyleSheet.create({
   meta: { lineHeight: 1, marginBottom: 2 },
   metaLabel: { fontFamily: "Helvetica-Bold" },
   saudacao: { marginTop: 24 },
-  corpo: { marginVertical: 18, lineHeight: 1.3 },
+  corpo: { marginVertical: 18 },
+  paragrafo: { lineHeight: 1.3 },
+  titulo: { lineHeight: 1.3, fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 4, marginBottom: 2 },
+  listaCorpo: { marginVertical: 3 },
+  itemCorpo: { flexDirection: "row", alignItems: "flex-start" },
+  marcador: { width: 18, textAlign: "right", marginRight: 5, lineHeight: 1.3 },
+  itemTexto: { flex: 1, lineHeight: 1.3 },
   lista: { marginVertical: 12, paddingLeft: 4 },
   item: { marginBottom: 2 },
   assinatura: { marginTop: 48, alignItems: "center" },
@@ -134,6 +141,88 @@ const s = StyleSheet.create({
   },
 })
 
+// ── Corpo formatado (lib/oficio-formatacao.ts) ──────────────────────────────
+
+const RECUO_PT = 28
+
+function fonte(t: Trecho): string {
+  if (t.b && t.i) return "Helvetica-BoldOblique"
+  if (t.b) return "Helvetica-Bold"
+  if (t.i) return "Helvetica-Oblique"
+  return "Helvetica"
+}
+
+function TrechosPDF({ trechos }: { trechos: Trecho[] }) {
+  return (
+    <>
+      {trechos.map((t, i) => {
+        const decoracao = [t.u ? "underline" : "", t.s ? "line-through" : ""].filter(Boolean).join(" ")
+        const estilo = {
+          fontFamily: fonte(t),
+          ...(decoracao ? { textDecoration: decoracao as "underline" } : {}),
+        }
+        // Tabulação do legado vira espaços (a fonte do PDF não tem o caractere).
+        const texto = t.texto.replace(/\t/g, "    ")
+        const link = linkSeguro(t.link)
+        return link ? (
+          <Link key={i} src={link} style={{ ...estilo, color: "#1d4ed8" }}>
+            {texto}
+          </Link>
+        ) : (
+          <Text key={i} style={estilo}>
+            {texto}
+          </Text>
+        )
+      })}
+    </>
+  )
+}
+
+function CorpoPDF({ corpo }: { corpo: string | null }) {
+  const blocos = lerCorpo(corpo)
+  if (!blocos.length) return null
+  return (
+    <View style={s.corpo}>
+      {blocos.map((b, i) => {
+        if (b.tipo === "lista") {
+          const marcadores = marcadoresDaLista(b)
+          return (
+            <View key={i} style={s.listaCorpo}>
+              {b.itens.map((it, j) => (
+                <View key={j} style={[s.itemCorpo, { paddingLeft: 10 + it.nivel * 18 }]}>
+                  <Text style={s.marcador}>{marcadores[j]}</Text>
+                  <Text style={s.itemTexto}>
+                    <TrechosPDF trechos={it.trechos} />
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )
+        }
+        if (b.tipo === "titulo") {
+          return (
+            <Text key={i} style={[s.titulo, b.alinhamento ? { textAlign: b.alinhamento } : {}]}>
+              <TrechosPDF trechos={b.trechos.map((t) => ({ ...t, b: true }))} />
+            </Text>
+          )
+        }
+        return (
+          <Text
+            key={i}
+            style={[
+              s.paragrafo,
+              b.alinhamento ? { textAlign: b.alinhamento } : {},
+              b.recuo ? { marginLeft: b.recuo * RECUO_PT } : {},
+            ]}
+          >
+            {b.trechos.length ? <TrechosPDF trechos={b.trechos} /> : " "}
+          </Text>
+        )
+      })}
+    </View>
+  )
+}
+
 function Meta({ label, valor }: { label: string; valor: string }) {
   return (
     <Text style={s.meta}>
@@ -167,7 +256,6 @@ export function OficioPDF({
   const destinatario =
     oficio.destinatarioNome ?? oficio.destinatarioTexto ?? "—"
   const remetente = organizacao.nomeFantasia ?? organizacao.nomeRazao ?? "—"
-  const corpo = limparFormatacaoBubble(oficio.corpo)
 
   return (
     <Document title={`Ofício ${numero}`} author={organizacao.nomeRazao ?? ""}>
@@ -205,7 +293,7 @@ export function OficioPDF({
 
         <Text style={s.saudacao}>{oficio.saudacao ?? "Prezados,"}</Text>
 
-        {corpo ? <Text style={s.corpo}>{corpo}</Text> : null}
+        <CorpoPDF corpo={oficio.corpo} />
 
         {oficio.filiados.length > 0 && (
           <View style={s.lista}>

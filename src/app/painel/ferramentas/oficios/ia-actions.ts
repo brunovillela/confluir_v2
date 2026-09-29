@@ -11,7 +11,8 @@ Regras:
 - Corrija gramática, pontuação e clareza; melhore a fluência sem inflar o texto.
 - Devolva APENAS o corpo do ofício, no mesmo escopo do texto enviado.
 - NÃO inclua cabeçalho, data, número do ofício, o assunto, nem bloco de assinatura/cargo — isso é gerado à parte pelo sistema.
-- NÃO adicione preâmbulo, comentários, aspas ou títulos — só o texto do corpo.`
+- NÃO adicione preâmbulo, comentários, aspas ou títulos — só o texto do corpo.
+- O texto pode trazer marcações de formatação entre colchetes: [b]negrito[/b], [i]itálico[/i], [u]sublinhado[/u], [s]tachado[/s], [center]…[/center], [right]…[/right], [justify]…[/justify], [indent data=1]…[/indent], [h3]título[/h3], listas [ul][li]item[/li][/ul] e [ol][li]item[/li][/ol], links [url=…]…[/url]. MANTENHA essas marcações nos trechos correspondentes (fechando cada uma que abrir) e cada parágrafo numa linha própria; não invente marcações novas.`
 
 export async function melhorarOficio(input: {
   corpo: string

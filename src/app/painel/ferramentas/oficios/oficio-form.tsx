@@ -3,11 +3,13 @@
 import { useActionState, useRef, useState } from "react"
 import { Loader2, Save, Sparkles } from "lucide-react"
 
+import { EditorOficio, type EditorOficioRef } from "@/components/editor-oficio"
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
+import { corpoEmTexto } from "@/lib/oficio-formatacao"
 import {
   EXPLICACAO_TIPO_OFICIO,
   padraoOficio,
@@ -21,8 +23,6 @@ import { melhorarOficio } from "./ia-actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-const AREA =
-  "border-input bg-background text-foreground min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
 
 export type OficioFormDados = {
   id?: string
@@ -76,19 +76,20 @@ export function OficioForm({
   const assuntoDefault = novo && tipo ? padraoOficio(tipo, entidade).assunto : (dados?.assunto ?? "")
   const corpoDefault = novo && tipo ? padraoOficio(tipo, entidade).corpo : (dados?.corpo ?? "")
 
-  const corpoRef = useRef<HTMLTextAreaElement>(null)
+  const corpoRef = useRef<EditorOficioRef>(null)
+  const formRef = useRef<HTMLFormElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
 
   async function melhorarRedacao() {
     setIaErro(null)
-    const corpo = corpoRef.current?.value.trim() ?? ""
-    if (corpo.length < 10) {
+    const corpo = corpoRef.current?.valor() ?? ""
+    if (corpoEmTexto(corpo).trim().length < 10) {
       setIaErro("Escreva o corpo do ofício primeiro.")
       return
     }
     setIaPendente(true)
-    const form = corpoRef.current?.form
+    const form = formRef.current
     const assunto = (form?.elements.namedItem("assunto") as HTMLInputElement | null)?.value
     const destinatario = (form?.elements.namedItem("destinatario_texto") as HTMLInputElement | null)
       ?.value
@@ -103,13 +104,13 @@ export function OficioForm({
       setIaErro(erro)
       return
     }
-    if (texto && corpoRef.current) corpoRef.current.value = texto
+    if (texto) corpoRef.current?.definir(texto)
   }
 
   return (
     // Duas colunas na tela larga: à esquerda os dados do ofício, à direita só
     // o corpo do texto — é onde se passa mais tempo, então ganha a altura toda.
-    <form action={formAction} className="grid gap-6 lg:grid-cols-2">
+    <form ref={formRef} action={formAction} className="grid gap-6 lg:grid-cols-2">
       {dados?.id && <input type="hidden" name="oficio_id" value={dados.id} />}
 
       <fieldset className="grid gap-2 lg:col-span-2">
@@ -326,7 +327,9 @@ export function OficioForm({
 
           <div className="grid content-start gap-1.5">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="corpo">Corpo</Label>
+              <Label id="rotulo-corpo" htmlFor="corpo">
+                Corpo
+              </Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -339,14 +342,13 @@ export function OficioForm({
                 {iaPendente ? "Gerando…" : "Melhorar com IA"}
               </Button>
             </div>
-            <textarea
+            <EditorOficio
               key={`corpo-${novo ? tipo : "e"}`}
               id="corpo"
               name="corpo"
+              rotuloId="rotulo-corpo"
               ref={corpoRef}
-              rows={18}
-              defaultValue={corpoDefault}
-              className={`${AREA} min-h-72 lg:min-h-[28rem]`}
+              valorInicial={corpoDefault}
             />
             {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
             {eAutomatico(tipo) && (

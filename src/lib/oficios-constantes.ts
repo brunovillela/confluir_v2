@@ -30,18 +30,8 @@ export function eAutomatico(tipo: string | null): tipo is "desfiliacao" | "filia
 export const SITUACOES_OFICIO = ["Rascunho", "Aguardando assinatura", "Emitido", "Cancelado"] as const
 export type SituacaoOficio = (typeof SITUACOES_OFICIO)[number]
 
-/**
- * Remove a marcação BBCode do editor de rich-text do Bubble ([b], [center],
- * [font="Arial"], [color=#111], …) que veio no corpo dos ofícios importados.
- * Só limpa para EXIBIÇÃO — o corpo cru é preservado no banco.
- */
-export function limparFormatacaoBubble(texto: string | null): string {
-  if (!texto) return ""
-  return texto
-    .replace(/\[\/?[a-z][^\]]*\]/gi, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-}
+// A formatação do corpo (BBCode, inclusive a herdada do Bubble) é lida e
+// desenhada por lib/oficio-formatacao.ts — não é mais apagada na exibição.
 
 /**
  * Assunto e corpo padrão por tipo (o corpo é editável). `entidade` é o nome

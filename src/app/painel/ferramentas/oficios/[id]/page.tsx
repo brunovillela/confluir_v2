@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 
+import { OficioCorpo } from "@/components/oficio-corpo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -52,7 +53,6 @@ import { listarSedes } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import {
   eAutomatico,
-  limparFormatacaoBubble,
   ROTULOS_TIPO_OFICIO,
   type TipoOficio,
 } from "@/lib/oficios-constantes"
@@ -249,9 +249,7 @@ export default async function OficioPage({
             {oficio.corpo && (
               <div className="sm:col-span-2">
                 <p className="text-muted-foreground text-xs">Corpo</p>
-                <p className="mt-0.5 whitespace-pre-wrap">
-                  {limparFormatacaoBubble(oficio.corpo)}
-                </p>
+                <OficioCorpo corpo={oficio.corpo} className="mt-0.5" />
               </div>
             )}
           </CardContent>

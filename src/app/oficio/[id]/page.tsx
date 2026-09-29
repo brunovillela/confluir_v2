@@ -5,7 +5,7 @@ import { requirePermissao } from "@/lib/auth"
 import { dadosImpressao } from "@/lib/db/oficios"
 import { podeVerOficio } from "@/lib/db/oficios-acesso"
 import { formatarCnpjCpf } from "@/lib/formato"
-import { limparFormatacaoBubble } from "@/lib/oficios-constantes"
+import { OficioCorpo } from "@/components/oficio-corpo"
 
 import { BotaoImprimir } from "./botao-imprimir"
 
@@ -39,7 +39,7 @@ const CSS = `
   }
   .oficio-logo { display: block; max-height: 90px; margin: 0 auto 18px; object-fit: contain; }
   .oficio-meta { margin-bottom: 4px; }
-  .oficio-corpo { white-space: pre-wrap; margin: 18px 0; }
+  .oficio-corpo { margin: 18px 0; }
   .oficio-lista { margin: 6px 0 18px; padding-left: 4px; }
   .oficio-lista li { list-style: none; padding: 1px 0; }
   .oficio-assinatura { margin-top: 48px; text-align: center; }
@@ -113,7 +113,7 @@ export default async function ImpressaoOficioPage({
         <p style={{ marginTop: "24px" }}>{oficio.saudacao ?? "Prezados,"}</p>
 
         {oficio.corpo && (
-          <p className="oficio-corpo">{limparFormatacaoBubble(oficio.corpo)}</p>
+          <OficioCorpo corpo={oficio.corpo} className="oficio-corpo" />
         )}
 
         {oficio.filiados.length > 0 && (
