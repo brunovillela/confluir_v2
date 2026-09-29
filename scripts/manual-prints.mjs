@@ -28,7 +28,11 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 29/09 (2): Minutas de contrato — usa a minuta assinada da Gráfica
+  // Rodada de 29/09 (3): forma de recebimento e regra da fonte pagadora.
+  ["/painel/filiados/receitas/e0e0e0e0-0000-4000-8000-000300000006/f0f0f0f0-0000-4000-8000-000000000001", "filiados/receita-fonte.png", { esperar: "Enviar relação de pagamentos", abrir: ["Enviar relação de pagamentos"], scrollTo: "Enviar relação de pagamentos", altura: 900 }],
+  ["/painel/institucional/organizacao", "institucional/regras-filiacao.png", { esperar: "Regras de filiação", scrollTo: "Regras de filiação", altura: 420 }],
+
+  /* Rodada de 29/09 (2): Minutas de contrato — usa a minuta assinada da Gráfica
   // Modelo e as 2 cláusulas fixas que ficaram na demo depois do E2E de 27–28/09.
   ["/painel/compras/contratos", "compras/contratos-subareas.png", { esperar: "Minutas", altura: 720 }],
   ["/painel/compras/contratos/minutas/nova", "compras/minuta-nova.png", { abrir: ["Prestação de serviços por prazo determinado"], fullPage: true }],
@@ -36,6 +40,7 @@ const SHOTS = [
   ["/painel/compras/contratos/minutas/6d100000-0000-4000-8000-000000000001", "compras/minuta.png", { esperar: "Cláusulas fixas" }],
   ["/painel/compras/contratos/minutas/86f92e2f-5137-43b6-b152-8fee213e3717", "compras/minuta-assinatura.png", { esperar: "Assinatura eletrônica", scrollTo: "Assinatura eletrônica", altura: 760 }],
   ["/painel/compras/contratos/minutas/configuracao", "compras/minutas-configuracao.png", { esperar: "Configuração das minutas" }],
+  */
 
   /* Rodada de 29/09: Acordos coletivos e Negociações sindicais — seed:
   // scripts/seed-prints-acordos.mjs, depois extrair as cláusulas pela tela.
