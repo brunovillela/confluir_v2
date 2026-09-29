@@ -4,7 +4,7 @@ import { renderToBuffer } from "@react-pdf/renderer"
 import { ROTULO_AVALIACAO, ROTULO_SITUACAO } from "@/lib/acordos-comparar"
 import { ROTULO_TEMA } from "@/lib/acordos-constantes"
 import { getSessaoPainel } from "@/lib/auth"
-import { obterComparacao } from "@/lib/db/acordos-comparacoes"
+import { comparacaoPermitida, obterComparacao } from "@/lib/db/acordos-comparacoes"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarDataHora } from "@/lib/formato"
@@ -15,10 +15,11 @@ export const runtime = "nodejs"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sessao = await getSessaoPainel()
-  if (!sessao || !podeAcessar(sessao.permissoes, "acordos_coletivos")) {
+  if (!sessao || !podeAcessar(sessao.permissoes, "acordos_coletivos", ["negociacoes"])) {
     return new Response("Sem acesso", { status: 403 })
   }
   const { id } = await ctx.params
+  if (!(await comparacaoPermitida(id, sessao.permissoes))) return new Response("Sem acesso", { status: 403 })
   const [comparacao, org] = await Promise.all([obterComparacao(id), obterOrganizacao()])
   if (!comparacao) return new Response("Comparação não encontrada", { status: 404 })
   const c = comparacao

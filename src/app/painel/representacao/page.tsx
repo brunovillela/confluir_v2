@@ -3,6 +3,7 @@ import {
   Building2,
   FileSignature,
   Gavel,
+  Handshake,
   type LucideIcon,
   UsersRound,
   Vote,
@@ -45,6 +46,13 @@ const AREAS: Area[] = [
     chave: "acordos_coletivos",
   },
   {
+    titulo: "Negociações sindicais",
+    descricao: "Pauta, propostas por rodada, acordo final e linha do tempo",
+    href: "/painel/representacao/negociacoes",
+    icone: Handshake,
+    chave: "negociacoes",
+  },
+  {
     titulo: "Filiação coletiva",
     descricao:
       "Assembleia com cláusula no ACT: os aptos a votar tornam-se filiados",
@@ -65,6 +73,7 @@ export default async function RepresentacaoPage() {
   const sessao = await requirePermissao("assembleias", [
     "oposicao",
     "acordos_coletivos",
+    "negociacoes",
     "empregadores",
   ])
   const areas = AREAS.filter((a) => podeAcessar(sessao.permissoes, a.chave))

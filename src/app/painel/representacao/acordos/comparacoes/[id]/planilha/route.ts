@@ -1,7 +1,7 @@
 import { ROTULO_AVALIACAO, ROTULO_SITUACAO } from "@/lib/acordos-comparar"
 import { ROTULO_TEMA } from "@/lib/acordos-constantes"
 import { getSessaoPainel } from "@/lib/auth"
-import { obterComparacao } from "@/lib/db/acordos-comparacoes"
+import { comparacaoPermitida, obterComparacao } from "@/lib/db/acordos-comparacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 export const runtime = "nodejs"
@@ -14,10 +14,11 @@ function celula(v: string | null | undefined): string {
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const sessao = await getSessaoPainel()
-  if (!sessao || !podeAcessar(sessao.permissoes, "acordos_coletivos")) {
+  if (!sessao || !podeAcessar(sessao.permissoes, "acordos_coletivos", ["negociacoes"])) {
     return new Response("Sem acesso", { status: 403 })
   }
   const { id } = await ctx.params
+  if (!(await comparacaoPermitida(id, sessao.permissoes))) return new Response("Sem acesso", { status: 403 })
   const c = await obterComparacao(id)
   if (!c) return new Response("Comparação não encontrada", { status: 404 })
 

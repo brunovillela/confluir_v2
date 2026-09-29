@@ -100,6 +100,8 @@ export async function listarAcordos(
     .from("acordo_coletivo")
     .select("id, tipo, titulo, vigencia_inicio, vigencia_fim, situacao")
     .eq("emp_proprietaria_id", empId)
+    // Pauta e propostas de negociação são sigilosas: vivem em Negociações.
+    .is("negociacao_id", null)
 
   if (filtros.tipo && filtros.tipo !== "todos") q = q.eq("tipo", filtros.tipo)
   if (filtros.situacao && filtros.situacao !== "todas") {
@@ -169,6 +171,8 @@ export type AcordoDetalhe = {
   clausulasRevisadasEm: string | null
   preambulo: string | null
   anexos: string | null
+  /** Documento sigiloso de uma negociação (pauta, proposta…); null = acordo comum. */
+  negociacao: { id: string; titulo: string; papel: string | null; rodada: number | null } | null
 }
 
 export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
@@ -181,6 +185,22 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (!a) return null
+
+  let negociacao: AcordoDetalhe["negociacao"] = null
+  if (a.negociacao_id) {
+    const { data: n } = await admin
+      .from("negociacoes")
+      .select("id, titulo")
+      .eq("id", a.negociacao_id)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle()
+    negociacao = {
+      id: String(a.negociacao_id),
+      titulo: String(n?.titulo ?? "Negociação"),
+      papel: texto(a.papel_negociacao),
+      rodada: typeof a.rodada_negociacao === "number" ? a.rodada_negociacao : null,
+    }
+  }
 
   const [fontesRes, clausRes] = await Promise.all([
     fontesPorAcordo(admin, empId, [id]),
@@ -235,7 +255,25 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
     clausulasRevisadasEm: texto(a.clausulas_revisadas_em),
     preambulo: texto(a.preambulo),
     anexos: texto(a.anexos),
+    negociacao,
   }
+}
+
+/**
+ * Dos ids informados, os que são documentos sigilosos de negociação. Quem não
+ * tem a permissão `negociacoes` não os vê nem os altera.
+ */
+export async function acordosSigilosos(ids: string[]): Promise<Set<string>> {
+  const unicos = [...new Set(ids.filter(Boolean))]
+  if (!unicos.length) return new Set()
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("acordo_coletivo")
+    .select("id")
+    .in("id", unicos)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("negociacao_id", "is", null)
+  return new Set((data ?? []).map((a) => String(a.id)))
 }
 
 export type AcordoDoPerfil = {
@@ -302,6 +340,7 @@ export async function acordosVencendo(
     .select("id, titulo, vigencia_fim")
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("situacao", "vigente")
+    .is("negociacao_id", null)
     .not("vigencia_fim", "is", null)
     .lte("vigencia_fim", limite.toISOString().slice(0, 10))
     .order("vigencia_fim", { ascending: true })

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, CheckCircle2, FileText, GitCompareArrows, Pencil } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileText, GitCompareArrows, Lock, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,8 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { fonteIdsDoAcordo, obterAcordo, opcoesFontes } from "@/lib/db/acordos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { papelDocumento, ROTULO_PAPEL } from "@/lib/negociacoes-constantes"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   estadoVigencia,
   ROTULO_TEMA,
@@ -54,11 +56,15 @@ export default async function AcordoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ editar?: string; salvo?: string; tema?: string }>
 }) {
-  await requirePermissao("acordos_coletivos")
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
   const { id } = await params
   const { editar, salvo, tema: temaBruto } = await searchParams
   const a = await obterAcordo(id)
   if (!a) notFound()
+  // Pauta e propostas de negociação: só quem negocia. Acordo comum: só quem
+  // tem Acordos coletivos.
+  if (!podeAcessar(sessao.permissoes, a.negociacao ? "negociacoes" : "acordos_coletivos")) notFound()
+  const papel = papelDocumento(a.negociacao?.papel)
 
   const editando = editar === "1"
   const [fontes, fonteIds] = editando
@@ -78,11 +84,27 @@ export default async function AcordoPage({
     <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/representacao/acordos">
-            <ArrowLeft />
-            Acordos coletivos
-          </Link>
+          {a.negociacao ? (
+            <Link href={`/painel/representacao/negociacoes/${a.negociacao.id}`}>
+              <ArrowLeft />
+              {a.negociacao.titulo}
+            </Link>
+          ) : (
+            <Link href="/painel/representacao/acordos">
+              <ArrowLeft />
+              Acordos coletivos
+            </Link>
+          )}
         </Button>
+        {a.negociacao && (
+          <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs">
+            <Lock className="size-3.5" />
+            Documento sigiloso da negociação
+            {papel ? ` · ${ROTULO_PAPEL[papel]}` : ""}
+            {a.negociacao.rodada ? ` · ${a.negociacao.rodada}ª rodada` : ""}
+            {" "}— não aparece em Acordos coletivos.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-balance">
             {a.titulo ?? "(sem título)"}

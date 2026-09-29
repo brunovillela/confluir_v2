@@ -132,6 +132,10 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "assembleias", rotulo: "Votações e assembleias" },
       { chave: "oposicao", rotulo: "Oposição à contribuição assistencial" },
       { chave: "acordos_coletivos", rotulo: "Acordos coletivos" },
+      {
+        chave: "negociacoes",
+        rotulo: "Negociações sindicais (pauta e propostas — sigiloso)",
+      },
       { chave: "empregadores", rotulo: "Empregadores e fontes pagadoras" },
     ],
   },

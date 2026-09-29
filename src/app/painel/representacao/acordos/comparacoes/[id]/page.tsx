@@ -16,7 +16,12 @@ import {
 } from "@/lib/acordos-comparar"
 import { ROTULO_TEMA, temaClausula } from "@/lib/acordos-constantes"
 import { requirePermissao } from "@/lib/auth"
-import { obterComparacao, type Avaliacao, type ParComparacao } from "@/lib/db/acordos-comparacoes"
+import {
+  comparacaoPermitida,
+  obterComparacao,
+  type Avaliacao,
+  type ParComparacao,
+} from "@/lib/db/acordos-comparacoes"
 
 import { definirAvaliacaoAction, excluirComparacaoAction } from "../actions"
 import { AnalisarPar, DesfazerPar, ParearManual, VerDiferenca } from "./par-acoes"
@@ -49,9 +54,10 @@ export default async function ComparacaoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ situacao?: string; avaliacao?: string; tema?: string }>
 }) {
-  await requirePermissao("acordos_coletivos")
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
   const { id } = await params
   const sp = await searchParams
+  if (!(await comparacaoPermitida(id, sessao.permissoes))) notFound()
   const c = await obterComparacao(id)
   if (!c) notFound()
 

@@ -8,7 +8,9 @@ import {
   type Situacao,
 } from "@/lib/acordos-comparar"
 import { temaClausula, type TemaClausula } from "@/lib/acordos-constantes"
+import { acordosSigilosos } from "@/lib/db/acordos"
 import { esquemaAusente } from "@/lib/db/comum"
+import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { gerarJsonIA } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -255,7 +257,31 @@ export type ComparacaoLista = {
   createdAt: string
 }
 
-export async function listarComparacoes(): Promise<{ disponivel: boolean; lista: ComparacaoLista[] }> {
+// ── Sigilo ───────────────────────────────────────────────────────────────────
+// Pauta e propostas de negociação só entram no comparador para quem negocia;
+// acordos comuns, para quem tem Acordos coletivos ou Negociações.
+
+export async function acordosPermitidos(ids: string[], permissoes: Permissoes | null): Promise<boolean> {
+  if (podeAcessar(permissoes, "negociacoes")) return true
+  if (!podeAcessar(permissoes, "acordos_coletivos")) return false
+  return (await acordosSigilosos(ids)).size === 0
+}
+
+export async function comparacaoPermitida(id: string, permissoes: Permissoes | null): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("acordo_comparacoes")
+    .select("acordo_a_id, acordo_b_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!data) return true // inexistente: a página/ação dá "não encontrado"
+  return acordosPermitidos([data.acordo_a_id, data.acordo_b_id].filter(Boolean) as string[], permissoes)
+}
+
+export async function listarComparacoes(
+  permissoes: Permissoes | null
+): Promise<{ disponivel: boolean; lista: ComparacaoLista[] }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("acordo_comparacoes")
@@ -267,9 +293,15 @@ export async function listarComparacoes(): Promise<{ disponivel: boolean; lista:
     if (esquemaAusente(error)) return { disponivel: false, lista: [] }
     throw new Error(error.message)
   }
+  const negocia = podeAcessar(permissoes, "negociacoes")
+  const sigilosos = negocia
+    ? new Set<string>()
+    : await acordosSigilosos((data ?? []).flatMap((c) => [c.acordo_a_id, c.acordo_b_id]).filter(Boolean) as string[])
   return {
     disponivel: true,
-    lista: (data ?? []).map((c) => ({
+    lista: (data ?? [])
+      .filter((c) => !sigilosos.has(c.acordo_a_id as string) && !sigilosos.has(c.acordo_b_id as string))
+      .map((c) => ({
       id: c.id as string,
       titulo: String(c.titulo ?? "Comparação"),
       acordoA: c.acordo_a_id as string | null,

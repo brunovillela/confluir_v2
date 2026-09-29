@@ -612,9 +612,9 @@ export const MODULOS: Modulo[] = [
     titulo: "Representação Sindical",
     href: "/painel/representacao",
     icone: "Megaphone",
-    descricao: "Votações, oposição, acordos coletivos e empregadores",
+    descricao: "Votações, oposição, acordos coletivos, negociações e empregadores",
     chave: "assembleias",
-    chavesAlternativas: ["oposicao", "acordos_coletivos", "empregadores"],
+    chavesAlternativas: ["oposicao", "acordos_coletivos", "negociacoes", "empregadores"],
   },
   {
     titulo: "Votações",
@@ -640,6 +640,17 @@ export const MODULOS: Modulo[] = [
     chave: "acordos_coletivos",
     oculto: true,
   },
+    // Quem negocia abre os documentos da negociação (pauta, propostas) na
+    // página do acordo; o que é sigiloso é filtrado lá.
+    chavesAlternativas: ["negociacoes"],
+    oculto: true,
+  },
+  {
+    titulo: "Negociações sindicais",
+    href: "/painel/representacao/negociacoes",
+    icone: "Handshake",
+    descricao: "Pauta, propostas por rodada, acordo final e linha do tempo",
+    chave: "negociacoes",
   {
     titulo: "Empregadores",
     href: "/painel/representacao/empregadores",

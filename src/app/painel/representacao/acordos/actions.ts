@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  acordosSigilosos,
   adicionarClausula,
   atualizarAcordo,
   criarAcordo,
@@ -39,6 +41,18 @@ function ouNull(v: string): string | null {
 }
 async function requireAcordos() {
   return requirePermissao("acordos_coletivos")
+}
+
+/**
+ * Para as ações sobre UM acordo: quem negocia também mexe nos documentos da
+ * negociação (pauta, propostas), que são sigilosos para quem só tem
+ * `acordos_coletivos`. Devolve a mensagem de recusa, ou null.
+ */
+async function recusaDoAcordo(acordoId: string): Promise<string | null> {
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
+  const sigiloso = (await acordosSigilosos([acordoId])).has(acordoId)
+  const chave = sigiloso ? "negociacoes" : "acordos_coletivos"
+  return podeAcessar(sessao.permissoes, chave) ? null : "Sem acesso a este acordo."
 }
 function revalidar(id?: string) {
   revalidatePath("/painel/representacao/acordos")
@@ -98,9 +112,10 @@ export async function atualizarAcordoAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireAcordos()
   const id = texto(fd, "acordo_id")
   if (!id) return { erro: "Acordo inválido." }
+  const recusa = await recusaDoAcordo(id)
+  if (recusa) return { erro: recusa }
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const { erro } = await atualizarAcordo(id, {
@@ -116,8 +131,9 @@ export async function adicionarClausulaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireAcordos()
   const id = texto(fd, "acordo_id")
+  const recusa = await recusaDoAcordo(id)
+  if (recusa) return { erro: recusa }
   const cat = texto(fd, "categoria")
   const { erro } = await adicionarClausula(id, {
     numero: ouNull(texto(fd, "numero")),
@@ -136,7 +152,8 @@ export async function excluirClausulaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireAcordos()
+  const recusa = await recusaDoAcordo(texto(fd, "acordo_id"))
+  if (recusa) return { erro: recusa }
   const { erro } = await excluirClausula(texto(fd, "clausula_id"))
   if (erro) return { erro }
   revalidar(texto(fd, "acordo_id"))
@@ -151,8 +168,9 @@ const UUID_ACORDO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export async function prepararEnvioDocumentoAction(
   acordoId: string
 ): Promise<{ caminho?: string; token?: string; erro?: string }> {
-  await requireAcordos()
   if (!UUID_ACORDO.test(acordoId)) return { erro: "Acordo inválido." }
+  const recusa = await recusaDoAcordo(acordoId)
+  if (recusa) return { erro: recusa }
   return criarEnvioDocumento(acordoId)
 }
 
@@ -160,8 +178,9 @@ export async function confirmarDocumentoAction(
   acordoId: string,
   caminho: string
 ): Promise<{ erro?: string }> {
-  await requireAcordos()
   if (!UUID_ACORDO.test(acordoId)) return { erro: "Acordo inválido." }
+  const recusa = await recusaDoAcordo(acordoId)
+  if (recusa) return { erro: recusa }
   const r = await confirmarDocumento(acordoId, caminho)
   if (!r.erro) revalidar(acordoId)
   return r
@@ -173,8 +192,10 @@ export async function extrairClausulasAction(
   _prev: EstadoExtracao,
   fd: FormData
 ): Promise<EstadoExtracao> {
-  await requireAcordos()
   const id = texto(fd, "acordo_id")
+  if (!UUID_ACORDO.test(id)) return { erro: "Acordo inválido." }
+  const recusa = await recusaDoAcordo(id)
+  if (recusa) return { erro: recusa }
   const r = await extrairClausulasDoAcordo(id)
   if (r.erro) return { erro: r.erro }
   revalidar(id)
@@ -188,9 +209,10 @@ export async function salvarClausulaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireAcordos()
   const id = texto(fd, "clausula_id")
   const acordoId = texto(fd, "acordo_id")
+  const recusa = await recusaDoAcordo(acordoId)
+  if (recusa) return { erro: recusa }
   const tema = temaClausula(texto(fd, "tema"))
   const corpo = String(fd.get("texto") ?? "").replace(/\r\n?/g, "\n").trim()
   if (!UUID_ACORDO.test(id) || !tema) return { erro: "Dados inválidos." }
@@ -207,18 +229,17 @@ export async function salvarClausulaAction(
 }
 
 export async function juntarClausulaAction(fd: FormData): Promise<void> {
-  await requireAcordos()
   const id = texto(fd, "clausula_id")
   const acordoId = texto(fd, "acordo_id")
-  if (!UUID_ACORDO.test(id)) return
+  if (!UUID_ACORDO.test(id) || (await recusaDoAcordo(acordoId))) return
   await juntarComProxima(id)
   revalidar(acordoId)
 }
 
 export async function marcarRevisadasAction(fd: FormData): Promise<void> {
-  const sessao = await requireAcordos()
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
   const acordoId = texto(fd, "acordo_id")
-  if (!UUID_ACORDO.test(acordoId)) return
+  if (!UUID_ACORDO.test(acordoId) || (await recusaDoAcordo(acordoId))) return
   await marcarClausulasRevisadas(acordoId, String(sessao.usuario.id), fd.get("revisadas") === "1")
   revalidar(acordoId)
 }

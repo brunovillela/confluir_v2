@@ -6,7 +6,9 @@ import { redirect } from "next/navigation"
 import { diferenca, type Trecho } from "@/lib/acordos-comparar"
 import { requirePermissao } from "@/lib/auth"
 import {
+  acordosPermitidos,
   analisarPar,
+  comparacaoPermitida,
   criarComparacao,
   definirAvaliacao,
   desfazerPar,
@@ -20,8 +22,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BASE = "/painel/representacao/acordos/comparacoes"
 const txt = (fd: FormData, n: string) => String(fd.get(n) ?? "").trim()
 
-async function requireAcordos() {
-  return requirePermissao("acordos_coletivos")
+/**
+ * Comparador: quem tem Acordos coletivos ou Negociações. Comparação que
+ * envolve pauta/proposta de negociação (sigilosa) só para quem negocia.
+ */
+async function requireAcordos(comparacaoId?: string) {
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
+  if (comparacaoId && !(await comparacaoPermitida(comparacaoId, sessao.permissoes))) {
+    redirect("/painel/sem-acesso")
+  }
+  return sessao
 }
 
 export type EstadoComparacao = { erro?: string }
@@ -34,6 +44,7 @@ export async function criarComparacaoAction(
   const a = txt(fd, "acordo_a")
   const b = txt(fd, "acordo_b")
   if (!UUID.test(a) || !UUID.test(b)) return { erro: "Escolha os dois acordos." }
+  if (!(await acordosPermitidos([a, b], sessao.permissoes))) return { erro: "Sem acesso a um dos acordos." }
   const { id, erro } = await criarComparacao(a, b, String(sessao.usuario.id))
   if (erro || !id) return { erro: erro ?? "Não foi possível comparar." }
   revalidatePath(BASE)
@@ -45,8 +56,8 @@ export async function diferencaDoParAction(
   comparacaoId: string,
   parId: string
 ): Promise<{ trechos?: Trecho[]; erro?: string }> {
-  await requireAcordos()
   if (!UUID.test(comparacaoId) || !UUID.test(parId)) return { erro: "Par inválido." }
+  await requireAcordos(comparacaoId)
   const c = await obterComparacao(comparacaoId)
   const p = c?.pares.find((x) => x.id === parId)
   if (!p) return { erro: "Par não encontrado." }
@@ -59,8 +70,9 @@ function voltar(comparacaoId: string, ancora?: string): never {
 }
 
 export async function desfazerParAction(fd: FormData): Promise<void> {
-  await requireAcordos()
   const c = txt(fd, "comparacao_id")
+  if (!UUID.test(c)) return
+  await requireAcordos(c)
   const par = txt(fd, "par_id")
   if (!UUID.test(par) || !UUID.test(c)) return
   await desfazerPar(par)
@@ -71,8 +83,9 @@ export async function parearManualAction(
   _prev: EstadoComparacao,
   fd: FormData
 ): Promise<EstadoComparacao> {
-  await requireAcordos()
   const c = txt(fd, "comparacao_id")
+  if (!UUID.test(c)) return { erro: "Comparação inválida." }
+  await requireAcordos(c)
   const suprimida = txt(fd, "par_id")
   const nova = txt(fd, "par_nova_id")
   if (!UUID.test(suprimida) || !UUID.test(nova) || !UUID.test(c)) return { erro: "Escolha a cláusula para parear." }
@@ -85,8 +98,9 @@ export async function analisarParAction(
   _prev: EstadoComparacao,
   fd: FormData
 ): Promise<EstadoComparacao> {
-  await requireAcordos()
   const c = txt(fd, "comparacao_id")
+  if (!UUID.test(c)) return { erro: "Comparação inválida." }
+  await requireAcordos(c)
   const par = txt(fd, "par_id")
   if (!UUID.test(par) || !UUID.test(c)) return { erro: "Par inválido." }
   const { erro } = await analisarPar(par)
@@ -95,8 +109,9 @@ export async function analisarParAction(
 }
 
 export async function definirAvaliacaoAction(fd: FormData): Promise<void> {
-  await requireAcordos()
   const c = txt(fd, "comparacao_id")
+  if (!UUID.test(c)) return
+  await requireAcordos(c)
   const par = txt(fd, "par_id")
   const avaliacao = txt(fd, "avaliacao") as Avaliacao
   if (!UUID.test(par) || !UUID.test(c) || !["favoravel", "desfavoravel", "neutra"].includes(avaliacao)) return
@@ -105,9 +120,9 @@ export async function definirAvaliacaoAction(fd: FormData): Promise<void> {
 }
 
 export async function excluirComparacaoAction(fd: FormData): Promise<void> {
-  await requireAcordos()
   const c = txt(fd, "comparacao_id")
   if (!UUID.test(c)) return
+  await requireAcordos(c)
   await excluirComparacao(c)
   revalidatePath(BASE)
   redirect(`${BASE}?excluida=1`)

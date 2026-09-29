@@ -10,6 +10,7 @@ import { requirePermissao } from "@/lib/auth"
 import { AVISO_SQL_COMPARACOES, listarComparacoes } from "@/lib/db/acordos-comparacoes"
 import { formatarDataHora } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { tenantAtual } from "@/lib/tenant"
 
 import { NovaComparacaoForm } from "./nova-comparacao-form"
@@ -18,15 +19,19 @@ export const metadata: Metadata = { title: "Comparar acordos — Confluir" }
 // A comparação (pareamento + análise pela IA) roda na server action desta página.
 export const maxDuration = 300
 
-/** Acordos com a quantidade de cláusulas (só compara quem tem cláusulas). */
-async function acordosParaComparar() {
+/**
+ * Acordos com a quantidade de cláusulas (só compara quem tem cláusulas). Pauta
+ * e propostas de negociação só entram para quem tem a permissão de negociar.
+ */
+async function acordosParaComparar(permissoes: Permissoes | null) {
   const admin = await createAdminClient()
   const empId = await tenantAtual()
-  const { data: acordos } = await admin
+  let q = admin
     .from("acordo_coletivo")
-    .select("id, titulo, tipo, vigencia_inicio")
+    .select("id, titulo, tipo, vigencia_inicio, negociacao_id")
     .eq("emp_proprietaria_id", empId)
-    .order("vigencia_inicio", { ascending: false, nullsFirst: false })
+  if (!podeAcessar(permissoes, "negociacoes")) q = q.is("negociacao_id", null)
+  const { data: acordos } = await q.order("vigencia_inicio", { ascending: false, nullsFirst: false })
   const lista = []
   for (const a of acordos ?? []) {
     const { count } = await admin
@@ -34,7 +39,8 @@ async function acordosParaComparar() {
       .select("id", { count: "exact", head: true })
       .eq("acordo_id", a.id)
       .eq("emp_proprietaria_id", empId)
-    lista.push({ id: String(a.id), rotulo: String(a.titulo ?? "(sem título)"), clausulas: count ?? 0 })
+    const titulo = String(a.titulo ?? "(sem título)")
+    lista.push({ id: String(a.id), rotulo: a.negociacao_id ? `[negociação] ${titulo}` : titulo, clausulas: count ?? 0 })
   }
   return lista
 }
@@ -42,11 +48,14 @@ async function acordosParaComparar() {
 export default async function ComparacoesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ a?: string; excluida?: string }>
+  searchParams: Promise<{ a?: string; b?: string; excluida?: string }>
 }) {
-  await requirePermissao("acordos_coletivos")
+  const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
   const sp = await searchParams
-  const [{ disponivel, lista }, acordos] = await Promise.all([listarComparacoes(), acordosParaComparar()])
+  const [{ disponivel, lista }, acordos] = await Promise.all([
+    listarComparacoes(sessao.permissoes),
+    acordosParaComparar(sessao.permissoes),
+  ])
 
   return (
     <>
@@ -84,7 +93,7 @@ export default async function ComparacoesPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NovaComparacaoForm acordos={acordos} inicialA={sp.a} />
+          <NovaComparacaoForm acordos={acordos} inicialA={sp.a} inicialB={sp.b} />
         </CardContent>
       </Card>
 

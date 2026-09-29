@@ -15,9 +15,11 @@ const SELECT =
 export function NovaComparacaoForm({
   acordos,
   inicialA,
+  inicialB,
 }: {
   acordos: { id: string; rotulo: string; clausulas: number }[]
   inicialA?: string
+  inicialB?: string
 }) {
   const [estado, acao, pendente] = useActionState(criarComparacaoAction, {})
   const opcoes = acordos.map((a) => (
@@ -39,7 +41,7 @@ export function NovaComparacaoForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="acordo_b">B — comparado (o novo, a proposta, outra empresa)</Label>
-          <select id="acordo_b" name="acordo_b" required defaultValue="" className={SELECT}>
+          <select id="acordo_b" name="acordo_b" required defaultValue={inicialB ?? ""} className={SELECT}>
             <option value="" disabled>
               Escolha…
             </option>
