@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileSignature, Plus, TriangleAlert } from "lucide-react"
+import { ArrowLeft, FileSignature, GitCompareArrows, Plus, TriangleAlert } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -87,12 +87,20 @@ export default async function AcordosPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Acordos coletivos
           </h1>
-          <Button asChild>
-            <Link href="/painel/representacao/acordos/novo">
-              <Plus />
-              Novo acordo
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/acordos/comparacoes">
+                <GitCompareArrows />
+                Comparar acordos
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/painel/representacao/acordos/novo">
+                <Plus />
+                Novo acordo
+              </Link>
+            </Button>
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           ACT e CCT: vigência, abrangência, cláusulas e alertas de vencimento.

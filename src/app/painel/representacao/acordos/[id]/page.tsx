@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, CheckCircle2, FileText, Pencil } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileText, GitCompareArrows, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -92,6 +92,14 @@ export default async function AcordoPage({
           {estado === "vencido" && <Badge variant="destructive">Vencido</Badge>}
           {estado === "vencendo" && <Badge variant="warning">Vencendo</Badge>}
         </div>
+        {a.clausulas.length > 0 && (
+          <Button variant="outline" size="sm" asChild className="mt-3 sm:float-right sm:mt-0">
+            <Link href={`/painel/representacao/acordos/comparacoes?a=${id}`}>
+              <GitCompareArrows />
+              Comparar com outro acordo
+            </Link>
+          </Button>
+        )}
         <p className="text-muted-foreground mt-1 text-xs">
           Vigência {formatarData(a.vigencia_inicio)} –{" "}
           {a.vigencia_fim ? formatarData(a.vigencia_fim) : "—"}

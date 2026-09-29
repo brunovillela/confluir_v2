@@ -19,6 +19,8 @@ import "server-only"
  */
 export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "acordo_clausulas",
+  "acordo_comparacao_pares",
+  "acordo_comparacoes",
   "acordo_coletivo",
   "acordo_fontes",
   "agenda",
