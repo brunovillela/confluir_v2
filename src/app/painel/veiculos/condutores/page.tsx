@@ -21,9 +21,11 @@ import {
   listarUsuariosAtivos,
   urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
+import { condutoresRepetidos } from "@/lib/db/veiculos-condutores-cnh"
 import { formatarData } from "@/lib/formato"
 
 import { AutorizacaoForm, CondutorForm } from "./condutor-forms"
+import { UnificarGrupo } from "./unificar-form"
 
 export const metadata: Metadata = { title: "Condutores — Confluir" }
 
@@ -35,9 +37,10 @@ export default async function CondutoresPage({
   await requirePermissao("veiculos_gestao")
   const { salvo } = await searchParams
 
-  const [{ disponivel, condutores }, usuarios] = await Promise.all([
+  const [{ disponivel, condutores }, usuarios, repetidos] = await Promise.all([
     listarCondutores(),
     listarUsuariosAtivos(),
+    condutoresRepetidos(),
   ])
 
   const cnhUrls = new Map(
@@ -83,6 +86,20 @@ export default async function CondutoresPage({
             <code>supabase/veiculos.sql</code> no SQL Editor do Supabase.
           </AlertDescription>
         </Alert>
+      )}
+
+      {repetidos.length > 0 && (
+        <GrupoColapsavel
+          titulo={`Cadastros repetidos (${repetidos.length})`}
+          descricao="A mesma pessoa com dois usuários (ex.: e-mail institucional e pessoal). Unificar deixa um cadastro só, guarda a outra CNH no histórico e junta os lançamentos."
+          aberto
+        >
+          <div className="grid gap-3">
+            {repetidos.map((g) => (
+              <UnificarGrupo key={g.membros.map((m) => m.usuarioId).join("-")} grupo={g} />
+            ))}
+          </div>
+        </GrupoColapsavel>
       )}
 
       <GrupoColapsavel

@@ -4,6 +4,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { rotuladorDeAutores } from "@/lib/db/contas-funcao"
+import { guardarCnhAnterior } from "@/lib/db/veiculos-condutores-cnh"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
 import {
@@ -536,11 +537,21 @@ export type DadosCondutor = {
   observacao: string | null
 }
 
-/** Cria ou atualiza o cadastro do condutor (upsert por usuário). */
+/**
+ * Cria ou atualiza o cadastro do condutor (upsert por usuário). Renovação
+ * (número, categoria ou validade diferentes) guarda a CNH anterior no histórico.
+ */
 export async function salvarCondutor(
-  dados: DadosCondutor
+  dados: DadosCondutor,
+  autorId: string | null = null
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const { data: anterior } = await admin
+    .from("veiculos_condutores")
+    .select("id, cnh_numero, cnh_categoria, cnh_validade, cnh_arquivo_url")
+    .eq("usuario_id", dados.usuario_id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
   const { error } = await admin.from("veiculos_condutores").upsert(
     {
       usuario_id: dados.usuario_id,
@@ -557,6 +568,19 @@ export async function salvarCondutor(
   if (error) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível salvar o condutor: ${error.message}` }
+  }
+  if (anterior) {
+    await guardarCnhAnterior(
+      String(anterior.id),
+      {
+        cnh_numero: texto(anterior.cnh_numero),
+        cnh_categoria: texto(anterior.cnh_categoria),
+        cnh_validade: texto(anterior.cnh_validade),
+        cnh_arquivo_url: texto(anterior.cnh_arquivo_url),
+      },
+      { cnh_numero: dados.cnh_numero, cnh_categoria: dados.cnh_categoria, cnh_validade: dados.cnh_validade },
+      autorId
+    )
   }
   return {}
 }

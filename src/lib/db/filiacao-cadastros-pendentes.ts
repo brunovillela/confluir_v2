@@ -2,6 +2,7 @@ import "server-only"
 
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
 import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
+import { lerEmLotes as lerLotes } from "@/lib/db/comum"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { cpfConfiavel, validarCpf } from "@/lib/cpf"
 import { pendenciasDoVinculo } from "@/lib/filiacao"
@@ -74,23 +75,6 @@ let cache: { dados: CadastrosPendentes; expira: number } | null = null
 
 export function invalidarCacheCadastrosPendentes() {
   cache = null
-}
-
-async function lerLotes<T>(
-  consulta: (
-    de: number,
-    ate: number
-  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
-): Promise<T[]> {
-  const LOTE = 1000
-  const linhas: T[] = []
-  for (let de = 0; ; de += LOTE) {
-    const { data, error } = await consulta(de, de + LOTE - 1)
-    if (error) throw new Error(`Falha na varredura: ${error.message}`)
-    linhas.push(...(data ?? []))
-    if (!data || data.length < LOTE) break
-  }
-  return linhas
 }
 
 type Cadastro = {

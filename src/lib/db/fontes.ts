@@ -1,4 +1,5 @@
 import "server-only"
+import { lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { normalizarMatricula, matriculasEmUso, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
@@ -14,22 +15,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 export const TIPO_FONTE_PAGADORA = "Fonte pagadora"
 
-export async function lerLotes<T>(
-  consulta: (de: number, ate: number) => PromiseLike<{
-    data: T[] | null
-    error: { message: string } | null
-  }>
-): Promise<T[]> {
-  const LOTE = 1000
-  const linhas: T[] = []
-  for (let de = 0; ; de += LOTE) {
-    const { data, error } = await consulta(de, de + LOTE - 1)
-    if (error) throw new Error(`Falha na agregação de fontes: ${error.message}`)
-    linhas.push(...(data ?? []))
-    if (!data || data.length < LOTE) break
-  }
-  return linhas
-}
+/** Leitura em lotes de 1.000 — mora em db/comum.ts; o nome antigo segue exportado aqui. */
+export const lerLotes = lerEmLotes
 
 export type EstatisticasFontes = {
   /** Fontes com pelo menos um filiado ativo (pessoa com condição 'Ativo'). */

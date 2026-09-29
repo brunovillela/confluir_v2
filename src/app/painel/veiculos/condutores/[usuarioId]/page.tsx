@@ -4,11 +4,13 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, IdCard, Pencil } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { indicadoresDoCondutor, perfilDoCondutor } from "@/lib/db/veiculos-condutor"
+import { historicoDeCnh } from "@/lib/db/veiculos-condutores-cnh"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
@@ -57,6 +59,7 @@ export default async function CondutorPage({
 
   const aba: Aba = lerAba(sp.aba)
   const cad = perfil.cadastro
+  const cnhs = cad ? await historicoDeCnh(cad.id) : []
   const aqui = `/painel/veiculos/condutores/${usuarioId}`
   const ctx = { usuarioId, aba, params: sp, veiculos: ind.veiculos, combustiveis: ind.combustiveis }
   const contagem: Record<Aba, number> = {
@@ -129,6 +132,39 @@ export default async function CondutorPage({
           </Button>
         </div>
       </div>
+
+      {sp.unificado === "1" && (
+        <Alert variant="success">
+          <AlertDescription>
+            Cadastros unificados: este é o cadastro do condutor, com a CNH mais recente, e os lançamentos da outra conta
+            já aparecem aqui.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {cnhs.length > 0 && (
+        <details className="rounded-lg border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Histórico de CNH <span className="text-muted-foreground font-normal">({cnhs.length} anterior{cnhs.length === 1 ? "" : "es"})</span>
+          </summary>
+          <ul className="mt-3 grid gap-2">
+            {cnhs.map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span className="tabular-nums">CNH {h.numero ?? "—"}</span>
+                {h.categoria && <span className="text-muted-foreground">categoria {h.categoria}</span>}
+                <span className={h.vencida ? "text-muted-foreground" : ""}>validade {formatarData(h.validade)}</span>
+                <Badge variant="outline" className="text-xs">
+                  {h.origem === "unificacao" ? `veio da unificação${h.origemEmail ? ` (${h.origemEmail})` : ""}` : "substituída na renovação"}
+                </Badge>
+                <span className="text-muted-foreground text-xs">
+                  {formatarData(h.registradoEm)}
+                  {h.registradoPor ? ` · por ${h.registradoPor}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Indicador

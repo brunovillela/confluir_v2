@@ -10,6 +10,7 @@ import {
   salvarCondutor,
   subirArquivoVeiculos,
 } from "@/lib/db/veiculos"
+import { unificarCondutores } from "@/lib/db/veiculos-condutores-cnh"
 import { CATEGORIAS_CNH } from "@/lib/veiculos-constantes"
 
 function texto(formData: FormData, campo: string): string {
@@ -24,7 +25,7 @@ export async function salvarCondutorAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("veiculos_gestao")
+  const sessao = await requirePermissao("veiculos_gestao")
   const usuarioId = texto(formData, "usuario_id")
   if (!usuarioId) return { erro: "Escolha o usuário." }
   const categoriaBruta = texto(formData, "cnh_categoria")
@@ -52,7 +53,7 @@ export async function salvarCondutorAction(
     cnh_validade: dataISO(texto(formData, "cnh_validade")),
     cnh_arquivo_url: arquivoUrl,
     observacao: texto(formData, "observacao") || null,
-  })
+  }, String(sessao.usuario.id))
   if (erro) return { erro }
   revalidatePath("/painel/veiculos/condutores")
   revalidatePath("/painel/veiculos")
@@ -76,4 +77,29 @@ export async function definirAutorizacaoAction(
   revalidatePath("/painel/veiculos/condutores")
   revalidatePath("/painel/veiculos")
   redirect("/painel/veiculos/condutores?salvo=1")
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Unifica cadastros repetidos da mesma pessoa: todos os membros do grupo
+ * passam para o principal escolhido (cadastro, CNH e lançamentos).
+ */
+export async function unificarCondutoresAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const principal = texto(formData, "principal")
+  const membros = formData.getAll("membro").map(String).filter((id) => UUID.test(id))
+  if (!UUID.test(principal) || !membros.includes(principal) || membros.length < 2) {
+    return { erro: "Escolha qual cadastro fica." }
+  }
+  for (const secundario of membros.filter((id) => id !== principal)) {
+    const { erro } = await unificarCondutores(principal, secundario, String(sessao.usuario.id))
+    if (erro) return { erro }
+  }
+  revalidatePath("/painel/veiculos/condutores")
+  revalidatePath("/painel/veiculos")
+  redirect(`/painel/veiculos/condutores/${principal}?unificado=1`)
 }

@@ -193,6 +193,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "veiculos_abastecimentos_lotes",
   "veiculos_agendamentos",
   "veiculos_condutores",
+  "veiculos_condutores_cnh",
+  "veiculos_condutores_unificacoes",
   "veiculos_disponibilidade",
   "veiculos_infracoes_historico",
   "veiculos_checklist_config",
