@@ -28,11 +28,16 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
 const SHOTS = [
-  // Rodada de 29/09 (4): Condutores — seed temporária: scripts/seed-prints-condutor.mjs
+  // Rodada de 29/09 (5): Ofícios — tipo antes do formulário e editor com formatação.
+  ["/painel/ferramentas/oficios/novo", "ferramentas/oficio-novo.png", { esperar: "Tipo de ofício", altura: 640 }],
+  ["/painel/ferramentas/oficios/fe800000-0000-4000-8000-000000000001", "ferramentas/oficios.png", { esperar: "Tipo de ofício", fullPage: true }],
+
+  /* Rodada de 29/09 (4): Condutores — seed temporária: scripts/seed-prints-condutor.mjs
   // (rodar --limpar depois dos prints; a demo não guarda esses dados).
   ["/painel/veiculos/condutores", "veiculos/condutores.png", { esperar: "Eduardo Prado Martins", altura: 720 }],
   ["/painel/veiculos/condutores/4d000000-0000-4000-8000-000000000001", "veiculos/condutor.png", { esperar: "Veículos mais usados", abrir: ["Histórico de CNH"] }],
   ["/painel/veiculos/condutores/4d000000-0000-4000-8000-000000000001", "veiculos/condutor-listas.png", { esperar: "Veículos mais usados", scrollTo: "Só devoluções com km fora do normal", altura: 900 }],
+  */
 
   /* Rodada de 29/09 (3): forma de recebimento e regra da fonte pagadora.
   ["/painel/filiados/receitas/e0e0e0e0-0000-4000-8000-000300000006/f0f0f0f0-0000-4000-8000-000000000001", "filiados/receita-fonte.png", { esperar: "Enviar relação de pagamentos", abrir: ["Enviar relação de pagamentos"], scrollTo: "Enviar relação de pagamentos", altura: 900 }],

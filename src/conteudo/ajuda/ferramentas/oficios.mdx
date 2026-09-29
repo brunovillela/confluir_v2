@@ -26,9 +26,18 @@ filtro por departamento.
 ## Emitir um ofício
 
 <PassoAPasso>
+  <Passo titulo="O tipo">
+    **Novo ofício** começa pela escolha do **tipo** — o resto do formulário só
+    abre depois dela, já com o assunto e o texto padrão daquele tipo:
+    **Filiação** e **Desfiliação** pedem à empresa que comece ou pare de
+    descontar a contribuição (ver *Ofícios de filiação e desfiliação*, abaixo);
+    **Manual** é qualquer outro — convite, solicitação, resposta, comunicado —,
+    para uma empresa cadastrada ou qualquer pessoa ou órgão.
+  </Passo>
   <Passo titulo="Rascunho">
     Escolha o **departamento** do ofício (só aparecem os seus; se você tem um só,
-    ele já vem escolhido) e preencha destinatário, assunto e corpo. O **signatário** vem dos integrantes
+    ele já vem escolhido) e preencha destinatário, assunto e corpo — o corpo tem barra de formatação
+    (ver *Formatar o texto*, abaixo). O **signatário** vem dos integrantes
     **vigentes** da diretoria. Há um campo opcional "Aos cuidados".
   </Passo>
   <Passo titulo="Enviar para assinatura">
@@ -52,9 +61,35 @@ filtro por departamento.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="dica" titulo="Tipos automáticos poupam digitação">
-  Alguns tipos (filiação/desfiliação) **carregam a lista de pessoas** a partir da
-  fonte pagadora, sem você digitar nome a nome.
+<Print src="ferramentas/oficio-novo.png" alt="Novo ofício: a escolha do tipo em três cartões — Filiação, Desfiliação e Manual —, cada um com a explicação do que faz, e o aviso de que o restante do ofício abre depois da escolha." legenda="O ofício novo começa pelo tipo." />
+
+### Ofícios de filiação e desfiliação
+
+Nos tipos **Filiação** e **Desfiliação**, o destinatário é a **empresa (fonte
+pagadora)** — é dela que sai a lista de nomes. Depois de salvar, o sistema
+mostra os filiados (ou desfiliados) dessa empresa que **ainda não foram
+oficiados**, e você marca quem entra. Não é preciso digitar nome a nome.
+
+## Formatar o texto
+
+O corpo do ofício tem uma barra de formatação, como num editor de texto:
+
+- **Negrito** (Ctrl+B), *itálico* (Ctrl+I), sublinhado (Ctrl+U) e tachado;
+- **listas** com marcadores ou numeradas — **Tab** cria um subnível e
+  **Shift+Tab** volta; fora das listas, Tab e Shift+Tab mudam o recuo;
+- **alinhamento** à esquerda, centralizado, à direita ou justificado;
+- **título de seção**, para dividir ofícios longos;
+- **link**, para inserir e remover;
+- **limpar formatação** do trecho selecionado, **desfazer** (Ctrl+Z) e
+  **refazer** (Ctrl+Y).
+
+A formatação sai igual na página do ofício, na impressão e no PDF. **Melhorar
+com IA** mantém a formatação do texto.
+
+<Aviso tipo="nota" titulo="Colar do Word ou do e-mail">
+  Pode colar: o texto entra com o que o ofício sabe mostrar — negrito, listas,
+  alinhamento, títulos, links. Imagens ficam de fora, uma tabela vira linhas
+  de texto e o resto da formatação (cores, fontes) é descartado.
 </Aviso>
 
 <Aviso tipo="nota" titulo="Ofício de liberação sindical">
@@ -127,7 +162,11 @@ assinado** aparece no topo, ao lado de Baixar PDF (que gera o PDF a partir do
 texto). O detalhe mostra também o **departamento** emissor, o **redator**, o
 "aos cuidados" e as **respostas recebidas**, quando foram anexadas.
 
-<Print src="ferramentas/oficios.png" alt="Rascunho de um ofício: tipo, data, o departamento (Administrativo, com a nota Só quem é do departamento vê o ofício), destinatário, aos cuidados, sede, assinante da diretoria, assunto e corpo com Melhorar com IA; abaixo, o cartão Enviar para assinatura eletrônica com o e-mail do assinante e o número sugerido." legenda="O rascunho: departamento, destinatário, assinante e corpo; depois, o envio para assinatura." />
+A formatação que esses ofícios tinham — negrito, texto justificado, listas,
+títulos — aparece na página, na impressão e no PDF gerado, como no sistema
+anterior.
+
+<Print src="ferramentas/oficios.png" alt="Rascunho de um ofício manual: os cartões de tipo com Manual escolhido; data, departamento, destinatário, aos cuidados, sede e assinante da diretoria; assunto e o corpo com a barra de formatação (negrito, itálico, listas, recuo, alinhamento, título, link, desfazer) e Melhorar com IA; abaixo, o cartão Enviar para assinatura eletrônica." legenda="O rascunho: tipo, destinatário, assinante e o corpo com formatação; depois, o envio para assinatura." />
 
 ## Erros comuns
 
