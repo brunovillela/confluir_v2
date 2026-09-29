@@ -657,7 +657,7 @@ export const MODULOS: Modulo[] = [
     titulo: "Empregadores",
     href: "/painel/representacao/empregadores",
     icone: "Building2",
-    descricao: "Empregadores e fontes pagadoras, documentação legal e status",
+    descricao: "Empregadores: acordos, votações, oposições, reuniões, setoriais e documentação",
     chave: "empregadores",
     oculto: true,
   },

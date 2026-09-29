@@ -174,6 +174,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "registro_sindical",
   "reuniao_ata",
   "representacao_documentos",
+  "representacao_reuniao_participantes",
+  "representacao_reunioes",
   "saude_acompanhamento",
   "saude_agenda_atendimentos",
   "saude_assistidos",

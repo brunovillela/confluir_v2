@@ -62,7 +62,7 @@ const AREAS: Area[] = [
   },
   {
     titulo: "Empregadores",
-    descricao: "Empregadores e fontes pagadoras, documentação legal e status",
+    descricao: "Empregadores: acordos, votações, oposições, reuniões, setoriais e documentação",
     href: "/painel/representacao/empregadores",
     icone: Building2,
     chave: "empregadores",
