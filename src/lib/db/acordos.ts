@@ -9,8 +9,11 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import {
   SITUACOES_ACORDO,
   TIPOS_ACORDO,
+  temaClausula,
+  temaDaCategoria,
   type CategoriaClausula,
   type SituacaoAcordo,
+  type TemaClausula,
   type TipoAcordo,
 } from "@/lib/acordos-constantes"
 
@@ -136,6 +139,11 @@ export type Clausula = {
   titulo: string | null
   texto: string | null
   categoria: CategoriaClausula
+  /** Tema do comparador (cai para o da categoria antiga quando não há). */
+  tema: TemaClausula
+  grupo: string | null
+  resumo: string | null
+  origem: "extracao" | "manual"
 }
 
 export type AcordoDetalhe = {
@@ -152,8 +160,15 @@ export type AcordoDetalhe = {
   /** Acordo do sindicato com os PRÓPRIOS funcionários → aparece no Meu Perfil. */
   com_funcionarios_entidade: boolean
   documentoUrl: string | null
+  /** Caminho do PDF no bucket (para saber se há documento). */
+  documentoCaminho: string | null
   fontes: string[]
   clausulas: Clausula[]
+  extracaoEm: string | null
+  extracaoAvisos: string[]
+  clausulasRevisadasEm: string | null
+  preambulo: string | null
+  anexos: string | null
 }
 
 export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
@@ -171,7 +186,7 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
     fontesPorAcordo(admin, empId, [id]),
     admin
       .from("acordo_clausulas")
-      .select("id, numero, titulo, texto, categoria")
+      .select("*")
       .eq("acordo_id", id)
       .eq("emp_proprietaria_id", empId)
       .order("ordem", { ascending: true }),
@@ -199,14 +214,27 @@ export async function obterAcordo(id: string): Promise<AcordoDetalhe | null> {
     observacoes: texto(a.observacoes),
     com_funcionarios_entidade: a.com_funcionarios_entidade === true,
     documentoUrl,
+    documentoCaminho: caminho,
     fontes: fontesRes.get(id) ?? [],
-    clausulas: (clausRes.data ?? []).map((c) => ({
-      id: String(c.id),
-      numero: texto(c.numero),
-      titulo: texto(c.titulo),
-      texto: texto(c.texto),
-      categoria: (c.categoria ?? "outro") as CategoriaClausula,
-    })),
+    clausulas: (clausRes.data ?? []).map((c) => {
+      const categoria = (c.categoria ?? "outro") as CategoriaClausula
+      return {
+        id: String(c.id),
+        numero: texto(c.numero),
+        titulo: texto(c.titulo),
+        texto: texto(c.texto),
+        categoria,
+        tema: temaClausula(c.tema) ?? temaDaCategoria(categoria),
+        grupo: texto(c.grupo),
+        resumo: texto(c.resumo),
+        origem: c.origem === "extracao" ? ("extracao" as const) : ("manual" as const),
+      }
+    }),
+    extracaoEm: texto(a.extracao_em),
+    extracaoAvisos: (texto(a.extracao_avisos) ?? "").split("\n").filter(Boolean),
+    clausulasRevisadasEm: texto(a.clausulas_revisadas_em),
+    preambulo: texto(a.preambulo),
+    anexos: texto(a.anexos),
   }
 }
 

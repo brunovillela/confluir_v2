@@ -20,7 +20,16 @@ import {
   type CategoriaClausula,
   type SituacaoAcordo,
   type TipoAcordo,
+  temaClausula,
 } from "@/lib/acordos-constantes"
+import {
+  confirmarDocumento,
+  criarEnvioDocumento,
+  extrairClausulasDoAcordo,
+  juntarComProxima,
+  marcarClausulasRevisadas,
+  salvarClausula,
+} from "@/lib/db/acordos-extracao"
 
 function texto(fd: FormData, campo: string): string {
   return String(fd.get(campo) ?? "").trim()
@@ -132,4 +141,84 @@ export async function excluirClausulaAction(
   if (erro) return { erro }
   revalidar(texto(fd, "acordo_id"))
   return { ok: "Cláusula removida." }
+}
+
+// ── Texto e cláusulas do PDF (Fase 1 do comparador) ─────────────────────────
+
+const UUID_ACORDO = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Link de envio direto ao armazenamento (o PDF não passa pela action: sem limite de 4 MB). */
+export async function prepararEnvioDocumentoAction(
+  acordoId: string
+): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  await requireAcordos()
+  if (!UUID_ACORDO.test(acordoId)) return { erro: "Acordo inválido." }
+  return criarEnvioDocumento(acordoId)
+}
+
+export async function confirmarDocumentoAction(
+  acordoId: string,
+  caminho: string
+): Promise<{ erro?: string }> {
+  await requireAcordos()
+  if (!UUID_ACORDO.test(acordoId)) return { erro: "Acordo inválido." }
+  const r = await confirmarDocumento(acordoId, caminho)
+  if (!r.erro) revalidar(acordoId)
+  return r
+}
+
+export type EstadoExtracao = { erro?: string; ok?: string; avisos?: string[] }
+
+export async function extrairClausulasAction(
+  _prev: EstadoExtracao,
+  fd: FormData
+): Promise<EstadoExtracao> {
+  await requireAcordos()
+  const id = texto(fd, "acordo_id")
+  const r = await extrairClausulasDoAcordo(id)
+  if (r.erro) return { erro: r.erro }
+  revalidar(id)
+  return {
+    ok: `${r.clausulas} cláusula(s) extraída(s). Revise os temas e o texto antes de usar no comparador.`,
+    avisos: r.avisos,
+  }
+}
+
+export async function salvarClausulaAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requireAcordos()
+  const id = texto(fd, "clausula_id")
+  const acordoId = texto(fd, "acordo_id")
+  const tema = temaClausula(texto(fd, "tema"))
+  const corpo = String(fd.get("texto") ?? "").replace(/\r\n?/g, "\n").trim()
+  if (!UUID_ACORDO.test(id) || !tema) return { erro: "Dados inválidos." }
+  if (!corpo) return { erro: "O texto da cláusula não pode ficar vazio." }
+  const { erro } = await salvarClausula(id, {
+    numero: ouNull(texto(fd, "numero")),
+    titulo: ouNull(texto(fd, "titulo")),
+    texto: corpo,
+    tema,
+  })
+  if (erro) return { erro }
+  revalidar(acordoId)
+  return { ok: "Cláusula salva." }
+}
+
+export async function juntarClausulaAction(fd: FormData): Promise<void> {
+  await requireAcordos()
+  const id = texto(fd, "clausula_id")
+  const acordoId = texto(fd, "acordo_id")
+  if (!UUID_ACORDO.test(id)) return
+  await juntarComProxima(id)
+  revalidar(acordoId)
+}
+
+export async function marcarRevisadasAction(fd: FormData): Promise<void> {
+  const sessao = await requireAcordos()
+  const acordoId = texto(fd, "acordo_id")
+  if (!UUID_ACORDO.test(acordoId)) return
+  await marcarClausulasRevisadas(acordoId, String(sessao.usuario.id), fd.get("revisadas") === "1")
+  revalidar(acordoId)
 }
