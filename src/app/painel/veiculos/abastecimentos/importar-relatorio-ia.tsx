@@ -1,8 +1,8 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2, RotateCcw, Save, Sparkles } from "lucide-react"
+import Link from "next/link"
+import { List, Loader2, RotateCcw, Save, Sparkles } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +30,7 @@ const dataBR = (iso: string) => iso.split("-").reverse().join("/")
 
 const SITUACAO: Record<SituacaoLinha, { rotulo: string; classe: string }> = {
   ok: { rotulo: "Lançar", classe: "border-success/40 text-success-fg" },
-  sem_veiculo: { rotulo: "Placa fora da frota", classe: "border-destructive/50 text-destructive" },
+  sem_veiculo: { rotulo: "Lançar sem veículo", classe: "border-warning/50 text-warning-fg" },
   duplicado: { rotulo: "Já lançado", classe: "text-muted-foreground" },
   repetido: { rotulo: "Repetido no arquivo", classe: "text-muted-foreground" },
 }
@@ -38,15 +38,20 @@ const SITUACAO: Record<SituacaoLinha, { rotulo: string; classe: string }> = {
 /**
  * Relatório de abastecimento lido pela IA — fatura do cartão-combustível,
  * extrato do posto ou cupom, em PDF (mesmo escaneado), Excel, CSV ou foto.
- * Mostra o que foi lido, casado e já lançado antes de gravar.
+ * Mostra o que foi lido, casado e já lançado antes de gravar. A placa fora da
+ * frota também é lançada — sem veículo, para vincular depois na edição.
  */
 export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao[] }) {
-  const router = useRouter()
   const [estado, lerAction, lendo] = useActionState(lerRelatorioAbastecimentosIa, {})
   const [veiculoPadrao, setVeiculoPadrao] = useState("")
   const [gravando, setGravando] = useState(false)
   const [erroGravar, setErroGravar] = useState<string | null>(null)
-  const [resultado, setResultado] = useState<{ importados: number; ignorados: number } | null>(null)
+  const [resultado, setResultado] = useState<{
+    importados: number
+    ignorados: number
+    semVeiculo: number
+    semCondutor: number
+  } | null>(null)
 
   async function confirmar() {
     if (!estado.linhas) return
@@ -58,9 +63,12 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
       setErroGravar(r.erro)
       return
     }
-    setResultado({ importados: r.importados ?? 0, ignorados: r.ignorados ?? 0 })
-    // A lista abaixo é do servidor: atualiza sem perder o aviso.
-    router.refresh()
+    setResultado({
+      importados: r.importados ?? 0,
+      ignorados: r.ignorados ?? 0,
+      semVeiculo: r.semVeiculo ?? 0,
+      semCondutor: r.semCondutor ?? 0,
+    })
   }
 
   if (resultado) {
@@ -72,13 +80,25 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
             {resultado.importados === 1 ? " lançado" : "s lançados"}.
           </p>
           <p className="mt-0.5 text-sm">
-            {resultado.ignorados > 0
-              ? `${resultado.ignorados.toLocaleString("pt-BR")} linha(s) ficaram de fora (placa fora da frota ou já lançadas). `
-              : ""}
+            {resultado.semVeiculo > 0 &&
+              `${resultado.semVeiculo.toLocaleString("pt-BR")} sem veículo identificado — vincule na lista (filtro "Sem veículo"). `}
+            {resultado.semCondutor > 0 &&
+              `${resultado.semCondutor.toLocaleString("pt-BR")} com condutor não identificado. `}
+            {resultado.ignorados > 0 &&
+              `${resultado.ignorados.toLocaleString("pt-BR")} já lançado(s) ou repetido(s) ficaram de fora. `}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm">
+            <Link
+              href={resultado.semVeiculo > 0 ? "/painel/veiculos/abastecimentos?veiculo=sem" : "/painel/veiculos/abastecimentos"}
+              className="inline-flex items-center gap-1 font-medium underline"
+            >
+              <List className="size-4" />
+              {resultado.semVeiculo > 0 ? "Ver os sem veículo" : "Ver na lista"}
+            </Link>
             <button type="button" className="underline" onClick={() => window.location.reload()}>
               Ler outro relatório
             </button>
-          </p>
+          </div>
         </AlertDescription>
       </Alert>
     )
@@ -86,10 +106,10 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
 
   if (estado.linhas) {
     const linhas = estado.linhas
-    const ok = linhas.filter((l) => l.situacao === "ok")
     const semVeiculo = linhas.filter((l) => l.situacao === "sem_veiculo")
+    const ok = linhas.filter((l) => l.situacao === "ok" || l.situacao === "sem_veiculo")
     const jaLancadas = linhas.filter((l) => l.situacao === "duplicado" || l.situacao === "repetido").length
-    const comAlerta = ok.filter((l) => l.alertas.length > 0).length
+    const comAlerta = ok.filter((l) => l.veiculoId && l.alertas.length > 0).length
     const placasFora = [...new Set(semVeiculo.map((l) => l.placa ?? "sem placa"))]
     return (
       <div className="grid gap-3">
@@ -104,7 +124,7 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
             <p className="mt-0.5 text-sm">
               {jaLancadas > 0 && `${jaLancadas} já lançado(s) ou repetido(s) — ficam de fora. `}
               {semVeiculo.length > 0 &&
-                `${semVeiculo.length} com placa fora da frota (${placasFora.slice(0, 6).join(", ")}${placasFora.length > 6 ? "…" : ""}) — ficam de fora. `}
+                `${semVeiculo.length} com placa fora da frota (${placasFora.slice(0, 6).join(", ")}${placasFora.length > 6 ? "…" : ""}) — entram sem veículo, com a placa guardada para vincular depois. `}
               {comAlerta > 0 && `${comAlerta} com ponto a conferir. `}
               {estado.descartadas ? `${estado.descartadas} linha(s) descartada(s) por falta de data, litros ou valor. ` : ""}
               Confira o total com a fatura antes de confirmar — a IA pode errar valores ou pular linhas.
@@ -128,13 +148,13 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
             </TableHeader>
             <TableBody>
               {linhas.slice(0, 300).map((l, i) => (
-                <TableRow key={i} className={l.situacao === "ok" ? undefined : "opacity-60"}>
+                <TableRow key={i} className={l.situacao === "ok" || l.situacao === "sem_veiculo" ? undefined : "opacity-60"}>
                   <TableCell className="whitespace-nowrap">
                     {dataBR(l.data)}
                     {l.hora ? ` ${l.hora}` : ""}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {l.veiculoRotulo ?? <span className="text-destructive">{l.placa ?? "sem placa"}</span>}
+                    {l.veiculoRotulo ?? <span className="text-warning-fg">{l.placa ?? "sem placa"} · não identificado</span>}
                   </TableCell>
                   <TableCell className="max-w-44">
                     <span className="line-clamp-1" title={[l.posto, l.cidade].filter(Boolean).join(" · ")}>
@@ -156,13 +176,13 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
                       {l.condutorNome ?? <span className="text-muted-foreground">{l.condutor ? "—" : "não informado"}</span>}
                     </span>
                   </TableCell>
-                  <TableCell className="min-w-36">
+                  <TableCell className="min-w-44 max-w-64 whitespace-normal">
                     <div className="flex flex-col items-start gap-1">
                       <Badge variant="outline" className={`whitespace-nowrap ${SITUACAO[l.situacao].classe}`}>
                         {SITUACAO[l.situacao].rotulo}
                       </Badge>
                       {l.alertas.map((a) => (
-                        <span key={a} className="text-warning-fg text-xs">
+                        <span key={a} className="text-warning-fg text-xs leading-snug">
                           {a}
                         </span>
                       ))}

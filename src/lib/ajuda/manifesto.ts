@@ -435,7 +435,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "abastecimentos",
         titulo: "Abastecimentos",
-        resumo: "Relatório do cartão-combustível lido pela IA, planilha e lançamento manual",
+        resumo: "Lista com filtros, relatório lido pela IA, vínculo de placa e condutor, edição e exclusão",
       },
       {
         slug: "manutencoes",

@@ -188,13 +188,20 @@ export async function lerRelatorioAbastecimentosIa(
 
 /**
  * Grava as linhas conferidas. Tudo é resolvido de novo no servidor (placa,
- * condutor, duplicidade) — só entram as que continuam "ok".
+ * condutor, duplicidade) — entram todas menos as já lançadas e as repetidas
+ * no arquivo. Devolve quantas ficaram sem veículo, para vincular depois.
  */
 export async function registrarAbastecimentosIa(
   itens: ItemAbastecimento[],
   veiculoPadraoId: string | null,
   arquivoNome: string
-): Promise<{ importados?: number; ignorados?: number; erro?: string }> {
+): Promise<{
+  importados?: number
+  ignorados?: number
+  semVeiculo?: number
+  semCondutor?: number
+  erro?: string
+}> {
   const sessao = await requirePermissao("veiculos_gestao")
   if (!Array.isArray(itens) || itens.length === 0) return { erro: "Nada para registrar." }
   const limpos = itens
@@ -205,13 +212,16 @@ export async function registrarAbastecimentosIa(
     limpos,
     veiculoPadraoId && UUID.test(veiculoPadraoId) ? veiculoPadraoId : null
   )
-  const ok = resolvidas.filter((l) => l.situacao === "ok" && l.veiculoId)
-  if (ok.length === 0) return { erro: "Nenhuma linha pronta para lançar (sem veículo ou já lançadas)." }
+  // Placa fora da frota também entra — sem veículo, com a placa guardada.
+  const ok = resolvidas.filter((l) => l.situacao === "ok" || l.situacao === "sem_veiculo")
+  if (ok.length === 0) return { erro: "Nenhuma linha para lançar — todas já estão lançadas." }
 
   const { importados, erro } = await gravarLoteAbastecimentos(
     ok.map((l) => ({
-      veiculo_id: l.veiculoId!,
+      veiculo_id: l.veiculoId,
       condutor_usuario_id: l.condutorId,
+      placa_informada: l.placa,
+      condutor_informado: l.condutorId ? null : l.condutor,
       posto: l.posto ?? "(sem posto)",
       cidade: l.cidade,
       combustivel: l.combustivel ?? "(sem combustível)",
@@ -227,5 +237,10 @@ export async function registrarAbastecimentosIa(
   if (erro) return { erro }
   revalidatePath("/painel/veiculos/abastecimentos")
   revalidatePath("/painel/veiculos")
-  return { importados, ignorados: resolvidas.length - ok.length }
+  return {
+    importados,
+    ignorados: resolvidas.length - ok.length,
+    semVeiculo: ok.filter((l) => !l.veiculoId).length,
+    semCondutor: ok.filter((l) => !l.condutorId && l.condutor).length,
+  }
 }

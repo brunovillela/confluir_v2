@@ -9,7 +9,9 @@ import { semAcento } from "@/lib/texto"
 /**
  * Relatório de abastecimento lido pela IA (fatura do cartão-combustível,
  * extrato do posto, cupom): as linhas extraídas são casadas com a frota e os
- * condutores e conferidas contra o que já está lançado ANTES de gravar.
+ * condutores e conferidas contra o que já está lançado ANTES de gravar. Todas
+ * entram — a de placa fora da frota fica sem veículo, com a placa informada
+ * guardada para vincular depois (supabase/abastecimentos-nao-identificados.sql).
  */
 
 /** Uma linha como a IA leu, já higienizada. */
@@ -29,6 +31,7 @@ export type ItemAbastecimento = {
   condutor: string | null
 }
 
+/** ok e sem_veiculo são gravados; duplicado e repetido ficam de fora. */
 export type SituacaoLinha = "ok" | "sem_veiculo" | "duplicado" | "repetido"
 
 export type LinhaResolvida = ItemAbastecimento & {
@@ -62,29 +65,78 @@ function palavras(nome: string): string[] {
   return semAcento(nome)
     .replace(/[^a-z\s]/g, " ")
     .split(/\s+/)
-    .filter((p) => p.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(p))
+    .filter((p) => p.length > 0 && !["de", "da", "do", "das", "dos", "e"].includes(p))
+}
+
+/** Distância de edição (Levenshtein) — nomes curtos, custo irrelevante. */
+function distancia(a: string, b: string): number {
+  let anterior = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const atual = [i]
+    for (let j = 1; j <= b.length; j++) {
+      atual[j] = Math.min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    }
+    anterior = atual
+  }
+  return anterior[b.length]
+}
+
+/** 2 = igual; 1 = inicial ("M" → Moreira) ou uma letra de diferença (Cotrin → Cotrim); 0 = não. */
+function palavraCasa(r: string, c: string): number {
+  if (r === c) return 2
+  if (r.length === 1) return c.startsWith(r) ? 1 : 0
+  if (r.length >= 4 && c.length >= 4 && distancia(r, c) <= 1) return 1
+  return 0
 }
 
 /**
- * Casa o nome do relatório com UM condutor: nome igual, ou todas as palavras
- * do relatório no nome do cadastro (relatórios costumam abreviar). Mais de um
- * candidato → não casa (melhor deixar sem condutor do que errar).
+ * O nome do relatório casa com o do cadastro quando o primeiro nome é igual,
+ * o último bate e todas as palavras aparecem, na ordem, no nome completo —
+ * cada uma igual, abreviada pela inicial ou com uma letra de diferença
+ * (Eider Cotrin M de Siqueira → Eider Cotrim Moreira de Siqueira). Devolve a
+ * pontuação (palavras iguais valem mais) ou -1.
+ */
+function pontuarNome(relatorio: string[], cadastro: string[]): number {
+  if (relatorio.length === 0 || cadastro.length === 0) return -1
+  // Primeiro nome sempre por inteiro e igual: Maria ≠ Mario, Paulo ≠ Paula.
+  if (relatorio[0] !== cadastro[0]) return -1
+  if (
+    relatorio.length > 1 &&
+    !palavraCasa(relatorio[relatorio.length - 1], cadastro[cadastro.length - 1])
+  ) {
+    return -1
+  }
+  let j = 0
+  let pontos = 0
+  for (const r of relatorio) {
+    while (j < cadastro.length && !palavraCasa(r, cadastro[j])) j++
+    if (j >= cadastro.length) return -1
+    pontos += palavraCasa(r, cadastro[j])
+    j++
+  }
+  return pontos
+}
+
+/**
+ * Casa o nome do relatório com UMA pessoa. Só o primeiro nome casa apenas se
+ * for único. Empate na melhor pontuação → não casa (melhor deixar sem
+ * condutor do que errar) — inclusive duas contas com o mesmo nome.
  */
 export function casarCondutor(
   nome: string | null,
-  condutores: { id: string; nome: string }[]
+  pessoas: { id: string; nome: string }[]
 ): { id: string; nome: string } | null {
   if (!nome?.trim()) return null
   const alvo = palavras(nome)
   if (alvo.length === 0) return null
-  const exatos = condutores.filter((c) => palavras(c.nome).join(" ") === alvo.join(" "))
-  if (exatos.length === 1) return exatos[0]
-  if (alvo.length < 2) return null
-  const contidos = condutores.filter((c) => {
-    const p = palavras(c.nome)
-    return alvo.every((a) => p.includes(a))
-  })
-  return contidos.length === 1 ? contidos[0] : null
+  const pontuadas = pessoas
+    .map((p) => ({ p, pontos: pontuarNome(alvo, palavras(p.nome)) }))
+    .filter((x) => x.pontos >= 0)
+  if (pontuadas.length === 0) return null
+  if (alvo.length < 2) return pontuadas.length === 1 ? pontuadas[0].p : null
+  const melhor = Math.max(...pontuadas.map((x) => x.pontos))
+  const topo = pontuadas.filter((x) => x.pontos === melhor)
+  return topo.length === 1 ? topo[0].p : null
 }
 
 // ── Resolução ───────────────────────────────────────────────────────────────
@@ -93,14 +145,18 @@ function diaSP(ts: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ts))
 }
 
-function chaveDuplicidade(veiculoId: string, dia: string, valor: number, litros: number): string {
-  return `${veiculoId}|${dia}|${valor.toFixed(2)}|${litros.toFixed(2)}`
+function chaveDuplicidade(alvo: string, dia: string, valor: number, litros: number): string {
+  return `${alvo}|${dia}|${valor.toFixed(2)}|${litros.toFixed(2)}`
 }
 
+/** Sem veículo, o "alvo" da duplicidade é a placa informada. */
+const alvoDaPlaca = (placa: string | null | undefined) => `placa:${chavePlaca(placa)}`
+
 /**
- * Casa placa e condutor, marca o que já está lançado (mesmo veículo, dia,
- * valor e litros) ou repetido no próprio arquivo e aponta leituras suspeitas
- * (preço por litro fora da faixa, hodômetro abaixo do último registrado).
+ * Casa placa e condutor, marca o que já está lançado (mesmo veículo — ou mesma
+ * placa informada —, dia, valor e litros) ou repetido no próprio arquivo e
+ * aponta leituras suspeitas (preço por litro fora da faixa, hodômetro abaixo
+ * do último registrado).
  */
 export async function resolverAbastecimentos(
   itens: ItemAbastecimento[],
@@ -123,52 +179,97 @@ export async function resolverAbastecimentos(
     .filter((c) => c.usuarioNome)
     .map((c) => ({ id: c.usuario_id, nome: c.usuarioNome as string }))
 
+  // Quem não está entre os condutores ainda pode ser um usuário (diretor,
+  // funcionário) — segunda tentativa, só quando a primeira não acha.
+  let listaUsuarios: { id: string; nome: string }[] | null = null
+  const usuarios = async () => {
+    if (listaUsuarios) return listaUsuarios
+    const { data } = await admin
+      .from("usuarios")
+      .select("id, nome_completo, inativo, deletado")
+      .eq("emp_proprietaria_id", emp)
+    listaUsuarios = ((data ?? []) as Record<string, unknown>[])
+      .filter((u) => u.nome_completo && u.inativo !== true && u.deletado !== true)
+      .map((u) => ({ id: String(u.id), nome: String(u.nome_completo) }))
+    return listaUsuarios
+  }
+
   const padrao = veiculoPadraoId ? (porId.get(veiculoPadraoId) ?? null) : null
-  const base = itens.map((i) => {
-    const v = i.placa ? (porPlaca.get(chavePlaca(i.placa)) ?? null) : padrao
-    const c = casarCondutor(i.condutor, listaCondutores)
-    return { item: i, veiculo: v, condutor: c }
-  })
+  const base: {
+    item: ItemAbastecimento
+    veiculo: (typeof veiculos)[number] | null
+    condutor: { id: string; nome: string } | null
+  }[] = []
+  for (const i of itens) {
+    const veiculo = i.placa ? (porPlaca.get(chavePlaca(i.placa)) ?? null) : padrao
+    let condutor = casarCondutor(i.condutor, listaCondutores)
+    if (!condutor && i.condutor) condutor = casarCondutor(i.condutor, await usuarios())
+    base.push({ item: i, veiculo, condutor })
+  }
 
   // Já lançados e hodômetros dos veículos envolvidos.
-  const ids = [...new Set(base.map((b) => b.veiculo?.id).filter((v): v is string => !!v))]
   const existentes = new Set<string>()
   const hodometros = new Map<string, { dia: string; km: number }[]>()
-  if (ids.length) {
-    const linhas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
-      admin
-        .from("veiculos_abastecimentos")
-        .select("veiculo_id, data_hora_abastecimento, valor_abastecimento, volume_abastecido, hodometro")
-        .in("veiculo_id", ids)
-        .order("id")
-        .range(de, ate)
-    ).catch(() => [])
+  const registrarExistentes = (linhas: Record<string, unknown>[]) => {
     for (const l of linhas) {
       if (!l.data_hora_abastecimento) continue
-      const vid = String(l.veiculo_id)
+      const alvo = l.veiculo_id ? String(l.veiculo_id) : alvoDaPlaca(l.placa_informada as string | null)
       const dia = diaSP(String(l.data_hora_abastecimento))
       const valor = Number(l.valor_abastecimento)
       const litros = Number(l.volume_abastecido)
-      if (valor > 0 && litros > 0) existentes.add(chaveDuplicidade(vid, dia, valor, litros))
+      if (valor > 0 && litros > 0) existentes.add(chaveDuplicidade(alvo, dia, valor, litros))
       const km = l.hodometro === null || l.hodometro === undefined ? null : Number(l.hodometro)
-      if (km !== null && km > 0) {
-        if (!hodometros.has(vid)) hodometros.set(vid, [])
-        hodometros.get(vid)!.push({ dia, km })
+      if (km !== null && km > 0 && l.veiculo_id) {
+        if (!hodometros.has(alvo)) hodometros.set(alvo, [])
+        hodometros.get(alvo)!.push({ dia, km })
       }
     }
+  }
+  const ids = [...new Set(base.map((b) => b.veiculo?.id).filter((v): v is string => !!v))]
+  if (ids.length) {
+    registrarExistentes(
+      await lerEmLotes<Record<string, unknown>>((de, ate) =>
+        admin
+          .from("veiculos_abastecimentos")
+          .select("veiculo_id, data_hora_abastecimento, valor_abastecimento, volume_abastecido, hodometro")
+          .in("veiculo_id", ids)
+          .order("id")
+          .range(de, ate)
+      ).catch(() => [])
+    )
+  }
+  // Lançados antes sem veículo (placa fora da frota): casam pela placa informada.
+  const placasSemVeiculo = [
+    ...new Set(base.filter((b) => !b.veiculo && b.item.placa).map((b) => b.item.placa as string)),
+  ]
+  if (placasSemVeiculo.length) {
+    registrarExistentes(
+      await lerEmLotes<Record<string, unknown>>((de, ate) =>
+        admin
+          .from("veiculos_abastecimentos")
+          .select("veiculo_id, placa_informada, data_hora_abastecimento, valor_abastecimento, volume_abastecido, hodometro")
+          .eq("emp_proprietaria_id", emp)
+          .is("veiculo_id", null)
+          .in("placa_informada", placasSemVeiculo)
+          .order("id")
+          .range(de, ate)
+      ).catch(() => [])
+    )
   }
 
   const noArquivo = new Set<string>()
   return base.map(({ item, veiculo, condutor }) => {
     const alertas: string[] = []
-    let situacao: SituacaoLinha = "ok"
+    const alvo = veiculo ? veiculo.id : alvoDaPlaca(item.placa)
+    const chave = chaveDuplicidade(alvo, item.data, item.valor, item.litros)
+    let situacao: SituacaoLinha = veiculo ? "ok" : "sem_veiculo"
+    if (existentes.has(chave)) situacao = "duplicado"
+    else if (noArquivo.has(chave)) situacao = "repetido"
+    noArquivo.add(chave)
+
     if (!veiculo) {
-      situacao = "sem_veiculo"
+      alertas.push(item.placa ? `placa ${item.placa} fora da frota — vincule o veículo depois` : "sem placa — vincule o veículo depois")
     } else {
-      const chave = chaveDuplicidade(veiculo.id, item.data, item.valor, item.litros)
-      if (existentes.has(chave)) situacao = "duplicado"
-      else if (noArquivo.has(chave)) situacao = "repetido"
-      noArquivo.add(chave)
       if (veiculo.inativo) alertas.push("veículo inativo")
       if (item.hodometro !== null) {
         const anteriores = (hodometros.get(veiculo.id) ?? []).filter((h) => h.dia < item.data)
@@ -182,7 +283,7 @@ export async function resolverAbastecimentos(
     if (precoLitro < 3 || precoLitro > 15) {
       alertas.push(`R$ ${precoLitro.toFixed(2).replace(".", ",")}/litro — confira litros e valor`)
     }
-    if (item.condutor && !condutor) alertas.push(`condutor "${item.condutor}" não identificado`)
+    if (item.condutor && !condutor) alertas.push(`condutor "${item.condutor}" não identificado — fica guardado para vincular`)
     return {
       ...item,
       veiculoId: veiculo?.id ?? null,

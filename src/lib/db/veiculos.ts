@@ -1585,14 +1585,39 @@ export type Abastecimento = {
   hodometro: number | null
   data_hora: string | null
   legado: boolean
+  usuario_id: string | null
+  /** Placa como veio no relatório (supabase/abastecimentos-nao-identificados.sql). */
+  placaInformada: string | null
+  /** Motorista como veio no relatório, quando não foi identificado. */
+  condutorInformado: string | null
+  lote_id: string | null
 }
 
 export const ABASTECIMENTOS_POR_PAGINA = 50
 
+export const ORDENS_ABASTECIMENTO = ["data", "valor", "litros", "hodometro", "posto"] as const
+export type OrdemAbastecimento = (typeof ORDENS_ABASTECIMENTO)[number]
+const COLUNA_ORDEM: Record<OrdemAbastecimento, string> = {
+  data: "data_hora_abastecimento",
+  valor: "valor_abastecimento",
+  litros: "volume_abastecido",
+  hodometro: "hodometro",
+  posto: "posto",
+}
+
 export async function listarAbastecimentos(filtros: {
+  /** id do veículo, ou "sem" para os lançamentos sem veículo identificado. */
   veiculoId?: string
+  /** id do condutor, ou "sem" para os lançamentos sem condutor. */
+  condutorId?: string
   busca?: string
+  /** YYYY-MM-DD, dia de São Paulo. */
+  de?: string
+  ate?: string
+  ordem?: OrdemAbastecimento
+  dir?: "asc" | "desc"
   pagina?: number
+  porPagina?: number
 }): Promise<{
   linhas: Abastecimento[]
   total: number
@@ -1601,18 +1626,41 @@ export async function listarAbastecimentos(filtros: {
 }> {
   const admin = await createAdminClient()
   const pagina = Math.max(1, filtros.pagina ?? 1)
+  const porPagina = filtros.porPagina && filtros.porPagina > 0 ? filtros.porPagina : ABASTECIMENTOS_POR_PAGINA
   let q = admin
     .from("veiculos_abastecimentos")
     .select("*", { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
-  if (filtros.veiculoId) q = q.eq("veiculo_id", filtros.veiculoId)
+  if (filtros.veiculoId === "sem") q = q.is("veiculo_id", null)
+  else if (filtros.veiculoId) q = q.eq("veiculo_id", filtros.veiculoId)
+  if (filtros.condutorId === "sem") q = q.is("usuario_id", null)
+  else if (filtros.condutorId) q = q.eq("usuario_id", filtros.condutorId)
+  if (filtros.de && /^\d{4}-\d{2}-\d{2}$/.test(filtros.de)) {
+    q = q.gte("data_hora_abastecimento", `${filtros.de}T00:00:00-03:00`)
+  }
+  if (filtros.ate && /^\d{4}-\d{2}-\d{2}$/.test(filtros.ate)) {
+    q = q.lte("data_hora_abastecimento", `${filtros.ate}T23:59:59-03:00`)
+  }
   const busca = (filtros.busca ?? "").trim().replace(/[,()]/g, " ").trim()
-  if (busca) q = q.or(`posto.ilike.%${busca}%,cidade.ilike.%${busca}%`)
+  if (busca) {
+    const placa = busca.toUpperCase().replace(/[^A-Z0-9]/g, "")
+    q = q.or(
+      [
+        `posto.ilike.%${busca}%`,
+        `cidade.ilike.%${busca}%`,
+        `combustivel.ilike.%${busca}%`,
+        `condutor_informado.ilike.%${busca}%`,
+        ...(placa.length >= 3 ? [`placa_informada.ilike.%${placa}%`] : []),
+      ].join(",")
+    )
+  }
 
-  const de = (pagina - 1) * ABASTECIMENTOS_POR_PAGINA
+  const ordem = filtros.ordem && ORDENS_ABASTECIMENTO.includes(filtros.ordem) ? filtros.ordem : "data"
+  const de = (pagina - 1) * porPagina
   const { data, error, count } = await q
-    .order("data_hora_abastecimento", { ascending: false })
-    .range(de, de + ABASTECIMENTOS_POR_PAGINA - 1)
+    .order(COLUNA_ORDEM[ordem], { ascending: filtros.dir === "asc", nullsFirst: false })
+    .order("id")
+    .range(de, de + porPagina - 1)
   if (error) {
     if (esquemaAusente(error)) {
       return { linhas: [], total: 0, pagina: 1, totalPaginas: 1 }
@@ -1624,7 +1672,7 @@ export async function listarAbastecimentos(filtros: {
     linhas: await montarAbastecimentos((data ?? []) as Record<string, unknown>[]),
     total,
     pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / ABASTECIMENTOS_POR_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
   }
 }
 
@@ -1664,6 +1712,10 @@ export async function montarAbastecimentos(
       hodometro: numero(a.hodometro),
       data_hora: texto(a.data_hora_abastecimento),
       legado: Boolean(a.bubble_id),
+      usuario_id: texto(a.usuario_id),
+      placaInformada: texto(a.placa_informada),
+      condutorInformado: texto(a.condutor_informado),
+      lote_id: texto(a.lote_id),
     }))
 }
 
@@ -1708,6 +1760,9 @@ export async function criarAbastecimento(
 export type LinhaImportacao = {
   placa: string
   condutor_usuario_id: string | null
+  /** Como veio no relatório (só a leitura pela IA preenche). */
+  placa_informada?: string | null
+  condutor_informado?: string | null
   posto: string
   cidade: string | null
   combustivel: string
@@ -1758,7 +1813,7 @@ export async function importarAbastecimentos(
  * Usado pela importação do CSV e pela leitura do relatório com IA.
  */
 export async function gravarLoteAbastecimentos(
-  linhas: (Omit<LinhaImportacao, "placa"> & { veiculo_id: string })[],
+  linhas: (Omit<LinhaImportacao, "placa"> & { veiculo_id: string | null })[],
   arquivoNome: string,
   importadorId: string
 ): Promise<{ importados?: number; erro?: string }> {
@@ -1793,6 +1848,9 @@ export async function gravarLoteAbastecimentos(
       data_hora_abastecimento: l.data_hora,
       lote_id: lote.id,
       emp_proprietaria_id: empId,
+      // Só quando vier: a importação do CSV não tem (e roda sem o SQL novo).
+      ...(l.placa_informada !== undefined ? { placa_informada: l.placa_informada } : {}),
+      ...(l.condutor_informado !== undefined ? { condutor_informado: l.condutor_informado } : {}),
     }))
   )
   if (error) {
@@ -1800,6 +1858,138 @@ export async function gravarLoteAbastecimentos(
     return { erro: `Não foi possível importar: ${error.message}` }
   }
   return { importados: linhas.length }
+}
+
+// ── Edição de um lançamento ─────────────────────────────────────────────────
+
+export async function obterAbastecimento(id: string): Promise<Abastecimento | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_abastecimentos")
+    .select("*")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error || !data) return null
+  return (await montarAbastecimentos([data as Record<string, unknown>]))[0] ?? null
+}
+
+export type EdicaoAbastecimento = {
+  veiculo_id: string | null
+  condutor_usuario_id: string | null
+  posto: string
+  cidade: string | null
+  combustivel: string
+  volume: number
+  valor: number
+  hodometro: number | null
+  data_hora: string
+}
+
+/**
+ * Corrige um lançamento. Com `aplicarPlaca`, o veículo escolhido vai também
+ * para todos os lançamentos SEM veículo com a mesma placa informada; com
+ * `aplicarCondutor`, o condutor vai para todos os sem condutor com o mesmo
+ * nome informado. Devolve quantos outros lançamentos foram vinculados.
+ */
+export async function atualizarAbastecimento(
+  id: string,
+  dados: EdicaoAbastecimento,
+  opcoes: { aplicarPlaca: boolean; aplicarCondutor: boolean }
+): Promise<{ erro?: string; outrosVeiculo?: number; outrosCondutor?: number }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const atual = await obterAbastecimento(id)
+  if (!atual) return { erro: "Lançamento não encontrado." }
+  if (dados.veiculo_id) {
+    const { data: v } = await admin
+      .from("veiculos")
+      .select("id")
+      .eq("id", dados.veiculo_id)
+      .eq("emp_proprietaria_id", emp)
+      .maybeSingle()
+    if (!v) return { erro: "Veículo inválido." }
+  }
+  const { error } = await admin
+    .from("veiculos_abastecimentos")
+    .update({
+      veiculo_id: dados.veiculo_id,
+      usuario_id: dados.condutor_usuario_id,
+      posto: dados.posto,
+      cidade: dados.cidade,
+      combustivel: dados.combustivel,
+      volume_abastecido: dados.volume,
+      valor_abastecimento: dados.valor,
+      hodometro: dados.hodometro,
+      data_hora_abastecimento: dados.data_hora,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+
+  let outrosVeiculo = 0
+  if (opcoes.aplicarPlaca && dados.veiculo_id && atual.placaInformada) {
+    const { data } = await admin
+      .from("veiculos_abastecimentos")
+      .update({ veiculo_id: dados.veiculo_id, updated_at: new Date().toISOString() })
+      .eq("emp_proprietaria_id", emp)
+      .is("veiculo_id", null)
+      .eq("placa_informada", atual.placaInformada)
+      .neq("id", id)
+      .select("id")
+    outrosVeiculo = (data ?? []).length
+  }
+  let outrosCondutor = 0
+  if (opcoes.aplicarCondutor && dados.condutor_usuario_id && atual.condutorInformado) {
+    const { data } = await admin
+      .from("veiculos_abastecimentos")
+      .update({ usuario_id: dados.condutor_usuario_id, updated_at: new Date().toISOString() })
+      .eq("emp_proprietaria_id", emp)
+      .is("usuario_id", null)
+      .eq("condutor_informado", atual.condutorInformado)
+      .neq("id", id)
+      .select("id")
+    outrosCondutor = (data ?? []).length
+  }
+  return { outrosVeiculo, outrosCondutor }
+}
+
+export async function excluirAbastecimento(id: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_abastecimentos")
+    .delete()
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .select("id")
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  if ((data ?? []).length === 0) return { erro: "Lançamento não encontrado." }
+  return {}
+}
+
+/** Quantos OUTROS lançamentos sem veículo têm a placa / sem condutor têm o nome. */
+export async function contarPendentesDeVinculo(
+  placa: string | null,
+  condutor: string | null,
+  excetoId: string
+): Promise<{ placa: number; condutor: number }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const contar = async (coluna: "placa_informada" | "condutor_informado", valor: string, vazia: string) => {
+    const { count } = await admin
+      .from("veiculos_abastecimentos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .is(vazia, null)
+      .eq(coluna, valor)
+      .neq("id", excetoId)
+    return count ?? 0
+  }
+  return {
+    placa: placa ? await contar("placa_informada", placa, "veiculo_id") : 0,
+    condutor: condutor ? await contar("condutor_informado", condutor, "usuario_id") : 0,
+  }
 }
 
 export type ConsumoVeiculo = {
