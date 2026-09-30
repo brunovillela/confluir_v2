@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FileText, Pencil, Plus } from "lucide-react"
+import { AlertTriangle, ArrowLeft, FileText, List, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,13 @@ import { Paginacao } from "@/components/paginacao"
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { requirePermissao } from "@/lib/auth"
 import { buscarFornecedor, type ContratoFornecedor } from "@/lib/db/fornecedores"
+import {
+  ehProblema,
+  indicadoresDoFornecedor,
+  problemasDoCadastro,
+} from "@/lib/db/fornecedores-indicadores"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -132,15 +139,52 @@ export default async function FornecedorPage({
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(ordens, paginacao)
 
+  // Outros cadastros ATIVOS com o mesmo CPF/CNPJ (com ou sem máscara).
+  const digitosDoc = (f.cnpj_cpf ?? "").replace(/\D/g, "")
+  let duplicados = 0
+  if (digitosDoc) {
+    const admin = await createAdminClient()
+    const { count } = await admin
+      .from("empresa")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .in("cnpj_cpf", [...new Set([digitosDoc, f.cnpj_cpf!, formatarCnpjCpf(digitosDoc)])])
+      .neq("id", f.id)
+      .not("inativa", "is", true)
+    duplicados = count ?? 0
+  }
+  const problemas = problemasDoCadastro(f, {
+    temPagamento: contas.some((c) => c.pix?.trim() || c.conta?.trim()),
+    temEndereco: enderecos === null ? null : enderecos.length > 0,
+    duplicadoCom: f.inativa ? 0 : duplicados,
+  })
+  const ind = indicadoresDoFornecedor(ordens)
+  const indicadores = [
+    { titulo: "Pago em 12 meses", valor: formatarMoeda(ind.pago12m), detalhe: `${formatarMoeda(ind.pagoEsteAno)} neste ano` },
+    { titulo: "Pago no total", valor: formatarMoeda(ind.pagoTotal), detalhe: `${ind.pagas.toLocaleString("pt-BR")} ordem(ns) paga(s) de ${ind.ordens.toLocaleString("pt-BR")}` },
+    { titulo: "Ticket médio", valor: ind.ticketMedio === null ? "—" : formatarMoeda(ind.ticketMedio), detalhe: "por ordem paga" },
+    { titulo: "Em aberto", valor: formatarMoeda(ind.emAberto), detalhe: "ordens ainda não pagas" },
+    { titulo: "Última ordem", valor: ind.ultimaOrdem ? formatarData(ind.ultimaOrdem) : "—", detalhe: ind.ultimoPagamento ? `último pagamento em ${formatarData(ind.ultimoPagamento)}` : "sem pagamento registrado" },
+    { titulo: "Contratos vigentes", valor: detalhe.contratosVigentes.length.toLocaleString("pt-BR"), detalhe: `${detalhe.contratosTerminados.length.toLocaleString("pt-BR")} encerrado(s)` },
+  ]
+
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/compras/fornecedores">
-            <ArrowLeft />
-            Fornecedores
-          </Link>
-        </Button>
+        <div className="-ml-2 mb-3 flex flex-wrap gap-1">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/painel/compras/fornecedores">
+              <ArrowLeft />
+              Fornecedores
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/painel/compras/fornecedores/lista">
+              <List />
+              Lista
+            </Link>
+          </Button>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{f.nome}</h1>
@@ -185,6 +229,47 @@ export default async function FornecedorPage({
           <AlertDescription>Alteração salva.</AlertDescription>
         </Alert>
       )}
+
+      {problemas.length > 0 && (
+        <Alert variant={problemas.some((p) => p.gravidade === "alta") ? "destructive" : problemas.some(ehProblema) ? "warning" : "default"}>
+          <AlertTriangle />
+          <AlertDescription>
+            <p className="font-medium">
+              {!problemas.some(ehProblema)
+                ? "Cadastro incompleto"
+                : problemas.length === 1 ? "Há um problema no cadastro" : `Há ${problemas.length} problemas no cadastro`}
+              {problemas.some((p) => p.codigo === "sem_documento" || p.codigo === "documento_invalido") &&
+                " — o CPF/CNPJ pode travar novas ordens de pagamento"}
+            </p>
+            <ul className="mt-1 list-disc pl-4">
+              {problemas.map((p) => (
+                <li key={p.codigo}>
+                  <span className="font-medium">{p.rotulo}:</span> {p.detalhe}
+                </li>
+              ))}
+            </ul>
+            {!editando && (
+              <Link href={`${aqui}?editar=1`} className="mt-2 inline-block font-medium underline">
+                Corrigir o cadastro
+              </Link>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {indicadores.map((i) => (
+          <Card key={i.titulo} className="gap-1 py-4">
+            <CardHeader className="px-4">
+              <CardDescription className="text-xs">{i.titulo}</CardDescription>
+              <CardTitle className="text-lg tabular-nums">{i.valor}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <p className="text-muted-foreground text-xs">{i.detalhe}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Card>
         <CardHeader>

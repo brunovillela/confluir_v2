@@ -3,6 +3,52 @@ paga. Todo favorecido de uma ordem de pagamento sai daqui.
 
 <RequerPermissao>Fornecedores</RequerPermissao>
 
+## O painel de fornecedores
+
+A página **Fornecedores** é um painel: mostra quantos fornecedores estão ativos
+(pessoa jurídica, física e entidades apoiadas), quantos têm **problema no
+cadastro**, quanto foi pago nos últimos 12 meses e a quantos fornecedores,
+quanto está em aberto, quantos foram cadastrados nos últimos 30 dias e quantos
+estão bloqueados. Cada cartão leva à lista já filtrada.
+
+Abaixo vêm a contagem por tipo de problema, os **maiores fornecedores** dos
+últimos 12 meses e o quadro **Em uso, com CPF/CNPJ que trava pagamento**: quem
+recebeu ordens no último ano e está sem CPF/CNPJ ou com um inválido. O nome
+abre o cadastro direto na edição.
+
+<Print src="compras/fornecedores-painel.png" alt="Painel de fornecedores com seis cartões de indicadores, a contagem de problemas no cadastro, as barras dos maiores fornecedores e a tabela dos que travam pagamento." legenda="O painel: indicadores, problemas no cadastro e maiores fornecedores." />
+
+<Aviso tipo="atencao" titulo="CPF/CNPJ inválido trava a ordem">
+  Com a regra **CPF/CNPJ do favorecido** em *Bloquear* na
+  [Auditoria das ordens](/painel/ajuda/financeiro/auditoria), nenhuma ordem de
+  pagamento é criada para quem está sem documento ou com um que não fecha nos
+  dígitos verificadores. Corrija esses cadastros antes do próximo pagamento.
+</Aviso>
+
+## A lista completa
+
+O botão **Lista completa** (ou a busca do painel) abre a lista de todos os
+fornecedores. Filtre por situação (ativos, bloqueados, inativos), natureza
+(PJ, PF, entidade apoiada) e problema — inclusive **Travam pagamento**. Clique
+no título de uma coluna para ordenar (nome, CPF/CNPJ, pago em 12 meses, última
+ordem, data do cadastro ou alertas) e escolha quantas linhas ver por página.
+
+<Print src="compras/fornecedores-lista.png" alt="Lista de fornecedores ordenada pelos alertas, com filtros no topo e etiquetas de problema em cada linha." legenda="A lista ordenada pelos alertas do cadastro." />
+
+Os alertas de cada linha:
+
+| Alerta | O que é | Peso |
+|---|---|---|
+| Sem CPF/CNPJ | O cadastro não tem documento | Trava pagamento |
+| CPF/CNPJ inválido | Não fecha nos dígitos verificadores, ou não tem 11 nem 14 dígitos | Trava pagamento |
+| PF/PJ não bate com o documento | Marcado como pessoa física com CNPJ, ou o contrário | Problema |
+| CPF/CNPJ repetido | Outro fornecedor ativo tem o mesmo documento | Problema |
+| Sem conta nem Pix | Nenhum dado bancário cadastrado | Pendência |
+| Sem endereço | Nenhum endereço cadastrado | Pendência |
+
+As **pendências** (conta e endereço) aparecem em cinza e não entram na
+contagem de "com problema no cadastro" — são dados a completar, não erros.
+
 ## Dados do fornecedor
 
 Cada fornecedor tem nome fantasia, razão social, CNPJ/CPF e a marcação de
@@ -21,6 +67,13 @@ sem ser apagado — assim ele sai das buscas de cotação, mas o histórico fica
   </Passo>
 </PassoAPasso>
 
+## A página do fornecedor
+
+No topo do cadastro ficam os indicadores do fornecedor: pago em 12 meses (e
+neste ano), pago no total, ticket médio por ordem paga, valor em aberto, data
+da última ordem e do último pagamento, e contratos vigentes. Se houver algum
+alerta, um aviso lista cada um com o detalhe e o link **Corrigir o cadastro**.
+
 ## Excluir × inativar
 
 <Aviso tipo="atencao" titulo="Com histórico, inative">
@@ -29,7 +82,7 @@ sem ser apagado — assim ele sai das buscas de cotação, mas o histórico fica
   registros passados.
 </Aviso>
 
-<Print src="compras/fornecedor.png" alt="Detalhe de um fornecedor com dados básicos, endereços, dados bancários e contratos." legenda="Cadastro completo do fornecedor." />
+<Print src="compras/fornecedor.png" alt="Detalhe de um fornecedor com aviso de CPF/CNPJ inválido, seis indicadores, dados básicos, endereços, dados bancários e contratos." legenda="O fornecedor com o aviso do cadastro e os indicadores no topo." />
 
 <VejaTambem
   links={[

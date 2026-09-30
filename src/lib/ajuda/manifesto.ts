@@ -371,7 +371,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "fornecedores",
         titulo: "Fornecedores",
-        resumo: "Cadastro, endereços, dados bancários e excluir × inativar",
+        resumo: "Painel com indicadores, lista com alertas do cadastro, dados bancários e excluir × inativar",
       },
     ],
   },

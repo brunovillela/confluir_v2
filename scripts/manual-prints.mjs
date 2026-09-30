@@ -33,12 +33,19 @@ const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquis
 const CUPOM = process.env.CUPOM_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (11): Auditoria das ordens — regras de Compras, a ordem com
+  // Rodada de 30/09 (12): Fornecedores — painel com indicadores, lista com
+  // ordenação/paginação/alertas e a ficha com indicadores e o aviso do cadastro.
+  ["/painel/compras/fornecedores", "compras/fornecedores-painel.png", { esperar: "Maiores fornecedores", fullPage: true }],
+  ["/painel/compras/fornecedores/lista?ordem=problemas&dir=desc", "compras/fornecedores-lista.png", { esperar: "Cadastro", altura: 1000 }],
+  ["/painel/compras/fornecedores/f0f0f0f0-0000-4000-8000-000000000004", "compras/fornecedor.png", { esperar: "Pago em 12 meses", altura: 1100 }],
+
+  /* Rodada de 30/09 (11): Auditoria das ordens — regras de Compras, a ordem com
   // as verificações na criação e a fila de avaliação com os alertas. A ordem de
   // exemplo (compra direta de R$ 15.000) é criada e apagada pelo teste.
   ["/painel/financeiro/auditoria?origem=compras", "financeiro/auditoria-regras.png", { esperar: "Uma só proposta", fullPage: true }],
   ["/painel/financeiro/ordens/1d1bc88f-8a50-457e-8d56-55d924437f81", "financeiro/ordem-verificacoes.png", { esperar: "Verificações na criação", scrollTo: "Verificações na criação", altura: 1000 }],
   ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
+  */
 
   /* Rodada de 30/09 (10): rito do Financeiro — ordem com procedência e
   // auditoria (RPA nº 1 do demo) e a fila de avaliação de todas as origens.
