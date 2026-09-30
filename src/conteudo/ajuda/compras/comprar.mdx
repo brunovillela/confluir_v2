@@ -19,8 +19,6 @@ escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra est�
   </Passo>
 </PassoAPasso>
 
-<Print src="compras/nova.png" alt="Formulário de nova compra: no topo os seletores Via Compras/Aquisição direta e Sem vínculo/Vinculada a projeto; abaixo os campos produto, departamento, centro de custo e projeto." legenda="Nova compra: os seletores no topo mudam quais campos aparecem." />
-
 ## Quem registra e por quais departamentos
 
 - **Via Compras** exige a permissão **Compras — editar**.
@@ -36,18 +34,36 @@ escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra est�
 
 ## Os campos comuns às duas modalidades
 
-Independentemente do caminho, estes campos aparecem — e alguns são
-**obrigatórios**:
+Toda compra é **auditada** — pelo Conselho Fiscal, pela contabilidade e na
+prestação de contas à categoria. Por isso o formulário só deixa registrar com
+tudo preenchido; a única exceção é a observação.
 
-- **Produto ou serviço** (obrigatório) — o que está sendo adquirido. O botão
-  **Melhorar com IA** reescreve o rascunho de forma mais clara e padronizada.
+- **Produto ou serviço** (obrigatório) — o que está sendo adquirido: o quê,
+  quanto (quantidade e unidade) e as especificações que importam.
+- **Observações** (facultativo) — finalidade, justificativa, referências e
+  links. Não é obrigatório, mas é o que explica a despesa a quem audita depois.
+- **Tipo** (obrigatório) — **Bem / produto** ou **Prestação de serviço**.
 - **Departamento solicitante** (obrigatório) — quem está pedindo. Ele também
   **filtra os centros de custo** logo abaixo.
 - **Centro de custo da despesa** (obrigatório) — a classificação contábil. A
   lista mostra **apenas os centros do departamento** escolhido.
-- **Vinculada a um projeto** — quando ligada, aparece o campo **Projeto**.
+- **Vinculada a um projeto** — quando ligada, o **Projeto** passa a ser
+  obrigatório.
+- **Entregue no ato da compra** — diz se o produto ou serviço é entregue na
+  hora (comprou no balcão e levou, o serviço foi prestado ali). Quando
+  **desligada**, aparecem **Limite para receber** e **Local para receber**, os
+  dois obrigatórios; quando **ligada**, eles não se aplicam e somem.
 
-<Aviso tipo="atencao" titulo="Centro de custo agora é obrigatório">
+<Aviso tipo="dica" titulo="Melhorar com IA: a redação que a auditoria espera">
+  Escreva um rascunho — mesmo informal — em **Produto ou serviço** e, se
+  quiser, em **Observações**, e clique em **Melhorar com IA**. A IA reescreve
+  os dois textos em tom formal e impessoal, com quantidade, unidade e
+  finalidade, **sem inventar** nada que você não escreveu (marca, valor,
+  fornecedor). Observação em branco continua em branco. Confira antes de salvar:
+  a responsabilidade pelo texto continua sendo de quem registra.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="Centro de custo é obrigatório">
   A compra não é registrada sem um centro de custo da despesa. Se o campo
   estiver vazio, escolha o **departamento** primeiro — a lista de centros
   aparece filtrada por ele.
@@ -62,41 +78,115 @@ Independentemente do caminho, estes campos aparecem — e alguns são
 
 ## Registrar uma aquisição direta
 
+Ao mudar para **Aquisição direta**, o formulário pergunta **Como preencher?**:
+
+- **Manual** — você digita todos os campos da compra.
+- **Semiautomático** — você envia a **nota fiscal, o cupom ou documento
+  equivalente** e a IA lê o documento e preenche o formulário para você
+  conferir (veja *Preenchimento semiautomático pela nota*, mais abaixo).
+
+<Print src="compras/nova-direta-modo.png" alt="Nova compra com Aquisição direta ligada: abaixo dos seletores, a pergunta Como preencher? com duas opções lado a lado — Manual (você digita todos os campos) e Semiautomático (envie a nota ou o cupom fiscal e a IA preenche)." legenda="Na aquisição direta, o primeiro passo é escolher como preencher." />
+
 <PassoAPasso>
-  <Passo titulo="Escolha 'Aquisição direta'">
-    No seletor do topo, mude para **Aquisição direta**. Surge o bloco com os
-    dados da compra já feita.
+  <Passo titulo="Escolha 'Aquisição direta' e o modo">
+    No seletor do topo, mude para **Aquisição direta** e escolha **Manual** ou
+    **Semiautomático**. Os campos aparecem depois da escolha.
   </Passo>
   <Passo titulo="Preencha os campos comuns">
-    Produto, departamento e centro de custo (obrigatórios), como acima.
+    Produto, tipo, departamento e centro de custo (obrigatórios), como acima.
+    Na compra direta, **Entregue no ato da compra** já vem **ligada** — o normal
+    é o item já ter chegado.
   </Passo>
   <Passo titulo="Fornecedor, data e valor">
     Busque e selecione o **fornecedor**, informe a **data da compra** e o
     **valor** (todos obrigatórios).
   </Passo>
-  <Passo titulo="Forma de pagamento e 'Pagar em'">
-    Escolha a **forma de pagamento** e a data em **Pagar em** — as duas são
-    **obrigatórias** na aquisição direta, porque a ordem de pagamento nasce daqui.
+  <Passo titulo="Forma de pagamento, com o quê foi pago e 'Pagar em'">
+    Escolha a **forma de pagamento** — cada forma pede o seu complemento (veja a
+    tabela abaixo) — e a data em **Pagar em**. Tudo obrigatório: a ordem de
+    pagamento nasce daqui.
   </Passo>
-  <Passo titulo="Nota fiscal (opcional)">
-    Anexe o PDF da nota, se tiver. Aceita até 5 MB.
-  </Passo>
-  <Passo titulo="Produto recebido?">
-    A chave **Produto recebido ou serviço entregue?** já vem ligada. Deixe
-    ligada se o item já chegou; **desligue** se ainda vai chegar — nesse caso ele
-    entra em **Recebimentos pendentes** para a recepção dar baixa depois.
+  <Passo titulo="Nota fiscal (obrigatória)">
+    Anexe a **nota fiscal, o cupom ou documento equivalente** — em **PDF ou
+    foto** (JPG, PNG ou WEBP). Fotos grandes de celular são reduzidas
+    automaticamente antes do envio.
   </Passo>
   <Passo titulo="Cadastrar">
     Ao salvar, o processo nasce **comprado** e uma **ordem de pagamento** é
     gerada com situação **Em autorização** (aprovação por alçada antes do
-    pagamento).
+    pagamento). Se você desligou **Entregue no ato da compra**, o item entra em
+    **Recebimentos pendentes** para a recepção dar baixa quando chegar.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="atencao" titulo="Forma de pagamento e 'Pagar em' são obrigatórias">
-  Na aquisição direta as duas passaram a ser exigidas — sem elas a compra não é
-  registrada. (Na solicitação via Compras elas não aparecem: são definidas
-  depois, na proposta escolhida.)
+### Formas de pagamento: o que cada uma pede
+
+A forma sozinha não basta para a auditoria — é preciso dizer **com o quê** a
+compra foi paga. Ao escolher a forma, aparece o campo correspondente:
+
+- **Cartão** — qual **cartão da entidade** foi usado. Os cartões são
+  cadastrados pelo financeiro em [Cartões](/painel/ajuda/financeiro/cartoes).
+- **Dinheiro** — de qual **conta de caixa** saiu o dinheiro. O valor é
+  **debitado** desse caixa na hora; sem saldo suficiente, a compra não é
+  registrada.
+- **Pix** — a **chave Pix do fornecedor**, com o tipo. Escolha uma já
+  cadastrada ou **informe outra** — a nova fica gravada no cadastro dele.
+- **Pix (QR Code)** — o **código Pix copia e cola** usado no pagamento (começa
+  com 000201).
+- **Depósito bancário (TED)** — a **conta do fornecedor** que recebeu: escolha
+  uma cadastrada ou informe banco, agência, conta, tipo e favorecido.
+- **Boleto** — o **arquivo do boleto** (PDF ou foto).
+
+<Print src="compras/nova-pagamento.png" alt="Aquisição direta no modo manual com o fornecedor Tech Suprimentos escolhido e a forma Pix: abaixo, o campo Chave Pix do fornecedor com a opção Informar outra chave escolhida e os campos Tipo da chave e Chave para preencher." legenda="Forma Pix: escolha uma chave já cadastrada do fornecedor ou informe outra, que vai para o cadastro dele." />
+
+<Aviso tipo="nota" titulo="A ordem mostra com o quê foi pago">
+  Na [ordem de pagamento](/painel/ajuda/financeiro/ordens) gerada, o campo
+  **Pago com** traz o cartão, o caixa, a chave ou a conta usados; o código Pix
+  e o boleto ficam nos campos próprios da ordem.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="Nota e boleto juntos: até 4 MB">
+  A nota e o boleto vão no mesmo envio, que tem limite de cerca de 4 MB somados.
+  Se passar, a tela avisa antes de enviar — prefira o PDF original a uma
+  digitalização em alta resolução.
+</Aviso>
+
+## Preenchimento semiautomático pela nota
+
+<PassoAPasso>
+  <Passo titulo="Envie o documento">
+    Escolha **Semiautomático**, selecione o arquivo da nota, do cupom ou do
+    recibo (PDF ou foto) e clique em **Ler com IA**. Leva alguns segundos.
+  </Passo>
+  <Passo titulo="Confira o que a IA preencheu">
+    A IA preenche a **descrição** a partir dos itens do documento, a
+    **observação** com os dados fiscais (número, série, data, chave de acesso,
+    emitente, total, desconto e forma de pagamento), além de **tipo**,
+    **valor pago**, **data da compra**, **forma de pagamento** e, quando houver
+    duplicata ou boleto, o **vencimento**. O que ficou ilegível ou não consta no
+    documento aparece num aviso amarelo, para você completar à mão.
+  </Passo>
+  <Passo titulo="Fornecedor">
+    O sistema procura o emitente no cadastro — pelo **CNPJ/CPF** e, sem ele,
+    pelo nome. Se encontrar, já deixa **selecionado** (e avisa se o achou só pelo
+    nome, ou se o fornecedor está bloqueado). Se **não** encontrar, mostra os
+    dados lidos — razão social, nome fantasia, CNPJ/CPF e endereço — para você
+    conferir e clicar em **Confirmar e cadastrar fornecedor**. Nada é cadastrado
+    sem essa confirmação.
+  </Passo>
+  <Passo titulo="Complete e cadastre">
+    Preencha o que a nota não traz — departamento, centro de custo, o
+    complemento da forma de pagamento e **Pagar em** — e cadastre a compra. O
+    arquivo lido já fica anexado como nota fiscal.
+  </Passo>
+</PassoAPasso>
+
+<Print src="compras/nova-semi.png" alt="Aquisição direta no modo semiautomático depois da leitura de um cupom: mensagem de documento lido, o aviso de fornecedor não cadastrado com razão social, CNPJ e endereço lidos e o botão Confirmar e cadastrar fornecedor; abaixo, descrição com os itens em tópicos, observação com os dados fiscais, tipo Bem/produto, valor e data preenchidos." legenda="Depois de ler o cupom: o fornecedor novo aguarda confirmação e os campos vêm preenchidos para conferir." />
+
+<Aviso tipo="atencao" titulo="A IA ajuda, quem registra confere">
+  A leitura é boa, mas não é infalível — sobretudo em fotos tortas ou
+  borradas. Confira valor, data e CNPJ com o documento antes de cadastrar; se o
+  CNPJ lido não fecha nos dígitos verificadores, o sistema avisa.
 </Aviso>
 
 ## Solicitar via Compras
@@ -107,18 +197,22 @@ Independentemente do caminho, estes campos aparecem — e alguns são
     cotação.
   </Passo>
   <Passo titulo="Descreva o que precisa">
-    Produto ou serviço, departamento e centro de custo. Em **Observações**,
-    detalhe quantidade, referências e links.
+    Produto ou serviço, tipo, departamento e centro de custo. Em
+    **Observações** (facultativo), detalhe finalidade, referências e links.
   </Passo>
-  <Passo titulo="Prazo e local (opcionais)">
-    **Limite para receber** e **Local de entrega preferencial** orientam o
-    comprador e a recepção.
+  <Passo titulo="Entrega: prazo e local">
+    Se a entrega **não** for no ato da compra (o normal numa solicitação),
+    informe **Limite para receber** e **Local para receber** — obrigatórios,
+    porque orientam o comprador e a recepção. Se o item será retirado na hora
+    (ex.: no balcão), ligue **Entregue no ato da compra** e os dois somem.
   </Passo>
   <Passo titulo="Solicitar">
     A solicitação entra na fila do comprador (situação **Solicitada**), pronta
     para ser cotada.
   </Passo>
 </PassoAPasso>
+
+<Print src="compras/nova.png" alt="Formulário de nova compra via Compras: seletores no topo, produto com o botão Melhorar com IA, observações, tipo, departamento, centro de custo, a chave Entregue no ato da compra desligada e os campos Limite para receber e Local para receber." legenda="Solicitação via Compras: sem entrega no ato, limite e local para receber são obrigatórios." />
 
 ## O ciclo de um processo via Compras
 
@@ -187,8 +281,19 @@ registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
   **departamento** primeiro; a lista de centros aparece filtrada por ele. Se a
   compra é de um projeto, marque **Vinculada a um projeto** — o centro vem do
   projeto automaticamente.
-- **"A forma de pagamento não deixa cadastrar a compra direta."** Na aquisição
-  direta, **Forma de pagamento** e **Pagar em** são obrigatórias.
+- **"A compra direta não é cadastrada e diz o que falta."** Na aquisição
+  direta tudo é obrigatório — inclusive **Pagar em**, a **nota** e o
+  complemento da forma de pagamento (cartão, caixa, chave, conta, código Pix
+  ou boleto). Só a observação é facultativa.
+- **"Não aparece nenhum cartão / nenhum caixa."** Cartões são cadastrados pelo
+  financeiro em **Financeiro → Cartões**; o caixa precisa estar **aberto** e
+  abastecido em **Financeiro → Contas de caixa**.
+- **"Saldo insuficiente no caixa."** A compra em dinheiro sai do caixa
+  escolhido. Peça um aporte ao financeiro antes de lançar.
+- **"A IA não achou o fornecedor, mas ele existe."** A busca é pelo CNPJ/CPF e
+  pelo nome exato. Se o cadastro está com outro CNPJ (filial) ou nome
+  diferente, não clique em cadastrar: busque o fornecedor certo no campo
+  **Fornecedor**.
 - **O fornecedor não aparece na busca.** Ele precisa estar cadastrado em
   **Fornecedores** e não estar bloqueado. Ver
   [Fornecedores](/painel/ajuda/compras/fornecedores).
@@ -199,7 +304,7 @@ registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
   **encerrar a cotação** antes de escolher; e escolher ao menos uma proposta
   antes de **registrar a compra**.
 - **O item não aparece em Recebimentos.** Só entra o que está **por receber**:
-  compra direta com "produto recebido" **desligado**, ou via Compras já
+  compra direta com **Entregue no ato da compra** desligada, ou via Compras já
   comprado. O que já foi recebido não aparece.
 
 <VejaTambem
@@ -223,6 +328,11 @@ registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
       titulo: "Centros de custo",
       href: "/painel/ajuda/financeiro/centros-custo",
       descricao: "A classificação que o campo obrigatório usa",
+    },
+    {
+      titulo: "Cartões",
+      href: "/painel/ajuda/financeiro/cartoes",
+      descricao: "Os cartões da entidade que a compra em cartão pede",
     },
   ]}
 />

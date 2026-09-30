@@ -1,0 +1,70 @@
+Os **cartões da entidade** — de crédito, de débito ou pré-pagos — ficam
+cadastrados no Financeiro. É deles que sai a lista que aparece quando alguém
+registra uma **aquisição direta paga em cartão**: quem registra escolhe qual
+cartão foi usado, e a ordem de pagamento guarda essa informação para a
+auditoria.
+
+<RequerPermissao>Ordens de pagamento ou Caixa</RequerPermissao>
+
+## Cadastrar um cartão
+
+<PassoAPasso>
+  <Passo titulo="Abra Financeiro → Cartões">
+    No topo da página fica o formulário **Novo cartão**; abaixo, a lista dos
+    cartões já cadastrados.
+  </Passo>
+  <Passo titulo="Preencha os dados">
+    **Nome do cartão** (como a equipe o reconhece, ex.: "Cartão da Sede"),
+    **tipo** (crédito, débito ou pré-pago), **bandeira**, os **4 últimos
+    dígitos** e, se quiser, o **titular / responsável**.
+  </Passo>
+  <Passo titulo="Cadastrar">
+    O cartão passa a aparecer na nova compra, na forma de pagamento **Cartão**,
+    como "Cartão da Sede (Visa) — final 1234".
+  </Passo>
+</PassoAPasso>
+
+<Print src="financeiro/cartoes.png" alt="Página Cartões do Financeiro: formulário Novo cartão com nome, tipo, bandeira, 4 últimos dígitos e titular; abaixo, a lista com dois cartões ativos mostrando nome, bandeira, final, tipo, titular, situação e o botão Desativar." legenda="Cartões da entidade: cadastro no topo e a lista com a situação de cada um." />
+
+<Aviso tipo="atencao" titulo="Só os 4 últimos dígitos">
+  Por segurança, o sistema guarda **apenas os 4 últimos dígitos** — nunca o
+  número inteiro, a validade ou o código de segurança. Não anote esses dados em
+  nenhum campo do sistema.
+</Aviso>
+
+## Desativar um cartão
+
+Quando um cartão é cancelado ou substituído, clique em **Desativar** na linha
+dele. Ele sai da lista de escolha da nova compra, mas continua nas compras e
+ordens antigas que o usaram — o histórico não se perde. **Reativar** o traz de
+volta.
+
+## Erros comuns
+
+- **"O cartão não aparece na nova compra."** Ele precisa estar **ativo**.
+  Confira a situação na lista.
+- **"Errei um dado do cartão (ou escrevi o número inteiro no nome)."** Não há
+  edição: desative esse cartão e cadastre de novo, com só os 4 últimos dígitos
+  no campo próprio.
+- **"Quero saber em quais compras um cartão foi usado."** Abra a ordem de
+  pagamento: o campo **Pago com** mostra o cartão.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "A forma de pagamento Cartão na aquisição direta",
+    },
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Onde aparece o 'Pago com'",
+    },
+    {
+      titulo: "Caixa",
+      href: "/painel/ajuda/financeiro/caixa",
+      descricao: "O outro meio de pagamento da entidade: dinheiro",
+    },
+  ]}
+/>

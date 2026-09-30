@@ -298,6 +298,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Centros de custo",
         resumo: "A classificação de despesas e receitas",
       },
+      {
+        slug: "cartoes",
+        titulo: "Cartões",
+        resumo: "Os cartões da entidade usados para pagar compras",
+      },
     ],
   },
   {

@@ -27,10 +27,46 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- usados nos blocos comentados
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
+const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquisição direta"]'
+// Cupom fictício para a leitura pela IA (PAPELARIA ESTRELA DO NORTE, CNPJ de
+// exemplo). Passe o caminho em CUPOM_TESTE; sem ele, o print da leitura é pulado.
+const CUPOM = process.env.CUPOM_TESTE ?? ""
+
 const SHOTS = [
-  // Rodada de 29/09 (8): página do empregador com abas, reuniões e setoriais.
+  // Rodada de 29/09 (9): Nova compra — entrega no ato, modos da compra direta,
+  // leitura da nota pela IA e formas de pagamento; Financeiro → Cartões (os dois
+  // cartões fictícios do demo ficam cadastrados).
+  ["/painel/compras/nova", "compras/nova.png", { esperar: "Entrega no ato da compra", altura: 1000 }],
+  ["/painel/compras/nova", "compras/nova-direta-modo.png", { esperar: "Entrega no ato da compra", passos: [{ clicar: SWITCH_DIRETA }, { aguardar: "Como preencher?" }], altura: 760 }],
+  ...(CUPOM
+    ? [["/painel/compras/nova", "compras/nova-semi.png", {
+        esperar: "Entrega no ato da compra",
+        passos: [{ clicar: SWITCH_DIRETA }, { clicar: 'css=button[aria-pressed]:has-text("Semiautomático")' }, { anexar: ["#nota_fiscal_semi", CUPOM] }, { clicar: "Ler com IA" }, { aguardar: "lido. Confira" }],
+        scrollTo: "Nota fiscal, cupom ou documento equivalente",
+        altura: 1500,
+      }]]
+    : []),
+  ["/painel/compras/nova", "compras/nova-pagamento.png", {
+    esperar: "Entrega no ato da compra",
+    passos: [
+      { clicar: SWITCH_DIRETA },
+      { clicar: 'css=button[aria-pressed]:has-text("Manual")' },
+      { preencher: ['input[placeholder="Busque por nome ou CNPJ/CPF"]', "Tech Supri"] },
+      { clicar: "Tech Suprimentos" },
+      { selecionar: ["#forma_pagamento", "Pix"] },
+      { aguardar: "Chave Pix do fornecedor" },
+      { pausa: 2500 },
+      { selecionar: ["#dados_bancarios_id", "Informar outra chave…"] },
+    ],
+    fullPage: true,
+  }],
+  ["/painel/financeiro/cartoes", "financeiro/cartoes.png", { esperar: "Cartão da Tesouraria", altura: 900 }],
+
+  /* Rodada de 29/09 (8): página do empregador com abas, reuniões e setoriais.
   ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000001", "representacao/empregador.png", { esperar: "Filiados ativos", altura: 900 }],
   ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000001/reunioes/nova?tipo=empregador", "representacao/reuniao-nova.png", { esperar: "Ata em PDF", fullPage: true }],
+
+  */
 
   /* Rodada de 29/09 (7): hierarquia Contrato › Minuta › RPA — seed:
   // scripts/seed-prints-rpa.mjs (contrato de autônomo) + um RPA emitido pela tela.
@@ -528,6 +564,29 @@ for (const [route, file, opts] of SHOTS) {
     await campo.fill(opts.buscar.texto)
     await campo.press("Enter")
     await p.waitForTimeout(1500)
+  }
+  // opts.passos: sequência de ações para montar o estado da tela — clicar
+  // (texto ou "css=<seletor>"), anexar [seletor, arquivo], preencher
+  // [seletor, valor], selecionar [seletor, rótulo], pausa (ms) e aguardar (texto; espera
+  // longa, p/ leitura pela IA).
+  for (const passo of opts?.passos ?? []) {
+    if (passo.clicar) {
+      const alvo = passo.clicar.startsWith("css=")
+        ? p.locator(passo.clicar.slice(4)).first()
+        : p.getByText(passo.clicar, { exact: false }).first()
+      await alvo.click()
+    } else if (passo.anexar) {
+      await p.setInputFiles(passo.anexar[0], passo.anexar[1])
+    } else if (passo.preencher) {
+      await p.fill(passo.preencher[0], passo.preencher[1])
+    } else if (passo.selecionar) {
+      await p.selectOption(passo.selecionar[0], { label: passo.selecionar[1] })
+    } else if (passo.pausa) {
+      await p.waitForTimeout(passo.pausa)
+    } else if (passo.aguardar) {
+      await p.getByText(passo.aguardar, { exact: false }).first().waitFor({ timeout: 120000 })
+    }
+    await p.waitForTimeout(700)
   }
   // opts.scrollTo: rola até o texto (foca uma seção abaixo da dobra).
   if (opts?.scrollTo) {
