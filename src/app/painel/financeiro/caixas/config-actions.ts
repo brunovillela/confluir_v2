@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
@@ -21,5 +22,5 @@ export async function salvarCentroCaixaAction(
   const { erro } = await salvarConfigFinanceiro(id)
   if (erro) return { erro }
   revalidatePath("/painel/financeiro/caixas")
-  return { ok: "Centro de custo do caixa salvo." }
+  redirect("/painel/financeiro/caixas?config=1")
 }

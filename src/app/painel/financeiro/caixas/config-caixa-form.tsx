@@ -28,11 +28,6 @@ export function ConfigCaixaForm({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      {estado.ok && (
-        <Alert variant="success">
-          <AlertDescription>{estado.ok}</AlertDescription>
-        </Alert>
-      )}
       <div className="flex flex-wrap items-end gap-3">
         <div className="grid min-w-0 flex-1 gap-1.5 sm:max-w-md">
           <Label htmlFor="centro_custo_caixa_id">Centro de custo do caixa (débito)</Label>

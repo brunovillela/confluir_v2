@@ -6,6 +6,7 @@ import {
   CircleAlert,
   HandCoins,
   Hourglass,
+  Pencil,
   Plus,
   Wallet,
 } from "lucide-react"
@@ -31,16 +32,19 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarContasCaixa, listarOcorrencias } from "@/lib/db/caixa"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { obterConfigFinanceiro } from "@/lib/db/ordens-ciclo"
-
-import { ConfigCaixaForm } from "./config-caixa-form"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Contas de caixa — Confluir" }
 
-export default async function CaixasPage() {
+export default async function CaixasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ config?: string }>
+}) {
+  const configRecemSalva = (await searchParams).config === "1"
   const sessao = await requirePermissao("financeiro_caixa", [
     "financeiro_caixa_admin",
     "financeiro_leitura",
@@ -52,12 +56,23 @@ export default async function CaixasPage() {
   const podeConfigurar = podeAcessar(sessao.permissoes, "financeiro_caixa_admin", [
     "financeiro_pagamento",
   ])
-  const [{ disponivel, contas }, ocorrenciasGeral, configFin, centros] = await Promise.all([
+  const [{ disponivel, contas }, ocorrenciasGeral, configFin] = await Promise.all([
     listarContasCaixa(),
     listarOcorrencias(),
     obterConfigFinanceiro(),
-    podeConfigurar ? listarCentrosCusto() : Promise.resolve([]),
   ])
+  const centroCaixa = configFin.centroCustoCaixaId
+    ? (
+        await (await createAdminClient())
+          .from("centros_de_custo")
+          .select("acesso, nome_da_conta")
+          .eq("id", configFin.centroCustoCaixaId)
+          .maybeSingle()
+      ).data
+    : null
+  const textoCentroCaixa = centroCaixa
+    ? [centroCaixa.acesso, centroCaixa.nome_da_conta].filter(Boolean).join(" — ")
+    : null
 
   const ativas = contas.filter((c) => c.ativa)
   const abertas = ativas.filter((c) => c.situacao === "aberta")
@@ -143,27 +158,40 @@ export default async function CaixasPage() {
         </Alert>
       )}
 
-      {podeConfigurar && configFin.disponivel && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Compras pagas em dinheiro</CardTitle>
-            <CardDescription>
-              Em que conta contábil cai o débito do dinheiro que sai do caixa
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConfigCaixaForm
-              atual={configFin.centroCustoCaixaId}
-              centros={centros
-                .filter((c) => c.usavel !== false)
-                .map((c) => ({
-                  id: c.id,
-                  rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — "),
-                }))}
-            />
-          </CardContent>
-        </Card>
+      {configRecemSalva && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Centro de custo do caixa salvo.</AlertDescription>
+        </Alert>
       )}
+
+      {configFin.disponivel &&
+        (textoCentroCaixa ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">
+              Débito das compras pagas em dinheiro:
+            </span>
+            <span className="font-medium">{textoCentroCaixa}</span>
+            {podeConfigurar && (
+              <Button variant="ghost" size="icon" asChild className="size-7">
+                <Link href="/painel/financeiro/caixas/configuracao" aria-label="Editar o centro de custo do caixa">
+                  <Pencil className="size-3.5" />
+                </Link>
+              </Button>
+            )}
+          </div>
+        ) : (
+          podeConfigurar && (
+            <Alert variant="warning">
+              <AlertDescription>
+                Defina o centro de custo do caixa — sem ele, as compras pagas em
+                dinheiro ficam sem a conta do débito.{" "}
+                <Link href="/painel/financeiro/caixas/configuracao" className="font-medium underline">
+                  Configurar
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )
+        ))}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {indicadores.map((ind) => (
