@@ -216,27 +216,29 @@
 /* ════════════════════════════════════════════════════════════════════
    TOKENS SEMÂNTICOS — TEMA ESCURO
    Página = navy bem escuro · cards = um degrau mais claro + borda
+   Modelo F (30/09/2026): fundo × cartão 1,19 : 1 (era 1,09) — degrau
+   moderado + contorno mais visível + sombra leve nos cartões.
    ════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
   color-scheme: dark;
 
   /* superfícies (derivadas de #091747, H 266.4) */
-  --bg-base: #060d20;
-  --bg-surface: #0e172e;
-  --bg-elevated: #17223c;
+  --bg-base: #040a19;
+  --bg-surface: #121d3a;
+  --bg-elevated: #1b2745;
   --bg-inset: #04091a;
 
   /* texto */
   --text-primary: #e9ebf1; /* 14.9:1 sobre surface */
   --text-secondary: #b2bbcd; /* 9.2:1 */
-  --text-muted: #959eb3; /* 5.9:1 até no elevated */
+  --text-muted: #959eb3; /* 5.4:1 até no muted, 5.5:1 no elevated */
   --text-inverse: #0b1633;
   --text-on-action: #0b1633; /* navy sobre o laranja: 5.6:1 */
 
   /* bordas */
   --border-subtle: #1d273e;
-  --border-default: #29354f;
-  --border-strong: #616e8c; /* ≥3:1 sobre surface e elevated */
+  --border-default: #33405f;
+  --border-strong: #67749a; /* ≥3:1 sobre surface, elevated e muted */
 
   /* ação: #FF5722 pleno no escuro, texto navy (AA corpo) */
   --action: var(--primary-500);
@@ -278,7 +280,7 @@
   --primary-foreground: var(--action-fg);
   --secondary: var(--navy-800);
   --secondary-foreground: var(--navy-100);
-  --muted: #1a2440;
+  --muted: #1d2846;
   --muted-foreground: var(--text-muted);
   --accent: #1d2a4a;
   --accent-foreground: var(--text-primary);
