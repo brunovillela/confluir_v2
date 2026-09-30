@@ -1,7 +1,9 @@
 Em **Aniversariantes**, a entidade dá os parabéns aos filiados no dia do
-aniversário: por **e-mail**, que pode sair sozinho todo dia às 9h, e pelo
-**WhatsApp**, com um botão ao lado de cada nome que abre a conversa com o
-texto já escrito.
+aniversário: por **e-mail**, que pode sair sozinho todo dia na hora que você
+escolher, e pelo **WhatsApp**, com um botão ao lado de cada nome que abre a
+conversa com o texto já escrito. Além da mensagem padrão, dá para ter
+**mensagens específicas** — para aposentados, para quem completa 60 anos, para
+quem é filiado há 20 anos — e escrever ou melhorar os textos com **IA**.
 
 <RequerPermissao>Mensagens aos filiados (aniversariantes e mala direta)</RequerPermissao>
 
@@ -20,8 +22,8 @@ texto já escrito.
 ## A lista do dia
 
 A tela abre no dia de hoje, com cada aniversariante, a situação do e-mail
-(**Na fila**, **Enviado**, **Falhou**, **Sem e-mail**) e o botão do
-WhatsApp. As setas passam para o dia anterior ou o próximo: nos dias que já
+(**Na fila**, **Enviado**, **Falhou**, **Sem e-mail**), a mensagem específica
+que a pessoa recebe (quando houver) e o botão do WhatsApp. As setas passam para o dia anterior ou o próximo: nos dias que já
 passaram, aparece o que foi enviado; nos próximos, a prévia de quem faz
 aniversário.
 
@@ -33,7 +35,7 @@ aniversário.
     novo**, para ninguém da equipe mandar duas vezes.
   </Passo>
   <Passo titulo="Enviar os e-mails agora">
-    Com o envio automático desligado — ou para não esperar as 9h — use
+    Com o envio automático desligado — ou para não esperar a hora marcada — use
     **Enviar os e-mails agora**. O envio corre em lotes, com o andamento na
     tela; se a conexão cair, clique de novo que ele continua de onde parou.
     Ninguém recebe duas vezes.
@@ -45,26 +47,63 @@ aniversário.
   </Passo>
 </PassoAPasso>
 
-## A mensagem de parabéns
+## Mensagens e envio automático
 
-Em **Mensagem de parabéns**, no fim da página, ficam o **assunto** e o
-**texto do e-mail**, o **texto do WhatsApp** e a chave do **envio
-automático**. Nos textos, use:
+O botão **Mensagens e envio automático**, no alto da lista do dia, abre a
+configuração em três partes.
+
+### Envio automático
+
+- **Enviar o parabéns por e-mail automaticamente**: ligado, os e-mails saem
+  sozinhos todos os dias, inclusive fins de semana e feriados.
+- **Começar às**: a hora de Brasília em que o envio começa. Os e-mails saem
+  em até 15 minutos depois dela.
+- **Aviso à equipe**: e-mails (separados por vírgula) que recebem, na mesma
+  hora, a lista dos aniversariantes do dia, com a situação do e-mail de cada
+  um e o link **Abrir WhatsApp**. O link passa pelo Confluir — quem clicar
+  precisa estar logado — e fica registrado como se tivesse usado o botão da
+  tela. O aviso funciona mesmo com o e-mail automático desligado: é o jeito
+  de a equipe mandar tudo pelo celular.
+
+### Mensagens específicas
+
+Uma mensagem específica vai para quem atende **critérios**, no lugar da
+padrão:
+
+- **idade que completa** (de/até — "60 até 60" é quem faz 60 anos) e **só
+  idades redondas** (30, 40, 50…);
+- **tempo de filiação** em anos, contado da primeira filiação ("0 até 0" é
+  quem faz o primeiro aniversário como filiado);
+- **condição na fonte** (ativa, aposentado, pensionista) e **fonte
+  pagadora**, do vínculo corrente;
+- **UF** e **cidade**.
+
+Preencha só o que importa: o que estiver preenchido precisa valer ao mesmo
+tempo. Quando a pessoa atende mais de uma, vale **a primeira da lista** — use
+as setas para mudar a ordem (a mais específica em cima). **Em uso**
+desmarcado tira a mensagem do ar sem apagá-la. A nova já começa com o texto
+da padrão, para adaptar.
+
+### Escrever e melhorar com IA
+
+A mensagem padrão e cada específica têm o **assunto** e o **texto do
+e-mail**, o **texto do WhatsApp** e a **prévia** de como chegam. Nos textos,
+use:
 
 - `{primeiro_nome}` — o primeiro nome da pessoa;
 - `{nome}` — o nome completo;
 - `{entidade}` — o nome da entidade.
 
-Ao lado, a **prévia** mostra como a mensagem chega. **Enviar teste para
-mim** manda o e-mail, como está no formulário, para o seu próprio e-mail,
-com "[Teste]" no assunto. Ao salvar, o parabéns de hoje que ainda não saiu
-passa a usar o texto novo.
+**Melhorar com IA** reescreve os três textos de uma vez, no tom da entidade e
+de acordo com o público da mensagem (os critérios). Diga, se quiser, **o que
+ajustar** ("mais curta", "lembrar da colônia de férias"). A IA mantém as
+variáveis, não inventa benefícios nem datas e não fala de saúde ou idade de
+forma indelicada. Não gostou? **Desfazer** volta ao texto anterior. Nada é
+salvo até você clicar em **Salvar**.
 
-<Aviso tipo="dica" titulo="Envio automático">
-Com **Enviar o parabéns por e-mail automaticamente** ligado, os e-mails saem
-sozinhos às 9h, todos os dias, inclusive fins de semana e feriados. O
-WhatsApp é sempre à mão.
-</Aviso>
+**Enviar teste para mim** manda o e-mail, como está na tela, para o seu
+próprio e-mail, com "[Teste]" no assunto. Ao salvar, quem ainda está na fila
+hoje passa a receber o texto novo.
 
 ## Erros comuns
 

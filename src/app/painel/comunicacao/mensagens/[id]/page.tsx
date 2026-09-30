@@ -15,6 +15,7 @@ import {
   linkWhatsapp,
   ROTULO_SITUACAO_EMAIL,
   ROTULO_SITUACAO_MENSAGEM,
+  rotuloHora,
   type SituacaoEmail,
 } from "@/lib/comunicacao-mensagens-constantes"
 import { requirePermissao } from "@/lib/auth"
@@ -38,13 +39,8 @@ export const metadata: Metadata = { title: "Mala direta — Confluir" }
 export const maxDuration = 300
 
 const POR_PAGINA = 100
-const SITUACOES: SituacaoEmail[] = ["enviado", "pendente", "falha", "sem_email", "descadastrado", "duplicado"]
+const SITUACOES: SituacaoEmail[] = ["enviado", "pendente", "processando", "falha", "sem_email", "descadastrado", "duplicado"]
 
-function amanha(): string {
-  const d = new Date(`${hojeSP()}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
 
 export default async function MalaDiretaPage({
   params,
@@ -100,7 +96,7 @@ export default async function MalaDiretaPage({
           }}
           fontes={base.fontes}
           ufs={base.ufs}
-          amanha={amanha()}
+          hoje={hojeSP()}
         />
         <form action={excluirRascunhoAction} className="flex justify-end">
           <input type="hidden" name="id" value={m.id} />
@@ -141,7 +137,7 @@ export default async function MalaDiretaPage({
         <CardHeader>
           <CardTitle className="text-base">
             {m.situacao === "agendada" && m.agendadaPara
-              ? `Agendada para ${formatarData(m.agendadaPara)}, às 9h`
+              ? `Agendada para ${formatarData(m.agendadaPara)}, às ${rotuloHora(m.agendadaHora)}`
               : m.situacao === "enviando"
                 ? "Enviando"
                 : m.situacao === "cancelada"

@@ -15,14 +15,18 @@ export const maxDuration = 300
  *
  * 1. Resumo de notícias — percorre os tenants com config ativa e, para os que
  *    estão na hora, gera o resumo.
- * 2. Aniversariantes — nos tenants com o parabéns automático ligado, prepara a
- *    mensagem do dia e envia os e-mails (lib/db/comunicacao-mensagens.ts).
- * 3. Mala direta — as agendadas para hoje começam a sair; as que ficaram pela
- *    metade continuam. Para perto do limite da função; o resto segue amanhã
- *    ou pelo botão da tela.
+ * 2. Aniversariantes — a partir da hora configurada de cada tenant, prepara o
+ *    parabéns do dia (mensagem padrão ou específica por pessoa), envia os
+ *    e-mails quando automático e manda o aviso à equipe
+ *    (lib/db/comunicacao-mensagens.ts).
+ * 3. Mala direta — as agendadas cuja hora chegou começam a sair; as que
+ *    ficaram pela metade continuam. Para perto do limite da função; o resto
+ *    segue no próximo disparo.
  *
  * `?tenant=<uuid>` roda só um tenant (disparo manual e testes na demo).
- * O vercel.json chama esta rota às 12:00 UTC (9h em Brasília).
+ * O vercel.json chama esta rota a cada 15 minutos (plano Pro da Vercel). Cada
+ * parte decide sozinha se é hora: o resumo pela agenda da config, o parabéns
+ * pela hora de início, a mala direta pela data e hora do agendamento.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -45,7 +49,8 @@ async function handler(req: Request): Promise<Response> {
     resultados.push({ tenant: c.tenantId, id: r.id, erro: r.erro })
   }
 
-  const aniversarios = await executarAniversarios(unico)
+  // Aniversários primeiro (poucos e-mails por dia); a mala direta usa o resto do tempo.
+  const aniversarios = await executarAniversarios(inicio + 120_000, unico)
   // Folga de 40 s antes do maxDuration para gravar a situação do último lote.
   const malasDiretas = await executarMalasDiretas(inicio + 260_000, unico)
   return Response.json({ verificados: configs.length, gerados: resultados, aniversarios, malasDiretas })

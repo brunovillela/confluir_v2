@@ -108,7 +108,7 @@ export async function malaDiretaAction(_prev: EstadoMalaDireta, fd: FormData): P
   if (acao === "agendar" || acao === "enviar") {
     const data = acao === "agendar" ? String(fd.get("agendar_para") ?? "") : null
     if (acao === "agendar" && !/^\d{4}-\d{2}-\d{2}$/.test(data ?? "")) return { erro: "Escolha a data do envio." }
-    const r = await liberarMalaDireta(id, usuarioId, data)
+    const r = await liberarMalaDireta(id, usuarioId, data, Number(fd.get("agendar_hora") ?? 9))
     if (r.erro) return { erro: r.erro }
     revalidatePath(`${LISTA}/${id}`)
     revalidatePath(LISTA)

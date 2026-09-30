@@ -7,10 +7,19 @@ import {
   CONDICAO_SEM_INFORMACAO,
   corpoParaEmailHtml,
   EMAIL_VALIDO,
+  escolherModelo,
+  HORA_ENVIO_PADRAO,
+  normalizarCriterios,
   normalizarFiltros,
+  numeroWhatsapp,
   PADRAO_ANIVERSARIO,
   pareceCelular,
+  ROTULO_SITUACAO_EMAIL,
+  semCriterios,
+  type CriteriosAniversario,
   type FiltrosMalaDireta,
+  type ModeloAniversario,
+  type PerfilAniversario,
   type SituacaoEmail,
   type SituacaoMensagem,
 } from "@/lib/comunicacao-mensagens-constantes"
@@ -19,7 +28,7 @@ import { descadastradosDoTenant, tokenDescadastro } from "@/lib/db/comunicacao-d
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { baseRelatorios, filtrarRelatorio, type BaseRelatorios, type LinhaRelatorio } from "@/lib/db/filiacao-relatorios"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
-import { escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
+import { botaoEmail, COR, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { ROTULOS_FORMA_RECEBIMENTO, type FormaRecebimento } from "@/lib/filiacao"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -140,18 +149,57 @@ function ehBissexto(ano: number): boolean {
   return (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0
 }
 
+export type Aniversariante = Destinatario & { perfil: PerfilAniversario }
+
+/** Anos completos entre duas datas AAAA-MM-DD. */
+function anosEntre(de: string, ate: string): number {
+  const [a1, m1, d1] = de.slice(0, 10).split("-").map(Number)
+  const [a2, m2, d2] = ate.split("-").map(Number)
+  return a2 - a1 - (m2 < m1 || (m2 === m1 && d2 < d1) ? 1 : 0)
+}
+
+type VinculoPerfil = {
+  filiado_id: string
+  fonte_pagadora_id: string | null
+  condicao_na_fonte: string | null
+  data_filiacao: string | null
+  filiacao_data_adesao: string | null
+  data_desfiliacao: string | null
+  filiacao_data_saida: string | null
+}
+
 /**
- * Filiados ATIVOS que fazem aniversário na data (AAAA-MM-DD). Em ano que não
- * é bissexto, quem nasceu em 29/02 entra no dia 28/02.
+ * Fonte e condição do vínculo corrente (em aberto mais recente; senão o mais
+ * recente) e a primeira filiação — o mesmo critério dos relatórios de filiados.
  */
-export async function aniversariantesDoDia(dataISO: string, opcoes: { tenantId?: string; db?: Db } = {}): Promise<Destinatario[]> {
+function perfilDosVinculos(vs: VinculoPerfil[]): { fonteId: string | null; condicaoFonte: string | null; primeira: string | null } {
+  const data = (v: VinculoPerfil) => texto(v.data_filiacao) ?? texto(v.filiacao_data_adesao)
+  const aberto = (v: VinculoPerfil) => !v.data_desfiliacao && !v.filiacao_data_saida
+  let corrente: VinculoPerfil | null = null
+  for (const v of vs) {
+    if (!corrente || (aberto(v) !== aberto(corrente) ? aberto(v) : (data(v) ?? "") > (data(corrente) ?? ""))) corrente = v
+  }
+  const datas = vs.map(data).filter((d): d is string => !!d).sort()
+  return {
+    fonteId: corrente ? texto(corrente.fonte_pagadora_id) : null,
+    condicaoFonte: corrente ? texto(corrente.condicao_na_fonte) : null,
+    primeira: datas[0] ?? null,
+  }
+}
+
+/**
+ * Filiados ATIVOS que fazem aniversário na data (AAAA-MM-DD), com o perfil que
+ * escolhe a mensagem específica (idade que completa, tempo de filiação, fonte,
+ * lugar). Em ano que não é bissexto, quem nasceu em 29/02 entra no dia 28/02.
+ */
+export async function aniversariantesDoDia(dataISO: string, opcoes: { tenantId?: string; db?: Db } = {}): Promise<Aniversariante[]> {
   const db = opcoes.db ?? (await createAdminClient())
   const emp = opcoes.tenantId ?? (await tenantAtual())
   const [ano, mes, dia] = dataISO.split("-").map(Number)
   const dias = mes === 2 && dia === 28 && !ehBissexto(ano) ? [28, 29] : [dia]
   const { data, error } = await db
     .from("filiacoes")
-    .select(CAMPOS_CONTATO)
+    .select(`${CAMPOS_CONTATO}, nascimento_data, endereco_estado, endereco_cidade`)
     .eq("emp_proprietaria_id", emp)
     .eq("filiacao_condicao", "Ativo")
     .not("filiacao_excluida", "is", true)
@@ -159,24 +207,64 @@ export async function aniversariantesDoDia(dataISO: string, opcoes: { tenantId?:
     .in("nascimento_dia", dias)
     .limit(2000)
   if (error) throw new Error(`Falha ao ler os aniversariantes: ${error.message}`)
-  const linhas = porPessoa(data ?? [])
+  const todas = data ?? []
+  const linhas = porPessoa(todas)
+  const chave = (l: LinhaFiliacao) => cpfConfiavel(texto(l.cpf)) ?? `id:${l.id}`
+
+  // Vínculos de todos os cadastros da pessoa (o histórico pode estar noutro registro do CPF).
+  const cpfDoId = new Map(todas.map((l) => [String(l.id), chave(l)]))
+  const vinculosPorPessoa = new Map<string, VinculoPerfil[]>()
+  const ids = [...cpfDoId.keys()]
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: vs } = await db
+      .from("filiacao_vinculos")
+      .select("filiado_id, fonte_pagadora_id, condicao_na_fonte, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida")
+      .in("filiado_id", ids.slice(i, i + 200))
+    for (const v of (vs ?? []) as VinculoPerfil[]) {
+      const k = cpfDoId.get(String(v.filiado_id))
+      if (k) vinculosPorPessoa.set(k, [...(vinculosPorPessoa.get(k) ?? []), v])
+    }
+  }
+
   const mapa = await contatos(db, emp, linhas)
   return linhas
-    .map((l) => ({
-      filiacaoId: String(l.id),
-      cpf: cpfConfiavel(texto(l.cpf)) ?? `id:${l.id}`,
-      nome: texto(l.nome_completo) ?? "(sem nome)",
-      email: mapa.get(String(l.id))?.email ?? null,
-      telefone: mapa.get(String(l.id))?.telefone ?? null,
-    }))
+    .map((l) => {
+      const nascimento = texto(l.nascimento_data)
+      const vinc = perfilDosVinculos(vinculosPorPessoa.get(chave(l)) ?? [])
+      return {
+        filiacaoId: String(l.id),
+        cpf: chave(l),
+        nome: texto(l.nome_completo) ?? "(sem nome)",
+        email: mapa.get(String(l.id))?.email ?? null,
+        telefone: mapa.get(String(l.id))?.telefone ?? null,
+        perfil: {
+          // É o dia do aniversário: a idade que completa é a diferença dos anos
+          // (vale também para quem nasceu em 29/02 e comemora em 28/02).
+          idade: nascimento ? ano - Number(nascimento.slice(0, 4)) : null,
+          filiadoHa: vinc.primeira ? Math.max(0, anosEntre(vinc.primeira, dataISO)) : null,
+          fonteId: vinc.fonteId,
+          condicaoFonte: vinc.condicaoFonte,
+          uf: texto(l.endereco_estado)?.trim().toUpperCase() ?? null,
+          cidade: texto(l.endereco_cidade),
+        },
+      }
+    })
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }
 
 // ── Configuração do parabéns ───────────────────────────────────────────────
 
+export const AVISO_SQL_MODELOS =
+  "Rode supabase/comunicacao-aniversario-modelos.sql no Supabase para ativar as mensagens específicas e o horário do envio."
+
 export type ConfigAniversario = {
   disponivel: boolean
+  /** O SQL das mensagens específicas e do horário já rodou. */
+  completo: boolean
   ativo: boolean
+  horaEnvio: number
+  /** E-mails da equipe que recebem a lista do dia (separados por vírgula). */
+  avisoEquipeEmails: string[]
   assunto: string
   mensagem: string
   textoWhatsapp: string
@@ -186,16 +274,25 @@ export type ConfigAniversario = {
 
 export async function obterConfigAniversario(opcoes: { tenantId?: string; db?: Db } = {}): Promise<ConfigAniversario> {
   const db = opcoes.db ?? (await createAdminClient())
-  const { data, error } = await db
-    .from("comunicacao_aniversario_config")
-    .select("ativo, assunto, mensagem, texto_whatsapp, atualizado_por, updated_at")
-    .eq("emp_proprietaria_id", opcoes.tenantId ?? (await tenantAtual()))
-    .maybeSingle()
+  const emp = opcoes.tenantId ?? (await tenantAtual())
+  const base = "ativo, assunto, mensagem, texto_whatsapp, atualizado_por, updated_at"
+  let completo = true
+  let r = await db.from("comunicacao_aniversario_config").select(`${base}, hora_envio, aviso_equipe_emails`).eq("emp_proprietaria_id", emp).maybeSingle()
+  if (r.error && esquemaAusente(r.error)) {
+    // Sem o SQL novo: segue com o que já existia (9h, sem aviso).
+    completo = false
+    r = await db.from("comunicacao_aniversario_config").select(base).eq("emp_proprietaria_id", emp).maybeSingle()
+  }
+  const { data, error } = r as { data: Record<string, unknown> | null; error: typeof r.error }
   if (error && !esquemaAusente(error)) throw new Error(`Falha ao ler a configuração: ${error.message}`)
   const nomes = data?.atualizado_por ? await nomesDosUsuarios([String(data.atualizado_por)]) : new Map<string, string>()
+  const hora = Number(data?.hora_envio)
   return {
     disponivel: !error,
+    completo: !error && completo,
     ativo: data?.ativo === true,
+    horaEnvio: Number.isInteger(hora) && hora >= 0 && hora <= 23 ? hora : HORA_ENVIO_PADRAO,
+    avisoEquipeEmails: listaDeEmails(texto(data?.aviso_equipe_emails)),
     assunto: texto(data?.assunto) ?? PADRAO_ANIVERSARIO.assunto,
     mensagem: texto(data?.mensagem) ?? PADRAO_ANIVERSARIO.mensagem,
     textoWhatsapp: texto(data?.texto_whatsapp) ?? PADRAO_ANIVERSARIO.textoWhatsapp,
@@ -204,18 +301,28 @@ export async function obterConfigAniversario(opcoes: { tenantId?: string; db?: D
   }
 }
 
-export async function salvarConfigAniversario(
-  c: { ativo: boolean; assunto: string; mensagem: string; textoWhatsapp: string },
-  usuarioId: string
-): Promise<{ erro?: string }> {
-  if (!c.assunto.trim()) return { erro: "Escreva o assunto do e-mail." }
-  if (!c.mensagem.trim()) return { erro: "Escreva a mensagem do e-mail." }
-  if (!c.textoWhatsapp.trim()) return { erro: "Escreva o texto do WhatsApp." }
+/** "a@x.org, b@x.org; c@x.org" → e-mails válidos, sem repetição. */
+export function listaDeEmails(bruto: string | null | undefined): string[] {
+  return [...new Set((bruto ?? "").split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_VALIDO.test(e)))]
+}
+
+export type TextoParabens = { assunto: string; mensagem: string; textoWhatsapp: string }
+
+function conferirTexto(c: TextoParabens): string | null {
+  if (!c.assunto.trim()) return "Escreva o assunto do e-mail."
+  if (!c.mensagem.trim()) return "Escreva a mensagem do e-mail."
+  if (!c.textoWhatsapp.trim()) return "Escreva o texto do WhatsApp."
+  return null
+}
+
+/** A mensagem padrão — a de quem não se encaixa em nenhuma específica. */
+export async function salvarMensagemPadrao(c: TextoParabens, usuarioId: string): Promise<{ erro?: string }> {
+  const falta = conferirTexto(c)
+  if (falta) return { erro: falta }
   const admin = await createAdminClient()
   const { error } = await admin.from("comunicacao_aniversario_config").upsert(
     {
       emp_proprietaria_id: await tenantAtual(),
-      ativo: c.ativo,
       assunto: c.assunto.trim(),
       mensagem: c.mensagem.trim(),
       texto_whatsapp: c.textoWhatsapp.trim(),
@@ -225,6 +332,147 @@ export async function salvarConfigAniversario(
     { onConflict: "emp_proprietaria_id" }
   )
   if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_MENSAGENS : `Não foi possível salvar: ${error.message}` }
+  return {}
+}
+
+/** Envio automático: ligado ou não, a hora de início e o aviso à equipe. */
+export async function salvarEnvioAutomatico(
+  c: { ativo: boolean; horaEnvio: number; avisoEquipeEmails: string },
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  if (!Number.isInteger(c.horaEnvio) || c.horaEnvio < 0 || c.horaEnvio > 23) return { erro: "Escolha a hora do envio." }
+  const bruto = c.avisoEquipeEmails.trim()
+  const emails = listaDeEmails(bruto)
+  const invalidos = bruto.split(/[\s,;]+/).filter((e) => e && !EMAIL_VALIDO.test(e.trim()))
+  if (invalidos.length) return { erro: `E-mail inválido no aviso à equipe: ${invalidos.join(", ")}` }
+  const admin = await createAdminClient()
+  const { error } = await admin.from("comunicacao_aniversario_config").upsert(
+    {
+      emp_proprietaria_id: await tenantAtual(),
+      ativo: c.ativo,
+      hora_envio: c.horaEnvio,
+      aviso_equipe_emails: emails.length ? emails.join(", ") : null,
+      atualizado_por: usuarioId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "emp_proprietaria_id" }
+  )
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_MODELOS : `Não foi possível salvar: ${error.message}` }
+  return {}
+}
+
+// ── Mensagens específicas de aniversário ───────────────────────────────────
+
+function mapearModelo(d: Record<string, unknown>): ModeloAniversario {
+  return {
+    id: String(d.id),
+    nome: texto(d.nome) ?? "Sem nome",
+    ativo: d.ativo !== false,
+    ordem: Number(d.ordem) || 0,
+    criterios: normalizarCriterios(d.criterios as Record<string, unknown> | null),
+    assunto: texto(d.assunto) ?? "",
+    mensagem: texto(d.mensagem) ?? "",
+    textoWhatsapp: texto(d.texto_whatsapp) ?? "",
+  }
+}
+
+const CAMPOS_MODELO = "id, nome, ativo, ordem, criterios, assunto, mensagem, texto_whatsapp"
+
+/** As mensagens específicas, na ordem em que são testadas. [] sem o SQL. */
+export async function listarModelos(opcoes: { tenantId?: string; db?: Db } = {}): Promise<ModeloAniversario[]> {
+  const db = opcoes.db ?? (await createAdminClient())
+  const { data, error } = await db
+    .from("comunicacao_aniversario_modelos")
+    .select(CAMPOS_MODELO)
+    .eq("emp_proprietaria_id", opcoes.tenantId ?? (await tenantAtual()))
+    .order("ordem")
+    .order("created_at")
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler as mensagens específicas: ${error.message}`)
+  }
+  return (data ?? []).map(mapearModelo)
+}
+
+export async function obterModelo(id: string): Promise<ModeloAniversario | null> {
+  const db = await createAdminClient()
+  const { data, error } = await db
+    .from("comunicacao_aniversario_modelos")
+    .select(CAMPOS_MODELO)
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) return null
+  return data ? mapearModelo(data) : null
+}
+
+export async function salvarModelo(
+  id: string | null,
+  d: TextoParabens & { nome: string; ativo: boolean; criterios: CriteriosAniversario },
+  usuarioId: string
+): Promise<{ id?: string; erro?: string }> {
+  if (!d.nome.trim()) return { erro: "Dê um nome à mensagem (ex.: Aposentados, 60 anos)." }
+  if (semCriterios(d.criterios)) return { erro: "Escolha pelo menos um critério — sem critério, vale a mensagem padrão." }
+  const falta = conferirTexto(d)
+  if (falta) return { erro: falta }
+  if (d.criterios.idadeDe !== undefined && d.criterios.idadeAte !== undefined && d.criterios.idadeDe > d.criterios.idadeAte) {
+    return { erro: "Na idade, o \"de\" não pode ser maior que o \"até\"." }
+  }
+  if (d.criterios.filiadoHaDe !== undefined && d.criterios.filiadoHaAte !== undefined && d.criterios.filiadoHaDe > d.criterios.filiadoHaAte) {
+    return { erro: "No tempo de filiação, o \"de\" não pode ser maior que o \"até\"." }
+  }
+  const db = await createAdminClient()
+  const emp = await tenantAtual()
+  const campos = {
+    nome: d.nome.trim(),
+    ativo: d.ativo,
+    criterios: d.criterios,
+    assunto: d.assunto.trim(),
+    mensagem: d.mensagem.trim(),
+    texto_whatsapp: d.textoWhatsapp.trim(),
+    atualizado_por: usuarioId,
+    updated_at: new Date().toISOString(),
+  }
+  if (id) {
+    const { error } = await db.from("comunicacao_aniversario_modelos").update(campos).eq("id", id).eq("emp_proprietaria_id", emp)
+    return error ? { erro: `Não foi possível salvar: ${error.message}` } : { id }
+  }
+  // Nova entra no fim da lista.
+  const { data: ultima } = await db
+    .from("comunicacao_aniversario_modelos")
+    .select("ordem")
+    .eq("emp_proprietaria_id", emp)
+    .order("ordem", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const { data, error } = await db
+    .from("comunicacao_aniversario_modelos")
+    .insert({ ...campos, emp_proprietaria_id: emp, ordem: (Number(ultima?.ordem) || 0) + 1 })
+    .select("id")
+    .single()
+  if (error || !data) return { erro: esquemaAusente(error) ? AVISO_SQL_MODELOS : `Não foi possível criar: ${error?.message ?? "?"}` }
+  return { id: String(data.id) }
+}
+
+export async function excluirModelo(id: string): Promise<{ erro?: string }> {
+  const db = await createAdminClient()
+  const { error } = await db.from("comunicacao_aniversario_modelos").delete().eq("id", id).eq("emp_proprietaria_id", await tenantAtual())
+  return error ? { erro: error.message } : {}
+}
+
+/** Sobe ou desce uma mensagem na lista (a primeira que a pessoa atender vale). */
+export async function moverModelo(id: string, direcao: "subir" | "descer"): Promise<{ erro?: string }> {
+  const modelos = await listarModelos()
+  const i = modelos.findIndex((m) => m.id === id)
+  const j = direcao === "subir" ? i - 1 : i + 1
+  if (i < 0 || j < 0 || j >= modelos.length) return {}
+  const ordem = [...modelos]
+  ;[ordem[i], ordem[j]] = [ordem[j], ordem[i]]
+  const db = await createAdminClient()
+  const emp = await tenantAtual()
+  for (const [k, m] of ordem.entries()) {
+    if (m.ordem !== k + 1) await db.from("comunicacao_aniversario_modelos").update({ ordem: k + 1 }).eq("id", m.id).eq("emp_proprietaria_id", emp)
+  }
   return {}
 }
 
@@ -260,10 +508,23 @@ function dataBR(iso: string): string {
   return `${d}/${m}/${a}`
 }
 
+/** O texto que a pessoa recebe: o da mensagem específica que ela atende, ou o padrão. */
+export function textoParaPessoa(
+  cfg: TextoParabens,
+  modelos: ModeloAniversario[],
+  perfil: PerfilAniversario
+): TextoParabens & { modeloNome: string | null } {
+  const m = escolherModelo(modelos, perfil)
+  return m
+    ? { assunto: m.assunto, mensagem: m.mensagem, textoWhatsapp: m.textoWhatsapp, modeloNome: m.nome }
+    : { assunto: cfg.assunto, mensagem: cfg.mensagem, textoWhatsapp: cfg.textoWhatsapp, modeloNome: null }
+}
+
 /**
- * Cria (ou completa) o parabéns do dia: a mensagem, com o texto da
- * configuração, e um destinatário por aniversariante. Idempotente — rodar de
- * novo só acrescenta quem faltava.
+ * Cria (ou completa) o parabéns do dia: a mensagem e um destinatário por
+ * aniversariante, cada um com o texto que lhe cabe (específica ou padrão).
+ * Idempotente — rodar de novo acrescenta quem faltava e, para quem ainda está
+ * na fila, atualiza o texto se a mensagem foi editada depois.
  */
 export async function prepararAniversario(dataISO: string, opcoes: { tenantId?: string; db?: Db } = {}): Promise<{ mensagemId?: string; erro?: string }> {
   const db = opcoes.db ?? (await createAdminClient())
@@ -273,7 +534,7 @@ export async function prepararAniversario(dataISO: string, opcoes: { tenantId?: 
 
   const { data: existente, error: erroBusca } = await db
     .from("comunicacao_mensagens")
-    .select("id")
+    .select("id, situacao")
     .eq("emp_proprietaria_id", emp)
     .eq("tipo", "aniversario")
     .eq("referencia", dataISO)
@@ -283,22 +544,14 @@ export async function prepararAniversario(dataISO: string, opcoes: { tenantId?: 
   const pessoas = await aniversariantesDoDia(dataISO, { tenantId: emp, db })
   // Dia sem aniversariante não vira mensagem.
   if (!mensagemId && pessoas.length === 0) return {}
+  const modelos = cfg.completo ? await listarModelos({ tenantId: emp, db }) : []
+
   if (mensagemId) {
-    // Enquanto nenhum e-mail do dia saiu, a mensagem segue o texto configurado
-    // (a tela prepara o dia ao abrir; uma edição feita depois ainda vale).
-    const { count } = await db
-      .from("comunicacao_envios")
-      .select("id", { count: "exact", head: true })
-      .eq("mensagem_id", mensagemId)
-      .in("email_situacao", ["enviado", "falha", "duplicado"])
-    if (!count) {
-      await db
-        .from("comunicacao_mensagens")
-        .update({ assunto: cfg.assunto, corpo: cfg.mensagem, texto_whatsapp: cfg.textoWhatsapp })
-        .eq("id", mensagemId)
-    }
-  }
-  if (!mensagemId) {
+    await db
+      .from("comunicacao_mensagens")
+      .update({ assunto: cfg.assunto, corpo: cfg.mensagem, texto_whatsapp: cfg.textoWhatsapp })
+      .eq("id", mensagemId)
+  } else {
     const { data: nova, error } = await db
       .from("comunicacao_mensagens")
       .insert({
@@ -330,20 +583,56 @@ export async function prepararAniversario(dataISO: string, opcoes: { tenantId?: 
   }
 
   if (pessoas.length) {
-    const { error } = await db.from("comunicacao_envios").upsert(
-      pessoas.map((p) => ({
-        emp_proprietaria_id: emp,
-        mensagem_id: mensagemId,
-        filiacao_id: p.filiacaoId,
-        cpf: p.cpf,
-        nome: p.nome,
-        email: p.email,
-        telefone: p.telefone,
-        email_situacao: p.email ? "pendente" : "sem_email",
-      })),
-      { onConflict: "mensagem_id,cpf", ignoreDuplicates: true }
-    )
+    const linhas = pessoas.map((p) => {
+      const t = textoParaPessoa(cfg, modelos, p.perfil)
+      return {
+        p,
+        t,
+        linha: {
+          emp_proprietaria_id: emp,
+          mensagem_id: mensagemId,
+          filiacao_id: p.filiacaoId,
+          cpf: p.cpf,
+          nome: p.nome,
+          email: p.email,
+          telefone: p.telefone,
+          email_situacao: p.email ? "pendente" : "sem_email",
+          ...(cfg.completo ? { assunto: t.assunto, corpo: t.mensagem, texto_whatsapp: t.textoWhatsapp, modelo_nome: t.modeloNome } : {}),
+        },
+      }
+    })
+    const { data: novos, error } = await db
+      .from("comunicacao_envios")
+      .upsert(
+        linhas.map((l) => l.linha),
+        { onConflict: "mensagem_id,cpf", ignoreDuplicates: true }
+      )
+      .select("id, email_situacao")
     if (error) return { erro: `Não foi possível registrar os aniversariantes: ${error.message}` }
+
+    // Quem ainda está na fila recebe o texto atual (a mensagem pode ter sido editada).
+    if (cfg.completo) {
+      const { data: fila } = await db
+        .from("comunicacao_envios")
+        .select("id, cpf, assunto, corpo, texto_whatsapp, modelo_nome")
+        .eq("mensagem_id", mensagemId)
+        .in("email_situacao", ["pendente", "sem_email"])
+      const porCpf = new Map(linhas.map((l) => [l.p.cpf, l.t]))
+      for (const e of fila ?? []) {
+        const t = porCpf.get(String(e.cpf))
+        if (!t) continue
+        if (e.assunto === t.assunto && e.corpo === t.mensagem && e.texto_whatsapp === t.textoWhatsapp && e.modelo_nome === t.modeloNome) continue
+        await db
+          .from("comunicacao_envios")
+          .update({ assunto: t.assunto, corpo: t.mensagem, texto_whatsapp: t.textoWhatsapp, modelo_nome: t.modeloNome })
+          .eq("id", e.id)
+      }
+    }
+
+    // Entrou gente nova com e-mail depois de o dia terminar: volta a enviar.
+    if (existente?.situacao === "enviada" && (novos ?? []).some((n) => n.email_situacao === "pendente")) {
+      await db.from("comunicacao_mensagens").update({ situacao: "enviando" }).eq("id", mensagemId)
+    }
   }
   return { mensagemId }
 }
@@ -360,6 +649,10 @@ export type Envio = {
   erro: string | null
   whatsappEm: string | null
   whatsappPorNome: string | null
+  /** A mensagem específica que a pessoa recebeu (aniversário); null = a padrão. */
+  modeloNome: string | null
+  /** O texto do WhatsApp desta pessoa; null = o da mensagem. */
+  textoWhatsapp: string | null
 }
 
 export type MensagemResumo = {
@@ -375,6 +668,7 @@ export type MensagemResumo = {
   filtros: FiltrosMalaDireta
   recorte: string | null
   agendadaPara: string | null
+  agendadaHora: number
   criadoPorNome: string | null
   atualizadoEm: string | null
 }
@@ -398,7 +692,7 @@ export async function mensagemDoAniversario(dataISO: string): Promise<{ mensagem
 }
 
 const CAMPOS_MENSAGEM =
-  "id, tipo, referencia, titulo, assunto, corpo, texto_whatsapp, situacao, enviada_em, filtros, recorte, agendada_para, criado_por, updated_at"
+  "id, tipo, referencia, titulo, assunto, corpo, texto_whatsapp, situacao, enviada_em, filtros, recorte, agendada_para, agendada_hora, criado_por, updated_at"
 
 function mapearMensagem(d: Record<string, unknown>, nomes?: Map<string, string>): MensagemResumo {
   return {
@@ -414,6 +708,7 @@ function mapearMensagem(d: Record<string, unknown>, nomes?: Map<string, string>)
     filtros: normalizarFiltros(d.filtros as Record<string, unknown> | null),
     recorte: texto(d.recorte),
     agendadaPara: texto(d.agendada_para),
+    agendadaHora: Number.isInteger(Number(d.agendada_hora)) && d.agendada_hora !== null ? Number(d.agendada_hora) : HORA_ENVIO_PADRAO,
     criadoPorNome: d.criado_por ? (nomes?.get(String(d.criado_por)) ?? null) : null,
     atualizadoEm: texto(d.updated_at),
   }
@@ -426,7 +721,7 @@ export async function enviosDaMensagem(mensagemId: string): Promise<Envio[]> {
   for (let de = 0; ; de += 1000) {
     const { data, error } = await admin
       .from("comunicacao_envios")
-      .select("id, filiacao_id, cpf, nome, email, telefone, email_situacao, email_em, email_erro, whatsapp_em, whatsapp_por")
+      .select("id, filiacao_id, cpf, nome, email, telefone, email_situacao, email_em, email_erro, whatsapp_em, whatsapp_por, modelo_nome, texto_whatsapp")
       .eq("emp_proprietaria_id", emp)
       .eq("mensagem_id", mensagemId)
       .order("nome")
@@ -449,6 +744,8 @@ export async function enviosDaMensagem(mensagemId: string): Promise<Envio[]> {
     erro: texto(l.email_erro),
     whatsappEm: texto(l.whatsapp_em),
     whatsappPorNome: l.whatsapp_por ? (nomes.get(String(l.whatsapp_por)) ?? null) : null,
+    modeloNome: texto(l.modelo_nome),
+    textoWhatsapp: texto(l.texto_whatsapp),
   }))
 }
 
@@ -508,22 +805,45 @@ export async function enviarLote(
   const msg = mapearMensagem(m)
   if (msg.situacao === "cancelada") return { enviados: 0, falhas: 0, restantes: 0, erro: "A mensagem foi cancelada." }
 
-  const { data: pendentes, error } = await db
+  // Reserva esquecida (um envio que caiu no meio) volta para a fila depois de 10 min.
+  await db
     .from("comunicacao_envios")
-    .select("id, cpf, nome, email")
+    .update({ email_situacao: "pendente" })
+    .eq("mensagem_id", mensagemId)
+    .eq("email_situacao", "processando")
+    .lt("email_em", new Date(Date.now() - 10 * 60_000).toISOString())
+
+  const { data: candidatos, error } = await db
+    .from("comunicacao_envios")
+    .select("id")
     .eq("mensagem_id", mensagemId)
     .eq("email_situacao", "pendente")
     .order("id")
     .limit(opcoes.limite ?? LOTE_PADRAO)
   if (error) return { enviados: 0, falhas: 0, restantes: 0, erro: error.message }
 
+  // Reserva: só fica com o e-mail quem conseguiu passá-lo de "pendente" para
+  // "processando". A tela e o agendador podem rodar juntos sem repetir envio.
+  const { data: pendentes, error: erroReserva } = candidatos?.length
+    ? await db
+        .from("comunicacao_envios")
+        .update({ email_situacao: "processando", email_em: new Date().toISOString() })
+        .in("id", candidatos.map((c) => c.id))
+        .eq("email_situacao", "pendente")
+        .select("id, cpf, nome, email, assunto, corpo")
+    : { data: [], error: null }
+  if (erroReserva) return { enviados: 0, falhas: 0, restantes: 0, erro: erroReserva.message }
+  const meus = new Set((pendentes ?? []).map((p) => String(p.id)))
+
   // O mesmo e-mail em duas pessoas (casal, e-mail da família) recebe uma vez.
   const { data: jaEnviados } = await db
     .from("comunicacao_envios")
-    .select("email")
+    .select("id, email")
     .eq("mensagem_id", mensagemId)
-    .eq("email_situacao", "enviado")
-  const vistos = new Set((jaEnviados ?? []).map((e) => String(e.email ?? "").toLowerCase()))
+    .in("email_situacao", ["enviado", "processando"])
+  const vistos = new Set(
+    (jaEnviados ?? []).filter((e) => !meus.has(String(e.id))).map((e) => String(e.email ?? "").toLowerCase())
+  )
 
   // Mala direta: quem se descadastrou depois de a lista ser fechada sai agora.
   const malaDireta = msg.tipo === "mala_direta"
@@ -533,14 +853,14 @@ export async function enviarLote(
   const duplicados: string[] = []
   const descadastrados: string[] = []
   const falhas: { id: string; erro: string }[] = []
-  const fila: { id: string; cpf: string; nome: string; email: string }[] = []
+  const fila: { id: string; cpf: string; nome: string; email: string; assunto: string | null; corpo: string | null }[] = []
   for (const p of pendentes ?? []) {
     const email = String(p.email ?? "").toLowerCase()
     if (optout.has(String(p.cpf ?? ""))) descadastrados.push(String(p.id))
     else if (vistos.has(email)) duplicados.push(String(p.id))
     else {
       vistos.add(email)
-      fila.push({ id: String(p.id), cpf: String(p.cpf ?? ""), nome: texto(p.nome) ?? "", email })
+      fila.push({ id: String(p.id), cpf: String(p.cpf ?? ""), nome: texto(p.nome) ?? "", email, assunto: texto(p.assunto), corpo: texto(p.corpo) })
     }
   }
 
@@ -552,8 +872,9 @@ export async function enviarLote(
         return enviarEmail({
           email: d.email,
           nome: d.nome,
-          assunto: aplicarVariaveis(msg.assunto ?? "", { nome: d.nome, entidade: contexto.entidade }),
-          html: htmlDoEnvio(msg, d.nome, contexto.entidade, links?.pagina),
+          // No aniversário, cada pessoa pode ter a sua mensagem específica.
+          assunto: aplicarVariaveis(d.assunto ?? msg.assunto ?? "", { nome: d.nome, entidade: contexto.entidade }),
+          html: htmlDoEnvio({ tipo: msg.tipo, corpo: d.corpo ?? msg.corpo }, d.nome, contexto.entidade, links?.pagina),
           contexto,
           cabecalhos: links
             ? { "List-Unsubscribe": `<${links.umClique}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
@@ -570,11 +891,12 @@ export async function enviarLote(
   if (descadastrados.length) await db.from("comunicacao_envios").update({ email_situacao: "descadastrado" }).in("id", descadastrados)
   if (falhas.length) await db.from("comunicacao_envios").update({ email_situacao: "falha", email_em: agora, email_erro: falhas[0].erro }).in("id", falhas.map((f) => f.id))
 
+  // Conta também o que outro processo reservou: a mensagem só termina quando tudo saiu.
   const { count } = await db
     .from("comunicacao_envios")
     .select("id", { count: "exact", head: true })
     .eq("mensagem_id", mensagemId)
-    .eq("email_situacao", "pendente")
+    .in("email_situacao", ["pendente", "processando"])
   const restantes = count ?? 0
   if (restantes === 0) {
     await db
@@ -877,18 +1199,25 @@ async function fecharDestinatarios(m: MensagemResumo): Promise<{ erro?: string; 
   return { recorte }
 }
 
-/** Agenda (data futura) ou começa a enviar agora (sem data). */
+/** Agenda (data e hora) ou começa a enviar agora (sem data). */
 export async function liberarMalaDireta(
   id: string,
   usuarioId: string,
-  agendarPara: string | null
+  agendarPara: string | null,
+  hora: number = HORA_ENVIO_PADRAO
 ): Promise<{ erro?: string }> {
   const m = await obterMalaDireta(id)
   if (!m) return { erro: "Mensagem não encontrada." }
   if (m.situacao !== "rascunho") return { erro: "Esta mensagem já foi liberada." }
   const falta = faltasParaEnviar(m)
   if (falta) return { erro: falta }
-  if (agendarPara && agendarPara <= hojeSP()) return { erro: "Para agendar, escolha uma data a partir de amanhã. Para hoje, use Enviar agora." }
+  if (agendarPara) {
+    if (!Number.isInteger(hora) || hora < 0 || hora > 23) return { erro: "Escolha a hora do envio." }
+    const hoje = hojeSP()
+    if (agendarPara < hoje || (agendarPara === hoje && hora <= horaAgoraSP())) {
+      return { erro: "Escolha um dia e hora que ainda não passaram. Para agora, use Enviar agora." }
+    }
+  }
   const fechado = await fecharDestinatarios(m)
   if (fechado.erro) return { erro: fechado.erro }
   const db = await createAdminClient()
@@ -902,9 +1231,10 @@ export async function liberarMalaDireta(
       ...(nadaNaFila ? { enviada_em: agora } : {}),
       situacao: agendarPara ? "agendada" : nadaNaFila ? "enviada" : "enviando",
       agendada_para: agendarPara,
+      agendada_hora: agendarPara ? hora : HORA_ENVIO_PADRAO,
       recorte: fechado.recorte,
       atualizado_por: usuarioId,
-      updated_at: new Date().toISOString(),
+      updated_at: agora,
     })
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -946,33 +1276,52 @@ export async function excluirRascunho(id: string): Promise<{ erro?: string }> {
   return error ? { erro: error.message } : {}
 }
 
+// ── Agendador ──────────────────────────────────────────────────────────────
+
+/** Hora cheia agora em Brasília (0–23). */
+export function horaAgoraSP(): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", hour: "numeric", hourCycle: "h23" }).format(new Date()))
+}
+
+type ResultadoMala = { tenant: string; mensagem: string; enviados: number; falhas: number; restantes: number; erro?: string }
+
 /**
- * Agendador: as malas diretas do dia passam a "enviando" e, junto com as que
- * ficaram pela metade, mandam e-mails até o prazo. O que sobrar continua no
- * próximo disparo — ou pelo botão da tela.
+ * As malas diretas agendadas cuja hora chegou passam a "enviando" e, junto com
+ * as que ficaram pela metade, mandam e-mails até o prazo. O agendador roda a
+ * cada 15 minutos: o que sobrar continua no próximo disparo, sem depender da
+ * tela aberta.
  */
-export async function executarMalasDiretas(
-  prazo: number,
-  somente?: string | null
-): Promise<{ tenant: string; mensagem: string; enviados: number; falhas: number; restantes: number; erro?: string }[]> {
+export async function executarMalasDiretas(prazo: number, somente?: string | null): Promise<ResultadoMala[]> {
   const svc = createServiceClient()
   const hoje = hojeSP()
-  let q = svc
+  const hora = horaAgoraSP()
+  let qa = svc
     .from("comunicacao_mensagens")
-    .update({ situacao: "enviando", updated_at: new Date().toISOString() })
+    .select("id, agendada_para, agendada_hora")
     .eq("tipo", "mala_direta")
     .eq("situacao", "agendada")
     .lte("agendada_para", hoje)
-  if (somente) q = q.eq("emp_proprietaria_id", somente)
-  const { error: erroAgenda } = await q
-  if (erroAgenda) return esquemaAusente(erroAgenda) ? [] : [{ tenant: "-", mensagem: "-", enviados: 0, falhas: 0, restantes: 0, erro: erroAgenda.message }]
-
-  let qa = svc.from("comunicacao_mensagens").select("id, emp_proprietaria_id").eq("tipo", "mala_direta").eq("situacao", "enviando").order("created_at")
   if (somente) qa = qa.eq("emp_proprietaria_id", somente)
-  const { data } = await qa
-  const resultados: { tenant: string; mensagem: string; enviados: number; falhas: number; restantes: number; erro?: string }[] = []
+  const { data: agendadas, error: erroAgenda } = await qa
+  if (erroAgenda) return esquemaAusente(erroAgenda) ? [] : [{ tenant: "-", mensagem: "-", enviados: 0, falhas: 0, restantes: 0, erro: erroAgenda.message }]
+  const chegaram = (agendadas ?? [])
+    .filter((m) => String(m.agendada_para) < hoje || Number(m.agendada_hora ?? HORA_ENVIO_PADRAO) <= hora)
+    .map((m) => String(m.id))
+  if (chegaram.length) {
+    await svc
+      .from("comunicacao_mensagens")
+      .update({ situacao: "enviando", updated_at: new Date().toISOString() })
+      .in("id", chegaram)
+      .eq("situacao", "agendada")
+  }
+
+  let qe = svc.from("comunicacao_mensagens").select("id, emp_proprietaria_id").eq("tipo", "mala_direta").eq("situacao", "enviando").order("created_at")
+  if (somente) qe = qe.eq("emp_proprietaria_id", somente)
+  const { data } = await qe
+  const resultados: ResultadoMala[] = []
   const contextos = new Map<string, ContextoEmail>()
   for (const linha of data ?? []) {
+    if (Date.now() >= prazo) break
     const tenantId = String(linha.emp_proprietaria_id)
     const mensagemId = String(linha.id)
     let enviados = 0
@@ -991,28 +1340,96 @@ export async function executarMalasDiretas(
     } catch (e) {
       resultados.push({ tenant: tenantId, mensagem: mensagemId, enviados, falhas, restantes, erro: e instanceof Error ? e.message : String(e) })
     }
-    if (Date.now() >= prazo) break
   }
   return resultados
 }
 
-// ── Agendador ──────────────────────────────────────────────────────────────
+/**
+ * Aviso à equipe: a lista do dia por e-mail, com o link do WhatsApp de cada
+ * pessoa (passa pelo Confluir, que registra quem abriu). Sai uma vez por dia.
+ */
+async function enviarAvisoEquipe(
+  mensagemId: string,
+  dataISO: string,
+  emails: string[],
+  automatico: boolean,
+  opcoes: { tenantId: string; db: Db; contexto: ContextoEmail }
+): Promise<boolean> {
+  const { db, contexto } = opcoes
+  const { data: envios } = await db
+    .from("comunicacao_envios")
+    .select("id, nome, telefone, email_situacao, modelo_nome")
+    .eq("mensagem_id", mensagemId)
+    .order("nome")
+  const lista = envios ?? []
+  if (!lista.length) return true
+  const linhas = lista
+    .map((e) => {
+      const situacao = ROTULO_SITUACAO_EMAIL[(e.email_situacao as SituacaoEmail) ?? "pendente"]
+      const whats = e.telefone && numeroWhatsapp(String(e.telefone))
+        ? `<a href="${contexto.origem}/painel/comunicacao/aniversariantes/whatsapp/${e.id}" style="color:${COR.laranjaAcao};font-weight:600;">Abrir WhatsApp</a>`
+        : `<span style="color:${COR.textoSuave};">sem celular</span>`
+      const modelo = e.modelo_nome ? ` · ${escaparHtml(String(e.modelo_nome))}` : ""
+      return `<tr><td style="padding:8px 0;border-bottom:1px solid ${COR.borda};"><strong>${escaparHtml(String(e.nome ?? ""))}</strong><br><span style="font-size:12px;color:${COR.textoSuave};">E-mail: ${situacao}${modelo}</span></td><td align="right" style="padding:8px 0;border-bottom:1px solid ${COR.borda};font-size:13px;">${whats}</td></tr>`
+    })
+    .join("")
+  const html = [
+    tituloEmail(`Aniversariantes de hoje — ${dataBR(dataISO).slice(0, 5)}`),
+    paragrafo(
+      `${lista.length} filiado${lista.length === 1 ? "" : "s"} faz${lista.length === 1 ? "" : "em"} aniversário hoje. ${
+        automatico ? "O parabéns por e-mail já saiu para quem tem e-mail." : "O parabéns automático por e-mail está desligado."
+      } Para mandar pelo WhatsApp, use os links — o Confluir registra quem abriu.`
+    ),
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;font-size:14px;">${linhas}</table>`,
+    botaoEmail(`${contexto.origem}/painel/comunicacao/aniversariantes`, "Abrir a lista no Confluir"),
+  ].join("\n")
+  const oks = await Promise.all(
+    emails.map((email) =>
+      enviarEmail({ email, nome: email, assunto: `Aniversariantes de hoje (${lista.length})`, html, contexto }).catch(() => false)
+    )
+  )
+  return oks.some(Boolean)
+}
+
+type ResultadoAniversario = { tenant: string; enviados: number; falhas: number; aviso?: boolean; erro?: string }
 
 /**
- * O parabéns automático de hoje, em todos os tenants com ele ligado: prepara a
- * mensagem do dia e manda os e-mails. Chamado pelo tick diário da Comunicação.
+ * O parabéns de hoje nos tenants com o envio automático ou o aviso à equipe
+ * ligados, a partir da hora configurada: prepara o dia, manda os e-mails (se
+ * automático) e, quando a fila acaba, o aviso à equipe. O agendador roda a cada
+ * 15 minutos; um dia já concluído só custa uma consulta.
  * `somente` roda um tenant só (disparo manual e testes).
  */
-export async function executarAniversarios(somente?: string | null): Promise<{ tenant: string; enviados: number; falhas: number; erro?: string }[]> {
+export async function executarAniversarios(prazo: number, somente?: string | null): Promise<ResultadoAniversario[]> {
   const svc = createServiceClient()
-  const { data, error } = await svc.from("comunicacao_aniversario_config").select("emp_proprietaria_id").eq("ativo", true)
+  let q = svc
+    .from("comunicacao_aniversario_config")
+    .select("emp_proprietaria_id, ativo, hora_envio, aviso_equipe_emails")
+    .or("ativo.eq.true,aviso_equipe_emails.not.is.null")
+  if (somente) q = q.eq("emp_proprietaria_id", somente)
+  const { data, error } = await q
   if (error) return esquemaAusente(error) ? [] : [{ tenant: "-", enviados: 0, falhas: 0, erro: error.message }]
   const hoje = hojeSP()
-  const resultados: { tenant: string; enviados: number; falhas: number; erro?: string }[] = []
-  for (const linha of data ?? []) {
-    const tenantId = String(linha.emp_proprietaria_id)
-    if (somente && tenantId !== somente) continue
+  const hora = horaAgoraSP()
+  const resultados: ResultadoAniversario[] = []
+  for (const cfg of data ?? []) {
+    if (Date.now() >= prazo) break
+    const tenantId = String(cfg.emp_proprietaria_id)
+    const automatico = cfg.ativo === true
+    const emails = listaDeEmails(texto(cfg.aviso_equipe_emails))
+    if (hora < Number(cfg.hora_envio ?? HORA_ENVIO_PADRAO)) continue
     try {
+      // Dia concluído (e-mails enviados e aviso dado): nada a fazer.
+      const { data: dia } = await svc
+        .from("comunicacao_mensagens")
+        .select("situacao, aviso_equipe_em")
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("tipo", "aniversario")
+        .eq("referencia", hoje)
+        .maybeSingle()
+      const avisoPendente = emails.length > 0 && !dia?.aviso_equipe_em
+      if (dia && (!automatico || dia.situacao === "enviada") && !avisoPendente) continue
+
       const prep = await prepararAniversario(hoje, { tenantId, db: svc })
       if (!prep.mensagemId) {
         // Sem erro = ninguém faz aniversário hoje.
@@ -1022,13 +1439,23 @@ export async function executarAniversarios(somente?: string | null): Promise<{ t
       const contexto = await contextoDoTenant(tenantId, svc)
       let enviados = 0
       let falhas = 0
-      for (let volta = 0; volta < 40; volta++) {
-        const r = await enviarLote(prep.mensagemId, { tenantId, db: svc, contexto })
-        enviados += r.enviados
-        falhas += r.falhas
-        if (r.erro || r.restantes === 0 || r.enviados + r.falhas === 0) break
+      let restantes = 0
+      if (automatico) {
+        while (Date.now() < prazo) {
+          const r = await enviarLote(prep.mensagemId, { tenantId, db: svc, contexto })
+          enviados += r.enviados
+          falhas += r.falhas
+          restantes = r.restantes
+          if (r.erro || r.restantes === 0 || r.enviados + r.falhas === 0) break
+        }
       }
-      resultados.push({ tenant: tenantId, enviados, falhas })
+      // O aviso sai quando a fila do dia acabou (ou logo, se o e-mail automático está desligado).
+      let aviso: boolean | undefined
+      if (avisoPendente && (!automatico || restantes === 0)) {
+        aviso = await enviarAvisoEquipe(prep.mensagemId, hoje, emails, automatico, { tenantId, db: svc, contexto })
+        if (aviso) await svc.from("comunicacao_mensagens").update({ aviso_equipe_em: new Date().toISOString() }).eq("id", prep.mensagemId)
+      }
+      resultados.push({ tenant: tenantId, enviados, falhas, aviso })
     } catch (e) {
       resultados.push({ tenant: tenantId, enviados: 0, falhas: 0, erro: e instanceof Error ? e.message : String(e) })
     }

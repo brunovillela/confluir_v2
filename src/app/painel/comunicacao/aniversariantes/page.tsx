@@ -1,18 +1,17 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, MessageSquareText, RotateCcw } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   aplicarVariaveis,
   formatarTelefone,
-  HORA_ENVIO_AUTOMATICO,
   linkWhatsapp,
+  rotuloHora,
   ROTULO_SITUACAO_EMAIL,
   type SituacaoEmail,
 } from "@/lib/comunicacao-mensagens-constantes"
@@ -21,16 +20,18 @@ import { hojeSP } from "@/lib/db/comum"
 import {
   aniversariantesDoDia,
   AVISO_SQL_MENSAGENS,
+  listarModelos,
   mensagemDoAniversario,
   obterConfigAniversario,
   prepararAniversario,
+  textoParaPessoa,
   type Envio,
 } from "@/lib/db/comunicacao-mensagens"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarDataHora } from "@/lib/formato"
 
 import { reenviarFalhasAction } from "./actions"
-import { BotaoWhatsapp, ConfigAniversarioForm, EnviarAgora } from "./componentes"
+import { BotaoWhatsapp, EnviarAgora } from "./componentes"
 
 export const metadata: Metadata = { title: "Aniversariantes — Confluir" }
 export const maxDuration = 300
@@ -53,6 +54,7 @@ function rotuloDia(iso: string, hoje: string): string {
 
 const COR_SITUACAO: Record<SituacaoEmail, string> = {
   pendente: "border-warning/40 text-warning-fg",
+  processando: "border-warning/40 text-warning-fg",
   enviado: "border-success/40 text-success-fg",
   sem_email: "text-muted-foreground",
   descadastrado: "text-muted-foreground",
@@ -61,7 +63,7 @@ const COR_SITUACAO: Record<SituacaoEmail, string> = {
 }
 
 /**
- * Aniversariantes do dia: o parabéns por e-mail (automático às 9h, quando
+ * Aniversariantes do dia: o parabéns por e-mail (automático na hora configurada, quando
  * ligado) e a lista para mandar pelo WhatsApp. Hoje, a tela prepara o dia ao
  * abrir — assim cada pessoa já tem a linha onde fica registrado quem abriu o
  * WhatsApp. Outros dias: o que foi enviado, ou a prévia de quem faz aniversário.
@@ -71,13 +73,13 @@ export default async function AniversariantesPage({
 }: {
   searchParams: Promise<{ data?: string }>
 }) {
-  const sessao = await requirePermissao("comunicacao_mensagens")
+  await requirePermissao("comunicacao_mensagens")
   const hoje = hojeSP()
   const brutos = await searchParams
   const data = brutos.data && DATA.test(brutos.data) ? brutos.data : hoje
   const ehHoje = data === hoje
 
-  const [config, entidade] = await Promise.all([obterConfigAniversario(), nomeEntidade()])
+  const [config, entidade, modelos] = await Promise.all([obterConfigAniversario(), nomeEntidade(), listarModelos()])
   if (ehHoje && config.disponivel) await prepararAniversario(hoje).catch(() => null)
   const { mensagem, envios } = config.disponivel ? await mensagemDoAniversario(data) : { mensagem: null, envios: [] as Envio[] }
 
@@ -85,39 +87,54 @@ export default async function AniversariantesPage({
   const linhas: Envio[] =
     mensagem || !config.disponivel
       ? envios
-      : (await aniversariantesDoDia(data)).map((p) => ({
-          id: "",
-          filiacaoId: p.filiacaoId,
-          cpf: p.cpf,
-          nome: p.nome,
-          email: p.email,
-          telefone: p.telefone,
-          situacao: (p.email ? "pendente" : "sem_email") as SituacaoEmail,
-          emailEm: null,
-          erro: null,
-          whatsappEm: null,
-          whatsappPorNome: null,
-        }))
+      : (await aniversariantesDoDia(data)).map((p) => {
+          const t = textoParaPessoa(config, modelos, p.perfil)
+          return {
+            id: "",
+            filiacaoId: p.filiacaoId,
+            cpf: p.cpf,
+            nome: p.nome,
+            email: p.email,
+            telefone: p.telefone,
+            situacao: (p.email ? "pendente" : "sem_email") as SituacaoEmail,
+            emailEm: null,
+            erro: null,
+            whatsappEm: null,
+            whatsappPorNome: null,
+            modeloNome: t.modeloNome,
+            textoWhatsapp: t.textoWhatsapp,
+          }
+        })
 
   const conta = (s: SituacaoEmail) => linhas.filter((l) => l.situacao === s).length
   const comWhatsapp = linhas.filter((l) => l.telefone && linkWhatsapp(l.telefone, "")).length
   const abertos = linhas.filter((l) => l.whatsappEm).length
-  const exemploNome = linhas[0]?.nome ?? String(sessao.usuario.nome_completo ?? "Maria da Silva")
   const textoWhats = mensagem?.textoWhatsapp ?? config.textoWhatsapp
+  const comEspecifica = linhas.filter((l) => l.modeloNome).length
 
   return (
     <>
-      <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-          <Link href="/painel/comunicacao">
-            <ArrowLeft />
-            Comunicação
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Aniversariantes</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Filiados ativos que fazem aniversário: o parabéns por e-mail e o botão para mandar pelo WhatsApp.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
+            <Link href="/painel/comunicacao">
+              <ArrowLeft />
+              Comunicação
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Aniversariantes</h1>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Filiados ativos que fazem aniversário: o parabéns por e-mail e o botão para mandar pelo WhatsApp.
+          </p>
+        </div>
+        {config.disponivel && (
+          <Button asChild variant="outline">
+            <Link href="/painel/comunicacao/aniversariantes/mensagens">
+              <MessageSquareText />
+              Mensagens e envio automático
+            </Link>
+          </Button>
+        )}
       </div>
 
       {!config.disponivel && (
@@ -130,8 +147,8 @@ export default async function AniversariantesPage({
         <Alert variant={config.ativo ? "info" : "warning"}>
           <AlertDescription>
             {config.ativo
-              ? `O parabéns por e-mail sai sozinho todo dia às ${HORA_ENVIO_AUTOMATICO}. O WhatsApp é à mão: use o botão ao lado de cada nome.`
-              : "O envio automático está desligado. Ligue em Mensagem de parabéns, abaixo, ou envie os e-mails de hoje pelo botão."}
+              ? `O parabéns por e-mail sai sozinho todo dia a partir das ${rotuloHora(config.horaEnvio)}. O WhatsApp é à mão: use o botão ao lado de cada nome.`
+              : "O envio automático está desligado. Ligue em Mensagens e envio automático, ou envie os e-mails de hoje pelo botão."}
           </AlertDescription>
         </Alert>
       )}
@@ -150,6 +167,7 @@ export default async function AniversariantesPage({
                       conta("pendente") && mensagem ? `${conta("pendente")} na fila` : null,
                       conta("falha") ? `${conta("falha")} falha(s)` : null,
                       `${conta("sem_email")} sem e-mail`,
+                      comEspecifica ? `${comEspecifica} com mensagem específica` : null,
                       `${comWhatsapp} com WhatsApp${abertos ? ` (${abertos} aberto${abertos === 1 ? "" : "s"})` : ""}`,
                     ]
                       .filter(Boolean)
@@ -210,7 +228,7 @@ export default async function AniversariantesPage({
                 </TableHeader>
                 <TableBody>
                   {linhas.map((l) => {
-                    const href = l.telefone ? linkWhatsapp(l.telefone, aplicarVariaveis(textoWhats, { nome: l.nome, entidade })) : null
+                    const href = l.telefone ? linkWhatsapp(l.telefone, aplicarVariaveis(l.textoWhatsapp ?? textoWhats, { nome: l.nome, entidade })) : null
                     return (
                       <TableRow key={l.id || l.cpf}>
                         <TableCell className="whitespace-normal">
@@ -221,6 +239,7 @@ export default async function AniversariantesPage({
                           ) : (
                             <span className="font-medium">{l.nome}</span>
                           )}
+                          {l.modeloNome && <p className="text-muted-foreground text-xs">Mensagem: {l.modeloNome}</p>}
                         </TableCell>
                         <TableCell className="whitespace-normal">
                           <div className="grid gap-1">
@@ -261,22 +280,6 @@ export default async function AniversariantesPage({
         </CardContent>
       </Card>
 
-      {config.disponivel && (
-        <GrupoColapsavel
-          titulo="Mensagem de parabéns"
-          descricao={
-            config.atualizadoEm
-              ? `O texto do e-mail e do WhatsApp · alterado em ${formatarDataHora(config.atualizadoEm)}${config.atualizadoPorNome ? ` por ${config.atualizadoPorNome}` : ""}`
-              : "O texto do e-mail e do WhatsApp, e o envio automático"
-          }
-        >
-          <ConfigAniversarioForm
-            config={{ ativo: config.ativo, assunto: config.assunto, mensagem: config.mensagem, textoWhatsapp: config.textoWhatsapp }}
-            exemploNome={exemploNome}
-            entidade={entidade}
-          />
-        </GrupoColapsavel>
-      )}
     </>
   )
 }

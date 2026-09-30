@@ -10,6 +10,7 @@ export const COR_SITUACAO_MENSAGEM: Record<SituacaoMensagem, string> = {
 
 export const COR_SITUACAO_EMAIL: Record<SituacaoEmail, string> = {
   pendente: "border-warning/40 text-warning-fg",
+  processando: "border-warning/40 text-warning-fg",
   enviado: "border-success/40 text-success-fg",
   sem_email: "text-muted-foreground",
   descadastrado: "text-muted-foreground",

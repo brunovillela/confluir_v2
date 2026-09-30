@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ROTULO_SITUACAO_MENSAGEM } from "@/lib/comunicacao-mensagens-constantes"
+import { ROTULO_SITUACAO_MENSAGEM, rotuloHora } from "@/lib/comunicacao-mensagens-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { AVISO_SQL_MENSAGENS, listarMalasDiretas } from "@/lib/db/comunicacao-mensagens"
 import { formatarData, formatarDataHora } from "@/lib/formato"
@@ -88,7 +88,7 @@ export default async function MalaDiretaListaPage() {
                           </Badge>
                           <p className="text-muted-foreground mt-1 text-xs">
                             {m.situacao === "agendada" && m.agendadaPara
-                              ? `para ${formatarData(m.agendadaPara)}`
+                              ? `para ${formatarData(m.agendadaPara)}, ${rotuloHora(m.agendadaHora)}`
                               : m.enviadaEm
                                 ? formatarDataHora(m.enviadaEm)
                                 : m.atualizadoEm

@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   CONDICOES_MALA_DIRETA,
+  HORAS_DO_DIA,
+  rotuloHora,
   VARIAVEIS_MENSAGEM,
   type FiltrosMalaDireta,
 } from "@/lib/comunicacao-mensagens-constantes"
@@ -56,7 +58,7 @@ export function MalaDiretaForm({
   mensagem,
   fontes,
   ufs,
-  amanha,
+  hoje,
 }: {
   mensagem: {
     id: string
@@ -68,7 +70,7 @@ export function MalaDiretaForm({
   }
   fontes: { id: string; nome: string }[]
   ufs: string[]
-  amanha: string
+  hoje: string
 }) {
   const router = useRouter()
   const [estado, agir, agindo] = useActionState<EstadoMalaDireta, FormData>(malaDiretaAction, {})
@@ -279,8 +281,8 @@ export function MalaDiretaForm({
         <CardHeader>
           <CardTitle className="text-base">Envio</CardTitle>
           <CardDescription>
-            Mande um teste para você antes. Agendada, a mensagem sai às 9h do dia escolhido, com a
-            lista de destinatários fechada agora.
+            Mande um teste para você antes. Agendada, a mensagem começa a sair no dia e hora escolhidos
+            (em até 15 minutos), com a lista de destinatários fechada agora.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -298,7 +300,17 @@ export function MalaDiretaForm({
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1.5">
               <Label htmlFor="agendar_para">Agendar para</Label>
-              <Input id="agendar_para" name="agendar_para" type="date" min={amanha} defaultValue={amanha} className="w-44" />
+              <Input id="agendar_para" name="agendar_para" type="date" min={hoje} defaultValue={hoje} className="w-44" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="agendar_hora">às</Label>
+              <select id="agendar_hora" name="agendar_hora" defaultValue="9" className={`${SELECT} w-24`}>
+                {HORAS_DO_DIA.map((h) => (
+                  <option key={h} value={h}>
+                    {rotuloHora(h)}
+                  </option>
+                ))}
+              </select>
             </div>
             <Button type="submit" value="agendar" variant="outline" disabled={agindo}>
               {ocupado("agendar") ? <Loader2 className="animate-spin" /> : <CalendarClock />}
@@ -391,7 +403,11 @@ export function EnviarMalaDireta({ id, pendentes, autoIniciar }: { id: string; p
           {andamento.restantes ? ` · faltam ${n(andamento.restantes)}` : " · concluído"}
         </p>
       )}
-      {enviando && <p className="text-muted-foreground text-xs">Mantenha esta página aberta até o fim.</p>}
+      {enviando && (
+        <p className="text-muted-foreground text-xs">
+          Se fechar a página, o que faltar continua sozinho em até 15 minutos.
+        </p>
+      )}
       {erro && <p className="text-destructive text-xs">{erro}</p>}
     </div>
   )
