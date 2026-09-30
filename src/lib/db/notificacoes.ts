@@ -19,11 +19,14 @@ export type Notificacao = {
   notificacao_data: string | null
   contracheque_id_fk: string | null
   registro_ponto_id_fk: string | null
+  /** Destino explícito (supabase/ordens-estorno.sql); vence o derivado. */
+  link?: string | null
   created_at: string | null
 }
 
 /** Destino ao abrir a notificação, derivado da origem do aviso. */
 export function destinoDaNotificacao(n: Notificacao): string {
+  if (n.link?.startsWith("/painel/")) return n.link
   if (n.contracheque_id_fk || n.registro_ponto_id_fk) {
     return "/painel/perfil/contracheques"
   }
@@ -35,6 +38,8 @@ export async function criarNotificacao(dados: {
   texto: string
   contrachequeId?: string | null
   registroPontoId?: string | null
+  /** Caminho no painel aberto ao clicar (só se a coluna existir). */
+  link?: string | null
 }): Promise<void> {
   const admin = await createAdminClient()
   const hoje = new Intl.DateTimeFormat("en-CA", {
@@ -47,6 +52,7 @@ export async function criarNotificacao(dados: {
     notificacao_data: hoje,
     contracheque_id_fk: dados.contrachequeId ?? null,
     registro_ponto_id_fk: dados.registroPontoId ?? null,
+    ...(dados.link ? { link: dados.link } : {}),
   })
   if (error) {
     throw new Error(`Falha ao criar notificação: ${error.message}`)
@@ -61,7 +67,7 @@ export async function listarNotificacoes(
   const { data, error } = await admin
     .from("notificacoes")
     .select(
-      "id, usuario_id, notificacao, notificado, notificacao_data, contracheque_id_fk, registro_ponto_id_fk, created_at"
+      "*"
     )
     .eq("usuario_id", usuarioId)
     .order("created_at", { ascending: false })
@@ -93,7 +99,7 @@ export async function marcarLida(
     .eq("id", id)
     .eq("usuario_id", usuarioId)
     .select(
-      "id, usuario_id, notificacao, notificado, notificacao_data, contracheque_id_fk, registro_ponto_id_fk, created_at"
+      "*"
     )
     .maybeSingle()
   if (error || !data) return null

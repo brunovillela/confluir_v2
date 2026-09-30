@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Wallet } from "lucide-react";
+import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -13,6 +13,7 @@ import {
 import { requirePermissao } from "@/lib/auth";
 import { listarContasCaixa } from "@/lib/db/caixa";
 import { resumoFinanceiro } from "@/lib/db/financeiro";
+import { contarEstornosPendentes } from "@/lib/db/ordens-estorno";
 import { formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
@@ -31,6 +32,7 @@ export default async function FinanceiroPage() {
     "financeiro_pagamento",
     "financeiro_leitura",
     "financeiro_auditoria",
+    "financeiro_estorno",
   ]);
 
   const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
@@ -38,16 +40,21 @@ export default async function FinanceiroPage() {
   ]);
   const veAvaliacoes = podeAcessar(sessao.permissoes, "aquisicoes_avaliacoes")
   const configuraAuditoria = podeAcessar(sessao.permissoes, "financeiro_auditoria")
+  const veEstornos = podeAcessar(sessao.permissoes, "financeiro_estorno", [
+    "financeiro_pagamento",
+    "financeiro_leitura",
+  ])
   const veCaixa = podeAcessar(sessao.permissoes, "financeiro_caixa", [
     "financeiro_caixa_admin",
     "financeiro_leitura",
   ]);
 
-  const [resumo, caixas] = await Promise.all([
+  const [resumo, caixas, estornosPendentes] = await Promise.all([
     resumoFinanceiro(),
     veCaixa
       ? listarContasCaixa()
       : Promise.resolve({ disponivel: false, contas: [] }),
+    veEstornos ? contarEstornosPendentes() : Promise.resolve(0),
   ]);
 
   const caixasAbertas = caixas.contas.filter(
@@ -99,6 +106,15 @@ export default async function FinanceiroPage() {
       descricao: "Plano de contas: códigos, classificadores e indicações",
       href: "/painel/financeiro/centros-custo",
       icone: CircleDollarSign,
+    },
+    veEstornos && {
+      titulo: "Estornos de pagamento",
+      descricao:
+        estornosPendentes > 0
+          ? `${estornosPendentes} aguardando correção dos dados de pagamento`
+          : "Pagamentos devolvidos pelo banco e prazo para registrar",
+      href: "/painel/financeiro/estornos",
+      icone: Undo2,
     },
     configuraAuditoria && {
       titulo: "Auditoria das ordens",

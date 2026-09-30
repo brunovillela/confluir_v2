@@ -45,11 +45,16 @@ export function DetalhePagamento({
   fornecedorId,
   cartoes,
   caixas,
+  buscarMeios = meiosDoFornecedor,
 }: {
   forma: string
   fornecedorId: string
   cartoes: CartaoOpcao[]
   caixas: CaixaOpcao[]
+  /** De onde vêm as chaves/contas do fornecedor (padrão: a da compra direta). */
+  buscarMeios?: (
+    fornecedorId: string
+  ) => Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }>
 }) {
   const tipo = DETALHE_DA_FORMA[forma as FormaPagamentoCompras] ?? null
   const precisaFornecedor = tipo === "pix_fornecedor" || tipo === "conta_fornecedor"
@@ -65,13 +70,13 @@ export function DetalhePagamento({
   useEffect(() => {
     if (!precisaFornecedor || !fornecedorId) return
     let vivo = true
-    meiosDoFornecedor(fornecedorId).then((m) => {
+    buscarMeios(fornecedorId).then((m) => {
       if (vivo) setMeios({ fornecedorId, ...m })
     })
     return () => {
       vivo = false
     }
-  }, [precisaFornecedor, fornecedorId])
+  }, [precisaFornecedor, fornecedorId, buscarMeios])
 
   if (!tipo) return null
 

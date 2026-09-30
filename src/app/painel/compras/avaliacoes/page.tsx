@@ -51,6 +51,15 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
             {ordem.alertas} alerta{ordem.alertas === 1 ? "" : "s"} da auditoria
           </Badge>
         )}
+        {ordem.aposEstorno && (
+          <Badge
+            variant="outline"
+            className="border-warning/50 text-warning-fg ml-2 align-middle"
+            title={`Estorno: ${ordem.aposEstorno.motivo}${ordem.aposEstorno.correcao ? ` — Correção: ${ordem.aposEstorno.correcao}` : ""}`}
+          >
+            Reenviada após estorno
+          </Badge>
+        )}
       </p>
       <p className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 text-xs">
         <span className="block w-full truncate" title={ordem.produto ?? ordem.descricao ?? undefined}>

@@ -95,7 +95,16 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "Ordens de pagamento, caixa, receitas e despesas",
     chave: "financeiro_caixa",
-    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura", "financeiro_auditoria"],
+    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura", "financeiro_auditoria", "financeiro_estorno"],
+  },
+  {
+    titulo: "Estornos de pagamento",
+    href: "/painel/financeiro/estornos",
+    icone: "Undo2",
+    descricao: "Pagamentos devolvidos pelo banco e a correção dos dados",
+    chave: "financeiro_estorno",
+    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura"],
+    oculto: true,
   },
   {
     titulo: "Auditoria das ordens",

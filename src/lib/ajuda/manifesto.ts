@@ -308,6 +308,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Auditoria das ordens",
         resumo: "Regras que o sistema confere antes de criar cada ordem",
       },
+      {
+        slug: "estornos",
+        titulo: "Estornos de pagamento",
+        resumo: "Pagamento devolvido pelo banco: a ordem regride e quem lançou corrige e reencaminha",
+      },
     ],
   },
   {

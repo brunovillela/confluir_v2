@@ -14,6 +14,7 @@ import {
   reenviarParaAutorizacao,
   SITUACOES_PAGAVEIS,
 } from "@/lib/db/ordens-ciclo"
+import { registrarEstorno } from "@/lib/db/ordens-estorno"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -22,6 +23,7 @@ function revalidarOrdem(id: string) {
   revalidatePath("/painel/financeiro/ordens")
   revalidatePath("/painel/financeiro")
   revalidatePath("/painel/compras/avaliacoes")
+  revalidatePath("/painel/financeiro/estornos")
 }
 
 function texto(formData: FormData, campo: string): string {
@@ -235,4 +237,49 @@ export async function reenviarOrdemAction(
   if (erro) return { erro }
   revalidarOrdem(id)
   redirect(`/painel/financeiro/ordens/${id}?reenviada=1`)
+}
+
+const TIPOS_COMUNICADO: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+}
+
+/**
+ * Comunicado de estorno: o banco devolveu o pagamento. Dentro do prazo
+ * configurado, a ordem paga regride para "Aguardando informações" e quem a
+ * lançou é avisado para conferir os dados e reencaminhar.
+ */
+export async function registrarEstornoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_estorno")
+  const id = texto(formData, "id")
+  if (!id) return { erro: "Ordem inválida." }
+
+  let arquivoComunicado: string | null = null
+  const arquivo = formData.get("comunicado")
+  if (arquivo instanceof File && arquivo.size > 0) {
+    const ext = TIPOS_COMUNICADO[arquivo.type]
+    if (!ext) return { erro: "O comunicado deve ser um PDF ou uma imagem (JPG, PNG ou WEBP)." }
+    if (arquivo.size > 3 * 1024 * 1024) return { erro: "O comunicado deve ter no máximo 3 MB." }
+    const admin = await createAdminClient()
+    const caminho = `ordens/${id}/estorno-${Date.now()}.${ext}`
+    const { error } = await admin.storage
+      .from("comprovantes")
+      .upload(caminho, arquivo, { contentType: arquivo.type })
+    if (error) return { erro: `Falha ao subir o comunicado: ${error.message}` }
+    arquivoComunicado = caminho
+  }
+
+  const { erro } = await registrarEstorno(id, sessao.usuario.id, {
+    dataEstorno: texto(formData, "data_estorno"),
+    motivo: texto(formData, "motivo"),
+    arquivoComunicado,
+  })
+  if (erro) return { erro }
+  revalidarOrdem(id)
+  redirect(`/painel/financeiro/ordens/${id}?estornada=1`)
 }

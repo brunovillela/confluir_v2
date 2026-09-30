@@ -1,0 +1,93 @@
+Às vezes o banco **devolve** um pagamento dias depois de feito: a conta de
+destino foi encerrada, a chave Pix não existe, o boleto venceu. O **estorno**
+registra essa devolução na própria ordem, desfaz o pagamento e manda a ordem de
+volta para quem a lançou conferir os dados e reencaminhar.
+
+<RequerPermissao>Estorno de pagamento — registrar e configurar prazo</RequerPermissao>
+
+## Como funciona
+
+<PassoAPasso>
+  <Passo titulo="O Financeiro registra o comunicado">
+    Na ordem **Paga**, o botão **Registrar estorno** fica disponível por um
+    prazo depois do pagamento (15 dias, se ninguém mudou). Informe a **data do
+    estorno**, o **motivo** dado pelo banco e, se tiver, o **comunicado do
+    banco** (PDF ou imagem).
+  </Passo>
+  <Passo titulo="A ordem regride">
+    Ela volta para *Aguardando informações*, perde o registro de pagamento e a
+    autorização. O pagamento desfeito — valor, data, comprovante e para onde o
+    dinheiro foi — fica guardado no estorno e no histórico da ordem.
+  </Passo>
+  <Passo titulo="Quem lançou é avisado">
+    Um aviso no **sino** leva direto à tela do estorno. Se não for possível
+    identificar quem lançou, o próprio Financeiro faz a correção.
+  </Passo>
+  <Passo titulo="Conferir e reencaminhar">
+    Quem lançou confirma com o favorecido e grava a **forma** e o **destino**
+    corretos — chave Pix ou conta do fornecedor (uma nova vai para o cadastro
+    dele), código Pix copia e cola ou um **novo boleto** — e, se preciso, um
+    novo vencimento. Diz o que foi conferido e clica **Reencaminhar para
+    autorização**.
+  </Passo>
+  <Passo titulo="Nova autorização e novo pagamento">
+    A ordem volta para a fila de avaliação com a etiqueta **Reenviada após
+    estorno** — **sempre**, mesmo a folha e a parcela fixa de contrato, que
+    tinham a autorização dispensada: o dinheiro vai sair por outro caminho.
+    Aprovada, segue para o pagamento normal.
+  </Passo>
+</PassoAPasso>
+
+<Print src="financeiro/estorno-registrar.png" alt="Cartão Detalhes do pagamento de uma ordem paga com o formulário Comunicado de estorno aberto: data do estorno, comunicado do banco e motivo." legenda="O comunicado de estorno, na ordem paga." />
+
+<Print src="financeiro/estorno-ordem.png" alt="Ordem em Aguardando informações com o aviso de pagamento estornado, o motivo e o link Abrir o estorno." legenda="A ordem estornada aguarda a correção de quem a lançou." />
+
+## A tela do estorno
+
+Mostra o **comunicado** (data, valor devolvido, motivo, quem registrou), o
+**pagamento estornado** (como a ordem tinha sido paga) e o formulário
+**Conferir e reencaminhar**. Quem lançou a ordem consegue abri-la mesmo sem
+acesso ao Financeiro. As ordens que você lançou e foram estornadas também ficam
+em **Meus estornos** (`/painel/estornos`).
+
+<Print src="financeiro/estorno-corrigir.png" alt="Tela do estorno com o comunicado, o pagamento estornado e o formulário para escolher a forma, a chave Pix do fornecedor, o novo vencimento e o que foi conferido." legenda="Quem lançou confere os dados e reencaminha para autorização." />
+
+<Aviso tipo="nota" titulo="Favorecido que não é fornecedor">
+  Numa folha, diária ou reembolso, o favorecido é uma pessoa, não um
+  fornecedor. Corrija a conta dela no cadastro (Pessoal, Filiados…) e diga na
+  correção o que foi feito — ou use Pix copia e cola ou boleto.
+</Aviso>
+
+## A lista e o prazo
+
+Em **Financeiro → Estornos de pagamento** ficam os estornos **pendentes**, os
+**resolvidos** e todos. No topo, o **prazo para registrar estorno**: quantos
+dias depois do pagamento a ordem ainda aceita o comunicado (de 1 a 365). O
+lápis abre a edição.
+
+<Print src="financeiro/estornos-lista.png" alt="Lista de estornos de pagamento com o prazo configurado no topo e um estorno pendente." legenda="Os estornos e o prazo para registrar." />
+
+## Erros comuns
+
+- **"Não aparece o botão Registrar estorno."** A ordem não está *Paga*, o
+  prazo depois do pagamento acabou, a compra foi paga em dinheiro pelo caixa
+  (não há estorno bancário) ou você não tem a permissão.
+- **"O botão Reenviar para autorização sumiu da ordem."** Com estorno
+  pendente, a ordem só volta pela tela do estorno, com os dados corrigidos.
+- **"Cancelei a ordem estornada."** O estorno é encerrado junto, com o motivo
+  do cancelamento.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O rito completo: autorização, pagamento e histórico",
+    },
+    {
+      titulo: "Fornecedores",
+      href: "/painel/ajuda/compras/fornecedores",
+      descricao: "Chaves Pix e contas do fornecedor",
+    },
+  ]}
+/>

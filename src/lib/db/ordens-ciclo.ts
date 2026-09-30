@@ -18,6 +18,8 @@ import { tenantAtual } from "@/lib/tenant"
  * de pagamento e as parcelas ordinárias fixas de contrato — aprovadas na
  * assinatura. Compra paga em dinheiro sai do caixa no ato: ao ser autorizada,
  * a ordem é dada como paga pelo caixa (débito no centro de custo do caixa).
+ * Paga com estorno do banco regride para Aguardando informações e volta pela
+ * correção dos dados de pagamento (lib/db/ordens-estorno.ts).
  * Toda transição fica na trilha `ordens_pagamento_eventos`.
  */
 
@@ -79,6 +81,8 @@ export type TipoEvento =
   | "pagamento_removido"
   | "corrigida"
   | "cancelada"
+  | "estornada"
+  | "estorno_corrigido"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
@@ -91,6 +95,8 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   pagamento_removido: "Pagamento removido",
   corrigida: "Corrigida",
   cancelada: "Cancelada",
+  estornada: "Pagamento estornado",
+  estorno_corrigido: "Dados de pagamento corrigidos após o estorno — reenviada para autorização",
 }
 
 /**
@@ -332,6 +338,18 @@ export async function reenviarParaAutorizacao(
 ): Promise<{ erro?: string }> {
   if (!observacao.trim()) return { erro: "Diga o que foi complementado ou corrigido." }
   const admin = await createAdminClient()
+  // Estornada: volta pela correção dos dados de pagamento, não por aqui.
+  const { data: pendente } = await admin
+    .from("ordens_pagamento_estornos")
+    .select("id")
+    .eq("ordem_id", ordemId)
+    .is("resolvido_em", null)
+    .maybeSingle()
+  if (pendente) {
+    return {
+      erro: "O pagamento desta ordem foi estornado — confira os dados de pagamento pela tela do estorno, que reenvia para autorização.",
+    }
+  }
   const { data, error } = await admin
     .from("ordens_pagamento")
     .update({
@@ -404,6 +422,16 @@ export async function cancelarOrdem(
       .select("id")
     caixaEstornado = (movs ?? []).length > 0
   }
+  // Estorno pendente se encerra com a ordem (ninguém mais precisa corrigir).
+  await admin
+    .from("ordens_pagamento_estornos")
+    .update({
+      resolvido_em: new Date().toISOString(),
+      resolvido_por_id: usuarioId,
+      resolucao: `Ordem cancelada: ${motivo}`,
+    })
+    .eq("ordem_id", ordemId)
+    .is("resolvido_em", null)
   await registrarEvento(ordemId, "cancelada", usuarioId, motivo, {
     situacao_anterior: ordem.situacao,
     ...(caixaEstornado ? { debito_do_caixa: "cancelado" } : {}),

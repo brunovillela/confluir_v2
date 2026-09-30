@@ -46,6 +46,17 @@ export const FORMAS_PAGAMENTO_COMPRAS = [
 export type FormaPagamentoCompras = (typeof FORMAS_PAGAMENTO_COMPRAS)[number]
 
 /**
+ * Formas aceitas na correção de um ESTORNO: o dinheiro volta a sair pelo
+ * banco (cartão e caixa não têm estorno bancário).
+ */
+export const FORMAS_ESTORNO = [
+  "Pix",
+  "Pix (QR Code)",
+  "Boleto",
+  "Depósito bancário (TED)",
+] as const satisfies readonly FormaPagamentoCompras[]
+
+/**
  * O que cada forma exige na aquisição direta — toda compra é auditada, então
  * a ordem diz COM O QUÊ foi paga (cartão, caixa, chave/conta do fornecedor,
  * código Pix, arquivo do boleto).

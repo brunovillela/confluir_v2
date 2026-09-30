@@ -33,11 +33,20 @@ const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquis
 const CUPOM = process.env.CUPOM_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (12): Fornecedores — painel com indicadores, lista com
+  // Rodada de 30/09 (13): estorno de pagamento — o comunicado na ordem paga, a
+  // ordem estornada, a lista do Financeiro e a correção por quem lançou.
+  // Ordem de exemplo semeada e apagada pelo teste (e5700000-…-0001).
+  ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-registrar.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }], scrollTo: "Detalhes do pagamento", altura: 1000 }],
+  ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-ordem.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }, { clicar: 'css=form button[type="submit"]:has-text("Registrar estorno")' }, { aguardar: "Estorno registrado" }], altura: 900 }],
+  ["/painel/financeiro/estornos", "financeiro/estornos-lista.png", { esperar: "Prazo para registrar", altura: 760 }],
+  ["/painel/estornos", "financeiro/estorno-corrigir.png", { esperar: "Meus estornos", passos: [{ clicar: "2026.0928.1015.7710" }, { aguardar: "Conferir e reencaminhar" }, { pausa: 2500 }], fullPage: true }],
+
+  /* Rodada de 30/09 (12): Fornecedores — painel com indicadores, lista com
   // ordenação/paginação/alertas e a ficha com indicadores e o aviso do cadastro.
   ["/painel/compras/fornecedores", "compras/fornecedores-painel.png", { esperar: "Maiores fornecedores", fullPage: true }],
   ["/painel/compras/fornecedores/lista?ordem=problemas&dir=desc", "compras/fornecedores-lista.png", { esperar: "Cadastro", altura: 1000 }],
   ["/painel/compras/fornecedores/f0f0f0f0-0000-4000-8000-000000000004", "compras/fornecedor.png", { esperar: "Pago em 12 meses", altura: 1100 }],
+  */
 
   /* Rodada de 30/09 (11): Auditoria das ordens — regras de Compras, a ordem com
   // as verificações na criação e a fila de avaliação com os alertas. A ordem de

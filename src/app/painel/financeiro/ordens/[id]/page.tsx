@@ -14,6 +14,7 @@ import {
   Receipt,
   ShieldCheck,
   Tags,
+  Undo2,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -28,7 +29,9 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarCentrosCusto, type CentroCusto } from "@/lib/db/financeiro"
+import { hojeSP } from "@/lib/db/comum"
 import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
+import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
 import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
@@ -37,6 +40,7 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { SituacaoBadge } from "../../situacao-badge"
 import { AcoesOrdem } from "./acoes-ordem"
+import { EstornoForm } from "./estorno-form"
 import { PagamentoForm } from "./pagamento-form"
 
 const ESTILO_STATUS: Record<StatusAuditoria, { rotulo: string; classe: string }> = {
@@ -135,6 +139,7 @@ export default async function OrdemPage({
     cancelada?: string
     corrigida?: string
     reenviada?: string
+    estornada?: string
   }>
 }) {
   const sessao = await requirePermissao("financeiro_pagamento", [
@@ -143,7 +148,7 @@ export default async function OrdemPage({
   const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const { id } = await params
-  const { editar, salvo, removido, cancelada, corrigida, reenviada } = await searchParams
+  const { editar, salvo, removido, cancelada, corrigida, reenviada, estornada } = await searchParams
   const x = await extratoDaOrdem(id)
   if (!x) notFound()
   const detalhe = x.detalhe
@@ -158,6 +163,18 @@ export default async function OrdemPage({
     ordem.arquivo_pagamento !== null ||
     situacao === "Paga"
   const aberta = !SITUACOES_ENCERRADAS.includes(situacao)
+
+  // Estorno: pendente trava o reenvio genérico; o botão vale só na ordem paga,
+  // dentro do prazo pós-pagamento, para quem tem a permissão.
+  const [estornos, prazoEstorno] = await Promise.all([estornosDaOrdem(id), obterPrazoEstorno()])
+  const estornoPendente = estornos.find((e) => !e.resolvidoEm) ?? null
+  const janelaEstorno = janelaDeEstorno((ordem.data_pagamento as string | null) ?? null, prazoEstorno.dias)
+  const podeEstornar =
+    prazoEstorno.disponivel &&
+    podeAcessar(sessao.permissoes, "financeiro_estorno") &&
+    situacao === "Paga" &&
+    !ordem.caixa_conta_id &&
+    janelaEstorno.aberta
 
   const urlComprovante = x.arquivos.comprovante
   const urlBoleto = x.arquivos.boleto
@@ -235,6 +252,34 @@ export default async function OrdemPage({
           </AlertDescription>
         </Alert>
       )}
+      {estornada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Estorno registrado — a ordem voltou para &quot;Aguardando informações&quot;
+            {estornoPendente?.responsavel ? ` e ${estornoPendente.responsavel} foi avisado no sino` : ""}.
+          </AlertDescription>
+        </Alert>
+      )}
+      {estornoPendente && (
+        <Alert variant="warning">
+          <Undo2 />
+          <AlertDescription>
+            <p className="font-medium">
+              Pagamento estornado em {formatarData(estornoPendente.dataEstorno)}
+              {estornoPendente.valor !== null ? ` (${formatarMoeda(estornoPendente.valor)})` : ""}
+            </p>
+            <p>{estornoPendente.motivo}</p>
+            <p className="mt-1">
+              {estornoPendente.responsavel
+                ? `Aguardando ${estornoPendente.responsavel} conferir os dados bancários ou o boleto e reencaminhar para autorização.`
+                : "Aguardando a correção dos dados de pagamento."}{" "}
+              <Link href={`/painel/estornos/${estornoPendente.id}`} className="font-medium underline">
+                Abrir o estorno
+              </Link>
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
       {reenviada === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Ordem reenviada para autorização.</AlertDescription>
@@ -293,7 +338,7 @@ export default async function OrdemPage({
               situacao={situacao}
               podeCorrigir={situacao !== "Paga"}
               podeCancelar={situacao !== "Paga"}
-              podeReenviar={situacao === "Aguardando informações"}
+              podeReenviar={situacao === "Aguardando informações" && !estornoPendente}
               atual={{
                 descricao: typeof ordem.descricao === "string" ? ordem.descricao : "",
                 valor:
@@ -510,6 +555,21 @@ export default async function OrdemPage({
                   </div>
                 )}
             </dl>
+            {podeEstornar && janelaEstorno.ate && (
+              <div className="mt-4">
+                <EstornoForm
+                  ordemId={id}
+                  ate={formatarData(janelaEstorno.ate)}
+                  hoje={hojeSP()}
+                  dataPagamento={String(ordem.data_pagamento).slice(0, 10)}
+                  responsavel={
+                    x.eventos.find((e) => e.tipo === "criada" && e.usuario)?.usuario ??
+                    pr.solicitante?.nome ??
+                    null
+                  }
+                />
+              </div>
+            )}
           </CardContent>
           )}
         </Card>
@@ -626,6 +686,54 @@ export default async function OrdemPage({
                 <LinkArquivo url={contratoVinculado.arquivo_contrato} />
               </Campo>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {estornos.length > 0 && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Estornos</CardTitle>
+                <CardDescription>Pagamentos devolvidos pelo banco e a correção dos dados</CardDescription>
+              </div>
+              <Undo2 className="text-muted-foreground size-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border grid divide-y">
+              {estornos.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-start justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {formatarData(e.dataEstorno)}
+                      {e.valor !== null ? ` · ${formatarMoeda(e.valor)}` : ""}
+                      {e.registradoPor ? ` · registrado por ${e.registradoPor}` : ""}
+                    </p>
+                    <p className="text-muted-foreground">{e.motivo}</p>
+                    {e.resolvidoEm && (
+                      <p className="text-muted-foreground text-xs">
+                        Resolvido em {formatarDataHora(e.resolvidoEm)}
+                        {e.resolvidoPor ? ` por ${e.resolvidoPor}` : ""}
+                        {e.resolucao ? `: ${e.resolucao}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={e.resolvidoEm ? "border-success/40 text-success-fg" : "border-warning/50 text-warning-fg"}
+                    >
+                      {e.resolvidoEm ? "Resolvido" : "Pendente"}
+                    </Badge>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/painel/estornos/${e.id}`}>Abrir</Link>
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

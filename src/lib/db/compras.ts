@@ -1340,6 +1340,8 @@ export type OrdemParaAvaliacao = OrdemDoProcesso & {
   tipo: string | null
   /** Alertas das regras de auditoria na criação. */
   alertas: number
+  /** Reenviada após estorno do banco: o motivo e o que foi corrigido. */
+  aposEstorno: { motivo: string; correcao: string | null } | null
   processo_compra_id: string | null
   produto: string | null
   departamentoNome: string | null
@@ -1410,6 +1412,22 @@ export async function listarOrdensParaAvaliacao(
   )
 
   const alertas = await alertasPorOrdem(ordens.map((o) => o.id))
+  // Último estorno resolvido de cada ordem (sem a tabela: nenhum).
+  const estornoPorOrdem = new Map<string, { motivo: string; correcao: string | null }>()
+  if (ordens.length) {
+    const { data: est } = await admin
+      .from("ordens_pagamento_estornos")
+      .select("ordem_id, motivo, resolucao, resolvido_em")
+      .in("ordem_id", ordens.map((o) => o.id))
+      .not("resolvido_em", "is", null)
+      .order("resolvido_em", { ascending: true })
+    for (const e of (est ?? []) as Record<string, unknown>[]) {
+      estornoPorOrdem.set(String(e.ordem_id), {
+        motivo: String(e.motivo ?? ""),
+        correcao: (e.resolucao as string | null) ?? null,
+      })
+    }
+  }
   const completas: OrdemParaAvaliacao[] = ordens.map((o, i) => {
     const bruta = brutas[i]
     const processoId = (bruta.processo_compra_id as string | null) ?? null
@@ -1418,6 +1436,7 @@ export async function listarOrdensParaAvaliacao(
       ...o,
       tipo: (bruta.tipo as string | null) ?? null,
       alertas: alertas.get(o.id) ?? 0,
+      aposEstorno: estornoPorOrdem.get(o.id) ?? null,
       processo_compra_id: processoId,
       produto: (processo?.solicitacao_produto as string | null) ?? null,
       departamentoNome: processo?.solicitacao_departamento_id

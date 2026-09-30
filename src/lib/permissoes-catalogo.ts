@@ -34,6 +34,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "financeiro_apoio", rotulo: "Apoio financeiro" },
       { chave: "financeiro_leitura", rotulo: "Financeiro — somente leitura" },
       { chave: "financeiro_auditoria", rotulo: "Auditoria das ordens — configurar regras" },
+      { chave: "financeiro_estorno", rotulo: "Estorno de pagamento — registrar e configurar prazo" },
     ],
   },
   {
