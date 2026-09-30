@@ -1745,7 +1745,25 @@ export async function importarAbastecimentos(
       erro: `Placas não encontradas na frota: ${desconhecidas.join(", ")}. Cadastre os veículos ou corrija o arquivo.`,
     }
   }
+  return gravarLoteAbastecimentos(
+    linhas.map((l) => ({ ...l, veiculo_id: veiculoPorPlaca.get(l.placa.toUpperCase())! })),
+    arquivoNome,
+    importadorId
+  )
+}
 
+/**
+ * Grava um lote de abastecimentos com o veículo já resolvido — um registro em
+ * `veiculos_abastecimentos_lotes` para o arquivo e as linhas ligadas a ele.
+ * Usado pela importação do CSV e pela leitura do relatório com IA.
+ */
+export async function gravarLoteAbastecimentos(
+  linhas: (Omit<LinhaImportacao, "placa"> & { veiculo_id: string })[],
+  arquivoNome: string,
+  importadorId: string
+): Promise<{ importados?: number; erro?: string }> {
+  if (linhas.length === 0) return { erro: "Nenhuma linha válida para importar." }
+  const admin = await createAdminClient()
   const { data: lote, error: erroLote } = await admin
     .from("veiculos_abastecimentos_lotes")
     .insert({
@@ -1764,7 +1782,7 @@ export async function importarAbastecimentos(
   const empId = await tenantAtual()
   const { error } = await admin.from("veiculos_abastecimentos").insert(
     linhas.map((l) => ({
-      veiculo_id: veiculoPorPlaca.get(l.placa.toUpperCase()),
+      veiculo_id: l.veiculo_id,
       usuario_id: l.condutor_usuario_id,
       posto: l.posto,
       cidade: l.cidade,

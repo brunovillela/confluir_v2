@@ -433,6 +433,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
           "Verificação periódica, recorrência por veículo e itens verificados",
       },
       {
+        slug: "abastecimentos",
+        titulo: "Abastecimentos",
+        resumo: "Relatório do cartão-combustível lido pela IA, planilha e lançamento manual",
+      },
+      {
         slug: "manutencoes",
         titulo: "Manutenções",
         resumo:

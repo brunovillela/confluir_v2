@@ -31,15 +31,25 @@ const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquis
 // Cupom fictício para a leitura pela IA (PAPELARIA ESTRELA DO NORTE, CNPJ de
 // exemplo). Passe o caminho em CUPOM_TESTE; sem ele, o print da leitura é pulado.
 const CUPOM = process.env.CUPOM_TESTE ?? ""
+// Fatura de cartão-combustível de exemplo (PDF) para a leitura com IA.
+const FATURA = process.env.FATURA_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (13): estorno de pagamento — o comunicado na ordem paga, a
+  // Rodada de 30/09 (14): abastecimentos lidos pela IA — a prévia conferida e
+  // o resultado. Precisa de FATURA_TESTE (PDF); os lançamentos são apagados pelo teste.
+  ...(FATURA
+    ? [["/painel/veiculos/abastecimentos", "veiculos/abastecimentos-ia-previa.png", { esperar: "Ler relatório com IA", passos: [{ anexar: ["#arquivo-abastecimento-ia", FATURA] }, { clicar: 'css=button[type="submit"]:has-text("Ler relatório com IA")' }, { aguardar: "A IA leu" }], scrollTo: "Ler relatório com IA", altura: 1100 }],
+       ["/painel/veiculos/abastecimentos", "veiculos/abastecimentos-ia-lancados.png", { esperar: "Ler relatório com IA", passos: [{ anexar: ["#arquivo-abastecimento-ia", FATURA] }, { clicar: 'css=button[type="submit"]:has-text("Ler relatório com IA")' }, { aguardar: "A IA leu" }, { clicar: "Confirmar e lançar" }, { aguardar: "lançados" }, { pausa: 5000 }], altura: 1400 }]]
+    : []),
+
+  /* Rodada de 30/09 (13): estorno de pagamento — o comunicado na ordem paga, a
   // ordem estornada, a lista do Financeiro e a correção por quem lançou.
   // Ordem de exemplo semeada e apagada pelo teste (e5700000-…-0001).
   ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-registrar.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }], scrollTo: "Detalhes do pagamento", altura: 1000 }],
   ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-ordem.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }, { clicar: 'css=form button[type="submit"]:has-text("Registrar estorno")' }, { aguardar: "Estorno registrado" }], altura: 900 }],
   ["/painel/financeiro/estornos", "financeiro/estornos-lista.png", { esperar: "Prazo para registrar", altura: 760 }],
   ["/painel/estornos", "financeiro/estorno-corrigir.png", { esperar: "Meus estornos", passos: [{ clicar: "2026.0928.1015.7710" }, { aguardar: "Conferir e reencaminhar" }, { pausa: 2500 }], fullPage: true }],
+  */
 
   /* Rodada de 30/09 (12): Fornecedores — painel com indicadores, lista com
   // ordenação/paginação/alertas e a ficha com indicadores e o aviso do cadastro.

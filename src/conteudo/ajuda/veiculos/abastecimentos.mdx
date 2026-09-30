@@ -1,0 +1,86 @@
+Os **abastecimentos** alimentam o consumo (km/l) e o gasto de cada veículo. Há
+três caminhos: a **leitura do relatório pela IA** (o principal), a
+**importação da planilha no modelo** do sistema e o **lançamento manual**.
+
+<RequerPermissao>Gestão de veículos</RequerPermissao>
+
+## Ler relatório com IA
+
+<PassoAPasso>
+  <Passo titulo="Envie o relatório">
+    A fatura do cartão-combustível, o extrato do posto ou o cupom, **em qualquer
+    layout**: PDF (inclusive escaneado), Excel, CSV ou **foto**. Se o relatório
+    for de um veículo só e não trouxer a placa, escolha o veículo no campo
+    abaixo do arquivo.
+  </Passo>
+  <Passo titulo="A IA lê e o sistema confere">
+    Cada transação vira uma linha com data, hora, placa, posto, combustível,
+    litros, valor total e km. Linhas de total, subtotal e taxa de administração
+    ficam de fora. O sistema então:
+    - casa a **placa** com a frota — a placa antiga e a Mercosul (ABC1234 e
+      ABC1C34) contam como a mesma;
+    - identifica o **condutor** pelo nome, mesmo abreviado (EDUARDO MARTINS →
+      Eduardo Prado Martins); se o nome servir para mais de um, fica sem
+      condutor;
+    - separa o que **já foi lançado** (mesmo veículo, dia, valor e litros) e o
+      que está **repetido** no próprio arquivo.
+  </Passo>
+  <Passo titulo="Confira a prévia">
+    A tabela mostra a situação de cada linha — **Lançar**, **Já lançado**,
+    **Repetido no arquivo** ou **Placa fora da frota** — e os pontos a
+    conferir: preço por litro fora do normal (sinal de litros e valor trocados),
+    hodômetro abaixo do último registrado, condutor não identificado. No topo,
+    o total a lançar: confira com o total da fatura.
+  </Passo>
+  <Passo titulo="Confirme">
+    **Confirmar e lançar** grava só as linhas prontas, num lote com o nome do
+    arquivo. As demais ficam de fora — cadastre o veículo que faltava e envie o
+    relatório de novo: o que já entrou aparece como *Já lançado*.
+  </Passo>
+</PassoAPasso>
+
+<Print src="veiculos/abastecimentos-ia-previa.png" alt="Prévia da leitura de uma fatura de cartão-combustível: cinco transações com veículo casado, posto, combustível, litros, valor, km, condutor e a situação de cada linha — três para lançar, uma repetida e uma com placa fora da frota." legenda="A prévia: o que a IA leu, casou e vai lançar." />
+
+<Print src="veiculos/abastecimentos-ia-lancados.png" alt="Aviso de três abastecimentos lançados e duas linhas de fora, com a lista de abastecimentos já atualizada abaixo." legenda="Depois de confirmar, a lista já mostra os lançamentos." />
+
+<Aviso tipo="atencao" titulo="A IA pode errar">
+  Confira o total com a fatura antes de confirmar. Se um valor saiu errado,
+  cancele, ajuste o arquivo ou lance a linha manualmente.
+</Aviso>
+
+## Importar a planilha no modelo
+
+Se a planilha já estiver no layout do sistema, **Importar fatura (CSV no
+modelo)** importa sem IA. Cabeçalho: `placa; data; hora; posto; cidade;
+combustivel; litros; valor; hodometro` — datas em DD/MM/AAAA e valores com
+vírgula. Todas as placas precisam existir na frota, senão nada é importado.
+
+## Lançamento manual
+
+Um abastecimento por vez, com veículo, condutor, data e hora, hodômetro,
+posto, combustível, litros e valor.
+
+## Erros comuns
+
+- **"Uma linha ficou como Placa fora da frota."** O veículo não está
+  cadastrado (ou a placa saiu diferente no relatório). Cadastre-o em Veículos e
+  envie o relatório de novo.
+- **"Veio sem condutor."** O relatório não traz o motorista, ou o nome combina
+  com mais de um condutor cadastrado.
+- **"Tudo apareceu como Já lançado."** Esse relatório (ou esse período) já foi
+  importado.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Veículos",
+      href: "/painel/ajuda/veiculos",
+      descricao: "A frota, o consumo e a página de cada veículo",
+    },
+    {
+      titulo: "Condutores",
+      href: "/painel/ajuda/veiculos/condutores",
+      descricao: "Os motoristas e a página de cada um",
+    },
+  ]}
+/>

@@ -27,6 +27,7 @@ import {
   ImportarAbastecimentosForm,
   NovoAbastecimentoForm,
 } from "./abastecimento-forms"
+import { ImportarRelatorioAbastecimentoIa } from "./importar-relatorio-ia"
 
 export const metadata: Metadata = { title: "Abastecimentos — Confluir" }
 
@@ -94,7 +95,7 @@ export default async function AbastecimentosPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Abastecimentos</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Importação da fatura de combustível e lançamentos manuais
+          Relatório lido pela IA, importação da fatura em CSV e lançamentos manuais
         </p>
       </div>
 
@@ -113,9 +114,16 @@ export default async function AbastecimentosPage({
       )}
 
       <GrupoColapsavel
-        titulo="Importar fatura (CSV)"
-        descricao="Caminho principal: o arquivo do posto ou cartão-combustível"
+        titulo="Ler relatório com IA"
+        descricao="Fatura do cartão-combustível, extrato do posto ou cupom — PDF, Excel, CSV ou foto"
         aberto
+      >
+        <ImportarRelatorioAbastecimentoIa veiculos={opcoesVeiculo} />
+      </GrupoColapsavel>
+
+      <GrupoColapsavel
+        titulo="Importar fatura (CSV no modelo)"
+        descricao="Planilha já no layout do sistema: placa; data; hora; posto; cidade; combustivel; litros; valor; hodometro"
       >
         <ImportarAbastecimentosForm />
       </GrupoColapsavel>
