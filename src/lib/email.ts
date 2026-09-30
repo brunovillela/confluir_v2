@@ -29,22 +29,37 @@ import { origemAtual } from "@/lib/tenant-url"
  * — faixa navy com o logo, cartão branco, rodapé com a entidade. Não mande um
  * documento HTML completo aqui.
  */
+/**
+ * Identidade da entidade no e-mail. Normalmente vem da requisição (o tenant do
+ * subdomínio); os envios automáticos (agendador, sem requisição) passam a
+ * identidade do tenant que estão processando.
+ */
+export type ContextoEmail = {
+  entidade: string
+  emailContato: string | null
+  /** Origem do tenant (https://<slug>.confluir.online), para o logo. */
+  origem: string
+}
+
 export async function enviarEmail(destino: {
   email: string
   nome?: string | null
   assunto: string
   html: string
+  /** Sem ele, a identidade sai da requisição atual. */
+  contexto?: ContextoEmail
+  /** Cabeçalhos extras (ex.: List-Unsubscribe da mala direta). */
+  cabecalhos?: Record<string, string>
 }): Promise<boolean> {
   const usaResend = process.env.EMAIL_PROVEDOR === "resend"
   const chave = usaResend ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
   const remetente = process.env.EMAIL_REMETENTE
   if (!chave || !remetente) return false
 
-  const [entidade, emailContato, origem] = await Promise.all([
-    nomeEntidade(),
-    emailContatoEntidade(),
-    origemAtual(),
-  ])
+  const [entidade, emailContato, origem] = destino.contexto
+    ? [destino.contexto.entidade, destino.contexto.emailContato, destino.contexto.origem]
+    : await Promise.all([nomeEntidade(), emailContatoEntidade(), origemAtual()])
+  const cabecalhos = destino.cabecalhos ?? {}
 
   const assunto = destino.assunto.replaceAll("{ENTIDADE}", entidade)
   const rodape =
@@ -76,6 +91,7 @@ export async function enviarEmail(destino: {
           subject: assunto,
           html: htmlContent,
           ...(emailContato ? { reply_to: emailContato } : {}),
+          ...(Object.keys(cabecalhos).length ? { headers: cabecalhos } : {}),
         }),
       })
       return resposta.ok
@@ -103,8 +119,13 @@ export async function enviarEmail(destino: {
         subject: assunto,
         htmlContent,
         // Testes: o Brevo aceita e descarta, sem entregar (EMAIL_SANDBOX=1).
-        ...(process.env.EMAIL_SANDBOX === "1"
-          ? { headers: { "X-Sib-Sandbox": "drop" } }
+        ...(process.env.EMAIL_SANDBOX === "1" || Object.keys(cabecalhos).length
+          ? {
+              headers: {
+                ...cabecalhos,
+                ...(process.env.EMAIL_SANDBOX === "1" ? { "X-Sib-Sandbox": "drop" } : {}),
+              },
+            }
           : {}),
       }),
     })

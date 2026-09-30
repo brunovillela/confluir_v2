@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import {
+  Cake,
   Link2,
   Mail,
   MonitorPlay,
@@ -16,9 +17,10 @@ import { podeAcessar } from "@/lib/permissoes"
 export const metadata: Metadata = { title: "Comunicação — Confluir" }
 
 export default async function ComunicacaoPage() {
-  const sessao = await requirePermissao("noticias", ["comunicacao_etiquetas"])
+  const sessao = await requirePermissao("noticias", ["comunicacao_etiquetas", "comunicacao_mensagens"])
   const noticias = podeAcessar(sessao.permissoes, "noticias")
   const etiquetas = podeAcessar(sessao.permissoes, "comunicacao_etiquetas", ["filiacao_gestao"])
+  const mensagens = podeAcessar(sessao.permissoes, "comunicacao_mensagens")
 
   return (
     <>
@@ -26,8 +28,8 @@ export default async function ComunicacaoPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Comunicação</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Notícias do sindicato, resumo de notícias por IA, QR Codes, slides
-          para as TVs, a página de links para as redes sociais e as etiquetas
-          para enviar publicações pelos Correios.
+          para as TVs, a página de links para as redes sociais, as etiquetas
+          para enviar publicações pelos Correios e as mensagens aos filiados.
         </p>
       </div>
 
@@ -71,6 +73,14 @@ export default async function ComunicacaoPage() {
               icone={Link2}
             />
           </>
+        )}
+        {mensagens && (
+          <CartaoArea
+            titulo="Aniversariantes"
+            descricao="Parabéns por e-mail no dia do aniversário, automático, e a lista do dia com o botão para mandar pelo WhatsApp"
+            href="/painel/comunicacao/aniversariantes"
+            icone={Cake}
+          />
         )}
         {etiquetas && (
           <CartaoArea

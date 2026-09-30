@@ -172,6 +172,10 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
         chave: "comunicacao_etiquetas",
         rotulo: "Etiquetas para os Correios (endereços dos filiados)",
       },
+      {
+        chave: "comunicacao_mensagens",
+        rotulo: "Mensagens aos filiados (aniversariantes e mala direta)",
+      },
     ],
   },
   {

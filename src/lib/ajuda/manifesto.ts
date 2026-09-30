@@ -685,6 +685,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Etiquetas para os Correios",
         resumo: "Etiquetas Pimaco com o endereço dos filiados: qual comprar, folha de teste, lotes e remetente",
       },
+      {
+        slug: "aniversariantes",
+        titulo: "Aniversariantes",
+        resumo: "Parabéns por e-mail às 9h, automático, e a lista do dia com o botão do WhatsApp",
+      },
     ],
   },
   {
