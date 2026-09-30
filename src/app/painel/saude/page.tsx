@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  BarChart3,
   Building2,
   CalendarDays,
   ClipboardList,
@@ -41,12 +42,20 @@ export default async function SaudePage() {
             Comunicações de acidente de trabalho, atendimentos e CIPA
           </p>
         </div>
-        <Button asChild>
-          <Link href="/painel/saude/cat">
-            <ClipboardList />
-            Ver CATs
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/painel/saude/indicadores">
+              <BarChart3 />
+              Painel analítico
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/painel/saude/cat">
+              <ClipboardList />
+              Ver CATs
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Áreas do módulo */}

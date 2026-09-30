@@ -35,7 +35,12 @@ const CUPOM = process.env.CUPOM_TESTE ?? ""
 const FATURA = process.env.FATURA_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (14): abastecimentos — a prévia da leitura pela IA (placa
+  // Rodada de 30/09 (15): Painel analítico da Saúde (estilo Power BI). O demo
+  // recebe CATs fictícias (bubble_id "demo-painel-saude-*") só para o print.
+  ["/painel/saude/indicadores", "saude/painel-analitico.png", { esperar: "CATs por ano", fullPage: true }],
+  ["/painel/saude/indicadores", "saude/painel-analitico-filtro.png", { esperar: "CATs por ano", passos: [{ clicar: 'css=button:has-text("Trajeto") >> nth=0' }, { pausa: 400 }, { clicar: 'css=button[title^="2024:"]' }, { aguardar: "CATs por mês" }, { pausa: 600 }], altura: 1500 }],
+
+  /*  // Rodada de 30/09 (14): abastecimentos — a prévia da leitura pela IA (placa
   // fora da frota entra sem veículo), o resultado, a lista e a edição de um
   // lançamento sem veículo. Precisa de FATURA_TESTE (PDF); os lançamentos são
   // apagados pelo teste.
@@ -45,6 +50,7 @@ const SHOTS = [
        ["/painel/veiculos/abastecimentos", "veiculos/abastecimentos-lista.png", { esperar: "Incluir abastecimentos", altura: 900 }],
        ["/painel/veiculos/abastecimentos?veiculo=sem", "veiculos/abastecimento-editar.png", { esperar: "Incluir abastecimentos", passos: [{ clicar: "08/09/2026" }, { aguardar: "Dados do lançamento" }, { selecionar: ["#veiculo_id", "ABC1D23 — Fiat Cronos"] }, { pausa: 800 }], fullPage: true }]]
     : []),
+  */
 
   /* Rodada de 30/09 (13): estorno de pagamento — o comunicado na ordem paga, a
   // ordem estornada, a lista do Financeiro e a correção por quem lançou.

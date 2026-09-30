@@ -334,6 +334,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Painel, listagem, formulário oficial e inclusão em massa",
       },
       {
+        slug: "indicadores",
+        titulo: "Painel analítico",
+        resumo: "Gráficos interativos das CATs com filtro cruzado, no estilo Power BI",
+      },
+      {
         slug: "cipa",
         titulo: "CIPA",
         resumo: "O convite como registro, representantes e frequência",

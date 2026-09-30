@@ -1,0 +1,78 @@
+O **Painel analítico** mostra as CATs (comunicações de acidente de trabalho)
+em gráficos interativos, no estilo Power BI: você escolhe um recorte e **todos
+os gráficos se ajustam juntos**. Ele fica na página da Saúde, no botão
+**Painel analítico**.
+
+<RequerPermissao>CAT</RequerPermissao>
+
+## Como filtrar
+
+<PassoAPasso>
+  <Passo titulo="Pelas segmentações do topo">
+    Período (ano de/até), empresa, tipo de acidente e sexo. Os filtros ativos
+    aparecem logo abaixo, cada um com um × para tirar; **Limpar filtros** zera
+    tudo.
+  </Passo>
+  <Passo titulo="Clicando nos gráficos (filtro cruzado)">
+    Clique numa barra, numa fatia da legenda, numa célula do mapa de calor ou
+    num dos indicadores (afastamento, internação, óbitos): o painel inteiro
+    passa a mostrar só aquele recorte. O gráfico clicado continua mostrando o
+    todo, com a seleção em destaque, para você comparar. Clique de novo para
+    tirar; clicar em outras categorias do mesmo gráfico soma à seleção.
+  </Passo>
+  <Passo titulo="Detalhando o tempo">
+    Na linha do tempo, clique num ano para ver os **meses** dele. O caminho
+    *Todos os anos › 2024*, no canto do gráfico, volta à visão por ano.
+  </Passo>
+</PassoAPasso>
+
+<Print src="saude/painel-analitico.png" alt="Painel analítico da Saúde com segmentações no topo, seis indicadores, a linha do tempo por ano, donuts de tipo e sexo, faixa etária, mapa de calor por mês e dia da semana e barras por empresa, ocupação, parte do corpo, natureza da lesão, agente causador, situação geradora, capítulo do CID e município." legenda="O painel completo (dados fictícios de demonstração)." />
+
+## O que o painel mostra
+
+- **Indicadores:** total de CATs, com afastamento, com internação, óbitos,
+  tempo médio de tratamento e doenças ocupacionais — com o percentual sobre o
+  recorte.
+- **Linha do tempo** por ano (ou por mês, no detalhamento).
+- **Perfil:** tipo de acidente, sexo, faixa etária (idade na data do acidente)
+  e ocupação (CBO).
+- **Sazonalidade:** mapa de calor de mês × dia da semana.
+- **Lesão e causa:** parte do corpo, natureza da lesão, agente causador,
+  situação geradora e capítulo do CID-10.
+- **Onde:** empresas e município do acidente.
+
+Cada lista mostra os 10 maiores; **Mostrar todos** abre o resto. O botão
+**Imprimir** gera a página para PDF ou papel.
+
+<Print src="saude/painel-analitico-filtro.png" alt="Painel filtrado por acidentes de trajeto em 2024: indicadores recalculados, linha do tempo por mês e os demais gráficos mostrando só o recorte." legenda="Trajeto em 2024: o painel inteiro acompanha o recorte." />
+
+## Como os dados são agrupados
+
+As CATs chegam de fontes e épocas diferentes, com grafias variadas. Para os
+gráficos fazerem sentido, o painel **normaliza** antes de contar:
+
+- **Empresa** pela raiz do CNPJ — filiais e grafias diferentes da mesma
+  empresa somam juntas.
+- **Tipo** e **sexo** com erros de digitação corrigidos (TIPICO, Masculno…).
+- **Ocupação** sem o código CBO grudado no nome.
+- **Descrições** truncadas das CATs antigas juntadas à versão completa.
+- **CID-10** pelo capítulo (lesões, osteomuscular, infecciosas…).
+
+Categorias com pouca ocorrência somam em **Outros**; as CATs marcadas como
+cópia descartada ficam de fora.
+
+<Aviso tipo="nota" titulo="Privacidade">
+  O painel trabalha só com números agregados: nome, CPF, data de nascimento e
+  textos livres das CATs não saem do servidor. Para ver uma CAT específica,
+  use a lista de CATs.
+</Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "CAT",
+      href: "/painel/ajuda/saude/cat",
+      descricao: "A lista, o formulário e a inclusão em massa",
+    },
+  ]}
+/>
