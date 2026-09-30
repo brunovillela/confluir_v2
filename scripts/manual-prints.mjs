@@ -33,7 +33,12 @@ const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquis
 const CUPOM = process.env.CUPOM_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 29/09 (9): Nova compra — entrega no ato, modos da compra direta,
+  // Rodada de 30/09 (10): rito do Financeiro — ordem com procedência e
+  // auditoria (RPA nº 1 do demo) e a fila de avaliação de todas as origens.
+  // ["/painel/financeiro/ordens/6d9b771a-a900-4fa9-8f87-0b5632755778", "financeiro/ordem-detalhe.png", { esperar: "Auditoria automática", altura: 1500 }],
+  ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
+
+  /* Rodada de 29/09 (9): Nova compra — entrega no ato, modos da compra direta,
   // leitura da nota pela IA e formas de pagamento; Financeiro → Cartões (os dois
   // cartões fictícios do demo ficam cadastrados).
   ["/painel/compras/nova", "compras/nova.png", { esperar: "Entrega no ato da compra", altura: 1000 }],
@@ -61,6 +66,7 @@ const SHOTS = [
     fullPage: true,
   }],
   ["/painel/financeiro/cartoes", "financeiro/cartoes.png", { esperar: "Cartão da Tesouraria", altura: 900 }],
+  */
 
   /* Rodada de 29/09 (8): página do empregador com abas, reuniões e setoriais.
   ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000001", "representacao/empregador.png", { esperar: "Filiados ativos", altura: 900 }],

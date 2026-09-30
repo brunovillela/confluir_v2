@@ -263,7 +263,7 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
-    titulo: "Avaliações de compras",
+    titulo: "Avaliações de ordens",
     href: "/painel/compras/avaliacoes",
     icone: "ShoppingCart",
     descricao: "Aprovação de ordens de compra por alçada",

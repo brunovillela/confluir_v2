@@ -44,8 +44,12 @@ contrato principal.
     Mensal, anual ou única, com o valor da parcela e o primeiro vencimento.
   </Passo>
   <Passo titulo="Gere">
-    O sistema cria as ordens “Em autorização”, tendo o fornecedor do contrato
-    como favorecido.
+    O sistema cria as ordens tendo o fornecedor do contrato como favorecido.
+    Se a parcela é o **valor do contrato** e o contrato **não é sob demanda**, é
+    pagamento ordinário de valor fixo, já aprovado na assinatura: as ordens
+    nascem **autorizadas** (*A pagar*), com esse motivo registrado. Valor
+    diferente do contratado (pagamento extraordinário) ou contrato sob demanda:
+    as ordens nascem **Em autorização** e passam pela alçada.
   </Passo>
   <Passo titulo="Rode de novo sem medo">
     A geração é idempotente: vencimentos que já têm ordem são pulados, então

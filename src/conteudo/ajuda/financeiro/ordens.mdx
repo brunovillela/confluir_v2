@@ -1,32 +1,66 @@
-A **ordem de pagamento** é o registro de uma despesa (e, às vezes, de uma
-receita). Ela nasce **Em autorização** e só vira dinheiro que sai depois de
-passar pela alçada de quem pode aprovar.
+A **ordem de pagamento** é o registro de uma despesa. Toda saída de dinheiro da
+entidade passa por uma ordem, e toda ordem tem de poder ser **auditada** — por
+quem autorizou, pelo Conselho Fiscal ou por uma auditoria externa. Por isso ela
+guarda de onde veio, quem autorizou, como foi paga e tudo o que aconteceu com
+ela.
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao> ou <RequerPermissao>Financeiro — somente leitura</RequerPermissao>
 
-## O ciclo da ordem
+## De onde vêm as ordens
+
+Não se digita ordem no Financeiro: ela **nasce nos módulos**, já com
+favorecido, valor, vencimento e centro de custo. As origens são:
+
+- **Compras** — aquisição direta e compra via setor de Compras; também as
+  faturas de agência de **Viagens**.
+- **Contratos** e **Ajudas institucionais** — as parcelas, pelo botão *Gerar
+  ordens*; e os **RPAs** de autônomos.
+- **Folha de pagamento** — cada contracheque lançado.
+- **Custeio institucional**, **Diárias** (de funcionários e de diretores),
+  **Reembolsos a filiados** e **Reembolsos ao escritório jurídico**.
+- **Hospedagem** — a fatura que o hotel conveniado emite no portal dele.
+- **Veículos** — multas de trânsito e mensalidades de locação.
+
+## O rito: autorização por alçada
 
 <PassoAPasso>
   <Passo titulo="Em autorização">
-    A ordem nasce em outro módulo — Compras, Contratos, Custeio institucional,
-    Diárias, RPA, Reembolsos a filiados, Reembolsos do Jurídico — já com
-    favorecido, valor, vencimento e centro de custo. Não há ordem avulsa
-    digitada aqui: o Financeiro autoriza e paga o que os módulos geram.
+    A ordem chega do módulo e aguarda quem tem alçada. A **alçada é pelo
+    valor**, qualquer que seja a origem: quem pode aprovar até R$ 5.000 aprova
+    qualquer ordem até esse valor — de compra, de diária, de hotel ou de multa.
   </Passo>
-  <Passo titulo="Avaliação por alçada">
-    Quem tem alçada **aprova** (ou recusa). O **valor** da ordem define quem pode
-    autorizar. Nada é pago sem esse passo.
+  <Passo titulo="Avaliação">
+    Em **Compras → Avaliações de ordens** (também no painel do Financeiro), o
+    avaliador vê as ordens da sua alçada, abre o **extrato** de cada uma e
+    **aprova** (a ordem vai para *A pagar*) ou **devolve** com o motivo (vai
+    para *Aguardando informações*). As acima da alçada aparecem só como
+    contexto.
+  </Passo>
+  <Passo titulo="A pagar">
+    Autorizada, a ordem entra na fila de pagamento do Financeiro.
   </Passo>
   <Passo titulo="Paga">
-    Registrado o pagamento, a ordem baixa e passa a compor a movimentação do
-    caixa.
+    O Financeiro registra o pagamento — valor, data, a conta de onde o dinheiro
+    saiu e o comprovante.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="atencao" titulo="Nunca se gera ordem já autorizada">
-  Ordens vindas de outros módulos (Compras, Contratos, Ajudas, Reembolsos,
-  Veículos…) sempre chegam **Em autorização** — a autorização é sempre um passo
-  humano, pela alçada.
+<Aviso tipo="nota" titulo="Quando a autorização é dispensada">
+  Duas despesas já foram aprovadas em outra instância e **nascem autorizadas**,
+  com o motivo registrado na ordem:
+  - a **folha de pagamento**;
+  - a **parcela ordinária de valor fixo** de um contrato — o valor foi aprovado
+    na assinatura. Vale também para ajudas institucionais e para a mensalidade
+    de locação de veículo no valor contratado.
+
+  Já a parcela de contrato **sob demanda** (valor variável) ou com **valor
+  diferente do contratado** (pagamento extraordinário) passa pela alçada
+  normalmente.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="Só se paga ordem autorizada">
+  O botão **Registrar pagamento** só aparece em ordens *A pagar*. Uma ordem em
+  autorização ou devolvida não pode ser paga — primeiro passa pela alçada.
 </Aviso>
 
 ## A lista e os filtros
@@ -36,7 +70,8 @@ e **quantidade por página**. Os filtros ficam num painel **expansível** —
 clique em **Filtros** para abrir:
 
 - **Situação** — todas, em aberto, pagas ou canceladas.
-- **Tipo** — Compras, Contrato, Diária, Reembolso, Custeio…
+- **Tipo** — a origem: Compras, Contrato, RPA, Folha de pagamento, Diária,
+  Custeio, Reembolso, Hospedagem, Multa de trânsito, Locação de veículos.
 - **Favorecido** — busca pelo nome do fornecedor/beneficiário.
 - **Departamento** e **Centro de custo** — encadeados: ao escolher o
   departamento, a lista de centros mostra só os dele.
@@ -45,74 +80,132 @@ clique em **Filtros** para abrir:
 Os filtros ativos viram "etiquetas" acima da lista; clique no **x** de cada uma
 para removê-la.
 
-<Aviso tipo="dica" titulo="'Favorecido', não 'beneficiário'">
-  O nome do campo é **Favorecido** em todo o sistema — é quem recebe o pagamento
-  (uma empresa, um filiado ou um favorecido avulso).
+## A tela da ordem
+
+<Print src="financeiro/ordem-detalhe.png" alt="Ordem de pagamento de um RPA: no topo o código, a situação Em autorização e o botão Extrato (PDF); o cartão Procedência com o RPA nº 1, o serviço, o contrato, valor bruto, retenções de INSS, IRRF e ISS, valor líquido e quem emitiu, com os botões Corrigir ordem e Cancelar ordem; e o cartão Auditoria automática com as verificações marcadas OK e a autorização Pendente." legenda="A ordem mostra de onde veio e o resultado da auditoria automática logo no topo." />
+
+- **Procedência** — de onde a ordem veio, com os dados da origem e um link para
+  ela: o processo de compra (com o recebimento do bem), o contrato (vigência,
+  valor, parcela), o RPA (bruto, retenções, líquido), a fatura do hotel
+  (hóspedes, período), a diária (período, descontos de multa), a multa
+  (veículo, condutor, auto de infração)… E **quem pediu** a despesa.
+- **Auditoria automática** — as verificações de conformidade (abaixo).
+- **Detalhes da despesa** e **Detalhes do pagamento** — valor, vencimento,
+  forma, **pago com** (cartão, caixa, chave ou conta do fornecedor), documentos
+  e a autorização.
+- **Centro de custo** — o da **despesa** (crédito) e o do **débito**, a conta de
+  onde o dinheiro saiu (banco, caixa); e o rateio, quando a despesa se divide
+  entre contas.
+- **Histórico** — tudo o que aconteceu com a ordem, por quem e quando.
+
+## Auditoria automática
+
+Cada ordem é conferida na hora, com o resultado **OK**, **Alerta**, **Falha**,
+**Pendente** ou **N/A** para cada item:
+
+- valor definido e **despesa classificada** (centro de custo ou rateio que
+  fecha com o valor);
+- **favorecido identificado** com CPF/CNPJ válido e fornecedor não bloqueado;
+- **procedência** identificada e **documento de suporte** anexado (nota
+  fiscal, contracheque, fatura, RPA), quando a origem exige;
+- **autorização** dentro da alçada de quem aprovou — ou dispensa válida para a
+  origem;
+- **segregação de funções**: quem aprovou não é quem pediu a despesa;
+- **pagamento depois da autorização**, **valor pago igual ao cobrado**, **pago
+  até o vencimento**, **comprovante** anexado e **conta do débito** informada;
+- **recebimento** do bem confirmado (compras);
+- **cobrança em duplicidade**: outra ordem do mesmo favorecido com o mesmo
+  valor em até 7 dias.
+
+<Aviso tipo="dica" titulo="Alerta não é erro — é para olhar">
+  Um *Alerta* pede atenção de quem audita (um pagamento atrasado, uma ordem
+  antiga sem autorização registrada). Uma *Falha* aponta algo que não fecha
+  (sem centro de custo, CNPJ inválido, paga antes de autorizada).
 </Aviso>
-
-## O detalhe da ordem
-
-Ao abrir uma ordem, os dados vêm em cartões:
-
-- **Detalhes da despesa** — descrição, favorecido, tipo, valor cobrado,
-  reembolso, e os documentos: **nota fiscal**, orçamento e **boleto**. Quando a
-  ordem vem de uma compra, aparece também a **observação da compra**.
-- **Detalhes do pagamento** — valor pago, vencimento, data do pagamento, forma,
-  **pago com** (nas compras diretas: o cartão da entidade, a conta de caixa, a
-  chave Pix ou a conta do fornecedor usados), código PIX, pagador, comprovante e
-  a **autorização** (autorizada por quem e quando).
-- **Centro de custo** — o da despesa e o da receita.
-- **Contrato vinculado** — quando a ordem vem de um contrato **ou de uma locação
-  de veículo**: objeto/finalidade, vigência, situação e o documento.
-- **Projeto vinculado** — quando a ordem pertence a um projeto.
-
-<Print src="financeiro/ordem-detalhe.png" alt="Detalhe de uma ordem de pagamento com os cartões Detalhes da despesa, Detalhes do pagamento e Centro de custo, e o botão Extrato (PDF) no topo." legenda="Uma ordem e sua situação no ciclo, com os cartões de despesa e pagamento." />
 
 ## Registrar o pagamento
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao>
 
-No cartão **Detalhes do pagamento**, o botão **Registrar pagamento** abre o
-formulário: valor pago, data, centro de custo da receita e o comprovante. Ao
-salvar, a ordem passa a **Paga**.
+Numa ordem *A pagar*, o botão **Registrar pagamento** abre o formulário:
+**valor pago**, **data**, **centro de custo do débito** — a conta de onde o
+dinheiro saiu, obrigatório — e o **comprovante** (PDF). Ao salvar, a ordem passa
+a **Paga** e o registro entra no histórico. **Remover pagamento** desfaz o
+registro (a ordem volta a *A pagar*), também registrado.
+
+<Aviso tipo="nota" titulo="Compra paga em dinheiro">
+  A compra direta paga em dinheiro já saiu do caixa no ato. Quando a ordem dela
+  é autorizada, o sistema a dá como **paga pelo caixa**, com o centro de custo
+  do caixa no débito — nada sai do banco. Esse centro é configurado em
+  [Contas de caixa](/painel/ajuda/financeiro/caixa).
+</Aviso>
+
+## Corrigir, cancelar e reenviar
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+No cartão **Procedência** de uma ordem ainda não paga:
+
+- **Corrigir ordem** — descrição, valor, vencimento, forma de pagamento e
+  centro de custo da despesa, com o **motivo**. O histórico guarda o antes e o
+  depois. **Mudar o valor de uma ordem já autorizada a devolve para
+  autorização** — o que foi aprovado era outro valor.
+- **Cancelar ordem** — com o **motivo**; a ordem sai da fila e não volta. Numa
+  compra em dinheiro, o débito do caixa é cancelado junto.
+- **Reenviar para autorização** — para uma ordem **devolvida**, dizendo o que
+  foi complementado.
 
 ## Extrato em PDF
 
-O botão **Extrato (PDF)**, no topo da ordem, gera um documento imprimível com a
-**logomarca do sindicato** no cabeçalho e todos os dados da ordem. As palavras
-**Nota fiscal**, **Boleto** e **Comprovante** viram **links clicáveis** dentro
-do PDF, quando o arquivo existe.
+O botão **Extrato (PDF)** gera o documento de auditoria da ordem, com a
+logomarca do sindicato e, em seções: **procedência**, **despesa**,
+**favorecido** (com CPF/CNPJ e natureza), **classificação contábil** (crédito da
+despesa, débito e rateio), **autorização**, **recebimento**, **pagamento**,
+**documentos** (links clicáveis por 1 hora), a **auditoria automática** e o
+**histórico** completo.
+
+<Aviso tipo="dica" titulo="Código de verificação">
+  O rodapé de cada página traz um **código de verificação** calculado a partir
+  dos dados da ordem. O mesmo código aparece no fim da tela da ordem: se os dois
+  batem, o extrato corresponde ao que está no sistema; se a ordem mudou depois
+  (um pagamento, uma correção), o código muda.
+</Aviso>
 
 ## Erros comuns
 
-- **"A ordem está Em autorização e não paga."** Falta a **aprovação por alçada**
-  — quem tem alçada para o valor precisa autorizar (em Compras → Avaliações, para
-  ordens de compra).
+- **"Não aparece o botão Registrar pagamento."** A ordem não está *A pagar*:
+  ainda está em autorização, foi devolvida ou já foi paga/cancelada.
+- **"A ordem ficou parada em autorização."** Ninguém com alçada suficiente a
+  aprovou. Confira quem tem alçada para aquele valor em **Usuários e
+  permissões**.
+- **"Corrigi o valor e a ordem voltou para autorização."** É o esperado: a
+  autorização foi dada para o valor anterior.
+- **"A auditoria acusa CNPJ inválido."** O CNPJ/CPF do cadastro do fornecedor
+  não fecha nos dígitos verificadores — corrija o cadastro em Fornecedores.
 - **"Escolhi um departamento e sumiram os centros."** É o filtro encadeado: a
-  lista de centros passa a mostrar só os **daquele departamento**. Troque o
-  departamento ou limpe o filtro.
-- **"O extrato abriu sem o link da nota."** O link só aparece quando **há
-  arquivo** anexado (nota, boleto ou comprovante). Sem arquivo, o campo mostra
-  que não foi anexado.
-- **"O filtro por projeto não traz nada."** Só aparecem ordens **vinculadas a um
-  projeto**; muitas ordens não têm projeto.
+  lista de centros passa a mostrar só os **daquele departamento**.
 
 <VejaTambem
   links={[
     {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "As ordens de compra e a avaliação por alçada",
+    },
+    {
       titulo: "Centros de custo",
       href: "/painel/ajuda/financeiro/centros-custo",
-      descricao: "A classificação da despesa e da receita",
+      descricao: "A classificação da despesa e do débito",
     },
     {
       titulo: "Contas de caixa",
       href: "/painel/ajuda/financeiro/caixa",
-      descricao: "Para onde a ordem paga vai",
+      descricao: "Compras em dinheiro e o centro de custo do caixa",
     },
     {
-      titulo: "Comprar",
-      href: "/painel/ajuda/compras/comprar",
-      descricao: "A origem das ordens de compra e a alçada",
+      titulo: "Usuários e permissões",
+      href: "/painel/ajuda/institucional/usuarios",
+      descricao: "Onde se define a alçada de cada pessoa",
     },
   ]}
 />

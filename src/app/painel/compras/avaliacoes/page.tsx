@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 
 function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1 basis-64">
       <p className="text-sm font-medium">
         {ordem.processo_compra_id ? (
           <Link
@@ -48,7 +48,7 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
         )}
       </p>
       <p className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 text-xs">
-        <span className="truncate">
+        <span className="block w-full truncate" title={ordem.produto ?? ordem.descricao ?? undefined}>
           {ordem.produto ?? ordem.descricao ?? "—"}
         </span>
         {ordem.departamentoNome && <span>{ordem.departamentoNome}</span>}
@@ -131,10 +131,10 @@ export default async function AvaliacoesComprasPage({
             dentroDaAlcada.map((o) => (
               <div
                 key={o.id}
-                className="border-border flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                className="border-border flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border p-3"
               >
                 <DadosOrdem ordem={o} />
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex shrink-0 flex-wrap items-center gap-3">
                   <span className="text-sm font-semibold whitespace-nowrap tabular-nums">
                     {formatarMoeda(o.valor_inicial_cobranca)}
                   </span>
@@ -164,7 +164,7 @@ export default async function AvaliacoesComprasPage({
             {acimaDaAlcada.map((o) => (
               <div
                 key={o.id}
-                className="border-border flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 opacity-75"
+                className="border-border flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border p-3 opacity-75"
               >
                 <DadosOrdem ordem={o} />
                 <span className="text-sm font-semibold whitespace-nowrap tabular-nums">

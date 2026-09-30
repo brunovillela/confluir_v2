@@ -258,9 +258,19 @@ Cada etapa é uma ação no próprio processo:
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
 
 Toda ordem gerada por uma compra — direta ou via Compras — passa por
-**Compras → Avaliações**. Cada avaliador vê as ordens **dentro da sua alçada**
-(o teto de valor que pode autorizar) e as **acima da alçada** apenas como
-contexto, sem poder aprovar. **Nada é pago antes dessa autorização.**
+**Compras → Avaliações de ordens**. A tela reúne as ordens em autorização de
+**todas as origens** (compras, contratos, diárias, custeios, hotel, multas…),
+porque a alçada é pelo **valor**, não pela origem. Cada avaliador vê as ordens
+**dentro da sua alçada** (o teto de valor que pode autorizar) e as **acima da
+alçada** apenas como contexto, sem poder aprovar. **Nada é pago antes dessa
+autorização.**
+
+Antes de decidir, abra o **Extrato (PDF)** de cada ordem: ele traz a
+procedência, os documentos e a **auditoria automática**. Aprovar leva a ordem
+para *A pagar*; **devolver** exige o motivo e a leva para *Aguardando
+informações*. Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
+
+<Print src="compras/avaliacoes.png" alt="Avaliações de ordens: a lista Na sua alçada com ordens de várias origens — RPA, diária, custeio, hospedagem e compras —, cada uma com código, favorecido, a etiqueta da origem, vencimento, forma de pagamento, o link Extrato (PDF), o valor e os botões para aprovar ou devolver." legenda="A fila de avaliação reúne ordens de todas as origens, com o extrato de cada uma." />
 
 <Aviso tipo="nota" titulo="O que é alçada">
   Alçada é o valor máximo que uma pessoa pode autorizar sozinha. É definida no

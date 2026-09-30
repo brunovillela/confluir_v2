@@ -11,7 +11,7 @@ qual usar evita metade das dúvidas:
 
 - **Aquisição direta** — a compra **já foi feita** pelo departamento (você foi à
   loja, contratou o serviço, já tem a nota). Aqui você apenas **registra** o que
-  aconteceu; o sistema gera a ordem de pagamento em autorização.
+  aconteceu; o sistema gera a ordem de pagamento, que passa pela alçada.
 - **Via Compras** — a compra **ainda vai acontecer** e precisa de cotação. O
   departamento **solicita**, o **comprador** cota com fornecedores, compara as
   propostas, escolhe e compra. É o caminho para valores maiores ou quando é
@@ -36,8 +36,9 @@ qual usar evita metade das dúvidas:
     comprar). <RequerPermissao>Comprador</RequerPermissao>
   </Passo>
   <Passo titulo="Avaliações">
-    A fila de ordens aguardando **aprovação por alçada** — cada uma cai para
-    quem pode autorizar aquele valor. Nada é pago sem passar por aqui.
+    A fila de ordens aguardando **aprovação por alçada**, de todas as origens —
+    cada uma cai para quem pode autorizar aquele valor, com o extrato à mão.
+    Nada é pago sem passar por aqui.
     <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
   </Passo>
   <Passo titulo="Recebimentos pendentes">
