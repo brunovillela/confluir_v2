@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdensVerificadasCompat } from "@/lib/db/ordens-verificacao"
 import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
@@ -882,10 +883,7 @@ export async function gerarOrdensContrato(
     excluido: false,
     emp_proprietaria_id: empId,
   }))
-  const { data: criadas, error: erroIns } = await admin
-    .from("ordens_pagamento")
-    .insert(registros)
-    .select("id")
+  const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
   if (erroIns) {
     if (esquemaAusente(erroIns)) {
       return { erro: "Rode supabase/contratos-ordens.sql antes de gerar ordens." }

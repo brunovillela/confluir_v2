@@ -311,6 +311,47 @@ export default async function OrdemPage({
         </CardContent>
       </Card>
 
+      {x.verificacoes.length > 0 && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Verificações na criação
+                  {x.verificacoes.some((v) => v.status === "alerta") ? (
+                    <Badge variant="outline" className={ESTILO_STATUS.alerta.classe}>
+                      {x.verificacoes.filter((v) => v.status === "alerta").length} alerta(s)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className={ESTILO_STATUS.ok.classe}>Sem alertas</Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Regras de auditoria do Financeiro conferidas quando a ordem foi criada,
+                  em {formatarDataHora(x.verificacoes[0].quando)}
+                </CardDescription>
+              </div>
+              <ShieldCheck className="text-muted-foreground size-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border grid divide-y">
+              {x.verificacoes.map((v) => (
+                <li key={v.codigo} className="flex items-start gap-3 py-2">
+                  <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[v.status === "alerta" ? "alerta" : v.status === "ok" ? "ok" : "na"].classe}`}>
+                    {v.status === "alerta" ? "Alerta" : v.status === "ok" ? "OK" : "N/A"}
+                  </Badge>
+                  <div className="min-w-0 text-sm">
+                    <p className="font-medium">{v.titulo}</p>
+                    {v.detalhe && <p className="text-muted-foreground text-xs">{v.detalhe}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="min-w-0">
         <CardHeader>
           <div className="flex items-center justify-between">

@@ -98,6 +98,15 @@ para removê-la.
   entre contas.
 - **Histórico** — tudo o que aconteceu com a ordem, por quem e quando.
 
+## Verificações na criação
+
+Antes de gravar qualquer ordem, o sistema confere as **regras de auditoria**
+configuradas pela entidade para aquela origem — chave Pix de outro titular,
+contrato vencido, compra com uma só proposta acima do limite, qualidade da
+descrição pela IA… Regra marcada como *Bloquear* impede a criação; as demais
+viram alertas gravados na ordem, no cartão **Verificações na criação**. Ver
+[Auditoria das ordens](/painel/ajuda/financeiro/auditoria).
+
 ## Auditoria automática
 
 Cada ordem é conferida na hora, com o resultado **OK**, **Alerta**, **Falha**,
@@ -201,6 +210,11 @@ despesa, débito e rateio), **autorização**, **recebimento**, **pagamento**,
       titulo: "Contas de caixa",
       href: "/painel/ajuda/financeiro/caixa",
       descricao: "Compras em dinheiro e o centro de custo do caixa",
+    },
+    {
+      titulo: "Auditoria das ordens",
+      href: "/painel/ajuda/financeiro/auditoria",
+      descricao: "As regras conferidas antes de criar cada ordem",
     },
     {
       titulo: "Usuários e permissões",

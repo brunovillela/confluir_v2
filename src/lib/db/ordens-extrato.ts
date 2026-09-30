@@ -8,6 +8,7 @@ import { auditarOrdem, type ResultadoAuditoria } from "@/lib/db/ordens-auditoria
 import { listarEventos, type EventoOrdem } from "@/lib/db/ordens-ciclo"
 import { procedenciaDaOrdem, type Procedencia } from "@/lib/db/ordens-procedencia"
 import { rateioDaOrdem, type LinhaRateio } from "@/lib/db/ordens-rateio"
+import { verificacoesDaOrdem, type VerificacaoGravada } from "@/lib/db/ordens-verificacao"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -23,6 +24,8 @@ export type ExtratoCompleto = {
   procedencia: Procedencia
   auditoria: ResultadoAuditoria
   eventos: EventoOrdem[]
+  /** Regras de auditoria conferidas na criação da ordem (configuração do tenant). */
+  verificacoes: VerificacaoGravada[]
   rateio: LinhaRateio[]
   pagoCom: string | null
   favorecido: { nome: string | null; documento: string | null; tipo: string | null }
@@ -62,10 +65,11 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
   const admin = await createAdminClient()
 
   const procedencia = await procedenciaDaOrdem(o)
-  const [auditoria, eventosGravados, rateio, pagoCom, notaFiscal, boleto, comprovante, orcamento] =
+  const [auditoria, eventosGravados, verificacoes, rateio, pagoCom, notaFiscal, boleto, comprovante, orcamento] =
     await Promise.all([
       auditarOrdem(o, procedencia),
       listarEventos(id),
+      verificacoesDaOrdem(id),
       rateioDaOrdem(id),
       descreverPagoCom(o),
       urlArquivoOrdem(o.arquivo_nota_fiscal),
@@ -174,6 +178,7 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
     procedencia,
     auditoria,
     eventos,
+    verificacoes,
     rateio,
     pagoCom,
     favorecido,

@@ -46,6 +46,11 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
             {ordem.tipo}
           </Badge>
         )}
+        {ordem.alertas > 0 && (
+          <Badge variant="outline" className="border-warning/50 text-warning-fg ml-2 align-middle">
+            {ordem.alertas} alerta{ordem.alertas === 1 ? "" : "s"} da auditoria
+          </Badge>
+        )}
       </p>
       <p className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 text-xs">
         <span className="block w-full truncate" title={ordem.produto ?? ordem.descricao ?? undefined}>

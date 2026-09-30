@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, Wallet } from "lucide-react";
+import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -30,12 +30,14 @@ export default async function FinanceiroPage() {
   const sessao = await requirePermissao("financeiro_caixa", [
     "financeiro_pagamento",
     "financeiro_leitura",
+    "financeiro_auditoria",
   ]);
 
   const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
     "financeiro_leitura",
   ]);
   const veAvaliacoes = podeAcessar(sessao.permissoes, "aquisicoes_avaliacoes")
+  const configuraAuditoria = podeAcessar(sessao.permissoes, "financeiro_auditoria")
   const veCaixa = podeAcessar(sessao.permissoes, "financeiro_caixa", [
     "financeiro_caixa_admin",
     "financeiro_leitura",
@@ -97,6 +99,12 @@ export default async function FinanceiroPage() {
       descricao: "Plano de contas: códigos, classificadores e indicações",
       href: "/painel/financeiro/centros-custo",
       icone: CircleDollarSign,
+    },
+    configuraAuditoria && {
+      titulo: "Auditoria das ordens",
+      descricao: "Regras que o sistema confere antes de criar cada ordem",
+      href: "/painel/financeiro/auditoria",
+      icone: ShieldCheck,
     },
     veOrdens && {
       titulo: "Cartões",

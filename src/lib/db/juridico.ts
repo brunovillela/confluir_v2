@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -1148,7 +1149,7 @@ export async function avaliarReembolso(
 
   const { data: reemb, error: erroLer } = await admin
     .from("juridico_reembolsos")
-    .select("id, valor, descricao_despesa, situacao, solicitante_id, processo_id")
+    .select("id, valor, descricao_despesa, situacao, solicitante_id, processo_id, comprovante_despesa")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -1186,9 +1187,7 @@ export async function avaliarReembolso(
     // Centro de custo padrão configurado para o jurídico (pode ser nulo).
     const centroCustoId = await centroCustoJuridicoId()
 
-    const { data: ordem, error: erroOrdem } = await admin
-      .from("ordens_pagamento")
-      .insert({
+    const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
         codigo: ordemCodigo,
         tipo: "Reembolso",
         descricao,
@@ -1198,9 +1197,7 @@ export async function avaliarReembolso(
         centro_custo_despesa_id: centroCustoId,
         emp_proprietaria_id: await tenantAtual(),
         excluido: false,
-      })
-      .select("id")
-      .single()
+      }, { comprovante: (reemb.comprovante_despesa as string | null) ?? null })
     if (erroOrdem || !ordem) {
       return { erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}` }
     }

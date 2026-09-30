@@ -33,10 +33,18 @@ const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquis
 const CUPOM = process.env.CUPOM_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (10): rito do Financeiro — ordem com procedência e
+  // Rodada de 30/09 (11): Auditoria das ordens — regras de Compras, a ordem com
+  // as verificações na criação e a fila de avaliação com os alertas. A ordem de
+  // exemplo (compra direta de R$ 15.000) é criada e apagada pelo teste.
+  ["/painel/financeiro/auditoria?origem=compras", "financeiro/auditoria-regras.png", { esperar: "Uma só proposta", fullPage: true }],
+  ["/painel/financeiro/ordens/1d1bc88f-8a50-457e-8d56-55d924437f81", "financeiro/ordem-verificacoes.png", { esperar: "Verificações na criação", scrollTo: "Verificações na criação", altura: 1000 }],
+  ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
+
+  /* Rodada de 30/09 (10): rito do Financeiro — ordem com procedência e
   // auditoria (RPA nº 1 do demo) e a fila de avaliação de todas as origens.
   // ["/painel/financeiro/ordens/6d9b771a-a900-4fa9-8f87-0b5632755778", "financeiro/ordem-detalhe.png", { esperar: "Auditoria automática", altura: 1500 }],
   ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
+  */
 
   /* Rodada de 29/09 (9): Nova compra — entrega no ato, modos da compra direta,
   // leitura da nota pela IA e formas de pagamento; Financeiro → Cartões (os dois

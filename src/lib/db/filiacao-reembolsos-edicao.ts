@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
@@ -252,9 +253,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
   const pix = texto(bancos?.[0]?.pix)
 
   const descricaoOrdem = `Reembolso de participação — ${nome} — ${dados.justificativa}`
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Reembolso",
       descricao: descricaoOrdem,
@@ -270,9 +269,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       projeto_id: dados.projetoId,
       excluido: false,
       emp_proprietaria_id: emp,
-    })
-    .select("id")
-    .single()
+    }, {})
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}` }
   }

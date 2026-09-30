@@ -95,7 +95,15 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "Ordens de pagamento, caixa, receitas e despesas",
     chave: "financeiro_caixa",
-    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura"],
+    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura", "financeiro_auditoria"],
+  },
+  {
+    titulo: "Auditoria das ordens",
+    href: "/painel/financeiro/auditoria",
+    icone: "ClipboardCheck",
+    descricao: "Regras que o sistema confere antes de criar cada ordem de pagamento",
+    chave: "financeiro_auditoria",
+    oculto: true,
   },
   {
     titulo: "Ordens de pagamento",

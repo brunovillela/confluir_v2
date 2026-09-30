@@ -1,0 +1,132 @@
+A **Auditoria das ordens** define o que o sistema confere **antes de criar**
+cada ordem de pagamento. Cada entidade decide, para cada situação, se ela é
+aceita, aceita com alerta ou bloqueada — e a decisão pode ser diferente para
+cada **origem** da ordem: uma compra, uma parcela de contrato, uma diária, uma
+multa…
+
+<RequerPermissao>Auditoria das ordens — configurar regras</RequerPermissao>
+
+## Como funciona
+
+<PassoAPasso>
+  <Passo titulo="Um módulo gera a ordem">
+    Uma compra é registrada, um contrato gera parcelas, uma diária é aprovada,
+    um hotel emite a fatura…
+  </Passo>
+  <Passo titulo="O sistema confere as regras da origem">
+    Antes de gravar, ele confere cada regra configurada para aquela origem —
+    usando o cadastro do fornecedor, o contrato, o processo de compra, a chave
+    Pix e, na regra da descrição, a IA.
+  </Passo>
+  <Passo titulo="Aceita, alerta ou bloqueia">
+    Se uma regra marcada como **Bloquear** falha, a ordem **não é criada** e
+    quem a gerou recebe o motivo na tela. Senão, a ordem é criada e o resultado
+    de cada verificação fica **gravado nela**.
+  </Passo>
+</PassoAPasso>
+
+As três respostas possíveis de cada regra:
+
+- **Aceitar** — a situação é aceita; a regra nem é conferida.
+- **Aceitar com alerta** — a ordem é criada e o alerta fica registrado nela,
+  à vista de quem autoriza (a fila de avaliação mostra "N alertas da
+  auditoria").
+- **Bloquear** — a ordem não é criada.
+
+## Configurar
+
+Em **Financeiro → Auditoria das ordens**, escolha a **origem** nas abas —
+Compras, Contratos e ajudas, RPA, Folha de pagamento, Diárias, Custeio
+institucional, Reembolsos, Hospedagem, Multas de trânsito, Locação de
+veículos. Cada regra aparece como uma **pergunta**, com a resposta e, quando
+houver, os **parâmetros** (valores, dias, critérios). Ajuste e clique em
+**Salvar regras desta origem**. A etiqueta *padrão do sistema* indica o que
+ainda não foi personalizado.
+
+<Print src="financeiro/auditoria-regras.png" alt="Tela Auditoria das ordens com as abas das origens e a aba Compras aberta: cada regra num cartão com a pergunta, a explicação e as opções Aceitar, Aceitar com alerta e Bloquear; algumas com parâmetros, como o número de dias, os critérios mínimos da descrição para a IA e os valores-limite de uma só proposta e da aquisição direta." legenda="As regras de Compras: a pergunta, a resposta e os parâmetros de cada uma." />
+
+<Aviso tipo="nota" titulo="Vale para as próximas ordens">
+  Mudar uma regra não altera as ordens já criadas: cada ordem guarda o resultado
+  das verificações feitas quando nasceu.
+</Aviso>
+
+## As regras
+
+**Todas as origens**
+
+- **CPF/CNPJ do favorecido** — favorecido sem CPF/CNPJ válido no cadastro.
+- **Chave Pix de outro titular** — a chave Pix (ou a chave dentro do QR Code)
+  é o CPF/CNPJ de outra pessoa. Opcional: exigir que a chave seja o próprio
+  CPF/CNPJ do favorecido (e-mail, telefone ou aleatória passam a contar como
+  divergentes).
+- **Despesa sem centro de custo**.
+- **Cobrança em duplicidade** — outra ordem do mesmo favorecido, com o mesmo
+  valor, em até *N* dias do vencimento.
+- **Vencimento já passado** — com tolerância em dias.
+
+**Com fornecedor** (compras, contratos, RPA, hotel, locação, jurídico)
+
+- **Fornecedor bloqueado** — padrão: bloquear.
+- **Fornecedor recém-cadastrado** — cadastrado há menos de *N* dias.
+
+**Compras**
+
+- **Compra com uma só proposta** — aceita até R$ *X*.
+- **Aquisição direta acima do limite** — sem cotação, aceita até R$ *X*.
+- **Sem nota fiscal** (também em Hospedagem).
+- **Qualidade da descrição (IA)** — a IA confere se a descrição traz as
+  **informações mínimas** que vocês definirem (ex.: o quê, quanto, para quê), a
+  partir de um valor. Também disponível para contratos, RPA, custeio e
+  reembolsos.
+
+**Contratos, RPA, hotel e locação**
+
+- **Contrato fora da vigência** — vencimento depois do fim (ou antes do
+  início) da vigência; padrão: bloquear.
+- **Contrato sem documento assinado**.
+- **Valor diferente do contratado** (contratos e locação).
+
+**Origens específicas**
+
+- **RPA — teto mensal por autônomo** (pagamento alto e recorrente pode
+  caracterizar vínculo).
+- **Folha — funcionário sem conta nem chave Pix**.
+- **Diárias — período iniciado há mais de *N* dias**.
+- **Multas — sem condutor infrator identificado**.
+- **Reembolsos — sem comprovante da despesa** (escritório jurídico).
+
+## Onde aparece o resultado
+
+- Na **ordem**, no cartão **Verificações na criação**: cada regra conferida,
+  com OK, Alerta ou N/A e o motivo.
+- No **extrato em PDF**, na seção de mesmo nome.
+- Na fila de **Avaliações de ordens**, a etiqueta **N alertas da auditoria**.
+
+<Print src="financeiro/ordem-verificacoes.png" alt="Cartão Verificações na criação de uma compra direta de R$ 15.000, com 3 alertas: CPF/CNPJ do favorecido inválido, chave Pix de outro CNPJ e aquisição direta acima do limite de R$ 10.000; as demais regras aparecem como OK ou N/A, com o motivo." legenda="O que foi conferido quando a ordem nasceu — e por que houve alerta." />
+
+## Erros comuns
+
+- **"A ordem não foi criada e apareceu 'bloqueada pela auditoria do
+  Financeiro'."** Uma regra marcada como *Bloquear* falhou — a mensagem diz
+  qual e por quê. Corrija na origem (o contrato, o cadastro, a chave Pix) ou
+  peça a quem configura para rever a regra.
+- **"A regra da descrição ficou N/A."** A ordem está abaixo do valor mínimo
+  configurado, ou a IA estava indisponível no momento — nesse caso a ordem é
+  criada normalmente.
+- **"Mudei a regra e a ordem antiga continua com o alerta."** É o esperado: o
+  resultado é o da criação.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O rito, a auditoria automática e o extrato",
+    },
+    {
+      titulo: "Comprar",
+      href: "/painel/ajuda/compras/comprar",
+      descricao: "A avaliação das ordens por alçada",
+    },
+  ]}
+/>

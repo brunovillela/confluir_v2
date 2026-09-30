@@ -162,6 +162,8 @@ export type ExtratoOrdemProps = {
     itens: { status: string; rotulo: string; detalhe: string }[]
   }
   historico: { quando: string; rotulo: string; usuario: string | null; descricao: string | null }[]
+  /** Regras conferidas na criação (configuração do tenant). */
+  verificacoes: { status: string; rotulo: string; detalhe: string }[]
 }
 
 function Campo({ rotulo, valor, largo }: { rotulo: string; valor: string | null; largo?: boolean }) {
@@ -346,6 +348,24 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
             Os links dos documentos valem por 1 hora a partir da geração do extrato.
           </Text>
         </Secao>
+
+        {p.verificacoes.length > 0 ? (
+          <SecaoLista
+            titulo="Verificações na criação (regras do Financeiro)"
+            vazio=""
+            linhas={p.verificacoes.map((i) => (
+              <View key={i.rotulo} style={s.linhaTabela}>
+                <Text style={[s.status, { color: COR_STATUS[i.status] ?? "#111827" }]}>
+                  {ROTULO_STATUS[i.status] ?? i.status}
+                </Text>
+                <View style={s.aud}>
+                  <Text style={s.audRotulo}>{i.rotulo}</Text>
+                  <Text style={s.audDetalhe}>{i.detalhe}</Text>
+                </View>
+              </View>
+            ))}
+          />
+        ) : null}
 
         <SecaoLista
           titulo="Auditoria automática"

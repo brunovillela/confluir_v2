@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -624,9 +625,7 @@ export async function avaliarSolicitacaoDiaria(
       .filter(Boolean)
       .join(" ")
 
-    const { data: ordem, error: erroOrdem } = await admin
-      .from("ordens_pagamento")
-      .insert({
+    const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
         codigo,
         tipo: "Diária",
         descricao,
@@ -639,9 +638,7 @@ export async function avaliarSolicitacaoDiaria(
         centro_custo_despesa_id: contaDiaria,
         departamento_id: solicitacao.departamentoId,
         emp_proprietaria_id: await tenantAtual(),
-      })
-      .select("id")
-      .single()
+      }, { dataInicio: solicitacao.data_inicio })
     if (erroOrdem || !ordem) {
       await desfazerBaixas()
       return {

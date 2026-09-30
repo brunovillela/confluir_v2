@@ -303,6 +303,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Cartões",
         resumo: "Os cartões da entidade usados para pagar compras",
       },
+      {
+        slug: "auditoria",
+        titulo: "Auditoria das ordens",
+        resumo: "Regras que o sistema confere antes de criar cada ordem",
+      },
     ],
   },
   {

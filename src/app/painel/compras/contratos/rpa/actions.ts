@@ -1,5 +1,7 @@
 "use server"
 
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
@@ -136,9 +138,7 @@ export async function emitirRpa(
   if (!rpaId) return { erro: `Não foi possível emitir: ${ultimoErro}` }
 
   // A forma de pagamento do contrato: a ordem do líquido, para o prestador.
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: TIPO_ORDEM_RPA,
       descricao: `RPA nº ${rpaNumero} — ${descricao}`,
@@ -152,9 +152,7 @@ export async function emitirRpa(
       contrato_id: contrato.id,
       excluido: false,
       emp_proprietaria_id: emp,
-    })
-    .select("id")
-    .single()
+    }, {})
   const vinculo = ordem
     ? await admin.from("compras_rpa").update({ ordem_pagamento_id: ordem.id }).eq("id", rpaId)
     : null

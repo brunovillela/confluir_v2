@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { camposAutorizacaoInicial, MOTIVO_DISPENSA_FOLHA, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
@@ -263,9 +264,7 @@ export async function gerarOrdemDoContracheque(p: {
     contaEmTexto(conta),
   ].join(" ")
 
-  const { data: ordem, error } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: TIPO_ORDEM_FOLHA,
       descricao,
@@ -281,9 +280,7 @@ export async function gerarOrdemDoContracheque(p: {
       arquivo_nota_fiscal: caminho,
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+    }, {})
   if (error || !ordem) {
     await admin.storage.from("comprovantes").remove([caminho])
     return { erro: `Não foi possível gerar a ordem de pagamento: ${error?.message}` }

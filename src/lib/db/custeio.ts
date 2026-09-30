@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdensVerificadasCompat } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -910,9 +911,7 @@ async function gerarOrdensCusteio(
     emp_proprietaria_id: empId,
   }))
 
-  const { error: erroIns } = await admin
-    .from("ordens_pagamento")
-    .insert(registros)
+  const { error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
   if (erroIns) {
     if (esquemaAusente(erroIns)) return { erro: AVISO_SCHEMA }
     return { erro: `Falha ao gerar as ordens: ${erroIns.message}` }

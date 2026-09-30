@@ -70,6 +70,7 @@ export async function usuarioDaTrilha(): Promise<string | null> {
 
 export type TipoEvento =
   | "criada"
+  | "verificada"
   | "autorizacao_dispensada"
   | "autorizada"
   | "devolvida"
@@ -81,6 +82,7 @@ export type TipoEvento =
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
+  verificada: "Verificada pelas regras de auditoria",
   autorizacao_dispensada: "Autorização dispensada",
   autorizada: "Autorizada",
   devolvida: "Devolvida para informações",

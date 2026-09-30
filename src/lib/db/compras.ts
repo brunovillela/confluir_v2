@@ -1,4 +1,5 @@
 import "server-only"
+import { alertasPorOrdem, inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
@@ -788,9 +789,7 @@ export async function criarCompraDireta(
 
   // Como no legado, a ordem tem código próprio; o vínculo com o processo é
   // a coluna processo_compra_id.
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
       descricao: `Compra direta — ${nova.produto}`,
@@ -808,9 +807,7 @@ export async function criarCompraDireta(
       ...(nova.detalhe ?? {}),
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+    }, {})
   if (erroOrdem || !ordem) {
     await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
     return {
@@ -1151,9 +1148,7 @@ export async function gerarOrdemFornecimento(
 
   const notaFiscal = dados.nota_fiscal_url ?? f.nota_fiscal_url
 
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
       descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}`,
@@ -1168,9 +1163,7 @@ export async function gerarOrdemFornecimento(
       processo_compra_id: processo.id,
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+    }, {})
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem: ${erroOrdem?.message}` }
   }
@@ -1345,6 +1338,8 @@ export async function listarRecebimentosPendentes(): Promise<{
 export type OrdemParaAvaliacao = OrdemDoProcesso & {
   /** Origem da ordem (Compras, Contrato, RPA, Diária, Custeio…). */
   tipo: string | null
+  /** Alertas das regras de auditoria na criação. */
+  alertas: number
   processo_compra_id: string | null
   produto: string | null
   departamentoNome: string | null
@@ -1414,6 +1409,7 @@ export async function listarOrdensParaAvaliacao(
     ])
   )
 
+  const alertas = await alertasPorOrdem(ordens.map((o) => o.id))
   const completas: OrdemParaAvaliacao[] = ordens.map((o, i) => {
     const bruta = brutas[i]
     const processoId = (bruta.processo_compra_id as string | null) ?? null
@@ -1421,6 +1417,7 @@ export async function listarOrdensParaAvaliacao(
     return {
       ...o,
       tipo: (bruta.tipo as string | null) ?? null,
+      alertas: alertas.get(o.id) ?? 0,
       processo_compra_id: processoId,
       produto: (processo?.solicitacao_produto as string | null) ?? null,
       departamentoNome: processo?.solicitacao_departamento_id

@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -2571,9 +2572,7 @@ export async function gerarOrdemMulta(
   }
 
   const admin = await createAdminClient()
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: TIPO_ORDEM_MULTA,
       descricao: `Infração de trânsito no veículo ${infracao.veiculoPlaca ?? ""} ${infracao.veiculoModelo ?? ""} — auto ${infracao.auto_de ?? "s/n"}`,
@@ -2582,9 +2581,7 @@ export async function gerarOrdemMulta(
       vencimento: dados.vencimento,
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+    }, { condutorId: infracao.condutor_id })
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem: ${erroOrdem?.message}` }
   }
@@ -3019,7 +3016,7 @@ export async function gerarOrdemAluguel(
   // assinatura; valor diferente passa pela alçada.
   const ordinariaFixa =
     contrato.valor_mensal !== null && Math.abs(contrato.valor_mensal - dados.valor) < 0.005
-  const { data: criada, error } = await admin.from("ordens_pagamento").insert({
+  const { data: criada, error } = await inserirOrdemVerificada({
     codigo: gerarCodigoProcesso(),
     tipo: TIPO_ORDEM_ALUGUEL,
     descricao,
@@ -3034,10 +3031,10 @@ export async function gerarOrdemAluguel(
     contrato_aluguel_id: contratoId,
     excluido: false,
     emp_proprietaria_id: await tenantAtual(),
-  }).select("id").single()
-  if (error) {
-    if (esquemaAusente(error)) return { erro: AVISO_SQL }
-    return { erro: `Não foi possível gerar a ordem: ${error.message}` }
+  }, {})
+  if (error || !criada) {
+    if (error && esquemaAusente(error)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível gerar a ordem: ${error?.message ?? "sem retorno"}` }
   }
   await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Mensalidade ${dados.competencia} do contrato de locação.`)
   return {}

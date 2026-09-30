@@ -123,6 +123,11 @@ export async function GET(
       geral: x.auditoria.geral,
       itens: x.auditoria.itens.map((i) => ({ status: i.status, rotulo: i.rotulo, detalhe: i.detalhe })),
     },
+    verificacoes: x.verificacoes.map((v) => ({
+      status: v.status === "alerta" ? "alerta" : v.status === "ok" ? "ok" : "na",
+      rotulo: v.titulo,
+      detalhe: v.detalhe ?? "",
+    })),
     historico: x.eventos.map((e) => ({
       quando: formatarDataHora(e.quando),
       rotulo: e.rotulo,

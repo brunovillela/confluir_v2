@@ -1,4 +1,5 @@
 import "server-only"
+import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -1165,9 +1166,7 @@ export async function faturarServicos(
     .join(" ")
 
   const admin = await createAdminClient()
-  const { data: ordem, error: erroOrdem } = await admin
-    .from("ordens_pagamento")
-    .insert({
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo,
       tipo: "Hospedagem",
       descricao,
@@ -1183,9 +1182,7 @@ export async function faturarServicos(
       contrato_id: contrato.id,
       centro_custo_despesa_id: contrato.centroCustoId,
       emp_proprietaria_id: await tenantAtual(),
-    })
-    .select("id")
-    .single()
+    }, { notaFiscal: nova.notaFiscalCaminho })
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}` }
   }
