@@ -1,4 +1,5 @@
 import "server-only"
+import { camposAutorizacaoInicial, MOTIVO_DISPENSA_FOLHA, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { gerarCodigoProcesso } from "@/lib/db/compras"
@@ -268,7 +269,8 @@ export async function gerarOrdemDoContracheque(p: {
       codigo: gerarCodigoProcesso(),
       tipo: TIPO_ORDEM_FOLHA,
       descricao,
-      situacao: "Em autorização",
+      // A folha não passa por alçada: nasce autorizada, com o motivo gravado.
+      ...camposAutorizacaoInicial(MOTIVO_DISPENSA_FOLHA),
       valor_inicial_cobranca: p.valorLiquido,
       vencimento: p.remessa.dataPagamento,
       forma_pagamento: pagarPorPix ? "Pix" : config.formaPagamento,
@@ -286,6 +288,7 @@ export async function gerarOrdemDoContracheque(p: {
     await admin.storage.from("comprovantes").remove([caminho])
     return { erro: `Não foi possível gerar a ordem de pagamento: ${error?.message}` }
   }
+  await registrarEvento(String(ordem.id), "criada", await usuarioDaTrilha(), "Gerada pelo lançamento do contracheque.")
 
   const { error: erroVinculo } = await admin
     .from("pessoal_contracheques")

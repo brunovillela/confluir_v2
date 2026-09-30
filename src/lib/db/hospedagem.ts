@@ -1,4 +1,5 @@
 import "server-only"
+import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -1188,6 +1189,7 @@ export async function faturarServicos(
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}` }
   }
+  await registrarEvento(String(ordem.id), "criada", null, `Emitida pelo hotel ${hotel.nome ?? ""} no portal do parceiro.`.replace("  ", " "))
 
   const { data: fatura, error: erroFatura } = await admin
     .from("hospedagem_fatura")

@@ -2,11 +2,10 @@ import { createElement } from "react"
 import { renderToBuffer } from "@react-pdf/renderer"
 
 import { requirePermissao } from "@/lib/auth"
-import { detalheOrdem, urlNotaFiscalOrdem } from "@/lib/db/financeiro"
+import { extratoDaOrdem, textoCentro } from "@/lib/db/ordens-extrato"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ExtratoOrdemPDF, type ExtratoOrdemProps } from "@/lib/pdf/extrato-ordem"
-import { createAdminClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
 
@@ -25,53 +24,36 @@ async function logoDataUri(url: string | null): Promise<string | null> {
   }
 }
 
-/**
- * Resolve um arquivo para URL absoluta: URLs legadas do Bubble passam direto
- * (normalizando o protocolo-relativo `//`); caminhos novos são assinados no
- * bucket `comprovantes`.
- */
-async function resolverArquivo(valor: unknown): Promise<string | null> {
-  if (typeof valor !== "string" || !valor.trim()) return null
-  if (/^https?:\/\//.test(valor)) return valor
-  if (valor.startsWith("//")) return `https:${valor}`
-  const admin = await createAdminClient()
-  const { data } = await admin.storage
-    .from("comprovantes")
-    .createSignedUrl(valor, 3600)
-  return data?.signedUrl ?? null
-}
-
 function txt(valor: unknown): string {
   return typeof valor === "string" && valor.trim() ? valor : ""
 }
 
+/** Link interno vira absoluto para funcionar no PDF. */
+function absoluto(url: string | null, origem: string): string | null {
+  if (!url) return null
+  return url.startsWith("/") ? `${origem}${url}` : url
+}
+
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
+  await requirePermissao("financeiro_pagamento", ["financeiro_leitura", "aquisicoes_avaliacoes"])
   const { id } = await params
 
-  const detalhe = await detalheOrdem(id)
-  if (!detalhe) return new Response("Não encontrada", { status: 404 })
-
-  const [org, notaFiscalUrl, boletoUrl, comprovanteUrl] = await Promise.all([
-    obterOrganizacao(),
-    urlNotaFiscalOrdem(detalhe.ordem.arquivo_nota_fiscal),
-    resolverArquivo(detalhe.ordem.arquivo_boleto),
-    resolverArquivo(detalhe.ordem.arquivo_pagamento),
-  ])
+  const x = await extratoDaOrdem(id)
+  if (!x) return new Response("Não encontrada", { status: 404 })
+  const org = await obterOrganizacao()
   const logo = await logoDataUri(org?.logoUrl ?? null)
+  const origem = new URL(req.url).origin
 
-  const o = detalhe.ordem
-  const centroTexto = (
-    c: (typeof detalhe)["centroCustoDespesa"]
-  ): string | null =>
-    c ? [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — ") : null
-
-  const contrato = detalhe.contratoVinculado
-  const projeto = detalhe.projetoVinculado
-  const autorizado = o.autorizacao_esta_autorizado === true
+  const o = x.detalhe.ordem as Record<string, unknown>
+  const pr = x.procedencia
+  const pessoas = [pr.solicitante, ...pr.envolvidos]
+    .filter((p): p is NonNullable<typeof p> => Boolean(p?.nome))
+    .map((p) => ({ papel: p.papel, nome: p.nome as string }))
+  const r = pr.recebimento
+  const pago = o.situacao === "Paga" || Boolean(o.data_pagamento)
 
   const dados: ExtratoOrdemProps = {
     org: {
@@ -81,60 +63,75 @@ export async function GET(
     },
     logoDataUri: logo,
     geradoEm: formatarDataHora(new Date().toISOString()),
+    codigoVerificacao: x.codigoVerificacao,
     ordem: {
       codigo: txt(o.codigo) || id.slice(0, 8),
       descricao: txt(o.descricao) || "—",
       tipo: txt(o.tipo) || "—",
       situacao: txt(o.situacao) || "—",
-      favorecido: detalhe.favorecido ?? "—",
       valorCobrado: formatarMoeda(o.valor_inicial_cobranca as number | null),
-      valorPago: formatarMoeda(o.valor_pago as number | null),
       vencimento: formatarData(o.vencimento as string | null),
-      dataPagamento: formatarData(o.data_pagamento as string | null),
       formaPagamento: txt(o.forma_pagamento) || "—",
-      pagador: detalhe.pagador ?? "—",
-      autorizacao: autorizado ? "Autorizada" : "Sem autorização registrada",
-      autorizador:
-        (detalhe.autorizador ?? "—") +
-        (o.autorizacao_data
-          ? ` · ${formatarData(o.autorizacao_data as string)}`
-          : ""),
-      centroDespesa: centroTexto(detalhe.centroCustoDespesa),
-      centroReceita: centroTexto(detalhe.centroCustoReceita),
-      contrato: contrato
-        ? {
-            rotulo:
-              contrato.origem === "aluguel"
-                ? "Locação de veículo"
-                : "Contrato",
-            titulo:
-              (contrato.codigo ? `${contrato.codigo} — ` : "") +
-              (contrato.objeto ?? "(sem descrição)"),
-            vigencia: `${formatarData(contrato.vigencia_inicio)} a ${formatarData(
-              contrato.vigencia_termino
-            )}`,
-          }
-        : null,
-      projeto: projeto
-        ? {
-            descricao: projeto.descricao ?? "(sem descrição)",
-            tipo: projeto.tipo ?? "—",
-            periodo: `${formatarData(projeto.inicio)} a ${formatarData(
-              projeto.termino_previsao
-            )}`,
-          }
-        : null,
-      compraObservacao: detalhe.compraObservacao,
-      notaFiscalUrl,
-      boletoUrl,
-      comprovanteUrl,
+      pagoCom: x.pagoCom,
+      pixCodigo: txt(o.pix_codigo) || null,
+      projeto: x.detalhe.projetoVinculado?.descricao ?? null,
     },
+    procedencia: { origem: pr.origem, titulo: pr.titulo, linhas: pr.linhas, pessoas },
+    favorecido: {
+      nome: x.favorecido.nome ?? "—",
+      documento: x.favorecido.documento,
+      tipo: x.favorecido.tipo,
+    },
+    classificacao: {
+      despesa: textoCentro(x.detalhe.centroCustoDespesa),
+      debito: textoCentro(x.detalhe.centroCustoReceita),
+      rateio: x.rateio.map((l) => ({
+        conta: l.centroCustoNome ?? "Sem conta definida",
+        descricao: l.descricao,
+        valor: formatarMoeda(l.valor),
+      })),
+    },
+    autorizacao: {
+      texto: x.autorizacao.texto,
+      observacao:
+        x.autorizacao.situacao === "autorizada" ? txt(o.autorizacao_observacao) || null : null,
+      cancelamento:
+        o.situacao === "Cancelada"
+          ? `${txt(o.cancelamento_motivo) || "Sem motivo registrado"}${o.cancelado_em ? ` (${formatarDataHora(String(o.cancelado_em))})` : ""}`
+          : null,
+    },
+    recebimento: r
+      ? r.recebido
+        ? `Recebido${r.data ? ` em ${formatarData(r.data)}` : ""}${r.por ? ` por ${r.por}` : ""}${r.deAcordo === false ? " — com ressalva" : r.deAcordo ? " — de acordo" : ""}${r.observacao ? `. ${r.observacao}` : "."}`
+        : "Ainda não recebido."
+      : null,
+    pagamento: {
+      registrado: pago,
+      valorPago: formatarMoeda(o.valor_pago as number | null),
+      data: formatarData(o.data_pagamento as string | null),
+      pagador: x.detalhe.pagador ?? "—",
+      comprovanteUrl: x.arquivos.comprovante,
+    },
+    documentos: [
+      { rotulo: o.tipo === "Folha de pagamento" ? "Contracheque" : "Nota fiscal / documento fiscal", url: x.arquivos.notaFiscal },
+      { rotulo: "Boleto", url: x.arquivos.boleto },
+      { rotulo: "Comprovante de pagamento", url: x.arquivos.comprovante },
+      ...(x.arquivos.orcamento ? [{ rotulo: "Orçamento", url: x.arquivos.orcamento }] : []),
+      ...pr.documentos.map((d) => ({ rotulo: d.rotulo, url: absoluto(d.url, origem) })),
+    ],
+    auditoria: {
+      geral: x.auditoria.geral,
+      itens: x.auditoria.itens.map((i) => ({ status: i.status, rotulo: i.rotulo, detalhe: i.detalhe })),
+    },
+    historico: x.eventos.map((e) => ({
+      quando: formatarDataHora(e.quando),
+      rotulo: e.rotulo,
+      usuario: e.usuario,
+      descricao: e.descricao,
+    })),
   }
 
-  const elemento = createElement(
-    ExtratoOrdemPDF,
-    dados
-  ) as Parameters<typeof renderToBuffer>[0]
+  const elemento = createElement(ExtratoOrdemPDF, dados) as Parameters<typeof renderToBuffer>[0]
   const buffer = await renderToBuffer(elemento)
 
   return new Response(new Uint8Array(buffer), {

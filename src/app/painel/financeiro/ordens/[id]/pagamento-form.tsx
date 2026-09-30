@@ -99,14 +99,19 @@ export function PagamentoForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="centro_custo_receita_id">Centro de custo da receita</Label>
+          <Label htmlFor="centro_custo_receita_id">
+            Centro de custo do débito (de onde saiu) *
+          </Label>
           <select
             id="centro_custo_receita_id"
             name="centro_custo_receita_id"
             defaultValue={centroReceitaId ?? ""}
+            required
             className={SELECT}
           >
-            <option value="">Não informado</option>
+            <option value="" disabled>
+              Escolha a conta (banco, caixa…)
+            </option>
             {centros.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.rotulo}

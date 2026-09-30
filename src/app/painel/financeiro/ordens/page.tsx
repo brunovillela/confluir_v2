@@ -86,6 +86,9 @@ const TIPOS_ORDEM = [
   "Custeio",
   TIPO_ORDEM_FOLHA,
   TIPO_ORDEM_RPA,
+  "Hospedagem",
+  "Multa de trânsito",
+  "Locação de veículos - Mensalidade",
 ] as const
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {

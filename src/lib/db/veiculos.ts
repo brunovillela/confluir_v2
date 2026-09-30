@@ -1,4 +1,5 @@
 import "server-only"
+import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -3001,11 +3002,30 @@ export async function gerarOrdemAluguel(
   if (dados.valor <= 0) return { erro: "Informe o valor da mensalidade." }
 
   const admin = await createAdminClient()
-  const { error } = await admin.from("ordens_pagamento").insert({
+  const descricao = `Locação de veículos — contrato ${contrato.numero ?? ""} (${dados.competencia})`
+  // A mesma competência não pode ser cobrada duas vezes.
+  const { data: repetidas } = await admin
+    .from("ordens_pagamento")
+    .select("id")
+    .eq("contrato_aluguel_id", contratoId)
+    .eq("descricao", descricao)
+    .neq("situacao", "Cancelada")
+    .not("excluido", "is", true)
+    .limit(1)
+  if ((repetidas ?? []).length > 0) {
+    return { erro: `Já existe ordem deste contrato para ${dados.competencia}.` }
+  }
+  // Mensalidade no valor do contrato é pagamento ordinário fixo, aprovado na
+  // assinatura; valor diferente passa pela alçada.
+  const ordinariaFixa =
+    contrato.valor_mensal !== null && Math.abs(contrato.valor_mensal - dados.valor) < 0.005
+  const { data: criada, error } = await admin.from("ordens_pagamento").insert({
     codigo: gerarCodigoProcesso(),
     tipo: TIPO_ORDEM_ALUGUEL,
-    descricao: `Locação de veículos — contrato ${contrato.numero ?? ""} (${dados.competencia})`,
-    situacao: "Em autorização",
+    descricao,
+    ...camposAutorizacaoInicial(
+      ordinariaFixa ? motivoDispensaContrato(contrato.numero ?? null) : null
+    ),
     valor_inicial_cobranca: dados.valor,
     vencimento: dados.vencimento,
     beneficiario_fornecedor_id: contrato.fornecedor_id,
@@ -3014,11 +3034,12 @@ export async function gerarOrdemAluguel(
     contrato_aluguel_id: contratoId,
     excluido: false,
     emp_proprietaria_id: await tenantAtual(),
-  })
+  }).select("id").single()
   if (error) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível gerar a ordem: ${error.message}` }
   }
+  await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Mensalidade ${dados.competencia} do contrato de locação.`)
   return {}
 }
 

@@ -1,4 +1,5 @@
 import "server-only"
+import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
@@ -791,7 +792,7 @@ export async function gerarOrdensContrato(
 
   const { data: c, error } = await admin
     .from("contratos")
-    .select("id, objeto, fornecedor_id, departamento_id, centro_custo_id")
+    .select("id, codigo, objeto, valor, sob_demanda, fornecedor_id, departamento_id, centro_custo_id")
     .eq("id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
@@ -855,11 +856,22 @@ export async function gerarOrdensContrato(
   const departamentoId = texto(linha.departamento_id)
   const centroCustoId = texto(linha.centro_custo_id)
   const objeto = texto(linha.objeto) ?? "Contrato"
+  // Parcela ORDINÁRIA de valor FIXO (contrato não é sob demanda e a parcela é
+  // o valor do contrato) já foi aprovada na assinatura: dispensa a alçada.
+  // Valor variável ou pagamento extraordinário passa pela autorização.
+  const valorContrato = linha.valor === null || linha.valor === undefined ? null : Number(linha.valor)
+  const ordinariaFixa =
+    linha.sob_demanda !== true &&
+    valorContrato !== null &&
+    Math.abs(valorContrato - params.valorParcela) < 0.005
+  const autorizacao = camposAutorizacaoInicial(
+    ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
+  )
   const registros = novos.map(({ venc, parcela }) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
     descricao: descricaoOrdemContrato(objeto, venc, parcela, total),
-    situacao: "Em autorização",
+    ...autorizacao,
     valor_inicial_cobranca: params.valorParcela,
     forma_pagamento: params.formaPagamento,
     vencimento: venc,
@@ -870,15 +882,23 @@ export async function gerarOrdensContrato(
     excluido: false,
     emp_proprietaria_id: empId,
   }))
-  const { error: erroIns } = await admin
+  const { data: criadas, error: erroIns } = await admin
     .from("ordens_pagamento")
     .insert(registros)
+    .select("id")
   if (erroIns) {
     if (esquemaAusente(erroIns)) {
       return { erro: "Rode supabase/contratos-ordens.sql antes de gerar ordens." }
     }
     return { erro: `Falha ao gerar as ordens: ${erroIns.message}` }
   }
+  // Trilha: quem gerou (o contrato não guarda quem pediu cada parcela).
+  await registrarEvento(
+    (criadas ?? []).map((o) => String(o.id)),
+    "criada",
+    await usuarioDaTrilha(),
+    `Gerada a partir do contrato ${texto(linha.codigo) ?? objeto}.`
+  )
   return { geradas: novos.length, puladas }
 }
 

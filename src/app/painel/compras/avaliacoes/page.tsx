@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, ClipboardCheck } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -22,7 +23,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { AvaliacaoOrdemForm } from "./avaliacao-ordem-form"
 
 export const metadata: Metadata = {
-  title: "Avaliações de compras — Confluir",
+  title: "Avaliações de ordens — Confluir",
 }
 
 function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
@@ -40,6 +41,11 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
           <span className="tabular-nums">{ordem.codigo ?? "(sem código)"}</span>
         )}
         {ordem.favorecidoNome && <> — {ordem.favorecidoNome}</>}
+        {ordem.tipo && (
+          <Badge variant="outline" className="text-muted-foreground ml-2 align-middle">
+            {ordem.tipo}
+          </Badge>
+        )}
       </p>
       <p className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-3 text-xs">
         <span className="truncate">
@@ -48,6 +54,14 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
         {ordem.departamentoNome && <span>{ordem.departamentoNome}</span>}
         {ordem.vencimento && <span>vence {formatarData(ordem.vencimento)}</span>}
         {ordem.forma_pagamento && <span>{ordem.forma_pagamento}</span>}
+        <a
+          href={`/painel/financeiro/ordens/${ordem.id}/extrato`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline"
+        >
+          Extrato (PDF)
+        </a>
       </p>
     </div>
   )
@@ -74,10 +88,11 @@ export default async function AvaliacoesComprasPage({
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Avaliações de compras
+          Avaliações de ordens
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Ordens de pagamento de compras em autorização ·{" "}
+          Ordens de pagamento em autorização, de todas as origens — a alçada é
+          pelo valor ·{" "}
           {alcada > 0
             ? `sua alçada: até ${formatarMoeda(alcada)}`
             : "você não tem alçada de aprovação definida"}

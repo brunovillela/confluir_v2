@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarContasCaixa, listarOcorrencias } from "@/lib/db/caixa"
+import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { obterConfigFinanceiro } from "@/lib/db/ordens-ciclo"
+
+import { ConfigCaixaForm } from "./config-caixa-form"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -45,9 +49,14 @@ export default async function CaixasPage() {
     "financeiro_caixa_admin",
   ])
 
-  const [{ disponivel, contas }, ocorrenciasGeral] = await Promise.all([
+  const podeConfigurar = podeAcessar(sessao.permissoes, "financeiro_caixa_admin", [
+    "financeiro_pagamento",
+  ])
+  const [{ disponivel, contas }, ocorrenciasGeral, configFin, centros] = await Promise.all([
     listarContasCaixa(),
     listarOcorrencias(),
+    obterConfigFinanceiro(),
+    podeConfigurar ? listarCentrosCusto() : Promise.resolve([]),
   ])
 
   const ativas = contas.filter((c) => c.ativa)
@@ -132,6 +141,28 @@ export default async function CaixasPage() {
             vez) para habilitar o módulo.
           </AlertDescription>
         </Alert>
+      )}
+
+      {podeConfigurar && configFin.disponivel && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Compras pagas em dinheiro</CardTitle>
+            <CardDescription>
+              Em que conta contábil cai o débito do dinheiro que sai do caixa
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConfigCaixaForm
+              atual={configFin.centroCustoCaixaId}
+              centros={centros
+                .filter((c) => c.usavel !== false)
+                .map((c) => ({
+                  id: c.id,
+                  rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — "),
+                }))}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

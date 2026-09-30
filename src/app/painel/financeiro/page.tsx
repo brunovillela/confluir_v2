@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleDollarSign, CreditCard, Receipt, Wallet } from "lucide-react";
+import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -35,6 +35,7 @@ export default async function FinanceiroPage() {
   const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
     "financeiro_leitura",
   ]);
+  const veAvaliacoes = podeAcessar(sessao.permissoes, "aquisicoes_avaliacoes")
   const veCaixa = podeAcessar(sessao.permissoes, "financeiro_caixa", [
     "financeiro_caixa_admin",
     "financeiro_leitura",
@@ -79,6 +80,12 @@ export default async function FinanceiroPage() {
   }[];
 
   const atalhos = [
+    veAvaliacoes && {
+      titulo: "Avaliações de ordens",
+      descricao: "Autorizar por alçada as ordens de todas as origens",
+      href: "/painel/compras/avaliacoes",
+      icone: ClipboardCheck,
+    },
     veOrdens && {
       titulo: "Ordens de pagamento",
       descricao: "Receitas e despesas com autorização e pagamento",

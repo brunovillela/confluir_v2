@@ -5,6 +5,7 @@ import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { avaliarOrdem } from "@/lib/db/ordens-ciclo"
 import {
   debitarCaixaCompra,
   type DetalhePagamento,
@@ -1342,6 +1343,8 @@ export async function listarRecebimentosPendentes(): Promise<{
 // ── Avaliações (aprovação por alçada) ──────────────────────────────────────
 
 export type OrdemParaAvaliacao = OrdemDoProcesso & {
+  /** Origem da ordem (Compras, Contrato, RPA, Diária, Custeio…). */
+  tipo: string | null
   processo_compra_id: string | null
   produto: string | null
   departamentoNome: string | null
@@ -1362,10 +1365,10 @@ export async function listarOrdensParaAvaliacao(
     .from("ordens_pagamento")
     .select("*")
     .eq("emp_proprietaria_id", await tenantAtual())
-    // Ordens de Compras E de Contrato passam pela mesma alçada de autorização.
-    .in("tipo", ["Compras", "Contrato"])
+    // A alçada é pelo VALOR, qualquer que seja a origem. (`excluido` nulo
+    // conta como não excluído — as diárias nascem assim.)
     .eq("situacao", "Em autorização")
-    .eq("excluido", false)
+    .not("excluido", "is", true)
     .order("vencimento", { ascending: true, nullsFirst: false })
   if (error) throw new Error(`Falha ao listar ordens: ${error.message}`)
 
@@ -1417,6 +1420,7 @@ export async function listarOrdensParaAvaliacao(
     const processo = processoId ? processoPorId.get(processoId) : undefined
     return {
       ...o,
+      tipo: (bruta.tipo as string | null) ?? null,
       processo_compra_id: processoId,
       produto: (processo?.solicitacao_produto as string | null) ?? null,
       departamentoNome: processo?.solicitacao_departamento_id
@@ -1438,8 +1442,9 @@ export async function listarOrdensParaAvaliacao(
 }
 
 /**
- * Aprova (→ 'A pagar') ou devolve (→ 'Aguardando informações') uma ordem de
- * compra 'Em autorização'. A alçada é reconferida aqui, server-side.
+ * Aprova (→ 'A pagar') ou devolve (→ 'Aguardando informações') uma ordem 'Em
+ * autorização' de QUALQUER origem — a alçada é pelo valor. Ver
+ * lib/db/ordens-ciclo.ts (trilha e compra paga em dinheiro).
  */
 export async function avaliarOrdemCompra(
   ordemId: string,
@@ -1448,63 +1453,7 @@ export async function avaliarOrdemCompra(
   aprovar: boolean,
   observacao: string | null
 ): Promise<{ erro?: string }> {
-  const admin = await createAdminClient()
-  const { data: ordem } = await admin
-    .from("ordens_pagamento")
-    .select("id, tipo, situacao, valor_inicial_cobranca")
-    .eq("id", ordemId)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .maybeSingle()
-  if (!ordem) return { erro: "Ordem não encontrada." }
-  if (ordem.tipo !== "Compras" && ordem.tipo !== "Contrato") {
-    return { erro: "A ordem não é de compras nem de contrato." }
-  }
-  if (ordem.situacao !== "Em autorização") {
-    return { erro: "A ordem não está em autorização." }
-  }
-  const valor = ordem.valor_inicial_cobranca
-  if (aprovar && valor === null) {
-    return {
-      erro: "Esta ordem não tem valor definido — registre o valor no financeiro antes de aprovar.",
-    }
-  }
-  if (aprovar && !(alcada > 0 && valor !== null && valor <= alcada)) {
-    return {
-      erro: "O valor desta ordem está acima da sua alçada de aprovação.",
-    }
-  }
-  if (!aprovar && !observacao?.trim()) {
-    return { erro: "Informe o motivo da devolução." }
-  }
-
-  const { data, error } = await admin
-    .from("ordens_pagamento")
-    .update(
-      aprovar
-        ? {
-            situacao: "A pagar",
-            autorizacao_esta_autorizado: true,
-            autorizacao_autorizador_id: avaliadorId,
-            // Coluna DATE no legado — gravar o dia de SP, não o ISO UTC.
-            autorizacao_data: hojeSP(),
-            autorizacao_observacao: observacao,
-          }
-        : {
-            situacao: "Aguardando informações",
-            autorizacao_esta_autorizado: false,
-            autorizacao_autorizador_id: avaliadorId,
-            autorizacao_data: hojeSP(),
-            autorizacao_observacao: observacao,
-          }
-    )
-    .eq("id", ordemId)
-    .eq("situacao", "Em autorização")
-    .select("id")
-  if (error) return { erro: `Não foi possível salvar a avaliação: ${error.message}` }
-  if ((data ?? []).length === 0) {
-    return { erro: "A ordem já foi avaliada por outra pessoa." }
-  }
-  return {}
+  return avaliarOrdem(ordemId, avaliadorId, alcada, aprovar, observacao)
 }
 
 // ── Fornecedores ───────────────────────────────────────────────────────────

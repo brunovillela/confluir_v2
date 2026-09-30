@@ -6,10 +6,13 @@ import {
   ExternalLink,
   FileSignature,
   FolderKanban,
+  GitBranch,
+  History,
   Landmark,
   Pencil,
   Printer,
   Receipt,
+  ShieldCheck,
   Tags,
 } from "lucide-react"
 
@@ -24,21 +27,25 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import {
-  detalheOrdem,
-  listarCentrosCusto,
-  type CentroCusto,
-  urlNotaFiscalOrdem,
-} from "@/lib/db/financeiro"
-import { rateioDaOrdem } from "@/lib/db/ordens-rateio"
+import { listarCentrosCusto, type CentroCusto } from "@/lib/db/financeiro"
+import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
+import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
+import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { podeAcessar } from "@/lib/permissoes"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { formatarData, formatarMoeda } from "@/lib/formato"
-import { descreverPagoCom } from "@/lib/db/compras-pagamento"
+import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { SituacaoBadge } from "../../situacao-badge"
+import { AcoesOrdem } from "./acoes-ordem"
 import { PagamentoForm } from "./pagamento-form"
+
+const ESTILO_STATUS: Record<StatusAuditoria, { rotulo: string; classe: string }> = {
+  ok: { rotulo: "OK", classe: "border-success/40 text-success-fg" },
+  alerta: { rotulo: "Alerta", classe: "border-warning/50 text-warning-fg" },
+  falha: { rotulo: "Falha", classe: "border-destructive/50 text-destructive" },
+  pendente: { rotulo: "Pendente", classe: "border-info/40 text-info-fg" },
+  na: { rotulo: "N/A", classe: "text-muted-foreground" },
+}
 
 export const metadata: Metadata = { title: "Ordem de pagamento — Confluir" }
 
@@ -121,7 +128,14 @@ export default async function OrdemPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ editar?: string; salvo?: string; removido?: string }>
+  searchParams: Promise<{
+    editar?: string
+    salvo?: string
+    removido?: string
+    cancelada?: string
+    corrigida?: string
+    reenviada?: string
+  }>
 }) {
   const sessao = await requirePermissao("financeiro_pagamento", [
     "financeiro_leitura",
@@ -129,38 +143,38 @@ export default async function OrdemPage({
   const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const { id } = await params
-  const { editar, salvo, removido } = await searchParams
-  const detalhe = await detalheOrdem(id)
-  const pagoCom = detalhe ? await descreverPagoCom(detalhe.ordem) : null
-  if (!detalhe) notFound()
-  const { ordem, favorecido, pagador, autorizador, contratoVinculado } =
-    detalhe
+  const { editar, salvo, removido, cancelada, corrigida, reenviada } = await searchParams
+  const x = await extratoDaOrdem(id)
+  if (!x) notFound()
+  const detalhe = x.detalhe
+  const pagoCom = x.pagoCom
+  const { ordem, favorecido, pagador, contratoVinculado } = detalhe
+  const situacao = String(ordem.situacao ?? "")
 
-  const editandoPagamento = editar === "pagamento" && podeEditar
+  const pagavel = SITUACOES_PAGAVEIS.includes(situacao)
+  const editandoPagamento = editar === "pagamento" && podeEditar && (pagavel || situacao === "Paga")
   const temPagamento =
     ordem.data_pagamento !== null ||
     ordem.arquivo_pagamento !== null ||
-    ordem.situacao === "Paga"
+    situacao === "Paga"
+  const aberta = !SITUACOES_ENCERRADAS.includes(situacao)
 
-  // Arquivos novos são caminhos no bucket 'comprovantes' (URLs legadas do
-  // Bubble passam direto pelo LinkArquivo).
-  const resolverArquivo = async (valor: unknown): Promise<string | null> => {
-    if (typeof valor !== "string" || !valor.trim()) return null
-    if (/^(https?:)?\/\//.test(valor)) return valor
-    const admin = await createAdminClient()
-    const { data } = await admin.storage
-      .from("comprovantes")
-      .createSignedUrl(valor, 3600)
-    return data?.signedUrl ?? null
-  }
-  const [urlComprovante, urlBoleto, urlNotaFiscal, rateio] = await Promise.all([
-    resolverArquivo(ordem.arquivo_pagamento),
-    resolverArquivo(ordem.arquivo_boleto),
-    urlNotaFiscalOrdem(ordem.arquivo_nota_fiscal),
-    rateioDaOrdem(id),
-  ])
+  const urlComprovante = x.arquivos.comprovante
+  const urlBoleto = x.arquivos.boleto
+  const urlNotaFiscal = x.arquivos.notaFiscal
+  const rateio = x.rateio
+  const pr = x.procedencia
+  const pessoas = [pr.solicitante, ...pr.envolvidos].filter(
+    (p): p is NonNullable<typeof p> => Boolean(p)
+  )
 
-  const centros = editandoPagamento ? await listarCentrosCusto() : []
+  const centros = podeEditar ? await listarCentrosCusto() : []
+  const opcoesCentro = centros
+    .filter((c) => c.usavel !== false)
+    .map((c) => ({
+      id: c.id,
+      rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — "),
+    }))
 
   return (
     <>
@@ -207,6 +221,129 @@ export default async function OrdemPage({
           <AlertDescription>Registro de pagamento removido.</AlertDescription>
         </Alert>
       )}
+      {cancelada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem cancelada — o motivo ficou no histórico.</AlertDescription>
+        </Alert>
+      )}
+      {corrigida && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            {corrigida === "reautorizar"
+              ? "Ordem corrigida. Como o valor mudou, ela voltou para autorização."
+              : "Ordem corrigida — o antes e o depois ficaram no histórico."}
+          </AlertDescription>
+        </Alert>
+      )}
+      {reenviada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem reenviada para autorização.</AlertDescription>
+        </Alert>
+      )}
+
+      <Card className="min-w-0">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Procedência</CardTitle>
+              <CardDescription>{pr.origem}</CardDescription>
+            </div>
+            <GitBranch className="text-muted-foreground size-4" />
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <dl className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            {pr.titulo && (
+              <Campo rotulo="Registro de origem">
+                {pr.href ? (
+                  <Link href={pr.href} className="text-primary hover:underline">
+                    {pr.titulo}
+                  </Link>
+                ) : (
+                  pr.titulo
+                )}
+              </Campo>
+            )}
+            {pr.linhas.map((l) => (
+              <Campo key={l.rotulo} rotulo={l.rotulo}>
+                {l.valor}
+              </Campo>
+            ))}
+            {pessoas.map((p) => (
+              <Campo key={p.papel + (p.id ?? p.nome)} rotulo={p.papel}>
+                {p.nome ?? "—"}
+              </Campo>
+            ))}
+            {pr.recebimento && (
+              <Campo rotulo="Recebimento">
+                {pr.recebimento.recebido
+                  ? `Recebido${pr.recebimento.data ? ` em ${formatarData(pr.recebimento.data)}` : ""}${pr.recebimento.por ? ` por ${pr.recebimento.por}` : ""}${pr.recebimento.deAcordo === false ? " — com ressalva" : ""}`
+                  : "Ainda não recebido"}
+              </Campo>
+            )}
+            {pr.documentos.map((d) => (
+              <Campo key={d.rotulo} rotulo={d.rotulo}>
+                <LinkArquivo url={d.url} />
+              </Campo>
+            ))}
+          </dl>
+          {podeEditar && aberta && (
+            <AcoesOrdem
+              ordemId={id}
+              situacao={situacao}
+              podeCorrigir={situacao !== "Paga"}
+              podeCancelar={situacao !== "Paga"}
+              podeReenviar={situacao === "Aguardando informações"}
+              atual={{
+                descricao: typeof ordem.descricao === "string" ? ordem.descricao : "",
+                valor:
+                  ordem.valor_inicial_cobranca === null || ordem.valor_inicial_cobranca === undefined
+                    ? ""
+                    : Number(ordem.valor_inicial_cobranca).toFixed(2).replace(".", ","),
+                vencimento: typeof ordem.vencimento === "string" ? ordem.vencimento : "",
+                centroCustoDespesaId:
+                  typeof ordem.centro_custo_despesa_id === "string" ? ordem.centro_custo_despesa_id : "",
+                formaPagamento: typeof ordem.forma_pagamento === "string" ? ordem.forma_pagamento : "",
+              }}
+              centros={opcoesCentro}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="min-w-0">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Auditoria automática
+                <Badge variant="outline" className={ESTILO_STATUS[x.auditoria.geral].classe}>
+                  {ESTILO_STATUS[x.auditoria.geral].rotulo}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Verificações feitas na hora — também saem no extrato em PDF.
+              </CardDescription>
+            </div>
+            <ShieldCheck className="text-muted-foreground size-4" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ul className="divide-border grid divide-y">
+            {x.auditoria.itens.map((i) => (
+              <li key={i.codigo} className="flex items-start gap-3 py-2">
+                <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[i.status].classe}`}>
+                  {ESTILO_STATUS[i.status].rotulo}
+                </Badge>
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium">{i.rotulo}</p>
+                  <p className="text-muted-foreground text-xs">{i.detalhe}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="min-w-0">
@@ -265,7 +402,7 @@ export default async function OrdemPage({
                   Autorização, forma e comprovante
                 </CardDescription>
               </div>
-              {editandoPagamento || !podeEditar ? (
+              {editandoPagamento || !podeEditar || !(pagavel || situacao === "Paga") ? (
                 <Landmark className="text-muted-foreground size-4" />
               ) : (
                 <Button variant="outline" size="sm" asChild>
@@ -320,26 +457,9 @@ export default async function OrdemPage({
               <Campo rotulo="Comprovante de pagamento">
                 <LinkArquivo url={urlComprovante} />
               </Campo>
-              <Campo rotulo="Autorização">
-                {ordem.autorizacao_esta_autorizado === true ? (
-                  <Badge
-                    variant="outline"
-                    className="border-success/40 text-success-fg"
-                  >
-                    Autorizada
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Sem autorização registrada
-                  </Badge>
-                )}
-              </Campo>
-              <Campo rotulo="Autorizador / data">
-                {autorizador ?? "—"}
-                {ordem.autorizacao_data ? (
-                  <> · {formatarData(ordem.autorizacao_data as string)}</>
-                ) : null}
-              </Campo>
+              <div className="col-span-2">
+                <Campo rotulo="Autorização">{x.autorizacao.texto}</Campo>
+              </div>
               {typeof ordem.autorizacao_observacao === "string" &&
                 ordem.autorizacao_observacao.trim() && (
                   <div className="col-span-2">
@@ -360,7 +480,8 @@ export default async function OrdemPage({
             <div>
               <CardTitle className="text-base">Centro de custo</CardTitle>
               <CardDescription>
-                Classificação contábil da despesa e da receita
+                Classificação contábil: a despesa (crédito) e a conta de onde o
+                dinheiro saiu (débito)
               </CardDescription>
             </div>
             <Tags className="text-muted-foreground size-4" />
@@ -368,11 +489,11 @@ export default async function OrdemPage({
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <CartaoCentroCusto
-            titulo="Centro de custo — despesa"
+            titulo="Centro de custo da despesa (crédito)"
             centro={detalhe.centroCustoDespesa}
           />
           <CartaoCentroCusto
-            titulo="Centro de custo — receita"
+            titulo="Centro de custo do débito (de onde saiu)"
             centro={detalhe.centroCustoReceita}
           />
           {rateio.length > 0 && (
@@ -467,6 +588,39 @@ export default async function OrdemPage({
           </CardContent>
         </Card>
       )}
+
+      <Card className="min-w-0">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Histórico</CardTitle>
+              <CardDescription>Tudo o que aconteceu com esta ordem, por quem e quando</CardDescription>
+            </div>
+            <History className="text-muted-foreground size-4" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {x.eventos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Sem eventos registrados.</p>
+          ) : (
+            <ol className="grid gap-3">
+              {x.eventos.map((e) => (
+                <li key={e.id + e.quando} className="border-border border-l-2 pl-3 text-sm">
+                  <p>
+                    <span className="font-medium">{e.rotulo}</span>
+                    {e.usuario && <span className="text-muted-foreground"> — {e.usuario}</span>}
+                    <span className="text-muted-foreground text-xs"> · {formatarDataHora(e.quando)}</span>
+                  </p>
+                  {e.descricao && <p className="text-muted-foreground text-xs">{e.descricao}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="text-muted-foreground mt-3 text-xs">
+            Código de verificação do extrato: <span className="font-mono">{x.codigoVerificacao}</span>
+          </p>
+        </CardContent>
+      </Card>
 
       {detalhe.projetoVinculado && (
         <Card className="min-w-0">
