@@ -10,13 +10,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
+import { cpfConfiavel } from "@/lib/cpf"
+import { situacaoComunicados } from "@/lib/db/comunicacao-descadastro"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
+import { tenantAtual } from "@/lib/tenant"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 
 
 import { PortalShell } from "../portal-shell"
 import { AceiteLgpdForm } from "./aceite-form"
+import { ComunicadosForm } from "./comunicados-form"
 
 export const metadata: Metadata = { title: "LGPD — Portal do Associado" }
 
@@ -35,10 +39,12 @@ export default async function LgpdPage({
 }) {
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
-  const [cadastro, org, entidade] = await Promise.all([
+  const cpf = cpfConfiavel(filiado.cpf)
+  const [cadastro, org, entidade, comunicados] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
     obterOrganizacao(),
     nomeEntidade(),
+    cpf ? situacaoComunicados({ emp: await tenantAtual(), cpf }) : null,
   ])
   const emailContato = org?.emailContato ?? null
 
@@ -57,6 +63,11 @@ export default async function LgpdPage({
         </p>
       </div>
 
+      {salvo === "comunicados" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Preferência de comunicados salva.</AlertDescription>
+        </Alert>
+      )}
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Aceite registrado. Obrigado!</AlertDescription>
@@ -128,6 +139,26 @@ export default async function LgpdPage({
           )}
         </CardContent>
       </Card>
+
+      {comunicados?.disponivel && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Comunicados por e-mail</CardTitle>
+            <CardDescription>
+              {comunicados.descadastradoEm
+                ? `Você pediu para não receber os comunicados em ${formatarData(comunicados.descadastradoEm)}.`
+                : `Você recebe as mensagens que ${entidade} envia por e-mail aos filiados.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <p className="text-muted-foreground text-sm">
+              Avisos ligados ao que você usa — votações, reservas, recuperação de senha — e o
+              parabéns de aniversário continuam chegando.
+            </p>
+            <ComunicadosForm preview={preview} recebe={!comunicados.descadastradoEm} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

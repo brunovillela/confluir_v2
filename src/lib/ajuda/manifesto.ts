@@ -690,6 +690,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Aniversariantes",
         resumo: "Parabéns por e-mail às 9h, automático, e a lista do dia com o botão do WhatsApp",
       },
+      {
+        slug: "mala-direta",
+        titulo: "Mala direta",
+        resumo: "E-mail a um recorte de filiados: teste, envio ou agendamento, WhatsApp e descadastro",
+      },
     ],
   },
   {

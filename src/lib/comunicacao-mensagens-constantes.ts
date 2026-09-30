@@ -1,3 +1,7 @@
+import { COR, escaparHtml } from "@/lib/email-layout"
+import { FILIACAO_CONDICOES, FORMAS_RECEBIMENTO } from "@/lib/filiacao"
+import { lerCorpo, linkSeguro, type Bloco, type Trecho } from "@/lib/oficio-formatacao"
+
 /**
  * Comunicação › Mensagens aos filiados — constantes e utilitários puros,
  * compartilhados entre client (prévia, botão do WhatsApp) e server (envio).
@@ -85,3 +89,114 @@ export function formatarTelefone(telefone: string | null | undefined): string {
 }
 
 export const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+// ── Mala direta ────────────────────────────────────────────────────────────
+
+export type SituacaoMensagem = "rascunho" | "agendada" | "enviando" | "enviada" | "cancelada"
+
+export const ROTULO_SITUACAO_MENSAGEM: Record<SituacaoMensagem, string> = {
+  rascunho: "Rascunho",
+  agendada: "Agendada",
+  enviando: "Enviando",
+  enviada: "Enviada",
+  cancelada: "Cancelada",
+}
+
+/** Condição "sem condição informada" no filtro (cadastros antigos com null). */
+export const CONDICAO_SEM_INFORMACAO = "sem_condicao"
+
+export const CONDICOES_MALA_DIRETA = [
+  ...FILIACAO_CONDICOES.filter((c) => c !== "Falecido" && c !== "Excluído(a) do quadro associativo").map((c) => ({
+    valor: c as string,
+    rotulo: c as string,
+  })),
+  { valor: CONDICAO_SEM_INFORMACAO, rotulo: "Sem condição informada" },
+]
+
+/** O recorte de uma mala direta — os filtros dos relatórios de filiados. */
+export type FiltrosMalaDireta = {
+  condicoes: string[]
+  fonte?: string
+  condicaoFonte?: string
+  uf?: string
+  cidade?: string
+  lotacao?: string
+  formaRecebimento?: string
+  inadimplente?: "sim" | "nao"
+  idadeMin?: string
+  idadeMax?: string
+}
+
+const umTexto = (v: unknown) => (typeof v === "string" && v.trim() && v !== "todas" && v !== "todos" ? v.trim() : undefined)
+const inteiroTexto = (v: unknown) => {
+  const t = umTexto(v)
+  return t && /^\d{1,3}$/.test(t) ? t : undefined
+}
+
+/** Filtros vindos do banco (jsonb) ou do formulário, só com valores válidos. */
+export function normalizarFiltros(o: Record<string, unknown> | null | undefined): FiltrosMalaDireta {
+  const validas = new Set(CONDICOES_MALA_DIRETA.map((c) => c.valor))
+  const brutas = Array.isArray(o?.condicoes) ? o.condicoes : []
+  const condicoes = brutas.filter((c): c is string => typeof c === "string" && validas.has(c))
+  const forma = umTexto(o?.formaRecebimento)
+  const inad = umTexto(o?.inadimplente)
+  return {
+    condicoes: condicoes.length ? condicoes : ["Ativo"],
+    fonte: umTexto(o?.fonte),
+    condicaoFonte: umTexto(o?.condicaoFonte),
+    uf: umTexto(o?.uf),
+    cidade: umTexto(o?.cidade),
+    lotacao: umTexto(o?.lotacao),
+    formaRecebimento:
+      forma && (forma === "nao_informado" || (FORMAS_RECEBIMENTO as readonly string[]).includes(forma)) ? forma : undefined,
+    inadimplente: inad === "sim" || inad === "nao" ? inad : undefined,
+    idadeMin: inteiroTexto(o?.idadeMin),
+    idadeMax: inteiroTexto(o?.idadeMax),
+  }
+}
+
+// ── Corpo formatado (editor dos ofícios) → HTML do e-mail ──────────────────
+
+const ALINHAR = (a: string | null) => (a && a !== "left" ? `text-align:${a};` : "")
+
+function trechosEmail(ts: Trecho[], v: { nome: string; entidade: string }): string {
+  return ts
+    .map((t) => {
+      let h = escaparHtml(aplicarVariaveis(t.texto, v))
+      if (t.s) h = `<s>${h}</s>`
+      if (t.u) h = `<u>${h}</u>`
+      if (t.i) h = `<em>${h}</em>`
+      if (t.b) h = `<strong>${h}</strong>`
+      const link = linkSeguro(t.link)
+      if (link) h = `<a href="${escaparHtml(link)}" target="_blank" style="color:${COR.laranjaAcao};">${h}</a>`
+      return h
+    })
+    .join("")
+}
+
+const vazio = (b: Bloco) => b.tipo !== "lista" && b.trechos.every((t) => !t.texto.trim())
+
+/**
+ * O corpo gravado pelo editor (BBCode) como HTML de e-mail, com estilo inline
+ * e as variáveis trocadas pelo nome de cada pessoa. Linhas em branco não viram
+ * espaço extra: cada parágrafo já tem a sua margem.
+ */
+export function corpoParaEmailHtml(bb: string | null | undefined, v: { nome: string; entidade: string }): string {
+  return lerCorpo(bb)
+    .filter((b) => !vazio(b))
+    .map((b) => {
+      if (b.tipo === "titulo") {
+        return `<h3 style="margin:8px 0 12px;font-size:17px;line-height:1.35;color:${COR.navy};${ALINHAR(b.alinhamento)}">${trechosEmail(b.trechos, v)}</h3>`
+      }
+      if (b.tipo === "lista") {
+        const tag = b.ordenada ? "ol" : "ul"
+        const itens = b.itens
+          .map((it) => `<li style="margin:0 0 6px;${it.nivel ? `margin-left:${it.nivel * 24}px;` : ""}">${trechosEmail(it.trechos, v)}</li>`)
+          .join("")
+        return `<${tag} style="margin:0 0 16px;padding-left:24px;">${itens}</${tag}>`
+      }
+      const recuo = b.recuo ? `margin-left:${b.recuo * 32}px;` : ""
+      return `<p style="margin:0 0 16px;${ALINHAR(b.alinhamento)}${recuo}">${trechosEmail(b.trechos, v)}</p>`
+    })
+    .join("\n")
+}

@@ -603,6 +603,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Mala direta",
+    href: "/painel/comunicacao/mensagens",
+    icone: "Mail",
+    descricao: "Mensagens por e-mail a um recorte de filiados, com agendamento e o texto para o WhatsApp",
+    chave: "comunicacao_mensagens",
+    oculto: true,
+  },
+  {
     titulo: "Etiquetas para os Correios",
     href: "/painel/comunicacao/etiquetas",
     icone: "Mail",

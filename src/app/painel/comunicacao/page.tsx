@@ -82,6 +82,14 @@ export default async function ComunicacaoPage() {
             icone={Cake}
           />
         )}
+        {mensagens && (
+          <CartaoArea
+            titulo="Mala direta"
+            descricao="Mensagens por e-mail a um recorte de filiados, com teste, agendamento e o texto para o WhatsApp; quem se descadastrou não recebe"
+            href="/painel/comunicacao/mensagens"
+            icone={Mail}
+          />
+        )}
         {etiquetas && (
           <CartaoArea
             titulo="Etiquetas para os Correios"

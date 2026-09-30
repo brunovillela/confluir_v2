@@ -84,5 +84,7 @@ export async function marcarWhatsappAction(envioId: string): Promise<{ erro?: st
   const sessao = await exigir()
   const r = await marcarWhatsapp(envioId, sessao.usuario.id as string)
   revalidatePath(AQUI)
+  // O mesmo botão serve à lista da mala direta.
+  revalidatePath("/painel/comunicacao/mensagens", "layout")
   return r
 }

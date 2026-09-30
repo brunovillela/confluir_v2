@@ -55,6 +55,9 @@ import {
   formatarTelefone,
 } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { ROTULO_ORIGEM_DESCADASTRO, type OrigemDescadastro } from "@/lib/db/comunicacao-descadastro"
+
+import { alterarComunicadosFichaAction } from "./comunicados-actions"
 
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
 import { CondicaoBadge } from "../condicao-badge"
@@ -136,6 +139,7 @@ export default async function FiliadoPage({
     "filiacao_receitas",
   ])
   const podeEditar = podeAcessar(sessao.permissoes, "filiacao_gestao")
+  const podeComunicados = podeAcessar(sessao.permissoes, "filiacao_gestao", ["comunicacao_mensagens"])
   const podeReembolsar = podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"])
 
   const { id } = await params
@@ -524,10 +528,10 @@ export default async function FiliadoPage({
         <CardHeader>
           <CardTitle className="text-base">Consentimentos</CardTitle>
           <CardDescription>
-            Termos de LGPD e de desconto que o filiado aceitou
+            Termos de LGPD e de desconto que o filiado aceitou, e se recebe a mala direta
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Consentimento
             titulo="Proteção de dados (LGPD)"
             data={f.tl_lgpd_data as string | null}
@@ -538,6 +542,27 @@ export default async function FiliadoPage({
             data={f.tl_desconto_data as string | null}
             termo={aceites.desconto}
           />
+          <div className="rounded-lg border p-4">
+            <p className="text-sm font-medium">Comunicados por e-mail</p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {typeof f.comunicados_optout_em === "string" && f.comunicados_optout_em
+                ? `Não recebe a mala direta: pediu em ${formatarData(f.comunicados_optout_em)}${
+                    ROTULO_ORIGEM_DESCADASTRO[f.comunicados_optout_origem as OrigemDescadastro]
+                      ? ` ${ROTULO_ORIGEM_DESCADASTRO[f.comunicados_optout_origem as OrigemDescadastro]}`
+                      : ""
+                  }`
+                : "Recebe a mala direta"}
+            </p>
+            {podeComunicados && "comunicados_optout_em" in f && (
+              <form action={alterarComunicadosFichaAction} className="mt-3">
+                <input type="hidden" name="filiacao_id" value={String(f.id)} />
+                <input type="hidden" name="receber" value={f.comunicados_optout_em ? "1" : "0"} />
+                <Button type="submit" variant="outline" size="sm">
+                  {f.comunicados_optout_em ? "Voltar a enviar" : "Parar de enviar"}
+                </Button>
+              </form>
+            )}
+          </div>
         </CardContent>
       </Card>
 
