@@ -76,7 +76,7 @@ export default async function ContratosPage({
 
       <GrupoColapsavel
         titulo="Novo contrato"
-        descricao="Locadora do cadastro de fornecedores do módulo Compras"
+        descricao="Locadora do cadastro de fornecedores do módulo Aquisição"
       >
         <NovoContratoForm
           fornecedores={fornecedores.map((f) => ({

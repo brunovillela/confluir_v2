@@ -431,7 +431,7 @@ export async function pessoasAutorizaveis(): Promise<
 }
 
 /**
- * Contas abertas para o módulo Compras (opções quando o pagamento é em
+ * Contas abertas para o módulo Aquisição (opções quando o pagamento é em
  * dinheiro). Conta fechada ou em prestação NÃO aparece.
  */
 export async function contasAbertasParaCompras(): Promise<

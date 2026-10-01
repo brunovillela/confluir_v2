@@ -8,6 +8,7 @@ import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { formatarData } from "@/lib/formato"
+import { ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
 import {
   createAdminClient,
   createServiceClient,
@@ -15,9 +16,11 @@ import {
 
 /**
  * Férias — períodos aquisitivos/concessivos (`pessoal_ferias`, 63 migrados)
- * e gozos (`pessoal_ferias_gozo`, 48). Convenção do dado LEGADO (mantida):
- * `dias` = termino − inicio, ou seja, `termino` é a data de RETORNO ao
- * trabalho (último dia de descanso = termino − 1). `dias_disponiveis` é o
+ * e gozos (`pessoal_ferias_gozo`, 48). Desde 01/10/2026 o dia de início
+ * CONTA como dia de férias: `termino` é o ÚLTIMO dia de descanso e
+ * `dias` = termino − inicio + 1 (retorno = termino + 1). Ver
+ * lib/periodo-dias.ts e supabase/periodos-dia-inicial-conta.sql, que
+ * normalizou o legado que gravava a data de retorno. `dias_disponiveis` é o
  * DIREITO do período (30 por padrão; menos quando há faltas injustificadas).
  *
  * Gozos migrados vieram com `ferias_periodo_id` NULO — o vínculo legado é
@@ -127,7 +130,7 @@ export type GozoFerias = {
   funcionario_id: string | null
   ferias_periodo_id: string | null
   inicio: string | null
-  /** Data de RETORNO ao trabalho (convenção do legado). */
+  /** ÚLTIMO dia de férias (inclusivo); o retorno é o dia seguinte. */
   termino: string | null
   dias: number | null
   autorizado: boolean | null
@@ -351,8 +354,7 @@ function validarGozos(
   novo: { inicio: string; dias: number; divisaoAcordada: boolean }
 ): string | null {
   const { descanso } = resumoPeriodo({ ...periodo, gozos: [] })
-  const ultimoDia = somarDias(novo.inicio, novo.dias - 1)
-  const retorno = somarDias(novo.inicio, novo.dias)
+  const ultimoDia = ultimoDiaDoPeriodo(novo.inicio, novo.dias)
 
   if (novo.dias < 5) {
     return "Nenhum período de gozo pode ter menos de 5 dias corridos (CLT art. 134)."
@@ -373,7 +375,7 @@ function validarGozos(
   // Sobreposição com os demais gozos do período.
   for (const g of outros) {
     if (!g.inicio || !g.termino) continue
-    if (novo.inicio < g.termino && g.inicio < retorno) {
+    if (novo.inicio <= g.termino && g.inicio <= ultimoDia) {
       return `O gozo sobrepõe o período ${formatarData(g.inicio)} – ${formatarData(g.termino)}.`
     }
   }
@@ -403,7 +405,7 @@ async function registroGozo(
   periodo: PeriodoFerias,
   dados: DadosGozo
 ): Promise<Record<string, unknown>> {
-  const termino = somarDias(dados.inicio, dados.dias)
+  const termino = ultimoDiaDoPeriodo(dados.inicio, dados.dias)
   const { mes, ano } = referenciaDaData(dados.inicio)
   return {
     funcionario_id: periodo.trabalhador_id,
@@ -454,7 +456,8 @@ export async function solicitarGozo(
   dados: {
     periodoId: string
     inicio: string
-    termino: string
+    /** Quantidade de dias pedida; o último dia é calculado (início conta). */
+    dias: number
     /** Vender 1/3 das férias em dinheiro (abono pecuniário, CLT art. 143). */
     abono?: boolean
   }
@@ -467,19 +470,13 @@ export async function solicitarGozo(
   if (periodo.finalizado === true) {
     return { erro: "Este período já foi finalizado e não aceita novos gozos." }
   }
-  if (!dados.inicio || !dados.termino) {
-    return { erro: "Informe o início e a data de retorno." }
+  if (!dados.inicio) return { erro: "Informe o início das férias." }
+  if (!Number.isInteger(dados.dias) || dados.dias <= 0) {
+    return { erro: "Informe a quantidade de dias." }
   }
-  if (dados.termino <= dados.inicio) {
-    return { erro: "O retorno ao trabalho deve ser depois do início." }
-  }
-  const dias = Math.round(
-    (paraUTC(dados.termino).getTime() - paraUTC(dados.inicio).getTime()) /
-      86_400_000
-  )
   const gozo: DadosGozo = {
     inicio: dados.inicio,
-    dias,
+    dias: dados.dias,
     divisaoAcordada: true,
     autorizador_observacoes: null,
     aviso: null,
@@ -575,7 +572,7 @@ export async function cancelarMinhaSolicitacaoGozo(
   if (eraAutorizado) {
     const nomes = await nomesDosUsuarios([usuarioId])
     const nome = nomes.get(usuarioId) ?? "Um funcionário"
-    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${data.dias ?? "?"} dias a partir de ${formatarData(data.inicio)}, retorno em ${formatarData(data.termino)}). Verifique a necessidade de troca.`
+    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${data.dias ?? "?"} dias, de ${formatarData(data.inicio)} a ${formatarData(data.termino)}). Verifique a necessidade de troca.`
     try {
       await notificarPessoalGestao(mensagem, usuarioId)
     } catch (e) {
@@ -669,7 +666,7 @@ export async function definirAutorizacaoGozo(
   }
 
   if (autorizado && g.funcionario_id) {
-    const mensagem = `Suas férias de ${g.dias ?? "?"} dias a partir de ${formatarData(g.inicio)} (retorno em ${formatarData(g.termino)}) foram autorizadas.${abonoConfirmado ? " O abono pecuniário (venda de 1/3) também foi confirmado." : ""}`
+    const mensagem = `Suas férias de ${g.dias ?? "?"} dias, de ${formatarData(g.inicio)} a ${formatarData(g.termino)} (retorno em ${formatarData(g.termino ? somarDias(g.termino, 1) : null)}), foram autorizadas.${abonoConfirmado ? " O abono pecuniário (venda de 1/3) também foi confirmado." : ""}`
     try {
       await criarNotificacao({ usuarioId: g.funcionario_id, texto: mensagem })
     } catch (e) {

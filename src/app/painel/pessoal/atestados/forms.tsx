@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CamposPeriodo } from "@/components/campos-periodo"
 import { TIPOS_AUSENCIA } from "@/lib/ausencias"
+import { diasDoPeriodo } from "@/lib/periodo-dias"
 
 import {
   atualizarAtestadoAction,
@@ -25,6 +27,15 @@ const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 type Funcionario = { usuarioId: string; nome: string }
+
+/** Dias do atestado na edição: o registrado ou, sem ele, o derivado das datas. */
+function diasDoAtestado(
+  a: { inicio: string | null; termino: string | null; quantidade_dias: number | null } | undefined
+): number | null {
+  if (!a?.inicio) return null
+  if (a.quantidade_dias) return a.quantidade_dias
+  return a.termino ? diasDoPeriodo(a.inicio, a.termino) : null
+}
 
 function SelectFuncionario({
   funcionarios,
@@ -108,38 +119,14 @@ export function AtestadoForm({
               funcionarios={funcionarios}
               defaultValue={atestado?.funcionario_id ?? ""}
             />
+            <CamposPeriodo
+              rotuloDias="Dias de afastamento *"
+              nomeDias="quantidade_dias"
+              placeholderDias="Ex.: 3"
+              inicioPadrao={atestado?.inicio}
+              diasPadrao={diasDoAtestado(atestado)}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="inicio">Início *</Label>
-                <Input
-                  id="inicio"
-                  name="inicio"
-                  type="date"
-                  required
-                  defaultValue={atestado?.inicio ?? ""}
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="termino">Término</Label>
-                <Input
-                  id="termino"
-                  name="termino"
-                  type="date"
-                  defaultValue={atestado?.termino ?? ""}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="quantidade_dias">Dias</Label>
-                <Input
-                  id="quantidade_dias"
-                  name="quantidade_dias"
-                  inputMode="numeric"
-                  placeholder="Ex.: 3"
-                  defaultValue={atestado?.quantidade_dias ?? ""}
-                />
-              </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="cid10">CID-10</Label>
                 <Input
@@ -295,27 +282,18 @@ export function AusenciaForm({
               funcionarios={funcionarios}
               defaultValue={ausencia?.funcionario_id ?? ""}
             />
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="inicio">Início *</Label>
-                <Input
-                  id="inicio"
-                  name="inicio"
-                  type="date"
-                  required
-                  defaultValue={ausencia?.inicio ?? ""}
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="termino">Término</Label>
-                <Input
-                  id="termino"
-                  name="termino"
-                  type="date"
-                  defaultValue={ausencia?.termino ?? ""}
-                />
-              </div>
-            </div>
+            <CamposPeriodo
+              rotuloDias="Dias *"
+              placeholderDias="Ex.: 1"
+              inicioPadrao={ausencia?.inicio}
+              diasPadrao={
+                ausencia?.inicio
+                  ? ausencia.termino
+                    ? diasDoPeriodo(ausencia.inicio, ausencia.termino)
+                    : 1
+                  : null
+              }
+            />
             <div className="grid gap-1.5">
               <Label htmlFor="motivo">Tipo da ausência *</Label>
               <select

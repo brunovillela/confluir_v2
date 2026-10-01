@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { tipoDeAusenciaValido } from "@/lib/ausencias"
+import { lerDias, ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
@@ -62,25 +63,21 @@ async function subirArquivo(
 function lerCamposAtestado(formData: FormData) {
   const funcionario_id = String(formData.get("funcionario_id") ?? "")
   const inicio = String(formData.get("inicio") ?? "")
-  const termino = String(formData.get("termino") ?? "")
-  const diasBruto = String(formData.get("quantidade_dias") ?? "").trim()
+  const quantidade_dias = lerDias(formData.get("quantidade_dias"))
   const acompanhamento = formData.get("atestado_acompanhamento") === "on"
 
   if (!funcionario_id) return { erro: "Escolha o funcionário." }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) {
     return { erro: "Informe a data de início do atestado." }
   }
-  if (termino && termino < inicio) {
-    return { erro: "O término não pode ser antes do início." }
-  }
-  const quantidade_dias = diasBruto ? Number(diasBruto) : null
-  if (diasBruto && (!Number.isInteger(quantidade_dias) || quantidade_dias! <= 0)) {
-    return { erro: "Quantidade de dias deve ser um número inteiro." }
+  if (quantidade_dias === null) {
+    return { erro: "Informe a quantidade de dias (número inteiro)." }
   }
   return {
     funcionario_id,
     inicio,
-    termino: termino || null,
+    // O dia de início conta: 3 dias a partir do dia 1 vão até o dia 3.
+    termino: ultimoDiaDoPeriodo(inicio, quantidade_dias),
     quantidade_dias,
     cid10: String(formData.get("cid10") ?? "").trim() || null,
     consideracao: String(formData.get("consideracao") ?? "").trim() || null,
@@ -158,13 +155,13 @@ export async function excluirAtestadoAction(
 function lerCamposAusencia(formData: FormData) {
   const funcionario_id = String(formData.get("funcionario_id") ?? "")
   const inicio = String(formData.get("inicio") ?? "")
-  const termino = String(formData.get("termino") ?? "")
+  const dias = lerDias(formData.get("dias"))
   if (!funcionario_id) return { erro: "Escolha o funcionário." }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) {
     return { erro: "Informe a data de início da ausência." }
   }
-  if (termino && termino < inicio) {
-    return { erro: "O término não pode ser antes do início." }
+  if (dias === null) {
+    return { erro: "Informe a quantidade de dias (número inteiro)." }
   }
   // O tipo é lista fechada; o detalhe do caso vai na observação.
   const motivo = String(formData.get("motivo") ?? "").trim()
@@ -174,7 +171,8 @@ function lerCamposAusencia(formData: FormData) {
   return {
     funcionario_id,
     inicio,
-    termino: termino || null,
+    // O dia de início conta: licença de 10 dias a partir do dia 1 vai até o dia 10.
+    termino: ultimoDiaDoPeriodo(inicio, dias),
     motivo,
     observacao: String(formData.get("observacao") ?? "").trim() || null,
   }

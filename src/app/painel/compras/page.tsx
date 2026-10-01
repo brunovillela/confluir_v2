@@ -35,7 +35,7 @@ import { resumoContratos } from "@/lib/db/contratos";
 import { formatarData, formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
-export const metadata: Metadata = { title: "Compras — Confluir" };
+export const metadata: Metadata = { title: "Aquisição — Confluir" };
 
 const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]";
@@ -87,7 +87,7 @@ export default async function ComprasPage({
     .filter((d) => escopo.departamentoIds.includes(d.id))
     .map((d) => d.nome);
 
-  // Criar exige escrita: "editar" (via Compras) ou a aquisição direta — a flag
+  // Criar exige escrita: "editar" (via Aquisição) ou a aquisição direta — a flag
   // base é só leitura e abria o botão para uma página sem acesso.
   const podeCriar = podeAcessar(p, "aquisicoes_compras_edicao", [
     "aquisicoes_compra_direta",
@@ -125,7 +125,7 @@ export default async function ComprasPage({
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Compras</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Aquisição</h1>
           <p className="text-muted-foreground mt-1 text-xs">
             Processos de aquisição: solicitação, cotação, compra, cobrança e
             recebimento
@@ -144,7 +144,7 @@ export default async function ComprasPage({
       {brutos.fora && (
         <Alert variant="warning">
           <AlertDescription>
-            Essa compra é de um departamento fora do seu alcance em Compras.
+            Essa compra é de um departamento fora do seu alcance em Aquisição.
           </AlertDescription>
         </Alert>
       )}
@@ -165,7 +165,7 @@ export default async function ComprasPage({
           {veComprador && (
             <CartaoArea
               titulo="Área do comprador"
-              descricao="Processos Via Compras que aguardam sua ação"
+              descricao="Processos Via Aquisição que aguardam sua ação"
               href="/painel/compras/comprador"
               icone={ClipboardList}
               indicador={
@@ -191,7 +191,7 @@ export default async function ComprasPage({
           {veRecebimentos && (
             <CartaoArea
               titulo="Recebimentos pendentes"
-              descricao="Compras a receber — direta ou via Compras"
+              descricao="Compras a receber — direta ou via Aquisição"
               href="/painel/compras/recebimentos"
               icone={PackageOpen}
               indicador={
@@ -251,7 +251,7 @@ export default async function ComprasPage({
       {resumo.aReceber === null && (
         <Alert variant="warning">
           <AlertDescription>
-            Compras ainda não configuradas por completo — rode{" "}
+            Aquisição ainda não configurada por completo — rode{" "}
             <code>supabase/compras.sql</code> no SQL Editor do Supabase para
             habilitar cotações, fornecimentos e recebimentos.
           </AlertDescription>
@@ -286,9 +286,9 @@ export default async function ComprasPage({
           defaultValue={aquisicao}
           className={SELECT_FILTRO}
         >
-          <option value="todas">Direta e via Compras</option>
+          <option value="todas">Direta e via Aquisição</option>
           <option value="direta">Aquisição direta</option>
-          <option value="via_compras">Via Compras</option>
+          <option value="via_compras">Via Aquisição</option>
         </select>
         <Button type="submit" variant="outline" size="sm">
           Filtrar

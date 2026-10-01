@@ -4,6 +4,7 @@ import { useActionState } from "react"
 import Link from "next/link"
 import { Check, Loader2, Trash2, Undo2 } from "lucide-react"
 
+import { CamposPeriodo } from "@/components/campos-periodo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -74,30 +75,13 @@ export function GozoForm({
           {gozo && <input type="hidden" name="id" value={gozo.id} />}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="inicio">Início *</Label>
-                <Input
-                  id="inicio"
-                  name="inicio"
-                  type="date"
-                  required
-                  defaultValue={gozo?.inicio ?? ""}
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="dias">Dias corridos *</Label>
-                <Input
-                  id="dias"
-                  name="dias"
-                  inputMode="numeric"
-                  placeholder="Ex.: 14"
-                  defaultValue={gozo?.dias ?? ""}
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid gap-1.5">
+            <CamposPeriodo
+              rotuloDias="Dias corridos *"
+              placeholderDias="Ex.: 14"
+              inicioPadrao={gozo?.inicio}
+              diasPadrao={gozo?.dias}
+            />
+            <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="aviso">
                 Aviso de férias (PDF{gozo?.temAviso ? " — substitui o atual" : ", opcional"})
               </Label>

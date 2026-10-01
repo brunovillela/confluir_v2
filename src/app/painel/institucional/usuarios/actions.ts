@@ -337,6 +337,6 @@ export async function salvarDepartamentosComprasAction(
   return {
     ok: escolhidos.length
       ? `Compras restritas a ${escolhidos.length} departamento(s).`
-      : "Sem restrição: a pessoa alcança todos os departamentos em Compras.",
+      : "Sem restrição: a pessoa alcança todos os departamentos em Aquisição.",
   }
 }

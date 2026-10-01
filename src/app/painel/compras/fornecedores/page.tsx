@@ -102,7 +102,7 @@ export default async function FornecedoresPage() {
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
             <ArrowLeft />
-            Compras
+            Aquisição
           </Link>
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-3">

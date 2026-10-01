@@ -37,7 +37,7 @@ export function AquisicaoBadge({ direta }: { direta: boolean | null }) {
   }
   return (
     <Badge variant="outline" className="whitespace-nowrap">
-      {direta ? "Direta" : "Via Compras"}
+      {direta ? "Direta" : "Via Aquisição"}
     </Badge>
   )
 }

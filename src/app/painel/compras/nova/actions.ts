@@ -31,13 +31,13 @@ export async function criarCompra(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  // Registrar compra é escrita: via Compras exige "editar"; aquisição direta,
+  // Registrar compra é escrita: via Aquisição exige "editar"; aquisição direta,
   // a permissão própria. E só pelos departamentos que a pessoa alcança.
   const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
 
   const direta = texto(formData, "modalidade") === "direta"
   if (direta && !podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")) {
-    return { erro: "Você não tem permissão para registrar aquisição direta — use a solicitação via Compras." }
+    return { erro: "Você não tem permissão para registrar aquisição direta — use a solicitação via Aquisição." }
   }
   if (!direta && !podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")) {
     return { erro: "Você só tem permissão para registrar aquisição direta." }

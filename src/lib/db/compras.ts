@@ -19,7 +19,7 @@ import {
  * `compras_solicitacoes` É o processo de aquisição, nas duas modalidades:
  * - Aquisição direta: o departamento compra e registra tudo de uma vez —
  *   o processo nasce "comprado" e já gera a ordem de pagamento.
- * - Via Compras: o departamento SOLICITA; o setor de compras cota
+ * - Via Aquisição: o departamento SOLICITA; o setor de compras cota
  *   (`compras_propostas`), escolhe 1+ propostas e efetiva. Cada proposta
  *   escolhida vira um desdobramento (`compras_fornecimentos`) com pagamento
  *   e recebimento próprios.
@@ -698,7 +698,7 @@ async function inserirSolicitacao(linha: Record<string, unknown>) {
   return tentativa
 }
 
-/** Via Compras: registra a solicitação do departamento; o setor de compras assume dali. */
+/** Via Aquisição: registra a solicitação do departamento; o setor de compras assume dali. */
 export async function criarSolicitacao(
   nova: NovaSolicitacao
 ): Promise<{ id?: string; erro?: string }> {
@@ -1601,7 +1601,7 @@ export async function listarCentrosCustoParaCompra(): Promise<
     }))
 }
 
-// ── Fila do comprador (processos Via Compras a operar) ─────────────────────
+// ── Fila do comprador (processos Via Aquisição a operar) ─────────────────────
 
 export type ItemFilaComprador = {
   id: string
@@ -1614,7 +1614,7 @@ export type ItemFilaComprador = {
 }
 
 /**
- * Processos Via Compras abertos que aguardam ação do comprador: solicitados
+ * Processos Via Aquisição abertos que aguardam ação do comprador: solicitados
  * (iniciar cotação), em cotação (coletar propostas) e cotados (escolher e
  * comprar). Exclui aquisição direta, comprados, recebidos e cancelados.
  */

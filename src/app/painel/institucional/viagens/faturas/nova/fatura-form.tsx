@@ -274,7 +274,7 @@ export function FaturaForm({
         </Button>
       </div>
       <p className="text-muted-foreground -mt-3 text-xs">
-        Gera uma aquisição direta em Compras e a ordem de pagamento, que passa pela avaliação por
+        Gera uma aquisição direta no módulo Aquisição e a ordem de pagamento, que passa pela avaliação por
         alçada antes do financeiro pagar.
       </p>
     </form>

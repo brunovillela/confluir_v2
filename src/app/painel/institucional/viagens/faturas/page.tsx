@@ -51,7 +51,7 @@ export default async function FaturasViagensPage({
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">Faturas</h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Cada fatura vira uma aquisição direta em Compras e uma ordem de pagamento com o
+            Cada fatura vira uma aquisição direta no módulo Aquisição e uma ordem de pagamento com o
             rateio por conta.
           </p>
         </div>

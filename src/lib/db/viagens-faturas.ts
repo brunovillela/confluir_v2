@@ -17,7 +17,7 @@ import type { BeneficiarioViagem, ModalPassagem, TipoItemViagem } from "@/lib/vi
 
 /**
  * Faturas das agências. Uma fatura cobre vários itens (bilhetes, diárias de
- * hotel) de várias viagens; vira UMA aquisição direta em Compras, com a
+ * hotel) de várias viagens; vira UMA aquisição direta no módulo Aquisição, com a
  * ordem "Em autorização" (passa pela alçada) e o rateio por centro de custo.
  *
  * A conta de cada item vem do de-para das diárias — quadro de quem viaja ×

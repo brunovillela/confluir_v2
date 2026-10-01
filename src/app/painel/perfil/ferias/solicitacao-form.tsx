@@ -3,9 +3,9 @@
 import { useActionState } from "react"
 import { Loader2, Send, X } from "lucide-react"
 
+import { CamposPeriodo } from "@/components/campos-periodo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { cancelarFeriasAction, solicitarFeriasAction } from "./actions"
@@ -51,16 +51,11 @@ export function SolicitarFeriasForm({
         </select>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="inicio">Início das férias *</Label>
-          <Input id="inicio" name="inicio" type="date" required />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="termino">Retorno ao trabalho *</Label>
-          <Input id="termino" name="termino" type="date" required />
-        </div>
-      </div>
+      <CamposPeriodo
+        rotuloInicio="Início das férias *"
+        rotuloDias="Quantidade de dias *"
+        placeholderDias="Ex.: 15"
+      />
 
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="abono" className="mt-0.5 size-4" />
@@ -75,7 +70,8 @@ export function SolicitarFeriasForm({
       </label>
 
       <p className="text-muted-foreground text-xs">
-        As regras da CLT (art. 134) são conferidas na hora: cada gozo tem no
+        O último dia é calculado pelo sistema a partir do início e da
+        quantidade de dias. As regras da CLT (art. 134) são conferidas na hora: cada gozo tem no
         mínimo 5 dias, um deles com pelo menos 14, e as férias não podem começar
         na sexta, no sábado ou nos 2 dias antes de um feriado. A solicitação vai
         para autorização do departamento de pessoal.

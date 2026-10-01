@@ -33,7 +33,7 @@ type Area = {
 const AREAS: Area[] = [
   {
     titulo: "Projetos",
-    descricao: "Projetos do sindicato, orçamento e gasto vinculado em Compras",
+    descricao: "Projetos do sindicato, orçamento e gasto vinculado em Aquisição",
     href: "/painel/ferramentas/projetos",
     icone: FolderKanban,
     chave: "ferramentas_projetos",

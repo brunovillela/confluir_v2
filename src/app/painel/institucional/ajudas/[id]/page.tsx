@@ -105,7 +105,7 @@ export default async function AjudaPage({
   const brutos = await searchParams
 
   const detalhe = await buscarContrato(id)
-  // Só ajudas vivem aqui; contratos comuns são do módulo Compras.
+  // Só ajudas vivem aqui; contratos comuns são do módulo Aquisição.
   if (!detalhe || !detalhe.contrato.apoio_institucional) notFound()
   const { contrato: c } = detalhe
 

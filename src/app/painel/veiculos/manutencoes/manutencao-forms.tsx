@@ -204,8 +204,8 @@ export function ManutencaoForm({
           defaultId={inicial?.local_id ?? undefined}
         />
         <p className="text-muted-foreground text-xs">
-          A oficina é um fornecedor cadastrado em Compras. Se ela ainda não
-          estiver lá, cadastre primeiro em Compras → Fornecedores.
+          A oficina é um fornecedor cadastrado em Aquisição. Se ela ainda não
+          estiver lá, cadastre primeiro em Aquisição → Fornecedores.
         </p>
       </div>
 

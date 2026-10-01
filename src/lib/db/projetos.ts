@@ -39,7 +39,7 @@ function listaJsonb(v: unknown): string[] {
   return []
 }
 
-// ── Gasto por projeto (via Compras) ─────────────────────────────────────────
+// ── Gasto por projeto (via Aquisição) ─────────────────────────────────────────
 
 /**
  * Soma de `compra_valor` das solicitações de compra, agrupada por projeto.
@@ -241,7 +241,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     }
   }
 
-  // Solicitações de compra vinculadas (situação derivada das flags, como em Compras)
+  // Solicitações de compra vinculadas (situação derivada das flags, como em Aquisição)
   const { data: sols } = await admin
     .from("compras_solicitacoes")
     .select(

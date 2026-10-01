@@ -274,7 +274,7 @@ async function verificarLinha(
       case "proposta_unica": {
         const proc = await buscar("compras_solicitacoes", linha.processo_compra_id)
         if (!proc || proc.aquisicao_direta !== false) {
-          r("na", "Não é compra pelo setor de Compras.")
+          r("na", "Não é compra pelo setor de Aquisição.")
           break
         }
         const { count } = await admin

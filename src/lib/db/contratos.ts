@@ -27,7 +27,7 @@ import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
- * Contratos — módulo de Compras sobre a tabela migrada `contratos` (480
+ * Contratos — módulo de Aquisição sobre a tabela migrada `contratos` (480
  * linhas do Bubble). Decisões em supabase/contratos.sql.
  *
  * Regras de negócio que fogem do óbvio:

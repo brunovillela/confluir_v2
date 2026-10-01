@@ -100,7 +100,7 @@ export default async function ContratoPage({
   const brutos = await searchParams
 
   const detalhe = await buscarContrato(id, podeEditar)
-  // Ajudas institucionais vivem no módulo Institucional, não em Compras.
+  // Ajudas institucionais vivem no módulo Institucional, não em Aquisição.
   if (!detalhe || detalhe.contrato.apoio_institucional) notFound()
   const { contrato: c } = detalhe
 

@@ -45,7 +45,7 @@ export default async function NovaCompraPage() {
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
             <ArrowLeft />
-            Compras
+            Aquisição
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Nova compra</h1>

@@ -43,7 +43,7 @@ function dataISO(valor: string): string | null {
 /**
  * Operar o processo (cotar, escolher, comprar, gerar ordem). O comprador é o
  * setor central e opera qualquer processo; quem opera por "editar" fica nos
- * departamentos que alcança em Compras.
+ * departamentos que alcança em Aquisição.
  */
 async function requireOperacao(formData: FormData) {
   const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_comprador"])

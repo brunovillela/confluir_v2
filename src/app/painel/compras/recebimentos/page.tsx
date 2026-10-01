@@ -36,15 +36,15 @@ export default async function RecebimentosComprasPage({
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
             <ArrowLeft />
-            Compras
+            Aquisição
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
           Recebimentos pendentes
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Compras que ainda vão chegar — aquisição direta não recebida e Via
-          Compras já comprado; confira e registre a chegada
+          Compras que ainda vão chegar — aquisição direta não recebida e
+          via Aquisição já comprado; confira e registre a chegada
         </p>
       </div>
 

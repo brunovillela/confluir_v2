@@ -91,7 +91,7 @@ export function ConvenioForm({
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-xs">
-              Não achou? Cadastre a empresa em Compras → Fornecedores e volte aqui.
+              Não achou? Cadastre a empresa em Aquisição → Fornecedores e volte aqui.
             </p>
           </div>
 

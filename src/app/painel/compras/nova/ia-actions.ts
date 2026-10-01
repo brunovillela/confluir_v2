@@ -62,7 +62,7 @@ export async function gerarRedacaoCompra(input: {
   const partes = [
     input.direta
       ? "Modalidade: aquisição direta (a compra já foi feita)."
-      : "Modalidade: solicitação ao setor de Compras (ainda será cotada).",
+      : "Modalidade: solicitação ao setor de Aquisição (ainda será cotada).",
     `Rascunho do produto ou serviço: ${rascunho}`,
   ]
   if (tipoRotulo) partes.push(`Tipo: ${tipoRotulo}`)

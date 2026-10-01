@@ -1,8 +1,8 @@
-O módulo **Compras** cobre todo o ciclo de uma aquisição: da solicitação e da
+O módulo **Aquisição** cobre todo o ciclo de uma aquisição: da solicitação e da
 cotação até a aprovação por alçada, a compra, o recebimento e o pagamento —
 além dos **contratos** com fornecedores e do **cadastro** de quem fornece.
 
-<RequerPermissao>Compras</RequerPermissao>
+<RequerPermissao>Aquisição</RequerPermissao>
 
 ## Dois caminhos para toda compra
 
@@ -12,26 +12,26 @@ qual usar evita metade das dúvidas:
 - **Aquisição direta** — a compra **já foi feita** pelo departamento (você foi à
   loja, contratou o serviço, já tem a nota). Aqui você apenas **registra** o que
   aconteceu; o sistema gera a ordem de pagamento, que passa pela alçada.
-- **Via Compras** — a compra **ainda vai acontecer** e precisa de cotação. O
+- **Via Aquisição** — a compra **ainda vai acontecer** e precisa de cotação. O
   departamento **solicita**, o **comprador** cota com fornecedores, compara as
   propostas, escolhe e compra. É o caminho para valores maiores ou quando é
   preciso comparar preços.
 
 <Aviso tipo="dica" titulo="Na dúvida entre os dois">
   Se o dinheiro **já saiu** (ou a compra já está fechada), é **direta**. Se você
-  está **pedindo** para o setor de compras providenciar, é **via Compras**.
+  está **pedindo** para o setor de compras providenciar, é **via Aquisição**.
 </Aviso>
 
 ## As áreas do módulo
 
 <PassoAPasso>
   <Passo titulo="Nova compra">
-    Onde toda aquisição nasce — direta ou via Compras. Na compra direta, a IA
+    Onde toda aquisição nasce — direta ou via Aquisição. Na compra direta, a IA
     pode **ler a nota ou o cupom** e preencher o formulário. Ver
     [Comprar](/painel/ajuda/compras/comprar).
   </Passo>
   <Passo titulo="Área do comprador">
-    A fila de trabalho de quem cota e compra: os processos **via Compras** que
+    A fila de trabalho de quem cota e compra: os processos **via Aquisição** que
     aguardam ação, agrupados por etapa (solicitados, em cotação, cotados a
     comprar). <RequerPermissao>Comprador</RequerPermissao>
   </Passo>
@@ -43,7 +43,7 @@ qual usar evita metade das dúvidas:
   </Passo>
   <Passo titulo="Recebimentos pendentes">
     O que ainda **vai chegar**: aquisição direta marcada como não recebida e via
-    Compras já comprado. A recepção confere e dá baixa quando o item entra.
+    Aquisição já comprado. A recepção confere e dá baixa quando o item entra.
     <RequerPermissao>Recebimentos</RequerPermissao>
   </Passo>
   <Passo titulo="Contratos e Fornecedores">
@@ -53,13 +53,13 @@ qual usar evita metade das dúvidas:
   </Passo>
 </PassoAPasso>
 
-<Print src="compras/painel.png" alt="Painel do módulo Compras com os cartões das áreas: nova compra, área do comprador, avaliações, recebimentos pendentes, contratos e fornecedores, além dos indicadores no topo." legenda="O painel de Compras: cartões das áreas e indicadores de quanto há em cada etapa." />
+<Print src="compras/painel.png" alt="Painel do módulo Aquisição com os cartões das áreas: nova compra, área do comprador, avaliações, recebimentos pendentes, contratos e fornecedores, além dos indicadores no topo." legenda="O painel de Aquisição: cartões das áreas e indicadores de quanto há em cada etapa." />
 
 ## Quem faz o quê
 
-- **O departamento solicitante** abre a solicitação (via Compras) ou registra a
+- **O departamento solicitante** abre a solicitação (via Aquisição) ou registra a
   compra direta que fez.
-- **O comprador** opera os processos via Compras: abre a cotação, lança as
+- **O comprador** opera os processos via Aquisição: abre a cotação, lança as
   propostas, escolhe e compra. Trabalha pela **Área do comprador**.
 - **Quem tem alçada** autoriza as ordens em **Avaliações**, dentro do seu limite
   de valor.
@@ -68,7 +68,7 @@ qual usar evita metade das dúvidas:
 <Aviso tipo="nota" titulo="Cada papel é uma permissão">
   Uma mesma pessoa pode acumular papéis, mas eles são liberados separadamente em
   **Institucional → Usuários e permissões** (Comprador, Avaliação de ordens,
-  Recebimentos, Compras — editar). Ver
+  Recebimentos, Aquisição — editar). Ver
   [Usuários e permissões](/painel/ajuda/institucional/usuarios).
 </Aviso>
 

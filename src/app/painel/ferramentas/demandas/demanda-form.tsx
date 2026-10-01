@@ -103,7 +103,7 @@ export function DemandaForm({
             className="tabular-nums"
           />
           <span className="text-muted-foreground text-xs">
-            Informativo — a demanda não passa por Compras.
+            Informativo — a demanda não passa por Aquisição.
           </span>
         </div>
       </div>

@@ -5,11 +5,13 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
 
 <PassoAPasso>
   <Passo titulo="Atestados médicos">
-    Registre o período, os dias, o CID-10, se há acompanhamento e o arquivo do
-    atestado.
+    Registre o início, a quantidade de dias, o CID-10, se há acompanhamento e o
+    arquivo do atestado. O último dia é calculado — o dia de início conta como
+    o primeiro (3 dias a partir de 01/10 vão até 03/10).
   </Passo>
   <Passo titulo="Ausências">
-    Na aba **Ausências**, registre afastamentos sem atestado com o período e o
+    Na aba **Ausências**, registre afastamentos sem atestado com o início, a quantidade de dias
+    (o último dia é calculado da mesma forma) e o
     **tipo da ausência**, escolhido numa lista fechada: Falta justificada,
     Afastamento médico, Férias, Compensação de banco de horas, Trabalho externo
     e Licença.
@@ -63,8 +65,9 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
   descrição solta foram reclassificados para o tipo mais próximo, e o texto
   original foi guardado na **observação** — nada se perdeu. Ausências antigas
   sem nenhum tipo continuam em branco: só quem registrou sabe qual foi.
-- **"O atestado não conta os dias certos."** Confira o **período** (início e
-  fim) e o número de **dias** informado.
+- **"O atestado não conta os dias certos."** Confira o **início** e o número de
+  **dias**: o dia de início já conta, então 3 dias a partir de segunda terminam
+  na quarta, com retorno na quinta.
 
 <VejaTambem
   links={[

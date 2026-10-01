@@ -1,10 +1,10 @@
-Toda aquisição nasce em **Compras → Nova compra**. No topo do formulário você
-escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra está
+Toda aquisição nasce em **Aquisição → Nova compra**. No topo do formulário você
+escolhe o caminho (**Via Aquisição** ou **Aquisição direta**) e se a compra está
 **vinculada a um projeto**. O restante do formulário se adapta a essa escolha.
 
-<RequerPermissao>Compras — editar</RequerPermissao>
+<RequerPermissao>Aquisição — editar</RequerPermissao>
 
-## Direta × via Compras: qual usar
+## Direta × via Aquisição: qual usar
 
 <PassoAPasso>
   <Passo titulo="Aquisição direta — a compra já foi feita">
@@ -12,7 +12,7 @@ escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra est�
     fornecedor, o valor e a nota; o sistema cria a **ordem de pagamento em
     autorização** na sequência. É o caminho de compras simples e do dia a dia.
   </Passo>
-  <Passo titulo="Via Compras — a compra ainda vai acontecer">
+  <Passo titulo="Via Aquisição — a compra ainda vai acontecer">
     Use quando é preciso **cotar** antes de comprar. O departamento apenas
     **solicita**; o comprador recebe, cota com fornecedores, compara as
     propostas e efetiva a compra. É o caminho de valores maiores.
@@ -21,8 +21,8 @@ escolhe o caminho (**Via Compras** ou **Aquisição direta**) e se a compra est�
 
 ## Quem registra e por quais departamentos
 
-- **Via Compras** exige a permissão **Compras — editar**.
-- **Aquisição direta** exige a permissão própria **Compras — registrar
+- **Via Aquisição** exige a permissão **Aquisição — editar**.
+- **Aquisição direta** exige a permissão própria **Aquisição — registrar
   aquisição direta**. Quem tem só uma das duas vê o seletor do topo travado na
   modalidade que pode usar.
 - **Departamentos:** em Institucional → Usuários e permissões, cada pessoa pode
@@ -189,10 +189,10 @@ compra foi paga. Ao escolher a forma, aparece o campo correspondente:
   CNPJ lido não fecha nos dígitos verificadores, o sistema avisa.
 </Aviso>
 
-## Solicitar via Compras
+## Solicitar via Aquisição
 
 <PassoAPasso>
-  <Passo titulo="Deixe em 'Via Compras'">
+  <Passo titulo="Deixe em 'Via Aquisição'">
     É o padrão do formulário. Não aparecem fornecedor nem valor — isso vem da
     cotação.
   </Passo>
@@ -212,9 +212,9 @@ compra foi paga. Ao escolher a forma, aparece o campo correspondente:
   </Passo>
 </PassoAPasso>
 
-<Print src="compras/nova.png" alt="Formulário de nova compra via Compras: seletores no topo, produto com o botão Melhorar com IA, observações, tipo, departamento, centro de custo, a chave Entregue no ato da compra desligada e os campos Limite para receber e Local para receber." legenda="Solicitação via Compras: sem entrega no ato, limite e local para receber são obrigatórios." />
+<Print src="compras/nova.png" alt="Formulário de nova compra via Aquisição: seletores no topo, produto com o botão Melhorar com IA, observações, tipo, departamento, centro de custo, a chave Entregue no ato da compra desligada e os campos Limite para receber e Local para receber." legenda="Solicitação via Aquisição: sem entrega no ato, limite e local para receber são obrigatórios." />
 
-## O ciclo de um processo via Compras
+## O ciclo de um processo via Aquisição
 
 Depois de solicitado, o processo é operado pelo **comprador**, na **Área do
 comprador** (que reúne tudo que aguarda ação) ou abrindo o processo pela lista.
@@ -245,7 +245,7 @@ Cada etapa é uma ação no próprio processo:
 </PassoAPasso>
 
 <Aviso tipo="dica" titulo="Área do comprador: a fila de trabalho">
-  Em **Compras → Área do comprador**, os processos via Compras aparecem
+  Em **Aquisição → Área do comprador**, os processos via Aquisição aparecem
   agrupados por etapa — **Solicitadas** (iniciar cotação), **Em cotação** e
   **Cotadas — a comprar** — com o prazo em destaque (vermelho quando vencido).
   Clique num item para operar. <RequerPermissao>Comprador</RequerPermissao>
@@ -257,8 +257,8 @@ Cada etapa é uma ação no próprio processo:
 
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
 
-Toda ordem gerada por uma compra — direta ou via Compras — passa por
-**Compras → Avaliações de ordens**. A tela reúne as ordens em autorização de
+Toda ordem gerada por uma compra — direta ou via Aquisição — passa por
+**Aquisição → Avaliações de ordens**. A tela reúne as ordens em autorização de
 **todas as origens** (compras, contratos, diárias, custeios, hotel, multas…),
 porque a alçada é pelo **valor**, não pela origem. Cada avaliador vê as ordens
 **dentro da sua alçada** (o teto de valor que pode autorizar) e as **acima da
@@ -283,9 +283,9 @@ informações*. Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 
 ## Recebimento
 
-Quando o item chega, a baixa é feita em **Compras → Recebimentos pendentes**.
+Quando o item chega, a baixa é feita em **Aquisição → Recebimentos pendentes**.
 Aparecem ali a aquisição direta marcada como **não recebida** e os
-fornecimentos **via Compras já comprados**. A recepção abre o item, confere e
+fornecimentos **via Aquisição já comprados**. A recepção abre o item, confere e
 registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
 
 ## Erros comuns
@@ -313,17 +313,17 @@ registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
 - **Registrei a compra mas o pagamento não sai.** A ordem nasce **Em
   autorização** — ela só é paga depois de aprovada por quem tem alçada, em
   **Avaliações**.
-- **Comprei via Compras mas não consigo escolher a proposta.** É preciso
+- **Comprei via Aquisição mas não consigo escolher a proposta.** É preciso
   **encerrar a cotação** antes de escolher; e escolher ao menos uma proposta
   antes de **registrar a compra**.
 - **O item não aparece em Recebimentos.** Só entra o que está **por receber**:
-  compra direta com **Entregue no ato da compra** desligada, ou via Compras já
+  compra direta com **Entregue no ato da compra** desligada, ou via Aquisição já
   comprado. O que já foi recebido não aparece.
 
 <VejaTambem
   links={[
     {
-      titulo: "Visão geral de Compras",
+      titulo: "Visão geral de Aquisição",
       href: "/painel/ajuda/compras",
       descricao: "As áreas do módulo e quem faz o quê",
     },

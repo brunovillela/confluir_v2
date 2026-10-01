@@ -64,8 +64,9 @@ export default async function MinhasFeriasPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minhas férias</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Solicite seus períodos de gozo e acompanhe a autorização. O término de
-          cada gozo é a data de retorno ao trabalho.
+          Solicite seus períodos de gozo e acompanhe a autorização. O dia de
+          início conta como o primeiro dia de férias; o retorno é no dia
+          seguinte ao último.
         </p>
       </div>
 
@@ -100,8 +101,8 @@ export default async function MinhasFeriasPage({
             <TreePalm className="text-muted-foreground size-4" />
           </div>
           <CardDescription>
-            {ferias.length} período{ferias.length === 1 ? "" : "s"} — o término de
-            cada gozo é a data de retorno ao trabalho
+            {ferias.length} período{ferias.length === 1 ? "" : "s"} — o dia de
+            início conta como o primeiro dia de férias
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -137,7 +138,7 @@ export default async function MinhasFeriasPage({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Início</TableHead>
-                        <TableHead>Retorno</TableHead>
+                        <TableHead>Último dia</TableHead>
                         <TableHead className="text-right">Dias</TableHead>
                         <TableHead>Situação</TableHead>
                         <TableHead className="w-24">Aviso</TableHead>

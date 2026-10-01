@@ -25,7 +25,7 @@ export const ORIGENS_ORDEM: {
   /** Valores de `ordens_pagamento.tipo` desta origem. */
   tipos: string[]
 }[] = [
-  { chave: "compras", rotulo: "Compras", descricao: "Aquisição direta, compra via setor de Compras e faturas de agência de viagens", tipos: ["Compras"] },
+  { chave: "compras", rotulo: "Aquisição", descricao: "Aquisição direta, compra via setor de Aquisição e faturas de agência de viagens", tipos: ["Compras"] },
   { chave: "contrato", rotulo: "Contratos e ajudas", descricao: "Parcelas de contratos com fornecedores e de ajudas institucionais", tipos: ["Contrato"] },
   { chave: "rpa", rotulo: "RPA", descricao: "Pagamentos a autônomos por recibo (RPA)", tipos: ["RPA"] },
   { chave: "folha", rotulo: "Folha de pagamento", descricao: "Contracheques dos funcionários", tipos: ["Folha de pagamento"] },
@@ -165,7 +165,7 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
   {
     codigo: "proposta_unica",
     titulo: "Compra com uma só proposta",
-    pergunta: "Compra pelo setor de Compras com apenas UMA proposta é aceita até que valor?",
+    pergunta: "Compra pelo setor de Aquisição com apenas UMA proposta é aceita até que valor?",
     explicacao: "Acima do valor, exige-se mais de uma proposta (cotação) — senão vale a resposta escolhida.",
     origens: ["compras"],
     padrao: { compras: "alertar" },
@@ -175,7 +175,7 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     codigo: "direta_limite",
     titulo: "Aquisição direta acima do limite",
     pergunta: "Aquisição direta (sem cotação) é aceita até que valor?",
-    explicacao: "Acima do valor, a compra deveria passar pela cotação do setor de Compras.",
+    explicacao: "Acima do valor, a compra deveria passar pela cotação do setor de Aquisição.",
     origens: ["compras"],
     padrao: { compras: "alertar" },
     parametros: [{ chave: "valor", rotulo: "Aquisição direta até (R$)", tipo: "moeda", padrao: 10000 }],

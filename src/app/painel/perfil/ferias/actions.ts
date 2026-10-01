@@ -9,6 +9,7 @@ import {
   cancelarMinhaSolicitacaoGozo,
   solicitarGozo,
 } from "@/lib/db/ferias"
+import { lerDias } from "@/lib/periodo-dias"
 
 function revalidar() {
   revalidatePath("/painel/perfil/ferias")
@@ -23,17 +24,17 @@ export async function solicitarFeriasAction(
 
   const periodoId = String(formData.get("periodo_id") ?? "")
   const inicio = String(formData.get("inicio") ?? "")
-  const termino = String(formData.get("termino") ?? "")
+  const dias = lerDias(formData.get("dias"))
   const abono = formData.get("abono") === "on"
 
   if (!periodoId) return { erro: "Escolha o período aquisitivo." }
   if (!inicio) return { erro: "Informe a data de início das férias." }
-  if (!termino) return { erro: "Informe a data de retorno ao trabalho." }
+  if (dias === null) return { erro: "Informe a quantidade de dias (número inteiro)." }
 
   const { erro } = await solicitarGozo(sessao.usuario.id, {
     periodoId,
     inicio,
-    termino,
+    dias,
     abono,
   })
   if (erro) return { erro }

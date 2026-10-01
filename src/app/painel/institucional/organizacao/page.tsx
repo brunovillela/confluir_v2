@@ -183,7 +183,7 @@ export default async function OrganizacaoPage() {
               Departamentos
             </h2>
             <p className="text-muted-foreground mt-0.5 mb-3 text-xs">
-              Pessoas vinculadas e um coordenador escolhido entre elas. Compras,
+              Pessoas vinculadas e um coordenador escolhido entre elas. Aquisição,
               Demandas e Ofícios usam esta lista — em Ofícios, cada pessoa vê os
               ofícios dos seus departamentos.
             </p>

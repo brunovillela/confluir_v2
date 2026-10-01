@@ -352,7 +352,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   },
   {
     slug: "compras",
-    titulo: "Compras",
+    titulo: "Aquisição",
     descricao: "Solicitações, cotações e aprovações por alçada",
     icone: "ShoppingCart",
     ...permissaoDoModulo("/painel/compras"),
@@ -360,13 +360,13 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     artigos: [
       {
         slug: "index",
-        titulo: "Visão geral de Compras",
+        titulo: "Visão geral de Aquisição",
         resumo: "As áreas: comprar, avaliar, receber, contratos e fornecedores",
       },
       {
         slug: "comprar",
         titulo: "Comprar",
-        resumo: "Aquisição direta × via Compras, cotação e alçada",
+        resumo: "Aquisição direta × via Aquisição, cotação e alçada",
       },
       {
         slug: "contratos",

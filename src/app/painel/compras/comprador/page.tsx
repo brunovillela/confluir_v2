@@ -103,14 +103,14 @@ export default async function CompradorPage() {
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/painel/compras">
             <ArrowLeft />
-            Compras
+            Aquisição
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
           Área do comprador
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Processos Via Compras que aguardam sua ação, da solicitação à compra.
+          Processos Via Aquisição que aguardam sua ação, da solicitação à compra.
         </p>
       </div>
 
@@ -128,7 +128,7 @@ export default async function CompradorPage() {
           <CardContent>
             <p className="text-muted-foreground py-8 text-center text-sm">
               <PackageCheck className="mx-auto mb-2 size-5" />
-              Nada na fila — nenhum processo Via Compras aguardando ação.
+              Nada na fila — nenhum processo Via Aquisição aguardando ação.
             </p>
           </CardContent>
         </Card>

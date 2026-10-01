@@ -34,7 +34,7 @@ const MODULOS = [
   { ic: Users, t: "Filiados", d: "Cadastro, vínculos, situação e contribuições dos associados." },
   { ic: Wallet, t: "Financeiro", d: "Ordens de pagamento, caixa, centros de custo e receitas." },
   { ic: Briefcase, t: "Pessoal", d: "Contracheques, ponto, férias, ASOs e reembolsos." },
-  { ic: ShoppingCart, t: "Compras", d: "Solicitações, cotações e aprovação por alçada." },
+  { ic: ShoppingCart, t: "Aquisição", d: "Solicitações, cotações e aprovação por alçada." },
   { ic: Car, t: "Veículos", d: "Frota, agendamentos, abastecimentos e infrações." },
   { ic: Scale, t: "Jurídico", d: "Homologações e processos, com trilha completa." },
   { ic: HeartPulse, t: "Saúde", d: "CATs, CIPA e atendimentos com sigilo clínico." },

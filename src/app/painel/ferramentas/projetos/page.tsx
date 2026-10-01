@@ -62,7 +62,7 @@ export default async function ProjetosPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Projetos</h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Projetos do sindicato, orçamento e gasto vinculado em Compras
+            Projetos do sindicato, orçamento e gasto vinculado em Aquisição
           </p>
         </div>
         {editor && (
@@ -83,7 +83,7 @@ export default async function ProjetosPage({
           valor={formatarMoeda(resumo.orcamentoAndamento)}
         />
         <CardResumo
-          rotulo="Solicitado em Compras"
+          rotulo="Solicitado em Aquisição"
           valor={formatarMoeda(resumo.solicitadoCompras)}
         />
       </div>

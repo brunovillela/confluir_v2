@@ -140,7 +140,7 @@ export function HotelForm({
               {contratos.length === 0 && (
                 <>
                   {" "}
-                  Nenhum contrato cadastrado — crie um em Compras → Contratos
+                  Nenhum contrato cadastrado — crie um em Aquisição → Contratos
                   primeiro.
                 </>
               )}

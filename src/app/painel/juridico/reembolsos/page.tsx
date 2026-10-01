@@ -65,7 +65,7 @@ export default async function ReembolsosPage({
 
   // Sem restrição por classificação (tipo_da_conta): em multitenant cada
   // organização compõe seu próprio plano de contas. Só ocultamos as contas
-  // marcadas como não usáveis — mesmo critério de Compras/Contratos.
+  // marcadas como não usáveis — mesmo critério de Aquisição/Contratos.
   const opcoesCentro = centros
     .filter((c) => c.usavel !== false)
     .map((c) => ({

@@ -180,7 +180,8 @@ export default async function PeriodoFeriasPage({
                 </span>
               </CardTitle>
               <CardDescription>
-                O término exibido é a data de retorno ao trabalho. Autorizar
+                O dia de início conta como o primeiro dia; o retorno é o dia seguinte
+                ao último. Autorizar
                 avisa o funcionário por notificação e email.
               </CardDescription>
             </CardHeader>
@@ -190,7 +191,7 @@ export default async function PeriodoFeriasPage({
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead>Início</TableHead>
-                      <TableHead>Retorno</TableHead>
+                      <TableHead>Último dia</TableHead>
                       <TableHead className="text-right">Dias</TableHead>
                       <TableHead>Autorização</TableHead>
                       <TableHead className="hidden md:table-cell">

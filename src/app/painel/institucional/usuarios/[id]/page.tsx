@@ -279,9 +279,9 @@ export default async function AcessoPage({
         <Card>
           <CardContent className="grid gap-3 pt-6">
             <div>
-              <p className="text-sm font-medium">Compras: departamentos</p>
+              <p className="text-sm font-medium">Aquisição: departamentos</p>
               <p className="text-muted-foreground text-xs">
-                Por quais departamentos a pessoa registra compras e vê as compras em Compras (além
+                Por quais departamentos a pessoa registra compras e vê as compras em Aquisição (além
                 das que ela mesma registrou). Nenhum marcado = todos os departamentos. O comprador
                 (setor central) continua operando todos os processos.
               </p>

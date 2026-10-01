@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
- * Compras › Contratos › RPA (Recibo de Pagamento a Autônomo) — leitura.
+ * Aquisição › Contratos › RPA (Recibo de Pagamento a Autônomo) — leitura.
  * Escrita nas actions da rota. SQL: supabase/compras-rpa.sql.
  */
 

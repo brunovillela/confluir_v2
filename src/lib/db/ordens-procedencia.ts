@@ -193,7 +193,7 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     return p
   }
 
-  // 3. Viagens (fatura da agência) — antes de Compras.
+  // 3. Viagens (fatura da agência) — antes de Aquisição.
   const fatViagem = await umaPor("viagens_faturas", "ordem_pagamento_id", id)
   if (fatViagem) {
     const f = fatViagem
@@ -219,7 +219,7 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     return p
   }
 
-  // 4. Compras (direta ou via Compras)
+  // 4. Compras (direta ou via Aquisição)
   if (t(ordem.processo_compra_id)) {
     const proc = await porId("compras_solicitacoes", ordem.processo_compra_id)
     const forn = await umaPor("compras_fornecimentos", "ordem_pagamento_id", id)
@@ -229,7 +229,7 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
       .select("id", { count: "exact", head: true })
       .eq("processo_compra_id", String(ordem.processo_compra_id))
     const direta = proc?.aquisicao_direta === true
-    const p = base(direta ? "Compra — aquisição direta" : proc?.aquisicao_direta === false ? "Compra — via setor de Compras" : "Compra")
+    const p = base(direta ? "Compra — aquisição direta" : proc?.aquisicao_direta === false ? "Compra — via setor de Aquisição" : "Compra")
     if (!proc) return p
     const depto = await porId("empresa_departamentos", proc.solicitacao_departamento_id)
     p.titulo = `Processo ${t(proc.codigo) ?? "—"}`

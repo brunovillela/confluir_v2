@@ -71,9 +71,9 @@ export function NovaCompraForm({
   permiteViaCompras = true,
   permiteDireta = true,
 }: {
-  /** "Compras — editar": solicitação para o setor de compras. */
+  /** "Aquisição — editar": solicitação para o setor de compras. */
   permiteViaCompras?: boolean
-  /** "Compras — registrar aquisição direta". */
+  /** "Aquisição — registrar aquisição direta". */
   permiteDireta?: boolean
   departamentos: Opcao[]
   centrosCusto: CentroOpcao[]
@@ -296,7 +296,7 @@ export function NovaCompraForm({
         <CardHeader>
           <CardTitle className="text-base">Solicitação</CardTitle>
           <CardDescription>
-            Via Compras registra a solicitação para o setor de compras cotar e
+            Via Aquisição registra a solicitação para o setor de compras cotar e
             adquirir; aquisição direta registra uma compra já feita pelo
             departamento.
           </CardDescription>
@@ -309,13 +309,13 @@ export function NovaCompraForm({
                   direta ? "text-muted-foreground" : "font-medium"
                 }
               >
-                Via Compras
+                Via Aquisição
               </span>
               <Switch
                 checked={direta}
                 onCheckedChange={setDireta}
                 disabled={!permiteViaCompras || !permiteDireta}
-                aria-label="Alternar entre via Compras e aquisição direta"
+                aria-label="Alternar entre via Aquisição e aquisição direta"
               />
               <span
                 className={

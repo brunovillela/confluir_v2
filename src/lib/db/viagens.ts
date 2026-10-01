@@ -22,7 +22,7 @@ import {
  * Viagens — passagens e hospedagens pedidas para diretor, funcionário ou
  * convidado. Uma solicitação é a viagem inteira; cada trecho ou estadia é um
  * item (`viagens_itens`). A gestão atende com agências e fatura pela estrutura
- * de Compras (fases 2 e 3). Leituras degradam com `disponivel: false` até
+ * de Aquisição (fases 2 e 3). Leituras degradam com `disponivel: false` até
  * supabase/viagens.sql rodar.
  */
 

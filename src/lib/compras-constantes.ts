@@ -1,5 +1,5 @@
 /**
- * Constantes de Compras compartilhadas entre servidor (lib/db/compras.ts) e
+ * Constantes de Aquisição compartilhadas entre servidor (lib/db/compras.ts) e
  * componentes client (badges, formulários) — por isso sem "server-only".
  */
 

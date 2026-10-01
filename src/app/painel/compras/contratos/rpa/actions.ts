@@ -26,7 +26,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
- * Compras › Contratos › RPA — escrita. Emissão exige a permissão de EDIÇÃO de
+ * Aquisição › Contratos › RPA — escrita. Emissão exige a permissão de EDIÇÃO de
  * contratos; a lista/consulta usa a de visualização (nas páginas).
  */
 

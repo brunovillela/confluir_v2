@@ -108,7 +108,7 @@ export default async function ProjetoPage({
           valor={projeto.orcamento != null ? formatarMoeda(projeto.orcamento) : "—"}
         />
         <CardValor
-          rotulo="Solicitado em Compras"
+          rotulo="Solicitado em Aquisição"
           valor={formatarMoeda(projeto.gastoCompras)}
         />
         <CardValor
