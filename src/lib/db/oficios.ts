@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { urlArquivoDocumento } from "@/lib/db/documentos"
@@ -46,13 +46,19 @@ export type OpcaoEmpresa = {
 /** Empresas para o combobox de destinatário. */
 export async function listarEmpresas(): Promise<OpcaoEmpresa[]> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("empresa")
-    .select("id, nome_razao, nome_fantasia, cnpj_cpf")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("nome_razao", { ascending: true })
-    .limit(3000)
-  return (data ?? [])
+  const emp = await tenantAtual()
+  // Em lotes: o PostgREST corta em 1.000 linhas (o .limit(3000) antigo não
+  // passava disso) e o cadastro de empresas já tem mais de 1.600.
+  const data = await lerEmLotes((de, ate) =>
+    admin
+      .from("empresa")
+      .select("id, nome_razao, nome_fantasia, cnpj_cpf")
+      .eq("emp_proprietaria_id", emp)
+      .order("nome_razao", { ascending: true })
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [] as Record<string, unknown>[])
+  return data
     .map((e) => ({
       id: e.id as string,
       nome: (texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "(sem nome)") as string,

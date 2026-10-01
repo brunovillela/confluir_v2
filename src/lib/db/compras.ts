@@ -1,6 +1,6 @@
 import "server-only"
 import { alertasPorOrdem, inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
-import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 
@@ -1488,29 +1488,43 @@ export async function listarFornecedores(
   busca = ""
 ): Promise<FornecedorLinha[]> {
   const admin = await createAdminClient()
-  let q = admin
-    .from("empresa")
-    .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .not("inativa", "is", true)
+  const emp = await tenantAtual()
   const termo = busca.trim().replace(/[,()]/g, " ").trim()
-  if (termo) {
-    const digitos = termo.replace(/\D/g, "")
-    q = q.or(
-      [
-        `nome_fantasia.ilike.%${termo}%`,
-        `nome_razao.ilike.%${termo}%`,
-        digitos ? `cnpj_cpf.like.%${digitos}%` : null,
-      ]
-        .filter(Boolean)
-        .join(",")
-    )
+  const digitos = termo.replace(/\D/g, "")
+  // Consulta nova a cada lote: o builder do supabase-js acumula .order().
+  const consulta = () => {
+    const q = admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa")
+      .eq("emp_proprietaria_id", emp)
+      .not("inativa", "is", true)
+    return termo
+      ? q.or(
+          [
+            `nome_fantasia.ilike.%${termo}%`,
+            `nome_razao.ilike.%${termo}%`,
+            digitos ? `cnpj_cpf.like.%${digitos}%` : null,
+          ]
+            .filter(Boolean)
+            .join(",")
+        )
+      : q
   }
-  const { data, error } = await q
-    .order("nome_fantasia", { ascending: true, nullsFirst: false })
-    .limit(2000)
-  if (error) throw new Error(`Falha ao listar fornecedores: ${error.message}`)
-  return (data ?? []).map((e) => ({
+  // Em lotes: o PostgREST corta em 1.000 linhas e o cadastro passa disso
+  // (1.608 no sindicato em 01/10) — o .limit(2000) antigo deixava de fora
+  // tudo depois de ~"R" na ordem alfabética (ex.: TICKET LOG).
+  let data: Record<string, unknown>[]
+  try {
+    data = await lerEmLotes((de, ate) =>
+      consulta()
+        .order("nome_fantasia", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar fornecedores: ${(e as Error).message}`)
+  }
+  return data.map((e) => ({
     id: String(e.id),
     nome:
       [e.nome_fantasia, e.nome_razao].find(

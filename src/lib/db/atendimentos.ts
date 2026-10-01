@@ -1,5 +1,6 @@
 import "server-only"
 import { esquemaAusente } from "@/lib/db/comum"
+import { listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -1281,18 +1282,7 @@ export async function salvarProfissional(
 export async function usuariosParaProfissional(): Promise<
   { id: string; nome: string }[]
 > {
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id,nome_completo,inativo,deletado")
-    .order("nome_completo")
-    .limit(2000)
-  return ((data ?? []) as {
-    id: string
-    nome_completo: string | null
-    inativo: boolean | null
-    deletado: boolean | null
-  }[])
-    .filter((u) => u.inativo !== true && u.deletado !== true && u.nome_completo)
-    .map((u) => ({ id: u.id, nome: u.nome_completo! }))
+  // Quem tem acesso ao painel. Ler `usuarios` inteiro trazia os 12 mil
+  // filiados e o PostgREST cortava em 1.000 — o seletor parava em "Antônio".
+  return listarUsuariosAtivos()
 }

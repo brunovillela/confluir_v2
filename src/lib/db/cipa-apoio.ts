@@ -2,6 +2,8 @@ import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
 import type { EmpresaOpcao } from "@/components/empresa-combobox"
+import { lerEmLotes } from "@/lib/db/comum"
+import { listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -18,20 +20,29 @@ import { createAdminClient } from "@/lib/supabase/admin"
  */
 export async function empresasParaSelecao(): Promise<EmpresaOpcao[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("empresa")
-    .select("id,nome_fantasia,nome_razao,cnpj_cpf")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("nome_fantasia")
-    .limit(3000)
-
+  const emp = await tenantAtual()
+  // Em lotes: o PostgREST corta em 1.000 linhas (o .limit(3000) antigo não
+  // passava disso) e o cadastro de empresas já tem mais de 1.600.
   // Não engolir o erro: uma coluna inexistente no select faz o PostgREST
   // recusar a query inteira, e devolver [] silenciosamente só produz um
   // seletor vazio sem explicação. (Aconteceu: `razao_social` não existe
   // nesta tabela — a coluna certa é `nome_razao`.)
-  if (error) throw new Error(`Falha ao listar empresas: ${error.message}`)
+  let data: Record<string, unknown>[]
+  try {
+    data = await lerEmLotes((de, ate) =>
+      admin
+        .from("empresa")
+        .select("id,nome_fantasia,nome_razao,cnpj_cpf")
+        .eq("emp_proprietaria_id", emp)
+        .order("nome_fantasia")
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar empresas: ${(e as Error).message}`)
+  }
 
-  return ((data ?? []) as {
+  return (data as {
     id: string
     nome_fantasia: string | null
     nome_razao: string | null
@@ -50,19 +61,8 @@ export async function empresasParaSelecao(): Promise<EmpresaOpcao[]> {
 export async function usuariosAtivos(): Promise<
   { id: string; nome: string }[]
 > {
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id,nome_completo,inativo,deletado")
-    .order("nome_completo")
-    .limit(2000)
-
-  return ((data ?? []) as {
-    id: string
-    nome_completo: string | null
-    inativo: boolean | null
-    deletado: boolean | null
-  }[])
-    .filter((u) => u.inativo !== true && u.deletado !== true && u.nome_completo)
-    .map((u) => ({ id: u.id, nome: u.nome_completo! }))
+  // Quem tem acesso ao painel (funcionários e diretores). Ler `usuarios`
+  // inteiro trazia os 12 mil filiados e o PostgREST cortava em 1.000 —
+  // o seletor parava em "Antônio".
+  return listarUsuariosAtivos()
 }

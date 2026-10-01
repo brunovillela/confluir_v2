@@ -1,7 +1,7 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export const ORDENS_POR_PAGINA = 50
@@ -242,14 +242,19 @@ export type OpcoesFiltrosOrdens = {
 export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [forn, centros, deptos, projs, formas] = await Promise.all([
-    admin
-      .from("empresa")
-      .select("id, nome_fantasia, nome_razao, cnpj_cpf")
-      .eq("emp_proprietaria_id", emp)
-      .not("inativa", "is", true)
-      .order("nome_fantasia", { ascending: true, nullsFirst: false })
-      .limit(3000),
+  // Empresas e ordens passam de 1.000 linhas, o teto do PostgREST — os
+  // .limit(3000)/.limit(10000) antigos não passavam disso. Vão em lotes.
+  const [fornData, centros, deptos, projs, formasData] = await Promise.all([
+    lerEmLotes((de, ate) =>
+      admin
+        .from("empresa")
+        .select("id, nome_fantasia, nome_razao, cnpj_cpf")
+        .eq("emp_proprietaria_id", emp)
+        .not("inativa", "is", true)
+        .order("nome_fantasia", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
     admin
       .from("centros_de_custo")
       .select("id, nome_da_conta, classificador, departamento_id")
@@ -268,16 +273,19 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
       .eq("emp_proprietaria_id", emp)
       .order("descricao", { ascending: true, nullsFirst: false })
       .limit(1000),
-    admin
-      .from("ordens_pagamento")
-      .select("forma_pagamento")
-      .eq("emp_proprietaria_id", emp)
-      .not("excluido", "is", true)
-      .not("forma_pagamento", "is", null)
-      .limit(10000),
+    lerEmLotes((de, ate) =>
+      admin
+        .from("ordens_pagamento")
+        .select("forma_pagamento")
+        .eq("emp_proprietaria_id", emp)
+        .not("excluido", "is", true)
+        .not("forma_pagamento", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
   ])
 
-  const fornecedores = (forn.data ?? [])
+  const fornecedores = fornData
     .map((f) => ({
       id: f.id as string,
       nome: texto(f.nome_fantasia) ?? texto(f.nome_razao) ?? "",
@@ -305,7 +313,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     .filter((p) => p.nome)
   const formasPagamento = [
     ...new Set(
-      (formas.data ?? [])
+      formasData
         .map((o) => texto(o.forma_pagamento))
         .filter((v): v is string => Boolean(v))
     ),

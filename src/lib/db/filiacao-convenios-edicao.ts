@@ -3,6 +3,7 @@ import "server-only"
 import { randomUUID } from "node:crypto"
 
 import { ehDoBubble } from "@/lib/db/filiacao-documentos"
+import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -121,13 +122,18 @@ export async function listarCategoriasConvenio(): Promise<CategoriaConvenio[]> {
 export async function listarConveniadores(): Promise<OpcaoConveniador[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("empresa")
-    .select("id, nome_fantasia, nome_razao, conveniador, inativa")
-    .eq("emp_proprietaria_id", emp)
-    .or("inativa.is.null,inativa.eq.false")
-    .limit(3000)
-  return (data ?? [])
+  // Em lotes: o PostgREST corta em 1.000 linhas (o .limit(3000) antigo não
+  // passava disso) e o cadastro de empresas já tem mais de 1.600.
+  const data = await lerEmLotes((de, ate) =>
+    admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao, conveniador, inativa")
+      .eq("emp_proprietaria_id", emp)
+      .or("inativa.is.null,inativa.eq.false")
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [] as Record<string, unknown>[])
+  return data
     .map((e) => ({
       id: e.id as string,
       nome: ((e.nome_fantasia as string | null) ?? (e.nome_razao as string | null) ?? "").trim(),
