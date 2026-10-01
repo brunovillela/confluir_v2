@@ -49,3 +49,4 @@ supabase/.temp/
 # Cache local da auditoria do Bubble, inclusive as copias datadas
 # (.auditoria-bubble-ate-1909 e afins)
 .auditoria-bubble*/
+.migracao-financeiro/
