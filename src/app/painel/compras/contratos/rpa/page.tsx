@@ -20,12 +20,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { Badge } from "@/components/ui/badge"
 import { requirePermissao } from "@/lib/auth"
 import { listarRpas, obterConfigRpa } from "@/lib/db/compras-rpa"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { ConfigRpaForm } from "./rpa-forms"
+import { ConfigRpaForm, ExcluirRpa } from "./rpa-forms"
 
 export const metadata: Metadata = { title: "RPA — Confluir" }
 
@@ -61,8 +62,8 @@ export default async function RpaPage({
             RPA — Recibo de Pagamento a Autônomo
           </h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Recibo do prestador autônomo, emitido a partir do contrato dele — gera a
-            ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
+            Recibo do prestador autônomo (pessoa física) — de um contrato com ele ou avulso.
+            Gera a ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
             serviço. {linhas.length} recibo{linhas.length === 1 ? "" : "s"}.
           </p>
         </div>
@@ -105,12 +106,14 @@ export default async function RpaPage({
               </TableHead>
               <TableHead className="text-right">Líquido</TableHead>
               <TableHead className="hidden lg:table-cell">Emitido por</TableHead>
+              <TableHead>Recibo</TableHead>
+              {podeEditar && <TableHead className="w-10" aria-label="Ações" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {linhas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-32">
+                <TableCell colSpan={podeEditar ? 9 : 8} className="h-32">
                   <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
                     <ReceiptText className="size-6" />
                     <p className="text-sm">Nenhum RPA emitido ainda.</p>
@@ -142,7 +145,7 @@ export default async function RpaPage({
                         {r.contratoObjeto ? ` — ${r.contratoObjeto}` : ""}
                       </Link>
                     ) : (
-                      <span className="text-muted-foreground block text-xs">sem contrato</span>
+                      <span className="text-muted-foreground block text-xs">Avulso (sem contrato)</span>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden whitespace-nowrap sm:table-cell">
@@ -160,6 +163,18 @@ export default async function RpaPage({
                   <TableCell className="text-muted-foreground hidden max-w-40 truncate lg:table-cell">
                     {r.criadoPorNome ?? "—"}
                   </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {r.arquivoAssinado ? (
+                      <Badge variant="success">Assinado</Badge>
+                    ) : (
+                      <Badge variant="outline">A assinar</Badge>
+                    )}
+                  </TableCell>
+                  {podeEditar && (
+                    <TableCell className="w-10 text-right">
+                      {!r.arquivoAssinado && <ExcluirRpa id={r.id} numero={r.numero} compacto />}
+                    </TableCell>
+                  )}
                 </TableRow>
               )
             })}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Download, Trash2 } from "lucide-react"
+import { ArrowLeft, Download, FileCheck2, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -13,11 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { urlArquivoCompras } from "@/lib/db/compras"
 import { buscarRpa } from "@/lib/db/compras-rpa"
 import { formatarCnpjCpf, formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { ExcluirRpa } from "../rpa-forms"
+import { AnexarRpaAssinado, ExcluirRpa } from "../rpa-forms"
 
 export const metadata: Metadata = { title: "RPA — Confluir" }
 
@@ -41,6 +42,7 @@ export default async function RpaDetalhePage({
   if (!rpa) notFound()
 
   const retencoes = (rpa.inss ?? 0) + (rpa.irrf ?? 0) + (rpa.iss ?? 0)
+  const urlAssinado = await urlArquivoCompras(rpa.arquivoAssinado)
 
   return (
     <>
@@ -78,8 +80,8 @@ export default async function RpaDetalhePage({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
             RPA emitido{rpa.ordemId ? " e ordem de pagamento gerada (Em autorização)" : ""}.
-            Baixe o PDF, colha a assinatura do prestador e arquive — o recibo
-            assinado vale como comprovante fiscal do serviço.
+            Baixe o PDF, colha a assinatura do prestador e anexe o recibo assinado
+            abaixo — ele vale como comprovante fiscal do serviço.
           </AlertDescription>
         </Alert>
       )}
@@ -88,8 +90,9 @@ export default async function RpaDetalhePage({
         <CardHeader>
           <CardTitle className="text-base">Contrato e pagamento</CardTitle>
           <CardDescription>
-            O RPA é uma forma de pagamento do contrato: a ordem do valor líquido nasce junto com o
-            recibo.
+            {rpa.contratoId
+              ? "O RPA é uma forma de pagamento do contrato: a ordem do valor líquido nasce junto com o recibo."
+              : "RPA avulso, sem contrato: a ordem do valor líquido nasce junto com o recibo."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
@@ -105,7 +108,7 @@ export default async function RpaDetalhePage({
                   {rpa.contratoObjeto ? ` — ${rpa.contratoObjeto}` : ""}
                 </Link>
               ) : (
-                <span className="text-muted-foreground">Sem contrato (RPA anterior à ligação com contratos)</span>
+                <span className="text-muted-foreground">Avulso (sem contrato)</span>
               )}
             </span>
           </div>
@@ -185,7 +188,40 @@ export default async function RpaDetalhePage({
         </Card>
       </div>
 
-      {podeEditar && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            <FileCheck2 className="mr-1 inline size-4 align-[-3px]" />
+            Recibo assinado
+          </CardTitle>
+          <CardDescription>
+            {rpa.arquivoAssinado
+              ? `Anexado em ${formatarData(rpa.assinadoEm ?? rpa.created_at)}. Com o recibo assinado, o RPA é comprovante fiscal e não pode mais ser excluído.`
+              : "Baixe o PDF, colha a assinatura do prestador e anexe aqui o recibo assinado (PDF ou foto). Enquanto não houver recibo assinado, o RPA pode ser excluído."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {urlAssinado && (
+            <div>
+              <Button asChild variant="outline" size="sm">
+                <a href={urlAssinado} target="_blank" rel="noopener noreferrer">
+                  <Download />
+                  Ver o recibo assinado
+                </a>
+              </Button>
+            </div>
+          )}
+          {podeEditar ? (
+            <AnexarRpaAssinado id={id} substituir={Boolean(rpa.arquivoAssinado)} />
+          ) : (
+            !rpa.arquivoAssinado && (
+              <p className="text-muted-foreground text-sm">Ainda não anexado.</p>
+            )
+          )}
+        </CardContent>
+      </Card>
+
+      {podeEditar && !rpa.arquivoAssinado && (
         <Card>
           <CardHeader>
             <CardTitle className="text-destructive text-base">
@@ -193,12 +229,14 @@ export default async function RpaDetalhePage({
               Excluir RPA
             </CardTitle>
             <CardDescription>
-              Para corrigir um recibo, exclua e emita outro — RPAs emitidos não
-              são editáveis.
+              Para corrigir um recibo ainda não assinado, exclua e emita outro — RPAs
+              emitidos não são editáveis. A ordem de pagamento vai junto enquanto
+              estiver Em autorização; depois de autorizada, o Financeiro precisa
+              cancelá-la antes.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ExcluirRpa id={id} />
+            <ExcluirRpa id={id} numero={rpa.numero} />
           </CardContent>
         </Card>
       )}

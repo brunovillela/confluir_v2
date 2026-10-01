@@ -464,7 +464,11 @@ export default async function OrdemPage({
                 <LinkArquivo url={ordem.arquivo_orcamento} />
               </Campo>
               <Campo rotulo="Boleto">
-                <LinkArquivo url={urlBoleto} />
+                {/boleto/i.test(String(ordem.forma_pagamento ?? "")) || urlBoleto ? (
+                  <LinkArquivo url={urlBoleto} />
+                ) : (
+                  <span className="text-muted-foreground">Não aplicável</span>
+                )}
               </Campo>
               {detalhe.compraObservacao && (
                 <div className="col-span-2">

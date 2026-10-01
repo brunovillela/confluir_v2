@@ -15,6 +15,13 @@ import {
   gerarOrdensContrato,
 } from "@/lib/db/contratos"
 import { subirPdfCompras } from "@/lib/db/compras"
+import {
+  meiosPagamentoFornecedor,
+  type ContaFornecedor,
+  type PixFornecedor,
+} from "@/lib/db/compras-pagamento"
+import { lerPagamentoOrdemFutura } from "@/lib/db/compras-pagamento-form"
+import { FORMAS_ORDEM_CONTRATO } from "@/lib/compras-constantes"
 import { PERIODICIDADES, type Periodicidade } from "@/lib/contratos-constantes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -22,10 +29,6 @@ import { lerDadosContrato } from "./dados-form"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
-}
-
-function ouNull(v: string): string | null {
-  return v || null
 }
 
 function marcado(formData: FormData, campo: string): boolean {
@@ -103,13 +106,23 @@ export async function gerarOrdensContratoAction(
     ? (per as Periodicidade)
     : "mensal"
   const valorBruto = texto(formData, "valor_parcela")
+  const forma = texto(formData, "forma_pagamento")
+  if (!(FORMAS_ORDEM_CONTRATO as readonly string[]).includes(forma)) {
+    return { erro: "Escolha a forma de pagamento." }
+  }
 
   const { geradas, puladas, erro } = await gerarOrdensContrato(id, {
     periodicidade,
     valorParcela: (valorBruto ? parseValorBR(valorBruto) : 0) ?? 0,
     primeiroVencimento: texto(formData, "primeiro_vencimento"),
     quantidade: Number(texto(formData, "quantidade")) || 1,
-    formaPagamento: ouNull(texto(formData, "forma_pagamento")),
+    formaPagamento: forma,
+    pagamento: (fornecedorId) =>
+      lerPagamentoOrdemFutura(
+        formData,
+        forma as (typeof FORMAS_ORDEM_CONTRATO)[number],
+        fornecedorId
+      ),
   })
   if (erro) return { erro }
 
@@ -119,6 +132,15 @@ export async function gerarOrdensContratoAction(
     puladas: String(puladas ?? 0),
   })
   redirect(`/painel/compras/contratos/${id}?${params.toString()}`)
+}
+
+/** Chaves Pix e contas do fornecedor, para a forma das ordens do contrato. */
+export async function meiosDoFornecedorContrato(
+  fornecedorId: string
+): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {
+  await requireEdicaoContratos()
+  if (!fornecedorId) return { pix: [], contas: [] }
+  return meiosPagamentoFornecedor(fornecedorId)
 }
 
 export async function excluirContratoAction(

@@ -46,6 +46,27 @@ export const FORMAS_PAGAMENTO_COMPRAS = [
 export type FormaPagamentoCompras = (typeof FORMAS_PAGAMENTO_COMPRAS)[number]
 
 /**
+ * Formas das ordens geradas por CONTRATO (e ajuda institucional): pagamento
+ * futuro, sem cartão. Cada uma exige o "para onde" — boleto, chave/conta do
+ * fornecedor, código Pix ou o caixa de onde sairá o dinheiro.
+ */
+export const FORMAS_ORDEM_CONTRATO = [
+  "Boleto",
+  "Pix",
+  "Pix (QR Code)",
+  "Depósito bancário (TED)",
+  "Dinheiro",
+] as const satisfies readonly FormaPagamentoCompras[]
+
+export const ROTULO_FORMA_CONTRATO: Record<(typeof FORMAS_ORDEM_CONTRATO)[number], string> = {
+  Boleto: "Boleto",
+  Pix: "Pix (chave do fornecedor)",
+  "Pix (QR Code)": "Pix — código copia e cola / QR Code",
+  "Depósito bancário (TED)": "TED (conta do fornecedor)",
+  Dinheiro: "Dinheiro (caixa)",
+}
+
+/**
  * Formas aceitas na correção de um ESTORNO: o dinheiro volta a sair pelo
  * banco (cartão e caixa não têm estorno bancário).
  */

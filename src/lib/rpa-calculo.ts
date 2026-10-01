@@ -16,8 +16,25 @@
  * configuração por tenant para atualizá-los.
  */
 
-/** Tipo da ordem de pagamento que o RPA gera (valor líquido, ligada ao contrato). */
+import type { FormaPagamentoCompras } from "@/lib/compras-constantes"
+
+/** Tipo da ordem de pagamento que o RPA gera (valor líquido; com ou sem contrato). */
 export const TIPO_ORDEM_RPA = "RPA"
+
+/**
+ * Formas de pagamento da ordem do RPA — as da aquisição direta, sem cartão
+ * (autônomo não recebe no cartão da entidade). Cada uma exige o seu detalhe
+ * (chave/conta do prestador, código Pix, boleto ou conta de caixa).
+ */
+export const FORMAS_PAGAMENTO_RPA = [
+  "Pix",
+  "Pix (QR Code)",
+  "Boleto",
+  "Depósito bancário (TED)",
+  "Dinheiro",
+] as const satisfies readonly FormaPagamentoCompras[]
+
+export type FormaPagamentoRpa = (typeof FORMAS_PAGAMENTO_RPA)[number]
 
 export type FaixaIrrf = {
   /** Limite superior da faixa (null = última faixa, sem teto). */

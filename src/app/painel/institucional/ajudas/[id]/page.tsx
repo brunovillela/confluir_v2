@@ -1,3 +1,4 @@
+import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -48,6 +49,7 @@ import {
   criarAjudaAction,
   excluirAjudaAction,
   gerarOrdensAjudaAction,
+  meiosDaEntidadeAjuda,
 } from "../actions"
 
 export const metadata: Metadata = { title: "Ajuda institucional — Confluir" }
@@ -116,6 +118,9 @@ export default async function AjudaPage({
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
+
+  // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
+  const caixas = podeEditar ? await contasAbertasParaCompras() : []
 
   return (
     <>
@@ -308,7 +313,10 @@ export default async function AjudaPage({
             vigenciaTermino={c.vigencia_termino}
             hoje={hojeLocalISO()}
             temFornecedor={Boolean(c.fornecedor_id)}
+            fornecedorId={c.fornecedor_id}
+            caixas={caixas}
             acao={gerarOrdensAjudaAction}
+            buscarMeios={meiosDaEntidadeAjuda}
             beneficiarioRotulo="entidade apoiada"
           />
         </GrupoColapsavel>

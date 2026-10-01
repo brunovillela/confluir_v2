@@ -7,14 +7,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  FORMAS_ORDEM_CONTRATO,
+  ROTULO_FORMA_CONTRATO,
+} from "@/lib/compras-constantes"
 import type { EstadoForm } from "@/lib/contas"
+import type { ContaFornecedor, PixFornecedor } from "@/lib/db/compras-pagamento"
 import {
   PERIODICIDADES,
   parcelasSugeridas,
   type Periodicidade,
 } from "@/lib/contratos-constantes"
 
-import { gerarOrdensContratoAction } from "./actions"
+import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
+import { gerarOrdensContratoAction, meiosDoFornecedorContrato } from "./actions"
 
 type AcaoForm = (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
 
@@ -39,6 +45,9 @@ export function GerarOrdensForm({
   vigenciaTermino,
   hoje,
   temFornecedor,
+  fornecedorId,
+  caixas,
+  buscarMeios = meiosDoFornecedorContrato,
   acao = gerarOrdensContratoAction,
   beneficiarioRotulo = "fornecedor",
 }: {
@@ -48,6 +57,13 @@ export function GerarOrdensForm({
   vigenciaTermino: string | null
   hoje: string
   temFornecedor: boolean
+  /** Favorecido das ordens — dono das chaves Pix e contas para TED. */
+  fornecedorId: string | null
+  /** Contas de caixa abertas (forma Dinheiro). */
+  caixas: CaixaOpcao[]
+  buscarMeios?: (
+    fornecedorId: string
+  ) => Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }>
   /** Ação do submit — Contratos por padrão; Ajudas passa a sua. */
   acao?: AcaoForm
   /** "fornecedor" (contrato) ou "entidade apoiada" (ajuda). */
@@ -55,6 +71,7 @@ export function GerarOrdensForm({
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
+  const [forma, setForma] = useState("")
   const primeiro = (vigenciaInicio ?? hoje).slice(0, 10)
   const [quantidade, setQuantidade] = useState(
     String(parcelasSugeridas(primeiro, vigenciaTermino, "mensal"))
@@ -143,18 +160,48 @@ export function GerarOrdensForm({
         </div>
       </div>
 
-      <div className="grid gap-1.5 sm:max-w-xs">
-        <Label htmlFor="forma_pagamento">Forma de pagamento (opcional)</Label>
-        <Input
-          id="forma_pagamento"
-          name="forma_pagamento"
-          placeholder="Ex.: Boleto, PIX, Transferência"
-        />
+      {/* A forma é obrigatória: sem ela (e sem o "para onde") a ordem não
+          pode ser paga. Mesmas regras da aquisição direta, sem cartão. */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="forma_pagamento">Forma de pagamento *</Label>
+          <select
+            id="forma_pagamento"
+            name="forma_pagamento"
+            required
+            value={forma}
+            onChange={(e) => setForma(e.target.value)}
+            className={SELECT}
+          >
+            <option value="" disabled>
+              Escolha a forma
+            </option>
+            {FORMAS_ORDEM_CONTRATO.map((f) => (
+              <option key={f} value={f}>
+                {ROTULO_FORMA_CONTRATO[f]}
+              </option>
+            ))}
+          </select>
+        </div>
+        {forma && (
+          <DetalhePagamento
+            key={forma}
+            forma={forma}
+            fornecedorId={fornecedorId ?? ""}
+            cartoes={[]}
+            caixas={caixas}
+            buscarMeios={buscarMeios}
+            futuro
+            boletosEsperados={
+              periodicidade === "unica" ? 1 : Math.max(1, Number(quantidade) || 1)
+            }
+          />
+        )}
       </div>
 
       <p className="text-muted-foreground text-xs">
-        As ordens nascem <strong>Em autorização</strong>, com o fornecedor do
-        contrato como favorecido. Vencimentos que já têm ordem deste contrato
+        As ordens nascem <strong>Em autorização</strong>, com o {beneficiarioRotulo} do
+        contrato como favorecido e a forma de pagamento completa. Vencimentos que já têm ordem deste contrato
         são pulados — dá para rodar de novo sem duplicar.
       </p>
 

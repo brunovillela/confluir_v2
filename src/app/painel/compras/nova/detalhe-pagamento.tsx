@@ -16,7 +16,7 @@ import type {
   PixFornecedor,
 } from "@/lib/db/compras-pagamento"
 
-import { ACEITA_NOTA, prepararArquivo } from "./arquivo-envio"
+import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "./arquivo-envio"
 import { meiosDoFornecedor } from "./pagamento-actions"
 
 export type CartaoOpcao = { id: string; nome: string }
@@ -46,11 +46,20 @@ export function DetalhePagamento({
   cartoes,
   caixas,
   buscarMeios = meiosDoFornecedor,
+  futuro = false,
+  boletosEsperados,
 }: {
   forma: string
   fornecedorId: string
   cartoes: CartaoOpcao[]
   caixas: CaixaOpcao[]
+  /**
+   * Pagamento AINDA vai acontecer (ordens de contrato): os textos falam do
+   * que será pago, não do que foi, e o caixa só é debitado no pagamento.
+   */
+  futuro?: boolean
+  /** Vários boletos, um por parcela (na ordem dos vencimentos). */
+  boletosEsperados?: number
   /** De onde vêm as chaves/contas do fornecedor (padrão: a da compra direta). */
   buscarMeios?: (
     fornecedorId: string
@@ -135,7 +144,9 @@ export function DetalhePagamento({
               ))}
             </select>
             <p className="text-muted-foreground text-xs">
-              O valor da compra é debitado desta conta.
+              {futuro
+                ? "O valor sai desta conta quando a ordem for paga."
+                : "O valor da compra é debitado desta conta."}
             </p>
           </>
         )}
@@ -146,7 +157,11 @@ export function DetalhePagamento({
   if (tipo === "pix_codigo") {
     return (
       <div className="grid gap-1.5 md:col-span-2">
-        <Label htmlFor="pix_codigo">Código Pix copia e cola usado no pagamento *</Label>
+        <Label htmlFor="pix_codigo">
+          {futuro
+            ? "Código Pix copia e cola (ou o conteúdo do QR Code) para o pagamento *"
+            : "Código Pix copia e cola usado no pagamento *"}
+        </Label>
         <textarea
           id="pix_codigo"
           name="pix_codigo"
@@ -155,6 +170,45 @@ export function DetalhePagamento({
           placeholder="00020126…"
           className={TEXTAREA}
         />
+      </div>
+    )
+  }
+
+  if (tipo === "boleto" && boletosEsperados !== undefined) {
+    const n = boletosEsperados
+    return (
+      <div className="grid gap-1.5 md:col-span-2">
+        <Label htmlFor="boleto_arquivo">
+          {n === 1 ? "Arquivo do boleto (PDF ou imagem) *" : `Boletos — ${n} arquivos, um por parcela *`}
+        </Label>
+        <Input
+          id="boleto_arquivo"
+          name="boleto_arquivo"
+          type="file"
+          required
+          multiple={n > 1}
+          accept={ACEITA_NOTA}
+          onChange={(e) => {
+            const arquivos = [...(e.currentTarget.files ?? [])]
+            const total = arquivos.reduce((s, a) => s + a.size, 0)
+            const tipoRuim = arquivos.some((a) => !ACEITA_NOTA.split(",").includes(a.type))
+            setBoletoErro(
+              tipoRuim
+                ? "Envie PDF ou imagem (JPG, PNG ou WEBP)."
+                : total > LIMITE_ENVIO
+                  ? "Os boletos passam de 3,8 MB juntos — gere menos parcelas por vez."
+                  : arquivos.length !== n
+                    ? `Escolha ${n} arquivo${n === 1 ? "" : "s"} (escolhidos: ${arquivos.length}).`
+                    : null
+            )
+          }}
+        />
+        <p className="text-muted-foreground text-xs">
+          {n === 1
+            ? "Toda ordem de boleto nasce com o arquivo — é ele que o financeiro paga."
+            : "Na ordem dos vencimentos: o 1º arquivo (por nome) vai para a 1ª parcela, e assim por diante. Sem todos os boletos em mãos, gere menos parcelas agora e o resto depois — vencimentos já gerados são pulados."}
+        </p>
+        {boletoErro && <p className="text-destructive text-xs">{boletoErro}</p>}
       </div>
     )
   }

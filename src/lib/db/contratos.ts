@@ -10,8 +10,10 @@ import {
   hojeSP,
   listarDepartamentos,
   listarFornecedores,
+  subirComprovanteCompras,
   urlArquivoCompras,
 } from "@/lib/db/compras"
+import type { DetalhePagamento } from "@/lib/db/compras-pagamento"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { listarEntidadesApoiadas } from "@/lib/db/fornecedores"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
@@ -767,7 +769,18 @@ export type GerarOrdensParams = {
   primeiroVencimento: string
   /** Nº de parcelas (>=1). Ignorado em "unica" (força 1). */
   quantidade: number
-  formaPagamento: string | null
+  /** Forma de pagamento (obrigatória — ver FORMAS_ORDEM_CONTRATO). */
+  formaPagamento: string
+  /**
+   * Lê e confere o "para onde" da forma (chave/conta do fornecedor, código
+   * Pix, caixa ou boletos). Recebe o favorecido do contrato, que só se
+   * conhece aqui; boletos vêm um por parcela, na ordem dos vencimentos.
+   */
+  pagamento: (fornecedorId: string) => Promise<{
+    detalhe?: DetalhePagamento
+    boletos?: File[]
+    erro?: string
+  }>
 }
 
 export type ResultadoGeracao = {
@@ -854,6 +867,32 @@ export async function gerarOrdensContrato(
   const puladas = total - novos.length
   if (novos.length === 0) return { geradas: 0, puladas }
 
+  // Forma completa: sem ela (e sem o "para onde") a ordem não é paga.
+  const pagamento = await params.pagamento(fornecedorId)
+  if (pagamento.erro || !pagamento.detalhe) {
+    return { erro: pagamento.erro ?? "Informe a forma de pagamento." }
+  }
+  const boletos = pagamento.boletos ?? []
+  if (boletos.length > 0 && boletos.length !== novos.length) {
+    return {
+      erro: `Serão geradas ${novos.length} parcela${novos.length === 1 ? "" : "s"}${
+        puladas ? ` (${puladas} vencimento${puladas === 1 ? " já tinha" : "s já tinham"} ordem)` : ""
+      }: anexe ${novos.length} boleto${novos.length === 1 ? "" : "s"}, um por parcela — vieram ${boletos.length}.`,
+    }
+  }
+  const caminhosBoletos: string[] = []
+  for (let i = 0; i < boletos.length; i++) {
+    const r = await subirComprovanteCompras(
+      `boletos/contratos/${contratoId}/${novos[i].venc}`,
+      boletos[i]
+    )
+    if (r.erro || !r.caminho) {
+      if (caminhosBoletos.length) await admin.storage.from("compras").remove(caminhosBoletos)
+      return { erro: r.erro ?? "Falha ao subir o boleto." }
+    }
+    caminhosBoletos.push(r.caminho)
+  }
+
   const departamentoId = texto(linha.departamento_id)
   const centroCustoId = texto(linha.centro_custo_id)
   const objeto = texto(linha.objeto) ?? "Contrato"
@@ -868,13 +907,16 @@ export async function gerarOrdensContrato(
   const autorizacao = camposAutorizacaoInicial(
     ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
   )
-  const registros = novos.map(({ venc, parcela }) => ({
+  const registros = novos.map(({ venc, parcela }, i) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
     descricao: descricaoOrdemContrato(objeto, venc, parcela, total),
     ...autorizacao,
     valor_inicial_cobranca: params.valorParcela,
     forma_pagamento: params.formaPagamento,
+    // Colunas de supabase/compras-pagamento.sql (o "para onde" da forma).
+    ...pagamento.detalhe,
+    arquivo_boleto: caminhosBoletos[i] ?? null,
     vencimento: venc,
     beneficiario_fornecedor_id: fornecedorId,
     departamento_id: departamentoId,
@@ -885,6 +927,7 @@ export async function gerarOrdensContrato(
   }))
   const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
   if (erroIns) {
+    if (caminhosBoletos.length) await admin.storage.from("compras").remove(caminhosBoletos)
     if (esquemaAusente(erroIns)) {
       return { erro: "Rode supabase/contratos-ordens.sql antes de gerar ordens." }
     }

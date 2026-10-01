@@ -69,7 +69,9 @@ A lista traz **ordenação por coluna** (clique em Vencimento, Pagamento ou Valo
 e **quantidade por página**. Os filtros ficam num painel **expansível** —
 clique em **Filtros** para abrir:
 
-- **Situação** — todas, em aberto, pagas ou canceladas.
+- **Situação** — todas, **em aberto** (todas as não pagas) ou uma situação
+  exata: Em autorização, Aguardando informações, A pagar, Processando, Paga,
+  Estornado (legado do sistema anterior) ou Cancelada.
 - **Tipo** — a origem: Compras, Contrato, RPA, Folha de pagamento, Diária,
   Custeio, Reembolso, Hospedagem, Multa de trânsito, Locação de veículos.
 - **Favorecido** — busca pelo nome do fornecedor/beneficiário.
@@ -147,6 +149,11 @@ registro (a ordem volta a *A pagar*), também registrado.
   é autorizada, o sistema a dá como **paga pelo caixa**, com o centro de custo
   do caixa no débito — nada sai do banco. Esse centro é configurado em
   [Contas de caixa](/painel/ajuda/financeiro/caixa).
+
+  Já a **parcela de contrato** em dinheiro ainda não tirou nada do caixa:
+  autorizada, ela fica **A pagar**, e o caixa é debitado quando o pagamento é
+  registrado (o saldo é conferido nessa hora). Remover o pagamento devolve o
+  valor ao caixa.
 </Aviso>
 
 ## Corrigir, cancelar e reenviar
@@ -179,7 +186,9 @@ logomarca do sindicato e, em seções: **procedência**, **despesa**,
 **favorecido** (com CPF/CNPJ e natureza), **classificação contábil** (crédito da
 despesa, débito e rateio), **autorização**, **recebimento**, **pagamento**,
 **documentos** (links clicáveis por 1 hora), a **auditoria automática** e o
-**histórico** completo.
+**histórico** completo. O **boleto** só aparece nos documentos quando a forma
+de pagamento é boleto; na tela da ordem, as demais formas mostram *Não
+aplicável*.
 
 <Aviso tipo="dica" titulo="Código de verificação">
   O rodapé de cada página traz um **código de verificação** calculado a partir

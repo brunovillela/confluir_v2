@@ -114,7 +114,11 @@ export async function GET(
     },
     documentos: [
       { rotulo: o.tipo === "Folha de pagamento" ? "Contracheque" : "Nota fiscal / documento fiscal", url: x.arquivos.notaFiscal },
-      { rotulo: "Boleto", url: x.arquivos.boleto },
+      // Boleto só entra quando é a forma da ordem (ou há arquivo): em Pix/TED
+      // "Não anexado" parecia pendência, e não é.
+      ...(/boleto/i.test(String(o.forma_pagamento ?? "")) || x.arquivos.boleto
+        ? [{ rotulo: "Boleto", url: x.arquivos.boleto }]
+        : []),
       { rotulo: "Comprovante de pagamento", url: x.arquivos.comprovante },
       ...(x.arquivos.orcamento ? [{ rotulo: "Orçamento", url: x.arquivos.orcamento }] : []),
       ...pr.documentos.map((d) => ({ rotulo: d.rotulo, url: absoluto(d.url, origem) })),

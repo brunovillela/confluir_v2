@@ -15,7 +15,8 @@ Tudo parte do contrato. Abra-o para ver, em ordem:
    revisado e assinado pelas partes. **Redigir minuta** já traz o objeto, o
    valor, a vigência e o fornecedor. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
 3. **RPA — pagamento a autônomo** — quando o fornecedor é pessoa física, os
-   recibos dele e o botão **Emitir RPA** (mais abaixo);
+   recibos dele e o botão **Emitir RPA** (mais abaixo; serviço pontual sem
+   contrato vira um **RPA avulso**);
 4. **Aditivos**, **Gerar ordens de pagamento** e a lista de **Ordens de
    pagamento** do contrato — as parcelas e as ordens dos RPAs.
 
@@ -42,6 +43,20 @@ contrato principal.
 <PassoAPasso>
   <Passo titulo="Escolha a periodicidade">
     Mensal, anual ou única, com o valor da parcela e o primeiro vencimento.
+  </Passo>
+  <Passo titulo="Informe a forma de pagamento (obrigatória)">
+    Sem ela a ordem não pode ser paga, por isso o campo muda conforme a forma:
+    - **Boleto** — anexe **um arquivo por parcela** (PDF ou imagem), que vão
+      para as parcelas na ordem dos nomes dos arquivos. Sem todos os boletos em
+      mãos, gere menos parcelas agora e o resto depois.
+    - **Pix (chave do fornecedor)** — escolha uma chave cadastrada ou informe
+      outra, que fica gravada no cadastro do fornecedor.
+    - **Pix — código copia e cola / QR Code** — cole o código.
+    - **TED (conta do fornecedor)** — escolha a conta cadastrada ou informe
+      outra.
+    - **Dinheiro (caixa)** — escolha a conta de caixa aberta. O dinheiro só sai
+      dela quando a ordem é **paga** no Financeiro (é aí que o saldo é
+      conferido).
   </Passo>
   <Passo titulo="Gere">
     O sistema cria as ordens tendo o fornecedor do contrato como favorecido.
@@ -72,17 +87,19 @@ Contratos podem ser organizados por **categoria**. Uma categoria marcada como
 
 ## RPA — Recibo de Pagamento a Autônomo
 
-O RPA é a **forma de pagamento** do contrato com **autônomo**: o prestador é o
-fornecedor do contrato, que precisa ser **pessoa física** (CPF). Ele é emitido
-na página do contrato, em **Emitir RPA** — ou em **Todos os RPAs → Novo RPA**,
-que pede o contrato primeiro. O PDF é baixado, **assinado pelo prestador** e
-arquivado — vale como comprovante fiscal do serviço prestado.
+O RPA paga um **autônomo** — prestador **pessoa física** (CPF). Ele nasce de
+duas maneiras, nas abas de **Todos os RPAs → Novo RPA**:
 
-<Aviso tipo="nota" titulo="Serviço avulso também tem contrato">
-  Todo RPA pertence a um contrato. Para um serviço pontual de autônomo, cadastre
-  antes um contrato simples com ele — é o que liga o recibo, a ordem e o
-  histórico do prestador.
-</Aviso>
+- **De um contrato** — a forma de pagamento do contrato com o autônomo: o
+  prestador é o fornecedor do contrato, e a ordem leva o departamento e o
+  centro de custo dele. Também se emite na página do contrato, em **Emitir RPA**.
+- **Avulso** — serviço pontual, sem contrato. Você escolhe o **prestador** entre
+  os fornecedores com CPF no cadastro (não achou? cadastre-o em Fornecedores,
+  com o CPF) e informa o **departamento** e o **centro de custo** da despesa —
+  o que o contrato daria.
+
+O PDF é baixado, **assinado pelo prestador** e anexado de volta na página do
+RPA — o recibo assinado vale como comprovante fiscal do serviço prestado.
 
 <PassoAPasso>
   <Passo titulo="Escolha a base do valor">
@@ -97,28 +114,38 @@ arquivado — vale como comprovante fiscal do serviço prestado.
     recibo. Informe os dependentes para a dedução do IRRF.
   </Passo>
   <Passo titulo="Diga quando e como pagar">
-    **Pagar em** e **Forma de pagamento** (Pix, transferência…) vão para a
-    ordem de pagamento.
+    **Pagar em** vira o vencimento da ordem. A **forma de pagamento** é
+    obrigatória e pede o "para onde", como na aquisição direta: **Pix** (a
+    chave do prestador — escolha uma do cadastro ou informe outra, que fica
+    gravada nele), **Pix (QR Code)** (o código copia e cola), **Boleto** (o
+    arquivo), **Depósito bancário (TED)** (a conta do prestador) ou
+    **Dinheiro** (a conta de caixa). No dinheiro, o caixa **não** é debitado na
+    emissão — só quando a ordem for paga.
   </Passo>
   <Passo titulo="Emita — a ordem nasce junto">
     **Emitir RPA e gerar a ordem** dá ao recibo um número sequencial e cria a
     **ordem de pagamento do valor líquido**, *Em autorização*, para o
-    prestador, com o departamento e o centro de custo do contrato. Ela aparece
-    nas ordens do contrato e no Financeiro (tipo *RPA*) e segue a alçada como
-    qualquer ordem.
+    prestador, com o departamento e o centro de custo (do contrato ou os que
+    você escolheu no avulso). Ela aparece no Financeiro (tipo *RPA*) — e, no
+    RPA de contrato, nas ordens do contrato — e segue a alçada como qualquer
+    ordem.
   </Passo>
-  <Passo titulo="Colha a assinatura">
+  <Passo titulo="Colha a assinatura e anexe">
     O PDF sai com os valores discriminados (bruto, retenções, líquido) e o
-    termo de quitação. RPAs não são editáveis — para corrigir, exclua e emita
-    outro.
+    termo de quitação. Depois de assinado pelo prestador, anexe-o em **Recibo
+    assinado**, na página do RPA (PDF ou foto). A lista de RPAs mostra quais
+    estão *Assinado* e quais estão *A assinar*.
   </Passo>
 </PassoAPasso>
 
 <Print src="compras/rpa.png" alt="RPA nº 1: o cartão Contrato e pagamento com o contrato 2026.0901.0900.0010 e a ordem de pagamento Em autorização; o prestador pessoa física com CPF e endereço, o serviço, e os valores — bruto de R$ 1.800,00, INSS, ISS e o líquido de R$ 1.512,00." legenda="O RPA: o contrato a que pertence e a ordem que gerou." />
 
-<Aviso tipo="atencao" titulo="Excluir o RPA leva a ordem junto">
-  Enquanto a ordem está *Em autorização*, **Excluir RPA** apaga o recibo e a
-  ordem. Depois de autorizada, peça ao Financeiro para cancelar a ordem antes.
+<Aviso tipo="atencao" titulo="Só o RPA não assinado pode ser excluído">
+  RPAs não são editáveis — para corrigir, exclua e emita outro. **Excluir RPA**
+  (na página do RPA ou no ícone da lixeira, na lista) só aparece enquanto o
+  recibo assinado **não** foi anexado: assinado, ele é comprovante fiscal e
+  fica. A ordem vai junto enquanto está *Em autorização*; depois de
+  autorizada, peça ao Financeiro para cancelá-la antes.
 </Aviso>
 
 <Aviso tipo="atencao" titulo="Tabelas mudam todo ano">

@@ -138,3 +138,40 @@ export async function lerDetalhePagamento(
   }
   return { detalhe, boleto }
 }
+
+/**
+ * Pagamento de ordens FUTURAS (parcelas de contrato e ajuda): mesma leitura
+ * da aquisição direta, mas o boleto vem um por parcela e o caixa não precisa
+ * ter saldo agora — o débito acontece quando a ordem é paga.
+ */
+export async function lerPagamentoOrdemFutura(
+  formData: FormData,
+  forma: FormaPagamentoCompras,
+  fornecedorId: string
+): Promise<{ detalhe?: DetalhePagamento; boletos?: File[]; erro?: string }> {
+  if (DETALHE_DA_FORMA[forma] !== "boleto") {
+    // Valor 0: confere que o caixa está aberto, sem exigir saldo hoje.
+    const { detalhe, erro } = await lerDetalhePagamento(formData, forma, fornecedorId, 0)
+    return erro || !detalhe ? { erro: erro ?? "Dados de pagamento inválidos." } : { detalhe, boletos: [] }
+  }
+  const boletos = formData
+    .getAll("boleto_arquivo")
+    .filter((a): a is File => a instanceof File && a.size > 0)
+    // Na ordem dos nomes: o 1º arquivo vai para a 1ª parcela (o navegador
+    // não garante a ordem em que o usuário clicou).
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { numeric: true }))
+  if (boletos.length === 0) return { erro: "Anexe o arquivo do boleto." }
+  if (boletos.some((b) => !TIPOS_COMPROVANTE_COMPRAS[b.type])) {
+    return { erro: "Os boletos devem ser PDF ou imagem (JPG, PNG ou WEBP)." }
+  }
+  return {
+    detalhe: {
+      cartao_id: null,
+      caixa_conta_id: null,
+      dados_bancarios_id: null,
+      pix_codigo: null,
+      arquivo_boleto: null,
+    },
+    boletos,
+  }
+}

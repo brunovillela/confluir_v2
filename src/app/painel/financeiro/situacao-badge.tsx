@@ -10,6 +10,8 @@ const ESTILOS: Record<string, string> = {
   "Aguardando informações":
     "border-muted-foreground/40 text-muted-foreground",
   Cancelada: "border-destructive/40 text-destructive",
+  // Legado do Bubble: o banco devolveu o pagamento.
+  Estornado: "border-destructive/40 text-destructive",
 }
 
 export function SituacaoBadge({ situacao }: { situacao: string | null }) {

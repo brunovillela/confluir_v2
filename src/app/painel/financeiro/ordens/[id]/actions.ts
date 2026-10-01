@@ -8,6 +8,11 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  debitarCaixaCompra,
+  saldoCaixaAberta,
+} from "@/lib/db/compras-pagamento"
+import {
+  caixaJaDebitado,
   cancelarOrdem,
   corrigirOrdem,
   registrarEvento,
@@ -61,7 +66,7 @@ export async function salvarPagamento(
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
-    .select("id, situacao, arquivo_pagamento, data_pagamento, valor_pago")
+    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -105,6 +110,20 @@ export async function salvarPagamento(
     arquivoPagamento = caminho
   }
 
+  // Forma "Dinheiro" de parcela de contrato: o caixa é debitado agora, no
+  // pagamento (a compra direta já debitou no lançamento — não repete).
+  const caixaId = ordem.caixa_conta_id ? String(ordem.caixa_conta_id) : null
+  const debitarAgora = !editando && caixaId !== null && !(await caixaJaDebitado(id))
+  if (debitarAgora) {
+    const saldo = await saldoCaixaAberta(caixaId!)
+    if (saldo === null) {
+      return { erro: "A conta de caixa desta ordem não está aberta — peça ao responsável para reabri-la." }
+    }
+    if (saldo < valor) {
+      return { erro: `Saldo insuficiente no caixa da ordem (${saldo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}). Peça um aporte antes de pagar.` }
+    }
+  }
+
   const { error } = await admin
     .from("ordens_pagamento")
     .update({
@@ -117,6 +136,29 @@ export async function salvarPagamento(
     })
     .eq("id", id)
   if (error) return { erro: `Não foi possível salvar o pagamento: ${error.message}` }
+
+  if (debitarAgora) {
+    const { erro: erroCaixa } = await debitarCaixaCompra({
+      contaId: caixaId!,
+      valor,
+      descricao: `Pagamento da ordem ${ordem.codigo ?? ""} — ${ordem.descricao ?? ""}`.slice(0, 500),
+      usuarioId: sessao.usuario.id,
+      ordemId: id,
+    })
+    if (erroCaixa) {
+      // Sem o débito, o pagamento não vale: volta a ordem como estava.
+      await admin
+        .from("ordens_pagamento")
+        .update({
+          valor_pago: ordem.valor_pago,
+          data_pagamento: ordem.data_pagamento,
+          situacao: ordem.situacao,
+          pagador_id: null,
+        })
+        .eq("id", id)
+      return { erro: erroCaixa }
+    }
+  }
 
   await registrarEvento(
     id,
@@ -153,7 +195,7 @@ export async function removerPagamento(
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
-    .select("id, autorizacao_esta_autorizado, valor_pago, data_pagamento")
+    .select("id, autorizacao_esta_autorizado, valor_pago, data_pagamento, caixa_conta_id, processo_compra_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -172,7 +214,21 @@ export async function removerPagamento(
     .eq("id", id)
   if (error) return { erro: `Não foi possível remover o pagamento: ${error.message}` }
 
+  // Débito feito no PAGAMENTO (parcela com caixa) volta para o caixa. O da
+  // compra direta é do lançamento da compra e fica — só o cancelamento o desfaz.
+  let caixaDevolvido = false
+  if (ordem.caixa_conta_id && !ordem.processo_compra_id) {
+    const { data: movs } = await admin
+      .from("caixa_movimentacoes")
+      .update({ situacao: "cancelada" })
+      .eq("ordem_pagamento_id", id)
+      .eq("situacao", "confirmada")
+      .select("id")
+    caixaDevolvido = (movs ?? []).length > 0
+  }
+
   await registrarEvento(id, "pagamento_removido", sessao.usuario.id, null, {
+    ...(caixaDevolvido ? { debito_do_caixa: "cancelado" } : {}),
     valor_pago: ordem.valor_pago,
     data_pagamento: ordem.data_pagamento,
   })

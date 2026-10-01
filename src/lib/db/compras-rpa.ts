@@ -1,5 +1,6 @@
 import "server-only"
 
+import { listarFornecedores } from "@/lib/db/compras"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import {
   normalizarConfigRpa,
@@ -10,7 +11,8 @@ import { tenantAtual } from "@/lib/tenant"
 
 /**
  * Aquisição › Contratos › RPA (Recibo de Pagamento a Autônomo) — leitura.
- * Escrita nas actions da rota. SQL: supabase/compras-rpa.sql.
+ * Escrita nas actions da rota. SQL: supabase/compras-rpa.sql,
+ * contratos-rpa.sql (RPA de contrato) e rpa-avulso.sql (recibo assinado).
  */
 
 export type RpaLinha = {
@@ -26,7 +28,7 @@ export type RpaLinha = {
   valor_liquido: number | null
   criadoPorNome: string | null
   created_at: string
-  /** Contrato a que pertence (nulo só nos RPAs anteriores a 29/09/2026). */
+  /** Contrato a que pertence (nulo = avulso, ou anterior a 29/09/2026). */
   contratoId: string | null
   contratoCodigo: string | null
   contratoObjeto: string | null
@@ -34,6 +36,9 @@ export type RpaLinha = {
   ordemId: string | null
   ordemCodigo: string | null
   ordemSituacao: string | null
+  /** Recibo assinado anexado (bucket compras) — com ele, não se exclui. */
+  arquivoAssinado: string | null
+  assinadoEm: string | null
 }
 
 export type RpaDetalhe = RpaLinha & {
@@ -46,6 +51,9 @@ export type RpaDetalhe = RpaLinha & {
   valor_informado: number | null
   observacoes: string | null
 }
+
+export const AVISO_SQL_RPA_ASSINATURA =
+  "Rode supabase/rpa-avulso.sql no Supabase para anexar o recibo assinado."
 
 export const AVISO_SQL_RPA_CONTRATO =
   "Rode supabase/contratos-rpa.sql no Supabase: o RPA passa a pertencer a um contrato e a gerar a ordem de pagamento."
@@ -95,6 +103,9 @@ function camposDeVinculo(r: Record<string, unknown>, v: Vinculos) {
     ordemId: ordem ? ordemId : null,
     ordemCodigo: ordem?.codigo ?? null,
     ordemSituacao: ordem?.situacao ?? null,
+    // Colunas de supabase/rpa-avulso.sql — sem ele, vêm vazias.
+    arquivoAssinado: texto(r.arquivo_assinado),
+    assinadoEm: texto(r.assinado_em),
   }
 }
 
@@ -107,11 +118,11 @@ export async function listarRpas(
 ): Promise<{ ativo: boolean; linhas: RpaLinha[] }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  // "*": as colunas do recibo assinado (supabase/rpa-avulso.sql) vêm quando
+  // existem, sem quebrar a lista antes do SQL.
   let consulta = admin
     .from("compras_rpa")
-    .select(
-      "id, numero, fornecedor_id, data_servico, base, valor_bruto, inss, irrf, iss, valor_liquido, criado_por, created_at, contrato_id, ordem_pagamento_id"
-    )
+    .select("*")
     .eq("emp_proprietaria_id", emp)
   if (filtro.contratoId) consulta = consulta.eq("contrato_id", filtro.contratoId)
   const { data, error } = await consulta.order("numero", { ascending: false })
@@ -342,6 +353,58 @@ export async function contratosParaRpa(): Promise<ContratoDoRpa[]> {
     .sort((a, b) =>
       `${a.codigo ?? ""} ${a.objeto ?? ""}`.localeCompare(`${b.codigo ?? ""} ${b.objeto ?? ""}`, "pt-BR")
     )
+}
+
+// ── O prestador do RPA avulso ────────────────────────────────────────────────
+
+export type PrestadorRpa = {
+  id: string
+  nome: string
+  nome_razao: string | null
+  cnpj_cpf: string | null
+  bloqueado: boolean
+}
+
+const temCpf = (doc: string | null) => (doc ?? "").replace(/\D/g, "").length === 11
+
+/**
+ * Prestadores possíveis do RPA AVULSO: fornecedores pessoa física — decididos
+ * pelo número do documento (11 dígitos = CPF), não pela marcação do legado.
+ */
+export async function prestadoresParaRpa(): Promise<PrestadorRpa[]> {
+  return (await listarFornecedores())
+    .filter((f) => temCpf(f.cnpj_cpf))
+    .map((f) => ({
+      id: f.id,
+      nome: f.nome,
+      nome_razao: f.nome_razao,
+      cnpj_cpf: f.cnpj_cpf,
+      bloqueado: f.bloqueado,
+    }))
+}
+
+/** Um prestador do tenant, para conferir a escolha do RPA avulso. */
+export async function prestadorDoRpa(
+  id: string
+): Promise<(PrestadorRpa & { pessoaFisica: boolean }) | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+  const admin = await createAdminClient()
+  const { data: e } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!e) return null
+  const doc = texto(e.cnpj_cpf)
+  return {
+    id: String(e.id),
+    nome: nomeDaEmpresa(e) ?? "(sem nome)",
+    nome_razao: texto(e.nome_razao),
+    cnpj_cpf: doc,
+    bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+    pessoaFisica: temCpf(doc),
+  }
 }
 
 /** Próximo número sequencial de RPA do tenant. */

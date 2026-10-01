@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import {
+  filtroSituacaoOrdem,
   listarOrdens,
   opcoesFiltrosOrdens,
   ORDENS_POR_PAGINA,
+  SITUACOES_ORDEM,
   type FiltrosOrdens,
 } from "@/lib/db/financeiro"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
@@ -92,13 +94,10 @@ const TIPOS_ORDEM = [
 ] as const
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
-  const situacoes = ["todas", "abertas", "pagas", "canceladas"] as const
   const ordens = ["vencimento", "pagamento", "valor"] as const
   return {
     busca: params.busca ?? "",
-    situacao: situacoes.includes(params.situacao as never)
-      ? (params.situacao as (typeof situacoes)[number])
-      : "todas",
+    situacao: filtroSituacaoOrdem(params.situacao),
     tipo: (TIPOS_ORDEM as readonly string[]).includes(params.tipo ?? "")
       ? params.tipo!
       : "todos",
@@ -178,12 +177,12 @@ function CabecalhoOrdenavel({
   )
 }
 
-const CHIPS_SITUACAO = [
+// O grupo "Em aberto" segue útil; depois, cada situação real do ciclo.
+const CHIPS_SITUACAO: { valor: string; rotulo: string }[] = [
   { valor: "todas", rotulo: "Todas" },
-  { valor: "abertas", rotulo: "Em aberto" },
-  { valor: "pagas", rotulo: "Pagas" },
-  { valor: "canceladas", rotulo: "Canceladas" },
-] as const
+  { valor: "abertas", rotulo: "Em aberto (todas as não pagas)" },
+  ...SITUACOES_ORDEM.map((s) => ({ valor: s, rotulo: s })),
+]
 
 export default async function OrdensPage({
   searchParams,

@@ -28,6 +28,34 @@ export const SITUACOES_ABERTAS = [
   "Aguardando informações",
 ]
 
+/**
+ * Todas as situações que existem no banco, na ordem do ciclo — opções do
+ * filtro da lista. "Estornado" é legado do Bubble (13 ordens em 01/10); o
+ * estorno de hoje devolve a ordem para "Aguardando informações".
+ */
+export const SITUACOES_ORDEM = [
+  "Em autorização",
+  "Aguardando informações",
+  "A pagar",
+  "Processando",
+  "Paga",
+  "Estornado",
+  "Cancelada",
+] as const
+
+/** Filtro de situação: "todas", o grupo "abertas" ou uma situação exata. */
+export type FiltroSituacaoOrdem = "todas" | "abertas" | (typeof SITUACOES_ORDEM)[number]
+
+/** Lê o filtro da URL (aceita os valores antigos "pagas"/"canceladas"). */
+export function filtroSituacaoOrdem(valor: string | undefined): FiltroSituacaoOrdem {
+  if (valor === "pagas") return "Paga"
+  if (valor === "canceladas") return "Cancelada"
+  if (valor === "abertas") return "abertas"
+  return (SITUACOES_ORDEM as readonly string[]).includes(valor ?? "")
+    ? (valor as FiltroSituacaoOrdem)
+    : "todas"
+}
+
 export type OrdemLinha = {
   id: string
   codigo: string | null
@@ -50,7 +78,7 @@ export type OrdemLinha = {
 
 export type FiltrosOrdens = {
   busca?: string
-  situacao?: "todas" | "abertas" | "pagas" | "canceladas"
+  situacao?: FiltroSituacaoOrdem
   /** Filtro pela coluna `tipo` (ex.: "Custeio", "Compras"); "todos" não filtra. */
   tipo?: string
   /** id do fornecedor beneficiário (beneficiario_fornecedor_id). */
@@ -116,8 +144,7 @@ function aplicarFiltrosOrdens<T>(
     .not("excluido", "is", true)
 
   if (situacao === "abertas") q = q.in("situacao", SITUACOES_ABERTAS)
-  if (situacao === "pagas") q = q.eq("situacao", "Paga")
-  if (situacao === "canceladas") q = q.eq("situacao", "Cancelada")
+  else if (situacao !== "todas") q = q.eq("situacao", situacao)
   if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
   if (beneficiario) q = q.eq("beneficiario_fornecedor_id", beneficiario)
   if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)

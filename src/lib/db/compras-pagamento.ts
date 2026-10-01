@@ -203,7 +203,7 @@ export async function inserirMeioFornecedor(
 // ── Caixa ───────────────────────────────────────────────────────────────────
 
 /** Saldo atual de uma conta de caixa ABERTA do tenant (null = não usável). */
-async function saldoCaixaAberta(contaId: string): Promise<number | null> {
+export async function saldoCaixaAberta(contaId: string): Promise<number | null> {
   const admin = await createAdminClient()
   const { data: conta } = await admin
     .from("caixa_contas")

@@ -1,3 +1,4 @@
+import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -121,6 +122,9 @@ export default async function ContratoPage({
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
   const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
+
+  // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
+  const caixas = podeEditar ? await contasAbertasParaCompras() : []
 
   return (
     <>
@@ -440,6 +444,8 @@ export default async function ContratoPage({
             vigenciaTermino={c.vigencia_termino}
             hoje={hojeLocalISO()}
             temFornecedor={Boolean(c.fornecedor_id)}
+            fornecedorId={c.fornecedor_id}
+            caixas={caixas}
           />
         </GrupoColapsavel>
       )}

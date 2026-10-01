@@ -277,10 +277,25 @@ export async function avaliarOrdem(
     { valor, alcada }
   )
 
-  if (aprovar && ordem.caixa_conta_id) {
+  // Só a compra em dinheiro (débito já lançado no caixa) fecha como paga na
+  // autorização. Parcela de contrato com caixa ainda não tirou o dinheiro:
+  // segue "A pagar" e o caixa é debitado quando o pagamento for registrado.
+  if (aprovar && ordem.caixa_conta_id && (await caixaJaDebitado(ordemId))) {
     await pagarPeloCaixa(ordemId, valor as number, String(ordem.caixa_conta_id), ordem.processo_compra_id as string | null)
   }
   return {}
+}
+
+/** A ordem já tem débito confirmado em alguma conta de caixa? */
+export async function caixaJaDebitado(ordemId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("caixa_movimentacoes")
+    .select("id")
+    .eq("ordem_pagamento_id", ordemId)
+    .eq("situacao", "confirmada")
+    .limit(1)
+  return (data ?? []).length > 0
 }
 
 /**

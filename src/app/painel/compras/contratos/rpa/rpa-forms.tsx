@@ -2,8 +2,9 @@
 
 import { startTransition, useMemo, useState } from "react"
 import { useActionState } from "react"
-import { Loader2, Trash2 } from "lucide-react"
+import { FileCheck2, Loader2, Trash2, Upload } from "lucide-react"
 
+import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,10 +13,19 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   calcularPorBruto,
   calcularPorLiquido,
+  FORMAS_PAGAMENTO_RPA,
   type ConfigRpa,
 } from "@/lib/rpa-calculo"
 
-import { emitirRpa, excluirRpa, salvarConfigRpa } from "./actions"
+import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
+import { DetalhePagamento, type CaixaOpcao } from "../../nova/detalhe-pagamento"
+import {
+  anexarRpaAssinado,
+  emitirRpa,
+  excluirRpa,
+  meiosDoPrestadorRpa,
+  salvarConfigRpa,
+} from "./actions"
 
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -31,18 +41,39 @@ function lerValor(v: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
+export type ContratoDoForm = {
+  id: string
+  codigo: string | null
+  objeto: string | null
+  fornecedorId: string
+  fornecedorNome: string | null
+}
+
+/** O que o contrato daria e, no avulso, quem emite escolhe. */
+export type OpcoesAvulso = {
+  prestadores: EmpresaOpcao[]
+  departamentos: { id: string; nome: string }[]
+  centros: { id: string; nome: string; departamentoId: string | null }[]
+}
+
 /**
- * Emissão do RPA de um contrato: o prestador é o fornecedor do contrato, e o
- * recibo gera a ordem de pagamento do líquido (Pagar em + forma).
+ * Emissão do RPA — de um contrato (o prestador é o fornecedor do contrato) ou
+ * AVULSO (escolhe o prestador pessoa física, o departamento e o centro de
+ * custo). Nos dois, o recibo gera a ordem de pagamento do líquido, com a
+ * forma e o "para onde" completos.
  */
 export function RpaNovoForm({
   contrato,
+  avulso,
   hoje,
   config,
+  caixas,
 }: {
-  contrato: { id: string; codigo: string | null; objeto: string | null; fornecedorNome: string | null }
+  contrato: ContratoDoForm | null
+  avulso: OpcoesAvulso | null
   hoje: string
   config: ConfigRpa
+  caixas: CaixaOpcao[]
 }) {
   const [estado, action, pend] = useActionState(emitirRpa, {})
   const [base, setBase] = useState<"bruto" | "liquido">("bruto")
@@ -52,6 +83,16 @@ export function RpaNovoForm({
   const [reterIrrf, setReterIrrf] = useState(true)
   const [reterIss, setReterIss] = useState(true)
   const [issTxt, setIssTxt] = useState(String(config.iss_aliquota_padrao))
+  const [prestadorId, setPrestadorId] = useState("")
+  const [depto, setDepto] = useState("")
+  const [forma, setForma] = useState("")
+
+  const fornecedorId = contrato ? contrato.fornecedorId : prestadorId
+  const centrosVisiveis = avulso
+    ? depto
+      ? avulso.centros.filter((c) => c.departamentoId === depto || !c.departamentoId)
+      : avulso.centros
+    : []
 
   const previa = useMemo(() => {
     const valor = lerValor(valorTxt)
@@ -80,26 +121,96 @@ export function RpaNovoForm({
       }}
       className="grid gap-4"
     >
-      <input type="hidden" name="contrato_id" value={contrato.id} />
+      {contrato ? (
+        <input type="hidden" name="contrato_id" value={contrato.id} />
+      ) : (
+        <input type="hidden" name="modo" value="avulso" />
+      )}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
 
-      <dl className="bg-muted/40 grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground text-xs">Contrato</dt>
-          <dd className="font-medium">
-            {contrato.codigo ?? "(sem código)"}
-            {contrato.objeto && <span className="text-muted-foreground font-normal"> — {contrato.objeto}</span>}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-xs">Prestador (fornecedor do contrato)</dt>
-          <dd className="font-medium">{contrato.fornecedorNome ?? "—"}</dd>
-        </div>
-      </dl>
+      {contrato ? (
+        <dl className="bg-muted/40 grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-muted-foreground text-xs">Contrato</dt>
+            <dd className="font-medium">
+              {contrato.codigo ?? "(sem código)"}
+              {contrato.objeto && <span className="text-muted-foreground font-normal"> — {contrato.objeto}</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Prestador (fornecedor do contrato)</dt>
+            <dd className="font-medium">{contrato.fornecedorNome ?? "—"}</dd>
+          </div>
+        </dl>
+      ) : avulso ? (
+        <fieldset className="grid gap-3 rounded-lg border p-3">
+          <legend className="px-1 text-sm font-medium">Prestador e despesa</legend>
+          <div className="grid gap-1.5">
+            <Label>Prestador (pessoa física) *</Label>
+            {avulso.prestadores.length === 0 ? (
+              <p className="text-destructive text-xs">
+                Nenhum fornecedor com CPF no cadastro. Cadastre o autônomo em Fornecedores,
+                com o CPF, e volte aqui.
+              </p>
+            ) : (
+              <EmpresaCombobox
+                empresas={avulso.prestadores}
+                name="fornecedor_id"
+                onChange={(id) => setPrestadorId(id ?? "")}
+              />
+            )}
+            <p className="text-muted-foreground text-xs">
+              Aparecem os fornecedores com CPF no cadastro. Não achou? Cadastre-o em Fornecedores.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="departamento_id">Departamento *</Label>
+              <select
+                id="departamento_id"
+                name="departamento_id"
+                required
+                value={depto}
+                onChange={(e) => setDepto(e.target.value)}
+                className={`${SELECT_CLS} w-full`}
+              >
+                <option value="" disabled>
+                  Escolha o departamento…
+                </option>
+                {avulso.departamentos.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="centro_custo_id">Centro de custo (despesa) *</Label>
+              <select
+                key={depto}
+                id="centro_custo_id"
+                name="centro_custo_id"
+                required
+                defaultValue=""
+                className={`${SELECT_CLS} w-full truncate`}
+              >
+                <option value="" disabled>
+                  {centrosVisiveis.length ? "Escolha o centro de custo…" : "Nenhum centro deste departamento"}
+                </option>
+                {centrosVisiveis.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+      ) : null}
 
       <div className="grid gap-1.5">
         <Label htmlFor="descricao_servico">Serviço prestado *</Label>
@@ -108,7 +219,7 @@ export function RpaNovoForm({
           name="descricao_servico"
           rows={2}
           required
-          defaultValue={contrato.objeto ?? ""}
+          defaultValue={contrato?.objeto ?? ""}
           placeholder="Ex.: Manutenção elétrica da sede — troca do quadro de distribuição"
         />
       </div>
@@ -253,13 +364,46 @@ export function RpaNovoForm({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="forma_pagamento">Forma de pagamento</Label>
-            <Input id="forma_pagamento" name="forma_pagamento" defaultValue="Pix" placeholder="Ex.: Pix, Transferência" />
+            <Label htmlFor="forma_pagamento">Forma de pagamento *</Label>
+            <select
+              id="forma_pagamento"
+              name="forma_pagamento"
+              required
+              value={forma}
+              onChange={(e) => setForma(e.target.value)}
+              className={`${SELECT_CLS} w-full`}
+            >
+              <option value="" disabled>
+                Escolha…
+              </option>
+              {FORMAS_PAGAMENTO_RPA.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+        {/* Bloco próprio: o DetalhePagamento ocupa várias colunas no grid da compra. */}
+        {forma && (
+          <div>
+            <DetalhePagamento
+              key={forma}
+              forma={forma}
+              fornecedorId={fornecedorId}
+              cartoes={[]}
+              caixas={caixas}
+              buscarMeios={meiosDoPrestadorRpa}
+              // A ordem do líquido ainda vai ser paga: o caixa só é debitado
+              // no pagamento, e os textos falam do que será pago.
+              futuro
+            />
+          </div>
+        )}
         <p className="text-muted-foreground text-xs">
           Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong> para o prestador,
-          Em autorização e ligada ao contrato — ela segue a alçada como qualquer ordem.
+          Em autorização{contrato ? " e ligada ao contrato" : ""} — ela segue a alçada como
+          qualquer ordem.
         </p>
       </fieldset>
 
@@ -425,7 +569,20 @@ export function ConfigRpaForm({ config }: { config: ConfigRpa }) {
   )
 }
 
-export function ExcluirRpa({ id }: { id: string }) {
+/**
+ * Excluir o RPA (só o que ainda não tem recibo assinado — a página e a lista
+ * escondem o botão nos assinados, e a action recusa). `compacto` é o botão de
+ * ícone da lista, que volta para a lista.
+ */
+export function ExcluirRpa({
+  id,
+  numero,
+  compacto,
+}: {
+  id: string
+  numero?: number | null
+  compacto?: boolean
+}) {
   const [estado, action, pend] = useActionState(excluirRpa, {})
   return (
     <form
@@ -433,28 +590,96 @@ export function ExcluirRpa({ id }: { id: string }) {
       onSubmit={(e) => {
         if (
           !confirm(
-            "Excluir este RPA e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito."
+            `Excluir o RPA${numero ? ` nº ${numero}` : ""} e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito.`
           )
         ) {
           e.preventDefault()
         }
       }}
+      className={compacto ? "inline-flex flex-col items-end" : undefined}
     >
-      {estado.erro && (
-        <Alert variant="destructive" className="mb-3">
-          <AlertDescription>{estado.erro}</AlertDescription>
-        </Alert>
-      )}
+      {estado.erro &&
+        (compacto ? (
+          <span className="text-destructive max-w-56 text-right text-xs">{estado.erro}</span>
+        ) : (
+          <Alert variant="destructive" className="mb-3">
+            <AlertDescription>{estado.erro}</AlertDescription>
+          </Alert>
+        ))}
       <input type="hidden" name="id" value={id} />
+      {compacto && <input type="hidden" name="voltar" value="lista" />}
       <Button
         type="submit"
         variant="ghost"
+        size={compacto ? "icon" : "default"}
         disabled={pend}
         className="text-destructive hover:text-destructive"
+        title={compacto ? "Excluir RPA (sem recibo assinado)" : undefined}
+        aria-label={compacto ? `Excluir o RPA${numero ? ` nº ${numero}` : ""}` : undefined}
       >
         {pend ? <Loader2 className="animate-spin" /> : <Trash2 />}
-        Excluir RPA
+        {!compacto && "Excluir RPA"}
       </Button>
+    </form>
+  )
+}
+
+/**
+ * Anexa (ou substitui) o recibo assinado pelo prestador — PDF ou foto, que é
+ * reduzida no navegador se passar do limite do envio.
+ */
+export function AnexarRpaAssinado({ id, substituir }: { id: string; substituir?: boolean }) {
+  const [estado, action, pend] = useActionState(anexarRpaAssinado, {})
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        if (
+          !substituir &&
+          !confirm(
+            "Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído)."
+          )
+        ) {
+          e.preventDefault()
+        }
+      }}
+      className="grid gap-3"
+    >
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <input type="hidden" name="id" value={id} />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="grid min-w-64 flex-1 gap-1.5">
+          <Label htmlFor="arquivo_assinado">
+            {substituir ? "Substituir o arquivo" : "Recibo assinado (PDF ou foto)"}
+          </Label>
+          <Input
+            id="arquivo_assinado"
+            name="arquivo"
+            type="file"
+            required
+            accept={ACEITA_NOTA}
+            onChange={async (e) => {
+              const { erro } = await prepararArquivo(e.currentTarget)
+              setErroArquivo(erro ?? null)
+            }}
+          />
+        </div>
+        <Button type="submit" variant={substituir ? "outline" : "default"} disabled={pend}>
+          {pend ? <Loader2 className="animate-spin" /> : substituir ? <Upload /> : <FileCheck2 />}
+          {substituir ? "Substituir" : "Anexar recibo assinado"}
+        </Button>
+      </div>
+      {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
     </form>
   )
 }
