@@ -108,6 +108,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "ferramentas_anomalias", rotulo: "Anomalias" },
       { chave: "ferramentas_documentos", rotulo: "Documentos" },
       { chave: "ferramentas_agendas", rotulo: "Agenda" },
+      { chave: "ferramentas_agendas_edicao", rotulo: "Agenda — criar e editar compromissos" },
       { chave: "ferramentas_oficios", rotulo: "Ofícios" },
       { chave: "ferramentas_oficios_todos", rotulo: "Ofícios — todos os departamentos" },
       { chave: "ferramentas_ci", rotulo: "Comunicação interna" },

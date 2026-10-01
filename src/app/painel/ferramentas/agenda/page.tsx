@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarDays } from "lucide-react"
+import { CalendarDays, Plus } from "lucide-react"
+
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,13 +18,14 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarEventos, resumoAgenda, TIPOS_AGENDA } from "@/lib/db/agenda"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Agenda — Confluir" }
 
 const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-type Params = { busca?: string; tipo?: string; quando?: string }
+type Params = { busca?: string; tipo?: string; quando?: string; excluido?: string }
 
 function periodoEvento(
   inicio: string | null,
@@ -45,7 +48,8 @@ export default async function AgendaPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  await requirePermissao("ferramentas_agendas")
+  const sessao = await requirePermissao("ferramentas_agendas", ["ferramentas_agendas_edicao"])
+  const podeCriar = podeAcessar(sessao.permissoes, "ferramentas_agendas_edicao")
 
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
@@ -64,13 +68,29 @@ export default async function AgendaPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Eventos, reuniões e atividades — {resumo.total.toLocaleString("pt-BR")}{" "}
-          registros, {resumo.futuros} futuro(s)
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Eventos, reuniões e atividades — {resumo.total.toLocaleString("pt-BR")}{" "}
+            registros, {resumo.futuros} futuro(s)
+          </p>
+        </div>
+        {podeCriar && (
+          <Button asChild>
+            <Link href="/painel/ferramentas/agenda/novo">
+              <Plus />
+              Novo compromisso
+            </Link>
+          </Button>
+        )}
       </div>
+
+      {brutos.excluido === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Compromisso excluído.</AlertDescription>
+        </Alert>
+      )}
 
       <form
         className="flex flex-wrap items-center gap-2"

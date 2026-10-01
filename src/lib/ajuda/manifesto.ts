@@ -599,6 +599,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "O repositório de arquivos por categoria",
       },
       {
+        slug: "agenda",
+        titulo: "Agenda",
+        resumo: "Compromissos da entidade e o compromisso avulso",
+      },
+      {
         slug: "oficios",
         titulo: "Ofícios",
         resumo: "Emissão com numeração, signatário da diretoria e PDF",

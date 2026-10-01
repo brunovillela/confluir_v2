@@ -709,6 +709,7 @@ export const MODULOS: Modulo[] = [
       "ferramentas_anomalias",
       "ferramentas_documentos",
       "ferramentas_agendas",
+      "ferramentas_agendas_edicao",
       "ferramentas_oficios",
       "ferramentas_emails_internos",
     ],
@@ -762,6 +763,7 @@ export const MODULOS: Modulo[] = [
     icone: "CalendarDays",
     descricao: "Eventos, reuniões e atividades",
     chave: "ferramentas_agendas",
+    chavesAlternativas: ["ferramentas_agendas_edicao"],
     oculto: true,
   },
   {

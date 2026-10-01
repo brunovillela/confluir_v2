@@ -1,0 +1,46 @@
+A **Agenda** reúne os compromissos da entidade: atividades sindicais, reuniões,
+cursos, assembleias e eventos. Ela aparece na coluna do dia do painel inicial e,
+para o que estiver marcado, na agenda do portal do filiado.
+
+<RequerPermissao>Agenda</RequerPermissao>
+
+## De onde vêm os compromissos
+
+- **Eventos** — todo evento publicado entra sozinho (tipo *Evento*) e acompanha
+  o evento: muda de data junto e sai da agenda se for cancelado.
+- **Votações** — assembleias com data entram como *Atividade sindical*.
+- **Compromisso avulso** — criado à mão na própria Agenda, para o que não nasce
+  em outra área (reunião com a base, curso, visita, plantão…).
+
+Os compromissos de Eventos e Votações são editados **na área de origem** — a
+página deles na Agenda mostra o atalho. Os avulsos (e os antigos, vindos do
+sistema anterior) são editados aqui.
+
+## Criar um compromisso avulso
+
+<RequerPermissao>Agenda — criar e editar compromissos</RequerPermissao>
+
+<PassoAPasso>
+  <Passo titulo="Novo compromisso">
+    Em **Ferramentas → Agenda**, clique em **Novo compromisso**.
+  </Passo>
+  <Passo titulo="Preencha">
+    Título, tipo e quando: com **Dia todo**, só as datas (de/até); sem ele, data
+    e hora de início e, se quiser, de término — sempre no horário de Brasília.
+    Local, sede, departamento e as **informações gerais** (pauta, quem participa)
+    são opcionais.
+  </Passo>
+  <Passo titulo="Escolha quem vê">
+    **Mostrar na agenda do portal do filiado** publica o compromisso para os
+    filiados; **Compromisso interno da equipe** sinaliza o que é só da casa.
+  </Passo>
+</PassoAPasso>
+
+Na página do compromisso, **Editar** e **Excluir** ficam no topo.
+
+## Erros comuns
+
+- **"Não aparece o botão Novo compromisso."** É a permissão *Agenda — criar e
+  editar compromissos*, separada da que só deixa ver a Agenda.
+- **"Não consigo editar o compromisso do evento."** Ele pertence a Eventos (ou a
+  Votações): altere lá, senão a próxima atualização do evento desfaria a mudança.
