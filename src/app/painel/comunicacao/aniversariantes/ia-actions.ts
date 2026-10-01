@@ -28,6 +28,8 @@ export async function melhorarParabensAction(entrada: {
   textoWhatsapp: string
   orientacao?: string
   publico?: string
+  /** O e-mail sai na véspera do aniversário. */
+  vespera?: boolean
 }): Promise<ParabensIA> {
   await requirePermissao("comunicacao_mensagens")
   const rascunho = [entrada.assunto, entrada.mensagem, entrada.textoWhatsapp].join(" ").trim()
@@ -38,6 +40,9 @@ export async function melhorarParabensAction(entrada: {
   const prompt = [
     `Entidade: ${entidade}`,
     entrada.publico ? `Público desta mensagem: ${entrada.publico}` : "Público: todos os filiados (mensagem padrão)",
+    entrada.vespera
+      ? "Quando chega: na VÉSPERA do aniversário — o texto fala de amanhã (ex.: \"amanhã é o seu dia\"), nunca de hoje."
+      : "Quando chega: no dia do aniversário.",
     entrada.orientacao?.trim() ? `Orientação do usuário: ${entrada.orientacao.trim()}` : null,
     "",
     `Assunto atual: ${entrada.assunto.trim() || "(vazio)"}`,

@@ -30,6 +30,21 @@ export const rotuloHora = (h: number) => `${h}h`
 
 export const HORAS_DO_DIA = Array.from({ length: 24 }, (_, h) => h)
 
+/** 0 = no dia do aniversário; 1 = na véspera. */
+export type Antecedencia = 0 | 1
+
+export const ROTULO_ANTECEDENCIA: Record<Antecedencia, string> = {
+  0: "No dia do aniversário",
+  1: "Na véspera do aniversário",
+}
+
+/** AAAA-MM-DD + n dias. */
+export function somarDias(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
 export type SituacaoEmail = "pendente" | "processando" | "enviado" | "sem_email" | "descadastrado" | "duplicado" | "falha"
 
 export const ROTULO_SITUACAO_EMAIL: Record<SituacaoEmail, string> = {

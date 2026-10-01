@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { aplicarVariaveis, EMAIL_VALIDO, normalizarCriterios } from "@/lib/comunicacao-mensagens-constantes"
+import { aplicarVariaveis, EMAIL_VALIDO, normalizarCriterios, somarDias } from "@/lib/comunicacao-mensagens-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { hojeSP } from "@/lib/db/comum"
@@ -48,12 +48,14 @@ export async function salvarEnvioAction(_prev: EstadoForm, fd: FormData): Promis
       ativo: fd.get("ativo") === "on",
       horaEnvio: Number(fd.get("hora_envio")),
       avisoEquipeEmails: String(fd.get("aviso_equipe_emails") ?? ""),
+      parabensAntecedencia: fd.get("parabens_antecedencia") === "1" ? 1 : 0,
+      avisoAntecedencia: fd.get("aviso_antecedencia") === "1" ? 1 : 0,
     },
     sessao.usuario.id as string
   )
   if (erro) return { erro }
   revalidatePath(AQUI, "layout")
-  return { ok: "Envio automático salvo." }
+  return { ok: "Recorrência salva." }
 }
 
 export async function salvarPadraoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
@@ -126,12 +128,17 @@ export async function enviarTesteAction(_prev: EstadoForm, fd: FormData): Promis
 }
 
 /**
- * Um lote do parabéns de hoje: prepara o dia (se ainda não estiver) e manda os
- * próximos e-mails. A tela chama de novo enquanto houver restantes.
+ * Um lote do parabéns de um dia (hoje ou, com envio na véspera, amanhã):
+ * prepara o dia (se ainda não estiver) e manda os próximos e-mails. A tela
+ * chama de novo enquanto houver restantes.
  */
-export async function enviarLoteHojeAction(): Promise<{ erro?: string; enviados?: number; falhas?: number; restantes?: number }> {
+export async function enviarLoteDiaAction(
+  dia: string
+): Promise<{ erro?: string; enviados?: number; falhas?: number; restantes?: number }> {
   await exigir()
-  const prep = await prepararAniversario(hojeSP())
+  const hoje = hojeSP()
+  if (dia !== hoje && dia !== somarDias(hoje, 1)) return { erro: "Só dá para enviar o parabéns de hoje ou de amanhã." }
+  const prep = await prepararAniversario(dia)
   if (!prep.mensagemId) return { erro: prep.erro ?? "Não foi possível preparar o parabéns de hoje." }
   const r = await enviarLote(prep.mensagemId)
   if (r.restantes === 0) revalidatePath(AQUI)

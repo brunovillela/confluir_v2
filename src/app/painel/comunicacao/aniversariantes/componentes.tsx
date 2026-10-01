@@ -14,14 +14,16 @@ import {
   descreverCriterios,
   HORAS_DO_DIA,
   normalizarCriterios,
+  ROTULO_ANTECEDENCIA,
   rotuloHora,
+  type Antecedencia,
   VARIAVEIS_MENSAGEM,
   type CriteriosAniversario,
 } from "@/lib/comunicacao-mensagens-constantes"
 import { CONDICOES_NA_FONTE } from "@/lib/filiacao"
 
 import {
-  enviarLoteHojeAction,
+  enviarLoteDiaAction,
   enviarTesteAction,
   marcarWhatsappAction,
   salvarEnvioAction,
@@ -51,11 +53,20 @@ function Retorno({ erro, ok }: { erro?: string; ok?: string }) {
   return null
 }
 
-/** Ligar o envio automático, a hora de início e o aviso à equipe. */
+/** A recorrência: envio automático, hora, dia ou véspera, e o aviso à equipe. */
 export function EnvioAutomaticoForm({
   config,
+  temAntecedencia,
 }: {
-  config: { ativo: boolean; horaEnvio: number; avisoEquipeEmails: string[] }
+  config: {
+    ativo: boolean
+    horaEnvio: number
+    avisoEquipeEmails: string[]
+    parabensAntecedencia: Antecedencia
+    avisoAntecedencia: Antecedencia
+  }
+  /** O SQL do "no dia ou na véspera" já rodou. */
+  temAntecedencia: boolean
 }) {
   const [estado, salvar, salvando] = useActionState(salvarEnvioAction, {})
   const [ativo, setAtivo] = useState(config.ativo)
@@ -82,14 +93,52 @@ export function EnvioAutomaticoForm({
         <span className="grid gap-0.5">
           <span className="text-sm font-medium">Enviar o parabéns por e-mail automaticamente</span>
           <span className="text-muted-foreground text-xs">
-            Todo dia, a partir da hora escolhida, para os filiados ativos que fazem aniversário e têm e-mail.
-            Desligado, ninguém recebe sozinho — dá para enviar pela lista do dia.
+            Todo dia, na hora escolhida, para os filiados ativos que fazem aniversário (no dia ou na véspera) e
+            têm e-mail. Desligado, ninguém recebe sozinho — dá para enviar pela lista do dia.
           </span>
         </span>
       </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid content-start gap-1.5">
+          <Label htmlFor="parabens_antecedencia">Quando o parabéns chega ao filiado</Label>
+          <select
+            id="parabens_antecedencia"
+            name="parabens_antecedencia"
+            defaultValue={String(config.parabensAntecedencia)}
+            disabled={!temAntecedencia}
+            className={SELECT}
+          >
+            {([0, 1] as const).map((a) => (
+              <option key={a} value={a}>
+                {ROTULO_ANTECEDENCIA[a]}
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">
+            Na véspera, ajuste o texto (&quot;amanhã é o seu dia&quot;) — a IA faz isso se você pedir.
+          </p>
+        </div>
+        <div className="grid content-start gap-1.5">
+          <Label htmlFor="aviso_antecedencia">Quando o aviso chega à equipe</Label>
+          <select
+            id="aviso_antecedencia"
+            name="aviso_antecedencia"
+            defaultValue={String(config.avisoAntecedencia)}
+            disabled={!temAntecedencia}
+            className={SELECT}
+          >
+            {([0, 1] as const).map((a) => (
+              <option key={a} value={a}>
+                {ROTULO_ANTECEDENCIA[a]}
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">Na véspera, a equipe se prepara para mandar os WhatsApps no dia.</p>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
         <div className="grid content-start gap-1.5">
-          <Label htmlFor="hora_envio">Começar às</Label>
+          <Label htmlFor="hora_envio">Hora do envio</Label>
           <select id="hora_envio" name="hora_envio" value={hora} onChange={(e) => setHora(e.target.value)} className={SELECT}>
             {HORAS_DO_DIA.map((h) => (
               <option key={h} value={h}>
@@ -108,8 +157,8 @@ export function EnvioAutomaticoForm({
             placeholder="comunicacao@entidade.org.br, secretaria@entidade.org.br"
           />
           <p className="text-muted-foreground text-xs">
-            Quem recebe, no mesmo horário, a lista dos aniversariantes do dia com o link do WhatsApp de cada um —
-            para mandar pelo celular. Funciona mesmo com o e-mail automático desligado. Separe por vírgula.
+            Quem recebe, no mesmo horário, a lista dos aniversariantes com o link do WhatsApp de cada um — para
+            mandar pelo celular. Funciona mesmo com o e-mail automático desligado. Separe por vírgula.
           </p>
         </div>
       </div>
@@ -135,12 +184,15 @@ export function EditorParabens({
   fontes,
   exemploNome,
   entidade,
+  vespera = false,
 }: {
   modo: "padrao" | "especifica"
   inicial: Texto & { id?: string; nome?: string; ativo?: boolean; criterios?: CriteriosAniversario }
   fontes: { id: string; nome: string }[]
   exemploNome: string
   entidade: string
+  /** O parabéns sai na véspera: o texto deve falar de "amanhã". */
+  vespera?: boolean
 }) {
   const [salvo, salvar, salvando] = useActionState(modo === "padrao" ? salvarPadraoAction : salvarModeloAction, {})
   const [teste, testar, testando] = useActionState(enviarTesteAction, {})
@@ -174,7 +226,7 @@ export function EditorParabens({
     }
     setIa({ carregando: true })
     try {
-      const r = await melhorarParabensAction({ assunto, mensagem, textoWhatsapp: whatsapp, orientacao, publico })
+      const r = await melhorarParabensAction({ assunto, mensagem, textoWhatsapp: whatsapp, orientacao, publico, vespera })
       if (r.erro || !r.assunto || !r.mensagem || !r.textoWhatsapp) {
         setIa({ carregando: false, erro: r.erro ?? "A IA não respondeu." })
         return
@@ -316,6 +368,11 @@ export function EditorParabens({
             ))}{" "}
             — cada pessoa recebe com o próprio nome.
           </p>
+          {vespera && (
+            <p className="text-warning-fg text-xs">
+              O parabéns está configurado para sair na véspera: escreva pensando em &quot;amanhã é o seu dia&quot;.
+            </p>
+          )}
 
           <div className="bg-muted/30 grid gap-2 rounded-lg border p-3">
             <Label htmlFor="orientacao" className="flex items-center gap-1.5">
@@ -382,7 +439,7 @@ export function EditorParabens({
 }
 
 /** Manda os e-mails de hoje em lotes, com o andamento na tela. */
-export function EnviarAgora({ pendentes }: { pendentes: number }) {
+export function EnviarAgora({ pendentes, dia }: { pendentes: number; dia: string }) {
   const router = useRouter()
   const [andamento, setAndamento] = useState<{ enviados: number; falhas: number; restantes: number } | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -395,7 +452,7 @@ export function EnviarAgora({ pendentes }: { pendentes: number }) {
     let falhas = 0
     try {
       for (let volta = 0; volta < 200; volta++) {
-        const r = await enviarLoteHojeAction()
+        const r = await enviarLoteDiaAction(dia)
         if (r.erro) {
           setErro(r.erro)
           break

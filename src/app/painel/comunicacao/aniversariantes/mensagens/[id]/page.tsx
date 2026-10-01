@@ -43,7 +43,7 @@ export default async function MensagemEspecificaPage({
         <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
           <Link href="/painel/comunicacao/aniversariantes/mensagens">
             <ArrowLeft />
-            Mensagens e envio
+            Recorrência e mensagens
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">{nova ? "Nova mensagem específica" : modelo!.nome}</h1>
@@ -74,6 +74,7 @@ export default async function MensagemEspecificaPage({
             fontes={base.fontes}
             exemploNome={String(sessao.usuario.nome_completo ?? "Maria da Silva")}
             entidade={entidade}
+            vespera={config.parabensAntecedencia === 1}
           />
         </CardContent>
       </Card>

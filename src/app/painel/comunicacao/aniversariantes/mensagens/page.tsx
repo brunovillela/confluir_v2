@@ -11,6 +11,7 @@ import { requirePermissao } from "@/lib/auth"
 import {
   AVISO_SQL_MENSAGENS,
   AVISO_SQL_MODELOS,
+  AVISO_SQL_VESPERA,
   listarModelos,
   obterConfigAniversario,
 } from "@/lib/db/comunicacao-mensagens"
@@ -21,12 +22,13 @@ import { formatarDataHora } from "@/lib/formato"
 import { moverModeloAction } from "../actions"
 import { EditorParabens, EnvioAutomaticoForm } from "../componentes"
 
-export const metadata: Metadata = { title: "Mensagens de parabéns — Confluir" }
+export const metadata: Metadata = { title: "Recorrência e mensagens de parabéns — Confluir" }
 
 /**
- * Aniversariantes › Mensagens e envio: o envio automático (hora de início e
- * aviso à equipe), a mensagem padrão e as mensagens específicas — a primeira
- * da lista que a pessoa atender vale.
+ * Aniversariantes › Recorrência e mensagens: quando o parabéns sai (envio
+ * automático, hora, no dia ou na véspera, aviso à equipe) e o que ele diz — a
+ * mensagem padrão e as específicas por perfil (vale a primeira da lista que a
+ * pessoa atender).
  */
 export default async function MensagensParabensPage() {
   const sessao = await requirePermissao("comunicacao_mensagens")
@@ -37,6 +39,7 @@ export default async function MensagensParabensPage() {
     baseRelatorios(),
   ])
   const exemploNome = String(sessao.usuario.nome_completo ?? "Maria da Silva")
+  const quando = config.parabensAntecedencia === 1 ? "na véspera do aniversário" : "no dia do aniversário"
 
   return (
     <>
@@ -47,9 +50,10 @@ export default async function MensagensParabensPage() {
             Aniversariantes
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Mensagens e envio automático</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Recorrência e mensagens</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          O texto do parabéns — um padrão e, se quiser, mensagens específicas para quem atende critérios — e quando ele sai.
+          Quando o parabéns por e-mail sai e o que ele diz: uma mensagem padrão e, se quiser, mensagens específicas conforme
+          o perfil do filiado.
         </p>
       </div>
 
@@ -63,21 +67,54 @@ export default async function MensagensParabensPage() {
           <AlertDescription>{AVISO_SQL_MODELOS}</AlertDescription>
         </Alert>
       )}
+      {config.completo && !config.temAntecedencia && (
+        <Alert variant="warning">
+          <AlertDescription>{AVISO_SQL_VESPERA}</AlertDescription>
+        </Alert>
+      )}
 
       {config.disponivel && (
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Envio automático</CardTitle>
+              <CardTitle className="text-base">Recorrência</CardTitle>
               <CardDescription>
                 {config.ativo
-                  ? `Ligado: o parabéns por e-mail sai todo dia a partir das ${rotuloHora(config.horaEnvio)}.`
-                  : "Desligado: ninguém recebe o e-mail sozinho."}
+                  ? `Ligada: o parabéns por e-mail sai todo dia às ${rotuloHora(config.horaEnvio)}, ${quando}.`
+                  : "Desligada: ninguém recebe o e-mail sozinho."}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <EnvioAutomaticoForm
-                config={{ ativo: config.ativo, horaEnvio: config.horaEnvio, avisoEquipeEmails: config.avisoEquipeEmails }}
+                config={{
+                  ativo: config.ativo,
+                  horaEnvio: config.horaEnvio,
+                  avisoEquipeEmails: config.avisoEquipeEmails,
+                  parabensAntecedencia: config.parabensAntecedencia,
+                  avisoAntecedencia: config.avisoAntecedencia,
+                }}
+                temAntecedencia={config.temAntecedencia}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Mensagem padrão</CardTitle>
+              <CardDescription>
+                {config.atualizadoEm
+                  ? `A de quem não se encaixa em nenhuma mensagem específica · alterada em ${formatarDataHora(config.atualizadoEm)}${config.atualizadoPorNome ? ` por ${config.atualizadoPorNome}` : ""}`
+                  : "A de quem não se encaixa em nenhuma mensagem específica"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EditorParabens
+                modo="padrao"
+                inicial={{ assunto: config.assunto, mensagem: config.mensagem, textoWhatsapp: config.textoWhatsapp }}
+                fontes={base.fontes}
+                exemploNome={exemploNome}
+                entidade={entidade}
+                vespera={config.parabensAntecedencia === 1}
               />
             </CardContent>
           </Card>
@@ -88,8 +125,9 @@ export default async function MensagensParabensPage() {
                 <div>
                   <CardTitle className="text-base">Mensagens específicas</CardTitle>
                   <CardDescription>
-                    Para quem atende critérios — idade que completa, tempo de filiação, fonte, condição na fonte, lugar. Vale a
-                    primeira da lista que a pessoa atender; quem não atender nenhuma recebe a mensagem padrão.
+                    Conforme o perfil do filiado — idade que completa, tempo de filiação, fonte pagadora, condição na fonte
+                    (ativa, aposentado, pensionista), lugar. Vale a primeira da lista que a pessoa atender; quem não atender
+                    nenhuma recebe a mensagem padrão.
                   </CardDescription>
                 </div>
                 {config.completo && (
@@ -116,7 +154,11 @@ export default async function MensagensParabensPage() {
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                           {m.nome}
-                          {!m.ativo && <Badge variant="outline" className="text-muted-foreground">Fora de uso</Badge>}
+                          {!m.ativo && (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Fora de uso
+                            </Badge>
+                          )}
                         </p>
                         <p className="text-muted-foreground text-xs">{descreverCriterios(m.criterios, base.fontes)}</p>
                       </div>
@@ -150,26 +192,6 @@ export default async function MensagensParabensPage() {
                   ))}
                 </ol>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Mensagem padrão</CardTitle>
-              <CardDescription>
-                {config.atualizadoEm
-                  ? `A de quem não se encaixa em nenhuma específica · alterada em ${formatarDataHora(config.atualizadoEm)}${config.atualizadoPorNome ? ` por ${config.atualizadoPorNome}` : ""}`
-                  : "A de quem não se encaixa em nenhuma específica"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EditorParabens
-                modo="padrao"
-                inicial={{ assunto: config.assunto, mensagem: config.mensagem, textoWhatsapp: config.textoWhatsapp }}
-                fontes={base.fontes}
-                exemploNome={exemploNome}
-                entidade={entidade}
-              />
             </CardContent>
           </Card>
         </>

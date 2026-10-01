@@ -693,7 +693,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "aniversariantes",
         titulo: "Aniversariantes",
-        resumo: "Parabéns por e-mail na hora escolhida, mensagens específicas com IA, aviso à equipe e WhatsApp",
+        resumo: "Parabéns por e-mail no dia ou na véspera, na hora escolhida; mensagem padrão e específicas por perfil, com IA",
       },
       {
         slug: "mala-direta",

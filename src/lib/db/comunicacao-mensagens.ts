@@ -15,6 +15,9 @@ import {
   PADRAO_ANIVERSARIO,
   pareceCelular,
   ROTULO_SITUACAO_EMAIL,
+  rotuloHora,
+  somarDias,
+  type Antecedencia,
   semCriterios,
   type CriteriosAniversario,
   type FiltrosMalaDireta,
@@ -257,12 +260,21 @@ export async function aniversariantesDoDia(dataISO: string, opcoes: { tenantId?:
 export const AVISO_SQL_MODELOS =
   "Rode supabase/comunicacao-aniversario-modelos.sql no Supabase para ativar as mensagens específicas e o horário do envio."
 
+export const AVISO_SQL_VESPERA =
+  "Rode supabase/comunicacao-aniversario-vespera.sql no Supabase para escolher entre o dia e a véspera."
+
 export type ConfigAniversario = {
   disponivel: boolean
   /** O SQL das mensagens específicas e do horário já rodou. */
   completo: boolean
   ativo: boolean
   horaEnvio: number
+  /** 0 = o parabéns chega no dia do aniversário; 1 = na véspera. */
+  parabensAntecedencia: Antecedencia
+  /** 0 = o aviso à equipe chega no dia; 1 = na véspera. */
+  avisoAntecedencia: Antecedencia
+  /** O SQL do "no dia ou na véspera" já rodou. */
+  temAntecedencia: boolean
   /** E-mails da equipe que recebem a lista do dia (separados por vírgula). */
   avisoEquipeEmails: string[]
   assunto: string
@@ -276,12 +288,22 @@ export async function obterConfigAniversario(opcoes: { tenantId?: string; db?: D
   const db = opcoes.db ?? (await createAdminClient())
   const emp = opcoes.tenantId ?? (await tenantAtual())
   const base = "ativo, assunto, mensagem, texto_whatsapp, atualizado_por, updated_at"
+  const tabela = () => db.from("comunicacao_aniversario_config")
   let completo = true
-  let r = await db.from("comunicacao_aniversario_config").select(`${base}, hora_envio, aviso_equipe_emails`).eq("emp_proprietaria_id", emp).maybeSingle()
+  let temAntecedencia = true
+  let r = await tabela()
+    .select(`${base}, hora_envio, aviso_equipe_emails, parabens_antecedencia, aviso_antecedencia`)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
   if (r.error && esquemaAusente(r.error)) {
-    // Sem o SQL novo: segue com o que já existia (9h, sem aviso).
+    // Sem o SQL da véspera: tudo no dia.
+    temAntecedencia = false
+    r = await tabela().select(`${base}, hora_envio, aviso_equipe_emails`).eq("emp_proprietaria_id", emp).maybeSingle()
+  }
+  if (r.error && esquemaAusente(r.error)) {
+    // Sem o SQL das mensagens específicas: segue com o que já existia (9h, sem aviso).
     completo = false
-    r = await db.from("comunicacao_aniversario_config").select(base).eq("emp_proprietaria_id", emp).maybeSingle()
+    r = await tabela().select(base).eq("emp_proprietaria_id", emp).maybeSingle()
   }
   const { data, error } = r as { data: Record<string, unknown> | null; error: typeof r.error }
   if (error && !esquemaAusente(error)) throw new Error(`Falha ao ler a configuração: ${error.message}`)
@@ -292,6 +314,9 @@ export async function obterConfigAniversario(opcoes: { tenantId?: string; db?: D
     completo: !error && completo,
     ativo: data?.ativo === true,
     horaEnvio: Number.isInteger(hora) && hora >= 0 && hora <= 23 ? hora : HORA_ENVIO_PADRAO,
+    parabensAntecedencia: Number(data?.parabens_antecedencia) === 1 ? 1 : 0,
+    avisoAntecedencia: Number(data?.aviso_antecedencia) === 1 ? 1 : 0,
+    temAntecedencia: !error && temAntecedencia,
     avisoEquipeEmails: listaDeEmails(texto(data?.aviso_equipe_emails)),
     assunto: texto(data?.assunto) ?? PADRAO_ANIVERSARIO.assunto,
     mensagem: texto(data?.mensagem) ?? PADRAO_ANIVERSARIO.mensagem,
@@ -337,7 +362,7 @@ export async function salvarMensagemPadrao(c: TextoParabens, usuarioId: string):
 
 /** Envio automático: ligado ou não, a hora de início e o aviso à equipe. */
 export async function salvarEnvioAutomatico(
-  c: { ativo: boolean; horaEnvio: number; avisoEquipeEmails: string },
+  c: { ativo: boolean; horaEnvio: number; avisoEquipeEmails: string; parabensAntecedencia: Antecedencia; avisoAntecedencia: Antecedencia },
   usuarioId: string
 ): Promise<{ erro?: string }> {
   if (!Number.isInteger(c.horaEnvio) || c.horaEnvio < 0 || c.horaEnvio > 23) return { erro: "Escolha a hora do envio." }
@@ -352,12 +377,14 @@ export async function salvarEnvioAutomatico(
       ativo: c.ativo,
       hora_envio: c.horaEnvio,
       aviso_equipe_emails: emails.length ? emails.join(", ") : null,
+      parabens_antecedencia: c.parabensAntecedencia,
+      aviso_antecedencia: c.avisoAntecedencia,
       atualizado_por: usuarioId,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "emp_proprietaria_id" }
   )
-  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_MODELOS : `Não foi possível salvar: ${error.message}` }
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_VESPERA : `Não foi possível salvar: ${error.message}` }
   return {}
 }
 
@@ -1345,14 +1372,15 @@ export async function executarMalasDiretas(prazo: number, somente?: string | nul
 }
 
 /**
- * Aviso à equipe: a lista do dia por e-mail, com o link do WhatsApp de cada
- * pessoa (passa pelo Confluir, que registra quem abriu). Sai uma vez por dia.
+ * Aviso à equipe: a lista de um dia de aniversários (hoje ou amanhã) por
+ * e-mail, com o link do WhatsApp de cada pessoa (passa pelo Confluir, que
+ * registra quem abriu). Sai uma vez por dia de aniversário.
  */
 async function enviarAvisoEquipe(
   mensagemId: string,
   dataISO: string,
   emails: string[],
-  automatico: boolean,
+  sobreEmail: string,
   opcoes: { tenantId: string; db: Db; contexto: ContextoEmail }
 ): Promise<boolean> {
   const { db, contexto } = opcoes
@@ -1363,6 +1391,7 @@ async function enviarAvisoEquipe(
     .order("nome")
   const lista = envios ?? []
   if (!lista.length) return true
+  const quando = dataISO === hojeSP() ? "hoje" : "amanhã"
   const linhas = lista
     .map((e) => {
       const situacao = ROTULO_SITUACAO_EMAIL[(e.email_situacao as SituacaoEmail) ?? "pendente"]
@@ -1374,91 +1403,139 @@ async function enviarAvisoEquipe(
     })
     .join("")
   const html = [
-    tituloEmail(`Aniversariantes de hoje — ${dataBR(dataISO).slice(0, 5)}`),
+    tituloEmail(`Aniversariantes de ${quando} — ${dataBR(dataISO).slice(0, 5)}`),
     paragrafo(
-      `${lista.length} filiado${lista.length === 1 ? "" : "s"} faz${lista.length === 1 ? "" : "em"} aniversário hoje. ${
-        automatico ? "O parabéns por e-mail já saiu para quem tem e-mail." : "O parabéns automático por e-mail está desligado."
-      } Para mandar pelo WhatsApp, use os links — o Confluir registra quem abriu.`
+      `${lista.length} filiado${lista.length === 1 ? "" : "s"} faz${lista.length === 1 ? "" : "em"} aniversário ${quando}. ${sobreEmail} Para mandar pelo WhatsApp, use os links — o Confluir registra quem abriu.`
     ),
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;font-size:14px;">${linhas}</table>`,
-    botaoEmail(`${contexto.origem}/painel/comunicacao/aniversariantes`, "Abrir a lista no Confluir"),
+    botaoEmail(`${contexto.origem}/painel/comunicacao/aniversariantes?data=${dataISO}`, "Abrir a lista no Confluir"),
   ].join("\n")
   const oks = await Promise.all(
     emails.map((email) =>
-      enviarEmail({ email, nome: email, assunto: `Aniversariantes de hoje (${lista.length})`, html, contexto }).catch(() => false)
+      enviarEmail({ email, nome: email, assunto: `Aniversariantes de ${quando} (${lista.length})`, html, contexto }).catch(() => false)
     )
   )
   return oks.some(Boolean)
 }
 
-type ResultadoAniversario = { tenant: string; enviados: number; falhas: number; aviso?: boolean; erro?: string }
+type ResultadoAniversario = {
+  tenant: string
+  /** O dia de aniversário tratado (hoje ou amanhã, conforme a antecedência). */
+  dia: string
+  enviados: number
+  falhas: number
+  aviso?: boolean
+  erro?: string
+}
 
 /**
- * O parabéns de hoje nos tenants com o envio automático ou o aviso à equipe
- * ligados, a partir da hora configurada: prepara o dia, manda os e-mails (se
- * automático) e, quando a fila acaba, o aviso à equipe. O agendador roda a cada
- * 15 minutos; um dia já concluído só custa uma consulta.
- * `somente` roda um tenant só (disparo manual e testes).
+ * Um dia de aniversários de um tenant: prepara a mensagem, manda os e-mails
+ * (se `enviar`) e o aviso à equipe (se `avisar` e ainda não saiu). Um dia já
+ * concluído só custa uma consulta.
+ */
+async function processarDiaDeAniversario(
+  tenantId: string,
+  dia: string,
+  o: { enviar: boolean; avisar: string[] | null; sobreEmail: string; prazo: number; db: Db }
+): Promise<ResultadoAniversario | null> {
+  const { db } = o
+  const { data: existente } = await db
+    .from("comunicacao_mensagens")
+    .select("situacao, aviso_equipe_em")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("tipo", "aniversario")
+    .eq("referencia", dia)
+    .maybeSingle()
+  const avisoPendente = !!o.avisar?.length && !existente?.aviso_equipe_em
+  if (existente && (!o.enviar || existente.situacao === "enviada") && !avisoPendente) return null
+
+  const prep = await prepararAniversario(dia, { tenantId, db })
+  // Sem erro = ninguém faz aniversário nesse dia.
+  if (!prep.mensagemId) return prep.erro ? { tenant: tenantId, dia, enviados: 0, falhas: 0, erro: prep.erro } : null
+  const contexto = await contextoDoTenant(tenantId, db)
+  let enviados = 0
+  let falhas = 0
+  let restantes = 0
+  if (o.enviar) {
+    while (Date.now() < o.prazo) {
+      const r = await enviarLote(prep.mensagemId, { tenantId, db, contexto })
+      enviados += r.enviados
+      falhas += r.falhas
+      restantes = r.restantes
+      if (r.erro || r.restantes === 0 || r.enviados + r.falhas === 0) break
+    }
+  }
+  // O aviso sai quando a fila acabou (ou logo, se este disparo não envia e-mails).
+  let aviso: boolean | undefined
+  if (avisoPendente && (!o.enviar || restantes === 0)) {
+    aviso = await enviarAvisoEquipe(prep.mensagemId, dia, o.avisar!, o.sobreEmail, { tenantId, db, contexto })
+    if (aviso) await db.from("comunicacao_mensagens").update({ aviso_equipe_em: new Date().toISOString() }).eq("id", prep.mensagemId)
+  }
+  return { tenant: tenantId, dia, enviados, falhas, aviso }
+}
+
+/**
+ * O parabéns nos tenants com o envio automático ou o aviso à equipe ligados,
+ * a partir da hora configurada. Cada um tem o seu dia: no dia do aniversário
+ * (trata os aniversários de hoje) ou na véspera (trata os de amanhã). O
+ * agendador roda a cada 15 minutos. `somente` roda um tenant só.
  */
 export async function executarAniversarios(prazo: number, somente?: string | null): Promise<ResultadoAniversario[]> {
   const svc = createServiceClient()
-  let q = svc
-    .from("comunicacao_aniversario_config")
-    .select("emp_proprietaria_id, ativo, hora_envio, aviso_equipe_emails")
-    .or("ativo.eq.true,aviso_equipe_emails.not.is.null")
-  if (somente) q = q.eq("emp_proprietaria_id", somente)
-  const { data, error } = await q
-  if (error) return esquemaAusente(error) ? [] : [{ tenant: "-", enviados: 0, falhas: 0, erro: error.message }]
+  const resultados: ResultadoAniversario[] = []
   const hoje = hojeSP()
   const hora = horaAgoraSP()
-  const resultados: ResultadoAniversario[] = []
-  for (const cfg of data ?? []) {
+  const tenants = somente ? [somente] : await tenantsComParabensAutomatico(svc)
+  for (const tenantId of tenants) {
     if (Date.now() >= prazo) break
-    const tenantId = String(cfg.emp_proprietaria_id)
-    const automatico = cfg.ativo === true
-    const emails = listaDeEmails(texto(cfg.aviso_equipe_emails))
-    if (hora < Number(cfg.hora_envio ?? HORA_ENVIO_PADRAO)) continue
     try {
-      // Dia concluído (e-mails enviados e aviso dado): nada a fazer.
-      const { data: dia } = await svc
-        .from("comunicacao_mensagens")
-        .select("situacao, aviso_equipe_em")
-        .eq("emp_proprietaria_id", tenantId)
-        .eq("tipo", "aniversario")
-        .eq("referencia", hoje)
-        .maybeSingle()
-      const avisoPendente = emails.length > 0 && !dia?.aviso_equipe_em
-      if (dia && (!automatico || dia.situacao === "enviada") && !avisoPendente) continue
+      const cfg = await obterConfigAniversario({ tenantId, db: svc })
+      if (!cfg.disponivel || (!cfg.ativo && !cfg.avisoEquipeEmails.length) || hora < cfg.horaEnvio) continue
+      const diaEmail = somarDias(hoje, cfg.parabensAntecedencia)
+      const diaAviso = somarDias(hoje, cfg.avisoAntecedencia)
+      // O que o aviso diz sobre o e-mail dos aniversariantes daquele dia.
+      const sobreEmail = (dia: string) =>
+        !cfg.ativo
+          ? "O parabéns automático por e-mail está desligado."
+          : dia === diaEmail
+            ? "O parabéns por e-mail já saiu para quem tem e-mail."
+            : dia < diaEmail
+              ? "O parabéns por e-mail saiu ontem, na véspera."
+              : `O parabéns por e-mail sai amanhã, às ${rotuloHora(cfg.horaEnvio)}.`
+      const avisar = cfg.avisoEquipeEmails.length ? cfg.avisoEquipeEmails : null
 
-      const prep = await prepararAniversario(hoje, { tenantId, db: svc })
-      if (!prep.mensagemId) {
-        // Sem erro = ninguém faz aniversário hoje.
-        if (prep.erro) resultados.push({ tenant: tenantId, enviados: 0, falhas: 0, erro: prep.erro })
-        continue
+      if (cfg.ativo) {
+        const r = await processarDiaDeAniversario(tenantId, diaEmail, {
+          enviar: true,
+          avisar: diaAviso === diaEmail ? avisar : null,
+          sobreEmail: sobreEmail(diaEmail),
+          prazo,
+          db: svc,
+        })
+        if (r) resultados.push(r)
       }
-      const contexto = await contextoDoTenant(tenantId, svc)
-      let enviados = 0
-      let falhas = 0
-      let restantes = 0
-      if (automatico) {
-        while (Date.now() < prazo) {
-          const r = await enviarLote(prep.mensagemId, { tenantId, db: svc, contexto })
-          enviados += r.enviados
-          falhas += r.falhas
-          restantes = r.restantes
-          if (r.erro || r.restantes === 0 || r.enviados + r.falhas === 0) break
-        }
+      if (avisar && (!cfg.ativo || diaAviso !== diaEmail)) {
+        const r = await processarDiaDeAniversario(tenantId, diaAviso, {
+          enviar: false,
+          avisar,
+          sobreEmail: sobreEmail(diaAviso),
+          prazo,
+          db: svc,
+        })
+        if (r) resultados.push(r)
       }
-      // O aviso sai quando a fila do dia acabou (ou logo, se o e-mail automático está desligado).
-      let aviso: boolean | undefined
-      if (avisoPendente && (!automatico || restantes === 0)) {
-        aviso = await enviarAvisoEquipe(prep.mensagemId, hoje, emails, automatico, { tenantId, db: svc, contexto })
-        if (aviso) await svc.from("comunicacao_mensagens").update({ aviso_equipe_em: new Date().toISOString() }).eq("id", prep.mensagemId)
-      }
-      resultados.push({ tenant: tenantId, enviados, falhas, aviso })
     } catch (e) {
-      resultados.push({ tenant: tenantId, enviados: 0, falhas: 0, erro: e instanceof Error ? e.message : String(e) })
+      resultados.push({ tenant: tenantId, dia: hoje, enviados: 0, falhas: 0, erro: e instanceof Error ? e.message : String(e) })
     }
   }
   return resultados
+}
+
+async function tenantsComParabensAutomatico(db: Db): Promise<string[]> {
+  const { data, error } = await db
+    .from("comunicacao_aniversario_config")
+    .select("emp_proprietaria_id")
+    .or("ativo.eq.true,aviso_equipe_emails.not.is.null")
+  if (error) return []
+  return (data ?? []).map((d) => String(d.emp_proprietaria_id))
 }

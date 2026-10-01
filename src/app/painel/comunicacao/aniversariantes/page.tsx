@@ -80,7 +80,11 @@ export default async function AniversariantesPage({
   const ehHoje = data === hoje
 
   const [config, entidade, modelos] = await Promise.all([obterConfigAniversario(), nomeEntidade(), listarModelos()])
-  if (ehHoje && config.disponivel) await prepararAniversario(hoje).catch(() => null)
+  // Com o parabéns na véspera, o de amanhã já é tratado hoje.
+  const vespera = config.parabensAntecedencia === 1
+  const diaDoEnvio = somarDias(hoje, config.parabensAntecedencia)
+  const podeEnviar = data === hoje || data === diaDoEnvio
+  if (podeEnviar && config.disponivel) await prepararAniversario(data).catch(() => null)
   const { mensagem, envios } = config.disponivel ? await mensagemDoAniversario(data) : { mensagem: null, envios: [] as Envio[] }
 
   // Sem mensagem no dia (passado sem envio ou dia futuro): a prévia de quem faz aniversário.
@@ -131,7 +135,7 @@ export default async function AniversariantesPage({
           <Button asChild variant="outline">
             <Link href="/painel/comunicacao/aniversariantes/mensagens">
               <MessageSquareText />
-              Mensagens e envio automático
+              Configurar recorrência e mensagens
             </Link>
           </Button>
         )}
@@ -147,8 +151,8 @@ export default async function AniversariantesPage({
         <Alert variant={config.ativo ? "info" : "warning"}>
           <AlertDescription>
             {config.ativo
-              ? `O parabéns por e-mail sai sozinho todo dia a partir das ${rotuloHora(config.horaEnvio)}. O WhatsApp é à mão: use o botão ao lado de cada nome.`
-              : "O envio automático está desligado. Ligue em Mensagens e envio automático, ou envie os e-mails de hoje pelo botão."}
+              ? `O parabéns por e-mail sai sozinho todo dia às ${rotuloHora(config.horaEnvio)}, ${vespera ? "na véspera do aniversário" : "no dia do aniversário"}. O WhatsApp é à mão: use o botão ao lado de cada nome.`
+              : "O envio automático está desligado. Ligue em Configurar recorrência e mensagens, ou envie os e-mails pelo botão da lista."}
           </AlertDescription>
         </Alert>
       )}
@@ -194,7 +198,7 @@ export default async function AniversariantesPage({
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {ehHoje && mensagem && linhas.length > 0 && (
+          {podeEnviar && mensagem && linhas.length > 0 && (
             <div className="flex flex-wrap items-center justify-end gap-2">
               {conta("falha") > 0 && (
                 <form action={reenviarFalhasAction}>
@@ -205,13 +209,13 @@ export default async function AniversariantesPage({
                   </Button>
                 </form>
               )}
-              <EnviarAgora pendentes={conta("pendente")} />
+              <EnviarAgora pendentes={conta("pendente")} dia={data} />
             </div>
           )}
-          {!ehHoje && !mensagem && linhas.length > 0 && (
+          {!podeEnviar && !mensagem && linhas.length > 0 && (
             <p className="text-muted-foreground text-xs">
               {data > hoje
-                ? "Prévia: quem faz aniversário neste dia. O parabéns sai no próprio dia."
+                ? `Prévia: quem faz aniversário neste dia. O parabéns sai ${vespera ? "na véspera" : "no próprio dia"}.`
                 : "Nenhum parabéns foi registrado neste dia — a lista mostra quem fez aniversário."}
             </p>
           )}
