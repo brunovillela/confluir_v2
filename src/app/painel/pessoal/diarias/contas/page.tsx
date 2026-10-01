@@ -184,7 +184,12 @@ export default async function ContasDiariaPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* A key remonta o formulário ao trocar de quadro/departamento e
+              depois de salvar: selects com defaultValue não acompanham a
+              troca de props, e o reset do form (React 19) voltava para os
+              valores da aba anterior — a conta "virava" a padrão. */}
           <ContasDoQuadro
+            key={`${quadro}|${departamentoId ?? ""}|${gastos.map((g) => g.contaAtual ?? "").join(",")}`}
             quadro={quadro}
             departamentoId={departamentoId}
             gastos={gastos}

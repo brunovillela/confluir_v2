@@ -1,5 +1,5 @@
 Os **Slides para TV** montam a programação das televisões da entidade: uma
-sequência de slides com imagem, título e descrição, o logo da entidade no canto
+sequência de slides com imagem ou vídeo, título e descrição, o logo da entidade no canto
 e uma faixa de rodapé com as últimas notícias. Cada conjunto tem um **link
 público** — abra-o no navegador da TV e ela passa os slides sozinha.
 
@@ -27,9 +27,10 @@ público** — abra-o no navegador da TV e ela passa os slides sozinha.
     a orientação da TV.
   </Passo>
   <Passo titulo="Adicione os slides">
-    Cada slide tem imagem e/ou título, e uma descrição curta. Ele precisa de
-    pelo menos a imagem ou o título — sem imagem, o slide sai só com o texto
-    sobre o fundo da marca. Use as setas para ordenar.
+    Escolha <strong>Imagem</strong> ou <strong>Vídeo</strong> e preencha o
+    título e uma descrição curta. O slide precisa de pelo menos a imagem, o
+    vídeo ou o título — sem mídia, ele sai só com o texto sobre o fundo da
+    marca. Use as setas para ordenar.
   </Passo>
   <Passo titulo="Ajuste a configuração">
     Tempo de cada slide, logo e opacidade, faixa de notícias (quantas manchetes e
@@ -51,6 +52,37 @@ público** — abra-o no navegador da TV e ela passa os slides sozinha.
 - O título e a descrição aparecem sobre a parte de baixo da imagem, com uma
   sombra para dar leitura. Numa arte que já tem texto, deixe os dois vazios.
 
+## Vídeos
+
+Em **Novo slide**, escolha **Vídeo** e selecione o arquivo. O envio começa na
+hora, direto do seu navegador, e a tela mostra o andamento, a prévia e a
+duração lida do arquivo. Espere aparecer **Vídeo enviado** e então salve o
+slide.
+
+- **Formato:** **MP4 (H.264)** — é o que praticamente toda TV toca. WebM
+  também é aceito, mas TVs mais antigas podem não abrir. Exporte em
+  **1920 × 1080** (horizontal) ou **1080 × 1920** (vertical).
+- **Limite:** até **50 MB** e **10 minutos**. Passou? Exporte de novo em 1080p
+  ou encurte o vídeo.
+- **Duração:** com **Segundos na tela** vazio, o slide dura **o vídeo
+  inteiro**. Com um tempo menor, o vídeo é cortado; com um tempo maior, ele
+  **repete** até o slide acabar. A cada volta da programação o vídeo começa do
+  início.
+- **Som:** desligado por padrão. Marque **Tocar com som** se a TV tem som
+  ligado no ambiente. Muitos navegadores de TV só liberam o som depois de um
+  clique ou **OK** no controle — até lá, o vídeo passa **mudo**, sem travar a
+  programação.
+- **Preencher a tela** corta as sobras; **Vídeo inteiro** mostra o quadro
+  todo sobre o fundo da marca.
+- Um slide tem **imagem ou vídeo**, não os dois. Trocar de um para o outro e
+  salvar apaga a mídia anterior.
+
+<Aviso tipo="atencao" titulo="Vídeo pesa para a TV">
+  Navegadores de TV têm pouca memória. Prefira poucos vídeos por conjunto
+  (dois ou três) e arquivos enxutos — um vídeo de 1 minuto em 1080p costuma
+  caber em 15–25 MB.
+</Aviso>
+
 <Aviso tipo="dica" titulo="Escreva para quem passa">
   A TV é lida de longe e de passagem: título curto e uma ou duas frases na
   descrição. O título aceita até 90 caracteres e a descrição, até 240.
@@ -61,7 +93,8 @@ público** — abra-o no navegador da TV e ela passa os slides sozinha.
 Em cada slide, **Exibir a partir de** e **Exibir até** controlam o período: o
 slide de uma assembleia entra no dia marcado e sai sozinho depois dela. A lista
 mostra a situação de cada um — **No ar**, **Agendado**, **Encerrado** ou
-**Oculto** (olho). **Segundos na tela** vazio usa o tempo padrão do conjunto.
+**Oculto** (olho). **Segundos na tela** vazio usa o tempo padrão do conjunto (no slide de vídeo,
+a duração do vídeo).
 
 ## TV em pé
 
@@ -92,7 +125,15 @@ horário ou anti-horário (teste os dois) e a tela passa a ocupar a TV inteira.
 - **"A TV mostra 'Este link de TV não existe mais'."** O link foi trocado em
   **Gerar novo link** ou o conjunto foi excluído — abra o link atual na TV.
 - **"A TV fica lenta."** Navegadores de TV têm pouca memória: prefira até uns 15
-  slides no ar por conjunto e imagens no tamanho ideal.
+  slides no ar por conjunto, imagens no tamanho ideal e poucos vídeos.
+- **"O vídeo aparece preto ou parado na TV."** Quase sempre é o formato:
+  exporte em **MP4 H.264** (no celular ou em qualquer editor, a opção "MP4"
+  padrão) e envie de novo.
+- **"Marquei som e o vídeo passa mudo."** A TV bloqueou o som automático. Dê
+  um clique ou **OK** no controle com a página aberta.
+- **"O painel não leu a duração do vídeo."** O seu navegador não abriu o
+  arquivo — sinal de formato pouco comum. O slide usa o tempo padrão até você
+  informar os **Segundos na tela**; melhor reexportar em MP4 H.264.
 
 <VejaTambem
   links={[

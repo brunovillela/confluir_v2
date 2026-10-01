@@ -81,6 +81,8 @@ const CHAVES_FILTRO: (keyof FiltrosRelatorio)[] = [
   "vinculo",
   "filiacaoDe",
   "filiacaoAte",
+  "desfiliacaoDe",
+  "desfiliacaoAte",
   "idadeMin",
   "idadeMax",
   "ordem",
@@ -301,6 +303,16 @@ export default async function RelatorioPage({
                     <div className="grid gap-1.5">
                       <Label htmlFor="f-filiacaoAte">até</Label>
                       <Input id="f-filiacaoAte" name="filiacaoAte" type="date" defaultValue={filtros.filiacaoAte ?? ""} className="[color-scheme:light] dark:[color-scheme:dark]" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="f-desfiliacaoDe">Desfiliação de</Label>
+                      <Input id="f-desfiliacaoDe" name="desfiliacaoDe" type="date" defaultValue={filtros.desfiliacaoDe ?? ""} className="[color-scheme:light] dark:[color-scheme:dark]" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="f-desfiliacaoAte">até</Label>
+                      <Input id="f-desfiliacaoAte" name="desfiliacaoAte" type="date" defaultValue={filtros.desfiliacaoAte ?? ""} className="[color-scheme:light] dark:[color-scheme:dark]" />
                     </div>
                   </div>
                   <Filtro

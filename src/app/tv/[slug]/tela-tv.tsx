@@ -1,6 +1,8 @@
 import {
   duracaoDoSlide,
   duracaoEstimadaDaFaixa,
+  janelaDoSlide,
+  linhaDoTempo,
   palcoDa,
   VELOCIDADE_FAIXA,
   type Giro,
@@ -49,6 +51,14 @@ export function TelaTv({
     duracaoFaixa: duracaoEstimadaDaFaixa(faixa),
     opacidadeLogo: conjunto?.opacidadeLogo ?? 70,
   })
+  // Os vídeos seguem a mesma linha do tempo das animações CSS: o script dá
+  // play quando o slide entra na janela em que está visível e pause ao sair.
+  const linha = linhaDoTempo(duracoes)
+  const videos = slides.flatMap((s, i) =>
+    s.videoUrl
+      ? [{ id: `tv-video-${i}`, ...janelaDoSlide(i, linha), som: s.videoSom }]
+      : []
+  )
   const config = {
     largura,
     altura,
@@ -56,6 +66,8 @@ export function TelaTv({
     velocidade: VELOCIDADE_FAIXA,
     versao: exibicao.versao,
     versaoUrl: `/tv/${encodeURIComponent(slug)}/versao${previa ? "?previa=1" : ""}`,
+    ciclo: linha.ciclo,
+    videos,
   }
 
   const logo = exibicao.logoUrl
@@ -96,7 +108,16 @@ export function TelaTv({
     conteudo = (
       <>
         {slides.map((s, i) => {
-          const soTexto = !s.imagemUrl
+          const soTexto = !s.imagemUrl && !s.videoUrl
+          // Repete o vídeo quando o slide dura mais que ele (sozinho no
+          // conjunto ou com tempo próprio maior); senão, para no último quadro.
+          const repetir =
+            slides.length === 1 ||
+            Boolean(
+              s.duracaoSegundos &&
+                s.videoDuracaoSegundos &&
+                s.duracaoSegundos > s.videoDuracaoSegundos
+            )
           return (
             <div
               key={s.id}
@@ -105,6 +126,24 @@ export function TelaTv({
             >
               {soTexto ? (
                 <div className="tv-fundo-marca" />
+              ) : s.videoUrl ? (
+                <>
+                  {/* No "conter", o fundo da marca no lugar da imagem borrada:
+                      borrar vídeo em tempo real pesa demais para a TV. */}
+                  {s.ajuste === "conter" && <div className="tv-fundo-marca" />}
+                  {/* Sempre mudo no HTML (autoplay mudo é o único garantido);
+                      o script liga o som quando pedido e a TV deixa. */}
+                  <video
+                    id={`tv-video-${i}`}
+                    className={`tv-img${s.ajuste === "conter" ? " tv-img-conter" : ""}`}
+                    src={s.videoUrl}
+                    muted
+                    playsInline
+                    preload="auto"
+                    loop={repetir}
+                    aria-label={s.titulo ?? undefined}
+                  />
+                </>
               ) : s.ajuste === "conter" ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}

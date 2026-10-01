@@ -267,7 +267,7 @@ export default async function ConjuntoSlidesPage({
             <CardHeader>
               <CardTitle className="text-base">Novo slide</CardTitle>
               <CardDescription>
-                Imagem, título e descrição — ao menos a imagem ou o título.
+                Imagem ou vídeo, título e descrição — ao menos a mídia ou o título.
               </CardDescription>
             </CardHeader>
             <CardContent>

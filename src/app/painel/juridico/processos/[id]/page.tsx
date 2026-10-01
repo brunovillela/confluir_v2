@@ -61,6 +61,7 @@ export default async function ProcessoPage({
     id: f.id,
     nome: f.nome,
     cnpj_cpf: f.cnpj_cpf,
+    razao: f.nome_razao ?? null,
     bloqueado: f.bloqueado,
   }))
 

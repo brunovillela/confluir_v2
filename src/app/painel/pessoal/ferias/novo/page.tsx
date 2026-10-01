@@ -12,16 +12,32 @@ export const metadata: Metadata = {
   title: "Novo período de férias — Confluir",
 }
 
-export default async function NovoPeriodoFeriasPage() {
+export default async function NovoPeriodoFeriasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ funcionario?: string; inicio?: string }>
+}) {
   await requirePermissao("pessoal_gestao")
 
+  const { funcionario, inicio } = await searchParams
   const funcionarios = await funcionariosParaSelecao()
+  // Só aceita funcionário ativo da lista e data ISO — o resto é ignorado.
+  const funcionarioPadrao = funcionarios.some((f) => f.usuarioId === funcionario)
+    ? funcionario!
+    : null
+  const inicioPadrao = inicio && /^\d{4}-\d{2}-\d{2}$/.test(inicio) ? inicio : null
 
   return (
     <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/ferias">
+          <Link
+            href={
+              funcionarioPadrao
+                ? `/painel/pessoal/ferias/funcionario/${funcionarioPadrao}`
+                : "/painel/pessoal/ferias"
+            }
+          >
             <ArrowLeft />
             Férias
           </Link>
@@ -34,7 +50,11 @@ export default async function NovoPeriodoFeriasPage() {
           meses seguintes).
         </p>
       </div>
-      <PeriodoFeriasForm funcionarios={funcionarios} />
+      <PeriodoFeriasForm
+        funcionarios={funcionarios}
+        funcionarioPadrao={funcionarioPadrao}
+        inicioPadrao={inicioPadrao}
+      />
     </>
   )
 }

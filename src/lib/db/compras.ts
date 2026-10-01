@@ -1478,6 +1478,7 @@ export type FornecedorLinha = {
   id: string
   nome: string
   nome_razao: string | null
+  razao: string | null
   cnpj_cpf: string | null
   pessoa_juridica: boolean
   bloqueado: boolean
@@ -1516,6 +1517,7 @@ export async function listarFornecedores(
         (v): v is string => typeof v === "string" && v.trim() !== ""
       ) ?? "(sem nome)",
     nome_razao: (e.nome_razao as string | null) ?? null,
+    razao: (e.nome_razao as string | null) ?? null,
     cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
     pessoa_juridica: e.pessoa_juridica === true,
     bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,

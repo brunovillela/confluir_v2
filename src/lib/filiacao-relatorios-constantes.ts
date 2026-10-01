@@ -50,6 +50,7 @@ export const COLUNAS_RELATORIO = [
   { chave: "matriculaFonte", rotulo: "Matrícula na fonte" },
   { chave: "filiacao", rotulo: "Filiação (mais recente)" },
   { chave: "primeiraFiliacao", rotulo: "Primeira filiação" },
+  { chave: "desfiliacao", rotulo: "Desfiliação" },
   { chave: "carencia", rotulo: "Carência de voto" },
   { chave: "liberaEm", rotulo: "Carência libera em" },
   { chave: "diasRestantes", rotulo: "Dias restantes" },
@@ -89,6 +90,7 @@ export const COLUNAS_PADRAO: Record<ModeloRelatorio, ColunaRelatorio[]> = {
 export const ORDENS_RELATORIO = [
   { chave: "nome", rotulo: "Nome" },
   { chave: "filiacao", rotulo: "Data de filiação" },
+  { chave: "desfiliacao", rotulo: "Data de desfiliação" },
   { chave: "idade", rotulo: "Idade" },
   { chave: "matricula", rotulo: "Matrícula sindical" },
   { chave: "diasRestantes", rotulo: "Dias restantes de carência" },

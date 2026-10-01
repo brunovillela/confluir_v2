@@ -9,20 +9,27 @@ import { requirePermissao } from "@/lib/auth"
 import {
   DESCRICAO_MAX,
   DURACAO_MAXIMA,
+  DURACAO_MAXIMA_VIDEO,
   DURACAO_MINIMA,
   FAIXA_QUANTIDADE_MAX,
   TITULO_MAX,
+  VIDEO_TAMANHO_MAX,
   ehAjuste,
   ehGiro,
   ehOrientacao,
   inteiroEntre,
 } from "@/lib/comunicacao-slides-constantes"
 import { type EstadoForm } from "@/lib/contas"
+import { esquemaAusente } from "@/lib/db/comum"
 import {
+  AVISO_SQL_VIDEO,
   buscarConjuntoSlides,
   buscarSlide,
+  prepararEnvioVideo,
   removerImagensSlides,
   subirImagemSlide,
+  videoEnviado,
+  videoSlidesDisponivel,
 } from "@/lib/db/comunicacao-slides"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -209,13 +216,23 @@ export async function duplicarConjuntoSlides(
   })
   if ("erro" in r) return { erro: r.erro }
 
-  // A cópia aponta para os mesmos arquivos de imagem; a exclusão só apaga o
-  // arquivo quando nenhum outro slide o usa.
+  // A cópia aponta para os mesmos arquivos de imagem e vídeo; a exclusão só
+  // apaga o arquivo quando nenhum outro slide o usa.
   if (origem.slides.length > 0) {
     const admin = await createAdminClient()
     const emp = await tenantAtual()
+    // Colunas de vídeo só quando há vídeo: sem o SQL do vídeo, elas não existem.
+    const comVideo = origem.slides.some((s) => s.videoCaminho || s.videoUrl)
     const { error } = await admin.from("comunicacao_slides").insert(
       origem.slides.map((s, i) => ({
+        ...(comVideo
+          ? {
+              video_caminho: s.videoCaminho,
+              video_url: s.videoUrl,
+              video_duracao_segundos: s.videoDuracaoSegundos,
+              video_som: s.videoSom,
+            }
+          : {}),
         emp_proprietaria_id: emp,
         conjunto_id: r.id,
         ordem: i + 1,
@@ -237,17 +254,32 @@ export async function duplicarConjuntoSlides(
   redirect(`/painel/comunicacao/slides/${r.id}?duplicado=1`)
 }
 
-/** Apaga do bucket os arquivos que nenhum slide restante usa. */
+/** Apaga do bucket os arquivos (imagem ou vídeo) que nenhum slide restante usa. */
 async function limparImagensSemUso(caminhos: (string | null)[]): Promise<void> {
   const candidatos = [...new Set(caminhos.filter((c): c is string => !!c))]
   if (candidatos.length === 0) return
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("comunicacao_slides")
-    .select("imagem_caminho")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .in("imagem_caminho", candidatos)
-  const emUso = new Set((data ?? []).map((l) => String(l.imagem_caminho)))
+  const emp = await tenantAtual()
+  const [imagens, videos] = await Promise.all([
+    admin
+      .from("comunicacao_slides")
+      .select("imagem_caminho")
+      .eq("emp_proprietaria_id", emp)
+      .in("imagem_caminho", candidatos),
+    admin
+      .from("comunicacao_slides")
+      .select("video_caminho")
+      .eq("emp_proprietaria_id", emp)
+      .in("video_caminho", candidatos),
+  ])
+  // Na dúvida, não apaga: um arquivo órfão custa menos que um slide sem mídia.
+  // Sem as colunas de vídeo (SQL não rodado), nenhum vídeo está em uso.
+  if (imagens.error) return
+  if (videos.error && !esquemaAusente(videos.error)) return
+  const emUso = new Set([
+    ...(imagens.data ?? []).map((l) => String(l.imagem_caminho)),
+    ...(videos.error ? [] : (videos.data ?? [])).map((l) => String(l.video_caminho)),
+  ])
   await removerImagensSlides(candidatos.filter((c) => !emUso.has(c)))
 }
 
@@ -267,7 +299,7 @@ export async function excluirConjuntoSlides(
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  await limparImagensSemUso(atual.slides.map((s) => s.imagemCaminho))
+  await limparImagensSemUso(atual.slides.flatMap((s) => [s.imagemCaminho, s.videoCaminho]))
   revalidar()
   redirect("/painel/comunicacao/slides?excluido=1")
 }
@@ -277,6 +309,23 @@ export async function excluirConjuntoSlides(
 function arquivoDe(fd: FormData): File | null {
   const f = fd.get("imagem")
   return f instanceof File && f.size > 0 ? f : null
+}
+
+/**
+ * Link assinado para o navegador enviar o vídeo direto ao Storage — vídeo não
+ * cabe no corpo de 4 MB da server action. O formulário depois manda só o
+ * caminho, conferido em `salvarSlide`.
+ */
+export async function prepararEnvioVideoSlide(
+  tipo: string,
+  tamanho: number
+): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  await requirePermissao("noticias")
+  if (!(tamanho > 0)) return { erro: "Arquivo de vídeo vazio." }
+  if (tamanho > VIDEO_TAMANHO_MAX) {
+    return { erro: "O vídeo passa de 50 MB. Encurte ou exporte em resolução menor (1080p basta)." }
+  }
+  return prepararEnvioVideo(tipo)
 }
 
 /** Cria (sem `id`) ou atualiza um slide. */
@@ -290,12 +339,17 @@ export async function salvarSlide(
   const titulo = txt(fd, "titulo")
   const descricao = txt(fd, "descricao")
   const ajuste = txt(fd, "ajuste") ?? "cobrir"
+  // Um slide tem imagem OU vídeo; o vídeo já chegou ao Storage pelo navegador.
+  const ehVideo = txt(fd, "midia") === "video"
+  const maxima = ehVideo ? DURACAO_MAXIMA_VIDEO : DURACAO_MAXIMA
   const duracaoBruta = txt(fd, "duracao_segundos")
-  const duracao = inteiroEntre(duracaoBruta, DURACAO_MINIMA, DURACAO_MAXIMA)
+  const duracao = inteiroEntre(duracaoBruta, DURACAO_MINIMA, maxima)
   const exibirDe = data(fd, "exibir_de")
   const exibirAte = data(fd, "exibir_ate")
-  const arquivo = arquivoDe(fd)
-  const removerImagem = fd.get("remover_imagem") === "on"
+  const arquivo = ehVideo ? null : arquivoDe(fd)
+  const removerImagem = ehVideo || fd.get("remover_imagem") === "on"
+  const videoNovo = ehVideo ? txt(fd, "video_caminho") : null
+  const videoDuracaoLida = Number(txt(fd, "video_duracao"))
 
   if (!conjuntoId) return { erro: "Conjunto inválido." }
   if (titulo && titulo.length > TITULO_MAX) {
@@ -306,7 +360,9 @@ export async function salvarSlide(
   }
   if (!ehAjuste(ajuste)) return { erro: "Escolha como a imagem ocupa a tela." }
   if (duracaoBruta && duracao === null) {
-    return { erro: `A duração vai de ${DURACAO_MINIMA} a ${DURACAO_MAXIMA} segundos (vazio usa a do conjunto).` }
+    return {
+      erro: `A duração vai de ${DURACAO_MINIMA} a ${maxima} segundos (vazio usa a ${ehVideo ? "do vídeo" : "do conjunto"}).`,
+    }
   }
   if (exibirDe && exibirAte && exibirAte < exibirDe) {
     return { erro: "O fim da exibição é anterior ao início." }
@@ -321,8 +377,37 @@ export async function salvarSlide(
     caminho: removerImagem ? null : (anterior?.imagemCaminho ?? null),
     url: removerImagem ? null : (anterior?.imagemUrl ?? null),
   }
-  if (!arquivo && !imagem.url && !titulo) {
-    return { erro: "O slide precisa de uma imagem ou de um título." }
+  // Vídeo: o que já estava (se o slide continua de vídeo) ou o recém-enviado.
+  let video = {
+    caminho: ehVideo ? (anterior?.videoCaminho ?? null) : null,
+    url: ehVideo ? (anterior?.videoUrl ?? null) : null,
+    duracao: ehVideo ? (anterior?.videoDuracaoSegundos ?? null) : null,
+  }
+  const enviouVideo = Boolean(videoNovo && videoNovo !== anterior?.videoCaminho)
+  if (ehVideo) {
+    if (!(await videoSlidesDisponivel())) return { erro: AVISO_SQL_VIDEO }
+    if (enviouVideo) {
+      const conferido = await videoEnviado(videoNovo!)
+      if (!conferido) return { erro: "O vídeo enviado não foi encontrado. Escolha o arquivo de novo." }
+      // Duração lida no navegador; sem ela (arquivo que o navegador não mede),
+      // o slide usa o tempo padrão do conjunto até alguém informar o próprio.
+      const lida =
+        Number.isFinite(videoDuracaoLida) && videoDuracaoLida > 0 ? Math.ceil(videoDuracaoLida) : null
+      if (lida && lida > DURACAO_MAXIMA_VIDEO && !duracao) {
+        await removerImagensSlides([videoNovo])
+        return {
+          erro: `O vídeo tem mais de ${DURACAO_MAXIMA_VIDEO / 60} minutos. Encurte o vídeo ou informe os segundos na tela.`,
+        }
+      }
+      video = { caminho: videoNovo, url: conferido.url, duracao: lida }
+    }
+    if (!video.url) return { erro: "Envie o vídeo do slide (MP4, até 50 MB)." }
+  }
+  const descartarVideoNovo = async () => {
+    if (enviouVideo) await removerImagensSlides([video.caminho])
+  }
+  if (!ehVideo && !arquivo && !imagem.url && !titulo) {
+    return { erro: "O slide precisa de uma imagem, de um vídeo ou de um título." }
   }
   if (arquivo) {
     const subida = await subirImagemSlide(arquivo)
@@ -330,6 +415,9 @@ export async function salvarSlide(
     imagem = { caminho: subida.caminho, url: subida.url }
   }
 
+  // Colunas de vídeo só entram quando o slide é ou era de vídeo: antes do SQL
+  // do vídeo elas não existem, e o slide de imagem tem de continuar salvando.
+  const tocaVideo = ehVideo || Boolean(anterior?.videoCaminho || anterior?.videoUrl)
   const campos = {
     titulo,
     descricao,
@@ -339,6 +427,14 @@ export async function salvarSlide(
     exibir_ate: exibirAte,
     imagem_caminho: imagem.caminho,
     imagem_url: imagem.url,
+    ...(tocaVideo
+      ? {
+          video_caminho: video.caminho,
+          video_url: video.url,
+          video_duracao_segundos: video.duracao,
+          video_som: ehVideo && fd.get("video_som") === "on",
+        }
+      : {}),
     updated_at: new Date().toISOString(),
   }
 
@@ -352,11 +448,15 @@ export async function salvarSlide(
       .eq("emp_proprietaria_id", emp)
     if (error) {
       if (arquivo) await removerImagensSlides([imagem.caminho])
+      await descartarVideoNovo()
       return { erro: `Não foi possível salvar o slide: ${error.message}` }
     }
-    if (anterior.imagemCaminho && anterior.imagemCaminho !== imagem.caminho) {
-      await limparImagensSemUso([anterior.imagemCaminho])
-    }
+    // Imagem ou vídeo trocados (ou o slide mudou de tipo): o arquivo antigo
+    // sai do bucket se nenhum outro slide (cópia de conjunto) o usa.
+    await limparImagensSemUso([
+      anterior.imagemCaminho !== imagem.caminho ? anterior.imagemCaminho : null,
+      anterior.videoCaminho !== video.caminho ? anterior.videoCaminho : null,
+    ])
     revalidar(conjuntoId)
     return { ok: "Slide salvo." }
   }
@@ -372,6 +472,7 @@ export async function salvarSlide(
   })
   if (error) {
     if (arquivo) await removerImagensSlides([imagem.caminho])
+    await descartarVideoNovo()
     return { erro: `Não foi possível adicionar o slide: ${error.message}` }
   }
   revalidar(conjuntoId)
@@ -445,7 +546,7 @@ export async function excluirSlide(
     .eq("id", slide.id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  await limparImagensSemUso([slide.imagemCaminho])
+  await limparImagensSemUso([slide.imagemCaminho, slide.videoCaminho])
   revalidar(slide.conjuntoId)
   return { ok: "Slide excluído." }
 }

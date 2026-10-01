@@ -80,6 +80,8 @@ export type LinhaRelatorio = {
   temFicha: boolean
   filiacao: string | null
   primeiraFiliacao: string | null
+  /** Saída mais recente, só para quem NÃO tem vínculo em aberto. */
+  desfiliacao: string | null
   // direitos
   carencia: "cumprida" | "em_carencia" | "sem_data"
   liberaEm: string | null
@@ -118,6 +120,8 @@ type Vinculo = Record<string, unknown>
 const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null)
 const dataVinculo = (v: Vinculo) => texto(v.data_filiacao) ?? texto(v.filiacao_data_adesao)
 const aberto = (v: Vinculo) => !v.data_desfiliacao && !v.filiacao_data_saida
+const dataSaida = (v: Vinculo) =>
+  (texto(v.data_desfiliacao) ?? texto(v.filiacao_data_saida))?.slice(0, 10) ?? null
 
 function normalizarUf(valor: string | null): string | null {
   if (!valor) return null
@@ -211,8 +215,11 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
   // ── Vínculo corrente e datas por filiado / por CPF ────────────────────
   const correntePorFiliado = new Map<string, Vinculo>()
   const datasPorFiliado = new Map<string, string[]>()
+  const saidaPorFiliado = new Map<string, string>()
   for (const v of vinculos) {
     const fid = String(v.filiado_id)
+    const saida = dataSaida(v)
+    if (saida && saida > (saidaPorFiliado.get(fid) ?? "")) saidaPorFiliado.set(fid, saida)
     const d = dataVinculo(v)
     if (d) datasPorFiliado.set(fid, [...(datasPorFiliado.get(fid) ?? []), d])
     const atual = correntePorFiliado.get(fid)
@@ -373,6 +380,7 @@ export async function baseRelatorios(): Promise<BaseRelatorios> {
       temFicha: v ? ehArquivo(texto(v.ficha_filiacao)) : false,
       filiacao: maisRecente,
       primeiraFiliacao: primeira,
+      desfiliacao: v && !aberto(v) ? (saidaPorFiliado.get(id) ?? null) : null,
       carencia,
       liberaEm: direito.liberaEm ? direito.liberaEm.slice(0, 10) : null,
       diasRestantes: direito.diasRestantes ?? null,
@@ -429,6 +437,8 @@ export type FiltrosRelatorio = {
   vinculo?: string
   filiacaoDe?: string
   filiacaoAte?: string
+  desfiliacaoDe?: string
+  desfiliacaoAte?: string
   idadeMin?: string
   idadeMax?: string
   ordem?: string
@@ -478,6 +488,8 @@ export function filtrarRelatorio(
   const lotacao = semAcento((filtros.lotacao ?? "").trim())
   const de = dataISO(filtros.filiacaoDe)
   const ate = dataISO(filtros.filiacaoAte)
+  const desDe = dataISO(filtros.desfiliacaoDe)
+  const desAte = dataISO(filtros.desfiliacaoAte)
   const idadeMin = inteiro(filtros.idadeMin)
   const idadeMax = inteiro(filtros.idadeMax)
 
@@ -517,6 +529,8 @@ export function filtrarRelatorio(
     if (filtros.vinculo === "sem_aberto" && l.vinculoAberto) return false
     if (de && (!l.filiacao || l.filiacao < de)) return false
     if (ate && (!l.filiacao || l.filiacao > ate)) return false
+    if (desDe && (!l.desfiliacao || l.desfiliacao < desDe)) return false
+    if (desAte && (!l.desfiliacao || l.desfiliacao > desAte)) return false
     if (idadeMin !== null && (l.idade === null || l.idade < idadeMin)) return false
     if (idadeMax !== null && (l.idade === null || l.idade > idadeMax)) return false
     if (busca) {
@@ -532,6 +546,8 @@ export function filtrarRelatorio(
     switch (ordem) {
       case "filiacao":
         return l.filiacao ?? ""
+      case "desfiliacao":
+        return l.desfiliacao ?? ""
       case "idade":
         return l.idade ?? -1
       case "matricula":
@@ -586,6 +602,8 @@ export function valorDaColuna(l: LinhaRelatorio, coluna: ColunaRelatorio): strin
       return l.filiacao ? formatarData(l.filiacao) : ""
     case "primeiraFiliacao":
       return l.primeiraFiliacao ? formatarData(l.primeiraFiliacao) : ""
+    case "desfiliacao":
+      return l.desfiliacao ? formatarData(l.desfiliacao) : ""
     case "carencia":
       return l.carencia === "cumprida"
         ? "Cumprida"

@@ -6,7 +6,9 @@ import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { ultimasNoticias } from "@/lib/db/painel"
 import {
+  BUCKET_SLIDES,
   DURACAO_PADRAO,
+  TIPOS_VIDEO,
   ehAjuste,
   ehGiro,
   ehOrientacao,
@@ -28,10 +30,10 @@ import { tenantAtual } from "@/lib/tenant"
  * A TV confere /tv/<slug>/versao a cada minuto e recarrega quando a versão
  * muda — a versão é um hash de TUDO o que está na tela.
  *
- * SQL: supabase/comunicacao-slides-tv.sql
+ * SQL: supabase/comunicacao-slides-tv.sql (+ comunicacao-slides-video.sql)
  */
 
-export const BUCKET_SLIDES = "comunicacao"
+export { BUCKET_SLIDES }
 const TAMANHO_MAX = 3.5 * 1024 * 1024 // o corpo da server action vai até 4 MB
 const TIPOS_IMAGEM: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -85,9 +87,15 @@ function paraConjunto(l: Record<string, unknown>): ConjuntoSlides {
 
 const COLUNAS_SLIDE =
   "id, ordem, titulo, descricao, imagem_url, imagem_caminho, ajuste, duracao_segundos, exibir_de, exibir_ate, ativo"
+/** Colunas de supabase/comunicacao-slides-video.sql — podem ainda não existir. */
+const COLUNAS_VIDEO = "video_caminho, video_url, video_duracao_segundos, video_som"
+
+export const AVISO_SQL_VIDEO =
+  "O slide de vídeo usa colunas novas — rode supabase/comunicacao-slides-video.sql no Supabase."
 
 function paraSlide(l: Record<string, unknown>): SlideTv {
   const duracao = Number(l.duracao_segundos)
+  const duracaoVideo = Number(l.video_duracao_segundos)
   return {
     id: String(l.id),
     ordem: Number(l.ordem) || 0,
@@ -95,6 +103,10 @@ function paraSlide(l: Record<string, unknown>): SlideTv {
     descricao: texto(l.descricao),
     imagemUrl: texto(l.imagem_url),
     imagemCaminho: texto(l.imagem_caminho),
+    videoUrl: texto(l.video_url),
+    videoCaminho: texto(l.video_caminho),
+    videoDuracaoSegundos: duracaoVideo > 0 ? Math.ceil(duracaoVideo) : null,
+    videoSom: l.video_som === true,
     ajuste: ehAjuste(l.ajuste) ? l.ajuste : "cobrir",
     duracaoSegundos: l.duracao_segundos == null || !duracao ? null : duracao,
     exibirDe: texto(l.exibir_de),
@@ -103,7 +115,32 @@ function paraSlide(l: Record<string, unknown>): SlideTv {
   }
 }
 
-export type ConjuntoNaLista = ConjuntoSlides & { totalSlides: number; noAr: number }
+type Linha = Record<string, unknown>
+
+/**
+ * Lê slides com as colunas de vídeo; sem elas (o SQL do vídeo ainda não
+ * rodou), repete com as colunas antigas — a TV não pode cair por isso.
+ */
+async function lerSlides<T>(
+  consulta: (colunas: string) => PromiseLike<{
+    data: unknown
+    error: { code?: string; message: string } | null
+  }>
+): Promise<T | null> {
+  // Colunas montadas em tempo de execução: o tipo do supabase-js não as lê.
+  const r = await consulta(`${COLUNAS_SLIDE}, ${COLUNAS_VIDEO}`)
+  if (r.error && esquemaAusente(r.error)) return (await consulta(COLUNAS_SLIDE)).data as T | null
+  return r.data as T | null
+}
+
+/** As colunas de vídeo existem? (antes de aceitar um envio de vídeo) */
+export async function videoSlidesDisponivel(): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("comunicacao_slides").select("video_caminho").limit(1)
+  return !(error && esquemaAusente(error))
+}
+
+export type ConjuntoNaLista =ConjuntoSlides & { totalSlides: number; noAr: number }
 
 /** ativo=false → tabelas ainda não criadas (rodar o SQL). */
 export async function listarConjuntosSlides(): Promise<{
@@ -167,13 +204,15 @@ export async function buscarConjuntoSlides(
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (error || !data) return null
-  const { data: slides } = await admin
-    .from("comunicacao_slides")
-    .select(COLUNAS_SLIDE)
-    .eq("conjunto_id", id)
-    .eq("emp_proprietaria_id", emp)
-    .order("ordem", { ascending: true })
-    .order("created_at", { ascending: true })
+  const slides = await lerSlides<Linha[]>((colunas) =>
+    admin
+      .from("comunicacao_slides")
+      .select(colunas)
+      .eq("conjunto_id", id)
+      .eq("emp_proprietaria_id", emp)
+      .order("ordem", { ascending: true })
+      .order("created_at", { ascending: true })
+  )
   return { conjunto: paraConjunto(data), slides: (slides ?? []).map(paraSlide) }
 }
 
@@ -182,12 +221,15 @@ export async function buscarSlide(
 ): Promise<(SlideTv & { conjuntoId: string }) | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("comunicacao_slides")
-    .select(`${COLUNAS_SLIDE}, conjunto_id`)
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .maybeSingle()
+  const emp = await tenantAtual()
+  const data = await lerSlides<Linha>((colunas) =>
+    admin
+      .from("comunicacao_slides")
+      .select(`${colunas}, conjunto_id`)
+      .eq("id", id)
+      .eq("emp_proprietaria_id", emp)
+      .maybeSingle()
+  )
   if (!data) return null
   return { ...paraSlide(data), conjuntoId: String(data.conjunto_id) }
 }
@@ -220,7 +262,47 @@ export async function subirImagemSlide(
   return { caminho, url: data.publicUrl }
 }
 
-/** Apaga imagens do bucket — só as do próprio tenant. */
+// ── Vídeos: envio direto do navegador ao armazenamento ───────────────────────
+// (sem passar pela server action, que corta em 4 MB). Mesma pasta das
+// imagens, que leva o tenant: ninguém aponta para o vídeo de outro sindicato.
+
+const prefixoSlides = async () => `slides/${await tenantAtual()}/`
+
+/** Link de envio para um vídeo novo (MP4/WebM). */
+export async function prepararEnvioVideo(
+  tipo: string
+): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  const ext = TIPOS_VIDEO[tipo]
+  if (!ext) return { erro: "Use um vídeo MP4 (H.264) ou WebM." }
+  if (!(await videoSlidesDisponivel())) return { erro: AVISO_SQL_VIDEO }
+  const admin = await createAdminClient()
+  const caminho = `${await prefixoSlides()}${randomUUID()}.${ext}`
+  const { data, error } = await admin.storage.from(BUCKET_SLIDES).createSignedUploadUrl(caminho)
+  if (error || !data) {
+    if (error && /bucket not found/i.test(error.message)) {
+      return { erro: "Rode supabase/comunicacao-slides-tv.sql no Supabase: falta o bucket dos slides." }
+    }
+    return { erro: `Não foi possível preparar o envio: ${error?.message ?? "?"}` }
+  }
+  return { caminho, token: data.token }
+}
+
+/**
+ * O vídeo informado pelo formulário é deste tenant, tem o formato esperado e
+ * existe no armazenamento? Devolve a URL pública — a URL nunca vem do cliente.
+ */
+export async function videoEnviado(caminho: string): Promise<{ url: string } | null> {
+  if (!caminho.startsWith(await prefixoSlides())) return null
+  if (!/^slides\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(mp4|webm)$/i.test(caminho)) return null
+  const admin = await createAdminClient()
+  const pasta = caminho.slice(0, caminho.lastIndexOf("/"))
+  const nome = caminho.slice(caminho.lastIndexOf("/") + 1)
+  const { data } = await admin.storage.from(BUCKET_SLIDES).list(pasta, { search: nome })
+  if (!(data ?? []).some((f) => f.name === nome)) return null
+  return { url: admin.storage.from(BUCKET_SLIDES).getPublicUrl(caminho).data.publicUrl }
+}
+
+/** Apaga imagens e vídeos do bucket — só os do próprio tenant. */
 export async function removerImagensSlides(caminhos: (string | null)[]): Promise<void> {
   const prefixo = `slides/${await tenantAtual()}/`
   const nossos = caminhos.filter((c): c is string => !!c && c.startsWith(prefixo))
@@ -298,14 +380,16 @@ export async function exibicaoDoLink(
     }
   }
 
-  const [{ data: linhas }, noticias] = await Promise.all([
-    admin
-      .from("comunicacao_slides")
-      .select(COLUNAS_SLIDE)
-      .eq("conjunto_id", conjunto.id)
-      .eq("emp_proprietaria_id", emp)
-      .order("ordem", { ascending: true })
-      .order("created_at", { ascending: true }),
+  const [linhas, noticias] = await Promise.all([
+    lerSlides<Linha[]>((colunas) =>
+      admin
+        .from("comunicacao_slides")
+        .select(colunas)
+        .eq("conjunto_id", conjunto.id)
+        .eq("emp_proprietaria_id", emp)
+        .order("ordem", { ascending: true })
+        .order("created_at", { ascending: true })
+    ),
     conjunto.faixaAtiva && conjunto.faixaNoticias
       ? ultimasNoticias(conjunto.faixaQuantidade).catch(() => [])
       : Promise.resolve([]),

@@ -86,6 +86,7 @@ export default async function NovaManutencaoPage({
                 id: f.id,
                 nome: f.nome,
                 cnpj_cpf: f.cnpj_cpf,
+                razao: f.nome_razao ?? null,
                 bloqueado: f.bloqueado,
               }))}
               planos={planos.map((p) => ({

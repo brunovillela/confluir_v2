@@ -6,7 +6,7 @@
  *
  * Leitura e gravação: src/lib/db/comunicacao-slides.ts
  * Tela pública: src/app/tv/[slug]/page.tsx
- * SQL: supabase/comunicacao-slides-tv.sql
+ * SQL: supabase/comunicacao-slides-tv.sql (+ comunicacao-slides-video.sql)
  */
 
 export type Orientacao = "horizontal" | "vertical"
@@ -44,6 +44,21 @@ export const AJUSTES: { chave: Ajuste; rotulo: string; detalhe: string }[] = [
 export const DURACAO_MINIMA = 4
 export const DURACAO_MAXIMA = 300
 export const DURACAO_PADRAO = 10
+/**
+ * Teto do slide de vídeo: 10 min. Mais alto que o da imagem porque o vídeo
+ * dita o próprio tempo (vídeo institucional de 3–5 min é comum), mas com
+ * limite — um vídeo longo prende a TV e esconde o resto da programação.
+ */
+export const DURACAO_MAXIMA_VIDEO = 600
+/** Limite de upload do Storage do Supabase (padrão do projeto). */
+export const VIDEO_TAMANHO_MAX = 50 * 1024 * 1024
+/** MP4 (H.264) é o que toda TV toca; WebM entra para quem já tem o arquivo. */
+export const TIPOS_VIDEO: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+}
+/** Bucket público das imagens e vídeos (o painel envia o vídeo direto a ele). */
+export const BUCKET_SLIDES = "comunicacao"
 export const TITULO_MAX = 90
 export const DESCRICAO_MAX = 240
 export const FAIXA_QUANTIDADE_MAX = 20
@@ -85,8 +100,15 @@ export type SlideTv = {
   descricao: string | null
   imagemUrl: string | null
   imagemCaminho: string | null
+  /** Vídeo no lugar da imagem (um slide tem uma OU outro). */
+  videoUrl: string | null
+  videoCaminho: string | null
+  /** Duração lida do arquivo no navegador, em segundos inteiros (para cima). */
+  videoDuracaoSegundos: number | null
+  /** Tenta tocar com som; a TV pode bloquear e aí toca mudo. */
+  videoSom: boolean
   ajuste: Ajuste
-  /** null = a duração padrão do conjunto. */
+  /** null = a duração padrão do conjunto (ou a do vídeo, no slide de vídeo). */
   duracaoSegundos: number | null
   exibirDe: string | null
   exibirAte: string | null
@@ -113,13 +135,73 @@ export const ROTULO_SITUACAO_SLIDE: Record<SituacaoSlide, string> = {
   encerrado: "Encerrado",
 }
 
-/** Um slide precisa de imagem ou de título para ter o que mostrar. */
-export function slideTemConteudo(s: Pick<SlideTv, "titulo" | "imagemUrl">): boolean {
-  return Boolean(s.imagemUrl || (s.titulo && s.titulo.trim()))
+/** Um slide precisa de imagem, vídeo ou título para ter o que mostrar. */
+export function slideTemConteudo(
+  s: Pick<SlideTv, "titulo" | "imagemUrl"> & Partial<Pick<SlideTv, "videoUrl">>
+): boolean {
+  return Boolean(s.imagemUrl || s.videoUrl || (s.titulo && s.titulo.trim()))
 }
 
-export function duracaoDoSlide(s: Pick<SlideTv, "duracaoSegundos">, padrao: number): number {
-  return s.duracaoSegundos ?? padrao
+/**
+ * Segundos do slide na tela. A duração própria vale sempre; sem ela, o slide
+ * de vídeo dura o vídeo inteiro (gravado já arredondado para cima, para não
+ * cortar o fim) e os demais, o padrão do conjunto. Vídeo sem duração lida
+ * (o navegador não conseguiu medir) cai no padrão.
+ */
+export function duracaoDoSlide(
+  s: Pick<SlideTv, "duracaoSegundos"> &
+    Partial<Pick<SlideTv, "videoUrl" | "videoDuracaoSegundos">>,
+  padrao: number
+): number {
+  if (s.duracaoSegundos) return s.duracaoSegundos
+  if (s.videoUrl && s.videoDuracaoSegundos) {
+    return Math.min(
+      DURACAO_MAXIMA_VIDEO,
+      Math.max(DURACAO_MINIMA, Math.ceil(s.videoDuracaoSegundos))
+    )
+  }
+  return padrao
+}
+
+/** "45s" / "3:05" — duração curta para as listas. */
+export function rotuloDuracao(segundos: number): string {
+  if (segundos < 60) return `${segundos}s`
+  return `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`
+}
+
+/**
+ * Linha do tempo do ciclo: início de cada slide e a duração do fade. É a
+ * mesma conta das animações CSS — o script da TV a usa para dar play/pause
+ * nos vídeos no compasso da rotação.
+ */
+export function linhaDoTempo(duracoes: number[]): {
+  ciclo: number
+  fade: number
+  inicios: number[]
+} {
+  const ciclo = duracoes.reduce((s, d) => s + d, 0)
+  const fade = duracoes.length > 1 ? Math.min(TRANSICAO, Math.min(...duracoes) / 4) : 0
+  const inicios: number[] = []
+  let acumulado = 0
+  for (const d of duracoes) {
+    inicios.push(acumulado)
+    acumulado += d
+  }
+  return { ciclo, fade, inicios }
+}
+
+/**
+ * Janela [de, ate) do ciclo em que o slide k está VISÍVEL: do começo do seu
+ * fade de entrada até o seguinte cobri-lo por inteiro (o último vai até o fim
+ * do ciclo, quando sai com fade). Com um slide só, o ciclo inteiro.
+ */
+export function janelaDoSlide(
+  k: number,
+  linha: { ciclo: number; fade: number; inicios: number[] }
+): { de: number; ate: number } {
+  const { ciclo, fade, inicios } = linha
+  const ate = k < inicios.length - 1 ? inicios[k + 1] + fade : ciclo
+  return { de: inicios[k], ate }
 }
 
 /**
@@ -137,17 +219,10 @@ export function animacaoDosSlides(duracoes: number[]): {
   ciclo: number
   keyframes: (string | null)[]
 } {
-  const ciclo = duracoes.reduce((s, d) => s + d, 0)
+  const { ciclo, fade, inicios } = linhaDoTempo(duracoes)
   if (duracoes.length <= 1) return { ciclo, keyframes: duracoes.map(() => null) }
 
-  const fade = Math.min(TRANSICAO, Math.min(...duracoes) / 4)
   const p = (t: number) => `${Math.round((t / ciclo) * 1_000_000) / 10_000}%`
-  const inicios: number[] = []
-  let acumulado = 0
-  for (const d of duracoes) {
-    inicios.push(acumulado)
-    acumulado += d
-  }
 
   const keyframes = duracoes.map((_, k) => {
     if (k === 0) return null

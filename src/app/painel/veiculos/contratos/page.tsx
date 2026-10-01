@@ -83,6 +83,7 @@ export default async function ContratosPage({
             id: f.id,
             nome: f.nome,
             cnpj_cpf: f.cnpj_cpf,
+            razao: f.nome_razao ?? null,
             bloqueado: f.bloqueado,
           }))}
           usuarios={usuarios.map((u) => ({ id: u.id, rotulo: u.nome }))}

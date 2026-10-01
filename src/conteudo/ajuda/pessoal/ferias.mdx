@@ -15,12 +15,22 @@ CLT.
 
 <PassoAPasso>
   <Passo titulo="Abra Pessoal → Férias">
-    A lista mostra os períodos por funcionário. Use a busca pelo nome e o filtro
-    **Abertos / Finalizados** para navegar.
+    O **Painel** reúne os indicadores (em férias hoje, aguardando autorização,
+    prazos vencendo, períodos vencidos e dias a gozar), o gráfico de
+    **distribuição das férias por mês** (troque o ano nas setas), os gozos
+    **aguardando autorização** — que dá para autorizar ali mesmo — e a lista de
+    **funcionários com a situação atual**. A aba **Todos os períodos** mantém a
+    lista completa, com busca e filtro **Abertos / Finalizados**.
+  </Passo>
+  <Passo titulo="Abra o funcionário">
+    Clique no nome para ver o **histórico de férias** dele: todos os períodos,
+    com os gozos, o saldo, o próximo prazo e as próximas férias.
   </Passo>
   <Passo titulo="Novo período">
-    Clique em **Novo período** para registrar um período aquisitivo de um
-    funcionário.
+    Na página do funcionário, **Novo período** já vem com ele escolhido e o
+    início do aquisitivo sugerido (o dia seguinte ao fim do último período, ou a
+    admissão, se for o primeiro). Também dá para criar pelo botão do topo de
+    Férias, escolhendo o funcionário.
   </Passo>
   <Passo titulo="Registre os gozos">
     Abra o período e informe, para cada gozo, o **início** e a **quantidade de
@@ -54,6 +64,20 @@ CLT.
   (abono pecuniário). A data final aparece na hora, antes de enviar.
 - Gozos aguardando autorização aparecem como pendência na tela inicial do
   Pessoal.
+- **Excluir período** só aparece quando o período **não tem nenhum gozo**
+  registrado (na página do período, na do funcionário e em Todos os períodos).
+  Com gozo, exclua os gozos antes.
+
+### Situação do funcionário
+
+| Situação | Quando |
+|---|---|
+| **Período vencido** | o concessivo já terminou e ainda há saldo |
+| **Prazo vencendo** | o concessivo com saldo termina em até 120 dias |
+| **Em férias** | há um gozo autorizado cobrindo o dia de hoje |
+| **Férias marcadas** | há um gozo futuro (autorizado ou aguardando) |
+| **Sem período** | nenhum período cadastrado |
+| **Em dia** | nenhuma das anteriores |
 
 ## Erros comuns
 

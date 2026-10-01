@@ -84,6 +84,7 @@ html,body{margin:0;overflow:hidden;background:#000!important}
 .tv-fundo-marca:after{content:"";position:absolute;right:-12%;bottom:-18%;width:60%;height:60%;border-radius:50%;background:${LARANJA};opacity:.12}
 .tv-img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}
 .tv-img-conter{object-fit:contain}
+video.tv-img{background:transparent;display:block}
 .tv-img-borrada{position:absolute;left:-5%;top:-5%;width:110%;height:110%;object-fit:cover;filter:blur(40px) brightness(.5);-webkit-filter:blur(40px) brightness(.5)}
 .tv-sombra{position:absolute;left:0;right:0;bottom:0;height:70%;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.55) 45%,rgba(0,0,0,0) 100%)}
 .tv-texto{position:absolute;left:${m.margem}px;right:${m.margem}px;bottom:${base + m.margem * 0.75}px}

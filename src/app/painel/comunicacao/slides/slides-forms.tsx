@@ -7,6 +7,7 @@ import {
   Copy,
   Eye,
   EyeOff,
+  Film,
   ImageIcon,
   Loader2,
   Pencil,
@@ -23,14 +24,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   AJUSTES,
+  BUCKET_SLIDES,
   DESCRICAO_MAX,
   DURACAO_MAXIMA,
+  DURACAO_MAXIMA_VIDEO,
   DURACAO_MINIMA,
   FAIXA_QUANTIDADE_MAX,
   GIROS,
   ORIENTACOES,
   ROTULO_SITUACAO_SLIDE,
+  TIPOS_VIDEO,
   TITULO_MAX,
+  VIDEO_TAMANHO_MAX,
+  duracaoDoSlide,
+  rotuloDuracao,
   type Orientacao,
   type SituacaoSlide,
   type SlideTv,
@@ -44,6 +51,7 @@ import {
   excluirSlide,
   gerarNovoLinkSlides,
   moverSlide,
+  prepararEnvioVideoSlide,
   salvarConjuntoSlides,
   salvarSlide,
 } from "./actions"
@@ -453,6 +461,41 @@ async function reduzirImagem(arquivo: File): Promise<File> {
   }
 }
 
+/**
+ * Duração do vídeo lida no próprio navegador (metadados do arquivo), em
+ * segundos. null quando o navegador não abre o formato — o slide então usa o
+ * tempo padrão, e é sinal de que a TV talvez também não abra.
+ */
+function lerDuracaoVideo(arquivo: File): Promise<number | null> {
+  return new Promise((ok) => {
+    const url = URL.createObjectURL(arquivo)
+    const v = document.createElement("video")
+    let feito = false
+    const fim = (d: number | null) => {
+      if (feito) return
+      feito = true
+      URL.revokeObjectURL(url)
+      ok(d)
+    }
+    v.preload = "metadata"
+    v.muted = true
+    v.onloadedmetadata = () => fim(Number.isFinite(v.duration) && v.duration > 0 ? v.duration : null)
+    v.onerror = () => fim(null)
+    setTimeout(() => fim(null), 15_000)
+    v.src = url
+  })
+}
+
+const mb = (bytes: number) =>
+  `${(bytes / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`
+
+type Midia = "imagem" | "video"
+type EnvioVideo =
+  | { fase: "parado" }
+  | { fase: "lendo" | "enviando"; nome: string; tamanho: number }
+  | { fase: "pronto"; caminho: string; duracao: number | null; nome: string }
+  | { fase: "erro"; erro: string }
+
 export function SlideForm({
   conjuntoId,
   orientacao,
@@ -469,17 +512,23 @@ export function SlideForm({
   const [preparando, setPreparando] = useState(false)
   const [titulo, setTitulo] = useState(slide?.titulo ?? "")
   const [removerImagem, setRemoverImagem] = useState(false)
+  const [midia, setMidia] = useState<Midia>(slide?.videoUrl ? "video" : "imagem")
+  const [envio, setEnvio] = useState<EnvioVideo>({ fase: "parado" })
+  const [previaVideo, setPreviaVideo] = useState<string | null>(null)
   const entrada = useRef<HTMLInputElement>(null)
   const sufixo = slide?.id ?? "novo"
 
   // Formulário de inclusão: o React limpa os campos depois do envio; a
-  // prévia e o título (estado local) acompanham quando o slide entrou.
+  // prévia, o título e o vídeo (estado local) acompanham quando o slide entrou.
   const [estadoVisto, setEstadoVisto] = useState(estado)
   if (estado !== estadoVisto) {
     setEstadoVisto(estado)
     if (!slide && estado.ok) {
       setPrevia(null)
       setTitulo("")
+      setPreviaVideo(null)
+      setEnvio({ fase: "parado" })
+      setMidia("imagem")
     }
   }
 
@@ -488,75 +537,261 @@ export function SlideForm({
       if (previa) URL.revokeObjectURL(previa)
     }
   }, [previa])
+  useEffect(() => {
+    return () => {
+      if (previaVideo) URL.revokeObjectURL(previaVideo)
+    }
+  }, [previaVideo])
+
+  /**
+   * O vídeo vai do navegador direto ao Storage (link assinado pelo servidor):
+   * a server action corta em 4 MB. O formulário leva só o caminho.
+   */
+  async function enviarVideo(arquivo: File) {
+    if (!TIPOS_VIDEO[arquivo.type]) {
+      setEnvio({ fase: "erro", erro: "Use um vídeo MP4 (H.264) ou WebM." })
+      return
+    }
+    if (arquivo.size > VIDEO_TAMANHO_MAX) {
+      setEnvio({
+        fase: "erro",
+        erro: `O vídeo tem ${mb(arquivo.size)} e o limite é ${mb(VIDEO_TAMANHO_MAX)}. Encurte ou exporte em 1080p.`,
+      })
+      return
+    }
+    setEnvio({ fase: "lendo", nome: arquivo.name, tamanho: arquivo.size })
+    const duracao = await lerDuracaoVideo(arquivo)
+    if (duracao && Math.ceil(duracao) > DURACAO_MAXIMA_VIDEO) {
+      setEnvio({
+        fase: "erro",
+        erro: `O vídeo tem ${rotuloDuracao(Math.ceil(duracao))}; o limite é ${DURACAO_MAXIMA_VIDEO / 60} minutos.`,
+      })
+      return
+    }
+    setPreviaVideo(URL.createObjectURL(arquivo))
+    setEnvio({ fase: "enviando", nome: arquivo.name, tamanho: arquivo.size })
+    const link = await prepararEnvioVideoSlide(arquivo.type, arquivo.size)
+    if (link.erro || !link.caminho || !link.token) {
+      setEnvio({ fase: "erro", erro: link.erro ?? "Não foi possível preparar o envio." })
+      return
+    }
+    const { createClient } = await import("@/lib/supabase/client")
+    const { error } = await createClient()
+      .storage.from(BUCKET_SLIDES)
+      .uploadToSignedUrl(link.caminho, link.token, arquivo, {
+        contentType: arquivo.type,
+        cacheControl: "31536000",
+      })
+    if (error) {
+      setEnvio({ fase: "erro", erro: `Falha ao enviar o vídeo: ${error.message}` })
+      return
+    }
+    setEnvio({ fase: "pronto", caminho: link.caminho, duracao, nome: arquivo.name })
+  }
 
   const imagemAtual = removerImagem ? null : (slide?.imagemUrl ?? null)
   const mostrar = previa ?? imagemAtual
+  const ehVideo = midia === "video"
+  const videoMostrado = previaVideo ?? slide?.videoUrl ?? null
+  const enviandoVideo = envio.fase === "lendo" || envio.fase === "enviando"
+  // Duração que vale para o slide se "Segundos na tela" ficar vazio.
+  const duracaoVideo =
+    envio.fase === "pronto"
+      ? envio.duracao && Math.ceil(envio.duracao)
+      : envio.fase === "parado"
+        ? (slide?.videoDuracaoSegundos ?? null)
+        : null
 
   return (
     <form action={action} className="grid gap-4">
       <Recado estado={estado} />
       <input type="hidden" name="conjunto_id" value={conjuntoId} />
       {slide && <input type="hidden" name="id" value={slide.id} />}
+      <input type="hidden" name="midia" value={midia} />
+      {ehVideo && envio.fase === "pronto" && (
+        <>
+          <input type="hidden" name="video_caminho" value={envio.caminho} />
+          <input type="hidden" name="video_duracao" value={envio.duracao ?? ""} />
+        </>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
-        <div
-          className={`bg-muted text-muted-foreground flex items-center justify-center overflow-hidden rounded-md border ${
-            orientacao === "vertical" ? "aspect-[9/16] w-24 sm:w-full" : "aspect-video w-40 sm:w-full"
-          }`}
-        >
-          {mostrar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={mostrar} alt="" className="size-full object-cover" />
-          ) : (
-            <ImageIcon className="size-6" />
-          )}
+      <div className="grid gap-1.5">
+        <Label>Conteúdo do slide</Label>
+        <div className="grid grid-cols-2 gap-2 sm:max-w-sm" role="radiogroup">
+          {(
+            [
+              { chave: "imagem", rotulo: "Imagem", Icone: ImageIcon },
+              { chave: "video", rotulo: "Vídeo", Icone: Film },
+            ] as const
+          ).map(({ chave, rotulo, Icone }) => (
+            <label
+              key={chave}
+              className="has-[:checked]:border-primary has-[:checked]:bg-primary/5 flex cursor-pointer items-center gap-2 rounded-lg border p-2 text-sm"
+            >
+              <input
+                type="radio"
+                name={`midia-escolha-${sufixo}`}
+                checked={midia === chave}
+                onChange={() => setMidia(chave)}
+                disabled={enviandoVideo}
+                className="size-4"
+              />
+              <Icone className="size-4" />
+              {rotulo}
+            </label>
+          ))}
         </div>
-        <div className="grid content-start gap-1.5">
-          <Label htmlFor={`imagem-${sufixo}`}>
-            Imagem {slide?.imagemUrl ? "(vazio mantém a atual)" : "(opcional se houver título)"}
-          </Label>
-          <input
-            ref={entrada}
-            id={`imagem-${sufixo}`}
-            name="imagem"
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className={FILE}
-            onChange={async (e) => {
-              const original = e.target.files?.[0]
-              if (!original) {
-                setPrevia(null)
-                return
-              }
-              setPreparando(true)
-              const reduzida = await reduzirImagem(original)
-              if (reduzida !== original && entrada.current) {
-                const dt = new DataTransfer()
-                dt.items.add(reduzida)
-                entrada.current.files = dt.files
-              }
-              setPrevia(URL.createObjectURL(reduzida))
-              setPreparando(false)
-            }}
-          />
+        {slide && (slide.videoUrl ? !ehVideo : ehVideo && slide.imagemUrl) && (
           <p className="text-muted-foreground text-xs">
-            Ideal: {orientacao === "vertical" ? "1080 × 1920" : "1920 × 1080"} px. Imagens
-            grandes são reduzidas antes do envio.
+            Ao salvar, {ehVideo ? "a imagem atual sai" : "o vídeo atual sai"} — o slide tem
+            imagem ou vídeo, não os dois.
           </p>
-          {slide?.imagemUrl && !previa && (
-            <label className="flex items-center gap-2 text-xs">
+        )}
+      </div>
+
+      {ehVideo ? (
+        <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+          <div
+            className={`flex items-center justify-center overflow-hidden rounded-md border bg-black text-white/70 ${
+              orientacao === "vertical" ? "aspect-[9/16] w-24 sm:w-full" : "aspect-video w-40 sm:w-full"
+            }`}
+          >
+            {videoMostrado ? (
+              <video
+                key={videoMostrado}
+                src={videoMostrado}
+                className="size-full object-contain"
+                muted
+                controls
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              <Film className="size-6" />
+            )}
+          </div>
+          <div className="grid content-start gap-1.5">
+            <Label htmlFor={`video-${sufixo}`}>
+              Vídeo {slide?.videoUrl ? "(vazio mantém o atual)" : ""}
+            </Label>
+            <input
+              id={`video-${sufixo}`}
+              type="file"
+              accept="video/mp4,video/webm"
+              className={FILE}
+              disabled={enviandoVideo}
+              onChange={(e) => {
+                const arquivo = e.target.files?.[0]
+                if (arquivo) void enviarVideo(arquivo)
+              }}
+            />
+            <p className="text-muted-foreground text-xs">
+              MP4 (H.264), até {mb(VIDEO_TAMANHO_MAX)} e {DURACAO_MAXIMA_VIDEO / 60} minutos. Ideal:{" "}
+              {orientacao === "vertical" ? "1080 × 1920" : "1920 × 1080"}. O envio começa ao
+              escolher o arquivo.
+            </p>
+            {envio.fase === "lendo" && (
+              <p className="flex items-center gap-1.5 text-xs">
+                <Loader2 className="size-3.5 animate-spin" /> Lendo o vídeo…
+              </p>
+            )}
+            {envio.fase === "enviando" && (
+              <p className="flex items-center gap-1.5 text-xs">
+                <Loader2 className="size-3.5 animate-spin" /> Enviando {envio.nome} ({mb(envio.tamanho)})… não
+                feche a página.
+              </p>
+            )}
+            {envio.fase === "erro" && <p className="text-destructive text-xs">{envio.erro}</p>}
+            {envio.fase === "pronto" && (
+              <p className="text-success-fg text-xs">
+                Vídeo enviado
+                {envio.duracao
+                  ? ` · ${rotuloDuracao(Math.ceil(envio.duracao))} de duração`
+                  : " · o navegador não leu a duração (confira se é MP4 H.264); vale o tempo informado ou o padrão"}
+                . Salve o slide para colocá-lo na TV.
+              </p>
+            )}
+            {envio.fase === "parado" && slide?.videoUrl && slide.videoDuracaoSegundos && (
+              <p className="text-muted-foreground text-xs">
+                Duração do vídeo: {rotuloDuracao(slide.videoDuracaoSegundos)}.
+              </p>
+            )}
+            <label className="mt-1 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                name="remover_imagem"
-                className="size-3.5"
-                checked={removerImagem}
-                onChange={(e) => setRemoverImagem(e.target.checked)}
+                name="video_som"
+                className="size-4"
+                defaultChecked={slide?.videoSom ?? false}
               />
-              Tirar a imagem (slide só com texto)
+              Tocar com som
             </label>
-          )}
+            <p className="text-muted-foreground text-xs">
+              Muitas TVs só deixam tocar com som depois de um clique ou OK no controle;
+              até lá, o vídeo passa mudo.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+          <div
+            className={`bg-muted text-muted-foreground flex items-center justify-center overflow-hidden rounded-md border ${
+              orientacao === "vertical" ? "aspect-[9/16] w-24 sm:w-full" : "aspect-video w-40 sm:w-full"
+            }`}
+          >
+            {mostrar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mostrar} alt="" className="size-full object-cover" />
+            ) : (
+              <ImageIcon className="size-6" />
+            )}
+          </div>
+          <div className="grid content-start gap-1.5">
+            <Label htmlFor={`imagem-${sufixo}`}>
+              Imagem {slide?.imagemUrl ? "(vazio mantém a atual)" : "(opcional se houver título)"}
+            </Label>
+            <input
+              ref={entrada}
+              id={`imagem-${sufixo}`}
+              name="imagem"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className={FILE}
+              onChange={async (e) => {
+                const original = e.target.files?.[0]
+                if (!original) {
+                  setPrevia(null)
+                  return
+                }
+                setPreparando(true)
+                const reduzida = await reduzirImagem(original)
+                if (reduzida !== original && entrada.current) {
+                  const dt = new DataTransfer()
+                  dt.items.add(reduzida)
+                  entrada.current.files = dt.files
+                }
+                setPrevia(URL.createObjectURL(reduzida))
+                setPreparando(false)
+              }}
+            />
+            <p className="text-muted-foreground text-xs">
+              Ideal: {orientacao === "vertical" ? "1080 × 1920" : "1920 × 1080"} px. Imagens
+              grandes são reduzidas antes do envio.
+            </p>
+            {slide?.imagemUrl && !previa && (
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  name="remover_imagem"
+                  className="size-3.5"
+                  checked={removerImagem}
+                  onChange={(e) => setRemoverImagem(e.target.checked)}
+                />
+                Tirar a imagem (slide só com texto)
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-1.5">
         <div className="flex items-baseline justify-between gap-2">
@@ -588,7 +823,7 @@ export function SlideForm({
       </div>
 
       <div className="grid gap-1.5">
-        <Label>Imagem na tela</Label>
+        <Label>{ehVideo ? "Vídeo na tela" : "Imagem na tela"}</Label>
         <div className="grid gap-2 sm:grid-cols-2">
           {AJUSTES.map((a) => (
             <label
@@ -603,8 +838,12 @@ export function SlideForm({
                 className="mt-0.5 size-4"
               />
               <span>
-                <span className="font-medium">{a.rotulo}</span>
-                <span className="text-muted-foreground block text-xs">{a.detalhe}</span>
+                <span className="font-medium">
+                  {ehVideo && a.chave === "conter" ? "Vídeo inteiro" : a.rotulo}
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  {ehVideo && a.chave === "conter" ? "Sem cortes, com o fundo da marca." : a.detalhe}
+                </span>
               </span>
             </label>
           ))}
@@ -619,10 +858,21 @@ export function SlideForm({
             name="duracao_segundos"
             type="number"
             min={DURACAO_MINIMA}
-            max={DURACAO_MAXIMA}
+            max={ehVideo ? DURACAO_MAXIMA_VIDEO : DURACAO_MAXIMA}
             defaultValue={slide?.duracaoSegundos ?? ""}
-            placeholder={`${duracaoPadrao} (padrão)`}
+            placeholder={
+              ehVideo
+                ? duracaoVideo
+                  ? `${duracaoVideo} (o vídeo)`
+                  : "o vídeo inteiro"
+                : `${duracaoPadrao} (padrão)`
+            }
           />
+          {ehVideo && (
+            <p className="text-muted-foreground text-xs">
+              Vazio: o vídeo inteiro. Mais que o vídeo: ele repete.
+            </p>
+          )}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor={`de-${sufixo}`}>Exibir a partir de</Label>
@@ -635,9 +885,19 @@ export function SlideForm({
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={pend || preparando} variant={slide ? "secondary" : "default"}>
-          {(pend || preparando) && <Loader2 className="animate-spin" />}
-          {preparando ? "Preparando a imagem…" : slide ? "Salvar slide" : "Adicionar slide"}
+        <Button
+          type="submit"
+          disabled={pend || preparando || (ehVideo && enviandoVideo)}
+          variant={slide ? "secondary" : "default"}
+        >
+          {(pend || preparando || (ehVideo && enviandoVideo)) && <Loader2 className="animate-spin" />}
+          {preparando
+            ? "Preparando a imagem…"
+            : ehVideo && enviandoVideo
+              ? "Enviando o vídeo…"
+              : slide
+                ? "Salvar slide"
+                : "Adicionar slide"}
         </Button>
       </div>
     </form>
@@ -724,7 +984,18 @@ export function LinhaSlide({
             orientacao === "vertical" ? "h-16 w-9" : "h-10 w-16"
           }`}
         >
-          {slide.imagemUrl ? (
+          {slide.videoUrl ? (
+            // Só os metadados: o navegador mostra um quadro do começo sem
+            // baixar o vídeo inteiro.
+            <video
+              src={`${slide.videoUrl}#t=0.5`}
+              className="size-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+              aria-hidden
+            />
+          ) : slide.imagemUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={slide.imagemUrl} alt="" className="size-full object-cover" />
           ) : (
@@ -739,8 +1010,14 @@ export function LinhaSlide({
             <Badge variant="outline" className={COR_SITUACAO[situacao]}>
               {ROTULO_SITUACAO_SLIDE[situacao]}
             </Badge>
+            {slide.videoUrl && (
+              <Badge variant="secondary" className="gap-1">
+                <Film className="size-3" />
+                Vídeo{slide.videoSom ? " com som" : ""}
+              </Badge>
+            )}
             <span className="tabular-nums">
-              {slide.duracaoSegundos ?? duracaoPadrao}s
+              {rotuloDuracao(duracaoDoSlide(slide, duracaoPadrao))}
             </span>
             {periodo && <span>{periodo}</span>}
           </div>

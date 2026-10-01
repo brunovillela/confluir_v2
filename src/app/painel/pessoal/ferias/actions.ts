@@ -22,7 +22,8 @@ async function exigirAcesso() {
 }
 
 function revalidar(periodoId?: string, funcionarioId?: string | null) {
-  revalidatePath("/painel/pessoal/ferias")
+  // "layout" alcança as subpáginas (período, página do funcionário).
+  revalidatePath("/painel/pessoal/ferias", "layout")
   if (periodoId) revalidatePath(`/painel/pessoal/ferias/${periodoId}`)
   revalidatePath("/painel/perfil/contracheques")
   if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
@@ -116,7 +117,13 @@ export async function excluirPeriodoAction(
   if (erro) return { erro }
 
   revalidar()
-  redirect("/painel/pessoal/ferias?excluido=1")
+  // Volta para onde a exclusão partiu (página do funcionário ou aba de
+  // períodos); só caminhos internos de férias — nada de redirecionar para fora.
+  const voltar = String(formData.get("voltar") ?? "")
+  const destino = /^\/painel\/pessoal\/ferias(\/funcionario\/[\w-]+|\?aba=periodos)?$/.test(voltar)
+    ? voltar
+    : "/painel/pessoal/ferias"
+  redirect(`${destino}${destino.includes("?") ? "&" : "?"}excluido=1`)
 }
 
 // ── Gozos ──────────────────────────────────────────────────────────────────

@@ -37,9 +37,15 @@ export type PeriodoFormDados = {
 export function PeriodoFeriasForm({
   funcionarios,
   periodo,
+  funcionarioPadrao,
+  inicioPadrao,
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   periodo?: PeriodoFormDados
+  /** Novo período aberto a partir da página do funcionário. */
+  funcionarioPadrao?: string | null
+  /** Sugestão de início do aquisitivo (dia seguinte ao último período). */
+  inicioPadrao?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(
     periodo ? atualizarPeriodoAction : criarPeriodoAction,
@@ -53,7 +59,9 @@ export function PeriodoFeriasForm({
   const erro = estado.erro ?? estadoExcluir.erro
   const voltar = periodo
     ? `/painel/pessoal/ferias/${periodo.id}`
-    : "/painel/pessoal/ferias"
+    : funcionarioPadrao
+      ? `/painel/pessoal/ferias/funcionario/${funcionarioPadrao}`
+      : "/painel/pessoal/ferias"
 
   return (
     <div className="grid gap-4">
@@ -90,7 +98,7 @@ export function PeriodoFeriasForm({
                   id="trabalhador_id"
                   name="trabalhador_id"
                   required
-                  defaultValue=""
+                  defaultValue={funcionarioPadrao ?? ""}
                   className={SELECT}
                 >
                   <option value="" disabled>
@@ -128,7 +136,7 @@ export function PeriodoFeriasForm({
                   name="aquisitivo_inicio"
                   type="date"
                   required
-                  defaultValue={periodo?.aquisitivo_inicio ?? ""}
+                  defaultValue={periodo?.aquisitivo_inicio ?? inicioPadrao ?? ""}
                 />
               </div>
               <div className="grid gap-1.5">

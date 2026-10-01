@@ -27,6 +27,7 @@ import { buscarPeriodoFerias, resumoPeriodo } from "@/lib/db/ferias"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
 
+import { ExcluirPeriodoBotao } from "../excluir-periodo"
 import { PeriodoFeriasForm } from "../periodo-form"
 import {
   AutorizarGozoBotao,
@@ -113,12 +114,24 @@ export default async function PeriodoFeriasPage({
             </p>
           </div>
           {!editandoPeriodo && (
-            <Button variant="outline" asChild>
-              <Link href={`/painel/pessoal/ferias/${id}?editar=periodo`}>
-                <Pencil />
-                Editar período
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {periodo.gozos.length === 0 && (
+                <ExcluirPeriodoBotao
+                  periodoId={id}
+                  voltarPara={
+                    periodo.trabalhador_id
+                      ? `/painel/pessoal/ferias/funcionario/${periodo.trabalhador_id}`
+                      : undefined
+                  }
+                />
+              )}
+              <Button variant="outline" asChild>
+                <Link href={`/painel/pessoal/ferias/${id}?editar=periodo`}>
+                  <Pencil />
+                  Editar período
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

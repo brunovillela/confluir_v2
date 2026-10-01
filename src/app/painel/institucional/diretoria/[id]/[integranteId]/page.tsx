@@ -57,6 +57,7 @@ export default async function DiretorPage({
     id: f.id,
     nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)",
     cnpj_cpf: f.cnpj_cpf,
+    razao: f.nome_razao ?? null,
     bloqueado: false,
   }))
 

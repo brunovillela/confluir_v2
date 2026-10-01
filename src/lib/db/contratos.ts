@@ -923,6 +923,7 @@ export type OpcoesContrato = {
     id: string
     nome: string
     cnpj_cpf: string | null
+    razao?: string | null
     bloqueado: boolean
   }[]
   departamentos: { id: string; nome: string }[]
@@ -946,6 +947,7 @@ export async function carregarOpcoesContrato(): Promise<OpcoesContrato> {
       id: f.id,
       nome: f.nome,
       cnpj_cpf: f.cnpj_cpf,
+      razao: f.nome_razao,
       bloqueado: f.bloqueado,
     })),
     departamentos,

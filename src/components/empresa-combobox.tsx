@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { Check, ChevronsUpDown, TriangleAlert, X } from "lucide-react"
 
+import { semAcento } from "@/lib/texto"
 import { cn } from "@/lib/utils"
 
 export type EmpresaOpcao = {
@@ -10,6 +11,8 @@ export type EmpresaOpcao = {
   nome: string
   cnpj_cpf: string | null
   bloqueado: boolean
+  /** Razão social, quando difere do nome exibido (nome fantasia) — também buscável. */
+  razao?: string | null
 }
 
 /**
@@ -46,18 +49,30 @@ export function EmpresaCombobox({
   )
   const areaRef = useRef<HTMLDivElement>(null)
 
+  // Nome fantasia, razão social (sem acento) e CNPJ/CPF — este comparado só
+  // pelos dígitos, com ou sem a máscara gravada no cadastro.
+  const indice = useMemo(
+    () =>
+      empresas.map((f) => ({
+        f,
+        texto: semAcento(`${f.nome} ${f.razao ?? ""}`),
+        digitos: (f.cnpj_cpf ?? "").replace(/\D/g, ""),
+      })),
+    [empresas]
+  )
   const filtrados = useMemo(() => {
-    const termo = busca.trim().toLocaleLowerCase("pt-BR")
+    const termo = semAcento(busca)
     const digitos = termo.replace(/\D/g, "")
     if (!termo) return empresas.slice(0, 50)
-    return empresas
+    return indice
       .filter(
-        (f) =>
-          f.nome.toLocaleLowerCase("pt-BR").includes(termo) ||
-          (digitos.length >= 3 && (f.cnpj_cpf ?? "").includes(digitos))
+        (i) =>
+          i.texto.includes(termo) ||
+          (digitos.length >= 3 && i.digitos.includes(digitos))
       )
+      .map((i) => i.f)
       .slice(0, 50)
-  }, [busca, empresas])
+  }, [busca, empresas, indice])
 
   return (
     <div
@@ -100,7 +115,7 @@ export function EmpresaCombobox({
               setAberto(true)
             }}
             onFocus={() => setAberto(true)}
-            placeholder="Busque por nome ou CNPJ/CPF"
+            placeholder="Busque por nome fantasia, razão social ou CNPJ/CPF"
             className="border-input bg-background text-foreground h-9 w-full rounded-md border px-3 pr-8 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <ChevronsUpDown className="text-muted-foreground pointer-events-none absolute top-2.5 right-2.5 size-4" />
@@ -136,9 +151,11 @@ export function EmpresaCombobox({
               >
                 <span className="min-w-0">
                   <span className="block truncate">{f.nome}</span>
-                  {f.cnpj_cpf && (
-                    <span className="text-muted-foreground block text-xs tabular-nums">
-                      {f.cnpj_cpf}
+                  {(f.cnpj_cpf || (f.razao && f.razao !== f.nome)) && (
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {[f.razao && f.razao !== f.nome ? f.razao : null, f.cnpj_cpf]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   )}
                 </span>
