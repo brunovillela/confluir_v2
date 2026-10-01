@@ -12,7 +12,9 @@ import {
   criarContrato,
   excluirCategoriaContrato,
   excluirContrato,
+  excluirOrdensContrato,
   gerarOrdensContrato,
+  receberDocumentoOrdemContrato,
 } from "@/lib/db/contratos"
 import { subirPdfCompras } from "@/lib/db/compras"
 import {
@@ -117,6 +119,7 @@ export async function gerarOrdensContratoAction(
     primeiroVencimento: texto(formData, "primeiro_vencimento"),
     quantidade: Number(texto(formData, "quantidade")) || 1,
     formaPagamento: forma,
+    aguardarDocumento: true,
     pagamento: (fornecedorId) =>
       lerPagamentoOrdemFutura(
         formData,
@@ -132,6 +135,58 @@ export async function gerarOrdensContratoAction(
     puladas: String(puladas ?? 0),
   })
   redirect(`/painel/compras/contratos/${id}?${params.toString()}`)
+}
+
+/** Nota da parcela recorrente: a ordem sai do contrato e vai para autorização. */
+export async function receberDocumentoOrdemAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const arquivo = formData.get("nota")
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { erro: "Anexe a nota (PDF ou imagem)." }
+  }
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor da nota inválido." }
+
+  const { erro, situacao } = await receberDocumentoOrdemContrato(contratoId, ordemId, {
+    arquivo,
+    valor,
+  })
+  if (erro) return { erro }
+  revalidar(contratoId)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  return {
+    ok:
+      situacao === "A pagar"
+        ? "Nota recebida — parcela fixa do contrato, seguiu direto para pagamento."
+        : "Nota recebida — a ordem seguiu para autorização.",
+  }
+}
+
+/** Exclusão em massa das ordens ainda não autorizadas do contrato. */
+export async function excluirOrdensContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  if (!contratoId) return { erro: "Contrato inválido." }
+  const ids = formData.getAll("ordem_ids").map(String)
+  const { erro, excluidas, recusadas } = await excluirOrdensContrato(contratoId, ids)
+  if (erro) return { erro }
+  revalidar(contratoId)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  return {
+    ok: `${excluidas} ordem(ns) excluída(s)${recusadas ? `; ${recusadas} não puderam (já autorizadas ou mudaram de situação)` : ""}.`,
+  }
 }
 
 /** Chaves Pix e contas do fornecedor, para a forma das ordens do contrato. */

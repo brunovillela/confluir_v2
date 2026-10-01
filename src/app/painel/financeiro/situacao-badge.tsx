@@ -7,6 +7,7 @@ const ESTILOS: Record<string, string> = {
   "A pagar": "border-info/40 text-info-fg",
   Processando: "border-warning/40 text-warning-fg",
   "Em autorização": "border-warning/40 text-warning-fg",
+  "Aguardando documento fiscal": "border-muted-foreground/40 text-muted-foreground",
   "Aguardando informações":
     "border-muted-foreground/40 text-muted-foreground",
   Cancelada: "border-destructive/40 text-destructive",

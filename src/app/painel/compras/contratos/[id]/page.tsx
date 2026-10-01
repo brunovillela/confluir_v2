@@ -38,12 +38,22 @@ import {
 import { hojeLocalISO } from "@/lib/compras-constantes"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { listarMinutas } from "@/lib/db/contratos-minutas"
+import {
+  SITUACAO_AGUARDANDO_DOCUMENTO,
+  SITUACOES_NAO_AUTORIZADAS,
+} from "@/lib/db/ordens-ciclo"
+import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { BotaoExcluirContrato, ContratoForm } from "../contrato-forms"
 import { GerarOrdensForm } from "../gerar-ordens-form"
+import {
+  ExclusaoOrdensBarra,
+  MarcarTodasOrdens,
+  ReceberDocumentoForm,
+} from "./ordens-contrato"
 
 export const metadata: Metadata = { title: "Contrato — Confluir" }
 
@@ -121,6 +131,20 @@ export default async function ContratoPage({
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
+  // Parcelas recorrentes que esperam a nota da competência (ficam no contrato).
+  const aguardandoDocumento = detalhe.ordens
+    .filter((o) => o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO)
+    .sort((a, b) => (a.vencimento ?? "").localeCompare(b.vencimento ?? ""))
+  // Exclusão em massa: só o que ainda não foi autorizado e é do próprio
+  // contrato (RPA e compra têm dono próprio).
+  const excluivel = (o: (typeof detalhe.ordens)[number]) =>
+    podeEditar &&
+    SITUACOES_NAO_AUTORIZADAS.includes(o.situacao ?? "") &&
+    o.tipo !== TIPO_ORDEM_RPA &&
+    !o.processo_compra_id &&
+    !o.data_pagamento
+  const temExcluivel = pagOrdens.linhas.some(excluivel)
+  const FORM_EXCLUSAO = "excluir-ordens-contrato"
   const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
 
   // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
@@ -450,6 +474,60 @@ export default async function ContratoPage({
         </GrupoColapsavel>
       )}
 
+      {aguardandoDocumento.length > 0 && (
+        <Card className="border-warning/40">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Aguardando documento fiscal
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {aguardandoDocumento.length}
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Parcelas recorrentes ficam aqui, no contrato, até a nota da competência chegar.
+              Com a nota, seguem para autorização — ou direto para pagamento, quando são a parcela
+              fixa do contrato. Se a nota veio com outro valor, corrija antes de enviar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Parcela</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  {podeEditar && <TableHead>Nota fiscal</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {aguardandoDocumento.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="whitespace-nowrap">{formatarData(o.vencimento)}</TableCell>
+                    <TableCell className="max-w-72">
+                      <Link
+                        href={`/painel/financeiro/ordens/${o.id}`}
+                        className="text-primary tabular-nums hover:underline"
+                      >
+                        {o.codigo ?? "(sem código)"}
+                      </Link>
+                      <span className="text-muted-foreground line-clamp-1 text-xs">{o.descricao}</span>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {formatarMoeda(o.valor)}
+                    </TableCell>
+                    {podeEditar && (
+                      <TableCell>
+                        <ReceberDocumentoForm contratoId={c.id} ordemId={o.id} valor={o.valor} />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Ordens de pagamento</CardTitle>
@@ -484,9 +562,19 @@ export default async function ContratoPage({
                 className="text-warning-fg"
               />
             </div>
+            {temExcluivel && (
+              <div className="mb-3">
+                <ExclusaoOrdensBarra formId={FORM_EXCLUSAO} contratoId={c.id} />
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
+                  {temExcluivel && (
+                    <TableHead className="w-8">
+                      <MarcarTodasOrdens formId={FORM_EXCLUSAO} />
+                    </TableHead>
+                  )}
                   <TableHead>Código</TableHead>
                   <TableHead>Descrição / compra</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -497,6 +585,20 @@ export default async function ContratoPage({
               <TableBody>
                 {pagOrdens.linhas.map((o) => (
                   <TableRow key={o.id}>
+                    {temExcluivel && (
+                      <TableCell>
+                        {excluivel(o) && (
+                          <input
+                            type="checkbox"
+                            name="ordem_ids"
+                            value={o.id}
+                            form={FORM_EXCLUSAO}
+                            aria-label={`Marcar a ordem ${o.codigo ?? ""} para excluir`}
+                            className="size-4 align-middle"
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Link
                         href={`/painel/financeiro/ordens/${o.id}`}

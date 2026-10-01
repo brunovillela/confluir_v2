@@ -34,6 +34,8 @@ export const SITUACOES_ABERTAS = [
  * estorno de hoje devolve a ordem para "Aguardando informações".
  */
 export const SITUACOES_ORDEM = [
+  // Parcela recorrente de contrato esperando a nota (fica no contrato).
+  "Aguardando documento fiscal",
   "Em autorização",
   "Aguardando informações",
   "A pagar",

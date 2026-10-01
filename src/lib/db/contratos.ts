@@ -1,6 +1,13 @@
 import "server-only"
 import { inserirOrdensVerificadasCompat } from "@/lib/db/ordens-verificacao"
-import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
+import {
+  camposAutorizacaoInicial,
+  motivoDispensaContrato,
+  registrarEvento,
+  SITUACAO_AGUARDANDO_DOCUMENTO,
+  SITUACOES_NAO_AUTORIZADAS,
+  usuarioDaTrilha,
+} from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
@@ -776,6 +783,12 @@ export type GerarOrdensParams = {
    * Pix, caixa ou boletos). Recebe o favorecido do contrato, que só se
    * conhece aqui; boletos vêm um por parcela, na ordem dos vencimentos.
    */
+  /**
+   * Parcelas RECORRENTES (mensal/anual) nascem "Aguardando documento fiscal"
+   * e só seguem para autorização quando a nota é anexada no contrato. Só
+   * contratos de fornecedor — ajuda institucional não tem nota.
+   */
+  aguardarDocumento?: boolean
   pagamento: (fornecedorId: string) => Promise<{
     detalhe?: DetalhePagamento
     boletos?: File[]
@@ -904,9 +917,14 @@ export async function gerarOrdensContrato(
     linha.sob_demanda !== true &&
     valorContrato !== null &&
     Math.abs(valorContrato - params.valorParcela) < 0.005
-  const autorizacao = camposAutorizacaoInicial(
-    ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
-  )
+  const aguardando = params.aguardarDocumento === true && params.periodicidade !== "unica"
+  // Esperando a nota, a ordem não entra na fila de autorização; a regra da
+  // parcela fixa (dispensa) é aplicada quando o documento chegar.
+  const autorizacao = aguardando
+    ? { situacao: SITUACAO_AGUARDANDO_DOCUMENTO }
+    : camposAutorizacaoInicial(
+        ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
+      )
   const registros = novos.map(({ venc, parcela }, i) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
@@ -938,7 +956,9 @@ export async function gerarOrdensContrato(
     (criadas ?? []).map((o) => String(o.id)),
     "criada",
     await usuarioDaTrilha(),
-    `Gerada a partir do contrato ${texto(linha.codigo) ?? objeto}.`
+    `Gerada a partir do contrato ${texto(linha.codigo) ?? objeto}.${
+      aguardando ? " Aguardando o documento fiscal da competência para seguir para autorização." : ""
+    }`
   )
   return { geradas: novos.length, puladas }
 }
@@ -1152,4 +1172,130 @@ export async function excluirCategoriaContrato(
     .eq("emp_proprietaria_id", empId)
   if (error) return { erro: `Falha ao excluir a categoria: ${error.message}` }
   return {}
+}
+
+// ── Parcelas aguardando documento fiscal ─────────────────────────────────────
+
+/**
+ * Recebe a nota (documento fiscal) de uma parcela recorrente do contrato e a
+ * manda para a autorização. A regra da parcela fixa vale aqui: valor igual ao
+ * do contrato (que não é sob demanda) segue "A pagar" com a dispensa
+ * registrada; valor diferente (informado pela nota) passa pela alçada.
+ */
+export async function receberDocumentoOrdemContrato(
+  contratoId: string,
+  ordemId: string,
+  dados: { arquivo: File; valor: number | null }
+): Promise<{ erro?: string; situacao?: string }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const [{ data: c }, { data: o }] = await Promise.all([
+    admin
+      .from("contratos")
+      .select("id, codigo, valor, sob_demanda")
+      .eq("id", contratoId)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle(),
+    admin
+      .from("ordens_pagamento")
+      .select("id, situacao, valor_inicial_cobranca, contrato_id")
+      .eq("id", ordemId)
+      .eq("emp_proprietaria_id", empId)
+      .not("excluido", "is", true)
+      .maybeSingle(),
+  ])
+  if (!c) return { erro: "Contrato não encontrado." }
+  if (!o || texto(o.contrato_id) !== contratoId) return { erro: "Ordem não encontrada neste contrato." }
+  if (o.situacao !== SITUACAO_AGUARDANDO_DOCUMENTO) {
+    return { erro: `Esta ordem já está "${o.situacao}" — o documento fiscal já foi recebido.` }
+  }
+  const valorAnterior = Number(o.valor_inicial_cobranca ?? 0)
+  const valor = dados.valor ?? valorAnterior
+  if (!(valor > 0)) return { erro: "Informe o valor da nota." }
+
+  const up = await subirComprovanteCompras(`notas/contratos/${contratoId}`, dados.arquivo)
+  if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o documento fiscal." }
+
+  const valorContrato = c.valor === null || c.valor === undefined ? null : Number(c.valor)
+  const ordinariaFixa =
+    c.sob_demanda !== true && valorContrato !== null && Math.abs(valorContrato - valor) < 0.005
+  const dispensa = ordinariaFixa ? motivoDispensaContrato(texto(c.codigo)) : null
+  const autorizacao = camposAutorizacaoInicial(dispensa)
+
+  // A situação no filtro garante que duas pessoas não recebam a mesma nota.
+  const { data: atualizadas, error } = await admin
+    .from("ordens_pagamento")
+    .update({
+      ...autorizacao,
+      arquivo_nota_fiscal: up.caminho,
+      valor_inicial_cobranca: valor,
+    })
+    .eq("id", ordemId)
+    .eq("situacao", SITUACAO_AGUARDANDO_DOCUMENTO)
+    .select("id")
+  if (error || !(atualizadas ?? []).length) {
+    await admin.storage.from("compras").remove([up.caminho])
+    return { erro: error ? `Não foi possível registrar a nota: ${error.message}` : "A ordem mudou enquanto você enviava — recarregue a página." }
+  }
+
+  const usuario = await usuarioDaTrilha()
+  await registrarEvento(
+    ordemId,
+    "documento_fiscal",
+    usuario,
+    dispensa
+      ? "Nota da competência recebida no contrato."
+      : "Nota da competência recebida no contrato — seguiu para autorização.",
+    {
+      arquivo_nota_fiscal: up.caminho,
+      ...(Math.abs(valor - valorAnterior) >= 0.005 ? { valor_antes: valorAnterior, valor } : {}),
+    }
+  )
+  if (dispensa) await registrarEvento(ordemId, "autorizacao_dispensada", usuario, dispensa)
+  return { situacao: autorizacao.situacao }
+}
+
+/**
+ * Exclui (marca `excluido`) ordens do contrato que ainda NÃO foram
+ * autorizadas. Ordens de RPA e de compra têm dono próprio e ficam de fora;
+ * autorizadas ou pagas se resolvem no Financeiro (cancelamento).
+ */
+export async function excluirOrdensContrato(
+  contratoId: string,
+  ordemIds: string[]
+): Promise<{ erro?: string; excluidas?: number; recusadas?: number }> {
+  const ids = [...new Set(ordemIds.filter(Boolean))]
+  if (ids.length === 0) return { erro: "Marque as ordens a excluir." }
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, tipo, processo_compra_id, data_pagamento")
+    .eq("contrato_id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .in("id", ids)
+  if (error) return { erro: `Falha ao carregar as ordens: ${error.message}` }
+  const podem = (data ?? [])
+    .filter(
+      (o) =>
+        SITUACOES_NAO_AUTORIZADAS.includes(String(o.situacao)) &&
+        o.tipo !== TIPO_ORDEM_RPA &&
+        !o.processo_compra_id &&
+        !o.data_pagamento
+    )
+    .map((o) => String(o.id))
+  if (podem.length === 0) {
+    return { erro: "Nenhuma das ordens marcadas pode ser excluída — só as ainda não autorizadas." }
+  }
+  const { data: feitas, error: erroUpd } = await admin
+    .from("ordens_pagamento")
+    .update({ excluido: true })
+    .in("id", podem)
+    .in("situacao", SITUACOES_NAO_AUTORIZADAS)
+    .select("id")
+  if (erroUpd) return { erro: `Não foi possível excluir: ${erroUpd.message}` }
+  const excluidasIds = (feitas ?? []).map((o) => String(o.id))
+  await registrarEvento(excluidasIds, "excluida", await usuarioDaTrilha(), "Excluída pelo contrato (não autorizada).")
+  return { excluidas: excluidasIds.length, recusadas: ids.length - excluidasIds.length }
 }

@@ -26,6 +26,18 @@ import { tenantAtual } from "@/lib/tenant"
 export const SITUACAO_EM_AUTORIZACAO = "Em autorização"
 export const SITUACAO_A_PAGAR = "A pagar"
 export const SITUACAO_AGUARDANDO = "Aguardando informações"
+/**
+ * Parcela RECORRENTE de contrato: fica no contrato até o fornecedor mandar a
+ * nota da competência; com o documento, segue para a autorização (ou nasce
+ * "A pagar", quando é a parcela fixa já aprovada no contrato).
+ */
+export const SITUACAO_AGUARDANDO_DOCUMENTO = "Aguardando documento fiscal"
+/** Ainda não autorizadas — podem ser excluídas pelo contrato. */
+export const SITUACOES_NAO_AUTORIZADAS = [
+  SITUACAO_AGUARDANDO_DOCUMENTO,
+  SITUACAO_EM_AUTORIZACAO,
+  SITUACAO_AGUARDANDO,
+]
 /** Só estas podem receber o registro de pagamento. "Processando" é legado. */
 export const SITUACOES_PAGAVEIS = [SITUACAO_A_PAGAR, "Processando"]
 /** Encerradas: não se corrige nem se cancela. */
@@ -83,6 +95,8 @@ export type TipoEvento =
   | "cancelada"
   | "estornada"
   | "estorno_corrigido"
+  | "documento_fiscal"
+  | "excluida"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
@@ -97,6 +111,8 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   cancelada: "Cancelada",
   estornada: "Pagamento estornado",
   estorno_corrigido: "Dados de pagamento corrigidos após o estorno — reenviada para autorização",
+  documento_fiscal: "Documento fiscal recebido",
+  excluida: "Excluída",
 }
 
 /**
