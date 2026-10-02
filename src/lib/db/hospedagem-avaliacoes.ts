@@ -30,21 +30,13 @@ export const AVISO_SQL_AVALIACOES =
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** Antes de olhar estadias, quantos dias para trás do início ler cupons. */
-const JANELA_CHECKIN_DIAS = 60
-
-function diasAntes(iso: string, dias: number): string {
-  const d = new Date(`${iso}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() - dias)
-  return d.toISOString().slice(0, 10)
-}
-
 // ── Pendências: quem precisa avaliar ─────────────────────────────────────────
 
 /**
  * Abre a pendência de toda estadia CONCLUÍDA ainda sem avaliação: o hotel
  * marcou presença (compareceu; na demanda garantida, presenca_em) e o
- * check-out já passou. Só estadias com check-out a partir do lançamento.
+ * check-out já passou. Só cupons SOLICITADOS NO CONFLUIR (os do Bubble não)
+ * a partir de INICIO_AVALIACOES.
  * `filiadoIds` restringe à pessoa (o portal chama antes de conferir a trava).
  */
 export async function gerarPendencias(
@@ -58,7 +50,8 @@ export async function gerarPendencias(
   if (!hotelIds.length) return { criadas: 0 }
   if (opcoes.filiadoIds && !opcoes.filiadoIds.length) return { criadas: 0 }
 
-  const desde = diasAntes(INICIO_AVALIACOES, JANELA_CHECKIN_DIAS)
+  // Só cupons pedidos no Confluir (sem bubble_id) desde o lançamento.
+  const desde = `${INICIO_AVALIACOES}T00:00:00-03:00`
   let cupons: Record<string, unknown>[]
   try {
     cupons = await lerEmLotes((de, ate) => {
@@ -66,7 +59,8 @@ export async function gerarPendencias(
         .from("hospedagem_cupom")
         .select("id, hotel_id, filiado_id, check_in, check_out, reserva_garantida, compareceu, presenca_em, cancelado, servico_id")
         .in("hotel_id", hotelIds)
-        .gte("check_in", desde)
+        .is("bubble_id", null)
+        .gte("created_at", desde)
         .not("cancelado", "is", true)
       if (opcoes.filiadoIds) q = q.in("filiado_id", opcoes.filiadoIds)
       return q.order("id").range(de, ate)
@@ -98,7 +92,7 @@ export async function gerarPendencias(
             : null,
     }))
     .filter((x): x is { c: Record<string, unknown>; checkOut: string } =>
-      !!x.checkOut && x.checkOut >= INICIO_AVALIACOES && x.checkOut < hoje
+      !!x.checkOut && x.checkOut < hoje
     )
   if (!candidatos.length) return { criadas: 0 }
 

@@ -6,7 +6,11 @@
  * quem avaliou).
  */
 
-/** Estadias com check-out a partir daqui pedem avaliação (as antigas, não). */
+/**
+ * Só pedem avaliação os cupons SOLICITADOS NO CONFLUIR (sem bubble_id) a
+ * partir desta data — os do Bubble nunca, e os 7 de teste/transição criados
+ * aqui entre julho e setembro também não (decisão de 02/10/2026).
+ */
 export const INICIO_AVALIACOES = "2026-10-02"
 
 /** Dias depois do convite para o lembrete. */
