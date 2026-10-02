@@ -16,7 +16,7 @@ Tudo parte do contrato. Abra-o para ver, em ordem:
    valor, a vigência e o fornecedor. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
 3. **RPA — pagamento a autônomo** — quando o fornecedor é pessoa física, os
    recibos dele e o botão **Emitir RPA** (mais abaixo; serviço pontual sem
-   contrato vira um **RPA avulso**);
+   contrato entra como **compra de serviço**, e o RPA nasce dela);
 4. **Aditivos**, **Gerar ordens de pagamento** e a lista de **Ordens de
    pagamento** do contrato — as parcelas e as ordens dos RPAs.
 
@@ -114,10 +114,18 @@ duas maneiras, nas abas de **Todos os RPAs → Novo RPA**:
 - **De um contrato** — a forma de pagamento do contrato com o autônomo: o
   prestador é o fornecedor do contrato, e a ordem leva o departamento e o
   centro de custo dele. Também se emite na página do contrato, em **Emitir RPA**.
-- **Avulso** — serviço pontual, sem contrato. Você escolhe o **prestador** entre
-  os fornecedores com CPF no cadastro (não achou? cadastre-o em Fornecedores,
-  com o CPF) e informa o **departamento** e o **centro de custo** da despesa —
-  o que o contrato daria.
+- **De uma compra de serviço** — serviço pontual, sem contrato. Ele começa em
+  **Aquisição → Nova compra**, com o tipo **Prestação de serviço** e o
+  fornecedor pessoa física (CPF). Do RPA, a compra dá o **prestador**, o
+  **serviço**, o **departamento**, o **centro de custo** e o **valor** — falta
+  só o pagamento. Ver [Comprar](/painel/ajuda/compras/comprar).
+
+<Aviso tipo="nota" titulo="O valor da compra é o líquido do RPA">
+  Na compra de serviço, o RPA abre com o valor da compra como **líquido**
+  (conta inversa). Se você trocar para a base **bruta** ou mudar o valor, a
+  prévia avisa: ao emitir, o valor da compra passa a ser o **líquido do
+  recibo** — o que de fato será pago. Não existe mais o RPA avulso.
+</Aviso>
 
 O PDF é baixado, **assinado pelo prestador** e anexado de volta na página do
 RPA — o recibo assinado vale como comprovante fiscal do serviço prestado.
@@ -146,10 +154,10 @@ RPA — o recibo assinado vale como comprovante fiscal do serviço prestado.
   <Passo titulo="Emita — a ordem nasce junto">
     **Emitir RPA e gerar a ordem** dá ao recibo um número sequencial e cria a
     **ordem de pagamento do valor líquido**, *Em autorização*, para o
-    prestador, com o departamento e o centro de custo (do contrato ou os que
-    você escolheu no avulso). Ela aparece no Financeiro (tipo *RPA*) — e, no
-    RPA de contrato, nas ordens do contrato — e segue a alçada como qualquer
-    ordem.
+    prestador, com o departamento e o centro de custo (do contrato ou da
+    compra). Ela aparece no Financeiro (tipo *RPA*) — no RPA de contrato, nas
+    ordens do contrato; no de compra, como a ordem do fornecimento — e segue a
+    alçada como qualquer ordem.
   </Passo>
   <Passo titulo="Colha a assinatura e anexe">
     O PDF sai com os valores discriminados (bruto, retenções, líquido) e o

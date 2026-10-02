@@ -4,7 +4,6 @@ import { startTransition, useMemo, useState } from "react"
 import { useActionState } from "react"
 import { FileCheck2, Loader2, Trash2, Upload } from "lucide-react"
 
-import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,50 +48,51 @@ export type ContratoDoForm = {
   fornecedorNome: string | null
 }
 
-/** O que o contrato daria e, no avulso, quem emite escolhe. */
-export type OpcoesAvulso = {
-  prestadores: EmpresaOpcao[]
-  departamentos: { id: string; nome: string }[]
-  centros: { id: string; nome: string; departamentoId: string | null }[]
+/** O fornecimento da compra de serviço que o RPA vai pagar. */
+export type CompraDoForm = {
+  fornecimentoId: string
+  processoId: string
+  processoCodigo: string | null
+  servico: string | null
+  valor: number
+  fornecedorId: string
+  fornecedorNome: string | null
 }
 
 /**
  * Emissão do RPA — de um contrato (o prestador é o fornecedor do contrato) ou
- * AVULSO (escolhe o prestador pessoa física, o departamento e o centro de
- * custo). Nos dois, o recibo gera a ordem de pagamento do líquido, com a
- * forma e o "para onde" completos.
+ * de uma COMPRA DE SERVIÇO (prestador, serviço, departamento e centro de
+ * custo vêm da compra; o valor dela é o líquido do recibo). Nos dois, o
+ * recibo gera a ordem de pagamento do líquido, com a forma e o "para onde"
+ * completos.
  */
 export function RpaNovoForm({
   contrato,
-  avulso,
+  compra,
   hoje,
   config,
   caixas,
 }: {
   contrato: ContratoDoForm | null
-  avulso: OpcoesAvulso | null
+  compra: CompraDoForm | null
   hoje: string
   config: ConfigRpa
   caixas: CaixaOpcao[]
 }) {
   const [estado, action, pend] = useActionState(emitirRpa, {})
-  const [base, setBase] = useState<"bruto" | "liquido">("bruto")
-  const [valorTxt, setValorTxt] = useState("")
+  // Na compra, o valor dela é o líquido: começa pela conta inversa.
+  const [base, setBase] = useState<"bruto" | "liquido">(compra ? "liquido" : "bruto")
+  const [valorTxt, setValorTxt] = useState(
+    compra ? compra.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""
+  )
   const [dependentes, setDependentes] = useState("0")
   const [reterInss, setReterInss] = useState(true)
   const [reterIrrf, setReterIrrf] = useState(true)
   const [reterIss, setReterIss] = useState(true)
   const [issTxt, setIssTxt] = useState(String(config.iss_aliquota_padrao))
-  const [prestadorId, setPrestadorId] = useState("")
-  const [depto, setDepto] = useState("")
   const [forma, setForma] = useState("")
 
-  const fornecedorId = contrato ? contrato.fornecedorId : prestadorId
-  const centrosVisiveis = avulso
-    ? depto
-      ? avulso.centros.filter((c) => c.departamentoId === depto || !c.departamentoId)
-      : avulso.centros
-    : []
+  const fornecedorId = contrato?.fornecedorId ?? compra?.fornecedorId ?? ""
 
   const previa = useMemo(() => {
     const valor = lerValor(valorTxt)
@@ -121,10 +121,12 @@ export function RpaNovoForm({
       }}
       className="grid gap-4"
     >
-      {contrato ? (
-        <input type="hidden" name="contrato_id" value={contrato.id} />
-      ) : (
-        <input type="hidden" name="modo" value="avulso" />
+      {contrato && <input type="hidden" name="contrato_id" value={contrato.id} />}
+      {compra && (
+        <>
+          <input type="hidden" name="modo" value="compra" />
+          <input type="hidden" name="fornecimento_id" value={compra.fornecimentoId} />
+        </>
       )}
       {estado.erro && (
         <Alert variant="destructive">
@@ -146,70 +148,24 @@ export function RpaNovoForm({
             <dd className="font-medium">{contrato.fornecedorNome ?? "—"}</dd>
           </div>
         </dl>
-      ) : avulso ? (
-        <fieldset className="grid gap-3 rounded-lg border p-3">
-          <legend className="px-1 text-sm font-medium">Prestador e despesa</legend>
-          <div className="grid gap-1.5">
-            <Label>Prestador (pessoa física) *</Label>
-            {avulso.prestadores.length === 0 ? (
-              <p className="text-destructive text-xs">
-                Nenhum fornecedor com CPF no cadastro. Cadastre o autônomo em Fornecedores,
-                com o CPF, e volte aqui.
-              </p>
-            ) : (
-              <EmpresaCombobox
-                empresas={avulso.prestadores}
-                name="fornecedor_id"
-                onChange={(id) => setPrestadorId(id ?? "")}
-              />
-            )}
-            <p className="text-muted-foreground text-xs">
-              Aparecem os fornecedores com CPF no cadastro. Não achou? Cadastre-o em Fornecedores.
-            </p>
+      ) : compra ? (
+        <dl className="bg-muted/40 grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-muted-foreground text-xs">Compra de serviço</dt>
+            <dd className="font-medium tabular-nums">{compra.processoCodigo ?? "(sem código)"}</dd>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="departamento_id">Departamento *</Label>
-              <select
-                id="departamento_id"
-                name="departamento_id"
-                required
-                value={depto}
-                onChange={(e) => setDepto(e.target.value)}
-                className={`${SELECT_CLS} w-full`}
-              >
-                <option value="" disabled>
-                  Escolha o departamento…
-                </option>
-                {avulso.departamentos.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="centro_custo_id">Centro de custo (despesa) *</Label>
-              <select
-                key={depto}
-                id="centro_custo_id"
-                name="centro_custo_id"
-                required
-                defaultValue=""
-                className={`${SELECT_CLS} w-full truncate`}
-              >
-                <option value="" disabled>
-                  {centrosVisiveis.length ? "Escolha o centro de custo…" : "Nenhum centro deste departamento"}
-                </option>
-                {centrosVisiveis.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Prestador (fornecedor da compra)</dt>
+            <dd className="font-medium">{compra.fornecedorNome ?? "—"}</dd>
           </div>
-        </fieldset>
+          <div>
+            <dt className="text-muted-foreground text-xs">Valor da compra</dt>
+            <dd className="font-medium tabular-nums">{moeda(compra.valor)}</dd>
+          </div>
+          <p className="text-muted-foreground text-xs sm:col-span-3">
+            Departamento e centro de custo vêm da compra.
+          </p>
+        </dl>
       ) : null}
 
       <div className="grid gap-1.5">
@@ -219,7 +175,7 @@ export function RpaNovoForm({
           name="descricao_servico"
           rows={2}
           required
-          defaultValue={contrato?.objeto ?? ""}
+          defaultValue={contrato?.objeto ?? compra?.servico ?? ""}
           placeholder="Ex.: Manutenção elétrica da sede — troca do quadro de distribuição"
         />
       </div>
@@ -346,6 +302,18 @@ export function RpaNovoForm({
             valor={moeda(previa.valorLiquido)}
             forte
           />
+          {compra && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              {Math.abs(previa.valorLiquido - compra.valor) < 0.005 ? (
+                <>O líquido é o valor da compra.</>
+              ) : (
+                <>
+                  O valor da compra passa de <strong>{moeda(compra.valor)}</strong> para{" "}
+                  <strong>{moeda(previa.valorLiquido)}</strong> — o líquido do RPA.
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 
@@ -402,8 +370,8 @@ export function RpaNovoForm({
         )}
         <p className="text-muted-foreground text-xs">
           Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong> para o prestador,
-          Em autorização{contrato ? " e ligada ao contrato" : ""} — ela segue a alçada como
-          qualquer ordem.
+          Em autorização{contrato ? " e ligada ao contrato" : " e ligada à compra"} — ela segue a
+          alçada como qualquer ordem.
         </p>
       </fieldset>
 

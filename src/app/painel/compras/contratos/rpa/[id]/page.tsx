@@ -29,17 +29,21 @@ export default async function RpaDetalhePage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
+  // Quem opera a compra de serviço também abre (e cuida d)o RPA dela.
+  const permissoesCompra = ["aquisicoes_compras_edicao", "aquisicoes_comprador", "aquisicoes_compra_direta"]
   const sessao = await requirePermissao("aquisicoes_contratos", [
     "aquisicoes_contratos_edicao",
+    ...permissoesCompra,
   ])
-  const podeEditar = podeAcessar(
-    sessao.permissoes,
-    "aquisicoes_contratos_edicao"
-  )
   const { id } = await params
   const { salvo } = await searchParams
   const rpa = await buscarRpa(id)
   if (!rpa) notFound()
+  const operaCompra = permissoesCompra.some((p) => podeAcessar(sessao.permissoes, p))
+  const veContratos = podeAcessar(sessao.permissoes, "aquisicoes_contratos", ["aquisicoes_contratos_edicao"])
+  if (!veContratos && !(rpa.compraId && operaCompra)) notFound()
+  const podeEditar =
+    podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao") || Boolean(rpa.compraId && operaCompra)
 
   const retencoes = (rpa.inss ?? 0) + (rpa.irrf ?? 0) + (rpa.iss ?? 0)
   const urlAssinado = await urlArquivoCompras(rpa.arquivoAssinado)
@@ -88,18 +92,24 @@ export default async function RpaDetalhePage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Contrato e pagamento</CardTitle>
+          <CardTitle className="text-base">Origem e pagamento</CardTitle>
           <CardDescription>
             {rpa.contratoId
               ? "O RPA é uma forma de pagamento do contrato: a ordem do valor líquido nasce junto com o recibo."
-              : "RPA avulso, sem contrato: a ordem do valor líquido nasce junto com o recibo."}
+              : rpa.compraId
+                ? "RPA da compra de serviço: a ordem do valor líquido é a ordem da compra, e o recibo assinado vale como a nota dela."
+                : "RPA anterior aos contratos e às compras de serviço."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
           <div className="grid grid-cols-[9rem_1fr] gap-2">
-            <span className="text-muted-foreground">Contrato</span>
+            <span className="text-muted-foreground">{rpa.compraId ? "Compra" : "Contrato"}</span>
             <span>
-              {rpa.contratoId ? (
+              {rpa.compraId ? (
+                <Link href={`/painel/compras/${rpa.compraId}`} className="text-primary tabular-nums hover:underline">
+                  {rpa.compraCodigo ?? "(sem código)"}
+                </Link>
+              ) : rpa.contratoId ? (
                 <Link
                   href={`/painel/compras/contratos/${rpa.contratoId}`}
                   className="text-primary tabular-nums hover:underline"
@@ -108,7 +118,7 @@ export default async function RpaDetalhePage({
                   {rpa.contratoObjeto ? ` — ${rpa.contratoObjeto}` : ""}
                 </Link>
               ) : (
-                <span className="text-muted-foreground">Avulso (sem contrato)</span>
+                <span className="text-muted-foreground">Sem contrato (anterior)</span>
               )}
             </span>
           </div>

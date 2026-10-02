@@ -1,6 +1,5 @@
 import "server-only"
 
-import { listarFornecedores } from "@/lib/db/compras"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import {
   normalizarConfigRpa,
@@ -12,7 +11,8 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * Aquisição › Contratos › RPA (Recibo de Pagamento a Autônomo) — leitura.
  * Escrita nas actions da rota. SQL: supabase/compras-rpa.sql,
- * contratos-rpa.sql (RPA de contrato) e rpa-avulso.sql (recibo assinado).
+ * contratos-rpa.sql (RPA de contrato), rpa-avulso.sql (recibo assinado) e
+ * rpa-compra-servico.sql (RPA de compra de serviço).
  */
 
 export type RpaLinha = {
@@ -28,10 +28,14 @@ export type RpaLinha = {
   valor_liquido: number | null
   criadoPorNome: string | null
   created_at: string
-  /** Contrato a que pertence (nulo = avulso, ou anterior a 29/09/2026). */
+  /** Contrato a que pertence (nulo = de compra, ou anterior a 29/09/2026). */
   contratoId: string | null
   contratoCodigo: string | null
   contratoObjeto: string | null
+  /** Compra de serviço que o originou (supabase/rpa-compra-servico.sql). */
+  compraId: string | null
+  compraCodigo: string | null
+  fornecimentoId: string | null
   /** Ordem de pagamento gerada na emissão. */
   ordemId: string | null
   ordemCodigo: string | null
@@ -61,24 +65,29 @@ export const AVISO_SQL_RPA_CONTRATO =
 type Vinculos = {
   contratos: Map<string, { codigo: string | null; objeto: string | null }>
   ordens: Map<string, { codigo: string | null; situacao: string | null }>
+  compras: Map<string, { codigo: string | null }>
 }
 
 /** Código/objeto dos contratos e código/situação das ordens dos RPAs. */
 async function vinculosDosRpas(
-  linhas: { contrato_id?: unknown; ordem_pagamento_id?: unknown }[]
+  linhas: { contrato_id?: unknown; ordem_pagamento_id?: unknown; processo_compra_id?: unknown }[]
 ): Promise<Vinculos> {
   const admin = await createAdminClient()
-  const ids = (k: "contrato_id" | "ordem_pagamento_id") => [
+  const ids = (k: "contrato_id" | "ordem_pagamento_id" | "processo_compra_id") => [
     ...new Set(linhas.map((l) => texto(l[k])).filter((v): v is string => !!v)),
   ]
   const contratoIds = ids("contrato_id")
   const ordemIds = ids("ordem_pagamento_id")
-  const [{ data: cs }, { data: os }] = await Promise.all([
+  const compraIds = ids("processo_compra_id")
+  const [{ data: cs }, { data: os }, { data: ps }] = await Promise.all([
     contratoIds.length
       ? admin.from("contratos").select("id, codigo, objeto").in("id", contratoIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     ordemIds.length
       ? admin.from("ordens_pagamento").select("id, codigo, situacao").in("id", ordemIds)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    compraIds.length
+      ? admin.from("compras_solicitacoes").select("id, codigo").in("id", compraIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ])
   return {
@@ -88,6 +97,7 @@ async function vinculosDosRpas(
     ordens: new Map(
       (os ?? []).map((o) => [String(o.id), { codigo: texto(o.codigo), situacao: texto(o.situacao) }])
     ),
+    compras: new Map((ps ?? []).map((p) => [String(p.id), { codigo: texto(p.codigo) }])),
   }
 }
 
@@ -95,11 +105,16 @@ function camposDeVinculo(r: Record<string, unknown>, v: Vinculos) {
   const contratoId = texto(r.contrato_id)
   const ordemId = texto(r.ordem_pagamento_id)
   const contrato = contratoId ? v.contratos.get(contratoId) : undefined
+  const compraId = texto(r.processo_compra_id)
   const ordem = ordemId ? v.ordens.get(ordemId) : undefined
   return {
     contratoId,
     contratoCodigo: contrato?.codigo ?? null,
     contratoObjeto: contrato?.objeto ?? null,
+    // Colunas de supabase/rpa-compra-servico.sql — sem ele, vêm vazias.
+    compraId,
+    compraCodigo: compraId ? (v.compras.get(compraId)?.codigo ?? null) : null,
+    fornecimentoId: texto(r.fornecimento_id),
     ordemId: ordem ? ordemId : null,
     ordemCodigo: ordem?.codigo ?? null,
     ordemSituacao: ordem?.situacao ?? null,
@@ -355,56 +370,145 @@ export async function contratosParaRpa(): Promise<ContratoDoRpa[]> {
     )
 }
 
-// ── O prestador do RPA avulso ────────────────────────────────────────────────
+// ── A compra de serviço do RPA ───────────────────────────────────────────────
 
-export type PrestadorRpa = {
-  id: string
-  nome: string
-  nome_razao: string | null
-  cnpj_cpf: string | null
-  bloqueado: boolean
-}
+export const AVISO_SQL_RPA_COMPRA =
+  "Rode supabase/rpa-compra-servico.sql no Supabase para emitir RPA de compra de serviço."
 
 const temCpf = (doc: string | null) => (doc ?? "").replace(/\D/g, "").length === 11
 
 /**
- * Prestadores possíveis do RPA AVULSO: fornecedores pessoa física — decididos
- * pelo número do documento (11 dígitos = CPF), não pela marcação do legado.
+ * O fornecimento de uma compra de serviço, com o que o RPA aproveita: o
+ * prestador, o serviço, a classificação da despesa e o valor (que vira o
+ * líquido do recibo). `impedimento` diz por que não dá para emitir.
  */
-export async function prestadoresParaRpa(): Promise<PrestadorRpa[]> {
-  return (await listarFornecedores())
-    .filter((f) => temCpf(f.cnpj_cpf))
-    .map((f) => ({
-      id: f.id,
-      nome: f.nome,
-      nome_razao: f.nome_razao,
-      cnpj_cpf: f.cnpj_cpf,
-      bloqueado: f.bloqueado,
-    }))
+export type CompraDoRpa = {
+  fornecimentoId: string
+  processoId: string
+  processoCodigo: string | null
+  servico: string | null
+  observacao: string | null
+  departamentoId: string | null
+  centroCustoId: string | null
+  solicitanteId: string | null
+  valor: number | null
+  fornecedorId: string | null
+  fornecedorNome: string | null
+  fornecedorDocumento: string | null
+  impedimento: string | null
 }
 
-/** Um prestador do tenant, para conferir a escolha do RPA avulso. */
-export async function prestadorDoRpa(
-  id: string
-): Promise<(PrestadorRpa & { pessoaFisica: boolean }) | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+async function lerComprasDoRpa(filtro: { fornecimentoId?: string }): Promise<CompraDoRpa[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  let consulta = admin
+    .from("compras_fornecimentos")
+    .select("id, processo_id, fornecedor_id, valor, ordem_pagamento_id")
+    .eq("emp_proprietaria_id", emp)
+  consulta = filtro.fornecimentoId
+    ? consulta.eq("id", filtro.fornecimentoId)
+    : consulta.is("ordem_pagamento_id", null)
+  const { data: fs, error } = await consulta
+  if (error) throw new Error(`Falha ao ler fornecimentos: ${error.message}`)
+  const processoIds = [...new Set((fs ?? []).map((f) => texto(f.processo_id)).filter((v): v is string => !!v))]
+  if (!processoIds.length) return []
+  const procs: Record<string, unknown>[] = []
+  for (let i = 0; i < processoIds.length; i += 200) {
+    const { data } = await admin
+      .from("compras_solicitacoes")
+      .select(
+        "id, codigo, bubble_id, cancelado, solicitacao_e_produto, solicitacao_produto, solicitacao_observacao, solicitacao_departamento_id, solicitacao_centro_custo_id, solicitante_id"
+      )
+      .in("id", processoIds.slice(i, i + 200))
+      .eq("emp_proprietaria_id", emp)
+    procs.push(...(data ?? []))
+  }
+  const porProcesso = new Map(procs.map((p) => [String(p.id), p]))
+  const fornecedorIds = [...new Set((fs ?? []).map((f) => texto(f.fornecedor_id)).filter((v): v is string => !!v))]
+  const empresas = new Map<string, Record<string, unknown>>()
+  for (let i = 0; i < fornecedorIds.length; i += 200) {
+    const { data } = await admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado")
+      .in("id", fornecedorIds.slice(i, i + 200))
+    for (const e of data ?? []) empresas.set(String(e.id), e)
+  }
+
+  const saida: CompraDoRpa[] = []
+  for (const f of fs ?? []) {
+    const p = porProcesso.get(String(f.processo_id))
+    if (!p) continue
+    const fornecedorId = texto(f.fornecedor_id)
+    const e = fornecedorId ? empresas.get(fornecedorId) : undefined
+    const documento = texto(e?.cnpj_cpf)
+    const nome = nomeDaEmpresa(e)
+    const impedimento =
+      p.solicitacao_e_produto !== false
+        ? "O RPA só vale para compra de prestação de serviço — esta compra é de bem/produto."
+        : p.cancelado === true
+          ? "A compra está cancelada."
+          : p.bubble_id
+            ? "Compra migrada do Bubble: o pagamento dela seguiu por lá."
+            : f.ordem_pagamento_id
+              ? "Este fornecimento já tem ordem de pagamento."
+              : !fornecedorId
+                ? "O fornecimento não tem fornecedor."
+                : !temCpf(documento)
+                  ? `${nome ?? "O fornecedor"} não tem CPF no cadastro — RPA é só para autônomo (pessoa física).`
+                  : e?.fornecedor_bloqueado === true || e?.bloqueado === true
+                    ? `${nome ?? "O fornecedor"} está bloqueado como fornecedor.`
+                    : null
+    saida.push({
+      fornecimentoId: String(f.id),
+      processoId: String(p.id),
+      processoCodigo: texto(p.codigo),
+      servico: texto(p.solicitacao_produto),
+      observacao: texto(p.solicitacao_observacao),
+      departamentoId: texto(p.solicitacao_departamento_id),
+      centroCustoId: texto(p.solicitacao_centro_custo_id),
+      solicitanteId: texto(p.solicitante_id),
+      valor: f.valor == null ? null : Number(f.valor),
+      fornecedorId,
+      fornecedorNome: nome,
+      fornecedorDocumento: documento,
+      impedimento,
+    })
+  }
+  return saida
+}
+
+export async function compraDoRpa(fornecimentoId: string): Promise<CompraDoRpa | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(fornecimentoId)) return null
+  return (await lerComprasDoRpa({ fornecimentoId }))[0] ?? null
+}
+
+/** Compras de serviço com prestador pessoa física aguardando o RPA. */
+export async function comprasParaRpa(): Promise<CompraDoRpa[]> {
+  return (await lerComprasDoRpa({}))
+    .filter((c) => !c.impedimento)
+    .sort((a, b) => (b.processoCodigo ?? "").localeCompare(a.processoCodigo ?? "", "pt-BR"))
+}
+
+/**
+ * O fornecedor pode receber por RPA? (pessoa física pelo CPF e não
+ * bloqueado). Devolve o motivo quando não pode.
+ */
+export async function impedimentoDoPrestador(fornecedorId: string): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(fornecedorId)) return "Escolha o fornecedor."
   const admin = await createAdminClient()
   const { data: e } = await admin
     .from("empresa")
-    .select("id, nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado")
-    .eq("id", id)
+    .select("nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado")
+    .eq("id", fornecedorId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
-  if (!e) return null
-  const doc = texto(e.cnpj_cpf)
-  return {
-    id: String(e.id),
-    nome: nomeDaEmpresa(e) ?? "(sem nome)",
-    nome_razao: texto(e.nome_razao),
-    cnpj_cpf: doc,
-    bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
-    pessoaFisica: temCpf(doc),
+  if (!e) return "Fornecedor não encontrado."
+  const nome = nomeDaEmpresa(e) ?? "O fornecedor"
+  if (!temCpf(texto(e.cnpj_cpf))) {
+    return `${nome} não tem CPF no cadastro — RPA é só para autônomo (pessoa física). Corrija o documento em Fornecedores ou desligue "Pagar por RPA".`
   }
+  if (e.fornecedor_bloqueado === true || e.bloqueado === true) return `${nome} está bloqueado como fornecedor.`
+  return null
 }
 
 /** Próximo número sequencial de RPA do tenant. */
@@ -417,4 +521,23 @@ export async function proximoNumeroRpa(): Promise<number> {
     .order("numero", { ascending: false })
     .limit(1)
   return ((data?.[0]?.numero as number | null) ?? 0) + 1
+}
+
+/** RPAs que pagam estes fornecimentos (fornecimento → RPA). Antes do SQL, vazio. */
+export async function rpasDosFornecimentos(
+  fornecimentoIds: string[]
+): Promise<Map<string, { id: string; numero: number | null }>> {
+  const mapa = new Map<string, { id: string; numero: number | null }>()
+  if (!fornecimentoIds.length) return mapa
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_rpa")
+    .select("id, numero, fornecimento_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("fornecimento_id", fornecimentoIds)
+  if (error) return mapa
+  for (const r of data ?? []) {
+    mapa.set(String(r.fornecimento_id), { id: String(r.id), numero: (r.numero as number | null) ?? null })
+  }
+  return mapa
 }

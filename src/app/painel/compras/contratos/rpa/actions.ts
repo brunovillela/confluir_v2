@@ -5,15 +5,11 @@ import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { requirePermissao } from "@/lib/auth"
+import { requirePermissao, type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { esquemaAusente } from "@/lib/db/comum"
-import {
-  gerarCodigoProcesso,
-  listarCentrosCustoParaCompra,
-  listarDepartamentos,
-  subirComprovanteCompras,
-} from "@/lib/db/compras"
+import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
+import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import {
   meiosPagamentoFornecedor,
   type ContaFornecedor,
@@ -22,11 +18,12 @@ import {
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import {
   AVISO_SQL_RPA_ASSINATURA,
+  AVISO_SQL_RPA_COMPRA,
   AVISO_SQL_RPA_CONTRATO,
   buscarRpa,
+  compraDoRpa,
   contratoDoRpa,
   obterConfigRpa,
-  prestadorDoRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
@@ -39,15 +36,23 @@ import {
   type OpcoesRpa,
 } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { podeAcessar } from "@/lib/permissoes"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
- * Aquisição › Contratos › RPA — escrita. Emissão exige a permissão de EDIÇÃO de
- * contratos; a lista/consulta usa a de visualização (nas páginas).
+ * Aquisição › Contratos › RPA — escrita. O RPA nasce de um CONTRATO (exige a
+ * edição de contratos) ou de uma COMPRA DE SERVIÇO (vale também quem opera a
+ * compra). A lista/consulta usa a de visualização (nas páginas).
  */
 
+const PERMISSOES_COMPRA = ["aquisicoes_compras_edicao", "aquisicoes_comprador", "aquisicoes_compra_direta"]
+
 async function exigirEdicao() {
-  return requirePermissao("aquisicoes_contratos_edicao")
+  return requirePermissao("aquisicoes_contratos_edicao", PERMISSOES_COMPRA)
+}
+
+function editaContratos(sessao: SessaoPainel): boolean {
+  return podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
 }
 
 function txt(fd: FormData, campo: string): string | null {
@@ -89,6 +94,8 @@ type OrigemRpa = {
   fornecedorId: string
   departamentoId: string | null
   centroCustoId: string | null
+  /** RPA de compra de serviço: o fornecimento que ele paga. */
+  compra?: { processoId: string; fornecimentoId: string; codigo: string | null }
 }
 
 /**
@@ -117,44 +124,43 @@ async function origemDoContrato(
 }
 
 /**
- * RPA AVULSO: sem contrato. O prestador é escolhido entre os fornecedores
- * pessoa física (CPF) e quem emite informa o departamento e o centro de custo
- * que o contrato daria.
+ * RPA de COMPRA DE SERVIÇO: o prestador é o fornecedor do fornecimento
+ * (pessoa física) e a ordem leva o departamento e o centro de custo da
+ * compra. Quem opera a compra emite sem precisar da permissão de contratos —
+ * desde que a compra esteja no seu escopo de departamentos.
  */
-async function origemAvulsa(
-  fd: FormData
+async function origemDaCompra(
+  fd: FormData,
+  sessao: SessaoPainel
 ): Promise<{ origem?: OrigemRpa; erro?: string }> {
-  const prestador = await prestadorDoRpa(txt(fd, "fornecedor_id") ?? "")
-  if (!prestador) return { erro: "Escolha o prestador do RPA." }
-  if (!prestador.pessoaFisica) {
-    return {
-      erro: `${prestador.nome} não tem CPF no cadastro — RPA é só para autônomo (pessoa física). Corrija o documento em Fornecedores.`,
+  const compra = await compraDoRpa(txt(fd, "fornecimento_id") ?? "")
+  if (!compra) return { erro: "Compra não encontrada — abra o RPA pela página da compra." }
+  if (compra.impedimento) return { erro: compra.impedimento }
+  if (
+    !podeAcessar(sessao.permissoes, "aquisicoes_comprador") &&
+    !podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
+  ) {
+    const escopo = await escopoComprasDoUsuario(sessao.usuario.id)
+    if (!compraNoEscopo(escopo, { departamentoId: compra.departamentoId, solicitanteId: compra.solicitanteId })) {
+      return { erro: "Esta compra é de um departamento fora do seu acesso." }
     }
   }
-  if (prestador.bloqueado) {
-    return { erro: `${prestador.nome} está bloqueado como fornecedor.` }
-  }
-  const departamentoId = txt(fd, "departamento_id")
-  const centroCustoId = txt(fd, "centro_custo_id")
-  if (!departamentoId) return { erro: "Escolha o departamento da despesa." }
-  if (!centroCustoId) return { erro: "Escolha o centro de custo da despesa." }
-  const [departamentos, centros] = await Promise.all([
-    listarDepartamentos(),
-    listarCentrosCustoParaCompra(),
-  ])
-  if (!departamentos.some((d) => d.id === departamentoId)) {
-    return { erro: "Departamento inválido." }
-  }
-  if (!centros.some((c) => c.id === centroCustoId)) {
-    return { erro: "Centro de custo inválido." }
+  if (!compra.fornecedorId || !compra.departamentoId || !compra.centroCustoId) {
+    return { erro: "A compra está sem departamento ou centro de custo — corrija antes de emitir o RPA." }
   }
   return {
-    origem: { contratoId: null, fornecedorId: prestador.id, departamentoId, centroCustoId },
+    origem: {
+      contratoId: null,
+      fornecedorId: compra.fornecedorId,
+      departamentoId: compra.departamentoId,
+      centroCustoId: compra.centroCustoId,
+      compra: { processoId: compra.processoId, fornecimentoId: compra.fornecimentoId, codigo: compra.processoCodigo },
+    },
   }
 }
 
 /**
- * Emite o RPA — de um contrato ou avulso — e, junto com o recibo, a ordem de
+ * Emite o RPA — de um contrato ou de uma compra de serviço — e, junto com o recibo, a ordem de
  * pagamento do valor LÍQUIDO, Em autorização, com a forma de pagamento e o
  * "para onde" completos (chave/conta do prestador, código Pix, boleto ou
  * conta de caixa). Se a ordem falhar, o RPA é desfeito.
@@ -167,9 +173,12 @@ export async function emitirRpa(
   fd: FormData
 ): Promise<EstadoForm> {
   const sessao = await exigirEdicao()
-  const avulso = txt(fd, "modo") === "avulso"
-  const { origem, erro: erroOrigem } = avulso
-    ? await origemAvulsa(fd)
+  const daCompra = txt(fd, "modo") === "compra"
+  if (!daCompra && !editaContratos(sessao)) {
+    return { erro: "Emitir RPA de contrato exige a permissão de edição de contratos." }
+  }
+  const { origem, erro: erroOrigem } = daCompra
+    ? await origemDaCompra(fd, sessao)
     : await origemDoContrato(fd)
   if (!origem) return { erro: erroOrigem ?? "Dados do RPA inválidos." }
 
@@ -250,6 +259,9 @@ export async function emitirRpa(
         valor_liquido: r.valorLiquido,
         observacoes: txt(fd, "observacoes"),
         criado_por: sessao.usuario.id,
+        ...(origem.compra
+          ? { processo_compra_id: origem.compra.processoId, fornecimento_id: origem.compra.fornecimentoId }
+          : {}),
       })
       .select("id")
       .single()
@@ -259,7 +271,7 @@ export async function emitirRpa(
     } else {
       if (esquemaAusente(error)) {
         await apagarBoleto()
-        return { erro: AVISO_SQL_RPA_CONTRATO }
+        return { erro: origem.compra ? AVISO_SQL_RPA_COMPRA : AVISO_SQL_RPA_CONTRATO }
       }
       ultimoErro = error?.message ?? ""
     }
@@ -282,6 +294,7 @@ export async function emitirRpa(
       departamento_id: origem.departamentoId,
       centro_custo_despesa_id: origem.centroCustoId,
       contrato_id: origem.contratoId,
+      processo_compra_id: origem.compra?.processoId ?? null,
       ...detalhe,
       excluido: false,
       emp_proprietaria_id: emp,
@@ -289,23 +302,60 @@ export async function emitirRpa(
   const vinculo = ordem
     ? await admin.from("compras_rpa").update({ ordem_pagamento_id: ordem.id }).eq("id", rpaId)
     : null
-  if (!ordem || vinculo?.error) {
+  // Na compra, a ordem do líquido é a ordem do fornecimento — e o valor da
+  // compra passa a ser o líquido do RPA, seja ele de base bruta ou líquida.
+  const fornecimento =
+    ordem && !vinculo?.error && origem.compra
+      ? await admin
+          .from("compras_fornecimentos")
+          .update({
+            ordem_pagamento_id: ordem.id,
+            valor: r.valorLiquido,
+            forma_pagamento: forma,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", origem.compra.fornecimentoId)
+          .is("ordem_pagamento_id", null)
+          .select("id")
+      : null
+  const fornecimentoFalhou = fornecimento !== null && Boolean(fornecimento.error || !fornecimento.data?.length)
+  if (!ordem || vinculo?.error || fornecimentoFalhou) {
     if (ordem) await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
     await admin.from("compras_rpa").delete().eq("id", rpaId)
     await apagarBoleto()
-    const motivo = erroOrdem?.message ?? vinculo?.error?.message ?? "?"
+    const motivo =
+      erroOrdem?.message ??
+      vinculo?.error?.message ??
+      fornecimento?.error?.message ??
+      "o fornecimento já recebeu outra ordem — recarregue a compra"
     return { erro: `O RPA não foi emitido: a ordem de pagamento falhou (${motivo}).` }
   }
   await registrarEvento(
     ordem.id,
     "criada",
     await usuarioDaTrilha(),
-    `Gerada pelo RPA nº ${rpaNumero}${origem.contratoId ? " (de contrato)" : " (avulso)"}.`
+    `Gerada pelo RPA nº ${rpaNumero}${origem.compra ? ` (da compra ${origem.compra.codigo ?? "de serviço"})` : " (de contrato)"}.`
   )
 
+  if (origem.compra) {
+    await alinharValorDaCompra(origem.compra.processoId)
+    revalidatePath(`/painel/compras/${origem.compra.processoId}`)
+    revalidatePath("/painel/compras")
+  }
   revalidatePath("/painel/compras/contratos/rpa")
   if (origem.contratoId) revalidatePath(`/painel/compras/contratos/${origem.contratoId}`)
   redirect(`/painel/compras/contratos/rpa/${rpaId}?salvo=1`)
+}
+
+/** O valor da compra é a soma dos fornecimentos — o do RPA virou o líquido. */
+async function alinharValorDaCompra(processoId: string) {
+  const admin = await createAdminClient()
+  const { data } = await admin.from("compras_fornecimentos").select("valor").eq("processo_id", processoId)
+  const total = (data ?? []).reduce((soma, f) => soma + (Number(f.valor) || 0), 0)
+  await admin
+    .from("compras_solicitacoes")
+    .update({ compra_valor: Math.round(total * 100) / 100 })
+    .eq("id", processoId)
 }
 
 /**
@@ -334,6 +384,16 @@ export async function excluirRpa(
   }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  // RPA de compra: o fornecimento volta a ficar sem ordem (à espera de um
+  // novo RPA ou da ordem comum) — solto antes, porque ele referencia a ordem.
+  const soltarFornecimento = rpa.ordemId && rpa.fornecimentoId
+  if (soltarFornecimento) {
+    await admin
+      .from("compras_fornecimentos")
+      .update({ ordem_pagamento_id: null, updated_at: new Date().toISOString() })
+      .eq("id", rpa.fornecimentoId!)
+      .eq("ordem_pagamento_id", rpa.ordemId!)
+  }
   // A ordem primeiro, e só se continua Em autorização (alguém pode tê-la
   // autorizado agora): assim não sobra ordem órfã de RPA apagado.
   if (rpa.ordemId) {
@@ -344,6 +404,13 @@ export async function excluirRpa(
       .eq("emp_proprietaria_id", emp)
       .eq("situacao", "Em autorização")
       .select("id")
+    if ((erroOrdem || !apagadas?.length) && soltarFornecimento) {
+      await admin
+        .from("compras_fornecimentos")
+        .update({ ordem_pagamento_id: rpa.ordemId })
+        .eq("id", rpa.fornecimentoId!)
+        .is("ordem_pagamento_id", null)
+    }
     if (erroOrdem) return { erro: `Não foi possível excluir a ordem do RPA: ${erroOrdem.message}` }
     if (!apagadas?.length) {
       return { erro: "A ordem de pagamento deste RPA mudou de situação — recarregue a página." }
@@ -356,6 +423,10 @@ export async function excluirRpa(
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   revalidatePath("/painel/compras/contratos/rpa")
+  if (rpa.compraId) {
+    revalidatePath(`/painel/compras/${rpa.compraId}`)
+    if (txt(fd, "voltar") !== "lista") redirect(`/painel/compras/${rpa.compraId}?salvo=1`)
+  }
   if (rpa.contratoId) {
     revalidatePath(`/painel/compras/contratos/${rpa.contratoId}`)
     if (txt(fd, "voltar") !== "lista") {
@@ -404,6 +475,24 @@ export async function anexarRpaAssinado(
   // O anterior (substituído) sai do bucket.
   if (rpa.arquivoAssinado && !/^(https?:)?\/\//.test(rpa.arquivoAssinado)) {
     await admin.storage.from("compras").remove([rpa.arquivoAssinado])
+  }
+  // Na compra, o recibo assinado é o documento fiscal: entra como a nota do
+  // fornecimento e da ordem, onde estiver vazia ou for o recibo anterior.
+  if (rpa.fornecimentoId) {
+    const anterior = rpa.arquivoAssinado
+    const alvos = [
+      { tabela: "compras_fornecimentos", coluna: "nota_fiscal_url", id: rpa.fornecimentoId },
+      { tabela: "ordens_pagamento", coluna: "arquivo_nota_fiscal", id: rpa.ordemId },
+    ]
+    for (const a of alvos) {
+      if (!a.id) continue
+      await admin
+        .from(a.tabela)
+        .update({ [a.coluna]: up.caminho })
+        .eq("id", a.id)
+        .or(anterior ? `${a.coluna}.is.null,${a.coluna}.eq."${anterior}"` : `${a.coluna}.is.null`)
+    }
+    if (rpa.compraId) revalidatePath(`/painel/compras/${rpa.compraId}`)
   }
   revalidatePath(`/painel/compras/contratos/rpa/${id}`)
   revalidatePath("/painel/compras/contratos/rpa")

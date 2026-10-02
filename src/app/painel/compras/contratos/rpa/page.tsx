@@ -62,7 +62,7 @@ export default async function RpaPage({
             RPA — Recibo de Pagamento a Autônomo
           </h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Recibo do prestador autônomo (pessoa física) — de um contrato com ele ou avulso.
+            Recibo do prestador autônomo (pessoa física) — de um contrato com ele ou de uma compra de serviço.
             Gera a ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
             serviço. {linhas.length} recibo{linhas.length === 1 ? "" : "s"}.
           </p>
@@ -136,7 +136,14 @@ export default async function RpaPage({
                   </TableCell>
                   <TableCell className="max-w-72">
                     <span className="block truncate">{r.fornecedorNome ?? "—"}</span>
-                    {r.contratoId ? (
+                    {r.compraId ? (
+                      <Link
+                        href={`/painel/compras/${r.compraId}`}
+                        className="text-muted-foreground block truncate text-xs tabular-nums hover:underline"
+                      >
+                        Compra {r.compraCodigo ?? "(sem código)"}
+                      </Link>
+                    ) : r.contratoId ? (
                       <Link
                         href={`/painel/compras/contratos/${r.contratoId}`}
                         className="text-muted-foreground block truncate text-xs tabular-nums hover:underline"
@@ -145,7 +152,7 @@ export default async function RpaPage({
                         {r.contratoObjeto ? ` — ${r.contratoObjeto}` : ""}
                       </Link>
                     ) : (
-                      <span className="text-muted-foreground block text-xs">Avulso (sem contrato)</span>
+                      <span className="text-muted-foreground block text-xs">Sem contrato (anterior)</span>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden whitespace-nowrap sm:table-cell">

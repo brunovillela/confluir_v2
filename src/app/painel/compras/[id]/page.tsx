@@ -25,6 +25,7 @@ import {
 } from "@/lib/db/compras"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
 import { podeAcessar } from "@/lib/permissoes"
 
 import {
@@ -194,6 +195,21 @@ export default async function ProcessoCompraPage({
         : null,
     }))
   )
+  // Compra de serviço: o RPA paga o fornecimento de autônomo (pessoa física).
+  // Os sem ordem mostram "Emitir RPA" quando o prestador permite; os pagos
+  // por RPA, o link do recibo.
+  const servico = processo.e_produto === false && !processo.legado
+  const rpaPorFornecimento = servico
+    ? await rpasDosFornecimentos(fornecimentosComUrl.map((f) => f.id))
+    : new Map<string, { id: string; numero: number | null }>()
+  const emitirRpa = new Set<string>()
+  if (servico && podeAjustar && !processo.cancelado) {
+    for (const f of fornecimentosComUrl) {
+      if (f.ordem) continue
+      const c = await compraDoRpa(f.id)
+      if (c && !c.impedimento) emitirRpa.add(f.id)
+    }
+  }
   const avulsasComUrl = await Promise.all(
     processo.ordensAvulsas.map(async (o) => ({
       ...o,
@@ -556,7 +572,29 @@ export default async function ProcessoCompraPage({
                     Nota fiscal
                   </a>
                 )}
+                {rpaPorFornecimento.get(f.id) && (
+                  <Link
+                    href={`/painel/compras/contratos/rpa/${rpaPorFornecimento.get(f.id)!.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    RPA nº {rpaPorFornecimento.get(f.id)!.numero ?? "—"}
+                  </Link>
+                )}
               </p>
+              {emitirRpa.has(f.id) && (
+                <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                  <span className="text-muted-foreground">
+                    Prestador autônomo: pague por <strong>RPA</strong> — os dados vêm desta compra,
+                    falta só o pagamento. O valor da compra passa a ser o líquido do recibo.
+                  </span>
+                  <Button asChild size="sm">
+                    <Link href={`/painel/compras/contratos/rpa/novo?fornecimento=${f.id}`}>
+                      <FileText />
+                      Emitir RPA
+                    </Link>
+                  </Button>
+                </div>
+              )}
               {podeAjustar && (
                 <div className="mt-2">
                   <TrocarNotaFiscal

@@ -15,6 +15,7 @@ import {
   subirComprovanteCompras,
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { impedimentoDoPrestador } from "@/lib/db/compras-rpa"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
@@ -101,6 +102,30 @@ export async function criarCompra(
   if (valor === null || valor <= 0) return { erro: "Informe o valor da compra." }
   const dataCompra = dataISO(texto(formData, "data_compra"))
   if (!dataCompra) return { erro: "Informe a data da compra." }
+
+  // Serviço de autônomo pago por RPA: sem nota e sem pagamento aqui — o
+  // recibo (com as retenções) gera a ordem do líquido, que é o valor da compra.
+  if (tipo === "servico" && texto(formData, "por_rpa") === "on") {
+    const impedimento = await impedimentoDoPrestador(fornecedorId)
+    if (impedimento) return { erro: impedimento }
+    const { id, fornecimentoId, erro } = await criarCompraDireta({
+      ...base,
+      fornecedor_id: fornecedorId,
+      valor,
+      forma_pagamento: null,
+      data_compra: dataCompra,
+      vencimento: null,
+      comprador_id: sessao.usuario.id,
+      nota_fiscal_url: null,
+      ja_recebido: entregaNoAto,
+      recebedor_id: sessao.usuario.id,
+      por_rpa: true,
+    })
+    if (erro || !id || !fornecimentoId) return { erro: erro ?? "Falha ao registrar." }
+    revalidatePath("/painel/compras")
+    redirect(`/painel/compras/contratos/rpa/novo?fornecimento=${fornecimentoId}`)
+  }
+
   const formaBruta = texto(formData, "forma_pagamento")
   const forma = (FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(formaBruta)
     ? (formaBruta as FormaPagamentoCompras)

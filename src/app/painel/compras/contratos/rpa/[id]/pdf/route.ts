@@ -13,7 +13,13 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await requirePermissao("aquisicoes_contratos", ["aquisicoes_contratos_edicao"])
+  // Quem opera compras também baixa o recibo (o de compra de serviço é dele).
+  await requirePermissao("aquisicoes_contratos", [
+    "aquisicoes_contratos_edicao",
+    "aquisicoes_compras_edicao",
+    "aquisicoes_comprador",
+    "aquisicoes_compra_direta",
+  ])
   const { id } = await params
 
   const [rpa, organizacao, { sedes }] = await Promise.all([

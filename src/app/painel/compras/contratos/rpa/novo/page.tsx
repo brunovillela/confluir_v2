@@ -16,13 +16,15 @@ import { Label } from "@/components/ui/label"
 import { requirePermissao } from "@/lib/auth"
 import { hojeLocalISO } from "@/lib/compras-constantes"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
-import { listarCentrosCustoParaCompra, listarDepartamentos } from "@/lib/db/compras"
 import {
+  compraDoRpa,
+  comprasParaRpa,
   contratoDoRpa,
   contratosParaRpa,
   obterConfigRpa,
-  prestadoresParaRpa,
 } from "@/lib/db/compras-rpa"
+import { formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { cn } from "@/lib/utils"
 
 import { RpaNovoForm } from "../rpa-forms"
@@ -33,24 +35,33 @@ const SELECT_CLS =
   "border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 /**
- * O RPA nasce de um contrato (o prestador é o fornecedor dele) ou AVULSO
- * (`?modo=avulso`: escolhe o prestador pessoa física e a classificação da
- * despesa). Com `?contrato=`, abre o recibo do contrato; sem, pede o contrato
- * (só os de prestador pessoa física).
+ * O RPA nasce de um CONTRATO (o prestador é o fornecedor dele) ou de uma
+ * COMPRA DE SERVIÇO (`?fornecimento=`: prestador, serviço, departamento,
+ * centro de custo e valor vêm da compra; falta só o pagamento). Sem nenhum
+ * dos dois, pede o contrato ou lista as compras de serviço aguardando RPA.
+ * O RPA avulso saiu em 02/10/2026: a porta de entrada dele é a compra.
  */
 export default async function NovoRpaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ contrato?: string; modo?: string }>
+  searchParams: Promise<{ contrato?: string; fornecimento?: string; modo?: string }>
 }) {
-  await requirePermissao("aquisicoes_contratos_edicao")
-  const { contrato: contratoId, modo } = await searchParams
-  const avulso = modo === "avulso" && !contratoId
-  const contrato = !avulso && contratoId ? await contratoDoRpa(contratoId) : null
+  const sessao = await requirePermissao("aquisicoes_contratos_edicao", [
+    "aquisicoes_compras_edicao",
+    "aquisicoes_comprador",
+    "aquisicoes_compra_direta",
+  ])
+  const editaContratos = podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
+  const { contrato: contratoId, fornecimento: fornecimentoId, modo } = await searchParams
+  const compra = fornecimentoId ? await compraDoRpa(fornecimentoId) : null
+  const abaCompra = Boolean(fornecimentoId) || modo === "compra" || !editaContratos
+  const contrato = !abaCompra && contratoId ? await contratoDoRpa(contratoId) : null
 
-  const voltar = contrato
-    ? { href: `/painel/compras/contratos/${contrato.id}`, rotulo: contrato.codigo ?? "Contrato" }
-    : { href: "/painel/compras/contratos/rpa", rotulo: "RPAs" }
+  const voltar = compra
+    ? { href: `/painel/compras/${compra.processoId}`, rotulo: compra.processoCodigo ?? "Compra" }
+    : contrato
+      ? { href: `/painel/compras/contratos/${contrato.id}`, rotulo: contrato.codigo ?? "Contrato" }
+      : { href: "/painel/compras/contratos/rpa", rotulo: "RPAs" }
 
   return (
     <>
@@ -63,17 +74,43 @@ export default async function NovoRpaPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Novo RPA</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Recibo de pagamento a autônomo (pessoa física): de um contrato com ele ou avulso. O
-          recibo gera a ordem de pagamento do valor líquido.
+          Recibo de pagamento a autônomo (pessoa física): de um contrato com ele ou de uma compra
+          de serviço. O recibo gera a ordem de pagamento do valor líquido.
         </p>
       </div>
 
-      {!contrato && <EscolherModo avulso={avulso} />}
+      {!contrato && !compra && editaContratos && <EscolherModo daCompra={abaCompra} />}
 
-      {avulso ? (
-        <CartaoRecibo>
-          <FormAvulso />
-        </CartaoRecibo>
+      {fornecimentoId ? (
+        !compra ? (
+          <Alert variant="warning" className="max-w-3xl">
+            <AlertDescription>Compra não encontrada.</AlertDescription>
+          </Alert>
+        ) : compra.impedimento || compra.valor === null || !compra.fornecedorId ? (
+          <Alert variant="warning" className="max-w-3xl">
+            <AlertDescription>{compra.impedimento ?? "A compra está sem valor ou fornecedor."}</AlertDescription>
+          </Alert>
+        ) : (
+          <CartaoRecibo>
+            <RpaNovoForm
+              contrato={null}
+              compra={{
+                fornecimentoId: compra.fornecimentoId,
+                processoId: compra.processoId,
+                processoCodigo: compra.processoCodigo,
+                servico: compra.servico,
+                valor: compra.valor,
+                fornecedorId: compra.fornecedorId,
+                fornecedorNome: compra.fornecedorNome,
+              }}
+              hoje={hojeLocalISO()}
+              config={await obterConfigRpa()}
+              caixas={await contasAbertasParaCompras()}
+            />
+          </CartaoRecibo>
+        )
+      ) : abaCompra ? (
+        <EscolherCompra compras={await comprasParaRpa()} />
       ) : !contrato ? (
         <EscolherContrato contratos={await contratosParaRpa()} naoAchado={Boolean(contratoId)} />
       ) : !contrato.fornecedorId || contrato.fornecedorPessoaJuridica ? (
@@ -94,7 +131,7 @@ export default async function NovoRpaPage({
               fornecedorId: contrato.fornecedorId,
               fornecedorNome: contrato.fornecedorNome,
             }}
-            avulso={null}
+            compra={null}
             hoje={hojeLocalISO()}
             config={await obterConfigRpa()}
             caixas={await contasAbertasParaCompras()}
@@ -105,11 +142,11 @@ export default async function NovoRpaPage({
   )
 }
 
-/** "De um contrato" × "Avulso" — links, para o modo ficar no endereço. */
-function EscolherModo({ avulso }: { avulso: boolean }) {
+/** "De um contrato" × "De uma compra de serviço" — links, para o modo ficar no endereço. */
+function EscolherModo({ daCompra }: { daCompra: boolean }) {
   const opcoes = [
-    { href: "/painel/compras/contratos/rpa/novo", rotulo: "De um contrato", ativo: !avulso },
-    { href: "/painel/compras/contratos/rpa/novo?modo=avulso", rotulo: "Avulso", ativo: avulso },
+    { href: "/painel/compras/contratos/rpa/novo", rotulo: "De um contrato", ativo: !daCompra },
+    { href: "/painel/compras/contratos/rpa/novo?modo=compra", rotulo: "De uma compra de serviço", ativo: daCompra },
   ]
   return (
     <div className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1" role="tablist">
@@ -149,33 +186,48 @@ function CartaoRecibo({ children }: { children: ReactNode }) {
   )
 }
 
-/** RPA avulso: o que o contrato daria — prestador, departamento e centro de custo. */
-async function FormAvulso() {
-  const [prestadores, departamentos, centros, config, caixas] = await Promise.all([
-    prestadoresParaRpa(),
-    listarDepartamentos(),
-    listarCentrosCustoParaCompra(),
-    obterConfigRpa(),
-    contasAbertasParaCompras(),
-  ])
+/** Compras de serviço com prestador pessoa física cujo fornecimento ainda não tem ordem. */
+function EscolherCompra({ compras }: { compras: Awaited<ReturnType<typeof comprasParaRpa>> }) {
   return (
-    <RpaNovoForm
-      contrato={null}
-      avulso={{
-        prestadores: prestadores.map((p) => ({
-          id: p.id,
-          nome: p.nome,
-          cnpj_cpf: p.cnpj_cpf,
-          razao: p.nome_razao,
-          bloqueado: p.bloqueado,
-        })),
-        departamentos,
-        centros,
-      }}
-      hoje={hojeLocalISO()}
-      config={config}
-      caixas={caixas}
-    />
+    <Card className="max-w-3xl">
+      <CardHeader>
+        <CardTitle className="text-base">De qual compra de serviço?</CardTitle>
+        <CardDescription>
+          Aparecem as compras do tipo <strong>Prestação de serviço</strong> com prestador pessoa
+          física (CPF) ainda sem ordem de pagamento. O serviço avulso, sem contrato, começa em{" "}
+          <Link href="/painel/compras/nova" className="text-primary hover:underline">
+            Nova compra
+          </Link>
+          .
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {compras.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nenhuma compra de serviço aguardando RPA.</p>
+        ) : (
+          <ul className="divide-y">
+            {compras.map((c) => (
+              <li key={c.fornecimentoId}>
+                <Link
+                  href={`/painel/compras/contratos/rpa/novo?fornecimento=${c.fornecimentoId}`}
+                  className="hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm"
+                >
+                  <span className="min-w-0">
+                    <span className="font-medium tabular-nums">{c.processoCodigo ?? "(sem código)"}</span>
+                    <span className="text-muted-foreground"> — {c.servico ?? "(sem descrição)"}</span>
+                    <span className="text-muted-foreground block text-xs">{c.fornecedorNome ?? "—"}</span>
+                  </span>
+                  <span className="flex items-center gap-2 tabular-nums">
+                    {formatarMoeda(c.valor)}
+                    <ArrowRight className="size-4" />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -191,8 +243,8 @@ function EscolherContrato({
       <CardHeader>
         <CardTitle className="text-base">De qual contrato?</CardTitle>
         <CardDescription>
-          Aparecem os contratos com prestador pessoa física. Serviço pontual, sem contrato? Use a
-          aba <strong>Avulso</strong>.
+          Aparecem os contratos com prestador pessoa física. Serviço pontual, sem contrato? Ele
+          entra como compra de serviço — aba <strong>De uma compra de serviço</strong>.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -150,12 +150,17 @@ export function NovaCompraForm({
 
   const [arquivoErro, setArquivoErro] = useState<string | null>(null)
   const [forma, setForma] = useState("")
+  // Tipo da compra e, no serviço de autônomo, o pagamento por RPA.
+  const [tipo, setTipo] = useState("")
+  const [rpaMarcado, setRpaMarcado] = useState(false)
   const [envioErro, setEnvioErro] = useState<string | null>(null)
 
   const semi = direta && modo === "semi"
   // Na compra direta, os campos só aparecem depois da escolha do modo — e, no
   // semiautomático, depois da leitura da nota.
   const mostrarCampos = !direta || modo === "manual" || (semi && leitura !== null)
+  // Com nota em mãos (semiautomático) não há RPA: o recibo substitui a nota.
+  const porRpa = direta && !semi && tipo === "servico" && rpaMarcado
 
   function escolherFornecedor(opcao: FornecedorOpcao) {
     setFornecedores((lista) =>
@@ -224,6 +229,7 @@ export function NovaCompraForm({
     }
     setLeitura(r)
     setForma(r.forma_pagamento ?? "")
+    setTipo(r.e_produto ?? "")
     setLeituraVersao((v) => v + 1)
     if (r.fornecedorExistente) {
       const { id, nome, cnpj_cpf, bloqueado } = r.fornecedorExistente
@@ -626,6 +632,7 @@ export function NovaCompraForm({
                     required
                     className={SELECT}
                     defaultValue={semi ? (leitura?.e_produto ?? "") : ""}
+                    onChange={(e) => setTipo(e.target.value)}
                   >
                     <option value="" disabled>
                       Escolha o tipo
@@ -768,12 +775,30 @@ export function NovaCompraForm({
           <CardHeader>
             <CardTitle className="text-base">Aquisição direta</CardTitle>
             <CardDescription>
-              A compra já foi feita: o processo nasce comprado e a ordem de
-              pagamento é gerada em autorização (aprovação por alçada antes do
-              pagamento).
+              {porRpa
+                ? "O serviço já foi contratado: o processo nasce comprado e, em seguida, abre o RPA com os dados desta compra — falta só o pagamento. A ordem nasce com o recibo."
+                : "A compra já foi feita: o processo nasce comprado e a ordem de pagamento é gerada em autorização (aprovação por alçada antes do pagamento)."}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
+            {!semi && tipo === "servico" && (
+              <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="por_rpa"
+                  checked={rpaMarcado}
+                  onChange={(e) => setRpaMarcado(e.target.checked)}
+                  className="mt-0.5 size-4"
+                />
+                <span>
+                  <strong>Prestador autônomo — pagar por RPA</strong>
+                  <span className="text-muted-foreground block text-xs">
+                    Para pessoa física (CPF) sem nota fiscal. O recibo calcula as retenções e o
+                    valor da compra passa a ser o líquido do RPA.
+                  </span>
+                </span>
+              </label>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>Fornecedor *</Label>
@@ -799,7 +824,9 @@ export function NovaCompraForm({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="valor">Valor da compra *</Label>
+                  <Label htmlFor="valor">
+                    {porRpa ? "Valor da compra (líquido do RPA) *" : "Valor da compra *"}
+                  </Label>
                   <Input
                     id="valor"
                     name="valor"
@@ -811,6 +838,7 @@ export function NovaCompraForm({
                 </div>
               </div>
             </div>
+            {!porRpa && (
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="forma_pagamento">Forma de pagamento *</Label>
@@ -871,6 +899,8 @@ export function NovaCompraForm({
                 </div>
               )}
             </div>
+            )}
+            {!porRpa && (
             <div className="grid gap-4 md:grid-cols-3">
               <DetalhePagamento
                 key={forma}
@@ -880,6 +910,7 @@ export function NovaCompraForm({
                 caixas={caixas}
               />
             </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -894,7 +925,7 @@ export function NovaCompraForm({
             ) : (
               <Send />
             )}
-            {direta ? "Cadastrar compra" : "Solicitar compra"}
+            {porRpa ? "Cadastrar compra e abrir o RPA" : direta ? "Cadastrar compra" : "Solicitar compra"}
           </Button>
         </div>
       )}

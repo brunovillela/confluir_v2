@@ -747,6 +747,11 @@ export type NovaCompraDireta = NovaSolicitacao & {
   recebedor_id: string
   /** Com o quê foi paga (cartão, caixa, chave/conta, código Pix, texto). */
   detalhe?: DetalhePagamento
+  /**
+   * Serviço de autônomo pago por RPA: o processo nasce comprado, mas SEM a
+   * ordem — ela nasce com o recibo (Contratos › RPA), pelo valor líquido.
+   */
+  por_rpa?: boolean
 }
 
 /**
@@ -755,7 +760,7 @@ export type NovaCompraDireta = NovaSolicitacao & {
  */
 export async function criarCompraDireta(
   nova: NovaCompraDireta
-): Promise<{ id?: string; ordemId?: string; erro?: string }> {
+): Promise<{ id?: string; ordemId?: string; fornecimentoId?: string; erro?: string }> {
   const admin = await createAdminClient()
   const codigo = gerarCodigoProcesso()
 
@@ -794,8 +799,10 @@ export async function criarCompraDireta(
   }
 
   // Como no legado, a ordem tem código próprio; o vínculo com o processo é
-  // a coluna processo_compra_id.
-  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
+  // a coluna processo_compra_id. Paga por RPA, a ordem vem com o recibo.
+  const { data: ordem, error: erroOrdem } = nova.por_rpa
+    ? { data: null, error: null }
+    : await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
       descricao: `Compra direta — ${nova.produto}`,
@@ -814,14 +821,17 @@ export async function criarCompraDireta(
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
     }, {})
-  if (erroOrdem || !ordem) {
+  if (!nova.por_rpa && (erroOrdem || !ordem)) {
     await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
     return {
       erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}`,
     }
   }
+  const apagarOrdem = async () => {
+    if (ordem) await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
+  }
 
-  const { error: erroFornecimento } = await admin
+  const { data: fornecimento, error: erroFornecimento } = await admin
     .from("compras_fornecimentos")
     .insert({
       processo_id: processo.id,
@@ -831,7 +841,7 @@ export async function criarCompraDireta(
       comprador_id: nova.comprador_id,
       data_compra: nova.data_compra,
       nota_fiscal_url: nova.nota_fiscal_url,
-      ordem_pagamento_id: ordem.id,
+      ordem_pagamento_id: ordem?.id ?? null,
       recebido: nova.ja_recebido,
       recebimento_data: nova.ja_recebido ? nova.data_compra : null,
       recebimento_recebido_por_id: nova.ja_recebido ? nova.recebedor_id : null,
@@ -841,14 +851,17 @@ export async function criarCompraDireta(
         : null,
       emp_proprietaria_id: await tenantAtual(),
     })
-  if (erroFornecimento) {
-    await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
+    .select("id")
+    .single()
+  if (erroFornecimento || !fornecimento) {
+    await apagarOrdem()
     await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
     if (esquemaAusente(erroFornecimento)) return { erro: AVISO_SQL }
     return {
-      erro: `Não foi possível registrar o fornecimento: ${erroFornecimento.message}`,
+      erro: `Não foi possível registrar o fornecimento: ${erroFornecimento?.message}`,
     }
   }
+  if (!ordem) return { id: processo.id, fornecimentoId: String(fornecimento.id) }
 
   // Em dinheiro: a compra sai do caixa escolhido.
   if (nova.detalhe?.caixa_conta_id) {
@@ -866,7 +879,7 @@ export async function criarCompraDireta(
       return { erro }
     }
   }
-  return { id: processo.id, ordemId: String(ordem.id) }
+  return { id: processo.id, ordemId: String(ordem.id), fornecimentoId: String(fornecimento.id) }
 }
 
 /** Cancela um processo ainda não comprado. */
