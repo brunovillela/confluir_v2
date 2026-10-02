@@ -30,6 +30,10 @@ export type ConfigFaltas = {
   limiteMes: number | null
   limiteSemana: number | null
   tipos: string[]
+  /** A falta precisa de comprovação (já ocorrida: no pedido; futura: depois). */
+  exigeComprovacao: boolean
+  /** A última falta autorizada sem comprovação trava um novo pedido. */
+  travaSemComprovacao: boolean
 }
 
 export const CONFIG_FALTAS_PADRAO: ConfigFaltas = {
@@ -37,6 +41,21 @@ export const CONFIG_FALTAS_PADRAO: ConfigFaltas = {
   limiteMes: null,
   limiteSemana: null,
   tipos: TIPOS_FALTA_PADRAO,
+  exigeComprovacao: false,
+  travaSemComprovacao: false,
+}
+
+/**
+ * Falta futura pode ser pedida sem o arquivo e comprovada depois; a que já
+ * aconteceu (ou é hoje) só com ele, quando a comprovação é obrigatória.
+ */
+export function comprovacaoNoPedido(config: ConfigFaltas, dataISO: string, hojeISO: string): boolean {
+  return config.exigeComprovacao && dataISO <= hojeISO
+}
+
+/** O funcionário cancela o próprio pedido enquanto a data não chega. */
+export function podeCancelar(f: { situacao: SituacaoFalta; data: string | null }, hojeISO: string): boolean {
+  return f.situacao !== "recusada" && !!f.data && f.data > hojeISO
 }
 
 export type SituacaoFalta = "aguardando" | "autorizada" | "recusada"

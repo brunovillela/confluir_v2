@@ -3,8 +3,10 @@ import "server-only"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
+  comprovacaoNoPedido,
   CONFIG_FALTAS_PADRAO,
   excedeLimite,
+  podeCancelar,
   MESES,
   situacaoDaFalta,
   usoNaData,
@@ -35,7 +37,8 @@ export async function lerConfigFaltas(): Promise<{ disponivel: boolean; config: 
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("pessoal_faltas_config")
-    .select("limite_ano, limite_mes, limite_semana, tipos")
+    // "*": as colunas de comprovação (faltas-comprovacao.sql) podem faltar.
+    .select("*")
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (error) return { disponivel: !esquemaAusente(error), config: CONFIG_FALTAS_PADRAO }
@@ -49,6 +52,8 @@ export async function lerConfigFaltas(): Promise<{ disponivel: boolean; config: 
       limiteMes: num(data.limite_mes),
       limiteSemana: num(data.limite_semana),
       tipos: tipos.length ? tipos : CONFIG_FALTAS_PADRAO.tipos,
+      exigeComprovacao: data.exige_comprovacao === true,
+      travaSemComprovacao: data.trava_sem_comprovacao === true,
     },
   }
 }
@@ -64,6 +69,8 @@ export async function salvarConfigFaltas(
     limite_mes: config.limiteMes,
     limite_semana: config.limiteSemana,
     tipos: config.tipos,
+    exige_comprovacao: config.exigeComprovacao,
+    trava_sem_comprovacao: config.travaSemComprovacao,
     updated_at: new Date().toISOString(),
     atualizado_por_id: usuarioId,
   }
@@ -76,7 +83,13 @@ export async function salvarConfigFaltas(
   const { error } = atual
     ? await admin.from("pessoal_faltas_config").update(linha).eq("id", atual.id)
     : await admin.from("pessoal_faltas_config").insert({ ...linha, emp_proprietaria_id: emp })
-  if (error) return { erro: `Não foi possível salvar a configuração: ${error.message}` }
+  if (error) {
+    return {
+      erro: esquemaAusente(error)
+        ? "Rode supabase/faltas-comprovacao.sql no Supabase para salvar as regras de comprovação."
+        : `Não foi possível salvar a configuração: ${error.message}`,
+    }
+  }
   return {}
 }
 
@@ -155,10 +168,12 @@ export type FaltaJustificada = {
   periodo: string | null
   numero: number | null
   createdAt: string | null
+  /** Veio do Bubble (não entra na trava de comprovação). */
+  doSistemaAnterior: boolean
 }
 
 const SELECT_FALTA_BASE =
-  "id, funcionario_id, data_falta, justificativa_tipo, comprovacao, autorizado, data_autorizacao, autorizador_id, periodo_id, falta_numero, created_at"
+  "id, funcionario_id, data_falta, justificativa_tipo, comprovacao, autorizado, data_autorizacao, autorizador_id, periodo_id, falta_numero, created_at, bubble_id"
 const SELECT_FALTA_NOVO = `${SELECT_FALTA_BASE}, recusado, motivo_recusa, observacao`
 
 /** Lê com as colunas novas; sem o SQL, cai no select antigo. */
@@ -214,6 +229,7 @@ async function montar(linhas: Record<string, unknown>[]): Promise<FaltaJustifica
       periodo: l.periodo_id ? (rotuloPeriodo.get(String(l.periodo_id)) ?? null) : null,
       numero: l.falta_numero === null || l.falta_numero === undefined ? null : Number(l.falta_numero),
       createdAt: texto(l.created_at),
+      doSistemaAnterior: Boolean(l.bubble_id),
     }
   })
 }
@@ -280,6 +296,23 @@ export async function registrarFalta(
   const { disponivel, config } = await lerConfigFaltas()
   if (!disponivel) return { erro: AVISO_SQL_FALTAS }
   if (!config.tipos.includes(dados.tipo)) return { erro: "Escolha o tipo de justificativa." }
+
+  // Regras de comprovação valem para o pedido do PRÓPRIO funcionário; o
+  // departamento lança depois do fato e anexa quando tiver.
+  if (opcoes.solicitanteId === dados.funcionarioId) {
+    const hoje = hojeSP()
+    if (comprovacaoNoPedido(config, dados.data, hoje) && !dados.comprovacao) {
+      return { erro: "A comprovação é obrigatória: anexe o documento da falta (PDF ou foto)." }
+    }
+    if (config.travaSemComprovacao) {
+      const pendente = await ultimaAutorizadaSemComprovacao(dados.funcionarioId, hoje)
+      if (pendente) {
+        return {
+          erro: `Anexe a comprovação da falta de ${formatarData(pendente)} antes de pedir outra (Meu perfil → Faltas justificadas).`,
+        }
+      }
+    }
+  }
 
   const periodo = await periodoDaData(dados.data)
   if ("erro" in periodo) return periodo
@@ -382,18 +415,84 @@ export async function decidirFalta(
 }
 
 /** Funcionário cancela o PRÓPRIO pedido ainda aguardando. */
+/**
+ * A falta AUTORIZADA mais recente (já ocorrida) sem comprovação — a que trava
+ * um novo pedido. Só as lançadas no Confluir: as do Bubble quase nunca têm
+ * arquivo (41 de 480) e travariam todo mundo de saída.
+ */
+export async function ultimaAutorizadaSemComprovacao(
+  funcionarioId: string,
+  hojeISO: string
+): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("pessoal_faltas_justificadas")
+    .select("data_falta, comprovacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("funcionario_id", funcionarioId)
+    .eq("autorizado", true)
+    .is("bubble_id", null)
+    .lte("data_falta", hojeISO)
+    .order("data_falta", { ascending: false })
+    .limit(1)
+  const ultima = data?.[0]
+  return ultima && !texto(ultima.comprovacao) ? String(ultima.data_falta).slice(0, 10) : null
+}
+
+/**
+ * Funcionário cancela a PRÓPRIA falta enquanto a data não chega — aguardando
+ * ou já autorizada. Autorizada, a ausência sai e o departamento é avisado.
+ */
 export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data: f } = await admin
+    .from("pessoal_faltas_justificadas")
+    .select("id, data_falta, autorizado, recusado, justificativa_tipo")
+    .eq("id", id)
+    .eq("funcionario_id", usuarioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!f) return { erro: "Pedido não encontrado." }
+  const data = texto(f.data_falta)?.slice(0, 10) ?? null
+  const situacao = situacaoDaFalta(f)
+  if (!podeCancelar({ situacao, data }, hojeSP())) {
+    return { erro: "Só dá para cancelar antes do dia da falta (e se não foi recusada)." }
+  }
+  await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
+  const { error, count } = await admin
+    .from("pessoal_faltas_justificadas")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .eq("funcionario_id", usuarioId)
+  if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
+  if (count === 0) return { erro: "Pedido não encontrado." }
+  if (situacao === "autorizada") {
+    const nomes = await nomesDosUsuarios([usuarioId])
+    await notificarGestao(
+      `${nomes.get(usuarioId) ?? "Um funcionário"} cancelou a falta justificada já autorizada de ${formatarData(data)}.`
+    )
+  }
+  return {}
+}
+
+/** Comprovação depois do pedido (falta futura, ou para destravar novos pedidos). */
+export async function anexarComprovacaoMinhaFalta(
+  id: string,
+  usuarioId: string,
+  caminho: string
+): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("pessoal_faltas_justificadas")
-    .delete()
+    .update({ comprovacao: caminho, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("funcionario_id", usuarioId)
-    .eq("autorizado", false)
+    .eq("emp_proprietaria_id", await tenantAtual())
     .neq("recusado", true)
+    .is("comprovacao", null)
     .select("id")
-  if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
-  if (!(data ?? []).length) return { erro: "Só dá para cancelar pedido ainda aguardando autorização." }
+  if (error) return { erro: `Não foi possível anexar: ${error.message}` }
+  if (!(data ?? []).length) return { erro: "Esta falta já tem comprovação (ou foi recusada)." }
   return {}
 }
 

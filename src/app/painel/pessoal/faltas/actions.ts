@@ -108,7 +108,15 @@ export async function salvarConfigFaltasAction(_prev: EstadoForm, fd: FormData):
   if (tipos.length === 0) return { erro: "Informe ao menos um tipo de justificativa." }
   const { config: atual } = await lerConfigFaltas()
   const { erro } = await salvarConfigFaltas(
-    { ...atual, limiteAno: ano, limiteMes: mes, limiteSemana: semana, tipos },
+    {
+      ...atual,
+      limiteAno: ano,
+      limiteMes: mes,
+      limiteSemana: semana,
+      tipos,
+      exigeComprovacao: fd.get("exige_comprovacao") === "on",
+      travaSemComprovacao: fd.get("trava_sem_comprovacao") === "on",
+    },
     sessao.usuario.id
   )
   if (erro) return { erro }

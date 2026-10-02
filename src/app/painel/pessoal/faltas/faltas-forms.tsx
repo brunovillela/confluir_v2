@@ -204,6 +204,39 @@ export function ConfigFaltasForm({ config }: { config: ConfigFaltas }) {
         Deixe em branco para não limitar. Contam as faltas aguardando e as autorizadas; a recusada
         libera a vaga.
       </p>
+      <div className="grid gap-3 rounded-lg border p-4">
+        <p className="text-sm font-medium">Comprovação</p>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="exige_comprovacao"
+            defaultChecked={config.exigeComprovacao}
+            className="mt-0.5 size-4"
+          />
+          <span>
+            Comprovação obrigatória
+            <span className="text-muted-foreground block text-xs">
+              Falta que já aconteceu (ou é hoje) só é pedida com o documento. Falta futura pode ser
+              pedida antes e comprovada depois, pelo botão &quot;Anexar comprovação&quot; do Meu perfil.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="trava_sem_comprovacao"
+            defaultChecked={config.travaSemComprovacao}
+            className="mt-0.5 size-4"
+          />
+          <span>
+            Sem comprovar a última falta autorizada, o funcionário não pede outra
+            <span className="text-muted-foreground block text-xs">
+              Vale para a falta autorizada mais recente cuja data já passou. As faltas vindas do
+              sistema anterior não contam (quase nenhuma tem arquivo).
+            </span>
+          </span>
+        </label>
+      </div>
       <div className="grid gap-1.5">
         <Label htmlFor="tipos">Tipos de justificativa (um por linha) *</Label>
         <textarea

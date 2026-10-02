@@ -18,8 +18,11 @@ autoriza ou recusa, e também pode lançar a falta diretamente.
     sistema recusa na hora e diz qual.
   </Passo>
   <Passo titulo="Acompanhe">
-    O pedido fica **Aguardando autorização** — dá para cancelar enquanto isso.
-    Autorizado ou recusado (com o motivo), o funcionário recebe o aviso no sino.
+    O pedido fica **Aguardando autorização**. Autorizado ou recusado (com o
+    motivo), o funcionário recebe o aviso no sino. Até a **véspera** da falta dá
+    para **cancelar** — mesmo já autorizada (aí o departamento é avisado e a
+    ausência sai). Sem comprovação no pedido, **Anexar comprovação** no histórico
+    envia o documento depois.
   </Passo>
 </PassoAPasso>
 
@@ -44,6 +47,14 @@ Em **Faltas justificadas → Configurações**:
 - **Máximo por mês** e **máximo por semana** (segunda a domingo) — evitam
   concentrar as faltas.
 - **Tipos de justificativa** — um por linha, as hipóteses do acordo.
+- **Comprovação obrigatória** — falta que já aconteceu (ou é hoje) só é pedida
+  com o documento; falta futura pode ser pedida antes e comprovada depois.
+- **Trava** — sem comprovar a última falta autorizada (cuja data já passou), o
+  funcionário não consegue pedir outra até anexar o documento. As faltas
+  vindas do sistema anterior não entram nessa conta.
+
+As regras de comprovação valem para o pedido do funcionário; o lançamento pelo
+departamento não as exige.
 
 Campo de limite **vazio = sem limite**. Contam para os limites as faltas
 aguardando e as autorizadas; a recusada libera a vaga.
@@ -56,7 +67,8 @@ aguardando e as autorizadas; a recusada libera a vaga.
 
 ## Erros comuns
 
-- **"O pedido foi recusado na hora."** Passou de um limite (ano, mês ou semana)
-  — a mensagem diz qual — ou já há falta nessa data.
+- **"O pedido foi recusado na hora."** Passou de um limite (ano, mês ou semana),
+  já há falta nessa data, faltou a comprovação obrigatória ou a última falta
+  autorizada ainda não foi comprovada — a mensagem diz qual.
 - **"Não vejo Faltas justificadas no Pessoal."** É a permissão *Faltas
   justificadas* (ou a gestão do Pessoal).

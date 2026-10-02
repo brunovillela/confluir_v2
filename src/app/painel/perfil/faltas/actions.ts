@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache"
 
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { cancelarMinhaFalta, registrarFalta, subirComprovacaoFalta } from "@/lib/db/faltas"
+import {
+  anexarComprovacaoMinhaFalta,
+  cancelarMinhaFalta,
+  registrarFalta,
+  subirComprovacaoFalta,
+} from "@/lib/db/faltas"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { exigirFuncionario } from "@/lib/db/perfil"
 
 function texto(fd: FormData, campo: string): string {
@@ -38,6 +44,26 @@ export async function solicitarFaltaAction(_prev: EstadoForm, fd: FormData): Pro
   if (erro) return { erro }
   revalidar()
   return { ok: "Pedido enviado — o departamento de pessoal vai avaliar." }
+}
+
+/** Comprovação depois do pedido — destrava novos pedidos quando há trava. */
+export async function anexarComprovacaoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+  const id = texto(fd, "id")
+  if (!id) return { erro: "Falta inválida." }
+  const arquivo = fd.get("comprovacao")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo (PDF ou foto)." }
+  const up = await subirComprovacaoFalta(arquivo, sessao.usuario.id)
+  if ("erro" in up) return up
+  const { erro } = await anexarComprovacaoMinhaFalta(id, sessao.usuario.id, up.caminho!)
+  if (erro) {
+    // Não ficou ligado a nada: o arquivo sai do bucket.
+    const admin = await createAdminClient()
+    await admin.storage.from("pessoal").remove([up.caminho!])
+    return { erro }
+  }
+  revalidar()
+  return { ok: "Comprovação anexada." }
 }
 
 export async function cancelarFaltaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {

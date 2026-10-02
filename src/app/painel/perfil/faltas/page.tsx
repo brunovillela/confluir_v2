@@ -15,13 +15,18 @@ import {
 } from "@/components/ui/table"
 import { requireSessaoPainel } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
-import { AVISO_SQL_FALTAS, lerConfigFaltas, minhasFaltas } from "@/lib/db/faltas"
+import {
+  AVISO_SQL_FALTAS,
+  lerConfigFaltas,
+  minhasFaltas,
+  ultimaAutorizadaSemComprovacao,
+} from "@/lib/db/faltas"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
-import { ROTULO_SITUACAO_FALTA, type SituacaoFalta } from "@/lib/faltas-constantes"
+import { podeCancelar, ROTULO_SITUACAO_FALTA, type SituacaoFalta } from "@/lib/faltas-constantes"
 import { formatarData } from "@/lib/formato"
 
-import { CancelarFaltaBotao, SolicitarFaltaForm } from "./faltas-forms"
+import { AnexarComprovacaoForm, CancelarFaltaBotao, SolicitarFaltaForm } from "./faltas-forms"
 
 export const metadata: Metadata = { title: "Minhas faltas justificadas — Confluir" }
 
@@ -60,6 +65,15 @@ export default async function MinhasFaltasPage() {
   ])
   const urls = new Map<string, string | null>()
   for (const f of faltas) urls.set(f.id, await urlArquivoPessoal(f.comprovacao))
+  // A trava: a última falta autorizada (já ocorrida) sem comprovação.
+  const travadaPor = config.travaSemComprovacao
+    ? await ultimaAutorizadaSemComprovacao(sessao.usuario.id, hoje)
+    : null
+  // Pode anexar depois: sem arquivo e não recusada (com obrigatoriedade ou
+  // trava, é o que destrava; sem elas, segue opcional).
+  const anexavel = (f: (typeof faltas)[number]) => !f.comprovacao && f.situacao !== "recusada"
+  const exigida = (f: (typeof faltas)[number]) =>
+    anexavel(f) && !f.doSistemaAnterior && (config.exigeComprovacao || config.travaSemComprovacao)
 
   return (
     <>
@@ -85,15 +99,25 @@ export default async function MinhasFaltasPage() {
         </div>
       )}
 
+      {travadaPor && (
+        <Alert className="border-warning/40 text-warning-fg">
+          <AlertDescription>
+            Para pedir outra falta, anexe antes a comprovação da falta de {formatarData(travadaPor)}{" "}
+            no histórico abaixo.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <GrupoColapsavel titulo="Pedir falta justificada" descricao="Vai para a autorização do departamento de pessoal">
-        <SolicitarFaltaForm tipos={config.tipos} hoje={hoje} />
+        <SolicitarFaltaForm tipos={config.tipos} hoje={hoje} exigeComprovacao={config.exigeComprovacao} />
       </GrupoColapsavel>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Histórico</CardTitle>
           <CardDescription>
-            Contam para os limites as faltas aguardando e as autorizadas; a recusada não conta.
+            Contam para os limites as faltas aguardando e as autorizadas; a recusada não conta. Dá
+            para cancelar até a véspera da falta, mesmo já autorizada.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -130,6 +154,11 @@ export default async function MinhasFaltasPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
+                        {exigida(f) && !urls.get(f.id) && (
+                          <Badge variant="outline" className="border-warning/40 text-warning-fg mb-1">
+                            Comprovação pendente
+                          </Badge>
+                        )}
                         {urls.get(f.id) ? (
                           <a href={urls.get(f.id)!} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                             Abrir
@@ -139,7 +168,12 @@ export default async function MinhasFaltasPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {f.situacao === "aguardando" && <CancelarFaltaBotao id={f.id} />}
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {anexavel(f) && <AnexarComprovacaoForm id={f.id} />}
+                          {podeCancelar(f, hoje) && (
+                            <CancelarFaltaBotao id={f.id} autorizada={f.situacao === "autorizada"} />
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
