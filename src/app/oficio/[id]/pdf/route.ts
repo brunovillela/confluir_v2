@@ -21,6 +21,7 @@ export async function GET(
   if (!dados) return new Response("Não encontrado", { status: 404 })
 
   // Assinado leva QR, carimbo e certificado; enviado mostra "aguardando".
+  // Cancelado ganha a tarja aqui, na hora — o PDF assinado guardado não muda.
   const buffer = await renderizarPdfOficio(dados, assinaturaVigente(assinaturas))
 
   const numero =
@@ -30,7 +31,7 @@ export async function GET(
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="oficio-${numero}.pdf"`,
+      "Content-Disposition": `inline; filename="oficio-${numero}${dados.oficio.situacao === "Cancelado" ? "-cancelado" : ""}.pdf"`,
       "Cache-Control": "no-store",
     },
   })

@@ -146,6 +146,7 @@ export const MODULOS: Modulo[] = [
       "pessoal_diarias",
       "pessoal_aso",
       "pessoal_informes_rendimentos",
+      "pessoal_faltas_justificadas",
     ],
   },
   {
@@ -196,6 +197,15 @@ export const MODULOS: Modulo[] = [
     icone: "BriefcaseBusiness",
     descricao: "Atestados médicos e afastamentos dos funcionários",
     chave: "pessoal_gestao",
+    oculto: true,
+  },
+  {
+    titulo: "Faltas justificadas",
+    href: "/painel/pessoal/faltas",
+    icone: "BriefcaseBusiness",
+    descricao: "Pedidos, autorizações e limites das faltas justificadas",
+    chave: "pessoal_gestao",
+    chavesAlternativas: ["pessoal_faltas_justificadas"],
     oculto: true,
   },
   {

@@ -49,7 +49,7 @@ export async function GET(
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${baixar ? "attachment" : "inline"}; filename="oficio-${numero}${envelope.assinatura.situacao === "assinado" ? "-assinado" : ""}.pdf"`,
+      "Content-Disposition": `${baixar ? "attachment" : "inline"}; filename="oficio-${numero}${envelope.assinatura.situacao === "assinado" ? "-assinado" : ""}${envelope.oficio.situacao === "Cancelado" ? "-cancelado" : ""}.pdf"`,
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex",
     },

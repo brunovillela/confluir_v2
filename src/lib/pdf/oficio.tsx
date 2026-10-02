@@ -41,6 +41,14 @@ export type AssinaturaPDF = {
   trilha: { quando: string; evento: string; detalhe: string | null; ip: string | null }[]
 }
 
+/**
+ * Ofício cancelado: tarja "CANCELADO" em todas as páginas, aviso no alto e,
+ * se assinado, seção no certificado. Só no PDF gerado na hora — o assinado
+ * guardado no bucket não muda. `em` já vem formatado no fuso de Brasília;
+ * nulo nos cancelados antes do registro da data.
+ */
+export type CancelamentoPDF = { em: string | null; motivo: string | null }
+
 const MESES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -130,6 +138,30 @@ const s = StyleSheet.create({
   trilhaEvento: { width: 170 },
   trilhaDetalhe: { flex: 1, color: "#444444" },
   certNota: { marginTop: 18, fontSize: 7.5, color: "#555555", lineHeight: 1.4 },
+  tarja: {
+    position: "absolute",
+    top: 370,
+    left: -150,
+    right: -150,
+    textAlign: "center",
+    fontFamily: "Helvetica-Bold",
+    fontSize: 84,
+    color: "#dc2626",
+    opacity: 0.16,
+    transform: "rotate(-35deg)",
+  },
+  avisoCancelado: {
+    borderWidth: 1.5,
+    borderColor: "#dc2626",
+    backgroundColor: "#fef2f2",
+    color: "#991b1b",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 14,
+    fontSize: 9,
+    lineHeight: 1.35,
+  },
+  avisoCanceladoTitulo: { fontFamily: "Helvetica-Bold", fontSize: 11, marginBottom: 2 },
   rodapePagina: {
     position: "absolute",
     bottom: 16,
@@ -240,14 +272,50 @@ function LinhaCert({ rotulo, valor, mono }: { rotulo: string; valor: string | nu
   )
 }
 
+/** Tarja diagonal repetida em todas as páginas (fixed). */
+function TarjaCancelado() {
+  return (
+    <Text style={s.tarja} fixed>
+      CANCELADO
+    </Text>
+  )
+}
+
+function AvisoCancelado({
+  cancelamento,
+  assinado,
+  urlVerificacao,
+}: {
+  cancelamento: CancelamentoPDF
+  assinado: boolean
+  urlVerificacao: string | null
+}) {
+  return (
+    <View style={s.avisoCancelado}>
+      <Text style={s.avisoCanceladoTitulo}>
+        OFÍCIO CANCELADO{cancelamento.em ? ` — ${cancelamento.em}` : ""}
+      </Text>
+      {cancelamento.motivo ? <Text>Motivo: {cancelamento.motivo}</Text> : null}
+      <Text>
+        Este documento não está mais em vigor.
+        {assinado
+          ? ` A assinatura eletrônica foi feita antes do cancelamento e continua autêntica${urlVerificacao ? ` — confira em ${urlVerificacao}` : ""}.`
+          : ""}
+      </Text>
+    </View>
+  )
+}
+
 export function OficioPDF({
   dados,
   logoDataUri,
   assinatura = null,
+  cancelamento = null,
 }: {
   dados: DadosImpressao
   logoDataUri: string | null
   assinatura?: AssinaturaPDF | null
+  cancelamento?: CancelamentoPDF | null
 }) {
   const assinado = assinatura?.situacao === "assinado"
   const { oficio, cidade, organizacao, sedes } = dados
@@ -260,6 +328,14 @@ export function OficioPDF({
   return (
     <Document title={`Ofício ${numero}`} author={organizacao.nomeRazao ?? ""}>
       <Page size="A4" style={s.page}>
+        {cancelamento ? (
+          <AvisoCancelado
+            cancelamento={cancelamento}
+            assinado={assinado}
+            urlVerificacao={assinado ? (assinatura?.urlVerificacao ?? null) : null}
+          />
+        ) : null}
+
         {logoDataUri ? (
           <View style={s.logoBox}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -356,6 +432,7 @@ export function OficioPDF({
             `Página ${pageNumber} de ${totalPages}`
           }
         />
+        {cancelamento ? <TarjaCancelado /> : null}
       </Page>
 
       {assinado && assinatura ? (
@@ -384,6 +461,18 @@ export function OficioPDF({
           <LinhaCert rotulo="Endereço IP" valor={assinatura.ip} />
           <LinhaCert rotulo="Navegador" valor={assinatura.navegador} />
 
+          {cancelamento ? (
+            <>
+              <Text style={s.certSecao}>Cancelamento posterior</Text>
+              <LinhaCert rotulo="Cancelado em" valor={cancelamento.em ? `${cancelamento.em} (horário de Brasília)` : "data não registrada"} />
+              <LinhaCert rotulo="Motivo" valor={cancelamento.motivo} />
+              <LinhaCert
+                rotulo="Efeito"
+                valor="O ofício deixou de valer. A assinatura acima continua autêntica: o documento foi de fato assinado antes do cancelamento."
+              />
+            </>
+          ) : null}
+
           <Text style={s.certSecao}>Trilha de auditoria</Text>
           {assinatura.trilha.map((e, i) => (
             <View key={i} style={s.trilhaLinha} wrap={false}>
@@ -407,6 +496,7 @@ export function OficioPDF({
             fixed
             render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
           />
+          {cancelamento ? <TarjaCancelado /> : null}
         </Page>
       ) : null}
     </Document>

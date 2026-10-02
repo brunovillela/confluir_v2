@@ -27,7 +27,7 @@ import {
   paragrafo,
   textoSuave,
 } from "@/lib/email-layout"
-import { OficioPDF, type AssinaturaPDF } from "@/lib/pdf/oficio"
+import { OficioPDF, type AssinaturaPDF, type CancelamentoPDF } from "@/lib/pdf/oficio"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -46,6 +46,10 @@ import { origemAtual } from "@/lib/tenant-url"
  *     assinatura e página de certificado com a trilha — vai para o bucket.
  *  4. RECUSA ou CANCELAMENTO: o ofício volta ao rascunho com o número
  *     reservado; quem enviou é avisado.
+ *  5. OFÍCIO CANCELADO DEPOIS DE ASSINADO: o envelope, o hash, o PDF guardado
+ *     e a trilha NÃO mudam; a trilha ganha "documento_cancelado", /verificar
+ *     mostra o cancelamento em destaque e o PDF gerado na hora sai com tarja
+ *     (ver registrarCancelamentoNaAssinatura e cancelamentoParaPdf).
  *
  * O lado público (/assinar, /verificar) não tem sessão: o tenant vem do
  * subdomínio e o cliente do tenant (JWT) lê só o que é dele.
@@ -104,6 +108,9 @@ export const ROTULO_EVENTO: Record<string, string> = {
   assinado: "Assinado eletronicamente",
   recusado: "Assinatura recusada",
   cancelado: "Envio cancelado pelo remetente",
+  // Ato POSTERIOR à assinatura: a assinatura continua autêntica, o ofício
+  // deixa de valer (ver registrarCancelamentoNaAssinatura).
+  documento_cancelado: "Ofício cancelado pela entidade",
 }
 
 // ── utilidades ──────────────────────────────────────────────────────────────
@@ -519,6 +526,120 @@ export async function cancelarEnvio(oficioId: string, motivo: string | null): Pr
   return {}
 }
 
+// ── cancelamento do ofício (painel) ─────────────────────────────────────────
+
+/**
+ * Reflexo do cancelamento do ofício (lib/db/oficios.ts → cancelarOficio) na
+ * assinatura eletrônica. NADA do que foi assinado é alterado:
+ *  • envelope PENDENTE: o link deixa de valer (situação "cancelado") e a
+ *    trilha ganha o evento "cancelado" com o motivo;
+ *  • envelope ASSINADO: continua "assinado", com o mesmo hash, certificado e
+ *    PDF no bucket. A trilha (append-only) ganha o evento novo
+ *    "documento_cancelado" — quem, quando e por quê — e o assinante e quem
+ *    enviou são avisados. A página /verificar passa a mostrar o cancelamento.
+ */
+export async function registrarCancelamentoNaAssinatura(dados: {
+  oficioId: string
+  motivo: string
+  usuarioId: string
+  usuarioNome: string | null
+}): Promise<{ assinado: boolean }> {
+  const lista = await assinaturasDoOficio(dados.oficioId)
+  const admin = await createAdminClient()
+  const agora = new Date().toISOString()
+  const quem = dados.usuarioNome ? ` (por ${dados.usuarioNome})` : ""
+
+  for (const a of lista.filter((x) => x.situacao === "pendente")) {
+    const { data: gravada } = await admin
+      .from("documento_assinaturas")
+      .update({ situacao: "cancelado", codigo_hash: null, updated_at: agora })
+      .eq("id", a.id)
+      .eq("situacao", "pendente")
+      .select("id")
+    if (gravada?.length) {
+      await registrarEvento(a, "cancelado", { detalhe: `Ofício cancelado: ${dados.motivo}${quem}` })
+    }
+  }
+
+  // Relido: se o assinante assinou no mesmo instante, o envelope é "assinado".
+  const assinadas = (await assinaturasDoOficio(dados.oficioId)).filter((a) => a.situacao === "assinado")
+  if (assinadas.length === 0) return { assinado: false }
+  const oficio = await obterOficio(dados.oficioId)
+  for (const a of assinadas) {
+    await registrarEvento(a, "documento_cancelado", { detalhe: `${dados.motivo}${quem}` })
+    if (oficio) {
+      await avisarCancelamento(a, oficio, dados.motivo, dados.usuarioId).catch(() => undefined)
+    }
+  }
+  return { assinado: true }
+}
+
+/** Avisa o assinante (canal do envelope) e quem enviou (notificação + e-mail). */
+async function avisarCancelamento(
+  a: Assinatura,
+  oficio: DetalheOficio,
+  motivo: string,
+  canceladoPorId: string
+): Promise<void> {
+  const admin = await createAdminClient()
+  const numero = numeroDoOficio(oficio)
+  const remetente = await nomeRemetente()
+  const verificar = a.certificado ? await urlVerificacao(a.certificado) : null
+  const quando = formatarMomento(new Date().toISOString())
+
+  if (a.canal === "telegram" && a.telegramChatId) {
+    await enviarTelegram({
+      chatId: a.telegramChatId,
+      formato: null,
+      texto: [
+        `${remetente} cancelou o Ofício ${numero}, que você assinou eletronicamente.`,
+        `Motivo: ${motivo}`,
+        ``,
+        `Sua assinatura continua registrada e autêntica — o que muda é que o ofício não está mais em vigor.`,
+        verificar ? `Página de verificação: ${verificar}` : ``,
+      ].join("\n").trim(),
+    }).catch(() => false)
+  } else if (a.email) {
+    await enviarEmail({
+      email: a.email,
+      nome: a.nome,
+      assunto: `Ofício ${numero} cancelado`,
+      html:
+        paragrafo(
+          `${escaparHtml(remetente)} cancelou em ${escaparHtml(quando)} o <strong>Ofício ${escaparHtml(numero)}</strong>, que você assinou eletronicamente.`
+        ) +
+        caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(motivo)}`) +
+        paragrafo(
+          "A sua assinatura continua registrada e autêntica — o que muda é que o ofício não está mais em vigor. A página de verificação do certificado passa a mostrar o cancelamento."
+        ) +
+        (verificar ? botaoEmail(verificar, "Ver a página de verificação") : ""),
+    }).catch(() => false)
+  }
+
+  const { data: o } = await admin.from("oficios").select("enviado_por_id").eq("id", oficio.id).maybeSingle()
+  const remetenteId = texto(o?.enviado_por_id)
+  // Quem cancelou já sabe; o aviso vai a quem enviou, quando é outra pessoa.
+  if (!remetenteId || remetenteId === canceladoPorId) return
+  await criarNotificacao({
+    usuarioId: remetenteId,
+    texto: `Ofício ${numero} (assinado por ${a.nome ?? "assinante"}) foi cancelado — ${motivo}`,
+  }).catch(() => undefined)
+  const { data: u } = await admin.from("usuarios").select("email, nome_completo").eq("id", remetenteId).maybeSingle()
+  if (!texto(u?.email)) return
+  const link = `${await origemAtual()}/painel/ferramentas/oficios/${oficio.id}`
+  await enviarEmail({
+    email: String(u?.email),
+    nome: texto(u?.nome_completo),
+    assunto: `Ofício ${numero} cancelado`,
+    html:
+      paragrafo(
+        `O <strong>Ofício ${escaparHtml(numero)}</strong>, que você enviou e ${escaparHtml(a.nome ?? "o assinante")} assinou, foi cancelado em ${escaparHtml(quando)}.`
+      ) +
+      caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(motivo)}`) +
+      botaoEmail(link, "Abrir o ofício"),
+  }).catch(() => false)
+}
+
 // ── lado público (/assinar/<token>) ─────────────────────────────────────────
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -864,7 +985,9 @@ export async function logoDataUri(url: string | null): Promise<string | null> {
  */
 export async function renderizarPdfOficio(
   dados: DadosImpressao,
-  assinatura: Assinatura | null
+  assinatura: Assinatura | null,
+  /** O PDF guardado no bucket na assinatura nunca leva a marca de cancelado. */
+  opcoes: { marcarCancelamento?: boolean } = {}
 ): Promise<Buffer> {
   const [logo, assinaturaPdf] = await Promise.all([
     logoDataUri(dados.organizacao.logoUrl),
@@ -876,8 +999,22 @@ export async function renderizarPdfOficio(
     dados,
     logoDataUri: logo,
     assinatura: assinaturaPdf,
+    cancelamento: opcoes.marcarCancelamento === false ? null : cancelamentoParaPdf(dados.oficio),
   }) as Parameters<typeof renderToBuffer>[0]
   return renderToBuffer(elemento)
+}
+
+/**
+ * Marca de cancelado do PDF GERADO NA HORA (tarja + aviso + seção no
+ * certificado). O PDF assinado guardado no bucket nunca é regravado: ele é o
+ * registro do que foi assinado e fica para auditoria.
+ */
+export function cancelamentoParaPdf(o: DetalheOficio): CancelamentoPDF | null {
+  if (o.situacao !== "Cancelado") return null
+  return {
+    em: o.canceladoEm ? formatarMomento(o.canceladoEm) : null,
+    motivo: o.cancelamentoMotivo,
+  }
 }
 
 /** Assinatura que vale para o PDF: a assinada, senão a pendente. */
@@ -889,7 +1026,7 @@ async function guardarPdfAssinado(oficioId: string): Promise<string | null> {
   const [dados, lista] = await Promise.all([dadosImpressao(oficioId), assinaturasDoOficio(oficioId)])
   const a = lista.find((x) => x.situacao === "assinado")
   if (!dados || !a) return null
-  const buffer = await renderizarPdfOficio(dados, a)
+  const buffer = await renderizarPdfOficio(dados, a, { marcarCancelamento: false })
   const caminho = `oficios/${oficioId}/assinado-${a.certificado}.pdf`
   const admin = await createAdminClient()
   const { error } = await admin.storage
@@ -913,6 +1050,9 @@ export type Verificacao = {
   cargo: string | null
   assinadoEm: string | null
   hash: string | null
+  /** Cancelamento posterior do ofício (a assinatura segue autêntica). */
+  canceladoEm: string | null
+  cancelamentoMotivo: string | null
 }
 
 export async function verificarCertificado(certificado: string): Promise<Verificacao | null> {
@@ -941,6 +1081,8 @@ export async function verificarCertificado(certificado: string): Promise<Verific
     cargo: texto(data.cargo),
     assinadoEm: texto(data.assinado_em),
     hash: texto(data.hash_documento),
+    canceladoEm: oficio.canceladoEm,
+    cancelamentoMotivo: oficio.cancelamentoMotivo,
   }
 }
 
@@ -968,6 +1110,7 @@ export async function anexarAssinadoAMao(
     .maybeSingle()
   if (!o) return { erro: "Ofício não encontrado." }
   if (o.situacao === "Rascunho") return { erro: "Emita o ofício antes de anexar o documento assinado." }
+  if (o.situacao === "Cancelado") return { erro: "Ofício cancelado não recebe documento assinado." }
   if (o.situacao === "Aguardando assinatura") {
     return { erro: "Este ofício está em assinatura eletrônica — cancele o envio antes de anexar um documento assinado à mão." }
   }

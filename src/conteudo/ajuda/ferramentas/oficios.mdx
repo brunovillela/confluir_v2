@@ -134,7 +134,8 @@ recebe e-mail e notificação. Corrija e envie de novo.
 O QR Code abre a página **Verificação de assinatura** (sem login), que confirma
 o certificado, o número, o assunto, quem assinou, a **data e hora** e o **resumo
 SHA-256** do conteúdo — sem mostrar o texto do ofício. Se a entidade cancelar o
-ofício depois de assinado, a página avisa.
+ofício depois de assinado, a página avisa em destaque (ver *Cancelar um
+ofício*, abaixo).
 
 <Aviso tipo="nota" titulo="Por que o conteúdo não muda depois do envio">
   No envio, o sistema calcula um resumo (SHA-256) de tudo o que o PDF mostra. Na
@@ -153,6 +154,63 @@ Emitido assim, aparece no ofício o cartão **Documento assinado à mão**: anex
 ali o **PDF assinado e digitalizado** (até 10 MB). Ele passa a abrir pelo botão
 **PDF assinado**, no topo — o mesmo lugar dos ofícios do sistema anterior. Dá
 para substituir o arquivo; o anterior fica guardado no histórico.
+
+## Cancelar um ofício
+
+**Cancelar ofício**, no topo da página do ofício, vale em qualquer situação:
+rascunho, aguardando assinatura ou **já emitido** — assinado eletronicamente,
+assinado à mão ou emitido sem assinatura. O sistema explica antes o que vai
+acontecer e pede o **motivo** (pelo menos 10 caracteres). O cancelamento não se
+desfaz.
+
+<PassoAPasso>
+  <Passo titulo="O ofício fica, marcado como cancelado">
+    Ele continua na lista, com a situação **Cancelado**, e a página mostra no
+    alto **quando**, **quem** cancelou e o **motivo**. O **número não volta a
+    ser usado**: o Ofício 12/2026 cancelado continua sendo o 12/2026, e o
+    próximo emitido recebe o 13.
+  </Passo>
+  <Passo titulo="O PDF sai com a tarja">
+    **Baixar PDF** e **Imprimir** passam a mostrar a tarja **CANCELADO** em
+    todas as páginas e um aviso no alto com a data e o motivo.
+  </Passo>
+  <Passo titulo="Os nomes voltam à lista (filiação e desfiliação)">
+    Nos ofícios de filiação e desfiliação, as pessoas do ofício cancelado voltam
+    a aparecer como **pendentes** daquela fonte pagadora, para entrar num novo
+    ofício. Liberações sindicais registradas com o ofício continuam no mandato —
+    revise em Institucional › Diretoria.
+  </Passo>
+</PassoAPasso>
+
+### E a assinatura eletrônica?
+
+Cancelar depois de assinado **não apaga nem altera a assinatura**. A assinatura
+é um fato que aconteceu — quem assinou, quando e o resumo do conteúdo daquele
+momento —, e o cancelamento é um ato **posterior**, registrado à parte:
+
+- o **certificado**, o **resumo SHA-256** e o **PDF assinado original** ficam
+  guardados como estavam. O botão **PDF assinado (original)** abre o arquivo do
+  jeito que foi assinado, sem a tarja, para conferência e auditoria;
+- a **trilha de auditoria** ganha uma linha nova — "Ofício cancelado pela
+  entidade", com o motivo e quem cancelou. Nenhuma linha antiga muda;
+- a página de **verificação** (o QR Code) passa a mostrar, em destaque, **OFÍCIO
+  CANCELADO**, com a data e o **motivo**, e logo abaixo que a assinatura é
+  **autêntica**: o documento foi de fato assinado, mas não está mais em vigor.
+  Assim, quem recebeu o ofício e confere o QR Code não é enganado;
+- o **assinante** (pelo mesmo canal do convite, e-mail ou Telegram) e **quem
+  enviou para assinatura** (notificação e e-mail) são avisados.
+
+<Aviso tipo="atencao" titulo="O motivo fica público">
+  Em ofício assinado eletronicamente, o motivo aparece na página de verificação,
+  que qualquer pessoa com o código do certificado abre. Escreva-o como escreveria
+  ao destinatário.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Cancelar envio não é cancelar o ofício">
+  Enquanto aguarda assinatura, **Cancelar envio** (no cartão da assinatura) só
+  invalida o link e devolve o ofício ao rascunho, com o número reservado, para
+  corrigir e enviar de novo. **Cancelar ofício** encerra o ofício de vez.
+</Aviso>
 
 ## Ofícios do sistema anterior
 
@@ -177,8 +235,11 @@ anterior.
 - **"Não aparece o signatário que quero."** O signatário vem dos integrantes
   **vigentes** da diretoria — confira o mandato em Institucional → Diretoria.
 - **"Emiti e agora não consigo editar."** Um ofício emitido fica **travado**
-  (é oficial). Emita um novo se precisar corrigir. Se ainda está **aguardando
-  assinatura**, use **Cancelar envio**: volta ao rascunho com o mesmo número.
+  (é oficial). Para corrigir, **cancele** o ofício (com o motivo) e emita um
+  novo. Se ainda está **aguardando assinatura**, use **Cancelar envio**: volta
+  ao rascunho com o mesmo número.
+- **"Cancelar ofício pede para rodar um SQL."** O registro do cancelamento
+  ainda não foi configurado no banco — avise o suporte.
 - **"O assinante não recebeu o convite."** Confira o destino na trilha, peça
   para olhar a caixa de spam e use **Reenviar convite**. Destino errado:
   cancele o envio e envie de novo com o endereço certo.

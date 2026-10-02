@@ -42,6 +42,8 @@ export type ResumoPessoal = {
   diariasNoHistorico: number | null
   reembolsosAguardando: number | null
   reembolsosAPagar: number | null
+  /** Pedidos de falta justificada aguardando (null = SQL pendente). */
+  faltasAguardando: number | null
 }
 
 function somarDias(iso: string, dias: number): string {
@@ -226,6 +228,15 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     }
   }
 
+  // Coluna `recusado` de supabase/faltas-justificadas.sql: sem ela, null.
+  const faltasRes = await admin
+    .from("pessoal_faltas_justificadas")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", empId)
+    .eq("autorizado", false)
+    .not("recusado", "is", true)
+  const faltasAguardando = faltasRes.error ? null : (faltasRes.count ?? 0)
+
   return {
     funcionariosAtivos: funcionarios.ativos,
     remessasContrachequesAbertas: remessasC ?? 0,
@@ -248,5 +259,6 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     diariasNoHistorico,
     reembolsosAguardando,
     reembolsosAPagar,
+    faltasAguardando,
   }
 }

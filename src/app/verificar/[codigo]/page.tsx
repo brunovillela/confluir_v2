@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { AlertTriangle, BadgeCheck, Clock3 } from "lucide-react"
+import { AlertTriangle, Ban, BadgeCheck, Clock3 } from "lucide-react"
 
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -54,11 +54,43 @@ export default async function VerificarCertificadoPage({
               </AlertDescription>
             </Alert>
           ) : v.situacao === "assinado" ? (
+            // Cancelado depois de assinado: a assinatura é autêntica (aconteceu),
+            // mas o documento não vale — as duas coisas ditas, o cancelamento em destaque.
+            <>
+              <Alert variant="destructive" className="border-destructive border-2">
+                <Ban />
+                <AlertDescription>
+                  <p className="text-base font-semibold">
+                    OFÍCIO CANCELADO
+                    {v.canceladoEm ? ` em ${formatarMomento(v.canceladoEm)}` : ""}
+                  </p>
+                  <p className="mt-1">
+                    A entidade cancelou este ofício <strong>depois</strong> de assinado. Não o
+                    considere em vigor.
+                  </p>
+                  {v.cancelamentoMotivo && (
+                    <p className="mt-1">
+                      <strong>Motivo:</strong> {v.cancelamentoMotivo}
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
+              <Alert>
+                <BadgeCheck />
+                <AlertDescription>
+                  A assinatura é <strong>autêntica</strong>: o documento foi de fato assinado
+                  eletronicamente na data abaixo, e o resumo do conteúdo é o daquele momento. O
+                  cancelamento é um ato posterior e não altera o que foi assinado.
+                </AlertDescription>
+              </Alert>
+            </>
+          ) : v.oficioSituacao === "Cancelado" ? (
             <Alert variant="destructive">
-              <AlertTriangle />
+              <Ban />
               <AlertDescription>
-                O ofício foi assinado, mas <strong>cancelado depois</strong> pela entidade. Não o
-                considere em vigor.
+                Este certificado <strong>não tem assinatura concluída</strong> e o ofício foi{" "}
+                <strong>cancelado</strong>
+                {v.canceladoEm ? ` em ${formatarMomento(v.canceladoEm)}` : ""}.
               </AlertDescription>
             </Alert>
           ) : (
@@ -96,7 +128,8 @@ export default async function VerificarCertificadoPage({
 
           <p className="text-muted-foreground text-center text-xs">
             A página de certificado ao fim do PDF traz a trilha completa: envio, abertura, código de
-            uso único e assinatura, com data, hora e endereço IP.
+            uso único e assinatura, com data, hora e endereço IP
+            {v.oficioSituacao === "Cancelado" ? " — e, nos PDFs gerados depois, o cancelamento" : ""}.
           </p>
         </div>
       )}

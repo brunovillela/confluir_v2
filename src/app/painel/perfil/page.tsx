@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import {
   Award,
+  CalendarCheck,
   CalendarX2,
   Clock4,
   Coins,
@@ -108,6 +109,12 @@ const GRUPOS: { titulo: string; itens: AreaPerfil[] }[] = [
         descricao: "Seus afastamentos e atestados médicos",
         href: "/painel/perfil/ausencias",
         icone: CalendarX2,
+      },
+      {
+        titulo: "Faltas justificadas",
+        descricao: "Peça e acompanhe faltas justificadas pelo acordo",
+        href: "/painel/perfil/faltas",
+        icone: CalendarCheck,
       },
     ],
   },

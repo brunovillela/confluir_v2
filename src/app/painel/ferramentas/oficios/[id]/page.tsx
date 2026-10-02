@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
   ArrowLeft,
+  Ban,
   CheckCircle2,
   Circle,
   Download,
@@ -111,6 +112,8 @@ export default async function OficioPage({
     ? await telegramDoIntegrante(oficio.assinanteIntegranteId)
     : { disponivel: false, telefone: null }
   const aguardando = oficio.situacao === "Aguardando assinatura"
+  const cancelado = oficio.situacao === "Cancelado"
+  const assinadoEletronicamente = assinaturas.some((a) => a.situacao === "assinado")
   // Cartão de assinatura: a vigente (assinada ou pendente), senão a última.
   const assinaturaDoCartao = assinaturaVigente(assinaturas) ?? assinaturas[0] ?? null
   const ultimaRecusa = rascunho && assinaturas[0]?.situacao === "recusado" ? assinaturas[0] : null
@@ -129,9 +132,14 @@ export default async function OficioPage({
         <div className="flex flex-wrap items-center gap-2">
           {oficio.arquivoAssinadoUrl && (
             <Button size="sm" asChild>
-              <a href={oficio.arquivoAssinadoUrl} target="_blank" rel="noreferrer">
+              <a
+                href={oficio.arquivoAssinadoUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={cancelado ? "O arquivo como foi assinado, sem a marca de cancelamento — guardado para auditoria" : undefined}
+              >
                 <FileCheck2 />
-                PDF assinado
+                {cancelado ? "PDF assinado (original)" : "PDF assinado"}
               </a>
             </Button>
           )}
@@ -147,7 +155,16 @@ export default async function OficioPage({
               Imprimir
             </Link>
           </Button>
-          {(rascunho || aguardando) && <CancelarOficio oficioId={id} />}
+          {!cancelado && (
+            <CancelarOficio
+              oficioId={id}
+              numero={oficio.numero != null ? `${oficio.numero}/${oficio.ano}` : null}
+              situacao={oficio.situacao}
+              assinadoEletronicamente={assinadoEletronicamente}
+              pessoasQueVoltam={automatico ? oficio.filiados.filter((f) => f.vinculoId).length : 0}
+              liberacoes={liberacoes.length}
+            />
+          )}
         </div>
       </div>
 
@@ -179,6 +196,31 @@ export default async function OficioPage({
           {oficio.situacao}
         </Badge>
       </div>
+
+      {cancelado && (
+        <Alert variant="destructive">
+          <Ban />
+          <AlertDescription>
+            <p>
+              <strong>Ofício cancelado</strong>
+              {oficio.canceladoEm ? ` em ${formatarMomento(oficio.canceladoEm)}` : ""}
+              {oficio.canceladoPorNome ? ` por ${oficio.canceladoPorNome}` : ""}.
+              {oficio.cancelamentoMotivo ? <> Motivo: {oficio.cancelamentoMotivo}</> : null}
+            </p>
+            {assinadoEletronicamente ? (
+              <p className="mt-1">
+                A assinatura eletrônica foi feita antes e continua autêntica: o certificado, o PDF
+                assinado original e a trilha seguem guardados. A página de verificação mostra o
+                cancelamento, e o PDF baixado daqui sai com a tarja “CANCELADO”.
+              </p>
+            ) : oficio.numero != null ? (
+              <p className="mt-1">
+                O número {oficio.numero}/{oficio.ano} fica com este ofício e não volta a ser usado.
+              </p>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Cabeçalho de dados (edição no rascunho, leitura depois) */}
       {rascunho ? (
@@ -389,7 +431,7 @@ export default async function OficioPage({
       {assinaturaDoCartao && <CartaoAssinatura assinatura={assinaturaDoCartao} oficioId={id} />}
 
       {/* Emitido à mão: o PDF digitalizado fica junto do ofício */}
-      {!rascunho && !aguardando && !assinaturas.some((a) => a.situacao === "assinado") && (
+      {!rascunho && !aguardando && !assinadoEletronicamente && (!cancelado || oficio.arquivoAssinadoUrl) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -397,14 +439,18 @@ export default async function OficioPage({
               Documento assinado à mão
             </CardTitle>
             <CardDescription>
-              {oficio.arquivoAssinadoUrl
+              {cancelado
+                ? "O PDF assinado à mão continua guardado — o botão “PDF assinado (original)”, no topo, abre o arquivo."
+                : oficio.arquivoAssinadoUrl
                 ? "O ofício já tem um PDF assinado guardado — o botão “PDF assinado”, no topo, abre o arquivo."
                 : "Este ofício foi emitido sem assinatura eletrônica. Anexe aqui o PDF assinado e digitalizado para guardá-lo junto do ofício."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <AnexarAssinadoAMao oficioId={id} temArquivo={Boolean(oficio.arquivoAssinadoUrl)} />
-          </CardContent>
+          {!cancelado && (
+            <CardContent>
+              <AnexarAssinadoAMao oficioId={id} temArquivo={Boolean(oficio.arquivoAssinadoUrl)} />
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -442,6 +488,8 @@ export default async function OficioPage({
 
 function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura; oficioId: string }) {
   const cancelamento = [...a.eventos].reverse().find((e) => e.tipo === "cancelado")
+  // Ofício cancelado DEPOIS de assinado: evento novo na trilha, envelope intacto.
+  const cancelamentoPosterior = a.eventos.find((e) => e.tipo === "documento_cancelado")
   const passos = [
     {
       rotulo: "Enviado",
@@ -493,6 +541,14 @@ function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura;
         </ol>
 
         {a.situacao === "pendente" && <AcoesEnvioPendente oficioId={oficioId} />}
+
+        {cancelamentoPosterior && (
+          <p className="text-destructive text-sm">
+            Ofício cancelado em {formatarMomento(cancelamentoPosterior.quando)}, depois da assinatura.
+            A assinatura continua válida como registro do que foi assinado; a página de verificação
+            avisa que o ofício não está em vigor.
+          </p>
+        )}
 
         {a.situacao === "assinado" && a.certificado && (
           <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">

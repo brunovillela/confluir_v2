@@ -27,6 +27,7 @@ import {
   anexarAssinadoAMao,
   cancelarEnvio,
   enviarParaAssinatura,
+  registrarCancelamentoNaAssinatura,
   reenviarConvite,
   type CanalAssinatura,
 } from "@/lib/db/oficios-assinatura"
@@ -144,16 +145,32 @@ export async function cancelarOficioAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_oficios")
+  const sessao = await requirePermissao("ferramentas_oficios")
   const id = texto(formData, "oficio_id")
   if (!id) return { erro: "Ofício inválido." }
   const fora = await foraDoEscopo(id)
   if (fora) return { erro: fora }
-  const { erro } = await cancelarOficio(id)
+  const motivo = texto(formData, "motivo")
+  const usuarioId = String(sessao.usuario.id)
+  const { erro, situacaoAnterior } = await cancelarOficio(id, { motivo, usuarioId })
   if (erro) return { erro }
+  // Assinatura: link pendente deixa de valer; envelope assinado ganha o evento
+  // "documento_cancelado" na trilha e os avisos. Falha aqui não desfaz o cancelamento.
+  const { assinado } = await registrarCancelamentoNaAssinatura({
+    oficioId: id,
+    motivo: motivo.trim(),
+    usuarioId,
+    usuarioNome: sessao.usuario.nome_completo ?? null,
+  }).catch(() => ({ assinado: false }))
   revalidatePath("/painel/ferramentas/oficios")
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
-  return { ok: "Ofício cancelado." }
+  return {
+    ok: assinado
+      ? "Ofício cancelado. A assinatura continua registrada; a página de verificação já mostra o cancelamento."
+      : situacaoAnterior === "Emitido"
+        ? "Ofício cancelado. O número não volta a ser usado."
+        : "Ofício cancelado.",
+  }
 }
 
 export async function adicionarManualAction(

@@ -112,6 +112,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Atestados e ausências e o exame ocupacional (ASO)",
       },
       {
+        slug: "faltas",
+        titulo: "Faltas justificadas",
+        resumo: "Pedido no Meu perfil, autorização e limites por ano, mês e semana",
+      },
+      {
         slug: "treinamentos",
         titulo: "Treinamentos",
         resumo: "Cursos, participantes e os certificados com validade",

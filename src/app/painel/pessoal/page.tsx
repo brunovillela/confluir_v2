@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Award,
   BriefcaseBusiness,
+  CalendarCheck,
   Clock4,
   FileBadge,
   GraduationCap,
@@ -79,6 +80,7 @@ export default async function PessoalPage() {
     "pessoal_diarias",
     "pessoal_aso",
     "pessoal_informes_rendimentos",
+    "pessoal_faltas_justificadas",
   ]);
   const veGestao = sessao.permissoes["pessoal_gestao"] === true;
   const ve = (chave: string) => veGestao || sessao.permissoes[chave] === true;
@@ -291,6 +293,19 @@ export default async function PessoalPage() {
           : plural(r.atestadosTotal, "atestado", "atestados"),
       descricao: "Registros de saúde e afastamentos",
       icone: Stethoscope,
+    },
+    {
+      mostrar: ve("pessoal_faltas_justificadas"),
+      href: "/painel/pessoal/faltas",
+      titulo: "Faltas justificadas",
+      indicador:
+        r.faltasAguardando === null
+          ? "Rode supabase/faltas-justificadas.sql para ativar"
+          : r.faltasAguardando > 0
+            ? plural(r.faltasAguardando, "pedido aguardando", "pedidos aguardando")
+            : "Nenhum pedido aguardando",
+      descricao: "Pedidos, autorizações e limites do acordo",
+      icone: CalendarCheck,
     },
     {
       mostrar: ve("pessoal_aso"),

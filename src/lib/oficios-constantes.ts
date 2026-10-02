@@ -30,6 +30,9 @@ export function eAutomatico(tipo: string | null): tipo is "desfiliacao" | "filia
 export const SITUACOES_OFICIO = ["Rascunho", "Aguardando assinatura", "Emitido", "Cancelado"] as const
 export type SituacaoOficio = (typeof SITUACOES_OFICIO)[number]
 
+/** Motivo mínimo para cancelar um ofício — fica na trilha e na página pública de verificação. */
+export const MOTIVO_CANCELAMENTO_MIN = 10
+
 // A formatação do corpo (BBCode, inclusive a herdada do Bubble) é lida e
 // desenhada por lib/oficio-formatacao.ts — não é mais apagada na exibição.
 

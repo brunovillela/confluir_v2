@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { dadosImpressao } from "@/lib/db/oficios"
 import { podeVerOficio } from "@/lib/db/oficios-acesso"
+import { formatarMomento } from "@/lib/db/oficios-assinatura"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { OficioCorpo } from "@/components/oficio-corpo"
 
@@ -36,6 +37,16 @@ const CSS = `
     padding: 2.5cm 2.5cm; box-shadow: 0 1px 8px rgba(0,0,0,.15);
     font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.5;
     display: flex; flex-direction: column; min-height: 27cm;
+  }
+  .oficio-folha { position: relative; overflow: hidden; }
+  .oficio-cancelado {
+    border: 2px solid #dc2626; background: #fef2f2; color: #991b1b;
+    padding: 8px 12px; margin-bottom: 16px; font-size: 10pt; line-height: 1.4;
+  }
+  .oficio-tarja {
+    position: absolute; top: 40%; left: 0; right: 0; text-align: center; pointer-events: none;
+    font: 700 96pt Arial, Helvetica, sans-serif; color: rgba(220, 38, 38, .16);
+    transform: rotate(-35deg);
   }
   .oficio-logo { display: block; max-height: 90px; margin: 0 auto 18px; object-fit: contain; }
   .oficio-meta { margin-bottom: 4px; }
@@ -73,6 +84,7 @@ export default async function ImpressaoOficioPage({
   const numero =
     oficio.numero != null ? `${oficio.numero} / ${oficio.ano}` : "— (rascunho)"
   const destinatario = oficio.destinatarioNome ?? oficio.destinatarioTexto ?? "—"
+  const cancelado = oficio.situacao === "Cancelado"
 
   return (
     <div className="oficio-fundo">
@@ -91,6 +103,19 @@ export default async function ImpressaoOficioPage({
       </div>
 
       <div className="oficio-folha">
+        {cancelado && (
+          <>
+            <div className="oficio-tarja" aria-hidden>CANCELADO</div>
+            <div className="oficio-cancelado">
+              <strong>
+                OFÍCIO CANCELADO
+                {oficio.canceladoEm ? ` — ${formatarMomento(oficio.canceladoEm)}` : ""}
+              </strong>
+              {oficio.cancelamentoMotivo && <div>Motivo: {oficio.cancelamentoMotivo}</div>}
+              <div>Este documento não está mais em vigor.</div>
+            </div>
+          </>
+        )}
         {organizacao.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={organizacao.logoUrl} alt="" className="oficio-logo" />

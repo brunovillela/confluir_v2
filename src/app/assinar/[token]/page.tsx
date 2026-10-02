@@ -121,7 +121,8 @@ export default async function AssinarOficioPage({
             <AlertDescription>
               Este ofício já foi assinado por <strong>{a.nome}</strong> em{" "}
               {formatarMomento(a.assinadoEm)} (horário de Brasília).
-              {oficio.situacao === "Cancelado" && " Depois disso, o remetente cancelou o ofício."}
+              {oficio.situacao === "Cancelado" &&
+                ` Depois disso, o remetente cancelou o ofício${oficio.canceladoEm ? ` em ${formatarMomento(oficio.canceladoEm)}` : ""}${oficio.cancelamentoMotivo ? ` — motivo: ${oficio.cancelamentoMotivo}` : ""}. A assinatura continua registrada, mas o ofício não está mais em vigor.`}
             </AlertDescription>
           </Alert>
         )}

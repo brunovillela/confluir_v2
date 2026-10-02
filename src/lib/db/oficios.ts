@@ -4,7 +4,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { urlArquivoDocumento } from "@/lib/db/documentos"
 import { type EscopoOficios } from "@/lib/db/oficios-acesso"
-import { eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
+import { eAutomatico, MOTIVO_CANCELAMENTO_MIN, type TipoOficio } from "@/lib/oficios-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -255,6 +255,13 @@ export type DetalheOficio = {
   redatorNome: string | null
   arquivoAssinadoUrl: string | null
   respostas: { nome: string; url: string }[]
+  /**
+   * Cancelamento (supabase/oficios-cancelamento.sql). Nulos em ofício não
+   * cancelado, nos cancelados antes de 02/10/2026 e enquanto o SQL não roda.
+   */
+  canceladoEm: string | null
+  canceladoPorNome: string | null
+  cancelamentoMotivo: string | null
 }
 
 /** Lista JSON de caminhos (ou um caminho solto) → caminhos. */
@@ -292,7 +299,8 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
   const departamentoId = texto(o.departamento_id)
   const redatorId = texto(o.redator_id)
   const respostas = caminhosDe(o.arquivos_resposta)
-  const [nomes, { data: filiados }, departamento, redator, assinadoUrl, respostasUrls] = await Promise.all([
+  const canceladoPorId = texto(o.cancelado_por_id)
+  const [nomes, { data: filiados }, departamento, redator, assinadoUrl, respostasUrls, cancelador] = await Promise.all([
     empresaId ? nomesDasEmpresas([empresaId]) : Promise.resolve(new Map()),
     admin
       .from("oficios_filiados")
@@ -308,6 +316,9 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
       : Promise.resolve({ data: null }),
     urlArquivoDocumento(texto(o.arquivo_assinado)),
     Promise.all(respostas.map((c) => urlArquivoDocumento(c))),
+    canceladoPorId
+      ? admin.from("usuarios").select("nome_completo").eq("id", canceladoPorId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   return {
@@ -342,6 +353,9 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
     respostas: respostas.flatMap((c, i) =>
       respostasUrls[i] ? [{ nome: nomeDoArquivo(c), url: respostasUrls[i] }] : []
     ),
+    canceladoEm: texto(o.cancelado_em),
+    canceladoPorNome: texto(cancelador.data?.nome_completo),
+    cancelamentoMotivo: texto(o.cancelamento_motivo),
   }
 }
 
@@ -521,21 +535,69 @@ export async function emitirOficio(
   })
 }
 
-export async function cancelarOficio(id: string): Promise<{ erro?: string }> {
+/**
+ * Cancela o ofício em qualquer situação (rascunho, aguardando assinatura ou
+ * emitido — assinado eletronicamente, à mão ou sem assinatura).
+ *
+ * Cancelar é um ato POSTERIOR: só o ofício muda (situação + quando, quem e
+ * por quê). Número, conteúdo, envelope de assinatura, hash, PDF assinado e
+ * trilha ficam como estão — o número não volta para reuso, porque
+ * proximoNumero() conta também os cancelados. O que acontece com a
+ * assinatura (link pendente que deixa de valer, evento novo na trilha do
+ * envelope assinado, avisos) fica em registrarCancelamentoNaAssinatura
+ * (lib/db/oficios-assinatura.ts), chamada pela action logo depois.
+ */
+export async function cancelarOficio(
+  id: string,
+  dados: { motivo: string; usuarioId: string }
+): Promise<{ erro?: string; situacaoAnterior?: string | null }> {
+  const motivo = dados.motivo.trim()
+  if (motivo.length < MOTIVO_CANCELAMENTO_MIN) {
+    return { erro: `Conte o motivo do cancelamento (pelo menos ${MOTIVO_CANCELAMENTO_MIN} caracteres).` }
+  }
   const admin = await createAdminClient()
-  const { error } = await admin
+  const emp = await tenantAtual()
+  const { data: o } = await admin
     .from("oficios")
-    .update({ situacao: "Cancelado", updated_at: new Date().toISOString() })
+    .select("situacao")
     .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!o) return { erro: "Ofício não encontrado." }
+  const anterior = texto(o.situacao)
+  if (anterior === "Cancelado") return { erro: "Este ofício já está cancelado." }
+
+  const agora = new Date().toISOString()
+  // A trava na situação anterior evita cancelar por cima de uma mudança
+  // simultânea (ex.: a assinatura chegando no mesmo instante).
+  const gravar = (campos: Record<string, unknown>) => {
+    const q = admin
+      .from("oficios")
+      .update({ situacao: "Cancelado", updated_at: agora, ...campos })
+      .eq("id", id)
+      .eq("emp_proprietaria_id", emp)
+    return (anterior ? q.eq("situacao", anterior) : q.is("situacao", null)).select("id")
+  }
+  let { data: gravado, error } = await gravar({
+    cancelado_em: agora,
+    cancelado_por_id: dados.usuarioId,
+    cancelamento_motivo: motivo,
+  })
+  if (error && esquemaAusente(error)) {
+    // Sem as colunas não há onde guardar quem, quando e por quê: ofício
+    // emitido não se cancela assim. Rascunho e envio pendente seguem como antes.
+    if (anterior === "Emitido") {
+      return {
+        erro: "Cancelamento de ofício emitido ainda não configurado — rode supabase/oficios-cancelamento.sql no Supabase.",
+      }
+    }
+    ;({ data: gravado, error } = await gravar({}))
+  }
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
-  // Link de assinatura em aberto deixa de valer (a página mostra "cancelado").
-  await admin
-    .from("documento_assinaturas")
-    .update({ situacao: "cancelado", updated_at: new Date().toISOString() })
-    .eq("oficio_id", id)
-    .eq("situacao", "pendente")
-  return {}
+  if (!gravado?.length) {
+    return { erro: "O ofício mudou de situação enquanto você cancelava. Recarregue a página e confira." }
+  }
+  return { situacaoAnterior: anterior }
 }
 
 // ── Lista de filiados (automáticos) ─────────────────────────────────────────
