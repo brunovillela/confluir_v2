@@ -86,3 +86,26 @@ export function linkConfirmacaoEmail(
   })
   return `${origem}/auth/confirm?${q.toString()}`
 }
+
+/**
+ * Link de CRIAR/REDEFINIR SENHA que abre direto o formulário (/acesso/senha).
+ *
+ * Diferente do /auth/confirm, abrir a página NÃO gasta o código de uso único:
+ * ele só é conferido quando a pessoa salva a senha. Assim a pré-visualização
+ * do WhatsApp e os robôs de e-mail que "abrem" o link antes da pessoa não o
+ * invalidam (era o que mandava o pessoal do hotel para a tela de login).
+ * `destino` (caminho interno) força para onde ir depois de salvar.
+ */
+export function linkCriarSenha(
+  origem: string,
+  props: { hashed_token?: string; verification_type?: string } | null | undefined,
+  destino?: string
+): string | undefined {
+  if (!props?.hashed_token || !props.verification_type) return undefined
+  const q = new URLSearchParams({
+    token_hash: props.hashed_token,
+    type: props.verification_type,
+    ...(destino ? { destino } : {}),
+  })
+  return `${origem}/acesso/senha?${q.toString()}`
+}

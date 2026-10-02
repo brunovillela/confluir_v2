@@ -1,6 +1,6 @@
 import "server-only"
 
-import { linkConfirmacaoEmail, textoValidade } from "@/lib/auth-email-constantes"
+import { linkConfirmacaoEmail, linkCriarSenha, textoValidade } from "@/lib/auth-email-constantes"
 import { enviarEmail } from "@/lib/email"
 import { caixaAviso, caixaCodigo, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -125,7 +125,7 @@ export async function enviarLinkRedefinicao(
   if (error || !data?.properties) {
     return { enviado: false, motivo: error?.message ?? "conta não encontrada" }
   }
-  const link = linkConfirmacaoEmail(origem, data.properties, "/definir-senha")
+  const link = linkCriarSenha(origem, data.properties)
   if (!link) return { enviado: false, motivo: "link não gerado" }
 
   const corpo = [
@@ -169,7 +169,7 @@ export async function enviarConvitePrimeiroAcesso(dados: {
   if (error || !data?.user) {
     return { erro: "Não foi possível criar o acesso. Tente novamente." }
   }
-  const link = linkConfirmacaoEmail(dados.origem, data.properties, "/definir-senha")
+  const link = linkCriarSenha(dados.origem, data.properties)
   if (!link) return { erro: "Não foi possível montar o link do convite." }
 
   const corpo = [
@@ -202,6 +202,8 @@ export async function gerarLinkDeAcesso(dados: {
   email: string
   metadata?: Record<string, unknown>
   origem: string
+  /** Para onde ir depois de salvar a senha (ex.: "/hotel/inicio"). */
+  destino?: string
 }): Promise<{ link?: string; usuarioId?: string; erro?: string }> {
   const email = dados.email.trim().toLowerCase()
   const admin = await createAdminClient()
@@ -216,7 +218,7 @@ export async function gerarLinkDeAcesso(dados: {
   if (gerado.error || !gerado.data?.properties) {
     return { erro: "Não foi possível gerar o link de acesso. Tente novamente." }
   }
-  const link = linkConfirmacaoEmail(dados.origem, gerado.data.properties, "/definir-senha")
+  const link = linkCriarSenha(dados.origem, gerado.data.properties, dados.destino)
   if (!link) return { erro: "Não foi possível montar o link de acesso." }
   return { link, usuarioId: gerado.data.user?.id }
 }
@@ -227,6 +229,7 @@ export async function reenviarEmailDeAcesso(dados: {
   nome?: string | null
   metadata?: Record<string, unknown>
   origem: string
+  destino?: string
 }): Promise<{ usuarioId?: string; erro?: string }> {
   const { link, usuarioId, erro } = await gerarLinkDeAcesso(dados)
   if (erro || !link) return { erro: erro ?? "Link não gerado." }

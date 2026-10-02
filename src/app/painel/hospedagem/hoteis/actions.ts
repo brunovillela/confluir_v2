@@ -328,6 +328,7 @@ export async function reenviarAcessoHotelAction(
     nome: (u.nome as string | null) ?? null,
     metadata: { tipo: "hotel" },
     origem: SITE_URL,
+    destino: "/hotel/inicio",
   })
   await vincularConta(u.id as string, u.auth_user_id, r.usuarioId)
   if (r.erro) return { erro: r.erro }
@@ -341,7 +342,12 @@ export async function linkAcessoHotelAction(id: string): Promise<{ erro?: string
   if (!u) return { erro: "Usuário não encontrado." }
   if (u.ativo === false) return { erro: "Este acesso está desativado — reative antes." }
   const { gerarLinkDeAcesso } = await import("@/lib/codigo-acesso")
-  const r = await gerarLinkDeAcesso({ email: u.email as string, metadata: { tipo: "hotel" }, origem: SITE_URL })
+  const r = await gerarLinkDeAcesso({
+    email: u.email as string,
+    metadata: { tipo: "hotel" },
+    origem: SITE_URL,
+    destino: "/hotel/inicio",
+  })
   await vincularConta(u.id as string, u.auth_user_id, r.usuarioId)
   return r.erro ? { erro: r.erro } : { link: r.link }
 }
