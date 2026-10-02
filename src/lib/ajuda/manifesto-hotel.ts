@@ -43,6 +43,21 @@ export const AREAS_AJUDA_HOTEL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "emergencial",
+    titulo: "Cupom emergencial",
+    descricao: "Reserva na hora para o hóspede que chegou sem cupom",
+    icone: "Siren",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Cupom emergencial",
+        resumo: "Só hoje, só neste hotel, com as regras do cupom",
+      },
+    ],
+  },
+  {
     slug: "avaliacoes",
     titulo: "Avaliações",
     descricao: "O que os hóspedes acharam da estadia",

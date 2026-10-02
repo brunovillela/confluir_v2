@@ -134,6 +134,9 @@ export type Cupom = {
   reserva_garantida?: boolean | null
   check_out?: string | null
   quarto?: number | null
+  /** Feito pelo hotel na hora, sem o portal (supabase/hospedagem-cupom-emergencial.sql). */
+  emergencial?: boolean | null
+  emergencial_motivo?: string | null
 }
 
 export type CupomLinha = Cupom & {

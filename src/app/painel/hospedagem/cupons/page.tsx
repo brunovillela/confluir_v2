@@ -21,6 +21,7 @@ import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { Badge } from "@/components/ui/badge"
 import { SituacaoCupomBadge } from "../situacao-cupom-badge"
 import {
   CHAVE_EMITIR_CUPOM,
@@ -221,6 +222,15 @@ export default async function CuponsPage({
                   </TableCell>
                   <TableCell>
                     <SituacaoCupomBadge cancelado={c.cancelado} servicoId={c.servico_id} />
+                    {c.emergencial === true && (
+                      <Badge
+                        variant="outline"
+                        className="border-warning/40 text-warning-fg ml-1 whitespace-nowrap"
+                        title={c.emergencial_motivo ? `Feito pelo hotel: ${c.emergencial_motivo}` : "Feito pelo hotel"}
+                      >
+                        Emergencial (hotel)
+                      </Badge>
+                    )}
                   </TableCell>
                   {podeEmitir && (
                     <TableCell>

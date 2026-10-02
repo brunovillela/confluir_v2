@@ -21,6 +21,7 @@ import { sairDoHotel } from "./actions"
 const NAV = [
   { titulo: "Início", href: "/hotel/inicio", em: "ambos" },
   { titulo: "Cupons", href: "/hotel/cupons", em: "uso" },
+  { titulo: "Cupom emergencial", href: "/hotel/emergencial", em: "ambos" },
   { titulo: "Reservas", href: "/hotel/reservas", em: "uso" },
   { titulo: "Hóspedes por quarto", href: "/hotel/hospedes", em: "garantida" },
   { titulo: "Recepção", href: "/hotel/recepcao", em: "garantida" },

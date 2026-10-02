@@ -176,6 +176,11 @@ export default async function CuponsHotelPage({
                 <TableRow key={c.id}>
                   <TableCell className="max-w-64 truncate font-medium">
                     {c.filiadoNome ?? "(sem nome)"}
+                    {c.emergencial === true && (
+                      <Badge variant="outline" className="border-warning/40 text-warning-fg ml-1.5">
+                        Emergencial
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatarData(c.check_in)}</TableCell>
                   <TableCell className="text-muted-foreground hidden sm:table-cell">
