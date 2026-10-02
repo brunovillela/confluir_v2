@@ -17,6 +17,8 @@
 //   ordens        financeiro-ordempgto → ordens_pagamento
 //   remessas      pessoal-contracheques-remessas → pessoal_contracheques_remessas
 //   contracheques pessoal-contracheques → pessoal_contracheques
+//   remessas_ponto pessoal-registrodeponto-remessas → pessoal_registro_ponto_remessas
+//   ponto         pessoal-registrodeponto → pessoal_registro_ponto
 //   religar       ordens novas ↔ reembolsos de filiado e infrações (o vínculo
 //                 mora do lado de lá) e a proposta escolhida de cada compra
 //
@@ -174,7 +176,7 @@ const editadoAqui = (l) => l.updated_at && l.created_at && new Date(l.updated_at
 // trilha, que a migração não toca); as demais partes só PREENCHEM vazios.
 // `--bubble-manda` volta a trocar em todas (só com o sistema novo intocado).
 const BUBBLE_MANDA_EM_TUDO = args.includes("--bubble-manda")
-const SO_PREENCHE = new Set(["empresas", "projetos", "centros", "bancarios", "contratos", "compras", "propostas", "remessas", "contracheques"])
+const SO_PREENCHE = new Set(["empresas", "projetos", "centros", "bancarios", "contratos", "compras", "propostas", "remessas", "contracheques", "remessas_ponto", "ponto"])
 
 const PARTES = [
   {
@@ -497,6 +499,50 @@ const PARTES = [
       arquivo: texto(b["Contracheque arquivo"]),
       liberado: bool(b["Liberado?"]),
       ordem: num(b.Ordem),
+    }),
+  },
+  {
+    nome: "remessas_ponto",
+    tipo: "pessoal-registrodeponto-remessas",
+    tabela: "pessoal_registro_ponto_remessas",
+    // Lê sem filtro de tenant: as 27 da migração de junho vieram com
+    // emp_proprietaria_id vazio e sumiam do Controle de Ponto (02/10).
+    semTenant: true,
+    mapa: (b) => ({
+      nome_remessa: texto(b["Nome da remessa"]),
+      ordem: num(b.Ordem),
+      finalizada: bool(b["Finalizada?"]),
+      mes_referencia: texto(b["Mês de referência"]),
+      mes_referencia_os: texto(b["Mês de referência OS"]),
+      ano_referencia_os: texto(b["Ano de referência OS"]),
+      emp_proprietaria_id: TENANT,
+    }),
+  },
+  {
+    nome: "ponto",
+    tipo: "pessoal-registrodeponto",
+    tabela: "pessoal_registro_ponto",
+    semTenant: true,
+    arquivos: ["arquivo"],
+    preparar: async (R) => {
+      R.usuario = await ref("user", "usuarios")
+      R.remessaPonto = await ref("pessoal-registrodeponto-remessas", "pessoal_registro_ponto_remessas", true)
+    },
+    filtrar: (b, R) => Boolean(R.usuario(b["FUNCIONÁRIO"]) && R.remessaPonto(b.REMESSA)),
+    mapa: (b, R) => ({
+      funcionario_id: R.usuario(b["FUNCIONÁRIO"]),
+      remessa_id: R.remessaPonto(b.REMESSA),
+      arquivo: texto(b["Registro de ponto arquivo"]),
+      liberado: bool(b["Liberado?"]),
+      ordem: num(b.Ordem),
+      horas_realizadas_70: num(b["Horas realizadas 70%"]),
+      horas_pagas_70: num(b["Horas pagas 70%"]),
+      saldo_remanescente_70: num(b["Saldo remanescente 70%"]),
+      saldo_remessa_anterior_70: num(b["Saldo remessa anterior 70%"]),
+      horas_realizadas_100: num(b["Horas realizadas 100%"]),
+      horas_pagas_100: num(b["Horas pagas 100%"]),
+      saldo_remanescente_100: num(b["Saldo remanescente 100%"]),
+      saldo_remessa_anterior_100: num(b["Saldo remessa anterior 100%"]),
     }),
   },
 ]

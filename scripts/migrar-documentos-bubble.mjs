@@ -104,6 +104,18 @@ const DOCUMENTOS = [
     bucket: "filiacao",
     caminho: (linha, ext) => `convenios/${linha.id}/foto-${randomUUID()}.${ext}`,
   },
+  {
+    // Espelho de ponto: mesma pasta do upload da tela (ponto/<remessa>/…).
+    // A tabela não tem tenant — ele vem pela remessa (`tenantPelo`).
+    tipo: "ponto",
+    tabela: "pessoal_registro_ponto",
+    colunaAtual: "arquivo",
+    colunaOriginal: null,
+    colunasExtra: "remessa_id",
+    tenantPelo: { coluna: "remessa_id", tabela: "pessoal_registro_ponto_remessas" },
+    bucket: "pessoal",
+    caminho: (linha, ext) => `ponto/${linha.remessa_id}/bubble-${randomUUID()}.${ext}`,
+  },
 ]
 
 // ── Ambiente ────────────────────────────────────────────────────────────────
@@ -132,6 +144,10 @@ const supabase = createClient(
 const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
 const CONFERIR = args.includes("--conferir")
+const SO = (() => {
+  const i = args.indexOf("--so")
+  return i >= 0 ? args[i + 1].split(",") : null
+})()
 const LIMITE = (() => {
   const i = args.indexOf("--limite")
   if (i < 0) return null
@@ -301,6 +317,20 @@ async function migrar() {
   const falhas = []
 
   for (const doc of DOCUMENTOS) {
+    if (SO && !SO.includes(doc.tipo)) continue
+    // Tabela sem tenant próprio: filtra pelos pais que são do tenant real.
+    let pais = null
+    if (doc.tenantPelo) {
+      const { data, error } = await supabase
+        .from(doc.tenantPelo.tabela)
+        .select("id")
+        .eq("emp_proprietaria_id", TENANT_REAL)
+      if (error) {
+        console.log(`Falha ao listar ${doc.tenantPelo.tabela}: ${error.message}`)
+        continue
+    }
+      pais = (data ?? []).map((p) => p.id)
+    }
     // PostgREST devolve no MÁXIMO 1000 linhas por consulta. Sem paginar, uma
     // corrida "completa" migrava mil e parava calada, dando a impressão de ter
     // terminado. (Mesma armadilha já vista na conciliação da filiação
@@ -309,12 +339,13 @@ async function migrar() {
     const PAGINA = 1000
     for (let de = 0; ; de += PAGINA) {
       const ate = de + PAGINA - 1
-      const { data, error } = await supabase
+      let q = supabase
         .from(doc.tabela)
         .select(
           [`id`, doc.colunaAtual, doc.colunaOriginal, doc.colunasExtra].filter(Boolean).join(", ")
         )
-        .eq("emp_proprietaria_id", TENANT_REAL)
+      q = pais ? q.in(doc.tenantPelo.coluna, pais) : q.eq("emp_proprietaria_id", TENANT_REAL)
+      const { data, error } = await q
         .like(doc.colunaAtual, "//%")
         .order("id")
         .range(de, ate)
