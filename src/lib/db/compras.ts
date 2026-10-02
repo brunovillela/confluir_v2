@@ -123,6 +123,10 @@ export type OrdemDoProcesso = {
   autorizadorNome: string | null
   autorizacao_data: string | null
   favorecidoNome: string | null
+  /** Final do código Pix copia e cola (conferência na tela; o todo fica na ordem). */
+  pixCodigoFinal?: string | null
+  /** Caminho da nota fiscal da ordem (bucket compras). */
+  notaFiscal?: string | null
 }
 
 export type ProcessoDetalhe = {
@@ -211,7 +215,7 @@ export function gerarCodigoProcesso(): string {
 }
 
 const SELECT_ORDEM =
-  "id, codigo, descricao, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id"
+  "id, codigo, descricao, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id, pix_codigo, arquivo_nota_fiscal"
 
 async function normalizarOrdens(
   brutas: Record<string, unknown>[]
@@ -240,6 +244,8 @@ async function normalizarOrdens(
       ? (usuarios.get(String(o.autorizacao_autorizador_id)) ?? null)
       : null,
     autorizacao_data: (o.autorizacao_data as string | null) ?? null,
+    pixCodigoFinal: typeof o.pix_codigo === "string" && o.pix_codigo ? o.pix_codigo.slice(-8) : null,
+    notaFiscal: (o.arquivo_nota_fiscal as string | null) ?? null,
     favorecidoNome:
       (o.beneficiario_fornecedor_id
         ? empresas.get(String(o.beneficiario_fornecedor_id))?.nome

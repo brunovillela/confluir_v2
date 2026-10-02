@@ -253,6 +253,26 @@ Cada etapa é uma ação no próprio processo:
 
 <Print src="compras/comprador.png" alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: cada processo na sua etapa, com o prazo e o botão de ação." />
 
+## Depois da ordem: Pix expirado e nota fiscal
+
+<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+
+Na página do processo, cada ordem de pagamento e cada fornecimento trazem os
+ajustes que costumam aparecer depois da compra:
+
+- **Novo código Pix** — quando a forma é **Pix (QR Code)** e a ordem ainda não
+  foi paga (nem cancelada ou estornada). O código copia e cola do fornecedor
+  expira: cole o novo e ele substitui o anterior na ordem. Ao lado da forma de
+  pagamento aparece o final do código vigente, para conferir.
+- **Incluir/Trocar nota da compra** — a nota fiscal do fornecimento. A ordem
+  de pagamento acompanha quando usava a mesma nota (ou nenhuma).
+- **Incluir/Trocar nota do pagamento** — uma nota específica da ordem (por
+  exemplo, de uma cobrança à parte do processo).
+
+A nota pode ser incluída ou trocada **mesmo com a ordem já paga** — ela
+costuma chegar depois. Arquivo em PDF, JPG, PNG ou WEBP, até 4 MB. Toda troca
+fica na **trilha da ordem**, com a nota anterior.
+
 ## Aprovação por alçada
 
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>

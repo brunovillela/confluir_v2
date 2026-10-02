@@ -19,9 +19,11 @@ import {
   registrarCompra,
   registrarRecebimento,
   removerProposta,
+  subirComprovanteCompras,
   subirPdfCompras,
 } from "@/lib/db/compras"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { trocarCodigoPix, trocarNotaDaCompra, trocarNotaDaOrdem } from "@/lib/db/compras-ajustes"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -267,4 +269,55 @@ export async function registrarRecebimentoAction(
   }
   revalidatePath("/painel/compras/recebimentos")
   redirect("/painel/compras/recebimentos?salvo=1")
+}
+
+// ── Ajustes do pagamento (código Pix e notas fiscais) ───────────────────────
+
+/**
+ * Quem opera o processo e quem registra aquisição direta ajustam o pagamento
+ * — dentro dos departamentos que alcançam (o comprador, em qualquer um).
+ */
+async function requireAjustePagamento(formData: FormData) {
+  const sessao = await requirePermissao("aquisicoes_compras_edicao", [
+    "aquisicoes_comprador",
+    "aquisicoes_compra_direta",
+  ])
+  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+    await garantirEscopoDoProcesso(sessao.usuario.id, texto(formData, "processo_id"))
+  }
+  return sessao
+}
+
+/** Novo código Pix copia e cola (o anterior expirou). */
+export async function trocarCodigoPixAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!processoId || !ordemId) return { erro: "Ordem inválida." }
+  const { erro } = await trocarCodigoPix(processoId, ordemId, texto(formData, "pix_codigo"), sessao.usuario.id)
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  return { ok: "Código Pix atualizado." }
+}
+
+/** Inclui ou troca a nota fiscal da compra (fornecimento) ou do pagamento (ordem). */
+export async function trocarNotaFiscalAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const alvo = texto(formData, "alvo")
+  const id = texto(formData, "id")
+  if (!processoId || !id || (alvo !== "compra" && alvo !== "pagamento")) return { erro: "Pedido inválido." }
+  const arquivo = formData.get("nota_fiscal")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo da nota (PDF ou foto)." }
+  const { caminho, erro: erroUpload } = await subirComprovanteCompras(`notas/${processoId}`, arquivo)
+  if (erroUpload || !caminho) return { erro: erroUpload ?? "Falha ao subir a nota." }
+
+  const { erro } =
+    alvo === "compra"
+      ? await trocarNotaDaCompra(processoId, id, caminho, sessao.usuario.id)
+      : await trocarNotaDaOrdem(processoId, id, caminho, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  return { ok: "Nota fiscal salva." }
 }

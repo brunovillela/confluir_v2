@@ -34,6 +34,7 @@ import {
   RecebimentoForm,
   RegistrarCompraForm,
 } from "./processo-forms"
+import { NovoCodigoPix, TrocarNotaFiscal } from "./ajustes-pagamento"
 
 export const metadata: Metadata = {
   title: "Processo de aquisição — Confluir",
@@ -56,8 +57,25 @@ function Campo({
   )
 }
 
-function LinhaOrdem({ ordem }: { ordem: OrdemDoProcesso }) {
+// Sem pagamento a fazer: código Pix novo não se aplica (espelha SITUACOES_ENCERRADAS).
+const ORDEM_ENCERRADA = ["Paga", "Cancelada", "Estornado"]
+
+function LinhaOrdem({
+  ordem,
+  processoId,
+  podeAjustar,
+  mostrarNota = true,
+}: {
+  ordem: OrdemDoProcesso & { notaUrl?: string | null }
+  processoId: string
+  podeAjustar: boolean
+  /** No fornecimento a nota da compra já aparece acima; aqui só se for outra. */
+  mostrarNota?: boolean
+}) {
+  const pixTrocavel =
+    ordem.forma_pagamento === "Pix (QR Code)" && !ORDEM_ENCERRADA.includes(String(ordem.situacao))
   return (
+    <div className="grid gap-2">
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Link
@@ -80,7 +98,15 @@ function LinhaOrdem({ ordem }: { ordem: OrdemDoProcesso }) {
           </span>
         )}
         {ordem.forma_pagamento && (
-          <span className="text-muted-foreground">{ordem.forma_pagamento}</span>
+          <span className="text-muted-foreground">
+            {ordem.forma_pagamento}
+            {ordem.pixCodigoFinal ? ` …${ordem.pixCodigoFinal}` : ""}
+          </span>
+        )}
+        {mostrarNota && ordem.notaUrl && (
+          <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+            Nota do pagamento
+          </a>
         )}
         <SituacaoBadge situacao={ordem.situacao} />
         {ordem.autorizado && (
@@ -92,6 +118,15 @@ function LinhaOrdem({ ordem }: { ordem: OrdemDoProcesso }) {
           </span>
         )}
       </div>
+    </div>
+    {podeAjustar && (
+      <div className="flex flex-wrap items-start gap-2">
+        {pixTrocavel && (
+          <NovoCodigoPix processoId={processoId} ordemId={ordem.id} finalAtual={ordem.pixCodigoFinal ?? null} />
+        )}
+        <TrocarNotaFiscal processoId={processoId} alvo="pagamento" id={ordem.id} temNota={!!ordem.notaFiscal} />
+      </div>
+    )}
     </div>
   )
 }
@@ -132,6 +167,14 @@ export default async function ProcessoCompraPage({
   ])
   // Legado do Bubble em produção até a virada: nada de operar por aqui.
   const operavel = podeOperar && !processo.legado && !processo.cancelado
+  // Pix expirado e nota que chega depois: quem opera a compra ajusta, mesmo
+  // com o processo já comprado (a ordem pode estar até paga, no caso da nota).
+  const podeAjustar =
+    !processo.legado &&
+    podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", [
+      "aquisicoes_comprador",
+      "aquisicoes_compra_direta",
+    ])
 
   const fornecedores =
     operavel && !processo.comprado ? await listarFornecedores() : []
@@ -146,6 +189,15 @@ export default async function ProcessoCompraPage({
     (processo.fornecimentos ?? []).map(async (f) => ({
       ...f,
       notaUrl: await urlArquivoCompras(f.nota_fiscal_url),
+      ordem: f.ordem
+        ? { ...f.ordem, notaUrl: await urlArquivoCompras(f.ordem.notaFiscal ?? null) }
+        : null,
+    }))
+  )
+  const avulsasComUrl = await Promise.all(
+    processo.ordensAvulsas.map(async (o) => ({
+      ...o,
+      notaUrl: await urlArquivoCompras(o.notaFiscal ?? null),
     }))
   )
 
@@ -505,10 +557,25 @@ export default async function ProcessoCompraPage({
                   </a>
                 )}
               </p>
+              {podeAjustar && (
+                <div className="mt-2">
+                  <TrocarNotaFiscal
+                    processoId={processo.id}
+                    alvo="compra"
+                    id={f.id}
+                    temNota={!!f.nota_fiscal_url}
+                  />
+                </div>
+              )}
 
               <div className="mt-3 grid gap-3">
                 {f.ordem ? (
-                  <LinhaOrdem ordem={f.ordem} />
+                  <LinhaOrdem
+                    ordem={f.ordem}
+                    processoId={processo.id}
+                    podeAjustar={podeAjustar}
+                    mostrarNota={f.ordem.notaFiscal !== f.nota_fiscal_url}
+                  />
                 ) : operavel ? (
                   <GerarOrdemForm
                     processoId={processo.id}
@@ -551,13 +618,13 @@ export default async function ProcessoCompraPage({
             </div>
           ))}
 
-          {processo.ordensAvulsas.length > 0 && (
+          {avulsasComUrl.length > 0 && (
             <div className="grid gap-2">
               <p className="text-muted-foreground text-xs font-medium uppercase">
                 Cobranças do processo
               </p>
-              {processo.ordensAvulsas.map((o) => (
-                <LinhaOrdem key={o.id} ordem={o} />
+              {avulsasComUrl.map((o) => (
+                <LinhaOrdem key={o.id} ordem={o} processoId={processo.id} podeAjustar={podeAjustar} />
               ))}
             </div>
           )}
