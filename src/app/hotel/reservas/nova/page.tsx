@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { cuponsAguardando, listarTarifas } from "@/lib/db/hospedagem"
 
@@ -15,7 +16,9 @@ import { criarReservaHotel } from "../actions"
 export const metadata: Metadata = { title: "Registrar reserva — Confluir" }
 
 export default async function NovaReservaHotelPage() {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, podeEditar, somenteConsulta } = await requireAreaHotel("reservas")
+  // Criar exige "editar"; quem só consulta volta para a lista.
+  if (!podeEditar && !preview) redirect("/hotel/reservas")
 
   const [cupons, tarifas] = await Promise.all([
     cuponsAguardando(hotel.id),
@@ -24,6 +27,7 @@ export default async function NovaReservaHotelPage() {
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

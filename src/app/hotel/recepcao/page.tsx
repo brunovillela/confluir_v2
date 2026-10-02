@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 
 import { HotelShell } from "../hotel-shell"
@@ -10,10 +10,11 @@ import { PortaHotel } from "./porta-hotel"
 export const metadata: Metadata = { title: "Recepção — Área do hotel" }
 
 export default async function HotelRecepcaoPage() {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("recepcao")
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

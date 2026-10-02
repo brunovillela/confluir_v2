@@ -1,8 +1,8 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import { buscarFiliadoEmergencial, registrarCupomEmergencial, type FiliadoEmergencial } from "@/lib/db/hospedagem-emergencial"
 
 export type EstadoBusca = { erro?: string; cpf?: string; filiado?: FiliadoEmergencial }
@@ -14,7 +14,9 @@ export type EstadoRegistro = { erro?: string; ok?: string; garantida?: boolean }
  * sessão — nunca do formulário — e a data é sempre hoje.
  */
 export async function buscarFiliadoEmergencialAction(_prev: EstadoBusca, fd: FormData): Promise<EstadoBusca> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("emergencial")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
   const cpf = String(fd.get("cpf") ?? "").replace(/\D/g, "")
   if (cpf.length !== 11) return { erro: "Informe os 11 dígitos do CPF." }
   const { erro, filiado } = await buscarFiliadoEmergencial(hotel, cpf)
@@ -22,7 +24,9 @@ export async function buscarFiliadoEmergencialAction(_prev: EstadoBusca, fd: For
 }
 
 export async function registrarCupomEmergencialAction(_prev: EstadoRegistro, fd: FormData): Promise<EstadoRegistro> {
-  const { hotel, usuarioHotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("emergencial")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel, usuarioHotel } = sessao
   const r = await registrarCupomEmergencial({
     hotel,
     usuarioHotelId: usuarioHotel.id,

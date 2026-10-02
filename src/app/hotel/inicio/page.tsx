@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { AREAS_HOTEL } from "@/lib/hotel-permissoes"
 import {
   cuponsAguardando,
   listarServicos,
@@ -36,8 +37,15 @@ export const metadata: Metadata = { title: "Área do hotel — Confluir" }
  * As listas moram nas abas (Cupons, Reservas, Hóspedes por quarto), e as
  * tarifas, em Acordo e orientações.
  */
-export default async function HotelInicioPage() {
+export default async function HotelInicioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ semAcesso?: string }>
+}) {
   const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  // Veio de uma área sem permissão (requireAreaHotel).
+  const { semAcesso } = await searchParams
+  const areaNegada = AREAS_HOTEL.find((a) => a.chave === semAcesso) ?? null
   const garantida = ehGarantida(hotel)
 
   const [cupons, todosServicos] = await Promise.all([
@@ -112,6 +120,12 @@ export default async function HotelInicioPage() {
       garantida={garantida}
       preview={preview ? { gestorNome } : undefined}
     >
+      {areaNegada && (
+        <div className="border-warning/40 bg-warning/10 text-warning-fg rounded-md border px-3 py-2 text-sm">
+          Você não tem acesso a <strong>{areaNegada.titulo}</strong>. Se precisar, peça ao sindicato
+          para incluir essa área nas suas permissões.
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

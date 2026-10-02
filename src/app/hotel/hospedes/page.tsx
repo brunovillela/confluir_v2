@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import {
   ehGarantida,
   mapaDaNoite,
@@ -47,13 +47,14 @@ export default async function HotelHospedesPage({
 }: {
   searchParams: Promise<{ noite?: string }>
 }) {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("hospedes")
   const { noite: noiteParam } = await searchParams
   const noite = noiteParam && DATA.test(noiteParam) ? noiteParam : hojeEmSP()
 
   if (!ehGarantida(hotel)) {
     return (
       <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}
@@ -80,6 +81,7 @@ export default async function HotelHospedesPage({
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

@@ -1,7 +1,11 @@
 "use client"
 
-import { useActionState } from "react"
-import { Loader2, Mail, UserPlus } from "lucide-react"
+import { Fragment, useActionState, useState } from "react"
+import { Loader2, Mail, ShieldCheck, UserPlus } from "lucide-react"
+
+import { resumoPermissoesHotel, type PermissoesHotel } from "@/lib/hotel-permissoes"
+
+import { PermissoesUsuarioHotel } from "./permissoes-usuario-hotel"
 
 import { CopiarLinkBotao } from "@/components/copiar-link"
 
@@ -71,6 +75,8 @@ export type UsuarioHotelLinha = {
   nome: string | null
   auth_user_id: string | null
   ativo: boolean
+  /** null = acesso completo (lib/hotel-permissoes.ts). */
+  permissoes: PermissoesHotel
 }
 
 /**
@@ -81,11 +87,15 @@ export function UsuariosHotel({
   hotelId,
   usuarios,
   disponivel,
+  garantida = false,
 }: {
   hotelId: string
   usuarios: UsuarioHotelLinha[]
   disponivel: boolean
+  /** Convênio de demanda garantida — destaca as áreas que existem nele. */
+  garantida?: boolean
 }) {
+  const [editando, setEditando] = useState<string | null>(null)
   const [estadoCriar, criarAction, criando] = useActionState(criarUsuarioHotel, {})
   const [estadoAlt, altAction, alternando] = useActionState(alternarUsuarioHotel, {})
 
@@ -133,6 +143,7 @@ export function UsuariosHotel({
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Permissões</TableHead>
                     <TableHead className="text-right">Acesso</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -140,7 +151,7 @@ export function UsuariosHotel({
                   {usuarios.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="text-muted-foreground h-20 text-center text-sm"
                       >
                         Nenhum acesso criado para este hotel.
@@ -148,7 +159,8 @@ export function UsuariosHotel({
                     </TableRow>
                   )}
                   {usuarios.map((u) => (
-                    <TableRow key={u.id}>
+                    <Fragment key={u.id}>
+                    <TableRow>
                       <TableCell className="max-w-48 truncate font-medium">
                         {u.nome ?? "—"}
                       </TableCell>
@@ -168,6 +180,19 @@ export function UsuariosHotel({
                             Desativado
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          aria-expanded={editando === u.id}
+                          onClick={() => setEditando((e) => (e === u.id ? null : u.id))}
+                        >
+                          <ShieldCheck />
+                          {resumoPermissoesHotel(u.permissoes)}
+                        </Button>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -198,6 +223,14 @@ export function UsuariosHotel({
                         </div>
                       </TableCell>
                     </TableRow>
+                    {editando === u.id && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={5} className="bg-muted/30">
+                          <PermissoesUsuarioHotel id={u.id} permissoes={u.permissoes} garantida={garantida} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>

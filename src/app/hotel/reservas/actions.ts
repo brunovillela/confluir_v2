@@ -1,9 +1,9 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   definirReservaFinalizada,
@@ -33,7 +33,9 @@ export async function criarReservaHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const campos = lerCamposReserva(formData)
   if ("erro" in campos) return campos
@@ -56,7 +58,9 @@ export async function vincularCupomHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoId = String(formData.get("servico_id") ?? "")
   const cupomId = String(formData.get("cupom_id") ?? "")
@@ -71,7 +75,9 @@ export async function desvincularCupomHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoId = String(formData.get("servico_id") ?? "")
   const cupomId = String(formData.get("cupom_id") ?? "")
@@ -86,7 +92,9 @@ export async function marcarComparecimentoHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoId = String(formData.get("servico_id") ?? "")
   const cupomId = String(formData.get("cupom_id") ?? "")
@@ -107,7 +115,9 @@ export async function subirRelatorioHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoId = String(formData.get("servico_id") ?? "")
   if (!servicoId) return { erro: "Reserva inválida." }
@@ -151,7 +161,9 @@ export async function definirFinalizadoHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("reservas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoId = String(formData.get("servico_id") ?? "")
   const finalizado = String(formData.get("finalizado") ?? "") === "true"

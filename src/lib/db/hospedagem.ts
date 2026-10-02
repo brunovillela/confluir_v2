@@ -1,4 +1,5 @@
 import "server-only"
+import { lerPermissoesHotel, type PermissoesHotel } from "@/lib/hotel-permissoes"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { tenantAtual } from "@/lib/tenant"
@@ -436,6 +437,8 @@ export type UsuarioHotel = {
   auth_user_id: string | null
   ativo: boolean
   created_at: string | null
+  /** Por área da interface do hotel; null = acesso completo (supabase/hotel-permissoes.sql). */
+  permissoes?: PermissoesHotel
 }
 
 /** PGRST205/42P01 = tabela ainda não criada (rodar supabase/hospedagem-hotel.sql). */
@@ -449,14 +452,18 @@ export async function usuariosDoHotel(
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("hospedagem_hotel_usuarios")
-    .select("id, hotel_id, email, nome, auth_user_id, ativo, created_at")
+    // "*": a coluna `permissoes` (hotel-permissoes.sql) pode ainda não existir.
+    .select("*")
     .eq("hotel_id", hotelId)
     .order("created_at", { ascending: true })
   if (error) {
     if (tabelaAusente(error)) return { disponivel: false, usuarios: [] }
     throw new Error(`Falha ao listar usuários do hotel: ${error.message}`)
   }
-  return { disponivel: true, usuarios: data ?? [] }
+  return {
+    disponivel: true,
+    usuarios: (data ?? []).map((u) => ({ ...u, permissoes: lerPermissoesHotel(u.permissoes) })),
+  }
 }
 
 /**
@@ -470,7 +477,8 @@ export async function usuarioHotelDaConta(
   email: string | null
 ): Promise<{ usuarioHotel: UsuarioHotel; hotel: Hotel } | null> {
   const admin = await createAdminClient()
-  const campos = "id, hotel_id, email, nome, auth_user_id, ativo, created_at"
+  // "*": a coluna `permissoes` (hotel-permissoes.sql) pode ainda não existir.
+  const campos = "*"
 
   const porAuth = await admin
     .from("hospedagem_hotel_usuarios")
@@ -503,7 +511,10 @@ export async function usuarioHotelDaConta(
 
   const hotel = await buscarHotel(usuarioHotel.hotel_id)
   if (!hotel) return null
-  return { usuarioHotel, hotel }
+  return {
+    usuarioHotel: { ...usuarioHotel, permissoes: lerPermissoesHotel(usuarioHotel.permissoes) },
+    hotel,
+  }
 }
 
 // ── Efetivação de reserva (regras compartilhadas painel/hotel) ─────────────

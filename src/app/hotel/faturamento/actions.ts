@@ -1,9 +1,9 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   contasDoHotel,
@@ -19,7 +19,9 @@ export async function criarFaturaHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("faturamento")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const servicoIds = formData.getAll("servicos").map(String).filter(Boolean)
   if (servicoIds.length === 0) {

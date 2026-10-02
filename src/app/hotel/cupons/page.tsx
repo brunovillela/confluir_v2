@@ -23,7 +23,7 @@ import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 
 import { HotelShell } from "../hotel-shell"
 
@@ -38,7 +38,7 @@ export default async function CuponsHotelPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("cupons")
   // Em demanda garantida o cupom já nasce reservado — não há fila de espera.
   if (ehGarantida(hotel)) redirect("/hotel/inicio")
 
@@ -84,6 +84,7 @@ export default async function CuponsHotelPage({
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

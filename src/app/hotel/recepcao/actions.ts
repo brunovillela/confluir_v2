@@ -1,8 +1,8 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import {
   buscarReservasNaPorta,
   ehGarantida,
@@ -21,7 +21,9 @@ const SO_GARANTIDA =
 export async function buscarReservasAction(
   termo: string
 ): Promise<{ erro?: string; reservas?: ReservaNaPorta[] }> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("recepcao")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
   if (!ehGarantida(hotel)) return { erro: SO_GARANTIDA }
   try {
     return { reservas: await buscarReservasNaPorta(hotel.id, termo) }
@@ -34,7 +36,9 @@ export async function registrarEntradaAction(input: {
   cupomId: string
   metodo: "qr" | "busca"
 }): Promise<{ erro?: string; nome?: string | null; jaEstava?: boolean }> {
-  const { hotel, user } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("recepcao")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel, user } = sessao
   if (!ehGarantida(hotel)) return { erro: SO_GARANTIDA }
   const resultado = await registrarPresencaNaPorta({
     cupomId: input.cupomId,

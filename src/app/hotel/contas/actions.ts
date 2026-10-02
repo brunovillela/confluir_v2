@@ -1,8 +1,8 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -11,7 +11,9 @@ export async function criarContaHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("contas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const texto = (campo: string) => {
     const v = String(formData.get(campo) ?? "").trim()
@@ -60,7 +62,9 @@ export async function alternarContaHotel(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("contas")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel } = sessao
 
   const id = String(formData.get("id") ?? "")
   const ativo = String(formData.get("ativo") ?? "") === "true"

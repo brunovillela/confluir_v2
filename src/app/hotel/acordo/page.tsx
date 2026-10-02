@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { contratoDoHotel, listarTarifas } from "@/lib/db/hospedagem"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -57,7 +57,7 @@ const FAQ = [
 ]
 
 export default async function AcordoPage() {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("acordo")
   const [tarifas, contrato] = await Promise.all([
     listarTarifas(hotel.id),
     contratoDoHotel(hotel.id),
@@ -69,6 +69,7 @@ export default async function AcordoPage() {
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

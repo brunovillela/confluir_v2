@@ -36,6 +36,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { HotelForm } from "../hotel-form"
 import { Tarifas } from "./tarifas"
 import { UsuariosHotel } from "./usuarios-hotel"
+import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 
 async function TabelaFaturas({ faturas }: { faturas: FaturaLinha[] }) {
   const urls = new Map<string, string | null>()
@@ -208,7 +209,9 @@ export default async function HotelPage({
           nome: u.nome,
           auth_user_id: u.auth_user_id,
           ativo: u.ativo,
+          permissoes: u.permissoes ?? null,
         }))}
+        garantida={ehGarantida(hotel)}
       />
     </>
   )

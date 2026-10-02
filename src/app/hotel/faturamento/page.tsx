@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import {
   listarFaturas,
@@ -121,7 +121,7 @@ export default async function FaturamentoPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("faturamento")
   const { salvo } = await searchParams
 
   const faturas = await listarFaturas(hotel.id)
@@ -130,6 +130,7 @@ export default async function FaturamentoPage({
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

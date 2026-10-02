@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { hojeSP } from "@/lib/db/comum"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { formatarData } from "@/lib/formato"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 
 import { HotelShell } from "../hotel-shell"
 import { CupomEmergencialForm } from "./emergencial-form"
@@ -18,12 +18,13 @@ export const metadata: Metadata = { title: "Cupom emergencial — Confluir" }
  * mesmas regras do cupom. No "Ver como o hotel" da gestão, só leitura.
  */
 export default async function CupomEmergencialPage() {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, podeEditar, somenteConsulta } = await requireAreaHotel("emergencial")
   const hoje = hojeSP()
   const garantida = ehGarantida(hotel)
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={garantida}
       preview={preview ? { gestorNome } : undefined}
@@ -55,7 +56,7 @@ export default async function CupomEmergencialPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <CupomEmergencialForm hoje={hoje} preview={preview} />
+          <CupomEmergencialForm hoje={hoje} preview={preview || !podeEditar} />
         </CardContent>
       </Card>
     </HotelShell>

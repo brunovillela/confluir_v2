@@ -393,3 +393,41 @@ export async function excluirTarifa(
   revalidatePath("/painel/hospedagem/hoteis")
   return { ok: "Tarifa excluída." }
 }
+
+/**
+ * Permissões do usuário do hotel por área (ver/editar), como no painel
+ * administrativo. "Acesso completo" grava null (mesmo efeito de nunca ter
+ * configurado). Ver lib/hotel-permissoes.ts.
+ */
+export async function salvarPermissoesUsuarioHotel(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("filiacao_hospedagens_gestao")
+  const u = await acessoHotel(String(formData.get("id") ?? ""))
+  if (!u) return { erro: "Usuário não encontrado." }
+
+  const { AREAS_HOTEL, lerPermissoesHotel, resumoPermissoesHotel } = await import("@/lib/hotel-permissoes")
+  const bruto: Record<string, string> = {}
+  for (const a of AREAS_HOTEL) {
+    const v = String(formData.get(`area_${a.chave}`) ?? "")
+    if (v === "ver" || (v === "editar" && a.temEdicao)) bruto[a.chave] = v
+  }
+  const permissoes = lerPermissoesHotel(bruto)
+  const completo = resumoPermissoesHotel(permissoes) === "Acesso completo"
+
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("hospedagem_hotel_usuarios")
+    .update({ permissoes: completo ? null : permissoes })
+    .eq("id", u.id as string)
+  if (error) {
+    return {
+      erro: /permissoes/.test(error.message)
+        ? "Rode supabase/hotel-permissoes.sql no Supabase para salvar as permissões."
+        : `Não foi possível salvar: ${error.message}`,
+    }
+  }
+  revalidatePath(`/painel/hospedagem/hoteis/${u.hotel_id}`)
+  return { ok: `Permissões de ${u.email} salvas: ${resumoPermissoesHotel(completo ? null : permissoes)}.` }
+}

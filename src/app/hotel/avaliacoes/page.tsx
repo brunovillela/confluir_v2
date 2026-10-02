@@ -28,7 +28,7 @@ import {
 } from "@/lib/hospedagem-avaliacoes-constantes"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { tenantAtual } from "@/lib/tenant"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 
 import { HotelShell } from "../hotel-shell"
 
@@ -54,7 +54,7 @@ export default async function HotelAvaliacoesPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("avaliacoes")
   const sp = await searchParams
 
   const periodo = lerPeriodo(sp, hojeSP())
@@ -85,6 +85,7 @@ export default async function HotelAvaliacoesPage({
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

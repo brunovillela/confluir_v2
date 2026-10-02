@@ -1,8 +1,8 @@
 "use server"
 
+import { sessaoHotelParaEditar } from "@/lib/hotel-acesso"
 import { revalidatePath } from "next/cache"
 
-import { requireSessaoHotel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { anotarQuartoHotel, ehGarantida } from "@/lib/db/hospedagem-garantida"
 
@@ -11,7 +11,9 @@ export async function anotarQuartoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  const { hotel, user } = await requireSessaoHotel()
+  const sessao = await sessaoHotelParaEditar("hospedes")
+  if ("erro" in sessao) return { erro: sessao.erro }
+  const { hotel, user } = sessao
   if (!ehGarantida(hotel)) return { erro: "Disponível no convênio de demanda garantida." }
 
   const noite = String(formData.get("noite") ?? "")

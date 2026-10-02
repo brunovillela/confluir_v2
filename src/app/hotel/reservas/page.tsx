@@ -22,7 +22,7 @@ import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 
 import { HotelShell } from "../hotel-shell"
 
@@ -47,7 +47,7 @@ export default async function ReservasHotelPage({
 }: {
   searchParams: Promise<Params>
 }) {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, somenteConsulta } = await requireAreaHotel("reservas")
   const params = await searchParams
 
   const busca = (params.busca ?? "").trim()
@@ -91,6 +91,7 @@ export default async function ReservasHotelPage({
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}

@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { requireVisualizacaoHotel } from "@/lib/visualizacao-hotel"
+import { requireAreaHotel } from "@/lib/hotel-acesso"
 import { ehGarantida } from "@/lib/db/hospedagem-garantida"
 import {
   contasDoHotel,
@@ -19,7 +20,9 @@ import { FaturaForm } from "./fatura-form"
 export const metadata: Metadata = { title: "Nova fatura — Confluir" }
 
 export default async function NovaFaturaPage() {
-  const { hotel, preview, gestorNome } = await requireVisualizacaoHotel()
+  const { hotel, preview, gestorNome, podeEditar, somenteConsulta } = await requireAreaHotel("faturamento")
+  // Criar exige "editar"; quem só consulta volta para a lista.
+  if (!podeEditar && !preview) redirect("/hotel/faturamento")
 
   const [servicos, contasRes] = await Promise.all([
     servicosFaturaveis(hotel),
@@ -28,6 +31,7 @@ export default async function NovaFaturaPage() {
 
   return (
     <HotelShell
+      somenteConsulta={somenteConsulta}
       nomeHotel={hotel.nome ?? "Hotel parceiro"}
       garantida={ehGarantida(hotel)}
       preview={preview ? { gestorNome } : undefined}
