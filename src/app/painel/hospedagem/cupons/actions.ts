@@ -15,6 +15,8 @@ import {
   ehGarantida,
   enviarEmailReservaConfirmada,
   reservarEstadia,
+  linkDaReservaDoCupom,
+  reenviarConfirmacaoReserva,
 } from "@/lib/db/hospedagem-garantida"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -100,6 +102,7 @@ export async function criarCupom(
       hotelNome: hotelCompleto.nome ?? "hotel",
       checkIn,
       checkOut,
+      token: reserva.token,
     })
     revalidatePath("/painel/hospedagem")
     revalidatePath("/painel/hospedagem/cupons")
@@ -192,4 +195,21 @@ export async function cancelarCupom(
   revalidatePath("/painel/hospedagem/cupons")
   revalidatePath("/painel/hospedagem")
   return { ok: "Cupom cancelado." }
+}
+
+/** Reenvia o e-mail "Reserva confirmada" (reserva garantida) ao filiado. */
+export async function reenviarConfirmacaoReservaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT)
+  const { erro, email } = await reenviarConfirmacaoReserva(String(formData.get("id") ?? ""))
+  if (erro) return { erro }
+  return { ok: `E-mail reenviado para ${email}.` }
+}
+
+/** Link direto da reserva, para a equipe mandar por WhatsApp ou outro meio. */
+export async function linkDaReservaAction(cupomId: string): Promise<{ erro?: string; link?: string }> {
+  await requirePermissao(CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT)
+  return linkDaReservaDoCupom(cupomId)
 }

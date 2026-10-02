@@ -467,17 +467,27 @@ export async function reservarEstadia(p: {
   }
 }
 
+/** Link direto da reserva (QR Code, sem login) — o que se manda por WhatsApp. */
+export async function linkDaReserva(token: string): Promise<string> {
+  return `${await origemAtual()}/hospedagem/reserva/${token}`
+}
+
+/**
+ * E-mail "Reserva confirmada". Com o `token`, o botão leva direto à reserva
+ * (QR Code sem login); sem ele, ao portal. Devolve o e-mail usado.
+ */
 export async function enviarEmailReservaConfirmada(p: {
   cpf: string | null
   hotelNome: string
   checkIn: string
   checkOut: string
-}): Promise<void> {
-  if (!p.cpf) return
+  token?: string | null
+}): Promise<{ email?: string }> {
+  if (!p.cpf) return {}
   const filiado = await buscarFiliadoPorCpf(p.cpf)
-  if (!filiado?.email) return
+  if (!filiado?.email) return {}
   const origem = await origemAtual()
-  const link = `${origem}/portal/hospedagem`
+  const link = p.token ? await linkDaReserva(p.token) : `${origem}/portal/hospedagem`
   await enviarEmail({
     email: filiado.email,
     nome: filiado.nome_completo,
@@ -493,6 +503,96 @@ export async function enviarEmailReservaConfirmada(p: {
       botaoEmail(link, "Ver a reserva e o QR Code") +
       linkReserva(link),
   })
+  return { email: filiado.email }
+}
+
+/** A reserva garantida de um cupom, para a equipe reenviar ou copiar o link. */
+async function reservaDoCupom(cupomId: string) {
+  if (!UUID.test(cupomId)) return null
+  const admin = await createAdminClient()
+  const { data: c } = await admin
+    .from("hospedagem_cupom")
+    .select("*")
+    .eq("id", cupomId)
+    .eq("reserva_garantida", true)
+    .maybeSingle()
+  if (!c) return null
+  const { data: f } = c.filiado_id
+    ? await admin.from("filiacoes").select("cpf").eq("id", c.filiado_id as string).maybeSingle()
+    : { data: null }
+  const hotel = await buscarHotel(c.hotel_id as string)
+  return {
+    token: c.token as string,
+    situacao: situacaoDaReserva(c),
+    cpf: txt(f?.cpf),
+    hotelNome: hotel?.nome ?? "hotel",
+    checkIn: c.check_in as string,
+    checkOut: c.check_out as string,
+  }
+}
+
+const SITUACOES_COM_LINK: SituacaoReserva[] = ["confirmada", "hospedado", "aguardando_confirmacao"]
+
+/** Reenvia o e-mail de confirmação de uma reserva garantida (equipe). */
+export async function reenviarConfirmacaoReserva(cupomId: string): Promise<{ erro?: string; email?: string }> {
+  const r = await reservaDoCupom(cupomId)
+  if (!r) return { erro: "Reserva não encontrada." }
+  if (!SITUACOES_COM_LINK.includes(r.situacao)) {
+    return { erro: `A reserva está "${ROTULO_SITUACAO_RESERVA[r.situacao]}" — não há confirmação a reenviar.` }
+  }
+  const { email } = await enviarEmailReservaConfirmada(r)
+  if (!email) return { erro: "O filiado não tem e-mail no cadastro — copie o link e envie por outro meio." }
+  return { email }
+}
+
+/** Link direto da reserva de um cupom (equipe copia para WhatsApp etc.). */
+export async function linkDaReservaDoCupom(cupomId: string): Promise<{ erro?: string; link?: string }> {
+  const r = await reservaDoCupom(cupomId)
+  if (!r) return { erro: "Reserva não encontrada." }
+  if (!SITUACOES_COM_LINK.includes(r.situacao)) {
+    return { erro: `A reserva está "${ROTULO_SITUACAO_RESERVA[r.situacao]}" — o link não vale mais.` }
+  }
+  return { link: await linkDaReserva(r.token) }
+}
+
+export type ReservaPublica = {
+  hotelNome: string | null
+  checkIn: string
+  checkOut: string
+  quarto: number | null
+  situacao: SituacaoReserva
+  primeiroNome: string | null
+  token: string
+}
+
+/** Página pública do link (quem tem o token já tem o QR Code). */
+export async function reservaPorToken(token: string): Promise<ReservaPublica | null> {
+  if (!UUID.test(token)) return null
+  const admin = await createAdminClient()
+  const { data: c } = await admin
+    .from("hospedagem_cupom")
+    .select("*")
+    .eq("token", token)
+    .eq("reserva_garantida", true)
+    .maybeSingle()
+  if (!c) return null
+  const [hotel, { data: f }] = await Promise.all([
+    buscarHotel(c.hotel_id as string),
+    c.filiado_id
+      ? admin.from("filiacoes").select("nome_completo").eq("id", c.filiado_id as string).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+  const nome = txt(f?.nome_completo)
+  return {
+    hotelNome: hotel?.nome ?? null,
+    checkIn: c.check_in as string,
+    checkOut: c.check_out as string,
+    quarto: typeof c.quarto === "number" ? c.quarto : null,
+    situacao: situacaoDaReserva(c),
+    // Só o primeiro nome: o link circula por mensagem.
+    primeiroNome: nome ? nome.split(" ")[0] : null,
+    token: c.token as string,
+  }
 }
 
 // ── Cancelamento ─────────────────────────────────────────────────────────────
@@ -955,7 +1055,7 @@ export async function confirmarOferta(token: string): Promise<{ erro?: string }>
   }
   const { data: cupom } = await admin
     .from("hospedagem_cupom")
-    .select("id, cancelado, confirmar_ate")
+    .select("id, token, cancelado, confirmar_ate")
     .eq("id", e.cupom_id as string)
     .maybeSingle()
   const vencida =
@@ -983,6 +1083,7 @@ export async function confirmarOferta(token: string): Promise<{ erro?: string }>
     hotelNome: hotel?.nome ?? "hotel",
     checkIn: e.check_in as string,
     checkOut: e.check_out as string,
+    token: txt(cupom.token),
   })
   return {}
 }

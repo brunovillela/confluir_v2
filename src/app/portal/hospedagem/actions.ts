@@ -119,6 +119,7 @@ export async function solicitarCupom(
       hotelNome: hotelCompleto.nome ?? "hotel",
       checkIn,
       checkOut,
+      token: reserva.token,
     })
     revalidarHospedagem(reserva.cupomId)
     redirect(`/portal/hospedagem/reserva/${reserva.cupomId}?salvo=1`)

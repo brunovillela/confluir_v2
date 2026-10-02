@@ -1,7 +1,9 @@
 "use client"
 
 import { useActionState } from "react"
-import { Loader2, UserPlus } from "lucide-react"
+import { Loader2, Mail, UserPlus } from "lucide-react"
+
+import { CopiarLinkBotao } from "@/components/copiar-link"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +26,44 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { alternarUsuarioHotel, criarUsuarioHotel } from "../actions"
+import {
+  alternarUsuarioHotel,
+  criarUsuarioHotel,
+  linkAcessoHotelAction,
+  reenviarAcessoHotelAction,
+} from "../actions"
+
+/**
+ * Reenviar o e-mail de acesso ou copiar o link (WhatsApp etc.). Cada um gera
+ * um link NOVO de criar/redefinir a senha — o anterior deixa de valer.
+ */
+function AcessoUsuarioHotel({ id }: { id: string }) {
+  const [estado, acao, pendente] = useActionState(reenviarAcessoHotelAction, {})
+  return (
+    <span className="inline-flex flex-wrap items-center justify-end gap-1">
+      <form action={acao}>
+        <input type="hidden" name="id" value={id} />
+        <Button
+          type="submit"
+          variant="ghost"
+          size="sm"
+          disabled={pendente}
+          className="h-7 px-2"
+          title="Reenviar o e-mail com o link para criar a senha"
+        >
+          {pendente ? <Loader2 className="animate-spin" /> : <Mail />}
+          Reenviar e-mail
+        </Button>
+      </form>
+      <CopiarLinkBotao obterLink={() => linkAcessoHotelAction(id)} />
+      {(estado.erro || estado.ok) && (
+        <span className={`basis-full text-right text-xs ${estado.erro ? "text-destructive" : "text-success-fg"}`}>
+          {estado.erro ?? estado.ok}
+        </span>
+      )}
+    </span>
+  )
+}
 
 export type UsuarioHotelLinha = {
   id: string
@@ -59,7 +98,9 @@ export function UsuariosHotel({
         <CardTitle className="text-base">Usuários do hotel</CardTitle>
         <CardDescription>
           Pessoal do hotel com acesso à área /hotel — enxergam só os cupons e
-          reservas deste hotel e registram os serviços.
+          reservas deste hotel e registram os serviços. Se o convite não chegou
+          ou venceu, reenvie o e-mail ou copie o link para mandar por WhatsApp
+          (vale por tempo limitado e uma vez só; um link novo invalida o anterior).
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -92,7 +133,7 @@ export function UsuariosHotel({
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Situação</TableHead>
-                    <TableHead className="w-28" />
+                    <TableHead className="text-right">Acesso</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -128,30 +169,33 @@ export function UsuariosHotel({
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <form action={altAction}>
-                          <input type="hidden" name="id" value={u.id} />
-                          <input type="hidden" name="hotel_id" value={hotelId} />
-                          <input
-                            type="hidden"
-                            name="ativo"
-                            value={String(!u.ativo)}
-                          />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="sm"
-                            disabled={alternando}
-                            className={
-                              u.ativo
-                                ? "text-destructive hover:text-destructive h-7 px-2"
-                                : "h-7 px-2"
-                            }
-                          >
-                            {alternando && <Loader2 className="animate-spin" />}
-                            {u.ativo ? "Desativar" : "Reativar"}
-                          </Button>
-                        </form>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {u.ativo && <AcessoUsuarioHotel id={u.id} />}
+                          <form action={altAction}>
+                            <input type="hidden" name="id" value={u.id} />
+                            <input type="hidden" name="hotel_id" value={hotelId} />
+                            <input
+                              type="hidden"
+                              name="ativo"
+                              value={String(!u.ativo)}
+                            />
+                            <Button
+                              type="submit"
+                              variant="ghost"
+                              size="sm"
+                              disabled={alternando}
+                              className={
+                                u.ativo
+                                  ? "text-destructive hover:text-destructive h-7 px-2"
+                                  : "h-7 px-2"
+                              }
+                            >
+                              {alternando && <Loader2 className="animate-spin" />}
+                              {u.ativo ? "Desativar" : "Reativar"}
+                            </Button>
+                          </form>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

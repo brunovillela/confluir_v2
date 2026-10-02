@@ -287,6 +287,65 @@ export async function criarUsuarioHotel(
   }
 }
 
+/** O acesso de hotel desta entidade (o hotel tem de ser do tenant). */
+async function acessoHotel(id: string) {
+  if (!id) return null
+  const admin = await createAdminClient()
+  const { data: u } = await admin
+    .from("hospedagem_hotel_usuarios")
+    .select("id, email, nome, ativo, hotel_id, auth_user_id")
+    .eq("id", id)
+    .maybeSingle()
+  if (!u) return null
+  const { data: hotel } = await admin
+    .from("hospedagem_hotel")
+    .select("id")
+    .eq("id", u.hotel_id as string)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return hotel ? u : null
+}
+
+/** Guarda a conta do Auth quando o acesso foi criado sem ela (convite falhou). */
+async function vincularConta(id: string, atual: unknown, usuarioId: string | undefined) {
+  if (atual || !usuarioId) return
+  const admin = await createAdminClient()
+  await admin.from("hospedagem_hotel_usuarios").update({ auth_user_id: usuarioId }).eq("id", id)
+}
+
+/** Reenvia o e-mail de acesso (link novo de criar/redefinir a senha). */
+export async function reenviarAcessoHotelAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("filiacao_hospedagens_gestao")
+  const u = await acessoHotel(String(formData.get("id") ?? ""))
+  if (!u) return { erro: "Usuário não encontrado." }
+  if (u.ativo === false) return { erro: "Este acesso está desativado — reative antes de reenviar." }
+  const { reenviarEmailDeAcesso } = await import("@/lib/codigo-acesso")
+  const r = await reenviarEmailDeAcesso({
+    email: u.email as string,
+    nome: (u.nome as string | null) ?? null,
+    metadata: { tipo: "hotel" },
+    origem: SITE_URL,
+  })
+  await vincularConta(u.id as string, u.auth_user_id, r.usuarioId)
+  if (r.erro) return { erro: r.erro }
+  return { ok: `E-mail de acesso reenviado para ${u.email}.` }
+}
+
+/** Link de acesso para mandar por WhatsApp ou outro meio (não envia e-mail). */
+export async function linkAcessoHotelAction(id: string): Promise<{ erro?: string; link?: string }> {
+  await requirePermissao("filiacao_hospedagens_gestao")
+  const u = await acessoHotel(id)
+  if (!u) return { erro: "Usuário não encontrado." }
+  if (u.ativo === false) return { erro: "Este acesso está desativado — reative antes." }
+  const { gerarLinkDeAcesso } = await import("@/lib/codigo-acesso")
+  const r = await gerarLinkDeAcesso({ email: u.email as string, metadata: { tipo: "hotel" }, origem: SITE_URL })
+  await vincularConta(u.id as string, u.auth_user_id, r.usuarioId)
+  return r.erro ? { erro: r.erro } : { link: r.link }
+}
+
 export async function alternarUsuarioHotel(
   _prev: EstadoForm,
   formData: FormData

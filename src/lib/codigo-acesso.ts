@@ -191,3 +191,63 @@ export async function enviarConvitePrimeiroAcesso(dados: {
     ? { usuarioId: data.user.id }
     : { usuarioId: data.user.id, erro: "A conta foi criada, mas o e-mail do convite não saiu." }
 }
+
+/**
+ * Link de acesso (criar/redefinir a senha) SEM enviar nada — para reenviar o
+ * convite ou copiá-lo e mandar por outro meio. Conta nova: "invite" (cria a
+ * conta). Conta existente (convite já usado, ou senha esquecida): "recovery",
+ * que leva à mesma tela de definir senha.
+ */
+export async function gerarLinkDeAcesso(dados: {
+  email: string
+  metadata?: Record<string, unknown>
+  origem: string
+}): Promise<{ link?: string; usuarioId?: string; erro?: string }> {
+  const email = dados.email.trim().toLowerCase()
+  const admin = await createAdminClient()
+  const convite = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { data: dados.metadata ?? {} },
+  })
+  const gerado = convite.error
+    ? await admin.auth.admin.generateLink({ type: "recovery", email })
+    : convite
+  if (gerado.error || !gerado.data?.properties) {
+    return { erro: "Não foi possível gerar o link de acesso. Tente novamente." }
+  }
+  const link = linkConfirmacaoEmail(dados.origem, gerado.data.properties, "/definir-senha")
+  if (!link) return { erro: "Não foi possível montar o link de acesso." }
+  return { link, usuarioId: gerado.data.user?.id }
+}
+
+/** Reenvia o e-mail de acesso (mesma moldura do convite) com um link novo. */
+export async function reenviarEmailDeAcesso(dados: {
+  email: string
+  nome?: string | null
+  metadata?: Record<string, unknown>
+  origem: string
+}): Promise<{ usuarioId?: string; erro?: string }> {
+  const { link, usuarioId, erro } = await gerarLinkDeAcesso(dados)
+  if (erro || !link) return { erro: erro ?? "Link não gerado." }
+  const corpo = [
+    tituloEmail("Seu acesso ao Confluir"),
+    paragrafo(
+      dados.nome
+        ? `Olá, ${dados.nome.trim().split(/\s+/)[0]}. Este é o seu link de acesso ao Confluir.`
+        : "Este é o seu link de acesso ao Confluir."
+    ),
+    paragrafo(`<a href="${link}" style="font-weight:600;">Clique aqui para criar a sua senha</a> e entrar.`),
+    caixaAviso(
+      `Este link vale por <strong>${textoValidade()}</strong> e funciona uma vez só. Links enviados antes deixam de valer.`
+    ),
+    textoSuave("Não esperava este e-mail? Fale com a secretaria antes de criar a senha."),
+  ].join("\n")
+  const enviado = await enviarEmail({
+    email: dados.email,
+    nome: dados.nome,
+    assunto: "Confluir | Seu acesso",
+    html: corpo,
+  })
+  return enviado ? { usuarioId } : { usuarioId, erro: "O provedor de e-mail recusou o envio — copie o link e envie por outro meio." }
+}

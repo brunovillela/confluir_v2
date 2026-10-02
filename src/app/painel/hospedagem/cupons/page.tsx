@@ -28,7 +28,7 @@ import {
   CHAVES_EMITIR_CUPOM_ALT,
   CHAVES_VER_CUPONS_ALT,
 } from "./chaves"
-import { CancelarCupomBotao } from "./cupom-acoes"
+import { AcoesReservaGarantida, CancelarCupomBotao } from "./cupom-acoes"
 
 export const metadata: Metadata = { title: "Cupons de hospedagem — Confluir" }
 
@@ -224,7 +224,12 @@ export default async function CuponsPage({
                   </TableCell>
                   {podeEmitir && (
                     <TableCell>
-                      {st !== "cancelado" && <CancelarCupomBotao id={c.id} />}
+                      <div className="flex flex-wrap items-center gap-1">
+                        {st !== "cancelado" && c.reserva_garantida === true && (
+                          <AcoesReservaGarantida id={c.id} />
+                        )}
+                        {st !== "cancelado" && <CancelarCupomBotao id={c.id} />}
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
