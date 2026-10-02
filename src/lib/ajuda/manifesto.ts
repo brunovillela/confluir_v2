@@ -548,6 +548,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Faturamento",
         resumo: "Nota, fatura e a ordem de pagamento do hotel",
       },
+      {
+        slug: "avaliacoes",
+        titulo: "Avaliações da hospedagem",
+        resumo: "Notas dos filiados, indicadores, notas baixas e moderação",
+      },
     ],
   },
   {

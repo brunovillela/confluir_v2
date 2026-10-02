@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Hotel,
   Percent,
+  Star,
   Ticket,
   UserX,
 } from "lucide-react";
@@ -24,8 +25,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { diasAntesDe } from "@/components/avaliacoes-indicadores";
 import { requirePermissao } from "@/lib/auth";
+import { hojeSP } from "@/lib/db/comum";
 import { listarCupons, resumoHospedagem } from "@/lib/db/hospedagem";
+import { listarAvaliacoes } from "@/lib/db/hospedagem-avaliacoes";
+import { calcularIndicadores } from "@/lib/hospedagem-avaliacoes-constantes";
+import { tenantAtual } from "@/lib/tenant";
 import { formatarData } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
@@ -43,9 +49,10 @@ export default async function HospedagemPage() {
     "filiacao_hospedagens_gestao",
   );
 
-  const [resumo, cupons] = await Promise.all([
+  const [resumo, cupons, notaMedia] = await Promise.all([
     resumoHospedagem(),
     listarCupons(),
+    podeGerir ? mediaDasAvaliacoes() : Promise.resolve(null),
   ]);
 
   const indicadores = [
@@ -105,6 +112,14 @@ export default async function HospedagemPage() {
       icone: UserX,
     },
     podeGerir && {
+      titulo: "Avaliações",
+      descricao:
+        "Notas dos filiados às estadias, ranking dos hotéis e notas baixas a tratar",
+      href: "/painel/hospedagem/avaliacoes",
+      icone: Star,
+      indicador: notaMedia,
+    },
+    podeGerir && {
       titulo: "Hotéis parceiros",
       descricao: "Cadastro dos hotéis conveniados e tarifas por acomodação",
       href: "/painel/hospedagem/hoteis",
@@ -115,6 +130,7 @@ export default async function HospedagemPage() {
     descricao: string;
     href: string;
     icone: typeof Hotel;
+    indicador?: string | null;
   }[];
 
   const ultimos = cupons.slice(0, 8);
@@ -136,6 +152,7 @@ export default async function HospedagemPage() {
             descricao={a.descricao}
             href={a.href}
             icone={a.icone}
+            indicador={a.indicador}
           />
         ))}
       </div>
@@ -211,4 +228,30 @@ export default async function HospedagemPage() {
       )}
     </>
   );
+}
+
+/**
+ * Média das avaliações dos últimos 90 dias (pelo check-out), para o cartão
+ * do hub. Sem o SQL rodado — ou com erro de leitura — o cartão só não mostra
+ * o número: o hub não pode cair por causa dele.
+ */
+async function mediaDasAvaliacoes(): Promise<string | null> {
+  try {
+    const hoje = hojeSP();
+    const { disponivel, linhas } = await listarAvaliacoes(await tenantAtual(), {
+      de: diasAntesDe(hoje, 90),
+      ate: hoje,
+    });
+    if (!disponivel) return null;
+    const ind = calcularIndicadores(linhas, { incluirSoSindicato: true });
+    if (ind.media === null) return "Sem avaliações nos últimos 90 dias";
+    const media = ind.media.toLocaleString("pt-BR", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return `Média ${media} ★ · ${ind.respondidas} avaliaç${ind.respondidas === 1 ? "ão" : "ões"} em 90 dias`;
+  } catch (e) {
+    console.error("Falha ao ler a média das avaliações:", e);
+    return null;
+  }
 }

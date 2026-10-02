@@ -429,6 +429,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    // Identifica quem avaliou e registra providência/moderação: só gestão.
+    titulo: "Avaliações da hospedagem",
+    href: "/painel/hospedagem/avaliacoes",
+    icone: "Hotel",
+    descricao: "Notas dos filiados aos hotéis, ranking e notas baixas",
+    chave: "filiacao_hospedagens_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Jurídico",
     href: "/painel/juridico",
     icone: "Scale",

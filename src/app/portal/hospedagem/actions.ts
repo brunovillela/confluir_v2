@@ -19,6 +19,7 @@ import {
   enviarEmailReservaConfirmada,
   reservarEstadia,
 } from "@/lib/db/hospedagem-garantida"
+import { travaPorAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -93,6 +94,9 @@ export async function solicitarCupom(
     return { erro: "Hotel indisponível para novos cupons." }
   }
   if (!cadastro) return { erro: "Cadastro não encontrado." }
+  // Avaliação pendente de uma estadia concluída trava o novo pedido.
+  const travaAvaliacao = await travaPorAvaliacao(registros)
+  if (travaAvaliacao) return { erro: travaAvaliacao }
 
   // Demanda garantida: o pedido já é a reserva, com o quarto definido na hora.
   const hotelCompleto = await buscarHotel(hotelId)
@@ -227,6 +231,8 @@ export async function entrarNaEsperaPortal(
   ])
   if (!hotel || hotel.ativo === false) return { erro: "Hotel indisponível." }
   if (!cadastro) return { erro: "Cadastro não encontrado." }
+  const travaAvaliacao = await travaPorAvaliacao(registros)
+  if (travaAvaliacao) return { erro: travaAvaliacao }
 
   const pode = await conferirPodeReservar({ cpf: filiado.cpf, registros, checkIn })
   if (pode.erro) return { erro: pode.erro }

@@ -43,6 +43,21 @@ export const AREAS_AJUDA_HOTEL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "avaliacoes",
+    titulo: "Avaliações",
+    descricao: "O que os hóspedes acharam da estadia",
+    icone: "Star",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Avaliações dos hóspedes",
+        resumo: "Notas anônimas, etiquetas, comentários e indicadores",
+      },
+    ],
+  },
+  {
     slug: "faturamento",
     titulo: "Faturamento",
     descricao: "Emitir a fatura das hospedagens ao sindicato",

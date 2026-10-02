@@ -1,0 +1,143 @@
+Depois de cada estadia, o filiado **avalia a hospedagem** com uma nota de **1 a
+5 estrelas**, algumas **etiquetas** e, se quiser, um **comentário** — no estilo
+dos aplicativos de transporte. O sindicato acompanha tudo **identificado** em
+**Hospedagem → Avaliações**; o hotel vê as mesmas avaliações **sem saber quem
+avaliou**, na área dele.
+
+<RequerPermissao>Hospedagens — gestão</RequerPermissao>
+
+## Três lados da mesma avaliação
+
+- **Filiado** — recebe o convite por e-mail e o cartão "Avalie sua hospedagem"
+  no portal. Avalia uma vez só; depois de enviada, a avaliação não se edita.
+- **Hotel** — vê a nota, as etiquetas e o comentário de forma **anônima**: sem
+  nome e só com o **mês** da estadia (data exata e quarto identificariam o
+  hóspede). Nesta versão o hotel **não responde** às avaliações.
+- **Sindicato (aqui)** — vê quem avaliou, trata as **notas baixas** registrando a
+  providência e pode **ocultar do hotel** um comentário ofensivo.
+
+## Como o filiado avalia
+
+<PassoAPasso>
+  <Passo titulo="A estadia termina">
+    A avaliação é pedida para toda estadia **concluída**: o hotel registrou o
+    comparecimento (na demanda garantida, a entrada do hóspede) e o check-out
+    já passou. Estadias antigas, anteriores ao lançamento do recurso, não pedem
+    avaliação.
+  </Passo>
+  <Passo titulo="Convite e lembrete">
+    O filiado recebe um e-mail com as **cinco estrelas clicáveis** — tocar numa
+    delas já abre a avaliação com aquela nota. Quem não responder recebe **um
+    lembrete** três dias depois. O link abre **sem senha** e vale só para
+    aquela estadia.
+  </Passo>
+  <Passo titulo="Nota, etiquetas e comentário">
+    Com **5 estrelas**, as etiquetas são **elogios** ("O que mais se
+    destacou?"); com **1 a 4**, apontam **o que pode melhorar**. As etiquetas
+    são: limpeza, atendimento, café da manhã, conforto do quarto, silêncio,
+    localização, check-in e recepção, custo-benefício e **aplicativo (portal e
+    QR Code)**.
+  </Passo>
+  <Passo titulo="Nota baixa pede o motivo">
+    Com **1 ou 2 estrelas** o comentário é **obrigatório** — como o Uber pede o
+    motivo nas notas baixas. Assim que ela chega, quem tem a gestão da
+    hospedagem recebe um **aviso no sino**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="A trava do portal">
+  Enquanto houver avaliação **pendente**, o portal pede que o filiado avalie
+  antes de fazer **um novo pedido de hospedagem**. A avaliação leva menos de um
+  minuto e destrava o pedido na hora.
+</Aviso>
+
+<Aviso tipo="nota" titulo="A etiqueta do aplicativo é só do sindicato">
+  A etiqueta **Aplicativo (portal e QR Code)** fala do sistema do sindicato, não
+  do hotel — por isso o hotel **não a vê**, nem na avaliação nem nos
+  indicadores dele.
+</Aviso>
+
+## Os indicadores
+
+A página abre nos **últimos 90 dias** e o período é contado pelo
+**check-out**. Use **De/Até** para outro período e **Hotel** para olhar um só.
+Nota, situação e "só com comentário" filtram apenas a lista — os indicadores
+seguem o período e o hotel.
+
+- **Nota média**, com as estrelas preenchidas na proporção da média.
+- **Avaliações respondidas** e quantas têm comentário.
+- **Taxa de resposta** — respondidas ÷ estadias concluídas que pediram
+  avaliação no período.
+- **5 estrelas** — a parcela de avaliações excelentes.
+- **Pendentes** — hóspedes que ainda não avaliaram.
+- **Distribuição das notas** — uma barra por nota, de 5 a 1, com o percentual.
+- **Nota média por mês** — colunas mês a mês (passe o mouse para ver a
+  quantidade); a escala vai sempre de 0 a 5.
+- **Elogios** e **O que pode melhorar** — as etiquetas mais marcadas.
+
+O **Ranking dos hotéis** compara todos os hotéis no período: média, número de
+avaliações, % de 5 estrelas e pendentes. Hotéis com **menos de 3 avaliações**
+ficam no fim, esmaecidos — a média deles ainda oscila demais para comparar.
+Clique no nome do hotel para filtrar a página por ele.
+
+Cada gráfico tem **Ver em tabela**, com os mesmos números.
+
+## Notas baixas: registrar a providência
+
+O cartão **Precisam de atenção** reúne as notas **1 e 2** ainda sem
+providência — de **qualquer período**, para nada se perder pelo filtro de data.
+
+<PassoAPasso>
+  <Passo titulo="Leia a avaliação">
+    O cartão mostra o filiado (com link para a ficha), o hotel, as datas, as
+    etiquetas e o comentário.
+  </Passo>
+  <Passo titulo="Registre o que foi feito">
+    Escreva a providência (por exemplo: "liguei para o hotel; trocaram o
+    colchão do quarto") e clique em **Registrar providência**.
+  </Passo>
+  <Passo titulo="Tratada">
+    A avaliação sai do cartão e, na lista, passa a **Tratada**, com quem tratou,
+    quando e o texto da providência.
+  </Passo>
+</PassoAPasso>
+
+## Moderação: ocultar um comentário do hotel
+
+Se um comentário tiver ofensa ou dado pessoal, use **Ocultar do hotel** na
+lista (há uma confirmação). O hotel continua vendo a **nota** e as
+**etiquetas**, mas no lugar do texto aparece **"Comentário moderado pelo
+sindicato"**. O sindicato segue vendo o texto, com o selo **Oculto do hotel**.
+Para desfazer, **Mostrar ao hotel**.
+
+<Aviso tipo="dica" titulo="Ocultar não é apagar">
+  A moderação só tira o texto da vista do hotel. A avaliação, a nota e o
+  comentário continuam registrados e entram nos indicadores do sindicato.
+</Aviso>
+
+## Erros comuns
+
+- **"A página diz para rodar um SQL."** O recurso depende de
+  `supabase/hospedagem-avaliacoes.sql`, que precisa ser rodado no banco uma vez.
+- **"O hóspede ficou e não foi pedida avaliação."** A estadia só pede avaliação
+  depois que o hotel registra o **comparecimento** e o check-out passa.
+- **"Os números do hotel são diferentes dos meus."** O hotel não vê a etiqueta
+  do aplicativo e não vê comentários ocultados — os indicadores dele refletem
+  só o que ele enxerga.
+- **"Quero ver só as notas baixas."** Escolha a nota no filtro (1 ou 2) ou use
+  o cartão **Precisam de atenção**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Reservas",
+      href: "/painel/ajuda/hospedagem/reservas",
+      descricao: "O comparecimento que conclui a estadia",
+    },
+    {
+      titulo: "Visão geral da Hospedagem",
+      href: "/painel/ajuda/hospedagem",
+      descricao: "Os três ambientes da hospedagem",
+    },
+  ]}
+/>

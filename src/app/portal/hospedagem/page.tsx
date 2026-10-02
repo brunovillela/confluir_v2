@@ -60,7 +60,9 @@ import {
   ConfirmarOfertaBotao,
   SolicitarCupomForm,
 } from "./cupom-portal"
+import { AvaliacoesPendentes } from "./avaliacoes-pendentes"
 import { RegrasUtilizacao } from "./regras-utilizacao"
+import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
 
 export const metadata: Metadata = { title: "Hospedagem — Portal do Associado" }
 
@@ -79,6 +81,8 @@ export default async function PortalHospedagemPage({
     regrasDeUtilizacaoHospedagem(),
     registrosDoCpf(filiado.cpf),
   ])
+  // Estadias concluídas sem avaliação (abre as pendências na hora).
+  const avaliacoesPendentes = await pendenciasDaPessoa(registros)
 
   // Demanda garantida: a fila de espera é processada aqui (sem agendador),
   // antes de ler reservas e ofertas da pessoa.
@@ -122,6 +126,8 @@ export default async function PortalHospedagemPage({
           </AlertDescription>
         </Alert>
       )}
+
+      <AvaliacoesPendentes pendencias={avaliacoesPendentes} preview={Boolean(preview)} />
 
       <RegrasUtilizacao
         configuradas={regras.configuradas}

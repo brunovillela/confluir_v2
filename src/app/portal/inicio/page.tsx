@@ -37,6 +37,9 @@ import { minhasVotacoes, assembleiasDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { PortalShell } from "../portal-shell"
+import { AvaliacoesPendentes } from "../hospedagem/avaliacoes-pendentes"
+import { registrosDoCpf } from "@/lib/db/filiado-portal"
+import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
 
 export const metadata: Metadata = {
   title: "Portal do Associado — Confluir",
@@ -97,6 +100,12 @@ export default async function PortalInicioPage() {
     minhasVotacoes(filiado.cpf).then((l) => l.slice(0, 3)),
     nomeEntidade(),
   ])
+  // Como o Uber: a avaliação da última hospedagem aparece logo ao entrar.
+  const avaliacoesPendentes = filiado.cpf
+    ? await registrosDoCpf(filiado.cpf)
+        .then(pendenciasDaPessoa)
+        .catch(() => [])
+    : []
 
   return (
     <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
@@ -108,6 +117,8 @@ export default async function PortalInicioPage() {
           Bem-vindo(a) ao portal do associado — {entidade}.
         </p>
       </div>
+
+      <AvaliacoesPendentes pendencias={avaliacoesPendentes} preview={Boolean(preview)} />
 
       {assembleias.length > 0 && (
         <div className="grid gap-3">

@@ -24,6 +24,7 @@ const NAV = [
   { titulo: "Reservas", href: "/hotel/reservas", em: "uso" },
   { titulo: "Hóspedes por quarto", href: "/hotel/hospedes", em: "garantida" },
   { titulo: "Recepção", href: "/hotel/recepcao", em: "garantida" },
+  { titulo: "Avaliações", href: "/hotel/avaliacoes", em: "ambos" },
   { titulo: "Faturamento", href: "/hotel/faturamento", em: "ambos" },
   { titulo: "Dados bancários", href: "/hotel/contas", em: "ambos" },
   { titulo: "Acordo e orientações", href: "/hotel/acordo", em: "ambos" },
