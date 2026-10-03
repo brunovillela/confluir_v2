@@ -1,0 +1,45 @@
+A Auditoria mostra **quem alterou o quê** nas tabelas sensíveis do sistema:
+permissões individuais e perfis de acesso, usuários, filiações e vínculos,
+dados bancários, fornecedores, ordens de pagamento, contratos, espaços,
+configuração financeira, contas de caixa e a organização.
+
+O registro é feito pelo próprio banco de dados, no momento da gravação. Não
+há como uma tela gravar sem deixar rastro, e o rastro não pode ser editado
+pelo painel.
+
+## O que cada linha mostra
+
+- **Quando** a alteração aconteceu.
+- **O tipo**: criação, alteração ou exclusão.
+- **A tabela** e o identificador do registro. Clique no identificador para
+  ver todo o histórico daquele registro.
+- **Quem**: o usuário do painel que estava na sessão. Quando a mudança veio
+  de uma rotina automática (agendador, importação, fluxo público sem login)
+  aparece "sistema (sem sessão)".
+- **Os campos**: numa alteração, só os campos que mudaram, com o valor de
+  antes e o de depois. Numa criação ou exclusão, o registro inteiro.
+
+Campos sigilosos (relatórios clínicos cifrados, chaves) aparecem como
+"[oculto]". Mudanças só em carimbos de data (atualizado em) não são
+registradas.
+
+## Filtros
+
+Tabela, quem alterou, identificador do registro e período. A combinação
+tabela + identificador é a mais útil: ela conta a vida de um registro, por
+exemplo todas as mudanças de permissão de uma pessoa.
+
+## Quem vê
+
+Quem tem a permissão **Auditoria (quem alterou o quê)**, na área
+Institucional, ou as permissões de usuários e permissões ou de configurações.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Usuários e permissões",
+      href: "/painel/ajuda/institucional/usuarios",
+      descricao: "Perfis, ajustes finos e a redefinição da verificação em duas etapas",
+    },
+  ]}
+/>

@@ -112,11 +112,20 @@ const AREAS: Area[] = [
     chave: "permissoes",
     chavesAlternativas: ["configuracoes"],
   },
+  {
+    titulo: "Auditoria",
+    descricao: "Quem alterou o quê: permissões, usuários, filiações, dados bancários, ordens",
+    href: "/painel/institucional/auditoria",
+    icone: ScrollText,
+    chave: "institucional_auditoria",
+    chavesAlternativas: ["configuracoes", "permissoes"],
+  },
 ]
 
 export default async function ConfiguracoesPage() {
   const sessao = await requirePermissao("configuracoes", [
     "permissoes",
+    "institucional_auditoria",
     "diretoria_mandatos",
     "registro_mte",
     "ferramentas_emails_internos",

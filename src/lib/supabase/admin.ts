@@ -8,6 +8,7 @@ import {
 } from "@supabase/supabase-js"
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
+import { usuarioIdAtual } from "@/lib/sessao-atual"
 import { escrevePeloTenant } from "@/lib/supabase/tabelas-tenant"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -81,11 +82,20 @@ const ESCRITA = new Set(["insert", "update", "upsert", "delete"])
  */
 export async function createAdminClient(): Promise<SupabaseClient> {
   const tenantId = await tenantAtual()
+  // Quem age nesta requisição vai no cabeçalho `x-confluir-usuario`, que o
+  // trigger de auditoria lê em `request.headers` (supabase/auditoria.sql).
+  // Vale para os dois clientes — tenant e service.
+  const usuarioId = await usuarioIdAtual()
+  const carimbo: Record<string, string> = usuarioId ? { "x-confluir-usuario": usuarioId } : {}
   const tenant = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { Authorization: `Bearer ${jwtDoTenant(tenantId)}` } },
+    global: { headers: { Authorization: `Bearer ${jwtDoTenant(tenantId)}`, ...carimbo } },
   })
-  const service = createServiceClient()
+  const service = createSupabaseClient(
+    SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: carimbo } }
+  )
 
   return new Proxy(tenant, {
     get(alvo, prop, receiver) {

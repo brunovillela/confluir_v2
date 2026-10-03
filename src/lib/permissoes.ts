@@ -887,6 +887,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Auditoria",
+    href: "/painel/institucional/auditoria",
+    icone: "ScrollText",
+    descricao: "Quem alterou o quê nas tabelas sensíveis",
+    chave: "institucional_auditoria",
+    chavesAlternativas: ["configuracoes", "permissoes"],
+    oculto: true,
+  },
+  {
     titulo: "Ajudas institucionais",
     href: "/painel/institucional/ajudas",
     icone: "Landmark",

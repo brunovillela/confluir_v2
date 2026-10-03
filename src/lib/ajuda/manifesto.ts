@@ -659,6 +659,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Usuários e permissões",
         resumo: "Acesso ao painel, permissões por área e alçada",
       },
+      {
+        slug: "auditoria",
+        titulo: "Auditoria",
+        resumo: "Quem alterou o quê nas tabelas sensíveis: filtros e leitura das linhas",
+      },
     ],
   },
   {

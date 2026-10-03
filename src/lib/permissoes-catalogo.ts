@@ -183,6 +183,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     area: "Institucional",
     flags: [
       { chave: "configuracoes", rotulo: "Organização (identidade e sedes)" },
+      { chave: "institucional_auditoria", rotulo: "Auditoria (quem alterou o quê)" },
       { chave: "registro_mte", rotulo: "Registro sindical (MTE)" },
       { chave: "ferramentas_emails_internos", rotulo: "E-mails institucionais" },
       { chave: "ferramentas_linhas_telefone", rotulo: "Linhas institucionais" },
