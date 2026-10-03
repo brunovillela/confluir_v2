@@ -14,8 +14,11 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { situacaoComunicados } from "@/lib/db/comunicacao-descadastro"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { tenantAtual } from "@/lib/tenant"
+import { historicoAceites } from "@/lib/db/lgpd"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
-import { formatarData } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
+import { Download } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 
 import { PortalShell } from "../portal-shell"
@@ -40,11 +43,12 @@ export default async function LgpdPage({
   const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
   const cpf = cpfConfiavel(filiado.cpf)
-  const [cadastro, org, entidade, comunicados] = await Promise.all([
+  const [cadastro, org, entidade, comunicados, aceites] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
     obterOrganizacao(),
     nomeEntidade(),
     cpf ? situacaoComunicados({ emp: await tenantAtual(), cpf }) : null,
+    cpf ? historicoAceites(cpf) : Promise.resolve([]),
   ])
   const emailContato = org?.emailContato ?? null
 
@@ -114,6 +118,43 @@ export default async function LgpdPage({
           </CardHeader>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Seus dados</CardTitle>
+          <CardDescription>
+            Acesso e portabilidade: baixe tudo o que {entidade} guarda sobre você.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-muted-foreground text-sm">
+            O arquivo (JSON) traz cadastro, vínculos, contatos, endereços, dados bancários,
+            hospedagens, inscrições em eventos, reembolsos e os seus aceites. Votos em assembleia
+            não entram: são secretos e não ficam ligados a você.
+          </p>
+          <div>
+            <Button asChild variant="outline" size="sm" disabled={preview}>
+              <a href="/portal/lgpd/meus-dados" download>
+                <Download />
+                Baixar meus dados
+              </a>
+            </Button>
+          </div>
+          {aceites.length > 0 && (
+            <div>
+              <p className="text-sm font-medium">Aceites registrados</p>
+              <ul className="text-muted-foreground text-xs">
+                {aceites.map((a, i) => (
+                  <li key={i}>
+                    {a.tipo === "lgpd" ? "Termo LGPD" : "Desconto em folha"} · {formatarDataHora(a.aceitoEm)} ·{" "}
+                    {a.origem === "portal" ? "pelo portal" : a.origem === "ficha_publica" ? "pela ficha de filiação" : "pela secretaria"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

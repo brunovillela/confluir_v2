@@ -50,3 +50,7 @@ supabase/.temp/
 # (.auditoria-bubble-ate-1909 e afins)
 .auditoria-bubble*/
 .migracao-financeiro/
+
+# testes E2E (Playwright)
+/test-results/
+/playwright-report/

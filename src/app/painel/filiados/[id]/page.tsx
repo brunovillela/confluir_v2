@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Pencil,
   Plus,
+  ShieldOff,
   TriangleAlert,
 } from "lucide-react"
 
@@ -141,6 +142,7 @@ export default async function FiliadoPage({
   const podeEditar = podeAcessar(sessao.permissoes, "filiacao_gestao")
   const podeComunicados = podeAcessar(sessao.permissoes, "filiacao_gestao", ["comunicacao_mensagens"])
   const podeReembolsar = podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"])
+  const podeLgpd = podeAcessar(sessao.permissoes, "filiacao_lgpd", ["configuracoes"])
 
   const { id } = await params
   const { salvo, etapa, mesclado, vinculos: vinculosUnificados, pendentes } = await searchParams
@@ -225,6 +227,14 @@ export default async function FiliadoPage({
                 <Link href={`/painel/filiados/${f.id}/editar`}>
                   <Pencil />
                   Editar cadastro
+                </Link>
+              </Button>
+            )}
+            {podeLgpd && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/filiados/${f.id}/lgpd`}>
+                  <ShieldOff />
+                  LGPD
                 </Link>
               </Button>
             )}

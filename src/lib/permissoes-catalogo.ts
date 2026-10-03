@@ -42,6 +42,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     flags: [
       { chave: "filiacao_filiados", rotulo: "Filiados" },
       { chave: "filiacao_gestao", rotulo: "Gestão da filiação" },
+      { chave: "filiacao_lgpd", rotulo: "LGPD — anonimizar cadastro (direito ao esquecimento)" },
       { chave: "filiacao_receitas", rotulo: "Receitas e contribuições" },
       { chave: "filiacao_reembolsos", rotulo: "Reembolsos" },
       { chave: "filiacao_empresas", rotulo: "Empresas" },
