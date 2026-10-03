@@ -140,7 +140,11 @@ export async function createAdminClient(): Promise<SupabaseClient> {
     get(alvo, prop, receiver) {
       if (prop === "storage") return storageConferido(service.storage)
       if (typeof prop === "string" && VIA_SERVICE.has(prop)) {
-        return Reflect.get(service, prop, service)
+        // `.rpc` é um MÉTODO: sem bind ele rodaria com `this` = o proxy (o
+        // cliente do tenant) e a função SQL seria chamada como
+        // `authenticated` — "permission denied" nas funções revogadas.
+        const v = Reflect.get(service, prop, service)
+        return typeof v === "function" ? v.bind(service) : v
       }
       if (prop === "from") {
         // Leitura sempre pelo tenant (RLS). Escrita: tenant-owned → tenant

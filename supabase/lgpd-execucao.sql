@@ -89,9 +89,8 @@ begin
   end if;
 
   update filiacoes set
-    nome_completo = 'Titular anonimizado',
+    nome_completo = 'Titular anonimizado',   -- nome_completo_norm é gerada: recalcula sozinha
     nome_social = null,
-    nome_completo_norm = null,
     foto = null,
     sexo = null,
     nascimento_data = null,
