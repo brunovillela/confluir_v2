@@ -148,12 +148,12 @@ export function OrganizacaoForm({
             id="logo"
             name="logo"
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/png,image/jpeg,image/webp"
             className="max-w-xs"
           />
         </div>
         <span className="text-muted-foreground text-xs">
-          PNG, JPG, WEBP ou SVG, até 3 MB. Usado no cabeçalho dos ofícios.
+          PNG, JPG ou WEBP, até 3 MB. Usado no cabeçalho dos ofícios.
         </span>
       </div>
 

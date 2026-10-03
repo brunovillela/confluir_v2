@@ -2,7 +2,7 @@ import "server-only"
 import { cpfConfiavel } from "@/lib/cpf"
 
 import { type Evento } from "@/lib/db/eventos"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -39,7 +39,7 @@ export async function filiacaoDoCpf(
   tenantId: string
 ): Promise<{ id: string; nome: string | null } | null> {
   if (!cpfConfiavel(cpf)) return null
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("filiacoes")
     .select("id, nome_completo, updated_at")
@@ -59,7 +59,7 @@ async function apontar(
   tenantId: string,
   descricao: string
 ): Promise<boolean> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const agora = new Date().toISOString()
   const { error } = await service.from("filiacao_prontuario").insert({
     filiacao_id: filiacaoId,
@@ -90,7 +90,7 @@ export async function registrarInscricaoNoProntuario(
   inscricaoId: string,
   tenantId: string
 ): Promise<{ filiado: boolean }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: insc } = await service
     .from("eventos_inscricoes")
     .select("id, cpf, evento_id, filiacao_id, prontuario_inscricao_em, origem")
@@ -146,7 +146,7 @@ export async function registrarRsvpNoProntuario(
   tenantId: string,
   vem: boolean
 ): Promise<void> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: insc } = await service
     .from("eventos_inscricoes")
     .select("id, evento_id, filiacao_id, prontuario_rsvp_em")
@@ -188,7 +188,7 @@ export async function registrarPresencaNoProntuario(
   inscricaoId: string,
   tenantId: string
 ): Promise<void> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: insc } = await service
     .from("eventos_inscricoes")
     .select("id, evento_id, filiacao_id, prontuario_presenca_em")

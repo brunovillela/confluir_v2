@@ -9,6 +9,7 @@ import {
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
+import { conferirArquivo } from "@/lib/uploads"
 import { escrevePeloTenant } from "@/lib/supabase/tabelas-tenant"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -44,6 +45,44 @@ function jwtDoTenant(tenantId: string): string {
     .update(`${cabecalho}.${corpo}`)
     .digest("base64url")
   return `${cabecalho}.${corpo}.${assinatura}`
+}
+
+/**
+ * Storage com conferência de upload (onda 1, S11): todo `.upload()` passa
+ * por `conferirArquivo()` — identifica o tipo pela assinatura do arquivo,
+ * recusa conteúdo ativo (HTML, SVG, executável) e grava o contentType
+ * DETECTADO, não o que o navegador declarou. Um ponto só cobre os 46 uploads.
+ * `update()` recebe o mesmo tratamento; os demais métodos passam direto.
+ */
+function storageConferido(storage: SupabaseClient["storage"]): SupabaseClient["storage"] {
+  return new Proxy(storage, {
+    get(alvo, prop) {
+      if (prop !== "from") {
+        const v = Reflect.get(alvo, prop)
+        return typeof v === "function" ? v.bind(alvo) : v
+      }
+      return (bucket: string) => {
+        const api = alvo.from(bucket)
+        return new Proxy(api, {
+          get(bAlvo, bProp) {
+            if (bProp === "upload" || bProp === "update") {
+              const original = Reflect.get(bAlvo, bProp) as (...args: unknown[]) => Promise<unknown>
+              return async (caminho: string, corpo: unknown, opcoes?: Record<string, unknown>) => {
+                const r = await conferirArquivo(corpo, {
+                  declarado: typeof opcoes?.contentType === "string" ? opcoes.contentType : null,
+                })
+                if (!r.ok) return { data: null, error: { message: r.erro, name: "ArquivoRecusado" } }
+                const finais = r.contentType ? { ...(opcoes ?? {}), contentType: r.contentType } : opcoes
+                return original.call(bAlvo, caminho, corpo, finais)
+              }
+            }
+            const v = Reflect.get(bAlvo, bProp)
+            return typeof v === "function" ? v.bind(bAlvo) : v
+          },
+        })
+      }
+    },
+  })
 }
 
 const VIA_SERVICE = new Set([
@@ -99,6 +138,7 @@ export async function createAdminClient(): Promise<SupabaseClient> {
 
   return new Proxy(tenant, {
     get(alvo, prop, receiver) {
+      if (prop === "storage") return storageConferido(service.storage)
       if (typeof prop === "string" && VIA_SERVICE.has(prop)) {
         return Reflect.get(service, prop, service)
       }

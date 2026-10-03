@@ -8,7 +8,7 @@ import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { type FiliacaoCondicao } from "@/lib/filiacao"
 import { semAcento } from "@/lib/texto"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Ficha de filiação pública (sem login). O aspirante preenche em `/filiar`,
@@ -121,7 +121,7 @@ export async function obterTextosDosTermos(
   lgpdId: string | null,
   descontoId: string | null
 ): Promise<{ lgpd: string | null; desconto: string | null }> {
-  const admin = createServiceClient()
+  const admin = await createAdminClient()
   const buscar = async (tabela: string, id: string | null) => {
     if (!id) return null
     const { data } = await admin

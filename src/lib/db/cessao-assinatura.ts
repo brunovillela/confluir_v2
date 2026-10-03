@@ -24,7 +24,7 @@ import {
   textoSuave,
   tituloEmail,
 } from "@/lib/email-layout"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -255,7 +255,7 @@ export async function envelopeCessaoPorToken(
   token: string
 ): Promise<EnvelopeCessao | null> {
   if (!UUID.test(token)) return null
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data } = await db
     .from("documento_assinaturas")
     .select("*")
@@ -306,7 +306,7 @@ export async function registrarAberturaCessao(
   envelope: EnvelopeCessao,
   contexto: { ip: string | null; userAgent: string | null }
 ): Promise<void> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   if (!envelope.assinatura.visualizadoEm) {
     await db
       .from("documento_assinaturas")
@@ -334,7 +334,7 @@ export async function solicitarCodigoCessao(
   }
   if (!a.email) return { erro: "Não há e-mail para enviar o código." }
 
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const codigo = gerarCodigoAssinatura()
   await db
     .from("documento_assinaturas")
@@ -374,7 +374,7 @@ export async function assinarCessao(
     return { erro: "A outra parte ainda não assinou." }
   }
 
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data: segredo } = await db
     .from("documento_assinaturas")
     .select("codigo_hash, codigo_expira_em, codigo_tentativas")
@@ -468,7 +468,7 @@ export async function recusarCessao(
   const a = envelope.assinatura
   if (a.situacao !== "pendente") return { erro: "Este termo não está aguardando sua assinatura." }
 
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const agora = new Date().toISOString()
   await db
     .from("documento_assinaturas")

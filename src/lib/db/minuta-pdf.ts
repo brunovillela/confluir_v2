@@ -7,7 +7,7 @@ import { certificacaoParaPdf } from "@/lib/db/minuta-assinatura"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { MinutaContratoPDF } from "@/lib/pdf/minuta-contrato"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { urlLogo } from "@/lib/db/organizacao"
 
 /**
@@ -19,7 +19,7 @@ export async function renderizarPdfMinuta(
   minutaId: string,
   emp: string
 ): Promise<{ pdf: Buffer; nome: string } | null> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const [{ data: m }, { data: org }] = await Promise.all([
     db
       .from("contratos_minutas")

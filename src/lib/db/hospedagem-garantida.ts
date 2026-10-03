@@ -32,7 +32,7 @@ import {
   type RegraNaoComparecimento,
   type Sexo,
 } from "@/lib/hospedagem-garantida-constantes"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -438,7 +438,7 @@ export async function reservarEstadia(p: {
       cupom = { id: criado.id as string, token: criado.token as string }
     }
 
-    const { data: resultado, error: erroRpc } = await createServiceClient().rpc(
+    const { data: resultado, error: erroRpc } = await (await createAdminClient()).rpc(
       "hospedagem_gravar_alocacao",
       {
         p_emp: emp,
@@ -1267,7 +1267,7 @@ export async function remanejarReserva(
         erro: `O quarto ${quartoDestino} não comporta esta estadia: está lotado, tem pessoa do outro sexo ou não existe em alguma das noites.`,
       }
     }
-    const { data: resultado, error } = await createServiceClient().rpc(
+    const { data: resultado, error } = await (await createAdminClient()).rpc(
       "hospedagem_gravar_alocacao",
       {
         p_emp: await tenantAtual(),

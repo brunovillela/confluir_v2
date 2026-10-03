@@ -16,7 +16,7 @@ import {
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { hojeSP } from "@/lib/db/comum"
 import { reembolsosDoFiliado, type ReembolsoFiliado } from "@/lib/db/filiacao-reembolsos"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { semAcento } from "@/lib/texto"
 
 export const FILIADOS_POR_PAGINA = 50
@@ -106,7 +106,7 @@ async function registrosPorMatriculaVinculo(
   const norm = normalizarMatricula(termo)
   if (norm.length < 3) return resultado
 
-  const { data, error } = await createServiceClient().rpc(
+  const { data, error } = await (await createAdminClient()).rpc(
     "filiados_por_matricula_vinculo",
     { p_emp: empId, p_termo: norm, p_limite: LIMITE_VINCULOS_BUSCA }
   )

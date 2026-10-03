@@ -27,7 +27,7 @@ import {
   type RegraExigencia,
   type RespostasEvento,
 } from "@/lib/espacos-constantes"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { origemAtual } from "@/lib/tenant-url"
 
 /**
@@ -178,7 +178,7 @@ export async function carregarEspacoPublico(
   slug: string,
   tenantId: string
 ): Promise<EspacoPublico | null> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data, error } = await db
     .from("cessao_espacos")
     .select(
@@ -243,7 +243,7 @@ export async function periodosOcupados(
   desde: Date,
   ate: Date
 ): Promise<{ inicio: number; termino: number; motivo: string }[]> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const espacos = [espacoId, ...(await espacosIrmaos(espacoId))]
 
   const [{ data: bloqueios }, { data: cessoes }] = await Promise.all([
@@ -286,7 +286,7 @@ export async function periodosOcupados(
 }
 
 async function espacosIrmaos(espacoId: string): Promise<string[]> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data: meus } = await db
     .from("cessao_espaco_recintos")
     .select("recinto_id")
@@ -394,7 +394,7 @@ export async function registrarPedido(
     }
   }
 
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data: criada, error } = await db
     .from("cessao_solicitacoes")
     .insert({
@@ -454,7 +454,7 @@ async function espacoParaPedido(
   id: string,
   tenantId: string
 ): Promise<{ nome: string; capacidade: number | null; regras: RegraExigencia[] } | null> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data } = await db
     .from("cessao_espacos")
     .select("nome, capacidade_pessoas")
@@ -489,7 +489,7 @@ async function congelarExigencias(
 ): Promise<void> {
   const lista = calcularExigencias(regras, respostas)
   if (lista.length === 0) return
-  const db = createServiceClient()
+  const db = await createAdminClient()
   await db.from("cessao_solicitacao_exigencias").insert(
     lista.map((e) => ({
       solicitacao_id: solicitacaoId,
@@ -534,7 +534,7 @@ export async function confirmarPedido(
   codigo: string,
   tenantId: string
 ): Promise<{ erro?: string; numero?: number }> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data, error } = await db
     .from("cessao_solicitacoes")
     .select(
@@ -592,7 +592,7 @@ export async function confirmarPedido(
 }
 
 async function proximoNumero(tenantId: string): Promise<number> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data } = await db
     .from("cessao_solicitacoes")
     .select("numero")
@@ -608,7 +608,7 @@ export async function reenviarCodigo(
   token: string,
   tenantId: string
 ): Promise<{ erro?: string }> {
-  const db = createServiceClient()
+  const db = await createAdminClient()
   const { data } = await db
     .from("cessao_solicitacoes")
     .select("id, solicitante_email, solicitante_nome, email_confirmado_em, espaco_id")

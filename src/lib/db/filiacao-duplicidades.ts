@@ -5,7 +5,7 @@ import { esquemaAusente, texto } from "@/lib/db/comum"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
 import { lerLotes } from "@/lib/db/fontes"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
@@ -292,7 +292,7 @@ export async function mesclarCadastros(dados: {
 
   // Chamada com service role: a função é revogada para `authenticated` e
   // valida sozinha que principal e incorporados são do tenant passado.
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data, error } = await service.rpc("mesclar_filiacoes", {
     p_emp: await tenantAtual(),
     p_principal: dados.principal,

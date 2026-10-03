@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Descadastro da mala direta: quem não quer mais receber comunicados.
@@ -107,7 +107,9 @@ export type SituacaoComunicados = {
   origem: OrigemDescadastro | null
 }
 
-export async function situacaoComunicados(t: Titular, db: Db = createServiceClient()): Promise<SituacaoComunicados> {
+export async function situacaoComunicados(t: Titular, cliente?: Db): Promise<SituacaoComunicados> {
+  // O agendador passa o seu cliente; a página e a rota usam o do tenant.
+  const db = cliente ?? (await createAdminClient())
   const ids = await idsDoTitular(db, t)
   if (!ids.length) return { disponivel: true, descadastradoEm: null, origem: null }
   const { data, error } = await db
@@ -132,8 +134,9 @@ export async function definirComunicados(
   t: Titular,
   receber: boolean,
   origem: OrigemDescadastro,
-  db: Db = createServiceClient()
+  cliente?: Db
 ): Promise<{ erro?: string }> {
+  const db = cliente ?? (await createAdminClient())
   const ids = await idsDoTitular(db, t)
   if (!ids.length) return { erro: "Cadastro não encontrado." }
   const { error } = await db

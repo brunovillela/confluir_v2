@@ -11,7 +11,7 @@ import {
   reservarEstadia,
 } from "@/lib/db/hospedagem-garantida"
 import { criarNotificacao } from "@/lib/db/notificacoes"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -180,7 +180,7 @@ export async function registrarCupomEmergencial(p: {
 
 /** Sino para quem gere a hospedagem no tenant. */
 async function avisarGestao(textoAviso: string): Promise<void> {
-  const svc = createServiceClient()
+  const svc = await createAdminClient()
   const empId = await tenantAtual()
   const { data: perms } = await svc.from("permissoes").select("usuario_id, filiacao_hospedagens_gestao")
   const ids = [

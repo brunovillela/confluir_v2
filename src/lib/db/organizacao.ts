@@ -1,8 +1,9 @@
 import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
+import { SUPABASE_URL } from "@/lib/env"
 import { tenantAtual } from "@/lib/tenant"
 
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Organização (tenant) — o registro de `empresa` cujo id é o tenant atual.
@@ -53,18 +54,21 @@ const TIPOS_LOGO: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/webp": "webp",
-  "image/svg+xml": "svg",
+  // SVG saiu: é conteúdo ativo (pode carregar script) e o bucket é público —
+  // a conferência de upload (lib/uploads.ts) o recusa de qualquer forma.
 }
 
-/** URL pública do logo (bucket público) — direto, sem assinar. */
+/**
+ * URL pública do logo (bucket público) — montada direto, sem cliente: é o
+ * mesmo endereço que `getPublicUrl` devolve, e dispensa o service role aqui.
+ */
 export function urlLogo(caminho: string | null): string | null {
   if (!caminho) return null
   if (/^(https?:)?\/\//.test(caminho)) {
     return caminho.startsWith("//") ? `https:${caminho}` : caminho
   }
-  const admin = createServiceClient()
-  const { data } = admin.storage.from("organizacao").getPublicUrl(caminho)
-  return data.publicUrl
+  const limpo = caminho.replace(/^\/+/, "")
+  return `${SUPABASE_URL}/storage/v1/object/public/organizacao/${limpo.split("/").map(encodeURIComponent).join("/")}`
 }
 
 export type Organizacao = {
@@ -191,7 +195,7 @@ export async function subirLogo(
   arquivo: File
 ): Promise<{ erro?: string }> {
   const extensao = TIPOS_LOGO[arquivo.type]
-  if (!extensao) return { erro: "O logo deve ser PNG, JPG, WEBP ou SVG." }
+  if (!extensao) return { erro: "O logo deve ser PNG, JPG ou WEBP." }
   if (arquivo.size > 3 * 1024 * 1024) {
     return { erro: "O logo deve ter no máximo 3 MB." }
   }

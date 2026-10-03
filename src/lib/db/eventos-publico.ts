@@ -11,7 +11,7 @@ import {
   type Evento,
   type ModoFoto,
 } from "@/lib/db/eventos"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Eventos — lado PÚBLICO (sem sessão).
@@ -90,7 +90,7 @@ export async function carregarEventoPublico(
   const capacidade = await capacidadeDoEvento(evento)
   const abertura = inscricoesAbertas(evento, capacidade)
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: campos } = await service
     .from("eventos_campos")
     .select("id, rotulo, tipo, opcoes, ajuda, obrigatorio")
@@ -156,7 +156,7 @@ export async function criarInscricao(
   tenantId: string,
   dados: DadosInscricao
 ): Promise<{ erro?: string; token?: string; codigo?: string }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
 
   // Uma pessoa, uma inscrição por evento — o CPF é o identificador, como já é
   // em `filiacoes`. Reinscrever devolve o token existente em vez de duplicar.
@@ -271,7 +271,7 @@ export async function obterInscricaoPorToken(
   token: string,
   tenantId: string
 ): Promise<InscricaoPublica | null> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_inscricoes")
     .select(
@@ -340,7 +340,7 @@ export async function confirmarEmail(
   inscricaoId?: string
   eventoId?: string
 }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_inscricoes")
     .select(
@@ -409,7 +409,7 @@ export async function novoCodigo(
   token: string,
   tenantId: string
 ): Promise<{ erro?: string; codigo?: string; email?: string; nome?: string | null }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_inscricoes")
     .select("id, email, nome, email_confirmado_em")
@@ -445,7 +445,7 @@ export async function salvarFoto(
   tenantId: string,
   arquivo: File
 ): Promise<{ erro?: string; ok?: boolean }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_inscricoes")
     .select("id, evento_id, email_confirmado_em")
@@ -490,7 +490,7 @@ export async function responderRsvp(
   tenantId: string,
   vem: boolean
 ): Promise<{ erro?: string; ok?: boolean; inscricaoId?: string }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data, error } = await service
     .from("eventos_inscricoes")
     .update({

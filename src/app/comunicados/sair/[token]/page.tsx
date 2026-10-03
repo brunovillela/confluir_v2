@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { lerTokenDescadastro, situacaoComunicados } from "@/lib/db/comunicacao-descadastro"
 import { texto } from "@/lib/db/comum"
 import { formatarDataHora } from "@/lib/formato"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 import { alterarComunicadosAction } from "./actions"
 
@@ -36,7 +36,7 @@ export default async function DescadastroPage({
   let entidade = "a entidade"
   let situacao: Awaited<ReturnType<typeof situacaoComunicados>> | null = null
   if (titular) {
-    const svc = createServiceClient()
+    const svc = await createAdminClient()
     const { data } = await svc.from("empresa").select("nome_fantasia, nome_razao").eq("id", titular.emp).maybeSingle()
     entidade = texto(data?.nome_fantasia) ?? texto(data?.nome_razao) ?? entidade
     situacao = await situacaoComunicados(titular, svc)

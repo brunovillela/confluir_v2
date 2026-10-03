@@ -8,7 +8,7 @@ import {
   type Evento,
 } from "@/lib/db/eventos"
 import { registrarInscricaoNoProntuario } from "@/lib/db/eventos-filiados"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Eventos na área do filiado.
@@ -44,7 +44,7 @@ export async function eventosParaFiliado(
   cpf: string,
   tenantId: string
 ): Promise<EventoDoFiliado[]> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
 
   const { data: brutos } = await service
     .from("eventos")
@@ -139,7 +139,7 @@ export async function inscreverFiliado(
     return { erro: abertura.motivo ?? "As inscrições estão fechadas." }
   }
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: existente } = await service
     .from("eventos_inscricoes")
     .select("id, token")
@@ -188,7 +188,7 @@ export async function cancelarInscricaoDoFiliado(
   cpf: string,
   tenantId: string
 ): Promise<{ erro?: string }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: insc } = await service
     .from("eventos_inscricoes")
     .select("id, cpf")

@@ -1,7 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -257,10 +257,9 @@ export async function unificarCondutores(
   secundarioId: string,
   autorId: string
 ): Promise<{ resultado?: ResultadoUnificacao; erro?: string }> {
-  // Service role de propósito: a função só aceita o servidor (o tenant vai como
-  // parâmetro e é conferido lá dentro). O createAdminClient chamaria o rpc com o
-  // JWT do tenant.
-  const { data, error } = await createServiceClient().rpc("unificar_condutores", {
+  // A função só aceita o servidor (o tenant vai como parâmetro e é conferido
+  // lá dentro); o createAdminClient roteia .rpc pelo service role.
+  const { data, error } = await (await createAdminClient()).rpc("unificar_condutores", {
     p_emp: await tenantAtual(),
     p_principal: principalId,
     p_secundario: secundarioId,

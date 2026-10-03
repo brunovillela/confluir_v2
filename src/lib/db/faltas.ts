@@ -15,7 +15,7 @@ import {
   type UsoFaltas,
 } from "@/lib/faltas-constantes"
 import { formatarData } from "@/lib/formato"
-import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -532,7 +532,7 @@ async function espelharAusencia(faltaId: string, funcionarioId: string, data: st
  * o JWT do tenant: lê pelo service role e recorta pelos usuários do tenant.
  */
 async function notificarGestao(textoAviso: string): Promise<void> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const empId = await tenantAtual()
   const { data: perms } = await service
     .from("permissoes")

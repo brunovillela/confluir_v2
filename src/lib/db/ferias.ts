@@ -9,10 +9,7 @@ import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { formatarData } from "@/lib/formato"
 import { ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
-import {
-  createAdminClient,
-  createServiceClient,
-} from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Férias — períodos aquisitivos/concessivos (`pessoal_ferias`, 63 migrados)
@@ -512,7 +509,7 @@ async function notificarPessoalGestao(
   excetoUsuarioId: string | null
 ): Promise<void> {
   const empId = await tenantAtual()
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: perms } = await service
     .from("permissoes")
     .select("usuario_id")

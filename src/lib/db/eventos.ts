@@ -2,7 +2,6 @@ import "server-only"
 
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createServiceClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { type ConfigEventos, type ModoFoto } from "@/lib/eventos-constantes"
 
@@ -282,7 +281,7 @@ export async function obterEventoPublico(
   slug: string,
   tenantId: string
 ): Promise<Evento | null> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos")
     .select(CAMPOS_EVENTO)

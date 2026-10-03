@@ -3,7 +3,7 @@ import "server-only"
 import { createHash, randomInt, timingSafeEqual } from "node:crypto"
 
 import { obterConfig } from "@/lib/db/eventos"
-import { createServiceClient } from "@/lib/supabase/admin"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Canal do TITULAR dos dados (LGPD art. 18) para quem não é filiado.
@@ -45,7 +45,7 @@ export async function iniciarAcesso(
   email: string,
   tenantId: string
 ): Promise<{ token: string; codigo?: string; nome?: string | null }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const normalizado = email.trim().toLowerCase()
 
   const { data: inscricoes } = await service
@@ -97,7 +97,7 @@ export async function confirmarAcesso(
   codigo: string,
   tenantId: string
 ): Promise<{ erro?: string; ok?: boolean }> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_titular_sessao")
     .select("id, codigo_hash, codigo_expira_em, codigo_tentativas, token_expira_em")
@@ -156,7 +156,7 @@ export async function situacaoDaSessao(
   token: string,
   tenantId: string
 ): Promise<SituacaoSessao> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_titular_sessao")
     .select("codigo_expira_em, token_expira_em")
@@ -184,7 +184,7 @@ async function emailDaSessao(
   token: string,
   tenantId: string
 ): Promise<string | null> {
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("eventos_titular_sessao")
     .select("email, token_expira_em")
@@ -220,7 +220,7 @@ export async function dadosDoTitular(
   const email = await emailDaSessao(token, tenantId)
   if (!email) return null
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { config } = await obterConfig()
 
   const { data: inscricoes } = await service
@@ -304,7 +304,7 @@ export async function reciboDeExclusao(
   const email = await emailDaSessao(token, tenantId)
   if (!email) return null
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data } = await service
     .from("lgpd_solicitacoes")
     .select("concluido_em, registros_anonimizados, acesso_remocao_pendente")
@@ -339,7 +339,7 @@ export async function corrigirDados(
   if (campos.telefone !== undefined) mudancas.telefone = campos.telefone || null
   if (Object.keys(mudancas).length === 1) return { erro: "Nada a corrigir." }
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   // Guarda uma inscrição como âncora do pedido: é a marca que sobrevive caso
   // a identificação seja removida depois.
   const { data: alvos } = await service
@@ -402,7 +402,7 @@ export async function excluirDadosDoTitular(
   const email = await emailDaSessao(token, tenantId)
   if (!email) return { erro: "Sessão expirada. Comece de novo." }
 
-  const service = createServiceClient()
+  const service = await createAdminClient()
   const { data: inscricoes } = await service
     .from("eventos_inscricoes")
     .select("id, foto_url, acesso_situacao")
