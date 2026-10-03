@@ -1,6 +1,7 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { PendenciasIndicador } from "@/components/layout/pendencias-indicador"
 import { SinoNotificacoes } from "@/components/layout/sino-notificacoes"
 import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -8,6 +9,7 @@ import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
+import { pendenciasDoUsuario, totalPendencias } from "@/lib/db/pendencias"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { urlFoto } from "@/lib/db/perfil"
 import { jornadaDoUsuario } from "@/lib/db/pessoal-sst"
@@ -21,7 +23,7 @@ export default async function PainelLayout({
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
   const contaFuncao = sessao.usuario.conta_funcao === true
-  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes] = await Promise.all([
+  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes, pendencias] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
@@ -29,6 +31,7 @@ export default async function PainelLayout({
     jornadaDoUsuario(sessao.usuario.id),
     urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
     contaFuncao ? ocupantesAtuais([sessao.usuario.id]) : Promise.resolve(null),
+    pendenciasDoUsuario(sessao).catch(() => []),
   ])
   // Conta de função (ex.: Recepção): no lugar do e-mail, quem está no posto —
   // lembrete de registrar a troca quando o nome não é o de quem está usando.
@@ -67,7 +70,14 @@ export default async function PainelLayout({
               por conta própria fixava os dois em top-0 e o alerta cobria o
               cabeçalho — texto por cima de texto assim que a página rolava. */}
           <div className="bg-background sticky top-0 z-(--z-sticky)">
-            <AppHeader acoes={<SinoNotificacoes naoLidas={naoLidas} />} />
+            <AppHeader
+              acoes={
+                <>
+                  <PendenciasIndicador total={totalPendencias(pendencias)} />
+                  <SinoNotificacoes naoLidas={naoLidas} />
+                </>
+              }
+            />
             <AlertaForaJornada dias={jornada} />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">

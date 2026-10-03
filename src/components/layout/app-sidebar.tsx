@@ -118,7 +118,23 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>{painel && renderItem(painel)}</SidebarMenu>
+            <SidebarMenu>
+              {painel && renderItem(painel)}
+              {/* Autosserviço (contracheque, férias, diárias…) visível no menu,
+                  não só no avatar — onda 2, U9. */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={estaAtivo("/painel/perfil")}
+                  tooltip="Minha área"
+                >
+                  <Link href="/painel/perfil" onClick={fecharNoMobile}>
+                    <UserRound />
+                    <span className="text-[0.8125rem]">Minha área</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 

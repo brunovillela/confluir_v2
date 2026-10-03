@@ -24,8 +24,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { CaixaDeEntrada } from "@/components/layout/caixa-entrada"
 import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
+import { pendenciasDoUsuario } from "@/lib/db/pendencias"
 import { ultimoResumo } from "@/lib/db/comunicacao"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { obterOrganizacao } from "@/lib/db/organizacao"
@@ -117,6 +119,7 @@ export default async function PainelPage({
     sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? ""
   ).split(" ")[0]
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
+  const pendencias = await pendenciasDoUsuario(sessao)
 
   const [resumo, noticias, meuCaixa, org, resumoIA, condutor, quadroViagem] = await Promise.all([
     resumoPainel(sessao.usuario.id as string),
@@ -177,6 +180,8 @@ export default async function PainelPage({
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>
       )}
+
+      <CaixaDeEntrada pendencias={pendencias} />
 
       {contaCaixa && (
         <Link href="/painel/perfil/caixa" className="group block">

@@ -14,4 +14,4 @@ Continuação das ondas 0 e 1 (`docs/plano-onda-0-seguranca.md`, `docs/plano-ond
 
 ## Andamento
 
-(preenchido ao longo da execução)
+- **Dia 1 — FEITO em 04/10/2026.** U1: `lib/db/pendencias.ts` reúne, por permissão e com head-counts tolerantes a tabela ausente, as pendências de quem vê: ordens em autorização dentro da alçada, férias/diárias/reembolsos do ACT a avaliar, faltas a autorizar, solicitações de filiação, reembolsos de filiados, pedidos de espaço, viagens a atender, fornecimentos a receber e documentos aguardando a assinatura da pessoa (pelo e-mail do convite). Cartão "Sua caixa de entrada" na home (`components/layout/caixa-entrada.tsx`) e contador no cabeçalho ao lado do sino (`pendencias-indicador.tsx`), com a conta cacheada por requisição. U9: item "Minha área" no topo do menu lateral. Cupons de hospedagem ficaram de fora: `hospedagem_cupom` não tem tenant. Verificado no demo: cabeçalho "Caixa de entrada: 17 pendências", cartão com ordens, diárias, filiação e reembolsos.
