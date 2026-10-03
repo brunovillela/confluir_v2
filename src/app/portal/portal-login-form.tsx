@@ -4,6 +4,7 @@ import { useActionState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { CampoCpf } from "@/components/auth/campo-cpf"
+import { Turnstile } from "@/components/auth/turnstile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -76,6 +77,7 @@ export function PortalLoginForm() {
                   Enviaremos um link de acesso ao email do seu cadastro.
                 </p>
               </div>
+              <Turnstile acao="portal_link" />
               <Button type="submit" disabled={pendenteLink}>
                 {pendenteLink && <Loader2 className="animate-spin" />}
                 Enviar link de acesso
@@ -100,6 +102,7 @@ export function PortalLoginForm() {
                   required
                 />
               </div>
+              <Turnstile acao="portal_senha" />
               <Button type="submit" disabled={pendenteSenha}>
                 {pendenteSenha && <Loader2 className="animate-spin" />}
                 Entrar

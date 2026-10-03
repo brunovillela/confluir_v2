@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Turnstile } from "@/components/auth/turnstile"
 
 import {
   aplicarProcessoAction,
@@ -367,6 +368,9 @@ export function ReverterProcesso({ id }: { id: string }) {
           guardada.
         </p>
       </div>
+      {/* A senha é conferida no Supabase; com a proteção por captcha ligada
+          lá, a conferência precisa do token do Turnstile. */}
+      <Turnstile acao="reversao_coletiva" />
       <div className="flex gap-2">
         <Button type="submit" variant="destructive" disabled={pend}>
           {pend ? <Loader2 className="animate-spin" /> : <RotateCcw className="size-4" />}

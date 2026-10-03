@@ -6,6 +6,7 @@ import { descreveErroAuth, type EstadoForm } from "@/lib/contas"
 import { usuarioHotelDaConta } from "@/lib/db/hospedagem"
 import { SITE_URL } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 4 — pessoal dos hotéis parceiros: email + senha. */
 export async function loginHotel(
@@ -20,11 +21,14 @@ export async function loginHotel(
   if (!email || !senha) {
     return { erro: "Informe email e senha." }
   }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: senha,
+    options: { captchaToken: tokenHumano(formData) },
   })
   if (error || !data.user) {
     return { erro: "Email ou senha incorretos." }
@@ -51,6 +55,8 @@ export async function recuperarSenhaHotel(
     .trim()
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const { enviarLinkRedefinicao } = await import("@/lib/codigo-acesso")
   const tentativa = await enviarLinkRedefinicao(email, SITE_URL)
@@ -59,6 +65,7 @@ export async function recuperarSenhaHotel(
     ? { error: null }
     : await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${SITE_URL}/auth/confirm?next=/definir-senha`,
+        captchaToken: tokenHumano(formData),
       })
 
   // Mesma razão do /login: mensagem neutra na tela, erro real no log.

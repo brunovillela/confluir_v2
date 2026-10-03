@@ -19,6 +19,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano } from "@/lib/turnstile"
 
 
 /**
@@ -73,6 +74,8 @@ export async function solicitarTokenEleitor(
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
 
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const admin = await createAdminClient()
   const { data: assembleia } = await admin
@@ -191,6 +194,8 @@ export async function solicitarTokenEmail(
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { erro: "Informe um e-mail válido." }
   }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const admin = await createAdminClient()
   const { data: assembleia } = await admin

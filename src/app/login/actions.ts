@@ -9,6 +9,7 @@ import { origemAtual } from "@/lib/tenant-url"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 1 — funcionários internos: email + senha. */
 export async function loginFuncionario(
@@ -24,11 +25,14 @@ export async function loginFuncionario(
   if (!email || !senha) {
     return { erro: "Informe email e senha." }
   }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: senha,
+    options: { captchaToken: tokenHumano(formData) },
   })
   if (error || !data.user) {
     return { erro: "Email ou senha incorretos." }
@@ -85,6 +89,8 @@ export async function solicitarPrimeiroAcesso(
     .trim()
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   // Resposta genérica para não revelar quais emails existem no cadastro. Ela
   // já traz a orientação de quem JÁ ativou a conta, porque responder isso só
@@ -139,6 +145,8 @@ export async function solicitarRedefinicaoSenha(
     .trim()
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   // Canal do app primeiro: o SMTP do Supabase já ficou fora do ar (22/09/2026)
   // e derrubou junto a redefinição de senha.
@@ -149,6 +157,7 @@ export async function solicitarRedefinicaoSenha(
     ? { error: null }
     : await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${await origemAtual()}/auth/confirm?next=/definir-senha`,
+        captchaToken: tokenHumano(formData),
       })
 
   // A resposta ao usuário é DE PROPÓSITO a mesma em todos os casos — dizer

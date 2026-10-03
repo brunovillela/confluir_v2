@@ -4,6 +4,7 @@ import { useActionState, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { CampoCpf } from "@/components/auth/campo-cpf"
+import { Turnstile } from "@/components/auth/turnstile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -122,6 +123,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
               <Label htmlFor="cpf">CPF</Label>
               <CampoCpf id="cpf" name="cpf" required />
             </div>
+            <Turnstile acao="votacao_cpf" />
             <Button type="submit" disabled={pendCpf}>
               {pendCpf && <Loader2 className="animate-spin" />}
               Receber meu link de votação
@@ -141,6 +143,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
               <Label htmlFor="email">E-mail (o que a empresa informou)</Label>
               <Input id="email" name="email" type="email" required />
             </div>
+            <Turnstile acao="votacao_email" />
             <Button type="submit" disabled={pendEmail}>
               {pendEmail && <Loader2 className="animate-spin" />}
               Receber meu link de votação

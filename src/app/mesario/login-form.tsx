@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Turnstile } from "@/components/auth/turnstile"
 
 import { confirmarCodigoMesario, enviarCodigoMesario } from "./actions"
 
@@ -51,6 +52,7 @@ export function LoginMesario() {
             <AlertDescription>{estEnviar.ok}</AlertDescription>
           </Alert>
         )}
+        <Turnstile acao="codigo_mesario" />
         <Button type="submit" disabled={pendEnviar}>
           {pendEnviar ? <Loader2 className="animate-spin" /> : <Mail />}
           {enviado ? "Reenviar código" : "Enviar código"}

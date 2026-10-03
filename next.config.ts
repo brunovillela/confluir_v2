@@ -23,8 +23,34 @@ const nextConfig: NextConfig = {
   //    Storage, vídeo) não são afetados — a regra é sobre quem nos embute.
   //  - Permissions-Policy: câmera só para o próprio app (leitura de QR na
   //    recepção); microfone, geolocalização e pagamento desligados.
-  // A CSP entra depois, em modo relatório (ver docs/plano-onda-0-seguranca.md).
+  //
+  // CSP em MODO RELATÓRIO (só em produção; em dev o Next precisa de eval e
+  // o relatório seria só ruído): nada é bloqueado, mas cada recurso que a
+  // política barraria chega em /api/csp-relatorio. Depois de uma semana sem
+  // relatórios relevantes, trocar Report-Only pela política de verdade.
+  //  - script 'unsafe-inline': o Next injeta scripts inline e /tv/[slug]
+  //    também; a versão com nonce fica para a onda 1.
+  //  - img: Storage do Supabase e as imagens migradas do Bubble.
+  //  - connect: Supabase (auth e PostgREST do navegador), ViaCEP e Sentry.
+  //  - frame: PDFs do Storage (assinatura, oposição), vídeo dos slides e o
+  //    desafio do Turnstile.
   async headers() {
+    const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://*.supabase.co"
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline'",
+      `img-src 'self' data: blob: ${supabase} https://*.supabase.co https://cdn.bubble.io https://*.bubble.io https://s3.amazonaws.com`,
+      "font-src 'self' data:",
+      `connect-src 'self' ${supabase} https://*.supabase.co https://viacep.com.br https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://challenges.cloudflare.com`,
+      `frame-src 'self' ${supabase} https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com https://challenges.cloudflare.com`,
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "report-uri /api/csp-relatorio",
+    ].join("; ")
     return [
       {
         source: "/:path*",
@@ -34,6 +60,9 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: "Content-Security-Policy-Report-Only", value: csp }]
+            : []),
         ],
       },
     ]

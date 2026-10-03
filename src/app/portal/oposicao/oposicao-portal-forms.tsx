@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Turnstile } from "@/components/auth/turnstile"
 
 import {
   confirmarCodigoFiliado,
@@ -135,6 +136,7 @@ function FormTrabalhador() {
           </div>
         </div>
         <Mensagens estado={estEnviar} />
+        <Turnstile acao="codigo_oposicao" />
         <Button type="submit" disabled={pendEnviar}>
           {pendEnviar ? <Loader2 className="animate-spin" /> : <Mail />}
           {enviado ? "Reenviar código" : "Enviar código"}
@@ -192,6 +194,7 @@ function FormFiliado() {
           </p>
         </div>
         <Mensagens estado={estEnviar} />
+        <Turnstile acao="codigo_oposicao" />
         <Button type="submit" disabled={pendEnviar}>
           {pendEnviar ? <Loader2 className="animate-spin" /> : <Mail />}
           {enviado ? "Reenviar código" : "Enviar código"}

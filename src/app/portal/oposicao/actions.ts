@@ -24,6 +24,7 @@ import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano } from "@/lib/turnstile"
 
 function texto(fd: FormData, campo: string): string {
   return String(fd.get(campo) ?? "").trim()
@@ -57,6 +58,8 @@ export async function enviarCodigoFiliado(
 ): Promise<EstadoForm> {
   const cpf = limparCpf(texto(fd, "cpf"))
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const erroHumano = await exigirHumano(fd)
+  if (erroHumano) return { erro: erroHumano }
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (!filiado || !filiado.email) {
     return {
@@ -117,6 +120,8 @@ export async function enviarCodigoTrabalhador(
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { erro: "Informe um e-mail válido." }
   }
+  const erroHumano = await exigirHumano(fd)
+  if (erroHumano) return { erro: erroHumano }
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (filiado?.ativo) {
     return {

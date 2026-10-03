@@ -10,6 +10,7 @@ import {
 import { registrarVinculoPendente, vincularIdentidade } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 2 — filiados: CPF + senha. */
 export async function loginFiliadoSenha(
@@ -28,11 +29,14 @@ export async function loginFiliadoSenha(
   // A orientação "sem e-mail no cadastro? procure o sindicato" fica fixa na
   // tela, para todo mundo.
   if (!filiado || !filiado.email) return { erro: "CPF ou senha incorretos." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email: filiado.email,
     password: senha,
+    options: { captchaToken: tokenHumano(formData) },
   })
   if (error || !data.user) return { erro: "CPF ou senha incorretos." }
 
@@ -69,6 +73,8 @@ export async function enviarMagicLinkFiliado(
 ): Promise<EstadoForm> {
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
 
   // Resposta genérica para não confirmar a existência de CPFs.
   const respostaGenerica = {

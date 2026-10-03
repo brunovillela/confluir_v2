@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Turnstile } from "@/components/auth/turnstile"
 import type { EstadoForm } from "@/lib/contas"
 
 type Props = {
@@ -65,6 +66,7 @@ export function FormEmail({
               required
             />
           </div>
+          <Turnstile acao="email_acesso" />
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}
             {rotuloBotao}

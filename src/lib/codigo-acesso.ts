@@ -5,6 +5,7 @@ import { enviarEmail } from "@/lib/email"
 import { caixaAviso, caixaCodigo, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 
 /**
@@ -47,6 +48,11 @@ export async function enviarCodigoAcesso(destino: {
 }): Promise<ResultadoCodigo> {
   const email = destino.email.trim().toLowerCase()
   const admin = await createAdminClient()
+
+  // 0. Cadência por e-mail (item 0+b): 1 código por minuto, 5 por hora. A
+  //    resposta é a mesma para qualquer e-mail — não diz se ele existe.
+  const cadencia = await conferirCadencia(admin, email)
+  if (cadencia) return { erro: cadencia }
 
   // 1. A conta precisa existir para gerar o código (o link mágico é de conta
   //    existente). Tenta criar; "já registrado" significa que existe — sem
@@ -97,6 +103,41 @@ export async function enviarCodigoAcesso(destino: {
 
   // 4. Nosso canal falhou: tenta o do Supabase, para não ficar sem saída.
   return await pelaSupabase(email)
+}
+
+const CADENCIA_MINIMO_SEGUNDOS = 60
+const CADENCIA_MAXIMO_POR_HORA = 5
+
+/**
+ * Registra o envio e devolve a mensagem de recusa quando o e-mail já pediu
+ * código há menos de 1 min ou 5 vezes na última hora. Tabela ausente
+ * (supabase/auth-codigos-cadencia.sql ainda não rodou) ou erro de leitura
+ * não trancam ninguém: a cadência só vale quando dá para conferir.
+ */
+async function conferirCadencia(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  email: string
+): Promise<string | null> {
+  const emp = await tenantAtual()
+  const desde = new Date(Date.now() - 3600_000).toISOString()
+  const { data, error } = await admin
+    .from("auth_codigos_envios")
+    .select("enviado_em")
+    .eq("emp_proprietaria_id", emp)
+    .eq("email", email)
+    .gte("enviado_em", desde)
+    .order("enviado_em", { ascending: false })
+  if (error) return null
+  const envios = data ?? []
+  if (envios.length >= CADENCIA_MAXIMO_POR_HORA) {
+    return "Muitos códigos pedidos para este e-mail em pouco tempo. Aguarde uma hora e tente de novo."
+  }
+  const ultimo = envios[0] ? new Date(String(envios[0].enviado_em)).getTime() : 0
+  if (Date.now() - ultimo < CADENCIA_MINIMO_SEGUNDOS * 1000) {
+    return "Acabamos de enviar um código para este e-mail. Aguarde um minuto antes de pedir outro."
+  }
+  await admin.from("auth_codigos_envios").insert({ emp_proprietaria_id: emp, email })
+  return null
 }
 
 /** `createUser` recusou porque o e-mail já tem conta (e não por outro motivo). */

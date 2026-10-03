@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/votacao-mesarios"
 import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano } from "@/lib/turnstile"
 
 // ── Login do mesário (OTP por e-mail) ───────────────────────────────────────
 
@@ -29,6 +30,8 @@ export async function enviarCodigoMesario(
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { erro: "Informe um e-mail válido." }
   }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
   if (!(await emailEhMesario(email))) {
     return {
       erro: "Este e-mail não está cadastrado como mesário. Fale com a organização.",

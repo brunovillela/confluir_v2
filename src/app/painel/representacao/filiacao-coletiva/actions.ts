@@ -13,6 +13,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import { tenantAtual } from "@/lib/tenant"
+import { tokenHumano } from "@/lib/turnstile"
 
 /**
  * Filiação coletiva — escrita. O cadastro nasce de uma RODADA com cláusula;
@@ -123,6 +124,7 @@ export async function reverterProcessoAction(
   const { error: erroLogin } = await verificador.auth.signInWithPassword({
     email,
     password: senha,
+    options: { captchaToken: tokenHumano(fd) },
   })
   if (erroLogin) return { erro: "Senha incorreta — a reversão não foi feita." }
 

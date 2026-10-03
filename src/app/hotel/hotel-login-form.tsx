@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Turnstile } from "@/components/auth/turnstile"
 
 import { loginHotel, recuperarSenhaHotel } from "./actions"
 
@@ -85,6 +86,7 @@ export function HotelLoginForm() {
                   required
                 />
               </div>
+              <Turnstile acao="login_hotel" />
               <Button type="submit" disabled={pendenteLogin}>
                 {pendenteLogin && <Loader2 className="animate-spin" />}
                 Entrar
@@ -109,6 +111,7 @@ export function HotelLoginForm() {
                   required
                 />
               </div>
+              <Turnstile acao="senha_hotel" />
               <Button type="submit" disabled={pendenteSenha}>
                 {pendenteSenha && <Loader2 className="animate-spin" />}
                 Enviar link de redefinição

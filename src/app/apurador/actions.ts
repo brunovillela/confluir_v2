@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/votacao-apuracao"
 import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
 import { createClient } from "@/lib/supabase/server"
+import { exigirHumano } from "@/lib/turnstile"
 
 // ── Login do apurador (OTP por e-mail) ──────────────────────────────────────
 
@@ -26,6 +27,8 @@ export async function enviarCodigoApurador(
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { erro: "Informe um e-mail válido." }
   }
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano }
   if (!(await emailEhApurador(email))) {
     return {
       erro: "Este e-mail não está cadastrado como apurador. Fale com a organização.",
