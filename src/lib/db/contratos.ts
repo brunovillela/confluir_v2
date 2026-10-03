@@ -13,6 +13,7 @@ import {
   SITUACOES_NAO_AUTORIZADAS,
   usuarioDaTrilha,
 } from "@/lib/db/ordens-ciclo"
+import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
@@ -1278,6 +1279,7 @@ export async function receberDocumentoOrdemContrato(
   )
   await analise.registrar("no recebimento da nota")
   if (dispensa) await registrarEvento(ordemId, "autorizacao_dispensada", usuario, dispensa)
+  else depoisDaResposta(() => avisarOrdensEmAutorizacao([ordemId]))
   return { situacao: autorizacao.situacao }
 }
 

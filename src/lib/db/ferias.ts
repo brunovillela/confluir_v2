@@ -1,4 +1,5 @@
 import "server-only"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -496,6 +497,19 @@ export async function solicitarGozo(
     empregador_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível solicitar: ${error.message}` }
+
+  // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
+  const funcionarioId = periodo.trabalhador_id
+  const nomes = funcionarioId ? await nomesDosUsuarios([funcionarioId]) : new Map<string, string>()
+  depoisDaResposta(() =>
+    avisarQuemPode("pessoal_gestao", [], {
+      texto: `${(funcionarioId && nomes.get(funcionarioId)) ?? "Um funcionário"} pediu ${dados.dias} dia(s) de férias a partir de ${formatarData(dados.inicio)}${abono ? ", com abono pecuniário" : ""}.`,
+      link: "/painel/pessoal/ferias",
+      evento: "pendencia_pessoal",
+      assunto: "Férias a autorizar",
+      exceto: funcionarioId,
+    })
+  )
   return {}
 }
 

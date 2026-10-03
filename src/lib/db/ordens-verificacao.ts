@@ -9,8 +9,14 @@ import {
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
+import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
-import { registrarEvento, SITUACAO_AGUARDANDO_DOCUMENTO, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
+import {
+  registrarEvento,
+  SITUACAO_AGUARDANDO_DOCUMENTO,
+  SITUACAO_EM_AUTORIZACAO,
+  usuarioDaTrilha,
+} from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { gerarJsonIA } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -506,6 +512,11 @@ export async function inserirOrdensVerificadas(
     return { erro: `Não foi possível gerar a ordem de pagamento: ${error?.message ?? "sem retorno"}` }
   }
   const ids = data.map((o) => String(o.id))
+
+  // Onda 2 (U2): quem tem alçada fica sabendo na hora que a ordem entrou na
+  // fila — depois da resposta, para não atrasar quem registrou.
+  const naFila = ids.filter((_, i) => linhas[i]?.situacao === SITUACAO_EM_AUTORIZACAO)
+  if (naFila.length) depoisDaResposta(() => avisarOrdensEmAutorizacao(naFila))
 
   let alertas = 0
   if (origem) {

@@ -1,5 +1,6 @@
 import "server-only"
 
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
@@ -531,29 +532,16 @@ async function espelharAusencia(faltaId: string, funcionarioId: string, data: st
  * Avisa (sino) quem cuida das faltas no tenant. `permissoes` é deny-all para
  * o JWT do tenant: lê pelo service role e recorta pelos usuários do tenant.
  */
+/** Quem autoriza faltas (permissão efetiva): sino, e-mail e Telegram conforme preferência. */
 async function notificarGestao(textoAviso: string): Promise<void> {
-  const service = await createAdminClient()
-  const empId = await tenantAtual()
-  const { data: perms } = await service
-    .from("permissoes")
-    .select("usuario_id, pessoal_gestao, pessoal_faltas_justificadas")
-  const ids = [
-    ...new Set(
-      (perms ?? [])
-        .filter((p) => p.pessoal_gestao === true || p.pessoal_faltas_justificadas === true)
-        .map((p) => texto(p.usuario_id))
-        .filter((v): v is string => !!v)
-    ),
-  ]
-  if (!ids.length) return
-  const { data: us } = await service.from("usuarios").select("id").in("id", ids).eq("emp_proprietaria_id", empId)
-  for (const u of us ?? []) {
-    try {
-      await criarNotificacao({ usuarioId: String(u.id), texto: textoAviso, link: "/painel/pessoal/faltas" })
-    } catch (e) {
-      console.error("Falha ao notificar a gestão de faltas:", e)
-    }
-  }
+  depoisDaResposta(() =>
+    avisarQuemPode("pessoal_gestao", ["pessoal_faltas_justificadas"], {
+      texto: textoAviso,
+      link: "/painel/pessoal/faltas",
+      evento: "pendencia_pessoal",
+      assunto: "Falta justificada a autorizar",
+    })
+  )
 }
 
 const TIPOS_COMPROVACAO: Record<string, string> = {

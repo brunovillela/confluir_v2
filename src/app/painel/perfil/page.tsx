@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import {
   Award,
+  BellRing,
   CalendarCheck,
   CalendarX2,
   Clock4,
@@ -167,6 +168,12 @@ const TELEGRAM: AreaPerfil = {
   descricao: "Vincule seu Telegram para falar com o bot do Confluir",
   href: "/painel/perfil/telegram",
   icone: Send,
+}
+const AVISOS: AreaPerfil = {
+  titulo: "Avisos",
+  descricao: "O que você recebe por e-mail e por Telegram, tipo a tipo",
+  href: "/painel/perfil/avisos",
+  icone: BellRing,
 }
 const DIARIAS_ANTERIORES: AreaPerfil = {
   titulo: "Diárias anteriores",
@@ -437,6 +444,7 @@ export default async function PerfilPage({
           {temCaixa && (
             <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
           )}
+          <CartaoArea titulo={AVISOS.titulo} descricao={AVISOS.descricao} href={AVISOS.href} icone={AVISOS.icone} />
           <CartaoArea titulo={TELEGRAM.titulo} descricao={TELEGRAM.descricao} href={TELEGRAM.href} icone={TELEGRAM.icone} />
           <CartaoArea titulo={SEGURANCA.titulo} descricao={SEGURANCA.descricao} href={SEGURANCA.href} icone={SEGURANCA.icone} />
         </div>

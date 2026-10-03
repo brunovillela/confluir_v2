@@ -5,13 +5,11 @@ import { revalidatePath } from "next/cache"
 import { requireSessaoPainel } from "@/lib/auth"
 import {
   confirmarCodigoTelefone,
-  definirPreferenciasTelegram,
   desvincularTelegram,
   gerarCodigoTelegram,
   solicitarCodigoTelefone,
 } from "@/lib/db/telegram"
 import { linkVinculo } from "@/lib/telegram"
-import { EVENTOS_TELEGRAM, type PreferenciasTelegram } from "@/lib/telegram-eventos"
 
 export type EstadoTelegram = {
   erro?: string
@@ -65,20 +63,5 @@ export async function confirmarCodigoTelefoneAction(
   return { confirmado: true }
 }
 
-export type EstadoPrefsTelegram = { ok?: boolean; erro?: string }
-
-export async function salvarPreferenciasTelegramAction(
-  _prev: EstadoPrefsTelegram,
-  formData: FormData
-): Promise<EstadoPrefsTelegram> {
-  const { usuario } = await requireSessaoPainel()
-  const prefs = {} as PreferenciasTelegram
-  for (const { chave } of EVENTOS_TELEGRAM) {
-    // checkbox marcado envia "on"; ausente = desligado.
-    prefs[chave] = formData.get(chave) != null
-  }
-  const { erro } = await definirPreferenciasTelegram(usuario.id as string, prefs)
-  if (erro) return { erro }
-  revalidatePath("/painel/perfil/telegram")
-  return { ok: true }
-}
+// As preferências por tipo de aviso (e-mail e Telegram) ficam em
+// /painel/perfil/avisos (onda 2, U3).

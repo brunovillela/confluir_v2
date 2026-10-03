@@ -16,6 +16,15 @@ export const EVENTOS_TELEGRAM = [
   { chave: "reembolso", rotulo: "Reembolso avaliado" },
   { chave: "treinamento", rotulo: "Matrícula em treinamento" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida" },
+  // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
+  // permissão correspondente — os demais nunca os recebem.
+  { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada" },
+  { chave: "pendencia_pessoal", rotulo: "Pedido de férias, diária, reembolso ou falta a avaliar" },
+  { chave: "pendencia_filiacao", rotulo: "Solicitação de filiação ou reembolso de filiado a avaliar" },
+  { chave: "pendencia_espacos", rotulo: "Pedido de uso de espaço" },
+  { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender" },
+  { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber" },
+  { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você" },
 ] as const
 
 export type EventoTelegram = (typeof EVENTOS_TELEGRAM)[number]["chave"]

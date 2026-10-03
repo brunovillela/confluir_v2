@@ -1,4 +1,5 @@
 import "server-only"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 
@@ -528,6 +529,16 @@ export async function subirFichaAssinada(
     .eq("emp_proprietaria_id", empId)
   if (error) return { erro: error.message }
   await registrarEvento(String(s.id), "ficha_assinada_enviada", null, ip, userAgent)
+
+  // Onda 2 (U2): a gestão da filiação fica sabendo que há ficha a avaliar.
+  depoisDaResposta(() =>
+    avisarQuemPode("filiacao_gestao", [], {
+      texto: `Nova solicitação de filiação (protocolo ${protocolo}) aguardando avaliação.`,
+      link: "/painel/filiados/solicitacoes",
+      evento: "pendencia_filiacao",
+      assunto: "Solicitação de filiação a avaliar",
+    })
+  )
   return { protocolo }
 }
 

@@ -1,7 +1,7 @@
 import "server-only"
 
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, texto } from "@/lib/db/comum"
-import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
 import { deCampoDataHora } from "@/lib/formato"
 import {
@@ -678,18 +678,15 @@ export async function avisarEquipeNovoPedido(
   solicitacaoId: string,
   texto_: string
 ): Promise<void> {
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("permissoes")
-    .select("usuario_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .or("espacos_gestao.is.true,espacos.is.true")
-  for (const p of data ?? []) {
-    await criarNotificacao({
-      usuarioId: String(p.usuario_id),
+  // Onda 2 (U2): permissão efetiva, sino + e-mail + Telegram conforme preferência.
+  depoisDaResposta(() =>
+    avisarQuemPode("espacos", ["espacos_gestao", "espacos_autorizacao"], {
       texto: `Novo pedido de uso de espaço: ${texto_}`,
+      link: `/painel/espacos/pedidos/${solicitacaoId}`,
+      evento: "pendencia_espacos",
+      assunto: "Novo pedido de uso de espaço",
     })
-  }
+  )
 }
 
 export const botaoAviso = botaoEmail

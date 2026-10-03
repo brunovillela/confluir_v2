@@ -5,11 +5,10 @@ import { ArrowLeft, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
-import { preferenciasTelegram, statusTelegram } from "@/lib/db/telegram"
+import { statusTelegram } from "@/lib/db/telegram"
 import { telegramConfigurado } from "@/lib/telegram"
 
 import { TelegramVinculo } from "./telegram-form"
-import { TelegramPreferencias } from "./telegram-preferencias"
 import { TelegramTelefone } from "./telegram-telefone"
 
 export const metadata: Metadata = { title: "Telegram — Confluir" }
@@ -20,7 +19,6 @@ export default async function TelegramPerfilPage() {
     usuario.id as string
   )
   const configurado = telegramConfigurado()
-  const prefs = await preferenciasTelegram(usuario.id as string)
   const telefoneConfirmado = Boolean(telefone)
 
   return (
@@ -70,8 +68,14 @@ export default async function TelegramPerfilPage() {
           <CardHeader>
             <CardTitle className="text-base">Notificações</CardTitle>
           </CardHeader>
-          <CardContent>
-            <TelegramPreferencias prefs={prefs} />
+          <CardContent className="grid gap-3">
+            <p className="text-muted-foreground text-sm">
+              O que chega pelo Telegram (e pelo e-mail) se escolhe por tipo de
+              aviso, em um lugar só.
+            </p>
+            <Button variant="outline" size="sm" asChild className="w-fit">
+              <Link href="/painel/perfil/avisos">Escolher o que receber</Link>
+            </Button>
           </CardContent>
         </Card>
       )}

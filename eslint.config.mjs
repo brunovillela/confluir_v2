@@ -15,6 +15,7 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/db/comunicacao-mensagens.ts",
   "src/lib/db/filiacao-coletiva.ts",
   "src/lib/db/veiculos-avisos.ts",
+  "src/lib/db/pendencias-lembrete.ts",
   "src/lib/db/hospedagem-avaliacoes.ts",
   "src/lib/db/telegram.ts",
   "src/app/api/**",

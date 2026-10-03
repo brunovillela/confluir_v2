@@ -1,4 +1,5 @@
 import "server-only"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -232,6 +233,18 @@ export async function criarReembolso(
     }
     return { erro: `Não foi possível solicitar: ${error.message}` }
   }
+
+  // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
+  const nomes = await nomesDosUsuarios([novo.funcionario_id])
+  depoisDaResposta(() =>
+    avisarQuemPode("pessoal_gestao", [], {
+      texto: `${nomes.get(novo.funcionario_id) ?? "Um funcionário"} pediu reembolso de ${formatarMoeda(novo.valor_solicitado)} (${tipo.nome}): ${novo.descricao}`.slice(0, 300),
+      link: "/painel/pessoal/reembolsos",
+      evento: "pendencia_pessoal",
+      assunto: "Reembolso do ACT a avaliar",
+      exceto: novo.funcionario_id,
+    })
+  )
   return {}
 }
 

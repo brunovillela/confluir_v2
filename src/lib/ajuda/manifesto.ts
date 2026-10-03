@@ -65,6 +65,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Segurança da conta",
         resumo: "Verificação em duas etapas com aplicativo autenticador: ativar, entrar, redefinir",
       },
+      {
+        slug: "avisos",
+        titulo: "Avisos e caixa de entrada",
+        resumo: "O que espera a sua ação, por onde o aviso chega e o lembrete diário",
+      },
     ],
   },
   {

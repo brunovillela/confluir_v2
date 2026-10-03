@@ -1,5 +1,6 @@
 import "server-only"
 
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarDepartamentos } from "@/lib/db/compras"
 import { listarEventos } from "@/lib/db/eventos"
@@ -414,6 +415,23 @@ export async function criarViagem(nova: NovaViagem): Promise<{ erro?: string; id
     await admin.from("viagens_solicitacoes").delete().eq("id", id)
     return { erro: `Não foi possível registrar os itens: ${erroItens.message}` }
   }
+
+  // Onda 2 (U2): quem atende viagens fica sabendo do pedido na hora.
+  const ids = [nova.solicitanteId, nova.beneficiarioUsuarioId].filter((v): v is string => Boolean(v))
+  const nomes = await nomesDosUsuarios(ids)
+  const viajante =
+    nova.beneficiarioTipo === "convidado"
+      ? (nova.convidado?.nome ?? "convidado")
+      : (nomes.get(nova.beneficiarioUsuarioId ?? "") ?? "alguém da entidade")
+  depoisDaResposta(() =>
+    avisarQuemPode("viagens_gestao", [], {
+      texto: `Novo pedido de viagem para ${viajante} (${nova.itens.length} item${nova.itens.length === 1 ? "" : "ns"}): ${nova.motivo}`.slice(0, 300),
+      link: "/painel/institucional/viagens",
+      evento: "pendencia_viagens",
+      assunto: "Pedido de viagem a atender",
+      exceto: nova.solicitanteId,
+    })
+  )
   return { id }
 }
 

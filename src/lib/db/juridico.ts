@@ -1,5 +1,6 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -1097,6 +1098,17 @@ export async function criarReembolso(
   if (error) {
     return { erro: esquemaAusente(error) ? AVISO_SQL_REEMBOLSOS : error.message }
   }
+
+  // Onda 2 (U2): quem avalia reembolsos de filiados fica sabendo na hora.
+  depoisDaResposta(() =>
+    avisarQuemPode("filiacao_reembolsos", ["filiacao_gestao"], {
+      texto: `Pedido de reembolso jurídico${dados.valor !== null ? ` de ${formatarMoeda(dados.valor)}` : ""} aguardando avaliação${dados.descricao_despesa ? `: ${dados.descricao_despesa}` : "."}`.slice(0, 300),
+      link: "/painel/filiados/reembolsos",
+      evento: "pendencia_filiacao",
+      assunto: "Reembolso de filiado a avaliar",
+      exceto: solicitanteId,
+    })
+  )
   return { id: data.id }
 }
 

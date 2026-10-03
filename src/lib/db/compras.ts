@@ -2,6 +2,7 @@ import "server-only"
 import { alertasPorOrdem, inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import type { Confirmacao } from "@/lib/db/ordens-verificacao"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
@@ -873,6 +874,8 @@ export async function criarCompraDireta(
       erro: `Não foi possível registrar o fornecimento: ${erroFornecimento?.message}`,
     }
   }
+  // Onda 2 (U2): o que ainda vai chegar entra na fila de quem recebe.
+  if (!nova.ja_recebido) avisarRecebimento(`Compra direta ${codigo} — ${nova.produto}`)
   if (!ordem) return { id: processo.id, fornecimentoId: String(fornecimento.id) }
 
   // Em dinheiro: a compra sai do caixa escolhido.
@@ -1149,7 +1152,31 @@ export async function registrarCompra(
   if (erroProcesso) {
     return { erro: `Fornecimentos criados, mas falhou a atualização do processo: ${erroProcesso.message}` }
   }
+  // Onda 2 (U2): os fornecimentos comprados entram na fila de quem recebe.
+  {
+    const { data: proc } = await admin
+      .from("compras_solicitacoes")
+      .select("codigo, solicitacao_produto")
+      .eq("id", processoId)
+      .maybeSingle()
+    const n = (escolhidas ?? []).length
+    avisarRecebimento(
+      `Compra ${proc?.codigo ?? ""} — ${proc?.solicitacao_produto ?? "(sem descrição)"}: ${n} fornecimento${n === 1 ? "" : "s"} a receber`
+    )
+  }
   return {}
+}
+
+/** Quem recebe fornecimentos fica sabendo que há entrega a conferir (onda 2, U2). */
+function avisarRecebimento(textoAviso: string): void {
+  depoisDaResposta(() =>
+    avisarQuemPode("aquisicoes_recebimentos", ["aquisicoes_compras_edicao"], {
+      texto: textoAviso.slice(0, 300),
+      link: "/painel/compras/recebimentos",
+      evento: "pendencia_recebimentos",
+      assunto: "Fornecimento a receber",
+    })
+  )
 }
 
 /** Gera a ordem de pagamento ('Em autorização') de um fornecimento sem ordem. */

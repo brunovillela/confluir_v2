@@ -16,6 +16,10 @@
     {
       "path": "/api/hospedagem/avaliacoes/tick",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/pendencias/tick",
+      "schedule": "30 11 * * *"
     }
   ]
 }

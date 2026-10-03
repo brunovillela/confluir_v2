@@ -1,8 +1,7 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
-import { PendenciasIndicador } from "@/components/layout/pendencias-indicador"
-import { SinoNotificacoes } from "@/components/layout/sino-notificacoes"
+import { ContadoresHeader } from "@/components/layout/contadores-header"
 import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
@@ -72,10 +71,7 @@ export default async function PainelLayout({
           <div className="bg-background sticky top-0 z-(--z-sticky)">
             <AppHeader
               acoes={
-                <>
-                  <PendenciasIndicador total={totalPendencias(pendencias)} />
-                  <SinoNotificacoes naoLidas={naoLidas} />
-                </>
+                <ContadoresHeader naoLidas={naoLidas} pendencias={totalPendencias(pendencias)} />
               }
             />
             <AlertaForaJornada dias={jornada} />

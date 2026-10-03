@@ -1,5 +1,6 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -416,6 +417,19 @@ export async function criarSolicitacaoDiaria(
     }
     return { erro: `Não foi possível solicitar: ${error.message}` }
   }
+
+  // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
+  const nomes = await nomesDosUsuarios([nova.funcionario_id])
+  const quemPediu = nova.solicitante_id ?? nova.funcionario_id
+  depoisDaResposta(() =>
+    avisarQuemPode("pessoal_gestao", [], {
+      texto: `${nomes.get(nova.funcionario_id) ?? "Um beneficiário"}: ${nova.quantidade} diária(s) solicitada(s)${nova.data_inicio ? ` a partir de ${formatarData(nova.data_inicio)}` : ""} — ${nova.motivo}`.slice(0, 300),
+      link: "/painel/pessoal/diarias",
+      evento: "pendencia_pessoal",
+      assunto: "Diária a avaliar",
+      exceto: quemPediu,
+    })
+  )
   return { id: criada ? String((criada as { id: string }).id) : undefined }
 }
 
