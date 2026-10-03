@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
+import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
@@ -96,9 +98,9 @@ export async function atualizarContratoAction(
 }
 
 export async function gerarOrdensContratoAction(
-  _prev: EstadoForm,
+  _prev: EstadoComApontamentos,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   await requireEdicaoContratos()
   const id = texto(formData, "contrato_id")
   if (!id) return { erro: "Contrato inválido." }
@@ -113,7 +115,8 @@ export async function gerarOrdensContratoAction(
     return { erro: "Escolha a forma de pagamento." }
   }
 
-  const { geradas, puladas, erro } = await gerarOrdensContrato(id, {
+  const { geradas, puladas, erro, apontamentos } = await gerarOrdensContrato(id, {
+    confirmacao: lerConfirmacao(formData),
     periodicidade,
     valorParcela: (valorBruto ? parseValorBR(valorBruto) : 0) ?? 0,
     primeiroVencimento: texto(formData, "primeiro_vencimento"),
@@ -127,6 +130,7 @@ export async function gerarOrdensContratoAction(
         fornecedorId
       ),
   })
+  if (apontamentos) return { apontamentos }
   if (erro) return { erro }
 
   revalidar(id)
@@ -139,9 +143,9 @@ export async function gerarOrdensContratoAction(
 
 /** Nota da parcela recorrente: a ordem sai do contrato e vai para autorização. */
 export async function receberDocumentoOrdemAction(
-  _prev: EstadoForm,
+  _prev: EstadoComApontamentos,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   await requireEdicaoContratos()
   const contratoId = texto(formData, "contrato_id")
   const ordemId = texto(formData, "ordem_id")
@@ -154,10 +158,12 @@ export async function receberDocumentoOrdemAction(
   const valor = valorTexto ? parseValorBR(valorTexto) : null
   if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor da nota inválido." }
 
-  const { erro, situacao } = await receberDocumentoOrdemContrato(contratoId, ordemId, {
+  const { erro, situacao, apontamentos } = await receberDocumentoOrdemContrato(contratoId, ordemId, {
     arquivo,
     valor,
+    confirmacao: lerConfirmacao(formData),
   })
+  if (apontamentos) return { apontamentos }
   if (erro) return { erro }
   revalidar(contratoId)
   revalidatePath("/painel/financeiro/ordens")

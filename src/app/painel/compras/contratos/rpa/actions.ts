@@ -27,6 +27,8 @@ import {
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
+import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
+import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
 import {
   calcularPorBruto,
   calcularPorLiquido,
@@ -169,9 +171,9 @@ async function origemDaCompra(
  * ordem é paga, não na emissão.
  */
 export async function emitirRpa(
-  _prev: EstadoForm,
+  _prev: EstadoComApontamentos,
   fd: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   const sessao = await exigirEdicao()
   const daCompra = txt(fd, "modo") === "compra"
   if (!daCompra && !editaContratos(sessao)) {
@@ -298,7 +300,13 @@ export async function emitirRpa(
       ...detalhe,
       excluido: false,
       emp_proprietaria_id: emp,
-    }, {})
+    }, { confirmacao: lerConfirmacao(fd) })
+  // Apontamentos da auditoria: o recibo é desfeito e a tela pergunta.
+  if (erroOrdem?.apontamentos) {
+    await admin.from("compras_rpa").delete().eq("id", rpaId)
+    await apagarBoleto()
+    return { apontamentos: erroOrdem.apontamentos }
+  }
   const vinculo = ordem
     ? await admin.from("compras_rpa").update({ ordem_pagamento_id: ordem.id }).eq("id", rpaId)
     : null

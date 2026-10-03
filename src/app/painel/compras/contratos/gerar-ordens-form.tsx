@@ -1,8 +1,9 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { startTransition, useActionState, useRef, useState } from "react"
 import { Loader2, Receipt } from "lucide-react"
 
+import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +12,7 @@ import {
   FORMAS_ORDEM_CONTRATO,
   ROTULO_FORMA_CONTRATO,
 } from "@/lib/compras-constantes"
-import type { EstadoForm } from "@/lib/contas"
+import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
 import type { ContaFornecedor, PixFornecedor } from "@/lib/db/compras-pagamento"
 import {
   PERIODICIDADES,
@@ -22,7 +23,8 @@ import {
 import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
 import { gerarOrdensContratoAction, meiosDoFornecedorContrato } from "./actions"
 
-type AcaoForm = (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
+// Ajudas devolve só erro/ok; Contratos também os apontamentos da auditoria.
+type AcaoForm = (prev: EstadoComApontamentos, formData: FormData) => Promise<EstadoComApontamentos>
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -70,6 +72,7 @@ export function GerarOrdensForm({
   beneficiarioRotulo?: string
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const formRef = useRef<HTMLFormElement>(null)
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
   const [forma, setForma] = useState("")
   const primeiro = (vigenciaInicio ?? hoje).slice(0, 10)
@@ -94,8 +97,19 @@ export function GerarOrdensForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form
+      ref={formRef}
+      // Pelo onSubmit: a análise da auditoria pode devolver o formulário para
+      // ajuste (boletos inclusive), e com `action=` o React o limparia.
+      onSubmit={(e) => {
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget)
+        startTransition(() => formAction(dados))
+      }}
+      className="grid gap-4"
+    >
       <input type="hidden" name="contrato_id" value={contratoId} />
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
 
       {estado.erro && (
         <Alert variant="destructive">

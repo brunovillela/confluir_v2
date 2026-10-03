@@ -1,8 +1,9 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState, useRef } from "react"
 import { Loader2 } from "lucide-react"
 
+import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -217,8 +218,20 @@ export function GerarOrdemForm({
   fornecimentoId: string
 }) {
   const [estado, formAction, pendente] = useActionState(gerarOrdemAction, {})
+  const formRef = useRef<HTMLFormElement>(null)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form
+      ref={formRef}
+      // Pelo onSubmit: a análise da auditoria pode devolver o formulário para
+      // ajuste, e com `action=` o React o limparia.
+      onSubmit={(e) => {
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget)
+        startTransition(() => formAction(dados))
+      }}
+      className="grid gap-3"
+    >
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

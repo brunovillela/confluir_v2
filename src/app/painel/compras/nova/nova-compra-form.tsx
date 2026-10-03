@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef, useState } from "react"
+import { startTransition, useActionState, useRef, useState } from "react"
 import {
   Building2,
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
   TriangleAlert,
 } from "lucide-react"
 
+import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -85,6 +86,7 @@ export function NovaCompraForm({
   caixas: CaixaOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarCompra, {})
+  const formRef = useRef<HTMLFormElement>(null)
   // Com uma só modalidade permitida, ela vem fixa.
   const [direta, setDireta] = useState(!permiteViaCompras && permiteDireta)
   const [comProjeto, setComProjeto] = useState(false)
@@ -264,7 +266,9 @@ export function NovaCompraForm({
 
   return (
     <form
-      action={formAction}
+      ref={formRef}
+      // Envio pelo onSubmit (sem `action=`): a análise da auditoria pode
+      // devolver a compra para ajuste, e o React limparia o formulário.
       onSubmit={(e) => {
         // O combobox do fornecedor não tem "required" nativo.
         setEnvioErro(null)
@@ -282,10 +286,15 @@ export function NovaCompraForm({
           setEnvioErro(
             "Nota e boleto juntos passam de 4 MB. Envie arquivos menores (ex.: PDF em vez de digitalização em alta resolução)."
           )
+          return
         }
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget)
+        startTransition(() => formAction(dados))
       }}
       className="grid gap-6"
     >
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       {(envioErro || estado.erro) && (
         <Alert variant="destructive">
           <AlertDescription>{envioErro ?? estado.erro}</AlertDescription>

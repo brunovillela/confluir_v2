@@ -1,5 +1,7 @@
 import "server-only"
 import { alertasPorOrdem, inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import type { Apontamento } from "@/lib/auditoria-confirmacao"
+import type { Confirmacao } from "@/lib/db/ordens-verificacao"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
@@ -752,6 +754,8 @@ export type NovaCompraDireta = NovaSolicitacao & {
    * ordem — ela nasce com o recibo (Contratos › RPA), pelo valor líquido.
    */
   por_rpa?: boolean
+  /** Tela de confirmação da auditoria: os alertas já confirmados. */
+  confirmacao?: Confirmacao
 }
 
 /**
@@ -760,7 +764,13 @@ export type NovaCompraDireta = NovaSolicitacao & {
  */
 export async function criarCompraDireta(
   nova: NovaCompraDireta
-): Promise<{ id?: string; ordemId?: string; fornecimentoId?: string; erro?: string }> {
+): Promise<{
+  id?: string
+  ordemId?: string
+  fornecimentoId?: string
+  erro?: string
+  apontamentos?: Apontamento[]
+}> {
   const admin = await createAdminClient()
   const codigo = gerarCodigoProcesso()
 
@@ -820,9 +830,11 @@ export async function criarCompraDireta(
       ...(nova.detalhe ?? {}),
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    }, {})
+    }, nova.confirmacao ? { confirmacao: nova.confirmacao } : {})
   if (!nova.por_rpa && (erroOrdem || !ordem)) {
     await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+    // Apontamentos da auditoria: nada fica gravado; a tela pergunta.
+    if (erroOrdem?.apontamentos) return { apontamentos: erroOrdem.apontamentos }
     return {
       erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}`,
     }
@@ -1143,8 +1155,9 @@ export async function registrarCompra(
 /** Gera a ordem de pagamento ('Em autorização') de um fornecimento sem ordem. */
 export async function gerarOrdemFornecimento(
   fornecimentoId: string,
-  dados: { vencimento: string | null; nota_fiscal_url: string | null }
-): Promise<{ erro?: string }> {
+  dados: { vencimento: string | null; nota_fiscal_url: string | null },
+  confirmacao?: Confirmacao
+): Promise<{ erro?: string; apontamentos?: Apontamento[] }> {
   const admin = await createAdminClient()
   const { data: f, error: erroBusca } = await admin
     .from("compras_fornecimentos")
@@ -1182,8 +1195,9 @@ export async function gerarOrdemFornecimento(
       processo_compra_id: processo.id,
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
-    }, {})
+    }, confirmacao ? { confirmacao } : {})
   if (erroOrdem || !ordem) {
+    if (erroOrdem?.apontamentos) return { apontamentos: erroOrdem.apontamentos }
     return { erro: `Não foi possível gerar a ordem: ${erroOrdem?.message}` }
   }
 

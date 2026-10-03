@@ -1,5 +1,10 @@
 import "server-only"
-import { inserirOrdensVerificadasCompat } from "@/lib/db/ordens-verificacao"
+import type { Apontamento } from "@/lib/auditoria-confirmacao"
+import {
+  inserirOrdensVerificadasCompat,
+  reverificarOrdem,
+  type Confirmacao,
+} from "@/lib/db/ordens-verificacao"
 import {
   camposAutorizacaoInicial,
   motivoDispensaContrato,
@@ -789,6 +794,8 @@ export type GerarOrdensParams = {
    * contratos de fornecedor — ajuda institucional não tem nota.
    */
   aguardarDocumento?: boolean
+  /** Tela de confirmação da auditoria (Contratos): os alertas já confirmados. */
+  confirmacao?: Confirmacao
   pagamento: (fornecedorId: string) => Promise<{
     detalhe?: DetalhePagamento
     boletos?: File[]
@@ -801,6 +808,8 @@ export type ResultadoGeracao = {
   /** Vencimentos que já tinham ordem deste contrato (idempotência). */
   puladas?: number
   erro?: string
+  /** Análise da auditoria com o que confirmar ou ajustar — nada foi gravado. */
+  apontamentos?: Apontamento[]
 }
 
 /**
@@ -943,9 +952,13 @@ export async function gerarOrdensContrato(
     excluido: false,
     emp_proprietaria_id: empId,
   }))
-  const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
+  const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(
+    registros,
+    params.confirmacao ? { confirmacao: params.confirmacao } : {}
+  )
   if (erroIns) {
     if (caminhosBoletos.length) await admin.storage.from("compras").remove(caminhosBoletos)
+    if (erroIns.apontamentos) return { apontamentos: erroIns.apontamentos }
     if (esquemaAusente(erroIns)) {
       return { erro: "Rode supabase/contratos-ordens.sql antes de gerar ordens." }
     }
@@ -1185,8 +1198,8 @@ export async function excluirCategoriaContrato(
 export async function receberDocumentoOrdemContrato(
   contratoId: string,
   ordemId: string,
-  dados: { arquivo: File; valor: number | null }
-): Promise<{ erro?: string; situacao?: string }> {
+  dados: { arquivo: File; valor: number | null; confirmacao: Confirmacao }
+): Promise<{ erro?: string; situacao?: string; apontamentos?: Apontamento[] }> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   const [{ data: c }, { data: o }] = await Promise.all([
@@ -1222,6 +1235,18 @@ export async function receberDocumentoOrdemContrato(
   const dispensa = ordinariaFixa ? motivoDispensaContrato(texto(c.codigo)) : null
   const autorizacao = camposAutorizacaoInicial(dispensa)
 
+  // Antes de seguir para autorização, a análise roda de novo sobre a ordem
+  // como ficará (com a nota e o valor dela).
+  const analise = await reverificarOrdem(
+    ordemId,
+    { ...autorizacao, arquivo_nota_fiscal: up.caminho, valor_inicial_cobranca: valor },
+    { notaFiscal: up.caminho, confirmacao: dados.confirmacao }
+  )
+  if (analise.apontamentos) {
+    await admin.storage.from("compras").remove([up.caminho])
+    return { apontamentos: analise.apontamentos }
+  }
+
   // A situação no filtro garante que duas pessoas não recebam a mesma nota.
   const { data: atualizadas, error } = await admin
     .from("ordens_pagamento")
@@ -1251,6 +1276,7 @@ export async function receberDocumentoOrdemContrato(
       ...(Math.abs(valor - valorAnterior) >= 0.005 ? { valor_antes: valorAnterior, valor } : {}),
     }
   )
+  await analise.registrar("no recebimento da nota")
   if (dispensa) await registrarEvento(ordemId, "autorizacao_dispensada", usuario, dispensa)
   return { situacao: autorizacao.situacao }
 }

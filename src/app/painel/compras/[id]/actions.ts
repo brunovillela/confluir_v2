@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
+import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { FORMAS_PAGAMENTO_COMPRAS } from "@/lib/compras-constantes"
@@ -215,9 +218,9 @@ export async function registrarCompraAction(
 }
 
 export async function gerarOrdemAction(
-  _prev: EstadoForm,
+  _prev: EstadoComApontamentos,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   const fornecimentoId = texto(formData, "fornecimento_id")
@@ -234,10 +237,16 @@ export async function gerarOrdemAction(
     notaFiscal = caminho ?? null
   }
 
-  const { erro } = await gerarOrdemFornecimento(fornecimentoId, {
-    vencimento: dataISO(texto(formData, "vencimento")),
-    nota_fiscal_url: notaFiscal,
-  })
+  const { erro, apontamentos } = await gerarOrdemFornecimento(
+    fornecimentoId,
+    { vencimento: dataISO(texto(formData, "vencimento")), nota_fiscal_url: notaFiscal },
+    lerConfirmacao(formData)
+  )
+  if (apontamentos) {
+    // Nada foi gravado: a nota sobe de novo no reenvio.
+    if (notaFiscal) await (await createAdminClient()).storage.from("compras").remove([notaFiscal])
+    return { apontamentos }
+  }
   if (erro) return { erro }
   revalidarProcesso(processoId)
   redirect(`/painel/compras/${processoId}?salvo=1`)

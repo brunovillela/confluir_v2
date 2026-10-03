@@ -33,6 +33,30 @@ As três respostas possíveis de cada regra:
   auditoria").
 - **Bloquear** — a ordem não é criada.
 
+## Confirmação antes de registrar (Compras e Contratos)
+
+Em **Aquisição** (aquisição direta e *Gerar ordem de pagamento* do
+fornecimento), no **RPA** (de contrato ou de compra de serviço) e nos
+**Contratos** (*Gerar ordens de pagamento* e o recebimento da nota de uma
+parcela recorrente), quem registra **vê a análise antes** de a ordem existir.
+Se houver apontamento, nada é gravado ainda e abre a tela **Antes de
+registrar: pontos da análise**, com cada ponto não ok e o motivo:
+
+- **Ajustar** — fecha a tela e devolve o formulário como estava (inclusive os
+  arquivos). Ao enviar de novo, a análise roda outra vez: o que continua
+  aparece como **Persiste após o ajuste**, e o que foi resolvido, como
+  **Resolvido com o ajuste**. Sem nenhum apontamento, a ordem é registrada.
+- **Registrar mesmo assim** — grava a ordem com os alertas. A trilha da ordem
+  registra que **foram confirmados por quem registrou, sem ajuste**, à vista
+  de quem autoriza.
+
+Regra marcada como **Bloquear** aparece na mesma tela, mas **não se
+confirma**: o botão fica desligado até o ponto ser ajustado.
+
+A parcela recorrente que **aguarda o documento fiscal** não acusa *Sem nota
+fiscal* ao ser gerada — a nota vem depois, e a análise roda de novo quando
+ela é recebida, antes de a ordem seguir para autorização.
+
 ## Configurar
 
 Em **Financeiro → Auditoria das ordens**, escolha a **origem** nas abas —
@@ -106,6 +130,9 @@ ainda não foi personalizado.
 
 ## Erros comuns
 
+- **"Em Compras, apareceu uma tela com pontos da análise e a ordem não foi
+  criada."** É a confirmação: ajuste e envie de novo, ou *Registrar mesmo
+  assim* (só para alertas). Veja acima.
 - **"A ordem não foi criada e apareceu 'bloqueada pela auditoria do
   Financeiro'."** Uma regra marcada como *Bloquear* falhou — a mensagem diz
   qual e por quê. Corrija na origem (o contrato, o cadastro, a chave Pix) ou

@@ -1,9 +1,10 @@
 "use client"
 
-import { startTransition, useMemo, useState } from "react"
+import { startTransition, useMemo, useRef, useState } from "react"
 import { useActionState } from "react"
 import { FileCheck2, Loader2, Trash2, Upload } from "lucide-react"
 
+import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,6 +81,7 @@ export function RpaNovoForm({
   caixas: CaixaOpcao[]
 }) {
   const [estado, action, pend] = useActionState(emitirRpa, {})
+  const formRef = useRef<HTMLFormElement>(null)
   // Na compra, o valor dela é o líquido: começa pela conta inversa.
   const [base, setBase] = useState<"bruto" | "liquido">(compra ? "liquido" : "bruto")
   const [valorTxt, setValorTxt] = useState(
@@ -112,6 +114,7 @@ export function RpaNovoForm({
 
   return (
     <form
+      ref={formRef}
       // Pelo onSubmit, e não por `action`: o React 19 limpa o formulário
       // depois de uma action, e um erro apagaria o serviço e as datas.
       onSubmit={(e) => {
@@ -121,6 +124,7 @@ export function RpaNovoForm({
       }}
       className="grid gap-4"
     >
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pend} />
       {contrato && <input type="hidden" name="contrato_id" value={contrato.id} />}
       {compra && (
         <>

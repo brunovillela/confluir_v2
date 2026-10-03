@@ -1,8 +1,9 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { startTransition, useActionState, useEffect, useRef, useState } from "react"
 import { FileUp, Loader2, Trash2 } from "lucide-react"
 
+import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,13 +31,24 @@ export function ReceberDocumentoForm({
   valor: number | null
 }) {
   const [estado, acao, pendente] = useActionState(receberDocumentoOrdemAction, {})
+  const formRef = useRef<HTMLFormElement>(null)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
 
   if (estado.ok) {
     return <p className="text-success-fg text-xs">{estado.ok}</p>
   }
   return (
-    <form action={acao} className="flex flex-wrap items-center gap-2">
+    <form
+      ref={formRef}
+      // Pelo onSubmit: a análise da auditoria pode devolver a nota para ajuste.
+      onSubmit={(e) => {
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget)
+        startTransition(() => acao(dados))
+      }}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       <input type="hidden" name="contrato_id" value={contratoId} />
       <input type="hidden" name="ordem_id" value={ordemId} />
       <Input

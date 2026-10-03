@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
-import { type EstadoForm } from "@/lib/contas"
+import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
 import {
   FORMAS_PAGAMENTO_COMPRAS,
   type FormaPagamentoCompras,
@@ -17,6 +17,8 @@ import {
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { impedimentoDoPrestador } from "@/lib/db/compras-rpa"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
+import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -29,9 +31,9 @@ function dataISO(valor: string): string | null {
 }
 
 export async function criarCompra(
-  _prev: EstadoForm,
+  _prev: EstadoComApontamentos,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   // Registrar compra é escrita: via Aquisição exige "editar"; aquisição direta,
   // a permissão própria. E só pelos departamentos que a pessoa alcança.
   const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
@@ -154,8 +156,9 @@ export async function criarCompra(
     detalhe.arquivo_boleto = r.caminho
   }
 
-  const { id, erro } = await criarCompraDireta({
+  const { id, erro, apontamentos } = await criarCompraDireta({
     ...base,
+    confirmacao: lerConfirmacao(formData),
     fornecedor_id: fornecedorId,
     valor,
     forma_pagamento: forma,
@@ -167,6 +170,12 @@ export async function criarCompra(
     recebedor_id: sessao.usuario.id,
     detalhe,
   })
+  if (apontamentos) {
+    // Nada foi gravado: os arquivos sobem de novo no reenvio.
+    const enviados = [caminho, detalhe.arquivo_boleto].filter((c): c is string => typeof c === "string" && !!c)
+    if (enviados.length) await (await createAdminClient()).storage.from("compras").remove(enviados)
+    return { apontamentos }
+  }
   if (erro || !id) return { erro: erro ?? "Falha ao registrar." }
   revalidatePath("/painel/compras")
   redirect(`/painel/compras/${id}?criado=1`)

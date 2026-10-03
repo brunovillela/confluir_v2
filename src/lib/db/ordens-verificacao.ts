@@ -6,10 +6,11 @@ import {
   type OrigemOrdem,
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
+import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
-import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
+import { registrarEvento, SITUACAO_AGUARDANDO_DOCUMENTO, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { gerarJsonIA } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -22,6 +23,13 @@ import { tenantAtual } from "@/lib/tenant"
  * gravada. Regra "bloquear" que falha impede a criação; "alertar" cria a
  * ordem e registra o alerta; "aceitar" não verifica. O resultado de cada
  * verificação fica em `ordens_pagamento_verificacoes`.
+ *
+ * CONFIRMAÇÃO (03/10/2026 — Compras, RPA e Contratos): com `ctx.confirmacao`,
+ * nada é gravado enquanto houver apontamento que quem registra não viu. O
+ * gatilho desfaz o que já fez e devolve os `apontamentos` para a tela de
+ * confirmação: quem registra ajusta (e a análise roda de novo) ou confirma os
+ * alertas — os códigos confirmados voltam em `confirmacao.codigos`. Bloqueio
+ * nunca se confirma: só some ajustando.
  */
 
 type Linha = Record<string, unknown>
@@ -36,6 +44,47 @@ export type ContextoVerificacao = {
   comprovante?: string | null
   /** Hospedagem: a nota fica na fatura, não na ordem. */
   notaFiscal?: string | null
+  /**
+   * Fluxo com tela de confirmação: os alertas que quem registra já viu e
+   * aceitou. Presente (mesmo vazio) = alerta não confirmado impede a gravação.
+   */
+  confirmacao?: Confirmacao
+}
+
+export type { Apontamento }
+
+/** Os códigos de alerta confirmados por quem registra. */
+export type Confirmacao = { codigos: string[] }
+
+
+/** Lê a confirmação do formulário (campo oculto "confirmados", códigos por vírgula). */
+export function lerConfirmacao(fd: FormData): Confirmacao {
+  const bruto = String(fd.get("confirmados") ?? "")
+  return { codigos: bruto.split(",").map((c) => c.trim()).filter(Boolean) }
+}
+
+/** As falhas de um lote, uma por regra (parcelas repetem a mesma). */
+function apontamentosDe(resultados: ResultadoVerificacao[][], confirmacao: Confirmacao): Apontamento[] {
+  const vistos = new Map<string, Apontamento>()
+  for (const lista of resultados) {
+    for (const v of lista) {
+      if (v.status !== "falha" || vistos.has(v.codigo)) continue
+      const bloqueia = v.severidade === "bloquear"
+      vistos.set(v.codigo, {
+        codigo: v.codigo,
+        titulo: v.titulo,
+        detalhe: v.detalhe,
+        bloqueia,
+        confirmado: !bloqueia && confirmacao.codigos.includes(v.codigo),
+      })
+    }
+  }
+  return [...vistos.values()]
+}
+
+/** Há o que mostrar antes de gravar? (bloqueio, ou alerta ainda não confirmado) */
+function precisaConfirmar(apontamentos: Apontamento[]): boolean {
+  return apontamentos.some((a) => a.bloqueia || !a.confirmado)
 }
 
 export type StatusVerificacao = "ok" | "falha" | "na"
@@ -238,6 +287,8 @@ async function verificarLinha(
           .not("excluido", "is", true)
           .gte("vencimento", somarDias(base, -dias))
           .lte("vencimento", somarDias(base, dias))
+        // Reverificação de uma ordem já gravada: ela mesma não é duplicidade.
+        if (t(linha.id)) q = q.neq("id", t(linha.id)!)
         q = fornId ? q.eq("beneficiario_fornecedor_id", fornId) : q.eq("beneficiario_usuario_id", usuarioId!)
         const { data } = await q.limit(5)
         const cods = (data ?? []).map((o) => t(o.codigo)).filter(Boolean)
@@ -296,6 +347,12 @@ async function verificarLinha(
         break
       }
       case "sem_documento_fiscal": {
+        // Parcela recorrente de contrato: a nota vem depois, e a ordem só
+        // segue para autorização com ela (reanalisada nesse momento).
+        if (t(linha.situacao) === SITUACAO_AGUARDANDO_DOCUMENTO) {
+          r("na", "A nota da competência vem depois — a ordem aguarda o documento fiscal.")
+          break
+        }
         const tem = Boolean(t(linha.arquivo_nota_fiscal) || t(ctx.notaFiscal))
         r(tem ? "ok" : "falha", tem ? "Anexado." : "Sem nota fiscal ou documento equivalente.")
         break
@@ -417,9 +474,17 @@ export async function verificarOrdens(
 export async function inserirOrdensVerificadas(
   linhas: Linha[],
   ctx: ContextoVerificacao = {}
-): Promise<{ ids?: string[]; alertas?: number; erro?: string }> {
+): Promise<{ ids?: string[]; alertas?: number; erro?: string; apontamentos?: Apontamento[] }> {
   if (linhas.length === 0) return { ids: [] }
   const { origem, resultados } = await verificarOrdens(linhas, ctx)
+
+  // Fluxo com confirmação: nada se grava enquanto houver o que mostrar.
+  if (ctx.confirmacao) {
+    const apontamentos = apontamentosDe(resultados, ctx.confirmacao)
+    if (precisaConfirmar(apontamentos)) {
+      return { apontamentos, erro: "A análise encontrou apontamentos — confirme ou ajuste antes de registrar." }
+    }
+  }
 
   const bloqueios = new Map<string, string>()
   for (const lista of resultados) {
@@ -468,16 +533,66 @@ export async function inserirOrdensVerificadas(
     for (const [i, ordemId] of ids.entries()) {
       const lista = resultados[i] ?? []
       const al = lista.filter((v) => v.status === "falha").length
+      const confirmados = ctx.confirmacao && al ? " — confirmados por quem registrou, sem ajuste" : ""
       await registrarEvento(
         ordemId,
         "verificada",
         usuario,
-        `${lista.length} verificação(ões) na criação — ${al ? `${al} alerta(s)` : "sem alertas"}.`,
-        { alertas: lista.filter((v) => v.status === "falha").map((v) => v.codigo) }
+        `${lista.length} verificação(ões) na criação — ${al ? `${al} alerta(s)` : "sem alertas"}${confirmados}.`,
+        {
+          alertas: lista.filter((v) => v.status === "falha").map((v) => v.codigo),
+          ...(ctx.confirmacao && al ? { confirmados: ctx.confirmacao.codigos } : {}),
+        }
       )
     }
   }
   return { ids, alertas }
+}
+
+/**
+ * Reanálise de uma ordem JÁ GRAVADA que vai mudar (ex.: a parcela recorrente
+ * que recebe a nota e segue para autorização). Confere a ordem como ficará;
+ * com apontamento não confirmado, devolve-os sem mexer em nada. Senão, a
+ * gravação fica com quem chamou — depois dela, `registrar` guarda o
+ * resultado na ordem, como na criação.
+ */
+export async function reverificarOrdem(
+  ordemId: string,
+  mudancas: Linha,
+  ctx: ContextoVerificacao & { confirmacao: Confirmacao }
+): Promise<{ apontamentos?: Apontamento[]; registrar: (motivo: string) => Promise<void> }> {
+  const admin = await createAdminClient()
+  const { data: atual } = await admin.from("ordens_pagamento").select("*").eq("id", ordemId).maybeSingle()
+  const linha = { ...((atual as Linha | null) ?? {}), ...mudancas, id: ordemId }
+  const { origem, resultados } = await verificarOrdens([linha], ctx)
+  const apontamentos = apontamentosDe(resultados, ctx.confirmacao)
+  const registrar = async (motivo: string) => {
+    const lista = resultados[0] ?? []
+    if (!origem || !lista.length) return
+    const emp = await tenantAtual()
+    const { error } = await admin.from("ordens_pagamento_verificacoes").insert(
+      lista.map((v) => ({
+        emp_proprietaria_id: emp,
+        ordem_id: ordemId,
+        origem,
+        codigo: v.codigo,
+        titulo: v.titulo,
+        severidade: v.severidade,
+        status: v.status === "falha" ? "alerta" : v.status,
+        detalhe: v.detalhe,
+      }))
+    )
+    if (error && !esquemaAusente(error)) console.error("verificações:", error.message)
+    const al = lista.filter((v) => v.status === "falha")
+    await registrarEvento(
+      ordemId,
+      "verificada",
+      await usuarioDaTrilha(),
+      `${lista.length} verificação(ões) ${motivo} — ${al.length ? `${al.length} alerta(s) confirmados por quem registrou` : "sem alertas"}.`,
+      { alertas: al.map((v) => v.codigo), confirmados: ctx.confirmacao.codigos }
+    )
+  }
+  return precisaConfirmar(apontamentos) ? { apontamentos, registrar } : { registrar }
 }
 
 export type VerificacaoGravada = {
@@ -527,7 +642,7 @@ export async function alertasPorOrdem(ordemIds: string[]): Promise<Map<string, n
 // seguem tratando `{ data, error }` como antes — o erro de bloqueio chega na
 // mesma mensagem de falha que já existia.
 
-type ErroCompat = { message: string; code?: string }
+type ErroCompat = { message: string; code?: string; apontamentos?: Apontamento[] }
 
 /** Uma ordem: equivale a `.insert(linha).select("id").single()`. */
 export async function inserirOrdemVerificada(
@@ -535,7 +650,9 @@ export async function inserirOrdemVerificada(
   ctx: ContextoVerificacao = {}
 ): Promise<{ data: { id: string } | null; error: ErroCompat | null }> {
   const r = await inserirOrdensVerificadas([linha], ctx)
-  if (r.erro || !r.ids?.[0]) return { data: null, error: { message: r.erro ?? "Ordem não gravada." } }
+  if (r.erro || !r.ids?.[0]) {
+    return { data: null, error: { message: r.erro ?? "Ordem não gravada.", apontamentos: r.apontamentos } }
+  }
   return { data: { id: r.ids[0] }, error: null }
 }
 
@@ -545,6 +662,8 @@ export async function inserirOrdensVerificadasCompat(
   ctx: ContextoVerificacao = {}
 ): Promise<{ data: { id: string }[] | null; error: ErroCompat | null }> {
   const r = await inserirOrdensVerificadas(Array.isArray(linhas) ? linhas : [linhas], ctx)
-  if (r.erro || !r.ids) return { data: null, error: { message: r.erro ?? "Ordens não gravadas." } }
+  if (r.erro || !r.ids) {
+    return { data: null, error: { message: r.erro ?? "Ordens não gravadas.", apontamentos: r.apontamentos } }
+  }
   return { data: r.ids.map((id) => ({ id })), error: null }
 }
