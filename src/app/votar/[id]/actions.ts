@@ -9,6 +9,7 @@ import {
   mascararEmail,
   type EstadoForm,
 } from "@/lib/contas"
+import { identidadeDaConta } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import {
   existeAptoPorEmail,
@@ -119,13 +120,15 @@ export async function solicitarTokenEleitor(
     }
   }
 
-  // Cria a conta na hora se não existir, com o CPF como identidade.
+  // Cria a conta na hora se não existir. A identidade (CPF) fica registrada
+  // como vínculo PENDENTE, com o e-mail que saiu do cadastro deste CPF, e só
+  // vira identidade da conta depois de o código ser conferido.
+  const { registrarVinculoPendente } = await import("@/lib/auth-identidade")
+  await registrarVinculoPendente({ email: filiado.email, tipo: "filiado", cpf })
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
   const { erro } = await enviarCodigoAcesso({
     email: filiado.email,
-    metadata: { tipo: "filiado", cpf },
-    // O e-mail saiu do cadastro deste CPF (acima), não do formulário.
-    vinculoVerificado: true,
+    metadata: { tipo: "filiado" },
     next: `/votar/${assembleiaId}`,
     contexto: "Use o código abaixo para abrir a sua cédula de votação.",
   })
@@ -153,15 +156,26 @@ export async function confirmarTokenEleitor(
   if (!filiado?.email) return { erro: "CPF não localizado." }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.verifyOtp({
+  const { data: verificado, error } = await supabase.auth.verifyOtp({
     email: filiado.email,
     token,
     type: "email",
   })
-  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "votacao_filiado" }) }
+  if (error || !verificado.user) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "votacao_filiado" }) }
 
-  // Sessão do eleitor criada (user_metadata.cpf) — recarrega a página, que
-  // agora mostra a cédula.
+  // Código conferido: o vínculo pendente (e-mail do cadastro ↔ CPF) vira a
+  // identidade da conta. Recusa quando a conta já é de outro CPF.
+  const { consumirVinculoPendente } = await import("@/lib/auth-identidade")
+  const vinculo = await consumirVinculoPendente({
+    userId: verificado.user.id,
+    emailVerificado: verificado.user.email,
+  })
+  if (vinculo.erro) {
+    await supabase.auth.signOut()
+    return { erro: vinculo.erro }
+  }
+
+  // Sessão do eleitor criada — recarrega a página, que agora mostra a cédula.
   redirect(`/votar/${assembleiaId}`)
 }
 
@@ -242,7 +256,7 @@ export async function confirmarTokenEmail(
 
 /**
  * Registra o voto no ambiente público. A identidade vem da SESSÃO criada pelo
- * OTP — nunca de campos crus do formulário. Filiado: CPF em user_metadata.cpf.
+ * OTP — nunca de campos crus do formulário. Filiado: CPF em `auth_identidades`.
  * Não-filiado: o próprio e-mail da conta (verificado). O voto é secreto.
  */
 export async function votarPublico(
@@ -284,9 +298,10 @@ export async function votarPublico(
     return rl.erro ? { erro: rl.erro } : { ok: "Voto registrado. Obrigado por participar." }
   }
 
-  const cpf = user?.user_metadata?.cpf
+  const identidade = user ? await identidadeDaConta(user.id) : null
+  const cpf = identidade?.tipo === "filiado" ? identidade.cpf : null
   let r: { erro?: string; ok?: boolean }
-  if (typeof cpf === "string" && cpf.length === 11) {
+  if (cpf) {
     r = await registrarVotoFiliado(cpf, assembleiaId, escolhas)
   } else if (user?.email) {
     // Sem os dados do primeiro acesso não há voto: é o que impede a mesma

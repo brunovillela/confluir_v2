@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { tenantAtual } from "@/lib/tenant"
 
 import { requireSessaoTrabalhador } from "@/lib/auth"
+import { consumirVinculoPendente, registrarVinculoPendente } from "@/lib/auth-identidade"
 import {
   buscarFiliadoPorCpf,
   mascararEmail,
@@ -62,10 +63,13 @@ export async function enviarCodigoFiliado(
       erro: "CPF não localizado ou sem e-mail. Use o acesso do trabalhador ao lado.",
     }
   }
+  // O CPF fica como vínculo PENDENTE (e-mail do cadastro ↔ CPF) e vira a
+  // identidade da conta só depois de o código ser conferido.
+  await registrarVinculoPendente({ email: filiado.email, tipo: "filiado", cpf })
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
   const { erro } = await enviarCodigoAcesso({
     email: filiado.email,
-    metadata: { tipo: "filiado", cpf },
+    metadata: { tipo: "filiado" },
     next: "/portal/oposicao",
     contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
   })
@@ -83,12 +87,20 @@ export async function confirmarCodigoFiliado(
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (!filiado?.email) return { erro: "CPF não localizado." }
   const supabase = await createClient()
-  const { error } = await supabase.auth.verifyOtp({
+  const { data: verificado, error } = await supabase.auth.verifyOtp({
     email: filiado.email,
     token,
     type: "email",
   })
-  if (error) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "oposicao_filiado" }) }
+  if (error || !verificado.user) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "oposicao_filiado" }) }
+  const vinculo = await consumirVinculoPendente({
+    userId: verificado.user.id,
+    emailVerificado: verificado.user.email,
+  })
+  if (vinculo.erro) {
+    await supabase.auth.signOut()
+    return { erro: vinculo.erro }
+  }
   redirect("/portal/oposicao")
 }
 
@@ -111,10 +123,14 @@ export async function enviarCodigoTrabalhador(
       erro: "Este CPF é de um filiado — use o acesso do filiado (por CPF).",
     }
   }
+  // CPF e nome (autodeclarados, como sempre) ficam como vínculo PENDENTE do
+  // e-mail e só viram identidade da conta depois de o código ser conferido.
+  // Conta existente não tem nada mexido neste ponto (achado S2).
+  await registrarVinculoPendente({ email, tipo: "nao_filiado", cpf, nome })
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
   const { erro } = await enviarCodigoAcesso({
     email,
-    metadata: { tipo: "nao_filiado", cpf, nome },
+    metadata: { tipo: "nao_filiado" },
     next: "/portal/oposicao",
     contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
   })
@@ -126,8 +142,6 @@ export async function confirmarCodigoTrabalhador(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  const cpf = limparCpf(texto(fd, "cpf"))
-  const nome = texto(fd, "nome")
   const email = texto(fd, "email").toLowerCase()
   const token = texto(fd, "token")
   if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
@@ -140,13 +154,28 @@ export async function confirmarCodigoTrabalhador(
   })
   if (error || !verificado.user) return { erro: await diagnosticarCodigoRecusado({ erro: error, email, token, fluxo: "oposicao_trabalhador" }) }
 
-  // Garante o CPF/nome na conta e o cadastro do trabalhador (a sessão só
-  // resolve com metadata.cpf + registro em portal_nao_filiado).
+  // Código conferido: o vínculo pendente (registrado quando o código foi
+  // pedido) vira a identidade da conta. CPF e nome vêm DELE, não do
+  // formulário desta etapa; a conta já vinculada a outro CPF é recusada.
+  const vinculo = await consumirVinculoPendente({
+    userId: verificado.user.id,
+    emailVerificado: verificado.user.email,
+  })
+  if (vinculo.erro) {
+    await supabase.auth.signOut()
+    return { erro: vinculo.erro }
+  }
+  if (!vinculo.identidade) {
+    await supabase.auth.signOut()
+    return { erro: "O pedido do código expirou. Peça um novo código." }
+  }
+  if (vinculo.identidade.tipo === "filiado") redirect("/portal/oposicao")
+  const cpf = vinculo.identidade.cpf
+  const nome = vinculo.identidade.nome ?? texto(fd, "nome")
+
+  // Cadastro do trabalhador — pelo CPF da IDENTIDADE da conta.
   const admin = await createAdminClient()
   const empId = await tenantAtual()
-  await admin.auth.admin.updateUserById(verificado.user.id, {
-    user_metadata: { cpf, tipo: "nao_filiado", nome },
-  })
   const { data: existente } = await admin
     .from("portal_nao_filiado")
     .select("id")

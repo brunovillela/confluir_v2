@@ -35,7 +35,8 @@ export function descreveErroAuth(erro: {
  * A tabela `filiacoes` tem em média ~3 registros por CPF (histórico de
  * filiações migrado do Bubble) — os registros são agregados aqui e tratados
  * como UMA pessoa. A conta de acesso (Supabase Auth) guarda o CPF em
- * `user_metadata.cpf`, e a sessão do portal resolve os dados a partir dele.
+ * `auth_identidades` (lib/auth-identidade.ts), e a sessão do portal resolve
+ * os dados a partir dele.
  */
 export type Filiado = {
   cpf: string

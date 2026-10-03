@@ -104,21 +104,24 @@ type LinhaVinculo = {
 }
 
 /**
- * CPFs com conta na área do associado. A conta vive no Supabase Auth (global,
- * sem tenant) com o CPF em `user_metadata.cpf`; o cruzamento com `filiacoes`
- * do tenant é que a torna do filiado daqui.
+ * CPFs com conta na área do associado: a identidade da conta no tenant
+ * (`auth_identidades`, tipo filiado — ver lib/auth-identidade.ts). Antes isto
+ * varria todas as contas do Supabase Auth lendo `user_metadata.cpf`.
  */
 async function cpfsComContaNoPortal(): Promise<Set<string>> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const cpfs = new Set<string>()
-  for (let pagina = 1; ; pagina++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 1000 })
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await admin
+      .from("auth_identidades")
+      .select("cpf")
+      .eq("emp_proprietaria_id", emp)
+      .eq("tipo", "filiado")
+      .range(de, de + 999)
     if (error) throw new Error(`Falha ao ler as contas do portal: ${error.message}`)
-    for (const u of data.users) {
-      const cpf = u.user_metadata?.cpf
-      if (typeof cpf === "string" && cpf.length === 11) cpfs.add(cpf)
-    }
-    if (data.users.length < 1000) break
+    for (const linha of data ?? []) cpfs.add(String(linha.cpf))
+    if ((data ?? []).length < 1000) break
   }
   return cpfs
 }

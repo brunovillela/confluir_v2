@@ -2,6 +2,7 @@
 
 import {
   confirmarPedido,
+  filiadoParaPedido,
   filiadoPeloCpf,
   registrarPedido,
   reenviarCodigo,
@@ -26,13 +27,17 @@ export type EstadoPedido = {
 const txt = (fd: FormData, nome: string) => String(fd.get(nome) ?? "").trim()
 const sim = (fd: FormData, nome: string) => fd.get(nome) === "on"
 
-/** Porta dos espaços cedidos só a filiados: confere o CPF na base. */
+/**
+ * Porta dos espaços cedidos só a filiados: confere o CPF na base. Sem login,
+ * devolve só primeiro nome e e-mail mascarado — o pedido em si usa o nome e
+ * o e-mail do CADASTRO (ver registrarPedidoAction), nunca os do formulário.
+ */
 export async function conferirFiliadoAction(
   _prev: EstadoPedido,
   fd: FormData
-): Promise<EstadoPedido & { nome?: string; email?: string }> {
-  const { erro, nome, email } = await filiadoPeloCpf(txt(fd, "cpf"))
-  return erro ? { erro } : { ok: "encontrado", nome, email }
+): Promise<EstadoPedido & { primeiroNome?: string; emailMascarado?: string }> {
+  const { erro, primeiroNome, emailMascarado } = await filiadoPeloCpf(txt(fd, "cpf"))
+  return erro ? { erro } : { ok: "encontrado", primeiroNome, emailMascarado }
 }
 
 export async function registrarPedidoAction(
@@ -53,13 +58,30 @@ export async function registrarPedidoAction(
     }
   }
 
+  // Espaço só para filiados: nome, e-mail e CPF vêm do cadastro do CPF
+  // informado. O código de confirmação vai ao e-mail do cadastro — é isso
+  // que prova que quem pede é o filiado, e não alguém que sabe o CPF dele.
+  let nome = txt(fd, "nome")
+  let email = txt(fd, "email")
+  let cpf: string | null = txt(fd, "cpf") || null
+  if (txt(fd, "publico_alvo") === "filiados") {
+    const f = await filiadoParaPedido(txt(fd, "cpf"))
+    if (f.erro) return { erro: f.erro }
+    if (!f.email) {
+      return { erro: "O seu cadastro não tem e-mail para receber o código. Procure a secretaria." }
+    }
+    nome = f.nome ?? nome
+    email = f.email
+    cpf = f.cpf ?? null
+  }
+
   const publicoBruto = txt(fd, "publico_estimado")
   const { erro, token } = await registrarPedido(
     {
       espacoId,
-      nome: txt(fd, "nome"),
-      cpf: txt(fd, "cpf") || null,
-      email: txt(fd, "email"),
+      nome,
+      cpf,
+      email,
       telefone: txt(fd, "telefone") || null,
       entidade: txt(fd, "entidade") || null,
       representanteNome: txt(fd, "representante_nome") || null,

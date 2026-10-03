@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     })
     if (!error) {
       registrarLinkAceito(type, userAgent)
-      return NextResponse.redirect(new URL(destino, request.url))
+      return await seguirComVinculo(supabase, destino, telaDeErro, request)
     }
     motivo = await diagnosticarLinkRecusado({
       erro: error,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
       registrarLinkAceito("code", userAgent)
-      return NextResponse.redirect(new URL(destino, request.url))
+      return await seguirComVinculo(supabase, destino, telaDeErro, request)
     }
     motivo = await diagnosticarLinkRecusado({
       erro: error,
@@ -78,4 +78,30 @@ export async function GET(request: NextRequest) {
   return NextResponse.redirect(
     new URL(`${telaDeErro}?erro=link_${motivo}`, request.url)
   )
+}
+
+/**
+ * Link aceito: se havia um vínculo pendente (link mágico do portal: e-mail do
+ * cadastro ↔ CPF), ele vira a identidade da conta agora. Conta já vinculada a
+ * outro CPF volta à tela de entrada com o motivo, em vez de cair numa sessão
+ * sem identidade. Ver lib/auth-identidade.ts.
+ */
+async function seguirComVinculo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  destino: string,
+  telaDeErro: string,
+  request: NextRequest
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) {
+    const { consumirVinculoPendente } = await import("@/lib/auth-identidade")
+    const vinculo = await consumirVinculoPendente({ userId: user.id, emailVerificado: user.email })
+    if (vinculo.erro) {
+      await supabase.auth.signOut()
+      return NextResponse.redirect(new URL(`${telaDeErro}?erro=vinculo_cpf`, request.url))
+    }
+  }
+  return NextResponse.redirect(new URL(destino, request.url))
 }

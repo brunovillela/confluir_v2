@@ -1,7 +1,7 @@
 import "server-only"
 import { createHash, randomInt, randomUUID } from "node:crypto"
 
-import { derivarModalidade, type Modalidade } from "@/lib/assembleias-constantes"
+import { derivarModalidade, horaDoVotoSecreto, type Modalidade } from "@/lib/assembleias-constantes"
 import { enviarEmail } from "@/lib/email"
 import { direitoDoFiliado } from "@/lib/db/filiacao-direitos"
 import {
@@ -554,8 +554,28 @@ export async function registrarVotoFiliado(
   const emailVot = await obterEmailVotacao(cpf)
   const agora = new Date().toISOString()
 
-  // 1) grava o voto SECRETO (sem eleitor_id) em voto_online — a tabela que a
-  //    apuração do painel conta. Uma linha por pergunta.
+  // 1) RESERVA a participação no apto ANTES de gravar o voto — por cpf ou
+  //    e-mail. O update só pega linhas com hora_voto nula e o Postgres
+  //    serializa dois envios simultâneos: o segundo encontra 0 linhas e para
+  //    aqui. (Antes a ordem era "grava o voto, depois marca", sem conferir
+  //    linhas afetadas, e a corrida contava dois votos — achado S4.)
+  const filtros = [`cpf.eq.${cpf}`]
+  if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
+  const filtroOu = filtroAptos(await escopoAptos(assembleiaId), filtros)
+  const { data: reservados } = await admin
+    .from("voto_assembleias_aptos")
+    .update({ hora_voto: agora })
+    .eq("emp_proprietaria_id", emp)
+    .or(filtroOu)
+    .is("hora_voto", null)
+    .select("id")
+  if (!reservados || reservados.length === 0) {
+    return { erro: "Você já votou nesta assembleia." }
+  }
+
+  // 2) grava o voto SECRETO (sem eleitor_id) em voto_online — a tabela que a
+  //    apuração do painel conta. Uma linha por pergunta. A hora vai truncada
+  //    para não casar com a hora exata da participação.
   const linhas = perguntas.map((p) => ({
     emp_proprietaria_id: emp,
     assembleia_id: assembleiaId,
@@ -564,27 +584,22 @@ export async function registrarVotoFiliado(
     resposta_id: escolhaPorPergunta.get(p.id) as string,
     valido: true,
     eleitor_id: null,
-    created_at: agora,
+    created_at: horaDoVotoSecreto(agora),
   }))
   const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
   if (erroVoto) {
+    // Sem voto gravado, a reserva é desfeita: a pessoa pode tentar de novo.
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({ hora_voto: null })
+      .in("id", reservados.map((r) => String(r.id)))
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
-
-  // 2) marca a PARTICIPAÇÃO no apto (impede voto duplo) — por cpf ou e-mail.
-  const filtros = [`cpf.eq.${cpf}`]
-  if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
-  await admin
-    .from("voto_assembleias_aptos")
-    .update({ hora_voto: agora })
-    .eq("emp_proprietaria_id", emp)
-    .or(filtroAptos(await escopoAptos(assembleiaId), filtros))
-    .is("hora_voto", null)
 
   // 2b) comprovante de participação + e-mail de confirmação (best-effort: o
   //     voto já está registrado, nada aqui pode derrubá-lo).
   await comprovarVoto({
-    filtroOu: filtroAptos(await escopoAptos(assembleiaId), filtros),
+    filtroOu,
     assembleiaId,
     quando: agora,
     email: emailVot.email ?? filiado.email,
@@ -977,24 +992,12 @@ export async function registrarVotoEleitorEmail(
   }
 
   const agora = new Date().toISOString()
-  const linhas = perguntas.map((p) => ({
-    emp_proprietaria_id: emp,
-    assembleia_id: assembleiaId,
-    rod_assembleia_id: eleg.rodadaId,
-    pergunta_id: p.id,
-    resposta_id: escolhaPorPergunta.get(p.id) as string,
-    valido: true,
-    eleitor_id: null,
-    created_at: agora,
-  }))
-  const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
-  if (erroVoto) {
-    return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
-  }
 
-  // Marca a participação pelo e-mail E pelo CPF informado no primeiro acesso:
-  // se a mesma pessoa também está na lista pelo CPF, esse outro registro fica
-  // votado junto e ela não vota de novo pela área do filiado.
+  // 1) RESERVA a participação pelo e-mail E pelo CPF informado no primeiro
+  //    acesso: se a mesma pessoa também está na lista pelo CPF, esse outro
+  //    registro fica votado junto e ela não vota de novo pela área do
+  //    filiado. Reservar ANTES de gravar o voto fecha o voto duplo por envios
+  //    simultâneos (achado S4): o segundo envio encontra 0 linhas.
   const escopo = await escopoAptos(assembleiaId)
   const { data: meus } = await admin
     .from("voto_assembleias_aptos")
@@ -1004,12 +1007,36 @@ export async function registrarVotoEleitorEmail(
     .eq("email_corporativo", alvo)
   const cpfs = [...new Set((meus ?? []).map((m) => m.cpf).filter((c): c is string => Boolean(c)))]
   const filtros = [`email_corporativo.eq.${alvo}`, ...cpfs.map((c) => `cpf.eq.${c}`)]
-  await admin
+  const { data: reservados } = await admin
     .from("voto_assembleias_aptos")
     .update({ hora_voto: agora })
     .eq("emp_proprietaria_id", emp)
     .or(filtroAptos(escopo, filtros))
     .is("hora_voto", null)
+    .select("id")
+  if (!reservados || reservados.length === 0) {
+    return { erro: "Você já votou nesta assembleia." }
+  }
+
+  // 2) o voto SECRETO, com a hora truncada (ver horaDoVotoSecreto).
+  const linhas = perguntas.map((p) => ({
+    emp_proprietaria_id: emp,
+    assembleia_id: assembleiaId,
+    rod_assembleia_id: eleg.rodadaId,
+    pergunta_id: p.id,
+    resposta_id: escolhaPorPergunta.get(p.id) as string,
+    valido: true,
+    eleitor_id: null,
+    created_at: horaDoVotoSecreto(agora),
+  }))
+  const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
+  if (erroVoto) {
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({ hora_voto: null })
+      .in("id", reservados.map((r) => String(r.id)))
+    return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
+  }
 
   await comprovarVoto({
     filtroOu: filtroAptos(escopo, filtros),
@@ -1334,6 +1361,17 @@ export async function registrarVotoUrna(
   }
 
   const agora = new Date().toISOString()
+  // Reserva a participação ANTES de gravar o voto (só vira se hora_voto for
+  // nula): dois envios simultâneos não contam dois votos — achado S4.
+  const { data: reservado } = await admin
+    .from("voto_assembleias_aptos")
+    .update({ hora_voto: agora })
+    .eq("id", aptoId)
+    .eq("emp_proprietaria_id", emp)
+    .is("hora_voto", null)
+    .select("id")
+  if (!reservado || reservado.length === 0) return { erro: "Este eleitor já votou." }
+
   const linhas = perguntas.map((p) => ({
     emp_proprietaria_id: emp,
     assembleia_id: assembleiaId,
@@ -1342,18 +1380,18 @@ export async function registrarVotoUrna(
     resposta_id: escolhaPorPergunta.get(p.id) as string,
     valido: true,
     eleitor_id: null,
-    created_at: agora,
+    // Hora truncada: a exata fica só na participação (ver horaDoVotoSecreto).
+    created_at: horaDoVotoSecreto(agora),
   }))
   const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
   if (erroVoto) {
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({ hora_voto: null })
+      .eq("id", aptoId)
+      .eq("emp_proprietaria_id", emp)
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
-
-  await admin
-    .from("voto_assembleias_aptos")
-    .update({ hora_voto: agora })
-    .eq("id", aptoId)
-    .eq("emp_proprietaria_id", emp)
 
   // Apontamento genérico no prontuário quando o apto é um filiado (por CPF).
   if (apto.cpf) {

@@ -2,7 +2,7 @@ import "server-only"
 
 import { createHash, randomInt, timingSafeEqual } from "node:crypto"
 
-import { buscarFiliadoPorCpf } from "@/lib/contas"
+import { buscarFiliadoPorCpf, mascararEmail } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { avisarEquipeNovoPedido } from "@/lib/db/espacos-esteira"
@@ -642,29 +642,39 @@ export async function reenviarCodigo(
   return {}
 }
 
+const ERRO_FILIADO_NAO_CONFIRMADO =
+  "Não foi possível confirmar uma filiação ativa com este CPF. Procure a secretaria."
+
 /**
- * Confere o CPF contra a base de filiados — a porta dos espaços cedidos
- * "somente a filiados". Devolve o cadastro para preencher nome e e-mail.
+ * O cadastro do filiado para o PEDIDO (uso interno do servidor): nome e
+ * e-mail saem daqui, nunca do formulário público. "Não encontrado" e "não
+ * ativo" dão a MESMA resposta — duas frases distintas contavam, sem login, se
+ * o CPF existe e se a filiação está em dia.
  */
-export async function filiadoPeloCpf(
+export async function filiadoParaPedido(
   cpf: string
-): Promise<{ erro?: string; nome?: string; email?: string; id?: string }> {
+): Promise<{ erro?: string; cpf?: string; nome?: string | null; email?: string | null }> {
   const limpo = limparCpf(cpf)
   if (!validarCpf(limpo)) return { erro: "CPF inválido." }
   const filiado = await buscarFiliadoPorCpf(limpo)
-  if (!filiado) {
-    return { erro: "Não encontramos uma filiação com este CPF." }
-  }
-  if (!filiado.ativo) {
-    return {
-      erro: "Este espaço é cedido apenas a filiados em dia. Procure a secretaria.",
-    }
-  }
-  return {
-    id: filiado.filiacaoId,
-    nome: filiado.nome_completo ?? undefined,
-    email: filiado.email ?? undefined,
-  }
+  if (!filiado || !filiado.ativo) return { erro: ERRO_FILIADO_NAO_CONFIRMADO }
+  return { cpf: limpo, nome: filiado.nome_completo, email: filiado.email }
+}
+
+/**
+ * Confere o CPF contra a base de filiados — a porta dos espaços cedidos
+ * "somente a filiados". É chamada SEM LOGIN, então devolve só o que a pessoa
+ * precisa para se reconhecer: primeiro nome e e-mail mascarado. (Até 03/10
+ * devolvia nome completo e e-mail de qualquer CPF ativo — achado S3.)
+ */
+export async function filiadoPeloCpf(
+  cpf: string
+): Promise<{ erro?: string; primeiroNome?: string; emailMascarado?: string }> {
+  const r = await filiadoParaPedido(cpf)
+  if (r.erro) return { erro: r.erro }
+  const primeiroNome = (r.nome ?? "").trim().split(/\s+/)[0] || undefined
+  const emailMascarado = r.email ? mascararEmail(r.email) : undefined
+  return { primeiroNome, emailMascarado }
 }
 
 /** Resumo para a tela pública mostrar antes de enviar. */

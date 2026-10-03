@@ -7,8 +7,8 @@ import {
   mascararEmail,
   type EstadoForm,
 } from "@/lib/contas"
+import { registrarVinculoPendente, vincularIdentidade } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 /** Porta 2 — filiados: CPF + senha. */
@@ -44,21 +44,19 @@ export async function loginFiliadoSenha(
     }
   }
 
-  // A identidade da conta é o CPF em user_metadata.cpf.
-  const cpfConta = data.user.user_metadata?.cpf
-  if (typeof cpfConta === "string" && cpfConta !== cpf) {
-    // Email compartilhado entre pessoas diferentes (dado legado).
+  // Provou a senha da conta cujo e-mail é o do cadastro deste CPF: vincula a
+  // identidade (ou confirma a existente). Conta já de OUTRO CPF (e-mail
+  // compartilhado, dado legado) é recusada — ver lib/auth-identidade.ts.
+  const vinculo = await vincularIdentidade({
+    userId: data.user.id,
+    emailVerificado: data.user.email,
+    tipo: "filiado",
+    cpf,
+    por: "senha",
+  })
+  if (!vinculo.ok) {
     await supabase.auth.signOut()
-    return {
-      erro: "Esta conta de acesso está vinculada a outro CPF. Procure o sindicato.",
-    }
-  }
-  if (!cpfConta) {
-    // Provou posse do email do cadastro deste CPF — vincula a conta ao CPF.
-    const admin = await createAdminClient()
-    await admin.auth.admin.updateUserById(data.user.id, {
-      user_metadata: { ...data.user.user_metadata, tipo: "filiado", cpf },
-    })
+    return { erro: vinculo.erro }
   }
 
   redirect("/portal/inicio")
@@ -80,15 +78,14 @@ export async function enviarMagicLinkFiliado(
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (!filiado || !filiado.email || !filiado.ativo) return respostaGenerica
 
-  // Cria a conta na hora se não existir, já com o CPF como identidade.
-  // Se a conta já existe, o metadata original é preservado (o CPF gravado
-  // na criação continua valendo — ver getSessaoPortal).
+  // Cria a conta na hora se não existir. O CPF fica como vínculo PENDENTE
+  // (e-mail do cadastro ↔ CPF) e vira identidade da conta em /auth/confirm,
+  // depois de o link ser aceito — ver lib/auth-identidade.ts.
+  await registrarVinculoPendente({ email: filiado.email, tipo: "filiado", cpf })
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
   const { erro: erroCodigo } = await enviarCodigoAcesso({
     email: filiado.email,
-    metadata: { tipo: "filiado", cpf },
-    // O e-mail saiu do cadastro deste CPF (acima), não do formulário.
-    vinculoVerificado: true,
+    metadata: { tipo: "filiado" },
     next: "/portal/inicio",
     contexto: "Use o código abaixo para entrar na sua área do filiado.",
   })

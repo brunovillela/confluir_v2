@@ -5,6 +5,7 @@ import { cache } from "react"
 import { redirect } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 
+import { identidadeDaConta } from "@/lib/auth-identidade"
 import { buscarFiliadoPorCpf, type Filiado } from "@/lib/contas"
 import {
   usuarioHotelDaConta,
@@ -115,9 +116,10 @@ export type SessaoPortal = {
 }
 
 /**
- * Sessão do filiado no portal. A identidade é o CPF gravado em
- * `user_metadata.cpf` na criação da conta; os dados vêm de `filiacoes`
- * agregados por CPF (ver contas.ts).
+ * Sessão do filiado no portal. A identidade é o CPF em `auth_identidades`
+ * (gravado pelo servidor após prova de posse do e-mail — ver
+ * lib/auth-identidade.ts; NUNCA `user_metadata`, que o usuário edita); os
+ * dados vêm de `filiacoes` agregados por CPF (ver contas.ts).
  */
 export const getSessaoPortal = cache(
   async (): Promise<SessaoPortal | null> => {
@@ -128,10 +130,10 @@ export const getSessaoPortal = cache(
     } = await supabase.auth.getUser()
     if (!user) return null
 
-    const cpf = user.user_metadata?.cpf
-    if (typeof cpf !== "string" || cpf.length !== 11) return null
+    const identidade = await identidadeDaConta(user.id)
+    if (!identidade || identidade.tipo !== "filiado") return null
 
-    const filiado = await buscarFiliadoPorCpf(cpf)
+    const filiado = await buscarFiliadoPorCpf(identidade.cpf)
     if (!filiado) return null
     // Portal exige filiação ativa (filiacao_condicao = 'Ativo').
     if (!filiado.ativo) return null
@@ -150,7 +152,7 @@ export async function requireSessaoPortal(): Promise<SessaoPortal> {
  * Sessão do TRABALHADOR — filiado OU não-filiado autocadastrado. Usada na área
  * de Oposição à Contribuição Assistencial (portal como hub p/ público não
  * administrativo). O filiado vem de `filiacoes` (ativo); o não-filiado, de
- * `portal_nao_filiado` quando `user_metadata.tipo = 'nao_filiado'`.
+ * `portal_nao_filiado` quando a identidade da conta é `nao_filiado`.
  */
 export type SessaoTrabalhador = {
   userId: string
@@ -169,10 +171,11 @@ export const getSessaoTrabalhador = cache(
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return null
-    const cpf = user.user_metadata?.cpf
-    if (typeof cpf !== "string" || cpf.length !== 11) return null
+    const identidade = await identidadeDaConta(user.id)
+    if (!identidade) return null
+    const cpf = identidade.cpf
 
-    if (user.user_metadata?.tipo === "nao_filiado") {
+    if (identidade.tipo === "nao_filiado") {
       const admin = await createAdminClient()
       const { data } = await admin
         .from("portal_nao_filiado")
@@ -276,9 +279,9 @@ export const areasDaConta = cache(async (): Promise<AreaDaConta[]> => {
       return !error && (data ?? []).length > 0
     })(),
     (async () => {
-      const cpf = user.user_metadata?.cpf
-      if (typeof cpf !== "string" || cpf.length !== 11) return false
-      const filiado = await buscarFiliadoPorCpf(cpf)
+      const identidade = await identidadeDaConta(user.id)
+      if (!identidade || identidade.tipo !== "filiado") return false
+      const filiado = await buscarFiliadoPorCpf(identidade.cpf)
       return !!filiado?.ativo
     })(),
   ])

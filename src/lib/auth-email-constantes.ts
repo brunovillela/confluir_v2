@@ -59,6 +59,8 @@ export function mensagemLinkRecusado(
       return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo."
     case "link_invalido":
       return `O link de acesso é inválido ou expirou. ${pedirNovo}`
+    case "vinculo_cpf":
+      return "Esta conta de acesso já está vinculada a outro CPF, ou o e-mail não é o do cadastro. Procure o sindicato para regularizar o seu cadastro."
     default:
       return undefined
   }

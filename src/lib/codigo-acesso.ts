@@ -27,24 +27,19 @@ export type ResultadoCodigo = { ok?: true; erro?: string }
 
 /**
  * Manda o código de acesso para `email`, criando a conta se ela não existir.
- * `metadata` vai para o user_metadata SÓ na criação da conta.
+ * `metadata` vai para o user_metadata SÓ na criação da conta, e só o que não
+ * é identidade (o `tipo`, usado para escolher a tela de destino).
  *
- * Conta que já existe NÃO tem o metadata mexido aqui — isto roda ANTES de o
- * código ser conferido, ou seja, a pedido de quem quer que tenha digitado o
- * e-mail. Sobrescrever nesse ponto permitia a qualquer pessoa, sem login,
- * trocar o CPF/tipo da conta de um funcionário ou filiado (achado S2 da
- * avaliação de 03/10). A única exceção é `vinculoVerificado`: o chamador
- * derivou o e-mail do próprio cadastro do CPF (portal e votação do filiado),
- * então o par já é do servidor, não do formulário.
+ * Conta que já existe NÃO tem nada mexido aqui — isto roda ANTES de o código
+ * ser conferido, ou seja, a pedido de quem quer que tenha digitado o e-mail.
+ * Sobrescrever nesse ponto permitia a qualquer pessoa, sem login, trocar o
+ * CPF/tipo da conta de um funcionário ou filiado (achado S2 da avaliação de
+ * 03/10). A IDENTIDADE (CPF) nunca passa por aqui: ela é um vínculo pendente
+ * registrado pelo chamador e consumido após o código — lib/auth-identidade.ts.
  */
 export async function enviarCodigoAcesso(destino: {
   email: string
   metadata?: Record<string, unknown>
-  /**
-   * O par e-mail↔metadata veio do cadastro (servidor), não do formulário.
-   * Só então uma conta existente recebe o metadata.
-   */
-  vinculoVerificado?: boolean
   /** Para onde o botão do e-mail leva depois de confirmar. */
   next?: string
   /** Frase que explica o que está sendo liberado. */
@@ -56,32 +51,21 @@ export async function enviarCodigoAcesso(destino: {
   // 1. A conta precisa existir para gerar o código (o link mágico é de conta
   //    existente). Tenta criar; "já registrado" significa que existe — sem
   //    listar usuários (listUsers só via os 1.000 primeiros).
+  const { cpf: _identidadeNaoVaiNoMetadata, ...metadataSemIdentidade } = destino.metadata ?? {}
+  void _identidadeNaoVaiNoMetadata
   const criada = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
-    user_metadata: destino.metadata ?? {},
+    user_metadata: metadataSemIdentidade,
   })
   if (criada.error && !contaJaExiste(criada.error)) {
     return { erro: "Não foi possível preparar o seu acesso. Tente de novo." }
   }
 
-  // 2. Gera o código SEM enviar (generateLink não dispara e-mail). Para conta
-  //    existente, `data.user` é a própria conta — dispensa listar usuários.
+  // 2. Gera o código SEM enviar (generateLink não dispara e-mail).
   const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email })
   const codigo = data?.properties?.email_otp
   if (error || !codigo) return await pelaSupabase(email)
-
-  const existente = criada.error ? data.user : null
-  if (
-    existente &&
-    destino.vinculoVerificado &&
-    destino.metadata &&
-    Object.keys(destino.metadata).length > 0
-  ) {
-    await admin.auth.admin.updateUserById(existente.id, {
-      user_metadata: { ...existente.user_metadata, ...destino.metadata },
-    })
-  }
 
   // 3. Manda pelo canal do app.
   const origem = await origemAtual()

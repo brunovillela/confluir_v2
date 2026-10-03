@@ -5,6 +5,7 @@ import { randomBytes, randomInt } from "node:crypto"
 import {
   derivarModalidade,
   hojeLocalISO,
+  horaDoVotoSecreto,
   temUrna,
   type Modalidade,
 } from "@/lib/assembleias-constantes"
@@ -1298,7 +1299,16 @@ export async function registrarVotoTerminal(
       .eq("emp_proprietaria_id", emp)
       .maybeSingle()
     if (!reg) return { erro: "Cadastro em separado não encontrado." }
-    if (reg.votou_em) {
+    // Reserva ANTES de gravar: só vira se votou_em ainda for nulo (fecha o
+    // voto duplo por envios simultâneos — achado S4).
+    const { data: reservado } = await admin
+      .from("voto_em_separado")
+      .update({ votou_em: agora, updated_at: agora })
+      .eq("id", emSepId)
+      .eq("emp_proprietaria_id", emp)
+      .is("votou_em", null)
+      .select("id")
+    if (!reservado || reservado.length === 0) {
       await limparLiberacao(emp, String(term.id))
       return { erro: "Este eleitor já votou." }
     }
@@ -1312,17 +1322,19 @@ export async function registrarVotoTerminal(
       eleitor_id: null,
       mesario_id: null,
       em_separado_id: emSepId,
+      // Em separado o voto fica ligado ao cadastro de propósito até a
+      // apuração; a hora exata aqui não revela nada a mais.
       created_at: agora,
     }))
     const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
     if (erroVoto) {
+      await admin
+        .from("voto_em_separado")
+        .update({ votou_em: null, updated_at: agora })
+        .eq("id", emSepId)
+        .eq("emp_proprietaria_id", emp)
       return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
     }
-    await admin
-      .from("voto_em_separado")
-      .update({ votou_em: agora, updated_at: agora })
-      .eq("id", emSepId)
-      .eq("emp_proprietaria_id", emp)
     await limparLiberacao(emp, String(term.id))
     return { ok: true }
   }
@@ -1336,7 +1348,16 @@ export async function registrarVotoTerminal(
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (!apto) return { erro: "Eleitor não encontrado." }
-  if (apto.hora_voto) {
+  // Reserva a participação ANTES de gravar o voto: só vira se hora_voto
+  // ainda for nula (fecha o voto duplo por envios simultâneos — achado S4).
+  const { data: reservado } = await admin
+    .from("voto_assembleias_aptos")
+    .update({ hora_voto: agora })
+    .eq("id", aptoId as string)
+    .eq("emp_proprietaria_id", emp)
+    .is("hora_voto", null)
+    .select("id")
+  if (!reservado || reservado.length === 0) {
     await limparLiberacao(emp, String(term.id))
     return { erro: "Este eleitor já votou." }
   }
@@ -1350,18 +1371,19 @@ export async function registrarVotoTerminal(
     valido: true,
     eleitor_id: null,
     mesario_id: null,
-    created_at: agora,
+    // Hora truncada: a exata fica só na participação (ver horaDoVotoSecreto).
+    created_at: horaDoVotoSecreto(agora),
   }))
   const { error: erroVoto } = await admin.from("voto_online").insert(linhas)
   if (erroVoto) {
+    await admin
+      .from("voto_assembleias_aptos")
+      .update({ hora_voto: null })
+      .eq("id", aptoId as string)
+      .eq("emp_proprietaria_id", emp)
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
 
-  await admin
-    .from("voto_assembleias_aptos")
-    .update({ hora_voto: agora })
-    .eq("id", aptoId as string)
-    .eq("emp_proprietaria_id", emp)
   await comprovarVotoUrna([aptoId as string], assembleiaId, "urna_digital", agora)
   await limparLiberacao(emp, String(term.id))
   await lancarProntuario(emp, apto.cpf ? String(apto.cpf) : null, assembleiaId)

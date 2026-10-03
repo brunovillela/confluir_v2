@@ -47,7 +47,13 @@ export function PedidoForm({
   temSessaoInterna: boolean
 }) {
   const [identificado, setIdentificado] = useState(publico !== "filiados")
-  const [prefill, setPrefill] = useState<{ nome?: string; email?: string }>({})
+  // Filiado identificado: só o que a pessoa precisa para se reconhecer. Nome
+  // e e-mail do pedido saem do cadastro, no servidor — não do formulário.
+  const [filiado, setFiliado] = useState<{
+    cpf: string
+    primeiroNome?: string
+    emailMascarado?: string
+  } | null>(null)
 
   const [estado, enviar, enviando] = useActionState(registrarPedidoAction, {})
   const [confirmacao, confirmar, confirmando] = useActionState(
@@ -152,8 +158,8 @@ export function PedidoForm({
   if (!identificado) {
     return (
       <IdentificacaoFiliado
-        aoEncontrar={(nome, email) => {
-          setPrefill({ nome, email })
+        aoEncontrar={(dados) => {
+          setFiliado(dados)
           setIdentificado(true)
         }}
       />
@@ -165,6 +171,7 @@ export function PedidoForm({
     <form action={enviar} className="grid gap-4">
       <input type="hidden" name="espaco_id" value={espacoId} />
       <input type="hidden" name="publico_alvo" value={publico} />
+      {filiado && <input type="hidden" name="cpf" value={filiado.cpf} />}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -176,8 +183,18 @@ export function PedidoForm({
           <CardTitle className="text-base">Quem está pedindo</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Campo id="nome" rotulo="Nome completo *" obrigatorio valor={prefill.nome} />
-          <Campo id="email" rotulo="E-mail *" tipo="email" obrigatorio valor={prefill.email} />
+          {filiado ? (
+            <p className="text-muted-foreground text-sm sm:col-span-2">
+              Pedido em nome de <strong>{filiado.primeiroNome ?? "filiado(a)"}</strong>, com os
+              dados do seu cadastro. O código de confirmação vai para o e-mail do cadastro
+              {filiado.emailMascarado ? <> (<strong>{filiado.emailMascarado}</strong>)</> : null}.
+            </p>
+          ) : (
+            <>
+              <Campo id="nome" rotulo="Nome completo *" obrigatorio />
+              <Campo id="email" rotulo="E-mail *" tipo="email" obrigatorio />
+            </>
+          )}
           <Campo id="telefone" rotulo="Telefone" />
           <Campo id="entidade" rotulo="Entidade ou empresa que representa" />
           <Campo id="representante_nome" rotulo="Responsável no dia do evento" />
@@ -321,12 +338,19 @@ const segurancas = (n: number) =>
 function IdentificacaoFiliado({
   aoEncontrar,
 }: {
-  aoEncontrar: (nome?: string, email?: string) => void
+  aoEncontrar: (dados: { cpf: string; primeiroNome?: string; emailMascarado?: string }) => void
 }) {
   const [estado, acao, pendente] = useActionState(conferirFiliadoAction, {})
+  const [cpf, setCpf] = useState("")
   if (estado.ok === "encontrado") {
     // Passa adiante assim que o CPF confere.
-    queueMicrotask(() => aoEncontrar(estado.nome, estado.email))
+    queueMicrotask(() =>
+      aoEncontrar({
+        cpf: cpf.replace(/\D/g, ""),
+        primeiroNome: estado.primeiroNome,
+        emailMascarado: estado.emailMascarado,
+      })
+    )
   }
   return (
     <Card>
@@ -346,7 +370,15 @@ function IdentificacaoFiliado({
         <form action={acao} className="flex flex-wrap items-end gap-2">
           <div className="grid gap-1.5">
             <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" name="cpf" inputMode="numeric" required className="w-48" />
+            <Input
+              id="cpf"
+              name="cpf"
+              inputMode="numeric"
+              required
+              className="w-48"
+              value={cpf}
+              onChange={(e) => setCpf(e.target.value)}
+            />
           </div>
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}

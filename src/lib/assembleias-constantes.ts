@@ -183,3 +183,16 @@ export function horaCurta(hora: string | null | undefined): string | null {
   const h = (hora ?? "").trim()
   return /^\d{2}:\d{2}/.test(h) ? h.slice(0, 5) : null
 }
+
+/**
+ * Hora gravada junto do voto SECRETO (`voto_online.created_at`): truncada na
+ * hora cheia. O horário exato fica só na participação do apto (`hora_voto`)
+ * e no comprovante. Com o mesmo instante nos dois lados, quem lesse o banco
+ * cruzava voto e eleitor pelo timestamp (achado S4 da avaliação de 03/10).
+ * A hora cheia ainda serve para gráficos de "votos por período".
+ */
+export function horaDoVotoSecreto(iso: string): string {
+  const d = new Date(iso)
+  d.setUTCMinutes(0, 0, 0)
+  return d.toISOString()
+}

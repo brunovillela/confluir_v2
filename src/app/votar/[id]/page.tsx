@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { encerrarVisualizacaoEleitor } from "@/lib/actions/visualizacao-eleitor"
+import { identidadeDaConta } from "@/lib/auth-identidade"
 import {
   elegibilidadeEleitorEmail,
   elegibilidadeParaVotar,
@@ -116,16 +117,14 @@ export default async function VotarPage({
     )
   }
 
-  // Sessão do eleitor (criada pelo OTP) — a identidade é o CPF do metadata.
+  // Sessão do eleitor (criada pelo OTP) — a identidade é o CPF em
+  // `auth_identidades` (lib/auth-identidade.ts), nunca o metadata editável.
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const cpf =
-    typeof user?.user_metadata?.cpf === "string" &&
-    user.user_metadata.cpf.length === 11
-      ? user.user_metadata.cpf
-      : null
+  const identidade = user ? await identidadeDaConta(user.id) : null
+  const cpf = identidade?.tipo === "filiado" ? identidade.cpf : null
 
   // Sem sessão → identificação (CPF de filiado ou e-mail de não-filiado).
   if (!user) {
