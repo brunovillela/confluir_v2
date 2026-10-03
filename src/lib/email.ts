@@ -41,6 +41,22 @@ export type ContextoEmail = {
   origem: string
 }
 
+/**
+ * O e-mail com um código de confirmação não saiu. Registra o fato SEM o
+ * código: em produção o log da Vercel é lido por quem tem acesso ao projeto e
+ * fica retido, e um código ali é um acesso em texto claro (achado S13 da
+ * avaliação de 03/10). O código só é impresso no sandbox de desenvolvimento,
+ * que era o único motivo de ele ir para o log.
+ */
+export function registrarCodigoNaoEnviado(fluxo: string, email: string, codigo: string): void {
+  const mascarado = email.replace(/^(.).*(@.*)$/, "$1***$2")
+  if (process.env.NODE_ENV !== "production" && process.env.EMAIL_SANDBOX === "1") {
+    console.info(`[${fluxo}] (sandbox) código de ${mascarado}: ${codigo}`)
+    return
+  }
+  console.warn(`[${fluxo}] e-mail do código não saiu para ${mascarado}`)
+}
+
 export async function enviarEmail(destino: {
   email: string
   nome?: string | null

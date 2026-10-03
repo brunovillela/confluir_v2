@@ -91,26 +91,20 @@ export async function solicitarTokenEleitor(
     .eq("cpf", cpf)
     .limit(1)
     .maybeSingle()
-  if (!apto) {
-    return {
-      erro: "Este CPF não está na lista de aptos a votar nesta assembleia.",
-    }
+  // Uma resposta só para "não está na lista", "sem e-mail" e "filiação
+  // inativa": três frases diferentes contavam, a quem ainda não provou nada,
+  // se o CPF existe, se está apto e se a filiação está em dia.
+  const naoLocalizado = {
+    erro: "Não foi possível localizar um eleitor apto com este CPF. Procure a mesa da assembleia.",
   }
+  if (!apto) return naoLocalizado
 
   // TODO(Fase 3D): validar janela de votação (inicio/termino da rodada).
 
   const filiado = await buscarFiliadoPorCpf(cpf)
-  if (!filiado || !filiado.email) {
-    return {
-      erro: "CPF não localizado ou sem email cadastrado. Procure a mesa da assembleia.",
-    }
-  }
+  if (!filiado || !filiado.email) return naoLocalizado
   // Apto na lista, mas a filiação precisa estar ativa para votar.
-  if (!filiado.ativo) {
-    return {
-      erro: "A filiação deste CPF não está ativa. Procure a mesa da assembleia.",
-    }
-  }
+  if (!filiado.ativo) return naoLocalizado
 
   // Caminho preferido: o LINK pessoal, no e-mail que a Microsoft entrega.
   const paraLink = await aptoParaLink(assembleiaId, { cpf })
@@ -130,6 +124,8 @@ export async function solicitarTokenEleitor(
   const { erro } = await enviarCodigoAcesso({
     email: filiado.email,
     metadata: { tipo: "filiado", cpf },
+    // O e-mail saiu do cadastro deste CPF (acima), não do formulário.
+    vinculoVerificado: true,
     next: `/votar/${assembleiaId}`,
     contexto: "Use o código abaixo para abrir a sua cédula de votação.",
   })

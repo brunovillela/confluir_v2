@@ -104,6 +104,12 @@ export function PortalLoginForm() {
                 {pendenteSenha && <Loader2 className="animate-spin" />}
                 Entrar
               </Button>
+              {/* Orientação fixa, para todo mundo: a action não diz mais
+                  "seu cadastro não possui e-mail" (isso confirmava o CPF). */}
+              <p className="text-muted-foreground text-xs">
+                Sem e-mail no cadastro, ou sem acesso a ele? Procure o sindicato
+                para atualizar seus dados.
+              </p>
             </form>
           </TabsContent>
         </Tabs>

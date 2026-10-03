@@ -11,7 +11,7 @@ import {
   excluirDadosDoTitular,
   iniciarAcesso,
 } from "@/lib/db/eventos-titular"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, registrarCodigoNaoEnviado } from "@/lib/email"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -44,7 +44,7 @@ export async function pedirCodigoAction(
       assunto: "Seu código para acessar seus dados",
       html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Recebemos um pedido para acessar os dados ligados a este e-mail. Seu código é:</p><p style="font-size:28px;letter-spacing:4px;font-weight:bold">${codigo}</p><p>Ele vale por 30 minutos. Se não foi você quem pediu, ignore esta mensagem — nada acontece sem o código.</p><p>{ENTIDADE}</p>`,
     })
-    if (!enviado) console.info(`[eventos/titular] código de ${email}: ${codigo}`)
+    if (!enviado) registrarCodigoNaoEnviado("eventos/titular", email, codigo)
   }
 
   redirect(`/meus-dados/${token}`)

@@ -23,12 +23,11 @@ export async function loginFiliadoSenha(
   if (!senha) return { erro: "Informe sua senha." }
 
   const filiado = await buscarFiliadoPorCpf(cpf)
-  if (!filiado) return { erro: "CPF ou senha incorretos." }
-  if (!filiado.email) {
-    return {
-      erro: "Seu cadastro não possui email. Entre em contato com o sindicato para atualizar seus dados.",
-    }
-  }
+  // Cadastro sem e-mail recebe a MESMA resposta de CPF inexistente: a
+  // mensagem específica confirmava a quem chutasse CPFs que aquele existe.
+  // A orientação "sem e-mail no cadastro? procure o sindicato" fica fixa na
+  // tela, para todo mundo.
+  if (!filiado || !filiado.email) return { erro: "CPF ou senha incorretos." }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -88,6 +87,8 @@ export async function enviarMagicLinkFiliado(
   const { erro: erroCodigo } = await enviarCodigoAcesso({
     email: filiado.email,
     metadata: { tipo: "filiado", cpf },
+    // O e-mail saiu do cadastro deste CPF (acima), não do formulário.
+    vinculoVerificado: true,
     next: "/portal/inicio",
     contexto: "Use o código abaixo para entrar na sua área do filiado.",
   })

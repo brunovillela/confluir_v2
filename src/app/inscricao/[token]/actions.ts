@@ -15,7 +15,7 @@ import {
   registrarInscricaoNoProntuario,
   registrarRsvpNoProntuario,
 } from "@/lib/db/eventos-filiados"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, registrarCodigoNaoEnviado } from "@/lib/email"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -88,7 +88,7 @@ export async function reenviarCodigoAction(
     assunto: "Seu novo código de confirmação",
     html: `<p>Olá${nome ? `, ${nome.split(" ")[0]}` : ""}!</p><p>Seu novo código é:</p><p style="font-size:28px;letter-spacing:4px;font-weight:bold">${codigo}</p><p>Ele vale por 30 minutos.</p><p>{ENTIDADE}</p>`,
   })
-  if (!enviado) console.info(`[eventos] código de ${email}: ${codigo}`)
+  if (!enviado) registrarCodigoNaoEnviado("eventos", email, codigo)
 
   return { ok: "Enviamos um novo código." }
 }

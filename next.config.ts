@@ -12,6 +12,32 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  // Cabeçalhos de segurança (achado S5 da avaliação de 03/10). Valem para
+  // todas as rotas, inclusive as públicas por token.
+  //  - HSTS: o navegador só fala HTTPS com confluir.online e subdomínios.
+  //  - nosniff: um upload servido com tipo errado não vira script.
+  //  - Referrer-Policy: a URL com token (/assinar/<token>, /ficha/<token>…)
+  //    não vaza no Referer para sites de terceiros.
+  //  - X-Frame-Options DENY: nenhuma página do Confluir pode ser embutida por
+  //    outro site (clickjacking). Os iframes que o Confluir ABRE (PDF do
+  //    Storage, vídeo) não são afetados — a regra é sobre quem nos embute.
+  //  - Permissions-Policy: câmera só para o próprio app (leitura de QR na
+  //    recepção); microfone, geolocalização e pagamento desligados.
+  // A CSP entra depois, em modo relatório (ver docs/plano-onda-0-seguranca.md).
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=()" },
+        ],
+      },
+    ]
+  },
   // Autoatendimento do funcionário migrado para dentro de /painel/perfil.
   // Redireciona os caminhos antigos (inclusive links já enviados por e-mail).
   async redirects() {

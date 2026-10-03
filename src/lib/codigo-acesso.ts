@@ -27,11 +27,24 @@ export type ResultadoCodigo = { ok?: true; erro?: string }
 
 /**
  * Manda o código de acesso para `email`, criando a conta se ela não existir.
- * `metadata` vai para o user_metadata na criação (ex.: tipo e CPF do eleitor).
+ * `metadata` vai para o user_metadata SÓ na criação da conta.
+ *
+ * Conta que já existe NÃO tem o metadata mexido aqui — isto roda ANTES de o
+ * código ser conferido, ou seja, a pedido de quem quer que tenha digitado o
+ * e-mail. Sobrescrever nesse ponto permitia a qualquer pessoa, sem login,
+ * trocar o CPF/tipo da conta de um funcionário ou filiado (achado S2 da
+ * avaliação de 03/10). A única exceção é `vinculoVerificado`: o chamador
+ * derivou o e-mail do próprio cadastro do CPF (portal e votação do filiado),
+ * então o par já é do servidor, não do formulário.
  */
 export async function enviarCodigoAcesso(destino: {
   email: string
   metadata?: Record<string, unknown>
+  /**
+   * O par e-mail↔metadata veio do cadastro (servidor), não do formulário.
+   * Só então uma conta existente recebe o metadata.
+   */
+  vinculoVerificado?: boolean
   /** Para onde o botão do e-mail leva depois de confirmar. */
   next?: string
   /** Frase que explica o que está sendo liberado. */
@@ -41,26 +54,34 @@ export async function enviarCodigoAcesso(destino: {
   const admin = await createAdminClient()
 
   // 1. A conta precisa existir para gerar o código (o link mágico é de conta
-  //    existente). Criada já confirmada e sem e-mail nenhum do Supabase.
-  const { data: lista } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  const existente = (lista?.users ?? []).find((u) => (u.email ?? "").toLowerCase() === email)
-  if (!existente) {
-    const { error } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: destino.metadata ?? {},
-    })
-    if (error) return { erro: "Não foi possível preparar o seu acesso. Tente de novo." }
-  } else if (destino.metadata && Object.keys(destino.metadata).length > 0) {
+  //    existente). Tenta criar; "já registrado" significa que existe — sem
+  //    listar usuários (listUsers só via os 1.000 primeiros).
+  const criada = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: destino.metadata ?? {},
+  })
+  if (criada.error && !contaJaExiste(criada.error)) {
+    return { erro: "Não foi possível preparar o seu acesso. Tente de novo." }
+  }
+
+  // 2. Gera o código SEM enviar (generateLink não dispara e-mail). Para conta
+  //    existente, `data.user` é a própria conta — dispensa listar usuários.
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email })
+  const codigo = data?.properties?.email_otp
+  if (error || !codigo) return await pelaSupabase(email)
+
+  const existente = criada.error ? data.user : null
+  if (
+    existente &&
+    destino.vinculoVerificado &&
+    destino.metadata &&
+    Object.keys(destino.metadata).length > 0
+  ) {
     await admin.auth.admin.updateUserById(existente.id, {
       user_metadata: { ...existente.user_metadata, ...destino.metadata },
     })
   }
-
-  // 2. Gera o código SEM enviar (generateLink não dispara e-mail).
-  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email })
-  const codigo = data?.properties?.email_otp
-  if (error || !codigo) return await pelaSupabase(email, destino.metadata)
 
   // 3. Manda pelo canal do app.
   const origem = await origemAtual()
@@ -91,18 +112,27 @@ export async function enviarCodigoAcesso(destino: {
   if (enviado) return { ok: true }
 
   // 4. Nosso canal falhou: tenta o do Supabase, para não ficar sem saída.
-  return await pelaSupabase(email, destino.metadata)
+  return await pelaSupabase(email)
 }
 
-/** Caminho antigo: o próprio Supabase manda o código pelo SMTP dele. */
-async function pelaSupabase(
-  email: string,
-  metadata?: Record<string, unknown>
-): Promise<ResultadoCodigo> {
+/** `createUser` recusou porque o e-mail já tem conta (e não por outro motivo). */
+function contaJaExiste(erro: { code?: string; status?: number; message?: string }): boolean {
+  return (
+    erro.code === "email_exists" ||
+    erro.status === 422 ||
+    /already (been )?registered|already exists/i.test(erro.message ?? "")
+  )
+}
+
+/**
+ * Caminho antigo: o próprio Supabase manda o código pelo SMTP dele. A conta
+ * já existe neste ponto (criada acima), então não há metadata a passar.
+ */
+async function pelaSupabase(email: string): Promise<ResultadoCodigo> {
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true, data: metadata },
+    options: { shouldCreateUser: false },
   })
   return error ? { erro: "Não foi possível enviar o código. Tente de novo." } : { ok: true }
 }

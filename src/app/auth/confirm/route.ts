@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/painel"
   const userAgent = request.headers.get("user-agent")
 
-  // Só permite redirecionos internos.
-  const destino = next.startsWith("/") ? next : "/painel"
+  // Só permite redirecionamentos internos: um caminho que começa com UMA
+  // barra. `//evil.com` e `/\evil.com` começam com barra, mas `new URL()` os
+  // resolve como outro host (open redirect — achado S8 da avaliação de 03/10).
+  const destino = /^\/(?![/\\])/.test(next) ? next : "/painel"
   // Filiado volta ao portal; os demais, à tela de login do painel.
   const telaDeErro = destino.startsWith("/portal") ? "/portal" : "/login"
 

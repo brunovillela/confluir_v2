@@ -12,7 +12,12 @@ import { readFileSync } from "node:fs"
 
 const EMP = "11111111-1111-4111-8111-111111111111"
 const FISCAL_EMAIL = "fiscal@confluir.local"
-const FISCAL_SENHA = "ConselhoFiscal123"
+// Senha fora do repositório (achado S17): DEMO_FISCAL_SENHA no .env.local.
+const FISCAL_SENHA = process.env.DEMO_FISCAL_SENHA
+if (!FISCAL_SENHA) {
+  console.error("Defina DEMO_FISCAL_SENHA no ambiente (ou no .env.local) antes de rodar.")
+  process.exit(1)
+}
 const FISCAL_USUARIO_ID = "c0f15ca1-0000-4000-8000-000000000001"
 const PERFIL_NOME = "Conselho Fiscal (leitura)"
 const CHAVES = [

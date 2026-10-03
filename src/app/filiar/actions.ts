@@ -12,7 +12,7 @@ import {
   verificarCodigo,
   type DadosSolicitacao,
 } from "@/lib/db/filiacao-publica"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, registrarCodigoNaoEnviado } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { capitalizarNome } from "@/lib/texto"
 
@@ -118,10 +118,7 @@ export async function solicitarFiliacaoAction(
 
   const { assunto, html } = emailCodigo(res.codigo)
   const enviado = await enviarEmail({ email, nome, assunto, html })
-  if (!enviado) {
-    // Sem BREVO configurado: registra no log do servidor p/ teste local.
-    console.info(`[filiar] código de ${email}: ${res.codigo} (token ${res.token})`)
-  }
+  if (!enviado) registrarCodigoNaoEnviado("filiar", email, res.codigo)
 
   redirect(`/filiar/verificar?s=${res.token}`)
 }
@@ -139,9 +136,7 @@ export async function reenviarCodigoAction(
 
   const { assunto, html } = emailCodigo(res.codigo)
   const enviado = await enviarEmail({ email: res.email, nome: res.nome, assunto, html })
-  if (!enviado) {
-    console.info(`[filiar] código reenviado de ${res.email}: ${res.codigo} (token ${token})`)
-  }
+  if (!enviado) registrarCodigoNaoEnviado("filiar", res.email, res.codigo)
   return { ok: "Enviamos um novo código para o seu e-mail." }
 }
 

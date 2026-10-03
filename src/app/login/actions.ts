@@ -86,9 +86,11 @@ export async function solicitarPrimeiroAcesso(
     .toLowerCase()
   if (!email) return { erro: "Informe seu email." }
 
-  // Resposta genérica para não revelar quais emails existem no cadastro.
+  // Resposta genérica para não revelar quais emails existem no cadastro. Ela
+  // já traz a orientação de quem JÁ ativou a conta, porque responder isso só
+  // a esses casos entregava quais e-mails são de funcionário.
   const respostaGenerica = {
-    ok: "Se o email estiver cadastrado, você receberá um convite para ativar sua conta.",
+    ok: "Se o email estiver cadastrado e ainda não ativado, você receberá um convite. Se a conta já foi ativada, use “Esqueci minha senha” na tela de login.",
   }
 
   const admin = await createAdminClient()
@@ -111,11 +113,7 @@ export async function solicitarPrimeiroAcesso(
     .maybeSingle()
   if (!permissao) return respostaGenerica
 
-  if (usuario.auth_user_id) {
-    return {
-      erro: "Esta conta já foi ativada ou já recebeu um convite. Para receber um novo link, use “Esqueci minha senha” na tela de login.",
-    }
-  }
+  if (usuario.auth_user_id) return respostaGenerica
 
   const { enviarConvitePrimeiroAcesso } = await import("@/lib/codigo-acesso")
   const { usuarioId, erro } = await enviarConvitePrimeiroAcesso({

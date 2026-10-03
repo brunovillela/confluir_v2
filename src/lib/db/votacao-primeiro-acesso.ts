@@ -306,7 +306,9 @@ export async function registrarDadosEleitor(dados: {
   const concorrentes = ((outros ?? []) as AptoLinha[]).filter((o) => !meusIds.includes(o.id))
   if (concorrentes.some((o) => o.hora_voto || o.presenca_em)) {
     await marcarConflito("Já havia voto registrado para este CPF em outro apto da votação.")
-    return { erro: "Já há voto registrado para este CPF nesta votação. Procure o sindicato se não foi você." }
+    // O conflito fica gravado para a equipe; a tela não confirma que "este
+    // CPF já votou" — isso revelava a participação de terceiros.
+    return { erro: "Não foi possível confirmar os seus dados. Procure o sindicato." }
   }
   if (
     concorrentes.length > 0 &&

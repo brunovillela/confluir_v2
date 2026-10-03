@@ -4,7 +4,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { type EstadoForm } from "@/lib/contas"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, registrarCodigoNaoEnviado } from "@/lib/email"
 import { carregarEventoPublico } from "@/lib/db/eventos-publico"
 import {
   criarInscricao,
@@ -113,9 +113,9 @@ export async function inscreverAction(
       assunto: `Confirme sua inscrição — ${publico.evento.titulo ?? "evento"}`,
       html: `<p>Olá, ${nome.split(" ")[0]}!</p><p>Seu código de confirmação é:</p><p style="font-size:28px;letter-spacing:4px;font-weight:bold">${codigo}</p><p>Ele vale por 30 minutos. Informe-o na página da sua inscrição:</p><p><a href="${link}">${link}</a></p><p>Guarde este link: é por ele que você acompanha a inscrição.</p><p>{ENTIDADE}</p>`,
     })
-    // Sem e-mail configurado o fluxo não pode travar — o código vai para o log
-    // do servidor para a equipe repassar manualmente.
-    if (!enviado) console.info(`[eventos] código de ${email}: ${codigo}`)
+    // Sem e-mail configurado o fluxo não pode travar; o código NÃO vai para o
+    // log (só no sandbox local) — a equipe reenvia pela tela da inscrição.
+    if (!enviado) registrarCodigoNaoEnviado("eventos", email, codigo)
   }
 
   redirect(`/inscricao/${token}`)
