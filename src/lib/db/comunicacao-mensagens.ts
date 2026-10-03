@@ -787,9 +787,12 @@ export async function marcarWhatsapp(envioId: string, usuarioId: string): Promis
   return error ? { erro: error.message } : {}
 }
 
-/** Endereços do descadastro: a página (link do rodapé) e o one-click (cabeçalho). */
-function linksDescadastro(emp: string, cpf: string, origem: string): { pagina: string; umClique: string } {
-  const token = tokenDescadastro(emp, cpf)
+/**
+ * Endereços do descadastro: a página (link do rodapé) e o one-click
+ * (cabeçalho). O token leva o id do cadastro — nunca o CPF (achado S12).
+ */
+function linksDescadastro(emp: string, filiacaoId: string, origem: string): { pagina: string; umClique: string } {
+  const token = tokenDescadastro(emp, filiacaoId)
   return { pagina: `${origem}/comunicados/sair/${token}`, umClique: `${origem}/api/comunicados/sair?t=${token}` }
 }
 
@@ -857,7 +860,7 @@ export async function enviarLote(
         .update({ email_situacao: "processando", email_em: new Date().toISOString() })
         .in("id", candidatos.map((c) => c.id))
         .eq("email_situacao", "pendente")
-        .select("id, cpf, nome, email, assunto, corpo")
+        .select("id, filiacao_id, cpf, nome, email, assunto, corpo")
     : { data: [], error: null }
   if (erroReserva) return { enviados: 0, falhas: 0, restantes: 0, erro: erroReserva.message }
   const meus = new Set((pendentes ?? []).map((p) => String(p.id)))
@@ -880,14 +883,21 @@ export async function enviarLote(
   const duplicados: string[] = []
   const descadastrados: string[] = []
   const falhas: { id: string; erro: string }[] = []
-  const fila: { id: string; cpf: string; nome: string; email: string; assunto: string | null; corpo: string | null }[] = []
+  const fila: { id: string; filiacaoId: string | null; nome: string; email: string; assunto: string | null; corpo: string | null }[] = []
   for (const p of pendentes ?? []) {
     const email = String(p.email ?? "").toLowerCase()
     if (optout.has(String(p.cpf ?? ""))) descadastrados.push(String(p.id))
     else if (vistos.has(email)) duplicados.push(String(p.id))
     else {
       vistos.add(email)
-      fila.push({ id: String(p.id), cpf: String(p.cpf ?? ""), nome: texto(p.nome) ?? "", email, assunto: texto(p.assunto), corpo: texto(p.corpo) })
+      fila.push({
+        id: String(p.id),
+        filiacaoId: p.filiacao_id ? String(p.filiacao_id) : null,
+        nome: texto(p.nome) ?? "",
+        email,
+        assunto: texto(p.assunto),
+        corpo: texto(p.corpo),
+      })
     }
   }
 
@@ -895,7 +905,7 @@ export async function enviarLote(
     const bloco = fila.slice(i, i + PARALELO)
     const oks = await Promise.all(
       bloco.map((d) => {
-        const links = malaDireta ? linksDescadastro(emp, d.cpf, contexto.origem) : null
+        const links = malaDireta && d.filiacaoId ? linksDescadastro(emp, d.filiacaoId, contexto.origem) : null
         return enviarEmail({
           email: d.email,
           nome: d.nome,

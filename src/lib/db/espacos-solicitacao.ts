@@ -7,6 +7,7 @@ import { limparCpf, validarCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { avisarEquipeNovoPedido } from "@/lib/db/espacos-esteira"
 import { enviarEmail } from "@/lib/email"
+import { deCampoDataHora } from "@/lib/formato"
 import {
   botaoEmail,
   caixaAviso,
@@ -348,8 +349,15 @@ export async function registrarPedido(
   if (!dados.nome.trim()) return { erro: "Informe seu nome." }
   if (!dados.finalidade.trim()) return { erro: "Diga para que o espaço será usado." }
 
-  const inicio = new Date(dados.inicio).getTime()
-  const termino = new Date(dados.termino).getTime()
+  // Os campos vêm de <input type="datetime-local"> (hora de Macaé, sem fuso).
+  // `new Date(texto)` no servidor lia como UTC: gravava 3 h deslocado e a
+  // checagem "já passou" errava — ver [[confluir-fuso-datetime-local]].
+  const momento = (v: string | null | undefined): number => {
+    const iso = deCampoDataHora(v)
+    return iso ? new Date(iso).getTime() : Number.NaN
+  }
+  const inicio = momento(dados.inicio)
+  const termino = momento(dados.termino)
   if (!Number.isFinite(inicio) || !Number.isFinite(termino)) {
     return { erro: "Informe a data e a hora de início e de término." }
   }
@@ -373,10 +381,8 @@ export async function registrarPedido(
     new Date(termino + 86400000)
   )
   const meu = {
-    inicio: dados.montagemInicio ? new Date(dados.montagemInicio).getTime() : inicio,
-    termino: dados.desmontagemTermino
-      ? new Date(dados.desmontagemTermino).getTime()
-      : termino,
+    inicio: dados.montagemInicio ? momento(dados.montagemInicio) : inicio,
+    termino: dados.desmontagemTermino ? momento(dados.desmontagemTermino) : termino,
   }
   const choque = ocupados.find((o) => periodosChocam(meu, o))
   if (choque) {
@@ -403,12 +409,8 @@ export async function registrarPedido(
       representante_telefone: dados.representanteTelefone?.trim() || null,
       inicio: new Date(inicio).toISOString(),
       termino: new Date(termino).toISOString(),
-      montagem_inicio: dados.montagemInicio
-        ? new Date(dados.montagemInicio).toISOString()
-        : null,
-      desmontagem_termino: dados.desmontagemTermino
-        ? new Date(dados.desmontagemTermino).toISOString()
-        : null,
+      montagem_inicio: deCampoDataHora(dados.montagemInicio),
+      desmontagem_termino: deCampoDataHora(dados.desmontagemTermino),
       finalidade: dados.finalidade.trim(),
       publico_estimado: dados.publicoEstimado,
       tem_infantil: dados.respostas.infantil,

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createHmac, timingSafeEqual } from "node:crypto"
+import { createHash, createHmac, timingSafeEqual } from "node:crypto"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
@@ -31,10 +31,15 @@ export const ROTULO_ORIGEM_DESCADASTRO: Record<OrigemDescadastro, string> = {
 
 type Db = SupabaseClient
 
-function segredo(): string {
+/**
+ * Chave do descadastro: derivada do segredo do projeto por finalidade. Assim
+ * a mesma variável não assina JWT de tenant, link de voto E descadastro com a
+ * chave idêntica (achado S12), sem precisar de uma variável nova.
+ */
+function segredo(): Buffer {
   const s = process.env.SUPABASE_JWT_SECRET
   if (!s) throw new Error("SUPABASE_JWT_SECRET ausente — link de descadastro indisponível")
-  return s
+  return createHash("sha256").update(`descadastro:${s}`).digest()
 }
 
 function assinar(corpo: string): string {
@@ -45,8 +50,14 @@ function assinar(corpo: string): string {
 /** Quem é a pessoa: o CPF ou, sem CPF confiável, o id do cadastro ("id:<uuid>"). */
 export type Titular = { emp: string; cpf: string }
 
-export function tokenDescadastro(emp: string, cpf: string): string {
-  const corpo = Buffer.from(JSON.stringify({ e: emp, c: cpf })).toString("base64url")
+/**
+ * O token do link leva o ID DO CADASTRO, nunca o CPF: o token aparece na URL
+ * e no header List-Unsubscribe, e o CPF ficava legível em base64url (S12).
+ * Links gerados antes de 03/10/2026 deixam de valer — cada envio da mala
+ * direta gera o seu.
+ */
+export function tokenDescadastro(emp: string, filiacaoId: string): string {
+  const corpo = Buffer.from(JSON.stringify({ e: emp, i: filiacaoId })).toString("base64url")
   return `${corpo}.${assinar(corpo)}`
 }
 
@@ -58,21 +69,34 @@ export function lerTokenDescadastro(token: string | null | undefined): Titular |
   const veio = Buffer.from(sig)
   if (esperado.length !== veio.length || !timingSafeEqual(esperado, veio)) return null
   try {
-    const o = JSON.parse(Buffer.from(corpo, "base64url").toString()) as { e?: unknown; c?: unknown }
-    return typeof o.e === "string" && typeof o.c === "string" ? { emp: o.e, cpf: o.c } : null
+    const o = JSON.parse(Buffer.from(corpo, "base64url").toString()) as { e?: unknown; i?: unknown }
+    return typeof o.e === "string" && typeof o.i === "string" ? { emp: o.e, cpf: `id:${o.i}` } : null
   } catch {
     return null
   }
 }
 
-/** Ids dos cadastros da pessoa no tenant. */
+/**
+ * Ids dos cadastros da pessoa no tenant. A partir de um id ("id:<uuid>"),
+ * expande para todos os registros do mesmo CPF confiável — o descadastro vale
+ * para a pessoa, não para um registro só.
+ */
 async function idsDoTitular(db: Db, t: Titular): Promise<string[]> {
+  let cpf: string | null = null
   if (t.cpf.startsWith("id:")) {
-    const { data } = await db.from("filiacoes").select("id").eq("emp_proprietaria_id", t.emp).eq("id", t.cpf.slice(3))
-    return (data ?? []).map((r) => String(r.id))
+    const { data } = await db
+      .from("filiacoes")
+      .select("id, cpf")
+      .eq("emp_proprietaria_id", t.emp)
+      .eq("id", t.cpf.slice(3))
+      .maybeSingle()
+    if (!data) return []
+    cpf = cpfConfiavel(typeof data.cpf === "string" ? data.cpf : null)
+    if (!cpf) return [String(data.id)]
+  } else {
+    cpf = cpfConfiavel(t.cpf)
+    if (!cpf) return []
   }
-  const cpf = cpfConfiavel(t.cpf)
-  if (!cpf) return []
   const { data } = await db.from("filiacoes").select("id").eq("emp_proprietaria_id", t.emp).in("cpf", grafiasDoCpf(cpf))
   return (data ?? []).map((r) => String(r.id))
 }

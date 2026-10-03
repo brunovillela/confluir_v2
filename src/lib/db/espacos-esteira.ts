@@ -3,6 +3,7 @@ import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarEmail } from "@/lib/email"
+import { deCampoDataHora } from "@/lib/formato"
 import {
   botaoEmail,
   caixaAviso,
@@ -398,7 +399,10 @@ export async function agendarVisita(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   if (!dados.quando) return { erro: "Informe a data e a hora da visita." }
-  const quandoISO = new Date(dados.quando).toISOString()
+  // datetime-local (hora de Macaé) → ISO; `new Date(texto)` no servidor lia
+  // como UTC e marcava a visita 3 h depois — ver [[confluir-fuso-datetime-local]].
+  const quandoISO = deCampoDataHora(dados.quando)
+  if (!quandoISO) return { erro: "Data e hora da visita inválidas." }
   const r = await atualizar(id, {
     visita_agendada_em: quandoISO,
     visita_responsavel_id: dados.responsavelId,

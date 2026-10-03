@@ -13,6 +13,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import { tenantAtual } from "@/lib/tenant"
+import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { tokenHumano } from "@/lib/turnstile"
 
 /**
@@ -121,12 +122,19 @@ export async function reverterProcessoAction(
   const verificador = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
+  const chave = chaveDeLogin("senha", email)
+  const bloqueio = await bloqueioAtivo(chave)
+  if (bloqueio) return { erro: bloqueio }
   const { error: erroLogin } = await verificador.auth.signInWithPassword({
     email,
     password: senha,
     options: { captchaToken: tokenHumano(fd) },
   })
-  if (erroLogin) return { erro: "Senha incorreta — a reversão não foi feita." }
+  if (erroLogin) {
+    await registrarFalhaLogin(chave)
+    return { erro: "Senha incorreta — a reversão não foi feita." }
+  }
+  await limparFalhasLogin(chave)
 
   const { erro, revertidos } = await reverterProcesso(id, sessao.usuario.id)
   if (erro) return { erro }

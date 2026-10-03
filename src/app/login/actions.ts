@@ -9,6 +9,7 @@ import { origemAtual } from "@/lib/tenant-url"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 1 — funcionários internos: email + senha. */
@@ -27,6 +28,9 @@ export async function loginFuncionario(
   }
   const erroHumano = await exigirHumano(formData)
   if (erroHumano) return { erro: erroHumano }
+  const chave = chaveDeLogin("senha", email)
+  const bloqueio = await bloqueioAtivo(chave)
+  if (bloqueio) return { erro: bloqueio }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -35,8 +39,10 @@ export async function loginFuncionario(
     options: { captchaToken: tokenHumano(formData) },
   })
   if (error || !data.user) {
+    await registrarFalhaLogin(chave)
     return { erro: "Email ou senha incorretos." }
   }
+  await limparFalhasLogin(chave)
 
   // Conta autenticada precisa estar vinculada a um funcionário ativo do tenant.
   const admin = await createAdminClient()

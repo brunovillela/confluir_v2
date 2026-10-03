@@ -31,6 +31,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "auth_codigos_envios",
   "auth_identidades",
   "auth_vinculos_pendentes",
+  "login_tentativas",
   "caixa_contas",
   "caixa_movimentacoes",
   "caixa_ocorrencias",

@@ -6,6 +6,7 @@ import { descreveErroAuth, type EstadoForm } from "@/lib/contas"
 import { usuarioHotelDaConta } from "@/lib/db/hospedagem"
 import { SITE_URL } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
+import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 4 — pessoal dos hotéis parceiros: email + senha. */
@@ -23,6 +24,9 @@ export async function loginHotel(
   }
   const erroHumano = await exigirHumano(formData)
   if (erroHumano) return { erro: erroHumano }
+  const chave = chaveDeLogin("senha", email)
+  const bloqueio = await bloqueioAtivo(chave)
+  if (bloqueio) return { erro: bloqueio }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -31,8 +35,10 @@ export async function loginHotel(
     options: { captchaToken: tokenHumano(formData) },
   })
   if (error || !data.user) {
+    await registrarFalhaLogin(chave)
     return { erro: "Email ou senha incorretos." }
   }
+  await limparFalhasLogin(chave)
 
   // A conta precisa estar vinculada (e ativa) a um hotel parceiro.
   const vinculo = await usuarioHotelDaConta(data.user.id, data.user.email ?? email)

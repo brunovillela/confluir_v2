@@ -1,0 +1,52 @@
+name: CI
+
+# Roda a cada push e pull request na main: tipos, lint e build. O deploy da
+# Vercel continua automático; isto existe para o erro aparecer ANTES do deploy
+# (o commit parcial de 29/09 derrubou os deploys por horas — ver
+# docs/plano-onda-1-seguranca.md, E3).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos, lint e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Públicos por desenho (vão no bundle do navegador). Cadastrar em
+      # Settings → Secrets and variables → Actions. Sem eles o build é pulado.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_EMP_PROPRIETARIA_ID: ${{ secrets.NEXT_PUBLIC_EMP_PROPRIETARIA_ID }}
+      NEXT_PUBLIC_SITE_URL: https://confluir.online
+      NEXT_PUBLIC_APP_DOMAIN: confluir.online
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+
+      - name: Lint (eslint)
+        run: npx eslint
+
+      - name: Vulnerabilidades conhecidas (npm audit, só produção)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build (next build)
+        if: env.NEXT_PUBLIC_SUPABASE_URL != ''
+        run: npm run build

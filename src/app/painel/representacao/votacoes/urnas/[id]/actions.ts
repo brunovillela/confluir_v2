@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { deCampoDataHora } from "@/lib/formato"
 import {
   atualizarMesario,
   atualizarUrna,
@@ -28,8 +29,10 @@ function rev(assembleiaId: string) {
 
 function dataHora(formData: FormData, campo: string): string | null {
   const v = String(formData.get(campo) ?? "").trim()
-  // <input type="datetime-local"> → "YYYY-MM-DDTHH:mm" (hora local).
-  return v ? new Date(v).toISOString() : null
+  // <input type="datetime-local"> → "YYYY-MM-DDTHH:mm", hora de Macaé. No
+  // servidor (UTC na Vercel) `new Date(v)` lia isso como UTC e a urna abria 3 h
+  // depois do combinado — ver [[confluir-fuso-datetime-local]].
+  return v ? deCampoDataHora(v) : null
 }
 
 function tipoUrna(formData: FormData): "fisica" | "digital" {

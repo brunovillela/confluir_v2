@@ -10,6 +10,7 @@ import {
 import { registrarVinculoPendente, vincularIdentidade } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { createClient } from "@/lib/supabase/server"
+import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 2 — filiados: CPF + senha. */
@@ -31,6 +32,9 @@ export async function loginFiliadoSenha(
   if (!filiado || !filiado.email) return { erro: "CPF ou senha incorretos." }
   const erroHumano = await exigirHumano(formData)
   if (erroHumano) return { erro: erroHumano }
+  const chave = chaveDeLogin("senha", cpf)
+  const bloqueio = await bloqueioAtivo(chave)
+  if (bloqueio) return { erro: bloqueio }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -38,7 +42,11 @@ export async function loginFiliadoSenha(
     password: senha,
     options: { captchaToken: tokenHumano(formData) },
   })
-  if (error || !data.user) return { erro: "CPF ou senha incorretos." }
+  if (error || !data.user) {
+    await registrarFalhaLogin(chave)
+    return { erro: "CPF ou senha incorretos." }
+  }
+  await limparFalhasLogin(chave)
 
   // Só informa o status da filiação a quem provou a senha (anti-enumeração).
   if (!filiado.ativo) {

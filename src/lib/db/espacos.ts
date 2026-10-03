@@ -12,6 +12,7 @@ import {
   type PublicoAlvo,
   type VisitaTecnica,
 } from "@/lib/espacos-constantes"
+import { deCampoDataHora } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { VINCULOS_DO_QUADRO } from "@/lib/vinculos-instituicao"
@@ -692,11 +693,15 @@ export async function criarBloqueio(
   if (dados.termino && dados.termino <= dados.inicio) {
     return { erro: "O término tem de ser depois do início." }
   }
+  // datetime-local (hora de Macaé) → ISO. Gravar o texto cru deixava o fuso a
+  // cargo do banco (UTC): bloqueio 3 h deslocado — ver [[confluir-fuso-datetime-local]].
+  const inicioISO = deCampoDataHora(dados.inicio)
+  if (!inicioISO) return { erro: "Data e hora de início inválidas." }
   const admin = await createAdminClient()
   const { error } = await admin.from("cessao_espaco_bloqueios").insert({
     espaco_id: espacoId,
-    inicio: dados.inicio,
-    termino: dados.termino,
+    inicio: inicioISO,
+    termino: deCampoDataHora(dados.termino),
     motivo: dados.motivo,
     descricao: dados.descricao?.trim() || null,
     criado_por_id: usuarioId,
