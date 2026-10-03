@@ -37,6 +37,27 @@ function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
 }
 
+/** Gestão redefine o 2FA de quem perdeu o celular (apaga os fatores). */
+export async function redefinirSegundoFatorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const usuarioId = texto(formData, "usuario_id")
+  const acessoId = texto(formData, "acesso_id")
+  if (!usuarioId) return { erro: "Usuário inválido." }
+  const { redefinirSegundoFator } = await import("@/lib/db/acessos-mfa")
+  const r = await redefinirSegundoFator(usuarioId)
+  if (r.erro) return { erro: r.erro }
+  if (!r.removidos) return { ok: "Esta conta não tinha verificação em duas etapas ativa." }
+  if (acessoId) {
+    revalidatePath(`/painel/institucional/usuarios/${acessoId}`)
+    // O cartão re-renderiza sem o formulário; o aviso vai pela URL.
+    redirect(`/painel/institucional/usuarios/${acessoId}?mfa=redefinida`)
+  }
+  return { ok: "Verificação redefinida." }
+}
+
 export async function salvarPerfisUsuarioAction(
   _prev: EstadoForm,
   formData: FormData

@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { APP_DOMAIN, EMP_PROPRIETARIA_ID, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import {
+  fatorVerificado,
+  mfaObrigatorio,
+  permissoesExigem2FA,
+  ROTA_SEGURANCA,
+  ROTA_VERIFICACAO,
+} from "@/lib/mfa"
+import {
   moduloDaRota,
   PERMISSOES_USUARIO_FK,
   podeAcessarModulo,
@@ -149,6 +156,20 @@ export async function proxy(request: NextRequest) {
     return redirect
   }
 
+  // ── Verificação em duas etapas (ver lib/mfa.ts) ───────────────────────
+  // Conta com aplicativo autenticador cadastrado só usa /painel e /admin com
+  // a sessão elevada (aal2). O nível vem do JWT da sessão — sem ida à rede.
+  const precisaSegundoFator = async (): Promise<boolean> => {
+    if (!user || !fatorVerificado(user)) return false
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    return data?.currentLevel !== "aal2"
+  }
+
+  // ── Segurança da conta (cadastro do 2FA) exige sessão ─────────────────
+  if (pathname.startsWith(ROTA_SEGURANCA) && !user) {
+    return redirecionar("/login", { next: pathname })
+  }
+
   // ── Controlador da plataforma (super-admin, fora dos tenants) ─────────
   if (pathname.startsWith("/admin")) {
     if (!user) return redirecionar("/login", { next: pathname })
@@ -163,6 +184,11 @@ export async function proxy(request: NextRequest) {
       .eq("auth_user_id", user.id)
       .maybeSingle()
     if (!sa) return redirecionar("/login", { erro: "sem_acesso_admin" })
+    if (await precisaSegundoFator()) return redirecionar(ROTA_VERIFICACAO, { next: pathname })
+    // Super-admin sem fator: com MFA_OBRIGATORIO=1, só a tela de cadastro.
+    if (mfaObrigatorio() && !fatorVerificado(user)) {
+      return redirecionar(ROTA_SEGURANCA, { obrigatorio: "1", voltar: pathname })
+    }
     return response
   }
 
@@ -170,6 +196,9 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith("/painel")) {
     if (!user) {
       return redirecionar("/login", { next: pathname })
+    }
+    if (await precisaSegundoFator()) {
+      return redirecionar(ROTA_VERIFICACAO, { next: pathname })
     }
 
     const admin = createServiceClient(
@@ -212,6 +241,12 @@ export async function proxy(request: NextRequest) {
       (usuario.usuario_perfis as unknown[]) ?? [],
       permissoes as Parameters<typeof resolverPermissoesComPerfis>[1]
     )
+
+    // Permissão sensível sem fator cadastrado (MFA_OBRIGATORIO=1): o painel
+    // só abre a tela de cadastro do aplicativo autenticador.
+    if (permissoesExigem2FA(permissoesEfetivas) && !fatorVerificado(user)) {
+      return redirecionar(ROTA_SEGURANCA, { obrigatorio: "1", voltar: "/painel/perfil" })
+    }
 
     const modulo = moduloDaRota(pathname)
     if (

@@ -60,6 +60,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Bem-vindo ao Confluir",
         resumo: "Como acessar, as interfaces do sistema e como se orientar",
       },
+      {
+        slug: "seguranca",
+        titulo: "Segurança da conta",
+        resumo: "Verificação em duas etapas com aplicativo autenticador: ativar, entrar, redefinir",
+      },
     ],
   },
   {

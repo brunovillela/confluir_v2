@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 
 import { identidadeDaConta } from "@/lib/auth-identidade"
+import { fatorVerificado, ROTA_VERIFICACAO } from "@/lib/mfa"
 import { buscarFiliadoPorCpf, type Filiado } from "@/lib/contas"
 import {
   usuarioHotelDaConta,
@@ -95,6 +96,13 @@ export const getSessaoPainel = cache(
 export async function requireSessaoPainel(): Promise<SessaoPainel> {
   const sessao = await getSessaoPainel()
   if (!sessao) redirect("/login")
+  // Defesa em profundidade do 2FA (o proxy já barra): conta com fator só
+  // usa o painel com a sessão elevada. O nível vem do JWT, sem ida à rede.
+  if (fatorVerificado(sessao.user)) {
+    const supabase = await createClient()
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (data?.currentLevel !== "aal2") redirect(ROTA_VERIFICACAO)
+  }
   return sessao
 }
 

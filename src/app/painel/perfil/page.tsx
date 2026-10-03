@@ -16,6 +16,7 @@ import {
   Plane,
   ReceiptText,
   Send,
+  ShieldCheck,
   TreePalm,
   Wallet,
   type LucideIcon,
@@ -155,6 +156,12 @@ const GRUPOS: { titulo: string; itens: AreaPerfil[] }[] = [
 ]
 
 /** Áreas de qualquer usuário do painel — funcionário, diretor ou outro. */
+const SEGURANCA: AreaPerfil = {
+  titulo: "Segurança da conta",
+  descricao: "Verificação em duas etapas com aplicativo autenticador",
+  href: "/conta/seguranca?voltar=/painel/perfil",
+  icone: ShieldCheck,
+}
 const TELEGRAM: AreaPerfil = {
   titulo: "Telegram",
   descricao: "Vincule seu Telegram para falar com o bot do Confluir",
@@ -431,6 +438,7 @@ export default async function PerfilPage({
             <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
           )}
           <CartaoArea titulo={TELEGRAM.titulo} descricao={TELEGRAM.descricao} href={TELEGRAM.href} icone={TELEGRAM.icone} />
+          <CartaoArea titulo={SEGURANCA.titulo} descricao={SEGURANCA.descricao} href={SEGURANCA.href} icone={SEGURANCA.icone} />
         </div>
       </div>
     </>

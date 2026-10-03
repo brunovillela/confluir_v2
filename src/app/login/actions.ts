@@ -10,6 +10,7 @@ import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
+import { fatorVerificado, ROTA_VERIFICACAO } from "@/lib/mfa"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 
 /** Porta 1 — funcionários internos: email + senha. */
@@ -79,7 +80,12 @@ export async function loginFuncionario(
     }
   }
 
-  redirect(next.startsWith("/painel") ? next : "/painel")
+  const destino = next.startsWith("/painel") ? next : "/painel"
+  // Conta com aplicativo autenticador: a senha é só a primeira etapa.
+  if (fatorVerificado(data.user)) {
+    redirect(`${ROTA_VERIFICACAO}?next=${encodeURIComponent(destino)}`)
+  }
+  redirect(destino)
 }
 
 /**

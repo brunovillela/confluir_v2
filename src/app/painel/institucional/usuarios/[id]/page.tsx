@@ -33,6 +33,7 @@ import {
   RevogarAcesso,
 } from "../usuarios-forms"
 import { AcoesOcupacao, RegistrarOcupacao } from "../contas-funcao-forms"
+import { CartaoSegundoFator } from "../mfa-card"
 
 export const metadata: Metadata = { title: "Permissões — Confluir" }
 
@@ -41,11 +42,11 @@ export default async function AcessoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ nova?: string; conta?: string }>
+  searchParams: Promise<{ nova?: string; conta?: string; mfa?: string }>
 }) {
   await requirePermissao("permissoes", ["configuracoes"])
   const { id } = await params
-  const { nova, conta } = await searchParams
+  const { nova, conta, mfa } = await searchParams
 
   const acesso = await obterAcesso(id)
   if (!acesso) notFound()
@@ -301,6 +302,10 @@ export default async function AcessoPage({
             )}
           </CardContent>
         </Card>
+      )}
+
+      {acesso.usuarioId && (
+        <CartaoSegundoFator usuarioId={acesso.usuarioId} acessoId={acesso.id} redefinida={mfa === "redefinida"} />
       )}
 
       <Card>
