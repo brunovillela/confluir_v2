@@ -20,6 +20,10 @@
     {
       "path": "/api/pendencias/tick",
       "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/vencimentos/tick",
+      "schedule": "45 11 * * *"
     }
   ]
 }

@@ -70,6 +70,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Avisos e caixa de entrada",
         resumo: "O que espera a sua ação, por onde o aviso chega e o lembrete diário",
       },
+      {
+        slug: "busca",
+        titulo: "Busca global (Ctrl+K)",
+        resumo: "Filiados, fornecedores, usuários, ordens, contratos, veículos e páginas num lugar só",
+      },
     ],
   },
   {

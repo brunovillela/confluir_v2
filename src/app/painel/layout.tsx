@@ -1,6 +1,7 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { BuscaGlobal } from "@/components/layout/busca-global"
 import { ContadoresHeader } from "@/components/layout/contadores-header"
 import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -12,7 +13,7 @@ import { pendenciasDoUsuario, totalPendencias } from "@/lib/db/pendencias"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { urlFoto } from "@/lib/db/perfil"
 import { jornadaDoUsuario } from "@/lib/db/pessoal-sst"
-import { modulosPermitidos } from "@/lib/permissoes"
+import { MODULOS, modulosPermitidos, podeAcessarModulo } from "@/lib/permissoes"
 
 export default async function PainelLayout({
   children,
@@ -21,6 +22,14 @@ export default async function PainelLayout({
 }) {
   const sessao = await requireSessaoPainel()
   const modulos = modulosPermitidos(sessao.permissoes)
+  // Busca global (Ctrl+K): toda página que a pessoa pode abrir, inclusive as
+  // subáreas ocultas do menu (só título, descrição, rota e ícone).
+  const paginasDaBusca = MODULOS.filter((m) => podeAcessarModulo(sessao.permissoes, m)).map((m) => ({
+    titulo: m.titulo,
+    href: m.href,
+    descricao: m.descricao,
+    icone: m.icone,
+  }))
   const contaFuncao = sessao.usuario.conta_funcao === true
   const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes, pendencias] = await Promise.all([
     areasDaConta(),
@@ -71,7 +80,10 @@ export default async function PainelLayout({
           <div className="bg-background sticky top-0 z-(--z-sticky)">
             <AppHeader
               acoes={
-                <ContadoresHeader naoLidas={naoLidas} pendencias={totalPendencias(pendencias)} />
+                <>
+                  <BuscaGlobal paginas={paginasDaBusca} />
+                  <ContadoresHeader naoLidas={naoLidas} pendencias={totalPendencias(pendencias)} />
+                </>
               }
             />
             <AlertaForaJornada dias={jornada} />

@@ -142,6 +142,8 @@ export type Aviso = {
   exceto?: string | null
   /** Não repete para quem já tem notificação com o mesmo texto no dia. */
   umaVezPorDia?: boolean
+  /** Com `umaVezPorDia`: compara só o começo do texto (resumos cujo conteúdo varia). */
+  prefixoDoDia?: string
 }
 
 function hojeSP(): string {
@@ -161,12 +163,13 @@ export async function avisar(
 
   let jaAvisados = new Set<string>()
   if (aviso.umaVezPorDia) {
-    const { data } = await client
+    let q = client
       .from("notificacoes")
       .select("usuario_id")
       .in("usuario_id", alvos.map((d) => d.id))
-      .eq("notificacao", aviso.texto)
       .eq("notificacao_data", hoje)
+    q = aviso.prefixoDoDia ? q.like("notificacao", `${aviso.prefixoDoDia.replace(/[%_]/g, "\\$&")}%`) : q.eq("notificacao", aviso.texto)
+    const { data } = await q
     jaAvisados = new Set((data ?? []).map((n) => String(n.usuario_id)))
   }
 
