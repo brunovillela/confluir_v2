@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-06",
+    titulo: "Conciliação bancária",
+    itens: [
+      "Financeiro → Conciliação bancária: importe o extrato em OFX ou CSV e cada lançamento é casado com a ordem paga ou com o depósito da fonte pagadora — sozinho quando há um único candidato, com um clique quando há mais. Crédito sem depósito vira o depósito da fonte na hora; tarifas e transferências internas podem ser ignoradas com o motivo.",
+    ],
+  },
+  {
     id: "2026-10-05",
     titulo: "Portal do associado no celular",
     itens: [

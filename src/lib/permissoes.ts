@@ -969,6 +969,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Conciliação bancária",
+    href: "/painel/financeiro/conciliacao",
+    icone: "Landmark",
+    descricao: "Extrato OFX/CSV casado com ordens pagas e depósitos das fontes",
+    chave: "financeiro_pagamento",
+    chavesAlternativas: ["financeiro_leitura"],
+    oculto: true,
+  },
+  {
     titulo: "Exportação contábil",
     href: "/painel/financeiro/contabil",
     icone: "BookText",

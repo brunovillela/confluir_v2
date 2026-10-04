@@ -1,0 +1,46 @@
+A **conciliação bancária** fecha o mês com o extrato, não com a memória: cada
+lançamento do banco precisa corresponder a uma ordem paga (saída) ou a um
+depósito de fonte pagadora (entrada). O que não corresponde é tarifa,
+transferência interna ou algo que ainda não foi registrado — e é exatamente
+isso que a tela mostra.
+
+<RequerPermissao>Financeiro — pagamento (importar e conciliar) ou leitura (só ver)</RequerPermissao>
+
+## Como funciona
+
+<PassoAPasso>
+  <Passo titulo="1. Exporte o extrato no internet banking">
+    Prefira **OFX** (às vezes chamado de Money ou Quicken); todo banco tem.
+    Se só houver CSV, também serve: o sistema procura as colunas de data,
+    histórico e valor sozinho.
+  </Passo>
+  <Passo titulo="2. Importe">
+    Em **Financeiro → Conciliação bancária**, escolha o arquivo e importe.
+    Linhas já importadas num extrato anterior não se repetem. Cada débito
+    que casa com **uma única** ordem paga (mesmo valor, pagamento até 3 dias
+    de distância) e cada crédito que casa com **um único** depósito registrado
+    (mesmo valor, até 5 dias) é conciliado na hora.
+  </Passo>
+  <Passo titulo="3. Resolva os pendentes">
+    Para cada lançamento pendente a tela lista as candidatas. Um clique casa
+    com a ordem ou o depósito. Um crédito sem depósito registrado pode virar
+    o **depósito da fonte** (escolha a remessa e a fonte) — é o mesmo registro
+    da tela de Receitas. Tarifas e transferências entre contas vão para
+    **Ignorar**, com o motivo.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Conciliar não altera a ordem">
+  O vínculo fica no lançamento do extrato e vira um evento no histórico da
+  ordem ("Conciliada com o extrato"). A ordem continua paga como estava; se
+  o valor do extrato for diferente do pago, a diferença aparece na
+  observação.
+</Aviso>
+
+## Indicadores
+
+**Pendentes** (quantos e quanto em débitos e créditos), **Conciliados**,
+**Ordens pagas sem extrato** nos últimos 90 dias (pagamentos que nenhum
+extrato confirmou ainda) e o último extrato importado. "Desfazer" devolve um
+lançamento conciliado ou ignorado para pendentes; excluir um extrato apaga os
+lançamentos dele, desde que nenhum tenha sido conciliado à mão.

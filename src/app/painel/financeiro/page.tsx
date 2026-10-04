@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BookText, ChartColumn, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
+import { BookText, ChartColumn, Landmark, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -133,6 +133,12 @@ export default async function FinanceiroPage() {
       descricao: "Cartões da entidade usados para pagar compras",
       href: "/painel/financeiro/cartoes",
       icone: CreditCard,
+    },
+    veOrdens && {
+      titulo: "Conciliação bancária",
+      descricao: "Importe o extrato e case cada lançamento com a ordem paga ou o depósito da fonte",
+      href: "/painel/financeiro/conciliacao",
+      icone: Landmark,
     },
     {
       titulo: "Exportação contábil",

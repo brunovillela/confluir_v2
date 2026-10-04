@@ -349,6 +349,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Regras que o sistema confere antes de criar cada ordem",
       },
       {
+        slug: "conciliacao",
+        titulo: "Conciliação bancária",
+        resumo: "Importar o extrato e casar cada lançamento com a ordem paga ou o depósito da fonte",
+      },
+      {
         slug: "gerencial",
         titulo: "Financeiro gerencial",
         resumo: "Fluxo projetado, despesa por centro de custo, orçado × realizado, vencidas e fontes em atraso",

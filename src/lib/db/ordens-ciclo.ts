@@ -91,6 +91,7 @@ export type TipoEvento =
   | "reenviada"
   | "paga"
   | "pagamento_removido"
+  | "conciliada"
   | "corrigida"
   | "cancelada"
   | "estornada"
@@ -107,6 +108,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   reenviada: "Reenviada para autorização",
   paga: "Pagamento registrado",
   pagamento_removido: "Pagamento removido",
+  conciliada: "Conciliada com o extrato",
   corrigida: "Corrigida",
   cancelada: "Cancelada",
   estornada: "Pagamento estornado",
