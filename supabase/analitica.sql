@@ -30,7 +30,7 @@ create index if not exists veiculos_abastecimentos_veic_data_idx
 -- Entrada = quando virou "Ativo" (ativo_em; cadastros antigos: a primeira
 -- data de filiação dos vínculos). Saída = inativo_em (ou a desfiliação do
 -- vínculo). Ativos ao fim do mês = entradas até o mês − saídas até o mês.
-drop materialized view if exists public.fato_filiacao_mensal;
+drop materialized view if exists public.fato_filiacao_mensal cascade; -- cascade: as funções analitica_* dependem do tipo da view e são recriadas abaixo
 create materialized view public.fato_filiacao_mensal as
 with pessoas as (
   select
@@ -74,7 +74,7 @@ from meses m;
 create unique index fato_filiacao_mensal_pk on public.fato_filiacao_mensal (emp_proprietaria_id, mes);
 
 -- ── 2. Arrecadação ──────────────────────────────────────────────────────────
-drop materialized view if exists public.fato_arrecadacao_mensal;
+drop materialized view if exists public.fato_arrecadacao_mensal cascade; -- cascade: as funções analitica_* dependem do tipo da view e são recriadas abaixo
 create materialized view public.fato_arrecadacao_mensal as
 select
   r.emp_proprietaria_id,
@@ -94,7 +94,7 @@ create unique index fato_arrecadacao_mensal_pk
   on public.fato_arrecadacao_mensal (emp_proprietaria_id, mes, tipo, fonte_chave);
 
 -- ── 3. Despesa (ordens pagas) ───────────────────────────────────────────────
-drop materialized view if exists public.fato_despesa_mensal;
+drop materialized view if exists public.fato_despesa_mensal cascade; -- cascade: as funções analitica_* dependem do tipo da view e são recriadas abaixo
 create materialized view public.fato_despesa_mensal as
 with pagas as (
   select o.*, coalesce(o.valor_pago, o.valor_inicial_cobranca, o.valor, 0) as valor_efetivo
@@ -127,7 +127,7 @@ create unique index fato_despesa_mensal_pk
   on public.fato_despesa_mensal (emp_proprietaria_id, mes, tipo, centro_chave, departamento_chave);
 
 -- ── 4. Frota ────────────────────────────────────────────────────────────────
-drop materialized view if exists public.fato_frota_mensal;
+drop materialized view if exists public.fato_frota_mensal cascade; -- cascade: as funções analitica_* dependem do tipo da view e são recriadas abaixo
 create materialized view public.fato_frota_mensal as
 with meses as (
   select v.emp_proprietaria_id, v.id as veiculo_id, m::date as mes
