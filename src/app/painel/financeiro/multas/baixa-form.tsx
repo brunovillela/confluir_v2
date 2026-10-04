@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import { baixarCobrancaAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Baixa da cobrança: observação obrigatória + comprovante opcional. */
 export function BaixaCobrancaForm({
@@ -28,13 +29,7 @@ export function BaixaCobrancaForm({
       action={formAction}
       className="grid gap-2"
       onSubmit={(e) => {
-        if (
-          !confirm(
-            `Dar baixa nesta cobrança de ${valorTexto}? O registro fica no histórico de auditoria.`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Dar baixa nesta cobrança de ${valorTexto}? O registro fica no histórico de auditoria.`)
       }}
     >
       <input type="hidden" name="infracao_id" value={infracaoId} />

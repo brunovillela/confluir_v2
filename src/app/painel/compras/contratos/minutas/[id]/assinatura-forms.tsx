@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { mascaraCpf } from "@/lib/mascaras"
 
 import { anexarAssinadoAction, cancelarAssinaturaAction, enviarParaAssinaturaAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type Pessoa = { nome: string; email: string; cpf: string }
 
@@ -94,9 +95,7 @@ export function CancelarAssinatura({ id }: { id: string }) {
     <form
       action={cancelarAssinaturaAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar o envio? Os links deixam de valer e as assinaturas já dadas nesta rodada são anuladas.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Cancelar o envio? Os links deixam de valer e as assinaturas já dadas nesta rodada são anuladas.")
       }}
     >
       <input type="hidden" name="id" value={id} />

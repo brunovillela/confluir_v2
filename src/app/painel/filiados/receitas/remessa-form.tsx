@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 
 import { atualizarRemessa, criarRemessa, excluirRemessa } from "./actions"
 import { MESES, TIPOS_REMESSA } from "./remessa-constantes"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -141,13 +142,7 @@ export function RemessaForm({ remessa }: { remessa?: RemessaFormDados }) {
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Excluir esta remessa? Só é possível quando ela não tem lançamentos nem recebimentos."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir esta remessa? Só é possível quando ela não tem lançamentos nem recebimentos.")
           }}
           className="flex justify-end border-t pt-4"
         >

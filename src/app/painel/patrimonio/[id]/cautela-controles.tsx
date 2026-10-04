@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { type EstadoForm } from "@/lib/contas"
 
 import { encerrarCautelaAction, registrarCautelaAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -110,9 +111,7 @@ export function EncerrarCautelaForm({
       action={formAction}
       className="flex flex-wrap items-end gap-3"
       onSubmit={(e) => {
-        if (!confirm("Encerrar a cautela deste item (devolução)?")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Encerrar a cautela deste item (devolução)?")
       }}
     >
       <input type="hidden" name="item_id" value={itemId} />

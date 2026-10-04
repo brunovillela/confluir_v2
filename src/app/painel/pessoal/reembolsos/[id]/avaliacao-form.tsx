@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { avaliarReembolsoAction, marcarPagoAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -71,8 +72,7 @@ export function AvaliacaoReembolsoForm({
               decisao === "aprovar"
                 ? "Aprovar este reembolso para pagamento em contracheque?"
                 : "Reprovar esta solicitação de reembolso?"
-            if (!confirm(pergunta)) e.preventDefault()
-          }}
+            confirmarEnvio(e, pergunta)}}
           className="grid gap-4"
         >
           {estado.erro && (
@@ -166,13 +166,7 @@ export function MarcarPagoBotao({ reembolsoId }: { reembolsoId: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Marcar este reembolso como pago no contracheque? O funcionário será avisado."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Marcar este reembolso como pago no contracheque? O funcionário será avisado.")
       }}
       className="grid gap-2"
     >

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import { avaliarOrdemAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Aprovar libera a ordem para pagamento; devolver exige o motivo. */
 export function AvaliacaoOrdemForm({
@@ -28,9 +29,7 @@ export function AvaliacaoOrdemForm({
           (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
         )?.value
         if (decisao === "aprovar") {
-          if (!confirm(`Aprovar esta ordem de ${valorTexto} para pagamento?`)) {
-            e.preventDefault()
-          }
+          confirmarEnvio(e, `Aprovar esta ordem de ${valorTexto} para pagamento?`)
         } else if (!observacao.trim()) {
           alert("Informe o motivo da devolução.")
           e.preventDefault()

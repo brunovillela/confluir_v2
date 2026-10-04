@@ -15,6 +15,7 @@ import {
   criarLancamentoNivel,
   excluirLancamentoNivel,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -233,9 +234,7 @@ export function NivelLancamentoForm({
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (!confirm("Excluir este lançamento de nível salarial?")) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir este lançamento de nível salarial?")
           }}
           className="flex justify-end border-t pt-4"
         >

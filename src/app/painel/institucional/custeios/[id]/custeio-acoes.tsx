@@ -14,6 +14,7 @@ import {
   reprovarCusteioAction,
   submeterCusteioAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function BotaoSubmeter({ custeioId }: { custeioId: string }) {
   const [estado, formAction, pendente] = useActionState(
@@ -108,8 +109,7 @@ export function BotaoCancelar({ custeioId }: { custeioId: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar este custeio?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Cancelar este custeio?")}}
     >
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (

@@ -18,6 +18,7 @@ import {
   iniciarAtendimentoAction,
   salvarReservaAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 function Retorno({ estado }: { estado: EstadoForm }) {
   if (estado.erro) {
@@ -83,9 +84,7 @@ export function AcoesViagem({
           <form
             action={acaoConcluir}
             onSubmit={(e) => {
-              if (!confirm("Concluir o atendimento e enviar o aviso por e-mail?")) {
-                e.preventDefault()
-              }
+              confirmarEnvio(e, "Concluir o atendimento e enviar o aviso por e-mail?")
             }}
           >
             <input type="hidden" name="id" value={id} />

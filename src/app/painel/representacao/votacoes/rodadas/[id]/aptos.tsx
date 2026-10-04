@@ -24,6 +24,7 @@ import {
   importarAptosCsv,
   salvarEleitor,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Importação de aptos por CSV (colunas: cpf, nome, matricula, email, telefone). */
 export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
@@ -322,8 +323,7 @@ export function RemoverAptoBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover este apto da lista?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover este apto da lista?")}}
       className="inline-flex items-center gap-1"
     >
       <input type="hidden" name="rodada_id" value={rodadaId} />

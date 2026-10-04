@@ -14,6 +14,7 @@ import {
   salvarDepartamentoAction,
   tornarLegadoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -230,13 +231,7 @@ export function DepartamentoForm({
         <form
           action={acaoLegado}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                `Tornar “${departamento.nome}” legado? Ele sai das listas de escolha e continua nos registros antigos. Dá para reativar depois.`
-              )
-            )
-              e.preventDefault()
-          }}
+            confirmarEnvio(e, `Tornar “${departamento.nome}” legado? Ele sai das listas de escolha e continua nos registros antigos. Dá para reativar depois.`)}}
           className="grid gap-1.5 border-t pt-3"
         >
           <input type="hidden" name="departamento_id" value={departamento.id} />

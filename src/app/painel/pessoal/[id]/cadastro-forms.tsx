@@ -13,6 +13,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { formatarData } from "@/lib/formato"
 
 import { excluirVinculoAction, salvarDadosCadastraisAction, salvarVinculoAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type DadosCadastraisTela = {
   nomeCompleto: string
@@ -237,13 +238,7 @@ export function VinculoFuncionario({
           <form
             action={acaoExcluir}
             onSubmit={(e) => {
-              if (
-                !confirm(
-                  "Excluir este vínculo? Use só para quem NUNCA fez parte da entidade (ex.: trabalhador de outra empresa cadastrado por engano). Para quem saiu, preencha a data de desligamento."
-                )
-              )
-                e.preventDefault()
-            }}
+              confirmarEnvio(e, "Excluir este vínculo? Use só para quem NUNCA fez parte da entidade (ex.: trabalhador de outra empresa cadastrado por engano). Para quem saiu, preencha a data de desligamento.")}}
             className="grid gap-1.5 border-t pt-3"
           >
             <input type="hidden" name="usuario_id" value={usuarioId} />

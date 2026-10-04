@@ -27,7 +27,7 @@ import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 
 import { ContasDoQuadro, NovoTipoDespesa, type GastoParaConta } from "./contas-forms"
 
-export const metadata: Metadata = { title: "Contas das diárias — Confluir" }
+export const metadata: Metadata = { title: "Centros de custo das diárias — Confluir" }
 
 /**
  * De-para das contas contábeis das diárias. O plano de contas da entidade

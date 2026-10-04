@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 import { atualizarContribuicao, excluirContribuicao } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Editar/excluir um lançamento da relação (inline na linha da tabela). */
 export function LancamentoAcoes({
@@ -81,8 +82,7 @@ export function LancamentoAcoes({
         action={excluirAction}
         className="inline"
         onSubmit={(e) => {
-          if (!confirm("Excluir este lançamento da remessa?")) e.preventDefault()
-        }}
+          confirmarEnvio(e, "Excluir este lançamento da remessa?")}}
       >
         <input type="hidden" name="remessa_id" value={remessaId} />
         <input type="hidden" name="fonte_id" value={fonteId} />

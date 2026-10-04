@@ -55,7 +55,7 @@ export default async function MultasPage({
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Cobranças de multas de trânsito
+          Cobranças de multas
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Valores a receber dos condutores infratores — a baixa fica registrada

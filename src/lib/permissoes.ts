@@ -679,7 +679,7 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
-    titulo: "Oposição à contribuição",
+    titulo: "Oposição à contribuição assistencial",
     href: "/painel/representacao/oposicao",
     icone: "Gavel",
     descricao: "Campanhas de oposição e fila de avaliação",

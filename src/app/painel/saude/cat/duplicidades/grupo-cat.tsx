@@ -21,6 +21,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { formatarData } from "@/lib/formato"
 
 import { descartarCopiasAction, ignorarGrupoCatAction, vincularAtualizacaoAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /**
  * Um grupo: escolhe-se a CAT que fica (ou a de origem) e o que fazer com as
@@ -114,9 +115,7 @@ export function GrupoCatAcoes({
             <form
               action={descartar}
               onSubmit={(e) => {
-                if (!confirm("Manter a CAT marcada e descartar as outras como cópia? Elas saem das listas, mas não são apagadas."))
-                  e.preventDefault()
-              }}
+                confirmarEnvio(e, "Manter a CAT marcada e descartar as outras como cópia? Elas saem das listas, mas não são apagadas.")}}
             >
               <input type="hidden" name="manter" value={escolhida} />
               <input type="hidden" name="cats" value={todos} />

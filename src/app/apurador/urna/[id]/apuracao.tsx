@@ -15,6 +15,7 @@ import {
   iniciarApuracaoAction,
   salvarContagemAction,
 } from "../../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 function valorAtual(
   dados: ApuracaoUrnaDados,
@@ -204,9 +205,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
             variant="outline"
             disabled={pendConcluir}
             onClick={(e) => {
-              if (!confirm("Concluir a apuração desta urna? Salve a contagem antes.")) {
-                e.preventDefault()
-              }
+              confirmarEnvio(e, "Concluir a apuração desta urna? Salve a contagem antes.")
             }}
           >
             {pendConcluir ? <Loader2 className="animate-spin" /> : <Lock />}

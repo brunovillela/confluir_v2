@@ -42,6 +42,7 @@ import {
   salvarPermissoesAction,
 } from "./actions"
 import { NovaContaFuncao } from "./contas-funcao-forms"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Perfil (RBAC) exibido no seletor — tipo local (client não importa server-only). */
 export type PerfilOpcao = {
@@ -221,13 +222,7 @@ export function OnboardingLote({
       <form
         action={formAction}
         onSubmit={(e) => {
-          if (
-            !confirm(
-              `Criar login e enviar convite para ${aptos.length} pessoa(s)?`
-            )
-          ) {
-            e.preventDefault()
-          }
+          confirmarEnvio(e, `Criar login e enviar convite para ${aptos.length} pessoa(s)?`)
         }}
       >
         <Button type="submit" disabled={!podeDisparar || pendente}>
@@ -602,13 +597,7 @@ export function RevogarAcesso({ acessoId }: { acessoId: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Revogar o acesso desta pessoa? O perfil de permissões é removido (o cadastro de usuário permanece)."
-          )
-        )
-          e.preventDefault()
-      }}
+        confirmarEnvio(e, "Revogar o acesso desta pessoa? O perfil de permissões é removido (o cadastro de usuário permanece).")}}
     >
       <input type="hidden" name="acesso_id" value={acessoId} />
       <Button type="submit" variant="outline" size="sm" disabled={pendente}>

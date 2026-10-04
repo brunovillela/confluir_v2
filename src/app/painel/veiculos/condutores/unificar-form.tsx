@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import type { GrupoRepetido } from "@/lib/db/veiculos-condutores-cnh"
 
 import { unificarCondutoresAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 function data(v: string | null): string {
   if (!v) return "—"
@@ -25,13 +26,7 @@ export function UnificarGrupo({ grupo }: { grupo: GrupoRepetido }) {
       className="grid gap-3 rounded-md border p-3"
       onSubmit={(e) => {
         const n = grupo.membros.length - 1
-        if (
-          !confirm(
-            `Unificar? O cadastro marcado fica; ${n === 1 ? "o outro" : `os outros ${n}`} some${n === 1 ? "" : "m"} da lista de condutores, a CNH vai para o histórico e os lançamentos passam para o que fica.`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Unificar? O cadastro marcado fica; ${n === 1 ? "o outro" : `os outros ${n}`} some${n === 1 ? "" : "m"} da lista de condutores, a CNH vai para o histórico e os lançamentos passam para o que fica.`)
       }}
     >
       <p className="text-sm font-medium">

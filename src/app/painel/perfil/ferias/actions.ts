@@ -27,9 +27,9 @@ export async function solicitarFeriasAction(
   const dias = lerDias(formData.get("dias"))
   const abono = formData.get("abono") === "on"
 
-  if (!periodoId) return { erro: "Escolha o período aquisitivo." }
-  if (!inicio) return { erro: "Informe a data de início das férias." }
-  if (dias === null) return { erro: "Informe a quantidade de dias (número inteiro)." }
+  if (!periodoId) return { erro: "Escolha o período aquisitivo.", campo: "periodo_id" }
+  if (!inicio) return { erro: "Informe a data de início das férias.", campo: "inicio" }
+  if (dias === null) return { erro: "Informe a quantidade de dias (número inteiro).", campo: "dias" }
 
   const { erro } = await solicitarGozo(sessao.usuario.id, {
     periodoId,

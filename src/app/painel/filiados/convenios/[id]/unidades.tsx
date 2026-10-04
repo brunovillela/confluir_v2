@@ -14,6 +14,7 @@ import type { UnidadeEditavel } from "@/lib/db/filiacao-convenios-edicao"
 import { formatarTelefone } from "@/lib/formato"
 
 import { excluirUnidadeAction, salvarUnidadeAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /**
  * As unidades de atendimento de um convênio — onde o filiado é atendido.
@@ -102,8 +103,7 @@ export function Unidades({
                   aria-label="Excluir unidade"
                   className="text-destructive hover:text-destructive"
                   onClick={(e) => {
-                    if (!confirm(`Excluir a unidade "${u.nome ?? "Unidade"}"?`)) e.preventDefault()
-                  }}
+                    confirmarEnvio(e, `Excluir a unidade "${u.nome ?? "Unidade"}"?`)}}
                 >
                   <Trash2 />
                 </Button>

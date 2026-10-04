@@ -16,6 +16,7 @@ import {
   criarQrCode,
   excluirQrCode,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function QrNovoForm({ defaultDestino }: { defaultDestino?: string }) {
   const [estado, action, pend] = useActionState(criarQrCode, {})
@@ -174,13 +175,7 @@ export function ExcluirQr({ id }: { id: string }) {
     <form
       action={action}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Excluir este QR Code? Peças já impressas com ele deixarão de funcionar e o histórico de leituras será perdido. Se a ideia é só tirá-lo do ar, prefira DESATIVAR."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir este QR Code? Peças já impressas com ele deixarão de funcionar e o histórico de leituras será perdido. Se a ideia é só tirá-lo do ar, prefira DESATIVAR.")
       }}
     >
       {estado.erro && (

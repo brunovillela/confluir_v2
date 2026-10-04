@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { CATEGORIAS_CNH } from "@/lib/veiculos-constantes"
 
 import { definirAutorizacaoAction, salvarCondutorAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -152,15 +153,9 @@ export function AutorizacaoForm({
       action={formAction}
       className="inline-flex flex-col items-end gap-1"
       onSubmit={(e) => {
-        if (
-          !confirm(
-            autorizado
+        confirmarEnvio(e, autorizado
               ? `Retirar a autorização de ${nome} para dirigir?`
-              : `Autorizar ${nome} a dirigir os veículos do sindicato?`
-          )
-        ) {
-          e.preventDefault()
-        }
+              : `Autorizar ${nome} a dirigir os veículos do sindicato?`)
       }}
     >
       <input type="hidden" name="condutor_id" value={condutorId} />

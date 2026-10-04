@@ -15,6 +15,7 @@ import {
   salvarChavesPerfilAction,
   salvarPerfilAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type PerfilDados = {
   id?: string
@@ -199,9 +200,7 @@ export function ExcluirPerfil({ perfilId }: { perfilId: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este perfil? Quem o tiver perde essas permissões."))
-          e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir este perfil? Quem o tiver perde essas permissões.")}}
     >
       <input type="hidden" name="perfil_id" value={perfilId} />
       <Button type="submit" variant="outline" size="sm" disabled={pendente}>

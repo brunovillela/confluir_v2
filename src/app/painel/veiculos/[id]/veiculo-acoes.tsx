@@ -6,6 +6,7 @@ import { Ban, Loader2, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { alternarInatividadeAction, alternarManutencaoAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /**
  * Gestor: envia o veículo para manutenção ou conclui a manutenção. Vive na
@@ -55,15 +56,9 @@ export function InativarVeiculoBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            inativo
+        confirmarEnvio(e, inativo
               ? "Reativar este veículo na frota?"
-              : "Inativar este veículo? Ele sai da frota ativa e não poderá ser retirado."
-          )
-        ) {
-          e.preventDefault()
-        }
+              : "Inativar este veículo? Ele sai da frota ativa e não poderá ser retirado.")
       }}
       className="grid gap-1"
     >

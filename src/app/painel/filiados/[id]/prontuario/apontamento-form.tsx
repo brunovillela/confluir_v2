@@ -14,6 +14,7 @@ import {
   criarApontamento,
   excluirApontamento,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type ApontamentoEditavel = {
   id: string
@@ -118,9 +119,7 @@ export function ExcluirApontamento({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este apontamento do prontuário?")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir este apontamento do prontuário?")
       }}
     >
       <input type="hidden" name="filiado_id" value={filiadoId} />

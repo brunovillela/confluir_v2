@@ -16,7 +16,7 @@ import { listarCampanhas } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
 
 export const metadata: Metadata = {
-  title: "Oposição à contribuição — Confluir",
+  title: "Oposição à contribuição assistencial — Confluir",
 }
 
 const ROTULO_CAMPANHA: Record<string, string> = {

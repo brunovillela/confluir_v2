@@ -20,6 +20,7 @@ import {
   solicitarCupom,
   type EstadoPedidoHospedagem,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -239,7 +240,7 @@ function BotaoAcao({
       action={formAction}
       className="inline-flex items-center gap-2"
       onSubmit={(e) => {
-        if (confirmacao && !confirm(confirmacao)) e.preventDefault()
+        if (confirmacao) confirmarEnvio(e, confirmacao)
       }}
     >
       <input type="hidden" name={campo} value={valor} />

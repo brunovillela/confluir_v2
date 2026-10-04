@@ -23,7 +23,7 @@ import {
 } from "@/lib/db/espacos-esteira"
 import { formatarDataHora } from "@/lib/formato"
 
-export const metadata: Metadata = { title: "Pedidos de uso — Confluir" }
+export const metadata: Metadata = { title: "Pedidos de uso de espaço — Confluir" }
 
 const SELECT =
   "border-input bg-background text-foreground h-9 max-w-56 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -62,7 +62,7 @@ export default async function PedidosPage({
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pedidos de uso</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Pedidos de uso de espaço</h1>
           <p className="text-muted-foreground mt-1 text-xs">
             A fila da cessão: visita técnica, autorização e custeio
           </p>

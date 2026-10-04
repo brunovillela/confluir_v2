@@ -16,6 +16,7 @@ import {
   removerAssentoAction,
   removerLiberacaoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type OpcaoIntegrante = { id: string; nome: string; cargo: string | null }
 
@@ -150,8 +151,7 @@ export function RemoverLiberacao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover esta liberação?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover esta liberação?")}}
     >
       <input type="hidden" name="liberacao_id" value={liberacaoId} />
       <input type="hidden" name="mandato_id" value={mandatoId} />
@@ -328,8 +328,7 @@ export function RemoverAssento({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover o vínculo a esta instância?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover o vínculo a esta instância?")}}
     >
       <input type="hidden" name="assento_id" value={assentoId} />
       <input type="hidden" name="instancia_id" value={instanciaId} />

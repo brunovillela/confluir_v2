@@ -29,6 +29,7 @@ import {
   type ResultadoContaFuncao,
   type ResultadoOcupante,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background h-9 rounded-md border px-3 text-sm [color-scheme:light] dark:[color-scheme:dark]"
@@ -349,13 +350,7 @@ export function AcoesOcupacao({
       <form
         action={excluir}
         onSubmit={(e) => {
-          if (
-            !confirm(
-              `Excluir o período de ${pessoa}? Use só para lançamento errado — para quem saiu, encerre o período.`,
-            )
-          ) {
-            e.preventDefault()
-          }
+          confirmarEnvio(e, `Excluir o período de ${pessoa}? Use só para lançamento errado — para quem saiu, encerre o período.`,)
         }}
       >
         <input type="hidden" name="acesso_id" value={acessoId} />

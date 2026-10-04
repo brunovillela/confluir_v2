@@ -16,6 +16,7 @@ import {
   criarRemessaInformes,
   excluirRemessaInformes,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type RemessaInformesFormDados = {
   id: string
@@ -99,13 +100,7 @@ export function RemessaInformesForm({
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Excluir esta remessa? Só é possível excluir remessas sem informes."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir esta remessa? Só é possível excluir remessas sem informes.")
           }}
           className="flex justify-end border-t pt-4"
         >

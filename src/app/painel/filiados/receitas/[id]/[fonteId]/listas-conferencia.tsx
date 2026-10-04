@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 
 import { CondicaoBadge } from "../../../condicao-badge"
 import { definirCondicaoMarcados } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type Direcao = "asc" | "desc"
 
@@ -122,9 +123,7 @@ function BotaoAcaoMarcados({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm(`${confirmacao} (${marcados.size} cadastro${marcados.size === 1 ? "" : "s"})?`)) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `${confirmacao} (${marcados.size} cadastro${marcados.size === 1 ? "" : "s"})?`)
       }}
       className="flex flex-wrap items-center justify-end gap-2"
     >

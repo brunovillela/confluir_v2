@@ -6,6 +6,7 @@ import { Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { cancelarViagemAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Cancelar a própria viagem enquanto ninguém começou a atender. */
 export function CancelarViagemBotao({ id }: { id: string }) {
@@ -15,8 +16,7 @@ export function CancelarViagemBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar esta solicitação de viagem?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Cancelar esta solicitação de viagem?")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

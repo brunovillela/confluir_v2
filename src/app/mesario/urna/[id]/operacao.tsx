@@ -33,6 +33,7 @@ import {
   registrarEmSeparadoAction,
   registrarPresencaAction,
 } from "../../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const ROTULO_EVENTO: Record<string, string> = {
   instalacao: "Instalação",
@@ -124,9 +125,7 @@ export function RitualUrna({
               disabled={pendFechar}
               className="border-destructive/40"
               onClick={(e) => {
-                if (!confirm("Encerrar a urna? Isso conclui os trabalhos e libera para apuração.")) {
-                  e.preventDefault()
-                }
+                confirmarEnvio(e, "Encerrar a urna? Isso conclui os trabalhos e libera para apuração.")
               }}
             >
               <Lock />

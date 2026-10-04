@@ -24,6 +24,7 @@ import {
   removerPergunta,
   salvarPergunta,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -177,9 +178,7 @@ function PerguntaItem({
                 <form
                   action={removerAction}
                   onSubmit={(e) => {
-                    if (!confirm("Excluir esta pergunta e suas opções?")) {
-                      e.preventDefault()
-                    }
+                    confirmarEnvio(e, "Excluir esta pergunta e suas opções?")
                   }}
                 >
                   <input type="hidden" name="rodada_id" value={rodadaId} />
@@ -304,8 +303,7 @@ function RemoverOpcaoBotao({
     <form
       action={removerAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta opção de resposta?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir esta opção de resposta?")}}
     >
       <input type="hidden" name="rodada_id" value={rodadaId} />
       <input type="hidden" name="opcao_id" value={opcaoId} />

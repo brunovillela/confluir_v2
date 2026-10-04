@@ -6,6 +6,7 @@ import { Ban, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { alternarAtivoItemAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Botão do gestor: ativar/inativar o item (com confirmação). */
 export function ItemAcoes({
@@ -26,14 +27,7 @@ export function ItemAcoes({
       <form
         action={acao}
         onSubmit={(e) => {
-          if (
-            ativo &&
-            !confirm(
-              "Inativar este item? Ele sai da lista de itens ativos do patrimônio."
-            )
-          ) {
-            e.preventDefault()
-          }
+          if (ativo) confirmarEnvio(e, "Inativar este item? Ele sai da lista de itens ativos do patrimônio.")
         }}
       >
         <input type="hidden" name="item_id" value={itemId} />

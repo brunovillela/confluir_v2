@@ -15,6 +15,7 @@ import {
   criarNivelAnuenioBase,
   excluirNivelAnuenioBase,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type DegrauFormDados = {
   id: string
@@ -97,9 +98,7 @@ export function ExcluirDegrauBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este degrau da tabela de anuênios?")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir este degrau da tabela de anuênios?")
       }}
       className="inline-flex items-center"
     >

@@ -49,32 +49,32 @@ export async function criarCompra(
   // Toda compra é auditada: só a observação é facultativa (e limite/local
   // para receber, quando a entrega é no ato da compra).
   const produto = texto(formData, "produto")
-  if (!produto) return { erro: "Descreva o produto ou serviço." }
+  if (!produto) return { erro: "Descreva o produto ou serviço.", campo: "produto" }
   const observacao = texto(formData, "observacao") || null
   const tipo = texto(formData, "e_produto")
   if (tipo !== "bem" && tipo !== "servico") {
-    return { erro: "Informe o tipo: bem/produto ou prestação de serviço." }
+    return { erro: "Informe o tipo: bem/produto ou prestação de serviço.", campo: "e_produto" }
   }
   const departamentoId = texto(formData, "departamento_id")
-  if (!departamentoId) return { erro: "Informe o departamento solicitante." }
+  if (!departamentoId) return { erro: "Informe o departamento solicitante.", campo: "departamento_id" }
   const escopo = await escopoComprasDoUsuario(sessao.usuario.id)
   if (!escopo.todos && !escopo.departamentoIds.includes(departamentoId)) {
-    return { erro: "Você não compra por esse departamento." }
+    return { erro: "Você não compra por esse departamento.", campo: "departamento_id" }
   }
   const centroCustoId = texto(formData, "centro_custo_id")
   if (!centroCustoId) {
-    return { erro: "Informe o centro de custo da despesa." }
+    return { erro: "Informe o centro de custo da despesa.", campo: "centro_custo_id" }
   }
   const comProjeto = texto(formData, "com_projeto") === "on"
   const projetoId = texto(formData, "projeto_id")
-  if (comProjeto && !projetoId) return { erro: "Escolha o projeto da compra." }
+  if (comProjeto && !projetoId) return { erro: "Escolha o projeto da compra.", campo: "projeto_id" }
 
   const entregaNoAto = texto(formData, "entrega_no_ato") === "on"
   const dataLimite = entregaNoAto ? null : dataISO(texto(formData, "data_limite"))
   const localEntrega = entregaNoAto ? null : texto(formData, "local_entrega") || null
   if (!entregaNoAto) {
-    if (!dataLimite) return { erro: "Informe o limite para receber." }
-    if (!localEntrega) return { erro: "Informe o local para receber." }
+    if (!dataLimite) return { erro: "Informe o limite para receber.", campo: "data_limite" }
+    if (!localEntrega) return { erro: "Informe o local para receber.", campo: "local_entrega" }
   }
 
   const base = {
@@ -99,11 +99,11 @@ export async function criarCompra(
 
   // Aquisição direta: fornecedor, valor, data, pagamento e nota.
   const fornecedorId = texto(formData, "fornecedor_id")
-  if (!fornecedorId) return { erro: "Busque e selecione o fornecedor." }
+  if (!fornecedorId) return { erro: "Busque e selecione o fornecedor.", campo: "fornecedor_id" }
   const valor = parseValorBR(texto(formData, "valor"))
-  if (valor === null || valor <= 0) return { erro: "Informe o valor da compra." }
+  if (valor === null || valor <= 0) return { erro: "Informe o valor da compra.", campo: "valor" }
   const dataCompra = dataISO(texto(formData, "data_compra"))
-  if (!dataCompra) return { erro: "Informe a data da compra." }
+  if (!dataCompra) return { erro: "Informe a data da compra.", campo: "data_compra" }
 
   // Serviço de autônomo pago por RPA: sem nota e sem pagamento aqui — o
   // recibo (com as retenções) gera a ordem do líquido, que é o valor da compra.
@@ -132,9 +132,9 @@ export async function criarCompra(
   const forma = (FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(formaBruta)
     ? (formaBruta as FormaPagamentoCompras)
     : null
-  if (!forma) return { erro: "Escolha a forma de pagamento." }
+  if (!forma) return { erro: "Escolha a forma de pagamento.", campo: "forma_pagamento" }
   const vencimento = dataISO(texto(formData, "vencimento"))
-  if (!vencimento) return { erro: "Informe a data de pagamento (Pagar em)." }
+  if (!vencimento) return { erro: "Informe a data de pagamento (Pagar em).", campo: "vencimento" }
   const arquivo = formData.get("nota_fiscal")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
     return { erro: "Anexe a nota fiscal, o cupom ou o documento equivalente." }

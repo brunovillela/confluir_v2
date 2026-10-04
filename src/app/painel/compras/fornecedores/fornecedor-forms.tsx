@@ -24,6 +24,7 @@ import {
   salvarContaAction,
   salvarEnderecoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -60,7 +61,7 @@ export function BotaoAcaoFornecedor({
       action={formAction}
       className="inline-flex flex-col items-end gap-1"
       onSubmit={(e) => {
-        if (confirmacao && !confirm(confirmacao)) e.preventDefault()
+        if (confirmacao) confirmarEnvio(e, confirmacao)
       }}
     >
       {Object.entries(campos).map(([nome, valor]) => (

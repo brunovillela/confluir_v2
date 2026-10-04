@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 
 import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
 import { excluirOrdensContratoAction, receberDocumentoOrdemAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Valor NUMERIC → texto pt-BR editável (sem símbolo). */
 function valorParaTexto(valor: number | null): string {
@@ -135,9 +136,7 @@ export function ExclusaoOrdensBarra({
       id={formId}
       action={acao}
       onSubmit={(e) => {
-        if (!confirm(`Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do contrato e do Financeiro.`)) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do contrato e do Financeiro.`)
       }}
       className="grid gap-2"
     >

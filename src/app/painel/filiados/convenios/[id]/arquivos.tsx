@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import type { ArquivoConvenio } from "@/lib/db/filiacao-convenios-edicao"
 
 import { enviarArquivoAction, removerArquivoAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const ROTULO: Record<ArquivoConvenio, { titulo: string; ajuda: string; aceita: string }> = {
   contrato: {
@@ -63,8 +64,7 @@ export function ArquivoConvenioCampo({
                 aria-label="Remover arquivo"
                 className="text-destructive hover:text-destructive"
                 onClick={(e) => {
-                  if (!confirm(`Remover ${r.titulo.toLowerCase()}?`)) e.preventDefault()
-                }}
+                  confirmarEnvio(e, `Remover ${r.titulo.toLowerCase()}?`)}}
               >
                 <Trash2 />
               </Button>

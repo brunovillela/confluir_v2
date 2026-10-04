@@ -15,6 +15,7 @@ import {
   registrarFaltaAction,
   salvarConfigFaltasAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -153,8 +154,7 @@ export function ExcluirFaltaBotao({ id }: { id: string }) {
     <form
       action={acao}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta falta justificada? A ausência gerada por ela sai junto.")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir esta falta justificada? A ausência gerada por ela sai junto.")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 export type EstadoForm = {
   erro?: string
+  /** `name` do campo que causou o erro (components/ui/erro-no-campo). */
+  campo?: string
   ok?: string
 }
 

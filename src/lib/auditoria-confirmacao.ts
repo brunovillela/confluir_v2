@@ -18,6 +18,8 @@ export type Apontamento = {
 /** Estado das actions que registram ordem com confirmação. */
 export type EstadoComApontamentos = {
   erro?: string
+  /** `name` do campo que causou o erro (components/ui/erro-no-campo). */
+  campo?: string
   ok?: string
   apontamentos?: Apontamento[]
 }

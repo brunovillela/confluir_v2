@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { aplicarReajuste } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function ReajusteConfirmarForm({
   percentualTexto,
@@ -22,13 +23,7 @@ export function ReajusteConfirmarForm({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            `Aplicar reajuste de ${percentualTexto}% em ${degraus} degraus da tabela salarial? A alteração vale para todos os cargos e não tem desfazer automático.`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Aplicar reajuste de ${percentualTexto}% em ${degraus} degraus da tabela salarial? A alteração vale para todos os cargos e não tem desfazer automático.`)
       }}
       className="grid gap-3"
     >

@@ -24,6 +24,7 @@ import {
   criarGozoAction,
   excluirGozoAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type GozoFormDados = {
   id: string
@@ -152,8 +153,7 @@ export function AutorizarGozoBotao({
           : temAbono
             ? "Autorizar este gozo E confirmar a venda de 1/3 (abono pecuniário)? O funcionário será avisado por notificação e email."
             : "Autorizar este gozo de férias? O funcionário será avisado por notificação e email."
-        if (!confirm(pergunta)) e.preventDefault()
-      }}
+        confirmarEnvio(e, pergunta)}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="periodo_id" value={periodoId} />
@@ -200,8 +200,7 @@ export function ExcluirGozoBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este gozo de férias?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir este gozo de férias?")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="periodo_id" value={periodoId} />

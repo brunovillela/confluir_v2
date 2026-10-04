@@ -16,6 +16,7 @@ import {
   criarRemessaContracheques,
   excluirRemessaContracheques,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -157,13 +158,7 @@ export function RemessaContrachequesForm({
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Excluir esta remessa? Só é possível excluir remessas sem contracheques."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir esta remessa? Só é possível excluir remessas sem contracheques.")
           }}
           className="flex justify-end border-t pt-4"
         >

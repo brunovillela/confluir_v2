@@ -14,6 +14,7 @@ import {
   registrarCompra,
   relatarPerda,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function ConfirmarAporte({
   movimentacaoId,
@@ -27,13 +28,7 @@ export function ConfirmarAporte({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`)
       }}
       className="flex flex-wrap items-center gap-2"
     >
@@ -95,13 +90,7 @@ export function PrestarContas() {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Prestar contas agora? A conta fica travada para novas compras até a decisão do Financeiro."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Prestar contas agora? A conta fica travada para novas compras até a decisão do Financeiro.")
       }}
       className="grid gap-3"
     >

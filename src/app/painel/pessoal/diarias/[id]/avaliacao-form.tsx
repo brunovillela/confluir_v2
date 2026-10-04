@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { formatarMoeda } from "@/lib/formato"
 
 import { avaliarDiaria } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type InfracaoPendente = {
   id: string
@@ -56,8 +57,7 @@ export function AvaliacaoDiariaForm({
               decisao === "aprovar"
                 ? `Aprovar esta diária e gerar a ordem de pagamento de ${valorTexto}?`
                 : "Reprovar esta solicitação de diária?"
-            if (!confirm(pergunta)) e.preventDefault()
-          }}
+            confirmarEnvio(e, pergunta)}}
           className="grid gap-4"
         >
           {estado.erro && (

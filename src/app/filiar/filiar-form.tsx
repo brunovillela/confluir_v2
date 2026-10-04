@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { limparCpf, mascararCpfParcial, validarCpf } from "@/lib/cpf"
 
 import { solicitarFiliacaoAction } from "./actions"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -90,6 +91,7 @@ export function FiliarForm({
       </CardHeader>
       <CardContent>
         <form action={formAction} className="grid gap-5">
+          <ErroNoCampo estado={estado} />
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { excluirFuncao } from "../../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function ExcluirFuncao({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirFuncao, {})
@@ -14,9 +15,7 @@ export function ExcluirFuncao({ id }: { id: string }) {
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta função? Esta ação não pode ser desfeita.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir esta função? Esta ação não pode ser desfeita.")
       }}
     >
       {estado.erro && (

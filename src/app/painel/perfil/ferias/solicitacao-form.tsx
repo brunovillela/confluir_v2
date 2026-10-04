@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
 import { cancelarFeriasAction, solicitarFeriasAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,6 +27,7 @@ export function SolicitarFeriasForm({
 
   return (
     <form action={formAction} className="grid gap-4">
+      <ErroNoCampo estado={estado} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -103,8 +106,7 @@ export function CancelarFeriasBotao({
         const pergunta = autorizado
           ? "Estas férias já foram AUTORIZADAS. Cancelar assim mesmo? Combine a troca com o departamento de pessoal."
           : "Cancelar esta solicitação de férias?"
-        if (!confirm(pergunta)) e.preventDefault()
-      }}
+        confirmarEnvio(e, pergunta)}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

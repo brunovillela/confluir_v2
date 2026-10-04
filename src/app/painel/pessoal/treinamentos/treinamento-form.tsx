@@ -15,6 +15,7 @@ import {
   criarTreinamento,
   excluirTreinamento,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type TreinamentoFormDados = {
   id: string
@@ -110,13 +111,7 @@ export function TreinamentoForm({
           <form
             action={excluirAction}
             onSubmit={(e) => {
-              if (
-                !confirm(
-                  "Excluir este treinamento? Só é possível excluir treinamentos sem alunos."
-                )
-              ) {
-                e.preventDefault()
-              }
+              confirmarEnvio(e, "Excluir este treinamento? Só é possível excluir treinamentos sem alunos.")
             }}
             className="flex justify-end border-t pt-4"
           >

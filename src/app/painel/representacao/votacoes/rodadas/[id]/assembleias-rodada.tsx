@@ -29,6 +29,7 @@ import type { AssembleiaLinha } from "@/lib/db/assembleias"
 import { formatarData } from "@/lib/formato"
 
 import { apagarAssembleia, novaAssembleia, salvarAssembleia } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -389,8 +390,7 @@ function AssembleiaItem({
               <form
                 action={apagarAction}
                 onSubmit={(e) => {
-                  if (!confirm("Excluir esta assembleia?")) e.preventDefault()
-                }}
+                  confirmarEnvio(e, "Excluir esta assembleia?")}}
               >
                 <input type="hidden" name="rodada_id" value={rodadaId} />
                 <input

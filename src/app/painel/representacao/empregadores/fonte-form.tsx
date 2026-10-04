@@ -21,6 +21,7 @@ import {
   criarFontePagadora,
   excluirFontePagadora,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type FonteFormDados = {
   id: string
@@ -122,13 +123,7 @@ export function FonteForm({ fonte }: { fonte?: FonteFormDados }) {
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Excluir esta fonte da lista de fontes pagadoras? O cadastro da empresa é mantido; fontes com vínculos de filiação não podem ser excluídas."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir esta fonte da lista de fontes pagadoras? O cadastro da empresa é mantido; fontes com vínculos de filiação não podem ser excluídas.")
           }}
           className="flex justify-end border-t pt-4"
         >

@@ -18,7 +18,7 @@ import { listarNotas } from "@/lib/db/patrimonio"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-export const metadata: Metadata = { title: "Notas fiscais — Confluir" }
+export const metadata: Metadata = { title: "Notas fiscais do patrimônio — Confluir" }
 
 export default async function NotasPage() {
   const sessao = await requirePermissao("patrimonio_geral", [
@@ -39,7 +39,7 @@ export default async function NotasPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Notas fiscais
+              Notas fiscais do patrimônio
             </h1>
             <p className="text-muted-foreground mt-1 text-xs">
               Notas de entrada e saída dos bens patrimoniais

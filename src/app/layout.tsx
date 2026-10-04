@@ -4,6 +4,7 @@ import { Geist_Mono, Poppins } from "next/font/google"
 
 import { ProgressoNavegacao } from "@/components/layout/progresso-navegacao"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ConfirmacaoHost } from "@/components/ui/confirmacao"
 import { Toaster } from "@/components/ui/sonner"
 
 import "./globals.css"
@@ -49,6 +50,8 @@ export default function RootLayout({
           </Suspense>
           {children}
           <Toaster richColors />
+          {/* Um diálogo só para todas as confirmações (components/ui/confirmacao). */}
+          <ConfirmacaoHost />
         </ThemeProvider>
       </body>
     </html>

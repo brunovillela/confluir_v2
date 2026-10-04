@@ -16,6 +16,7 @@ import {
   excluirMinutaAction,
   salvarTextoMinutaAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -224,8 +225,7 @@ export function ExcluirMinuta({ id }: { id: string }) {
     <form
       action={excluirMinutaAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta minuta e todas as versões?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir esta minuta e todas as versões?")}}
     >
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" className="text-destructive">

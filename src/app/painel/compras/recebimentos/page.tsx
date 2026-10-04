@@ -40,7 +40,7 @@ export default async function RecebimentosComprasPage({
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Recebimentos pendentes
+          Recebimentos
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Compras que ainda vão chegar — aquisição direta não recebida e

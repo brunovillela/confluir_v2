@@ -68,10 +68,10 @@ export async function solicitarVeiculoAction(
   const destinoViagem = texto(formData, "destino")
   const dataRetirada = dataISO(texto(formData, "data_retirada"))
   const sede = texto(formData, "sede")
-  if (!motivo) return { erro: "Informe o motivo." }
-  if (!destinoViagem) return { erro: "Informe o destino." }
-  if (!dataRetirada) return { erro: "Informe a data de retirada." }
-  if (!sede) return { erro: "Informe a sede de retirada." }
+  if (!motivo) return { erro: "Informe o motivo.", campo: "motivo" }
+  if (!destinoViagem) return { erro: "Informe o destino.", campo: "destino" }
+  if (!dataRetirada) return { erro: "Informe a data de retirada.", campo: "data_retirada" }
+  if (!sede) return { erro: "Informe a sede de retirada.", campo: "sede" }
 
   const { erro } = await criarAgendamento({
     condutor_usuario_id: sessao.usuario.id,
@@ -97,10 +97,10 @@ export async function editarAgendamentoAction(
   const dataRetirada = dataISO(texto(formData, "data_retirada"))
   const sede = texto(formData, "sede")
   if (!UUID.test(id)) return { erro: "Solicitação inválida." }
-  if (!motivo) return { erro: "Informe o motivo." }
-  if (!destinoViagem) return { erro: "Informe o destino." }
-  if (!dataRetirada) return { erro: "Informe a data de retirada." }
-  if (!sede) return { erro: "Informe a sede de retirada." }
+  if (!motivo) return { erro: "Informe o motivo.", campo: "motivo" }
+  if (!destinoViagem) return { erro: "Informe o destino.", campo: "destino" }
+  if (!dataRetirada) return { erro: "Informe a data de retirada.", campo: "data_retirada" }
+  if (!sede) return { erro: "Informe a sede de retirada.", campo: "sede" }
 
   const { erro } = await editarAgendamento(id, sessao.usuario.id, {
     motivo,
@@ -144,11 +144,11 @@ export async function reservarParaTerceiroAction(
   const dataRetirada = dataISO(texto(formData, "data_retirada"))
   const sede = texto(formData, "sede")
   const veiculoId = texto(formData, "veiculo_id")
-  if (!UUID.test(condutorId)) return { erro: "Escolha para quem é a reserva." }
-  if (!motivo) return { erro: "Informe o motivo." }
-  if (!destinoViagem) return { erro: "Informe o destino." }
-  if (!dataRetirada) return { erro: "Informe a data de retirada." }
-  if (!sede) return { erro: "Informe a sede de retirada." }
+  if (!UUID.test(condutorId)) return { erro: "Escolha para quem é a reserva.", campo: "condutor_usuario_id" }
+  if (!motivo) return { erro: "Informe o motivo.", campo: "motivo" }
+  if (!destinoViagem) return { erro: "Informe o destino.", campo: "destino" }
+  if (!dataRetirada) return { erro: "Informe a data de retirada.", campo: "data_retirada" }
+  if (!sede) return { erro: "Informe a sede de retirada.", campo: "sede" }
 
   const { erro, atendida } = await reservarParaTerceiro(
     {
@@ -180,7 +180,7 @@ export async function atenderAgendamentoAction(
   const id = texto(formData, "agendamento_id")
   const veiculoId = texto(formData, "veiculo_id")
   if (!UUID.test(id)) return { erro: "Solicitação inválida." }
-  if (!UUID.test(veiculoId)) return { erro: "Escolha o veículo." }
+  if (!UUID.test(veiculoId)) return { erro: "Escolha o veículo.", campo: "veiculo_id" }
   const { erro } = await atenderAgendamento(id, veiculoId, sessao.usuario.id)
   if (erro) return { erro }
   revalidar(veiculoId)
@@ -195,7 +195,7 @@ export async function negarAgendamentoAction(
   const id = texto(formData, "agendamento_id")
   const motivo = texto(formData, "motivo")
   if (!UUID.test(id)) return { erro: "Solicitação inválida." }
-  if (!motivo) return { erro: "Informe o motivo da negativa." }
+  if (!motivo) return { erro: "Informe o motivo da negativa.", campo: "motivo" }
   const { erro } = await negarAgendamento(id, sessao.usuario.id, motivo)
   if (erro) return { erro }
   revalidar()
@@ -231,11 +231,11 @@ export async function registrarSaidaAction(
   const hodometro = parseHodometro(texto(formData, "hodometro"))
   const sede = texto(formData, "sede")
   if (!UUID.test(veiculoId)) return { erro: "Veículo inválido." }
-  if (!UUID.test(condutorId)) return { erro: "Escolha o condutor." }
+  if (!UUID.test(condutorId)) return { erro: "Escolha o condutor.", campo: "condutor_usuario_id" }
   if (hodometro === null || hodometro < 0) {
-    return { erro: "Informe o hodômetro na saída." }
+    return { erro: "Informe o hodômetro na saída.", campo: "hodometro" }
   }
-  if (!sede) return { erro: "Informe a sede de saída." }
+  if (!sede) return { erro: "Informe a sede de saída.", campo: "sede" }
   const previsao = texto(formData, "previsao_retorno")
   if (previsao && !dataISO(previsao)) {
     return { erro: "Previsão de retorno inválida." }

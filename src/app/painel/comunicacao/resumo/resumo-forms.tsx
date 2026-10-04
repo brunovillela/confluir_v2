@@ -17,6 +17,7 @@ import {
   removerFonteAction,
   salvarConfigAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -260,8 +261,7 @@ export function RemoverFonteBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover este site?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover este site?")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

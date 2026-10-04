@@ -26,6 +26,7 @@ import {
   meiosDoPrestadorRpa,
   salvarConfigRpa,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -560,13 +561,7 @@ export function ExcluirRpa({
     <form
       action={action}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            `Excluir o RPA${numero ? ` nº ${numero}` : ""} e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito.`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Excluir o RPA${numero ? ` nº ${numero}` : ""} e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito.`)
       }}
       className={compacto ? "inline-flex flex-col items-end" : undefined}
     >
@@ -607,14 +602,7 @@ export function AnexarRpaAssinado({ id, substituir }: { id: string; substituir?:
     <form
       action={action}
       onSubmit={(e) => {
-        if (
-          !substituir &&
-          !confirm(
-            "Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído)."
-          )
-        ) {
-          e.preventDefault()
-        }
+        if (!substituir) confirmarEnvio(e, "Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído).")
       }}
       className="grid gap-3"
     >

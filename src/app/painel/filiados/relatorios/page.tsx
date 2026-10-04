@@ -27,7 +27,7 @@ export default async function RelatoriosPage() {
             Filiados
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Relatórios</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Relatórios de filiados</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Recortes prontos sobre os {n(totais.ativos)} filiados ativos e um
           relatório personalizado com filtros e colunas à escolha. Exportam em

@@ -28,7 +28,7 @@ export async function solicitarFaltaAction(_prev: EstadoForm, fd: FormData): Pro
   // Só quem tem vínculo ATIVO com a entidade pede falta justificada.
   await exigirFuncionario(sessao.usuario.id, { ativo: true })
   const data = texto(fd, "data")
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Informe a data da falta." }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Informe a data da falta.", campo: "data" }
   const up = await subirComprovacaoFalta(fd.get("comprovacao"), sessao.usuario.id)
   if ("erro" in up) return up
   const { erro } = await registrarFalta(
@@ -52,7 +52,7 @@ export async function anexarComprovacaoAction(_prev: EstadoForm, fd: FormData): 
   const id = texto(fd, "id")
   if (!id) return { erro: "Falta inválida." }
   const arquivo = fd.get("comprovacao")
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo (PDF ou foto)." }
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo (PDF ou foto).", campo: "comprovacao" }
   const up = await subirComprovacaoFalta(arquivo, sessao.usuario.id)
   if ("erro" in up) return up
   const { erro } = await anexarComprovacaoMinhaFalta(id, sessao.usuario.id, up.caminho!)

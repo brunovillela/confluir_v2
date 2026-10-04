@@ -22,6 +22,7 @@ import {
   criarCentroCusto,
   excluirCentroCusto,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function CentroCustoForm({
   centro,
@@ -158,13 +159,7 @@ export function CentroCustoForm({
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Excluir este centro de custo? Contas usadas em ordens ou contratos não podem ser excluídas."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Excluir este centro de custo? Contas usadas em ordens ou contratos não podem ser excluídas.")
           }}
           className="flex justify-end border-t pt-4"
         >

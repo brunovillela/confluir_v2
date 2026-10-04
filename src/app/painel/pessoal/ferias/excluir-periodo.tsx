@@ -6,6 +6,7 @@ import { Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { excluirPeriodoAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /**
  * Exclui um período de férias SEM gozos (o servidor confere de novo). Quem
@@ -27,9 +28,7 @@ export function ExcluirPeriodoBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este período de férias? Ele não tem gozos registrados.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir este período de férias? Ele não tem gozos registrados.")
       }}
       className="inline-flex items-center"
     >

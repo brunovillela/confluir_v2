@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { cancelarMeuReembolso, solicitarReembolso } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -38,6 +40,7 @@ export function SolicitarReembolsoForm({
       </CardHeader>
       <CardContent>
         <form action={formAction} className="grid gap-4">
+          <ErroNoCampo estado={estado} />
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>
@@ -121,9 +124,7 @@ export function CancelarReembolsoBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar esta solicitação de reembolso?")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Cancelar esta solicitação de reembolso?")
       }}
       className="inline-flex items-center"
     >

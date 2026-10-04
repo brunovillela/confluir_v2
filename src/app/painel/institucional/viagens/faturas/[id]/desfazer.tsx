@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { desfazerFaturaAction } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Desfazer enquanto a ordem ainda está em autorização (lançou errado). */
 export function DesfazerFatura({ id }: { id: string }) {
@@ -15,13 +16,7 @@ export function DesfazerFatura({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Desfazer esta fatura? A ordem de pagamento e a compra são apagadas e os itens voltam para “a faturar”."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Desfazer esta fatura? A ordem de pagamento e a compra são apagadas e os itens voltam para “a faturar”.")
       }}
       className="grid gap-2"
     >

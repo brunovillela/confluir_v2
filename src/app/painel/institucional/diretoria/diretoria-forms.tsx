@@ -17,6 +17,7 @@ import {
   removerGrupoAction,
   removerIntegranteAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const INPUT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -216,13 +217,7 @@ export function RemoverGrupo({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Remover este grupo? Os integrantes ficam sem grupo (não são apagados)."
-          )
-        )
-          e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover este grupo? Os integrantes ficam sem grupo (não são apagados).")}}
       className="inline"
     >
       <input type="hidden" name="grupo_id" value={grupoId} />
@@ -253,8 +248,7 @@ export function RemoverIntegrante({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Remover este integrante do mandato?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Remover este integrante do mandato?")}}
     >
       <input type="hidden" name="integrante_id" value={integranteId} />
       <input type="hidden" name="mandato_id" value={mandatoId} />

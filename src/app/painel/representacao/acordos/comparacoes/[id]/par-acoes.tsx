@@ -12,6 +12,7 @@ import {
   diferencaDoParAction,
   parearManualAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-xs shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -102,8 +103,7 @@ export function DesfazerPar({ comparacaoId, parId }: { comparacaoId: string; par
     <form
       action={desfazerParAction}
       onSubmit={(e) => {
-        if (!confirm("Separar este par? As duas cláusulas viram 'suprimida' e 'nova'.")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Separar este par? As duas cláusulas viram 'suprimida' e 'nova'.")}}
     >
       <input type="hidden" name="comparacao_id" value={comparacaoId} />
       <input type="hidden" name="par_id" value={parId} />

@@ -15,6 +15,7 @@ import {
   criarNoticiaAction,
   excluirNoticiaAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const FILE =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-sm"
@@ -136,8 +137,7 @@ export function BotaoExcluirNoticia({ id }: { id: string }) {
         size="sm"
         disabled={pendente}
         onClick={(e) => {
-          if (!confirm("Excluir esta notícia?")) e.preventDefault()
-        }}
+          confirmarEnvio(e, "Excluir esta notícia?")}}
       >
         {pendente ? (
           <Loader2 className="animate-spin" />

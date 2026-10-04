@@ -27,7 +27,7 @@ import { relatorioInadimplencia } from "@/lib/db/filiacao-inadimplencia"
 import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
 import { semAcento } from "@/lib/texto"
 
-export const metadata: Metadata = { title: "Inadimplentes — Confluir" }
+export const metadata: Metadata = { title: "Filiados inadimplentes — Confluir" }
 
 const POR_PAGINA = 50
 

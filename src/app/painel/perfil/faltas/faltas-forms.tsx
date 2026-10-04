@@ -1,6 +1,8 @@
 "use client"
 
 import { useActionState } from "react"
+
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Loader2, Paperclip, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { anexarComprovacaoAction, cancelarFaltaAction, solicitarFaltaAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,6 +28,7 @@ export function SolicitarFaltaForm({
   const [estado, acao, pendente] = useActionState(solicitarFaltaAction, {})
   return (
     <form action={acao} className="grid gap-4">
+      <ErroNoCampo estado={estado} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -99,6 +103,7 @@ export function AnexarComprovacaoForm({ id }: { id: string }) {
         {pendente ? <Loader2 className="animate-spin" /> : <Paperclip />}
         Anexar comprovação
       </Button>
+      <ErroNoCampo estado={estado} />
       {estado.erro && <span className="text-destructive basis-full text-right text-xs">{estado.erro}</span>}
     </form>
   )
@@ -113,8 +118,7 @@ export function CancelarFaltaBotao({ id, autorizada = false }: { id: string; aut
         const pergunta = autorizada
           ? "Esta falta já foi AUTORIZADA. Cancelar assim mesmo? O departamento de pessoal será avisado."
           : "Cancelar este pedido de falta justificada?"
-        if (!confirm(pergunta)) e.preventDefault()
-      }}
+        confirmarEnvio(e, pergunta)}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

@@ -15,6 +15,7 @@ import {
   excluirDocumentoAction,
   excluirVersaoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const DATA =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -241,13 +242,7 @@ export function BotaoExcluirDocumento({ documentoId }: { documentoId: string }) 
       action={formAction}
       className="inline-flex flex-col items-end gap-1"
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Excluir este documento? Todas as versões e arquivos serão apagados."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir este documento? Todas as versões e arquivos serão apagados.")
       }}
     >
       <input type="hidden" name="documento_id" value={documentoId} />
@@ -277,8 +272,7 @@ export function BotaoExcluirVersao({
       action={formAction}
       className="inline-flex items-center"
       onSubmit={(e) => {
-        if (!confirm("Excluir esta versão e o arquivo?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir esta versão e o arquivo?")}}
     >
       <input type="hidden" name="versao_id" value={versaoId} />
       <input type="hidden" name="documento_id" value={documentoId} />

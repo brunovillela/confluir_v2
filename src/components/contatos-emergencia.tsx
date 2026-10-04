@@ -13,6 +13,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { MAX_CONTATOS_EMERGENCIA, VINCULOS_EMERGENCIA } from "@/lib/filiacao"
 import { formatarTelefone } from "@/lib/formato"
 import { mascaraTelefone } from "@/lib/mascaras"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -126,8 +127,7 @@ export function ContatosEmergencia({
                       disabled={excluindo}
                       className="text-destructive hover:text-destructive"
                       onClick={(e) => {
-                        if (!confirm(`Excluir o contato de emergência "${c.nome}"?`)) e.preventDefault()
-                      }}
+                        confirmarEnvio(e, `Excluir o contato de emergência "${c.nome}"?`)}}
                     >
                       <Trash2 />
                     </Button>

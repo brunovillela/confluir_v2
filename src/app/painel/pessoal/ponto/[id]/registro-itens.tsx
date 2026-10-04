@@ -16,6 +16,7 @@ import {
   criarRegistroPonto,
   excluirRegistroPonto,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -188,8 +189,7 @@ export function ExcluirRegistroBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este registro de ponto?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir este registro de ponto?")}}
       className="inline-flex"
     >
       <input type="hidden" name="id" value={id} />

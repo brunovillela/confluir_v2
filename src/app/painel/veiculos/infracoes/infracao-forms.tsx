@@ -20,6 +20,7 @@ import {
   justificarInfracaoAction,
   salvarEmailsCopiaAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -353,13 +354,7 @@ export function GerarOrdemMultaForm({
       action={formAction}
       className="grid max-w-2xl gap-3"
       onSubmit={(e) => {
-        if (
-          !confirm(
-            `Gerar a ordem de pagamento da multa (${valorTexto}, 'Em autorização')?`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Gerar a ordem de pagamento da multa (${valorTexto}, 'Em autorização')?`)
       }}
     >
       <input type="hidden" name="infracao_id" value={infracaoId} />

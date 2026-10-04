@@ -18,10 +18,10 @@ function revalidar() {
 async function subirComprovante(
   formData: FormData,
   funcionarioId: string
-): Promise<{ caminho: string } | { erro: string }> {
+): Promise<{ caminho: string } | { erro: string; campo?: string }> {
   const arquivo = formData.get("comprovante")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
-    return { erro: "Anexe o comprovante da despesa (nota fiscal/recibo)." }
+    return { erro: "Anexe o comprovante da despesa (nota fiscal/recibo).", campo: "comprovante" }
   }
   const tipos: Record<string, string> = {
     "application/pdf": "pdf",
@@ -30,9 +30,9 @@ async function subirComprovante(
     "image/webp": "webp",
   }
   const ext = tipos[arquivo.type]
-  if (!ext) return { erro: "Envie PDF, JPG, PNG ou WebP." }
+  if (!ext) return { erro: "Envie PDF, JPG, PNG ou WebP.", campo: "comprovante" }
   if (arquivo.size > 5 * 1024 * 1024) {
-    return { erro: "O arquivo deve ter no máximo 5 MB." }
+    return { erro: "O arquivo deve ter no máximo 5 MB.", campo: "comprovante" }
   }
   const caminho = `reembolsos/${funcionarioId}-${Date.now()}.${ext}`
   const admin = await createAdminClient()
@@ -60,13 +60,13 @@ export async function solicitarReembolso(
     .replace(",", ".")
   const descricao = String(formData.get("descricao") ?? "").trim()
 
-  if (!tipoId) return { erro: "Escolha o tipo de reembolso." }
+  if (!tipoId) return { erro: "Escolha o tipo de reembolso.", campo: "tipo_id" }
   const valor = Number(valorBruto)
   if (!valorBruto || Number.isNaN(valor) || valor <= 0) {
-    return { erro: "Informe o valor da despesa (ex.: 350,00)." }
+    return { erro: "Informe o valor da despesa (ex.: 350,00).", campo: "valor_solicitado" }
   }
   if (!descricao) {
-    return { erro: "Descreva a despesa (ex.: mensalidade da creche de junho)." }
+    return { erro: "Descreva a despesa (ex.: mensalidade da creche de junho).", campo: "descricao" }
   }
 
   const comprovante = await subirComprovante(

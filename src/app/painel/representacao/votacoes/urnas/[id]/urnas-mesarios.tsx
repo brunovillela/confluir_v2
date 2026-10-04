@@ -51,6 +51,7 @@ import {
   salvarMesarioAction,
   salvarUrnaAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** ISO (UTC) → "YYYY-MM-DDTHH:mm" na hora local, para <input datetime-local>. */
 function paraInputLocal(iso: string | null): string {
@@ -284,8 +285,7 @@ function UrnaItem({
           <form
             action={actApagar}
             onSubmit={(e) => {
-              if (!confirm("Excluir esta urna?")) e.preventDefault()
-            }}
+              confirmarEnvio(e, "Excluir esta urna?")}}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="urna_id" value={urna.id} />
@@ -675,8 +675,7 @@ function MesarioItem({
           <form
             action={actApagar}
             onSubmit={(e) => {
-              if (!confirm("Excluir este mesário?")) e.preventDefault()
-            }}
+              confirmarEnvio(e, "Excluir este mesário?")}}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="mesario_id" value={mesario.id} />
@@ -845,8 +844,7 @@ function ApuradorItem({
           <form
             action={actApagar}
             onSubmit={(e) => {
-              if (!confirm("Excluir este apurador?")) e.preventDefault()
-            }}
+              confirmarEnvio(e, "Excluir este apurador?")}}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="apurador_id" value={apurador.id} />

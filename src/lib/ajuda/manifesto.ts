@@ -144,7 +144,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "reembolsos",
-        titulo: "Reembolsos",
+        titulo: "Reembolsos do ACT",
         resumo: "Tipos de reembolso do ACT, avaliação e pagamento em folha",
       },
       {
@@ -212,7 +212,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "relatorios",
-        titulo: "Relatórios",
+        titulo: "Relatórios de filiados",
         resumo: "Em carência, plenos, inadimplentes e o relatório personalizado",
       },
       {
@@ -264,7 +264,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "oposicao",
-        titulo: "Oposição",
+        titulo: "Oposição à contribuição assistencial",
         resumo: "Cadastro público, assinatura gov.br e avaliação",
       },
       {
@@ -350,7 +350,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "cat",
-        titulo: "CAT",
+        titulo: "CATs",
         resumo: "Painel, listagem, formulário oficial e inclusão em massa",
       },
       {
@@ -448,7 +448,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "agendamentos",
-        titulo: "Agendamentos",
+        titulo: "Agendamentos de veículos",
         resumo: "Reserva, retirada e devolução por hodômetro; abastecimentos",
       },
       {
@@ -470,7 +470,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "infracoes",
-        titulo: "Infrações",
+        titulo: "Infrações de trânsito",
         resumo: "Multas, cobrança do infrator e baixa no Financeiro",
       },
       {
@@ -535,7 +535,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "notas",
-        titulo: "Notas fiscais",
+        titulo: "Notas fiscais do patrimônio",
         resumo: "As notas de entrada e saída dos bens",
       },
     ],
@@ -805,7 +805,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "oposicao",
-        titulo: "Oposição à contribuição",
+        titulo: "Oposição à contribuição assistencial",
         resumo: "Como o trabalhador (filiado ou não) registra a oposição",
       },
       {

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { excluirAtividade } from "../../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export function ExcluirAtividade({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirAtividade, {})
@@ -14,9 +15,7 @@ export function ExcluirAtividade({ id }: { id: string }) {
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta atividade e toda a análise SST? Não pode ser desfeito.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir esta atividade e toda a análise SST? Não pode ser desfeito.")
       }}
     >
       {estado.erro && (

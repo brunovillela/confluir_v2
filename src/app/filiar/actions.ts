@@ -59,23 +59,23 @@ export async function solicitarFiliacaoAction(
   }
 
   const nomeBruto = texto("nome_completo")
-  if (!nomeBruto) return { erro: "Informe o nome completo." }
+  if (!nomeBruto) return { erro: "Informe o nome completo.", campo: "nome_completo" }
   const nome = capitalizarNome(nomeBruto)
 
   const nomeSocialBruto = texto("nome_social")
   const nomeSocial = nomeSocialBruto ? capitalizarNome(nomeSocialBruto) : null
 
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
-  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  if (!validarCpf(cpf)) return { erro: "CPF inválido.", campo: "cpf" }
 
   const email = texto("email")
-  if (!email || !EMAIL.test(email)) return { erro: "Informe um e-mail válido." }
+  if (!email || !EMAIL.test(email)) return { erro: "Informe um e-mail válido.", campo: "email" }
 
   if (formData.get("aceite_lgpd") !== "on") {
-    return { erro: "É preciso aceitar o tratamento de dados (LGPD) para se filiar." }
+    return { erro: "É preciso aceitar o tratamento de dados (LGPD) para se filiar.", campo: "aceite_lgpd" }
   }
   if (formData.get("aceite_desconto") !== "on") {
-    return { erro: "É preciso autorizar o desconto da mensalidade para se filiar." }
+    return { erro: "É preciso autorizar o desconto da mensalidade para se filiar.", campo: "aceite_desconto" }
   }
 
   const sexoBruto = String(formData.get("sexo") ?? "")

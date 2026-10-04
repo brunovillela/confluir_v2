@@ -51,6 +51,7 @@ import {
   type FornecedorDaNota,
   type LeituraNota,
 } from "./ia-actions"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 
 type Opcao = { id: string; nome: string }
 type CentroOpcao = { id: string; nome: string; departamentoId: string | null }
@@ -295,6 +296,7 @@ export function NovaCompraForm({
       className="grid gap-6"
     >
       <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
+      <ErroNoCampo estado={estado} />
       {(envioErro || estado.erro) && (
         <Alert variant="destructive">
           <AlertDescription>{envioErro ?? estado.erro}</AlertDescription>

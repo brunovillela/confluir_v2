@@ -16,6 +16,7 @@ import {
   criarTipoReembolso,
   excluirTipoReembolso,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type TipoReembolsoFormDados = {
   id: string
@@ -119,8 +120,7 @@ export function ExcluirTipoReembolsoBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este tipo de reembolso?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir este tipo de reembolso?")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

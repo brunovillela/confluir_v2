@@ -11,6 +11,7 @@ import {
   definirSituacaoDemandaAction,
   excluirDemandaAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -99,8 +100,7 @@ export function ExcluirDemanda({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm(aviso)) e.preventDefault()
-      }}
+        confirmarEnvio(e, aviso)}}
       className="grid gap-2"
     >
       <input type="hidden" name="demanda_id" value={demandaId} />

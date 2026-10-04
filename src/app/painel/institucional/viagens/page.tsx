@@ -8,7 +8,7 @@ import { requirePermissao } from "@/lib/auth"
 import { listarViagens, obterConfigViagens } from "@/lib/db/viagens"
 import { listarFaturas } from "@/lib/db/viagens-faturas"
 
-export const metadata: Metadata = { title: "Passagens e hospedagens — Confluir" }
+export const metadata: Metadata = { title: "Viagens — Confluir" }
 
 /**
  * Viagens em Institucional: as três partes do trabalho — os pedidos, as
@@ -34,7 +34,7 @@ export default async function ViagensHubPage() {
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Passagens e hospedagens</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Viagens</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Viagens de diretores, funcionários e convidados que o sindicato contrata e paga.
         </p>

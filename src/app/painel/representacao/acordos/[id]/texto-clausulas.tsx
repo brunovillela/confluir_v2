@@ -19,6 +19,7 @@ import {
   salvarClausulaAction,
   type EstadoExtracao,
 } from "../actions"
+import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -46,7 +47,7 @@ export function EnviarDocumento({
       setResultado({ erro: "Envie o PDF do acordo." })
       return
     }
-    if (qtdClausulas > 0 && !confirm(`O acordo já tem ${qtdClausulas} cláusula(s). A extração vai SUBSTITUIR todas. Continuar?`)) {
+    if (qtdClausulas > 0 && !(await confirmar(`O acordo já tem ${qtdClausulas} cláusula(s). A extração vai SUBSTITUIR todas. Continuar?`))) {
       return
     }
     setResultado({})
@@ -118,9 +119,7 @@ export function ExtrairDeNovo({ acordoId, qtdClausulas }: { acordoId: string; qt
     <form
       action={acao}
       onSubmit={(e) => {
-        if (qtdClausulas > 0 && !confirm(`Refazer a extração SUBSTITUI as ${qtdClausulas} cláusula(s) atuais, inclusive as correções feitas. Continuar?`)) {
-          e.preventDefault()
-        }
+        if (qtdClausulas > 0) confirmarEnvio(e, `Refazer a extração SUBSTITUI as ${qtdClausulas} cláusula(s) atuais, inclusive as correções feitas. Continuar?`)
       }}
       className="grid gap-2"
     >
@@ -226,8 +225,7 @@ export function JuntarComProxima({ acordoId, clausulaId }: { acordoId: string; c
     <form
       action={juntarClausulaAction}
       onSubmit={(e) => {
-        if (!confirm("Juntar esta cláusula com a de baixo? O texto da de baixo passa para esta.")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Juntar esta cláusula com a de baixo? O texto da de baixo passa para esta.")}}
     >
       <input type="hidden" name="clausula_id" value={clausulaId} />
       <input type="hidden" name="acordo_id" value={acordoId} />

@@ -55,6 +55,7 @@ import {
   salvarConjuntoSlides,
   salvarSlide,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type Estado = { erro?: string; ok?: string }
 type ActionForm = (p: Estado, fd: FormData) => Promise<Estado>
@@ -348,7 +349,7 @@ function BotaoAcao({
       action={act}
       className="grid gap-2"
       onSubmit={(e) => {
-        if (confirmar && !confirm(confirmar)) e.preventDefault()
+        if (confirmar) confirmarEnvio(e, confirmar)
       }}
     >
       {Object.entries(campos).map(([k, v]) => (
@@ -924,7 +925,7 @@ function BotaoIcone({
     <form
       action={act}
       onSubmit={(e) => {
-        if (confirmar && !confirm(confirmar)) e.preventDefault()
+        if (confirmar) confirmarEnvio(e, confirmar)
       }}
     >
       {Object.entries(campos).map(([k, v]) => (

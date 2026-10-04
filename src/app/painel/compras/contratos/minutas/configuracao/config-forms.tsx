@@ -14,6 +14,7 @@ import {
   salvarClausulaFixaAction,
   salvarTipoMinutaAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 function Rodape({ pendente, ok, erro }: { pendente: boolean; ok?: string; erro?: string }) {
   return (
@@ -166,8 +167,7 @@ export function ExcluirClausula({ id }: { id: string }) {
     <form
       action={excluirClausulaFixaAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir esta cláusula fixa? Minutas já redigidas não mudam.")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir esta cláusula fixa? Minutas já redigidas não mudam.")}}
     >
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" className="text-destructive">

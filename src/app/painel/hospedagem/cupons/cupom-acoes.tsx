@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { CopiarLinkBotao } from "@/components/copiar-link"
 
 import { cancelarCupom, linkDaReservaAction, reenviarConfirmacaoReservaAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Cancelamento do cupom, com confirmação. Erros aparecem como alerta nativo. */
 export function CancelarCupomBotao({ id }: { id: string }) {
@@ -17,9 +18,7 @@ export function CancelarCupomBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar este cupom? A ação não pode ser desfeita.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Cancelar este cupom? A ação não pode ser desfeita.")
       }}
     >
       <input type="hidden" name="id" value={id} />

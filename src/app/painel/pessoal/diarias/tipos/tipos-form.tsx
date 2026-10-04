@@ -20,6 +20,7 @@ import {
   criarTipoDiaria,
   excluirTipoDiaria,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -150,8 +151,7 @@ export function ExcluirTipoDiariaBotao({ id }: { id: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir este tipo de diária?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Excluir este tipo de diária?")}}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

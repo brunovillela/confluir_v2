@@ -14,7 +14,7 @@ import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 
-export const metadata: Metadata = { title: "Ferramentas administrativas — Confluir" }
+export const metadata: Metadata = { title: "Ferramentas — Confluir" }
 
 type Area = {
   titulo: string
@@ -99,7 +99,7 @@ export default async function FerramentasPage() {
         <div className="flex items-center gap-2">
           <Wrench className="text-muted-foreground size-5" />
           <h1 className="text-2xl font-semibold tracking-tight">
-            Ferramentas administrativas
+            Ferramentas
           </h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">

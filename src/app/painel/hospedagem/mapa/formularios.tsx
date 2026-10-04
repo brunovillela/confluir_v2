@@ -6,6 +6,7 @@ import { ArrowRightLeft, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { cancelarReservaEquipeAction, remanejarAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -54,9 +55,7 @@ export function CancelarReservaEquipe({ cupomId }: { cupomId: string }) {
       action={formAction}
       className="inline-flex items-center gap-2"
       onSubmit={(e) => {
-        if (!confirm("Cancelar esta reserva? A vaga vai para a lista de espera.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Cancelar esta reserva? A vaga vai para a lista de espera.")
       }}
     >
       <input type="hidden" name="cupom_id" value={cupomId} />

@@ -28,6 +28,7 @@ import {
   registrarEventoAction,
   salvarNegociacaoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -197,9 +198,7 @@ export function ExcluirNegociacao({ negociacaoId }: { negociacaoId: string }) {
     <form
       action={excluirNegociacaoAction}
       onSubmit={(e) => {
-        if (!confirm("Excluir a negociação com a pauta, as propostas e a linha do tempo? Não dá para desfazer.")) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Excluir a negociação com a pauta, as propostas e a linha do tempo? Não dá para desfazer.")
       }}
     >
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
@@ -305,8 +304,7 @@ export function EditarDocumento({ doc }: { doc: DocumentoNegociacao }) {
       <form
         action={excluirDocumentoAction}
         onSubmit={(e) => {
-          if (!confirm(`Excluir "${doc.titulo}" com o PDF e as cláusulas?`)) e.preventDefault()
-        }}
+          confirmarEnvio(e, `Excluir "${doc.titulo}" com o PDF e as cláusulas?`)}}
       >
         <input type="hidden" name="acordo_id" value={doc.id} />
         <Button type="submit" variant="ghost" size="sm" className="text-destructive">
@@ -354,8 +352,7 @@ export function ExcluirEvento({ eventoId, negociacaoId }: { eventoId: string; ne
     <form
       action={excluirEventoAction}
       onSubmit={(e) => {
-        if (!confirm("Tirar este registro da linha do tempo?")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Tirar este registro da linha do tempo?")}}
     >
       <input type="hidden" name="evento_id" value={eventoId} />
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
@@ -392,8 +389,7 @@ export function ConcluirNegociacao({
       action={acao}
       className="grid gap-4"
       onSubmit={(e) => {
-        if (!confirm("Concluir a negociação? O documento escolhido vira o acordo vigente.")) e.preventDefault()
-      }}
+        confirmarEnvio(e, "Concluir a negociação? O documento escolhido vira o acordo vigente.")}}
     >
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
       <Erro erro={estado.erro} />

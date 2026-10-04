@@ -17,6 +17,8 @@ import {
   reservarParaTerceiroAction,
   solicitarVeiculoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 
 export const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -123,6 +125,7 @@ export function SolicitarVeiculoForm({
     <form action={formAction} className="grid max-w-2xl gap-4">
       <input type="hidden" name="voltar" value={voltar} />
       <CamposAgendamento sedes={sedes} />
+      <ErroNoCampo estado={estado} />
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       <div>
         <Button type="submit" disabled={pendente}>
@@ -193,6 +196,7 @@ export function ReservarParaTerceiroForm({
           ))}
         </select>
       </div>
+      <ErroNoCampo estado={estado} />
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       {estado.ok && (
         <p className="text-success-fg flex items-center gap-1.5 text-sm">
@@ -248,6 +252,7 @@ export function EditarAgendamentoForm({
       <input type="hidden" name="agendamento_id" value={agendamentoId} />
       <input type="hidden" name="voltar" value={voltar} />
       <CamposAgendamento sedes={sedes} valores={valores} />
+      <ErroNoCampo estado={estado} />
       {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={pendente}>
@@ -288,9 +293,7 @@ export function CancelarAgendamentoForm({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("Cancelar esta solicitação? Ela fica registrada como cancelada."))
-          e.preventDefault()
-      }}
+        confirmarEnvio(e, "Cancelar esta solicitação? Ela fica registrada como cancelada.")}}
       className="inline-flex flex-col items-end gap-1"
     >
       <input type="hidden" name="agendamento_id" value={agendamentoId} />
@@ -299,6 +302,7 @@ export function CancelarAgendamentoForm({
         {pendente ? <Loader2 className="animate-spin" /> : <X />}
         Cancelar
       </Button>
+      <ErroNoCampo estado={estado} />
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
     </form>
   )
@@ -371,6 +375,7 @@ export function TriagemAgendamentoForm({
           Negar
         </Button>
       </form>
+      <ErroNoCampo estado={estadoNegar} />
       {(estadoAtender.erro || estadoNegar.erro) && (
         <p className="text-destructive text-xs">
           {estadoAtender.erro ?? estadoNegar.erro}
@@ -415,6 +420,7 @@ export function TransferirVeiculoForm({
         {pendente ? <Loader2 className="animate-spin" /> : <ArrowLeftRight />}
         Transferir
       </Button>
+      <ErroNoCampo estado={estado} />
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
     </form>
   )

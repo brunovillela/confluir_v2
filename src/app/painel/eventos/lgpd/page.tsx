@@ -19,7 +19,7 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { BaixarPendencia as BaixarPendenciaBloco } from "./formulario"
 
-export const metadata: Metadata = { title: "Pedidos de LGPD — Confluir" }
+export const metadata: Metadata = { title: "Pedidos de LGPD (eventos) — Confluir" }
 
 const ROTULO_TIPO: Record<string, string> = {
   exclusao: "Exclusão",
@@ -111,7 +111,7 @@ export default async function LgpdEventosPage() {
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Pedidos de LGPD
+          Pedidos de LGPD (eventos)
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
           O que as pessoas pediram sobre os próprios dados em{" "}

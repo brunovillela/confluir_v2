@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { redefinirSegundoFatorAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Gestão: apaga o aplicativo autenticador da pessoa que perdeu o celular. */
 export function RedefinirSegundoFator({ usuarioId, acessoId }: { usuarioId: string; acessoId: string }) {
@@ -15,13 +16,7 @@ export function RedefinirSegundoFator({ usuarioId, acessoId }: { usuarioId: stri
     <form
       action={acao}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            "Redefinir a verificação em duas etapas desta pessoa? O aplicativo atual deixa de valer e ela precisará cadastrar outro. Confirme só depois de ter certeza de quem está pedindo."
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, "Redefinir a verificação em duas etapas desta pessoa? O aplicativo atual deixa de valer e ela precisará cadastrar outro. Confirme só depois de ter certeza de quem está pedindo.")
       }}
       className="grid gap-2"
     >

@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, Save, Sparkles, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { confirmar } from "@/components/ui/confirmacao"
 import { Textarea } from "@/components/ui/textarea"
 
 import {
@@ -153,8 +154,8 @@ export function AcoesVersao({
         size="sm"
         disabled={pendente}
         className="text-destructive hover:text-destructive h-7 px-2"
-        onClick={() => {
-          if (confirm("Excluir esta versão do termo?"))
+        onClick={async () => {
+          if (await confirmar("Excluir esta versão do termo?"))
             rodar(() => excluirTermoAction({ tipo, id }))
         }}
       >

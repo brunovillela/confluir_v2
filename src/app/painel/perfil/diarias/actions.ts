@@ -43,16 +43,16 @@ export async function solicitarDiaria(
   const dataInicio = String(formData.get("data_inicio") ?? "")
   const dataTermino = String(formData.get("data_termino") ?? "")
 
-  if (!diariaId) return { erro: "Escolha o tipo de diária." }
+  if (!diariaId) return { erro: "Escolha o tipo de diária.", campo: "diaria_id" }
   const quantidade = Number(quantidadeBruta)
   if (!quantidadeBruta || Number.isNaN(quantidade) || quantidade <= 0) {
-    return { erro: "Informe a quantidade de diárias (ex.: 2)." }
+    return { erro: "Informe a quantidade de diárias (ex.: 2).", campo: "quantidade" }
   }
   if (!motivo) {
-    return { erro: "Descreva o motivo (ex.: viagem ao Rio de Janeiro com pernoite)." }
+    return { erro: "Descreva o motivo (ex.: viagem ao Rio de Janeiro com pernoite).", campo: "motivo" }
   }
   if (dataInicio && dataTermino && dataTermino < dataInicio) {
-    return { erro: "O término não pode ser antes do início." }
+    return { erro: "O término não pode ser antes do início.", campo: "data_termino" }
   }
 
   const { erro } = await criarSolicitacaoDiaria({

@@ -15,6 +15,7 @@ import {
   criarCategoriaAction,
   excluirCategoriaAction,
 } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 function CheckSigiloso({ defaultChecked }: { defaultChecked?: boolean }) {
   return (
@@ -176,9 +177,7 @@ function ExcluirCategoria({ categoria }: { categoria: CategoriaContrato }) {
       action={formAction}
       className="inline-flex flex-col items-end"
       onSubmit={(e) => {
-        if (!confirm(`Excluir a categoria "${categoria.nome ?? ""}"?`)) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Excluir a categoria "${categoria.nome ?? ""}"?`)
       }}
     >
       <input type="hidden" name="categoria_id" value={categoria.id} />

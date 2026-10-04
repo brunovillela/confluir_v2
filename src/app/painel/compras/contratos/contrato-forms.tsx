@@ -21,6 +21,7 @@ import {
   criarContratoAction,
   excluirContratoAction,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type AcaoForm = (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
 
@@ -289,9 +290,7 @@ export function BotaoExcluirContrato({
       action={formAction}
       className="inline-flex flex-col items-end gap-1"
       onSubmit={(e) => {
-        if (!confirm(confirmacao)) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, confirmacao)
       }}
     >
       <input type="hidden" name="contrato_id" value={contratoId} />

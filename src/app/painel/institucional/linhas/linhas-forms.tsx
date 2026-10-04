@@ -11,6 +11,7 @@ import type { LinhaInstitucional, ResponsavelLinha } from "@/lib/db/linhas-insti
 import { formatarTelefone } from "@/lib/formato"
 
 import { atualizarLinhaAction, criarLinhaAction, excluirLinhaAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -190,8 +191,7 @@ export function BotaoExcluirLinha({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm(`Remover a linha ${formatarTelefone(numero)} do cadastro?`)) e.preventDefault()
-      }}
+        confirmarEnvio(e, `Remover a linha ${formatarTelefone(numero)} do cadastro?`)}}
     >
       <input type="hidden" name="id" value={id} />
       {estado.erro && <p className="text-destructive mb-1 text-xs">{estado.erro}</p>}

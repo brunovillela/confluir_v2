@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table"
 
 import { criarTarifa, excluirTarifa } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type TarifaLinha = {
   id: string
@@ -90,8 +91,7 @@ export function Tarifas({
                     <form
                       action={excluirAction}
                       onSubmit={(e) => {
-                        if (!confirm("Excluir esta tarifa?")) e.preventDefault()
-                      }}
+                        confirmarEnvio(e, "Excluir esta tarifa?")}}
                     >
                       <input type="hidden" name="id" value={t.id} />
                       <input type="hidden" name="hotel_id" value={hotelId} />

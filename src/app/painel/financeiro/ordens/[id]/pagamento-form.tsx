@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { removerPagamento, salvarPagamento } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -134,13 +135,7 @@ export function PagamentoForm({
         <form
           action={removerAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Remover o registro de pagamento? Valor, data, comprovante e pagador serão limpos e a ordem deixa de constar como Paga."
-              )
-            ) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Remover o registro de pagamento? Valor, data, comprovante e pagador serão limpos e a ordem deixa de constar como Paga.")
           }}
           className="flex justify-end border-t pt-3"
         >

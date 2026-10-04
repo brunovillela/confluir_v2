@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 
 import { definirFinalizado, desvincularCupom, marcarComparecimento, vincularCupom } from "../actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full max-w-md truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -35,12 +36,7 @@ export function FinalizarBotao({
       action={formAction}
       className="flex items-center gap-2"
       onSubmit={(e) => {
-        if (
-          !finalizado &&
-          !confirm("Finalizar esta reserva? Cupons não poderão mais ser vinculados.")
-        ) {
-          e.preventDefault()
-        }
+        if (!finalizado) confirmarEnvio(e, "Finalizar esta reserva? Cupons não poderão mais ser vinculados.")
       }}
     >
       <input type="hidden" name="servico_id" value={servicoId} />
@@ -115,9 +111,7 @@ export function HospedeAcoes({
         <form
           action={desvAction}
           onSubmit={(e) => {
-            if (!confirm("Desvincular este cupom? Ele volta a aguardar reserva.")) {
-              e.preventDefault()
-            }
+            confirmarEnvio(e, "Desvincular este cupom? Ele volta a aguardar reserva.")
           }}
         >
           <input type="hidden" name="servico_id" value={servicoId} />

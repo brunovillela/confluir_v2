@@ -17,6 +17,7 @@ import {
   lancarAporte,
   rejeitarPrestacao,
 } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -151,13 +152,7 @@ export function DecisaoPrestacao({
       <form
         action={aprovarAction}
         onSubmit={(e) => {
-          if (
-            !confirm(
-              "Aprovar a prestação de contas? O saldo remanescente vira acerto e a conta FECHA até o próximo aporte."
-            )
-          ) {
-            e.preventDefault()
-          }
+          confirmarEnvio(e, "Aprovar a prestação de contas? O saldo remanescente vira acerto e a conta FECHA até o próximo aporte.")
         }}
         className="grid gap-2"
       >
@@ -183,9 +178,7 @@ export function DecisaoPrestacao({
       <form
         action={rejeitarAction}
         onSubmit={(e) => {
-          if (!confirm("Rejeitar a prestação? A conta volta a ficar aberta.")) {
-            e.preventDefault()
-          }
+          confirmarEnvio(e, "Rejeitar a prestação? A conta volta a ficar aberta.")
         }}
         className="grid gap-2 border-t pt-3"
       >
@@ -290,15 +283,9 @@ export function AlternarContaAtiva({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (
-          !confirm(
-            ativa
+        confirmarEnvio(e, ativa
               ? "Desativar esta conta de caixa? Ela some das opções de pagamento."
-              : "Reativar esta conta de caixa?"
-          )
-        ) {
-          e.preventDefault()
-        }
+              : "Reativar esta conta de caixa?")
       }}
       className="flex items-center justify-end gap-2"
     >

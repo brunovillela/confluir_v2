@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
 import { ocultarAction, tratarAction } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Providência de uma nota baixa — fica registrada com o nome de quem tratou. */
 export function ProvidenciaForm({ id }: { id: string }) {
@@ -46,8 +47,7 @@ export function OcultarBotao({ id, oculta }: { id: string; oculta: boolean }) {
         const pergunta = oculta
           ? "Mostrar este comentário ao hotel de novo? Ele continua anônimo."
           : "Ocultar este comentário do hotel? O hotel verá a nota e as etiquetas, mas no lugar do texto aparecerá \"Comentário moderado pelo sindicato\"."
-        if (!confirm(pergunta)) e.preventDefault()
-      }}
+        confirmarEnvio(e, pergunta)}}
       className="flex flex-wrap items-center gap-2"
     >
       <input type="hidden" name="id" value={id} />

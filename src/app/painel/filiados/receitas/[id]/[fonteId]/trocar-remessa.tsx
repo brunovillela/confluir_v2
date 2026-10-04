@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
 import { trocarRemessa } from "./actions"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type OpcaoRemessa = { id: string; rotulo: string }
 
@@ -31,13 +32,7 @@ export function TrocarRemessa({
           'select[name="remessa_destino"]'
         )
         const rotulo = select?.selectedOptions[0]?.textContent ?? "outra remessa"
-        if (
-          !confirm(
-            `Mover TODOS os lançamentos e o recebimento desta fonte para a remessa ${rotulo}?`
-          )
-        ) {
-          e.preventDefault()
-        }
+        confirmarEnvio(e, `Mover TODOS os lançamentos e o recebimento desta fonte para a remessa ${rotulo}?`)
       }}
       className="grid gap-3"
     >
