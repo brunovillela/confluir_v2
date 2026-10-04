@@ -1,0 +1,23 @@
+# Plano da Onda 4 — filiado e diretor
+
+Continuação das ondas 0 a 3. Itens F1, F2, F4, F5, F6, D1, D2, D3, I4, I6, I7 da avaliação de 03/10 (`docs/avaliacao-sistema-2026-10-03.md`); A5 (WhatsApp por API) fica preparado, mas depende de credenciais da Meta. Caminhos relativos a `confluir/`. Estimativa: **5 dias úteis**, deploy ao fim de cada dia; SQL sempre antes do push que depende dele.
+
+## Ordem de execução
+
+| Dia | Itens | O que entrega |
+|---|---|---|
+| 1 | F1, F6 | **Carteirinha digital** no portal, com QR verificável em `/verificar/<código>` (sem login: nome, condição e validade, nada mais) e **declaração de filiação em PDF** na hora. **Minha contribuição**: histórico de descontos por mês e fonte, última remessa, aviso de contribuição em falta antes de virar inadimplência. |
+| 2 | F5, F4 | **Portal mobile-first**: navegação inferior com 4–5 itens, página ativa marcada, alvos ≥ 44px, tabelas viram cards no celular. **Avisos no portal**: sino do filiado + e-mail por preferência para cupom, reserva, evento, votação aberta e resposta do atendimento (tabela `portal_avisos`). |
+| 3 | F2 | **Atendimento no portal**: o filiado abre solicitação (jurídico, saúde, cadastro, reembolso, reclamação, outro), anexa, acompanha a situação e recebe a resposta; no painel vira Demanda com prazo (SLA) e resposta ao filiado pela própria demanda; indicador de tempo de resposta. |
+| 4 | D1, D2 | **Home do diretor** (vista por papel): ordens na sua alçada, assinaturas pendentes, agenda da semana, próximas assembleias/negociações, KPIs de filiação e caixa, pedidos de viagem/diária. **PWA**: manifest, service worker, instalável no celular; **aprovar e assinar pelo celular** em telas enxutas (`/painel/aprovar`), com o 2FA já existente; Web Push com VAPID (chaves por env). |
+| 5 | D3, I6, I7, I4 | **Telegram transacional**: aprovar/recusar ordens dentro da alçada e confirmar presença em reunião pelo bot (botões inline). **Churn e retenção**: motivo de desfiliação em lista fechada, taxa mensal por fonte, tempo médio de filiação. **Custos consolidados**: frota por veículo e por km, hospedagem, viagens por diretor/departamento. **Exportação contábil** (I4): lançamentos do período em XLSX com centro de custo. |
+
+## Dependências externas
+
+- **A5 — WhatsApp por API (Meta Cloud API)**: exige conta Business verificada, número e token. O envio de avisos ao filiado fica desenhado por canal (e-mail agora; WhatsApp quando as credenciais existirem).
+- **Web Push**: chaves VAPID (`NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`) a gravar na Vercel; sem elas o PWA instala e funciona, só não recebe push.
+
+## Andamento
+
+- **Dia 1 — FEITO em 04/10/2026.** F1: `/portal/carteirinha` (cartão com nome, CPF mascarado, matrícula, desde quando é filiado — `ativo_em` ou a primeira filiação dos vínculos —, condição, vínculos abertos e QR) e `/portal/carteirinha/declaracao` (PDF da declaração de filiação com logo, CNPJ, cidade da sede, data por extenso e o mesmo QR). O QR aponta para a página pública `/carteirinha/<código>`; o código é o id da filiação assinado por HMAC com a chave do JWT (`lib/carteirinha.ts`), sem tabela nem validade: a verificação lê a condição ATUAL e mostra só nome, matrícula, condição e desde quando — código adulterado não revela nada. A rota `/verificar/<código>` continua sendo a dos certificados de assinatura (um sobrescrito acidental foi revertido). F6: `/portal/contribuicao` — últimos 12 meses, última contribuição, situação (em dia / com faltas recentes / em atraso pela regra de inadimplência da entidade), aviso quando a pessoa não aparece em remessas associativas recentes (com a tolerância da regra) e histórico por competência, tipo e fonte (`lib/db/carteirinha.ts`, reusando `listarContribuicoesFiliado`). Itens "Carteirinha" e "Contribuição" na navegação do portal. Sem SQL.
+

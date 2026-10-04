@@ -13,6 +13,8 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 const NAV = [
   { titulo: "Início", href: "/portal/inicio" },
   { titulo: "Meu cadastro", href: "/portal/cadastro" },
+  { titulo: "Carteirinha", href: "/portal/carteirinha" },
+  { titulo: "Contribuição", href: "/portal/contribuicao" },
   { titulo: "Hospedagem", href: "/portal/hospedagem" },
   { titulo: "Convênios", href: "/portal/convenios" },
   { titulo: "Saúde", href: "/portal/saude" },

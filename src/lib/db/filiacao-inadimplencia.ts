@@ -179,8 +179,12 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
             .range(de, ate)
       )
       for (const l of linhas) {
+        // O vínculo pelo id do cadastro é o que o sistema mantém; o CPF
+        // gravado na linha é informativo e pode estar desatualizado ou errado
+        // (na demo, linhas com CPF diferente do cadastro faziam a pessoa
+        // constar como inadimplente mesmo pagando todo mês).
         const cpf =
-          l.cpf ?? (l.filiado_id ? (cpfPorId.get(l.filiado_id) ?? null) : null)
+          (l.filiado_id ? (cpfPorId.get(l.filiado_id) ?? null) : null) ?? l.cpf ?? null
         if (cpf) cpfs.add(cpf)
       }
       pagantes.push(cpfs)

@@ -412,7 +412,7 @@ async function datasPeloPagamento(
 /** `202110` → `"2021-10-01"`. A competência não tem dia; o dia 1 basta. */
 function primeiroDiaDaCompetencia(ordem: number): string | null {
   const texto = String(ordem)
-  if (!/^d{6}$/.test(texto)) return null
+  if (!/^\d{6}$/.test(texto)) return null
   return `${texto.slice(0, 4)}-${texto.slice(4, 6)}-01`
 }
 
