@@ -4,6 +4,7 @@ import { buscarFiliadoPorCpf } from "@/lib/contas"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { buscarHotel, contratoDoHotel, type Hotel } from "@/lib/db/hospedagem"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
+import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { enviarEmail } from "@/lib/email"
 import {
   botaoEmail,
@@ -484,6 +485,14 @@ export async function enviarEmailReservaConfirmada(p: {
   token?: string | null
 }): Promise<{ email?: string }> {
   if (!p.cpf) return {}
+  await avisarFiliado({
+    cpf: p.cpf,
+    evento: "hospedagem",
+    texto: `Reserva confirmada no ${p.hotelNome}: check-in em ${dataBR(p.checkIn)}, check-out em ${dataBR(p.checkOut)}.`,
+    link: "/portal/hospedagem",
+    soSino: true,
+    umaVez: true,
+  })
   const filiado = await buscarFiliadoPorCpf(p.cpf)
   if (!filiado?.email) return {}
   const origem = await origemAtual()
@@ -973,6 +982,14 @@ export async function processarFilaDeEspera(
       .eq("id", e.id as string)
       .maybeSingle()
     if (cpf && esperaAtual?.token) {
+      await avisarFiliado({
+        cpf,
+        evento: "hospedagem",
+        texto: `Surgiu vaga no ${hotel.nome ?? "hotel"} para ${dataBR(checkIn)} a ${dataBR(checkOut)}: confirme até ${dataHoraBR(new Date(confirmarAte))}.`,
+        link: "/portal/hospedagem",
+        soSino: true,
+        umaVez: true,
+      })
       const filiado = await buscarFiliadoPorCpf(cpf)
       if (filiado?.email) {
         const origem = await origemAtual()

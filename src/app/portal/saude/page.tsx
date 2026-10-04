@@ -72,7 +72,7 @@ export default async function PortalSaudePage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
+              <Table className="tabela-cards">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
@@ -84,12 +84,12 @@ export default async function PortalSaudePage({
                 <TableBody>
                   {pagina.map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell data-rotulo="Data" className="whitespace-nowrap">
                         {formatarData(a.data_atendimento)}
                       </TableCell>
-                      <TableCell>{a.tipoNome ?? "—"}</TableCell>
-                      <TableCell>{a.profissionalNome ?? "—"}</TableCell>
-                      <TableCell className="max-w-md">
+                      <TableCell data-rotulo="Serviço">{a.tipoNome ?? "—"}</TableCell>
+                      <TableCell data-rotulo="Profissional">{a.profissionalNome ?? "—"}</TableCell>
+                      <TableCell data-rotulo="Observações" className="max-w-md">
                         <span className="whitespace-pre-line">
                           {a.observacao_aberta ?? "—"}
                         </span>

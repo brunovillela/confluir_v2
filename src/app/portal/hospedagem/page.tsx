@@ -164,7 +164,7 @@ export default async function PortalHospedagemPage({
               <p className="text-muted-foreground text-sm">Você ainda não tem reservas.</p>
             ) : (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="tabela-cards">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Hotel</TableHead>
@@ -176,13 +176,13 @@ export default async function PortalHospedagemPage({
                   <TableBody>
                     {reservas.map((r) => (
                       <TableRow key={r.id}>
-                        <TableCell className="max-w-48 truncate font-medium">
+                        <TableCell data-rotulo="Hotel" className="max-w-48 truncate font-medium">
                           {r.hotelNome ?? "—"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <TableCell data-rotulo="Estadia" className="text-muted-foreground whitespace-nowrap">
                           {dataBR(r.checkIn)} a {dataBR(r.checkOut)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell data-rotulo="Situação">
                           <Badge
                             variant={
                               r.situacao === "confirmada" || r.situacao === "hospedado"
@@ -273,17 +273,13 @@ export default async function PortalHospedagemPage({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="tabela-cards">
               <TableHeader>
                 <TableRow>
                   <TableHead>Hotel</TableHead>
                   <TableHead>Check-in</TableHead>
-                  <TableHead className="hidden sm:table-cell">
-                    Quarto coletivo
-                  </TableHead>
-                  <TableHead className="hidden sm:table-cell">
-                    Sua tarifa
-                  </TableHead>
+                  <TableHead>Quarto coletivo</TableHead>
+                  <TableHead>Sua tarifa</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
@@ -301,16 +297,16 @@ export default async function PortalHospedagemPage({
                 )}
                 {paginaAtual.linhas.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="max-w-48 truncate font-medium">
+                    <TableCell data-rotulo="Hotel" className="max-w-48 truncate font-medium">
                       {c.hotelNome ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell data-rotulo="Check-in" className="text-muted-foreground">
                       {formatarData(c.check_in)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground hidden sm:table-cell">
+                    <TableCell data-rotulo="Quarto coletivo" className="text-muted-foreground">
                       {c.aceita_quarto_coletivo === true ? "Aceita" : "Não"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground hidden tabular-nums sm:table-cell">
+                    <TableCell data-rotulo="Sua tarifa" className="text-muted-foreground tabular-nums">
                       {c.tarifa_hospede === null
                         ? "—"
                         : c.tarifa_hospede.toLocaleString("pt-BR", {
@@ -318,7 +314,7 @@ export default async function PortalHospedagemPage({
                             currency: "BRL",
                           })}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-rotulo="Situação">
                       <SituacaoCupomBadge
                         cancelado={c.cancelado}
                         servicoId={c.servico_id}

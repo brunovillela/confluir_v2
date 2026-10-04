@@ -13,6 +13,16 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-05",
+    titulo: "Portal do associado no celular",
+    itens: [
+      "Carteirinha digital com QR Code verificável por qualquer portaria ou convênio, e declaração de filiação em PDF na hora.",
+      "Minha contribuição: os descontos repassados mês a mês, a última contribuição e a situação da pessoa pela regra da entidade.",
+      "Portal feito para o celular: barra de navegação inferior, página atual marcada e as tabelas viram cards em telas pequenas.",
+      "Avisos no portal: sino do filiado e e-mail por preferência quando o hotel reserva o cupom, abre vaga na lista de espera, a inscrição é avaliada, o evento muda ou uma votação abre.",
+    ],
+  },
+  {
     id: "2026-10-04",
     titulo: "O painel passa a vir até você",
     itens: [

@@ -90,7 +90,7 @@ export default async function ContribuicaoPage() {
             </CardHeader>
             {ultimas.length > 0 && (
               <CardContent>
-                <Table>
+                <Table className="tabela-cards">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Competência</TableHead>
@@ -102,10 +102,10 @@ export default async function ContribuicaoPage() {
                   <TableBody>
                     {ultimas.map((l, i) => (
                       <TableRow key={`${l.ordem}-${l.tipo}-${i}`}>
-                        <TableCell className="tabular-nums">{l.competencia}</TableCell>
-                        <TableCell>{l.tipo ?? "—"}</TableCell>
-                        <TableCell>{l.fonte ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatarMoeda(l.valor)}</TableCell>
+                        <TableCell data-rotulo="Competência" className="tabular-nums">{l.competencia}</TableCell>
+                        <TableCell data-rotulo="Tipo">{l.tipo ?? "—"}</TableCell>
+                        <TableCell data-rotulo="Fonte pagadora">{l.fonte ?? "—"}</TableCell>
+                        <TableCell data-rotulo="Valor" className="text-right tabular-nums">{formatarMoeda(l.valor)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

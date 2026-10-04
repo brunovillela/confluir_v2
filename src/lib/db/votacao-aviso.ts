@@ -6,6 +6,7 @@ import {
 } from "@/lib/assembleias-constantes"
 import { cpfConfiavel, formatarCpf } from "@/lib/cpf"
 import { esquemaAusente } from "@/lib/db/comum"
+import { avisarFiliado } from "@/lib/db/portal-avisos"
 import {
   assuntoAvisoAptos,
   montarEmailAvisoAptos,
@@ -13,6 +14,7 @@ import {
   type DestinatarioAviso,
 } from "@/lib/email-aviso-aptos"
 import { enviarEmail } from "@/lib/email"
+import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -347,6 +349,21 @@ export async function enviarLoteAviso(
       if (oks[j]) resultado.enviados++
       else resultado.falhas++
       marcacoes.push({ ids: [e.id], para: e.destino.email, erro: oks[j] ? null : "falha" })
+    })
+  }
+
+  // Sino do portal para todo apto com CPF do lote (o e-mail já é o aviso).
+  for (const a of aptos) {
+    const cpf = cpfConfiavel(a.cpf)
+    if (!cpf) continue
+    await avisarFiliado({
+      cpf,
+      evento: "votacao",
+      texto: `Votação aberta: ${dados.rodadaNome}${dados.termino ? ` (até ${formatarData(dados.termino)})` : ""}. Você está apto a votar.`,
+      link: "/portal/votacao",
+      soSino: true,
+      umaVez: true,
+      nome: a.nome_completo,
     })
   }
 

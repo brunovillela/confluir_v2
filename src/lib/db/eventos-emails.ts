@@ -1,6 +1,7 @@
 import "server-only"
 
 import { type Evento } from "@/lib/db/eventos"
+import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { enviarEmail } from "@/lib/email"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -68,6 +69,7 @@ type Destinatario = {
   nome: string | null
   email: string | null
   token: string | null
+  cpf: string | null
 }
 
 async function inscritosDoEvento(
@@ -78,7 +80,7 @@ async function inscritosDoEvento(
   const emp = await tenantAtual()
   const { data } = await admin
     .from("eventos_inscricoes")
-    .select("id, nome, email, token")
+    .select("id, nome, email, token, cpf")
     .eq("emp_proprietaria_id", emp)
     .eq("evento_id", eventoId)
     .in("situacao", situacoes)
@@ -88,7 +90,24 @@ async function inscritosDoEvento(
     nome: (i.nome as string | null) ?? null,
     email: (i.email as string | null) ?? null,
     token: (i.token as string | null) ?? null,
+    cpf: (i.cpf as string | null) ?? null,
   }))
+}
+
+/** Sino do portal para quem tem CPF (o e-mail desta ação já saiu). */
+async function sinoDoPortal(pessoas: Destinatario[], texto: string, evento: Evento): Promise<void> {
+  for (const p of pessoas) {
+    if (!p.cpf) continue
+    await avisarFiliado({
+      cpf: p.cpf,
+      evento: "eventos",
+      texto: `${texto} — ${evento.titulo ?? "evento"}`,
+      link: "/portal/eventos",
+      soSino: true,
+      nome: p.nome,
+      email: p.email,
+    })
+  }
 }
 
 /** Dispara em lotes e conta o que aconteceu com cada um. */
@@ -149,7 +168,7 @@ export async function avisarAvaliacao(
   const emp = await tenantAtual()
   const { data } = await admin
     .from("eventos_inscricoes")
-    .select("id, nome, email, token")
+    .select("id, nome, email, token, cpf")
     .eq("emp_proprietaria_id", emp)
     .eq("id", inscricaoId)
     .maybeSingle()
@@ -161,7 +180,18 @@ export async function avisarAvaliacao(
     nome: (data.nome as string | null) ?? null,
     email: (data.email as string | null) ?? null,
     token: (data.token as string | null) ?? null,
+    cpf: (data.cpf as string | null) ?? null,
   }
+
+  await sinoDoPortal(
+    [pessoa],
+    decisao === "confirmada"
+      ? "Sua inscrição foi confirmada"
+      : decisao === "lista_espera"
+        ? "Sua inscrição entrou na lista de espera"
+        : "Sua inscrição não foi aprovada",
+    evento
+  )
 
   return disparar([pessoa], (p) => {
     const bloco = blocoEvento(evento)
@@ -209,6 +239,8 @@ export async function avisarMudancaDoEvento(
 
   const origem = await origemAtual()
   const porque = motivo ? `<p><strong>Motivo:</strong> ${motivo}</p>` : ""
+
+  await sinoDoPortal(pessoas, situacao === "cancelado" ? "Evento cancelado" : "Evento adiado", evento)
 
   return disparar(pessoas, (p) => {
     if (situacao === "cancelado") {
@@ -260,6 +292,7 @@ export async function enviarRsvp(
     nome: (i.nome as string | null) ?? null,
     email: (i.email as string | null) ?? null,
     token: (i.token as string | null) ?? null,
+    cpf: null,
   }))
   if (pessoas.length === 0) return { enviados: 0, semEmail: 0, falharam: 0 }
 

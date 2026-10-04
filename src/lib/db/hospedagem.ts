@@ -6,6 +6,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { texto } from "@/lib/db/comum"
+import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { escaparLike } from "@/lib/texto"
 
 /**
@@ -808,7 +809,7 @@ export async function vincularCupomAReserva(
   const [{ data: cupom }, { data: vinculados }] = await Promise.all([
     admin
       .from("hospedagem_cupom")
-      .select("id, sexo, aceita_quarto_coletivo")
+      .select("id, sexo, aceita_quarto_coletivo, filiado_id, check_in")
       .eq("id", cupomId)
       .eq("hotel_id", servico.hotel_id)
       .eq("cancelado", false)
@@ -861,6 +862,26 @@ export async function vincularCupomAReserva(
   }
 
   await reaplicarTarifaDaReserva(servicoId)
+
+  // O filiado fica sabendo que o hotel reservou (sino + e-mail por preferência).
+  if (cupom.filiado_id) {
+    const [{ data: f }, hotel] = await Promise.all([
+      admin.from("filiacoes").select("cpf, nome_completo").eq("id", cupom.filiado_id as string).maybeSingle(),
+      buscarHotel(servico.hotel_id as string),
+    ])
+    const cpf = texto(f?.cpf)
+    if (cpf) {
+      const dia = texto(cupom.check_in)
+      await avisarFiliado({
+        cpf,
+        nome: texto(f?.nome_completo),
+        evento: "hospedagem",
+        assunto: "Seu cupom de hospedagem foi reservado",
+        texto: `O ${hotel?.nome ?? "hotel"} reservou o seu cupom${dia ? ` para o check-in de ${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}` : ""}.`,
+        link: "/portal/hospedagem",
+      })
+    }
+  }
   return { ok: "Cupom vinculado." }
 }
 

@@ -530,3 +530,29 @@
 .graf-tabela table { width: 100%; margin-top: 0.375rem; border-collapse: collapse; }
 .graf-tabela th, .graf-tabela td { text-align: right; padding: 0.25rem 0.375rem; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .graf-tabela th:first-child, .graf-tabela td:first-child { text-align: left; }
+
+/* ── Tabelas que viram cards no celular (onda 4, F5) ───────────────────────
+   Uso: <Table className="tabela-cards"> e, em cada célula, data-rotulo="Coluna".
+   Abaixo de 640px cada linha é um card e cada célula uma linha "rótulo · valor";
+   célula sem rótulo (ações) fica alinhada à direita. */
+@media (max-width: 639.98px) {
+  .tabela-cards thead { display: none; }
+  .tabela-cards tbody, .tabela-cards tr, .tabela-cards td { display: block; }
+  .tabela-cards tr {
+    border: 1px solid var(--border); border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; background: var(--card);
+  }
+  .tabela-cards tbody tr:last-child { margin-bottom: 0; }
+  .tabela-cards td {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.375rem 0; height: auto; max-width: none; white-space: normal;
+    text-align: right; border: 0; font-size: 0.875rem;
+  }
+  .tabela-cards td[data-rotulo]::before {
+    content: attr(data-rotulo); color: var(--muted-foreground);
+    font-size: 0.75rem; text-align: left; flex: none;
+  }
+  .tabela-cards td:not([data-rotulo]) { justify-content: flex-end; }
+  .tabela-cards td.hidden { display: none; }
+  .tabela-cards td[colspan] { justify-content: center; }
+}

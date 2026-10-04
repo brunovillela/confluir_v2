@@ -44,6 +44,36 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "carteirinha",
+    titulo: "Carteirinha e contribuição",
+    descricao: "Sua identificação de filiado, a declaração em PDF e os descontos mês a mês",
+    icone: "IdCard",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Carteirinha, declaração e contribuição",
+        resumo: "Como mostrar a carteirinha, baixar a declaração e acompanhar os descontos",
+      },
+    ],
+  },
+  {
+    slug: "avisos",
+    titulo: "Avisos",
+    descricao: "O sino do portal e o que vai por e-mail",
+    icone: "Bell",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Seus avisos",
+        resumo: "O que chega no sino, para onde cada aviso leva e como escolher o e-mail",
+      },
+    ],
+  },
+  {
     slug: "hospedagem",
     titulo: "Hospedagem",
     descricao: "Cupons e reservas nos hotéis conveniados",
