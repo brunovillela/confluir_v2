@@ -92,6 +92,9 @@ export type TipoEvento =
   | "paga"
   | "pagamento_removido"
   | "conciliada"
+  | "em_remessa"
+  | "remessa_rejeitada"
+  | "remessa_cancelada"
   | "corrigida"
   | "cancelada"
   | "estornada"
@@ -109,6 +112,9 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   paga: "Pagamento registrado",
   pagamento_removido: "Pagamento removido",
   conciliada: "Conciliada com o extrato",
+  em_remessa: "Incluída em remessa bancária",
+  remessa_rejeitada: "Rejeitada pelo banco (remessa)",
+  remessa_cancelada: "Remessa cancelada",
   corrigida: "Corrigida",
   cancelada: "Cancelada",
   estornada: "Pagamento estornado",

@@ -1,0 +1,52 @@
+Em vez de digitar cada pagamento no internet banking, o Financeiro gera um
+**arquivo de remessa CNAB 240** com as ordens "A pagar" marcadas, envia o
+arquivo ao banco e importa o **retorno**: o que o banco pagou vira ordem
+paga; o que ele rejeitou volta para a fila com o motivo.
+
+<RequerPermissao>Financeiro — pagamento</RequerPermissao>
+
+## Antes da primeira remessa
+
+<PassoAPasso>
+  <Passo titulo="1. Contrate a remessa com o banco">
+    O gerente libera o "pagamento a fornecedores por arquivo" (CNAB 240) e
+    informa o **convênio** e, às vezes, as **versões do layout** de arquivo e
+    de lote. Sem esse contrato o banco recusa o arquivo.
+  </Passo>
+  <Passo titulo="2. Cadastre a conta">
+    Em **Financeiro → Remessas bancárias → Contas bancárias**: banco, agência,
+    conta, convênio e, se quiser, o centro de custo do débito (gravado na
+    ordem quando o retorno confirma). O titular sai do cadastro da entidade.
+  </Passo>
+</PassoAPasso>
+
+## Gerar, enviar e dar baixa
+
+<PassoAPasso>
+  <Passo titulo="1. Nova remessa">
+    A tela lista as ordens "A pagar" prontas (favorecido com CPF/CNPJ e
+    chave Pix, conta bancária ou boleto). O que falta aparece em vermelho:
+    resolva no cadastro do fornecedor ou na ordem. Boleto exige a **linha
+    digitável**, que pode ser gravada ali mesmo.
+  </Passo>
+  <Passo titulo="2. Baixe e envie">
+    Marque as ordens, gere, baixe o arquivo `.rem` e envie pelo internet
+    banking. **Marcar como enviada** registra o passo. Enquanto a remessa
+    está ativa, as ordens não entram em outra.
+  </Passo>
+  <Passo titulo="3. Importe o retorno">
+    Quando o banco devolver o arquivo de retorno, importe-o na página da
+    remessa. Pago → ordem **Paga** com a data e o valor do banco; rejeitado →
+    a ordem continua a pagar e o motivo fica no histórico dela e no item.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Pix por QR Code não entra na remessa">
+  Ordens pagas por QR Code (código copia e cola) são pagas no app do banco; a
+  remessa cobre Pix por **chave**, crédito em conta, TED e boleto.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Cancelar uma remessa">
+  Enquanto não há retorno, a remessa pode ser cancelada: as ordens voltam a
+  ficar disponíveis. Se o arquivo já foi enviado ao banco, cancele lá também.
+</Aviso>

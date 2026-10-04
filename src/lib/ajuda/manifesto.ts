@@ -349,6 +349,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Regras que o sistema confere antes de criar cada ordem",
       },
       {
+        slug: "remessas",
+        titulo: "Remessas bancárias (CNAB 240)",
+        resumo: "Conta da entidade, arquivo de pagamento das ordens a pagar e o retorno do banco",
+      },
+      {
         slug: "conciliacao",
         titulo: "Conciliação bancária",
         resumo: "Importar o extrato e casar cada lançamento com a ordem paga ou o depósito da fonte",

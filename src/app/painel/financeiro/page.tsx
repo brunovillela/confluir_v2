@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BookText, ChartColumn, Landmark, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
+import { BookText, ChartColumn, FileOutput, Landmark, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -133,6 +133,12 @@ export default async function FinanceiroPage() {
       descricao: "Cartões da entidade usados para pagar compras",
       href: "/painel/financeiro/cartoes",
       icone: CreditCard,
+    },
+    veOrdens && {
+      titulo: "Remessas bancárias",
+      descricao: "Arquivo CNAB 240 das ordens a pagar e o retorno do banco",
+      href: "/painel/financeiro/remessas",
+      icone: FileOutput,
     },
     veOrdens && {
       titulo: "Conciliação bancária",

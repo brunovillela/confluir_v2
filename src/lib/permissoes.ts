@@ -969,6 +969,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Remessas bancárias",
+    href: "/painel/financeiro/remessas",
+    icone: "FileOutput",
+    descricao: "Conta bancária da entidade, remessa CNAB 240 das ordens a pagar e retorno do banco",
+    chave: "financeiro_pagamento",
+    chavesAlternativas: ["financeiro_leitura"],
+    oculto: true,
+  },
+  {
     titulo: "Conciliação bancária",
     href: "/painel/financeiro/conciliacao",
     icone: "Landmark",
