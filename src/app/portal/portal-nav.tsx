@@ -15,6 +15,7 @@ import {
   Home,
   IdCard,
   Menu,
+  MessagesSquare,
   Newspaper,
   ScrollText,
   ShieldCheck,
@@ -50,6 +51,7 @@ const ICONES: Record<string, LucideIcon> = {
   "/portal/lgpd": ShieldCheck,
   "/portal/ajuda": CircleHelp,
   "/portal/avisos": Bell,
+  "/portal/atendimento": MessagesSquare,
 }
 
 /** Os quatro atalhos fixos da barra inferior; o resto fica em "Mais". */

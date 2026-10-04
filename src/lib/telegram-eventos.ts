@@ -27,6 +27,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida" },
   { chave: "feedback_sistema", rotulo: "Relato de problema ou sugestão sobre o sistema (quem cuida das demandas)" },
+  { chave: "atendimento_filiado", rotulo: "Solicitação ou resposta de filiado pelo portal (quem cuida das demandas)" },
   { chave: "resumo_semanal", rotulo: "Resumo semanal de gestão (segunda-feira)" },
 ] as const
 

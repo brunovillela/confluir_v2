@@ -17,6 +17,7 @@ import {
   UserRoundMinus,
   UserRoundPlus,
   UsersRound,
+  MessagesSquare,
   Wallet,
 } from "lucide-react"
 
@@ -485,6 +486,12 @@ export default async function FiliadosPage({
           descricao="Carência por direito, regra de inadimplência e termos legais"
           href="/painel/filiados/direitos"
           icone={ShieldCheck}
+        />
+        <CartaoArea
+          titulo="Atendimentos"
+          descricao="Solicitações abertas pelos filiados no portal, com prazo de resposta"
+          href="/painel/filiados/atendimentos"
+          icone={MessagesSquare}
         />
         <CartaoArea
           titulo="Inadimplentes"

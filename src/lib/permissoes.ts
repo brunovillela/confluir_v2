@@ -47,6 +47,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Atendimentos",
+    href: "/painel/filiados/atendimentos",
+    icone: "MessagesSquare",
+    descricao: "Solicitações abertas pelos filiados no portal, com prazo de resposta",
+    chave: "ferramentas_demandas",
+    chavesAlternativas: ["ferramentas_tarefas", "filiacao_filiados"],
+    oculto: true,
+  },
+  {
     titulo: "Filiados inadimplentes",
     href: "/painel/filiados/inadimplentes",
     icone: "HandCoins",

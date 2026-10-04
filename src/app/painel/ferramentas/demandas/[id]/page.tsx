@@ -15,11 +15,14 @@ import {
   obterDemanda,
   resumoExclusaoDemanda,
 } from "@/lib/db/nucleo"
+import { atendimentoDaDemanda } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AdicionarTarefa } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
+import { AtendimentoPainel } from "@/app/painel/filiados/atendimentos/atendimento-painel"
+
 import { ExcluirDemanda, SituacaoDemanda } from "./demanda-acoes"
 
 export const metadata: Metadata = { title: "Demanda — Confluir" }
@@ -37,10 +40,11 @@ export default async function DemandaPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [demanda, pessoas, resumoExclusao] = await Promise.all([
+  const [demanda, pessoas, resumoExclusao, atendimento] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
     resumoExclusaoDemanda(id),
+    atendimentoDaDemanda(id),
   ])
   if (!demanda) notFound()
 
@@ -98,6 +102,12 @@ export default async function DemandaPage({
           demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
         )}
       </div>
+
+      {atendimento && (
+        // Demanda que nasceu de uma solicitação do portal: responder aqui é
+        // responder ao filiado.
+        <AtendimentoPainel atendimento={atendimento.atendimento} mensagens={atendimento.mensagens} mostrarCabecalho={false} />
+      )}
 
       {demanda.descricao && (
         <Card>

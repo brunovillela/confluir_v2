@@ -24,6 +24,7 @@ const NAV: ItemNavPortal[] = [
   { titulo: "Notícias", href: "/portal/noticias" },
   { titulo: "Eventos", href: "/portal/eventos" },
   { titulo: "Votação", href: "/portal/votacao" },
+  { titulo: "Atendimento", href: "/portal/atendimento" },
   { titulo: "Avisos", href: "/portal/avisos" },
   { titulo: "Oposição à contribuição", href: "/portal/oposicao" },
   { titulo: "LGPD", href: "/portal/lgpd" },

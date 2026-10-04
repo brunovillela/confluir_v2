@@ -195,6 +195,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "A ficha pública, a assinatura gov.br e a aprovação",
       },
       {
+        slug: "atendimentos",
+        titulo: "Atendimentos pelo portal",
+        resumo: "As solicitações dos filiados, a Demanda que geram e o prazo de resposta",
+      },
+      {
         slug: "receitas",
         titulo: "Receitas",
         resumo: "Remessas de recebimento de contribuições por fonte pagadora",

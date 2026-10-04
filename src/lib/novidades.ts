@@ -20,6 +20,7 @@ export const NOVIDADES: Novidade[] = [
       "Minha contribuição: os descontos repassados mês a mês, a última contribuição e a situação da pessoa pela regra da entidade.",
       "Portal feito para o celular: barra de navegação inferior, página atual marcada e as tabelas viram cards em telas pequenas.",
       "Avisos no portal: sino do filiado e e-mail por preferência quando o hotel reserva o cupom, abre vaga na lista de espera, a inscrição é avaliada, o evento muda ou uma votação abre.",
+      "Atendimento pelo portal: o filiado abre solicitação (jurídico, saúde, cadastro, reembolso, reclamação, outro) com anexo e acompanha a resposta; no painel ela vira Demanda com prazo, e a equipe responde pela Demanda ou por Filiados → Atendimentos, com indicadores de tempo de resposta.",
     ],
   },
   {

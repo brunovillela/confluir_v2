@@ -59,6 +59,21 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "atendimento",
+    titulo: "Atendimento",
+    descricao: "Abra solicitações e acompanhe a resposta da entidade",
+    icone: "MessagesSquare",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Falar com a entidade",
+        resumo: "Como abrir uma solicitação, anexar documentos e acompanhar o prazo",
+      },
+    ],
+  },
+  {
     slug: "avisos",
     titulo: "Avisos",
     descricao: "O sino do portal e o que vai por e-mail",

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   FileSignature,
   HandCoins,
+  MessagesSquare,
   Newspaper,
   ShieldCheck,
   UserPen,
@@ -75,6 +76,12 @@ const SERVICOS = [
     descricao: "Inscrições abertas, suas inscrições e a agenda de atividades",
     href: "/portal/eventos",
     icone: CalendarDays,
+  },
+  {
+    titulo: "Atendimento",
+    descricao: "Abra uma solicitação e acompanhe a resposta da entidade",
+    href: "/portal/atendimento",
+    icone: MessagesSquare,
   },
   {
     titulo: "LGPD",
