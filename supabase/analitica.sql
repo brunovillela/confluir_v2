@@ -66,6 +66,8 @@ select
   make_date(r.ano::int, r.mes::int, 1) as mes,
   coalesce(r.tipo, 'Associativa') as tipo,
   coalesce(l.fonte_pg_id, r.emp_contratante_id) as fonte_id,
+  -- chave sem null para o índice único (o refresh concorrente exige colunas simples)
+  coalesce(l.fonte_pg_id, r.emp_contratante_id, '00000000-0000-0000-0000-000000000000'::uuid) as fonte_chave,
   sum(coalesce(l.valor, 0))::numeric(14,2) as valor,
   count(*)::int as lancamentos,
   count(distinct coalesce(l.filiado_id::text, l.cpf))::int as pagantes
@@ -73,9 +75,9 @@ from public.filiacao_recebe_remessa r
 join public.filiacao_recebe l on l.remessa_id = r.id
 where r.ano::text ~ '^\d{4}$' and r.mes::text ~ '^\d{1,2}$'
   and r.ano::int between 2000 and 2100 and r.mes::int between 1 and 12
-group by 1, 2, 3, 4;
+group by 1, 2, 3, 4, 5;
 create unique index fato_arrecadacao_mensal_pk
-  on public.fato_arrecadacao_mensal (emp_proprietaria_id, mes, tipo, (coalesce(fonte_id, '00000000-0000-0000-0000-000000000000'::uuid)));
+  on public.fato_arrecadacao_mensal (emp_proprietaria_id, mes, tipo, fonte_chave);
 
 -- ── 3. Despesa (ordens pagas) ───────────────────────────────────────────────
 drop materialized view if exists public.fato_despesa_mensal;
@@ -101,14 +103,14 @@ select
   coalesce(tipo, '(sem tipo)') as tipo,
   centro_custo_despesa_id,
   departamento_id,
+  coalesce(centro_custo_despesa_id, '00000000-0000-0000-0000-000000000000'::uuid) as centro_chave,
+  coalesce(departamento_id, '00000000-0000-0000-0000-000000000000'::uuid) as departamento_chave,
   sum(valor)::numeric(14,2) as valor,
   count(distinct ordem_id)::int as ordens
 from linhas
-group by 1, 2, 3, 4, 5;
+group by 1, 2, 3, 4, 5, 6, 7;
 create unique index fato_despesa_mensal_pk
-  on public.fato_despesa_mensal (emp_proprietaria_id, mes, tipo,
-    (coalesce(centro_custo_despesa_id, '00000000-0000-0000-0000-000000000000'::uuid)),
-    (coalesce(departamento_id, '00000000-0000-0000-0000-000000000000'::uuid)));
+  on public.fato_despesa_mensal (emp_proprietaria_id, mes, tipo, centro_chave, departamento_chave);
 
 -- ── 4. Frota ────────────────────────────────────────────────────────────────
 drop materialized view if exists public.fato_frota_mensal;
