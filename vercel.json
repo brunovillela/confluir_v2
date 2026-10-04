@@ -24,6 +24,10 @@
     {
       "path": "/api/vencimentos/tick",
       "schedule": "45 11 * * *"
+    },
+    {
+      "path": "/api/analitica/tick",
+      "schedule": "0 6 * * *"
     }
   ]
 }
