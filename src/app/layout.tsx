@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Suspense } from "react"
 import { Geist_Mono, Poppins } from "next/font/google"
 
@@ -23,6 +23,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Confluir",
   description: "Sistema de gestão organizacional para sindicatos e entidades",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Confluir", statusBarStyle: "default" },
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#091747" },
+  ],
+  viewportFit: "cover",
 }
 
 export default function RootLayout({

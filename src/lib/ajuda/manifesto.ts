@@ -81,6 +81,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Filiação, arrecadação, caixa, despesa e o que está vencido, em uma tela só",
       },
       {
+        slug: "celular",
+        titulo: "No celular: app, Aprovar e home do diretor",
+        resumo: "Instalar o Confluir, receber avisos no aparelho, aprovar e assinar com o polegar",
+      },
+      {
         slug: "suporte",
         titulo: "Ajuda, novidades e feedback",
         resumo: "O menu ? do cabeçalho: ajuda desta tela, o que há de novo e como relatar um problema",

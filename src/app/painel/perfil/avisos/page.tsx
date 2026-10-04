@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
 import { preferenciasDeAviso } from "@/lib/db/avisos"
+import { contarAssinaturasPush, pushConfigurado } from "@/lib/db/push"
 import { statusTelegram } from "@/lib/db/telegram"
 import { telegramConfigurado } from "@/lib/telegram"
 
 import { AvisosForm } from "./avisos-form"
+import { PushCelular } from "./push-celular"
 
 export const metadata: Metadata = { title: "Avisos — Confluir" }
 
@@ -19,8 +21,9 @@ export const metadata: Metadata = { title: "Avisos — Confluir" }
  */
 export default async function AvisosPerfilPage() {
   const { usuario } = await requireSessaoPainel()
-  const [prefs, telegram] = await Promise.all([
+  const [prefs, aparelhos, telegram] = await Promise.all([
     preferenciasDeAviso(usuario.id as string),
+    pushConfigurado() ? contarAssinaturasPush(usuario.id as string).catch(() => 0) : Promise.resolve(0),
     statusTelegram(usuario.id as string).catch(() => ({ vinculado: false, telefone: null, telefonePendente: null })),
   ])
   const telegramAtivo = telegramConfigurado() && telegram.vinculado && Boolean(telegram.telefone)
@@ -42,6 +45,14 @@ export default async function AvisosPerfilPage() {
           Escolha por onde quer receber cada tipo de aviso. O sino do painel recebe todos.
         </p>
       </div>
+
+      {pushConfigurado() && (
+        <Card>
+          <CardContent>
+            <PushCelular chavePublica={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY as string} aparelhos={aparelhos} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

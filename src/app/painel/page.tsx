@@ -8,6 +8,7 @@ import {
   Cake,
   CalendarDays,
   ClipboardList,
+  Crown,
   ExternalLink,
   IdCard,
   Newspaper,
@@ -28,6 +29,7 @@ import {
 import { CaixaDeEntrada } from "@/components/layout/caixa-entrada"
 import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
+import { ehDiretorOuAprovador } from "@/lib/db/diretor-home"
 import { pendenciasDoUsuario } from "@/lib/db/pendencias"
 import { ultimoResumo } from "@/lib/db/comunicacao"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
@@ -122,7 +124,7 @@ export default async function PainelPage({
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
   const pendencias = await pendenciasDoUsuario(sessao)
 
-  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, quadroViagem] = await Promise.all([
+  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, quadroViagem, diretor] = await Promise.all([
     resumoPainel(sessao.usuario.id as string),
     ultimasNoticias(8),
     contaDoUsuario(sessao.usuario.id as string).catch(() => ({
@@ -133,6 +135,7 @@ export default async function PainelPage({
     ultimoResumo().catch(() => null),
     buscarCondutorDoUsuario(sessao.usuario.id as string).catch(() => null),
     quadroParaDiaria(sessao.usuario.id as string).catch(() => null),
+    ehDiretorOuAprovador(sessao).catch(() => false),
   ])
   const siteUrl = org?.siteUrl ?? null
   const contaCaixa = meuCaixa.detalhe?.conta ?? null
@@ -183,6 +186,23 @@ export default async function PainelPage({
       )}
 
       <CaixaDeEntrada pendencias={pendencias} />
+
+      {diretor && (
+        <Link href="/painel/diretor" className="group block">
+          <Card className="group-hover:border-primary/40 transition-colors">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <span className="flex min-w-0 items-center gap-3">
+                <Crown className="text-muted-foreground size-5 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Diretor</span>
+                  <span className="text-muted-foreground block text-xs">O que espera a sua decisão, a agenda da semana, votações, negociações e os números — e Aprovar pelo celular</span>
+                </span>
+              </span>
+              <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {podeAcessar(sessao.permissoes, "configuracoes", ["financeiro_leitura", "financeiro_pagamento", "filiacao_gestao", "filiacao_receitas", "diretoria_mandatos"]) && (
         <Link href="/painel/indicadores" className="group block">

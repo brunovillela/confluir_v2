@@ -20,6 +20,8 @@ export const NOVIDADES: Novidade[] = [
       "Minha contribuição: os descontos repassados mês a mês, a última contribuição e a situação da pessoa pela regra da entidade.",
       "Portal feito para o celular: barra de navegação inferior, página atual marcada e as tabelas viram cards em telas pequenas.",
       "Avisos no portal: sino do filiado e e-mail por preferência quando o hotel reserva o cupom, abre vaga na lista de espera, a inscrição é avaliada, o evento muda ou uma votação abre.",
+      "Confluir no celular: instale como app (Adicionar à tela inicial), ligue \"Receber no celular\" em Meu perfil → Avisos e os avisos do sino chegam como notificação. Tela Aprovar com ordens, documentos e diárias em cards de um toque.",
+      "Home do diretor: o que espera a sua decisão, a agenda da semana, votações, negociações, os números da entidade e os seus pedidos de viagem e diária, em uma tela só.",
       "Atendimento pelo portal: o filiado abre solicitação (jurídico, saúde, cadastro, reembolso, reclamação, outro) com anexo e acompanha a resposta; no painel ela vira Demanda com prazo, e a equipe responde pela Demanda ou por Filiados → Atendimentos, com indicadores de tempo de resposta.",
     ],
   },

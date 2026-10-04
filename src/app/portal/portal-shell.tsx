@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowLeftRight, Bell, Eye } from "lucide-react"
 
 import { Marca } from "@/components/marca"
+import { RegistrarSw } from "@/components/pwa/registrar-sw"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { sairDoPortal } from "@/lib/actions/sessao"
@@ -71,6 +72,7 @@ export async function PortalShell({
 
   return (
     <div className="flex min-h-svh flex-col">
+      <RegistrarSw />
       {preview && (
         <div className="border-warning/40 bg-warning/10 text-warning-fg border-b">
           <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">

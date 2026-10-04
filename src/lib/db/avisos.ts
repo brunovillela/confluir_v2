@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { after } from "next/server"
 
 import { texto } from "@/lib/db/comum"
+import { enviarPushWeb } from "@/lib/db/push"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { botaoEmail, escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
@@ -225,6 +226,8 @@ export async function avisar(
     }
 
     await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client)
+    // Web Push segue o sino: quem ligou "Receber no celular" recebe tudo que entra nele.
+    await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
   }
   return entregues
 }

@@ -935,6 +935,22 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Diretor",
+    href: "/painel/diretor",
+    icone: "Crown",
+    descricao: "O que espera a sua decisão, a semana da entidade, os números e os seus pedidos",
+    chave: null,
+    oculto: true,
+  },
+  {
+    titulo: "Aprovar",
+    href: "/painel/aprovar",
+    icone: "CheckCheck",
+    descricao: "Ordens na sua alçada, documentos para assinar e diárias, em cards para o celular",
+    chave: null,
+    oculto: true,
+  },
+  {
     titulo: "Indicadores",
     href: "/painel/indicadores",
     icone: "ChartColumn",

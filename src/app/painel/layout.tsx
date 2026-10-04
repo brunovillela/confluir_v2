@@ -1,6 +1,7 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { RegistrarSw } from "@/components/pwa/registrar-sw"
 import { AjudaMenu } from "@/components/layout/ajuda-menu"
 import { BuscaGlobal } from "@/components/layout/busca-global"
 import { ContadoresHeader } from "@/components/layout/contadores-header"
@@ -68,6 +69,7 @@ export default async function PainelLayout({
 
   return (
     <SidebarProvider>
+      <RegistrarSw />
       <AppSidebar
         usuario={usuario}
         modulos={modulos}

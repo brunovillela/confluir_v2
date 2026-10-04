@@ -1,4 +1,6 @@
 import {
+  CheckCheck,
+  Crown,
   MessagesSquare,
   Boxes,
   BriefcaseBusiness,
@@ -41,6 +43,8 @@ import {
 
 /** Mapa nome → componente, para que a config de módulos (server) fique serializável. */
 export const ICONES_MODULOS: Record<string, LucideIcon> = {
+  CheckCheck,
+  Crown,
   MessagesSquare,
   ChartColumn,
   LayoutDashboard,
