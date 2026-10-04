@@ -21,6 +21,7 @@ import {
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { escaparLike } from "@/lib/texto"
 
 /**
  * RLS está habilitado com deny-all para anon/authenticated: toda leitura de
@@ -278,7 +279,7 @@ export const areasDaConta = cache(async (): Promise<AreaDaConta[]> => {
         .or(
           [
             `auth_user_id.eq.${user.id}`,
-            user.email ? `email.ilike.${user.email}` : null,
+            user.email ? `email.ilike.${escaparLike(user.email)}` : null,
           ]
             .filter(Boolean)
             .join(",")

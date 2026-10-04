@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
 import { FiltroDeptoCentro } from "./filtro-depto-centro"
+import { ExportarXlsx } from "@/components/exportar-xlsx"
 
 export const metadata: Metadata = {
   title: "Ordens de pagamento — Confluir",
@@ -246,15 +247,18 @@ export default async function OrdensPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Ordens de pagamento
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {lista.total.toLocaleString("pt-BR")} orde
-          {lista.total === 1 ? "m" : "ns"}
-          {filtros.busca && <> para “{filtros.busca}”</>}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Ordens de pagamento
+          </h1>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {lista.total.toLocaleString("pt-BR")} orde
+            {lista.total === 1 ? "m" : "ns"}
+            {filtros.busca && <> para “{filtros.busca}”</>}
+          </p>
+        </div>
+        <ExportarXlsx href="/painel/financeiro/ordens/exportar" />
       </div>
 
       <div className="flex flex-col gap-3">

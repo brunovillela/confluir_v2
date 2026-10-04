@@ -9,6 +9,7 @@ import {
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
 /** Exporta a listagem de filiados (com os filtros atuais) em CSV. */
 export async function GET(request: NextRequest) {
@@ -48,6 +49,22 @@ export async function GET(request: NextRequest) {
   }
 
   const linhas = await listarFiliadosParaExportar(filtros)
+
+  // XLSX (I8): mesma seleção, planilha de verdade (datas e filtros no Excel).
+  if (searchParams.get("formato") === "xlsx") {
+    return respostaXlsx(
+      "filiados",
+      planilhaXlsx("Filiados", [
+        { titulo: "Nome", valor: (f) => f.nome_completo, largura: 40 },
+        { titulo: "CPF", valor: (f) => (f.cpf ? formatarCpf(f.cpf) : null) },
+        { titulo: "Matrícula", valor: (f) => f.matricula_sindical },
+        { titulo: "Lotação", valor: (f) => f.filiacao_lotacao, largura: 28 },
+        { titulo: "Condição", valor: (f) => f.filiacao_condicao },
+        { titulo: "Situação", valor: (f) => (f.filiacao_excluida === true ? "Excluída" : "Ativa") },
+        { titulo: "Cadastro", valor: (f) => dataXlsx(f.created_at) },
+      ], linhas)
+    )
+  }
 
   const escapar = (v: string) =>
     /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v

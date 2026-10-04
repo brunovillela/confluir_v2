@@ -1,5 +1,5 @@
 import "server-only"
-import { hojeSP } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -425,14 +425,17 @@ export async function listarEntidadesApoiadas(
         .join(",")
     )
   }
-  const { data, error } = await q
-    .order("nome_fantasia", { ascending: true, nullsFirst: false })
-    .limit(2000)
-  if (error) {
-    if (esquemaAusente(error)) return [] // coluna entidade_apoiada ainda não existe
-    throw new Error(`Falha ao listar entidades apoiadas: ${error.message}`)
+  let data: Record<string, unknown>[]
+  try {
+    // Em lotes (U8): o PostgREST corta em 1.000 linhas.
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      q.order("nome_fantasia", { ascending: true, nullsFirst: false }).order("id").range(de, ate)
+    )
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return [] // coluna entidade_apoiada ainda não existe
+    throw new Error(`Falha ao listar entidades apoiadas: ${(error as Error).message}`)
   }
-  return (data ?? []).map((e) => ({
+  return data.map((e) => ({
     id: String(e.id),
     nome:
       [e.nome_fantasia, e.nome_razao].find(

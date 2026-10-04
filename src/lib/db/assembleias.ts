@@ -7,7 +7,7 @@ import {
   janelaDaAssembleia,
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
-import { esquemaAusente } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
@@ -2110,16 +2110,22 @@ export async function empresasDasCampanhas(): Promise<
   { id: string; nome: string }[]
 > {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("voto_campanha_fontes")
-    .select("empresa_id, empresa:empresa_id (nome_fantasia, nome_razao)")
-    .limit(2000)
-  if (error) {
-    if (esquemaAusente(error)) return []
-    throw new Error(`Falha ao listar as empresas das campanhas: ${error.message}`)
+  let data: Record<string, unknown>[]
+  try {
+    // Em lotes (U8): o PostgREST corta em 1.000 linhas.
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("voto_campanha_fontes")
+        .select("empresa_id, empresa:empresa_id (nome_fantasia, nome_razao)")
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return []
+    throw new Error(`Falha ao listar as empresas das campanhas: ${(error as Error).message}`)
   }
   const porId = new Map<string, string>()
-  for (const v of data ?? []) {
+  for (const v of data) {
     const e = v.empresa as unknown as {
       nome_fantasia: string | null
       nome_razao: string | null

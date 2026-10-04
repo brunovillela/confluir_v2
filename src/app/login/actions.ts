@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { fatorVerificado, ROTA_VERIFICACAO } from "@/lib/mfa"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
+import { escaparLike } from "@/lib/texto"
 
 /** Porta 1 — funcionários internos: email + senha. */
 export async function loginFuncionario(
@@ -115,7 +116,7 @@ export async function solicitarPrimeiroAcesso(
   const { data: usuario } = await admin
     .from("usuarios")
     .select("id, auth_user_id, inativo, deletado, nome_completo")
-    .ilike("email", email)
+    .ilike("email", escaparLike(email))
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
 

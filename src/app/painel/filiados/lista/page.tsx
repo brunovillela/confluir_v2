@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Download,
+  FileSpreadsheet,
   Search,
   UsersRound,
 } from "lucide-react"
@@ -206,12 +207,20 @@ export default async function FiliadosPage({
             )}
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <a href={urlExportar} download>
-            <Download />
-            Exportar CSV
-          </a>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`${urlExportar}&formato=xlsx`} download>
+              <FileSpreadsheet />
+              Exportar XLSX
+            </a>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <a href={urlExportar} download>
+              <Download />
+              CSV
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

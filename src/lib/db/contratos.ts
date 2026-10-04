@@ -14,7 +14,7 @@ import {
   usuarioDaTrilha,
 } from "@/lib/db/ordens-ciclo"
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -297,22 +297,29 @@ export async function listarContratos(opcoes: {
 }): Promise<ContratoLista[]> {
   const admin = await createAdminClient()
   const empId = await tenantAtual()
-  const [{ data, error }, categorias] = await Promise.all([
-    admin
-      .from("contratos")
-      .select(SELECT_CONTRATO)
-      .eq("emp_proprietaria_id", empId)
-      .not("deletado", "is", true)
-      .order("vigencia_termino", { ascending: false, nullsFirst: false })
-      .limit(2000),
-    mapaCategorias(admin, empId),
-  ])
-  if (error) {
-    if (esquemaAusente(error)) return []
-    throw new Error(`Falha ao listar contratos: ${error.message}`)
+  let data: Record<string, unknown>[]
+  let categorias: Awaited<ReturnType<typeof mapaCategorias>>
+  try {
+    // Em lotes (U8): o PostgREST corta em 1.000 linhas.
+    ;[data, categorias] = await Promise.all([
+      lerEmLotes<Record<string, unknown>>((de, ate) =>
+        admin
+          .from("contratos")
+          .select(SELECT_CONTRATO)
+          .eq("emp_proprietaria_id", empId)
+          .not("deletado", "is", true)
+          .order("vigencia_termino", { ascending: false, nullsFirst: false })
+          .order("id")
+          .range(de, ate)
+      ),
+      mapaCategorias(admin, empId),
+    ])
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return []
+    throw new Error(`Falha ao listar contratos: ${(error as Error).message}`)
   }
 
-  let brutos = (data ?? []) as Record<string, unknown>[]
+  let brutos = data
   if (opcoes.apoioInstitucional !== undefined) {
     brutos = brutos.filter(
       (c) => (c.apoio_institucional === true) === opcoes.apoioInstitucional

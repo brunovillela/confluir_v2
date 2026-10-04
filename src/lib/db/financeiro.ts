@@ -367,28 +367,39 @@ export async function resumoFinanceiro(): Promise<ResumoFinanceiro> {
   const admin = await createAdminClient()
   const inicioMes = new Date().toISOString().slice(0, 8) + "01"
 
-  const [abertas, pagasNoMes, totalOrdens] = await Promise.all([
-    admin
-      .from("ordens_pagamento")
-      .select("valor_pago, valor_inicial_cobranca, situacao", { count: "exact" })
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .not("excluido", "is", true)
-      .in("situacao", SITUACOES_ABERTAS)
-      .limit(2000),
-    admin
-      .from("ordens_pagamento")
-      .select("valor, valor_pago", { count: "exact" })
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .not("excluido", "is", true)
-      .eq("situacao", "Paga")
-      .gte("data_pagamento", inicioMes)
-      .limit(2000),
+  const emp = await tenantAtual()
+  // Em lotes (U8): o PostgREST corta em 1.000 e o .limit(2000) antigo
+  // subestimava o total aberto quando a fila passava disso.
+  const [abertasLinhas, pagasLinhas, totalOrdens] = await Promise.all([
+    lerEmLotes<{ valor_pago: number | null; valor_inicial_cobranca: number | null; situacao: string | null }>((de, ate) =>
+      admin
+        .from("ordens_pagamento")
+        .select("valor_pago, valor_inicial_cobranca, situacao")
+        .eq("emp_proprietaria_id", emp)
+        .not("excluido", "is", true)
+        .in("situacao", SITUACOES_ABERTAS)
+        .order("id")
+        .range(de, ate)
+    ),
+    lerEmLotes<{ valor: number | null; valor_pago: number | null }>((de, ate) =>
+      admin
+        .from("ordens_pagamento")
+        .select("valor, valor_pago")
+        .eq("emp_proprietaria_id", emp)
+        .not("excluido", "is", true)
+        .eq("situacao", "Paga")
+        .gte("data_pagamento", inicioMes)
+        .order("id")
+        .range(de, ate)
+    ),
     admin
       .from("ordens_pagamento")
       .select("id", { count: "exact", head: true })
-      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("emp_proprietaria_id", emp)
       .not("excluido", "is", true),
   ])
+  const abertas = { data: abertasLinhas, count: abertasLinhas.length }
+  const pagasNoMes = { data: pagasLinhas, count: pagasLinhas.length }
 
   const porSituacao = new Map<string, { quantidade: number; valor: number }>()
   for (const o of abertas.data ?? []) {

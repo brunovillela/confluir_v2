@@ -28,7 +28,7 @@ import {
 } from "@/lib/comunicacao-mensagens-constantes"
 import { cpfConfiavel } from "@/lib/cpf"
 import { descadastradosDoTenant, tokenDescadastro } from "@/lib/db/comunicacao-descadastro"
-import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { baseRelatorios, filtrarRelatorio, type BaseRelatorios, type LinhaRelatorio } from "@/lib/db/filiacao-relatorios"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { botaoEmail, COR, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
@@ -200,17 +200,24 @@ export async function aniversariantesDoDia(dataISO: string, opcoes: { tenantId?:
   const emp = opcoes.tenantId ?? (await tenantAtual())
   const [ano, mes, dia] = dataISO.split("-").map(Number)
   const dias = mes === 2 && dia === 28 && !ehBissexto(ano) ? [28, 29] : [dia]
-  const { data, error } = await db
-    .from("filiacoes")
-    .select(`${CAMPOS_CONTATO}, nascimento_data, endereco_estado, endereco_cidade`)
-    .eq("emp_proprietaria_id", emp)
-    .eq("filiacao_condicao", "Ativo")
-    .not("filiacao_excluida", "is", true)
-    .eq("nascimento_mes", mes)
-    .in("nascimento_dia", dias)
-    .limit(2000)
-  if (error) throw new Error(`Falha ao ler os aniversariantes: ${error.message}`)
-  const todas = data ?? []
+  let todas: LinhaFiliacao[]
+  try {
+    // Em lotes (U8): o PostgREST corta em 1.000 linhas.
+    todas = await lerEmLotes<LinhaFiliacao>((de, ate) =>
+      db
+        .from("filiacoes")
+        .select(`${CAMPOS_CONTATO}, nascimento_data, endereco_estado, endereco_cidade`)
+        .eq("emp_proprietaria_id", emp)
+        .eq("filiacao_condicao", "Ativo")
+        .not("filiacao_excluida", "is", true)
+        .eq("nascimento_mes", mes)
+        .in("nascimento_dia", dias)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (error) {
+    throw new Error(`Falha ao ler os aniversariantes: ${(error as Error).message}`)
+  }
   const linhas = porPessoa(todas)
   const chave = (l: LinhaFiliacao) => cpfConfiavel(texto(l.cpf)) ?? `id:${l.id}`
 

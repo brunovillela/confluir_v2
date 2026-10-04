@@ -34,6 +34,7 @@ import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso";
 import { resumoContratos } from "@/lib/db/contratos";
 import { formatarData, formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
+import { ExportarXlsx } from "@/components/exportar-xlsx";
 
 export const metadata: Metadata = { title: "Aquisição — Confluir" };
 
@@ -131,14 +132,17 @@ export default async function ComprasPage({
             recebimento
           </p>
         </div>
-        {podeCriar && (
-          <Button asChild>
-            <Link href="/painel/compras/nova">
-              <Plus />
-              Nova compra
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportarXlsx href="/painel/compras/exportar" />
+          {podeCriar && (
+            <Button asChild>
+              <Link href="/painel/compras/nova">
+                <Plus />
+                Nova compra
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {brutos.fora && (

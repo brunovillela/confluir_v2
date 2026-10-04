@@ -12,6 +12,14 @@ export function semAcento(s: string): string {
     .trim()
 }
 
+/**
+ * Escapa `%`, `_` e `\` para usar o texto como valor literal em `ilike`/`like`
+ * do PostgREST (S15): sem isto, "a_b" casa "axb" e "%" casa tudo.
+ */
+export function escaparLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
 /** Iniciais do avatar de quem não tem foto: primeira e última palavra do nome. */
 export function iniciais(nome: string | null): string {
   const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean)

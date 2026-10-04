@@ -16,6 +16,7 @@ import {
   podeAcessarModulo,
 } from "@/lib/permissoes"
 import { resolverPermissoesComPerfis } from "@/lib/permissoes-resolver"
+import { assinarTenant } from "@/lib/tenant-assinatura"
 import { subdominioDoHost } from "@/lib/tenant-host"
 
 /**
@@ -115,6 +116,10 @@ export async function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set("x-tenant-id", tenantId)
+  // Assinado: tenantAtual() só aceita o id que veio daqui (S18).
+  const assinatura = await assinarTenant(tenantId)
+  if (assinatura) requestHeaders.set("x-tenant-assinatura", assinatura)
+  else requestHeaders.delete("x-tenant-assinatura")
 
   let response = NextResponse.next({ request: { headers: requestHeaders } })
 

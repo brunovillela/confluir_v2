@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { cache } from "react"
 
 import { EMP_PROPRIETARIA_ID } from "@/lib/env"
+import { conferirTenant } from "@/lib/tenant-assinatura"
 
 /**
  * Tenant (organização) da requisição atual.
@@ -23,7 +24,15 @@ import { EMP_PROPRIETARIA_ID } from "@/lib/env"
 export const tenantAtual = cache(async (): Promise<string> => {
   try {
     const h = await headers()
-    return h.get("x-tenant-id") || EMP_PROPRIETARIA_ID
+    const id = h.get("x-tenant-id")
+    if (!id) return EMP_PROPRIETARIA_ID
+    // Só vale assinado pelo proxy (lib/tenant-assinatura.ts): um cabeçalho
+    // vindo de fora, numa rota que o proxy não cobre, não troca o tenant.
+    if (await conferirTenant(id, h.get("x-tenant-assinatura"))) return id
+    // Sem a chave configurada (dev sem SUPABASE_JWT_SECRET) não há como
+    // assinar: mantém o comportamento anterior.
+    if (!process.env.SUPABASE_JWT_SECRET) return id
+    return EMP_PROPRIETARIA_ID
   } catch {
     return EMP_PROPRIETARIA_ID
   }

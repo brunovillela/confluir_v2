@@ -272,6 +272,8 @@ export type FiltrosProcessos = {
   situacao?: SituacaoProcesso | "todas"
   aquisicao?: "direta" | "via_compras" | "todas"
   pagina?: number
+  /** Tamanho da página (padrão PROCESSOS_POR_PAGINA; a exportação usa 1.000). */
+  porPagina?: number
   /** Departamentos que a pessoa alcança (lib/db/compras-acesso.ts). */
   escopo?: EscopoCompras
 }
@@ -337,11 +339,12 @@ export async function listarProcessos(
   if (filtros.aquisicao === "direta") q = q.eq("aquisicao_direta", true)
   if (filtros.aquisicao === "via_compras") q = q.eq("aquisicao_direta", false)
 
-  const de = (pagina - 1) * PROCESSOS_POR_PAGINA
+  const porPagina = Math.min(1000, Math.max(1, filtros.porPagina ?? PROCESSOS_POR_PAGINA))
+  const de = (pagina - 1) * porPagina
   const { data, error, count } = await q
     .order("created_at", { ascending: false })
     .order("codigo", { ascending: false })
-    .range(de, de + PROCESSOS_POR_PAGINA - 1)
+    .range(de, de + porPagina - 1)
   if (error) {
     // Filtro por coluna nova sem o SQL rodado: degrada para lista vazia.
     if (esquemaAusente(error)) {
@@ -404,7 +407,7 @@ export async function listarProcessos(
     })),
     total,
     pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / PROCESSOS_POR_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
   }
 }
 

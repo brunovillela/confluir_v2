@@ -35,6 +35,7 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
+import { ExportarXlsx } from "@/components/exportar-xlsx"
 
 export const metadata: Metadata = { title: "Contratos — Confluir" }
 
@@ -159,6 +160,7 @@ export default async function ContratosPage({
                 </Link>
               </Button>
             )}
+            <ExportarXlsx href="/painel/compras/contratos/exportar" />
             {podeEditar && (
               <Button asChild>
                 <Link href="/painel/compras/contratos/novo">

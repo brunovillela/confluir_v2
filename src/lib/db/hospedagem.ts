@@ -6,6 +6,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { texto } from "@/lib/db/comum"
+import { escaparLike } from "@/lib/texto"
 
 /**
  * Hospedagem — convênio com hotéis parceiros:
@@ -495,7 +496,7 @@ export async function usuarioHotelDaConta(
     const porEmail = await admin
       .from("hospedagem_hotel_usuarios")
       .select(campos)
-      .ilike("email", email)
+      .ilike("email", escaparLike(email))
       .is("auth_user_id", null)
       .eq("ativo", true)
       .maybeSingle()
