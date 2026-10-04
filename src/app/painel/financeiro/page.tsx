@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
+import { ChartColumn, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { Donut } from "@/components/grafico-donut";
@@ -100,6 +100,12 @@ export default async function FinanceiroPage() {
       descricao: "Receitas e despesas com autorização e pagamento",
       href: "/painel/financeiro/ordens",
       icone: Receipt,
+    },
+    veOrdens && {
+      titulo: "Financeiro gerencial",
+      descricao: "Fluxo projetado, despesa por centro de custo, orçado × realizado e vencidas",
+      href: "/painel/financeiro/gerencial",
+      icone: ChartColumn,
     },
     veOrdens && {
       titulo: "Centros de custo",

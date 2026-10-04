@@ -8,6 +8,7 @@ export const ABAS_EMPREGADOR = [
   { chave: "oposicoes", rotulo: "Oposições", permissao: "oposicao" },
   { chave: "reunioes", rotulo: "Reuniões", permissao: null },
   { chave: "setoriais", rotulo: "Setoriais", permissao: null },
+  { chave: "arrecadacao", rotulo: "Arrecadação", permissao: "filiacao_receitas" },
 ] as const
 export type AbaEmpregador = (typeof ABAS_EMPREGADOR)[number]["chave"]
 

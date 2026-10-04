@@ -339,6 +339,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Regras que o sistema confere antes de criar cada ordem",
       },
       {
+        slug: "gerencial",
+        titulo: "Financeiro gerencial",
+        resumo: "Fluxo projetado, despesa por centro de custo, orçado × realizado, vencidas e fontes em atraso",
+      },
+      {
         slug: "estornos",
         titulo: "Estornos de pagamento",
         resumo: "Pagamento devolvido pelo banco: a ordem regride e quem lançou corrige e reencaminha",

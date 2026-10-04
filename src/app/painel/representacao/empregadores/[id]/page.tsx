@@ -38,6 +38,7 @@ import { ROTULO_TIPO_DOC } from "@/lib/representacao-docs-constantes"
 import { cn } from "@/lib/utils"
 
 import { AbaAcordos, AbaOposicoes, AbaReunioes, AbaVotacoes } from "./abas"
+import { AbaArrecadacao } from "./aba-arrecadacao"
 import { AdicionarDocumento, BotaoExcluirDocumento } from "./empregador-docs-forms"
 import { ABAS_EMPREGADOR, lerAbaEmpregador, type AbaEmpregador, type Params } from "./filtros"
 
@@ -129,6 +130,7 @@ export default async function FontePage({
     oposicoes: cartas,
     reunioes: reunioes.reunioes,
     setoriais: reunioes.setoriais,
+    arrecadacao: null,
   }
 
   const indicadores = [
@@ -274,6 +276,7 @@ export default async function FontePage({
         {aba === "oposicoes" && <AbaOposicoes ctx={{ empresaId: id, aba, params: sp }} />}
         {aba === "reunioes" && <AbaReunioes ctx={{ empresaId: id, aba, params: sp }} tipo="empregador" podeEditar={podeEditar} />}
         {aba === "setoriais" && <AbaReunioes ctx={{ empresaId: id, aba, params: sp }} tipo="setorial" podeEditar={podeEditar} />}
+        {aba === "arrecadacao" && <AbaArrecadacao empresaId={id} nome={nome} />}
 
         {aba === "visao" && (
           <>

@@ -124,6 +124,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Financeiro gerencial",
+    href: "/painel/financeiro/gerencial",
+    icone: "ChartColumn",
+    descricao: "Fluxo projetado, despesa por centro de custo, orçado × realizado, vencidas e fontes em atraso",
+    chave: "financeiro_leitura",
+    chavesAlternativas: ["financeiro_pagamento", "configuracoes"],
+    oculto: true,
+  },
+  {
     titulo: "Contas de caixa",
     href: "/painel/financeiro/caixas",
     icone: "Wallet",

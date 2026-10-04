@@ -1,0 +1,41 @@
+O **Financeiro gerencial** mostra o caixa antes de a direção aprovar: o que
+vence nos próximos meses contra a receita que costuma entrar, onde o dinheiro
+está sendo gasto, o orçado × realizado por centro de custo, o que já venceu
+sem pagamento e as fontes pagadoras que atrasaram a remessa. Abre pelo hub do
+Financeiro para quem lê o Financeiro.
+
+## Fluxo projetado
+
+Os cartões e o gráfico somam as ordens abertas (a pagar, processando, em
+autorização, aguardando informações) pelo mês de vencimento, nos próximos
+quatro meses, contra a **receita prevista** — a média dos três últimos meses
+com remessa das fontes. É uma estimativa para enxergar aperto antes que ele
+chegue, não um extrato bancário.
+
+## Despesa paga nos últimos 12 meses
+
+Tabela por **centro de custo**, **departamento** ou **tipo de ordem**, mês a
+mês, só com ordens pagas e pelo mês do pagamento. Quando a ordem tem rateio,
+cada parte vai para o seu centro de custo. As quinze maiores linhas aparecem
+por nome; o resto fica em "Outros".
+
+## Orçado × realizado
+
+Quem tem permissão em Ordens de pagamento define o **orçamento anual** de
+cada centro de custo direto na tabela (ou zera, apagando o valor). O
+realizado é o pago no ano; no ano corrente a coluna "esperado até agora"
+mostra a parcela do orçamento proporcional aos meses decorridos, e o
+percentual fica amarelo quando o gasto passa 10% disso e vermelho quando
+passa o orçamento inteiro.
+
+## Ordens vencidas e fontes em atraso
+
+As ordens abertas com vencimento passado aparecem das mais antigas para as
+mais novas, com os dias de atraso. As **fontes pagadoras com remessa em
+atraso** são as que têm filiados ativos e não enviaram a remessa do mês
+anterior; o link leva à aba **Arrecadação** da página do empregador, que
+mostra a série mensal da fonte, os pagantes contra os filiados ativos e a
+comparação com o mês anterior.
+
+Os números mensais vêm da camada analítica, recalculada toda madrugada
+(veja Indicadores).

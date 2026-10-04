@@ -39,6 +39,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "caixa_prestacoes",
   "cartoes",
   "financeiro_config",
+  "financeiro_orcamentos",
   "ordens_pagamento_eventos",
   "ordens_pagamento_estornos",
   "centros_de_custo",
