@@ -75,6 +75,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Busca global (Ctrl+K)",
         resumo: "Filiados, fornecedores, usuários, ordens, contratos, veículos e páginas num lugar só",
       },
+      {
+        slug: "suporte",
+        titulo: "Ajuda, novidades e feedback",
+        resumo: "O menu ? do cabeçalho: ajuda desta tela, o que há de novo e como relatar um problema",
+      },
     ],
   },
   {

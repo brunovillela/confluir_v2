@@ -1,11 +1,14 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { AjudaMenu } from "@/components/layout/ajuda-menu"
 import { BuscaGlobal } from "@/components/layout/busca-global"
 import { ContadoresHeader } from "@/components/layout/contadores-header"
 import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { mapaAjuda } from "@/lib/ajuda/rota"
 import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
+import { NOVIDADES } from "@/lib/novidades"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
@@ -82,6 +85,7 @@ export default async function PainelLayout({
               acoes={
                 <>
                   <BuscaGlobal paginas={paginasDaBusca} />
+                  <AjudaMenu mapa={mapaAjuda()} novidadeId={NOVIDADES[0].id} novidadeTitulo={NOVIDADES[0].titulo} />
                   <ContadoresHeader naoLidas={naoLidas} pendencias={totalPendencias(pendencias)} />
                 </>
               }

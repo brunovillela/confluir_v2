@@ -219,6 +219,8 @@ export type DadosDemanda = {
   prazo: string | null
   orcamento: number | null
   membro_responsavel_id: string | null
+  /** Origem da demanda (ex.: "Feedback do sistema"); o formulário não preenche. */
+  tipo?: string | null
 }
 
 export async function criarDemanda(

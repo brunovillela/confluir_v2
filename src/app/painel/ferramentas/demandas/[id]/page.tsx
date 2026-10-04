@@ -3,6 +3,8 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Pencil } from "lucide-react"
 
+import { TextoComLinks } from "@/components/texto-com-links"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -101,7 +103,9 @@ export default async function DemandaPage({
         <Card>
           <CardContent>
             <p className="text-muted-foreground mb-2 text-xs">Descrição</p>
-            <p className="text-sm whitespace-pre-wrap">{demanda.descricao}</p>
+            <p className="text-sm whitespace-pre-wrap">
+              <TextoComLinks texto={demanda.descricao} />
+            </p>
           </CardContent>
         </Card>
       )}

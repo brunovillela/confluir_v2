@@ -26,6 +26,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber" },
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida" },
+  { chave: "feedback_sistema", rotulo: "Relato de problema ou sugestão sobre o sistema (quem cuida das demandas)" },
 ] as const
 
 export type EventoTelegram = (typeof EVENTOS_TELEGRAM)[number]["chave"]
