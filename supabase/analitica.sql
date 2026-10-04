@@ -36,9 +36,24 @@ with pessoas as (
   select
     f.emp_proprietaria_id,
     f.id,
-    coalesce(f.ativo_em::date, (select min(v.data_filiacao) from public.filiacao_vinculos v where v.filiado_id = f.id)) as entrada,
-    coalesce(f.inativo_em::date, (select max(v.data_desfiliacao) from public.filiacao_vinculos v where v.filiado_id = f.id)) as saida
+    f.filiacao_condicao = 'Ativo' as ativo_hoje,
+    -- Datas REAIS (entram nas séries de entradas/saídas)
+    coalesce(f.ativo_em::date, v.primeira_filiacao) as entrada_real,
+    case when f.filiacao_condicao = 'Ativo' then null
+         else coalesce(f.inativo_em::date, v.ultima_desfiliacao) end as saida_real,
+    -- Datas de CONTAGEM (estoque de ativos): quem é ativo hoje sem data entra
+    -- pela data da condição ou do cadastro; quem não é ativo e não tem data
+    -- de saída sai pela data da condição (ou nunca contou).
+    coalesce(f.ativo_em::date, v.primeira_filiacao, f.condicao_desde::date, f.created_at::date) as entrada_conta,
+    case when f.filiacao_condicao = 'Ativo' then null
+         else coalesce(f.inativo_em::date, v.ultima_desfiliacao, f.condicao_desde::date,
+                       coalesce(f.ativo_em::date, v.primeira_filiacao, f.condicao_desde::date, f.created_at::date)) end as saida_conta
   from public.filiacoes f
+  left join lateral (
+    select min(coalesce(x.data_filiacao, x.filiacao_data_adesao)) as primeira_filiacao,
+           max(coalesce(x.data_desfiliacao, x.filiacao_data_saida)) as ultima_desfiliacao
+    from public.filiacao_vinculos x where x.filiado_id = f.id
+  ) v on true
   where f.filiacao_excluida is not true
     and f.mesclado_em is null
     and f.anonimizada_em is null
@@ -50,11 +65,11 @@ meses as (
 select
   m.emp_proprietaria_id,
   m.mes,
-  (select count(*) from pessoas p where p.emp_proprietaria_id = m.emp_proprietaria_id and p.entrada >= m.mes and p.entrada < m.mes + interval '1 month')::int as entradas,
-  (select count(*) from pessoas p where p.emp_proprietaria_id = m.emp_proprietaria_id and p.saida   >= m.mes and p.saida   < m.mes + interval '1 month')::int as saidas,
+  (select count(*) from pessoas p where p.emp_proprietaria_id = m.emp_proprietaria_id and p.entrada_real >= m.mes and p.entrada_real < m.mes + interval '1 month')::int as entradas,
+  (select count(*) from pessoas p where p.emp_proprietaria_id = m.emp_proprietaria_id and p.saida_real   >= m.mes and p.saida_real   < m.mes + interval '1 month')::int as saidas,
   (select count(*) from pessoas p where p.emp_proprietaria_id = m.emp_proprietaria_id
-      and p.entrada is not null and p.entrada < m.mes + interval '1 month'
-      and (p.saida is null or p.saida >= m.mes + interval '1 month'))::int as ativos_fim_mes
+      and p.entrada_conta is not null and p.entrada_conta < m.mes + interval '1 month'
+      and (p.saida_conta is null or p.saida_conta >= m.mes + interval '1 month'))::int as ativos_fim_mes
 from meses m;
 create unique index fato_filiacao_mensal_pk on public.fato_filiacao_mensal (emp_proprietaria_id, mes);
 
@@ -63,7 +78,7 @@ drop materialized view if exists public.fato_arrecadacao_mensal;
 create materialized view public.fato_arrecadacao_mensal as
 select
   r.emp_proprietaria_id,
-  make_date(r.ano::int, r.mes::int, 1) as mes,
+  make_date((r.ordem / 100)::int, (r.ordem % 100)::int, 1) as mes,
   coalesce(r.tipo, 'Associativa') as tipo,
   coalesce(l.fonte_pg_id, r.emp_contratante_id) as fonte_id,
   -- chave sem null para o índice único (o refresh concorrente exige colunas simples)
@@ -73,8 +88,7 @@ select
   count(distinct coalesce(l.filiado_id::text, l.cpf))::int as pagantes
 from public.filiacao_recebe_remessa r
 join public.filiacao_recebe l on l.remessa_id = r.id
-where r.ano::text ~ '^\d{4}$' and r.mes::text ~ '^\d{1,2}$'
-  and r.ano::int between 2000 and 2100 and r.mes::int between 1 and 12
+where r.ordem is not null and r.ordem between 200001 and 210012 and (r.ordem % 100) between 1 and 12
 group by 1, 2, 3, 4, 5;
 create unique index fato_arrecadacao_mensal_pk
   on public.fato_arrecadacao_mensal (emp_proprietaria_id, mes, tipo, fonte_chave);
