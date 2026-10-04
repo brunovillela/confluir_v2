@@ -69,6 +69,12 @@ export default async function IndicadoresPage({ searchParams }: { searchParams: 
               mês atual
             </a>
           </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/painel/indicadores/churn">Churn e retenção</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/painel/indicadores/custos">Custos consolidados</Link>
+          </Button>
           {podeAtualizar && painel.analiticaDisponivel && (
             <form action={atualizarAnaliticaAction}>
               <Button type="submit" variant="outline" size="sm">

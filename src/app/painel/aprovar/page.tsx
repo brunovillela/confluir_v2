@@ -26,8 +26,8 @@ export default async function AprovarPage() {
       <div className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tight">Aprovar</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          {total === 0 ? "Nada espera a sua decisão agora." : `${total} ite${total === 1 ? "m" : "ns"} esperando você.`}
-          {a.ordensAcima > 0 ? ` Há ${a.ordensAcima} ordem${a.ordensAcima === 1 ? "" : "ns"} acima da sua alçada.` : ""}
+          {total === 0 ? "Nada espera a sua decisão agora." : `${total} ${total === 1 ? "item" : "itens"} esperando você.`}
+          {a.ordensAcima > 0 ? ` Há ${a.ordensAcima} ${a.ordensAcima === 1 ? "ordem" : "ordens"} acima da sua alçada.` : ""}
         </p>
       </div>
 

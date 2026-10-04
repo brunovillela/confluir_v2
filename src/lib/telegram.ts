@@ -29,10 +29,24 @@ export function linkVinculo(codigo: string): string | null {
  * Envia uma mensagem pelo bot. Best-effort: retorna false se não configurado ou
  * em falha (nunca lança). `formato` HTML por padrão; passe null p/ texto puro.
  */
+/** Botão inline: callback (`dado`, até 64 bytes) ou link (`url`). */
+export type BotaoTelegram = { texto: string; dado?: string; url?: string }
+
+function tecladoInline(botoes?: BotaoTelegram[][]) {
+  if (!botoes || botoes.length === 0) return undefined
+  return {
+    inline_keyboard: botoes.map((linha) =>
+      linha.map((b) => (b.url ? { text: b.texto, url: b.url } : { text: b.texto, callback_data: (b.dado ?? "").slice(0, 64) }))
+    ),
+  }
+}
+
 export async function enviarTelegram(dados: {
   chatId: string | number
   texto: string
   formato?: "HTML" | "MarkdownV2" | null
+  /** Botões inline (onda 4, D3): aprovar/devolver sem sair da conversa. */
+  botoes?: BotaoTelegram[][]
 }): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) return false
@@ -46,11 +60,42 @@ export async function enviarTelegram(dados: {
         parse_mode:
           dados.formato === null ? undefined : (dados.formato ?? "HTML"),
         disable_web_page_preview: true,
+        reply_markup: tecladoInline(dados.botoes),
       }),
     })
     return resposta.ok
   } catch (e) {
     console.error("Falha ao enviar Telegram:", e)
     return false
+  }
+}
+
+/** Fecha o "relógio" do botão tocado; `texto` aparece como aviso curto. */
+export async function responderCallbackTelegram(callbackId: string, texto?: string, alerta = false): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return
+  try {
+    await fetch(`${API}/bot${token}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: callbackId, text: texto?.slice(0, 200), show_alert: alerta }),
+    })
+  } catch (e) {
+    console.error("Falha ao responder callback do Telegram:", e)
+  }
+}
+
+/** Troca o texto da mensagem que tinha os botões (e os remove), para a conversa não ficar com botão morto. */
+export async function editarMensagemTelegram(chatId: string | number, messageId: number, texto: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return
+  try {
+    await fetch(`${API}/bot${token}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: texto, parse_mode: "HTML", disable_web_page_preview: true }),
+    })
+  } catch (e) {
+    console.error("Falha ao editar mensagem do Telegram:", e)
   }
 }

@@ -49,3 +49,21 @@ export function respostaXlsx(nomeArquivo: string, bytes: Uint8Array): Response {
     },
   })
 }
+
+export type AbaXlsx<T> = { aba: string; colunas: ColunaXlsx<T>[]; linhas: T[] }
+
+/** Várias abas num livro só (exportação contábil: despesas + receitas). */
+export function planilhaXlsxAbas(abas: AbaXlsx<unknown>[]): Uint8Array {
+  const livro = XLSX.utils.book_new()
+  for (const { aba, colunas, linhas } of abas) {
+    const matriz: (string | number | Date | null)[][] = [
+      colunas.map((c) => c.titulo),
+      ...linhas.map((l) => colunas.map((c) => c.valor(l) ?? null)),
+    ]
+    const folha = XLSX.utils.aoa_to_sheet(matriz, { cellDates: true })
+    folha["!cols"] = colunas.map((c) => ({ wch: c.largura ?? 18 }))
+    folha["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(linhas.length, 1), c: colunas.length - 1 } }) }
+    XLSX.utils.book_append_sheet(livro, folha, aba.slice(0, 31))
+  }
+  return new Uint8Array(XLSX.write(livro, { type: "array", bookType: "xlsx", cellDates: true }) as ArrayBuffer)
+}

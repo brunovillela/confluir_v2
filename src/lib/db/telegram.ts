@@ -7,7 +7,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
-import { enviarTelegram } from "@/lib/telegram"
+import { type BotaoTelegram, enviarTelegram } from "@/lib/telegram"
 import { semAcento } from "@/lib/texto"
 import {
   normalizarPreferencias,
@@ -220,7 +220,9 @@ export async function enviarPushTelegram(
   mensagem: string,
   evento: EventoTelegram,
   /** Fora de requisição (cron), o chamador passa o service role. */
-  client?: SupabaseClient
+  client?: SupabaseClient,
+  /** Botões inline (aprovar/devolver) — onda 4, D3. */
+  botoes?: BotaoTelegram[][]
 ): Promise<void> {
   try {
     const admin = client ?? (await createAdminClient())
@@ -250,7 +252,7 @@ export async function enviarPushTelegram(
     if (!telefoneOk) return
     // Respeita a preferência do usuário (opt-out) para este tipo de aviso.
     if (!normalizarPreferencias(prefsBruto)[evento]) return
-    await enviarTelegram({ chatId, texto: mensagem, formato: null })
+    await enviarTelegram({ chatId, texto: mensagem, formato: null, botoes })
   } catch {
     // best-effort: o push nunca derruba a ação de RH.
   }

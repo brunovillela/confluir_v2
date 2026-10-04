@@ -13,6 +13,7 @@ import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permi
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { type EventoTelegram, normalizarPreferencias, type PreferenciasTelegram } from "@/lib/telegram-eventos"
+import type { BotaoTelegram } from "@/lib/telegram"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -145,6 +146,8 @@ export type Aviso = {
   umaVezPorDia?: boolean
   /** Com `umaVezPorDia`: compara só o começo do texto (resumos cujo conteúdo varia). */
   prefixoDoDia?: string
+  /** Botões inline no Telegram (aprovar/devolver na conversa). */
+  telegramBotoes?: BotaoTelegram[][]
 }
 
 function hojeSP(): string {
@@ -225,7 +228,7 @@ export async function avisar(
       }
     }
 
-    await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client)
+    await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client, aviso.telegramBotoes)
     // Web Push segue o sino: quem ligou "Receber no celular" recebe tudo que entra nele.
     await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
   }
@@ -280,7 +283,12 @@ export async function avisarOrdensEmAutorizacao(ordemIds: string[], amb: Ambient
         minhas.length === 1
           ? `Ordem ${minhas[0].codigo} (${minhas[0].tipo}, ${formatarMoeda(minhas[0].valor)}) aguarda sua autorização: ${minhas[0].descricao.slice(0, 160)}`
           : `${minhas.length} ordens de pagamento (${minhas[0].tipo}, total ${formatarMoeda(total)}) aguardam sua autorização.`
-      await avisar([a], { texto: textoAviso, link: "/painel/compras/avaliacoes", evento: "pendencia_aprovacao", assunto: "Ordem de pagamento aguardando sua autorização" }, amb)
+      // Uma ordem só: dá para decidir na própria conversa do Telegram (D3).
+      const telegramBotoes: BotaoTelegram[][] | undefined =
+        minhas.length === 1
+          ? [[{ texto: "✅ Aprovar", dado: `ord:a:${minhas[0].id}` }, { texto: "↩️ Devolver", dado: `ord:d:${minhas[0].id}` }]]
+          : undefined
+      await avisar([a], { texto: textoAviso, link: "/painel/aprovar", evento: "pendencia_aprovacao", assunto: "Ordem de pagamento aguardando sua autorização", telegramBotoes }, amb)
     }
   } catch (e) {
     console.error("avisarOrdensEmAutorizacao:", e)

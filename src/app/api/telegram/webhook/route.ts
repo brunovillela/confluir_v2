@@ -14,6 +14,7 @@ import {
 import { gerarTextoIA } from "@/lib/ia"
 import { podeAcessar } from "@/lib/permissoes"
 import { enviarTelegram } from "@/lib/telegram"
+import { responderAprovar, tratarCallbackAprovacao, tratarTextoDevolucao } from "@/lib/telegram-aprovacoes"
 import { mensagemFrota } from "@/lib/telegram-frota"
 
 export const runtime = "nodejs"
@@ -37,6 +38,32 @@ export async function POST(req: Request): Promise<Response> {
   try {
     update = (await req.json()) as Record<string, unknown>
   } catch {
+    return Response.json({ ok: true })
+  }
+
+  // Botão inline tocado (aprovar/devolver ordem — onda 4, D3).
+  const cb = update.callback_query as Record<string, unknown> | undefined
+  if (cb && typeof cb.id === "string") {
+    const cbMsg = cb.message as { chat?: { id?: number | string }; message_id?: number } | undefined
+    const cbChat = cbMsg?.chat?.id
+    if (cbChat !== undefined) {
+      try {
+        const u = await usuarioPorChat(String(cbChat))
+        if (!u || !u.telefoneConfirmado) {
+          await enviarTelegram({ chatId: String(cbChat), texto: "Vincule e confirme seu telefone em Meu perfil → Telegram antes de aprovar por aqui." })
+        } else {
+          await tratarCallbackAprovacao({
+            callbackId: cb.id,
+            chatId: String(cbChat),
+            messageId: typeof cbMsg?.message_id === "number" ? cbMsg.message_id : null,
+            dado: typeof cb.data === "string" ? cb.data : "",
+            u,
+          })
+        }
+      } catch (e) {
+        console.error("Erro no callback do Telegram:", e)
+      }
+    }
     return Response.json({ ok: true })
   }
 
@@ -133,6 +160,7 @@ async function tratar(chatId: string, texto: string): Promise<void> {
         "/informes — seus informes de rendimentos",
         "/asos — seus atestados de saúde ocupacional",
         "/carros — frota agora: disponíveis por sede e com quem estão os carros",
+        "/aprovar — ordens de pagamento na sua alçada, com botões para aprovar ou devolver",
         "/filiado &lt;nome ou CPF&gt; — consulta de filiação",
         "/eu — confirma sua conta vinculada",
         "/ajuda — esta mensagem",
@@ -144,6 +172,13 @@ async function tratar(chatId: string, texto: string): Promise<void> {
     })
     return
   }
+
+  if (texto === "/aprovar" || texto === "/aprovacoes" || texto === "/aprovações") {
+    await responderAprovar(chatId, u)
+    return
+  }
+  // Motivo de uma devolução pendente ou /devolver <id> <motivo>.
+  if (await tratarTextoDevolucao(chatId, texto, u)) return
 
   if (texto === "/eu") {
     await enviarTelegram({
@@ -189,7 +224,7 @@ async function tratar(chatId: string, texto: string): Promise<void> {
 
   // Texto livre → assistente por IA (sem acesso a dados sensíveis da pessoa).
   const { texto: resposta, erro } = await gerarTextoIA({
-    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, consulta de filiação por nome/CPF → /filiado <termo>. Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
+    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
     prompt: texto,
   })
   await enviarTelegram({
