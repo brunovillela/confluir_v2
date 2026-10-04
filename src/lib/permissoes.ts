@@ -916,6 +916,16 @@ export const MODULOS: Modulo[] = [
     ],
     oculto: true,
   },
+  {
+    titulo: "Indicadores",
+    href: "/painel/indicadores",
+    icone: "ChartColumn",
+    descricao: "Painel executivo: filiação, arrecadação, caixa, despesa e pendências",
+    // Gestão e diretoria: quem lê o Financeiro, cuida da filiação ou dos
+    // mandatos. Cada bloco da tela ainda respeita a sua permissão.
+    chave: "configuracoes",
+    chavesAlternativas: ["financeiro_leitura", "financeiro_pagamento", "filiacao_gestao", "filiacao_receitas", "diretoria_mandatos"],
+  },
 ]
 
 /** Coluna em `permissoes` que referencia `usuarios.id` (conferido no banco). */

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import {
   ArrowRight,
+  ChartColumn,
   Award,
   Car,
   Cake,
@@ -182,6 +183,23 @@ export default async function PainelPage({
       )}
 
       <CaixaDeEntrada pendencias={pendencias} />
+
+      {podeAcessar(sessao.permissoes, "configuracoes", ["financeiro_leitura", "financeiro_pagamento", "filiacao_gestao", "filiacao_receitas", "diretoria_mandatos"]) && (
+        <Link href="/painel/indicadores" className="group block">
+          <Card className="group-hover:border-primary/40 transition-colors">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <span className="flex min-w-0 items-center gap-3">
+                <ChartColumn className="text-muted-foreground size-5 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Indicadores</span>
+                  <span className="text-muted-foreground block text-xs">Filiação, arrecadação, caixa, despesa e o que está vencido, em uma tela só</span>
+                </span>
+              </span>
+              <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {contaCaixa && (
         <Link href="/painel/perfil/caixa" className="group block">

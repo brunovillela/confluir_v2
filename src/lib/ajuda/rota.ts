@@ -21,6 +21,7 @@ const BASE_DA_AREA: Record<string, string | null> = {
 /** Rotas que falam de um artigo cujo slug não é o segmento da rota. */
 const EXTRAS: Record<string, string> = {
   "/conta/seguranca": "/painel/ajuda/introducao/seguranca",
+  "/painel/indicadores": "/painel/ajuda/introducao/indicadores",
   "/painel/perfil/avisos": "/painel/ajuda/introducao/avisos",
   "/painel/notificacoes": "/painel/ajuda/introducao/avisos",
   "/painel/pessoal/aso": "/painel/ajuda/pessoal/atestados-aso",

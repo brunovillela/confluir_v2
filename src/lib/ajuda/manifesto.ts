@@ -76,6 +76,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Filiados, fornecedores, usuários, ordens, contratos, veículos e páginas num lugar só",
       },
       {
+        slug: "indicadores",
+        titulo: "Indicadores (painel executivo)",
+        resumo: "Filiação, arrecadação, caixa, despesa e o que está vencido, em uma tela só",
+      },
+      {
         slug: "suporte",
         titulo: "Ajuda, novidades e feedback",
         resumo: "O menu ? do cabeçalho: ajuda desta tela, o que há de novo e como relatar um problema",
