@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, ChartColumn, RefreshCw } from "lucide-react"
+import { ArrowRight, ChartColumn, FileText, RefreshCw } from "lucide-react"
 
 import { GraficoColunas } from "@/components/graficos/colunas"
 import { GraficoLinha } from "@/components/graficos/linha"
@@ -41,6 +41,8 @@ export default async function IndicadoresPage({ searchParams }: { searchParams: 
   const podeAtualizar = podeAcessar(sessao.permissoes, "configuracoes")
   const ultima = painel.atualizacoes?.map((a) => a.atualizadoEm).sort().at(-1) ?? null
   const { filiacao, arrecadacao, financeiro } = painel
+  const mesCorrente = painel.meses[painel.meses.length - 1].slice(0, 7)
+  const mesAnterior = painel.meses[painel.meses.length - 2].slice(0, 7)
 
   return (
     <>
@@ -55,14 +57,27 @@ export default async function IndicadoresPage({ searchParams }: { searchParams: 
             {ultima && <> Séries mensais atualizadas em {formatarDataHora(ultima)}.</>}
           </p>
         </div>
-        {podeAtualizar && painel.analiticaDisponivel && (
-          <form action={atualizarAnaliticaAction}>
-            <Button type="submit" variant="outline" size="sm">
-              <RefreshCw />
-              Atualizar agora
-            </Button>
-          </form>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/painel/indicadores/relatorio?mes=${mesAnterior}`} target="_blank" rel="noreferrer">
+              <FileText />
+              Relatório de {rotuloMes(`${mesAnterior}-01`)} (PDF)
+            </a>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <a href={`/painel/indicadores/relatorio?mes=${mesCorrente}`} target="_blank" rel="noreferrer">
+              mês atual
+            </a>
+          </Button>
+          {podeAtualizar && painel.analiticaDisponivel && (
+            <form action={atualizarAnaliticaAction}>
+              <Button type="submit" variant="outline" size="sm">
+                <RefreshCw />
+                Atualizar agora
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
 
       {atualizado && (

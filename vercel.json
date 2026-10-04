@@ -28,6 +28,10 @@
     {
       "path": "/api/analitica/tick",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/resumo-semanal/tick",
+      "schedule": "0 11 * * 1"
     }
   ]
 }
