@@ -3,6 +3,8 @@ import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 
+import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+
 import { tenantAtual } from "@/lib/tenant"
 
 import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
@@ -498,13 +500,22 @@ export async function subirFichaAssinada(
   const admin = await createAdminClient()
   const { data: s } = await admin
     .from("filiacao_solicitacoes")
-    .select("id, situacao, protocolo")
+    .select("id, situacao, protocolo, cpf")
     .eq("token", token)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (!s) return { erro: "Solicitação não encontrada." }
   if (s.situacao === "aguardando_verificacao") {
     return { erro: "Confirme seu e-mail antes de enviar a ficha assinada." }
+  }
+
+  // Validação PAdES/ICP-Brasil (onda 5, A4) — nunca barra o envio: quem decide é a avaliação.
+  const bytes = new Uint8Array(await arquivo.arrayBuffer())
+  let validacao: ValidacaoAssinatura | null = null
+  try {
+    validacao = validarAssinaturasPdf(bytes, texto(s.cpf))
+  } catch (e) {
+    console.error("validação da assinatura:", e)
   }
 
   const caminho = `assinados/${randomUUID()}.pdf`
@@ -517,16 +528,21 @@ export async function subirFichaAssinada(
     typeof s.protocolo === "number"
       ? s.protocolo
       : await proximoProtocolo(admin, empId)
-  const { error } = await admin
+  const patchFicha = {
+    documento_assinado_url: caminho,
+    situacao: "nao_avaliada",
+    protocolo,
+    updated_at: new Date().toISOString(),
+  }
+  let { error } = await admin
     .from("filiacao_solicitacoes")
-    .update({
-      documento_assinado_url: caminho,
-      situacao: "nao_avaliada",
-      protocolo,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...patchFicha, assinatura_validacao: validacao })
     .eq("id", s.id)
     .eq("emp_proprietaria_id", empId)
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // Sem a coluna (supabase/assinatura-validacao.sql): grava sem o resultado.
+    ;({ error } = await admin.from("filiacao_solicitacoes").update(patchFicha).eq("id", s.id).eq("emp_proprietaria_id", empId))
+  }
   if (error) return { erro: error.message }
   await registrarEvento(String(s.id), "ficha_assinada_enviada", null, ip, userAgent)
 
@@ -661,6 +677,8 @@ export async function contarSolicitacoesPendentes(): Promise<number> {
 
 export type SolicitacaoDetalhe = SolicitacaoPublica & {
   documentoAssinadoUrl: string | null
+  /** Resultado da validação PAdES do PDF (onda 5, A4); null = não verificado. */
+  assinaturaValidacao: ValidacaoAssinatura | null
   avaliacao_data: string | null
   avaliadorNome: string | null
   filiacaoId: string | null
@@ -751,6 +769,7 @@ export async function obterSolicitacaoDetalhe(
     tlDescontoId: texto(s.tl_desconto_id),
     created_at: texto(s.created_at),
     documentoAssinadoUrl,
+    assinaturaValidacao: (s.assinatura_validacao as ValidacaoAssinatura | null) ?? null,
     avaliacao_data: texto(s.avaliacao_data),
     avaliadorNome: av ? (texto(av.nome_completo) ?? texto(av.nome_guerra)) : null,
     filiacaoId: texto(s.filiacao_id),

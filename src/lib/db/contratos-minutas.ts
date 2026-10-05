@@ -1,5 +1,6 @@
 import "server-only"
 
+import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { assinantesVigentes } from "@/lib/db/diretoria"
 import { enderecoDaSede, listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
 import { esquemaAusente } from "@/lib/db/comum"
@@ -53,6 +54,8 @@ export type MinutaDetalhe = MinutaLista & {
   assinadaEm: string | null
   /** PDF assinado por fora (ICP-Brasil / gov.br). */
   arquivoAssinado: string | null
+  /** Validação PAdES do PDF assinado por fora (onda 5, A4); null = não verificado. */
+  assinaturaValidacao: ValidacaoAssinatura | null
   arquivoAssinadoEm: string | null
 }
 
@@ -161,6 +164,7 @@ export async function obterMinuta(id: string): Promise<MinutaDetalhe | null> {
     assinadaEm: txt(r.assinada_em),
     arquivoAssinado: txt(r.arquivo_assinado),
     arquivoAssinadoEm: txt(r.arquivo_assinado_em),
+    assinaturaValidacao: (r.assinatura_validacao as ValidacaoAssinatura | null | undefined) ?? null,
     versoes: (versoesBrutas ?? []).map((v) => ({
       id: v.id as string,
       versao: Number(v.versao),

@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { SeloAssinatura } from "@/components/selo-assinatura"
 import { VisualizadorPdf } from "@/components/visualizador-pdf"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -220,18 +221,22 @@ export default async function MinutaPage({
         </CardHeader>
         <CardContent className="grid gap-4">
           {minuta.arquivoAssinado && (
-            <Alert className="border-success/40 text-success-fg">
-              <CheckCircle2 />
-              <AlertDescription>
-                PDF assinado por certificado digital / gov.br anexado em{" "}
-                {formatarDataHora(minuta.arquivoAssinadoEm)}.{" "}
-                {urlExterno && (
-                  <a href={urlExterno} target="_blank" rel="noreferrer" className="underline">
-                    Abrir o PDF assinado
-                  </a>
-                )}
-              </AlertDescription>
-            </Alert>
+            <>
+              <Alert className="border-success/40 text-success-fg">
+                <CheckCircle2 />
+                <AlertDescription>
+                  PDF assinado por certificado digital / gov.br anexado em{" "}
+                  {formatarDataHora(minuta.arquivoAssinadoEm)}.{" "}
+                  {urlExterno && (
+                    <a href={urlExterno} target="_blank" rel="noreferrer" className="underline">
+                      Abrir o PDF assinado
+                    </a>
+                  )}
+                </AlertDescription>
+              </Alert>
+              {/* Selo da validação PAdES (onda 5, A4). */}
+              <SeloAssinatura validacao={minuta.assinaturaValidacao} />
+            </>
           )}
           {minuta.assinadaEm && (
             <Alert className="border-success/40 text-success-fg">

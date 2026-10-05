@@ -1,4 +1,5 @@
 import "server-only"
+import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
@@ -858,17 +859,29 @@ export async function subirDocumentoAssinado(
     .maybeSingle()
   if (!o) return { erro: "Oposição não encontrada." }
 
+  // Validação PAdES/ICP-Brasil (onda 5, A4): CPF do certificado × CPF do opositor.
+  let validacao: ValidacaoAssinatura | null = null
+  try {
+    validacao = validarAssinaturasPdf(new Uint8Array(await arquivo.arrayBuffer()), cpf)
+  } catch (e) {
+    console.error("validação da assinatura:", e)
+  }
+
   const caminho = `assinados/${randomUUID()}.pdf`
   const up = await admin.storage
     .from("oposicao")
     .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
   if (up.error) return { erro: `Falha ao subir o documento: ${up.error.message}` }
 
-  const { error } = await admin
+  let { error } = await admin
     .from("oposicao_opositor")
-    .update({ documento_assinado_url: caminho, situacao: "nao_avaliada" })
+    .update({ documento_assinado_url: caminho, situacao: "nao_avaliada", assinatura_validacao: validacao })
     .eq("id", opositorId)
     .eq("emp_proprietaria_id", empId)
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // Sem a coluna (supabase/assinatura-validacao.sql): grava sem o resultado.
+    ;({ error } = await admin.from("oposicao_opositor").update({ documento_assinado_url: caminho, situacao: "nao_avaliada" }).eq("id", opositorId).eq("emp_proprietaria_id", empId))
+  }
   if (error) return { erro: error.message }
   await registrarEvento(opositorId, "documento_enviado", null, ip, userAgent)
   return {}

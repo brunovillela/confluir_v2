@@ -21,7 +21,10 @@ import {
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 
+import { SeloAssinatura } from "@/components/selo-assinatura"
+
 import { AvaliarFichaForm } from "../solicitacoes-forms"
+import { ReverificarAssinaturaBotao } from "./reverificar"
 
 export const metadata: Metadata = { title: "Avaliar ficha — Confluir" }
 
@@ -148,13 +151,18 @@ export default async function SolicitacaoDetalhePage({
           </ul>
 
           {s.documentoAssinadoUrl && (
-            <div>
-              <Button variant="outline" size="sm" asChild>
-                <a href={s.documentoAssinadoUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink />
-                  Abrir ficha assinada
-                </a>
-              </Button>
+            <div className="grid gap-3">
+              {/* Selo da validação PAdES (onda 5, A4): só pede olhar humano quando não é "válida". */}
+              <SeloAssinatura validacao={s.assinaturaValidacao} />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <a href={s.documentoAssinadoUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink />
+                    Abrir ficha assinada
+                  </a>
+                </Button>
+                <ReverificarAssinaturaBotao solicitacaoId={s.id} />
+              </div>
             </div>
           )}
 

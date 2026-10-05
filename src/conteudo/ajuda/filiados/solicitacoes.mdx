@@ -79,3 +79,25 @@ Ao abrir uma solicitação, você confere os dados preenchidos e o **PDF assinad
     },
   ]}
 />
+
+## Selo da assinatura (verificação automática)
+
+Ao receber a ficha assinada, o sistema lê a assinatura digital embutida no
+PDF e mostra um **selo** na avaliação:
+
+- **Válida**: o arquivo não foi alterado depois de assinado, a assinatura
+  confere com o certificado, a cadeia fecha numa raiz ICP-Brasil reconhecida
+  e o **CPF do certificado é o do cadastro**.
+- **Íntegra, com ressalva**: tudo acima confere, mas a cadeia não veio
+  completa ou a raiz não está na lista de raízes confiadas da entidade.
+  Vale olhar o PDF.
+- **Inválida**: o conteúdo mudou depois da assinatura, a assinatura não bate
+  com o certificado, o certificado estava vencido ou o **CPF é de outra
+  pessoa**. Não aprove sem esclarecer.
+- **Sem assinatura digital**: o PDF é só uma imagem ou foi "assinado" com
+  figura. Peça a assinatura pelo gov.br.
+
+"Verificar assinatura agora" repete a verificação no PDF guardado — útil
+para fichas enviadas antes do selo existir. A verificação não consulta
+revogação de certificado nem carimbo de tempo; para um laudo oficial, use o
+Verificador de Conformidade do ITI com o mesmo PDF.

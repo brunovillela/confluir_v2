@@ -2,6 +2,8 @@ import "server-only"
 
 import QRCode from "qrcode"
 
+import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+
 import {
   conferirCodigo,
   formatarMomentoAssinatura,
@@ -753,22 +755,29 @@ export async function anexarAssinadoExterno(
   if (arquivo.size > MAX_PDF_EXTERNO) return { erro: "O PDF deve ter no máximo 15 MB." }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  // Validação PAdES/ICP-Brasil (onda 5, A4): sem CPF esperado (várias partes assinam).
+  let validacao: ValidacaoAssinatura | null = null
+  try {
+    validacao = validarAssinaturasPdf(new Uint8Array(await arquivo.arrayBuffer()), null)
+  } catch (e) {
+    console.error("validação da assinatura:", e)
+  }
   const caminho = `minutas/${minutaId}/assinado-externo-${Date.now()}.pdf`
   const { error: erroUpload } = await admin.storage
     .from("documentos")
     .upload(caminho, arquivo, { contentType: "application/pdf" })
   if (erroUpload) return { erro: `Falha ao guardar o PDF: ${erroUpload.message}` }
   const agora = new Date().toISOString()
-  const { error } = await admin
+  const patchMinuta = { arquivo_assinado: caminho, arquivo_assinado_em: agora, arquivo_assinado_por_id: usuarioId, updated_at: agora }
+  let { error } = await admin
     .from("contratos_minutas")
-    .update({
-      arquivo_assinado: caminho,
-      arquivo_assinado_em: agora,
-      arquivo_assinado_por_id: usuarioId,
-      updated_at: agora,
-    })
+    .update({ ...patchMinuta, assinatura_validacao: validacao })
     .eq("id", minutaId)
     .eq("emp_proprietaria_id", emp)
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // Sem a coluna assinatura_validacao (supabase/assinatura-validacao.sql): grava sem o resultado.
+    ;({ error } = await admin.from("contratos_minutas").update(patchMinuta).eq("id", minutaId).eq("emp_proprietaria_id", emp))
+  }
   if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_ASSINATURA_MINUTA : error.message }
   return {}
 }

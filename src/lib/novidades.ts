@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-06",
     titulo: "Conciliação bancária",
     itens: [
+      "Assinatura gov.br verificada: ao receber a ficha de filiação, a carta de oposição ou a minuta assinada em PDF, o sistema confere integridade, assinatura, cadeia ICP-Brasil, validade e o CPF do signatário contra o cadastro, e mostra o selo na avaliação.",
       "Filiados → Cobranças Pix: quem paga a contribuição por Pix recebe, todo mês, um QR Code e um código copia e cola no portal (Contribuição), com aviso; a baixa vem do extrato (identificador no histórico) ou da tela, e vira recebimento na remessa da competência.",
       "Financeiro → Remessas bancárias: cadastre a conta da entidade e gere o arquivo CNAB 240 (Pix por chave, crédito em conta, TED e boleto) com as ordens a pagar; o retorno do banco marca cada ordem paga ou rejeitada com o motivo.",
       "Financeiro → Conciliação bancária: importe o extrato em OFX ou CSV e cada lançamento é casado com a ordem paga ou com o depósito da fonte pagadora — sozinho quando há um único candidato, com um clique quando há mais. Crédito sem depósito vira o depósito da fonte na hora; tarifas e transferências internas podem ser ignoradas com o motivo.",
