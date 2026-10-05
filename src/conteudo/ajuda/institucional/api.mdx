@@ -1,0 +1,40 @@
+Outros sistemas podem **ler** os dados do Confluir (contador, Power BI, site
+da entidade) e **ser avisados** quando algo acontece aqui (ordem paga,
+filiação aprovada, cupom reservado, contribuição Pix recebida, retorno
+bancário). Tudo em **Institucional → API e webhooks**; a documentação técnica
+fica no botão "Documentação" dessa tela.
+
+<RequerPermissao>Configurações</RequerPermissao>
+
+## Chaves de API
+
+<PassoAPasso>
+  <Passo titulo="1. Crie uma chave por sistema">
+    Dê um nome (Contador, Power BI, Site) e copie a chave na hora: ela não
+    é mostrada de novo. Revogue quando aquele acesso não for mais necessário.
+  </Passo>
+  <Passo titulo="2. Use no endereço da entidade">
+    A chave vale só para esta entidade e só funciona no endereço dela. Vai no
+    cabeçalho `Authorization: Bearer cf_…`. Limite de 120 chamadas por
+    minuto.
+  </Passo>
+  <Passo titulo="3. O que dá para ler">
+    Filiados, arrecadação mensal, despesas pagas no período (igual à
+    exportação contábil), agenda e eventos — sempre em JSON, só leitura.
+  </Passo>
+</PassoAPasso>
+
+## Webhooks
+
+Cadastre a URL (HTTPS) do outro sistema e marque os eventos. Cada evento
+vira um POST com o corpo em JSON e um cabeçalho de **assinatura**
+(HMAC-SHA256 do corpo com o segredo do webhook, mostrado uma vez na criação)
+— o outro lado confere a assinatura antes de confiar. Se a URL não responder
+2xx em 10 segundos, reenviamos em 1 min, 10 min, 1 h e 6 h; depois a entrega
+fica como "falhou" e pode ser reenviada à mão. "Enviar evento de teste"
+dispara um evento `teste` para conferir a integração.
+
+<Aviso tipo="atencao" titulo="A chave é uma senha">
+  Quem tem a chave lê os dados dos filiados. Não a mande por canais abertos
+  e revogue na hora se ela vazar.
+</Aviso>

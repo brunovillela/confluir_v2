@@ -914,6 +914,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "API e webhooks",
+    href: "/painel/institucional/api",
+    icone: "Plug",
+    descricao: "Chaves de leitura para contador, Power BI e site; webhooks que avisam outros sistemas",
+    chave: "configuracoes",
+    oculto: true,
+  },
+  {
     titulo: "Auditoria",
     href: "/painel/institucional/auditoria",
     icone: "ScrollText",

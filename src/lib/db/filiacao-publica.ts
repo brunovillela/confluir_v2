@@ -4,6 +4,7 @@ import { hojeSP, texto } from "@/lib/db/comum"
 import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
 
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+import { emitirEvento } from "@/lib/db/webhooks"
 
 import { tenantAtual } from "@/lib/tenant"
 
@@ -908,5 +909,6 @@ export async function avaliarSolicitacao(
     .eq("emp_proprietaria_id", empId)
   if (error) return { erro: error.message }
   await registrarEvento(id, "aprovada", `filiacao_id=${filiacaoId}`, null, null)
+  void emitirEvento("filiacao.aprovada", { solicitacaoId: id, filiacaoId, nome: texto(s.nome_completo), cpf: texto(s.cpf), protocolo: s.protocolo ?? null })
   return { ok: true, email: texto(s.email), nome: texto(s.nome_completo), aprovado: true }
 }

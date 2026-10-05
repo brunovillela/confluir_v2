@@ -5,6 +5,7 @@ import { codigoDeBarrasDe, gerarRemessa240, lerRetorno240, type ContaRemessa, ty
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { registrarEvento, SITUACAO_A_PAGAR } from "@/lib/db/ordens-ciclo"
 import { obterOrganizacao } from "@/lib/db/organizacao"
+import { emitirEvento } from "@/lib/db/webhooks"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -596,6 +597,7 @@ export async function processarRetorno(p: { remessaId: string; arquivo: File; us
     .from("financeiro_remessas")
     .update({ situacao: "retornada", retorno_nome: p.arquivo.name.slice(0, 160), retorno_conteudo: textoRet.slice(0, 2_000_000), retorno_em: agora, retorno_por: p.usuarioId, retorno_resumo: { pagos, rejeitados, naoEncontrados } })
     .eq("id", p.remessaId)
+  void emitirEvento("remessa.retornada", { remessaId: p.remessaId, numero: r.remessa.numero, conta: r.remessa.contaApelido, pagos, rejeitados, naoEncontrados })
   return { pagos, rejeitados, naoEncontrados, avisos }
 }
 

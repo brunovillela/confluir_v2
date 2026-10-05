@@ -2,6 +2,7 @@ import "server-only"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
+import { emitirEvento } from "@/lib/db/webhooks"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -150,6 +151,11 @@ export async function registrarEvento(
   )
   if (error && !esquemaAusente(error)) {
     console.error("registrarEvento:", error.message)
+  }
+  // Webhooks de saída (onda 5, A9): os marcos que outros sistemas querem saber.
+  const eventoWebhook = ({ paga: "ordem.paga", autorizada: "ordem.autorizada", devolvida: "ordem.devolvida" } as const)[tipo as "paga" | "autorizada" | "devolvida"]
+  if (eventoWebhook) {
+    for (const ordem_id of ids) void emitirEvento(eventoWebhook, { ordemId: ordem_id, descricao, ...(dados ?? {}) })
   }
 }
 

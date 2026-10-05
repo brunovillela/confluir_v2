@@ -7,6 +7,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { emitirEvento } from "@/lib/db/webhooks"
 import { escaparLike } from "@/lib/texto"
 
 /**
@@ -881,6 +882,7 @@ export async function vincularCupomAReserva(
         link: "/portal/hospedagem",
       })
     }
+    void emitirEvento("cupom.reservado", { cupomId, servicoId, hotelId: servico.hotel_id, hotel: hotel?.nome ?? null, filiacaoId: cupom.filiado_id, nome: texto(f?.nome_completo), cpf, checkIn: texto(cupom.check_in) })
   }
   return { ok: "Cupom vinculado." }
 }

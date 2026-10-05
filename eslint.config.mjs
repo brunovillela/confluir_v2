@@ -21,6 +21,8 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/db/resumo-semanal.ts",
   "src/lib/db/hospedagem-avaliacoes.ts",
   "src/lib/db/telegram.ts",
+  "src/lib/api-publica.ts",
+  "src/lib/db/webhooks.ts",
   "src/app/api/**",
   "src/app/admin/**",
 ];

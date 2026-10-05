@@ -8,6 +8,7 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { invalidarCacheInadimplencia } from "@/lib/db/filiacao-inadimplencia"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { emitirEvento } from "@/lib/db/webhooks"
 import { type ContextoEmail } from "@/lib/email"
 import { formatarMoeda } from "@/lib/formato"
 import { gerarBrCodePix, txidValido } from "@/lib/pix-brcode"
@@ -362,6 +363,7 @@ export async function baixarCobranca(p: {
       { client, tenantId, contexto }
     )
   }
+  void emitirEvento("cobranca.paga", { cobrancaId: p.cobrancaId, filiacaoId: String(c.filiacao_id), cpf, competencia: String(c.competencia), valor: p.valorPago, pagoEm: p.dataPagamento, lancamentoId: String(lanc.id) }, { client, tenantId })
   return { lancamentoId: String(lanc.id) }
 }
 

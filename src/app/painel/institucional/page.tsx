@@ -7,6 +7,7 @@ import {
   Mail,
   Plane,
   ScrollText,
+  Plug,
   ShieldCheck,
   Smartphone,
   Users,
@@ -29,6 +30,13 @@ type Area = {
 }
 
 const AREAS: Area[] = [
+  {
+    titulo: "API e webhooks",
+    descricao: "Chaves de leitura e avisos a outros sistemas",
+    href: "/painel/institucional/api",
+    icone: Plug,
+    chave: "configuracoes",
+  },
   {
     titulo: "Organização",
     descricao: "Razão social, CNPJ, logo e endereços das sedes",

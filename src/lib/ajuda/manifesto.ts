@@ -684,6 +684,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
     disponivel: true,
     artigos: [
       {
+        slug: "api",
+        titulo: "API e webhooks",
+        resumo: "Chaves de leitura para contador, Power BI e site; webhooks com assinatura e reenvio",
+      },
+      {
         slug: "index",
         titulo: "Visão geral do Institucional",
         resumo: "Organização, diretoria, atas, MTE, e-mails, usuários e ajudas",

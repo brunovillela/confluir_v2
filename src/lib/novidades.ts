@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-06",
     titulo: "Conciliação bancária",
     itens: [
+      "API e webhooks (Institucional): chaves de leitura para o contador, o Power BI e o site (filiados, arrecadação, despesas, agenda, eventos) e webhooks assinados que avisam outros sistemas quando uma ordem é paga, uma filiação é aprovada, um cupom é reservado ou uma contribuição Pix entra — com reenvio automático e log de entregas.",
       "Assinatura gov.br verificada: ao receber a ficha de filiação, a carta de oposição ou a minuta assinada em PDF, o sistema confere integridade, assinatura, cadeia ICP-Brasil, validade e o CPF do signatário contra o cadastro, e mostra o selo na avaliação.",
       "Filiados → Cobranças Pix: quem paga a contribuição por Pix recebe, todo mês, um QR Code e um código copia e cola no portal (Contribuição), com aviso; a baixa vem do extrato (identificador no histórico) ou da tela, e vira recebimento na remessa da competência.",
       "Financeiro → Remessas bancárias: cadastre a conta da entidade e gere o arquivo CNAB 240 (Pix por chave, crédito em conta, TED e boleto) com as ordens a pagar; o retorno do banco marca cada ordem paga ou rejeitada com o motivo.",
