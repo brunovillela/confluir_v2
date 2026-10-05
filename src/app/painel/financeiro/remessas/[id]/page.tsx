@@ -45,7 +45,7 @@ export default async function RemessaPage({ params, searchParams }: { params: Pr
             <Badge variant={remessa.situacao === "retornada" ? "success" : remessa.situacao === "cancelada" ? "outline" : remessa.situacao === "enviada" ? "warning" : "secondary"}>{ROTULO[remessa.situacao]}</Badge>
           </div>
           <p className="text-muted-foreground mt-1 text-xs">
-            {remessa.arquivoNome} · conta {remessa.contaApelido} · {remessa.totalItens} ite{remessa.totalItens === 1 ? "m" : "ns"} · {formatarMoeda(remessa.totalValor)} · gerada em {formatarDataHora(remessa.geradaEm)}
+            {remessa.arquivoNome} · conta {remessa.contaApelido} · {remessa.totalItens} {remessa.totalItens === 1 ? "item" : "itens"} · {formatarMoeda(remessa.totalValor)} · gerada em {formatarDataHora(remessa.geradaEm)}
             {remessa.retornoEm ? ` · retorno em ${formatarDataHora(remessa.retornoEm)}${remessa.retornoNome ? ` (${remessa.retornoNome})` : ""}` : ""}
           </p>
         </div>

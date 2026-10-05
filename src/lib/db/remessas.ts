@@ -184,6 +184,20 @@ export async function salvarContaBancaria(id: string | null, d: DadosConta): Pro
 
 // ── Ordens prontas para remessa ──────────────────────────────────────────────
 
+/** CPF/CNPJ só com dígitos; telefone no formato +55DDDNÚMERO; e-mail e aleatória como estão. */
+function chavePixNormalizada(bruta: string): string {
+  const t = bruta.trim()
+  if (/@/.test(t) || /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(t)) return t
+  const d = t.replace(/\D/g, "")
+  if (d.length === 11 || d.length === 14) {
+    // 11 dígitos: CPF, salvo se vier com "+" ou "(" (telefone).
+    if (d.length === 11 && /^\s*(\+|\()/.test(t)) return `+55${d}`
+    return d
+  }
+  if (d.length === 12 || d.length === 13) return `+${d.startsWith("55") ? d : `55${d}`}`
+  return t
+}
+
 function documentoLimpo(v: string | null | undefined): string | null {
   const d = (v ?? "").replace(/\D/g, "")
   return d.length === 11 || d.length === 14 ? d : null
@@ -302,7 +316,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
       if (!usar) pendencias.push(forma === "Pix (QR Code)" && texto(o.pix_codigo) ? "Pix por QR Code não entra na remessa — pague pelo app do banco" : "favorecido sem chave Pix nem conta bancária cadastrada")
       else if (usar === comPix && !(prefereConta && comConta)) {
         meio = "pix"
-        const chave = String(usar.pix).trim()
+        const chave = chavePixNormalizada(String(usar.pix))
         destino = `Pix ${chave}`
         item = { ...base, tipo: "pix", chave }
       } else {

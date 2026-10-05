@@ -48,7 +48,7 @@ export default async function NovaRemessaPage() {
           <CardHeader>
             <CardTitle className="text-base">Ordens a pagar</CardTitle>
             <CardDescription className="text-xs">
-              {ordens.length} ordem{ordens.length === 1 ? "" : "ns"} a pagar · {prontas} pronta{prontas === 1 ? "" : "s"} para a remessa. A data de pagamento é o vencimento (ou hoje, se já venceu).
+              {ordens.length} {ordens.length === 1 ? "ordem" : "ordens"} a pagar · {prontas} pronta{prontas === 1 ? "" : "s"} para a remessa. A data de pagamento é o vencimento (ou hoje, se já venceu).
             </CardDescription>
           </CardHeader>
           <CardContent>
