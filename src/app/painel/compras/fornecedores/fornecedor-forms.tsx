@@ -178,8 +178,8 @@ export function FornecedorForm({
           />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="grid gap-1.5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_auto_auto]">
+        <div className="grid gap-1.5 md:col-span-2 xl:col-span-1">
           <Label htmlFor="cnpj_cpf">CNPJ/CPF (só números)</Label>
           <div className="flex gap-2">
             <Input
