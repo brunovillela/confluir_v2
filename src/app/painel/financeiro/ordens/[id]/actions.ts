@@ -11,7 +11,9 @@ import {
   debitarCaixaCompra,
   saldoCaixaAberta,
 } from "@/lib/db/compras-pagamento"
+import { subirComprovanteCompras, subirPdfCompras } from "@/lib/db/compras"
 import {
+  alterarSituacaoOrdem,
   caixaJaDebitado,
   cancelarOrdem,
   corrigirOrdem,
@@ -338,4 +340,92 @@ export async function registrarEstornoAction(
   if (erro) return { erro }
   revalidarOrdem(id)
   redirect(`/painel/financeiro/ordens/${id}?estornada=1`)
+}
+
+/**
+ * Nota fiscal e/ou boleto anexados (ou substituídos) pela tela da ordem —
+ * caminhos no bucket 'compras' (notas/…, boletos/…), os mesmos da compra
+ * direta e das parcelas de contrato. A situação da ordem não muda aqui.
+ */
+export async function salvarDocumentosOrdemAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const id = texto(formData, "id")
+  if (!id) return { erro: "Ordem inválida." }
+
+  const admin = await createAdminClient()
+  const { data: ordem } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, arquivo_nota_fiscal, arquivo_boleto, forma_pagamento")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!ordem) return { erro: "Ordem não encontrada." }
+  if (ordem.situacao === "Cancelada") {
+    return { erro: "Ordem cancelada não recebe documentos." }
+  }
+
+  const nota = formData.get("nota")
+  const boleto = formData.get("boleto")
+  const temNota = nota instanceof File && nota.size > 0
+  const temBoleto = boleto instanceof File && boleto.size > 0
+  if (!temNota && !temBoleto) {
+    return { erro: "Anexe a nota fiscal e/ou o boleto." }
+  }
+
+  const mudancas: Record<string, string> = {}
+  if (temNota) {
+    const r = await subirComprovanteCompras(`notas/ordens/${id}`, nota)
+    if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir a nota fiscal." }
+    mudancas.arquivo_nota_fiscal = r.caminho
+  }
+  if (temBoleto) {
+    const r = await subirPdfCompras(`boletos/ordens/${id}`, boleto)
+    if (r.erro || !r.caminho) {
+      return { erro: r.erro === "O arquivo deve ser um PDF." ? "O boleto deve ser um arquivo PDF." : (r.erro ?? "Falha ao subir o boleto.") }
+    }
+    mudancas.arquivo_boleto = r.caminho
+  }
+
+  const { error } = await admin.from("ordens_pagamento").update(mudancas).eq("id", id)
+  if (error) return { erro: `Não foi possível salvar os documentos: ${error.message}` }
+
+  const partes = [
+    temNota ? `nota fiscal ${ordem.arquivo_nota_fiscal ? "substituída" : "anexada"}` : null,
+    temBoleto ? `boleto ${ordem.arquivo_boleto ? "substituído" : "anexado"}` : null,
+  ].filter(Boolean)
+  await registrarEvento(
+    id,
+    "documento_fiscal",
+    sessao.usuario.id,
+    `Pela tela da ordem: ${partes.join(" e ")}.`,
+    {
+      ...(temNota ? { arquivo_nota_fiscal: mudancas.arquivo_nota_fiscal, nota_anterior: ordem.arquivo_nota_fiscal } : {}),
+      ...(temBoleto ? { arquivo_boleto: mudancas.arquivo_boleto, boleto_anterior: ordem.arquivo_boleto } : {}),
+    }
+  )
+  revalidarOrdem(id)
+  redirect(`/painel/financeiro/ordens/${id}?documentos=1`)
+}
+
+/** Troca manual da situação (ordem não paga), com motivo — ver DESTINOS_SITUACAO. */
+export async function alterarSituacaoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const id = texto(formData, "id")
+  if (!id) return { erro: "Ordem inválida." }
+  const { erro } = await alterarSituacaoOrdem(
+    id,
+    sessao.usuario.id,
+    texto(formData, "situacao"),
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidarOrdem(id)
+  revalidatePath("/painel/compras/contratos")
+  redirect(`/painel/financeiro/ordens/${id}?situacao=1`)
 }

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Search, Truck } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,6 +22,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
+import { podeEditarFornecedores, podeVerFinanceiroFornecedores } from "@/lib/fornecedores-acesso"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { filtrar, NATUREZAS, ORDENS, ordenar, PADRAO_POR_PAGINA, PROBLEMAS, SITUACOES, TRAVA, type Filtros, type Ordem } from "./filtros"
 
@@ -67,7 +69,12 @@ export default async function ListaFornecedoresPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requirePermissao("aquisicoes_fornecedores", ["aquisicoes_compras_edicao"])
+  const sessao = await requirePermissao("aquisicoes_fornecedores", [
+    "aquisicoes_fornecedores_edicao",
+    "aquisicoes_compras_edicao",
+  ])
+  const podeEditar = podeEditarFornecedores(sessao.permissoes)
+  const verFinanceiro = podeVerFinanceiroFornecedores(sessao.permissoes)
   const sp = await searchParams
   const pag = lerPaginacao(sp, PADRAO_POR_PAGINA)
   const f: Filtros = {
@@ -75,7 +82,10 @@ export default async function ListaFornecedoresPage({
     situacao: SITUACOES.some((x) => x.valor === sp.situacao) ? sp.situacao! : "ativos",
     natureza: NATUREZAS.some((x) => x.valor === sp.natureza) ? sp.natureza! : "todas",
     problema: PROBLEMAS.some((x) => x.valor === sp.problema) ? sp.problema! : "todos",
-    ordem: (ORDENS as readonly string[]).includes(sp.ordem ?? "") ? (sp.ordem as Ordem) : "nome",
+    ordem:
+      (ORDENS as readonly string[]).includes(sp.ordem ?? "") && (verFinanceiro || (sp.ordem !== "pago12m" && sp.ordem !== "ultima"))
+        ? (sp.ordem as Ordem)
+        : "nome",
     dir: sp.dir === "desc" ? "desc" : "asc",
     pagina: pag.pagina,
     porPagina: pag.porPagina,
@@ -104,12 +114,14 @@ export default async function ListaFornecedoresPage({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ExportarXlsx href="/painel/compras/fornecedores/lista/exportar" />
-          <Button asChild>
-            <Link href="/painel/compras/fornecedores/novo">
-              <Plus />
-              Novo fornecedor
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/compras/fornecedores/novo">
+                <Plus />
+                Novo fornecedor
+              </Link>
+            </Button>
+          )}
           </div>
         </div>
       </div>
@@ -138,6 +150,21 @@ export default async function ListaFornecedoresPage({
         )}
       </form>
 
+      {f.problema === "documento_duplicado" && total > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <span>
+              Cadastros com o mesmo CPF/CNPJ são, em geral, a mesma empresa registrada duas vezes
+              (migração do Bubble, cadastro repetido).{" "}
+              <Link href="/painel/compras/fornecedores/duplicados" className="font-medium underline">
+                {podeEditar ? "Mesclar os duplicados" : "Ver os duplicados agrupados"}
+              </Link>
+              {podeEditar && " junta tudo num cadastro só: ordens, contratos e demais registros."}
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardContent>
           {linhas.length === 0 ? (
@@ -151,9 +178,9 @@ export default async function ListaFornecedoresPage({
                 <TableRow>
                   <Ordenavel f={f} campo="nome">Fornecedor</Ordenavel>
                   <Ordenavel f={f} campo="documento">CPF/CNPJ</Ordenavel>
-                  <Ordenavel f={f} campo="pago12m" className="text-right">Pago em 12 meses</Ordenavel>
-                  <TableHead className="hidden text-right lg:table-cell">Em aberto</TableHead>
-                  <Ordenavel f={f} campo="ultima" className="hidden md:table-cell">Última ordem</Ordenavel>
+                  {verFinanceiro && <Ordenavel f={f} campo="pago12m" className="text-right">Pago em 12 meses</Ordenavel>}
+                  {verFinanceiro && <TableHead className="hidden text-right lg:table-cell">Em aberto</TableHead>}
+                  {verFinanceiro && <Ordenavel f={f} campo="ultima" className="hidden md:table-cell">Última ordem</Ordenavel>}
                   <Ordenavel f={f} campo="cadastro" className="hidden xl:table-cell">Cadastro</Ordenavel>
                   <Ordenavel f={f} campo="problemas">Alertas do cadastro</Ordenavel>
                 </TableRow>
@@ -179,15 +206,21 @@ export default async function ListaFornecedoresPage({
                       <TableCell className={cn("whitespace-nowrap tabular-nums", docRuim && "text-destructive font-medium")}>
                         {l.cnpj_cpf ? formatarCnpjCpf(l.cnpj_cpf) : "—"}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap tabular-nums">
-                        {l.pago12m ? formatarMoeda(l.pago12m) : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="hidden text-right whitespace-nowrap tabular-nums lg:table-cell">
-                        {l.emAberto ? formatarMoeda(l.emAberto) : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="hidden whitespace-nowrap md:table-cell">
-                        {l.ultimaOrdem ? formatarData(l.ultimaOrdem) : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
+                      {verFinanceiro && (
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">
+                          {l.pago12m ? formatarMoeda(l.pago12m) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      )}
+                      {verFinanceiro && (
+                        <TableCell className="hidden text-right whitespace-nowrap tabular-nums lg:table-cell">
+                          {l.emAberto ? formatarMoeda(l.emAberto) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      )}
+                      {verFinanceiro && (
+                        <TableCell className="hidden whitespace-nowrap md:table-cell">
+                          {l.ultimaOrdem ? formatarData(l.ultimaOrdem) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      )}
                       <TableCell className="hidden whitespace-nowrap xl:table-cell">
                         {l.created_at ? formatarData(l.created_at.slice(0, 10)) : "—"}
                       </TableCell>

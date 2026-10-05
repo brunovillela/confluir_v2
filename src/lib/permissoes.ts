@@ -304,6 +304,7 @@ export const MODULOS: Modulo[] = [
       "aquisicoes_avaliacoes",
       "aquisicoes_recebimentos",
       "aquisicoes_fornecedores",
+      "aquisicoes_fornecedores_edicao",
       "aquisicoes_contratos",
     ],
   },
@@ -339,7 +340,7 @@ export const MODULOS: Modulo[] = [
     icone: "ShoppingCart",
     descricao: "Consulta de fornecedores cadastrados",
     chave: "aquisicoes_fornecedores",
-    chavesAlternativas: ["aquisicoes_compras_edicao"],
+    chavesAlternativas: ["aquisicoes_fornecedores_edicao", "aquisicoes_compras_edicao"],
     oculto: true,
   },
   {

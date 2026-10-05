@@ -1,15 +1,30 @@
 "use client"
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react"
-import { FileUp, Loader2, Trash2 } from "lucide-react"
+import { FileUp, Loader2, Pencil, Trash2 } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
-import { excluirOrdensContratoAction, receberDocumentoOrdemAction } from "../actions"
+import {
+  editarOrdemContratoAction,
+  excluirOrdemContratoAction,
+  excluirOrdensContratoAction,
+  receberDocumentoOrdemAction,
+} from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Valor NUMERIC → texto pt-BR editável (sem símbolo). */
@@ -163,5 +178,129 @@ export function ExclusaoOrdensBarra({
         </div>
       )}
     </form>
+  )
+}
+
+/**
+ * Editar e excluir UMA ordem do contrato, na linha da tabela. Só aparece para
+ * ordem ainda não paga nem em processamento (o servidor confere de novo).
+ */
+export function AcoesLinhaOrdem({
+  contratoId,
+  ordem,
+}: {
+  contratoId: string
+  ordem: {
+    id: string
+    codigo: string | null
+    descricao: string | null
+    valor: number | null
+    vencimento: string | null
+    situacao: string | null
+  }
+}) {
+  const [aberto, setAberto] = useState(false)
+  // Salvou: o diálogo fecha e a confirmação aparece na linha.
+  const [estEditar, acaoEditar, pendEditar] = useActionState(
+    async (prev: { erro?: string; ok?: string }, dados: FormData) => {
+      const r = await editarOrdemContratoAction(prev, dados)
+      if (r.ok) setAberto(false)
+      return r
+    },
+    {}
+  )
+  const [estExcluir, acaoExcluir, pendExcluir] = useActionState(excluirOrdemContratoAction, {})
+  const autorizada = ordem.situacao === "A pagar"
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" title="Editar ordem" aria-label={`Editar a ordem ${ordem.codigo ?? ""}`}>
+            <Pencil />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar ordem {ordem.codigo ?? ""}</DialogTitle>
+            <DialogDescription>
+              {autorizada
+                ? "Esta ordem já foi autorizada: mudar o valor a devolve para autorização."
+                : "A alteração fica no histórico da ordem, com o antes e o depois."}
+            </DialogDescription>
+          </DialogHeader>
+          <form action={acaoEditar} className="grid gap-3">
+            <input type="hidden" name="contrato_id" value={contratoId} />
+            <input type="hidden" name="ordem_id" value={ordem.id} />
+            {estEditar.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estEditar.erro}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-1.5">
+              <Label htmlFor={`ed_desc_${ordem.id}`}>Descrição</Label>
+              <Input id={`ed_desc_${ordem.id}`} name="descricao" defaultValue={ordem.descricao ?? ""} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor={`ed_valor_${ordem.id}`}>Valor</Label>
+                <Input id={`ed_valor_${ordem.id}`} name="valor" inputMode="decimal" defaultValue={valorParaTexto(ordem.valor)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`ed_venc_${ordem.id}`}>Vencimento</Label>
+                <Input id={`ed_venc_${ordem.id}`} name="vencimento" type="date" defaultValue={(ordem.vencimento ?? "").slice(0, 10)} />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`ed_motivo_${ordem.id}`}>Motivo da alteração *</Label>
+              <textarea
+                id={`ed_motivo_${ordem.id}`}
+                name="motivo"
+                rows={2}
+                required
+                className="border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                Voltar
+              </Button>
+              <Button type="submit" disabled={pendEditar}>
+                {pendEditar && <Loader2 className="animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <form
+        action={acaoExcluir}
+        onSubmit={(e) =>
+          confirmarEnvio(
+            e,
+            `Excluir a ordem ${ordem.codigo ?? ""}? Ela sai do contrato e do Financeiro${autorizada ? " — e a autorização já dada é desfeita" : ""}. A exclusão fica no histórico.`
+          )
+        }
+      >
+        <input type="hidden" name="contrato_id" value={contratoId} />
+        <input type="hidden" name="ordem_id" value={ordem.id} />
+        <Button
+          type="submit"
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive size-8"
+          disabled={pendExcluir}
+          title="Excluir ordem"
+          aria-label={`Excluir a ordem ${ordem.codigo ?? ""}`}
+        >
+          {pendExcluir ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        </Button>
+      </form>
+      {(estExcluir.erro || estEditar.ok) && (
+        <span className={`max-w-48 text-xs ${estExcluir.erro ? "text-destructive" : "text-success-fg"}`}>
+          {estExcluir.erro ?? estEditar.ok}
+        </span>
+      )}
+    </div>
   )
 }

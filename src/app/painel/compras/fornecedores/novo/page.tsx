@@ -5,13 +5,15 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { CHAVE_EDICAO_FORNECEDORES } from "@/lib/fornecedores-acesso"
 
+import { consultarCnpjFornecedor } from "../actions"
 import { FornecedorForm } from "../fornecedor-forms"
 
 export const metadata: Metadata = { title: "Novo fornecedor — Confluir" }
 
 export default async function NovoFornecedorPage() {
-  await requirePermissao("aquisicoes_compras_edicao")
+  await requirePermissao(CHAVE_EDICAO_FORNECEDORES)
   return (
     <>
       <div>
@@ -25,8 +27,8 @@ export default async function NovoFornecedorPage() {
           Novo fornecedor
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Cadastro básico — endereço e dados bancários entram na página do
-          fornecedor
+          Pelo CNPJ, a Receita Federal e a IA preenchem o cadastro; dados
+          bancários entram depois, na página do fornecedor
         </p>
       </div>
       <Card>
@@ -34,7 +36,10 @@ export default async function NovoFornecedorPage() {
           <CardTitle className="text-base">Dados do fornecedor</CardTitle>
         </CardHeader>
         <CardContent>
-          <FornecedorForm aoCancelarHref="/painel/compras/fornecedores" />
+          <FornecedorForm
+            aoCancelarHref="/painel/compras/fornecedores"
+            consultarCnpj={consultarCnpjFornecedor}
+          />
         </CardContent>
       </Card>
     </>

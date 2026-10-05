@@ -45,7 +45,10 @@ export async function GET(
   if (!x) return new Response("Não encontrada", { status: 404 })
   const org = await obterOrganizacao()
   const logo = await logoDataUri(org?.logoUrl ?? null)
-  const origem = new URL(req.url).origin
+  const url = new URL(req.url)
+  const origem = url.origin
+  // ?simples=1: extrato sem as verificações da criação e a auditoria automática.
+  const simplificado = url.searchParams.get("simples") === "1"
 
   const o = x.detalhe.ordem as Record<string, unknown>
   const pr = x.procedencia
@@ -138,6 +141,7 @@ export async function GET(
       usuario: e.usuario,
       descricao: e.descricao,
     })),
+    simplificado,
   }
 
   const elemento = createElement(ExtratoOrdemPDF, dados) as Parameters<typeof renderToBuffer>[0]
@@ -146,7 +150,7 @@ export async function GET(
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="extrato-ordem-${dados.ordem.codigo}.pdf"`,
+      "Content-Disposition": `inline; filename="extrato${simplificado ? "-simplificado" : ""}-ordem-${dados.ordem.codigo}.pdf"`,
       "Cache-Control": "no-store",
     },
   })

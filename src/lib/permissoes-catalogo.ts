@@ -19,6 +19,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "aquisicoes_contratos", rotulo: "Contratos" },
       { chave: "aquisicoes_contratos_edicao", rotulo: "Contratos — editar" },
       { chave: "aquisicoes_fornecedores", rotulo: "Fornecedores" },
+      { chave: "aquisicoes_fornecedores_edicao", rotulo: "Fornecedores — cadastrar, editar e mesclar" },
       { chave: "aquisicoes_recebimentos", rotulo: "Recebimentos" },
     ],
   },

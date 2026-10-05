@@ -33,6 +33,7 @@ import { requirePermissao } from "@/lib/auth"
 import {
   buscarContrato,
   carregarOpcoesContrato,
+  ordemMexivelPeloContrato,
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
@@ -50,6 +51,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { BotaoExcluirContrato, ContratoForm } from "../contrato-forms"
 import { GerarOrdensForm } from "../gerar-ordens-form"
 import {
+  AcoesLinhaOrdem,
   ExclusaoOrdensBarra,
   MarcarTodasOrdens,
   ReceberDocumentoForm,
@@ -98,6 +100,8 @@ export default async function ContratoPage({
     geradas?: string
     puladas?: string
     rpaExcluido?: string
+    novaOrdem?: string
+    ordemExcluida?: string
     pagina?: string
     porPagina?: string
   }>
@@ -144,6 +148,11 @@ export default async function ContratoPage({
     !o.processo_compra_id &&
     !o.data_pagamento
   const temExcluivel = pagOrdens.linhas.some(excluivel)
+  // Editar/excluir UMA ordem: qualquer uma ainda não paga nem em processamento.
+  const mexivel = (o: (typeof detalhe.ordens)[number]) => podeEditar && ordemMexivelPeloContrato(o)
+  const temMexivel = pagOrdens.linhas.some(mexivel)
+  // "Nova ordem de pagamento" abre o gerador dentro do cartão das ordens.
+  const novaOrdem = podeEditar && brutos.novaOrdem === "1"
   const FORM_EXCLUSAO = "excluir-ordens-contrato"
   const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
 
@@ -204,6 +213,12 @@ export default async function ContratoPage({
       {brutos.rpaExcluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>RPA excluído, junto com a ordem de pagamento dele.</AlertDescription>
+        </Alert>
+      )}
+
+      {brutos.ordemExcluida === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem excluída — saiu do contrato e do Financeiro; a exclusão ficou no histórico dela.</AlertDescription>
         </Alert>
       )}
 
@@ -456,7 +471,7 @@ export default async function ContratoPage({
         </CardContent>
       </Card>
 
-      {podeEditar && (
+      {podeEditar && !novaOrdem && (
         <GrupoColapsavel
           titulo="Gerar ordens de pagamento"
           descricao="Cria ordens a partir do contrato (mensal, anual ou única)"
@@ -528,24 +543,62 @@ export default async function ContratoPage({
         </Card>
       )}
 
-      <Card>
+      <Card id="ordens">
         <CardHeader>
-          <CardTitle className="text-base">Ordens de pagamento</CardTitle>
-          <CardDescription>
-            {pagOrdens.total > 0 ? (
-              <>
-                {pagOrdens.total} ordem(ns) deste contrato · total{" "}
-                {formatarMoeda(totalOrdens)}
-              </>
-            ) : (
-              "Ordens geradas a partir deste contrato."
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Ordens de pagamento</CardTitle>
+              <CardDescription>
+                {pagOrdens.total > 0 ? (
+                  <>
+                    {pagOrdens.total} ordem(ns) deste contrato · total{" "}
+                    {formatarMoeda(totalOrdens)}
+                  </>
+                ) : (
+                  "Ordens geradas a partir deste contrato."
+                )}
+              </CardDescription>
+            </div>
+            {podeEditar && !novaOrdem && (
+              <Button size="sm" asChild>
+                <Link href={`${aqui}?novaOrdem=1#ordens`}>
+                  <Plus />
+                  Nova ordem de pagamento
+                </Link>
+              </Button>
             )}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
+          {novaOrdem && (
+            <div className="mb-6 rounded-lg border p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Nova ordem de pagamento</p>
+                  <p className="text-muted-foreground text-xs">
+                    Uma ordem só (periodicidade “única”) ou várias parcelas de uma vez.
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`${aqui}#ordens`}>Fechar</Link>
+                </Button>
+              </div>
+              <GerarOrdensForm
+                contratoId={c.id}
+                valorPadrao={c.valor}
+                vigenciaInicio={c.vigencia_inicio}
+                vigenciaTermino={c.vigencia_termino}
+                hoje={hojeLocalISO()}
+                temFornecedor={Boolean(c.fornecedor_id)}
+                fornecedorId={c.fornecedor_id}
+                caixas={caixas}
+              />
+            </div>
+          )}
           {pagOrdens.total === 0 ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
-              Nenhuma ordem gerada ainda. Use “Gerar ordens de pagamento” acima.
+              Nenhuma ordem gerada ainda.
+              {podeEditar && !novaOrdem && " Use “Nova ordem de pagamento” para criar a primeira."}
             </p>
           ) : (
             <>
@@ -580,6 +633,7 @@ export default async function ContratoPage({
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Situação</TableHead>
+                  {temMexivel && <TableHead className="w-24 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -632,6 +686,23 @@ export default async function ContratoPage({
                     <TableCell>
                       <SituacaoBadge situacao={o.situacao} />
                     </TableCell>
+                    {temMexivel && (
+                      <TableCell>
+                        {mexivel(o) && (
+                          <AcoesLinhaOrdem
+                            contratoId={c.id}
+                            ordem={{
+                              id: o.id,
+                              codigo: o.codigo,
+                              descricao: o.descricao,
+                              valor: o.valor,
+                              vencimento: o.vencimento,
+                              situacao: o.situacao,
+                            }}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

@@ -24,7 +24,17 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { requirePermissao } from "@/lib/auth"
-import { buscarFornecedor, type ContratoFornecedor } from "@/lib/db/fornecedores"
+import {
+  buscarFornecedor,
+  incorporadosPor,
+  mescladoEm,
+  type ContratoFornecedor,
+} from "@/lib/db/fornecedores"
+import {
+  podeEditarFornecedores,
+  podeVerBancarioFornecedores,
+  podeVerFinanceiroFornecedores,
+} from "@/lib/fornecedores-acesso"
 import {
   ehProblema,
   indicadoresDoFornecedor,
@@ -36,6 +46,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
+import { consultarCnpjFornecedor } from "../actions"
 import {
   BotaoAcaoFornecedor,
   ContaForm,
@@ -119,21 +130,29 @@ export default async function FornecedorPage({
     conta?: string
     pagina?: string
     porPagina?: string
+    mesclado?: string
+    pendentes?: string
   }>
 }) {
-  await requirePermissao("aquisicoes_fornecedores", [
+  const sessao = await requirePermissao("aquisicoes_fornecedores", [
+    "aquisicoes_fornecedores_edicao",
     "aquisicoes_compras_edicao",
   ])
+  const podeEditar = podeEditarFornecedores(sessao.permissoes)
+  const verFinanceiro = podeVerFinanceiroFornecedores(sessao.permissoes)
+  const verBancario = podeVerBancarioFornecedores(sessao.permissoes)
   const { id } = await params
   const brutos = await searchParams
 
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
+  const [incorporados, destinoMescla] = await Promise.all([incorporadosPor(f.id), mescladoEm(f.id)])
 
-  const editando = brutos.editar === "1"
-  const enderecoParam = brutos.endereco ?? ""
-  const contaParam = brutos.conta ?? ""
+  const editando = brutos.editar === "1" && podeEditar
+  // Formulários de endereço e conta só abrem para quem edita.
+  const enderecoParam = podeEditar ? (brutos.endereco ?? "") : ""
+  const contaParam = podeEditar ? (brutos.conta ?? "") : ""
   const aqui = `/painel/compras/fornecedores/${f.id}`
 
   const paginacao = lerPaginacao(brutos, 10)
@@ -159,14 +178,17 @@ export default async function FornecedorPage({
     duplicadoCom: f.inativa ? 0 : duplicados,
   })
   const ind = indicadoresDoFornecedor(ordens)
-  const indicadores = [
+  const todosIndicadores = [
     { titulo: "Pago em 12 meses", valor: formatarMoeda(ind.pago12m), detalhe: `${formatarMoeda(ind.pagoEsteAno)} neste ano` },
     { titulo: "Pago no total", valor: formatarMoeda(ind.pagoTotal), detalhe: `${ind.pagas.toLocaleString("pt-BR")} ordem(ns) paga(s) de ${ind.ordens.toLocaleString("pt-BR")}` },
     { titulo: "Ticket médio", valor: ind.ticketMedio === null ? "—" : formatarMoeda(ind.ticketMedio), detalhe: "por ordem paga" },
     { titulo: "Em aberto", valor: formatarMoeda(ind.emAberto), detalhe: "ordens ainda não pagas" },
     { titulo: "Última ordem", valor: ind.ultimaOrdem ? formatarData(ind.ultimaOrdem) : "—", detalhe: ind.ultimoPagamento ? `último pagamento em ${formatarData(ind.ultimoPagamento)}` : "sem pagamento registrado" },
-    { titulo: "Contratos vigentes", valor: detalhe.contratosVigentes.length.toLocaleString("pt-BR"), detalhe: `${detalhe.contratosTerminados.length.toLocaleString("pt-BR")} encerrado(s)` },
+    { titulo: "Contratos vigentes", valor: detalhe.contratosVigentes.length.toLocaleString("pt-BR"), detalhe: `${detalhe.contratosTerminados.length.toLocaleString("pt-BR")} encerrado(s)`, publico: true },
   ]
+  // Valores e ordens só para quem tem permissão do Financeiro.
+  const indicadores = verFinanceiro ? todosIndicadores : todosIndicadores.filter((i) => "publico" in i)
+  const duplicadoDoc = problemas.some((p) => p.codigo === "documento_duplicado")
 
   return (
     <>
@@ -196,6 +218,7 @@ export default async function FornecedorPage({
             )}
             {f.inativa && <Badge variant="outline">Inativo</Badge>}
           </div>
+          {podeEditar && (
           <div className="flex flex-wrap gap-2">
             <BotaoAcaoFornecedor
               acao="inativar"
@@ -217,6 +240,7 @@ export default async function FornecedorPage({
               Excluir
             </BotaoAcaoFornecedor>
           </div>
+          )}
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {f.cnpj_cpf ? formatarCnpjCpf(f.cnpj_cpf) : "CNPJ/CPF não informado"}
@@ -227,6 +251,35 @@ export default async function FornecedorPage({
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Alteração salva.</AlertDescription>
+        </Alert>
+      )}
+
+      {brutos.mesclado !== undefined && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            <p>
+              Cadastros mesclados neste. Registros transferidos: {brutos.mesclado}. Os
+              cadastros incorporados ficaram inativos, apontando para este.
+            </p>
+            {brutos.pendentes && (
+              <p className="text-warning-fg mt-1">
+                Ficaram no cadastro incorporado, porque este já tinha registro igual:{" "}
+                {brutos.pendentes.split(",").join(", ")}.
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {destinoMescla && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Este cadastro foi incorporado a{" "}
+            <Link href={`/painel/compras/fornecedores/${destinoMescla.id}`} className="font-medium underline">
+              {destinoMescla.nome}
+            </Link>
+            . Ordens, contratos e demais registros estão lá.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -248,16 +301,34 @@ export default async function FornecedorPage({
                 </li>
               ))}
             </ul>
-            {!editando && (
-              <Link href={`${aqui}?editar=1`} className="mt-2 inline-block font-medium underline">
-                Corrigir o cadastro
-              </Link>
+            {podeEditar && (
+              <div className="mt-2 flex flex-wrap gap-4">
+                {!editando && (
+                  <Link href={`${aqui}?editar=1`} className="font-medium underline">
+                    Corrigir o cadastro
+                  </Link>
+                )}
+                {duplicadoDoc && (
+                  <Link
+                    href={`/painel/compras/fornecedores/duplicados?doc=${digitosDoc}`}
+                    className="font-medium underline"
+                  >
+                    Mesclar os cadastros com este CPF/CNPJ
+                  </Link>
+                )}
+              </div>
             )}
           </AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {!verFinanceiro && (
+        <p className="text-muted-foreground text-xs">
+          Valores pagos, em aberto e as ordens de pagamento deste fornecedor ficam visíveis
+          para quem tem permissão do Financeiro.
+        </p>
+      )}
+      <div className={verFinanceiro ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
         {indicadores.map((i) => (
           <Card key={i.titulo} className="gap-1 py-4">
             <CardHeader className="px-4">
@@ -275,7 +346,7 @@ export default async function FornecedorPage({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Dados básicos</CardTitle>
-            {!editando && (
+            {podeEditar && !editando && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`${aqui}?editar=1`}>
                   <Pencil />
@@ -287,7 +358,11 @@ export default async function FornecedorPage({
         </CardHeader>
         <CardContent>
           {editando ? (
-            <FornecedorForm fornecedor={f} aoCancelarHref={aqui} />
+            <FornecedorForm
+              fornecedor={f}
+              aoCancelarHref={aqui}
+              consultarCnpj={consultarCnpjFornecedor}
+            />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
@@ -319,12 +394,12 @@ export default async function FornecedorPage({
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={verBancario ? "grid gap-6 lg:grid-cols-2" : "grid gap-6"}>
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">Endereços</CardTitle>
-              {enderecos !== null && enderecoParam !== "novo" && (
+              {podeEditar && enderecos !== null && enderecoParam !== "novo" && (
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`${aqui}?endereco=novo`}>
                     <Plus />
@@ -373,6 +448,7 @@ export default async function FornecedorPage({
                         {e.cep && ` · CEP ${e.cep}`}
                       </p>
                     </div>
+                    {podeEditar && (
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" asChild>
                         <Link href={`${aqui}?endereco=${e.id}`}>Editar</Link>
@@ -386,6 +462,7 @@ export default async function FornecedorPage({
                         Excluir
                       </BotaoAcaoFornecedor>
                     </div>
+                    )}
                   </div>
                 )
               )
@@ -396,11 +473,12 @@ export default async function FornecedorPage({
           </CardContent>
         </Card>
 
+        {verBancario && (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">Dados bancários</CardTitle>
-              {contaParam !== "novo" && (
+              {podeEditar && contaParam !== "novo" && (
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`${aqui}?conta=novo`}>
                     <Plus />
@@ -450,6 +528,7 @@ export default async function FornecedorPage({
                         .join(" · ") || "—"}
                     </p>
                   </div>
+                  {podeEditar && (
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`${aqui}?conta=${c.id}`}>Editar</Link>
@@ -463,6 +542,7 @@ export default async function FornecedorPage({
                       Excluir
                     </BotaoAcaoFornecedor>
                   </div>
+                  )}
                 </div>
               )
             )}
@@ -471,7 +551,36 @@ export default async function FornecedorPage({
             )}
           </CardContent>
         </Card>
+        )}
       </div>
+
+      {incorporados.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cadastros incorporados</CardTitle>
+            <CardDescription>
+              Duplicados mesclados neste — os registros deles foram transferidos para cá
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-1 text-sm">
+              {incorporados.map((i) => (
+                <li key={i.id} className="flex flex-wrap justify-between gap-2">
+                  <Link href={`/painel/compras/fornecedores/${i.id}`} className="hover:underline">
+                    {i.nome}
+                    {i.cnpj_cpf && (
+                      <span className="text-muted-foreground tabular-nums"> · {formatarCnpjCpf(i.cnpj_cpf)}</span>
+                    )}
+                  </Link>
+                  <span className="text-muted-foreground text-xs">
+                    {i.mesclado_em ? `mesclado em ${formatarData(i.mesclado_em.slice(0, 10))}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -507,6 +616,7 @@ export default async function FornecedorPage({
         </CardContent>
       </Card>
 
+      {verFinanceiro && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Ordens de pagamento</CardTitle>
@@ -593,6 +703,7 @@ export default async function FornecedorPage({
           </div>
         </CardContent>
       </Card>
+      )}
     </>
   )
 }

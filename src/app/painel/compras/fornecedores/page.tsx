@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   Hourglass,
   List,
+  Merge,
   Plus,
   Search,
   Sparkles,
@@ -40,18 +41,24 @@ import {
 } from "@/lib/db/fornecedores-indicadores"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { formatarCnpjCpf } from "@/lib/mascaras"
+import { podeEditarFornecedores, podeVerFinanceiroFornecedores } from "@/lib/fornecedores-acesso"
 
 export const metadata: Metadata = { title: "Fornecedores — Confluir" }
 
 const LISTA = "/painel/compras/fornecedores/lista"
 
 export default async function FornecedoresPage() {
-  await requirePermissao("aquisicoes_fornecedores", ["aquisicoes_compras_edicao"])
+  const sessao = await requirePermissao("aquisicoes_fornecedores", [
+    "aquisicoes_fornecedores_edicao",
+    "aquisicoes_compras_edicao",
+  ])
+  const podeEditar = podeEditarFornecedores(sessao.permissoes)
+  const verFinanceiro = podeVerFinanceiroFornecedores(sessao.permissoes)
   const linhas = await panoramaFornecedores()
   const ind = indicadoresGerais(linhas)
   const maiorValor = ind.maiores12m[0]?.pago12m ?? 0
 
-  const cartoes = [
+  const todosCartoes = [
     {
       titulo: "Fornecedores ativos",
       valor: ind.ativos.toLocaleString("pt-BR"),
@@ -73,12 +80,14 @@ export default async function FornecedoresPage() {
       detalhe: `a ${ind.fornecedoresPagos12m.toLocaleString("pt-BR")} fornecedor(es)`,
       icone: CircleDollarSign,
       href: `${LISTA}?ordem=pago12m&dir=desc`,
+      financeiro: true,
     },
     {
       titulo: "Em aberto",
       valor: formatarMoeda(ind.emAberto),
       detalhe: "ordens ainda não pagas",
       icone: Hourglass,
+      financeiro: true,
     },
     {
       titulo: "Cadastrados nos últimos 30 dias",
@@ -95,6 +104,9 @@ export default async function FornecedoresPage() {
       href: `${LISTA}?situacao=bloqueados`,
     },
   ]
+  // Valores pagos e em aberto: só para quem tem permissão do Financeiro.
+  const cartoes = todosCartoes.filter((c) => verFinanceiro || !("financeiro" in c))
+  const duplicados = ind.porProblema.documento_duplicado
 
   return (
     <>
@@ -119,12 +131,14 @@ export default async function FornecedoresPage() {
                 Lista completa
               </Link>
             </Button>
-            <Button asChild>
-              <Link href="/painel/compras/fornecedores/novo">
-                <Plus />
-                Novo fornecedor
-              </Link>
-            </Button>
+            {podeEditar && (
+              <Button asChild>
+                <Link href="/painel/compras/fornecedores/novo">
+                  <Plus />
+                  Novo fornecedor
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -177,9 +191,20 @@ export default async function FornecedoresPage() {
             <ul className="divide-border grid divide-y">
               {(Object.entries(ROTULO_PROBLEMA) as [CodigoProblema, string][]).map(([codigo, rotulo]) => (
                 <li key={codigo} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <Link href={`${LISTA}?problema=${codigo}`} className="hover:underline">
-                    {rotulo}
-                  </Link>
+                  <span className="flex flex-wrap items-center gap-x-3">
+                    <Link href={`${LISTA}?problema=${codigo}`} className="hover:underline">
+                      {rotulo}
+                    </Link>
+                    {codigo === "documento_duplicado" && duplicados > 0 && (
+                      <Link
+                        href="/painel/compras/fornecedores/duplicados"
+                        className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                      >
+                        <Merge className="size-3.5" />
+                        {podeEditar ? "Mesclar duplicados" : "Ver duplicados"}
+                      </Link>
+                    )}
+                  </span>
                   <Badge
                     variant="outline"
                     className={
@@ -200,6 +225,7 @@ export default async function FornecedoresPage() {
           </CardContent>
         </Card>
 
+        {verFinanceiro && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Maiores fornecedores — 12 meses</CardTitle>
@@ -227,6 +253,7 @@ export default async function FornecedoresPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {ind.travamPagamento.length > 0 && (
@@ -248,8 +275,8 @@ export default async function FornecedoresPage() {
                 <TableRow>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>CPF/CNPJ no cadastro</TableHead>
-                  <TableHead className="text-right">Pago em 12 meses</TableHead>
-                  <TableHead className="hidden text-right md:table-cell">Em aberto</TableHead>
+                  {verFinanceiro && <TableHead className="text-right">Pago em 12 meses</TableHead>}
+                  {verFinanceiro && <TableHead className="hidden text-right md:table-cell">Em aberto</TableHead>}
                   <TableHead className="hidden md:table-cell">Última ordem</TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,15 +284,15 @@ export default async function FornecedoresPage() {
                 {ind.travamPagamento.slice(0, 20).map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <Link href={`/painel/compras/fornecedores/${l.id}?editar=1`} className="text-primary hover:underline">
+                      <Link href={`/painel/compras/fornecedores/${l.id}${podeEditar ? "?editar=1" : ""}`} className="text-primary hover:underline">
                         {l.nome}
                       </Link>
                     </TableCell>
                     <TableCell className="text-destructive tabular-nums">
                       {l.cnpj_cpf ? formatarCnpjCpf(l.cnpj_cpf) : "sem documento"}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{l.pago12m ? formatarMoeda(l.pago12m) : "—"}</TableCell>
-                    <TableCell className="hidden text-right tabular-nums md:table-cell">{l.emAberto ? formatarMoeda(l.emAberto) : "—"}</TableCell>
+                    {verFinanceiro && <TableCell className="text-right tabular-nums">{l.pago12m ? formatarMoeda(l.pago12m) : "—"}</TableCell>}
+                    {verFinanceiro && <TableCell className="hidden text-right tabular-nums md:table-cell">{l.emAberto ? formatarMoeda(l.emAberto) : "—"}</TableCell>}
                     <TableCell className="hidden md:table-cell">{l.ultimaOrdem ? formatarData(l.ultimaOrdem) : "—"}</TableCell>
                   </TableRow>
                 ))}

@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { useActionState, useRef, useState, useTransition } from "react"
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import type {
   EnderecoFornecedor,
   Fornecedor,
 } from "@/lib/db/fornecedores"
+import type { DadosCnpj } from "@/lib/db/fornecedores-cnpj"
 
 import {
   atualizarFornecedorAction,
@@ -88,6 +89,7 @@ export function FornecedorForm({
   acaoAtualizar = atualizarFornecedorAction,
   rotuloEntidade = "fornecedor",
   rotuloBloqueio = "Bloqueado para fornecimento",
+  consultarCnpj,
 }: {
   fornecedor?: Fornecedor
   aoCancelarHref?: string
@@ -97,18 +99,51 @@ export function FornecedorForm({
   /** Palavra usada no botão/placeholder ("fornecedor" ou "entidade apoiada"). */
   rotuloEntidade?: string
   rotuloBloqueio?: string
+  /** Consulta da Receita + IA (Fornecedores). Sem ela, o botão não aparece. */
+  consultarCnpj?: (cnpj: string) => Promise<{ ficha?: DadosCnpj; erro?: string }>
 }) {
   const [estado, formAction, pendente] = useActionState(
     fornecedor ? acaoAtualizar : acaoCriar,
     {}
   )
+  const formRef = useRef<HTMLFormElement>(null)
+  const [consultando, iniciarConsulta] = useTransition()
+  const [ficha, setFicha] = useState<DadosCnpj | null>(null)
+  const [erroCnpj, setErroCnpj] = useState<string | null>(null)
+  const [usarEndereco, setUsarEndereco] = useState(!fornecedor)
   const [pj, setPj] = useState(fornecedor?.pessoa_juridica ?? true)
+
+  function preencherPeloCnpj() {
+    if (!consultarCnpj) return
+    const form = formRef.current
+    const campo = form?.elements.namedItem("cnpj_cpf") as HTMLInputElement | null
+    const cnpj = campo?.value ?? ""
+    setErroCnpj(null)
+    iniciarConsulta(async () => {
+      const r = await consultarCnpj(cnpj)
+      if (r.erro || !r.ficha) {
+        setFicha(null)
+        setErroCnpj(r.erro ?? "Não foi possível consultar o CNPJ.")
+        return
+      }
+      const f = r.ficha
+      const setar = (nome: string, valor: string | null) => {
+        const el = form?.elements.namedItem(nome) as HTMLInputElement | null
+        if (el && valor) el.value = valor
+      }
+      setar("cnpj_cpf", f.cnpj)
+      setar("nome_razao", f.nome_razao)
+      setar("nome_fantasia", f.nome_fantasia ?? f.nome_razao)
+      setPj(true)
+      setFicha(f)
+    })
+  }
   const [bloqueado, setBloqueado] = useState(
     fornecedor?.fornecedor_bloqueado ?? false
   )
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form ref={formRef} action={formAction} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -116,6 +151,12 @@ export function FornecedorForm({
       )}
       {fornecedor && (
         <input type="hidden" name="fornecedor_id" value={fornecedor.id} />
+      )}
+      {consultarCnpj && !fornecedor && (
+        <p className="text-muted-foreground text-xs">
+          Comece pelo CNPJ: <strong>Preencher pelo CNPJ</strong> traz a razão social, o nome
+          fantasia e o endereço do cadastro da Receita Federal, padronizados pela IA.
+        </p>
       )}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-1.5">
@@ -140,13 +181,29 @@ export function FornecedorForm({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="grid gap-1.5">
           <Label htmlFor="cnpj_cpf">CNPJ/CPF (só números)</Label>
-          <Input
-            id="cnpj_cpf"
-            name="cnpj_cpf"
-            inputMode="numeric"
-            defaultValue={fornecedor?.cnpj_cpf ?? ""}
-            placeholder="14 dígitos (CNPJ) ou 11 (CPF)"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="cnpj_cpf"
+              name="cnpj_cpf"
+              inputMode="numeric"
+              defaultValue={fornecedor?.cnpj_cpf ?? ""}
+              placeholder="14 dígitos (CNPJ) ou 11 (CPF)"
+            />
+            {consultarCnpj && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={preencherPeloCnpj}
+                disabled={consultando}
+                title="Consulta o cadastro da Receita Federal e padroniza com IA"
+                className="shrink-0"
+              >
+                {consultando ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                Preencher pelo CNPJ
+              </Button>
+            )}
+          </div>
+          {erroCnpj && <p className="text-destructive text-xs">{erroCnpj}</p>}
         </div>
         <label className="flex items-center gap-2 self-end pb-2 text-sm">
           <Switch checked={pj} onCheckedChange={setPj} aria-label="Pessoa jurídica" />
@@ -161,6 +218,14 @@ export function FornecedorForm({
           {rotuloBloqueio}
         </label>
       </div>
+      {ficha && (
+        <FichaReceita
+          ficha={ficha}
+          fornecedorId={fornecedor?.id ?? null}
+          usarEndereco={usarEndereco}
+          setUsarEndereco={setUsarEndereco}
+        />
+      )}
       <input type="hidden" name="pessoa_juridica" value={pj ? "on" : ""} />
       <input
         type="hidden"
@@ -179,6 +244,98 @@ export function FornecedorForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+/** O que a Receita Federal diz do CNPJ consultado — conferência antes de salvar. */
+function FichaReceita({
+  ficha,
+  fornecedorId,
+  usarEndereco,
+  setUsarEndereco,
+}: {
+  ficha: DadosCnpj
+  fornecedorId: string | null
+  usarEndereco: boolean
+  setUsarEndereco: (v: boolean) => void
+}) {
+  const e = ficha.endereco
+  const linhaEnd = e
+    ? [
+        [e.logradouro, e.numero, e.complemento].filter(Boolean).join(", "),
+        [e.bairro, e.cidade && e.estado ? `${e.cidade}/${e.estado}` : e.cidade].filter(Boolean).join(" · "),
+        e.cep ? `CEP ${e.cep}` : null,
+      ]
+        .filter(Boolean)
+        .join(" — ")
+    : null
+  const duplicado = ficha.existente && ficha.existente.id !== fornecedorId ? ficha.existente : null
+  return (
+    <div className="bg-muted/40 grid gap-2 rounded-md border p-3 text-sm">
+      <p className="flex flex-wrap items-center gap-1.5 font-medium">
+        <Sparkles className="text-primary size-4" />
+        Cadastro na Receita Federal
+        <span className="text-muted-foreground text-xs font-normal">
+          {ficha.viaIA ? "· padronizado pela IA — confira antes de salvar" : "· IA indisponível, padronização simples"}
+        </span>
+      </p>
+      <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-3">
+        <div>
+          <dt className="text-muted-foreground text-xs">Situação cadastral</dt>
+          <dd>{ficha.situacao ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs">Início da atividade</dt>
+          <dd>{ficha.abertura ? ficha.abertura.slice(0, 10).split("-").reverse().join("/") : "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground text-xs">Contato</dt>
+          <dd className="break-words">{[ficha.telefone, ficha.email].filter(Boolean).join(" · ") || "—"}</dd>
+        </div>
+        {ficha.atividade && (
+          <div className="sm:col-span-3">
+            <dt className="text-muted-foreground text-xs">Atividade</dt>
+            <dd>{ficha.atividade}</dd>
+          </div>
+        )}
+      </dl>
+      {duplicado && (
+        <Alert variant="warning">
+          <AlertTriangle />
+          <AlertDescription>
+            <span>
+              Já existe um cadastro ativo com este CNPJ:{" "}
+              <a href={`/painel/compras/fornecedores/${duplicado.id}`} className="font-medium underline">
+                {duplicado.nome}
+              </a>
+              . Use-o em vez de criar outro.
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+      {ficha.alertas.length > 0 && (
+        <ul className="text-warning-fg list-disc pl-5 text-xs">
+          {ficha.alertas.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+      )}
+      {e && linhaEnd && (
+        <label className="flex items-start gap-2 text-xs">
+          <input
+            type="checkbox"
+            name="receita_endereco_usar"
+            checked={usarEndereco}
+            onChange={(ev) => setUsarEndereco(ev.target.checked)}
+            className="mt-0.5 size-4"
+          />
+          <span>
+            Adicionar o endereço da Receita ao fornecedor: <strong>{linhaEnd}</strong>
+          </span>
+        </label>
+      )}
+      {e && <input type="hidden" name="receita_endereco" value={JSON.stringify(e)} />}
+    </div>
   )
 }
 

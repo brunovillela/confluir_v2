@@ -700,3 +700,134 @@ export async function excluirConta(
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   return {}
 }
+
+// ── Mescla de cadastros duplicados ─────────────────────────────────────────
+
+const ROTULO_TABELA: Record<string, string> = {
+  ordens_pagamento: "ordens de pagamento",
+  contratos: "contratos",
+  compras_propostas: "propostas",
+  compras_fornecimentos: "fornecimentos",
+  compras_solicitacoes: "processos de compra",
+  compras_ordem_compra: "ordens de compra",
+  compras_rpa: "RPAs",
+  dados_bancarios: "contas bancárias",
+  enderecos: "endereços",
+  patrimonio_nota_fiscal: "notas do patrimônio",
+  viagens_itens: "itens de viagem",
+  viagens_faturas: "faturas de viagem",
+  veiculo_contratos_aluguel: "contratos de locação",
+  danfes_recibos: "notas e recibos",
+  prestadores_servico: "prestadores",
+  pessoal_atividades_executores: "executores de atividades",
+}
+
+/**
+ * Junta cadastros da MESMA empresa (mesmo CPF/CNPJ) no principal: tudo que
+ * aponta para os incorporados passa a apontar para ele, e eles ficam
+ * inativos com `mesclado_em_id` (supabase/fornecedores-edicao-mescla.sql).
+ * Aqui só se confere que todos têm o MESMO documento — a função no banco
+ * confere o tenant e faz a transação.
+ */
+export async function mesclarFornecedores(dados: {
+  principal: string
+  secundarios: string[]
+  usuarioId: string
+}): Promise<{ erro?: string; resumo?: string; pendentes?: string[] }> {
+  const secundarios = [...new Set(dados.secundarios.filter((s) => s && s !== dados.principal))]
+  if (secundarios.length === 0) return { erro: "Escolha ao menos um cadastro para incorporar." }
+  const admin = await createAdminClient()
+  const tenant = await tenantAtual()
+  const { data: linhas, error } = await admin
+    .from("empresa")
+    .select("id, cnpj_cpf")
+    .eq("emp_proprietaria_id", tenant)
+    .in("id", [dados.principal, ...secundarios])
+  if (error) return { erro: `Falha ao carregar os cadastros: ${error.message}` }
+  const docs = new Set((linhas ?? []).map((l) => String(l.cnpj_cpf ?? "").replace(/\D/g, "")))
+  if ((linhas ?? []).length !== secundarios.length + 1) {
+    return { erro: "Algum dos cadastros não foi encontrado nesta entidade." }
+  }
+  if (docs.size !== 1 || docs.has("")) {
+    return { erro: "Só cadastros com o MESMO CPF/CNPJ podem ser mesclados." }
+  }
+
+  const { data, error: erroRpc } = await admin.rpc("mesclar_fornecedores", {
+    p_emp: tenant,
+    p_principal: dados.principal,
+    p_secundarios: secundarios,
+    p_usuario: dados.usuarioId,
+  })
+  if (erroRpc) {
+    if (/could not find the function/i.test(erroRpc.message)) {
+      return { erro: "Mescla ainda não configurada — rode supabase/fornecedores-edicao-mescla.sql." }
+    }
+    return { erro: erroRpc.message }
+  }
+  const r = (data ?? {}) as { movidos?: Record<string, number>; pendentes?: string[] }
+  const porTabela = new Map<string, number>()
+  for (const [chave, n] of Object.entries(r.movidos ?? {})) {
+    const tabela = chave.split(".")[0]
+    porTabela.set(tabela, (porTabela.get(tabela) ?? 0) + Number(n))
+  }
+  const partes = [...porTabela.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => `${n} ${ROTULO_TABELA[t] ?? t.replace(/_/g, " ")}`)
+  return {
+    resumo: partes.length ? partes.join(", ") : "nenhum registro vinculado",
+    pendentes: r.pendentes ?? [],
+  }
+}
+
+export type CadastroIncorporado = {
+  id: string
+  nome: string
+  cnpj_cpf: string | null
+  mesclado_em: string | null
+}
+
+/** Cadastros que este incorporou (mesclas anteriores). Vazio sem o SQL. */
+export async function incorporadosPor(id: string): Promise<CadastroIncorporado[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao, cnpj_cpf, mesclado_em")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("mesclado_em_id", id)
+    .order("mesclado_em", { ascending: false })
+  if (error) return []
+  return ((data ?? []) as Record<string, unknown>[]).map((e) => ({
+    id: String(e.id),
+    nome:
+      [e.nome_fantasia, e.nome_razao].find(
+        (v): v is string => typeof v === "string" && v.trim() !== ""
+      ) ?? "(sem nome)",
+    cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
+    mesclado_em: (e.mesclado_em as string | null) ?? null,
+  }))
+}
+
+/** Para onde este cadastro foi mesclado (null = não foi, ou sem o SQL). */
+export async function mescladoEm(id: string): Promise<{ id: string; nome: string } | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa")
+    .select("mesclado_em_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error || !data?.mesclado_em_id) return null
+  const { data: p } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao")
+    .eq("id", String(data.mesclado_em_id))
+    .maybeSingle()
+  if (!p) return null
+  return {
+    id: String(p.id),
+    nome:
+      [p.nome_fantasia, p.nome_razao].find(
+        (v): v is string => typeof v === "string" && v.trim() !== ""
+      ) ?? "(sem nome)",
+  }
+}

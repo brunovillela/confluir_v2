@@ -3,6 +3,7 @@ import "server-only"
 import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
+import { DESTINOS_SITUACAO } from "@/lib/ordens-situacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -101,6 +102,7 @@ export type TipoEvento =
   | "estornada"
   | "estorno_corrigido"
   | "documento_fiscal"
+  | "situacao_alterada"
   | "excluida"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
@@ -121,6 +123,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   estornada: "Pagamento estornado",
   estorno_corrigido: "Dados de pagamento corrigidos após o estorno — reenviada para autorização",
   documento_fiscal: "Documento fiscal recebido",
+  situacao_alterada: "Situação alterada pelo Financeiro",
   excluida: "Excluída",
 }
 
@@ -567,4 +570,109 @@ export async function corrigirOrdem(
     ...(voltou ? { voltou_para_autorizacao: true } : {}),
   })
   return { voltouParaAutorizacao: voltou }
+}
+
+/**
+ * Troca MANUAL de situação de uma ordem ainda não paga, pelo Financeiro, com
+ * motivo. Cada destino ajusta os campos de autorização do jeito que a
+ * transição normal faria (ver DESTINOS_SITUACAO): "A pagar" vale como
+ * autorizada por quem trocou; "Em autorização" e "Aguardando documento
+ * fiscal" desfazem a autorização; "Aguardando informações" é a devolução.
+ * Paga e Cancelada têm caminho próprio (remover pagamento / cancelar).
+ */
+export async function alterarSituacaoOrdem(
+  ordemId: string,
+  usuarioId: string,
+  nova: string,
+  motivo: string
+): Promise<{ erro?: string }> {
+  const destino = DESTINOS_SITUACAO.find((d) => d.valor === nova)
+  if (!destino) return { erro: "Situação de destino inválida." }
+  if (!motivo.trim()) return { erro: "Informe o motivo da troca de situação." }
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, contrato_id, caixa_conta_id, processo_compra_id, valor_inicial_cobranca")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!o) return { erro: "Ordem não encontrada." }
+  const atual = String(o.situacao ?? "")
+  if (atual === nova) return { erro: `A ordem já está "${nova}".` }
+  if (SITUACOES_ENCERRADAS.includes(atual)) {
+    return {
+      erro:
+        atual === "Paga"
+          ? "A ordem está paga — remova o registro de pagamento para ela voltar à fila."
+          : "A ordem está encerrada e não muda mais de situação.",
+    }
+  }
+  if (destino.exigeContrato && !o.contrato_id) {
+    return { erro: "Só ordens geradas por contrato podem voltar a aguardar o documento fiscal." }
+  }
+  const { data: pendente } = await admin
+    .from("ordens_pagamento_estornos")
+    .select("id")
+    .eq("ordem_id", ordemId)
+    .is("resolvido_em", null)
+    .maybeSingle()
+  if (pendente) {
+    return {
+      erro: "O pagamento desta ordem foi estornado — confira os dados de pagamento pela tela do estorno, que reenvia para autorização.",
+    }
+  }
+
+  const limpaAutorizacao = {
+    autorizacao_esta_autorizado: false,
+    autorizacao_autorizador_id: null,
+    autorizacao_data: null,
+    autorizacao_observacao: null,
+    autorizacao_dispensada: false,
+    autorizacao_dispensa_motivo: null,
+  }
+  const campos: Record<string, unknown> =
+    nova === SITUACAO_A_PAGAR
+      ? {
+          situacao: nova,
+          autorizacao_esta_autorizado: true,
+          autorizacao_autorizador_id: usuarioId,
+          autorizacao_data: hojeSP(),
+          autorizacao_observacao: motivo,
+          autorizacao_dispensada: false,
+          autorizacao_dispensa_motivo: null,
+        }
+      : nova === SITUACAO_AGUARDANDO
+        ? {
+            situacao: nova,
+            autorizacao_esta_autorizado: false,
+            autorizacao_autorizador_id: usuarioId,
+            autorizacao_data: hojeSP(),
+            autorizacao_observacao: motivo,
+          }
+        : { situacao: nova, ...limpaAutorizacao }
+
+  // A situação no filtro evita sobrescrever uma mudança feita por outra pessoa.
+  const { data, error } = await admin
+    .from("ordens_pagamento")
+    .update(campos)
+    .eq("id", ordemId)
+    .eq("situacao", atual)
+    .select("id")
+  if (error) return { erro: `Não foi possível trocar a situação: ${error.message}` }
+  if ((data ?? []).length === 0) {
+    return { erro: "A ordem mudou de situação enquanto você editava — recarregue a página." }
+  }
+  await registrarEvento(ordemId, "situacao_alterada", usuarioId, motivo, { de: atual, para: nova })
+  // Autorizada ou devolvida à mão: os mesmos marcos (e webhooks) da avaliação.
+  if (nova === SITUACAO_A_PAGAR) {
+    await registrarEvento(ordemId, "autorizada", usuarioId, `Pela troca manual de situação: ${motivo}`)
+    // Compra em dinheiro já debitada no caixa fecha como paga, como na avaliação.
+    const valor = o.valor_inicial_cobranca === null || o.valor_inicial_cobranca === undefined ? null : Number(o.valor_inicial_cobranca)
+    if (o.caixa_conta_id && valor !== null && (await caixaJaDebitado(ordemId))) {
+      await pagarPeloCaixa(ordemId, valor, String(o.caixa_conta_id), (o.processo_compra_id as string | null) ?? null)
+    }
+  } else if (nova === SITUACAO_AGUARDANDO) {
+    await registrarEvento(ordemId, "devolvida", usuarioId, `Pela troca manual de situação: ${motivo}`)
+  }
+  return {}
 }

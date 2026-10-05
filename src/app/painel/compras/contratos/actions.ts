@@ -13,7 +13,9 @@ import {
   criarCategoriaContrato,
   criarContrato,
   excluirCategoriaContrato,
+  editarOrdemContrato,
   excluirContrato,
+  excluirOrdemContrato,
   excluirOrdensContrato,
   gerarOrdensContrato,
   receberDocumentoOrdemContrato,
@@ -266,4 +268,61 @@ export async function excluirCategoriaAction(
   if (erro) return { erro }
   revalidarCategorias()
   return { ok: "Categoria excluída." }
+}
+
+/**
+ * Edita uma ordem do contrato (descrição, valor, vencimento) ainda não paga
+ * nem em processamento. Mudar o valor de ordem autorizada a devolve para
+ * autorização — mesma regra da correção no Financeiro.
+ */
+export async function editarOrdemContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor inválido." }
+  const vencimento = texto(formData, "vencimento")
+  if (vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(vencimento)) return { erro: "Vencimento inválido." }
+  const { erro, voltouParaAutorizacao } = await editarOrdemContrato(
+    contratoId,
+    ordemId,
+    {
+      descricao: texto(formData, "descricao") || null,
+      valor,
+      vencimento: vencimento || null,
+    },
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidar(contratoId)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  return {
+    ok: voltouParaAutorizacao
+      ? "Ordem alterada. Como o valor mudou, ela voltou para autorização."
+      : "Ordem alterada — o antes e o depois ficaram no histórico.",
+  }
+}
+
+/** Exclui UMA ordem do contrato que ainda não foi paga nem está em processamento. */
+export async function excluirOrdemContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const { erro } = await excluirOrdemContrato(contratoId, ordemId)
+  if (erro) return { erro }
+  revalidar(contratoId)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  redirect(`/painel/compras/contratos/${contratoId}?ordemExcluida=1`)
 }

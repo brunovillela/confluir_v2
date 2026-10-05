@@ -40,8 +40,10 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { SituacaoBadge } from "../../situacao-badge"
 import { AcoesOrdem } from "./acoes-ordem"
+import { DocumentosForm } from "./documentos-form"
 import { EstornoForm } from "./estorno-form"
 import { PagamentoForm } from "./pagamento-form"
+import { SituacaoForm } from "./situacao-form"
 
 const ESTILO_STATUS: Record<StatusAuditoria, { rotulo: string; classe: string }> = {
   ok: { rotulo: "OK", classe: "border-success/40 text-success-fg" },
@@ -140,6 +142,8 @@ export default async function OrdemPage({
     corrigida?: string
     reenviada?: string
     estornada?: string
+    documentos?: string
+    situacao?: string
   }>
 }) {
   const sessao = await requirePermissao("financeiro_pagamento", [
@@ -148,7 +152,17 @@ export default async function OrdemPage({
   const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const { id } = await params
-  const { editar, salvo, removido, cancelada, corrigida, reenviada, estornada } = await searchParams
+  const {
+    editar,
+    salvo,
+    removido,
+    cancelada,
+    corrigida,
+    reenviada,
+    estornada,
+    documentos: documentosSalvos,
+    situacao: situacaoTrocada,
+  } = await searchParams
   const x = await extratoDaOrdem(id)
   if (!x) notFound()
   const detalhe = x.detalhe
@@ -158,6 +172,8 @@ export default async function OrdemPage({
 
   const pagavel = SITUACOES_PAGAVEIS.includes(situacao)
   const editandoPagamento = editar === "pagamento" && podeEditar && (pagavel || situacao === "Paga")
+  const editandoDocumentos = editar === "documentos" && podeEditar && situacao !== "Cancelada"
+  const formaBoleto = /boleto/i.test(String(ordem.forma_pagamento ?? ""))
   const temPagamento =
     ordem.data_pagamento !== null ||
     ordem.arquivo_pagamento !== null ||
@@ -212,16 +228,29 @@ export default async function OrdemPage({
               {ordem.tipo}
             </Badge>
           )}
-          <Button variant="outline" size="sm" asChild className="ml-auto">
-            <a
-              href={`/painel/financeiro/ordens/${id}/extrato`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Printer />
-              Extrato (PDF)
-            </a>
-          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`/painel/financeiro/ordens/${id}/extrato?simples=1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Sem as verificações e a auditoria automática"
+              >
+                <Printer />
+                Extrato simplificado
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`/painel/financeiro/ordens/${id}/extrato`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Printer />
+                Extrato completo (PDF)
+              </a>
+            </Button>
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {texto(ordem.descricao)}
@@ -283,6 +312,18 @@ export default async function OrdemPage({
       {reenviada === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Ordem reenviada para autorização.</AlertDescription>
+        </Alert>
+      )}
+      {documentosSalvos === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Documentos salvos — a troca ficou no histórico.</AlertDescription>
+        </Alert>
+      )}
+      {situacaoTrocada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Situação alterada — a ordem agora está &quot;{situacao}&quot;.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -356,81 +397,6 @@ export default async function OrdemPage({
         </CardContent>
       </Card>
 
-      {x.verificacoes.length > 0 && (
-        <Card className="min-w-0">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  Verificações na criação
-                  {x.verificacoes.some((v) => v.status === "alerta") ? (
-                    <Badge variant="outline" className={ESTILO_STATUS.alerta.classe}>
-                      {x.verificacoes.filter((v) => v.status === "alerta").length} alerta(s)
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className={ESTILO_STATUS.ok.classe}>Sem alertas</Badge>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  Regras de auditoria do Financeiro conferidas quando a ordem foi criada,
-                  em {formatarDataHora(x.verificacoes[0].quando)}
-                </CardDescription>
-              </div>
-              <ShieldCheck className="text-muted-foreground size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-border grid divide-y">
-              {x.verificacoes.map((v) => (
-                <li key={v.codigo} className="flex items-start gap-3 py-2">
-                  <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[v.status === "alerta" ? "alerta" : v.status === "ok" ? "ok" : "na"].classe}`}>
-                    {v.status === "alerta" ? "Alerta" : v.status === "ok" ? "OK" : "N/A"}
-                  </Badge>
-                  <div className="min-w-0 text-sm">
-                    <p className="font-medium">{v.titulo}</p>
-                    {v.detalhe && <p className="text-muted-foreground text-xs">{v.detalhe}</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="min-w-0">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Auditoria automática
-                <Badge variant="outline" className={ESTILO_STATUS[x.auditoria.geral].classe}>
-                  {ESTILO_STATUS[x.auditoria.geral].rotulo}
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Verificações feitas na hora — também saem no extrato em PDF.
-              </CardDescription>
-            </div>
-            <ShieldCheck className="text-muted-foreground size-4" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ul className="divide-border grid divide-y">
-            {x.auditoria.itens.map((i) => (
-              <li key={i.codigo} className="flex items-start gap-3 py-2">
-                <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[i.status].classe}`}>
-                  {ESTILO_STATUS[i.status].rotulo}
-                </Badge>
-                <div className="min-w-0 text-sm">
-                  <p className="font-medium">{i.rotulo}</p>
-                  <p className="text-muted-foreground text-xs">{i.detalhe}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="min-w-0">
           <CardHeader>
@@ -441,7 +407,16 @@ export default async function OrdemPage({
                 </CardTitle>
                 <CardDescription>Compra e documentos fiscais</CardDescription>
               </div>
-              <Receipt className="text-muted-foreground size-4" />
+              {podeEditar && situacao !== "Cancelada" && !editandoDocumentos ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/painel/financeiro/ordens/${id}?editar=documentos`}>
+                    <Pencil />
+                    Documentos
+                  </Link>
+                </Button>
+              ) : (
+                <Receipt className="text-muted-foreground size-4" />
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -478,6 +453,15 @@ export default async function OrdemPage({
                 </div>
               )}
             </dl>
+            {editandoDocumentos && (
+              <DocumentosForm
+                ordemId={id}
+                temNota={Boolean(ordem.arquivo_nota_fiscal)}
+                temBoleto={Boolean(ordem.arquivo_boleto)}
+                pedeBoleto={formaBoleto}
+                rotuloNota={ordem.tipo === TIPO_ORDEM_FOLHA ? "Contracheque (comprovante)" : "Nota fiscal"}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -559,6 +543,14 @@ export default async function OrdemPage({
                   </div>
                 )}
             </dl>
+            {podeEditar && (aberta || (situacao === "Paga" && !estornoPendente)) && !editandoPagamento && (
+              <SituacaoForm
+                ordemId={id}
+                situacao={situacao}
+                temContrato={Boolean(ordem.contrato_id)}
+                autorizada={ordem.autorizacao_esta_autorizado === true}
+              />
+            )}
             {podeEstornar && janelaEstorno.ate && (
               <div className="mt-4">
                 <EstornoForm
@@ -820,6 +812,85 @@ export default async function OrdemPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Verificação e auditoria fecham a página, lado a lado: são conferências
+          sobre o conteúdo acima, não o conteúdo em si. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {x.verificacoes.length > 0 && (
+          <Card className="min-w-0">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    Verificações na criação
+                    {x.verificacoes.some((v) => v.status === "alerta") ? (
+                      <Badge variant="outline" className={ESTILO_STATUS.alerta.classe}>
+                        {x.verificacoes.filter((v) => v.status === "alerta").length} alerta(s)
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className={ESTILO_STATUS.ok.classe}>Sem alertas</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Regras de auditoria do Financeiro conferidas quando a ordem foi criada,
+                    em {formatarDataHora(x.verificacoes[0].quando)}
+                  </CardDescription>
+                </div>
+                <ShieldCheck className="text-muted-foreground size-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-border grid divide-y">
+                {x.verificacoes.map((v) => (
+                  <li key={v.codigo} className="flex items-start gap-3 py-2">
+                    <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[v.status === "alerta" ? "alerta" : v.status === "ok" ? "ok" : "na"].classe}`}>
+                      {v.status === "alerta" ? "Alerta" : v.status === "ok" ? "OK" : "N/A"}
+                    </Badge>
+                    <div className="min-w-0 text-sm">
+                      <p className="font-medium">{v.titulo}</p>
+                      {v.detalhe && <p className="text-muted-foreground text-xs">{v.detalhe}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className={x.verificacoes.length > 0 ? "min-w-0" : "min-w-0 lg:col-span-2"}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Auditoria automática
+                  <Badge variant="outline" className={ESTILO_STATUS[x.auditoria.geral].classe}>
+                    {ESTILO_STATUS[x.auditoria.geral].rotulo}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Verificações feitas na hora — saem no extrato completo em PDF, não no simplificado.
+                </CardDescription>
+              </div>
+              <ShieldCheck className="text-muted-foreground size-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border grid divide-y">
+              {x.auditoria.itens.map((i) => (
+                <li key={i.codigo} className="flex items-start gap-3 py-2">
+                  <Badge variant="outline" className={`w-20 shrink-0 justify-center ${ESTILO_STATUS[i.status].classe}`}>
+                    {ESTILO_STATUS[i.status].rotulo}
+                  </Badge>
+                  <div className="min-w-0 text-sm">
+                    <p className="font-medium">{i.rotulo}</p>
+                    <p className="text-muted-foreground text-xs">{i.detalhe}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
     </>
   )
 }

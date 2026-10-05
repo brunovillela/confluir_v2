@@ -164,6 +164,11 @@ export type ExtratoOrdemProps = {
   historico: { quando: string; rotulo: string; usuario: string | null; descricao: string | null }[]
   /** Regras conferidas na criação (configuração do tenant). */
   verificacoes: { status: string; rotulo: string; detalhe: string }[]
+  /**
+   * Extrato SIMPLIFICADO: sem o selo, as verificações da criação e a
+   * auditoria automática — só os dados da ordem, os documentos e a trilha.
+   */
+  simplificado?: boolean
 }
 
 function Campo({ rotulo, valor, largo }: { rotulo: string; valor: string | null; largo?: boolean }) {
@@ -232,16 +237,21 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
           </View>
         </View>
 
-        <Text style={s.titulo}>Ordem de pagamento {p.ordem.codigo}</Text>
+        <Text style={s.titulo}>
+          Ordem de pagamento {p.ordem.codigo}
+          {p.simplificado ? " — extrato simplificado" : ""}
+        </Text>
         <View style={s.faixa}>
           <Text style={s.faixaItem}>Situação: {p.ordem.situacao}</Text>
           <Text style={s.faixaItem}>Origem: {p.procedencia.origem}</Text>
           <Text style={s.faixaItem}>Valor: {p.ordem.valorCobrado}</Text>
           <Text style={s.faixaItem}>Informações até {p.geradoEm}</Text>
         </View>
-        <Text style={[s.selo, { color: corGeral, borderColor: corGeral }]}>
-          Auditoria automática: {ROTULO_STATUS[p.auditoria.geral] ?? p.auditoria.geral}
-        </Text>
+        {p.simplificado ? null : (
+          <Text style={[s.selo, { color: corGeral, borderColor: corGeral }]}>
+            Auditoria automática: {ROTULO_STATUS[p.auditoria.geral] ?? p.auditoria.geral}
+          </Text>
+        )}
 
         <Secao titulo="Procedência">
           <View style={s.grade}>
@@ -349,7 +359,7 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
           </Text>
         </Secao>
 
-        {p.verificacoes.length > 0 ? (
+        {!p.simplificado && p.verificacoes.length > 0 ? (
           <SecaoLista
             titulo="Verificações na criação (regras do Financeiro)"
             vazio=""
@@ -367,21 +377,23 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
           />
         ) : null}
 
-        <SecaoLista
-          titulo="Auditoria automática"
-          vazio="Sem verificações."
-          linhas={p.auditoria.itens.map((i) => (
-            <View key={i.rotulo} style={s.linhaTabela}>
-              <Text style={[s.status, { color: COR_STATUS[i.status] ?? "#111827" }]}>
-                {ROTULO_STATUS[i.status] ?? i.status}
-              </Text>
-              <View style={s.aud}>
-                <Text style={s.audRotulo}>{i.rotulo}</Text>
-                <Text style={s.audDetalhe}>{i.detalhe}</Text>
+        {p.simplificado ? null : (
+          <SecaoLista
+            titulo="Auditoria automática"
+            vazio="Sem verificações."
+            linhas={p.auditoria.itens.map((i) => (
+              <View key={i.rotulo} style={s.linhaTabela}>
+                <Text style={[s.status, { color: COR_STATUS[i.status] ?? "#111827" }]}>
+                  {ROTULO_STATUS[i.status] ?? i.status}
+                </Text>
+                <View style={s.aud}>
+                  <Text style={s.audRotulo}>{i.rotulo}</Text>
+                  <Text style={s.audDetalhe}>{i.detalhe}</Text>
+                </View>
               </View>
-            </View>
-          ))}
-        />
+            ))}
+          />
+        )}
 
         <SecaoLista
           titulo="Histórico da ordem"
