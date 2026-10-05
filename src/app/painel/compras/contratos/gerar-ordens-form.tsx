@@ -214,8 +214,16 @@ export function GerarOrdensForm({
       </div>
 
       <p className="text-muted-foreground text-xs">
-        As ordens nascem <strong>Em autorização</strong>, com o {beneficiarioRotulo} do
-        contrato como favorecido e a forma de pagamento completa. Vencimentos que já têm ordem deste contrato
+        {beneficiarioRotulo === "fornecedor" ? (
+          <>
+            Parcelas <strong>recorrentes</strong> (mensal, anual) nascem autorizadas pela autorização do
+            contrato e esperam só o documento fiscal. Periodicidade <strong>única</strong> é pagamento
+            extraordinário: nasce <strong>Em autorização</strong> e passa pela autorização pontual.
+          </>
+        ) : (
+          <>As ordens nascem <strong>Em autorização</strong>.</>
+        )}{" "}
+        O {beneficiarioRotulo} do contrato é o favorecido. Vencimentos que já têm ordem deste contrato
         são pulados — dá para rodar de novo sem duplicar.
       </p>
 

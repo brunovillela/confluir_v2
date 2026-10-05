@@ -48,7 +48,10 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { nomesDosUsuarios } from "@/lib/db/comum"
+
 import { BotaoExcluirContrato, ContratoForm } from "../contrato-forms"
+import { AutorizarContrato } from "./autorizar-contrato"
 import { GerarOrdensForm } from "../gerar-ordens-form"
 import {
   AcoesLinhaOrdem,
@@ -102,6 +105,7 @@ export default async function ContratoPage({
     rpaExcluido?: string
     novaOrdem?: string
     ordemExcluida?: string
+    autorizado?: string
     pagina?: string
     porPagina?: string
   }>
@@ -110,6 +114,7 @@ export default async function ContratoPage({
     "aquisicoes_contratos_edicao",
   ])
   const podeEditar = podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
+  const podeAutorizar = podeAcessar(sessao.permissoes, "aquisicoes_contratos_autorizacao")
 
   const { id } = await params
   const brutos = await searchParams
@@ -155,6 +160,10 @@ export default async function ContratoPage({
   const novaOrdem = podeEditar && brutos.novaOrdem === "1"
   const FORM_EXCLUSAO = "excluir-ordens-contrato"
   const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
+
+  const autorizadorNome = c.autorizadorId
+    ? ((await nomesDosUsuarios([c.autorizadorId])).get(c.autorizadorId) ?? null)
+    : null
 
   // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
   const caixas = podeEditar ? await contasAbertasParaCompras() : []
@@ -202,7 +211,7 @@ export default async function ContratoPage({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
             {Number(brutos.geradas) > 0
-              ? `${brutos.geradas} ordem(ns) gerada(s) — Em autorização.`
+              ? `${brutos.geradas} ordem(ns) gerada(s) — as recorrentes já autorizadas, aguardando o documento fiscal; a única (extraordinária) segue para autorização.`
               : "Nenhuma ordem nova gerada."}
             {Number(brutos.puladas) > 0 &&
               ` ${brutos.puladas} vencimento(s) já tinham ordem e foram pulados.`}
@@ -213,6 +222,41 @@ export default async function ContratoPage({
       {brutos.rpaExcluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>RPA excluído, junto com a ordem de pagamento dele.</AlertDescription>
+        </Alert>
+      )}
+
+      {brutos.autorizado !== undefined && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Contrato autorizado — as parcelas recorrentes passam a nascer autorizadas
+            {Number(brutos.autorizado) > 0 ? `; ${brutos.autorizado} parcela(s) que já esperavam a nota foram autorizadas` : ""}.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!detalhe.contrato.apoio_institucional && (
+        <Alert variant={c.autorizado ? "default" : "warning"} className={c.autorizado ? "border-success/40" : undefined}>
+          <AlertDescription>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                {c.autorizado ? (
+                  <>
+                    <span className="font-medium">Contrato autorizado</span>
+                    {autorizadorNome ? ` por ${autorizadorNome}` : ""}
+                    {c.autorizadoEm ? ` em ${formatarData(c.autorizadoEm)}` : ""} — as parcelas recorrentes nascem
+                    autorizadas e esperam só o documento fiscal. Pagamento extraordinário passa pela autorização pontual.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">Contrato ainda não autorizado.</span> Parcelas recorrentes só são
+                    geradas depois da autorização; pagamento extraordinário pode ser gerado e passa pela autorização
+                    pontual.
+                  </>
+                )}
+              </span>
+              {!c.autorizado && podeAutorizar && <AutorizarContrato contratoId={c.id} />}
+            </div>
+          </AlertDescription>
         </Alert>
       )}
 

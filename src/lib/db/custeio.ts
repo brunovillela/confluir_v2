@@ -4,7 +4,13 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { gerarCodigoProcesso } from "@/lib/db/compras"
+import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
+import type { ContaFornecedor, PixFornecedor } from "@/lib/db/compras-pagamento"
+import {
+  camposRecorrenteAutorizada,
+  registrarEvento,
+  SITUACAO_EM_AUTORIZACAO,
+} from "@/lib/db/ordens-ciclo"
 import { obterFichaDiretor } from "@/lib/db/diretoria-ficha"
 import {
   vencimentoParcela,
@@ -603,6 +609,23 @@ export type DadosCusteio = {
   periodicidade?: Periodicidade
   primeiroVencimento?: string | null
   formaPagamento?: string | null
+  /** Forma completa (modelo de compras): o "para onde" do pagamento. */
+  pagamento?: PagamentoCusteio
+}
+
+/** O "para onde" escolhido no custeio (fica no próprio custeio). */
+export type PagamentoCusteio = {
+  forma: string
+  pix: string | null
+  tipoChavePix: string | null
+  banco: string | null
+  agencia: string | null
+  conta: string | null
+  tipoConta: string | null
+  favorecido: string | null
+  pixCodigo: string | null
+  caixaContaId: string | null
+  arquivoBoleto: string | null
 }
 
 async function montarRegistroCusteio(
@@ -656,6 +679,24 @@ async function montarRegistroCusteio(
     periodicidade: recorrente ? (dados.periodicidade ?? "mensal") : "unica",
     primeiro_vencimento: texto(dados.primeiroVencimento),
     forma_pagamento: texto(dados.formaPagamento),
+    ...(dados.pagamento
+      ? {
+          forma_pagamento: dados.pagamento.forma,
+          ...(dados.pagamento.pix ? { pix: dados.pagamento.pix, tipo_chave_pix: dados.pagamento.tipoChavePix } : {}),
+          ...(dados.pagamento.conta
+            ? {
+                banco: dados.pagamento.banco,
+                agencia: dados.pagamento.agencia,
+                conta: dados.pagamento.conta,
+                tipo_conta: dados.pagamento.tipoConta,
+                conta_favorecido: dados.pagamento.favorecido,
+              }
+            : {}),
+          pix_codigo: dados.pagamento.pixCodigo,
+          caixa_conta_id: dados.pagamento.caixaContaId,
+          ...(dados.pagamento.arquivoBoleto ? { arquivo_boleto: dados.pagamento.arquivoBoleto } : {}),
+        }
+      : {}),
     },
   }
 }
@@ -760,7 +801,7 @@ export async function autorizarCusteio(
     return { erro: "Só é possível autorizar custeios aguardando autorização." }
   }
 
-  const geracao = await gerarOrdensCusteio(c as Record<string, unknown>, empId)
+  const geracao = await gerarOrdensCusteio(c as Record<string, unknown>, empId, atorId)
   if ("erro" in geracao) return geracao
 
   const { error } = await admin
@@ -828,7 +869,8 @@ export async function cancelarCusteio(id: string): Promise<ResultadoAcao> {
  */
 async function gerarOrdensCusteio(
   c: Record<string, unknown>,
-  empId: string
+  empId: string,
+  autorizadorId: string
 ): Promise<ResultadoGeracao> {
   const admin = await createAdminClient()
   const custeioId = String(c.id)
@@ -889,6 +931,13 @@ async function gerarOrdensCusteio(
   const formaPagamento = texto(c.forma_pagamento)
   const descBase = texto(c.descricao) ?? nome
 
+  // Regra de 05/10: parcela RECORRENTE nasce autorizada pela autorização do
+  // custeio e espera só o documento fiscal; pagamento único passa pela
+  // autorização pontual (alçada + permissão de autorizar custeio).
+  const motivoRecorrente = `Parcela recorrente do custeio ${texto(c.codigo) ?? ""}, autorizado em ${hojeSP().split("-").reverse().join("/")} — espera só o documento fiscal.`
+  const autorizacao = recorrente
+    ? camposRecorrenteAutorizada(motivoRecorrente, autorizadorId)
+    : { situacao: SITUACAO_EM_AUTORIZACAO }
   const registros = novos.map((venc, i) => ({
     codigo:
       recorrente && novos.length > 1
@@ -898,9 +947,12 @@ async function gerarOrdensCusteio(
     descricao: recorrente
       ? `${descBase} — parcela ${i + 1}/${novos.length} (venc. ${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)})`
       : descBase,
-    situacao: "Em autorização",
+    ...autorizacao,
     valor_inicial_cobranca: valor,
     forma_pagamento: formaPagamento,
+    pix_codigo: texto(c.pix_codigo),
+    caixa_conta_id: texto(c.caixa_conta_id),
+    arquivo_boleto: recorrente ? null : texto(c.arquivo_boleto),
     vencimento: venc,
     beneficiario_usuario_id: usuarioId,
     beneficiario_nome_avulso: usuarioId ? null : nome,
@@ -911,10 +963,194 @@ async function gerarOrdensCusteio(
     emp_proprietaria_id: empId,
   }))
 
-  const { error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
+  const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(registros, {})
   if (erroIns) {
     if (esquemaAusente(erroIns)) return { erro: AVISO_SCHEMA }
     return { erro: `Falha ao gerar as ordens: ${erroIns.message}` }
   }
+  await registrarEvento(
+    (criadas ?? []).map((o) => o.id),
+    "criada",
+    autorizadorId,
+    recorrente
+      ? `Gerada na autorização do custeio ${texto(c.codigo) ?? ""}: nasceu autorizada e aguarda o documento fiscal.`
+      : `Gerada na autorização do custeio ${texto(c.codigo) ?? ""}: pagamento único, passa pela autorização pontual.`
+  )
   return { geradas: novos.length, puladas }
+}
+
+// ── Pagamento do beneficiário, formalização e extraordinário (05/10) ─────────
+
+/**
+ * Chaves Pix e contas conhecidas do beneficiário, no formato do seletor das
+ * compras: as do cadastro (convidado, ficha do diretor) e, para filiado, as
+ * contas da filiação. Os ids são do seletor — a action resolve de volta.
+ */
+export async function meiosDoBeneficiario(
+  tipo: string,
+  beneficiarioId: string
+): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {
+  if (!tipo || !beneficiarioId) return { pix: [], contas: [] }
+  const snap = await resolverSnapshot(tipo, beneficiarioId)
+  const pix: PixFornecedor[] = []
+  const contas: ContaFornecedor[] = []
+  if (snap.pix) pix.push({ id: "cad-pix", chave: snap.pix, tipo: snap.tipo_chave_pix })
+  if (snap.banco && snap.conta) {
+    contas.push({
+      id: "cad-conta",
+      banco: snap.banco,
+      agencia: snap.agencia,
+      conta: snap.conta,
+      tipo_conta: snap.tipo_conta,
+      favorecido: snap.beneficiario_nome,
+    })
+  }
+  if (tipo === "filiado") {
+    const admin = await createAdminClient()
+    const { data } = await admin
+      .from("dados_bancarios")
+      .select("id, banco, agencia, conta, tipo_conta, pix, pix_tipo, favorecido")
+      .eq("filiado_id", beneficiarioId)
+      .limit(10)
+    for (const d of (data ?? []) as Record<string, string | null>[]) {
+      if (d.pix?.trim()) pix.push({ id: `db-pix-${d.id}`, chave: d.pix.trim(), tipo: d.pix_tipo })
+      if (d.banco?.trim() && d.conta?.trim()) {
+        contas.push({
+          id: `db-conta-${d.id}`,
+          banco: d.banco.trim(),
+          agencia: d.agencia,
+          conta: d.conta.trim(),
+          tipo_conta: d.tipo_conta,
+          favorecido: d.favorecido ?? snap.beneficiario_nome,
+        })
+      }
+    }
+  }
+  return { pix, contas }
+}
+
+/** Sobe (ou troca) o documento que formaliza o custeio. */
+export async function salvarFormalizacaoCusteio(
+  id: string,
+  arquivo: File
+): Promise<ResultadoAcao> {
+  const up = await subirComprovanteCompras(`formalizacoes/custeios/${id}`, arquivo)
+  if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir a formalização." }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("institucional_custeios")
+    .update({ arquivo_formalizacao: up.caminho, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) {
+    await admin.storage.from("compras").remove([up.caminho])
+    if (esquemaAusente(error) || error.code === "PGRST204") {
+      return { erro: "Rode supabase/diarias-remessas-autorizacao-custeio.sql antes de anexar a formalização." }
+    }
+    return { erro: `Falha ao salvar a formalização: ${error.message}` }
+  }
+  return { ok: true, id }
+}
+
+/** URL assinada da formalização (1 h). */
+export async function urlFormalizacaoCusteio(caminho: string | null): Promise<string | null> {
+  if (!caminho) return null
+  const admin = await createAdminClient()
+  const { data } = await admin.storage.from("compras").createSignedUrl(caminho, 3600)
+  return data?.signedUrl ?? null
+}
+
+/**
+ * Pagamento EXTRAORDINÁRIO de um custeio autorizado (fora das parcelas): uma
+ * ordem "Em autorização", que passa pela autorização pontual — alçada e a
+ * permissão de autorizar custeio.
+ */
+export async function registrarExtraordinarioCusteio(
+  custeioId: string,
+  dados: { valor: number; vencimento: string | null; descricao: string; boleto: File | null },
+  atorId: string
+): Promise<{ erro?: string; ordemId?: string }> {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const { data: c } = await admin
+    .from("institucional_custeios")
+    .select("*")
+    .eq("id", custeioId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .maybeSingle()
+  if (!c) return { erro: "Custeio não encontrado." }
+  if (c.situacao !== "autorizado") return { erro: "Pagamento extraordinário só em custeio autorizado." }
+  if (!(dados.valor > 0)) return { erro: "Informe o valor do pagamento." }
+  if (!dados.descricao.trim()) return { erro: "Diga o motivo do pagamento extraordinário." }
+  if (dados.vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(dados.vencimento)) return { erro: "Vencimento inválido." }
+  const forma = texto(c.forma_pagamento)
+  let arquivoBoleto: string | null = null
+  if (forma === "Boleto") {
+    if (!dados.boleto) return { erro: "A forma do custeio é boleto — anexe o boleto deste pagamento." }
+    const up = await subirComprovanteCompras(`boletos/custeios/${custeioId}`, dados.boleto)
+    if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o boleto." }
+    arquivoBoleto = up.caminho
+  }
+
+  const cpf = cpfConfiavel(texto(c.beneficiario_cpf))
+  let usuarioId: string | null = null
+  if (cpf) {
+    const { data: u } = await admin.from("usuarios").select("id").eq("cpf", cpf).eq("emp_proprietaria_id", empId).limit(1).maybeSingle()
+    usuarioId = u ? String(u.id) : null
+  }
+  const nome = texto(c.beneficiario_nome) ?? "Beneficiário"
+  const { data: criadas, error } = await inserirOrdensVerificadasCompat(
+    [
+      {
+        codigo: `${texto(c.codigo) ?? gerarCodigoProcesso()}-EX${String(Math.floor(Math.random() * 100)).padStart(2, "0")}`,
+        tipo: "Custeio",
+        descricao: `Pagamento extraordinário — ${dados.descricao.trim()} (${texto(c.descricao) ?? nome})`,
+        situacao: SITUACAO_EM_AUTORIZACAO,
+        valor_inicial_cobranca: dados.valor,
+        forma_pagamento: forma,
+        pix_codigo: texto(c.pix_codigo),
+        caixa_conta_id: texto(c.caixa_conta_id),
+        arquivo_boleto: arquivoBoleto,
+        vencimento: dados.vencimento,
+        beneficiario_usuario_id: usuarioId,
+        beneficiario_nome_avulso: usuarioId ? null : nome,
+        beneficiario_doc_avulso: usuarioId ? null : texto(c.beneficiario_cpf),
+        centro_custo_despesa_id: texto(c.centro_custo_despesa_id),
+        custeio_id: custeioId,
+        excluido: false,
+        emp_proprietaria_id: empId,
+      },
+    ],
+    {}
+  )
+  if (error || !criadas?.[0]) {
+    if (arquivoBoleto) await admin.storage.from("compras").remove([arquivoBoleto])
+    return { erro: `Falha ao registrar o pagamento: ${error?.message}` }
+  }
+  await registrarEvento(
+    criadas[0].id,
+    "criada",
+    atorId,
+    `Pagamento extraordinário do custeio ${texto(c.codigo) ?? ""}: passa pela autorização pontual.`
+  )
+  return { ordemId: criadas[0].id }
+}
+
+/** "Pago com" das ordens de custeio: a chave/conta escolhida no custeio. */
+export async function pagoComDoCusteio(custeioId: string, forma: string | null): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data: c } = await admin
+    .from("institucional_custeios")
+    .select("pix, tipo_chave_pix, banco, agencia, conta, conta_favorecido, beneficiario_nome")
+    .eq("id", custeioId)
+    .maybeSingle()
+  if (!c) return null
+  if (forma === "Pix" && texto(c.pix)) {
+    return `Chave Pix do beneficiário — ${texto(c.tipo_chave_pix) ? `${c.tipo_chave_pix}: ` : ""}${c.pix}`
+  }
+  if (forma === "Depósito bancário (TED)" && texto(c.conta)) {
+    return `Conta do beneficiário — ${c.banco ?? "—"}, ag. ${c.agencia ?? "—"}, conta ${c.conta} (${texto(c.conta_favorecido) ?? texto(c.beneficiario_nome) ?? "—"})`
+  }
+  return null
 }

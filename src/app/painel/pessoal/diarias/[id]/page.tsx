@@ -58,6 +58,7 @@ export default async function SolicitacaoDiariaPage({
         infracoesPendentes={infracoesPendentes}
         descontos={descontos}
         salvo={salvo === "1"}
+        remessaHref={solicitacao.remessaId ? `/painel/pessoal/diarias/remessas/${solicitacao.remessaId}` : null}
       />
     </>
   )

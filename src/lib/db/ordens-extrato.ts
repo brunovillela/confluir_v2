@@ -3,6 +3,7 @@ import "server-only"
 import { createHash } from "node:crypto"
 
 import { descreverPagoCom } from "@/lib/db/compras-pagamento"
+import { pagoComDoCusteio } from "@/lib/db/custeio"
 import { detalheOrdem, type CentroCusto, type DetalheOrdem } from "@/lib/db/financeiro"
 import { auditarOrdem, type ResultadoAuditoria } from "@/lib/db/ordens-auditoria"
 import { listarEventos, type EventoOrdem } from "@/lib/db/ordens-ciclo"
@@ -65,7 +66,7 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
   const admin = await createAdminClient()
 
   const procedencia = await procedenciaDaOrdem(o)
-  const [auditoria, eventosGravados, verificacoes, rateio, pagoCom, notaFiscal, boleto, comprovante, orcamento] =
+  const [auditoria, eventosGravados, verificacoes, rateio, pagoComDetalhe, notaFiscal, boleto, comprovante, orcamento] =
     await Promise.all([
       auditarOrdem(o, procedencia),
       listarEventos(id),
@@ -77,6 +78,11 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
       urlArquivoOrdem(o.arquivo_pagamento),
       urlArquivoOrdem(o.arquivo_orcamento),
     ])
+
+  // Custeio: a chave/conta do beneficiário fica no custeio, não em dados_bancarios.
+  const pagoCom =
+    pagoComDetalhe ??
+    (o.custeio_id ? await pagoComDoCusteio(String(o.custeio_id), (o.forma_pagamento as string | null) ?? null) : null)
 
   // Favorecido com documento e natureza (PF/PJ).
   let favorecido: ExtratoCompleto["favorecido"] = { nome: detalhe.favorecido, documento: null, tipo: null }

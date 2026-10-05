@@ -18,6 +18,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "aquisicoes_avaliacoes", rotulo: "Avaliação de ordens (alçada)" },
       { chave: "aquisicoes_contratos", rotulo: "Contratos" },
       { chave: "aquisicoes_contratos_edicao", rotulo: "Contratos — editar" },
+      { chave: "aquisicoes_contratos_autorizacao", rotulo: "Contratos — autorizar (contrato e pagamentos extraordinários)" },
       { chave: "aquisicoes_fornecedores", rotulo: "Fornecedores" },
       { chave: "aquisicoes_fornecedores_edicao", rotulo: "Fornecedores — cadastrar, editar e mesclar" },
       { chave: "aquisicoes_recebimentos", rotulo: "Recebimentos" },
@@ -201,7 +202,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       },
       {
         chave: "custeio_institucional_autorizacao",
-        rotulo: "Custeio institucional — autorizar",
+        rotulo: "Custeio institucional — autorizar (custeio e pagamentos extraordinários)",
       },
       { chave: "permissoes", rotulo: "Gerenciar usuários e permissões" },
     ],

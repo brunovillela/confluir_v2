@@ -676,3 +676,22 @@ export async function alterarSituacaoOrdem(
   }
   return {}
 }
+
+// ── Recorrentes de contrato e custeio (05/10/2026) ─────────────────────────
+
+/**
+ * Parcela RECORRENTE de contrato ou custeio AUTORIZADO: nasce autorizada —
+ * pela autorização do contrato/custeio — e espera só o documento fiscal.
+ * Com o documento no mesmo valor, segue direto para pagamento.
+ */
+export function camposRecorrenteAutorizada(motivo: string, autorizadorId: string | null) {
+  return {
+    situacao: SITUACAO_AGUARDANDO_DOCUMENTO,
+    autorizacao_esta_autorizado: true,
+    autorizacao_autorizador_id: autorizadorId,
+    autorizacao_data: hojeSP(),
+    autorizacao_observacao: motivo,
+    autorizacao_dispensada: true,
+    autorizacao_dispensa_motivo: motivo,
+  }
+}

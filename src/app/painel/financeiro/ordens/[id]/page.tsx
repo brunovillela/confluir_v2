@@ -200,6 +200,8 @@ export default async function OrdemPage({
   const pessoas = [pr.solicitante, ...pr.envolvidos].filter(
     (p): p is NonNullable<typeof p> => Boolean(p)
   )
+  // Contrato/minuta/termo do custeio: aparecem no cartão da origem.
+  const formalizacao = pr.documentos.filter((d) => d.formalizacao)
 
   const centros = podeEditar ? await listarCentrosCusto() : []
   const opcoesCentro = centros
@@ -314,9 +316,15 @@ export default async function OrdemPage({
           <AlertDescription>Ordem reenviada para autorização.</AlertDescription>
         </Alert>
       )}
-      {documentosSalvos === "1" && (
+      {documentosSalvos && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Documentos salvos — a troca ficou no histórico.</AlertDescription>
+          <AlertDescription>
+            {documentosSalvos === "pagar"
+              ? "Documento fiscal recebido — a ordem já estava autorizada e seguiu para pagamento."
+              : documentosSalvos === "autorizacao"
+                ? "Documento fiscal recebido — a ordem seguiu para autorização."
+                : "Documentos salvos — a troca ficou no histórico."}
+          </AlertDescription>
         </Alert>
       )}
       {situacaoTrocada === "1" && (
@@ -367,12 +375,46 @@ export default async function OrdemPage({
                   : "Ainda não recebido"}
               </Campo>
             )}
-            {pr.documentos.map((d) => (
-              <Campo key={d.rotulo} rotulo={d.rotulo}>
-                <LinkArquivo url={d.url} />
-              </Campo>
-            ))}
+            {pr.documentos
+              .filter((d) => !(d.formalizacao && (contratoVinculado || ordem.custeio_id)))
+              .map((d) => (
+                <Campo key={d.rotulo} rotulo={d.rotulo}>
+                  <LinkArquivo url={d.url} />
+                </Campo>
+              ))}
           </dl>
+          {pr.detalhamento && pr.detalhamento.itens.length > 0 && (
+            <div className="rounded-md border">
+              <p className="border-b px-3 py-2 text-sm font-medium">{pr.detalhamento.titulo}</p>
+              <ul className="divide-border divide-y">
+                {pr.detalhamento.itens.map((it, i) => (
+                  <li key={i} className="grid gap-1 px-3 py-2 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">{it.descricao}</p>
+                        {it.detalhe && <p className="text-muted-foreground text-xs">{it.detalhe}</p>}
+                      </div>
+                      <span className="font-medium tabular-nums">{it.valor}</span>
+                    </div>
+                    {it.subitens.length > 1 && (
+                      <ul className="text-muted-foreground grid gap-0.5 text-xs">
+                        {it.subitens.map((sub, j) => (
+                          <li key={j} className="flex justify-between gap-2">
+                            <span className="min-w-0">{sub.descricao}</span>
+                            <span className="tabular-nums">{sub.valor}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="flex justify-between gap-2 border-t px-3 py-2 text-sm font-medium">
+                <span>Total</span>
+                <span className="tabular-nums">{pr.detalhamento.total}</span>
+              </p>
+            </div>
+          )}
           {podeEditar && aberta && (
             <AcoesOrdem
               ordemId={id}
@@ -678,10 +720,57 @@ export default async function OrdemPage({
                   </Badge>
                 )}
               </Campo>
-              <Campo rotulo="Documento do contrato">
-                <LinkArquivo url={contratoVinculado.arquivo_contrato} />
-              </Campo>
+              {contratoVinculado.origem === "aluguel" && (
+                <Campo rotulo="Documento do contrato">
+                  <LinkArquivo url={contratoVinculado.arquivo_contrato} />
+                </Campo>
+              )}
+              {formalizacao.map((d) => (
+                <Campo key={d.rotulo} rotulo={d.rotulo}>
+                  <LinkArquivo url={d.url} />
+                </Campo>
+              ))}
             </div>
+            {pr.href && (
+              <Button variant="outline" size="sm" asChild className="mt-4">
+                <Link href={pr.href}>
+                  <FileSignature />
+                  {contratoVinculado.origem === "aluguel" ? "Abrir o contrato de locação" : "Abrir o contrato"}
+                </Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {Boolean(ordem.custeio_id) && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Custeio vinculado</CardTitle>
+                <CardDescription>Custeio institucional que originou esta ordem e o documento que o formaliza</CardDescription>
+              </div>
+              <FileSignature className="text-muted-foreground size-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo rotulo="Custeio">{pr.titulo ?? "—"}</Campo>
+              {formalizacao.map((d) => (
+                <Campo key={d.rotulo} rotulo={d.rotulo}>
+                  {d.url ? <LinkArquivo url={d.url} /> : <span className="text-muted-foreground">Não anexada</span>}
+                </Campo>
+              ))}
+            </div>
+            {pr.href && (
+              <Button variant="outline" size="sm" asChild className="mt-4">
+                <Link href={pr.href}>
+                  <FileSignature />
+                  Abrir o custeio
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

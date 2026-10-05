@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, HandCoins, Landmark } from "lucide-react"
+import { ArrowLeft, HandCoins, Landmark, Send } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { listarSolicitacoesDiaria, listarTiposDiaria, SITUACOES_DIARIA } from "@/lib/db/diarias"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
+import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
@@ -56,11 +57,13 @@ export default async function DiariasDiretoriaPage({
   await requirePermissao("diretoria_diarias", ["configuracoes"])
 
   const brutos = await searchParams
-  const [{ disponivel, solicitacoes }, diretores, { tipos }] = await Promise.all([
+  const [{ disponivel, solicitacoes }, diretores, { tipos }, { remessas }] = await Promise.all([
     listarSolicitacoesDiaria({ quadro: "diretor" }),
     diretoresParaDiaria(),
     listarTiposDiaria(),
+    listarRemessasNovas({ quadro: "diretor" }),
   ])
+  const prontas = remessas.filter((r) => !r.enviada && r.contagem.aprovada > 0).length
 
   const params = {
     busca: (brutos.busca ?? "").trim(),
@@ -129,16 +132,25 @@ export default async function DiariasDiretoriaPage({
             <p className="text-muted-foreground mt-1 text-xs">
               {aguardando} aguardando avaliação ·{" "}
               {solicitacoes.length.toLocaleString("pt-BR")} solicitaç
-              {solicitacoes.length === 1 ? "ão" : "ões"} no total — a aprovação gera ordem de
-              pagamento direta ao diretor, na conta do departamento
+              {solicitacoes.length === 1 ? "ão" : "ões"} no total — cada diária entra na
+              remessa do diretor, que vira ordem de pagamento quando é enviada
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/painel/institucional/diretoria/diarias/remessas">
+              <Send />
+              Remessas
+              {prontas > 0 && <> ({prontas} pronta{prontas === 1 ? "" : "s"} para enviar)</>}
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/painel/pessoal/diarias/contas">
               <Landmark />
               Centros de custo
             </Link>
           </Button>
+          </div>
         </div>
       </div>
 

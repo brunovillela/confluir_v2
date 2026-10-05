@@ -13,6 +13,7 @@ import {
   criarCategoriaContrato,
   criarContrato,
   excluirCategoriaContrato,
+  autorizarContrato,
   editarOrdemContrato,
   excluirContrato,
   excluirOrdemContrato,
@@ -173,8 +174,8 @@ export async function receberDocumentoOrdemAction(
   return {
     ok:
       situacao === "A pagar"
-        ? "Nota recebida — parcela fixa do contrato, seguiu direto para pagamento."
-        : "Nota recebida — a ordem seguiu para autorização.",
+        ? "Nota recebida — a parcela já estava autorizada e seguiu direto para pagamento."
+        : "Nota recebida — a ordem seguiu para autorização (valor diferente do autorizado ou parcela sem autorização).",
   }
 }
 
@@ -325,4 +326,19 @@ export async function excluirOrdemContratoAction(
   revalidatePath("/painel/financeiro/ordens")
   revalidatePath("/painel/compras/avaliacoes")
   redirect(`/painel/compras/contratos/${contratoId}?ordemExcluida=1`)
+}
+
+/** Autoriza o contrato: as parcelas recorrentes passam a nascer autorizadas. */
+export async function autorizarContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("aquisicoes_contratos_autorizacao")
+  const id = texto(formData, "contrato_id")
+  if (!id) return { erro: "Contrato inválido." }
+  const { erro, parcelas } = await autorizarContrato(id, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidar(id)
+  revalidatePath("/painel/financeiro/ordens")
+  redirect(`/painel/compras/contratos/${id}?autorizado=${parcelas ?? 0}`)
 }

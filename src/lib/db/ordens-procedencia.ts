@@ -37,7 +37,22 @@ export type Procedencia = {
     deAcordo: boolean | null
     observacao: string | null
   } | null
-  documentos: { rotulo: string; url: string | null }[]
+  /** `formalizacao`: o documento que formaliza a origem (contrato, minuta, termo do custeio). */
+  documentos: { rotulo: string; url: string | null; formalizacao?: boolean }[]
+  /**
+   * Itens que compõem o valor (remessa de diárias: cada diária e as despesas
+   * dela). Sai na tela da ordem e no extrato.
+   */
+  detalhamento?: {
+    titulo: string
+    itens: {
+      descricao: string
+      detalhe: string | null
+      valor: string
+      subitens: { descricao: string; valor: string }[]
+    }[]
+    total: string
+  } | null
 }
 
 type Linha = Record<string, unknown>
@@ -279,7 +294,10 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     const criador = await criadorPelaTrilha(id)
     p.solicitante = criador ? { id: criador, nome: null, papel: "Gerou as ordens" } : null
     if (t(c.responsavel_id)) p.envolvidos.push({ id: String(c.responsavel_id), nome: null, papel: "Responsável pelo contrato" })
-    p.documentos = [{ rotulo: "Contrato assinado", url: await assinar("compras", c.arquivo_contrato) }]
+    p.documentos = [
+      { rotulo: "Contrato assinado", url: await assinar("compras", c.arquivo_contrato), formalizacao: true },
+      ...(await minutasDoContrato(String(c.id))),
+    ]
     return p
   }
 
@@ -325,6 +343,9 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     ])
     p.solicitante = t(c.criado_por_id) ? { id: String(c.criado_por_id), nome: null, papel: "Registrou o custeio" } : null
     if (t(c.autorizador_id)) p.envolvidos.push({ id: String(c.autorizador_id), nome: null, papel: "Autorizou o custeio" })
+    p.documentos = [
+      { rotulo: "Formalização do custeio", url: await assinar("compras", c.arquivo_formalizacao), formalizacao: true },
+    ]
     return p
   }
 
@@ -350,6 +371,9 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
 
   // 9. Diária
   if (tipo === "Diária") {
+    // Remessa nova (05/10): várias diárias numa ordem só.
+    const remessa = await umaPor("pessoal_diarias_remessas", "ordem_pagamento_id", id)
+    if (remessa && !t(remessa.bubble_id)) return procedenciaRemessa(remessa)
     const s = await umaPor("pessoal_diarias_solicitacoes", "ordem_pagamento_id", id)
     const p = base("Diária")
     if (!s) {
@@ -469,4 +493,125 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
   const p = base(t(ordem.bubble_id) ? "Sistema anterior (migrada)" : "Origem não identificada")
   p.linhas = linhas([["Tipo", tipo || null]])
   return p
+}
+
+/** Ordem gerada pelo envio de uma remessa de diárias: cada diária e as despesas. */
+async function procedenciaRemessa(r: Linha): Promise<Procedencia> {
+  const admin = await createAdminClient()
+  const diretor = r.beneficiario_tipo === "diretor"
+  const p = base(diretor ? "Remessa de diárias de diretor(a)" : "Remessa de diárias de funcionário(a)")
+  const { data: sols } = await admin
+    .from("pessoal_diarias_solicitacoes")
+    .select("*")
+    .eq("remessa_id", String(r.id))
+    .eq("situacao", "aprovada")
+    .order("data_inicio", { ascending: true, nullsFirst: false })
+  const diarias = (sols ?? []) as Linha[]
+  const ids = diarias.map((d) => String(d.id))
+  const tipoIds = [...new Set(diarias.map((d) => t(d.diaria_id)).filter((v): v is string => Boolean(v)))]
+  const [tipos, despesas, tiposDespesa, deptos] = await Promise.all([
+    tipoIds.length ? admin.from("financeiro_diarias").select("*").in("id", tipoIds) : Promise.resolve({ data: [] as Linha[] }),
+    ids.length
+      ? admin.from("pessoal_diarias_solicitacao_despesas").select("*").in("solicitacao_id", ids).order("created_at")
+      : Promise.resolve({ data: [] as Linha[] }),
+    admin.from("pessoal_diarias_despesa_tipos").select("id, nome"),
+    admin.from("empresa_departamentos").select("id, departamento").in(
+      "id",
+      [...new Set(diarias.map((d) => t(d.departamento_id)).filter((v): v is string => Boolean(v)))].concat(["00000000-0000-0000-0000-000000000000"])
+    ),
+  ])
+  const nomeTipo = new Map(((tipos.data ?? []) as Linha[]).map((x) => [String(x.id), t(x.nome) ?? t(x.diaria) ?? "Diária"]))
+  const nomeTipoDespesa = new Map(((tiposDespesa.data ?? []) as Linha[]).map((x) => [String(x.id), t(x.nome) ?? "Despesa"]))
+  const nomeDepto = new Map(((deptos.data ?? []) as Linha[]).map((x) => [String(x.id), t(x.departamento)]))
+  const despesasPor = new Map<string, Linha[]>()
+  for (const d of (despesas.data ?? []) as Linha[]) {
+    const k = String(d.solicitacao_id)
+    despesasPor.set(k, [...(despesasPor.get(k) ?? []), d])
+  }
+
+  let somaDiarias = 0
+  let somaDespesas = 0
+  let somaDescontos = 0
+  const itens: NonNullable<Procedencia["detalhamento"]>["itens"] = []
+  for (const d of diarias) {
+    const desp = despesasPor.get(String(d.id)) ?? []
+    const valorDiaria = n(d.valor_total) ?? 0
+    const desconto = n(d.valor_descontos) ?? 0
+    const valorDespesas = desp.reduce((a, x) => a + (n(x.valor) ?? 0), 0)
+    somaDiarias += valorDiaria
+    somaDescontos += desconto
+    somaDespesas += valorDespesas
+    const periodo = t(d.data_inicio)
+      ? `${data(d.data_inicio)}${t(d.data_termino) && d.data_termino !== d.data_inicio ? ` a ${data(d.data_termino)}` : ""}`
+      : null
+    itens.push({
+      descricao: `${nomeTipo.get(String(d.diaria_id)) ?? "Diária"} × ${n(d.quantidade) ?? 1} (${moeda(d.valor_unitario)} cada)`,
+      detalhe: [periodo, t(d.departamento_id) ? nomeDepto.get(String(d.departamento_id)) : null, t(d.motivo)].filter(Boolean).join(" · ") || null,
+      valor: moeda(valorDiaria - desconto + valorDespesas),
+      subitens: [
+        { descricao: "Diárias", valor: moeda(valorDiaria) },
+        ...(desconto ? [{ descricao: "Infrações de trânsito descontadas", valor: `− ${moeda(desconto)}` }] : []),
+        ...desp.map((x) => ({
+          descricao: [nomeTipoDespesa.get(String(x.tipo_id)) ?? "Despesa", t(x.descricao)].filter(Boolean).join(" — "),
+          valor: moeda(x.valor),
+        })),
+      ],
+    })
+    for (const x of desp) {
+      if (t(x.comprovante)) {
+        p.documentos.push({
+          rotulo: `Comprovante — ${nomeTipoDespesa.get(String(x.tipo_id)) ?? "despesa"} (${data(d.data_inicio)})`,
+          url: await assinar("comprovantes", x.comprovante),
+        })
+      }
+    }
+  }
+
+  const benef = t(r.beneficiario_id)
+  p.titulo = `Remessa ${t(r.codigo) ?? ""}`.trim()
+  p.href = diretor ? `/painel/institucional/diretoria/diarias/remessas/${r.id}` : `/painel/pessoal/diarias/remessas/${r.id}`
+  p.linhas = linhas([
+    ["Beneficiário(a)", benef ? ((await nomesDosUsuarios([benef])).get(benef) ?? null) : null],
+    ["Período", t(r.inicio) ? `${data(r.inicio)} a ${data(r.termino)}` : null],
+    ["Diárias aprovadas", String(diarias.length)],
+    ["Total das diárias", moeda(somaDiarias)],
+    ["Infrações descontadas", somaDescontos ? moeda(somaDescontos) : null],
+    ["Despesas", somaDespesas ? moeda(somaDespesas) : null],
+    ["Total da remessa", moeda(somaDiarias - somaDescontos + somaDespesas)],
+  ])
+  p.detalhamento = {
+    titulo: "Diárias da remessa",
+    itens,
+    total: moeda(somaDiarias - somaDescontos + somaDespesas),
+  }
+  const enviou = t(r.enviado_por)
+  p.solicitante = enviou ? { id: enviou, nome: null, papel: "Enviou a remessa" } : null
+  const avaliadores = [...new Set(diarias.map((d) => t(d.avaliador_id)).filter((v): v is string => Boolean(v)))]
+  for (const a of avaliadores) p.envolvidos.push({ id: a, nome: null, papel: "Aprovou diária(s)" })
+  const lancadores = [...new Set(diarias.map((d) => t(d.solicitante_id) ?? t(d.funcionario_id)).filter((v): v is string => Boolean(v)))]
+  for (const l of lancadores) if (l !== enviou) p.envolvidos.push({ id: l, nome: null, papel: "Lançou diária(s)" })
+  return p
+}
+
+/**
+ * Minutas assinadas do contrato: o PDF assinado por fora (ICP-Brasil/gov.br,
+ * bucket documentos) ou o PDF da minuta assinada eletronicamente no sistema.
+ */
+async function minutasDoContrato(contratoId: string): Promise<Procedencia["documentos"]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("contratos_minutas")
+    .select("id, titulo, assinada_em, arquivo_assinado")
+    .eq("contrato_id", contratoId)
+    .order("updated_at", { ascending: false })
+  if (error) return []
+  const docs: Procedencia["documentos"] = []
+  for (const m of (data ?? []) as Linha[]) {
+    if (t(m.arquivo_assinado)) {
+      docs.push({ rotulo: `Minuta assinada — ${t(m.titulo) ?? "contrato"}`, url: await assinar("documentos", m.arquivo_assinado), formalizacao: true })
+    } else if (t(m.assinada_em)) {
+      docs.push({ rotulo: `Minuta assinada no sistema — ${t(m.titulo) ?? "contrato"}`, url: `/painel/compras/contratos/minutas/${m.id}/pdf`, formalizacao: true })
+    }
+  }
+  return docs
 }

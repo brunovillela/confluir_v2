@@ -11,7 +11,7 @@ import {
   debitarCaixaCompra,
   saldoCaixaAberta,
 } from "@/lib/db/compras-pagamento"
-import { subirComprovanteCompras, subirPdfCompras } from "@/lib/db/compras"
+import { permissaoEspecificaDaOrdem, subirComprovanteCompras, subirPdfCompras } from "@/lib/db/compras"
 import {
   alterarSituacaoOrdem,
   caixaJaDebitado,
@@ -21,6 +21,7 @@ import {
   reenviarParaAutorizacao,
   SITUACOES_PAGAVEIS,
 } from "@/lib/db/ordens-ciclo"
+import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
 import { registrarEstorno } from "@/lib/db/ordens-estorno"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
@@ -375,6 +376,22 @@ export async function salvarDocumentosOrdemAction(
     return { erro: "Anexe a nota fiscal e/ou o boleto." }
   }
 
+  // Parcela recorrente esperando a nota: o documento faz a ordem andar
+  // (A pagar se no valor autorizado; senão, autorização pontual).
+  if (temNota && ordem.situacao === "Aguardando documento fiscal") {
+    if (temBoleto) {
+      const rb = await subirPdfCompras(`boletos/ordens/${id}`, boleto)
+      if (rb.erro || !rb.caminho) return { erro: rb.erro ?? "Falha ao subir o boleto." }
+      await admin.from("ordens_pagamento").update({ arquivo_boleto: rb.caminho }).eq("id", id)
+    }
+    const r = await receberDocumentoFiscal(id, { arquivo: nota, valor: null, onde: "pela tela da ordem" })
+    if (r.erro) return { erro: r.erro }
+    revalidarOrdem(id)
+    revalidatePath("/painel/compras/contratos")
+    revalidatePath("/painel/institucional/custeios")
+    redirect(`/painel/financeiro/ordens/${id}?documentos=${r.situacao === "A pagar" ? "pagar" : "autorizacao"}`)
+  }
+
   const mudancas: Record<string, string> = {}
   if (temNota) {
     const r = await subirComprovanteCompras(`notas/ordens/${id}`, nota)
@@ -418,6 +435,14 @@ export async function alterarSituacaoAction(
   const sessao = await requirePermissao("financeiro_pagamento")
   const id = texto(formData, "id")
   if (!id) return { erro: "Ordem inválida." }
+  // "A pagar" à mão é autorizar: extraordinária de contrato/custeio exige a
+  // permissão específica, como na aprovação.
+  if (texto(formData, "situacao") === "A pagar") {
+    const exigida = await permissaoEspecificaDaOrdem(id)
+    if (exigida && sessao.permissoes[exigida.chave] !== true) {
+      return { erro: `Ordem de ${exigida.origem}: levar para "A pagar" exige a permissão "${exigida.rotulo}".` }
+    }
+  }
   const { erro } = await alterarSituacaoOrdem(
     id,
     sessao.usuario.id,

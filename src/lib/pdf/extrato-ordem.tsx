@@ -140,6 +140,17 @@ export type ExtratoOrdemProps = {
     titulo: string | null
     linhas: { rotulo: string; valor: string }[]
     pessoas: { papel: string; nome: string }[]
+    /** Itens que compõem o valor (remessa de diárias). */
+    detalhamento?: {
+      titulo: string
+      itens: {
+        descricao: string
+        detalhe: string | null
+        valor: string
+        subitens: { descricao: string; valor: string }[]
+      }[]
+      total: string
+    } | null
   }
   favorecido: { nome: string; documento: string | null; tipo: string | null }
   classificacao: {
@@ -265,6 +276,27 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
             ))}
           </View>
         </Secao>
+
+        {p.procedencia.detalhamento && p.procedencia.detalhamento.itens.length > 0 ? (
+          <SecaoLista
+            titulo={`${p.procedencia.detalhamento.titulo} — total ${p.procedencia.detalhamento.total}`}
+            vazio=""
+            linhas={p.procedencia.detalhamento.itens.map((it, i) => (
+              <View key={i} style={s.linhaTabela}>
+                <View style={s.aud}>
+                  <Text style={s.audRotulo}>{it.descricao}</Text>
+                  {it.detalhe ? <Text style={s.audDetalhe}>{it.detalhe}</Text> : null}
+                  {it.subitens.map((sub, j) => (
+                    <Text key={j} style={s.audDetalhe}>
+                      {sub.descricao}: {sub.valor}
+                    </Text>
+                  ))}
+                </View>
+                <Text style={[s.audRotulo, { width: 80, textAlign: "right" }]}>{it.valor}</Text>
+              </View>
+            ))}
+          />
+        ) : null}
 
         <Secao titulo="Despesa">
           <View style={s.grade}>

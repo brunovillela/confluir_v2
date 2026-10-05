@@ -41,9 +41,8 @@ export function AvaliacaoDiariaForm({
       <CardHeader>
         <CardTitle className="text-base">Avaliar solicitação</CardTitle>
         <CardDescription>
-          Aprovar gera a ordem de pagamento de {valorTexto} direta ao
-          funcionário (segue autorização e pagamento no financeiro). Reprovar
-          exige o motivo.
+          Aprovada, a diária ({valorTexto}) entra na remessa do beneficiário, que vira
+          ordem de pagamento quando for enviada. Reprovar exige o motivo.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -55,7 +54,7 @@ export function AvaliacaoDiariaForm({
             )?.value
             const pergunta =
               decisao === "aprovar"
-                ? `Aprovar esta diária e gerar a ordem de pagamento de ${valorTexto}?`
+                ? `Aprovar esta diária (${valorTexto})? Ela entra na remessa do beneficiário, que vai para pagamento quando for enviada.`
                 : "Reprovar esta solicitação de diária?"
             confirmarEnvio(e, pergunta)}}
           className="grid gap-4"
@@ -105,8 +104,8 @@ export function AvaliacaoDiariaForm({
                   </option>
                 </select>
                 <p className="text-muted-foreground text-xs">
-                  As infrações descontadas ficam quitadas; a ordem de pagamento
-                  sai pelo valor líquido.
+                  As infrações descontadas ficam quitadas; a diária entra líquida na
+                  remessa.
                 </p>
               </div>
             </div>
@@ -144,7 +143,7 @@ export function AvaliacaoDiariaForm({
               disabled={pendente}
             >
               {pendente ? <Loader2 className="animate-spin" /> : <Check />}
-              Aprovar e gerar ordem
+              Aprovar
             </Button>
           </div>
         </form>

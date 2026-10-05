@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, HandCoins, History, Landmark, Table2 } from "lucide-react"
+import { ArrowLeft, HandCoins, History, Landmark, Send, Table2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import {
   SITUACOES_DIARIA,
 } from "@/lib/db/diarias"
 import { contarRemessasHistorico } from "@/lib/db/diarias-historico"
+import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -52,10 +53,13 @@ export default async function DiariasPage({
 
   const brutos = await searchParams
   // Só as de funcionário: as da diretoria têm porta e permissão próprias.
-  const [{ disponivel, solicitacoes }, noHistorico] = await Promise.all([
+  const [{ disponivel, solicitacoes }, noHistorico, { remessas }] = await Promise.all([
     listarSolicitacoesDiaria({ quadro: "funcionario" }),
     contarRemessasHistorico(),
+    listarRemessasNovas({ quadro: "funcionario" }),
   ])
+  // Remessas abertas com diária aprovada: prontas para ir a pagamento.
+  const prontas = remessas.filter((r) => !r.enviada && r.contagem.aprovada > 0).length
 
   const params = {
     busca: (brutos.busca ?? "").trim(),
@@ -103,11 +107,18 @@ export default async function DiariasPage({
             <p className="text-muted-foreground mt-1 text-xs">
               {aguardando} aguardando avaliação ·{" "}
               {solicitacoes.length.toLocaleString("pt-BR")} solicitaç
-              {solicitacoes.length === 1 ? "ão" : "ões"} no total — aprovação
-              gera ordem de pagamento direta ao funcionário
+              {solicitacoes.length === 1 ? "ão" : "ões"} no total — cada diária entra
+              na remessa do funcionário, que vira ordem de pagamento quando é enviada
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/painel/pessoal/diarias/remessas">
+                <Send />
+                Remessas
+                {prontas > 0 && <> ({prontas} pronta{prontas === 1 ? "" : "s"} para enviar)</>}
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/painel/pessoal/diarias/historico">
                 <History />

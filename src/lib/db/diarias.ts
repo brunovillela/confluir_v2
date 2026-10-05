@@ -27,6 +27,8 @@ import { SITE_URL } from "@/lib/env"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+import { garantirRemessaAberta, recalcularRemessa } from "@/lib/db/diarias-remessas"
+
 /**
  * Diárias — pagamento avulso que o funcionário SOLICITA por uma atividade
  * específica (ex.: viagem ao Rio de Janeiro com pernoite). Um avaliador
@@ -147,6 +149,12 @@ export type SolicitacaoDiaria = {
   ordem_pagamento_id: string | null
   ordemCodigo: string | null
   ordemSituacao: string | null
+  /** Remessa do beneficiário em que a diária entrou (null = antes das remessas). */
+  remessaId: string | null
+  remessaCodigo: string | null
+  remessaEnviada: boolean
+  /** Infrações abatidas na aprovação (a diária entra líquida na remessa). */
+  valorDescontos: number
   created_at: string | null
 }
 
@@ -187,7 +195,10 @@ async function normalizarSolicitacoes(
     ),
   ]
 
-  const [nomes, tipos, ordens, deptos, despesas] = await Promise.all([
+  const remessaIds = [
+    ...new Set(brutas.map((s) => s.remessa_id).filter((v): v is string => Boolean(v))),
+  ]
+  const [nomes, tipos, ordens, deptos, despesas, remessas] = await Promise.all([
     nomesDosUsuarios(pessoas),
     tipoIds.length
       ? admin.from("financeiro_diarias").select("*").in("id", tipoIds)
@@ -202,7 +213,16 @@ async function normalizarSolicitacoes(
       ? admin.from("empresa_departamentos").select("id, departamento").in("id", deptoIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     despesasDasSolicitacoes(brutas.map((s) => String(s.id))),
+    remessaIds.length
+      ? admin.from("pessoal_diarias_remessas").select("id, codigo, enviado").in("id", remessaIds)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ])
+  const remessa = new Map(
+    ((remessas.data ?? []) as Record<string, unknown>[]).map((r) => [
+      String(r.id),
+      { codigo: (r.codigo as string | null) ?? null, enviada: r.enviado === true },
+    ])
+  )
 
   const nomeDepto = new Map(
     ((deptos.data ?? []) as Record<string, unknown>[]).map((d) => [
@@ -265,9 +285,25 @@ async function normalizarSolicitacoes(
     ordemSituacao: s.ordem_pagamento_id
       ? (ordem.get(String(s.ordem_pagamento_id))?.situacao ?? null)
       : null,
+    remessaId: (s.remessa_id as string | null) ?? null,
+    remessaCodigo: s.remessa_id ? (remessa.get(String(s.remessa_id))?.codigo ?? null) : null,
+    remessaEnviada: s.remessa_id ? (remessa.get(String(s.remessa_id))?.enviada ?? false) : false,
+    valorDescontos: Number(s.valor_descontos ?? 0) || 0,
     created_at: (s.created_at as string | null) ?? null,
     }
   })
+}
+
+/** As diárias de uma remessa (mais antigas primeiro). [] sem o SQL das remessas. */
+export async function solicitacoesDaRemessa(remessaId: string): Promise<SolicitacaoDiaria[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_diarias_solicitacoes")
+    .select(SELECT_SOLICITACAO)
+    .eq("remessa_id", remessaId)
+    .order("data_inicio", { ascending: true, nullsFirst: false })
+  if (error) return []
+  return normalizarSolicitacoes((data ?? []) as Record<string, unknown>[])
 }
 
 /**
@@ -418,6 +454,19 @@ export async function criarSolicitacaoDiaria(
     return { erro: `Não foi possível solicitar: ${error.message}` }
   }
 
+  // Remessa (05/10): a diária entra na remessa aberta do beneficiário.
+  const novaId = criada ? String((criada as { id: string }).id) : null
+  if (novaId) {
+    const remessaId = await garantirRemessaAberta(nova.funcionario_id, quadro, nova.departamento_id ?? null)
+    if (remessaId) {
+      const { error: erroRemessa } = await admin
+        .from("pessoal_diarias_solicitacoes")
+        .update({ remessa_id: remessaId })
+        .eq("id", novaId)
+      if (!erroRemessa) await recalcularRemessa(remessaId)
+    }
+  }
+
   // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
   const nomes = await nomesDosUsuarios([nova.funcionario_id])
   const quemPediu = nova.solicitante_id ?? nova.funcionario_id
@@ -450,6 +499,8 @@ export async function cancelarSolicitacaoDiaria(
   if ((data ?? []).length === 0) {
     return { erro: "Solicitação não encontrada ou já avaliada." }
   }
+  const s = await buscarSolicitacaoDiaria(id)
+  if (s?.remessaId && !s.remessaEnviada) await recalcularRemessa(s.remessaId)
   return {}
 }
 
@@ -476,12 +527,13 @@ async function notificarAvaliacaoDiaria(
   solicitacao: SolicitacaoDiaria,
   aprovada: boolean,
   observacao: string | null,
-  ordemCodigo?: string
+  ordemCodigo?: string,
+  naRemessa = false
 ): Promise<void> {
   if (!solicitacao.funcionario_id) return
   const resumo = `${solicitacao.tipoNome ?? "diária"}${solicitacao.quantidade ? ` × ${solicitacao.quantidade}` : ""}`
   const mensagem = aprovada
-    ? `Sua solicitação de diária (${resumo}) foi APROVADA${solicitacao.valor_total !== null ? ` no valor de ${formatarMoeda(solicitacao.valor_total)}` : ""}. Ordem de pagamento ${ordemCodigo ?? ""} gerada — o pagamento segue o fluxo do financeiro.`
+    ? `Sua solicitação de diária (${resumo}) foi APROVADA${solicitacao.valor_total !== null ? ` no valor de ${formatarMoeda(solicitacao.valor_total)}` : ""}. ${naRemessa ? "Ela entrou na sua remessa de diárias, que vai para pagamento quando for enviada ao financeiro." : `Ordem de pagamento ${ordemCodigo ?? ""} gerada — o pagamento segue o fluxo do financeiro.`}`
     : `Sua solicitação de diária (${resumo}) foi reprovada.${observacao ? ` Motivo: ${observacao}` : ""}`
 
   try {
@@ -548,6 +600,11 @@ export async function avaliarSolicitacaoDiaria(
   const admin = await createAdminClient()
   let ordemId: string | null = null
   let codigo: string | undefined
+  // Remessa (05/10): aprovada, a diária entra na remessa aberta do
+  // beneficiário — a ordem nasce quando a remessa é enviada. Sem o SQL das
+  // remessas (remessaId null), segue o caminho antigo: uma ordem por diária.
+  let remessaId: string | null = null
+  let totalDesconto = 0
   // Infrações do infrator abatidas nesta diária (para a trilha e o rollback).
   const abatidas: CobrancaDiariaPendente[] = []
   const desfazerBaixas = async () => {
@@ -555,7 +612,17 @@ export async function avaliarSolicitacaoDiaria(
   }
 
   if (aprovar) {
-    codigo = gerarCodigoOrdem()
+    remessaId =
+      solicitacao.remessaId && !solicitacao.remessaEnviada
+        ? solicitacao.remessaId
+        : solicitacao.funcionario_id
+          ? await garantirRemessaAberta(
+              solicitacao.funcionario_id,
+              solicitacao.beneficiarioTipo,
+              solicitacao.departamentoId
+            )
+          : null
+    codigo = remessaId ? undefined : gerarCodigoOrdem()
 
     // Abate infrações pendentes do infrator na forma "diária", até o valor da
     // diária. Reclama cada infração (pendente→baixada) ANTES de calcular o
@@ -573,7 +640,9 @@ export async function avaliarSolicitacaoDiaria(
         if (c.valor <= 0 || c.valor > restante) continue
         const { erro } = await baixarCobrancaComoDiaria(c.id, {
           avaliadorId,
-          referencia: `Descontada na diária (ordem ${codigo}).`,
+          referencia: remessaId
+            ? "Descontada na diária (entra líquida na remessa de diárias do beneficiário)."
+            : `Descontada na diária (ordem ${codigo}).`,
         })
         if (!erro) {
           abatidas.push(c)
@@ -581,7 +650,10 @@ export async function avaliarSolicitacaoDiaria(
         }
       }
     }
-    const totalDesconto = abatidas.reduce((s, c) => s + c.valor, 0)
+    totalDesconto = abatidas.reduce((s, c) => s + c.valor, 0)
+  }
+
+  if (aprovar && !remessaId) {
     // A diária entra líquida (as infrações saem dela); as despesas extras vão
     // por inteiro, cada uma na sua conta.
     const liquidoDiaria = (solicitacao.valor_total ?? 0) - totalDesconto
@@ -683,13 +755,14 @@ export async function avaliarSolicitacaoDiaria(
     }
   }
 
-  const avaliacao = {
+  const avaliacao: Record<string, unknown> = {
     situacao: aprovar ? "aprovada" : "reprovada",
     avaliador_id: avaliadorId,
     avaliacao_data: new Date().toISOString(),
     avaliacao_observacao: observacao,
     ordem_pagamento_id: ordemId,
     updated_at: new Date().toISOString(),
+    ...(remessaId ? { remessa_id: remessaId, valor_descontos: Math.round(totalDesconto * 100) / 100 } : {}),
   }
   const salvar = (comDespesas: boolean) =>
     admin
@@ -725,7 +798,9 @@ export async function avaliarSolicitacaoDiaria(
     )
   }
 
-  await notificarAvaliacaoDiaria(solicitacao, aprovar, observacao, codigo)
+  const daRemessa = remessaId ?? (solicitacao.remessaEnviada ? null : solicitacao.remessaId)
+  if (daRemessa) await recalcularRemessa(daRemessa)
+  await notificarAvaliacaoDiaria(solicitacao, aprovar, observacao, codigo, Boolean(remessaId))
   return {}
 }
 

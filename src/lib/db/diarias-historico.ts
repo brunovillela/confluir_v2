@@ -116,7 +116,8 @@ export async function listarRemessasDiaria(filtro: {
   ano?: number
 } = {}): Promise<{ disponivel: boolean; remessas: RemessaDiaria[]; anos: number[] }> {
   const admin = await createAdminClient()
-  let query = admin.from("pessoal_diarias_remessas").select("*")
+  // Só as do sistema anterior: as remessas novas têm tela própria.
+  let query = admin.from("pessoal_diarias_remessas").select("*").not("bubble_id", "is", null)
   if (filtro.beneficiarioId) query = query.eq("beneficiario_id", filtro.beneficiarioId)
   const { data, error } = await query
     .order("inicio", { ascending: false, nullsFirst: false })
@@ -141,6 +142,7 @@ export async function contarRemessasDiaria(beneficiarioId: string): Promise<numb
     .from("pessoal_diarias_remessas")
     .select("id", { count: "exact", head: true })
     .eq("beneficiario_id", beneficiarioId)
+    .not("bubble_id", "is", null)
   return error ? 0 : (count ?? 0)
 }
 
@@ -150,7 +152,7 @@ export async function obterRemessaDiaria(
   opcoes: { beneficiarioId?: string } = {}
 ): Promise<{ remessa: RemessaDiaria; lancamentos: LancamentoDiaria[] } | null> {
   const admin = await createAdminClient()
-  let query = admin.from("pessoal_diarias_remessas").select("*").eq("id", id)
+  let query = admin.from("pessoal_diarias_remessas").select("*").eq("id", id).not("bubble_id", "is", null)
   if (opcoes.beneficiarioId) query = query.eq("beneficiario_id", opcoes.beneficiarioId)
   const { data, error } = await query.maybeSingle()
   if (error) {
@@ -235,5 +237,6 @@ export async function contarRemessasHistorico(): Promise<number> {
   const { count, error } = await admin
     .from("pessoal_diarias_remessas")
     .select("id", { count: "exact", head: true })
+    .not("bubble_id", "is", null)
   return error ? 0 : (count ?? 0)
 }

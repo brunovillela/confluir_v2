@@ -210,7 +210,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
         .limit(1)
     ),
     contar(() =>
-      admin.from("pessoal_diarias_remessas").select("id", { count: "exact" }).limit(1)
+      admin.from("pessoal_diarias_remessas").select("id", { count: "exact" }).not("bubble_id", "is", null).limit(1)
     ),
   ])
 

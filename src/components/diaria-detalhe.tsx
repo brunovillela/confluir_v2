@@ -22,6 +22,7 @@ export function DetalheDiaria({
   infracoesPendentes,
   descontos,
   salvo,
+  remessaHref,
 }: {
   solicitacao: SolicitacaoDiaria
   voltar: { href: string; rotulo: string }
@@ -30,6 +31,8 @@ export function DetalheDiaria({
   infracoesPendentes: InfracaoPendente[]
   descontos: DescontoDiaria[]
   salvo?: boolean
+  /** Página da remessa em que a diária entrou (porta de quem vê). */
+  remessaHref?: string | null
 }) {
   const totalDescontado = descontos.reduce((s, d) => s + d.valor, 0)
   const aguardando = solicitacao.situacao === "aguardando"
@@ -103,6 +106,21 @@ export function DetalheDiaria({
             <Campo rotulo="Motivo" colSpan>
               <span className="whitespace-pre-wrap">{solicitacao.motivo ?? "—"}</span>
             </Campo>
+            {solicitacao.remessaId && (
+              <Campo rotulo="Remessa de diárias" colSpan>
+                {remessaHref ? (
+                  <Link href={remessaHref} className="text-primary tabular-nums hover:underline">
+                    {solicitacao.remessaCodigo ?? "(sem código)"}
+                  </Link>
+                ) : (
+                  <span className="tabular-nums">{solicitacao.remessaCodigo ?? "—"}</span>
+                )}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {solicitacao.remessaEnviada ? "enviada para pagamento" : "aberta — acumula as diárias até ser enviada"}
+                </span>
+              </Campo>
+            )}
           </dl>
 
           {solicitacao.despesas.length > 0 && (
@@ -142,7 +160,7 @@ export function DetalheDiaria({
                 <span className="tabular-nums">{formatarMoeda(totalGeral)}</span>
               </p>
               <p className="text-muted-foreground mt-1 text-xs">
-                Cada despesa vai para a conta contábil dela — a ordem de pagamento sai com o rateio.
+                Cada despesa vai para a conta contábil dela — a ordem de pagamento da remessa sai com o rateio.
               </p>
             </div>
           )}
@@ -209,8 +227,8 @@ export function DetalheDiaria({
                   ))}
                 </ul>
                 <p className="text-muted-foreground mt-2 text-xs">
-                  O valor da ordem de pagamento já é o líquido (diária e despesas menos as
-                  infrações descontadas).
+                  A diária entra líquida na remessa (diária e despesas menos as infrações
+                  descontadas).
                 </p>
               </div>
             )}

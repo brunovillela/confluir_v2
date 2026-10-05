@@ -2,11 +2,12 @@ import "server-only"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import {
   inserirOrdensVerificadasCompat,
-  reverificarOrdem,
   type Confirmacao,
 } from "@/lib/db/ordens-verificacao"
+import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
 import {
   camposAutorizacaoInicial,
+  camposRecorrenteAutorizada,
   corrigirOrdem,
   motivoDispensaContrato,
   registrarEvento,
@@ -15,7 +16,6 @@ import {
   SITUACOES_NAO_AUTORIZADAS,
   usuarioDaTrilha,
 } from "@/lib/db/ordens-ciclo"
-import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
@@ -105,6 +105,10 @@ export type Contrato = {
   created_at: string | null
   updated_at: string | null
   vigencia: Vigencia
+  /** Autorização do contrato: dá às parcelas recorrentes a autorização (05/10). */
+  autorizado: boolean
+  autorizadoEm: string | null
+  autorizadorId: string | null
 }
 
 /** Categoria de contrato (`contratos_categorias`). `sigiloso` restringe a leitura. */
@@ -632,6 +636,9 @@ export async function buscarContrato(
     created_at: texto(linha.created_at),
     updated_at: texto(linha.updated_at),
     vigencia: vigenciaDe(texto(linha.vigencia_termino), hoje),
+    autorizado: linha.autorizacao_esta_autorizado === true,
+    autorizadoEm: texto(linha.autorizacao_data),
+    autorizadorId: texto(linha.autorizacao_autorizador_id),
   }
 
   // Resumo financeiro das ordens do contrato.
@@ -838,7 +845,7 @@ export async function gerarOrdensContrato(
 
   const { data: c, error } = await admin
     .from("contratos")
-    .select("id, codigo, objeto, valor, sob_demanda, fornecedor_id, departamento_id, centro_custo_id")
+    .select("id, codigo, objeto, valor, sob_demanda, fornecedor_id, departamento_id, centro_custo_id, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data")
     .eq("id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
@@ -862,6 +869,16 @@ export async function gerarOrdensContrato(
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.primeiroVencimento)) {
     return { erro: "Informe a data do primeiro vencimento." }
+  }
+  // Parcela RECORRENTE nasce autorizada pela autorização do contrato — sem
+  // ela, não há o que herdar. Pagamento extraordinário (única) passa pela
+  // autorização pontual.
+  const recorrente = params.periodicidade !== "unica"
+  const contratoAutorizado = linha.autorizacao_esta_autorizado === true
+  if (recorrente && params.aguardarDocumento === true && !contratoAutorizado) {
+    return {
+      erro: "Autorize o contrato antes de gerar parcelas recorrentes — elas nascem autorizadas pela autorização do contrato. Quem tem a permissão “Contratos — autorizar” vê o botão no topo desta página. Pagamento extraordinário (periodicidade única) pode ser gerado agora e passa pela autorização pontual.",
+    }
   }
   const qtd =
     params.periodicidade === "unica"
@@ -936,14 +953,27 @@ export async function gerarOrdensContrato(
     linha.sob_demanda !== true &&
     valorContrato !== null &&
     Math.abs(valorContrato - params.valorParcela) < 0.005
-  const aguardando = params.aguardarDocumento === true && params.periodicidade !== "unica"
-  // Esperando a nota, a ordem não entra na fila de autorização; a regra da
-  // parcela fixa (dispensa) é aplicada quando o documento chegar.
+  const aguardando = params.aguardarDocumento === true && recorrente
+  // Regra de 05/10: recorrente de contrato autorizado nasce AUTORIZADA e
+  // espera só o documento fiscal — salvo se o valor da parcela não for o
+  // autorizado (contrato de valor fixo): aí espera o documento sem
+  // autorização e vai para a autorização pontual. Extraordinária (única) vai
+  // direto para a autorização pontual. Ajuda institucional (sem documento)
+  // mantém a regra antiga da parcela fixa.
+  const valorAutorizado = linha.sob_demanda === true || ordinariaFixa
+  const dataAut = linha.autorizacao_data ? String(linha.autorizacao_data).slice(0, 10).split("-").reverse().join("/") : null
   const autorizacao = aguardando
-    ? { situacao: SITUACAO_AGUARDANDO_DOCUMENTO }
-    : camposAutorizacaoInicial(
-        ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
-      )
+    ? valorAutorizado
+      ? camposRecorrenteAutorizada(
+          `Parcela recorrente do contrato ${texto(linha.codigo) ?? objeto}, autorizado${dataAut ? ` em ${dataAut}` : ""} — espera só o documento fiscal.`,
+          texto(linha.autorizacao_autorizador_id)
+        )
+      : { situacao: SITUACAO_AGUARDANDO_DOCUMENTO }
+    : params.aguardarDocumento === true
+      ? camposAutorizacaoInicial(null)
+      : camposAutorizacaoInicial(
+          ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
+        )
   const registros = novos.map(({ venc, parcela }, i) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
@@ -980,7 +1010,13 @@ export async function gerarOrdensContrato(
     "criada",
     await usuarioDaTrilha(),
     `Gerada a partir do contrato ${texto(linha.codigo) ?? objeto}.${
-      aguardando ? " Aguardando o documento fiscal da competência para seguir para autorização." : ""
+      aguardando
+        ? valorAutorizado
+          ? " Nasceu autorizada pela autorização do contrato; aguarda o documento fiscal da competência."
+          : " Valor diferente do autorizado no contrato: aguarda o documento fiscal e passa pela autorização pontual."
+        : !recorrente && params.aguardarDocumento === true
+          ? " Pagamento extraordinário: passa pela autorização pontual."
+          : ""
     }`
   )
   return { geradas: novos.length, puladas }
@@ -1212,84 +1248,71 @@ export async function receberDocumentoOrdemContrato(
 ): Promise<{ erro?: string; situacao?: string; apontamentos?: Apontamento[] }> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
-  const [{ data: c }, { data: o }] = await Promise.all([
-    admin
-      .from("contratos")
-      .select("id, codigo, valor, sob_demanda")
-      .eq("id", contratoId)
-      .eq("emp_proprietaria_id", empId)
-      .maybeSingle(),
-    admin
-      .from("ordens_pagamento")
-      .select("id, situacao, valor_inicial_cobranca, contrato_id")
-      .eq("id", ordemId)
-      .eq("emp_proprietaria_id", empId)
-      .not("excluido", "is", true)
-      .maybeSingle(),
-  ])
-  if (!c) return { erro: "Contrato não encontrado." }
-  if (!o || texto(o.contrato_id) !== contratoId) return { erro: "Ordem não encontrada neste contrato." }
-  if (o.situacao !== SITUACAO_AGUARDANDO_DOCUMENTO) {
-    return { erro: `Esta ordem já está "${o.situacao}" — o documento fiscal já foi recebido.` }
-  }
-  const valorAnterior = Number(o.valor_inicial_cobranca ?? 0)
-  const valor = dados.valor ?? valorAnterior
-  if (!(valor > 0)) return { erro: "Informe o valor da nota." }
-
-  const up = await subirComprovanteCompras(`notas/contratos/${contratoId}`, dados.arquivo)
-  if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o documento fiscal." }
-
-  const valorContrato = c.valor === null || c.valor === undefined ? null : Number(c.valor)
-  const ordinariaFixa =
-    c.sob_demanda !== true && valorContrato !== null && Math.abs(valorContrato - valor) < 0.005
-  const dispensa = ordinariaFixa ? motivoDispensaContrato(texto(c.codigo)) : null
-  const autorizacao = camposAutorizacaoInicial(dispensa)
-
-  // Antes de seguir para autorização, a análise roda de novo sobre a ordem
-  // como ficará (com a nota e o valor dela).
-  const analise = await reverificarOrdem(
-    ordemId,
-    { ...autorizacao, arquivo_nota_fiscal: up.caminho, valor_inicial_cobranca: valor },
-    { notaFiscal: up.caminho, confirmacao: dados.confirmacao }
-  )
-  if (analise.apontamentos) {
-    await admin.storage.from("compras").remove([up.caminho])
-    return { apontamentos: analise.apontamentos }
-  }
-
-  // A situação no filtro garante que duas pessoas não recebam a mesma nota.
-  const { data: atualizadas, error } = await admin
+  const { data: o } = await admin
     .from("ordens_pagamento")
-    .update({
-      ...autorizacao,
-      arquivo_nota_fiscal: up.caminho,
-      valor_inicial_cobranca: valor,
-    })
+    .select("id, contrato_id")
     .eq("id", ordemId)
-    .eq("situacao", SITUACAO_AGUARDANDO_DOCUMENTO)
-    .select("id")
-  if (error || !(atualizadas ?? []).length) {
-    await admin.storage.from("compras").remove([up.caminho])
-    return { erro: error ? `Não foi possível registrar a nota: ${error.message}` : "A ordem mudou enquanto você enviava — recarregue a página." }
-  }
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .maybeSingle()
+  if (!o || texto(o.contrato_id) !== contratoId) return { erro: "Ordem não encontrada neste contrato." }
+  return receberDocumentoFiscal(ordemId, { ...dados, onde: "no contrato" })
+}
 
-  const usuario = await usuarioDaTrilha()
-  await registrarEvento(
-    ordemId,
-    "documento_fiscal",
-    usuario,
-    dispensa
-      ? "Nota da competência recebida no contrato."
-      : "Nota da competência recebida no contrato — seguiu para autorização.",
-    {
-      arquivo_nota_fiscal: up.caminho,
-      ...(Math.abs(valor - valorAnterior) >= 0.005 ? { valor_antes: valorAnterior, valor } : {}),
-    }
+/**
+ * Autoriza o contrato (permissão `aquisicoes_contratos_autorizacao`). As
+ * parcelas recorrentes que já esperam o documento sem autorização — no valor
+ * autorizado — passam a constar como autorizadas.
+ */
+export async function autorizarContrato(
+  contratoId: string,
+  usuarioId: string
+): Promise<{ erro?: string; parcelas?: number }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: c } = await admin
+    .from("contratos")
+    .select("id, codigo, objeto, valor, sob_demanda, autorizacao_esta_autorizado")
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (!c) return { erro: "Contrato não encontrado." }
+  if (c.autorizacao_esta_autorizado === true) return { erro: "Este contrato já está autorizado." }
+  const hoje = hojeSP()
+  const { error } = await admin
+    .from("contratos")
+    .update({
+      autorizacao_esta_autorizado: true,
+      autorizacao_autorizador_id: usuarioId,
+      autorizacao_data: hoje,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", contratoId)
+  if (error) return { erro: `Não foi possível autorizar: ${error.message}` }
+
+  const { data: pendentes } = await admin
+    .from("ordens_pagamento")
+    .select("id, valor_inicial_cobranca")
+    .eq("contrato_id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+    .eq("situacao", SITUACAO_AGUARDANDO_DOCUMENTO)
+    .not("excluido", "is", true)
+    .not("autorizacao_esta_autorizado", "is", true)
+  const valorContrato = c.valor === null || c.valor === undefined ? null : Number(c.valor)
+  const noValor = (pendentes ?? []).filter(
+    (o) =>
+      c.sob_demanda === true ||
+      (valorContrato !== null && Math.abs(Number(o.valor_inicial_cobranca ?? 0) - valorContrato) < 0.005)
   )
-  await analise.registrar("no recebimento da nota")
-  if (dispensa) await registrarEvento(ordemId, "autorizacao_dispensada", usuario, dispensa)
-  else depoisDaResposta(() => avisarOrdensEmAutorizacao([ordemId]))
-  return { situacao: autorizacao.situacao }
+  const motivo = `Parcela recorrente do contrato ${texto(c.codigo) ?? texto(c.objeto) ?? ""}, autorizado em ${hoje.split("-").reverse().join("/")} — espera só o documento fiscal.`
+  if (noValor.length) {
+    const ids = noValor.map((o) => String(o.id))
+    const campos: Record<string, unknown> = { ...camposRecorrenteAutorizada(motivo, usuarioId) }
+    delete campos.situacao
+    await admin.from("ordens_pagamento").update(campos).in("id", ids).eq("situacao", SITUACAO_AGUARDANDO_DOCUMENTO)
+    await registrarEvento(ids, "autorizacao_dispensada", usuarioId, motivo)
+  }
+  return { parcelas: noValor.length }
 }
 
 /**

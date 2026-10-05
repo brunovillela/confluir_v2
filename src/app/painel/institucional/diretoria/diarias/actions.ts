@@ -7,6 +7,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { criarSolicitacaoDiaria } from "@/lib/db/diarias"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
+import { enviarRemessaDiarias, obterRemessaNova } from "@/lib/db/diarias-remessas"
 import {
   adicionarDespesaDiaria,
   removerDespesaDiaria,
@@ -107,4 +108,22 @@ export async function removerDespesaDiretoria(
 
   revalidatePath(`/painel/institucional/diretoria/diarias/${solicitacaoId}`)
   return { ok: "Despesa excluída." }
+}
+
+/** Envia a remessa de diárias de DIRETOR(A) para pagamento (gera a ordem). */
+export async function enviarRemessaDiretoriaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await exigirAcesso()
+  const remessaId = String(formData.get("remessa_id") ?? "")
+  if (!remessaId) return { erro: "Remessa inválida." }
+  const dados = await obterRemessaNova(remessaId)
+  if (!dados || dados.remessa.quadro !== "diretor") return { erro: "Remessa não encontrada." }
+  const { erro, ordemCodigo } = await enviarRemessaDiarias(remessaId, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath("/painel/institucional/diretoria/diarias")
+  revalidatePath("/painel/institucional/diretoria/diarias/remessas")
+  revalidatePath("/painel/financeiro/ordens")
+  redirect(`/painel/institucional/diretoria/diarias/remessas/${remessaId}?enviada=${encodeURIComponent(ordemCodigo ?? "")}`)
 }

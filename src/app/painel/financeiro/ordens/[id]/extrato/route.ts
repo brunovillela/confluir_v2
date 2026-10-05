@@ -79,7 +79,7 @@ export async function GET(
       pixCodigo: txt(o.pix_codigo) || null,
       projeto: x.detalhe.projetoVinculado?.descricao ?? null,
     },
-    procedencia: { origem: pr.origem, titulo: pr.titulo, linhas: pr.linhas, pessoas },
+    procedencia: { origem: pr.origem, titulo: pr.titulo, linhas: pr.linhas, pessoas, detalhamento: pr.detalhamento ?? null },
     favorecido: {
       nome: x.favorecido.nome ?? "—",
       documento: x.favorecido.documento,
@@ -125,6 +125,8 @@ export async function GET(
       { rotulo: "Comprovante de pagamento", url: x.arquivos.comprovante },
       ...(x.arquivos.orcamento ? [{ rotulo: "Orçamento", url: x.arquivos.orcamento }] : []),
       ...pr.documentos.map((d) => ({ rotulo: d.rotulo, url: absoluto(d.url, origem) })),
+      // Contrato, custeio, remessa… aberto no sistema (para quem tem acesso).
+      ...(pr.href ? [{ rotulo: `Registro de origem no sistema — ${pr.titulo ?? pr.origem}`, url: absoluto(pr.href, origem) }] : []),
     ],
     auditoria: {
       geral: x.auditoria.geral,

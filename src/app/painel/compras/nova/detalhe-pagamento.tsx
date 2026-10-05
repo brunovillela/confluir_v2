@@ -48,6 +48,7 @@ export function DetalhePagamento({
   buscarMeios = meiosDoFornecedor,
   futuro = false,
   boletosEsperados,
+  favorecido = "fornecedor",
 }: {
   forma: string
   fornecedorId: string
@@ -64,7 +65,11 @@ export function DetalhePagamento({
   buscarMeios?: (
     fornecedorId: string
   ) => Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }>
+  /** Quem recebe: "fornecedor" (padrão) ou "beneficiário" (custeio). */
+  favorecido?: "fornecedor" | "beneficiário"
 }) {
+  const doFav = favorecido === "fornecedor" ? "do fornecedor" : "do beneficiário"
+  const oFav = favorecido === "fornecedor" ? "o fornecedor" : "o beneficiário"
   const tipo = DETALHE_DA_FORMA[forma as FormaPagamentoCompras] ?? null
   const precisaFornecedor = tipo === "pix_fornecedor" || tipo === "conta_fornecedor"
 
@@ -235,12 +240,12 @@ export function DetalhePagamento({
 
   // Pix do fornecedor ou conta do fornecedor (TED).
   const ePix = tipo === "pix_fornecedor"
-  const rotulo = ePix ? "Chave Pix do fornecedor *" : "Conta do fornecedor (TED) *"
+  const rotulo = ePix ? `Chave Pix ${doFav} *` : `Conta ${doFav} (TED) *`
   if (!fornecedorId) {
     return (
       <div className="grid gap-1.5">
         <Label>{rotulo}</Label>
-        <p className="text-muted-foreground text-xs">Escolha o fornecedor primeiro.</p>
+        <p className="text-muted-foreground text-xs">Escolha {oFav} primeiro.</p>
       </div>
     )
   }
@@ -250,7 +255,7 @@ export function DetalhePagamento({
       <div className="grid gap-1.5">
         <Label>{rotulo}</Label>
         <p className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Loader2 className="size-3 animate-spin" /> Buscando o cadastro do fornecedor…
+          <Loader2 className="size-3 animate-spin" /> Buscando o cadastro {doFav}…
         </p>
       </div>
     )
@@ -294,8 +299,8 @@ export function DetalhePagamento({
         </select>
         {opcoes.length === 0 && (
           <p className="text-muted-foreground text-xs">
-            O fornecedor não tem {ePix ? "chave Pix" : "conta"} cadastrada:
-            informe abaixo e ela fica gravada no cadastro dele.
+            {favorecido === "fornecedor" ? "O fornecedor" : "O beneficiário"} não tem {ePix ? "chave Pix" : "conta"} cadastrada:
+            informe abaixo{favorecido === "fornecedor" ? " e ela fica gravada no cadastro dele" : " — ela fica gravada no custeio"}.
           </p>
         )}
       </div>

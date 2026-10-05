@@ -18,7 +18,20 @@ import {
   type TipoBeneficiario,
 } from "@/lib/custeio-constantes"
 
-import { atualizarCusteioAction, criarCusteioAction } from "./actions"
+import { FORMAS_ORDEM_CONTRATO } from "@/lib/compras-constantes"
+
+import { ACEITA_NOTA, prepararArquivo } from "../../compras/nova/arquivo-envio"
+import { DetalhePagamento, type CaixaOpcao } from "../../compras/nova/detalhe-pagamento"
+import { atualizarCusteioAction, criarCusteioAction, meiosDoBeneficiarioAction } from "./actions"
+
+/** Rótulos da forma no custeio: quem recebe é o beneficiário. */
+const ROTULO_FORMA: Record<(typeof FORMAS_ORDEM_CONTRATO)[number], string> = {
+  Boleto: "Boleto",
+  Pix: "Pix (chave do beneficiário)",
+  "Pix (QR Code)": "Pix — código copia e cola / QR Code",
+  "Depósito bancário (TED)": "TED (conta do beneficiário)",
+  Dinheiro: "Dinheiro (caixa)",
+}
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -50,6 +63,9 @@ export type CusteioInicial = {
   periodicidade: string | null
   primeiro_vencimento: string | null
   forma_pagamento: string | null
+  /** Já tem boleto anexado (editar sem trocar o arquivo mantém). */
+  temBoleto?: boolean
+  temFormalizacao?: boolean
 }
 
 export function CusteioForm({
@@ -58,6 +74,7 @@ export function CusteioForm({
   centrosCusto,
   diretores,
   convidados,
+  caixas = [],
   aoCancelarHref,
 }: {
   custeio?: CusteioInicial
@@ -65,6 +82,8 @@ export function CusteioForm({
   centrosCusto: Opcao[]
   diretores: Opcao[]
   convidados: Opcao[]
+  /** Contas de caixa abertas (forma Dinheiro). */
+  caixas?: CaixaOpcao[]
   aoCancelarHref: string
 }) {
   const [estado, formAction, pendente] = useActionState(
@@ -89,6 +108,11 @@ export function CusteioForm({
   const [cadencia, setCadencia] = useState<Cadencia>(
     (custeio?.cadencia as Cadencia) ?? "pontual"
   )
+  const formaInicial = (FORMAS_ORDEM_CONTRATO as readonly string[]).includes(custeio?.forma_pagamento ?? "")
+    ? (custeio?.forma_pagamento as string)
+    : ""
+  const [forma, setForma] = useState(formaInicial)
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
 
   // Ao escolher a finalidade, sugere o tipo de beneficiário (se não for livre).
   const finalidadeSel = useMemo(
@@ -303,16 +327,83 @@ export function CusteioForm({
           </div>
         )}
 
-        <div className="grid gap-1.5 sm:max-w-64">
-          <Label htmlFor="forma_pagamento">Forma de pagamento (opcional)</Label>
-          <Input
-            id="forma_pagamento"
-            name="forma_pagamento"
-            defaultValue={custeio?.forma_pagamento ?? ""}
-            placeholder="Ex.: PIX, transferência"
-          />
-        </div>
       </fieldset>
+
+      <fieldset className="border-border grid gap-4 rounded-md border p-4">
+        <legend className="text-muted-foreground px-1 text-xs">Forma de pagamento</legend>
+        {custeio?.forma_pagamento && !formaInicial && (
+          <p className="text-muted-foreground text-xs">
+            Registrada antes como &quot;{custeio.forma_pagamento}&quot; — escolha a forma abaixo.
+          </p>
+        )}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="forma_pagamento">Forma *</Label>
+            <select
+              id="forma_pagamento"
+              name="forma_pagamento"
+              required
+              value={forma}
+              onChange={(e) => setForma(e.target.value)}
+              className={SELECT}
+            >
+              <option value="" disabled>
+                Escolha a forma
+              </option>
+              {FORMAS_ORDEM_CONTRATO.map((f) => (
+                <option key={f} value={f}>
+                  {ROTULO_FORMA[f]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {forma === "Boleto" && cadencia === "recorrente" ? (
+            <p className="text-muted-foreground self-end text-xs md:col-span-2">
+              Custeio recorrente por boleto: o boleto de cada parcela chega com o documento fiscal
+              da competência, na tela do custeio ou da ordem.
+            </p>
+          ) : (
+            forma && (
+              <DetalhePagamento
+                key={`${forma}-${tipo}-${beneficiarioId}`}
+                forma={forma}
+                fornecedorId={beneficiarioId ? `${tipo}:${beneficiarioId}` : ""}
+                cartoes={[]}
+                caixas={caixas}
+                buscarMeios={meiosDoBeneficiarioAction}
+                futuro
+                favorecido="beneficiário"
+              />
+            )
+          )}
+        </div>
+        {forma === "Boleto" && custeio?.temBoleto && (
+          <>
+            <input type="hidden" name="boleto_atual" value="1" />
+            <p className="text-muted-foreground text-xs">Já há um boleto anexado — envie outro só para trocar.</p>
+          </>
+        )}
+      </fieldset>
+
+      <div className="grid gap-1.5 sm:max-w-xl">
+        <Label htmlFor="formalizacao">
+          Formalização do custeio (PDF ou foto{custeio?.temFormalizacao ? " — substitui a atual" : ""})
+        </Label>
+        <Input
+          id="formalizacao"
+          name="formalizacao"
+          type="file"
+          accept={ACEITA_NOTA}
+          onChange={async (e) => {
+            const { erro } = await prepararArquivo(e.currentTarget)
+            setErroArquivo(erro ?? null)
+          }}
+        />
+        <p className="text-muted-foreground text-xs">
+          Convite, ofício, ata ou termo que justifica o custeio — aparece na ordem de pagamento e no extrato.
+        </p>
+        {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
+      </div>
 
       <div className="flex gap-2">
         <Button type="submit" disabled={pendente}>

@@ -63,6 +63,7 @@ export default async function DiariaDiretoriaPage({
       <DetalheDiaria
         solicitacao={solicitacao}
         voltar={{ href: "/painel/institucional/diretoria/diarias", rotulo: "Diárias da diretoria" }}
+        remessaHref={solicitacao.remessaId ? `/painel/institucional/diretoria/diarias/remessas/${solicitacao.remessaId}` : null}
         pessoaHref={null}
         despesasUrls={urlPorDespesa}
         infracoesPendentes={infracoesPendentes}

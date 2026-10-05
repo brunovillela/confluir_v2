@@ -10,6 +10,8 @@ import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { avaliarOrdem } from "@/lib/db/ordens-ciclo"
+import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
+import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import {
   debitarCaixaCompra,
   type DetalhePagamento,
@@ -1532,7 +1534,52 @@ export async function avaliarOrdemCompra(
   aprovar: boolean,
   observacao: string | null
 ): Promise<{ erro?: string }> {
+  if (aprovar) {
+    const exigida = await permissaoEspecificaDaOrdem(ordemId)
+    if (exigida && !(await temPermissaoEfetiva(avaliadorId, exigida.chave))) {
+      return {
+        erro: `Pagamento extraordinário de ${exigida.origem}: além da alçada, aprovar exige a permissão "${exigida.rotulo}".`,
+      }
+    }
+  }
   return avaliarOrdem(ordemId, avaliadorId, alcada, aprovar, observacao)
+}
+
+/**
+ * Ordem de CONTRATO (não RPA, não compra) ou de CUSTEIO em autorização é
+ * pagamento extraordinário: quem aprova precisa da permissão de autorizar
+ * contratos/custeios, além da alçada pelo valor (05/10/2026).
+ */
+export async function permissaoEspecificaDaOrdem(
+  ordemId: string
+): Promise<{ chave: string; rotulo: string; origem: string } | null> {
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("ordens_pagamento")
+    .select("contrato_id, custeio_id, tipo, processo_compra_id")
+    .eq("id", ordemId)
+    .maybeSingle()
+  if (!o) return null
+  if (o.custeio_id) {
+    return { chave: "custeio_institucional_autorizacao", rotulo: "Custeio institucional — autorizar", origem: "custeio" }
+  }
+  if (o.contrato_id && o.tipo === "Contrato" && !o.processo_compra_id) {
+    const { data: c } = await admin.from("contratos").select("apoio_institucional").eq("id", String(o.contrato_id)).maybeSingle()
+    if (c?.apoio_institucional === true) return null
+    return { chave: "aquisicoes_contratos_autorizacao", rotulo: "Contratos — autorizar", origem: "contrato" }
+  }
+  return null
+}
+
+async function temPermissaoEfetiva(usuarioId: string, chave: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("permissoes")
+    .select("*")
+    .eq(PERMISSOES_USUARIO_FK, usuarioId)
+    .maybeSingle()
+  const efetivas = await resolverPermissoes(admin, usuarioId, (data ?? {}) as Record<string, unknown>)
+  return efetivas[chave] === true
 }
 
 // ── Fornecedores ───────────────────────────────────────────────────────────

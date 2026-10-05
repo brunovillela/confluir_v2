@@ -27,7 +27,10 @@ import {
   listarConvidados,
   listarDiretoresParaCusteio,
   listarFinalidades,
+  pagoComDoCusteio,
+  urlFormalizacaoCusteio,
 } from "@/lib/db/custeio"
+import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import {
   CADENCIAS,
@@ -44,6 +47,7 @@ import {
   BotaoSubmeter,
   FormReprovar,
 } from "./custeio-acoes"
+import { ExtraordinarioForm, FormalizacaoForm, ReceberDocumentoCusteioForm } from "./custeio-pagamentos"
 
 export const metadata: Metadata = { title: "Custeio — Confluir" }
 
@@ -64,6 +68,8 @@ export default async function CusteioPage({
     editar?: string
     geradas?: string
     puladas?: string
+    formalizacao?: string
+    extraordinario?: string
   }>
 }) {
   const sessao = await requirePermissao("custeio_institucional", [
@@ -97,8 +103,11 @@ export default async function CusteioPage({
         listarCentrosCusto(),
         listarDiretoresParaCusteio(),
         listarConvidados(),
+        contasAbertasParaCompras(),
       ])
     : null
+  const urlFormalizacao = await urlFormalizacaoCusteio(str(c.arquivo_formalizacao))
+  const pagoCom = await pagoComDoCusteio(id, str(c.forma_pagamento))
 
   const inicial: CusteioInicial | undefined = editando
     ? {
@@ -119,6 +128,8 @@ export default async function CusteioPage({
         periodicidade: str(c.periodicidade),
         primeiro_vencimento: str(c.primeiro_vencimento),
         forma_pagamento: str(c.forma_pagamento),
+        temBoleto: Boolean(str(c.arquivo_boleto)),
+        temFormalizacao: Boolean(str(c.arquivo_formalizacao)),
       }
     : undefined
 
@@ -177,11 +188,28 @@ export default async function CusteioPage({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
             {Number(brutos.geradas) > 0
-              ? `Autorizado — ${brutos.geradas} ordem(ns) gerada(s) em "Em autorização" no Financeiro.`
+              ? c.cadencia === "recorrente"
+                ? `Autorizado — ${brutos.geradas} parcela(s) gerada(s), já autorizadas: cada uma espera só o documento fiscal para seguir para pagamento.`
+                : `Autorizado — a ordem do pagamento único foi gerada e passa pela autorização pontual no Financeiro.`
               : "Autorizado. Nenhuma ordem nova gerada."}
             {Number(brutos.puladas) > 0 &&
               ` ${brutos.puladas} vencimento(s) já tinham ordem e foram pulados.`}
           </AlertDescription>
+        </Alert>
+      )}
+      {brutos.formalizacao === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Formalização anexada — ela aparece nas ordens deste custeio e no extrato.</AlertDescription>
+        </Alert>
+      )}
+      {brutos.formalizacao === "erro" && (
+        <Alert variant="warning">
+          <AlertDescription>O custeio foi salvo, mas a formalização não subiu — anexe de novo no cartão abaixo.</AlertDescription>
+        </Alert>
+      )}
+      {brutos.extraordinario === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Pagamento extraordinário registrado — a ordem passa pela autorização pontual no Financeiro.</AlertDescription>
         </Alert>
       )}
       {situacao === "reprovado" && str(c.motivo_reprovacao) && (
@@ -225,6 +253,7 @@ export default async function CusteioPage({
                 detalhe: d.detalhe,
               }))}
               convidados={opcoes[3].map((cv) => ({ id: cv.id, nome: cv.nome }))}
+              caixas={opcoes[4]}
               aoCancelarHref={aqui}
             />
           ) : (
@@ -264,6 +293,7 @@ export default async function CusteioPage({
                 valor={detalhe.centroCusto?.nome_da_conta ?? null}
               />
               <Campo rotulo="Forma de pagamento" valor={str(c.forma_pagamento)} />
+              {pagoCom && <Campo rotulo="Para onde" valor={pagoCom} />}
               <Campo rotulo="Evento" valor={str(c.evento)} />
               <div className="sm:col-span-2 lg:col-span-3">
                 <dt className="text-muted-foreground text-xs">Descrição</dt>
@@ -315,14 +345,43 @@ export default async function CusteioPage({
               </>
             )}
             {situacao === "autorizado" && (
-              <p className="text-success-fg text-sm">
-                Autorizado — as ordens estão no Financeiro.
-              </p>
+              <div className="grid gap-3">
+                <p className="text-success-fg text-sm">
+                  Autorizado —{" "}
+                  {c.cadencia === "recorrente"
+                    ? "as parcelas nasceram autorizadas e esperam só o documento fiscal."
+                    : "a ordem está no Financeiro."}{" "}
+                  Pagamento extraordinário passa pela autorização pontual.
+                </p>
+                {podeEditar && <ExtraordinarioForm custeioId={id} boleto={str(c.forma_pagamento) === "Boleto"} />}
+              </div>
             )}
             {(situacao === "reprovado" || situacao === "cancelado") && (
               <p className="text-muted-foreground text-sm">
                 Custeio {situacao}. Crie um novo se necessário.
               </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!editando && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Formalização</CardTitle>
+            <CardDescription>
+              Convite, ofício, ata ou termo que justifica o custeio — segue com as ordens e no extrato
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {podeEditar ? (
+              <FormalizacaoForm custeioId={id} url={urlFormalizacao} />
+            ) : urlFormalizacao ? (
+              <a href={urlFormalizacao} target="_blank" rel="noopener noreferrer" className="text-primary text-sm hover:underline">
+                Abrir a formalização
+              </a>
+            ) : (
+              <p className="text-muted-foreground text-sm">Nenhum documento anexado.</p>
             )}
           </CardContent>
         </Card>
@@ -334,7 +393,7 @@ export default async function CusteioPage({
           <CardDescription>
             {detalhe.ordens.length > 0
               ? `${detalhe.ordens.length} ordem(ns) deste custeio`
-              : "Geradas na autorização; seguem pela alçada do Financeiro."}
+              : "Geradas na autorização: as recorrentes já autorizadas, esperando o documento fiscal."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -375,6 +434,11 @@ export default async function CusteioPage({
                     </TableCell>
                     <TableCell>
                       <SituacaoBadge situacao={o.situacao} />
+                      {podeEditar && o.situacao === "Aguardando documento fiscal" && (
+                        <div className="mt-2">
+                          <ReceberDocumentoCusteioForm custeioId={id} ordemId={o.id} valor={o.valor_inicial_cobranca} />
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
