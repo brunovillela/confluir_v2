@@ -200,6 +200,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "A ficha pública, a assinatura gov.br e a aprovação",
       },
       {
+        slug: "cobrancas",
+        titulo: "Cobranças Pix da contribuição",
+        resumo: "Para quem paga por Pix: valor, vencimento, QR por competência e baixa pelo extrato",
+      },
+      {
         slug: "atendimentos",
         titulo: "Atendimentos pelo portal",
         resumo: "As solicitações dos filiados, a Demanda que geram e o prazo de resposta",

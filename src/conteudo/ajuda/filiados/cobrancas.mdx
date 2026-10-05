@@ -1,0 +1,44 @@
+Quem não é consignado paga a contribuição por **Pix**. Todo mês o sistema
+gera, para cada filiado ativo com forma de recebimento "Pix", uma cobrança
+com **QR Code e copia e cola** (Pix estático, com a chave da entidade e um
+identificador próprio). O filiado vê a cobrança em **Contribuição**, no
+portal, e recebe um aviso.
+
+<RequerPermissao>Receitas e contribuições (ou Gestão da filiação)</RequerPermissao>
+
+## Antes de começar
+
+<PassoAPasso>
+  <Passo titulo="1. Chave Pix da entidade">
+    Em **Financeiro → Remessas → Contas bancárias**, a conta ativa precisa
+    ter a **chave Pix**. É ela que vai no QR.
+  </Passo>
+  <Passo titulo="2. Valor e vencimento">
+    Em **Filiados → Cobranças Pix → Configuração**: o valor mensal padrão e
+    o dia do vencimento. Quem tem valor próprio na ficha (campo
+    "contribuição") usa o dela.
+  </Passo>
+  <Passo titulo="3. Geração automática">
+    Com "Gerar no dia 1" ligado, a cobrança do mês nasce sozinha. Também dá
+    para gerar à mão qualquer competência; rodar de novo não duplica.
+  </Passo>
+</PassoAPasso>
+
+## Como a baixa acontece
+
+- **Pelo extrato**: na Conciliação bancária, um crédito cujo histórico traz o
+  identificador (txid) da cobrança é baixado sozinho; sem o identificador, a
+  cobrança aparece como candidata pelo valor e você confirma com um clique.
+- **À mão**: em Cobranças Pix, "Dar baixa" com valor e data (comprovante
+  mandado pelo filiado, por exemplo).
+
+Em qualquer caso a baixa gera o **recebimento na remessa Associativa da
+competência**, com forma "Pix" — a arrecadação e a inadimplência passam a
+enxergar o pagamento — e o filiado recebe a confirmação no portal.
+
+<Aviso tipo="nota" titulo="Boleto e QR dinâmico">
+  O Pix estático não bloqueia pagamento repetido nem gera boleto registrado.
+  Para boleto ou QR dinâmico com baixa instantânea, a entidade contrata a
+  API Pix do banco ou um provedor de cobrança; a cobrança passa a usar esse
+  adaptador sem mudar a tela.
+</Aviso>

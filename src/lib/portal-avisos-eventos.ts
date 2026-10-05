@@ -24,6 +24,11 @@ export const EVENTOS_PORTAL = [
     rotulo: "Atendimento",
     descricao: "Resposta ou mudança de situação de uma solicitação sua",
   },
+  {
+    chave: "contribuicao",
+    rotulo: "Contribuição",
+    descricao: "Cobrança do mês disponível por Pix e confirmação do pagamento",
+  },
 ] as const
 
 export type EventoPortal = (typeof EVENTOS_PORTAL)[number]["chave"]

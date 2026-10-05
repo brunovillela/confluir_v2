@@ -18,6 +18,7 @@ import {
   UserRoundPlus,
   UsersRound,
   MessagesSquare,
+  QrCode,
   Wallet,
 } from "lucide-react"
 
@@ -486,6 +487,12 @@ export default async function FiliadosPage({
           descricao="Carência por direito, regra de inadimplência e termos legais"
           href="/painel/filiados/direitos"
           icone={ShieldCheck}
+        />
+        <CartaoArea
+          titulo="Cobranças Pix"
+          descricao="Contribuição de quem paga por Pix: QR Code por mês, baixa e vencidas"
+          href="/painel/filiados/cobrancas"
+          icone={QrCode}
         />
         <CartaoArea
           titulo="Atendimentos"

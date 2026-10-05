@@ -7,6 +7,7 @@ import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { listarRemessas } from "@/lib/db/receitas"
 import { lerExtratoCsv } from "@/lib/extrato-csv"
+import { baixarCobranca, cobrancasCandidatas, type Cobranca } from "@/lib/db/cobrancas"
 import { lerOfx, type ExtratoLido } from "@/lib/ofx"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -37,6 +38,7 @@ export type Lancamento = {
   situacao: "pendente" | "conciliado" | "ignorado"
   ordemId: string | null
   comprovacaoId: string | null
+  cobrancaId: string | null
   automatico: boolean
   observacao: string | null
   conciliadoEm: string | null
@@ -64,6 +66,8 @@ export type CandidataComprovacao = { id: string; remessaRotulo: string; fonte: s
 export type LancamentoComCandidatas = Lancamento & {
   ordens: CandidataOrdem[]
   comprovacoes: CandidataComprovacao[]
+  /** Cobranças Pix da contribuição em aberto que casam (txid no histórico ou valor perto do vencimento). */
+  cobrancas: { porTxid: boolean; lista: Cobranca[] }
   /** Nome do que já foi conciliado (ordem ou comprovação). */
   vinculo: string | null
 }
@@ -92,6 +96,7 @@ function montarLancamento(l: Record<string, unknown>): Lancamento {
     situacao: (l.situacao as Lancamento["situacao"]) ?? "pendente",
     ordemId: texto(l.ordem_id),
     comprovacaoId: texto(l.comprovacao_id),
+    cobrancaId: texto(l.cobranca_id),
     automatico: l.automatico === true,
     observacao: texto(l.observacao),
     conciliadoEm: texto(l.conciliado_em),
@@ -318,14 +323,23 @@ async function casarAutomaticamente(extratoId: string, usuarioId: string): Promi
   const { data } = await admin.from("banco_lancamentos").select("*").eq("extrato_id", extratoId).eq("situacao", "pendente").limit(MAX_LINHAS)
   const lancs = (data ?? []).map((l) => montarLancamento(l as Record<string, unknown>))
   if (lancs.length === 0) return 0
-  const [ordens, comps] = await Promise.all([ordensCandidatas(lancs), comprovacoesCandidatas(lancs)])
+  const [ordens, comps, cobs] = await Promise.all([ordensCandidatas(lancs), comprovacoesCandidatas(lancs), cobrancasCandidatas(lancs.filter((l) => l.valor > 0)).catch(() => new Map())])
   // Uma ordem não pode casar com dois lançamentos no mesmo lote.
   const ordensUsadas = new Set<string>()
   const compsUsadas = new Set<string>()
+  const cobsUsadas = new Set<string>()
   let n = 0
   for (const l of lancs) {
     const o = ordens.get(l.id)
     const c = comps.get(l.id)
+    const cb = cobs.get(l.id)
+    // Cobrança Pix identificada pelo txid: baixa na hora.
+    if (cb && cb.porTxid && cb.cobrancas.length === 1 && !cobsUsadas.has(cb.cobrancas[0].id)) {
+      cobsUsadas.add(cb.cobrancas[0].id)
+      const r = await conciliarComCobranca(l.id, cb.cobrancas[0].id, usuarioId, true)
+      if (!r.erro) n++
+      continue
+    }
     if (o && o.length === 1 && !ordensUsadas.has(o[0].id)) {
       ordensUsadas.add(o[0].id)
       const r = await conciliarComOrdem(l.id, o[0].id, usuarioId, true)
@@ -418,10 +432,18 @@ export async function listarLancamentos(filtro: { situacao: Lancamento["situacao
       const ff = new Map(fontes.map((f) => [f.id, f.nome_fantasia ?? f.nome_razao ?? "(fonte)"]))
       for (const c of cs ?? []) nomes.set(String(c.id), `Depósito ${rr.get(String(c.remessa_id)) ?? ""} — ${ff.get(String(c.fonte_pg_id)) ?? ""}`)
     }
-    return lancs.map((l) => ({ ...l, ordens: [], comprovacoes: [], vinculo: (l.ordemId && nomes.get(l.ordemId)) || (l.comprovacaoId && nomes.get(l.comprovacaoId)) || null }))
+    const cobIds = lancs.map((l) => l.cobrancaId).filter((v): v is string => !!v)
+    if (cobIds.length) {
+      const { data: cs } = await admin.from("filiacao_cobrancas").select("id, competencia, filiacao:filiacao_id (nome_completo)").in("id", cobIds)
+      for (const c of cs ?? []) {
+        const f = (Array.isArray(c.filiacao) ? c.filiacao[0] : c.filiacao) as { nome_completo?: string | null } | null
+        nomes.set(String(c.id), `Contribuição ${String(c.competencia).slice(5, 7)}/${String(c.competencia).slice(0, 4)} — ${f?.nome_completo ?? ""}`)
+      }
+    }
+    return lancs.map((l) => ({ ...l, ordens: [], comprovacoes: [], cobrancas: { porTxid: false, lista: [] }, vinculo: (l.ordemId && nomes.get(l.ordemId)) || (l.comprovacaoId && nomes.get(l.comprovacaoId)) || (l.cobrancaId && nomes.get(l.cobrancaId)) || null }))
   }
-  const [ordens, comps] = await Promise.all([ordensCandidatas(lancs), comprovacoesCandidatas(lancs)])
-  return lancs.map((l) => ({ ...l, ordens: ordens.get(l.id) ?? [], comprovacoes: comps.get(l.id) ?? [], vinculo: null }))
+  const [ordens, comps, cobs] = await Promise.all([ordensCandidatas(lancs), comprovacoesCandidatas(lancs), cobrancasCandidatas(lancs.filter((l) => l.valor > 0)).catch(() => new Map())])
+  return lancs.map((l) => ({ ...l, ordens: ordens.get(l.id) ?? [], comprovacoes: comps.get(l.id) ?? [], cobrancas: { porTxid: cobs.get(l.id)?.porTxid ?? false, lista: cobs.get(l.id)?.cobrancas ?? [] }, vinculo: null }))
 }
 
 /** Remessas e fontes para criar uma comprovação de depósito a partir do extrato. */
@@ -509,6 +531,23 @@ export async function criarComprovacaoEConciliar(lancamentoId: string, remessaId
   return conciliarComComprovacao(lancamentoId, String(criada.id), usuarioId)
 }
 
+/** Crédito do extrato que paga uma cobrança Pix da contribuição: dá baixa na cobrança (recebimento na remessa) e concilia. */
+export async function conciliarComCobranca(lancamentoId: string, cobrancaId: string, usuarioId: string, automatico = false): Promise<{ erro?: string }> {
+  const l = await lancamentoPendente(lancamentoId)
+  if (!l) return { erro: "Lançamento não encontrado." }
+  if (l.situacao !== "pendente") return { erro: "Este lançamento já foi tratado." }
+  if (l.valor <= 0) return { erro: "Só um crédito paga uma cobrança." }
+  const baixa = await baixarCobranca({ cobrancaId, dataPagamento: l.data, valorPago: l.valor, bancoLancamentoId: lancamentoId, usuarioId })
+  if (baixa.erro) return { erro: baixa.erro }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("banco_lancamentos")
+    .update({ situacao: "conciliado", cobranca_id: cobrancaId, ordem_id: null, comprovacao_id: null, automatico, conciliado_em: new Date().toISOString(), conciliado_por: usuarioId })
+    .eq("id", lancamentoId)
+    .eq("situacao", "pendente")
+  return error ? { erro: error.message } : {}
+}
+
 export async function ignorarLancamento(lancamentoId: string, usuarioId: string, motivo: string | null): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { error } = await admin
@@ -524,7 +563,7 @@ export async function desfazerConciliacao(lancamentoId: string): Promise<{ erro?
   const admin = await createAdminClient()
   const { error } = await admin
     .from("banco_lancamentos")
-    .update({ situacao: "pendente", ordem_id: null, comprovacao_id: null, automatico: false, observacao: null, conciliado_em: null, conciliado_por: null })
+    .update({ situacao: "pendente", ordem_id: null, comprovacao_id: null, cobranca_id: null, automatico: false, observacao: null, conciliado_em: null, conciliado_por: null })
     .eq("id", lancamentoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .neq("situacao", "pendente")

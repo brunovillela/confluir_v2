@@ -1,16 +1,20 @@
 import type { Metadata } from "next"
-import { Coins, TriangleAlert } from "lucide-react"
+import { Coins, QrCode as QrCodeIcone, TriangleAlert } from "lucide-react"
+import QRCode from "qrcode"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { minhaContribuicao } from "@/lib/db/carteirinha"
+import { cobrancasDoFiliado, obterConfigCobranca, rotuloCompetencia } from "@/lib/db/cobrancas"
+import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { formatarMoeda } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PortalShell } from "../portal-shell"
+import { CopiaECola } from "./cobranca-pix"
 
 export const metadata: Metadata = { title: "Minha contribuição — Portal" }
 
@@ -20,6 +24,11 @@ export default async function ContribuicaoPage() {
   const cadastro = await cadastroDoFiliado(filiado.cpf)
   const c = cadastro ? await minhaContribuicao(filiado.cpf, cadastro.id) : null
   const ultimas = c?.linhas.slice(0, 36) ?? []
+  // Cobrança Pix (onda 5, A3): só para quem paga por Pix; a mais recente em aberto vem com o QR.
+  const ids = await registrosDoCpf(filiado.cpf)
+  const [{ cobrancas }, configCobranca] = await Promise.all([cobrancasDoFiliado(ids), obterConfigCobranca().catch(() => null)])
+  const aberta = cobrancas.find((x) => x.situacao === "aberta") ?? null
+  const qrCobranca = aberta?.brcode ? await QRCode.toDataURL(aberta.brcode, { errorCorrectionLevel: "M", margin: 1, width: 280 }) : null
 
   return (
     <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
@@ -56,6 +65,39 @@ export default async function ContribuicaoPage() {
               </AlertDescription>
             </Alert>
           ) : null}
+
+          {aberta && (
+            <Card className="border-primary/40">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <QrCodeIcone className="text-primary size-5" />
+                  <CardTitle className="text-base">Contribuição de {rotuloCompetencia(aberta.competencia)} — pague por Pix</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  {formatarMoeda(aberta.valor)} · vence em {aberta.vencimento.split("-").reverse().join("/")}
+                  {aberta.vencida ? " · vencida" : ""}. Leia o QR Code no app do banco ou copie o código. O pagamento é reconhecido pelo extrato da entidade em até 2 dias úteis.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
+                {qrCobranca && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrCobranca} alt="QR Code Pix da contribuição" width={200} height={200} className="mx-auto rounded-lg bg-white p-2 sm:mx-0" />
+                )}
+                <div className="grid gap-3">
+                  {aberta.brcode && <CopiaECola codigo={aberta.brcode} />}
+                  <p className="text-muted-foreground text-xs">
+                    Identificador: <span className="font-mono">{aberta.txid}</span>
+                    {configCobranca?.mensagem ? " · " + configCobranca.mensagem : ""}
+                  </p>
+                  {cobrancas.filter((x) => x.situacao === "aberta").length > 1 && (
+                    <p className="text-muted-foreground text-xs">
+                      Há {cobrancas.filter((x) => x.situacao === "aberta").length} cobranças em aberto; esta é a mais recente. As outras: {cobrancas.filter((x) => x.situacao === "aberta" && x.id !== aberta.id).map((x) => rotuloCompetencia(x.competencia) + " (" + formatarMoeda(x.valor) + ")").join(", ")}.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-3">
             <Card>

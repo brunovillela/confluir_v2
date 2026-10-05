@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  conciliarComCobranca,
   conciliarComComprovacao,
   conciliarComOrdem,
   criarComprovacaoEConciliar,
@@ -55,6 +56,14 @@ export async function conciliarComprovacaoAction(_prev: EstadoForm, fd: FormData
   if (r.erro) return { erro: r.erro }
   revalidar()
   return { ok: "Conciliado com o depósito." }
+}
+
+export async function conciliarCobrancaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await sessaoEscrita()
+  const r = await conciliarComCobranca(campo(fd, "lancamento_id"), campo(fd, "cobranca_id"), sessao.usuario.id as string)
+  if (r.erro) return { erro: r.erro }
+  revalidar()
+  return { ok: "Cobrança baixada e conciliada." }
 }
 
 export async function criarComprovacaoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {

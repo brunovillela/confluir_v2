@@ -47,6 +47,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Cobranças Pix",
+    href: "/painel/filiados/cobrancas",
+    icone: "QrCode",
+    descricao: "Contribuição de quem paga por Pix: configuração, geração por competência e baixa",
+    chave: "filiacao_receitas",
+    chavesAlternativas: ["filiacao_gestao"],
+    oculto: true,
+  },
+  {
     titulo: "Atendimentos",
     href: "/painel/filiados/atendimentos",
     icone: "MessagesSquare",

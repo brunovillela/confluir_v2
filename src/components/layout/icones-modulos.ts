@@ -1,4 +1,5 @@
 import {
+  QrCode,
   FileOutput,
   BookText,
   UserRoundMinus,
@@ -46,6 +47,7 @@ import {
 
 /** Mapa nome → componente, para que a config de módulos (server) fique serializável. */
 export const ICONES_MODULOS: Record<string, LucideIcon> = {
+  QrCode,
   FileOutput,
   BookText,
   UserRoundMinus,

@@ -125,16 +125,16 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
                       </div>
                       <div>
                         {l.situacao === "pendente" ? (
-                          l.ordens.length === 0 && l.comprovacoes.length === 0 && !podeEscrever ? (
+                          l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && !podeEscrever ? (
                             <span className="text-muted-foreground text-xs">Sem candidata</span>
                           ) : (
                             <>
-                              {l.ordens.length === 0 && l.comprovacoes.length === 0 && (
+                              {l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && (
                                 <p className="text-muted-foreground mb-1 text-xs">
                                   {l.valor < 0 ? "Nenhuma ordem paga com este valor até 3 dias de distância." : "Nenhum depósito registrado com este valor até 5 dias de distância."}
                                 </p>
                               )}
-                              <AcoesLancamento lancamentoId={l.id} valor={l.valor} ordens={l.ordens} comprovacoes={l.comprovacoes} remessas={opcoes.remessas} fontes={opcoes.fontes} podeEscrever={podeEscrever} />
+                              <AcoesLancamento lancamentoId={l.id} valor={l.valor} ordens={l.ordens} comprovacoes={l.comprovacoes} cobrancas={l.cobrancas} remessas={opcoes.remessas} fontes={opcoes.fontes} podeEscrever={podeEscrever} />
                             </>
                           )
                         ) : podeEscrever ? (

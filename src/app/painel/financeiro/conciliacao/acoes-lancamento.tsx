@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Input } from "@/components/ui/input"
 import { type EstadoForm } from "@/lib/contas"
+import type { Cobranca } from "@/lib/db/cobrancas"
 import type { CandidataComprovacao, CandidataOrdem } from "@/lib/db/conciliacao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import {
+  conciliarCobrancaAction,
   conciliarComprovacaoAction,
   conciliarOrdemAction,
   criarComprovacaoAction,
@@ -34,6 +36,7 @@ export function AcoesLancamento({
   valor,
   ordens,
   comprovacoes,
+  cobrancas,
   remessas,
   fontes,
   podeEscrever,
@@ -42,12 +45,14 @@ export function AcoesLancamento({
   valor: number
   ordens: CandidataOrdem[]
   comprovacoes: CandidataComprovacao[]
+  cobrancas: { porTxid: boolean; lista: Cobranca[] }
   remessas: { id: string; rotulo: string }[]
   fontes: { id: string; nome: string }[]
   podeEscrever: boolean
 }) {
   const [eOrdem, aOrdem, pOrdem] = useActionState(conciliarOrdemAction, {})
   const [eComp, aComp, pComp] = useActionState(conciliarComprovacaoAction, {})
+  const [eCob, aCob, pCob] = useActionState(conciliarCobrancaAction, {})
   const [eCriar, aCriar, pCriar] = useActionState(criarComprovacaoAction, {})
   const [eIgn, aIgn, pIgn] = useActionState(ignorarLancamentoAction, {})
   const [criando, setCriando] = useState(false)
@@ -85,6 +90,20 @@ export function AcoesLancamento({
         </form>
       ))}
       <Recado estado={eComp} />
+      {cobrancas.lista.map((c) => (
+        <form key={c.id} action={aCob} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="lancamento_id" value={lancamentoId} />
+          <input type="hidden" name="cobranca_id" value={c.id} />
+          <Button type="submit" size="sm" variant={cobrancas.porTxid ? "default" : "outline"} disabled={pCob}>
+            {pCob ? <Loader2 className="animate-spin" /> : <Link2 />}
+            Contribuição {c.competencia.slice(5, 7)}/{c.competencia.slice(0, 4)}
+          </Button>
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
+            {c.nome ?? c.cpf ?? "filiado"} · {formatarMoeda(c.valor)} · vence {formatarData(c.vencimento)}{cobrancas.porTxid ? " · txid no extrato" : ""}
+          </span>
+        </form>
+      ))}
+      <Recado estado={eCob} />
 
       <div className="flex flex-wrap items-center gap-2">
         {valor > 0 && !criando && (
