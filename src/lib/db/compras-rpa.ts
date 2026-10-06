@@ -396,7 +396,15 @@ export type CompraDoRpa = {
   fornecedorNome: string | null
   fornecedorDocumento: string | null
   impedimento: string | null
+  /**
+   * A compra já gerou a ordem (forma, "Pagar em" e "para onde" definidos na
+   * compra) e ela aguarda o documento fiscal — o RPA assinado. O recibo se
+   * liga a ESSA ordem, sem pedir o pagamento de novo.
+   */
+  ordemPendente: { id: string; forma: string | null; vencimento: string | null } | null
 }
+
+const AGUARDANDO_DOCUMENTO = "Aguardando documento fiscal"
 
 async function lerComprasDoRpa(filtro: { fornecimentoId?: string }): Promise<CompraDoRpa[]> {
   const admin = await createAdminClient()
@@ -405,11 +413,38 @@ async function lerComprasDoRpa(filtro: { fornecimentoId?: string }): Promise<Com
     .from("compras_fornecimentos")
     .select("id, processo_id, fornecedor_id, valor, ordem_pagamento_id")
     .eq("emp_proprietaria_id", emp)
-  consulta = filtro.fornecimentoId
-    ? consulta.eq("id", filtro.fornecimentoId)
-    : consulta.is("ordem_pagamento_id", null)
+  if (filtro.fornecimentoId) {
+    consulta = consulta.eq("id", filtro.fornecimentoId)
+  } else {
+    // Sem ordem, ou com a ordem da compra esperando o recibo assinado.
+    const { data: pendentes } = await admin
+      .from("ordens_pagamento")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("situacao", AGUARDANDO_DOCUMENTO)
+      .not("processo_compra_id", "is", null)
+      .not("excluido", "is", true)
+      .limit(500)
+    const ids = (pendentes ?? []).map((o) => String(o.id))
+    consulta = ids.length
+      ? consulta.or(`ordem_pagamento_id.is.null,ordem_pagamento_id.in.(${ids.join(",")})`)
+      : consulta.is("ordem_pagamento_id", null)
+  }
   const { data: fs, error } = await consulta
   if (error) throw new Error(`Falha ao ler fornecimentos: ${error.message}`)
+  // A ordem que já existe só aceita RPA se ainda espera o documento e
+  // nenhum recibo foi emitido para ela.
+  const ordemIds = [...new Set((fs ?? []).map((f) => texto(f.ordem_pagamento_id)).filter((v): v is string => !!v))]
+  const ordensPorId = new Map<string, Record<string, unknown>>()
+  const comRpa = new Set<string>()
+  if (ordemIds.length) {
+    const [{ data: os }, { data: rs }] = await Promise.all([
+      admin.from("ordens_pagamento").select("id, situacao, forma_pagamento, vencimento").in("id", ordemIds),
+      admin.from("compras_rpa").select("ordem_pagamento_id").in("ordem_pagamento_id", ordemIds),
+    ])
+    for (const o of os ?? []) ordensPorId.set(String(o.id), o)
+    for (const r of rs ?? []) comRpa.add(String(r.ordem_pagamento_id))
+  }
   const processoIds = [...new Set((fs ?? []).map((f) => texto(f.processo_id)).filter((v): v is string => !!v))]
   if (!processoIds.length) return []
   const procs: Record<string, unknown>[] = []
@@ -449,8 +484,12 @@ async function lerComprasDoRpa(filtro: { fornecimentoId?: string }): Promise<Com
           ? "A compra está cancelada."
           : p.bubble_id
             ? "Compra migrada do Bubble: o pagamento dela seguiu por lá."
-            : f.ordem_pagamento_id
-              ? "Este fornecimento já tem ordem de pagamento."
+            : f.ordem_pagamento_id &&
+                (ordensPorId.get(String(f.ordem_pagamento_id))?.situacao !== AGUARDANDO_DOCUMENTO ||
+                  comRpa.has(String(f.ordem_pagamento_id)))
+              ? comRpa.has(String(f.ordem_pagamento_id))
+                ? "Esta compra já tem RPA emitido."
+                : "Este fornecimento já tem ordem de pagamento."
               : !fornecedorId
                 ? "O fornecimento não tem fornecedor."
                 : !temCpf(documento)
@@ -472,6 +511,14 @@ async function lerComprasDoRpa(filtro: { fornecimentoId?: string }): Promise<Com
       fornecedorNome: nome,
       fornecedorDocumento: documento,
       impedimento,
+      ordemPendente:
+        f.ordem_pagamento_id && ordensPorId.get(String(f.ordem_pagamento_id))?.situacao === AGUARDANDO_DOCUMENTO
+          ? {
+              id: String(f.ordem_pagamento_id),
+              forma: texto(ordensPorId.get(String(f.ordem_pagamento_id))?.forma_pagamento),
+              vencimento: texto(ordensPorId.get(String(f.ordem_pagamento_id))?.vencimento),
+            }
+          : null,
     })
   }
   return saida

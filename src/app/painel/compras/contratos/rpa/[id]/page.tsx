@@ -83,9 +83,19 @@ export default async function RpaDetalhePage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            RPA emitido{rpa.ordemId ? " e ordem de pagamento gerada (Em autorização)" : ""}.
-            Baixe o PDF, colha a assinatura do prestador e anexe o recibo assinado
-            abaixo — ele vale como comprovante fiscal do serviço.
+            {rpa.ordemSituacao === "Aguardando documento fiscal" ? (
+              <>
+                RPA emitido — a ordem de pagamento da compra aguarda o documento fiscal. Baixe o PDF,
+                colha a assinatura do prestador e anexe o recibo assinado abaixo: com ele, a ordem segue
+                para autorização.
+              </>
+            ) : (
+              <>
+                RPA emitido{rpa.ordemId ? ` e ordem de pagamento gerada (${rpa.ordemSituacao ?? "Em autorização"})` : ""}.
+                Baixe o PDF, colha a assinatura do prestador e anexe o recibo assinado
+                abaixo — ele vale como comprovante fiscal do serviço.
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}

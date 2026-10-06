@@ -756,8 +756,10 @@ export type NovaCompraDireta = NovaSolicitacao & {
   /** Com o quê foi paga (cartão, caixa, chave/conta, código Pix, texto). */
   detalhe?: DetalhePagamento
   /**
-   * Serviço de autônomo pago por RPA: o processo nasce comprado, mas SEM a
-   * ordem — ela nasce com o recibo (Contratos › RPA), pelo valor líquido.
+   * Serviço de autônomo pago por RPA: o RPA é o documento fiscal. A ordem
+   * nasce com a forma e o "para onde" da compra, "Aguardando documento
+   * fiscal"; o recibo emitido se liga a ela (valor = líquido) e, assinado
+   * pelo prestador, a leva para autorização.
    */
   por_rpa?: boolean
   /** Tela de confirmação da auditoria: os alertas já confirmados. */
@@ -815,14 +817,14 @@ export async function criarCompraDireta(
   }
 
   // Como no legado, a ordem tem código próprio; o vínculo com o processo é
-  // a coluna processo_compra_id. Paga por RPA, a ordem vem com o recibo.
-  const { data: ordem, error: erroOrdem } = nova.por_rpa
-    ? { data: null, error: null }
-    : await inserirOrdemVerificada({
+  // a coluna processo_compra_id. Paga por RPA, espera o recibo assinado.
+  const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
-      descricao: `Compra direta — ${nova.produto}`,
-      situacao: "Em autorização",
+      descricao: nova.por_rpa
+        ? `Compra direta — ${nova.produto} (prestador autônomo: o RPA assinado é o documento fiscal)`
+        : `Compra direta — ${nova.produto}`,
+      situacao: nova.por_rpa ? "Aguardando documento fiscal" : "Em autorização",
       valor_inicial_cobranca: nova.valor,
       forma_pagamento: nova.forma_pagamento,
       vencimento: nova.vencimento,
@@ -837,7 +839,7 @@ export async function criarCompraDireta(
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
     }, nova.confirmacao ? { confirmacao: nova.confirmacao } : {})
-  if (!nova.por_rpa && (erroOrdem || !ordem)) {
+  if (erroOrdem || !ordem) {
     await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
     // Apontamentos da auditoria: nada fica gravado; a tela pergunta.
     if (erroOrdem?.apontamentos) return { apontamentos: erroOrdem.apontamentos }
@@ -883,8 +885,9 @@ export async function criarCompraDireta(
   if (!nova.ja_recebido) avisarRecebimento(`Compra direta ${codigo} — ${nova.produto}`)
   if (!ordem) return { id: processo.id, fornecimentoId: String(fornecimento.id) }
 
-  // Em dinheiro: a compra sai do caixa escolhido.
-  if (nova.detalhe?.caixa_conta_id) {
+  // Em dinheiro: a compra sai do caixa escolhido. Paga por RPA, o caixa
+  // é debitado no pagamento da ordem (o valor ainda vira o líquido do recibo).
+  if (nova.detalhe?.caixa_conta_id && !nova.por_rpa) {
     const { erro } = await debitarCaixaCompra({
       contaId: nova.detalhe.caixa_conta_id,
       valor: nova.valor,

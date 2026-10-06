@@ -30,6 +30,7 @@ import {
   FORMAS_PAGAMENTO_COMPRAS,
   hojeLocalISO,
 } from "@/lib/compras-constantes"
+import { FORMAS_PAGAMENTO_RPA } from "@/lib/rpa-calculo"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { cn } from "@/lib/utils"
 
@@ -787,7 +788,7 @@ export function NovaCompraForm({
             <CardTitle className="text-base">Aquisição direta</CardTitle>
             <CardDescription>
               {porRpa
-                ? "O serviço já foi contratado: o processo nasce comprado e, em seguida, abre o RPA com os dados desta compra — falta só o pagamento. A ordem nasce com o recibo."
+                ? "O serviço já foi contratado: o processo nasce comprado com a forma de pagamento desta tela, e a ordem nasce aguardando o documento fiscal. Em seguida abre o RPA, que substitui a nota; assinado pelo prestador, a ordem segue para autorização."
                 : "A compra já foi feita: o processo nasce comprado e a ordem de pagamento é gerada em autorização (aprovação por alçada antes do pagamento)."}
             </CardDescription>
           </CardHeader>
@@ -798,14 +799,18 @@ export function NovaCompraForm({
                   type="checkbox"
                   name="por_rpa"
                   checked={rpaMarcado}
-                  onChange={(e) => setRpaMarcado(e.target.checked)}
+                  onChange={(e) => {
+                    setRpaMarcado(e.target.checked)
+                    if (e.target.checked && forma === "Cartão") setForma("")
+                  }}
                   className="mt-0.5 size-4"
                 />
                 <span>
                   <strong>Prestador autônomo — pagar por RPA</strong>
                   <span className="text-muted-foreground block text-xs">
-                    Para pessoa física (CPF) sem nota fiscal. O recibo calcula as retenções e o
-                    valor da compra passa a ser o líquido do RPA.
+                    Para pessoa física (CPF) sem nota fiscal. O RPA substitui só a nota: forma e
+                    data de pagamento ficam nesta compra. O recibo calcula as retenções e o valor
+                    da compra passa a ser o líquido do RPA.
                   </span>
                 </span>
               </label>
@@ -849,7 +854,6 @@ export function NovaCompraForm({
                 </div>
               </div>
             </div>
-            {!porRpa && (
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="forma_pagamento">Forma de pagamento *</Label>
@@ -864,7 +868,8 @@ export function NovaCompraForm({
                   <option value="" disabled>
                     Escolha a forma
                   </option>
-                  {FORMAS_PAGAMENTO_COMPRAS.map((f) => (
+                  {/* Por RPA o pagamento ainda vai acontecer: cartão não se aplica. */}
+                  {(porRpa ? FORMAS_PAGAMENTO_RPA : FORMAS_PAGAMENTO_COMPRAS).map((f) => (
                     <option key={f} value={f}>
                       {f}
                     </option>
@@ -881,7 +886,14 @@ export function NovaCompraForm({
                   defaultValue={semi ? leitura?.vencimento : undefined}
                 />
               </div>
-              {semi ? (
+              {porRpa ? (
+                <div className="grid gap-1.5">
+                  <Label>Documento fiscal</Label>
+                  <p className="text-muted-foreground pt-2 text-sm">
+                    O RPA assinado pelo prestador — emitido logo depois de cadastrar.
+                  </p>
+                </div>
+              ) : semi ? (
                 <div className="grid gap-1.5">
                   <Label>Nota fiscal</Label>
                   <p className="text-muted-foreground truncate pt-2 text-sm">
@@ -910,18 +922,16 @@ export function NovaCompraForm({
                 </div>
               )}
             </div>
-            )}
-            {!porRpa && (
             <div className="grid gap-4 md:grid-cols-3">
               <DetalhePagamento
-                key={forma}
+                key={`${forma}-${porRpa}`}
                 forma={forma}
                 fornecedorId={fornecedorId}
                 cartoes={cartoes}
                 caixas={caixas}
+                futuro={porRpa}
               />
             </div>
-            )}
           </CardContent>
         </Card>
       )}

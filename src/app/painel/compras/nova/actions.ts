@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { FORMAS_PAGAMENTO_RPA } from "@/lib/rpa-calculo"
+
 import { requirePermissao } from "@/lib/auth"
 import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
 import {
@@ -105,24 +107,51 @@ export async function criarCompra(
   const dataCompra = dataISO(texto(formData, "data_compra"))
   if (!dataCompra) return { erro: "Informe a data da compra.", campo: "data_compra" }
 
-  // Serviço de autônomo pago por RPA: sem nota e sem pagamento aqui — o
-  // recibo (com as retenções) gera a ordem do líquido, que é o valor da compra.
+  // Serviço de autônomo pago por RPA: o RPA substitui SÓ o documento
+  // fiscal. Forma, "Pagar em" e o "para onde" ficam na compra, como em
+  // qualquer outra; a ordem nasce "Aguardando documento fiscal" e segue para
+  // autorização quando o prestador assina o recibo.
   if (tipo === "servico" && texto(formData, "por_rpa") === "on") {
     const impedimento = await impedimentoDoPrestador(fornecedorId)
     if (impedimento) return { erro: impedimento }
-    const { id, fornecimentoId, erro } = await criarCompraDireta({
+    const formaRpa = texto(formData, "forma_pagamento")
+    if (!(FORMAS_PAGAMENTO_RPA as readonly string[]).includes(formaRpa)) {
+      return { erro: "Escolha a forma de pagamento.", campo: "forma_pagamento" }
+    }
+    const vencimentoRpa = dataISO(texto(formData, "vencimento"))
+    if (!vencimentoRpa) return { erro: "Informe a data de pagamento (Pagar em).", campo: "vencimento" }
+    // Valor 0 na conferência do caixa: em dinheiro, ele é debitado no pagamento.
+    const { detalhe, boleto, erro: erroDetalhe } = await lerDetalhePagamento(
+      formData,
+      formaRpa as FormaPagamentoCompras,
+      fornecedorId,
+      0
+    )
+    if (erroDetalhe || !detalhe) return { erro: erroDetalhe ?? "Pagamento inválido." }
+    if (boleto) {
+      const r = await subirComprovanteCompras("boletos", boleto)
+      if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir o boleto." }
+      detalhe.arquivo_boleto = r.caminho
+    }
+    const { id, fornecimentoId, erro, apontamentos } = await criarCompraDireta({
       ...base,
+      confirmacao: lerConfirmacao(formData),
       fornecedor_id: fornecedorId,
       valor,
-      forma_pagamento: null,
+      forma_pagamento: formaRpa,
       data_compra: dataCompra,
-      vencimento: null,
+      vencimento: vencimentoRpa,
       comprador_id: sessao.usuario.id,
       nota_fiscal_url: null,
       ja_recebido: entregaNoAto,
       recebedor_id: sessao.usuario.id,
+      detalhe,
       por_rpa: true,
     })
+    if (apontamentos || erro) {
+      if (detalhe.arquivo_boleto) await (await createAdminClient()).storage.from("compras").remove([detalhe.arquivo_boleto])
+      if (apontamentos) return { apontamentos }
+    }
     if (erro || !id || !fornecimentoId) return { erro: erro ?? "Falha ao registrar." }
     revalidatePath("/painel/compras")
     redirect(`/painel/compras/contratos/rpa/novo?fornecimento=${fornecimentoId}`)

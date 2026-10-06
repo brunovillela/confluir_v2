@@ -261,17 +261,22 @@ Serviço de **autônomo** (pessoa física, sem nota fiscal) é pago por **RPA** 
 e o RPA sem contrato nasce de uma compra do tipo **Prestação de serviço**:
 
 - **Aquisição direta** — com o tipo **Prestação de serviço**, marque
-  **Prestador autônomo — pagar por RPA**. Saem a nota, a forma e o *Pagar em*:
-  ao **Cadastrar compra e abrir o RPA**, o processo nasce comprado, sem ordem,
-  e o RPA abre com os dados da compra.
+  **Prestador autônomo — pagar por RPA**. O RPA substitui **só a nota fiscal**:
+  a forma de pagamento, o *Pagar em* e o "para onde" continuam na compra (sem
+  cartão, porque o pagamento ainda vai acontecer). Ao **Cadastrar compra e
+  abrir o RPA**, o processo nasce comprado, a ordem nasce **Aguardando
+  documento fiscal** e o RPA abre com os dados da compra.
 - **Via Aquisição** — depois de registrada a compra, o fornecimento de um
   prestador pessoa física mostra **Emitir RPA**, no lugar de esperar a nota.
 
-No RPA, falta só o pagamento (*Pagar em*, forma e "para onde"). A ordem do
-**valor líquido** vira a ordem do fornecimento, e o **valor da compra passa a
-ser o líquido do RPA** — calculado pela base bruta ou pela líquida. O recibo
-assinado, anexado na página do RPA, entra como a nota fiscal da compra.
-Ver [RPA](/painel/ajuda/compras/contratos).
+Quando a compra já tem a ordem, o RPA mostra o pagamento definido nela e não
+pede de novo; senão, pede o *Pagar em*, a forma e o "para onde". Em qualquer
+caso, a ordem passa a valer o **valor líquido** e o **valor da compra passa a
+ser o líquido do RPA** — calculado pela base bruta ou pela líquida. A ordem
+fica **Aguardando documento fiscal** até o prestador assinar: o recibo
+assinado, anexado na página do RPA, entra como a nota fiscal da compra e leva
+a ordem para **autorização**. Excluir um RPA ainda não assinado mantém a ordem
+da compra esperando um novo recibo. Ver [RPA](/painel/ajuda/compras/contratos).
 
 ## Depois da ordem: Pix expirado e nota fiscal
 

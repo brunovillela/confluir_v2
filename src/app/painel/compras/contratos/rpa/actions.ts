@@ -26,6 +26,7 @@ import {
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
+import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
@@ -97,8 +98,16 @@ type OrigemRpa = {
   departamentoId: string | null
   centroCustoId: string | null
   /** RPA de compra de serviço: o fornecimento que ele paga. */
-  compra?: { processoId: string; fornecimentoId: string; codigo: string | null }
+  compra?: {
+    processoId: string
+    fornecimentoId: string
+    codigo: string | null
+    /** A ordem da compra (com a forma e o "para onde") esperando o recibo. */
+    ordemPendenteId: string | null
+  }
 }
+
+const AGUARDANDO_DOCUMENTO = "Aguardando documento fiscal"
 
 /**
  * RPA de contrato: o prestador é o fornecedor do contrato (pessoa física) e a
@@ -156,7 +165,12 @@ async function origemDaCompra(
       fornecedorId: compra.fornecedorId,
       departamentoId: compra.departamentoId,
       centroCustoId: compra.centroCustoId,
-      compra: { processoId: compra.processoId, fornecimentoId: compra.fornecimentoId, codigo: compra.processoCodigo },
+      compra: {
+        processoId: compra.processoId,
+        fornecimentoId: compra.fornecimentoId,
+        codigo: compra.processoCodigo,
+        ordemPendenteId: compra.ordemPendente?.id ?? null,
+      },
     },
   }
 }
@@ -189,13 +203,18 @@ export async function emitirRpa(
   const valor = num(fd, "valor")
   const pagarEm = txt(fd, "pagar_em")
   const forma = txt(fd, "forma_pagamento")
+  // Compra que já tem a ordem: o RPA é só o documento fiscal — o pagamento
+  // (forma, "Pagar em", "para onde") é o da compra.
+  const ordemDaCompra = origem.compra?.ordemPendenteId ?? null
   if (!descricao) return { erro: "Descreva o serviço prestado." }
   if (valor === null || valor <= 0) return { erro: "Informe o valor (ex.: 1.500,00)." }
-  if (!pagarEm || !/^\d{4}-\d{2}-\d{2}$/.test(pagarEm)) {
-    return { erro: "Informe a data do pagamento (Pagar em)." }
-  }
-  if (!forma || !(FORMAS_PAGAMENTO_RPA as readonly string[]).includes(forma)) {
-    return { erro: "Escolha a forma de pagamento." }
+  if (!ordemDaCompra) {
+    if (!pagarEm || !/^\d{4}-\d{2}-\d{2}$/.test(pagarEm)) {
+      return { erro: "Informe a data do pagamento (Pagar em)." }
+    }
+    if (!forma || !(FORMAS_PAGAMENTO_RPA as readonly string[]).includes(forma)) {
+      return { erro: "Escolha a forma de pagamento." }
+    }
   }
   const { fornecedorId } = origem
 
@@ -215,12 +234,13 @@ export async function emitirRpa(
 
   // Por último: chave/conta NOVA do prestador vai para o cadastro dele aqui.
   // Valor 0 na conferência do caixa: ele só é debitado no pagamento da ordem.
-  const { detalhe, boleto, erro: erroDetalhe } = await lerDetalhePagamento(
-    fd,
-    forma as FormaPagamentoRpa,
-    fornecedorId,
-    0
-  )
+  const { detalhe, boleto, erro: erroDetalhe } = ordemDaCompra
+    ? {
+        detalhe: { cartao_id: null, caixa_conta_id: null, dados_bancarios_id: null, pix_codigo: null, arquivo_boleto: null },
+        boleto: undefined,
+        erro: undefined,
+      }
+    : await lerDetalhePagamento(fd, forma as FormaPagamentoRpa, fornecedorId, 0)
   if (erroDetalhe || !detalhe) return { erro: erroDetalhe ?? "Dados de pagamento inválidos." }
 
   const admin = await createAdminClient()
@@ -283,12 +303,24 @@ export async function emitirRpa(
     return { erro: `Não foi possível emitir: ${ultimoErro}` }
   }
 
-  // A ordem do líquido, para o prestador, com a forma e o "para onde".
+  if (ordemDaCompra && origem.compra) {
+    return ligarRpaNaOrdemDaCompra({
+      rpaId,
+      rpaNumero: rpaNumero!,
+      descricao,
+      valorLiquido: r.valorLiquido,
+      ordemId: ordemDaCompra,
+      compra: origem.compra,
+    })
+  }
+
+  // A ordem do líquido, para o prestador, com a forma e o "para onde". Na
+  // compra, o RPA é o documento fiscal: a ordem espera o recibo assinado.
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: TIPO_ORDEM_RPA,
       descricao: `RPA nº ${rpaNumero} — ${descricao}`,
-      situacao: "Em autorização",
+      situacao: origem.compra ? AGUARDANDO_DOCUMENTO : "Em autorização",
       valor_inicial_cobranca: r.valorLiquido,
       forma_pagamento: forma,
       vencimento: pagarEm,
@@ -342,7 +374,7 @@ export async function emitirRpa(
     ordem.id,
     "criada",
     await usuarioDaTrilha(),
-    `Gerada pelo RPA nº ${rpaNumero}${origem.compra ? ` (da compra ${origem.compra.codigo ?? "de serviço"})` : " (de contrato)"}.`
+    `Gerada pelo RPA nº ${rpaNumero}${origem.compra ? ` (da compra ${origem.compra.codigo ?? "de serviço"}) — aguarda o recibo assinado pelo prestador para seguir para autorização` : " (de contrato)"}.`
   )
 
   if (origem.compra) {
@@ -353,6 +385,72 @@ export async function emitirRpa(
   revalidatePath("/painel/compras/contratos/rpa")
   if (origem.contratoId) revalidatePath(`/painel/compras/contratos/${origem.contratoId}`)
   redirect(`/painel/compras/contratos/rpa/${rpaId}?salvo=1`)
+}
+
+/**
+ * Compra que já gerou a ordem (forma e "para onde" da compra): o RPA se liga
+ * a ela. A ordem passa a valer o líquido e continua "Aguardando documento
+ * fiscal" até o prestador assinar o recibo.
+ */
+async function ligarRpaNaOrdemDaCompra(p: {
+  rpaId: string
+  rpaNumero: number
+  descricao: string
+  valorLiquido: number
+  ordemId: string
+  compra: NonNullable<OrigemRpa["compra"]>
+}): Promise<EstadoComApontamentos> {
+  const admin = await createAdminClient()
+  const { data: antes } = await admin
+    .from("ordens_pagamento")
+    .select("valor_inicial_cobranca, tipo, descricao")
+    .eq("id", p.ordemId)
+    .maybeSingle()
+  const { data: ligada, error } = await admin
+    .from("ordens_pagamento")
+    .update({
+      tipo: TIPO_ORDEM_RPA,
+      descricao: `RPA nº ${p.rpaNumero} — ${p.descricao}`,
+      valor_inicial_cobranca: p.valorLiquido,
+    })
+    .eq("id", p.ordemId)
+    .eq("situacao", AGUARDANDO_DOCUMENTO)
+    .select("id")
+  const vinculo = ligada?.length
+    ? await admin.from("compras_rpa").update({ ordem_pagamento_id: p.ordemId }).eq("id", p.rpaId)
+    : null
+  if (error || !ligada?.length || vinculo?.error) {
+    if (ligada?.length && antes) {
+      await admin
+        .from("ordens_pagamento")
+        .update({ tipo: antes.tipo, descricao: antes.descricao, valor_inicial_cobranca: antes.valor_inicial_cobranca })
+        .eq("id", p.ordemId)
+    }
+    await admin.from("compras_rpa").delete().eq("id", p.rpaId)
+    return {
+      erro: `O RPA não foi emitido: ${error?.message ?? vinculo?.error?.message ?? "a ordem da compra mudou de situação — recarregue a compra"}.`,
+    }
+  }
+  await admin
+    .from("compras_fornecimentos")
+    .update({ valor: p.valorLiquido, updated_at: new Date().toISOString() })
+    .eq("id", p.compra.fornecimentoId)
+  const valorAntes = antes?.valor_inicial_cobranca == null ? null : Number(antes.valor_inicial_cobranca)
+  await registrarEvento(
+    p.ordemId,
+    "corrigida",
+    await usuarioDaTrilha(),
+    `RPA nº ${p.rpaNumero} emitido para esta compra — é o documento fiscal; a ordem aguarda o recibo assinado pelo prestador para seguir para autorização.`,
+    valorAntes !== null && Math.abs(valorAntes - p.valorLiquido) >= 0.005
+      ? { antes: { valor_inicial_cobranca: valorAntes }, depois: { valor_inicial_cobranca: p.valorLiquido } }
+      : { rpa_id: p.rpaId }
+  )
+  await alinharValorDaCompra(p.compra.processoId)
+  revalidatePath(`/painel/compras/${p.compra.processoId}`)
+  revalidatePath("/painel/compras")
+  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath(`/painel/financeiro/ordens/${p.ordemId}`)
+  redirect(`/painel/compras/contratos/rpa/${p.rpaId}?salvo=1`)
 }
 
 /** O valor da compra é a soma dos fornecimentos — o do RPA virou o líquido. */
@@ -384,6 +482,26 @@ export async function excluirRpa(
     return {
       erro: "Este RPA já tem o recibo assinado pelo prestador — é comprovante fiscal e não pode ser excluído.",
     }
+  }
+  // RPA de compra com a ordem esperando o recibo: a ordem é da compra e fica
+  // (volta a esperar um RPA); só o recibo sai.
+  if (rpa.ordemId && rpa.fornecimentoId && rpa.ordemSituacao === AGUARDANDO_DOCUMENTO) {
+    const admin = await createAdminClient()
+    const emp = await tenantAtual()
+    await admin
+      .from("ordens_pagamento")
+      .update({ tipo: "Compras", descricao: `Compra de serviço — aguarda o RPA do prestador (o RPA nº ${rpa.numero ?? "—"} foi excluído)` })
+      .eq("id", rpa.ordemId)
+      .eq("situacao", AGUARDANDO_DOCUMENTO)
+    const { error } = await admin.from("compras_rpa").delete().eq("id", id).eq("emp_proprietaria_id", emp)
+    if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+    await registrarEvento(rpa.ordemId, "corrigida", await usuarioDaTrilha(), `RPA nº ${rpa.numero ?? "—"} excluído — a ordem segue aguardando o documento fiscal (um novo RPA).`)
+    revalidatePath("/painel/compras/contratos/rpa")
+    if (rpa.compraId) {
+      revalidatePath(`/painel/compras/${rpa.compraId}`)
+      if (txt(fd, "voltar") !== "lista") redirect(`/painel/compras/${rpa.compraId}?salvo=1`)
+    }
+    redirect("/painel/compras/contratos/rpa?excluido=1")
   }
   if (rpa.ordemId && rpa.ordemSituacao !== "Em autorização") {
     return {
@@ -502,13 +620,39 @@ export async function anexarRpaAssinado(
     }
     if (rpa.compraId) revalidatePath(`/painel/compras/${rpa.compraId}`)
   }
+  // RPA de compra: o recibo assinado é o documento fiscal que a ordem
+  // esperava — ela segue para autorização.
+  let seguiu = false
+  if (rpa.ordemId && rpa.ordemSituacao === AGUARDANDO_DOCUMENTO) {
+    const { data: movida } = await admin
+      .from("ordens_pagamento")
+      .update({ situacao: "Em autorização", arquivo_nota_fiscal: up.caminho })
+      .eq("id", rpa.ordemId)
+      .eq("situacao", AGUARDANDO_DOCUMENTO)
+      .select("id")
+    if (movida?.length) {
+      seguiu = true
+      await registrarEvento(
+        rpa.ordemId,
+        "documento_fiscal",
+        sessao.usuario.id,
+        `Recibo do RPA nº ${rpa.numero ?? "—"} assinado pelo prestador — seguiu para autorização.`,
+        { arquivo_nota_fiscal: up.caminho }
+      )
+      depoisDaResposta(() => avisarOrdensEmAutorizacao([rpa.ordemId!]))
+      revalidatePath(`/painel/financeiro/ordens/${rpa.ordemId}`)
+      revalidatePath("/painel/compras/avaliacoes")
+    }
+  }
   revalidatePath(`/painel/compras/contratos/rpa/${id}`)
   revalidatePath("/painel/compras/contratos/rpa")
   if (rpa.contratoId) revalidatePath(`/painel/compras/contratos/${rpa.contratoId}`)
   return {
     ok: rpa.arquivoAssinado
       ? "Recibo assinado substituído."
-      : "Recibo assinado anexado — o RPA não pode mais ser excluído.",
+      : seguiu
+        ? "Recibo assinado anexado — a ordem de pagamento seguiu para autorização. O RPA não pode mais ser excluído."
+        : "Recibo assinado anexado — o RPA não pode mais ser excluído.",
   }
 }
 

@@ -59,6 +59,11 @@ export type CompraDoForm = {
   valor: number
   fornecedorId: string
   fornecedorNome: string | null
+  /**
+   * Pagamento já definido na compra (a ordem aguarda o RPA assinado): o RPA
+   * é só o documento fiscal e não pede a forma de novo.
+   */
+  pagamento?: { forma: string | null; vencimento: string | null; pagoCom: string | null } | null
 }
 
 /**
@@ -322,6 +327,32 @@ export function RpaNovoForm({
         </div>
       )}
 
+      {compra?.pagamento ? (
+        <fieldset className="grid gap-2 rounded-lg border p-3 text-sm">
+          <legend className="px-1 text-sm font-medium">Pagamento (definido na compra)</legend>
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground text-xs">Forma</dt>
+              <dd className="font-medium">{compra.pagamento.forma ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground text-xs">Pagar em</dt>
+              <dd className="font-medium">
+                {compra.pagamento.vencimento ? compra.pagamento.vencimento.slice(0, 10).split("-").reverse().join("/") : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground text-xs">Para onde</dt>
+              <dd className="font-medium break-words">{compra.pagamento.pagoCom ?? "—"}</dd>
+            </div>
+          </dl>
+          <p className="text-muted-foreground text-xs">
+            O RPA é o documento fiscal desta compra: a ordem de pagamento dela passa a valer o{" "}
+            <strong>líquido</strong> e fica <strong>aguardando o documento fiscal</strong> até o prestador
+            assinar o recibo — com o recibo assinado anexado, ela segue para autorização.
+          </p>
+        </fieldset>
+      ) : (
       <fieldset className="grid gap-3 rounded-lg border p-3">
         <legend className="px-1 text-sm font-medium">Pagamento</legend>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -374,11 +405,21 @@ export function RpaNovoForm({
           </div>
         )}
         <p className="text-muted-foreground text-xs">
-          Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong> para o prestador,
-          Em autorização{contrato ? " e ligada ao contrato" : " e ligada à compra"} — ela segue a
-          alçada como qualquer ordem.
+          {contrato ? (
+            <>
+              Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong> para o prestador,
+              Em autorização e ligada ao contrato — ela segue a alçada como qualquer ordem.
+            </>
+          ) : (
+            <>
+              Ao emitir, nasce a ordem de pagamento do <strong>valor líquido</strong>, ligada à compra e{" "}
+              <strong>aguardando o documento fiscal</strong>: com o recibo assinado pelo prestador anexado,
+              ela segue para autorização.
+            </>
+          )}
         </p>
       </fieldset>
+      )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="observacoes">Observações</Label>
@@ -388,7 +429,7 @@ export function RpaNovoForm({
       <div className="flex justify-end">
         <Button type="submit" disabled={pend}>
           {pend && <Loader2 className="animate-spin" />}
-          Emitir RPA e gerar a ordem
+          {compra?.pagamento ? "Emitir RPA" : "Emitir RPA e gerar a ordem"}
         </Button>
       </div>
     </form>

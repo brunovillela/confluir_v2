@@ -205,7 +205,8 @@ export default async function ProcessoCompraPage({
   const emitirRpa = new Set<string>()
   if (servico && podeAjustar && !processo.cancelado) {
     for (const f of fornecimentosComUrl) {
-      if (f.ordem) continue
+      // Com ordem, só a que espera o documento fiscal (compra paga por RPA).
+      if (f.ordem && f.ordem.situacao !== "Aguardando documento fiscal") continue
       const c = await compraDoRpa(f.id)
       if (c && !c.impedimento) emitirRpa.add(f.id)
     }
@@ -584,8 +585,18 @@ export default async function ProcessoCompraPage({
               {emitirRpa.has(f.id) && (
                 <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
                   <span className="text-muted-foreground">
-                    Prestador autônomo: pague por <strong>RPA</strong> — os dados vêm desta compra,
-                    falta só o pagamento. O valor da compra passa a ser o líquido do recibo.
+                    {f.ordem ? (
+                      <>
+                        Prestador autônomo: emita o <strong>RPA</strong>, que é o documento fiscal desta
+                        compra. A forma de pagamento já está na ordem; ela segue para autorização quando o
+                        prestador assinar o recibo.
+                      </>
+                    ) : (
+                      <>
+                        Prestador autônomo: pague por <strong>RPA</strong> — os dados vêm desta compra,
+                        falta só o pagamento. O valor da compra passa a ser o líquido do recibo.
+                      </>
+                    )}
                   </span>
                   <Button asChild size="sm">
                     <Link href={`/painel/compras/contratos/rpa/novo?fornecimento=${f.id}`}>

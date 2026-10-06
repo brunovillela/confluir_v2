@@ -23,7 +23,9 @@ import {
   contratosParaRpa,
   obterConfigRpa,
 } from "@/lib/db/compras-rpa"
+import { descreverPagoCom } from "@/lib/db/compras-pagamento"
 import { formatarMoeda } from "@/lib/formato"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { podeAcessar } from "@/lib/permissoes"
 import { cn } from "@/lib/utils"
 
@@ -102,6 +104,7 @@ export default async function NovoRpaPage({
                 valor: compra.valor,
                 fornecedorId: compra.fornecedorId,
                 fornecedorNome: compra.fornecedorNome,
+                pagamento: await pagamentoDaCompra(compra.ordemPendente),
               }}
               hoje={hojeLocalISO()}
               config={await obterConfigRpa()}
@@ -291,4 +294,18 @@ function EscolherContrato({
       </CardContent>
     </Card>
   )
+}
+
+/** O pagamento já definido na compra (a ordem que espera o RPA assinado). */
+async function pagamentoDaCompra(
+  ordem: { id: string; forma: string | null; vencimento: string | null } | null
+): Promise<{ forma: string | null; vencimento: string | null; pagoCom: string | null } | null> {
+  if (!ordem) return null
+  const admin = await createAdminClient()
+  const { data } = await admin.from("ordens_pagamento").select("*").eq("id", ordem.id).maybeSingle()
+  return {
+    forma: ordem.forma,
+    vencimento: ordem.vencimento,
+    pagoCom: data ? await descreverPagoCom(data as Record<string, unknown>) : null,
+  }
 }
