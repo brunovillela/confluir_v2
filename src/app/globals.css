@@ -556,3 +556,111 @@
   .tabela-cards td.hidden { display: none; }
   .tabela-cards td[colspan] { justify-content: center; }
 }
+
+/* ── Painel unificado (06/10/2026): visual "HUD" ────────────────────────────
+   Grade sutil ao fundo, cartões de vidro com borda em gradiente, números em
+   fonte mono e brilho nos gráficos. Tudo derivado dos tokens da marca, em
+   claro e escuro. */
+.hud-fundo {
+  position: relative;
+  isolation: isolate;
+}
+.hud-fundo::before {
+  content: "";
+  position: absolute;
+  inset: -1rem 0 auto 0;
+  height: 22rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 70% at 15% 0%, color-mix(in oklch, var(--primary) 16%, transparent), transparent 70%),
+    radial-gradient(50% 60% at 90% 10%, color-mix(in oklch, var(--info-500) 12%, transparent), transparent 70%),
+    linear-gradient(to right, color-mix(in oklch, var(--border) 55%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 55%, transparent) 1px, transparent 1px) 0 0 / 28px 28px;
+  mask-image: linear-gradient(to bottom, black, transparent);
+}
+/* Item de grade não cresce pelo conteúdo (abas e slides rolam por dentro). */
+.hud-fundo > *,
+.hud-fundo .grid > * { min-width: 0; }
+.hud-cartao {
+  position: relative;
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, color-mix(in oklch, var(--primary) 45%, var(--border)), var(--border) 35%, var(--border) 65%, color-mix(in oklch, var(--info-500) 40%, var(--border))) border-box;
+  border: 1px solid transparent;
+  box-shadow: var(--elevation-2);
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+a.hud-cartao:hover,
+.hud-cartao[data-interativo]:hover {
+  box-shadow: var(--elevation-3), 0 0 0 1px color-mix(in oklch, var(--primary) 35%, transparent), 0 0 24px -6px color-mix(in oklch, var(--primary) 55%, transparent);
+}
+.hud-rotulo {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.hud-numero {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.hud-numero-destaque {
+  background: linear-gradient(120deg, var(--primary-500), var(--primary-600) 45%, var(--info-500));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.graf-neon svg path[fill^="var(--graf"],
+.graf-neon svg path[stroke^="var(--graf"] {
+  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--primary) 45%, transparent));
+}
+.hud-abas {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0.25rem;
+  border-radius: 0.875rem;
+  background: color-mix(in oklch, var(--muted) 70%, transparent);
+  border: 1px solid var(--border);
+}
+.hud-abas::-webkit-scrollbar { display: none; }
+.hud-aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+.hud-aba:hover { color: var(--foreground); }
+.hud-aba[aria-current="page"] {
+  color: var(--foreground);
+  background: var(--card);
+  box-shadow: var(--elevation-1), inset 0 -2px 0 var(--primary), 0 6px 18px -10px color-mix(in oklch, var(--primary) 70%, transparent);
+}
+.hud-carrossel {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  gap: 1rem;
+}
+.hud-carrossel::-webkit-scrollbar { display: none; }
+.hud-carrossel > * { scroll-snap-align: start; min-width: 0; }
+@media (min-width: 768px) {
+  .hud-carrossel[data-colunas="2"] { grid-auto-columns: calc(50% - 0.5rem); }
+  .hud-carrossel[data-colunas="3"] { grid-auto-columns: calc(33.333% - 0.667rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-cartao, .hud-aba { transition: none; }
+}

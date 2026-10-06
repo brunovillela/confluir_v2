@@ -1,6 +1,7 @@
 import "server-only"
 
 import { subirPdfCompras } from "@/lib/db/compras"
+import { querEmail } from "@/lib/db/avisos"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import {
@@ -392,6 +393,8 @@ async function avisar(
       await enviarPushTelegram(d.usuarioId, curta, "viagens")
     }
     if (!d.email) continue
+    // Quem tem conta decide pela preferência de e-mail; convidado sem conta recebe.
+    if (d.usuarioId && !(await querEmail(d.usuarioId, "viagens"))) continue
 
     const ola = paragrafo(`Olá${d.nome ? `, ${escaparHtml(d.nome.split(" ")[0])}` : ""}!`)
     const corpo =

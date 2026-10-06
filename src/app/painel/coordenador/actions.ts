@@ -20,7 +20,6 @@ import { tenantAtual } from "@/lib/tenant"
 const SEM_AUTORIDADE = "Só o coordenador do departamento do funcionário decide este pedido."
 
 function revalidar() {
-  revalidatePath("/painel/coordenador")
   revalidatePath("/painel")
   revalidatePath("/painel/pessoal/ferias")
   revalidatePath("/painel/pessoal/faltas")

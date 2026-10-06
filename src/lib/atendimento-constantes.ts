@@ -37,6 +37,8 @@ export const EXPLICACAO_SITUACAO_ATENDIMENTO: Record<SituacaoAtendimento, string
 }
 
 export const ATENDIMENTO_ABERTO: SituacaoAtendimento[] = ["aberta", "em_andamento", "respondida"]
+/** Esperando a equipe agir: nova ou com resposta nova do filiado ("respondida" espera o filiado). */
+export const ATENDIMENTO_AGUARDANDO_EQUIPE: SituacaoAtendimento[] = ["aberta", "em_andamento"]
 
 /** Tipo da Demanda criada no painel para cada solicitação. */
 export const TIPO_DEMANDA_ATENDIMENTO = "Atendimento ao filiado"

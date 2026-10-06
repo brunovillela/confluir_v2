@@ -13,7 +13,7 @@ function campo(fd: FormData, nome: string): string {
 
 function revalidar() {
   revalidatePath("/painel/aprovar")
-  revalidatePath("/painel/diretor")
+  revalidatePath("/painel")
   revalidatePath("/painel")
   revalidatePath("/painel/compras/avaliacoes")
   revalidatePath("/painel/pessoal/diarias")

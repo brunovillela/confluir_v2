@@ -29,10 +29,10 @@ export async function avaliarOrdemAction(
 
   revalidatePath("/painel/compras/avaliacoes")
   revalidatePath("/painel/compras")
-  revalidatePath("/painel/coordenador")
-  // Volta para a tela de origem (área do coordenador), só dentro do painel.
+  revalidatePath("/painel")
+  // Volta para a tela de origem (aba Coordenação do painel), só dentro do painel.
   const voltar = String(formData.get("voltar") ?? "")
-  if (/^\/painel\/[\w/-]*$/.test(voltar.split("?")[0])) {
+  if (/^\/painel(\/[\w/-]*)?$/.test(voltar.split("?")[0])) {
     redirect(`${voltar}${voltar.includes("?") ? "&" : "?"}salvo=1`)
   }
   redirect("/painel/compras/avaliacoes?salvo=1")

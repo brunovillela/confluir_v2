@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto"
 import {
   ASSUNTOS_ATENDIMENTO,
   ATENDIMENTO_ABERTO,
+  ATENDIMENTO_AGUARDANDO_EQUIPE,
   TIPO_DEMANDA_ATENDIMENTO,
   assuntoAtendimento,
   type SituacaoAtendimento,
@@ -320,6 +321,8 @@ export async function listarAtendimentos(filtro: FiltroAtendimentos = {}): Promi
   const admin = await createAdminClient()
   let q = admin.from("portal_atendimentos").select(COLS).eq("emp_proprietaria_id", await tenantAtual())
   if (filtro.situacao === "abertas") q = q.in("situacao", ATENDIMENTO_ABERTO)
+  // Esperando a equipe: novas ou com resposta nova do filiado (= caixa de entrada).
+  else if (filtro.situacao === "aguardando") q = q.in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE)
   else if (filtro.situacao && filtro.situacao !== "todas") q = q.eq("situacao", filtro.situacao)
   if (filtro.assunto) q = q.eq("assunto", filtro.assunto)
   const busca = (filtro.busca ?? "").trim()

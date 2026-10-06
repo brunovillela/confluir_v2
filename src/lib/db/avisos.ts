@@ -3,7 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { after } from "next/server"
 
-import { texto } from "@/lib/db/comum"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { enviarPushWeb } from "@/lib/db/push"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
@@ -12,7 +12,7 @@ import { formatarMoeda } from "@/lib/formato"
 import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { type EventoTelegram, normalizarPreferencias, type PreferenciasTelegram } from "@/lib/telegram-eventos"
+import { entraNoSino, type EventoTelegram, normalizarPreferencias, type PreferenciasTelegram } from "@/lib/telegram-eventos"
 import type { BotaoTelegram } from "@/lib/telegram"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -20,9 +20,12 @@ import { origemAtual } from "@/lib/tenant-url"
 /**
  * AVISO A QUEM PRECISA AGIR (onda 2, U2/U3). Um ponto só para "entrou
  * pendência para você": toda esteira chama `avisarQuemPode` (ou
- * `avisarOrdensEmAutorizacao`) e o aviso sai pelos três canais —
+ * `avisarOrdensEmAutorizacao`) e o aviso sai pelos canais —
  *
- *   • sino (tabela `notificacoes`), sempre;
+ *   • sino (tabela `notificacoes`), SÓ para eventos do grupo "notificacao"
+ *     (06/10/2026): pendência mora na caixa de entrada, que some quando é
+ *     resolvida; lembretes e resumos são canal externo. Ver
+ *     lib/telegram-eventos.ts (entraNoSino);
  *   • e-mail, se a pessoa não desligou aquele tipo em
  *     `usuarios.notif_email_prefs` (supabase/avisos-preferencias.sql);
  *   • Telegram, se vinculado e não desligado em `telegram_notif_prefs`.
@@ -148,6 +151,11 @@ export type Aviso = {
   prefixoDoDia?: string
   /** Botões inline no Telegram (aprovar/devolver na conversa). */
   telegramBotoes?: BotaoTelegram[][]
+  /**
+   * Fora do sino: identifica o envio para não repetir (ex.: o texto estável da
+   * preventiva). Com `umaVezPorDia`, a chave é o dia.
+   */
+  chaveEntrega?: string
 }
 
 function hojeSP(): string {
@@ -160,19 +168,44 @@ export async function avisar(
   aviso: Aviso,
   amb: Ambiente = {}
 ): Promise<number> {
-  const alvos = destinatarios.filter((d) => d.id !== aviso.exceto)
+  const vistos = new Set<string>()
+  const alvos = destinatarios.filter((d) => d.id !== aviso.exceto && !vistos.has(d.id) && vistos.add(d.id))
   if (alvos.length === 0) return 0
-  const { client, contexto } = await ambiente(amb)
+  const { client, contexto, tenantId } = await ambiente(amb)
   const hoje = hojeSP()
 
-  let jaAvisados = new Set<string>()
-  if (aviso.umaVezPorDia) {
+  // Fora do sino, o "não repetir" vai para avisos_entregas. Sem a tabela
+  // (SQL supabase/avisos-segregacao.sql ainda não rodado), segue como antes:
+  // tudo no sino, com a conferência pelo próprio sino.
+  let noSino = entraNoSino(aviso.evento)
+  const chave = aviso.chaveEntrega ?? (aviso.umaVezPorDia ? `dia:${hoje}` : null)
+  const repetidos = new Set<string>()
+  if (!noSino && chave) {
+    for (const d of alvos) {
+      const r = await registrarEntrega(client, tenantId, d.id, aviso.evento, chave)
+      if (r === "sem_tabela") {
+        noSino = true
+        repetidos.clear()
+        break
+      }
+      if (r === "repetido") repetidos.add(d.id)
+    }
+  }
+
+  let jaAvisados = new Set<string>(repetidos)
+  if (noSino && (aviso.umaVezPorDia || aviso.chaveEntrega)) {
     let q = client
       .from("notificacoes")
       .select("usuario_id")
       .in("usuario_id", alvos.map((d) => d.id))
       .eq("notificacao_data", hoje)
-    q = aviso.prefixoDoDia ? q.like("notificacao", `${aviso.prefixoDoDia.replace(/[%_]/g, "\\$&")}%`) : q.eq("notificacao", aviso.texto)
+    // Chave estável (preventiva): o mesmo texto em qualquer dia; senão, no dia.
+    q =
+      aviso.chaveEntrega && !aviso.umaVezPorDia
+        ? client.from("notificacoes").select("usuario_id").in("usuario_id", alvos.map((d) => d.id)).eq("notificacao", aviso.texto)
+        : aviso.prefixoDoDia
+          ? q.like("notificacao", `${aviso.prefixoDoDia.replace(/[%_]/g, "\\$&")}%`)
+          : q.eq("notificacao", aviso.texto)
     const { data } = await q
     jaAvisados = new Set((data ?? []).map((n) => String(n.usuario_id)))
   }
@@ -193,20 +226,22 @@ export async function avisar(
   let entregues = 0
   for (const d of alvos) {
     if (jaAvisados.has(d.id)) continue
-    try {
-      const { error } = await client.from("notificacoes").insert({
-        usuario_id: d.id,
-        notificacao: aviso.texto,
-        notificado: false,
-        notificacao_data: hoje,
-        link: aviso.link,
-      })
-      if (error?.code === "PGRST204") {
-        // Sem a coluna `link` (supabase/ordens-estorno.sql): grava sem ela.
-        await client.from("notificacoes").insert({ usuario_id: d.id, notificacao: aviso.texto, notificado: false, notificacao_data: hoje })
+    if (noSino) {
+      try {
+        const { error } = await client.from("notificacoes").insert({
+          usuario_id: d.id,
+          notificacao: aviso.texto,
+          notificado: false,
+          notificacao_data: hoje,
+          link: aviso.link,
+        })
+        if (error?.code === "PGRST204") {
+          // Sem a coluna `link` (supabase/ordens-estorno.sql): grava sem ela.
+          await client.from("notificacoes").insert({ usuario_id: d.id, notificacao: aviso.texto, notificado: false, notificacao_data: hoje })
+        }
+      } catch (e) {
+        console.error("aviso (sino):", e)
       }
-    } catch (e) {
-      console.error("aviso (sino):", e)
     }
     entregues++
 
@@ -229,10 +264,104 @@ export async function avisar(
     }
 
     await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client, aviso.telegramBotoes)
-    // Web Push segue o sino: quem ligou "Receber no celular" recebe tudo que entra nele.
+    // Celular (Web Push): quem ligou "Receber no celular" recebe as notificações
+    // e as pendências que chegam — é o aviso "na hora" do que não vai ao sino.
     await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
   }
   return entregues
+}
+
+/** Registra um envio fora do sino; "repetido" se já houve um com a mesma chave. */
+async function registrarEntrega(
+  client: SupabaseClient,
+  tenantId: string,
+  usuarioId: string,
+  evento: EventoTelegram,
+  chave: string
+): Promise<"novo" | "repetido" | "sem_tabela"> {
+  const { error } = await client
+    .from("avisos_entregas")
+    .insert({ emp_proprietaria_id: tenantId, usuario_id: usuarioId, evento, chave: chave.slice(0, 500) })
+  if (!error) return "novo"
+  if (error.code === "23505") return "repetido"
+  if (esquemaAusente(error)) return "sem_tabela"
+  return "novo"
+}
+
+/**
+ * A pessoa quer este tipo de aviso por e-mail? (opt-out em Meu perfil →
+ * Avisos). Para os avisos que não passam por `avisar` — os resultados que
+ * cada módulo manda direto.
+ */
+export async function querEmail(usuarioId: string, evento: EventoTelegram, client?: SupabaseClient): Promise<boolean> {
+  try {
+    const c = client ?? (await createAdminClient())
+    const { data, error } = await c.from("usuarios").select("notif_email_prefs").eq("id", usuarioId).maybeSingle()
+    if (error) return true
+    return normalizarPreferencias(data?.notif_email_prefs)[evento]
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Coordenadores dos departamentos (não legados) de que o funcionário é
+ * integrante — quem decide os pedidos dele na aba Coordenação. Nunca ele mesmo.
+ */
+export async function coordenadoresDe(funcionarioId: string | null, amb: Ambiente = {}): Promise<Destinatario[]> {
+  if (!funcionarioId) return []
+  try {
+    const { client, tenantId } = await ambiente(amb)
+    const { data: integ } = await client
+      .from("empresa_departamentos_integrantes")
+      .select("departamento_id")
+      .eq("usuario_id", funcionarioId)
+    const deptos = (integ ?? []).map((i) => String(i.departamento_id))
+    if (!deptos.length) return []
+    const { data: d } = await client
+      .from("empresa_departamentos")
+      .select("coordenador_id, legado")
+      .eq("emp_proprietaria_id", tenantId)
+      .in("id", deptos)
+    const ids = [...new Set((d ?? []).filter((x) => x.legado !== true && x.coordenador_id).map((x) => String(x.coordenador_id)))].filter(
+      (id) => id !== funcionarioId
+    )
+    if (!ids.length) return []
+    const { data: us } = await client
+      .from("usuarios")
+      .select("id, nome_completo, nome_guerra, email")
+      .in("id", ids)
+      .not("inativo", "is", true)
+      .not("deletado", "is", true)
+    return (us ?? []).map((u) => ({ id: String(u.id), nome: texto(u.nome_completo) ?? texto(u.nome_guerra), email: texto(u.email), permissoes: {} }))
+  } catch (e) {
+    console.error("coordenadoresDe:", e)
+    return []
+  }
+}
+
+/**
+ * Pedido de funcionário: avisa quem tem a permissão da fila E os
+ * coordenadores do departamento dele — num envio só (quem é as duas coisas
+ * recebe uma vez).
+ */
+export async function avisarQuemPodeOuCoordena(
+  chave: string,
+  alternativas: string[],
+  funcionarioId: string | null,
+  aviso: Aviso,
+  amb: Ambiente = {}
+): Promise<number> {
+  try {
+    const [porPermissao, coordenadores] = await Promise.all([
+      usuariosComPermissao(chave, alternativas, amb),
+      coordenadoresDe(funcionarioId, amb),
+    ])
+    return await avisar([...porPermissao, ...coordenadores], aviso, amb)
+  } catch (e) {
+    console.error("avisarQuemPodeOuCoordena:", e)
+    return 0
+  }
 }
 
 /** Atalho: avisa quem tem a permissão (ou uma das alternativas) no tenant. */

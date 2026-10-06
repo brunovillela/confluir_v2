@@ -1,166 +1,100 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import Link from "next/link"
-import {
-  ArrowRight,
-  ChartColumn,
-  Award,
-  Car,
-  Cake,
-  CalendarDays,
-  ClipboardList,
-  Crown,
-  ExternalLink,
-  IdCard,
-  Newspaper,
-  Plane,
-  UserRoundX,
-  UsersRound,
-} from "lucide-react"
+import { Suspense } from "react"
+import { Car, Plane } from "lucide-react"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { CaixaDeEntrada } from "@/components/layout/caixa-entrada"
+import { AbasPainel, COOKIE_ABA, type ChaveAba } from "@/components/painel/abas-painel"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { requireSessaoPainel } from "@/lib/auth"
-import { contaDoUsuario } from "@/lib/db/caixa"
 import { departamentosCoordenados } from "@/lib/db/coordenador"
+import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { ehDiretorOuAprovador } from "@/lib/db/diretor-home"
 import { pendenciasDoUsuario } from "@/lib/db/pendencias"
-import { ultimoResumo } from "@/lib/db/comunicacao"
-import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
-import { obterOrganizacao } from "@/lib/db/organizacao"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
-import {
-  resumoPainel,
-  ultimasNoticias,
-  type EventoDoDia,
-} from "@/lib/db/painel"
-import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { ConsultaFiliacao } from "./consulta-filiacao-widget"
-import { MeusVeiculos } from "./meus-veiculos"
-import { ResumoIAPainel } from "./resumo-ia-painel"
+import { AbaCoordenacao } from "./_painel/aba-coordenacao"
+import { AbaDia } from "./_painel/aba-dia"
+import { AbaDiretor } from "./_painel/aba-diretor"
+import { AbaIndicadores, CHAVES_INDICADORES, type VistaIndicadores } from "./_painel/aba-indicadores"
 
 export const metadata: Metadata = { title: "Painel — Confluir" }
 
 function saudacao(): string {
   const hora = Number(
-    new Intl.DateTimeFormat("pt-BR", {
-      hour: "numeric",
-      hour12: false,
-      timeZone: "America/Sao_Paulo",
-    }).format(new Date())
+    new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date())
   )
   if (hora < 12) return "Bom dia"
   if (hora < 18) return "Boa tarde"
   return "Boa noite"
 }
 
-function horaSaoPaulo(iso: string | null): string {
-  if (!iso) return ""
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso))
+function hojeExtenso(): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" }).format(new Date())
 }
 
-function HorarioEvento({ evento }: { evento: EventoDoDia }) {
-  if (evento.dia_todo) return <>dia todo</>
-  const inicio = horaSaoPaulo(evento.inicio)
-  const termino = horaSaoPaulo(evento.termino)
-  if (!inicio) return <>—</>
-  return (
-    <>
-      {inicio}
-      {termino && termino !== inicio && <>–{termino}</>}
-    </>
-  )
+/** Chaves da caixa de entrada que contam no selo de cada aba. */
+const PENDENCIAS_DA_ABA: Partial<Record<ChaveAba, string[]>> = {
+  diretor: ["ordens", "assinaturas", "diarias_diretoria"],
+  coordenacao: ["coord_ferias", "coord_faltas", "coord_diarias"],
 }
 
-function GrupoDoDia({
-  titulo,
-  descricao,
-  icone: Icone,
-  children,
-}: {
-  titulo: string
-  descricao?: string
-  icone: React.ComponentType<{ className?: string }>
-  children: React.ReactNode
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">{titulo}</CardTitle>
-            {descricao && <CardDescription>{descricao}</CardDescription>}
-          </div>
-          <Icone className="text-muted-foreground size-4" />
-        </div>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  )
-}
-
+/**
+ * PAINEL UNIFICADO (06/10/2026): a home, a área do diretor, a da coordenação
+ * e os indicadores numa página só. No topo, a caixa de entrada (o que espera
+ * a pessoa agir); abaixo, as abas que o perfil dela tem — Meu dia para todos,
+ * Diretor, Coordenação e Indicadores conforme o papel e as permissões. Só a
+ * aba aberta é carregada; a última escolhida fica num cookie.
+ */
 export default async function PainelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ aba?: string; ver?: string; depto?: string; salvo?: string; atualizado?: string; erro?: string }>
 }) {
   const sessao = await requireSessaoPainel()
-  const { salvo } = await searchParams
-  const nome = String(
-    sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? ""
-  ).split(" ")[0]
-  const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
-  const pendencias = await pendenciasDoUsuario(sessao)
+  const sp = await searchParams
+  const uid = sessao.usuario.id as string
+  const nome = String(sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? "").split(" ")[0]
 
-  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, quadroViagem, diretor, coordena] = await Promise.all([
-    resumoPainel(sessao.usuario.id as string),
-    ultimasNoticias(8),
-    contaDoUsuario(sessao.usuario.id as string).catch(() => ({
-      disponivel: false,
-      detalhe: null,
-    })),
-    obterOrganizacao(),
-    ultimoResumo().catch(() => null),
-    buscarCondutorDoUsuario(sessao.usuario.id as string).catch(() => null),
-    quadroParaDiaria(sessao.usuario.id as string).catch(() => null),
+  const [pendencias, diretor, coordena, condutor, quadroViagem, jar] = await Promise.all([
+    pendenciasDoUsuario(sessao),
     ehDiretorOuAprovador(sessao).catch(() => false),
-    departamentosCoordenados(sessao.usuario.id as string).catch(() => []),
+    departamentosCoordenados(uid).catch(() => []),
+    buscarCondutorDoUsuario(uid).catch(() => null),
+    quadroParaDiaria(uid).catch(() => null),
+    cookies(),
   ])
-  const siteUrl = org?.siteUrl ?? null
-  const contaCaixa = meuCaixa.detalhe?.conta ?? null
-  const aportePendenteCaixa = meuCaixa.detalhe?.extrato.some(
-    (m) => m.tipo === "aporte" && m.situacao === "pendente"
-  )
+  const veIndicadores = podeAcessar(sessao.permissoes, "configuracoes", CHAVES_INDICADORES)
+
+  const contagem = (aba: ChaveAba) =>
+    pendencias.filter((p) => PENDENCIAS_DA_ABA[aba]?.includes(p.chave)).reduce((s, p) => s + p.quantidade, 0)
+  const abas: { chave: ChaveAba; rotulo: string; contagem?: number }[] = [{ chave: "dia", rotulo: "Meu dia" }]
+  if (diretor) abas.push({ chave: "diretor", rotulo: "Diretor", contagem: contagem("diretor") })
+  if (coordena.length > 0) abas.push({ chave: "coordenacao", rotulo: "Coordenação", contagem: contagem("coordenacao") })
+  if (veIndicadores) abas.push({ chave: "indicadores", rotulo: "Indicadores" })
+
+  const disponivel = (c: string | undefined): c is ChaveAba => abas.some((a) => a.chave === c)
+  const lembrada = jar.get(COOKIE_ABA)?.value
+  // Padrão por papel: quem coordena abre na coordenação; diretor, na decisão.
+  const padrao: ChaveAba = disponivel("coordenacao") ? "coordenacao" : disponivel("diretor") ? "diretor" : "dia"
+  const ativa: ChaveAba = disponivel(sp.aba) ? sp.aba : disponivel(lembrada) ? lembrada : padrao
 
   return (
-    <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="hud-fundo grid gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <p className="hud-rotulo">{hojeExtenso()}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {saudacao()}
             {nome ? `, ${nome}` : ""}
           </h1>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Hoje é {resumo.hoje} — bom trabalho.
-          </p>
         </div>
         {(condutor || quadroViagem) && (
           <div className="flex flex-wrap gap-2">
-            {/* Diretor em exercício e funcionário ativo pedem passagem e hospedagem. */}
             {quadroViagem && (
               <Button asChild variant={condutor ? "outline" : "default"}>
                 <Link href="/painel/perfil/viagens?novo=1">
@@ -169,7 +103,6 @@ export default async function PainelPage({
                 </Link>
               </Button>
             )}
-            {/* Todo condutor cadastrado solicita veículo, sem permissão ao módulo. */}
             {condutor && (
               <Button asChild>
                 <Link href="/painel/solicitar-veiculo">
@@ -182,7 +115,7 @@ export default async function PainelPage({
         )}
       </div>
 
-      {salvo && (
+      {sp.salvo && ativa === "dia" && (
         <Alert variant="success">
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>
@@ -190,362 +123,36 @@ export default async function PainelPage({
 
       <CaixaDeEntrada pendencias={pendencias} />
 
-      {diretor && (
-        <Link href="/painel/diretor" className="group block">
-          <Card className="group-hover:border-primary/40 transition-colors">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <Crown className="text-muted-foreground size-5 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">Diretor</span>
-                  <span className="text-muted-foreground block text-xs">O que espera a sua decisão, a agenda da semana, votações, negociações e os números — e Aprovar pelo celular</span>
-                </span>
-              </span>
-              <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+      <AbasPainel abas={abas} ativa={ativa} />
 
-      {coordena.length > 0 && (
-        <Link href="/painel/coordenador" className="group block">
-          <Card className="group-hover:border-primary/40 transition-colors">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <UsersRound className="text-muted-foreground size-5 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">Coordenação — {coordena.map((d) => d.nome).join(", ")}</span>
-                  <span className="text-muted-foreground block text-xs">Pedidos da equipe para decidir, compras e ordens, orçado × realizado, contratos e a equipe do departamento</span>
-                </span>
-              </span>
-              <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+      <Suspense key={`${ativa}-${sp.ver ?? ""}-${sp.depto ?? ""}`} fallback={<EsqueletoAba />}>
+        {ativa === "diretor" ? (
+          <AbaDiretor sessao={sessao} />
+        ) : ativa === "coordenacao" ? (
+          <AbaCoordenacao sessao={sessao} depto={sp.depto} salvo={sp.salvo} />
+        ) : ativa === "indicadores" ? (
+          <AbaIndicadores sessao={sessao} vista={(sp.ver as VistaIndicadores) ?? "geral"} atualizado={sp.atualizado} erro={sp.erro} />
+        ) : (
+          <AbaDia sessao={sessao} />
+        )}
+      </Suspense>
+    </div>
+  )
+}
 
-      {podeAcessar(sessao.permissoes, "configuracoes", ["financeiro_leitura", "financeiro_pagamento", "filiacao_gestao", "filiacao_receitas", "diretoria_mandatos"]) && (
-        <Link href="/painel/indicadores" className="group block">
-          <Card className="group-hover:border-primary/40 transition-colors">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <ChartColumn className="text-muted-foreground size-5 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">Indicadores</span>
-                  <span className="text-muted-foreground block text-xs">Filiação, arrecadação, caixa, despesa e o que está vencido, em uma tela só</span>
-                </span>
-              </span>
-              <ArrowRight className="text-muted-foreground size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {contaCaixa && (
-        <Link href="/painel/perfil/caixa" className="group block">
-          <Card className="group-hover:border-primary/40 transition-colors">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-              <span className="min-w-0">
-                <span className="text-muted-foreground block text-xs">
-                  Meu caixa — {contaCaixa.nome}
-                </span>
-                <span className="block text-2xl font-semibold tabular-nums">
-                  {formatarMoeda(contaCaixa.saldo)}
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                {aportePendenteCaixa && (
-                  <Badge
-                    variant="outline"
-                    className="border-warning/40 text-warning-fg"
-                  >
-                    Aporte a confirmar
-                  </Badge>
-                )}
-                {contaCaixa.situacao === "prestacao_pendente" && (
-                  <Badge
-                    variant="outline"
-                    className="border-info/40 text-info-fg"
-                  >
-                    Prestação em análise
-                  </Badge>
-                )}
-                <ArrowRight className="text-muted-foreground size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      <div className="grid items-start gap-4 lg:grid-cols-4">
-        {/* Coluna do dia (1/4) — grupos só aparecem com conteúdo */}
-        <div className="grid gap-4 lg:col-span-1">
-          <MeusVeiculos usuarioId={sessao.usuario.id as string} condutor={condutor} />
-
-          {resumo.aniversariantes.length > 0 && (
-            <GrupoDoDia
-              titulo="Aniversariantes de hoje"
-              descricao="Funcionários e diretores"
-              icone={Cake}
-            >
-              <ul className="grid gap-2">
-                {resumo.aniversariantes.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="truncate font-medium">
-                      {a.nome ?? "(sem nome)"}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="text-muted-foreground shrink-0"
-                    >
-                      {a.vinculo}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
-          {resumo.aniversariosEmprego.length > 0 && (
-            <GrupoDoDia
-              titulo="Aniversário de sindicato"
-              descricao="Funcionários que completam tempo de casa hoje"
-              icone={Award}
-            >
-              <ul className="grid gap-2">
-                {resumo.aniversariosEmprego.map((a) => (
-                  <li
-                    key={a.usuarioId}
-                    className="flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">
-                        {a.nome ?? "(sem nome)"}
-                      </span>
-                      {a.cargo && (
-                        <span className="text-muted-foreground block truncate text-xs">
-                          {a.cargo}
-                        </span>
-                      )}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="shrink-0 border-success/40 text-success-fg"
-                    >
-                      {a.anos} ano{a.anos === 1 ? "" : "s"}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
-          {resumo.ausencias.length > 0 && (
-            <GrupoDoDia
-              titulo="Ausências de hoje"
-              descricao="Ausentes e previsão de retorno"
-              icone={UserRoundX}
-            >
-              <ul className="grid gap-2">
-                {resumo.ausencias.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">
-                        {a.nome ?? "(sem nome)"}
-                      </span>
-                      <span className="text-muted-foreground block truncate text-xs">
-                        {a.tipo}
-                      </span>
-                    </span>
-                    <span className="text-muted-foreground shrink-0 text-right text-xs">
-                      {a.retorno ? (
-                        <>volta em {formatarData(a.retorno)}</>
-                      ) : a.termino ? (
-                        <>até {formatarData(a.termino)}</>
-                      ) : (
-                        "sem retorno previsto"
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
-          {veAgenda && resumo.agenda.length > 0 && (
-            <GrupoDoDia
-              titulo="Agenda do dia"
-              descricao="Eventos e atividades de hoje"
-              icone={CalendarDays}
-            >
-              <ul className="grid gap-2.5">
-                {resumo.agenda.map((e) => (
-                  <li key={e.id} className="grid gap-0.5 text-sm">
-                    <span className="text-muted-foreground text-xs tabular-nums">
-                      <HorarioEvento evento={e} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">
-                        {(e.atividade ?? "(sem título)").trim()}
-                      </span>
-                      {(e.local || e.tipo) && (
-                        <span className="text-muted-foreground block truncate text-xs">
-                          {[e.local, e.tipo].filter(Boolean).join(" · ")}
-                        </span>
-                      )}
-                      {e.empresas && e.empresas.length > 0 && (
-                        <span className="mt-1 flex flex-wrap gap-1">
-                          {e.empresas.map((nome) => (
-                            <Badge key={nome} variant="outline" className="text-xs">
-                              {nome}
-                            </Badge>
-                          ))}
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
-          {resumo.tarefas.length > 0 && (
-            <GrupoDoDia
-              titulo="Tarefas pendentes"
-              descricao="Demandas em aberto"
-              icone={ClipboardList}
-            >
-              <ul className="grid gap-2">
-                {resumo.tarefas.map((t) => (
-                  <li key={t.id} className="grid gap-0.5 text-sm">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate font-medium">
-                        {t.nome ?? "(sem título)"}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="text-muted-foreground shrink-0"
-                      >
-                        {t.situacao ?? "A fazer"}
-                      </Badge>
-                    </span>
-                    <span className="text-muted-foreground block truncate text-xs">
-                      {[
-                        t.descricao,
-                        t.responsavel,
-                        t.prazo && `prazo ${formatarData(t.prazo)}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </GrupoDoDia>
-          )}
-
-          <GrupoDoDia
-            titulo="Consulta de filiação"
-            descricao="Informa só a condição — não abre o cadastro"
-            icone={IdCard}
-          >
-            <ConsultaFiliacao />
-          </GrupoDoDia>
-        </div>
-
-        {/* Resumo do dia — últimas notícias (3/4) */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Resumo do dia</CardTitle>
-                <CardDescription>
-                  Últimas notícias — clique na manchete para ler
-                </CardDescription>
-              </div>
-              <Newspaper className="text-muted-foreground size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {resumoIA?.resumo && (
-              <ResumoIAPainel
-                titulo={resumoIA.titulo ?? "Resumo de notícias"}
-                resumo={resumoIA.resumo}
-                atualizado={formatarDataHora(resumoIA.created_at)}
-              />
-            )}
-            {noticias.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nenhuma notícia disponível agora
-                {siteUrl ? (
-                  <>
-                    {" "}
-                    —{" "}
-                    <a
-                      href={siteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2"
-                    >
-                      abrir o site
-                    </a>
-                  </>
-                ) : null}
-                .
-              </p>
-            ) : (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {noticias.map((n) => {
-                  const conteudo = (
-                    <span className="flex h-full items-start justify-between gap-2">
-                      <span className="min-w-0">
-                        <span className="block font-medium text-balance">
-                          {n.titulo}
-                        </span>
-                        {n.data && (
-                          <span className="text-muted-foreground text-xs">
-                            {n.data}
-                          </span>
-                        )}
-                      </span>
-                      {n.url && (
-                        <ExternalLink className="text-muted-foreground mt-1 size-3.5 shrink-0" />
-                      )}
-                    </span>
-                  )
-                  return (
-                    <li key={n.id ?? n.url}>
-                      {n.id ? (
-                        <Link
-                          href={`/painel/comunicacao/noticias/${n.id}`}
-                          className="hover:bg-muted/60 hover:border-primary/40 block h-full rounded-lg border px-4 py-3 text-sm transition-colors"
-                        >
-                          {conteudo}
-                        </Link>
-                      ) : (
-                        <a
-                          href={n.url ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:bg-muted/60 hover:border-primary/40 block h-full rounded-lg border px-4 py-3 text-sm transition-colors"
-                        >
-                          {conteudo}
-                        </a>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+function EsqueletoAba() {
+  return (
+    <div className="grid gap-4" aria-busy="true" aria-label="Carregando">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
       </div>
-    </>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-48 rounded-xl" />
+        ))}
+      </div>
+    </div>
   )
 }

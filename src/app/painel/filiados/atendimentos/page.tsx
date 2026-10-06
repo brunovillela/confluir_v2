@@ -72,6 +72,7 @@ export default async function AtendimentosPage({
               Situação
               <select name="situacao" defaultValue={situacao} className={SELECT}>
                 <option value="abertas">Abertas (todas)</option>
+                <option value="aguardando">Esperando a equipe</option>
                 {SITUACOES_ATENDIMENTO.map((s) => (
                   <option key={s} value={s}>
                     {ROTULO_SITUACAO_ATENDIMENTO[s]}

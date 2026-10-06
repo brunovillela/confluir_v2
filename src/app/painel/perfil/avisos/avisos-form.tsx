@@ -8,11 +8,29 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { PreferenciasAviso } from "@/lib/db/avisos"
-import { EVENTOS_TELEGRAM } from "@/lib/telegram-eventos"
+import { EVENTOS_TELEGRAM, type GrupoEvento } from "@/lib/telegram-eventos"
 
 import { salvarPreferenciasAvisoAction } from "./actions"
 
-/** Linha por evento, uma coluna por canal (e-mail e Telegram). */
+const GRUPOS: { grupo: GrupoEvento; titulo: string; nota: string }[] = [
+  {
+    grupo: "notificacao",
+    titulo: "Notificações sobre você",
+    nota: "Também ficam no sino do painel, como histórico.",
+  },
+  {
+    grupo: "pendencia",
+    titulo: "Quando chega uma pendência para você",
+    nota: "Não vão para o sino: a caixa de entrada do painel já mostra — e some quando é resolvida.",
+  },
+  {
+    grupo: "resumo",
+    titulo: "Lembrete e resumos",
+    nota: "Só por e-mail, Telegram e celular.",
+  },
+]
+
+/** Linha por evento, agrupada pelo tipo, uma coluna por canal (e-mail e Telegram). */
 export function AvisosForm({
   prefs,
   temEmail,
@@ -50,8 +68,15 @@ export function AvisosForm({
               <th className="w-20 py-2 text-center font-medium">Telegram</th>
             </tr>
           </thead>
-          <tbody>
-            {EVENTOS_TELEGRAM.map(({ chave, rotulo }) => (
+          {GRUPOS.map((g) => (
+          <tbody key={g.grupo}>
+            <tr>
+              <td colSpan={3} className="pt-4 pb-1">
+                <span className="block text-sm font-semibold">{g.titulo}</span>
+                <span className="text-muted-foreground block text-xs">{g.nota}</span>
+              </td>
+            </tr>
+            {EVENTOS_TELEGRAM.filter((e) => e.grupo === g.grupo).map(({ chave, rotulo }) => (
               <tr key={chave} className="border-b last:border-0">
                 <td className="py-2 pr-2">
                   <label htmlFor={`email-${chave}`}>{rotulo}</label>
@@ -74,6 +99,7 @@ export function AvisosForm({
               </tr>
             ))}
           </tbody>
+          ))}
         </table>
       </div>
 

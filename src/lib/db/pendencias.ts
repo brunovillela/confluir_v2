@@ -6,12 +6,17 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
+import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
+import { ATENDIMENTO_AGUARDANDO_EQUIPE } from "@/lib/atendimento-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /** Mesmo valor de permissoes-resolver.ts: alçada sem teto. */
 const ALCADA_SEM_TETO = Number.MAX_SAFE_INTEGER
+
+/** Tipo das demandas criadas pelo menu de ajuda (lib/db/feedback.ts). */
+const TIPO_DEMANDA_FEEDBACK = "Feedback do sistema"
 
 /** A partir de quantos dias uma pendência conta como "parada". */
 export const DIAS_PARADA = 7
@@ -48,7 +53,16 @@ type Filtro = PromiseLike<{ count: number | null; error: unknown }> & {
   lt: (coluna: string, valor: string) => Filtro
 }
 type Montar = (q: Consulta) => Filtro
-type Fonte = { chave: string; titulo: string; descricao: string; href: string; tabela: string; montar: Montar }
+type Fonte = {
+  chave: string
+  titulo: string
+  descricao: string
+  href: string
+  tabela: string
+  montar: Montar
+  /** Contagem que não é um head-count (ex.: preventivas, calculadas a partir dos planos). */
+  contarCom?: () => Promise<number | null>
+}
 
 export type AmbientePendencias = {
   client: SupabaseClient
@@ -240,6 +254,50 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Atendimentos do portal esperando a equipe (novos ou com resposta nova).
+  if (pode("ferramentas_demandas", ["ferramentas_tarefas", "filiacao_filiados"])) {
+    fontes.push({
+      chave: "atendimentos",
+      titulo: "Atendimentos do portal",
+      descricao: "Solicitações de filiados esperando a equipe",
+      href: "/painel/filiados/atendimentos?situacao=aguardando",
+      tabela: "portal_atendimentos",
+      montar: (q) => head(q).in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE),
+    })
+  }
+
+  // Relatos de problema ou sugestão sobre o sistema (viram demandas).
+  if (pode("ferramentas_demandas", ["ferramentas_tarefas"])) {
+    fontes.push({
+      chave: "relatos_sistema",
+      titulo: "Relatos do sistema a tratar",
+      descricao: "Problemas e sugestões enviados pelo menu de ajuda",
+      href: `/painel/ferramentas/demandas?tipo=${encodeURIComponent(TIPO_DEMANDA_FEEDBACK)}&situacao=abertas`,
+      tabela: "demandas",
+      montar: (q) => head(q).eq("tipo", TIPO_DEMANDA_FEEDBACK).neq("situacao", "Feito"),
+    })
+  }
+
+  // Revisões preventivas da frota próximas ou vencidas (mesmo critério do aviso diário).
+  if (pode("veiculos_gestao")) {
+    fontes.push({
+      chave: "preventivas",
+      titulo: "Revisões preventivas da frota",
+      descricao: "Próximas ou vencidas",
+      href: "/painel/veiculos/manutencoes",
+      tabela: "veiculos_manutencao_planos",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        try {
+          const { ativo, linhas } = await situacaoDosPlanos(undefined, { admin: client, emp })
+          return ativo ? linhas.filter((l) => l.vencido || l.proximo).length : null
+        } catch {
+          return null
+        }
+      },
+    })
+  }
+
   // Coordenação: os pedidos dos funcionários dos departamentos que a pessoa
   // coordena (mesmo critério de lib/db/coordenador.ts). Só entra o que a
   // permissão de Pessoal ainda não traz — senão o mesmo pedido contaria duas vezes.
@@ -250,7 +308,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         chave: "coord_ferias",
         titulo: "Férias da equipe a autorizar",
         descricao: "Pedidos dos funcionários que você coordena",
-        href: "/painel/coordenador#pedidos",
+        href: "/painel?aba=coordenacao#pedidos",
         tabela: "pessoal_ferias_gozo",
         montar: (q) =>
           head(q)
@@ -265,7 +323,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         chave: "coord_faltas",
         titulo: "Faltas justificadas da equipe",
         descricao: "Pedidos dos funcionários que você coordena",
-        href: "/painel/coordenador#pedidos",
+        href: "/painel?aba=coordenacao#pedidos",
         tabela: "pessoal_faltas_justificadas",
         montar: (q) => head(q).in("funcionario_id", equipe).not("autorizado", "is", true).not("recusado", "is", true),
       })
@@ -275,7 +333,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         chave: "coord_diarias",
         titulo: "Diárias da equipe a avaliar",
         descricao: "Pedidos dos funcionários que você coordena",
-        href: "/painel/coordenador#pedidos",
+        href: "/painel?aba=coordenacao#pedidos",
         tabela: "pessoal_diarias_solicitacoes",
         montar: (q) =>
           head(q)
@@ -289,6 +347,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   const limite = dataLimiteParada()
   const contagens = await Promise.all(
     fontes.map(async (f) => {
+      if (f.contarCom) return { quantidade: await f.contarCom(), antigas: undefined }
       const quantidade = await contar(client, f.tabela, f.montar)
       if (!amb.comAntigas || !quantidade) return { quantidade, antigas: undefined }
       // Tabela sem created_at → a consulta falha → sem a informação (não derruba).

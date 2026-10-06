@@ -1024,8 +1024,11 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    // Virou a aba "Indicadores" do painel (06/10/2026): fica oculto no menu e
+    // continua guardando a rota do relatório em PDF.
     titulo: "Indicadores",
     href: "/painel/indicadores",
+    oculto: true,
     icone: "ChartColumn",
     descricao: "Painel executivo: filiação, arrecadação, caixa, despesa e pendências",
     // Gestão e diretoria: quem lê o Financeiro, cuida da filiação ou dos

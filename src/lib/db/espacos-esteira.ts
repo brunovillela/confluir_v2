@@ -680,7 +680,7 @@ export async function avisarEquipeNovoPedido(
 ): Promise<void> {
   // Onda 2 (U2): permissão efetiva, sino + e-mail + Telegram conforme preferência.
   depoisDaResposta(() =>
-    avisarQuemPode("espacos", ["espacos_gestao", "espacos_autorizacao"], {
+    avisarQuemPode("espacos", ["espacos_gestao"], {
       texto: `Novo pedido de uso de espaço: ${texto_}`,
       link: `/painel/espacos/pedidos/${solicitacaoId}`,
       evento: "pendencia_espacos",

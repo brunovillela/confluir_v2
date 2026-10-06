@@ -1,6 +1,6 @@
 import "server-only"
 
-import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
+import { avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
@@ -360,7 +360,9 @@ export async function registrarFalta(
   } else if (opcoes.solicitanteId === dados.funcionarioId) {
     const nomes = await nomesDosUsuarios([dados.funcionarioId])
     await notificarGestao(
-      `${nomes.get(dados.funcionarioId) ?? "Um funcionário"} pediu falta justificada em ${formatarData(dados.data)} (${dados.tipo}).`
+      `${nomes.get(dados.funcionarioId) ?? "Um funcionário"} pediu falta justificada em ${formatarData(dados.data)} (${dados.tipo}).`,
+      dados.funcionarioId,
+      true
     )
   }
   return { id }
@@ -470,7 +472,9 @@ export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise
   if (situacao === "autorizada") {
     const nomes = await nomesDosUsuarios([usuarioId])
     await notificarGestao(
-      `${nomes.get(usuarioId) ?? "Um funcionário"} cancelou a falta justificada já autorizada de ${formatarData(data)}.`
+      `${nomes.get(usuarioId) ?? "Um funcionário"} cancelou a falta justificada já autorizada de ${formatarData(data)}.`,
+      usuarioId,
+      false
     )
   }
   return {}
@@ -532,14 +536,19 @@ async function espelharAusencia(faltaId: string, funcionarioId: string, data: st
  * Avisa (sino) quem cuida das faltas no tenant. `permissoes` é deny-all para
  * o JWT do tenant: lê pelo service role e recorta pelos usuários do tenant.
  */
-/** Quem autoriza faltas (permissão efetiva): sino, e-mail e Telegram conforme preferência. */
-async function notificarGestao(textoAviso: string): Promise<void> {
+/**
+ * Quem autoriza faltas (permissão efetiva) e o coordenador do funcionário.
+ * Pedido novo é pendência (caixa de entrada + e-mail/Telegram/celular);
+ * cancelamento de falta já autorizada é notificação (sino).
+ */
+async function notificarGestao(textoAviso: string, funcionarioId: string, pendente: boolean): Promise<void> {
   depoisDaResposta(() =>
-    avisarQuemPode("pessoal_gestao", ["pessoal_faltas_justificadas"], {
+    avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_faltas_justificadas"], funcionarioId, {
       texto: textoAviso,
       link: "/painel/pessoal/faltas",
-      evento: "pendencia_pessoal",
-      assunto: "Falta justificada a autorizar",
+      evento: pendente ? "pendencia_pessoal" : "pessoal_cancelamento",
+      assunto: pendente ? "Falta justificada a autorizar" : "Falta justificada cancelada",
+      exceto: funcionarioId,
     })
   )
 }

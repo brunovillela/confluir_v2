@@ -1,57 +1,65 @@
 import Link from "next/link"
-import { ArrowRight, Inbox } from "lucide-react"
+import { ArrowRight, CircleCheck, Inbox } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Pendencia } from "@/lib/db/pendencias"
+import { cn } from "@/lib/utils"
 
 /**
- * Cartão da home: tudo que espera a pessoa agir, com contagem e link direto
- * para a fila (onda 2, U1). Sem pendência, uma linha discreta — a ausência
+ * Faixa do topo do painel: tudo que espera a pessoa agir, cada fila em um
+ * bloco com a contagem e o link direto (onda 2, U1; visual do painel
+ * unificado em 06/10/2026). Sem pendência, uma linha discreta — a ausência
  * também é informação.
  */
 export function CaixaDeEntrada({ pendencias }: { pendencias: Pendencia[] }) {
   const total = pendencias.reduce((s, p) => s + p.quantidade, 0)
   return (
-    <Card id="caixa-entrada">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Inbox className="text-muted-foreground size-4" />
+    <section id="caixa-entrada" className="hud-cartao scroll-mt-20 p-4" aria-label="Caixa de entrada">
+      <header className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Inbox className="text-primary size-4" />
           Sua caixa de entrada
-          {total > 0 && (
-            <Badge className="ml-1 tabular-nums">{total > 99 ? "99+" : total}</Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {pendencias.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nada esperando por você agora.</p>
-        ) : (
-          <ul className="divide-y">
-            {pendencias.map((p) => (
-              <li key={p.chave}>
-                <Link
-                  href={p.href}
-                  className="group flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium group-hover:underline group-hover:underline-offset-4">
-                      {p.titulo}
-                    </span>
-                    <span className="text-muted-foreground block text-xs">{p.descricao}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <Badge variant="secondary" className="tabular-nums">
-                      {p.quantidade}
-                    </Badge>
-                    <ArrowRight className="text-muted-foreground size-4" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        </h2>
+        {total > 0 && (
+          <span className="hud-numero hud-numero-destaque text-lg font-semibold">
+            {total > 999 ? "999+" : total}
+            <span className="text-muted-foreground ml-1 text-xs font-normal">
+              {total === 1 ? "pendência" : "pendências"}
+            </span>
+          </span>
         )}
-      </CardContent>
-    </Card>
+      </header>
+      {pendencias.length === 0 ? (
+        <p className="text-muted-foreground flex items-center gap-2 text-sm">
+          <CircleCheck className="text-success-fg size-4" />
+          Nada esperando por você agora.
+        </p>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {pendencias.map((p) => (
+            <li key={p.chave}>
+              <Link
+                href={p.href}
+                className={cn(
+                  "group bg-muted/40 hover:bg-muted flex h-full items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors",
+                  "hover:border-primary/30"
+                )}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">{p.titulo}</span>
+                  <span className="text-muted-foreground block truncate text-xs">
+                    {p.descricao}
+                    {p.antigas ? ` · ${p.antigas} paradas` : ""}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="hud-numero text-primary text-xl font-semibold">{p.quantidade}</span>
+                  <ArrowRight className="text-muted-foreground size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

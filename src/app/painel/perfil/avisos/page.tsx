@@ -17,7 +17,8 @@ export const metadata: Metadata = { title: "Avisos — Confluir" }
 
 /**
  * Meu perfil → Avisos (onda 2, U3): por tipo de aviso, a pessoa escolhe se
- * recebe por e-mail e por Telegram. O sino do painel sempre recebe.
+ * recebe por e-mail e por Telegram. O sino recebe só as notificações; as
+ * pendências ficam na caixa de entrada (06/10/2026).
  */
 export default async function AvisosPerfilPage() {
   const { usuario } = await requireSessaoPainel()
@@ -42,7 +43,8 @@ export default async function AvisosPerfilPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Avisos</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          Escolha por onde quer receber cada tipo de aviso. O sino do painel recebe todos.
+          Escolha por onde quer receber cada tipo de aviso. O sino do painel guarda as notificações sobre você; o que
+          espera você agir fica na caixa de entrada, no topo do painel.
         </p>
       </div>
 

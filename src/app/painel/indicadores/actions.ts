@@ -10,6 +10,6 @@ import { atualizarAnalitica } from "@/lib/db/analitica"
 export async function atualizarAnaliticaAction(): Promise<void> {
   await requirePermissao("configuracoes")
   const r = await atualizarAnalitica()
-  revalidatePath("/painel/indicadores")
-  redirect(`/painel/indicadores?${r.ok ? "atualizado=1" : `erro=${encodeURIComponent(r.erro ?? "falha")}`}`)
+  revalidatePath("/painel")
+  redirect(`/painel?aba=indicadores&${r.ok ? "atualizado=1" : `erro=${encodeURIComponent(r.erro ?? "falha")}`}`)
 }

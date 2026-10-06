@@ -1101,9 +1101,10 @@ export async function criarReembolso(
 
   // Onda 2 (U2): quem avalia reembolsos de filiados fica sabendo na hora.
   depoisDaResposta(() =>
-    avisarQuemPode("filiacao_reembolsos", ["filiacao_gestao"], {
+    // Mesmo público da caixa de entrada: quem aprova reembolsos jurídicos.
+    avisarQuemPode("juridico_gestao", ["juridico_geral"], {
       texto: `Pedido de reembolso jurídico${dados.valor !== null ? ` de ${formatarMoeda(dados.valor)}` : ""} aguardando avaliação${dados.descricao_despesa ? `: ${dados.descricao_despesa}` : "."}`.slice(0, 300),
-      link: "/painel/filiados/reembolsos",
+      link: "/painel/juridico/reembolsos",
       evento: "pendencia_filiacao",
       assunto: "Reembolso de filiado a avaliar",
       exceto: solicitanteId,

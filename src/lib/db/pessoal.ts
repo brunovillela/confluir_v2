@@ -2,6 +2,7 @@ import "server-only"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
+import { querEmail } from "@/lib/db/avisos"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail } from "@/lib/email"
@@ -744,6 +745,8 @@ export async function notificarLiberacaoPessoal(
     .eq("id", funcionarioId)
     .maybeSingle()
   if (!usuario?.email) return
+  // Preferência de e-mail (Meu perfil → Avisos) vale também aqui.
+  if (!(await querEmail(funcionarioId, tipo === "contracheque" ? "contracheque" : "ponto"))) return
 
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   await enviarEmail({

@@ -79,7 +79,10 @@ export type DemandaLinha = {
 
 export async function listarDemandas(filtro: {
   busca?: string
+  /** Uma situação, ou "abertas" (tudo que não está Feito). */
   situacao?: string
+  /** Tipo da demanda (ex.: "Feedback do sistema"). */
+  tipo?: string
 } = {}): Promise<DemandaLinha[]> {
   const admin = await createAdminClient()
   let query = admin
@@ -89,7 +92,9 @@ export async function listarDemandas(filtro: {
 
   const busca = (filtro.busca ?? "").trim()
   if (busca) query = query.ilike("nome", `%${busca}%`)
-  if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
+  if (filtro.situacao === "abertas") query = query.neq("situacao", "Feito")
+  else if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
+  if (filtro.tipo) query = query.eq("tipo", filtro.tipo)
 
   const { data, error } = await query
     .order("prazo", { ascending: true, nullsFirst: false })

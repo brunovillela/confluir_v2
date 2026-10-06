@@ -31,7 +31,7 @@ const CLASSE_SITUACAO: Record<string, string> = {
   Feito: "text-muted-foreground",
 }
 
-type Params = { busca?: string; situacao?: string; excluida?: string }
+type Params = { busca?: string; situacao?: string; excluida?: string; tipo?: string }
 
 export default async function DemandasPage({
   searchParams,
@@ -45,19 +45,31 @@ export default async function DemandasPage({
   const brutos = await searchParams
   const busca = (brutos.busca ?? "").trim()
   const excluida = brutos.excluida === "1"
-  const situacao = (SITUACOES_DEMANDA as readonly string[]).includes(
-    brutos.situacao ?? ""
-  )
-    ? brutos.situacao
-    : ""
+  const situacao =
+    brutos.situacao === "abertas" || (SITUACOES_DEMANDA as readonly string[]).includes(brutos.situacao ?? "")
+      ? brutos.situacao
+      : ""
+  // Vindo da caixa de entrada ("Relatos do sistema a tratar").
+  const tipo = (brutos.tipo ?? "").trim().slice(0, 60)
 
   const [resumo, demandas] = await Promise.all([
     resumoDemandas(),
-    listarDemandas({ busca, situacao }),
+    listarDemandas({ busca, situacao, tipo: tipo || undefined }),
   ])
 
   return (
     <>
+      {tipo && (
+        <Alert>
+          <AlertDescription>
+            Mostrando só: {tipo}
+            {situacao === "abertas" ? " (em aberto)" : ""} —{" "}
+            <Link href="/painel/ferramentas/demandas" className="underline underline-offset-2">
+              ver todas
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
       {excluida && (
         <Alert>
           <AlertDescription>Demanda excluída.</AlertDescription>

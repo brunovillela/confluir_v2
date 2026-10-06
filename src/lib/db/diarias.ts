@@ -1,6 +1,6 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
-import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
+import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -467,17 +467,21 @@ export async function criarSolicitacaoDiaria(
     }
   }
 
-  // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
+  // Onda 2 (U2): quem avalia fica sabendo do pedido na hora — o mesmo público
+  // da caixa de entrada: diária de diretor vai à Diretoria; de funcionário,
+  // ao Pessoal e ao coordenador do departamento dele.
   const nomes = await nomesDosUsuarios([nova.funcionario_id])
   const quemPediu = nova.solicitante_id ?? nova.funcionario_id
+  const avisoDiaria = {
+    texto: `${nomes.get(nova.funcionario_id) ?? "Um beneficiário"}: ${nova.quantidade} diária(s) solicitada(s)${nova.data_inicio ? ` a partir de ${formatarData(nova.data_inicio)}` : ""} — ${nova.motivo}`.slice(0, 300),
+    evento: "pendencia_pessoal" as const,
+    assunto: "Diária a avaliar",
+    exceto: quemPediu,
+  }
   depoisDaResposta(() =>
-    avisarQuemPode("pessoal_gestao", [], {
-      texto: `${nomes.get(nova.funcionario_id) ?? "Um beneficiário"}: ${nova.quantidade} diária(s) solicitada(s)${nova.data_inicio ? ` a partir de ${formatarData(nova.data_inicio)}` : ""} — ${nova.motivo}`.slice(0, 300),
-      link: "/painel/pessoal/diarias",
-      evento: "pendencia_pessoal",
-      assunto: "Diária a avaliar",
-      exceto: quemPediu,
-    })
+    quadro === "diretor"
+      ? avisarQuemPode("diretoria_diarias", ["configuracoes"], { ...avisoDiaria, link: "/painel/institucional/diretoria/diarias" })
+      : avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_diarias"], nova.funcionario_id, { ...avisoDiaria, link: "/painel/pessoal/diarias" })
   )
   return { id: criada ? String((criada as { id: string }).id) : undefined }
 }

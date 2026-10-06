@@ -194,7 +194,7 @@ export async function enviarResumoSemanal(tenantId: string): Promise<{ pessoas: 
       [d],
       {
         texto: textoResumoSemanal(blocos),
-        link: "/painel/indicadores",
+        link: "/painel?aba=indicadores",
         evento: "resumo_semanal",
         assunto: `Resumo semanal de gestão — ${contexto.entidade}`,
         html: htmlResumoSemanal(blocos, contexto.origem),
