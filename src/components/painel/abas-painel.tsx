@@ -1,15 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { ChartColumn, Crown, Sun, UsersRound } from "lucide-react"
+import { ChartColumn, Sun, UsersRound } from "lucide-react"
 
-export type ChaveAba = "dia" | "diretor" | "coordenacao" | "indicadores"
+export type ChaveAba = "dia" | "coordenacao" | "gestao"
 
 const ICONES: Record<ChaveAba, React.ComponentType<{ className?: string }>> = {
   dia: Sun,
-  diretor: Crown,
   coordenacao: UsersRound,
-  indicadores: ChartColumn,
+  gestao: ChartColumn,
 }
 
 export const COOKIE_ABA = "painel_aba"

@@ -2,5 +2,5 @@ import { redirect } from "next/navigation"
 
 /** Custos consolidados virou uma vista da aba "Indicadores" do painel (06/10/2026). */
 export default function CustosPage() {
-  redirect("/painel?aba=indicadores&ver=custos")
+  redirect("/painel?aba=gestao&ver=custos")
 }

@@ -1,17 +1,22 @@
 import Link from "next/link"
-import { Award, Cake, CalendarDays, ClipboardList, ExternalLink, IdCard, Newspaper, UserRoundX, Wallet } from "lucide-react"
+import { Award, Cake, CalendarDays, ClipboardList, ExternalLink, HandCoins, IdCard, Newspaper, Plane, UserRoundX, Wallet } from "lucide-react"
 
 import { Carrossel } from "@/components/painel/carrossel"
+import { ClimaSedes } from "@/components/painel/clima"
 import { CartaoHud, ListaHud } from "@/components/painel/hud"
 import { Badge } from "@/components/ui/badge"
 import type { SessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
+import { climaDasSedes } from "@/lib/db/clima"
 import { ultimoResumo } from "@/lib/db/comunicacao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { resumoPainel, ultimasNoticias, type EventoDoDia } from "@/lib/db/painel"
+import { minhasSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
+import { minhasViagens, type Viagem } from "@/lib/db/viagens"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { ROTULO_SITUACAO_VIAGEM } from "@/lib/viagens-constantes"
 
 import { ConsultaFiliacao } from "../consulta-filiacao-widget"
 import { MeusVeiculos } from "../meus-veiculos"
@@ -43,21 +48,29 @@ function HorarioEvento({ evento }: { evento: EventoDoDia }) {
 export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
   const uid = sessao.usuario.id as string
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
-  const [resumo, noticias, meuCaixa, org, resumoIA, condutor] = await Promise.all([
+  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, clima, viagens, diarias] = await Promise.all([
     resumoPainel(uid),
     ultimasNoticias(9),
     contaDoUsuario(uid).catch(() => ({ disponivel: false, detalhe: null })),
     obterOrganizacao(),
     ultimoResumo().catch(() => null),
     buscarCondutorDoUsuario(uid).catch(() => null),
+    climaDasSedes().catch(() => []),
+    minhasViagens(uid).catch(() => ({ disponivel: false, viagens: [] as Viagem[] })),
+    minhasSolicitacoesDiaria(uid).catch(() => ({ disponivel: false, solicitacoes: [] as SolicitacaoDiaria[] })),
   ])
+  const viagensAbertas = viagens.viagens.filter((v) => v.situacao === "solicitada" || v.situacao === "em_atendimento").slice(0, 4)
+  const diariasAguardando = diarias.solicitacoes.filter((d) => d.situacao === "aguardando").slice(0, 4)
   const siteUrl = org?.siteUrl ?? null
   const contaCaixa = meuCaixa.detalhe?.conta ?? null
   const aportePendente = meuCaixa.detalhe?.extrato.some((m) => m.tipo === "aporte" && m.situacao === "pendente")
 
   return (
-    <div className="grid gap-4">
-      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid">
+      {/* Colunas encaixadas: cada cartão sobe até o de cima, sem o vão da linha. */}
+      <div className="columns-1 gap-4 md:columns-2 xl:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">
+        <ClimaSedes cidades={clima} />
+
         {contaCaixa && (
           <Link href="/painel/perfil/caixa" className="hud-cartao block p-4">
             <p className="hud-rotulo flex items-center gap-1.5">
@@ -174,6 +187,49 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
                     <Badge variant="outline" className="border-success/40 text-success-fg shrink-0">
                       {a.anos} ano{a.anos === 1 ? "" : "s"} de casa
                     </Badge>
+                  </li>
+                )),
+              ]}
+            </ListaHud>
+          </CartaoHud>
+        )}
+
+        {(viagensAbertas.length > 0 || diariasAguardando.length > 0) && (
+          <CartaoHud titulo="Meus pedidos" descricao="Viagens em andamento e diárias aguardando" icone={Plane} href="/painel/perfil/viagens">
+            <ListaHud vazio="">
+              {[
+                ...viagensAbertas.map((v) => (
+                  <li key={`v-${v.id}`} className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Plane className="text-primary size-3.5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{v.eventoTitulo ?? v.eventoExterno ?? v.motivo}</span>
+                        <span className="text-muted-foreground block text-xs">{v.inicio ? formatarData(v.inicio) : "sem data"}</span>
+                      </span>
+                    </span>
+                    <Badge variant="outline" className="shrink-0">
+                      {ROTULO_SITUACAO_VIAGEM[v.situacao]}
+                    </Badge>
+                  </li>
+                )),
+                ...diariasAguardando.map((d) => (
+                  <li key={`d-${d.id}`} className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <HandCoins className="text-primary size-3.5 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {d.tipoNome ?? "Diária"}
+                          {d.quantidade ? ` × ${d.quantidade}` : ""}
+                        </span>
+                        <span className="text-muted-foreground block truncate text-xs">
+                          {d.data_inicio ? formatarData(d.data_inicio) : ""}
+                          {d.motivo ? ` · ${d.motivo}` : ""}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="hud-numero shrink-0 text-xs">
+                      {d.valor_total !== null ? formatarMoeda(d.valor_total + d.valorDespesas) : "—"}
+                    </span>
                   </li>
                 )),
               ]}

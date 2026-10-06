@@ -3,23 +3,23 @@ import "server-only"
 import type { SessaoPainel } from "@/lib/auth"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { alcadaDoUsuario, listarOrdensParaAvaliacao, type OrdemParaAvaliacao } from "@/lib/db/compras"
-import { listarSolicitacoesDiaria, minhasSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
+import { listarSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { departamentosCoordenados, type DepartamentoCoordenado } from "@/lib/db/coordenador"
-import { painelExecutivo, type PainelExecutivo } from "@/lib/db/indicadores"
 import { listarNegociacoes, type NegociacaoLinha } from "@/lib/db/negociacoes"
 import { diretoriaDoUsuario, type DiretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import { obterPerfil } from "@/lib/db/perfil"
-import { minhasViagens, type Viagem } from "@/lib/db/viagens"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
- * HOME DO DIRETOR (onda 4, D1) e APROVAR PELO CELULAR (D2): o que espera a
- * decisão da pessoa — ordens na alçada, documentos para assinar, diárias da
- * diretoria — e o contexto da semana: agenda, votações, negociações, KPIs e
- * os pedidos dela de viagem e diária. Cada bloco só entra para quem tem a
- * permissão; o que não se aplica vem vazio, nunca derruba a tela.
+ * ABA GESTÃO DO PAINEL (06/10/2026; era a home do diretor, onda 4, D1) e
+ * APROVAR PELO CELULAR (D2): o que espera a decisão da pessoa — ordens na
+ * alçada, documentos para assinar, diárias — e, para quem é do mandato
+ * vigente, a semana da entidade (agenda, votações, negociações). Os números
+ * vêm da parte de indicadores da mesma aba; os pedidos pessoais, de Meu dia.
+ * Cada bloco só entra para quem tem a permissão ou o papel; o que não se
+ * aplica vem vazio, nunca derruba a tela.
  */
 
 export type AssinaturaPendente = {
@@ -60,16 +60,15 @@ export type ParaAprovar = {
   podeDiariasQuadro: boolean
 }
 
-export type HomeDiretor = ParaAprovar & {
+export type GestaoDoUsuario = ParaAprovar & {
+  /** Integrante do mandato vigente (null = não é diretor). */
   diretoria: DiretoriaDoUsuario | null
+  /** A semana da entidade — só para quem é do mandato. */
   agenda: CompromissoSemana[]
   votacoes: VotacaoProxima[]
   negociacoes: NegociacaoLinha[]
-  kpis: PainelExecutivo | null
-  /** Departamentos que a pessoa coordena — atalho para a área do coordenador. */
+  /** Departamentos que a pessoa coordena — atalho para a aba Coordenação. */
   coordenados: DepartamentoCoordenado[]
-  minhasViagens: Viagem[]
-  minhasDiarias: SolicitacaoDiaria[]
 }
 
 function somarDias(iso: string, dias: number): string {
@@ -131,22 +130,21 @@ export async function paraAprovar(sessao: SessaoPainel): Promise<ParaAprovar> {
   }
 }
 
-export async function homeDiretor(sessao: SessaoPainel): Promise<HomeDiretor> {
+export async function gestaoDoUsuario(sessao: SessaoPainel): Promise<GestaoDoUsuario> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const hoje = hojeSP()
   const uid = sessao.usuario.id as string
-  const veKpis = podeAcessar(sessao.permissoes, "configuracoes", [
-    "financeiro_leitura",
-    "financeiro_pagamento",
-    "filiacao_gestao",
-    "filiacao_receitas",
-    "diretoria_mandatos",
-  ])
 
-  const [aprovar, perfil, agendaRes, votacoesRes, negociacoes, kpis, viagens, diarias] = await Promise.all([
+  const [aprovar, perfil, coordenados] = await Promise.all([
     paraAprovar(sessao),
     obterPerfil(uid).catch(() => null),
+    departamentosCoordenados(uid).catch(() => [] as DepartamentoCoordenado[]),
+  ])
+  const diretoria = await diretoriaDoUsuario(uid, perfil?.cpf ?? null).catch(() => null)
+  if (!diretoria) return { ...aprovar, diretoria: null, agenda: [], votacoes: [], negociacoes: [], coordenados }
+
+  const [agendaRes, votacoesRes, negociacoes] = await Promise.all([
     admin
       .from("agenda")
       .select("id, atividade, inicio, termino, dia_todo, local")
@@ -163,19 +161,7 @@ export async function homeDiretor(sessao: SessaoPainel): Promise<HomeDiretor> {
       .order("inicio", { ascending: true })
       .limit(5),
     listarNegociacoes().catch(() => ({ disponivel: false, lista: [] as NegociacaoLinha[] })),
-    veKpis ? painelExecutivo(sessao).catch(() => null) : Promise.resolve(null),
-    minhasViagens(uid).catch(() => ({ disponivel: false, viagens: [] as Viagem[] })),
-    minhasSolicitacoesDiaria(uid).catch(() => ({ disponivel: false, solicitacoes: [] as SolicitacaoDiaria[] })),
   ])
-  const [diretoria, coordenados] = await Promise.all([
-    diretoriaDoUsuario(uid, perfil?.cpf ?? null).catch(() => null),
-    departamentosCoordenados(uid).catch(() => [] as DepartamentoCoordenado[]),
-  ])
-  // Indicadores financeiros gerais (de todos os departamentos: arrecadação,
-  // caixa, ordens vencidas) só com permissão do Financeiro — a mesma da
-  // tela gerencial. Filiados ativos seguem a permissão de filiação.
-  const veFinanceiroGeral = podeAcessar(sessao.permissoes, "financeiro_leitura", ["financeiro_pagamento", "configuracoes"])
-  const kpisVisiveis = kpis && !veFinanceiroGeral ? { ...kpis, financeiro: null, arrecadacao: null } : kpis
 
   return {
     ...aprovar,
@@ -194,18 +180,23 @@ export async function homeDiretor(sessao: SessaoPainel): Promise<HomeDiretor> {
       return { id: String(r.id), nome: texto(r.nome_assembleia), inicio: texto(r.inicio), termino: texto(r.termino), campanha: texto(tema) }
     }),
     negociacoes: negociacoes.lista.filter((n) => n.situacao === "preparacao" || n.situacao === "em_curso").slice(0, 5),
-    kpis: kpisVisiveis,
     coordenados,
-    minhasViagens: viagens.viagens.filter((v) => v.situacao === "solicitada" || v.situacao === "em_atendimento").slice(0, 5),
-    minhasDiarias: diarias.solicitacoes.filter((d) => d.situacao === "aguardando").slice(0, 5),
   }
 }
 
-/** A pessoa tem o que ver na home do diretor? (cartão na home do painel) */
-export async function ehDiretorOuAprovador(sessao: SessaoPainel): Promise<boolean> {
-  const alcada = alcadaDoUsuario(sessao.permissoes as Record<string, unknown>)
-  if (alcada > 0 || podeAcessar(sessao.permissoes, "diretoria_diarias", ["diretoria_mandatos"])) return true
+/**
+ * Quem decide algo pelo painel: alçada de aprovação ou avaliação de diárias.
+ * (Diretor de verdade é `diretoriaDoUsuario` — integrante do mandato.)
+ */
+export function temDecisoes(sessao: SessaoPainel): boolean {
+  return (
+    alcadaDoUsuario(sessao.permissoes as Record<string, unknown>) > 0 ||
+    podeAcessar(sessao.permissoes, "diretoria_diarias", ["configuracoes", "pessoal_gestao", "pessoal_diarias"])
+  )
+}
+
+/** A pessoa é integrante do mandato vigente? */
+export async function ehDiretor(sessao: SessaoPainel): Promise<boolean> {
   const perfil = await obterPerfil(sessao.usuario.id as string).catch(() => null)
-  const d = await diretoriaDoUsuario(sessao.usuario.id as string, perfil?.cpf ?? null).catch(() => null)
-  return Boolean(d)
+  return Boolean(await diretoriaDoUsuario(sessao.usuario.id as string, perfil?.cpf ?? null).catch(() => null))
 }

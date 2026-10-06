@@ -64,7 +64,7 @@ export async function AbaIndicadores({
           {vistas.map((v) => (
             <Link
               key={v}
-              href={`/painel?aba=indicadores&ver=${v}`}
+              href={`/painel?aba=gestao&ver=${v}`}
               scroll={false}
               aria-current={v === atual ? "page" : undefined}
               className={cn(

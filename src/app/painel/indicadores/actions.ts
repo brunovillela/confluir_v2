@@ -11,5 +11,5 @@ export async function atualizarAnaliticaAction(): Promise<void> {
   await requirePermissao("configuracoes")
   const r = await atualizarAnalitica()
   revalidatePath("/painel")
-  redirect(`/painel?aba=indicadores&${r.ok ? "atualizado=1" : `erro=${encodeURIComponent(r.erro ?? "falha")}`}`)
+  redirect(`/painel?aba=gestao&${r.ok ? "atualizado=1" : `erro=${encodeURIComponent(r.erro ?? "falha")}`}`)
 }

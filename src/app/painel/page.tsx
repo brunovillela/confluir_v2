@@ -12,15 +12,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { requireSessaoPainel } from "@/lib/auth"
 import { departamentosCoordenados } from "@/lib/db/coordenador"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
-import { ehDiretorOuAprovador } from "@/lib/db/diretor-home"
+import { ehDiretor, temDecisoes } from "@/lib/db/diretor-home"
 import { pendenciasDoUsuario } from "@/lib/db/pendencias"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AbaCoordenacao } from "./_painel/aba-coordenacao"
 import { AbaDia } from "./_painel/aba-dia"
-import { AbaDiretor } from "./_painel/aba-diretor"
-import { AbaIndicadores, CHAVES_INDICADORES, type VistaIndicadores } from "./_painel/aba-indicadores"
+import { AbaGestao } from "./_painel/aba-gestao"
+import { CHAVES_INDICADORES, type VistaIndicadores } from "./_painel/aba-indicadores"
 
 export const metadata: Metadata = { title: "Painel — Confluir" }
 
@@ -39,16 +39,20 @@ function hojeExtenso(): string {
 
 /** Chaves da caixa de entrada que contam no selo de cada aba. */
 const PENDENCIAS_DA_ABA: Partial<Record<ChaveAba, string[]>> = {
-  diretor: ["ordens", "assinaturas", "diarias_diretoria"],
+  gestao: ["ordens", "assinaturas", "diarias", "diarias_diretoria"],
   coordenacao: ["coord_ferias", "coord_faltas", "coord_diarias"],
 }
+
+/** Endereços de antes da aba única (Diretor e Indicadores viraram Gestão). */
+const ABA_ANTIGA: Record<string, ChaveAba> = { diretor: "gestao", indicadores: "gestao" }
 
 /**
  * PAINEL UNIFICADO (06/10/2026): a home, a área do diretor, a da coordenação
  * e os indicadores numa página só. No topo, a caixa de entrada (o que espera
  * a pessoa agir); abaixo, as abas que o perfil dela tem — Meu dia para todos,
- * Diretor, Coordenação e Indicadores conforme o papel e as permissões. Só a
- * aba aberta é carregada; a última escolhida fica num cookie.
+ * Coordenação para quem coordena e Gestão (decisões, a semana do mandato e
+ * os indicadores, cada parte conforme a função e as permissões). Só a aba
+ * aberta é carregada; a última escolhida fica num cookie.
  */
 export default async function PainelPage({
   searchParams,
@@ -62,7 +66,7 @@ export default async function PainelPage({
 
   const [pendencias, diretor, coordena, condutor, quadroViagem, jar] = await Promise.all([
     pendenciasDoUsuario(sessao),
-    ehDiretorOuAprovador(sessao).catch(() => false),
+    ehDiretor(sessao).catch(() => false),
     departamentosCoordenados(uid).catch(() => []),
     buscarCondutorDoUsuario(uid).catch(() => null),
     quadroParaDiaria(uid).catch(() => null),
@@ -73,15 +77,17 @@ export default async function PainelPage({
   const contagem = (aba: ChaveAba) =>
     pendencias.filter((p) => PENDENCIAS_DA_ABA[aba]?.includes(p.chave)).reduce((s, p) => s + p.quantidade, 0)
   const abas: { chave: ChaveAba; rotulo: string; contagem?: number }[] = [{ chave: "dia", rotulo: "Meu dia" }]
-  if (diretor) abas.push({ chave: "diretor", rotulo: "Diretor", contagem: contagem("diretor") })
   if (coordena.length > 0) abas.push({ chave: "coordenacao", rotulo: "Coordenação", contagem: contagem("coordenacao") })
-  if (veIndicadores) abas.push({ chave: "indicadores", rotulo: "Indicadores" })
+  // Gestão: quem é do mandato, quem decide (alçada, diárias) ou quem lê indicadores.
+  if (diretor || temDecisoes(sessao) || veIndicadores) abas.push({ chave: "gestao", rotulo: "Gestão", contagem: contagem("gestao") })
 
   const disponivel = (c: string | undefined): c is ChaveAba => abas.some((a) => a.chave === c)
-  const lembrada = jar.get(COOKIE_ABA)?.value
-  // Padrão por papel: quem coordena abre na coordenação; diretor, na decisão.
-  const padrao: ChaveAba = disponivel("coordenacao") ? "coordenacao" : disponivel("diretor") ? "diretor" : "dia"
-  const ativa: ChaveAba = disponivel(sp.aba) ? sp.aba : disponivel(lembrada) ? lembrada : padrao
+  const normalizar = (c: string | undefined) => (c && ABA_ANTIGA[c]) || c
+  const pedida = normalizar(sp.aba)
+  const lembrada = normalizar(jar.get(COOKIE_ABA)?.value)
+  // Padrão por papel: quem coordena abre na coordenação; diretor, na gestão.
+  const padrao: ChaveAba = disponivel("coordenacao") ? "coordenacao" : diretor && disponivel("gestao") ? "gestao" : "dia"
+  const ativa: ChaveAba = disponivel(pedida) ? pedida : disponivel(lembrada) ? lembrada : padrao
 
   return (
     <div className="hud-fundo grid gap-4">
@@ -126,12 +132,16 @@ export default async function PainelPage({
       <AbasPainel abas={abas} ativa={ativa} />
 
       <Suspense key={`${ativa}-${sp.ver ?? ""}-${sp.depto ?? ""}`} fallback={<EsqueletoAba />}>
-        {ativa === "diretor" ? (
-          <AbaDiretor sessao={sessao} />
-        ) : ativa === "coordenacao" ? (
+        {ativa === "coordenacao" ? (
           <AbaCoordenacao sessao={sessao} depto={sp.depto} salvo={sp.salvo} />
-        ) : ativa === "indicadores" ? (
-          <AbaIndicadores sessao={sessao} vista={(sp.ver as VistaIndicadores) ?? "geral"} atualizado={sp.atualizado} erro={sp.erro} />
+        ) : ativa === "gestao" ? (
+          <AbaGestao
+            sessao={sessao}
+            veIndicadores={veIndicadores}
+            vista={(sp.ver as VistaIndicadores) ?? "geral"}
+            atualizado={sp.atualizado}
+            erro={sp.erro}
+          />
         ) : (
           <AbaDia sessao={sessao} />
         )}

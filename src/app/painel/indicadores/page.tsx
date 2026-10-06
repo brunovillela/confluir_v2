@@ -7,7 +7,7 @@ export default async function IndicadoresPage({
   searchParams: Promise<{ atualizado?: string; erro?: string }>
 }) {
   const { atualizado, erro } = await searchParams
-  const q = new URLSearchParams({ aba: "indicadores" })
+  const q = new URLSearchParams({ aba: "gestao" })
   if (atualizado) q.set("atualizado", atualizado)
   if (erro) q.set("erro", erro)
   redirect(`/painel?${q.toString()}`)
