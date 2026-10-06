@@ -83,17 +83,25 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   const fontes: Fonte[] = []
   const head = (q: Consulta) => q.select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp)
 
-  // Ordens de pagamento dentro da minha alçada
+  // Cada fonte usa O MESMO critério e a MESMA permissão da tela para onde
+  // leva — senão a caixa mostra um número e a tela, outro (06/10/2026).
+
+  // Ordens de pagamento dentro da minha alçada (= fila de avaliação: não
+  // excluídas e com valor — sem valor não há como conferir a alçada).
   const alcada = alcadaDoUsuario(p)
   if (alcada > 0 && pode("aquisicoes_avaliacoes", ["financeiro_pagamento"])) {
     fontes.push({
       chave: "ordens",
       titulo: "Ordens aguardando sua autorização",
       descricao: alcada >= ALCADA_SEM_TETO ? "Todas as ordens em autorização" : "Dentro da sua alçada",
-      href: "/painel/compras/avaliacoes",
+      // A tela de avaliações exige a chave de avaliação; "Aprovar" serve aos dois.
+      href: pode("aquisicoes_avaliacoes") ? "/painel/compras/avaliacoes" : "/painel/aprovar",
       tabela: "ordens_pagamento",
       montar: (q) => {
-        let c = head(q).eq("situacao", SITUACAO_EM_AUTORIZACAO)
+        let c = head(q)
+          .eq("situacao", SITUACAO_EM_AUTORIZACAO)
+          .not("excluido", "is", true)
+          .not("valor_inicial_cobranca", "is", null)
         if (alcada < ALCADA_SEM_TETO) c = c.lte("valor_inicial_cobranca", alcada)
         return c
       },
@@ -108,15 +116,8 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Gozos pedidos pelos funcionários",
       href: "/painel/pessoal/ferias",
       tabela: "pessoal_ferias_gozo",
-      montar: (q) => head(q).eq("autorizado", false),
-    })
-    fontes.push({
-      chave: "diarias",
-      titulo: "Diárias a avaliar",
-      descricao: "Solicitações aguardando decisão",
-      href: "/painel/pessoal/diarias",
-      tabela: "pessoal_diarias_solicitacoes",
-      montar: (q) => head(q).eq("situacao", "aguardando"),
+      // A tela lista todo gozo ainda não autorizado (falso ou sem decisão).
+      montar: (q) => head(q).not("autorizado", "is", true),
     })
     fontes.push({
       chave: "reembolsos_pessoal",
@@ -127,6 +128,28 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) => head(q).eq("situacao", "aguardando"),
     })
   }
+  // Diárias: cada porta conta só o seu quadro, com a permissão dela.
+  if (pode("pessoal_gestao", ["pessoal_diarias"])) {
+    fontes.push({
+      chave: "diarias",
+      titulo: "Diárias a avaliar",
+      descricao: "Solicitações de funcionários aguardando decisão",
+      href: "/painel/pessoal/diarias",
+      tabela: "pessoal_diarias_solicitacoes",
+      montar: (q) =>
+        head(q).eq("situacao", "aguardando").or("beneficiario_tipo.is.null,beneficiario_tipo.neq.diretor"),
+    })
+  }
+  if (pode("diretoria_diarias", ["configuracoes"])) {
+    fontes.push({
+      chave: "diarias_diretoria",
+      titulo: "Diárias da diretoria a avaliar",
+      descricao: "Solicitações de diretores aguardando decisão",
+      href: "/painel/institucional/diretoria/diarias",
+      tabela: "pessoal_diarias_solicitacoes",
+      montar: (q) => head(q).eq("situacao", "aguardando").eq("beneficiario_tipo", "diretor"),
+    })
+  }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({
       chave: "faltas",
@@ -134,7 +157,8 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Pedidos sem decisão",
       href: "/painel/pessoal/faltas",
       tabela: "pessoal_faltas_justificadas",
-      montar: (q) => head(q).is("autorizado", null).is("recusado", null),
+      // Aguardando = nem autorizada nem recusada (falso conta como sem decisão).
+      montar: (q) => head(q).not("autorizado", "is", true).not("recusado", "is", true),
     })
   }
 
@@ -149,19 +173,22 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) => head(q).eq("situacao", "nao_avaliada"),
     })
   }
-  if (pode("filiacao_reembolsos", ["filiacao_gestao"])) {
+
+  // Jurídico: reembolsos ao escritório (o reembolso a filiado não passa por
+  // avaliação — nasce com a ordem).
+  if (pode("juridico_gestao", ["juridico_geral"])) {
     fontes.push({
       chave: "reembolsos_juridico",
-      titulo: "Reembolsos de filiados a avaliar",
-      descricao: "Pedidos aguardando",
-      href: "/painel/filiados/reembolsos",
+      titulo: "Reembolsos jurídicos a avaliar",
+      descricao: "Despesas do escritório aguardando aprovação",
+      href: "/painel/juridico/reembolsos",
       tabela: "juridico_reembolsos",
-      montar: (q) => head(q).eq("situacao", "aguardando"),
+      montar: (q) => head(q).or("situacao.is.null,situacao.not.in.(aprovado,reprovado)"),
     })
   }
 
   // Espaços
-  if (pode("espacos", ["espacos_gestao", "espacos_autorizacao"])) {
+  if (pode("espacos", ["espacos_gestao"])) {
     fontes.push({
       chave: "espacos",
       titulo: "Pedidos de espaço em análise",
@@ -177,10 +204,10 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     fontes.push({
       chave: "viagens",
       titulo: "Viagens a atender",
-      descricao: "Pedidos de passagem e hospedagem",
+      descricao: "Pedidos solicitados ou em atendimento",
       href: "/painel/institucional/viagens",
       tabela: "viagens_solicitacoes",
-      montar: (q) => head(q).eq("situacao", "solicitada"),
+      montar: (q) => head(q).in("situacao", ["solicitada", "em_atendimento"]),
     })
   }
 
@@ -197,14 +224,14 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   }
 
   // Minhas assinaturas pendentes (ofícios, termos, minutas) — o signatário é
-  // identificado pelo e-mail do convite.
+  // identificado pelo e-mail do convite. "Aprovar" lista todas elas.
   const email = (amb.email ?? "").trim().toLowerCase()
   if (email) {
     fontes.push({
       chave: "assinaturas",
       titulo: "Documentos aguardando sua assinatura",
       descricao: "Ofícios, termos e minutas enviados para você",
-      href: "/painel/ferramentas/oficios",
+      href: "/painel/aprovar",
       tabela: "documento_assinaturas",
       montar: (q) => head(q).eq("situacao", "pendente").ilike("email", email),
     })

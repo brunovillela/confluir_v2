@@ -1329,6 +1329,7 @@ export async function listarRecebimentosPendentes(): Promise<{
     .eq("recebido", false)
     .order("previsao_entrega", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
+    .range(0, 4999)
   if (error) {
     if (esquemaAusente(error)) return { disponivel: false, pendentes: [] }
     throw new Error(`Falha ao listar recebimentos: ${error.message}`)
