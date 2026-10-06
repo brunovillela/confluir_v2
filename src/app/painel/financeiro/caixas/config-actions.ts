@@ -5,8 +5,8 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { salvarConfigFinanceiro } from "@/lib/db/ordens-ciclo"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
+import { obterConfigFinanceiro, salvarConfigFinanceiro } from "@/lib/db/ordens-ciclo"
 
 export async function salvarCentroCaixaAction(
   _prev: EstadoForm,
@@ -15,9 +15,11 @@ export async function salvarCentroCaixaAction(
   await requirePermissao("financeiro_caixa_admin", ["financeiro_pagamento"])
   const id = String(formData.get("centro_custo_caixa_id") ?? "").trim() || null
   if (id) {
-    const admin = await createAdminClient()
-    const { data } = await admin.from("centros_de_custo").select("id").eq("id", id).maybeSingle()
-    if (!data) return { erro: "Centro de custo inválido." }
+    const { centroCustoCaixaId } = await obterConfigFinanceiro()
+    const debitos = await listarCentrosDeDebito(centroCustoCaixaId)
+    if (!debitos.some((c) => c.id === id)) {
+      return { erro: "Escolha uma conta de pagamento (caixa, banco) para o débito do caixa." }
+    }
   }
   const { erro } = await salvarConfigFinanceiro(id)
   if (erro) return { erro }

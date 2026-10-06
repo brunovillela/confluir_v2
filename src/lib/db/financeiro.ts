@@ -678,6 +678,40 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
 
 // ── Centros de custo ───────────────────────────────────────────────────────
 
+/** Conta de pagamento do plano de contas: tipo "Ativo - Pagamento" (caixa, bancos), com as grafias do legado. */
+export function ehContaDePagamento(tipo: string | null): boolean {
+  return /pagamento/i.test(tipo ?? "")
+}
+
+/**
+ * Centros que podem ser o DÉBITO de um pagamento (de onde o dinheiro sai):
+ * contas de pagamento usáveis, mais os centros ligados às contas bancárias de
+ * remessa e ao caixa (configuração do Financeiro). O débito já gravado na
+ * ordem continua na lista. Plano de contas sem nenhuma conta de pagamento:
+ * todas as usáveis, para não travar o pagamento.
+ */
+export async function listarCentrosDeDebito(atualId: string | null = null): Promise<CentroCusto[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [centros, contas, config] = await Promise.all([
+    listarCentrosCusto(),
+    admin.from("financeiro_contas_bancarias").select("centro_custo_id").eq("emp_proprietaria_id", emp).eq("ativa", true),
+    admin.from("financeiro_config").select("centro_custo_caixa_id").eq("emp_proprietaria_id", emp).maybeSingle(),
+  ])
+  const ligados = new Set(
+    [...(contas.data ?? []).map((c) => c.centro_custo_id), config.data?.centro_custo_caixa_id].filter(
+      (v): v is string => typeof v === "string" && v !== ""
+    )
+  )
+  const usaveis = centros.filter((c) => c.usavel !== false)
+  const temPlanoDePagamento = usaveis.some((c) => ehContaDePagamento(c.tipo_da_conta))
+  const base = temPlanoDePagamento
+    ? usaveis.filter((c) => ehContaDePagamento(c.tipo_da_conta) || ligados.has(c.id))
+    : usaveis
+  const atual = atualId && !base.some((c) => c.id === atualId) ? centros.find((c) => c.id === atualId) : undefined
+  return atual ? [...base, atual] : base
+}
+
 export async function listarCentrosCusto(): Promise<CentroCusto[]> {
   const admin = await createAdminClient()
   const { data, error } = await admin

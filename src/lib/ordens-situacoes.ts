@@ -10,7 +10,11 @@ export type DestinoSituacao = {
   destino: string
   /** Só ordens geradas por contrato podem voltar a esperar a nota. */
   exigeContrato?: boolean
+  /** Só ordem já autorizada (o Financeiro não paga o que a alçada não aprovou). */
+  exigeAutorizada?: boolean
 }
+
+export const SITUACAO_PROCESSANDO = "Processando"
 
 export const DESTINOS_SITUACAO: DestinoSituacao[] = [
   {
@@ -22,6 +26,12 @@ export const DESTINOS_SITUACAO: DestinoSituacao[] = [
     valor: "A pagar",
     destino:
       "A ordem passa a constar como autorizada por você e vai para a fila de pagamento do Financeiro, sem passar pela alçada.",
+  },
+  {
+    valor: SITUACAO_PROCESSANDO,
+    destino:
+      "O Financeiro está fazendo o pagamento: a ordem sai da fila \"A pagar\" e fica aguardando o comprovante. Com o pagamento registrado, ela fica Paga.",
+    exigeAutorizada: true,
   },
   {
     valor: "Aguardando informações",
@@ -36,6 +46,10 @@ export const DESTINOS_SITUACAO: DestinoSituacao[] = [
   },
 ]
 
-export function destinoDaSituacao(valor: string): string | null {
+export function destinoDaSituacao(valor: string, atual?: string): string | null {
+  // De Processando de volta para A pagar a autorização é mantida.
+  if (atual === SITUACAO_PROCESSANDO && valor === "A pagar") {
+    return "A ordem volta para a fila de pagamento do Financeiro, com a autorização que já tinha."
+  }
   return DESTINOS_SITUACAO.find((d) => d.valor === valor)?.destino ?? null
 }

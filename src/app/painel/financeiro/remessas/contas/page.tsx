@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { listarContasBancarias, obterContaBancaria } from "@/lib/db/remessas"
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Contas bancárias — Confluir" }
 export default async function ContasBancariasPage({ searchParams }: { searchParams: Promise<{ editar?: string; nova?: string; salvo?: string }> }) {
   await requirePermissao("financeiro_pagamento")
   const sp = await searchParams
-  const [{ disponivel, contas }, centros, org] = await Promise.all([listarContasBancarias(), listarCentrosCusto().catch(() => []), obterOrganizacao()])
+  const [{ disponivel, contas }, centros, org] = await Promise.all([listarContasBancarias(), listarCentrosDeDebito().catch(() => []), obterOrganizacao()])
   const editando = sp.editar ? await obterContaBancaria(sp.editar) : null
   const mostrarForm = Boolean(sp.nova) || Boolean(editando)
 

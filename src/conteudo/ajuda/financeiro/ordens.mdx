@@ -139,11 +139,23 @@ Cada ordem é conferida na hora, com o resultado **OK**, **Alerta**, **Falha**,
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao>
 
-Numa ordem *A pagar*, o botão **Registrar pagamento** abre o formulário:
-**valor pago**, **data**, **centro de custo do débito** — a conta de onde o
-dinheiro saiu, obrigatório — e o **comprovante** (PDF). Ao salvar, a ordem passa
-a **Paga** e o registro entra no histórico. **Remover pagamento** desfaz o
-registro (a ordem volta a *A pagar*), também registrado.
+Numa ordem *A pagar* ou *Processando*, o botão **Registrar pagamento** abre o
+formulário: **valor pago**, **data**, **centro de custo do débito** — a conta de
+onde o dinheiro saiu, obrigatório — e o **comprovante** (PDF). Ao salvar, a
+ordem passa a **Paga** e o registro entra no histórico. **Remover pagamento**
+desfaz o registro (a ordem volta a *A pagar*), também registrado.
+
+O débito só oferece **contas de pagamento** — as do tipo *Ativo - Pagamento*
+no plano de contas (caixa, bancos), mais as contas ligadas às contas
+bancárias de remessa e ao caixa. Contas de despesa e de receita não aparecem.
+
+<Aviso tipo="dica" titulo="Processando">
+  Quando o Financeiro começa a pagar uma ordem autorizada — no banco, por
+  exemplo — use **Trocar situação → Processando**: ela sai da fila *A pagar* e
+  fica aguardando o comprovante, sem perder a autorização. Com o pagamento
+  registrado, fica **Paga**; se o pagamento não sair, **Trocar situação → A
+  pagar** a devolve à fila, ainda autorizada.
+</Aviso>
 
 <Aviso tipo="nota" titulo="Compra paga em dinheiro">
   A compra direta paga em dinheiro já saiu do caixa no ato. Quando a ordem dela

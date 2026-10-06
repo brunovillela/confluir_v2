@@ -579,7 +579,7 @@ export async function processarRetorno(p: { remessaId: string; arquivo: File; us
         .update({ situacao: "Paga", valor_pago: valorPago, data_pagamento: dataPagamento, pagador_id: p.usuarioId, ...(conta?.centroCustoId ? { centro_custo_receita_id: conta.centroCustoId } : {}) })
         .eq("id", item.ordemId)
         .eq("emp_proprietaria_id", emp)
-        .in("situacao", [SITUACAO_A_PAGAR, "Paga"])
+        .in("situacao", [SITUACAO_A_PAGAR, "Processando", "Paga"])
       if (error) {
         avisos.push(`${oc.seuNumero}: não foi possível marcar paga (${error.message})`)
         continue

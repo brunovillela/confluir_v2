@@ -3,7 +3,7 @@ import "server-only"
 import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
-import { DESTINOS_SITUACAO } from "@/lib/ordens-situacoes"
+import { DESTINOS_SITUACAO, SITUACAO_PROCESSANDO } from "@/lib/ordens-situacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -40,8 +40,11 @@ export const SITUACOES_NAO_AUTORIZADAS = [
   SITUACAO_EM_AUTORIZACAO,
   SITUACAO_AGUARDANDO,
 ]
-/** Só estas podem receber o registro de pagamento. "Processando" é legado. */
-export const SITUACOES_PAGAVEIS = [SITUACAO_A_PAGAR, "Processando"]
+/**
+ * Só estas podem receber o registro de pagamento. "Processando": autorizada e
+ * já em pagamento pelo Financeiro, à espera do comprovante.
+ */
+export const SITUACOES_PAGAVEIS = [SITUACAO_A_PAGAR, SITUACAO_PROCESSANDO]
 /** Encerradas: não se corrige nem se cancela. */
 export const SITUACOES_ENCERRADAS = ["Paga", "Cancelada", "Estornado"]
 
@@ -592,12 +595,14 @@ export async function alterarSituacaoOrdem(
   const admin = await createAdminClient()
   const { data: o } = await admin
     .from("ordens_pagamento")
-    .select("id, situacao, contrato_id, caixa_conta_id, processo_compra_id, valor_inicial_cobranca")
+    .select("id, situacao, contrato_id, caixa_conta_id, processo_compra_id, valor_inicial_cobranca, autorizacao_esta_autorizado")
     .eq("id", ordemId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!o) return { erro: "Ordem não encontrada." }
   const atual = String(o.situacao ?? "")
+  // "A pagar" já é autorizada (há ordens antigas sem a marca).
+  const autorizada = o.autorizacao_esta_autorizado === true || atual === SITUACAO_A_PAGAR
   if (atual === nova) return { erro: `A ordem já está "${nova}".` }
   if (SITUACOES_ENCERRADAS.includes(atual)) {
     return {
@@ -610,6 +615,12 @@ export async function alterarSituacaoOrdem(
   if (destino.exigeContrato && !o.contrato_id) {
     return { erro: "Só ordens geradas por contrato podem voltar a aguardar o documento fiscal." }
   }
+  if (destino.exigeAutorizada && !autorizada) {
+    return { erro: "Só ordem autorizada pode ir para \"Processando\" — autorize-a antes." }
+  }
+  // Processando ⇄ A pagar: a ordem segue autorizada; muda só a situação.
+  const soSituacao =
+    nova === SITUACAO_PROCESSANDO || (atual === SITUACAO_PROCESSANDO && nova === SITUACAO_A_PAGAR && autorizada)
   const { data: pendente } = await admin
     .from("ordens_pagamento_estornos")
     .select("id")
@@ -630,8 +641,9 @@ export async function alterarSituacaoOrdem(
     autorizacao_dispensada: false,
     autorizacao_dispensa_motivo: null,
   }
-  const campos: Record<string, unknown> =
-    nova === SITUACAO_A_PAGAR
+  const campos: Record<string, unknown> = soSituacao
+    ? { situacao: nova }
+    : nova === SITUACAO_A_PAGAR
       ? {
           situacao: nova,
           autorizacao_esta_autorizado: true,
@@ -664,7 +676,9 @@ export async function alterarSituacaoOrdem(
   }
   await registrarEvento(ordemId, "situacao_alterada", usuarioId, motivo, { de: atual, para: nova })
   // Autorizada ou devolvida à mão: os mesmos marcos (e webhooks) da avaliação.
-  if (nova === SITUACAO_A_PAGAR) {
+  if (soSituacao) {
+    // sem novo marco de autorização
+  } else if (nova === SITUACAO_A_PAGAR) {
     await registrarEvento(ordemId, "autorizada", usuarioId, `Pela troca manual de situação: ${motivo}`)
     // Compra em dinheiro já debitada no caixa fecha como paga, como na avaliação.
     const valor = o.valor_inicial_cobranca === null || o.valor_inicial_cobranca === undefined ? null : Number(o.valor_inicial_cobranca)

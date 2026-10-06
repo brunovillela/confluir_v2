@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { obterConfigFinanceiro } from "@/lib/db/ordens-ciclo"
 
 import { ConfigCaixaForm } from "../config-caixa-form"
@@ -22,7 +22,9 @@ export const metadata: Metadata = { title: "Configuração do caixa — Confluir
 /** Edição do centro de custo do caixa (débito das compras pagas em dinheiro). */
 export default async function ConfiguracaoCaixaPage() {
   await requirePermissao("financeiro_caixa_admin", ["financeiro_pagamento"])
-  const [config, centros] = await Promise.all([obterConfigFinanceiro(), listarCentrosCusto()])
+  const config = await obterConfigFinanceiro()
+  // O caixa é conta de pagamento: só as contas de débito (caixa, bancos).
+  const centros = await listarCentrosDeDebito(config.centroCustoCaixaId)
 
   return (
     <>
@@ -58,7 +60,6 @@ export default async function ConfiguracaoCaixaPage() {
             <ConfigCaixaForm
               atual={config.centroCustoCaixaId}
               centros={centros
-                .filter((c) => c.usavel !== false)
                 .map((c) => ({
                   id: c.id,
                   rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — "),

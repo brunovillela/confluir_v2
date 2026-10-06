@@ -38,10 +38,13 @@ export function SituacaoForm({
   const [estado, acao, pendente] = useActionState(alterarSituacaoAction, {})
   const [estRemover, acaoRemover, pendRemover] = useActionState(removerPagamento, {})
   const opcoes = DESTINOS_SITUACAO.filter(
-    (d) => d.valor !== situacao && (!d.exigeContrato || temContrato)
+    (d) =>
+      d.valor !== situacao &&
+      (!d.exigeContrato || temContrato) &&
+      (!d.exigeAutorizada || autorizada)
   )
   const [nova, setNova] = useState(opcoes[0]?.valor ?? "")
-  const destino = destinoDaSituacao(nova)
+  const destino = destinoDaSituacao(nova, situacao)
 
   // Paga: o único caminho é desfazer o registro de pagamento.
   if (situacao === "Paga") {

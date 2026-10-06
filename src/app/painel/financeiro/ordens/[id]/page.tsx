@@ -28,7 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { listarCentrosCusto, type CentroCusto } from "@/lib/db/financeiro"
+import { listarCentrosCusto, listarCentrosDeDebito, type CentroCusto } from "@/lib/db/financeiro"
 import { hojeSP } from "@/lib/db/comum"
 import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
@@ -540,14 +540,12 @@ export default async function OrdemPage({
                 centroReceitaId={ordem.centro_custo_receita_id as string | null}
                 temComprovante={!!ordem.arquivo_pagamento}
                 temPagamento={temPagamento}
-                centros={centros
-                  .filter((c) => c.usavel !== false)
-                  .map((c) => ({
+                centros={(await listarCentrosDeDebito((ordem.centro_custo_receita_id as string | null) ?? null)).map(
+                  (c) => ({
                     id: c.id,
-                    rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"]
-                      .filter(Boolean)
-                      .join(" — "),
-                  }))}
+                    rotulo: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — "),
+                  })
+                )}
               />
             </CardContent>
           ) : (
@@ -590,7 +588,7 @@ export default async function OrdemPage({
                 ordemId={id}
                 situacao={situacao}
                 temContrato={Boolean(ordem.contrato_id)}
-                autorizada={ordem.autorizacao_esta_autorizado === true}
+                autorizada={ordem.autorizacao_esta_autorizado === true || situacao === "A pagar"}
               />
             )}
             {podeEstornar && janelaEstorno.ate && (

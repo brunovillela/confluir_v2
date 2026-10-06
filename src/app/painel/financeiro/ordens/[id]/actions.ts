@@ -21,6 +21,7 @@ import {
   reenviarParaAutorizacao,
   SITUACOES_PAGAVEIS,
 } from "@/lib/db/ordens-ciclo"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
 import { registrarEstorno } from "@/lib/db/ordens-estorno"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -69,7 +70,7 @@ export async function salvarPagamento(
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
-    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id")
+    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id, centro_custo_receita_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -86,12 +87,11 @@ export async function salvarPagamento(
     }
   }
 
-  const { data: centro } = await admin
-    .from("centros_de_custo")
-    .select("id")
-    .eq("id", centroReceitaId)
-    .maybeSingle()
-  if (!centro) return { erro: "Centro de custo do débito inválido." }
+  // O débito é uma conta de pagamento (caixa, banco) — ver listarCentrosDeDebito.
+  const debitos = await listarCentrosDeDebito((ordem.centro_custo_receita_id as string | null) ?? null)
+  if (!debitos.some((c) => c.id === centroReceitaId)) {
+    return { erro: "Escolha uma conta de pagamento (caixa, banco) como centro de custo do débito." }
+  }
 
   // Comprovante é opcional na edição (mantém o atual se nenhum for enviado).
   let arquivoPagamento: string | undefined
@@ -437,7 +437,7 @@ export async function alterarSituacaoAction(
   if (!id) return { erro: "Ordem inválida." }
   // "A pagar" à mão é autorizar: extraordinária de contrato/custeio exige a
   // permissão específica, como na aprovação.
-  if (texto(formData, "situacao") === "A pagar") {
+  if (texto(formData, "situacao") === "A pagar" && !(await jaAutorizadaEmProcessamento(id))) {
     const exigida = await permissaoEspecificaDaOrdem(id)
     if (exigida && sessao.permissoes[exigida.chave] !== true) {
       return { erro: `Ordem de ${exigida.origem}: levar para "A pagar" exige a permissão "${exigida.rotulo}".` }
@@ -453,4 +453,16 @@ export async function alterarSituacaoAction(
   revalidarOrdem(id)
   revalidatePath("/painel/compras/contratos")
   redirect(`/painel/financeiro/ordens/${id}?situacao=1`)
+}
+
+/** Ordem "Processando" já autorizada: voltar para "A pagar" não é autorizar de novo. */
+async function jaAutorizadaEmProcessamento(id: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento")
+    .select("situacao, autorizacao_esta_autorizado")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return data?.situacao === "Processando" && data.autorizacao_esta_autorizado === true
 }

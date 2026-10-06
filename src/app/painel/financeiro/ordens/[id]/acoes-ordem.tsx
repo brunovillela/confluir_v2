@@ -153,7 +153,7 @@ export function AcoesOrdem({
             <textarea id="corr_motivo" name="motivo" rows={2} required className={TEXTAREA} />
           </div>
           <p className="text-muted-foreground text-xs">
-            {situacao === "A pagar"
+            {situacao === "A pagar" || situacao === "Processando"
               ? "Mudar o valor de uma ordem já autorizada a devolve para autorização."
               : "A correção fica registrada no histórico da ordem, com o antes e o depois."}
           </p>

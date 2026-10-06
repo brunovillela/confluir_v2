@@ -5,6 +5,9 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import {
   cancelarRemessa,
   definirLinhaDigitavel,
@@ -32,6 +35,10 @@ function revalidar(id?: string) {
 export async function salvarContaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
   await requirePermissao("financeiro_pagamento")
   const id = campo(fd, "conta_id") || null
+  const centroCustoId = campo(fd, "centro_custo_id") || null
+  if (centroCustoId && !(await centroDeDebitoValido(id, centroCustoId))) {
+    return { erro: "Escolha uma conta de pagamento (caixa, banco) como centro de custo do débito.", campo: "centro_custo_id" }
+  }
   const r = await salvarContaBancaria(id, {
     apelido: campo(fd, "apelido"),
     bancoCodigo: campo(fd, "banco_codigo"),
@@ -47,7 +54,7 @@ export async function salvarContaAction(_prev: EstadoForm, fd: FormData): Promis
     titularNome: campo(fd, "titular_nome") || null,
     titularDocumento: campo(fd, "titular_documento") || null,
     pixChave: campo(fd, "pix_chave") || null,
-    centroCustoId: campo(fd, "centro_custo_id") || null,
+    centroCustoId,
     ativa: fd.get("ativa") !== null,
   })
   if (r.erro) return { erro: r.erro, campo: r.campo }
@@ -103,4 +110,18 @@ export async function processarRetornoAction(_prev: EstadoForm, fd: FormData): P
   revalidar(id)
   const avisos = r.avisos?.length ? ` Avisos: ${r.avisos.join(" · ")}` : ""
   return { ok: `${r.pagos} paga(s), ${r.rejeitados} rejeitada(s)${r.naoEncontrados ? `, ${r.naoEncontrados} sem correspondência` : ""}.${avisos}` }
+}
+
+/** Débito da conta bancária: conta de pagamento — ou o centro que ela já tinha. */
+async function centroDeDebitoValido(contaId: string | null, centroId: string): Promise<boolean> {
+  if ((await listarCentrosDeDebito()).some((c) => c.id === centroId)) return true
+  if (!contaId) return false
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("financeiro_contas_bancarias")
+    .select("centro_custo_id")
+    .eq("id", contaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return data?.centro_custo_id === centroId
 }
