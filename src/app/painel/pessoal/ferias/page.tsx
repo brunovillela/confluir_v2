@@ -29,6 +29,7 @@ import {
   anosComGozo,
   DIAS_ALERTA_CONCESSIVO,
   distribuicaoPorMes,
+  gozoAguardandoAutorizacao,
   ORDEM_SITUACAO,
   ROTULO_SITUACAO,
   situacaoDoFuncionario,
@@ -204,7 +205,7 @@ async function PainelFerias({
   const pendentes = periodos
     .flatMap((p) =>
       p.gozos
-        .filter((g) => g.autorizado !== true)
+        .filter(gozoAguardandoAutorizacao)
         .map((g) => ({ ...g, periodoId: p.id, nome: p.funcionarioNome ?? "(sem nome)", trabalhadorId: p.trabalhador_id }))
     )
     .sort((a, b) => (a.inicio ?? "").localeCompare(b.inicio ?? ""))

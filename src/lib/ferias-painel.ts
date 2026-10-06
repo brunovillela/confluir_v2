@@ -8,6 +8,21 @@
 
 import { somarDiasISO } from "@/lib/periodo-dias"
 
+/**
+ * Gozo à espera de autorização: não autorizado, SEM decisão registrada e com
+ * data de início. Desfazer a autorização limpa a data — então "não
+ * autorizado com data" é decisão contrária vinda do Bubble (ex.: "Não foi
+ * estabelecido período de gozo"); e sem início não há o que autorizar.
+ * Mesmo critério na tela de Férias e na caixa de entrada (lib/db/pendencias).
+ */
+export function gozoAguardandoAutorizacao(g: {
+  autorizado: boolean | null
+  inicio: string | null
+  data_autorizacao?: string | null
+}): boolean {
+  return g.autorizado !== true && !g.data_autorizacao && Boolean(g.inicio)
+}
+
 /** Alerta de prazo: mesmo corte do painel inicial do Pessoal. */
 export const DIAS_ALERTA_CONCESSIVO = 120
 
@@ -18,6 +33,7 @@ type GozoBase = {
   dias: number | null
   autorizado: boolean | null
   abono_solicitado: boolean | null
+  data_autorizacao?: string | null
   created_at: string | null
 }
 
@@ -185,7 +201,11 @@ export function distribuicaoPorMes(
       while (dia <= ultimo) {
         const mes = Number(dia.slice(5, 7)) - 1
         if (g.autorizado === true) meses[mes].autorizados++
-        else meses[mes].aguardando++
+        else if (gozoAguardandoAutorizacao(g)) meses[mes].aguardando++
+        else {
+          dia = somarDiasISO(dia, 1)
+          continue
+        }
         pessoasPorMes[mes].add(p.trabalhador_id ?? p.id)
         dia = somarDiasISO(dia, 1)
       }

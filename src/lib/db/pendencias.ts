@@ -116,8 +116,9 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Gozos pedidos pelos funcionários",
       href: "/painel/pessoal/ferias",
       tabela: "pessoal_ferias_gozo",
-      // A tela lista todo gozo ainda não autorizado (falso ou sem decisão).
-      montar: (q) => head(q).not("autorizado", "is", true),
+      // = gozoAguardandoAutorizacao (tela de Férias): sem decisão e com início.
+      montar: (q) =>
+        head(q).not("autorizado", "is", true).is("data_autorizacao", null).not("inicio", "is", null),
     })
     fontes.push({
       chave: "reembolsos_pessoal",

@@ -244,6 +244,10 @@ export default async function FeriasDoFuncionarioPage({
                               <Badge variant="outline" className="border-success/40 text-success-fg">
                                 Autorizado
                               </Badge>
+                            ) : g.data_autorizacao ? (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                Não autorizado
+                              </Badge>
                             ) : (
                               <Badge variant="outline" className="border-warning/40 text-warning-fg">
                                 Aguardando autorização

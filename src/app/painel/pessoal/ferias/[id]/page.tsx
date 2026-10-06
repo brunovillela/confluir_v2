@@ -248,6 +248,10 @@ export default async function PeriodoFeriasPage({
                                   ? ` em ${formatarData(g.data_autorizacao)}`
                                   : ""}
                               </Badge>
+                            ) : g.data_autorizacao ? (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                Não autorizado em {formatarData(g.data_autorizacao)}
+                              </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
