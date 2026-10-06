@@ -13,9 +13,12 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 export function AvaliacaoOrdemForm({
   ordemId,
   valorTexto,
+  voltarPara,
 }: {
   ordemId: string
   valorTexto: string
+  /** Tela para onde volta depois de avaliar (padrão: Avaliações de ordens). */
+  voltarPara?: string
 }) {
   const [estado, formAction, pendente] = useActionState(avaliarOrdemAction, {})
   const [observacao, setObservacao] = useState("")
@@ -37,6 +40,7 @@ export function AvaliacaoOrdemForm({
       }}
     >
       <input type="hidden" name="ordem_id" value={ordemId} />
+      {voltarPara && <input type="hidden" name="voltar" value={voltarPara} />}
       <div className="flex flex-wrap items-center gap-2">
         <Input
           name="observacao"

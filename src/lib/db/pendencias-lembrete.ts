@@ -86,7 +86,7 @@ export async function lembrarPendencias(tenantId: string): Promise<{ pessoas: nu
     if (!base) continue
     const permissoes = await resolverPermissoes(svc, id, base)
     const email = texto(u.email)
-    const lista = await pendenciasPara({ client: svc, emp: tenantId, permissoes, email, comAntigas: true })
+    const lista = await pendenciasPara({ client: svc, emp: tenantId, permissoes, email, usuarioId: id, comAntigas: true })
     if (lista.length === 0) continue
     const d: Destinatario = { id, nome: texto(u.nome_completo) ?? texto(u.nome_guerra), email, permissoes }
     lembretes += await avisar(

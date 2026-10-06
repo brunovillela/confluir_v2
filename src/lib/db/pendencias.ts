@@ -56,6 +56,8 @@ export type AmbientePendencias = {
   permissoes: Permissoes
   /** E-mail da pessoa: identifica as assinaturas pendentes dela. */
   email: string | null
+  /** Quem vê: identifica a equipe que a pessoa coordena (pedidos a decidir). */
+  usuarioId?: string | null
   /** Conta também as paradas há mais de DIAS_PARADA dias (uma consulta a mais por fonte). */
   comAntigas?: boolean
 }
@@ -238,6 +240,52 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Coordenação: os pedidos dos funcionários dos departamentos que a pessoa
+  // coordena (mesmo critério de lib/db/coordenador.ts). Só entra o que a
+  // permissão de Pessoal ainda não traz — senão o mesmo pedido contaria duas vezes.
+  const equipe = amb.usuarioId ? await equipeCoordenada(client, emp, amb.usuarioId) : []
+  if (equipe.length > 0) {
+    if (!pode("pessoal_gestao")) {
+      fontes.push({
+        chave: "coord_ferias",
+        titulo: "Férias da equipe a autorizar",
+        descricao: "Pedidos dos funcionários que você coordena",
+        href: "/painel/coordenador#pedidos",
+        tabela: "pessoal_ferias_gozo",
+        montar: (q) =>
+          head(q)
+            .in("funcionario_id", equipe)
+            .not("autorizado", "is", true)
+            .is("data_autorizacao", null)
+            .not("inicio", "is", null),
+      })
+    }
+    if (!pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
+      fontes.push({
+        chave: "coord_faltas",
+        titulo: "Faltas justificadas da equipe",
+        descricao: "Pedidos dos funcionários que você coordena",
+        href: "/painel/coordenador#pedidos",
+        tabela: "pessoal_faltas_justificadas",
+        montar: (q) => head(q).in("funcionario_id", equipe).not("autorizado", "is", true).not("recusado", "is", true),
+      })
+    }
+    if (!pode("pessoal_gestao", ["pessoal_diarias"])) {
+      fontes.push({
+        chave: "coord_diarias",
+        titulo: "Diárias da equipe a avaliar",
+        descricao: "Pedidos dos funcionários que você coordena",
+        href: "/painel/coordenador#pedidos",
+        tabela: "pessoal_diarias_solicitacoes",
+        montar: (q) =>
+          head(q)
+            .eq("situacao", "aguardando")
+            .in("funcionario_id", equipe)
+            .or("beneficiario_tipo.is.null,beneficiario_tipo.neq.diretor"),
+      })
+    }
+  }
+
   const limite = dataLimiteParada()
   const contagens = await Promise.all(
     fontes.map(async (f) => {
@@ -260,6 +308,30 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     .filter((f, i) => contagens[i].quantidade !== null && f.quantidade > 0)
 }
 
+/**
+ * Integrantes dos departamentos (não legados) que a pessoa coordena, sem ela
+ * mesma — ninguém decide o próprio pedido. Duas consultas leves, só para quem
+ * coordena algo.
+ */
+async function equipeCoordenada(client: SupabaseClient, emp: string, usuarioId: string): Promise<string[]> {
+  try {
+    const { data: deptos } = await client
+      .from("empresa_departamentos")
+      .select("id, legado")
+      .eq("emp_proprietaria_id", emp)
+      .eq("coordenador_id", usuarioId)
+    const ids = (deptos ?? []).filter((d) => d.legado !== true).map((d) => String(d.id))
+    if (!ids.length) return []
+    const { data: integrantes } = await client
+      .from("empresa_departamentos_integrantes")
+      .select("usuario_id")
+      .in("departamento_id", ids)
+    return [...new Set((integrantes ?? []).map((i) => String(i.usuario_id)))].filter((id) => id !== usuarioId)
+  } catch {
+    return []
+  }
+}
+
 /** Cacheada por requisição: o layout (contador) e a home (cartão) dividem a conta. */
 export const pendenciasDoUsuario = cache(async (sessao: SessaoPainel): Promise<Pendencia[]> => {
   return pendenciasPara({
@@ -267,6 +339,7 @@ export const pendenciasDoUsuario = cache(async (sessao: SessaoPainel): Promise<P
     emp: await tenantAtual(),
     permissoes: sessao.permissoes,
     email: String(sessao.usuario.email ?? sessao.user.email ?? ""),
+    usuarioId: String(sessao.usuario.id),
   })
 })
 

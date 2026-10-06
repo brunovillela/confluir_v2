@@ -4,6 +4,7 @@ import type { SessaoPainel } from "@/lib/auth"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { alcadaDoUsuario, listarOrdensParaAvaliacao, type OrdemParaAvaliacao } from "@/lib/db/compras"
 import { listarSolicitacoesDiaria, minhasSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
+import { departamentosCoordenados, type DepartamentoCoordenado } from "@/lib/db/coordenador"
 import { painelExecutivo, type PainelExecutivo } from "@/lib/db/indicadores"
 import { listarNegociacoes, type NegociacaoLinha } from "@/lib/db/negociacoes"
 import { diretoriaDoUsuario, type DiretoriaDoUsuario } from "@/lib/db/perfil-diretor"
@@ -65,6 +66,8 @@ export type HomeDiretor = ParaAprovar & {
   votacoes: VotacaoProxima[]
   negociacoes: NegociacaoLinha[]
   kpis: PainelExecutivo | null
+  /** Departamentos que a pessoa coordena — atalho para a área do coordenador. */
+  coordenados: DepartamentoCoordenado[]
   minhasViagens: Viagem[]
   minhasDiarias: SolicitacaoDiaria[]
 }
@@ -164,7 +167,15 @@ export async function homeDiretor(sessao: SessaoPainel): Promise<HomeDiretor> {
     minhasViagens(uid).catch(() => ({ disponivel: false, viagens: [] as Viagem[] })),
     minhasSolicitacoesDiaria(uid).catch(() => ({ disponivel: false, solicitacoes: [] as SolicitacaoDiaria[] })),
   ])
-  const diretoria = await diretoriaDoUsuario(uid, perfil?.cpf ?? null).catch(() => null)
+  const [diretoria, coordenados] = await Promise.all([
+    diretoriaDoUsuario(uid, perfil?.cpf ?? null).catch(() => null),
+    departamentosCoordenados(uid).catch(() => [] as DepartamentoCoordenado[]),
+  ])
+  // Indicadores financeiros gerais (de todos os departamentos: arrecadação,
+  // caixa, ordens vencidas) só com permissão do Financeiro — a mesma da
+  // tela gerencial. Filiados ativos seguem a permissão de filiação.
+  const veFinanceiroGeral = podeAcessar(sessao.permissoes, "financeiro_leitura", ["financeiro_pagamento", "configuracoes"])
+  const kpisVisiveis = kpis && !veFinanceiroGeral ? { ...kpis, financeiro: null, arrecadacao: null } : kpis
 
   return {
     ...aprovar,
@@ -183,7 +194,8 @@ export async function homeDiretor(sessao: SessaoPainel): Promise<HomeDiretor> {
       return { id: String(r.id), nome: texto(r.nome_assembleia), inicio: texto(r.inicio), termino: texto(r.termino), campanha: texto(tema) }
     }),
     negociacoes: negociacoes.lista.filter((n) => n.situacao === "preparacao" || n.situacao === "em_curso").slice(0, 5),
-    kpis,
+    kpis: kpisVisiveis,
+    coordenados,
     minhasViagens: viagens.viagens.filter((v) => v.situacao === "solicitada" || v.situacao === "em_atendimento").slice(0, 5),
     minhasDiarias: diarias.solicitacoes.filter((d) => d.situacao === "aguardando").slice(0, 5),
   }

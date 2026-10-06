@@ -633,18 +633,69 @@ export async function verificacoesDaOrdem(ordemId: string): Promise<VerificacaoG
   }))
 }
 
-/** Quantos alertas de criação cada ordem tem (para a fila de avaliação). */
-export async function alertasPorOrdem(ordemIds: string[]): Promise<Map<string, number>> {
-  const m = new Map<string, number>()
+/** Um apontamento da auditoria para quem avalia a ordem. */
+export type ApontamentoDaOrdem = {
+  codigo: string
+  titulo: string
+  detalhe: string | null
+  severidade: string
+  /** Quem lançou viu o alerta e confirmou sem ajustar. */
+  confirmado: boolean
+}
+
+/**
+ * Os alertas de cada ordem, com título e detalhe — o avaliador precisa saber
+ * do que se tratam. Uma regra reavaliada (ex.: a parcela que recebeu a nota)
+ * vale pela última verificação: a mais recente substitui as anteriores, e um
+ * "ok" posterior tira o alerta da lista.
+ */
+export async function apontamentosPorOrdem(
+  ordemIds: string[]
+): Promise<Map<string, ApontamentoDaOrdem[]>> {
+  const m = new Map<string, ApontamentoDaOrdem[]>()
   if (!ordemIds.length) return m
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("ordens_pagamento_verificacoes")
-    .select("ordem_id")
-    .in("ordem_id", ordemIds)
-    .eq("status", "alerta")
-  if (error) return m
-  for (const v of data ?? []) m.set(String(v.ordem_id), (m.get(String(v.ordem_id)) ?? 0) + 1)
+  const [verif, eventos] = await Promise.all([
+    admin
+      .from("ordens_pagamento_verificacoes")
+      .select("ordem_id, codigo, titulo, severidade, status, detalhe, created_at")
+      .in("ordem_id", ordemIds)
+      .order("created_at", { ascending: true }),
+    admin
+      .from("ordens_pagamento_eventos")
+      .select("ordem_id, dados")
+      .in("ordem_id", ordemIds)
+      .eq("tipo", "verificada"),
+  ])
+  if (verif.error) return m
+  const confirmados = new Map<string, Set<string>>()
+  for (const e of (eventos.data ?? []) as { ordem_id: string; dados: Record<string, unknown> | null }[]) {
+    const lista = Array.isArray(e.dados?.confirmados) ? (e.dados.confirmados as unknown[]).map(String) : []
+    if (!lista.length) continue
+    const s = confirmados.get(e.ordem_id) ?? new Set<string>()
+    lista.forEach((c) => s.add(c))
+    confirmados.set(e.ordem_id, s)
+  }
+  // Última verificação de cada regra, por ordem.
+  const ultima = new Map<string, Map<string, Record<string, unknown>>>()
+  for (const v of (verif.data ?? []) as Record<string, unknown>[]) {
+    const ordem = String(v.ordem_id)
+    const porCodigo = ultima.get(ordem) ?? new Map<string, Record<string, unknown>>()
+    porCodigo.set(String(v.codigo), v)
+    ultima.set(ordem, porCodigo)
+  }
+  for (const [ordem, porCodigo] of ultima) {
+    const lista = [...porCodigo.values()]
+      .filter((v) => v.status === "alerta")
+      .map((v) => ({
+        codigo: String(v.codigo),
+        titulo: String(v.titulo),
+        detalhe: (v.detalhe as string | null) ?? null,
+        severidade: String(v.severidade),
+        confirmado: confirmados.get(ordem)?.has(String(v.codigo)) ?? false,
+      }))
+    if (lista.length) m.set(ordem, lista)
+  }
   return m
 }
 

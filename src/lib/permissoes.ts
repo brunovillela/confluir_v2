@@ -961,6 +961,16 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    // Quem coordena um departamento (empresa_departamentos.coordenador_id) —
+    // o acesso é decidido na própria tela, não por chave de permissão.
+    titulo: "Coordenação",
+    href: "/painel/coordenador",
+    icone: "Users",
+    descricao: "Pedidos da equipe, compras, ordens, orçamento e contratos do seu departamento",
+    chave: null,
+    oculto: true,
+  },
+  {
     titulo: "Aprovar",
     href: "/painel/aprovar",
     icone: "CheckCheck",

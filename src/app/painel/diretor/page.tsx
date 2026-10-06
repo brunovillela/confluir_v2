@@ -9,6 +9,7 @@ import {
   Handshake,
   Plane,
   Receipt,
+  UsersRound,
   Vote,
 } from "lucide-react"
 
@@ -65,6 +66,25 @@ export default async function DiretorPage() {
           </Link>
         </Button>
       </div>
+
+      {h.coordenados.length > 0 && (
+        <Link href="/painel/coordenador" className="group block">
+          <Card className="border-primary/30 group-hover:border-primary transition-colors">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <span className="flex min-w-0 items-center gap-3">
+                <UsersRound className="text-primary size-5 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Coordenação — {h.coordenados.map((d) => d.nome).join(", ")}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Pedidos da equipe, compras e ordens, orçado × realizado, contratos e a equipe do departamento
+                  </span>
+                </span>
+              </span>
+              <ArrowRight className="text-muted-foreground size-4 shrink-0" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* ── Para decidir ──────────────────────────────────────────────── */}
       <div className="grid gap-3 sm:grid-cols-3">

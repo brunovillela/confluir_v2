@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/compras"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
+import { ApontamentosAuditoria } from "./apontamentos-auditoria"
 import { AvaliacaoOrdemForm } from "./avaliacao-ordem-form"
 
 export const metadata: Metadata = {
@@ -44,11 +45,6 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
         {ordem.tipo && (
           <Badge variant="outline" className="text-muted-foreground ml-2 align-middle">
             {ordem.tipo}
-          </Badge>
-        )}
-        {ordem.alertas > 0 && (
-          <Badge variant="outline" className="border-warning/50 text-warning-fg ml-2 align-middle">
-            {ordem.alertas} alerta{ordem.alertas === 1 ? "" : "s"} da auditoria
           </Badge>
         )}
         {ordem.aposEstorno && (
@@ -77,6 +73,7 @@ function DadosOrdem({ ordem }: { ordem: OrdemParaAvaliacao }) {
           Extrato (PDF)
         </a>
       </p>
+      <ApontamentosAuditoria apontamentos={ordem.apontamentos} />
     </div>
   )
 }

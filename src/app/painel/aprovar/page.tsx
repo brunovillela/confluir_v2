@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireSessaoPainel } from "@/lib/auth"
 import { paraAprovar } from "@/lib/db/diretor-home"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { ApontamentosAuditoria } from "@/app/painel/compras/avaliacoes/apontamentos-auditoria"
 
 import { DecisaoForm } from "./decisao-form"
 
@@ -53,11 +54,11 @@ export default async function AprovarPage() {
                 <CardDescription className="text-xs">
                   {[o.tipo, o.favorecidoNome, o.departamentoNome].filter(Boolean).join(" · ")}
                   {o.vencimento ? ` · vence ${formatarData(o.vencimento)}` : ""}
-                  {o.alertas > 0 ? ` · ${o.alertas} alerta${o.alertas === 1 ? "" : "s"} da auditoria` : ""}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3">
                 {(o.produto ?? o.descricao) && <p className="text-sm">{o.produto ?? o.descricao}</p>}
+                <ApontamentosAuditoria apontamentos={o.apontamentos} />
                 {o.aposEstorno && (
                   <p className="text-muted-foreground text-xs">
                     Reenviada após estorno: {o.aposEstorno.motivo}

@@ -185,7 +185,7 @@ export async function enviarResumoSemanal(tenantId: string): Promise<{ pessoas: 
     if (!base) continue
     const permissoes = await resolverPermissoes(svc, id, base)
     const email = texto(u.email)
-    const pendencias = await pendenciasPara({ client: svc, emp: tenantId, permissoes, email, comAntigas: true }).catch(() => [])
+    const pendencias = await pendenciasPara({ client: svc, emp: tenantId, permissoes, email, usuarioId: id, comAntigas: true }).catch(() => [])
     const blocos = blocosDaPessoa(retrato, permissoes, pendencias)
     // Só a caixa de entrada vazia não justifica um resumo; gestão de área, sim.
     if (blocos.length === 0 || (blocos.length === 1 && blocos[0].titulo === "Na sua caixa de entrada" && totalPendencias(pendencias) === 0)) continue

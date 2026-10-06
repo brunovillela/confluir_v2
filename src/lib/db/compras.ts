@@ -1,5 +1,9 @@
 import "server-only"
-import { alertasPorOrdem, inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import {
+  apontamentosPorOrdem,
+  inserirOrdemVerificada,
+  type ApontamentoDaOrdem,
+} from "@/lib/db/ordens-verificacao"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import type { Confirmacao } from "@/lib/db/ordens-verificacao"
 import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
@@ -222,7 +226,7 @@ export function gerarCodigoProcesso(): string {
 const SELECT_ORDEM =
   "id, codigo, descricao, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id, pix_codigo, arquivo_nota_fiscal"
 
-async function normalizarOrdens(
+export async function normalizarOrdens(
   brutas: Record<string, unknown>[]
 ): Promise<OrdemDoProcesso[]> {
   const empresaIds = brutas
@@ -1409,6 +1413,8 @@ export type OrdemParaAvaliacao = OrdemDoProcesso & {
   tipo: string | null
   /** Alertas das regras de auditoria na criação. */
   alertas: number
+  /** Os alertas em si — título, detalhe e se quem lançou confirmou. */
+  apontamentos: ApontamentoDaOrdem[]
   /** Reenviada após estorno do banco: o motivo e o que foi corrigido. */
   aposEstorno: { motivo: string; correcao: string | null } | null
   processo_compra_id: string | null
@@ -1480,7 +1486,7 @@ export async function listarOrdensParaAvaliacao(
     ])
   )
 
-  const alertas = await alertasPorOrdem(ordens.map((o) => o.id))
+  const apontamentos = await apontamentosPorOrdem(ordens.map((o) => o.id))
   // Último estorno resolvido de cada ordem (sem a tabela: nenhum).
   const estornoPorOrdem = new Map<string, { motivo: string; correcao: string | null }>()
   if (ordens.length) {
@@ -1504,7 +1510,8 @@ export async function listarOrdensParaAvaliacao(
     return {
       ...o,
       tipo: (bruta.tipo as string | null) ?? null,
-      alertas: alertas.get(o.id) ?? 0,
+      alertas: apontamentos.get(o.id)?.length ?? 0,
+      apontamentos: apontamentos.get(o.id) ?? [],
       aposEstorno: estornoPorOrdem.get(o.id) ?? null,
       processo_compra_id: processoId,
       produto: (processo?.solicitacao_produto as string | null) ?? null,

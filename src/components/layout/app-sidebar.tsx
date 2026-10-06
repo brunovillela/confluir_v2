@@ -120,17 +120,18 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {painel && renderItem(painel)}
-              {/* Autosserviço (contracheque, férias, diárias…) visível no menu,
-                  não só no avatar — onda 2, U9. */}
+              {/* Autosserviço (contracheque, férias, diárias…): o único acesso
+                  ao perfil — antes havia "Minha área" aqui e "Meu perfil" no
+                  avatar, para a mesma página (06/10/2026). */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   isActive={estaAtivo("/painel/perfil")}
-                  tooltip="Minha área"
+                  tooltip="Meu perfil"
                 >
                   <Link href="/painel/perfil" onClick={fecharNoMobile}>
                     <UserRound />
-                    <span className="text-[0.8125rem]">Minha área</span>
+                    <span className="text-[0.8125rem]">Meu perfil</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -181,18 +182,6 @@ export function AppSidebar({
               gaveta, sem espaço embaixo). Os acessos ficam em linha. */}
           {isMobile ? (
             <>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={estaAtivo("/painel/perfil")}
-                  className="opacity-70"
-                >
-                  <Link href="/painel/perfil" onClick={fecharNoMobile}>
-                    <UserRound />
-                    <span>Meu perfil</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               {outrasAreas.map((area) => (
                 <SidebarMenuItem key={area.href}>
                   <SidebarMenuButton asChild className="opacity-70">
@@ -278,13 +267,6 @@ export function AppSidebar({
                       </span>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/painel/perfil">
-                      <UserRound />
-                      Meu perfil
-                    </Link>
-                  </DropdownMenuItem>
                   {outrasAreas.length > 0 && (
                     <>
                       <DropdownMenuSeparator />

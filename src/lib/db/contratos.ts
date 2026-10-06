@@ -300,6 +300,8 @@ export async function listarContratos(opcoes: {
    * tabela; a flag apoio_institucional os separa.
    */
   apoioInstitucional?: boolean
+  /** Só os contratos do departamento (área do coordenador). */
+  departamentoId?: string
 }): Promise<ContratoLista[]> {
   const admin = await createAdminClient()
   const empId = await tenantAtual()
@@ -341,6 +343,9 @@ export async function listarContratos(opcoes: {
     brutos = brutos.filter(
       (c) => texto(c.categoria_id) === opcoes.categoriaId
     )
+  }
+  if (opcoes.departamentoId) {
+    brutos = brutos.filter((c) => texto(c.departamento_id) === opcoes.departamentoId)
   }
 
   const { fornecedores, departamentos } = await resolverNomes(admin, brutos)
