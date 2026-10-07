@@ -11,21 +11,26 @@ import { statusTelegram } from "@/lib/db/telegram"
 import { telegramConfigurado } from "@/lib/telegram"
 
 import { AvisosForm } from "./avisos-form"
+import { avisosPermitidos } from "./perfil-avisos"
 import { PushCelular } from "./push-celular"
 
 export const metadata: Metadata = { title: "Avisos — Confluir" }
 
 /**
  * Meu perfil → Avisos (onda 2, U3): por tipo de aviso, a pessoa escolhe se
- * recebe por e-mail e por Telegram. O sino recebe só as notificações; as
- * pendências ficam na caixa de entrada (06/10/2026).
+ * recebe por e-mail, Telegram e celular. O sino recebe só as notificações; as
+ * pendências ficam na caixa de entrada (06/10/2026). Desde 07/10/2026 só
+ * aparecem os avisos das áreas em que a pessoa tem permissão, e tudo nasce
+ * desmarcado (opt-in).
  */
 export default async function AvisosPerfilPage() {
-  const { usuario } = await requireSessaoPainel()
-  const [prefs, aparelhos, telegram] = await Promise.all([
+  const sessao = await requireSessaoPainel()
+  const { usuario } = sessao
+  const [prefs, aparelhos, telegram, permitidos] = await Promise.all([
     preferenciasDeAviso(usuario.id as string),
     pushConfigurado() ? contarAssinaturasPush(usuario.id as string).catch(() => 0) : Promise.resolve(0),
     statusTelegram(usuario.id as string).catch(() => ({ vinculado: false, telefone: null, telefonePendente: null })),
+    avisosPermitidos(sessao),
   ])
   const telegramAtivo = telegramConfigurado() && telegram.vinculado && Boolean(telegram.telefone)
 
@@ -43,8 +48,9 @@ export default async function AvisosPerfilPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Avisos</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          Escolha por onde quer receber cada tipo de aviso. O sino do painel guarda as notificações sobre você; o que
-          espera você agir fica na caixa de entrada, no topo do painel.
+          Marque o que quer receber e por onde — nada chega por e-mail, Telegram ou celular sem você escolher. Só
+          aparecem os avisos das áreas em que você tem permissão. O sino do painel guarda as notificações sobre você;
+          o que espera você agir fica na caixa de entrada, no topo do painel.
         </p>
       </div>
 
@@ -63,8 +69,11 @@ export default async function AvisosPerfilPage() {
         <CardContent>
           <AvisosForm
             prefs={prefs}
+            permitidos={permitidos}
             temEmail={Boolean(usuario.email)}
             telegramAtivo={telegramAtivo}
+            celular={pushConfigurado()}
+            celularAtivo={aparelhos > 0}
           />
         </CardContent>
       </Card>

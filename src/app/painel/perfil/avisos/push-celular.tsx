@@ -108,7 +108,7 @@ export function PushCelular({ chavePublica, aparelhos }: { chavePublica: string;
         Receber no celular
       </p>
       <p className="text-muted-foreground text-xs">
-        As notificações do sino e as pendências que chegam para você aparecem neste aparelho, mesmo com o Confluir fechado. Instale o app pela
+        Os avisos marcados na coluna “Celular” abaixo aparecem neste aparelho, mesmo com o Confluir fechado. Instale o app pela
         opção &quot;Adicionar à tela inicial&quot; do navegador para ter o ícone na tela do celular.
         {aparelhos > 0 ? ` Ligado em ${aparelhos} aparelho${aparelhos === 1 ? "" : "s"}.` : ""}
       </p>

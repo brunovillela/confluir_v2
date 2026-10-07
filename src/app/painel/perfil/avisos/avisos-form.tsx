@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { PreferenciasAviso } from "@/lib/db/avisos"
-import { EVENTOS_TELEGRAM, type GrupoEvento } from "@/lib/telegram-eventos"
+import { EVENTOS_TELEGRAM, type EventoTelegram, type GrupoEvento } from "@/lib/telegram-eventos"
 
 import { salvarPreferenciasAvisoAction } from "./actions"
 
@@ -26,21 +26,40 @@ const GRUPOS: { grupo: GrupoEvento; titulo: string; nota: string }[] = [
   {
     grupo: "resumo",
     titulo: "Lembrete e resumos",
-    nota: "Só por e-mail, Telegram e celular.",
+    nota: "Não vão para o sino.",
   },
 ]
 
-/** Linha por evento, agrupada pelo tipo, uma coluna por canal (e-mail e Telegram). */
+/**
+ * Linha por evento, agrupada pelo tipo, uma coluna por canal (e-mail,
+ * Telegram e celular). Só os avisos que a pessoa pode receber; tudo nasce
+ * desmarcado.
+ */
 export function AvisosForm({
   prefs,
+  permitidos,
   temEmail,
   telegramAtivo,
+  celular,
+  celularAtivo,
 }: {
   prefs: PreferenciasAviso
+  /** Avisos das áreas em que a pessoa tem permissão (perfil-avisos.ts). */
+  permitidos: EventoTelegram[]
   temEmail: boolean
   telegramAtivo: boolean
+  /** Web Push configurado no servidor: mostra a coluna "Celular". */
+  celular: boolean
+  /** Algum aparelho já autorizado a receber no celular. */
+  celularAtivo: boolean
 }) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasAvisoAction, {})
+  const pode = new Set(permitidos)
+  const grupos = GRUPOS.map((g) => ({
+    ...g,
+    eventos: EVENTOS_TELEGRAM.filter((e) => e.grupo === g.grupo && pode.has(e.chave)),
+  })).filter((g) => g.eventos.length > 0)
+  const colunas = celular ? 4 : 3
 
   return (
     <form action={action} className="grid gap-4">
@@ -51,6 +70,11 @@ export function AvisosForm({
             vincular o bot e confirmar o telefone
           </Link>
           . As escolhas ficam guardadas para quando isso acontecer.
+        </p>
+      )}
+      {celular && !celularAtivo && (
+        <p className="text-muted-foreground text-sm">
+          O celular só recebe depois de ligar “Receber no celular” acima, no aparelho. As escolhas ficam guardadas.
         </p>
       )}
       {!temEmail && (
@@ -66,17 +90,18 @@ export function AvisosForm({
               <th className="py-2 pr-2 font-medium">Aviso</th>
               <th className="w-20 py-2 text-center font-medium">E-mail</th>
               <th className="w-20 py-2 text-center font-medium">Telegram</th>
+              {celular && <th className="w-20 py-2 text-center font-medium">Celular</th>}
             </tr>
           </thead>
-          {GRUPOS.map((g) => (
+          {grupos.map((g) => (
           <tbody key={g.grupo}>
             <tr>
-              <td colSpan={3} className="pt-4 pb-1">
+              <td colSpan={colunas} className="pt-4 pb-1">
                 <span className="block text-sm font-semibold">{g.titulo}</span>
                 <span className="text-muted-foreground block text-xs">{g.nota}</span>
               </td>
             </tr>
-            {EVENTOS_TELEGRAM.filter((e) => e.grupo === g.grupo).map(({ chave, rotulo }) => (
+            {g.eventos.map(({ chave, rotulo }) => (
               <tr key={chave} className="border-b last:border-0">
                 <td className="py-2 pr-2">
                   <label htmlFor={`email-${chave}`}>{rotulo}</label>
@@ -96,6 +121,15 @@ export function AvisosForm({
                     aria-label={`Telegram: ${rotulo}`}
                   />
                 </td>
+                {celular && (
+                  <td className="py-2 text-center">
+                    <Checkbox
+                      name={`push:${chave}`}
+                      defaultChecked={prefs.push[chave]}
+                      aria-label={`Celular: ${rotulo}`}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -250,7 +250,7 @@ export async function enviarPushTelegram(
     if (!chatId) return
     // Só entrega a quem confirmou o telefone (ativa a integração).
     if (!telefoneOk) return
-    // Respeita a preferência do usuário (opt-out) para este tipo de aviso.
+    // Respeita a preferência do usuário (opt-in) para este tipo de aviso.
     if (!normalizarPreferencias(prefsBruto)[evento]) return
     await enviarTelegram({ chatId, texto: mensagem, formato: null, botoes })
   } catch {
@@ -258,7 +258,7 @@ export async function enviarPushTelegram(
   }
 }
 
-/** Preferências de push do usuário (opt-out; ausência = tudo ligado). */
+/** Preferências de push do usuário (opt-in; ausência = desligado). */
 export async function preferenciasTelegram(
   usuarioId: string
 ): Promise<PreferenciasTelegram> {

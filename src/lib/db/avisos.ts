@@ -26,12 +26,14 @@ import { origemAtual } from "@/lib/tenant-url"
  *     (06/10/2026): pendência mora na caixa de entrada, que some quando é
  *     resolvida; lembretes e resumos são canal externo. Ver
  *     lib/telegram-eventos.ts (entraNoSino);
- *   • e-mail, se a pessoa não desligou aquele tipo em
- *     `usuarios.notif_email_prefs` (supabase/avisos-preferencias.sql);
- *   • Telegram, se vinculado e não desligado em `telegram_notif_prefs`.
+ *   • e-mail, se a pessoa ligou aquele tipo em `usuarios.notif_email_prefs`;
+ *   • Telegram, se vinculado e ligado em `telegram_notif_prefs`;
+ *   • celular (Web Push), se ligado em `push_notif_prefs`.
  *
- * As preferências são opt-out por EVENTO (lib/telegram-eventos.ts) e valem
- * para os dois canais, lado a lado, em Meu perfil → Avisos.
+ * As preferências são OPT-IN por EVENTO e por canal desde 07/10/2026
+ * (lib/telegram-eventos.ts; supabase/avisos-preferencias-opt-in.sql): nascem
+ * desmarcadas e a pessoa escolhe em Meu perfil → Avisos, que só oferece os
+ * avisos das áreas em que ela tem permissão.
  *
  * Quem recebe é decidido pela permissão EFETIVA (perfis + linha `permissoes`)
  * no tenant, com cadastro ativo — nunca por lista fixa. Tudo aqui é melhor
@@ -210,14 +212,25 @@ export async function avisar(
     jaAvisados = new Set((data ?? []).map((n) => String(n.usuario_id)))
   }
 
-  // Preferências de e-mail de todos de uma vez (coluna pode não existir ainda).
+  // Preferências de e-mail e celular de todos de uma vez. Sem a coluna do
+  // celular (antes de supabase/avisos-preferencias-opt-in.sql), o celular
+  // segue recebendo tudo, como antes.
   const prefsEmail = new Map<string, PreferenciasTelegram>()
+  const prefsPush = new Map<string, PreferenciasTelegram>()
+  let pushSemPreferencia = false
   {
-    const { data, error } = await client
-      .from("usuarios")
-      .select("id, notif_email_prefs")
-      .in("id", alvos.map((d) => d.id))
-    if (!error) for (const u of data ?? []) prefsEmail.set(String(u.id), normalizarPreferencias(u.notif_email_prefs))
+    const ids = alvos.map((d) => d.id)
+    const completo = await client.from("usuarios").select("id, notif_email_prefs, push_notif_prefs").in("id", ids)
+    if (!completo.error) {
+      for (const u of completo.data ?? []) {
+        prefsEmail.set(String(u.id), normalizarPreferencias(u.notif_email_prefs))
+        prefsPush.set(String(u.id), normalizarPreferencias(u.push_notif_prefs))
+      }
+    } else {
+      pushSemPreferencia = true
+      const { data, error } = await client.from("usuarios").select("id, notif_email_prefs").in("id", ids)
+      if (!error) for (const u of data ?? []) prefsEmail.set(String(u.id), normalizarPreferencias(u.notif_email_prefs))
+    }
   }
 
   const origem = contexto?.origem ?? (await origemAtual().catch(() => ""))
@@ -255,7 +268,7 @@ export async function avisar(
             aviso.html ??
             paragrafo(escaparHtml(aviso.texto)) +
               (url ? botaoEmail(url, "Abrir no Confluir") : "") +
-              textoSuave("Você recebe este aviso porque tem permissão para tratar o assunto. Para mudar, abra Meu perfil → Avisos."),
+              textoSuave("Você recebe este aviso porque escolheu recebê-lo por e-mail. Para mudar, abra Meu perfil → Avisos."),
           contexto,
         })
       } catch (e) {
@@ -264,9 +277,11 @@ export async function avisar(
     }
 
     await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client, aviso.telegramBotoes)
-    // Celular (Web Push): quem ligou "Receber no celular" recebe as notificações
-    // e as pendências que chegam — é o aviso "na hora" do que não vai ao sino.
-    await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
+    // Celular (Web Push): o aparelho autorizado recebe os tipos ligados na
+    // coluna "Celular" de Meu perfil → Avisos.
+    if (pushSemPreferencia || prefsPush.get(d.id)?.[aviso.evento]) {
+      await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
+    }
   }
   return entregues
 }
@@ -289,7 +304,7 @@ async function registrarEntrega(
 }
 
 /**
- * A pessoa quer este tipo de aviso por e-mail? (opt-out em Meu perfil →
+ * A pessoa quer este tipo de aviso por e-mail? (opt-in em Meu perfil →
  * Avisos). Para os avisos que não passam por `avisar` — os resultados que
  * cada módulo manda direto.
  */
@@ -297,10 +312,10 @@ export async function querEmail(usuarioId: string, evento: EventoTelegram, clien
   try {
     const c = client ?? (await createAdminClient())
     const { data, error } = await c.from("usuarios").select("notif_email_prefs").eq("id", usuarioId).maybeSingle()
-    if (error) return true
+    if (error) return false
     return normalizarPreferencias(data?.notif_email_prefs)[evento]
   } catch {
-    return true
+    return false
   }
 }
 
@@ -426,24 +441,29 @@ export async function avisarOrdensEmAutorizacao(ordemIds: string[], amb: Ambient
 
 // ── Preferências (Meu perfil → Avisos) ───────────────────────────────────────
 
-export type PreferenciasAviso = { email: PreferenciasTelegram; telegram: PreferenciasTelegram }
+export type PreferenciasAviso = { email: PreferenciasTelegram; telegram: PreferenciasTelegram; push: PreferenciasTelegram }
 
 export async function preferenciasDeAviso(usuarioId: string): Promise<PreferenciasAviso> {
   const admin = await createAdminClient()
   const completo = await admin
     .from("usuarios")
-    .select("notif_email_prefs, telegram_notif_prefs")
+    .select("notif_email_prefs, telegram_notif_prefs, push_notif_prefs")
     .eq("id", usuarioId)
     .maybeSingle()
   if (!completo.error) {
     return {
       email: normalizarPreferencias(completo.data?.notif_email_prefs),
       telegram: normalizarPreferencias(completo.data?.telegram_notif_prefs),
+      push: normalizarPreferencias(completo.data?.push_notif_prefs),
     }
   }
-  // Coluna do e-mail ainda não existe: só o Telegram.
-  const { data } = await admin.from("usuarios").select("telegram_notif_prefs").eq("id", usuarioId).maybeSingle()
-  return { email: normalizarPreferencias(null), telegram: normalizarPreferencias(data?.telegram_notif_prefs) }
+  // Coluna do celular ainda não existe: e-mail e Telegram.
+  const { data } = await admin.from("usuarios").select("notif_email_prefs, telegram_notif_prefs").eq("id", usuarioId).maybeSingle()
+  return {
+    email: normalizarPreferencias(data?.notif_email_prefs),
+    telegram: normalizarPreferencias(data?.telegram_notif_prefs),
+    push: normalizarPreferencias(null),
+  }
 }
 
 export async function definirPreferenciasDeAviso(
@@ -454,19 +474,19 @@ export async function definirPreferenciasDeAviso(
   const emp = await tenantAtual()
   const { error } = await admin
     .from("usuarios")
-    .update({ notif_email_prefs: prefs.email, telegram_notif_prefs: prefs.telegram })
+    .update({ notif_email_prefs: prefs.email, telegram_notif_prefs: prefs.telegram, push_notif_prefs: prefs.push })
     .eq("id", usuarioId)
     .eq("emp_proprietaria_id", emp)
   if (!error) return {}
   if (["PGRST204", "42703"].includes(error.code ?? "")) {
-    // Sem a coluna do e-mail: grava o Telegram e avisa.
+    // Sem a coluna do celular: grava e-mail e Telegram e avisa.
     const { error: e2 } = await admin
       .from("usuarios")
-      .update({ telegram_notif_prefs: prefs.telegram })
+      .update({ notif_email_prefs: prefs.email, telegram_notif_prefs: prefs.telegram })
       .eq("id", usuarioId)
       .eq("emp_proprietaria_id", emp)
     if (e2) return { erro: e2.message }
-    return { erro: "As preferências de e-mail ainda não estão disponíveis — rode supabase/avisos-preferencias.sql. As do Telegram foram salvas." }
+    return { erro: "As escolhas do celular ainda não estão disponíveis — rode supabase/avisos-preferencias-opt-in.sql. E-mail e Telegram foram salvos." }
   }
   return { erro: error.message }
 }
