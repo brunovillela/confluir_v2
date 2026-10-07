@@ -71,6 +71,8 @@ export function NovaCompraForm({
   fornecedores: fornecedoresIniciais,
   cartoes,
   caixas,
+  compradores = [],
+  compradorPadrao = null,
   permiteViaCompras = true,
   permiteDireta = true,
 }: {
@@ -86,6 +88,10 @@ export function NovaCompraForm({
   cartoes: CartaoOpcao[]
   /** Contas de caixa abertas (pagamento em dinheiro). */
   caixas: CaixaOpcao[]
+  /** Funcionários e diretores ativos: quem comprou (aquisição direta). */
+  compradores?: { id: string; nome: string; origem: string }[]
+  /** Quem lança — vem selecionado, mas pode ser trocado. */
+  compradorPadrao?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(criarCompra, {})
   const formRef = useRef<HTMLFormElement>(null)
@@ -854,6 +860,33 @@ export function NovaCompraForm({
                 </div>
               </div>
             </div>
+            {compradores.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="comprador_id">Comprador *</Label>
+                  <select
+                    id="comprador_id"
+                    name="comprador_id"
+                    required
+                    defaultValue={compradorPadrao ?? ""}
+                    className={SELECT}
+                  >
+                    <option value="" disabled>
+                      Quem fez a compra
+                    </option>
+                    {compradores.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.origem ? ` — ${c.origem}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-muted-foreground text-xs">
+                    Quem comprou pode ser outra pessoa — quem lança fica registrado como solicitante.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="forma_pagamento">Forma de pagamento *</Label>

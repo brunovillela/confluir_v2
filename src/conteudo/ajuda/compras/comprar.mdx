@@ -101,6 +101,13 @@ Ao mudar para **Aquisição direta**, o formulário pergunta **Como preencher?**
     Busque e selecione o **fornecedor**, informe a **data da compra** e o
     **valor** (todos obrigatórios).
   </Passo>
+  <Passo titulo="Comprador">
+    Quem fez a compra pode ser outra pessoa: o campo **Comprador** lista os
+    funcionários e diretores ativos e já vem com o seu nome — troque se foi
+    outra pessoa. Você continua registrado como quem lançou (solicitante). Em
+    dinheiro, é o comprador que conta para o reconhecimento da despesa pelo
+    responsável do caixa.
+  </Passo>
   <Passo titulo="Forma de pagamento, com o quê foi pago e 'Pagar em'">
     Escolha a **forma de pagamento** — cada forma pede o seu complemento (veja a
     tabela abaixo) — e a data em **Pagar em**. Tudo obrigatório: a ordem de
@@ -238,9 +245,18 @@ Cada etapa é uma ação no próprio processo:
     **fornecimento** e o processo fica **Comprado** (o valor é a soma dos
     fornecimentos).
   </Passo>
-  <Passo titulo="Gerar a ordem de pagamento">
+  <Passo titulo="Gerar os pagamentos">
     De cada fornecimento sai uma **ordem** em **autorização** — que segue para a
-    aprovação por alçada, como na compra direta.
+    aprovação por alçada, como na compra direta. O fornecimento pode ser pago
+    em **vários pagamentos** (entrada e parcelas, notas separadas): o campo
+    **Valor** vem com o que falta lançar; depois da primeira ordem aparece
+    **Lançar mais um pagamento**. Cada pagamento tem o seu vencimento e, se
+    houver, a sua nota — sem nota própria, vale a **nota da compra**. A tela
+    mostra quanto já foi lançado e quanto falta; ordem cancelada não conta.
+    As cobranças **podem passar do valor da compra**: antes de gravar, a
+    confirmação da auditoria mostra o alerta "Cobranças acima do valor da
+    compra" (Ajustar ou Registrar mesmo assim), a ordem fica com o
+    apontamento na avaliação e a tela do processo destaca a diferença.
   </Passo>
 </PassoAPasso>
 

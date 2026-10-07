@@ -237,9 +237,13 @@ export async function gerarOrdemAction(
     notaFiscal = caminho ?? null
   }
 
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Informe um valor de pagamento válido." }
+
   const { erro, apontamentos } = await gerarOrdemFornecimento(
     fornecimentoId,
-    { vencimento: dataISO(texto(formData, "vencimento")), nota_fiscal_url: notaFiscal },
+    { vencimento: dataISO(texto(formData, "vencimento")), nota_fiscal_url: notaFiscal, valor },
     lerConfirmacao(formData)
   )
   if (apontamentos) {

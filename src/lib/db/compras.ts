@@ -1,4 +1,5 @@
 import "server-only"
+import { formatarMoeda } from "@/lib/formato"
 import {
   apontamentosPorOrdem,
   inserirOrdemVerificada,
@@ -111,7 +112,14 @@ export type Fornecimento = {
   data_compra: string | null
   nota_fiscal_url: string | null
   ordem_pagamento_id: string | null
+  /** A primeira ordem (compatibilidade: recebimento, RPA). */
   ordem: OrdemDoProcesso | null
+  /**
+   * Todas as ordens que pagam o fornecimento (vários pagamentos — entrada,
+   * parcelas, notas separadas). Sem a coluna ordens_pagamento.fornecimento_id
+   * (SQL compras-pagamentos-multiplos), só a primeira.
+   */
+  pagamentos: OrdemDoProcesso[]
   recebido: boolean
   recebimento_data: string | null
   recebidoPorNome: string | null
@@ -222,9 +230,6 @@ export function gerarCodigoProcesso(): string {
   const aleatorio = String(Math.floor(Math.random() * 100)).padStart(2, "0")
   return `${p("year")}.${p("month")}${p("day")}.${p("hour")}${p("minute")}.${p("second")}${aleatorio}`
 }
-
-const SELECT_ORDEM =
-  "id, codigo, descricao, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id, pix_codigo, arquivo_nota_fiscal"
 
 export async function normalizarOrdens(
   brutas: Record<string, unknown>[]
@@ -509,9 +514,10 @@ export async function buscarProcesso(
       .order("created_at", { ascending: true }),
     // Vínculo só pela coluna nova (o legado veio sem ligação ordem→processo);
     // sem o SQL rodado a coluna não existe e a lista degrada para vazia.
+    // select("*"): fornecimento_id (vários pagamentos) pode ainda não existir.
     admin
       .from("ordens_pagamento")
-      .select(SELECT_ORDEM)
+      .select("*")
       .eq("emp_proprietaria_id", await tenantAtual())
       .eq("processo_compra_id", id)
       .eq("excluido", false)
@@ -594,6 +600,14 @@ export async function buscarProcesso(
   }))
 
   const ordemPorId = new Map(ordens.map((o) => [o.id, o]))
+  // Ordens de cada fornecimento (coluna nova; o legado fica só na primeira).
+  const pagamentosPor = new Map<string, OrdemDoProcesso[]>()
+  for (const bruta of (ordensRes.data ?? []) as Record<string, unknown>[]) {
+    const fid = bruta.fornecimento_id as string | null | undefined
+    const o = ordemPorId.get(String(bruta.id))
+    if (!fid || !o) continue
+    pagamentosPor.set(fid, [...(pagamentosPor.get(fid) ?? []), o])
+  }
   const fornecimentos: Fornecimento[] | null =
     fornecimentosBrutos === null
       ? null
@@ -617,6 +631,13 @@ export async function buscarProcesso(
           ordem: x.ordem_pagamento_id
             ? (ordemPorId.get(String(x.ordem_pagamento_id)) ?? null)
             : null,
+          // As ordens com fornecimento_id + a principal (que pode não ter).
+          pagamentos: (() => {
+            const lista = [...(pagamentosPor.get(String(x.id)) ?? [])]
+            const principal = x.ordem_pagamento_id ? ordemPorId.get(String(x.ordem_pagamento_id)) : undefined
+            if (principal && !lista.some((o) => o.id === principal.id)) lista.unshift(principal)
+            return lista
+          })(),
           recebido: x.recebido === true,
           recebimento_data: (x.recebimento_data as string | null) ?? null,
           recebidoPorNome: x.recebimento_recebido_por_id
@@ -629,9 +650,7 @@ export async function buscarProcesso(
         }))
 
   const ordensVinculadas = new Set(
-    (fornecimentos ?? [])
-      .map((f) => f.ordem_pagamento_id)
-      .filter((v): v is string => Boolean(v))
+    (fornecimentos ?? []).flatMap((f) => [f.ordem_pagamento_id, ...f.pagamentos.map((o) => o.id)]).filter((v): v is string => Boolean(v))
   )
 
   return {
@@ -885,6 +904,9 @@ export async function criarCompraDireta(
       erro: `Não foi possível registrar o fornecimento: ${erroFornecimento?.message}`,
     }
   }
+  // A ordem aponta para o fornecimento que paga (vários pagamentos; sem a
+  // coluna do SQL compras-pagamentos-multiplos, o erro é ignorado).
+  if (ordem) await admin.from("ordens_pagamento").update({ fornecimento_id: fornecimento.id }).eq("id", ordem.id)
   // Onda 2 (U2): o que ainda vai chegar entra na fila de quem recebe.
   if (!nova.ja_recebido) avisarRecebimento(`Compra direta ${codigo} — ${nova.produto}`)
   if (!ordem) return { id: processo.id, fornecimentoId: String(fornecimento.id) }
@@ -1191,10 +1213,21 @@ function avisarRecebimento(textoAviso: string): void {
   )
 }
 
-/** Gera a ordem de pagamento ('Em autorização') de um fornecimento sem ordem. */
+/** Código do apontamento "cobranças acima do valor da compra". */
+export const CODIGO_VALOR_EXCEDIDO = "compra_valor_excedido"
+
+/**
+ * Gera uma ordem de pagamento ('Em autorização') para o fornecimento. Pode
+ * haver várias (entrada, parcelas, notas separadas), cada uma com o seu
+ * valor — canceladas não contam. As cobranças podem passar do valor da
+ * compra: aí a confirmação da auditoria mostra o alerta antes de gravar e a
+ * ordem fica com o apontamento. Pagamento sem nota própria leva a nota da
+ * compra. Sem a coluna fornecimento_id (SQL compras-pagamentos-multiplos),
+ * uma ordem só.
+ */
 export async function gerarOrdemFornecimento(
   fornecimentoId: string,
-  dados: { vencimento: string | null; nota_fiscal_url: string | null },
+  dados: { vencimento: string | null; nota_fiscal_url: string | null; valor?: number | null },
   confirmacao?: Confirmacao
 ): Promise<{ erro?: string; apontamentos?: Apontamento[] }> {
   const admin = await createAdminClient()
@@ -1208,7 +1241,46 @@ export async function gerarOrdemFornecimento(
     return { erro: `Falha ao buscar o fornecimento: ${erroBusca.message}` }
   }
   if (!f) return { erro: "Fornecimento não encontrado." }
-  if (f.ordem_pagamento_id) return { erro: "Este fornecimento já tem ordem gerada." }
+
+  // O que já foi lançado para este fornecimento.
+  const jaLancadas = await admin
+    .from("ordens_pagamento")
+    .select("id, valor_inicial_cobranca, situacao")
+    .eq("fornecimento_id", fornecimentoId)
+    .not("excluido", "is", true)
+  const multiplos = !jaLancadas.error
+  if (!multiplos && f.ordem_pagamento_id) return { erro: "Este fornecimento já tem ordem gerada." }
+  const lista = [...(jaLancadas.data ?? [])]
+  // A ordem principal pode não ter fornecimento_id (compra direta, RPA, legado): conta também.
+  if (f.ordem_pagamento_id && !lista.some((o) => o.id === f.ordem_pagamento_id)) {
+    const { data: principal } = await admin
+      .from("ordens_pagamento")
+      .select("id, valor_inicial_cobranca, situacao, excluido")
+      .eq("id", f.ordem_pagamento_id)
+      .maybeSingle()
+    if (principal && principal.excluido !== true) lista.push(principal)
+  }
+  const validas = lista.filter((o) => o.situacao !== "Cancelada")
+  const lancado = Math.round(validas.reduce((s, o) => s + Number(o.valor_inicial_cobranca ?? 0), 0) * 100) / 100
+  const total = Number(f.valor ?? 0)
+  const restante = Math.round((total - lancado) * 100) / 100
+  const valor = dados.valor ?? (restante > 0 ? restante : 0)
+  if (!(valor > 0)) return { erro: "Informe o valor do pagamento." }
+  const numero = validas.length + 1
+  // Cobranças acima do valor da compra: permitido, com alerta confirmado.
+  const somaComNova = Math.round((lancado + valor) * 100) / 100
+  const excedente = Math.round((somaComNova - total) * 100) / 100
+  const apontamentoExcedente: Apontamento | null =
+    excedente > 0.005
+      ? {
+          codigo: CODIGO_VALOR_EXCEDIDO,
+          titulo: "Cobranças acima do valor da compra",
+          detalhe: `Com este pagamento, as cobranças somam ${formatarMoeda(somaComNova)}, acima do valor da compra (${formatarMoeda(total)}) em ${formatarMoeda(excedente)}.`,
+          bloqueia: false,
+          confirmado: Boolean(confirmacao?.codigos.includes(CODIGO_VALOR_EXCEDIDO)),
+        }
+      : null
+  if (apontamentoExcedente && !apontamentoExcedente.confirmado) return { apontamentos: [apontamentoExcedente] }
 
   const { data: processo } = await admin
     .from("compras_solicitacoes")
@@ -1217,14 +1289,16 @@ export async function gerarOrdemFornecimento(
     .maybeSingle()
   if (!processo) return { erro: "Processo do fornecimento não encontrado." }
 
+  // Sem nota própria, o pagamento leva a nota da compra (mesmo com o valor integral).
   const notaFiscal = dados.nota_fiscal_url ?? f.nota_fiscal_url
+  const parcial = valor < total - 0.005 || numero > 1
 
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
-      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}`,
+      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}`,
       situacao: "Em autorização",
-      valor_inicial_cobranca: f.valor,
+      valor_inicial_cobranca: valor,
       forma_pagamento: f.forma_pagamento,
       vencimento: dados.vencimento,
       beneficiario_fornecedor_id: f.fornecedor_id,
@@ -1232,26 +1306,47 @@ export async function gerarOrdemFornecimento(
       centro_custo_despesa_id: processo.solicitacao_centro_custo_id,
       arquivo_nota_fiscal: notaFiscal,
       processo_compra_id: processo.id,
+      ...(multiplos ? { fornecimento_id: fornecimentoId } : {}),
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
     }, confirmacao ? { confirmacao } : {})
   if (erroOrdem || !ordem) {
-    if (erroOrdem?.apontamentos) return { apontamentos: erroOrdem.apontamentos }
+    // O alerta de valor já confirmado segue na lista — senão a confirmação
+    // seguinte o perderia e pediria de novo.
+    if (erroOrdem?.apontamentos) {
+      return { apontamentos: apontamentoExcedente ? [...erroOrdem.apontamentos, apontamentoExcedente] : erroOrdem.apontamentos }
+    }
     return { erro: `Não foi possível gerar a ordem: ${erroOrdem?.message}` }
   }
-
-  const { error: erroVinculo } = await admin
-    .from("compras_fornecimentos")
-    .update({
-      ordem_pagamento_id: ordem.id,
-      ...(dados.nota_fiscal_url ? { nota_fiscal_url: dados.nota_fiscal_url } : {}),
-      updated_at: new Date().toISOString(),
+  if (apontamentoExcedente) {
+    const { error: erroVer } = await admin.from("ordens_pagamento_verificacoes").insert({
+      emp_proprietaria_id: await tenantAtual(),
+      ordem_id: ordem.id,
+      origem: "Compras",
+      codigo: CODIGO_VALOR_EXCEDIDO,
+      titulo: apontamentoExcedente.titulo,
+      severidade: "alertar",
+      status: "alerta",
+      detalhe: apontamentoExcedente.detalhe,
     })
-    .eq("id", fornecimentoId)
-    .is("ordem_pagamento_id", null)
-  if (erroVinculo) {
-    await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
-    return { erro: `Não foi possível vincular a ordem: ${erroVinculo.message}` }
+    if (erroVer && !esquemaAusente(erroVer)) console.error("auditoria (valor excedido):", erroVer.message)
+  }
+
+  // O fornecimento guarda a primeira ordem (recebimento, RPA) e a nota do 1º pagamento.
+  if (!f.ordem_pagamento_id) {
+    const { error: erroVinculo } = await admin
+      .from("compras_fornecimentos")
+      .update({
+        ordem_pagamento_id: ordem.id,
+        ...(dados.nota_fiscal_url ? { nota_fiscal_url: dados.nota_fiscal_url } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", fornecimentoId)
+      .is("ordem_pagamento_id", null)
+    if (erroVinculo) {
+      await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
+      return { erro: `Não foi possível vincular a ordem: ${erroVinculo.message}` }
+    }
   }
   return {}
 }

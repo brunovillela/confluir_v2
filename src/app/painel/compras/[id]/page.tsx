@@ -186,6 +186,14 @@ export default async function ProcessoCompraPage({
       arquivoUrl: await urlArquivoCompras(p.proposta_arquivo_url),
     }))
   )
+  // Nota de cada pagamento (vários por fornecimento).
+  const notasDasOrdens = new Map(
+    await Promise.all(
+      (processo.fornecimentos ?? [])
+        .flatMap((f) => f.pagamentos)
+        .map(async (o) => [o.id, await urlArquivoCompras(o.notaFiscal ?? null)] as const)
+    )
+  )
   const fornecimentosComUrl = await Promise.all(
     (processo.fornecimentos ?? []).map(async (f) => ({
       ...f,
@@ -618,23 +626,54 @@ export default async function ProcessoCompraPage({
               )}
 
               <div className="mt-3 grid gap-3">
-                {f.ordem ? (
+                {f.pagamentos.map((o) => (
                   <LinhaOrdem
-                    ordem={f.ordem}
+                    key={o.id}
+                    ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
                     processoId={processo.id}
                     podeAjustar={podeAjustar}
-                    mostrarNota={f.ordem.notaFiscal !== f.nota_fiscal_url}
+                    mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
                   />
-                ) : operavel ? (
-                  <GerarOrdemForm
-                    processoId={processo.id}
-                    fornecimentoId={f.id}
-                  />
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Ordem de pagamento ainda não gerada.
-                  </p>
-                )}
+                ))}
+                {(() => {
+                  // Vários pagamentos por fornecimento: o que falta lançar em ordens.
+                  const lancado = f.pagamentos
+                    .filter((o) => o.situacao !== "Cancelada")
+                    .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
+                  const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
+                  const falta = restante === null || restante > 0.005
+                  const excedeu = restante !== null && restante < -0.005
+                  return (
+                    <>
+                      {f.pagamentos.length > 0 && f.valor !== null && !excedeu && (
+                        <p className="text-muted-foreground text-xs">
+                          {f.pagamentos.length} pagamento{f.pagamentos.length === 1 ? "" : "s"} lançado
+                          {f.pagamentos.length === 1 ? "" : "s"}: {formatarMoeda(lancado)} de {formatarMoeda(f.valor)}
+                          {falta && restante !== null ? ` — falta lançar ${formatarMoeda(restante)}` : " — valor todo lançado"}
+                        </p>
+                      )}
+                      {excedeu && f.valor !== null && (
+                        <Alert variant="warning">
+                          <AlertDescription>
+                            As cobranças somam <strong>{formatarMoeda(lancado)}</strong>, acima do valor da compra (
+                            {formatarMoeda(f.valor)}) em <strong>{formatarMoeda(-restante!)}</strong>. As ordens levam o
+                            apontamento na auditoria.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      {operavel ? (
+                        <GerarOrdemForm
+                          processoId={processo.id}
+                          fornecimentoId={f.id}
+                          valorRestante={falta ? restante : null}
+                          novo={f.pagamentos.length > 0}
+                        />
+                      ) : f.pagamentos.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
+                      ) : null}
+                    </>
+                  )
+                })()}
 
                 {f.recebido ? (
                   <p className="text-muted-foreground text-sm">

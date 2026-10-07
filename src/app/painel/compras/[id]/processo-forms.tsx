@@ -210,12 +210,24 @@ export function RegistrarCompraForm({
   )
 }
 
+/**
+ * Gera uma ordem de pagamento do fornecimento. Pode haver vários pagamentos
+ * (entrada, parcelas, notas separadas): o valor vem preenchido com o que
+ * falta lançar. Passar do valor da compra é permitido, com alerta na
+ * confirmação da auditoria.
+ */
 export function GerarOrdemForm({
   processoId,
   fornecimentoId,
+  valorRestante,
+  novo = false,
 }: {
   processoId: string
   fornecimentoId: string
+  /** O que falta lançar em ordens (valor do fornecimento − pagamentos). */
+  valorRestante: number | null
+  /** Já há pagamento lançado: o formulário é de um pagamento a mais. */
+  novo?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(gerarOrdemAction, {})
   const formRef = useRef<HTMLFormElement>(null)
@@ -241,6 +253,20 @@ export function GerarOrdemForm({
       <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
       <div className="flex flex-wrap items-end gap-3">
         <div className="grid gap-1.5">
+          <Label htmlFor={`valor-${fornecimentoId}`}>Valor (R$)</Label>
+          <Input
+            id={`valor-${fornecimentoId}`}
+            name="valor"
+            inputMode="decimal"
+            className="w-32"
+            defaultValue={
+              valorRestante !== null
+                ? valorRestante.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : ""
+            }
+          />
+        </div>
+        <div className="grid gap-1.5">
           <Label htmlFor={`vencimento-${fornecimentoId}`}>Vencimento</Label>
           <Input
             id={`vencimento-${fornecimentoId}`}
@@ -250,7 +276,7 @@ export function GerarOrdemForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor={`nota-${fornecimentoId}`}>
-            Nota fiscal (PDF, opcional)
+            Nota fiscal (PDF, opcional — sem ela, vale a da compra)
           </Label>
           <Input
             id={`nota-${fornecimentoId}`}
@@ -261,7 +287,7 @@ export function GerarOrdemForm({
         </div>
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
-          Gerar ordem de pagamento
+          {novo ? "Lançar mais um pagamento" : "Gerar ordem de pagamento"}
         </Button>
       </div>
     </form>

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { requirePermissao } from "@/lib/auth"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
+import { compradoresPossiveis } from "@/lib/db/compras-compradores"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { podeAcessar } from "@/lib/permissoes"
 import {
@@ -25,7 +26,7 @@ export default async function NovaCompraPage() {
   const viaCompras = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")
   const direta = podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")
 
-  const [todosDepartamentos, centros, projetos, fornecedores, escopo, cartoes, caixas] = await Promise.all([
+  const [todosDepartamentos, centros, projetos, fornecedores, escopo, cartoes, caixas, compradores] = await Promise.all([
     listarDepartamentos(),
     listarCentrosCustoParaCompra(),
     listarProjetosAbertos(),
@@ -33,6 +34,7 @@ export default async function NovaCompraPage() {
     escopoComprasDoUsuario(sessao.usuario.id),
     direta ? listarCartoes() : Promise.resolve({ disponivel: false, cartoes: [] }),
     direta ? contasAbertasParaCompras() : Promise.resolve([]),
+    direta ? compradoresPossiveis(sessao.usuario.id as string) : Promise.resolve([]),
   ])
   // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
   const departamentos = escopo.todos
@@ -79,6 +81,8 @@ export default async function NovaCompraPage() {
           .filter((c) => c.ativo)
           .map((c) => ({ id: c.id, nome: nomeCartao(c) }))}
         caixas={caixas}
+        compradores={compradores}
+        compradorPadrao={sessao.usuario.id as string}
       />
     </>
   )

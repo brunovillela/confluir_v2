@@ -17,6 +17,7 @@ import {
   subirComprovanteCompras,
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { compradoresPossiveis } from "@/lib/db/compras-compradores"
 import { impedimentoDoPrestador } from "@/lib/db/compras-rpa"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
@@ -99,6 +100,16 @@ export async function criarCompra(
     redirect(`/painel/compras/${id}?criado=1`)
   }
 
+  // Aquisição direta: quem comprou pode ser outra pessoa (funcionário ou
+  // diretor ativo); quem lança fica como solicitante.
+  const compradorEscolhido = texto(formData, "comprador_id") || String(sessao.usuario.id)
+  if (compradorEscolhido !== String(sessao.usuario.id)) {
+    const possiveis = await compradoresPossiveis(String(sessao.usuario.id))
+    if (!possiveis.some((c) => c.id === compradorEscolhido)) {
+      return { erro: "Escolha o comprador entre os funcionários e diretores ativos.", campo: "comprador_id" }
+    }
+  }
+
   // Aquisição direta: fornecedor, valor, data, pagamento e nota.
   const fornecedorId = texto(formData, "fornecedor_id")
   if (!fornecedorId) return { erro: "Busque e selecione o fornecedor.", campo: "fornecedor_id" }
@@ -141,7 +152,7 @@ export async function criarCompra(
       forma_pagamento: formaRpa,
       data_compra: dataCompra,
       vencimento: vencimentoRpa,
-      comprador_id: sessao.usuario.id,
+      comprador_id: compradorEscolhido,
       nota_fiscal_url: null,
       ja_recebido: entregaNoAto,
       recebedor_id: sessao.usuario.id,
@@ -193,7 +204,7 @@ export async function criarCompra(
     forma_pagamento: forma,
     data_compra: dataCompra,
     vencimento,
-    comprador_id: sessao.usuario.id,
+    comprador_id: compradorEscolhido,
     nota_fiscal_url: caminho,
     ja_recebido: entregaNoAto,
     recebedor_id: sessao.usuario.id,

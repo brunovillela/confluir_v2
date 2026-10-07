@@ -220,6 +220,27 @@ export async function auditarOrdem(
     }
   }
 
+  // 13c. Compra paga em vários pagamentos: as cobranças passam do valor da compra?
+  const fornecimentoId = t(ordem.fornecimento_id)
+  if (fornecimentoId && !encerrada) {
+    const [{ data: fo }, { data: irmas }] = await Promise.all([
+      admin.from("compras_fornecimentos").select("valor").eq("id", fornecimentoId).maybeSingle(),
+      admin.from("ordens_pagamento").select("valor_inicial_cobranca, situacao").eq("fornecimento_id", fornecimentoId).not("excluido", "is", true),
+    ])
+    const totalCompra = n(fo?.valor)
+    const soma = Math.round(((irmas ?? []).filter((o) => o.situacao !== "Cancelada").reduce((s, o) => s + Number(o.valor_inicial_cobranca ?? 0), 0)) * 100) / 100
+    if (totalCompra !== null && (irmas ?? []).length > 1) {
+      add(
+        "compra_valor_excedido",
+        "Cobranças dentro do valor da compra",
+        soma > totalCompra + 0.005 ? "alerta" : "ok",
+        soma > totalCompra + 0.005
+          ? `As ${(irmas ?? []).length} cobranças somam ${formatarMoeda(soma)}, acima do valor da compra (${formatarMoeda(totalCompra)}) em ${formatarMoeda(soma - totalCompra)}.`
+          : `${(irmas ?? []).length} cobranças somando ${formatarMoeda(soma)} de ${formatarMoeda(totalCompra)}.`
+      )
+    }
+  }
+
   // 14. Recebimento (compras)
   if (procedencia.recebimento) {
     const r = procedencia.recebimento
