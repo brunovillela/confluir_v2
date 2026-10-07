@@ -1,5 +1,6 @@
 import "server-only"
 
+import { marcarParaReconhecimento } from "@/lib/db/caixa-reconhecimento"
 import { calcularSaldo } from "@/lib/db/caixa"
 import { esquemaAusente } from "@/lib/db/comum"
 import { formatarMoeda } from "@/lib/formato"
@@ -283,18 +284,29 @@ export async function debitarCaixaCompra({
   ordemId: string
 }): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin.from("caixa_movimentacoes").insert({
-    conta_id: contaId,
-    tipo: "compra",
-    situacao: "confirmada",
-    valor,
-    descricao,
-    criada_por_usuario_id: usuarioId,
-    confirmada_em: new Date().toISOString(),
-    ordem_pagamento_id: ordemId,
-    emp_proprietaria_id: await tenantAtual(),
-  })
+  const { data: mov, error } = await admin
+    .from("caixa_movimentacoes")
+    .insert({
+      conta_id: contaId,
+      tipo: "compra",
+      situacao: "confirmada",
+      valor,
+      descricao,
+      criada_por_usuario_id: usuarioId,
+      confirmada_em: new Date().toISOString(),
+      ordem_pagamento_id: ordemId,
+      emp_proprietaria_id: await tenantAtual(),
+    })
+    .select("id")
+    .single()
   if (error) return { erro: `Não foi possível debitar o caixa: ${error.message}` }
+  // Conta de outra pessoa: o débito vale já, mas o responsável precisa
+  // reconhecê-lo (auditoria da ordem + caixa de entrada dele). Não trava.
+  if (mov?.id) {
+    await marcarParaReconhecimento(String(mov.id), contaId, usuarioId, ordemId, valor, descricao).catch((e) =>
+      console.error("reconhecimento do caixa:", e)
+    )
+  }
   return {}
 }
 

@@ -24,6 +24,9 @@ export type MovimentacaoCaixa = {
   criadaPor: string | null
   confirmada_em: string | null
   created_at: string | null
+  /** Despesa lançada por outra pessoa: pendente | reconhecida | nao_reconhecida | transferida (null = não exige). */
+  reconhecimento?: string | null
+  reconhecimentoMotivo?: string | null
 }
 
 export type PrestacaoCaixa = {
@@ -115,6 +118,8 @@ type MovBruta = {
   criada_por_usuario_id: string | null
   confirmada_em: string | null
   created_at: string | null
+  reconhecimento?: string | null
+  reconhecimento_motivo?: string | null
 }
 
 /** Todas as contas com saldo e pendências (área do financeiro). */
@@ -215,11 +220,10 @@ export async function detalheContaCaixa(
   if (!conta) return null
 
   const [movsRes, prestRes, ocorRes] = await Promise.all([
+    // select("*"): as colunas do reconhecimento podem ainda não existir.
     admin
       .from("caixa_movimentacoes")
-      .select(
-        "id, conta_id, tipo, situacao, valor, descricao, criada_por_usuario_id, confirmada_em, created_at"
-      )
+      .select("*")
       .eq("conta_id", id)
       .order("created_at", { ascending: false }),
     admin
@@ -282,6 +286,8 @@ export async function detalheContaCaixa(
         : null,
       confirmada_em: m.confirmada_em,
       created_at: m.created_at,
+      reconhecimento: m.reconhecimento ?? null,
+      reconhecimentoMotivo: m.reconhecimento_motivo ?? null,
     })),
     prestacoes: (prestRes.data ?? []).map((p) => ({
       id: p.id,

@@ -107,6 +107,8 @@ export type TipoEvento =
   | "documento_fiscal"
   | "situacao_alterada"
   | "excluida"
+  | "caixa_reconhecimento"
+  | "caixa_transferida"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
@@ -128,6 +130,8 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   documento_fiscal: "Documento fiscal recebido",
   situacao_alterada: "Situação alterada pelo Financeiro",
   excluida: "Excluída",
+  caixa_reconhecimento: "Despesa no caixa avaliada pelo responsável da conta",
+  caixa_transferida: "Despesa transferida para outra conta de caixa",
 }
 
 /**

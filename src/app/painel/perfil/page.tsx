@@ -194,6 +194,13 @@ const MEU_CAIXA: AreaPerfil = {
   icone: Wallet,
 }
 
+const DESPESAS_CAIXA: AreaPerfil = {
+  titulo: "Despesas em caixas",
+  descricao: "Reconheça o que outras pessoas lançaram na sua conta; transfira o que não foi reconhecido",
+  href: "/painel/perfil/despesas-caixa",
+  icone: HandCoins,
+}
+
 export default async function PerfilPage({
   searchParams,
 }: {
@@ -443,6 +450,14 @@ export default async function PerfilPage({
           )}
           {temCaixa && (
             <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
+          )}
+          {temCaixa && (
+            <CartaoArea
+              titulo={DESPESAS_CAIXA.titulo}
+              descricao={DESPESAS_CAIXA.descricao}
+              href={DESPESAS_CAIXA.href}
+              icone={DESPESAS_CAIXA.icone}
+            />
           )}
           <CartaoArea titulo={AVISOS.titulo} descricao={AVISOS.descricao} href={AVISOS.href} icone={AVISOS.icone} />
           <CartaoArea titulo={TELEGRAM.titulo} descricao={TELEGRAM.descricao} href={TELEGRAM.href} icone={TELEGRAM.icone} />

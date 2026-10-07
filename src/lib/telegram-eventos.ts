@@ -34,6 +34,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_espacos", rotulo: "Pedido de uso de espaço", grupo: "pendencia" },
   { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender", grupo: "pendencia" },
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia" },
+  { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, ou despesa sua não reconhecida", grupo: "pendencia" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia" },
   { chave: "feedback_sistema", rotulo: "Relato de problema ou sugestão sobre o sistema (quem cuida das demandas)", grupo: "pendencia" },
   { chave: "atendimento_filiado", rotulo: "Solicitação ou resposta de filiado pelo portal (quem cuida das demandas)", grupo: "pendencia" },

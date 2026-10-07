@@ -1,5 +1,6 @@
 import "server-only"
 
+import { CODIGO_AUDITORIA_CAIXA, reconhecimentoDaOrdem } from "@/lib/db/caixa-reconhecimento"
 import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { rateioDaOrdem } from "@/lib/db/ordens-rateio"
@@ -200,6 +201,23 @@ export async function auditarOrdem(
       pelaCaixa ? "Pago em dinheiro pelo caixa — o registro está no extrato do caixa." : t(ordem.arquivo_pagamento) ? "Anexado." : "Sem comprovante do pagamento.")
     add("centro_debito", "Conta de onde saiu o dinheiro (débito)", t(ordem.centro_custo_receita_id) ? "ok" : "falha",
       t(ordem.centro_custo_receita_id) ? "Informada." : "Sem centro de custo do débito.")
+  }
+
+  // 13b. Despesa no caixa de outra pessoa: reconhecida pelo responsável?
+  if (pelaCaixa) {
+    const rec = await reconhecimentoDaOrdem(id)
+    if (rec) {
+      add(
+        CODIGO_AUDITORIA_CAIXA,
+        "Despesa reconhecida pelo responsável do caixa",
+        rec.situacao === "reconhecida" ? "ok" : rec.situacao === "nao_reconhecida" ? "falha" : "alerta",
+        rec.situacao === "reconhecida"
+          ? `Reconhecida no caixa "${rec.contaNome ?? "?"}".`
+          : rec.situacao === "nao_reconhecida"
+            ? `NÃO reconhecida no caixa "${rec.contaNome ?? "?"}": ${rec.motivo ?? "sem motivo"} — quem lançou deve transferir para a conta certa.`
+            : `Lançada no caixa "${rec.contaNome ?? "?"}" por outra pessoa — aguardando o reconhecimento do responsável.`
+      )
+    }
   }
 
   // 14. Recebimento (compras)

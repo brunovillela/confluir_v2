@@ -107,7 +107,26 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
                   )}
                   {cancelada && (
                     <Badge variant="outline" className="text-muted-foreground">
-                      Cancelada
+                      {m.reconhecimento === "transferida" ? "Transferida para outra conta" : "Cancelada"}
+                    </Badge>
+                  )}
+                  {!cancelada && m.reconhecimento === "pendente" && (
+                    <Badge variant="outline" className="border-warning/40 text-warning-fg">
+                      A reconhecer pelo responsável
+                    </Badge>
+                  )}
+                  {!cancelada && m.reconhecimento === "nao_reconhecida" && (
+                    <Badge
+                      variant="outline"
+                      className="border-destructive/40 text-destructive"
+                      title={m.reconhecimentoMotivo ?? undefined}
+                    >
+                      Não reconhecida
+                    </Badge>
+                  )}
+                  {!cancelada && m.reconhecimento === "reconhecida" && (
+                    <Badge variant="outline" className="border-success/40 text-success-fg">
+                      Reconhecida
                     </Badge>
                   )}
                 </span>

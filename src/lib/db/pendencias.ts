@@ -344,6 +344,32 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     }
   }
 
+  // Caixa: despesa lançada por outra pessoa numa conta de que a pessoa é
+  // responsável (reconhecer) e despesa que ela lançou e não foi reconhecida
+  // (transferir para a conta certa) — lib/db/caixa-reconhecimento.ts.
+  if (amb.usuarioId) {
+    const uid = amb.usuarioId
+    const contas = await contasDoResponsavel(client, emp, uid)
+    if (contas.length > 0) {
+      fontes.push({
+        chave: "caixa_reconhecer",
+        titulo: "Despesas no seu caixa para reconhecer",
+        descricao: "Lançadas por outras pessoas na sua conta",
+        href: "/painel/perfil/despesas-caixa",
+        tabela: "caixa_movimentacoes",
+        montar: (q) => head(q).in("conta_id", contas).eq("situacao", "confirmada").eq("reconhecimento", "pendente"),
+      })
+    }
+    fontes.push({
+      chave: "caixa_nao_reconhecidas",
+      titulo: "Despesas de caixa não reconhecidas",
+      descricao: "Transfira para a conta de caixa certa",
+      href: "/painel/perfil/despesas-caixa",
+      tabela: "caixa_movimentacoes",
+      montar: (q) => head(q).eq("criada_por_usuario_id", uid).eq("situacao", "confirmada").eq("reconhecimento", "nao_reconhecida"),
+    })
+  }
+
   const limite = dataLimiteParada()
   const contagens = await Promise.all(
     fontes.map(async (f) => {
@@ -365,6 +391,21 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       ...(contagens[i].antigas !== undefined ? { antigas: contagens[i].antigas } : {}),
     }))
     .filter((f, i) => contagens[i].quantidade !== null && f.quantidade > 0)
+}
+
+/** Contas de caixa (ativas) de que a pessoa é responsável. */
+async function contasDoResponsavel(client: SupabaseClient, emp: string, usuarioId: string): Promise<string[]> {
+  try {
+    const { data } = await client
+      .from("caixa_contas")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("responsavel_usuario_id", usuarioId)
+      .eq("ativa", true)
+    return (data ?? []).map((c) => String(c.id))
+  } catch {
+    return []
+  }
 }
 
 /**
