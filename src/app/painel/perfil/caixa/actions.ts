@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { calcularSaldo } from "@/lib/db/caixa"
+import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -135,6 +136,9 @@ export async function prestarContas(
   if (conta.situacao !== "aberta") {
     return { erro: "A conta precisa estar aberta para prestar contas." }
   }
+  // Despesa ainda não reconhecida (ou não transferida) deixa o saldo errado.
+  const bloqueio = bloqueioPrestacao(await reconhecimentosEmAberto(conta.id))
+  if (bloqueio) return { erro: bloqueio }
 
   const observacao = String(formData.get("observacao") ?? "").trim() || null
   const saldoDeclarado = parseValorBR(

@@ -219,6 +219,42 @@ export async function reconhecimentoDaOrdem(ordemId: string): Promise<{ situacao
   return { situacao: data.reconhecimento as SituacaoReconhecimento, contaNome: conta?.nome ?? null, motivo: texto(data.reconhecimento_motivo) }
 }
 
+/**
+ * O que ainda não foi resolvido numa conta: despesas esperando o
+ * reconhecimento do responsável e despesas não reconhecidas que ainda não
+ * foram transferidas. Enquanto houver, a conta não presta contas — o saldo
+ * dela ainda não é o certo.
+ */
+export async function reconhecimentosEmAberto(contaId: string): Promise<{ pendentes: number; naoReconhecidas: number }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("caixa_movimentacoes")
+    .select("reconhecimento")
+    .eq("conta_id", contaId)
+    .eq("situacao", "confirmada")
+    .in("reconhecimento", ["pendente", "nao_reconhecida"])
+  if (error) return { pendentes: 0, naoReconhecidas: 0 }
+  const lista = (data ?? []) as { reconhecimento: string }[]
+  return {
+    pendentes: lista.filter((m) => m.reconhecimento === "pendente").length,
+    naoReconhecidas: lista.filter((m) => m.reconhecimento === "nao_reconhecida").length,
+  }
+}
+
+/** Mensagem do bloqueio da prestação de contas (null = pode prestar). */
+export function bloqueioPrestacao(abertos: { pendentes: number; naoReconhecidas: number }): string | null {
+  const partes: string[] = []
+  if (abertos.pendentes) {
+    partes.push(`${abertos.pendentes} despesa(s) lançada(s) por outras pessoas esperando o seu reconhecimento`)
+  }
+  if (abertos.naoReconhecidas) {
+    partes.push(`${abertos.naoReconhecidas} despesa(s) não reconhecida(s) esperando a transferência para a conta certa`)
+  }
+  return partes.length
+    ? `Antes de prestar contas, resolva: ${partes.join(" e ")}. Veja em Meu perfil → Despesas em caixas.`
+    : null
+}
+
 // ── Decisões ─────────────────────────────────────────────────────────────────
 
 async function carregarMov(movId: string) {

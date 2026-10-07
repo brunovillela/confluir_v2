@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
+import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import {
@@ -76,6 +77,8 @@ export default async function MeuCaixaPage({
   }
 
   const { conta, extrato, prestacoes, ocorrencias } = detalhe
+  // Despesas sem reconhecimento resolvido travam a prestação de contas.
+  const bloqueio = bloqueioPrestacao(await reconhecimentosEmAberto(conta.id))
   const aportesPendentes = extrato.filter(
     (m) => m.tipo === "aporte" && m.situacao === "pendente"
   )
@@ -182,7 +185,7 @@ export default async function MeuCaixaPage({
           titulo="Prestar contas"
           descricao="Fecha o ciclo: o Financeiro confere o dinheiro e as despesas"
         >
-          <PrestarContas />
+          <PrestarContas bloqueio={bloqueio} />
         </GrupoColapsavel>
       )}
 

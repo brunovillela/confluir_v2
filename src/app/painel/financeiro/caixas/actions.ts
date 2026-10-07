@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { calcularSaldo } from "@/lib/db/caixa"
+import { reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -130,6 +131,13 @@ export async function aprovarPrestacao(
   }
   const observacao =
     String(formData.get("observacao_financeiro") ?? "").trim() || null
+  // Não fecha a conta com despesa sem reconhecimento (ou não transferida).
+  const abertos = await reconhecimentosEmAberto(contaId)
+  if (abertos.pendentes || abertos.naoReconhecidas) {
+    return {
+      erro: `A conta tem ${abertos.pendentes + abertos.naoReconhecidas} despesa(s) sem reconhecimento resolvido — o responsável precisa reconhecer, ou quem lançou transferir, antes de fechar.`,
+    }
+  }
 
   const admin = await createAdminClient()
   const { data: prestacao } = await admin

@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
+import Link from "next/link"
 import { Check, CircleAlert, HandCoins, Loader2, ShoppingCart } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -84,7 +85,8 @@ export function RegistrarCompra() {
   )
 }
 
-export function PrestarContas() {
+/** `bloqueio`: despesas sem reconhecimento resolvido — a prestação espera. */
+export function PrestarContas({ bloqueio = null }: { bloqueio?: string | null }) {
   const [estado, formAction, pendente] = useActionState(prestarContas, {})
   return (
     <form
@@ -97,6 +99,16 @@ export function PrestarContas() {
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {bloqueio && !estado.erro && (
+        <Alert variant="warning">
+          <AlertDescription>
+            {bloqueio}{" "}
+            <Link href="/painel/perfil/despesas-caixa" className="underline underline-offset-2">
+              Abrir
+            </Link>
+          </AlertDescription>
         </Alert>
       )}
       <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
@@ -119,7 +131,7 @@ export function PrestarContas() {
         </div>
       </div>
       <div className="flex justify-end">
-        <Button type="submit" size="sm" disabled={pendente}>
+        <Button type="submit" size="sm" disabled={pendente || Boolean(bloqueio)}>
           {pendente ? <Loader2 className="animate-spin" /> : <HandCoins />}
           Prestar contas
         </Button>
