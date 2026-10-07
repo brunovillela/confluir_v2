@@ -46,6 +46,15 @@ export const DESTINOS_SITUACAO: DestinoSituacao[] = [
   },
 ]
 
+/**
+ * Motivo opcional na troca manual (07/10/2026): "A pagar" → "Processando" é
+ * rotina do Financeiro (o pagamento está em curso; a autorização não muda).
+ * Nas demais trocas o motivo segue obrigatório.
+ */
+export function motivoOpcional(atual: string, nova: string): boolean {
+  return atual === "A pagar" && nova === SITUACAO_PROCESSANDO
+}
+
 export function destinoDaSituacao(valor: string, atual?: string): string | null {
   // De Processando de volta para A pagar a autorização é mantida.
   if (atual === SITUACAO_PROCESSANDO && valor === "A pagar") {

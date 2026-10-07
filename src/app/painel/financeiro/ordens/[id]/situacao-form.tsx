@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Label } from "@/components/ui/label"
-import { DESTINOS_SITUACAO, destinoDaSituacao } from "@/lib/ordens-situacoes"
+import { DESTINOS_SITUACAO, destinoDaSituacao, motivoOpcional } from "@/lib/ordens-situacoes"
 
 import { alterarSituacaoAction, removerPagamento } from "./actions"
 
@@ -45,6 +45,7 @@ export function SituacaoForm({
   )
   const [nova, setNova] = useState(opcoes[0]?.valor ?? "")
   const destino = destinoDaSituacao(nova, situacao)
+  const semMotivo = motivoOpcional(situacao, nova)
 
   // Paga: o único caminho é desfazer o registro de pagamento.
   if (situacao === "Paga") {
@@ -139,8 +140,8 @@ export function SituacaoForm({
             {destino && <p className="text-muted-foreground text-xs">{destino}</p>}
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="sit_motivo">Motivo *</Label>
-            <textarea id="sit_motivo" name="motivo" rows={2} required className={TEXTAREA} />
+            <Label htmlFor="sit_motivo">{semMotivo ? "Observação (opcional)" : "Motivo *"}</Label>
+            <textarea id="sit_motivo" name="motivo" rows={2} required={!semMotivo} className={TEXTAREA} />
           </div>
           <Button type="submit" size="sm" disabled={pendente} className="justify-self-start">
             {pendente ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />}

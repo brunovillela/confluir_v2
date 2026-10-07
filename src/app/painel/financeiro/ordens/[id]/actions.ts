@@ -427,7 +427,7 @@ export async function salvarDocumentosOrdemAction(
   redirect(`/painel/financeiro/ordens/${id}?documentos=1`)
 }
 
-/** Troca manual da situação (ordem não paga), com motivo — ver DESTINOS_SITUACAO. */
+/** Troca manual da situação (ordem não paga), com motivo (opcional para "Processando") — ver DESTINOS_SITUACAO. */
 export async function alterarSituacaoAction(
   _prev: EstadoForm,
   formData: FormData

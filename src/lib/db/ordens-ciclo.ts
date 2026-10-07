@@ -3,7 +3,7 @@ import "server-only"
 import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
-import { DESTINOS_SITUACAO, SITUACAO_PROCESSANDO } from "@/lib/ordens-situacoes"
+import { DESTINOS_SITUACAO, SITUACAO_PROCESSANDO, motivoOpcional } from "@/lib/ordens-situacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -581,7 +581,7 @@ export async function corrigirOrdem(
 
 /**
  * Troca MANUAL de situação de uma ordem ainda não paga, pelo Financeiro, com
- * motivo. Cada destino ajusta os campos de autorização do jeito que a
+ * motivo (opcional de "A pagar" para "Processando" — ver motivoOpcional). Cada destino ajusta os campos de autorização do jeito que a
  * transição normal faria (ver DESTINOS_SITUACAO): "A pagar" vale como
  * autorizada por quem trocou; "Em autorização" e "Aguardando documento
  * fiscal" desfazem a autorização; "Aguardando informações" é a devolução.
@@ -595,7 +595,6 @@ export async function alterarSituacaoOrdem(
 ): Promise<{ erro?: string }> {
   const destino = DESTINOS_SITUACAO.find((d) => d.valor === nova)
   if (!destino) return { erro: "Situação de destino inválida." }
-  if (!motivo.trim()) return { erro: "Informe o motivo da troca de situação." }
   const admin = await createAdminClient()
   const { data: o } = await admin
     .from("ordens_pagamento")
@@ -608,6 +607,7 @@ export async function alterarSituacaoOrdem(
   // "A pagar" já é autorizada (há ordens antigas sem a marca).
   const autorizada = o.autorizacao_esta_autorizado === true || atual === SITUACAO_A_PAGAR
   if (atual === nova) return { erro: `A ordem já está "${nova}".` }
+  if (!motivo.trim() && !motivoOpcional(atual, nova)) return { erro: "Informe o motivo da troca de situação." }
   if (SITUACOES_ENCERRADAS.includes(atual)) {
     return {
       erro:
@@ -678,7 +678,7 @@ export async function alterarSituacaoOrdem(
   if ((data ?? []).length === 0) {
     return { erro: "A ordem mudou de situação enquanto você editava — recarregue a página." }
   }
-  await registrarEvento(ordemId, "situacao_alterada", usuarioId, motivo, { de: atual, para: nova })
+  await registrarEvento(ordemId, "situacao_alterada", usuarioId, motivo.trim() || null, { de: atual, para: nova })
   // Autorizada ou devolvida à mão: os mesmos marcos (e webhooks) da avaliação.
   if (soSituacao) {
     // sem novo marco de autorização
