@@ -473,3 +473,135 @@ function htmlAlertaCadastro(emailSessao: string): string {
     textoSuave("O voto é secreto: o sistema registra que a pessoa votou, nunca em quem votou."),
   ].join("\n")
 }
+
+// ── Checagem do e-mail do passo 1 (07/10/2026) ───────────────────────────────
+//
+// Os códigos pedidos no link único iam, na maioria, para o e-mail da EMPRESA
+// (95 endereços em 07/10, 79 deles das listas de aptos) — e o filtro
+// corporativo retém o e-mail do código. Também chegavam domínios digitados
+// errado (exprogoup.com, bakerhuhes.com). Antes de mandar o código: barra o
+// domínio de empresa das listas, confere se o domínio recebe e-mail e sugere a
+// correção de erro de digitação.
+
+/** Provedores pessoais: nunca são "e-mail da empresa", mesmo vindo na lista. */
+export const PROVEDORES_PESSOAIS = [
+  "gmail.com",
+  "hotmail.com",
+  "hotmail.com.br",
+  "outlook.com",
+  "outlook.com.br",
+  "live.com",
+  "msn.com",
+  "yahoo.com",
+  "yahoo.com.br",
+  "icloud.com",
+  "me.com",
+  "bol.com.br",
+  "uol.com.br",
+  "terra.com.br",
+  "ig.com.br",
+  "globo.com",
+  "protonmail.com",
+  "proton.me",
+]
+
+/** Domínios dos e-mails corporativos das listas de aptos das votações abertas. */
+export const dominiosCorporativosAbertos = cache(async (): Promise<Set<string>> => {
+  const votacoes = await votacoesAbertas()
+  const dominios = new Set<string>()
+  if (votacoes.length === 0) return dominios
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const rodadaIds = [...new Set(votacoes.map((v) => v.rodadaId))]
+  for (let de = 0; ; de += 1000) {
+    const { data } = await admin
+      .from("voto_assembleias_aptos")
+      .select("email_corporativo")
+      .eq("emp_proprietaria_id", emp)
+      .in("rod_assembleia_id", rodadaIds)
+      .not("email_corporativo", "is", null)
+      .order("id")
+      .range(de, de + 999)
+    for (const a of data ?? []) {
+      const d = String(a.email_corporativo ?? "").toLowerCase().split("@")[1]
+      if (d && !PROVEDORES_PESSOAIS.includes(d)) dominios.add(d)
+    }
+    if ((data ?? []).length < 1000) break
+  }
+  return dominios
+})
+
+/** Os registros (ainda sem voto) deste e-mail corporativo nas votações abertas. */
+export async function aptosAbertosPorEmail(
+  email: string
+): Promise<{ assembleiaId: string; aptoId: string; nome: string | null }[]> {
+  const alvo = email.trim().toLowerCase()
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const lista: { assembleiaId: string; aptoId: string; nome: string | null }[] = []
+  for (const v of await votacoesAbertas()) {
+    if (v.somenteFiliados) continue
+    const { data } = await admin
+      .from("voto_assembleias_aptos")
+      .select("id, nome_completo, hora_voto, presenca_em, conflito_motivo")
+      .eq("emp_proprietaria_id", emp)
+      .or(filtroAptos(await escopoAptos(v.assembleiaId)))
+      .eq("email_corporativo", alvo)
+      .limit(1)
+      .maybeSingle()
+    if (!data || data.hora_voto || data.presenca_em || data.conflito_motivo === MARCA_NAO_RECONHECE) continue
+    lista.push({ assembleiaId: v.assembleiaId, aptoId: String(data.id), nome: txt(data.nome_completo) })
+  }
+  return lista
+}
+
+/** O domínio tem servidor de e-mail (MX)? Erro de rede não bloqueia ninguém. */
+export async function dominioRecebeEmail(dominio: string): Promise<boolean> {
+  const { resolveMx } = await import("node:dns/promises")
+  try {
+    const mx = await Promise.race([
+      resolveMx(dominio),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ])
+    if (mx === null) return true
+    return mx.length > 0
+  } catch (e) {
+    const codigo = (e as { code?: string }).code
+    return !(codigo === "ENOTFOUND" || codigo === "ENODATA" || codigo === "ENONAME")
+  }
+}
+
+/** Distância de edição contando a troca de duas letras vizinhas como UM erro ("gmial" → "gmail"). */
+function distanciaEdicao(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  )
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const custo = a[i - 1] === b[j - 1] ? 0 : 1
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + custo)
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+      }
+    }
+  }
+  return d[a.length][b.length]
+}
+
+/** "gmial.com" → "gmail.com"; "bakerhuhes.com" → "bakerhughes.com". Null = nada parecido. */
+export function sugerirDominio(dominio: string, conhecidos: Iterable<string>): string | null {
+  let melhor: { d: string; dist: number } | null = null
+  for (const d of conhecidos) {
+    if (d === dominio) return null
+    const dist = distanciaEdicao(dominio, d)
+    const limite = d.length >= 12 ? 2 : 1
+    if (dist <= limite && (!melhor || dist < melhor.dist)) melhor = { d, dist }
+  }
+  // "bakerhughes.com.br" quando a lista é "bakerhughes.com": sufixo a mais.
+  if (!melhor) {
+    for (const d of conhecidos) {
+      if (dominio.startsWith(`${d.split(".")[0]}.`) && dominio !== d) return d
+    }
+  }
+  return melhor?.d ?? null
+}

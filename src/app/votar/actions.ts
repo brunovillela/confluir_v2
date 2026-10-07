@@ -20,12 +20,46 @@ import { exigirHumano } from "@/lib/turnstile"
 /** Tentativas de cadastro que não conferem, por conta, antes de travar. */
 const MAX_FALHAS = 5
 
+/**
+ * Estado do passo 1. `corporativo` = o e-mail é de empresa das listas (o
+ * filtro dela retém o código); `sugestao` = parece erro de digitação.
+ */
+export type EstadoEntrar = EstadoForm & {
+  corporativo?: { email: string; temLink: boolean }
+  sugestao?: { email: string; digitado: string }
+  /** Link pessoal reenviado ao e-mail da empresa. */
+  linkEnviado?: boolean
+}
+
 export async function solicitarCodigoLinkUnico(
-  _prev: EstadoForm,
+  _prev: EstadoEntrar,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoEntrar> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase()
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { erro: "Informe um e-mail válido." }
+
+  // As conferências de domínio não enviam nada: vêm ANTES do "sou humano",
+  // que só vale uma vez — quem corrige o e-mail não esbarra num token gasto.
+  // Nenhuma delas diz se o e-mail está na lista (isso só depois da conferência).
+  const { dominioRecebeEmail, dominiosCorporativosAbertos, PROVEDORES_PESSOAIS, sugerirDominio } = await import(
+    "@/lib/db/votacao-link-unico"
+  )
+  const [usuario, dominio] = email.split("@")
+  const corporativos = await dominiosCorporativosAbertos()
+
+  // E-mail da empresa: o filtro corporativo retém o código. Não manda.
+  if (corporativos.has(dominio)) return { corporativo: { email, temLink: true } }
+
+  // Erro de digitação no domínio ("gmial.com", "bakerhuhes.com").
+  const forcar = String(formData.get("forcar") ?? "") === "1"
+  const sugerido = sugerirDominio(dominio, [...PROVEDORES_PESSOAIS, ...corporativos])
+  if (!(await dominioRecebeEmail(dominio))) {
+    return sugerido
+      ? { erro: `O endereço “${dominio}” não recebe e-mails.`, sugestao: { email: `${usuario}@${sugerido}`, digitado: email } }
+      : { erro: `O endereço “${dominio}” não recebe e-mails. Confira o que foi digitado depois do @.` }
+  }
+  if (sugerido && !forcar) return { sugestao: { email: `${usuario}@${sugerido}`, digitado: email } }
+
   const erroHumano = await exigirHumano(formData)
   if (erroHumano) return { erro: erroHumano }
 
@@ -38,6 +72,37 @@ export async function solicitarCodigoLinkUnico(
   })
   if (erro) return { erro }
   return { ok: `Código enviado para ${mascararEmail(email)}. Digite-o abaixo.` }
+}
+
+/**
+ * Quem insiste no e-mail da empresa recebe o AVISO com o link pessoal de
+ * voto — o formato que passa pelos filtros corporativos (o do código, não).
+ */
+export async function enviarLinkAoEmailDaEmpresa(
+  _prev: EstadoEntrar,
+  formData: FormData
+): Promise<EstadoEntrar> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase()
+  const erroHumano = await exigirHumano(formData)
+  if (erroHumano) return { erro: erroHumano, corporativo: { email, temLink: true } }
+  const { aptosAbertosPorEmail } = await import("@/lib/db/votacao-link-unico")
+  const aptos = (await aptosAbertosPorEmail(email)).slice(0, 3)
+  if (aptos.length === 0) {
+    return {
+      erro: "Este e-mail não está na lista de aptos das votações abertas. Use um e-mail pessoal.",
+      corporativo: { email, temLink: false },
+    }
+  }
+  const { enviarLinkDeVoto } = await import("@/lib/db/votacao-aviso")
+  let enviados = 0
+  for (const a of aptos) {
+    const { erro } = await enviarLinkDeVoto(a.assembleiaId, { id: a.aptoId, nome: a.nome, email })
+    if (!erro) enviados++
+  }
+  if (enviados === 0) {
+    return { erro: "Não foi possível enviar agora. Tente de novo ou use um e-mail pessoal.", corporativo: { email, temLink: true } }
+  }
+  return { linkEnviado: true, ok: `Enviamos o seu link de votação para ${mascararEmail(email)}.` }
 }
 
 export async function confirmarCodigoLinkUnico(
