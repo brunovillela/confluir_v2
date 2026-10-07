@@ -969,7 +969,9 @@ export async function elegibilidadeEleitorEmail(
 export async function registrarVotoEleitorEmail(
   email: string,
   assembleiaId: string,
-  escolhas: { perguntaId: string; opcaoId: string }[]
+  escolhas: { perguntaId: string; opcaoId: string }[],
+  /** Quem se cadastrou pelo link único recebe o comprovante no e-mail confirmado. */
+  emailComprovante?: string | null
 ): Promise<{ erro?: string; ok?: boolean }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -1042,7 +1044,7 @@ export async function registrarVotoEleitorEmail(
     filtroOu: filtroAptos(escopo, filtros),
     assembleiaId,
     quando: agora,
-    email: alvo,
+    email: emailComprovante ?? alvo,
     nome: (meus?.[0] as { nome_completo?: string | null } | undefined)?.nome_completo ?? null,
   })
   return { ok: true }
@@ -1437,21 +1439,34 @@ export async function existeAptoPorEmail(
 async function aptoNoEscopo(
   aptoId: string,
   assembleiaId: string
-): Promise<{ id: string; cpf: string | null; email: string | null; nome: string | null } | null> {
+): Promise<{
+  id: string
+  cpf: string | null
+  email: string | null
+  nome: string | null
+  /** E-mail confirmado no link único (recebe o comprovante). */
+  emailContato: string | null
+} | null> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("voto_assembleias_aptos")
-    .select("id, cpf, email_corporativo, nome_completo")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("id", aptoId)
-    .or(filtroAptos(await escopoAptos(assembleiaId)))
-    .maybeSingle()
-  if (!data) return null
+  const consulta = async (colunas: string) =>
+    admin
+      .from("voto_assembleias_aptos")
+      .select(colunas)
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("id", aptoId)
+      .or(filtroAptos(await escopoAptos(assembleiaId)))
+      .maybeSingle()
+  // email_contato só existe depois de supabase/votacao-link-unico.sql.
+  const completo = await consulta("id, cpf, email_corporativo, nome_completo, email_contato")
+  const { data } = completo.error ? await consulta("id, cpf, email_corporativo, nome_completo") : completo
+  const linha = data as Record<string, unknown> | null
+  if (!linha) return null
   return {
-    id: String(data.id),
-    cpf: txt(data.cpf),
-    email: txt(data.email_corporativo),
-    nome: txt(data.nome_completo),
+    id: String(linha.id),
+    cpf: txt(linha.cpf),
+    email: txt(linha.email_corporativo),
+    nome: txt(linha.nome_completo),
+    emailContato: txt(linha.email_contato),
   }
 }
 
@@ -1480,7 +1495,7 @@ export async function registrarVotoPorLink(
 ): Promise<{ erro?: string; ok?: boolean }> {
   const apto = await aptoNoEscopo(aptoId, assembleiaId)
   if (!apto) return { erro: "Este link não vale para esta assembleia." }
-  if (apto.email) return registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas)
+  if (apto.email) return registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas, apto.emailContato)
   if (apto.cpf) return registrarVotoFiliado(apto.cpf, assembleiaId, escolhas)
   return { erro: "Cadastro de eleitor sem e-mail nem CPF — procure o sindicato." }
 }

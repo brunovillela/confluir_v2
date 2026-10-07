@@ -199,6 +199,47 @@ function CamposAssembleia({
 
       <VotoEmSeparadoSwitch inicial={assembleia?.voto_em_separado ?? false} />
       <SomenteFiliadosSwitch inicial={assembleia?.somente_filiados ?? false} />
+
+      <div className="grid gap-3 rounded-lg border p-3">
+        <div className="grid gap-0.5">
+          <p className="text-sm font-medium">Assembleia virtual (opcional)</p>
+          <p className="text-muted-foreground text-xs">
+            Quando houver reunião online, informe o link da sala com a data e a hora. O link vai no e-mail
+            de aviso aos aptos.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-1.5 md:col-span-2">
+            <Label htmlFor={`${prefixo}-sala-link`}>Link da sala</Label>
+            <Input
+              id={`${prefixo}-sala-link`}
+              name="sala_link"
+              type="url"
+              inputMode="url"
+              defaultValue={assembleia?.sala_link ?? ""}
+              placeholder="https://meet.google.com/…"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${prefixo}-sala-data`}>Data</Label>
+            <Input
+              id={`${prefixo}-sala-data`}
+              name="sala_data"
+              type="date"
+              defaultValue={assembleia?.sala_data ?? ""}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${prefixo}-sala-hora`}>Hora</Label>
+            <Input
+              id={`${prefixo}-sala-hora`}
+              name="sala_hora"
+              type="time"
+              defaultValue={assembleia?.sala_hora ?? ""}
+            />
+          </div>
+        </div>
+      </div>
     </>
   )
 }
@@ -346,6 +387,21 @@ function AssembleiaItem({
               : "Sem datas definidas"}
             {assembleia.descricao ? ` · ${assembleia.descricao}` : ""}
           </p>
+          {assembleia.sala_link && (
+            <p className="text-xs">
+              <span className="text-muted-foreground">Sala virtual: </span>
+              {formatarData(assembleia.sala_data)}
+              {assembleia.sala_hora ? ` às ${assembleia.sala_hora}` : ""} ·{" "}
+              <a
+                href={assembleia.sala_link}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline underline-offset-4"
+              >
+                abrir link
+              </a>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <ModalidadeBadge modalidade={assembleia.modalidade} />

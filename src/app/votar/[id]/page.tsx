@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { Eye } from "lucide-react"
 
 import { AuthShell } from "@/components/auth/auth-shell"
@@ -34,6 +35,15 @@ import { DadosEleitorForm } from "./dados-eleitor-form"
 import { VotarForm } from "./votar-form"
 
 export const metadata: Metadata = { title: "Votação — Confluir" }
+
+const RODAPE = (
+  <>
+    O acesso é temporário e expira ao final da votação.{" "}
+    <Link href="/votar" className="underline underline-offset-4">
+      Ver todas as votações
+    </Link>
+  </>
+)
 
 export default async function VotarPage({
   params,
@@ -81,7 +91,7 @@ export default async function VotarPage({
             </form>
           </div>
         </div>
-        <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+        <AuthShell rodape={RODAPE}>
           <Cedula
             id={id}
             eleg={eleg}
@@ -105,7 +115,7 @@ export default async function VotarPage({
     const precisaCpf = porLink.email ? await precisaConfirmarCpf(porLink.email, id) : false
     const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
     return (
-      <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+      <AuthShell rodape={RODAPE}>
         <Cedula
           id={id}
           eleg={eleg}
@@ -129,7 +139,7 @@ export default async function VotarPage({
   // Sem sessão → identificação (CPF de filiado ou e-mail de não-filiado).
   if (!user) {
     return (
-      <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+      <AuthShell rodape={RODAPE}>
         {avisouNaoSouEu && (
           <Alert variant="success" className="mb-4">
             <AlertDescription>
@@ -163,7 +173,7 @@ export default async function VotarPage({
   const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
 
   return (
-    <AuthShell rodape="O acesso é temporário e expira ao final da votação.">
+    <AuthShell rodape={RODAPE}>
       <Cedula
         id={id}
         eleg={eleg}

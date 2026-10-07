@@ -293,6 +293,17 @@ export default async function RodadaPage({
                           Conferir cadastro
                         </Badge>
                       )}
+                      {/* Cadastro pelo link único: o e-mail da empresa foi só
+                          digitado — a comissão revisa. */}
+                      {a.cadastro_canal === "link_unico" && (
+                        <Badge
+                          variant="outline"
+                          className="ml-1.5"
+                          title={`Identificou-se pelo link único com o e-mail ${a.email_contato ?? "—"}`}
+                        >
+                          Link único
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
                       {a.cpf ? formatarCnpjCpf(a.cpf) : "—"}

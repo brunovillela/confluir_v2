@@ -199,8 +199,21 @@ export function nomesConferem(a: string | null, b: string | null): boolean {
   return contido(sobraA, sobraB) || contido(sobraB, sobraA)
 }
 
+/**
+ * Régua RÍGIDA do link único (07/10/2026): ali o e-mail da empresa é só
+ * digitado, não provado — então o nome declarado precisa trazer TODOS os
+ * pedaços do nome da lista (com tolerância de digitação), não só primeiro e
+ * último. "Joao Silva" não passa por "JOAO CARLOS DA SILVA".
+ */
+export function nomeCobreLista(declarado: string | null, lista: string | null): boolean {
+  const pd = partesDoNome(declarado)
+  const pl = partesDoNome(lista)
+  if (pd.length < 2 || pl.length < 2) return false
+  return pl.every((x) => pd.some((y) => mesmoPedaco(x, y)))
+}
+
 /** Dá para comparar? (nome com pelo menos dois pedaços úteis) */
-function temSobrenome(nome: string | null): boolean {
+export function temSobrenome(nome: string | null): boolean {
   return (
     semAcento(nome ?? "")
       .replace(/[^a-z ]/g, " ")
@@ -209,7 +222,7 @@ function temSobrenome(nome: string | null): boolean {
   )
 }
 
-function nascimentoValido(v: string): boolean {
+export function nascimentoValido(v: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false
   const d = new Date(`${v}T12:00:00Z`)
   if (Number.isNaN(d.getTime())) return false

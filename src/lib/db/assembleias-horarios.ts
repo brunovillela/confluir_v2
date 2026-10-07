@@ -23,6 +23,16 @@ export const colunasHorario = cache(async (): Promise<string> => {
   return error ? "" : ", hora_inicio, hora_termino"
 })
 
+/**
+ * Sala da assembleia virtual (supabase/votacao-link-unico.sql): link,
+ * data e hora. Mesmo esquema de probe — vazio enquanto o SQL não roda.
+ */
+export const colunasSala = cache(async (): Promise<string> => {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("voto_assembleias").select("sala_link").limit(1)
+  return error ? "" : ", sala_link, sala_data, sala_hora"
+})
+
 export type FonteAssembleia = {
   data_inicio?: unknown
   hora_inicio?: unknown

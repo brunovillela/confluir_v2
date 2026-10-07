@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { CopiarLinkBotao } from "@/components/copiar-link"
 import {
   Table,
   TableBody,
@@ -25,6 +26,9 @@ import {
   type OrdemCampanha,
 } from "@/lib/db/assembleias"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { origemAtual } from "@/lib/tenant-url"
+
+import { linkUnicoVotacao } from "./actions"
 
 export const metadata: Metadata = { title: "Votações — Confluir" }
 
@@ -47,6 +51,7 @@ export default async function VotacoesPage({
   searchParams: Promise<Params>
 }) {
   await requirePermissao("assembleias")
+  const origem = await origemAtual()
 
   const brutos = await searchParams
   const situacao =
@@ -146,6 +151,22 @@ export default async function VotacoesPage({
         <CardResumo rotulo="Rodadas em andamento" valor={resumo.rodadasAbertas} />
         <CardResumo rotulo="Votos online (total)" valor={resumo.votosOnline} />
       </div>
+
+      {/* Link único: todas as votações online abertas e futuras num endereço
+          só — para quem não recebe o e-mail corporativo (07/10/2026). */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-0.5">
+            <p className="text-sm font-medium">Link único de votação</p>
+            <p className="text-muted-foreground text-xs">
+              <span className="text-foreground font-mono">{origem}/votar</span> — mostra as votações online
+              abertas e as próximas. Quem não recebe o e-mail da empresa confirma um e-mail pessoal e se
+              identifica pelos dados. Divulgue por WhatsApp, cartaz ou QR code.
+            </p>
+          </div>
+          <CopiarLinkBotao obterLink={linkUnicoVotacao} rotulo="Copiar link único" />
+        </CardContent>
+      </Card>
 
       {(emCurso > 0 || emBreve > 0) && (
         <Alert variant="info">

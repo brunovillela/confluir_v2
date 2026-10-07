@@ -4,6 +4,7 @@ import "server-only"
 import { horaCurta } from "@/lib/assembleias-constantes"
 import {
   colunasHorario,
+  colunasSala,
   janelaDaAssembleia,
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
@@ -148,6 +149,10 @@ export type AssembleiaLinha = {
   somente_filiados: boolean
   edital: string | null
   ata: string | null
+  /** Sala da assembleia virtual (link + data + hora HH:MM); nulos = sem sala. */
+  sala_link: string | null
+  sala_data: string | null
+  sala_hora: string | null
 }
 
 export type AptoLinha = {
@@ -161,6 +166,9 @@ export type AptoLinha = {
   /** CPF informado no primeiro acesso que colidiu com outro apto (gestão resolve). */
   cpf_conflito?: string | null
   conflito_motivo?: string | null
+  /** Cadastro feito pelo link único de votação (/votar) e o e-mail confirmado. */
+  cadastro_canal?: string | null
+  email_contato?: string | null
 }
 
 // ── Resumo (hub) ───────────────────────────────────────────────────────────
@@ -1160,7 +1168,8 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
     .from("voto_assembleias")
     .select(
       "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata" +
-        (await colunasHorario())
+        (await colunasHorario()) +
+        (await colunasSala())
     )
     .eq("rod_assembleia_id", rodadaId)
     .order("data_inicio", { ascending: true, nullsFirst: false })
@@ -1186,6 +1195,9 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
       somente_filiados: a.somente_filiados === true,
       edital: (a.edital as string | null) ?? null,
       ata: (a.ata as string | null) ?? null,
+      sala_link: (a.sala_link as string | null) ?? null,
+      sala_data: (a.sala_data as string | null) ?? null,
+      sala_hora: horaCurta(a.sala_hora as string | null),
     })),
   }
 }
@@ -1203,6 +1215,16 @@ async function horariosSeExistirem(dados: {
   return { hora_inicio: dados.hora_inicio, hora_termino: dados.hora_termino }
 }
 
+/** Sala virtual só entra na gravação depois de supabase/votacao-link-unico.sql. */
+async function salaSeExistir(dados: {
+  sala_link: string | null
+  sala_data: string | null
+  sala_hora: string | null
+}): Promise<Record<string, unknown>> {
+  if (!(await colunasSala())) return {}
+  return { sala_link: dados.sala_link, sala_data: dados.sala_data, sala_hora: dados.sala_hora }
+}
+
 export async function criarAssembleia(dados: {
   rod_assembleia_id: string
   nome: string
@@ -1216,6 +1238,9 @@ export async function criarAssembleia(dados: {
   data_termino: string | null
   hora_inicio: string | null
   hora_termino: string | null
+  sala_link: string | null
+  sala_data: string | null
+  sala_hora: string | null
 }): Promise<{ id?: string; erro?: string }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
@@ -1231,6 +1256,7 @@ export async function criarAssembleia(dados: {
       data_inicio: dados.data_inicio,
       data_termino: dados.data_termino,
       ...(await horariosSeExistirem(dados)),
+      ...(await salaSeExistir(dados)),
       codigo: gerarCodigo(),
       apuracao_encerrada: false,
       contador_votos: 0,
@@ -1263,6 +1289,9 @@ export async function atualizarAssembleia(
     data_termino: string | null
     hora_inicio: string | null
     hora_termino: string | null
+    sala_link: string | null
+    sala_data: string | null
+    sala_hora: string | null
     edital?: string
     ata?: string
   }
@@ -1277,6 +1306,7 @@ export async function atualizarAssembleia(
     data_inicio: dados.data_inicio,
     data_termino: dados.data_termino,
     ...(await horariosSeExistirem(dados)),
+    ...(await salaSeExistir(dados)),
   }
   if (dados.edital !== undefined) atualizacao.edital = dados.edital
   if (dados.ata !== undefined) atualizacao.ata = dados.ata
@@ -1503,6 +1533,8 @@ export async function listarAptos(
       hora_voto: (a.hora_voto as string | null) ?? null,
       cpf_conflito: (a.cpf_conflito as string | null) ?? null,
       conflito_motivo: (a.conflito_motivo as string | null) ?? null,
+      cadastro_canal: (a.cadastro_canal as string | null) ?? null,
+      email_contato: (a.email_contato as string | null) ?? null,
     })),
     total: count ?? 0,
     pagina,

@@ -231,6 +231,9 @@ function dadosAssembleia(formData: FormData): {
     data_termino: string | null
     hora_inicio: string | null
     hora_termino: string | null
+    sala_link: string | null
+    sala_data: string | null
+    sala_hora: string | null
   }
   erro?: string
 } {
@@ -244,6 +247,25 @@ function dadosAssembleia(formData: FormData): {
     : null
   if (!modalidade) return { erro: "Escolha a modalidade da assembleia." }
 
+  // Sala da assembleia virtual: link com data e hora, ou nada.
+  const salaLink = texto(formData, "sala_link") || null
+  const salaData = dataISO(texto(formData, "sala_data"))
+  const salaHora = horaISO(texto(formData, "sala_hora"))
+  if (salaLink) {
+    let url: URL | null = null
+    try {
+      url = new URL(salaLink)
+    } catch {
+      url = null
+    }
+    if (!url || (url.protocol !== "https:" && url.protocol !== "http:")) {
+      return { erro: "O link da sala virtual precisa ser um endereço completo, começando com https://." }
+    }
+    if (!salaData || !salaHora) return { erro: "Informe a data e a hora da reunião na sala virtual." }
+  } else if (salaData || salaHora) {
+    return { erro: "Informe o link da sala virtual, ou deixe a data e a hora em branco." }
+  }
+
   return {
     dados: {
       nome,
@@ -255,6 +277,9 @@ function dadosAssembleia(formData: FormData): {
       data_termino: dataISO(texto(formData, "data_termino")),
       hora_inicio: horaISO(texto(formData, "hora_inicio")),
       hora_termino: horaISO(texto(formData, "hora_termino")),
+      sala_link: salaLink,
+      sala_data: salaLink ? salaData : null,
+      sala_hora: salaLink ? salaHora : null,
     },
   }
 }

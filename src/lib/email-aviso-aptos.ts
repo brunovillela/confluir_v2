@@ -24,6 +24,10 @@ export type AssembleiaDoAviso = {
   modalidade: Modalidade
   data_inicio: string | null
   data_termino: string | null
+  /** Sala da assembleia virtual (link, data, hora HH:MM), quando houver. */
+  sala_link?: string | null
+  sala_data?: string | null
+  sala_hora?: string | null
 }
 
 export type DadosAvisoAptos = {
@@ -91,6 +95,31 @@ ${linhas}
 </table>`
 }
 
+/**
+ * Assembleia virtual: o link da sala com data e hora. Não é ação destrutiva —
+ * scanner de e-mail que abrir o link não muda nada.
+ */
+function salasVirtuais(assembleias: AssembleiaDoAviso[]): string {
+  const comSala = assembleias.filter((a) => a.sala_link)
+  if (comSala.length === 0) return ""
+  const linhas = comSala
+    .map((a) => {
+      const quando = [a.sala_data ? formatarData(a.sala_data) : null, a.sala_hora ? `às ${a.sala_hora}` : null]
+        .filter(Boolean)
+        .join(" ")
+      return `<tr><td style="padding:10px 12px;border-top:1px solid ${COR.borda};">
+<div style="font-weight:600;color:${COR.navy};">${escaparHtml(a.nome ?? "Assembleia")}</div>
+<div style="font-size:13px;color:${COR.textoSuave};margin:0 0 6px;">Reunião online${quando ? ` · <strong>${quando}</strong> (horário de Brasília)` : ""}</div>
+<a href="${escaparHtml(a.sala_link as string)}" style="color:${COR.laranjaAcao};font-weight:600;">Entrar na sala da assembleia</a>
+</td></tr>`
+    })
+    .join("")
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border:1px solid ${COR.borda};border-radius:8px;border-collapse:separate;overflow:hidden;">
+<tr><td style="padding:10px 12px;background-color:${COR.navyFundo};font-size:12px;letter-spacing:0.5px;text-transform:uppercase;color:${COR.textoSuave};">Assembleia virtual</td></tr>
+${linhas}
+</table>`
+}
+
 function passos(itens: string[]): string {
   return `<ol style="${ESTILO_LISTA}">${itens.map((i) => `<li style="${ESTILO_ITEM}">${i}</li>`).join("")}</ol>`
 }
@@ -118,6 +147,8 @@ export function montarEmailAvisoAptos(
   )
   if (quando) partes.push(caixaAviso(`A votação acontece ${quando}.`))
   if (dados.assembleias.length > 0) partes.push(listaAssembleias(dados.assembleias))
+  const salas = salasVirtuais(dados.assembleias)
+  if (salas) partes.push(salas)
 
   const alvo = destino.linkPessoal ?? dados.link
   partes.push(botaoEmail(alvo, dados.temOnline ? "Ir para a votação" : "Acessar o Confluir"))

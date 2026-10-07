@@ -2,9 +2,11 @@ import "server-only"
 
 import {
   derivarModalidade,
+  horaCurta,
   temVotoOnline,
 } from "@/lib/assembleias-constantes"
 import { cpfConfiavel, formatarCpf } from "@/lib/cpf"
+import { colunasSala } from "@/lib/db/assembleias-horarios"
 import { esquemaAusente } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
 import {
@@ -124,17 +126,21 @@ export async function dadosDoAviso(
 
   const { data: assembleias } = await admin
     .from("voto_assembleias")
-    .select("id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, created_at")
+    .select("id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, created_at" + (await colunasSala()))
     .eq("rod_assembleia_id", rodadaId)
     .eq("emp_proprietaria_id", emp)
     .order("data_inicio", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
-  const lista = (assembleias ?? []).map((a) => ({
+  // Select montado (sala só depois do SQL): tipo solto de propósito.
+  const lista = ((assembleias ?? []) as unknown as Record<string, unknown>[]).map((a) => ({
     id: String(a.id),
     nome: (a.nome_assembleia as string | null) ?? null,
     modalidade: derivarModalidade(a),
     data_inicio: (a.data_inicio as string | null) ?? null,
     data_termino: (a.data_termino as string | null) ?? null,
+    sala_link: (a.sala_link as string | null) ?? null,
+    sala_data: (a.sala_data as string | null) ?? null,
+    sala_hora: horaCurta((a.sala_hora as string | null) ?? null),
   }))
   if (lista.length === 0) {
     return { erro: "Cadastre ao menos uma assembleia na rodada antes de avisar os aptos." }
@@ -150,11 +156,14 @@ export async function dadosDoAviso(
       campanhaTema: tema ?? null,
       inicio: (rodada.inicio as string | null) ?? null,
       termino,
-      assembleias: lista.map(({ nome, modalidade, data_inicio, data_termino }) => ({
+      assembleias: lista.map(({ nome, modalidade, data_inicio, data_termino, sala_link, sala_data, sala_hora }) => ({
         nome,
         modalidade,
         data_inicio,
         data_termino,
+        sala_link,
+        sala_data,
+        sala_hora,
       })),
       link: online ? `${origem}/votar/${online.id}` : `${origem}/portal/votacao`,
       assembleiaOnlineId: online?.id ?? null,
@@ -494,6 +503,13 @@ export async function linkPessoalDoApto(aptoId: string): Promise<{
   const mensagem =
     `${primeiro ? `Olá, ${primeiro}! ` : "Olá! "}` +
     `Você está habilitado a votar na ${dados.rodadaNome}. ` +
-    `Este link é pessoal e abre a sua cédula direto, sem código — não repasse a ninguém:\n${link}`
+    `Este link é pessoal e abre a sua cédula direto, sem código — não repasse a ninguém:\n${link}` +
+    dados.assembleias
+      .filter((a) => a.sala_link)
+      .map(
+        (a) =>
+          `\n\nAssembleia virtual${a.sala_data ? ` em ${formatarData(a.sala_data)}` : ""}${a.sala_hora ? ` às ${a.sala_hora}` : ""}: ${a.sala_link}`
+      )
+      .join("")
   return { link, mensagem, nome }
 }
