@@ -5,6 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { cache } from "react"
 import { cookies } from "next/headers"
 
+import { colunasHorario, janelaDaAssembleia } from "@/lib/db/assembleias-horarios"
 import { MARCA_NAO_RECONHECE } from "@/lib/db/votacao-primeiro-acesso"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -20,12 +21,61 @@ import { tenantAtual } from "@/lib/tenant"
  *
  * Segurança: o mesmo nível do código por e-mail — quem tem a caixa vota. O
  * token é um HMAC do id do apto (nada é gravado no banco), vale só para a
- * assembleia daquele link, expira com a janela da votação e para de servir
- * depois que a pessoa vota. A trava de voto único continua sendo a do apto.
+ * assembleia daquele link e para de servir depois que a pessoa vota. O link
+ * não expira por tempo; a sessão que ele abre dura até o fim da votação. A trava de voto único continua sendo a do apto.
  */
 
 const COOKIE = "confluir_acesso_eleitor"
-const TTL_SEGUNDOS = 60 * 60 * 6 // 6 h de sessão no navegador
+/**
+ * A sessão aberta pelo link vale até o FIM DA VOTAÇÃO (07/10/2026). Antes
+ * eram 6 h fixas: quem abria o link, deixava a página aberta e voltava depois
+ * via "Sessão de votação expirada" — e entendia que o link tinha vencido.
+ */
+const TTL_MINIMO = 60 * 60 // 1 h
+const TTL_SEM_JANELA = 60 * 60 * 24 // assembleia sem término conhecido
+const TTL_MAXIMO = 60 * 60 * 24 * 60 // teto de 60 dias
+
+function txt(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v : null
+}
+
+/** Segundos até o fim da janela de votação da assembleia (com piso e teto). */
+async function segundosAteFimDaVotacao(assembleiaId: string): Promise<number> {
+  try {
+    const admin = await createAdminClient()
+    const { data } = await admin
+      .from("voto_assembleias")
+      .select("data_inicio, data_termino, periodo_inicio, periodo_termino, rod_assembleia_id" + (await colunasHorario()))
+      .eq("id", assembleiaId)
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .maybeSingle()
+    const a = data as unknown as Record<string, unknown> | null
+    if (!a) return TTL_SEM_JANELA
+    let terminoRodada: string | null = null
+    if (txt(a.rod_assembleia_id)) {
+      const { data: rod } = await admin
+        .from("voto_rod_assembleias")
+        .select("termino")
+        .eq("id", a.rod_assembleia_id as string)
+        .maybeSingle()
+      terminoRodada = txt(rod?.termino)
+    }
+    const fim = janelaDaAssembleia(
+      {
+        data_inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
+        hora_inicio: txt(a.hora_inicio),
+        data_termino: txt(a.data_termino) ?? txt(a.periodo_termino),
+        hora_termino: txt(a.hora_termino),
+      },
+      terminoRodada
+    ).termino
+    if (fim === null) return TTL_SEM_JANELA
+    const restante = Math.ceil((fim - Date.now()) / 1000)
+    return Math.min(Math.max(restante, TTL_MINIMO), TTL_MAXIMO)
+  } catch {
+    return TTL_SEM_JANELA
+  }
+}
 
 function segredo(): string {
   const s = process.env.SUPABASE_JWT_SECRET
@@ -90,13 +140,17 @@ export async function aptoDoToken(
   }
 }
 
-/** Cria a sessão de voto por link (cookie assinado, só para aquela assembleia). */
+/**
+ * Cria a sessão de voto por link (cookie assinado, só para aquela
+ * assembleia), válida até o fim da votação.
+ */
 export async function abrirSessaoPorLink(aptoId: string, assembleiaId: string): Promise<void> {
+  const ttl = await segundosAteFimDaVotacao(assembleiaId)
   const corpo = Buffer.from(
     JSON.stringify({
       a: aptoId,
       s: assembleiaId,
-      exp: Math.floor(Date.now() / 1000) + TTL_SEGUNDOS,
+      exp: Math.floor(Date.now() / 1000) + ttl,
     })
   ).toString("base64url")
   const jar = await cookies()
@@ -104,7 +158,7 @@ export async function abrirSessaoPorLink(aptoId: string, assembleiaId: string): 
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: TTL_SEGUNDOS,
+    maxAge: ttl,
     path: "/",
   })
 }

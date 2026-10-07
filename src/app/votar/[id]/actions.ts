@@ -322,7 +322,7 @@ export async function votarPublico(
     }
     r = await registrarVotoEleitorEmail(user.email, assembleiaId, escolhas)
   } else {
-    return { erro: "Sessão de votação expirada. Identifique-se novamente." }
+    return { erro: "Seu acesso a esta página terminou. Abra de novo o link do e-mail de votação — ele vale até o fim da votação." }
   }
   if (r.erro) return { erro: r.erro }
   return { ok: "Voto registrado. Obrigado por participar." }
@@ -362,8 +362,9 @@ export async function informarDadosEleitor(
   } = await supabase.auth.getUser()
   const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
   const porLink = await eleitorPorLink(assembleiaId)
-  const email = user?.email ?? porLink?.email ?? null
-  if (!email) return falha("Sessão expirada. Identifique-se novamente.")
+  // A identidade do LINK (apto desta assembleia) vem antes da conta logada.
+  const email = porLink?.email ?? user?.email ?? null
+  if (!email) return falha("Seu acesso a esta página terminou. Abra de novo o link do e-mail de votação — ele vale até o fim da votação.")
 
   const { registrarDadosEleitor } = await import("@/lib/db/votacao-primeiro-acesso")
   const { erro } = await registrarDadosEleitor({ email, assembleiaId, ...valores })
@@ -394,8 +395,9 @@ export async function confirmarCpfEleitor(
   } = await supabase.auth.getUser()
   const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
   const porLink = await eleitorPorLink(assembleiaId)
-  const email = user?.email ?? porLink?.email ?? null
-  if (!email) return falha("Sessão expirada. Identifique-se novamente.")
+  // A identidade do LINK (apto desta assembleia) vem antes da conta logada.
+  const email = porLink?.email ?? user?.email ?? null
+  if (!email) return falha("Seu acesso a esta página terminou. Abra de novo o link do e-mail de votação — ele vale até o fim da votação.")
 
   const { confirmarCpfEleitor: confirmar } = await import(
     "@/lib/db/votacao-primeiro-acesso"
@@ -423,9 +425,10 @@ export async function avisarNomeDivergente(
   } = await supabase.auth.getUser()
   const { eleitorPorLink } = await import("@/lib/acesso-eleitor")
   const porLink = await eleitorPorLink(assembleiaId)
-  const email = user?.email ?? porLink?.email ?? null
+  // A identidade do LINK (apto desta assembleia) vem antes da conta logada.
+  const email = porLink?.email ?? user?.email ?? null
   if (!email) {
-    return { erro: "Sessão expirada. Identifique-se novamente.", tentativa: (prev.tentativa ?? 0) + 1 }
+    return { erro: "Seu acesso a esta página terminou. Abra de novo o link do e-mail de votação — ele vale até o fim da votação.", tentativa: (prev.tentativa ?? 0) + 1 }
   }
 
   const { marcarNomeDivergente } = await import("@/lib/db/votacao-primeiro-acesso")
