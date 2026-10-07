@@ -60,9 +60,13 @@ recebe as nossas mensagens no e-mail corporativo — os filtros de algumas
 empresas barram tudo.
 
 <PassoAPasso>
-  <Passo titulo="Confirmar um e-mail que recebe">
+  <Passo titulo="Confirmar um e-mail que recebe — ou o Telegram">
     A pessoa digita um e-mail seu — de preferência o pessoal (Gmail, por
-    exemplo) — e recebe um código. Digitou o código, está dentro.
+    exemplo) — e recebe um código. Digitou o código, está dentro. Quem não
+    recebe e-mail pode tocar em **Confirmar pelo Telegram**: abre a conversa
+    com o bot do sindicato, aperta **Iniciar** e toca em **📱 Compartilhar meu
+    número** (o Telegram já confirmou esse número por SMS). A página percebe
+    sozinha e segue.
   </Passo>
   <Passo titulo="Identificar-se na lista">
     Informa **nome completo**, **e-mail da empresa** (o que veio na lista),
@@ -71,12 +75,28 @@ empresas barram tudo.
   </Passo>
   <Passo titulo="Votar">
     Cada votação em que ela está ganha o botão **Votar**, que abre a cédula. O
-    comprovante vai para o e-mail confirmado no primeiro passo. Votações em que
+    comprovante vai para o e-mail confirmado no primeiro passo (ou chega pelo
+    Telegram, para quem confirmou por lá). Votações em que
     ela já votou aparecem como "Você já votou"; as que ainda não abriram dizem
     quando abrem. Se houver assembleia virtual, o link da sala aparece no
     cartão.
   </Passo>
 </PassoAPasso>
+
+<Aviso tipo="dica" titulo="Quando o código não chega">
+  - **E-mail da empresa é barrado** no primeiro passo: o filtro corporativo
+    retém o e-mail do código. A tela pede um e-mail pessoal — e oferece
+    **Mandar o link de votação para este e-mail**, que reenvia o aviso com o
+    link pessoal (esse formato costuma passar pelo filtro).
+  - **Domínio digitado errado** é conferido antes do envio: se não recebe
+    e-mail, a tela avisa; se parece erro de digitação, sugere a correção
+    ("Você quis dizer …@gmail.com?").
+  - Depois de pedir o código, a tela mostra **onde procurar**: Spam/Lixo
+    eletrônico, as abas Promoções, Atualizações e Social do Gmail e a pasta
+    Outros do Outlook — com o remetente e o assunto exatos.
+  - Nada disso resolveu? **Confirmar pelo Telegram**, ou a secretaria manda o
+    link pessoal por WhatsApp (ícone de corrente na lista de aptos).
+</Aviso>
 
 <Aviso tipo="nota" titulo="Por que a conferência aqui é mais rígida">
   No link pessoal, o e-mail da empresa é **provado** — o link chegou na caixa

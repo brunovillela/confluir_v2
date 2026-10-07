@@ -299,7 +299,7 @@ export default async function RodadaPage({
                         <Badge
                           variant="outline"
                           className="ml-1.5"
-                          title={`Identificou-se pelo link único com o e-mail ${a.email_contato ?? "—"}`}
+                          title={`Identificou-se pelo link único ${a.email_contato ? `com o e-mail ${a.email_contato}` : "pelo Telegram"}`}
                         >
                           Link único
                         </Badge>

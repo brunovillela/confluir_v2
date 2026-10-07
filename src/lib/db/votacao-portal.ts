@@ -1446,6 +1446,8 @@ async function aptoNoEscopo(
   nome: string | null
   /** E-mail confirmado no link único (recebe o comprovante). */
   emailContato: string | null
+  /** Telegram confirmado no link único (recebe o comprovante por lá). */
+  telegramChatId: string | null
 } | null> {
   const admin = await createAdminClient()
   const consulta = async (colunas: string) =>
@@ -1457,7 +1459,7 @@ async function aptoNoEscopo(
       .or(filtroAptos(await escopoAptos(assembleiaId)))
       .maybeSingle()
   // email_contato só existe depois de supabase/votacao-link-unico.sql.
-  const completo = await consulta("id, cpf, email_corporativo, nome_completo, email_contato")
+  const completo = await consulta("id, cpf, email_corporativo, nome_completo, email_contato, telegram_chat_id")
   const { data } = completo.error ? await consulta("id, cpf, email_corporativo, nome_completo") : completo
   const linha = data as Record<string, unknown> | null
   if (!linha) return null
@@ -1467,6 +1469,7 @@ async function aptoNoEscopo(
     email: txt(linha.email_corporativo),
     nome: txt(linha.nome_completo),
     emailContato: txt(linha.email_contato),
+    telegramChatId: txt(linha.telegram_chat_id),
   }
 }
 
@@ -1495,7 +1498,36 @@ export async function registrarVotoPorLink(
 ): Promise<{ erro?: string; ok?: boolean }> {
   const apto = await aptoNoEscopo(aptoId, assembleiaId)
   if (!apto) return { erro: "Este link não vale para esta assembleia." }
-  if (apto.email) return registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas, apto.emailContato)
-  if (apto.cpf) return registrarVotoFiliado(apto.cpf, assembleiaId, escolhas)
-  return { erro: "Cadastro de eleitor sem e-mail nem CPF — procure o sindicato." }
+  const r = apto.email
+    ? await registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas, apto.emailContato)
+    : apto.cpf
+      ? await registrarVotoFiliado(apto.cpf, assembleiaId, escolhas)
+      : { erro: "Cadastro de eleitor sem e-mail nem CPF — procure o sindicato." }
+  // Quem se identificou pelo Telegram recebe o comprovante por lá também.
+  if (r.ok && apto.telegramChatId) await comprovantePorTelegram(apto.id, apto.telegramChatId, assembleiaId)
+  return r
+}
+
+/** Manda o código do comprovante pelo Telegram (melhor esforço). */
+async function comprovantePorTelegram(aptoId: string, chatId: string, assembleiaId: string): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    const [{ data: apto }, { data: assembleia }] = await Promise.all([
+      admin.from("voto_assembleias_aptos").select("comprovante_codigo").eq("id", aptoId).maybeSingle(),
+      admin.from("voto_assembleias").select("nome_assembleia").eq("id", assembleiaId).maybeSingle(),
+    ])
+    const codigo = txt(apto?.comprovante_codigo)
+    const { enviarTelegram } = await import("@/lib/telegram")
+    const { origemAtual } = await import("@/lib/tenant-url")
+    const origem = await origemAtual().catch(() => "")
+    await enviarTelegram({
+      chatId,
+      texto:
+        `✅ Voto registrado${assembleia?.nome_assembleia ? ` — <b>${String(assembleia.nome_assembleia)}</b>` : ""}.` +
+        (codigo ? `\nComprovante: <b>${codigo}</b>${origem ? `\n${origem}/comprovante/${codigo}` : ""}` : "") +
+        "\n\nO voto é secreto: fica registrado que você votou, nunca em quem votou.",
+    })
+  } catch {
+    // comprovante é extra: o voto já está gravado
+  }
 }

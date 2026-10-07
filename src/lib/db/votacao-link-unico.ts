@@ -180,16 +180,18 @@ export type VinculoDaSessao = {
 
 /**
  * O apto de quem está na sessão, em cada votação aberta: pelo e-mail
- * confirmado no link único (`email_contato`), pelo e-mail corporativo da
- * própria sessão (quando ele chegou) ou pelo CPF da conta de filiado.
+ * confirmado no link único (`email_contato`), pelo Telegram confirmado
+ * (`telegram_chat_id`), pelo e-mail corporativo da própria sessão (quando
+ * ele chegou) ou pelo CPF da conta de filiado.
  */
 export async function vinculosDaSessao(
-  sessao: { email: string | null; cpf: string | null },
+  sessao: { email: string | null; cpf: string | null; telegramChatId?: string | null },
   votacoes: VotacaoAberta[]
 ): Promise<Map<string, VinculoDaSessao>> {
   const mapa = new Map<string, VinculoDaSessao>()
   const email = sessao.email?.trim().toLowerCase() ?? null
-  if (!email && !sessao.cpf) return mapa
+  const chat = sessao.telegramChatId ?? null
+  if (!email && !sessao.cpf && !chat) return mapa
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const comContato = await temColunasLinkUnico()
@@ -197,6 +199,7 @@ export async function vinculosDaSessao(
     ...(email ? [`email_corporativo.eq.${aspas(email)}`] : []),
     ...(email && comContato ? [`email_contato.eq.${aspas(email)}`] : []),
     ...(sessao.cpf ? [`cpf.eq.${aspas(sessao.cpf)}`] : []),
+    ...(chat ? [`telegram_chat_id.eq.${aspas(chat)}`] : []),
   ]
   for (const v of votacoes) {
     const { data } = await admin
@@ -223,6 +226,7 @@ type AptoCandidato = {
   nome_completo: string | null
   email_corporativo: string | null
   email_contato?: string | null
+  telegram_chat_id?: string | null
   hora_voto: string | null
   presenca_em: string | null
   rod_assembleia_id: string | null
@@ -247,7 +251,8 @@ const ERRO_NAO_CONFERE =
  * em mais de uma.
  */
 export async function vincularPorLinkUnico(dados: {
-  emailSessao: string
+  /** Quem confirmou: o e-mail (código) ou o Telegram (chat + número). */
+  contato: { email?: string | null; telegramChatId?: string | null; telefone?: string | null }
   cpf: string
   nome: string
   nascimento: string
@@ -255,7 +260,11 @@ export async function vincularPorLinkUnico(dados: {
 }): Promise<ResultadoVinculo> {
   const cpf = limparCpf(dados.cpf)
   const nome = dados.nome.trim().replace(/\s+/g, " ")
-  const emailSessao = dados.emailSessao.trim().toLowerCase()
+  const emailSessao = dados.contato.email?.trim().toLowerCase() || null
+  const chat = dados.contato.telegramChatId?.trim() || null
+  if (!emailSessao && !chat) return { vinculadas: 0, erro: "Sessão expirada. Confirme o seu e-mail ou o Telegram de novo." }
+  const telefoneFinal = (dados.contato.telefone ?? "").replace(/D/g, "").slice(-4)
+  const rotulo = emailSessao ?? `Telegram, telefone final ${telefoneFinal || "?"}`
   const emailEmpresa = dados.emailEmpresa.trim().toLowerCase()
   if (!validarCpf(cpf)) return { vinculadas: 0, erro: "CPF inválido — confira os números." }
   if (nome.split(" ").filter((p) => p.length > 1).length < 2) {
@@ -289,7 +298,7 @@ export async function vincularPorLinkUnico(dados: {
   const { data } = await admin
     .from("voto_assembleias_aptos")
     .select(
-      "id, cpf, nome_completo, email_corporativo, email_contato, hora_voto, presenca_em, rod_assembleia_id, assembleia_id, conflito_motivo"
+      "id, cpf, nome_completo, email_corporativo, email_contato, telegram_chat_id, hora_voto, presenca_em, rod_assembleia_id, assembleia_id, conflito_motivo"
     )
     .eq("emp_proprietaria_id", emp)
     .or(filtro)
@@ -322,7 +331,7 @@ export async function vincularPorLinkUnico(dados: {
       .from("voto_assembleias_aptos")
       .update({
         cpf_conflito: cpf,
-        conflito_motivo: `Link único (${emailSessao}): ${motivo}`.slice(0, 500),
+        conflito_motivo: `Link único (${rotulo}): ${motivo}`.slice(0, 500),
         conflito_em: new Date().toISOString(),
       })
       .in("id", ids)
@@ -355,9 +364,13 @@ export async function vincularPorLinkUnico(dados: {
       primeiraFalha ??= ERRO_NAO_CONFERE
       continue
     }
-    if (alvo.some((a) => a.email_contato && a.email_contato.toLowerCase() !== emailSessao)) {
-      await marcar(ids, "registro já vinculado a outro e-mail pelo link único.")
-      primeiraFalha ??= "Este registro já foi cadastrado com outro e-mail. Procure o sindicato para conferir."
+    // Já ligado a OUTRA identidade (outro e-mail ou outro Telegram): não troca de dono.
+    const outraIdentidade = (a: AptoCandidato) =>
+      (a.email_contato && a.email_contato.toLowerCase() !== emailSessao) ||
+      (a.telegram_chat_id && a.telegram_chat_id !== chat)
+    if (alvo.some(outraIdentidade)) {
+      await marcar(ids, "registro já vinculado a outro e-mail ou Telegram pelo link único.")
+      primeiraFalha ??= "Este registro já foi cadastrado por outra pessoa ou outro e-mail. Procure o sindicato para conferir."
       continue
     }
     if (alvo.some((a) => a.cpf && limparCpf(a.cpf) !== cpf)) {
@@ -418,7 +431,8 @@ export async function vincularPorLinkUnico(dados: {
         nome_informado: nome,
         nascimento_informado: dados.nascimento,
         dados_informados_em: agora,
-        email_contato: emailSessao,
+        ...(emailSessao ? { email_contato: emailSessao } : {}),
+        ...(chat ? { telegram_chat_id: chat, telegram_vinculado_em: agora } : {}),
         cadastro_canal: CANAL_LINK_UNICO,
         cadastro_em: agora,
         cpf_conflito: null,
@@ -432,6 +446,10 @@ export async function vincularPorLinkUnico(dados: {
       continue
     }
     vinculadas++
+    // Número confirmado pelo Telegram: completa o telefone do registro vazio.
+    if (chat && dados.contato.telefone) {
+      await admin.from("voto_assembleias_aptos").update({ telefone: dados.contato.telefone }).in("id", ids).is("telefone", null)
+    }
     for (const a of alvo) {
       const corp = (a.email_corporativo ?? "").toLowerCase()
       if (corp && corp !== emailSessao) alertar.set(corp, { email: corp, nome: a.nome_completo })
@@ -445,7 +463,7 @@ export async function vincularPorLinkUnico(dados: {
       email: destino.email,
       nome: destino.nome,
       assunto: "Seu cadastro para votação foi feito pelo link único — {ENTIDADE}",
-      html: htmlAlertaCadastro(emailSessao),
+      html: htmlAlertaCadastro(emailSessao ? `no e-mail <strong>${escaparHtml(mascarar(emailSessao))}</strong>` : `pelo <strong>Telegram</strong> (telefone com final ${escaparHtml(telefoneFinal)})`),
     }).catch(() => false)
   }
 
@@ -460,11 +478,11 @@ function mascarar(email: string): string {
   return `${usuario.slice(0, 1)}${"*".repeat(Math.max(usuario.length - 1, 3))}@${dominio}`
 }
 
-function htmlAlertaCadastro(emailSessao: string): string {
+function htmlAlertaCadastro(onde: string): string {
   return [
     tituloEmail("Cadastro para votação"),
     paragrafo(
-      `Você está na lista de aptos a votar de uma votação promovida por {ENTIDADE}. Alguém se identificou como você no <strong>link único de votação</strong> e passou a receber os avisos no e-mail <strong>${escaparHtml(mascarar(emailSessao))}</strong>.`
+      `Você está na lista de aptos a votar de uma votação promovida por {ENTIDADE}. Alguém se identificou como você no <strong>link único de votação</strong> e passou a receber os avisos ${onde}.`
     ),
     paragrafo("Se foi você, não precisa fazer nada — é só votar pelo link único."),
     caixaAviso(

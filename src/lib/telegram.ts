@@ -47,6 +47,11 @@ export async function enviarTelegram(dados: {
   formato?: "HTML" | "MarkdownV2" | null
   /** Botões inline (onda 4, D3): aprovar/devolver sem sair da conversa. */
   botoes?: BotaoTelegram[][]
+  /**
+   * Teclado de resposta (substitui os botões inline): "pedir contato" ou
+   * "remover teclado" — link único de votação (07/10/2026).
+   */
+  teclado?: "pedir_contato" | "remover"
 }): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) return false
@@ -60,7 +65,16 @@ export async function enviarTelegram(dados: {
         parse_mode:
           dados.formato === null ? undefined : (dados.formato ?? "HTML"),
         disable_web_page_preview: true,
-        reply_markup: tecladoInline(dados.botoes),
+        reply_markup:
+          dados.teclado === "pedir_contato"
+            ? {
+                keyboard: [[{ text: "📱 Compartilhar meu número", request_contact: true }]],
+                one_time_keyboard: true,
+                resize_keyboard: true,
+              }
+            : dados.teclado === "remover"
+              ? { remove_keyboard: true }
+              : tecladoInline(dados.botoes),
       }),
     })
     return resposta.ok

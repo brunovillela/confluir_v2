@@ -21,6 +21,9 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/db/resumo-semanal.ts",
   "src/lib/db/hospedagem-avaliacoes.ts",
   "src/lib/db/telegram.ts",
+  // Confirmação do link único pelo bot: o webhook atende todas as entidades
+  // e a tabela não tem política (o token carrega a entidade).
+  "src/lib/db/votacao-telegram.ts",
   "src/lib/api-publica.ts",
   "src/lib/db/webhooks.ts",
   "src/app/api/**",

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/telegram"
 import { gerarTextoIA } from "@/lib/ia"
 import { podeAcessar } from "@/lib/permissoes"
+import { iniciarConfirmacaoPeloBot, PREFIXO_START, registrarContatoPeloBot } from "@/lib/db/votacao-telegram"
 import { enviarTelegram } from "@/lib/telegram"
 import { responderAprovar, tratarCallbackAprovacao, tratarTextoDevolucao } from "@/lib/telegram-aprovacoes"
 import { mensagemFrota } from "@/lib/telegram-frota"
@@ -71,6 +72,18 @@ export async function POST(req: Request): Promise<Response> {
     | Record<string, unknown>
     | undefined
   const chat = msg?.chat as { id?: number | string } | undefined
+
+  // Contato compartilhado (link único de votação): confirma o número.
+  const contato = msg?.contact as { phone_number?: string; user_id?: number; first_name?: string } | undefined
+  if (chat?.id && contato?.phone_number) {
+    try {
+      await tratarContatoVotacao(String(chat.id), contato, (msg?.from as { id?: number } | undefined)?.id)
+    } catch (e) {
+      console.error("Erro no contato do Telegram:", e)
+    }
+    return Response.json({ ok: true })
+  }
+
   const texto = typeof msg?.text === "string" ? msg.text.trim() : ""
   if (!chat?.id || !texto) return Response.json({ ok: true })
 
@@ -82,6 +95,63 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json({ ok: true })
 }
 
+/** /start lu_<token>: liga o token ao chat e pede o número. */
+async function tratarStartVotacao(chatId: string, token: string): Promise<void> {
+  const r = await iniciarConfirmacaoPeloBot(token, chatId)
+  if (r !== "ok") {
+    await enviarTelegram({
+      chatId,
+      texto:
+        r === "expirado"
+          ? "Este link de confirmação expirou (vale 15 minutos). Volte à página de votação e toque de novo em <b>Confirmar pelo Telegram</b>."
+          : "Este link de confirmação não vale mais. Volte à página de votação e toque de novo em <b>Confirmar pelo Telegram</b>.",
+    })
+    return
+  }
+  await enviarTelegram({
+    chatId,
+    texto:
+      "Olá! Para confirmar a sua identidade na votação, toque no botão <b>📱 Compartilhar meu número</b> aqui embaixo.\n\nDepois, volte à página de votação — ela segue sozinha.",
+    teclado: "pedir_contato",
+  })
+}
+
+/** Contato compartilhado: só vale o próprio número. */
+async function tratarContatoVotacao(
+  chatId: string,
+  contato: { phone_number?: string; user_id?: number; first_name?: string },
+  remetenteId: number | undefined
+): Promise<void> {
+  const r = await registrarContatoPeloBot({
+    chatId,
+    telefone: contato.phone_number ?? "",
+    contatoDoProprio: contato.user_id !== undefined && contato.user_id === remetenteId,
+    nome: contato.first_name ?? null,
+  })
+  if (r === null) return
+  if (r === "outro_contato") {
+    await enviarTelegram({
+      chatId,
+      texto: "Esse não é o seu número. Toque em <b>📱 Compartilhar meu número</b> — o botão manda o número desta conta.",
+      teclado: "pedir_contato",
+    })
+    return
+  }
+  if (r === "expirado") {
+    await enviarTelegram({
+      chatId,
+      texto: "A confirmação expirou (vale 15 minutos). Volte à página de votação e toque de novo em <b>Confirmar pelo Telegram</b>.",
+      teclado: "remover",
+    })
+    return
+  }
+  await enviarTelegram({
+    chatId,
+    texto: "✅ Pronto, número confirmado! Volte à página de votação para continuar — ela já segue sozinha.",
+    teclado: "remover",
+  })
+}
+
 function primeiroNome(n: string | null | undefined): string {
   return (n ?? "").trim().split(/\s+/)[0] || "por aí"
 }
@@ -90,6 +160,11 @@ async function tratar(chatId: string, texto: string): Promise<void> {
   // /start [codigo] — vínculo (deep link t.me/<bot>?start=<codigo>).
   if (texto === "/start" || texto.startsWith("/start ")) {
     const codigo = texto.split(/\s+/)[1]
+    // Link único de votação: t.me/<bot>?start=lu_<token>.
+    if (codigo?.startsWith(PREFIXO_START)) {
+      await tratarStartVotacao(chatId, codigo.slice(PREFIXO_START.length))
+      return
+    }
     if (!codigo) {
       await enviarTelegram({
         chatId,

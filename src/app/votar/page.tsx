@@ -16,7 +16,9 @@ import {
   type VotacaoAberta,
 } from "@/lib/db/votacao-link-unico"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { sessaoTelegram, telefoneMascarado } from "@/lib/sessao-votacao-telegram"
 import { createClient } from "@/lib/supabase/server"
+import { nomeDoBot, telegramConfigurado } from "@/lib/telegram"
 
 import { abrirCedulaLinkUnico, sairLinkUnico } from "./actions"
 import { CadastroForm } from "./cadastro-form"
@@ -44,9 +46,15 @@ export default async function VotacoesPage({
   } = await supabase.auth.getUser()
   const identidade = user ? await identidadeDaConta(user.id) : null
   const cpf = identidade?.tipo === "filiado" ? identidade.cpf : null
+  // Sem conta de e-mail: quem confirmou pelo Telegram (cookie assinado).
+  const tg = user ? null : await sessaoTelegram()
+  const logado = Boolean(user || tg)
   const vinculos = user
     ? await vinculosDaSessao({ email: user.email ?? null, cpf }, votacoes)
-    : new Map<string, VinculoDaSessao>()
+    : tg
+      ? await vinculosDaSessao({ email: null, cpf: null, telegramChatId: tg.chatId }, votacoes)
+      : new Map<string, VinculoDaSessao>()
+  const telegramDisponivel = telegramConfigurado() && Boolean(nomeDoBot())
   const faltaVinculo = votacoes.some((v) => !v.somenteFiliados && !vinculos.has(v.assembleiaId))
 
   return (
@@ -68,21 +76,31 @@ export default async function VotacoesPage({
           </Alert>
         )}
 
-        {!user ? (
+        {!logado ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Para votar</CardTitle>
-              <CardDescription>Primeiro, confirme um e-mail que você recebe.</CardDescription>
+              <CardDescription>
+                Primeiro, confirme um e-mail que você recebe{telegramDisponivel ? " — ou use o Telegram" : ""}.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <EntrarForm />
+              <EntrarForm telegramDisponivel={telegramDisponivel} />
             </CardContent>
           </Card>
         ) : (
           <>
             <div className="bg-background flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3 text-sm">
               <span>
-                Você entrou como <strong>{mascararEmail(user.email ?? "")}</strong>
+                {user ? (
+                  <>
+                    Você entrou como <strong>{mascararEmail(user.email ?? "")}</strong>
+                  </>
+                ) : (
+                  <>
+                    Você entrou pelo <strong>Telegram</strong> (telefone {telefoneMascarado(tg?.telefone ?? "")})
+                  </>
+                )}
               </span>
               <form action={sairLinkUnico}>
                 <Button type="submit" variant="ghost" size="sm">
@@ -120,7 +138,7 @@ export default async function VotacoesPage({
           </p>
         )}
         {votacoes.map((v) => (
-          <CartaoVotacao key={v.assembleiaId} votacao={v} vinculo={vinculos.get(v.assembleiaId)} logado={Boolean(user)} />
+          <CartaoVotacao key={v.assembleiaId} votacao={v} vinculo={vinculos.get(v.assembleiaId)} logado={logado} />
         ))}
       </div>
       <p className="text-muted-foreground max-w-xl text-center text-xs text-balance">
@@ -206,7 +224,7 @@ function Situacao({
       </p>
     )
   }
-  if (!logado) return <p className="text-muted-foreground">Confirme o seu e-mail acima para votar.</p>
+  if (!logado) return <p className="text-muted-foreground">Confirme o seu e-mail (ou o Telegram) acima para votar.</p>
   if (!vinculo) return <p className="text-muted-foreground">Seu nome ainda não foi encontrado na lista desta votação.</p>
   if (vinculo.jaVotou) {
     return (

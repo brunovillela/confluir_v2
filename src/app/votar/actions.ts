@@ -120,6 +120,36 @@ export async function confirmarCodigoLinkUnico(
   redirect("/votar")
 }
 
+/**
+ * Quem está na sessão do link único: a conta do e-mail confirmado (código)
+ * ou o Telegram confirmado (cookie assinado). Nunca vem do formulário.
+ */
+async function identidadeLinkUnico(): Promise<{
+  email: string | null
+  cpf: string | null
+  telegram: { chatId: string; telefone: string } | null
+  userId: string | null
+  appMetadata: Record<string, unknown>
+} | null> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user?.email) {
+    const identidade = await identidadeDaConta(user.id)
+    return {
+      email: user.email,
+      cpf: identidade?.tipo === "filiado" ? identidade.cpf : null,
+      telegram: null,
+      userId: user.id,
+      appMetadata: (user.app_metadata ?? {}) as Record<string, unknown>,
+    }
+  }
+  const { sessaoTelegram } = await import("@/lib/sessao-votacao-telegram")
+  const tg = await sessaoTelegram()
+  return tg ? { email: null, cpf: null, telegram: tg, userId: null, appMetadata: {} } : null
+}
+
 export type EstadoCadastroLinkUnico = EstadoForm & {
   valores?: { cpf: string; nome: string; nascimento: string; email_empresa: string }
   tentativa?: number
@@ -141,21 +171,23 @@ export async function cadastrarNoLinkUnico(
     tentativa: (prev.tentativa ?? 0) + 1,
   })
 
-  // O e-mail vem da SESSÃO (código conferido), nunca do formulário.
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user?.email) return falha("Sessão expirada. Confirme o seu e-mail de novo.")
+  // A identidade vem da SESSÃO (código ou Telegram conferidos), nunca do formulário.
+  const quem = await identidadeLinkUnico()
+  if (!quem) return falha("Sessão expirada. Confirme o seu e-mail ou o Telegram de novo.")
 
-  const falhas = Number((user.app_metadata as Record<string, unknown> | undefined)?.link_unico_falhas ?? 0)
+  const { falhasDoChat, registrarFalhaDoChat } = await import("@/lib/db/votacao-telegram")
+  const falhas = quem.telegram
+    ? await falhasDoChat(quem.telegram.chatId)
+    : Number(quem.appMetadata.link_unico_falhas ?? 0)
   if (falhas >= MAX_FALHAS) {
     return falha("Muitas tentativas que não conferem. Procure o sindicato para liberar o seu voto.")
   }
 
   const { vincularPorLinkUnico } = await import("@/lib/db/votacao-link-unico")
   const r = await vincularPorLinkUnico({
-    emailSessao: user.email,
+    contato: quem.telegram
+      ? { telegramChatId: quem.telegram.chatId, telefone: quem.telegram.telefone }
+      : { email: quem.email },
     cpf: valores.cpf,
     nome: valores.nome,
     nascimento: valores.nascimento,
@@ -164,12 +196,16 @@ export async function cadastrarNoLinkUnico(
   if (r.erro) {
     // Conta só a tentativa que chegou à conferência (erro de formato não conta).
     if (r.naoConferiu) {
-      const admin = await createAdminClient()
-      await admin.auth.admin
-        .updateUserById(user.id, {
-          app_metadata: { ...(user.app_metadata ?? {}), link_unico_falhas: falhas + 1 },
-        })
-        .catch(() => undefined)
+      if (quem.telegram) {
+        await registrarFalhaDoChat(quem.telegram.chatId)
+      } else if (quem.userId) {
+        const admin = await createAdminClient()
+        await admin.auth.admin
+          .updateUserById(quem.userId, {
+            app_metadata: { ...quem.appMetadata, link_unico_falhas: falhas + 1 },
+          })
+          .catch(() => undefined)
+      }
     }
     return falha(r.erro)
   }
@@ -179,18 +215,15 @@ export async function cadastrarNoLinkUnico(
 /** Abre a cédula de uma votação pela sessão do apto (a mesma do link pessoal). */
 export async function abrirCedulaLinkUnico(formData: FormData): Promise<void> {
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user || !assembleiaId) redirect("/votar")
+  const quem = await identidadeLinkUnico()
+  if (!quem || !assembleiaId) redirect("/votar")
 
-  const identidade = await identidadeDaConta(user.id)
-  const cpf = identidade?.tipo === "filiado" ? identidade.cpf : null
   const { votacoesAbertas, vinculosDaSessao } = await import("@/lib/db/votacao-link-unico")
   const votacao = (await votacoesAbertas()).find((v) => v.assembleiaId === assembleiaId)
   if (!votacao) redirect("/votar")
-  const vinculo = (await vinculosDaSessao({ email: user.email ?? null, cpf }, [votacao])).get(assembleiaId)
+  const vinculo = (
+    await vinculosDaSessao({ email: quem.email, cpf: quem.cpf, telegramChatId: quem.telegram?.chatId ?? null }, [votacao])
+  ).get(assembleiaId)
   if (!vinculo) redirect("/votar")
 
   const { abrirSessaoPorLink } = await import("@/lib/acesso-eleitor")
@@ -203,5 +236,49 @@ export async function sairLinkUnico(): Promise<void> {
   await supabase.auth.signOut()
   const { encerrarSessaoPorLink } = await import("@/lib/acesso-eleitor")
   await encerrarSessaoPorLink()
+  const { encerrarSessaoTelegram } = await import("@/lib/sessao-votacao-telegram")
+  await encerrarSessaoTelegram()
   redirect("/votar")
+}
+
+// ── Confirmação pelo Telegram (alternativa ao código por e-mail) ────────────
+
+export type EstadoTelegram = {
+  link?: string
+  erro?: string
+}
+
+/** Gera o token e devolve o link t.me/<bot>?start=lu_<token>. */
+export async function iniciarTelegramLinkUnico(): Promise<EstadoTelegram> {
+  const { linkVinculo, telegramConfigurado } = await import("@/lib/telegram")
+  if (!telegramConfigurado()) return { erro: "A confirmação pelo Telegram não está disponível agora." }
+  const { tenantAtual } = await import("@/lib/tenant")
+  const { criarConfirmacaoTelegram, PREFIXO_START } = await import("@/lib/db/votacao-telegram")
+  const token = await criarConfirmacaoTelegram(await tenantAtual())
+  if (!token) return { erro: "A confirmação pelo Telegram não está disponível agora." }
+  const link = linkVinculo(`${PREFIXO_START}${token}`)
+  if (!link) return { erro: "A confirmação pelo Telegram não está disponível agora." }
+  const { guardarTokenPendente } = await import("@/lib/sessao-votacao-telegram")
+  await guardarTokenPendente(token)
+  return { link }
+}
+
+/**
+ * Consulta da página (a cada poucos segundos): confirmou no Telegram? Abre a
+ * sessão e a página recarrega. O token vem do cookie, nunca do cliente.
+ */
+export async function consultarTelegramLinkUnico(): Promise<{
+  situacao: "pendente" | "aguardando_numero" | "expirado" | "invalido" | "confirmado"
+}> {
+  const { tokenPendente, abrirSessaoTelegram } = await import("@/lib/sessao-votacao-telegram")
+  const token = await tokenPendente()
+  if (!token) return { situacao: "invalido" }
+  const { tenantAtual } = await import("@/lib/tenant")
+  const { consumirConfirmacaoTelegram } = await import("@/lib/db/votacao-telegram")
+  const r = await consumirConfirmacaoTelegram(token, await tenantAtual())
+  if (r.situacao === "confirmado") {
+    await abrirSessaoTelegram({ chatId: r.chatId, telefone: r.telefone })
+    return { situacao: "confirmado" }
+  }
+  return { situacao: r.situacao }
 }

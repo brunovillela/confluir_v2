@@ -1,7 +1,8 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { Building2, Loader2, Mail, Send } from "lucide-react"
+import { useActionState, useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { Building2, Loader2, Mail, MessageCircle, Send } from "lucide-react"
 
 import { Turnstile } from "@/components/auth/turnstile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -11,7 +12,9 @@ import { Label } from "@/components/ui/label"
 
 import {
   confirmarCodigoLinkUnico,
+  consultarTelegramLinkUnico,
   enviarLinkAoEmailDaEmpresa,
+  iniciarTelegramLinkUnico,
   solicitarCodigoLinkUnico,
   type EstadoEntrar,
 } from "./actions"
@@ -42,11 +45,100 @@ function OndeProcurar({ assunto }: { assunto: string }) {
 }
 
 /**
+ * Confirmação pelo Telegram: gera o link do bot, e a página consulta a cada
+ * 3 s até a pessoa compartilhar o número lá — aí recarrega já identificada.
+ */
+function ConfirmarTelegram({ destaque = false }: { destaque?: boolean }) {
+  const router = useRouter()
+  const [link, setLink] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+  const [situacao, setSituacao] = useState<string>("pendente")
+  const [gerando, iniciar] = useTransition()
+
+  useEffect(() => {
+    if (!link) return
+    const timer = setInterval(async () => {
+      const r = await consultarTelegramLinkUnico().catch(() => null)
+      if (!r) return
+      setSituacao(r.situacao)
+      if (r.situacao === "confirmado") {
+        clearInterval(timer)
+        router.refresh()
+      } else if (r.situacao === "expirado" || r.situacao === "invalido") {
+        clearInterval(timer)
+      }
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [link, router])
+
+  const gerar = () =>
+    iniciar(async () => {
+      setErro(null)
+      setSituacao("pendente")
+      const r = await iniciarTelegramLinkUnico()
+      if (r.erro || !r.link) setErro(r.erro ?? "Não foi possível abrir o Telegram agora.")
+      else {
+        setLink(r.link)
+        window.open(r.link, "_blank", "noopener")
+      }
+    })
+
+  if (!link || situacao === "expirado" || situacao === "invalido") {
+    return (
+      <div className="grid gap-2">
+        {erro && (
+          <Alert variant="destructive">
+            <AlertDescription>{erro}</AlertDescription>
+          </Alert>
+        )}
+        {(situacao === "expirado" || situacao === "invalido") && link && (
+          <p className="text-muted-foreground text-xs">A confirmação expirou. Toque de novo para gerar outra.</p>
+        )}
+        <Button type="button" variant={destaque ? "default" : "outline"} onClick={gerar} disabled={gerando}>
+          {gerando ? <Loader2 className="animate-spin" /> : <MessageCircle />}
+          Confirmar pelo Telegram
+        </Button>
+        <p className="text-muted-foreground text-xs">
+          Não depende de e-mail: você confirma o seu número no Telegram e volta para cá.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-muted/50 grid gap-2 rounded-md p-3 text-sm">
+      <p className="font-medium">No Telegram:</p>
+      <ol className="text-muted-foreground list-decimal pl-5 text-xs">
+        <li>
+          Abra a conversa com o bot do sindicato —{" "}
+          <a href={link} target="_blank" rel="noreferrer" className="text-primary font-medium underline underline-offset-4">
+            toque aqui se ela não abriu
+          </a>
+          ;
+        </li>
+        <li>
+          aperte <strong>Iniciar</strong>;
+        </li>
+        <li>
+          toque em <strong>📱 Compartilhar meu número</strong>.
+        </li>
+      </ol>
+      <p className="text-muted-foreground flex items-center gap-2 text-xs">
+        <Loader2 className="size-3 animate-spin" />
+        {situacao === "aguardando_numero"
+          ? "Conversa aberta — falta compartilhar o número."
+          : "Esperando a confirmação no Telegram… esta página segue sozinha."}
+      </p>
+    </div>
+  )
+}
+
+/**
  * Passo 1 do link único: confirmar um e-mail que a pessoa RECEBE. Antes de
  * mandar o código, barra o e-mail da empresa (o filtro dela retém o código) e
  * confere erro de digitação no domínio.
  */
-export function EntrarForm() {
+export function EntrarForm({ telegramDisponivel = false }: { telegramDisponivel?: boolean }) {
   const [email, setEmail] = useState("")
   const [pedido, pedir, pedindo] = useActionState(
     async (prev: EstadoEntrar, formData: FormData) => {
@@ -108,8 +200,10 @@ export function EntrarForm() {
         </Button>
         <OndeProcurar assunto="Confluir | Seu código de acesso" />
         <p className="text-muted-foreground text-xs">
-          Ainda nada? Recarregue a página e tente outro e-mail pessoal, ou fale com o sindicato.
+          Ainda nada? {telegramDisponivel ? "Confirme pelo Telegram abaixo, " : ""}recarregue a página e tente outro
+          e-mail pessoal, ou fale com o sindicato.
         </p>
+        {telegramDisponivel && <ConfirmarTelegram />}
       </form>
     )
   }
@@ -187,6 +281,13 @@ export function EntrarForm() {
           Receber código
         </Button>
       </form>
+
+      {telegramDisponivel && (
+        <div className="grid gap-2 border-t pt-4">
+          <p className="text-muted-foreground text-center text-xs">ou</p>
+          <ConfirmarTelegram destaque={Boolean(corporativo)} />
+        </div>
+      )}
 
       {corporativo?.temLink && (
         <form action={mandarLink} className="grid gap-2 border-t pt-4">
