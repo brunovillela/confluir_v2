@@ -131,11 +131,12 @@ export async function aprovarPrestacao(
   }
   const observacao =
     String(formData.get("observacao_financeiro") ?? "").trim() || null
-  // Não fecha a conta com despesa sem reconhecimento (ou não transferida).
+  // Não fecha a conta com despesa ainda a reconhecer (a não reconhecida já
+  // saiu do saldo e espera a transferência de quem lançou).
   const abertos = await reconhecimentosEmAberto(contaId)
-  if (abertos.pendentes || abertos.naoReconhecidas) {
+  if (abertos.pendentes) {
     return {
-      erro: `A conta tem ${abertos.pendentes + abertos.naoReconhecidas} despesa(s) sem reconhecimento resolvido — o responsável precisa reconhecer, ou quem lançou transferir, antes de fechar.`,
+      erro: `A conta tem ${abertos.pendentes} despesa(s) esperando o reconhecimento do responsável — ele precisa avaliar antes de fechar.`,
     }
   }
 
@@ -152,10 +153,10 @@ export async function aprovarPrestacao(
 
   const { data: movs } = await admin
     .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor")
+    .select("tipo, situacao, valor, reconhecimento")
     .eq("conta_id", contaId)
   const saldo = calcularSaldo(
-    (movs ?? []) as { tipo: string; situacao: string; valor: number }[]
+    (movs ?? []) as { tipo: string; situacao: string; valor: number; reconhecimento: string | null }[]
   )
 
   const agora = new Date().toISOString()

@@ -78,13 +78,18 @@ function tabelaAusente(erro: { code?: string } | null): boolean {
   return erro?.code === "PGRST205" || erro?.code === "42P01"
 }
 
-/** Saldo disponível = créditos confirmados − débitos. */
+/**
+ * Saldo disponível = créditos confirmados − débitos. Despesa que o
+ * responsável NÃO reconheceu não sai do caixa dele (o valor volta) — fica
+ * esperando quem lançou transferir para a conta certa.
+ */
 export function calcularSaldo(
-  movs: { tipo: string; situacao: string; valor: number }[]
+  movs: { tipo: string; situacao: string; valor: number; reconhecimento?: string | null }[]
 ): number {
   let saldo = 0
   for (const m of movs) {
     if (m.situacao !== "confirmada") continue
+    if (m.reconhecimento === "nao_reconhecida") continue
     if (m.tipo === "aporte") saldo += Number(m.valor)
     else saldo -= Number(m.valor)
   }
@@ -149,7 +154,7 @@ export async function listarContasCaixa(): Promise<{
   const [movsRes, prestRes, ocorRes, nomes] = await Promise.all([
     admin
       .from("caixa_movimentacoes")
-      .select("conta_id, tipo, situacao, valor")
+      .select("conta_id, tipo, situacao, valor, reconhecimento")
       .in("conta_id", ids),
     admin
       .from("caixa_prestacoes")

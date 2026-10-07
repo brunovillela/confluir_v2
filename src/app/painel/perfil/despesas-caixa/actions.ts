@@ -24,7 +24,7 @@ export async function avaliarDespesaCaixaAction(_prev: EstadoForm, fd: FormData)
   const { erro } = await avaliarDespesaCaixa(id, String(sessao.usuario.id), reconhece, motivo)
   if (erro) return { erro }
   revalidar()
-  return { ok: reconhece ? "Despesa reconhecida." : "Despesa não reconhecida — quem lançou foi avisado para transferir." }
+  return { ok: reconhece ? "Despesa reconhecida." : "Despesa não reconhecida — o valor voltou ao seu saldo e quem lançou foi avisado para transferir." }
 }
 
 /** Quem lançou (ou a administração do caixa) transfere a despesa para a conta certa. */

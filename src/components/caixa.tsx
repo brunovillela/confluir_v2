@@ -89,6 +89,8 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
           const assinado = valorAssinado(m)
           const pendente = m.situacao === "pendente"
           const cancelada = m.situacao === "cancelada"
+          // Não reconhecida pelo responsável: fora do saldo (o valor voltou).
+          const foraDoSaldo = !cancelada && m.reconhecimento === "nao_reconhecida"
           return (
             <TableRow key={m.id} className={cancelada ? "opacity-50" : ""}>
               <TableCell className="whitespace-nowrap tabular-nums">
@@ -121,7 +123,7 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
                       className="border-destructive/40 text-destructive"
                       title={m.reconhecimentoMotivo ?? undefined}
                     >
-                      Não reconhecida
+                      Não reconhecida — fora do saldo
                     </Badge>
                   )}
                   {!cancelada && m.reconhecimento === "reconhecida" && (
@@ -140,8 +142,10 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
               <TableCell
                 className={cn(
                   "text-right whitespace-nowrap tabular-nums",
+                  foraDoSaldo && "text-muted-foreground line-through",
                   !pendente &&
                     !cancelada &&
+                    !foraDoSaldo &&
                     (assinado >= 0
                       ? "text-success-fg"
                       : "text-destructive")

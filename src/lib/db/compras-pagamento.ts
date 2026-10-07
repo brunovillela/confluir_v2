@@ -217,13 +217,14 @@ export async function saldoCaixaAberta(contaId: string): Promise<number | null> 
   if (!conta) return null
   const { data: movs } = await admin
     .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor")
+    .select("tipo, situacao, valor, reconhecimento")
     .eq("conta_id", contaId)
   return calcularSaldo(
     (movs ?? []).map((m) => ({
       tipo: String(m.tipo),
       situacao: String(m.situacao),
       valor: Number(m.valor),
+      reconhecimento: (m.reconhecimento as string | null) ?? null,
     }))
   )
 }

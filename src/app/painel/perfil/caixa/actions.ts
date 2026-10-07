@@ -97,10 +97,10 @@ export async function registrarCompra(
   const admin = await createAdminClient()
   const { data: movs } = await admin
     .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor")
+    .select("tipo, situacao, valor, reconhecimento")
     .eq("conta_id", conta.id)
   const saldo = calcularSaldo(
-    (movs ?? []) as { tipo: string; situacao: string; valor: number }[]
+    (movs ?? []) as { tipo: string; situacao: string; valor: number; reconhecimento: string | null }[]
   )
   if (valor > saldo) {
     return {

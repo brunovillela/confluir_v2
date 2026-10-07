@@ -62,8 +62,8 @@ export default async function DespesasCaixaPage() {
         <CardHeader>
           <CardTitle className="text-base">Lançadas na sua conta por outras pessoas</CardTitle>
           <CardDescription>
-            Reconheça se o dinheiro saiu mesmo do seu caixa. Se não reconhecer, diga o motivo: quem lançou é avisado para
-            transferir a despesa para a conta certa.
+            Reconheça se o dinheiro saiu mesmo do seu caixa. Se não reconhecer, diga o motivo: o valor volta ao seu saldo
+            e quem lançou é avisado para transferir a despesa para a conta certa.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">

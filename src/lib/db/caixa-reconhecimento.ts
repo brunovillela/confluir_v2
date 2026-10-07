@@ -222,8 +222,8 @@ export async function reconhecimentoDaOrdem(ordemId: string): Promise<{ situacao
 /**
  * O que ainda não foi resolvido numa conta: despesas esperando o
  * reconhecimento do responsável e despesas não reconhecidas que ainda não
- * foram transferidas. Enquanto houver, a conta não presta contas — o saldo
- * dela ainda não é o certo.
+ * foram transferidas. Só as primeiras travam a prestação de contas — a não
+ * reconhecida já não pesa no saldo da conta (o valor voltou).
  */
 export async function reconhecimentosEmAberto(contaId: string): Promise<{ pendentes: number; naoReconhecidas: number }> {
   const admin = await createAdminClient()
@@ -243,15 +243,8 @@ export async function reconhecimentosEmAberto(contaId: string): Promise<{ penden
 
 /** Mensagem do bloqueio da prestação de contas (null = pode prestar). */
 export function bloqueioPrestacao(abertos: { pendentes: number; naoReconhecidas: number }): string | null {
-  const partes: string[] = []
-  if (abertos.pendentes) {
-    partes.push(`${abertos.pendentes} despesa(s) lançada(s) por outras pessoas esperando o seu reconhecimento`)
-  }
-  if (abertos.naoReconhecidas) {
-    partes.push(`${abertos.naoReconhecidas} despesa(s) não reconhecida(s) esperando a transferência para a conta certa`)
-  }
-  return partes.length
-    ? `Antes de prestar contas, resolva: ${partes.join(" e ")}. Veja em Meu perfil → Despesas em caixas.`
+  return abertos.pendentes
+    ? `Antes de prestar contas, avalie ${abertos.pendentes} despesa(s) lançada(s) por outras pessoas esperando o seu reconhecimento. Veja em Meu perfil → Despesas em caixas.`
     : null
 }
 
@@ -354,8 +347,18 @@ export async function transferirDespesaCaixa(
     .maybeSingle()
   if (!nova || nova.ativa !== true || nova.situacao !== "aberta") return { erro: "A conta de destino precisa estar aberta." }
   const valor = Number(mov.valor)
-  const { data: movsNova } = await admin.from("caixa_movimentacoes").select("tipo, situacao, valor").eq("conta_id", novaContaId)
-  const saldo = calcularSaldo((movsNova ?? []).map((m) => ({ tipo: String(m.tipo), situacao: String(m.situacao), valor: Number(m.valor) })))
+  const { data: movsNova } = await admin
+    .from("caixa_movimentacoes")
+    .select("tipo, situacao, valor, reconhecimento")
+    .eq("conta_id", novaContaId)
+  const saldo = calcularSaldo(
+    (movsNova ?? []).map((m) => ({
+      tipo: String(m.tipo),
+      situacao: String(m.situacao),
+      valor: Number(m.valor),
+      reconhecimento: (m.reconhecimento as string | null) ?? null,
+    }))
+  )
   if (saldo < valor) return { erro: `A conta "${nova.nome}" não tem saldo para a despesa (${formatarMoeda(saldo)}).` }
 
   const contaAntiga = await contaComResponsavel(String(mov.conta_id))
