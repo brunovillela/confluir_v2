@@ -37,7 +37,7 @@ import {
   RecebimentoForm,
   RegistrarCompraForm,
 } from "./processo-forms"
-import { NotaDoPagamentoIcone, NovoCodigoPix, TrocarNotaFiscal } from "./ajustes-pagamento"
+import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 
 export const metadata: Metadata = {
   title: "Processo de aquisição — Confluir",
@@ -130,7 +130,7 @@ function LinhaOrdem({
           </span>
         )}
         {podeAjustar && (
-          <NotaDoPagamentoIcone processoId={processoId} ordemId={ordem.id} temNota={!!ordem.notaFiscal} />
+          <NotaFiscalIcone processoId={processoId} alvo="pagamento" id={ordem.id} temNota={!!ordem.notaFiscal} />
         )}
       </div>
     </div>
@@ -587,7 +587,7 @@ export default async function ProcessoCompraPage({
                   )}
                 </div>
               </div>
-              <p className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 text-xs">
+              <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 text-xs">
                 {f.forma_pagamento && <span>{f.forma_pagamento}</span>}
                 {f.data_compra && (
                   <span>comprado em {formatarData(f.data_compra)}</span>
@@ -614,7 +614,15 @@ export default async function ProcessoCompraPage({
                     RPA nº {rpaPorFornecimento.get(f.id)!.numero ?? "—"}
                   </Link>
                 )}
-              </p>
+                {podeAjustar && (
+                  <NotaFiscalIcone
+                    processoId={processo.id}
+                    alvo="compra"
+                    id={f.id}
+                    temNota={!!f.nota_fiscal_url}
+                  />
+                )}
+              </div>
               {emitirRpa.has(f.id) && (
                 <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
                   <span className="text-muted-foreground">
@@ -637,16 +645,6 @@ export default async function ProcessoCompraPage({
                       Emitir RPA
                     </Link>
                   </Button>
-                </div>
-              )}
-              {podeAjustar && (
-                <div className="mt-2">
-                  <TrocarNotaFiscal
-                    processoId={processo.id}
-                    alvo="compra"
-                    id={f.id}
-                    temNota={!!f.nota_fiscal_url}
-                  />
                 </div>
               )}
 
