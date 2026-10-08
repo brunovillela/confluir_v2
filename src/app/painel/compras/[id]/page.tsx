@@ -37,7 +37,7 @@ import {
   RecebimentoForm,
   RegistrarCompraForm,
 } from "./processo-forms"
-import { NovoCodigoPix, TrocarNotaFiscal } from "./ajustes-pagamento"
+import { NotaDoPagamentoIcone, NovoCodigoPix, TrocarNotaFiscal } from "./ajustes-pagamento"
 
 export const metadata: Metadata = {
   title: "Processo de aquisição — Confluir",
@@ -129,14 +129,14 @@ function LinhaOrdem({
               : ""}
           </span>
         )}
+        {podeAjustar && (
+          <NotaDoPagamentoIcone processoId={processoId} ordemId={ordem.id} temNota={!!ordem.notaFiscal} />
+        )}
       </div>
     </div>
-    {podeAjustar && (
+    {podeAjustar && pixTrocavel && (
       <div className="flex flex-wrap items-start gap-2">
-        {pixTrocavel && (
-          <NovoCodigoPix processoId={processoId} ordemId={ordem.id} finalAtual={ordem.pixCodigoFinal ?? null} />
-        )}
-        <TrocarNotaFiscal processoId={processoId} alvo="pagamento" id={ordem.id} temNota={!!ordem.notaFiscal} />
+        <NovoCodigoPix processoId={processoId} ordemId={ordem.id} finalAtual={ordem.pixCodigoFinal ?? null} />
       </div>
     )}
     </div>
@@ -564,8 +564,14 @@ export default async function ProcessoCompraPage({
             </Alert>
           )}
 
+          {/* Dois grupos por fornecimento — o que foi comprado (e recebido) e
+              os pagamentos dele — para não confundir um com o outro. */}
           {fornecimentosComUrl.map((f, i) => (
-            <div key={f.id} className="border-border rounded-md border p-4">
+            <section key={f.id} className="grid gap-2">
+            <div className="border-border rounded-md border p-4">
+              <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+                Fornecimento
+              </p>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
                   Fornecimento {i + 1} — {f.fornecedorNome ?? "(sem fornecedor)"}
@@ -645,59 +651,6 @@ export default async function ProcessoCompraPage({
               )}
 
               <div className="mt-3 grid gap-3">
-                {f.pagamentos.map((o) => (
-                  <LinhaOrdem
-                    key={o.id}
-                    ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
-                    processoId={processo.id}
-                    podeAjustar={podeAjustar}
-                    mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
-                  />
-                ))}
-                {(() => {
-                  // Vários pagamentos por fornecimento: o que falta lançar em ordens.
-                  const lancado = f.pagamentos
-                    .filter((o) => o.situacao !== "Cancelada")
-                    .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
-                  const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
-                  const falta = restante === null || restante > 0.005
-                  const excedeu = restante !== null && restante < -0.005
-                  return (
-                    <>
-                      {f.pagamentos.length > 0 && f.valor !== null && !excedeu && (
-                        <p className="text-muted-foreground text-xs">
-                          {f.pagamentos.length} pagamento{f.pagamentos.length === 1 ? "" : "s"} lançado
-                          {f.pagamentos.length === 1 ? "" : "s"}: {formatarMoeda(lancado)} de {formatarMoeda(f.valor)}
-                          {falta && restante !== null ? ` — falta lançar ${formatarMoeda(restante)}` : " — valor todo lançado"}
-                        </p>
-                      )}
-                      {excedeu && f.valor !== null && (
-                        <Alert variant="warning">
-                          <AlertDescription>
-                            As cobranças somam <strong>{formatarMoeda(lancado)}</strong>, acima do valor da compra (
-                            {formatarMoeda(f.valor)}) em <strong>{formatarMoeda(-restante!)}</strong>. As ordens levam o
-                            apontamento na auditoria.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      {operavel ? (
-                        <GerarOrdemForm
-                          processoId={processo.id}
-                          fornecimentoId={f.id}
-                          valorRestante={falta ? restante : null}
-                          novo={f.pagamentos.length > 0}
-                          fornecedorId={f.fornecedor_id ?? ""}
-                          formaPadrao={f.forma_pagamento}
-                          cartoes={cartoes}
-                          caixas={caixas}
-                        />
-                      ) : f.pagamentos.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
-                      ) : null}
-                    </>
-                  )
-                })()}
-
                 {f.recebido ? (
                   <p className="text-muted-foreground text-sm">
                     Recebido
@@ -727,6 +680,71 @@ export default async function ProcessoCompraPage({
                 )}
               </div>
             </div>
+
+            <div className="bg-muted/30 border-border rounded-md border p-4">
+                {(() => {
+                  // Vários pagamentos por fornecimento: o que falta lançar em ordens.
+                  const lancado = f.pagamentos
+                    .filter((o) => o.situacao !== "Cancelada")
+                    .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
+                  const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
+                  const falta = restante === null || restante > 0.005
+                  const excedeu = restante !== null && restante < -0.005
+                  return (
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                          Pagamentos do fornecimento {i + 1}
+                        </p>
+                        {f.pagamentos.length > 0 && f.valor !== null && !excedeu && (
+                          <p className="text-muted-foreground text-xs">
+                            {formatarMoeda(lancado)} de {formatarMoeda(f.valor)}
+                            {falta && restante !== null ? ` — falta lançar ${formatarMoeda(restante)}` : " — valor todo lançado"}
+                          </p>
+                        )}
+                      </div>
+                      {f.pagamentos.length > 0 && (
+                        <div className="divide-border grid divide-y">
+                          {f.pagamentos.map((o) => (
+                            <div key={o.id} className="py-2 first:pt-0 last:pb-0">
+                              <LinhaOrdem
+                                ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
+                                processoId={processo.id}
+                                podeAjustar={podeAjustar}
+                                mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {excedeu && f.valor !== null && (
+                        <Alert variant="warning">
+                          <AlertDescription>
+                            As cobranças somam <strong>{formatarMoeda(lancado)}</strong>, acima do valor da compra (
+                            {formatarMoeda(f.valor)}) em <strong>{formatarMoeda(-restante!)}</strong>. As ordens levam o
+                            apontamento na auditoria.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      {operavel ? (
+                        <GerarOrdemForm
+                          processoId={processo.id}
+                          fornecimentoId={f.id}
+                          valorRestante={falta ? restante : null}
+                          novo={f.pagamentos.length > 0}
+                          fornecedorId={f.fornecedor_id ?? ""}
+                          formaPadrao={f.forma_pagamento}
+                          cartoes={cartoes}
+                          caixas={caixas}
+                        />
+                      ) : f.pagamentos.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
+                      ) : null}
+                    </div>
+                  )
+                })()}
+            </div>
+            </section>
           ))}
 
           {avulsasComUrl.length > 0 && (

@@ -1,12 +1,13 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { FileUp, Loader2, QrCode } from "lucide-react"
+import { useActionState, useRef, useState } from "react"
+import { Check, FileUp, Loader2, QrCode } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { trocarCodigoPixAction, trocarNotaFiscalAction } from "./actions"
 
@@ -71,6 +72,64 @@ export function NovoCodigoPix({
           Fechar
         </Button>
       </div>
+    </form>
+  )
+}
+
+/**
+ * Nota fiscal específica de um pagamento, em forma de ícone: a descrição
+ * aparece no hover e o clique abre o seletor de arquivo — escolhido, sobe
+ * na hora.
+ */
+export function NotaDoPagamentoIcone({
+  processoId,
+  ordemId,
+  temNota,
+}: {
+  processoId: string
+  ordemId: string
+  temNota: boolean
+}) {
+  const [estado, acao, pendente] = useActionState(trocarNotaFiscalAction, {})
+  const formRef = useRef<HTMLFormElement>(null)
+  const arquivoRef = useRef<HTMLInputElement>(null)
+  const descricao = temNota
+    ? "Trocar a nota fiscal deste pagamento (a anterior fica na trilha da ordem)"
+    : "Incluir a nota fiscal específica deste pagamento"
+
+  return (
+    <form ref={formRef} action={acao} className="inline-flex items-center gap-1">
+      <input type="hidden" name="processo_id" value={processoId} />
+      <input type="hidden" name="alvo" value="pagamento" />
+      <input type="hidden" name="id" value={ordemId} />
+      <input
+        ref={arquivoRef}
+        type="file"
+        name="nota_fiscal"
+        accept=".pdf,.jpg,.jpeg,.png,.webp"
+        className="hidden"
+        onChange={(e) => {
+          if (e.currentTarget.files?.length) formRef.current?.requestSubmit()
+        }}
+      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label={descricao}
+            disabled={pendente}
+            onClick={() => arquivoRef.current?.click()}
+          >
+            {pendente ? <Loader2 className="animate-spin" /> : <FileUp />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{descricao} — PDF ou imagem, até 4 MB</TooltipContent>
+      </Tooltip>
+      {!pendente && estado.ok && <Check className="text-success-fg size-4" aria-label={estado.ok} />}
+      {!pendente && estado.erro && <span className="text-destructive max-w-56 text-xs">{estado.erro}</span>}
     </form>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { startTransition, useActionState, useRef, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -251,6 +251,21 @@ export function GerarOrdemForm({
   const [forma, setForma] = useState(
     (FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(formaPadrao ?? "") ? formaPadrao! : ""
   )
+  // Fechado por padrão: o botão no pé do grupo de pagamentos abre o formulário.
+  const [aberto, setAberto] = useState(false)
+  const rotulo = novo ? "Lançar mais um pagamento" : "Gerar ordem de pagamento"
+
+  if (!aberto) {
+    return (
+      <div className="flex justify-start">
+        <Button type="button" variant="outline" size="sm" onClick={() => setAberto(true)}>
+          <Plus />
+          {novo ? "Novo pagamento" : "Gerar ordem de pagamento"}
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <form
       ref={formRef}
@@ -261,8 +276,9 @@ export function GerarOrdemForm({
         const dados = new FormData(e.currentTarget)
         startTransition(() => formAction(dados))
       }}
-      className="grid gap-3"
+      className="bg-background grid gap-3 rounded-md border p-3"
     >
+      <p className="text-sm font-medium">{novo ? "Novo pagamento" : "Ordem de pagamento"}</p>
       <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -343,10 +359,13 @@ export function GerarOrdemForm({
           />
         )}
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-start gap-2">
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
-          {novo ? "Lançar mais um pagamento" : "Gerar ordem de pagamento"}
+          {rotulo}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" disabled={pendente} onClick={() => setAberto(false)}>
+          Cancelar
         </Button>
       </div>
     </form>
