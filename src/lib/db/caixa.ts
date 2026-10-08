@@ -521,3 +521,31 @@ export async function contasAbertasParaCompras(): Promise<
       saldo: c.saldo,
     }))
 }
+
+/**
+ * A ordem tem despesa no caixa do usuário (ele é o responsável da conta ou
+ * quem lançou a despesa)? É o que libera o extrato da despesa em Meu caixa
+ * para quem não tem permissão do Financeiro (08/10/2026).
+ */
+export async function ordemNoCaixaDoUsuario(usuarioId: string, ordemId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: movs } = await admin
+    .from("caixa_movimentacoes")
+    .select("conta_id, criada_por_usuario_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("ordem_pagamento_id", ordemId)
+  if (!movs || movs.length === 0) return false
+  if (movs.some((m) => m.criada_por_usuario_id === usuarioId)) return true
+  const { data: contas } = await admin
+    .from("caixa_contas")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("responsavel_usuario_id", usuarioId)
+    .in(
+      "id",
+      movs.map((m) => m.conta_id)
+    )
+    .limit(1)
+  return (contas ?? []).length > 0
+}

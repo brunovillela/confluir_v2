@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
+import Link from "next/link"
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -115,9 +116,20 @@ function CabecalhoOrdenavel({
 /**
  * Extrato da conta: data e hora, movimentação, beneficiário (da ordem
  * ligada), descrição e valor — com ordenação por coluna e paginação
- * (08/10/2026).
+ * (08/10/2026). Débito ligado a uma ordem abre o extrato daquela despesa
+ * (PDF) num clique; despesa a reconhecer ganha o botão para a aprovação.
  */
-export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
+export function ExtratoCaixa({
+  extrato,
+  baseExtrato = "/painel/perfil/caixa/despesa",
+  podeReconhecer = false,
+}: {
+  extrato: MovimentacaoCaixa[]
+  /** Rota do extrato da despesa: `${base}/<ordem>/extrato`. */
+  baseExtrato?: string
+  /** Quem vê é o responsável: mostra "Reconhecer" nas despesas pendentes. */
+  podeReconhecer?: boolean
+}) {
   const [ordem, setOrdem] = useState<{ coluna: ColunaExtrato; asc: boolean }>({ coluna: "data", asc: false })
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState<number>(POR_PAGINA[0])
@@ -179,8 +191,30 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
             const cancelada = m.situacao === "cancelada"
             // Não reconhecida pelo responsável: fora do saldo (o valor voltou).
             const foraDoSaldo = !cancelada && m.reconhecimento === "nao_reconhecida"
+            // Débito ligado a uma ordem: a linha abre o extrato da despesa.
+            const hrefExtrato = m.ordemId && m.tipo !== "aporte" ? `${baseExtrato}/${m.ordemId}/extrato` : null
+            const abrir = () => {
+              if (hrefExtrato) window.open(hrefExtrato, "_blank", "noopener")
+            }
             return (
-              <TableRow key={m.id} className={cancelada ? "opacity-50" : ""}>
+              <TableRow
+                key={m.id}
+                className={cn(cancelada && "opacity-50", hrefExtrato && "hover:bg-muted/50 cursor-pointer")}
+                onClick={hrefExtrato ? abrir : undefined}
+                onKeyDown={
+                  hrefExtrato
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          abrir()
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={hrefExtrato ? 0 : undefined}
+                role={hrefExtrato ? "link" : undefined}
+                title={hrefExtrato ? "Abrir o extrato desta despesa" : undefined}
+              >
                 <TableCell className="whitespace-nowrap tabular-nums">
                   {formatarDataHora(m.created_at)}
                 </TableCell>
@@ -201,6 +235,16 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
                       <Badge variant="outline" className="border-warning/40 text-warning-fg">
                         A reconhecer pelo responsável
                       </Badge>
+                    )}
+                    {!cancelada && m.reconhecimento === "pendente" && podeReconhecer && (
+                      <Button
+                        asChild
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Link href="/painel/perfil/despesas-caixa">Reconhecer</Link>
+                      </Button>
                     )}
                     {!cancelada && m.reconhecimento === "nao_reconhecida" && (
                       <Badge
@@ -226,6 +270,7 @@ export function ExtratoCaixa({ extrato }: { extrato: MovimentacaoCaixa[] }) {
                   {m.beneficiario ?? <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell className="text-muted-foreground hidden max-w-72 truncate md:table-cell">
+                  {hrefExtrato && <FileText className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />}
                   {m.descricao ?? "—"}
                   {m.criadaPor && <span className="text-xs"> · por {m.criadaPor}</span>}
                 </TableCell>

@@ -253,7 +253,7 @@ export default async function ContaCaixaPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExtratoCaixa extrato={extrato} />
+          <ExtratoCaixa extrato={extrato} baseExtrato="/painel/financeiro/ordens" />
         </CardContent>
       </Card>
 

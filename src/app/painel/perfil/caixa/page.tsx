@@ -175,7 +175,7 @@ export default async function MeuCaixaPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExtratoCaixa extrato={extrato} />
+          <ExtratoCaixa extrato={extrato} podeReconhecer />
         </CardContent>
       </Card>
     </>
