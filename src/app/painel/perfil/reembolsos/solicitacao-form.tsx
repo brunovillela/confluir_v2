@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label"
 import { cancelarMeuReembolso, solicitarReembolso } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { formatarMoeda } from "@/lib/formato"
+import { porcentagemTexto, valorReembolsavel } from "@/lib/reembolsos-calculo"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,9 +27,14 @@ const SELECT =
 export function SolicitarReembolsoForm({
   tipos,
 }: {
-  tipos: { id: string; rotulo: string }[]
+  tipos: { id: string; rotulo: string; proporcao: number; valor_limite: number | null }[]
 }) {
   const [estado, formAction, pendente] = useActionState(solicitarReembolso, {})
+  const [tipoId, setTipoId] = useState("")
+  const [valor, setValor] = useState("")
+  const tipo = tipos.find((t) => t.id === tipoId)
+  const despesa = Number(valor.replace(/./g, "").replace(",", "."))
+  const recebe = tipo && valor && Number.isFinite(despesa) && despesa > 0 ? valorReembolsavel(despesa, tipo) : null
 
   return (
     <Card>
@@ -54,7 +61,8 @@ export function SolicitarReembolsoForm({
                 id="tipo_id"
                 name="tipo_id"
                 required
-                defaultValue=""
+                value={tipoId}
+                onChange={(e) => setTipoId(e.target.value)}
                 className={SELECT}
               >
                 <option value="" disabled>
@@ -75,8 +83,19 @@ export function SolicitarReembolsoForm({
                 inputMode="decimal"
                 placeholder="Ex.: 350,00"
                 required
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
               />
             </div>
+            {tipo && (
+              <p className="text-muted-foreground text-xs sm:col-span-2">
+                O ACT paga {porcentagemTexto(tipo.proporcao)} da despesa
+                {tipo.valor_limite !== null ? `, até ${formatarMoeda(tipo.valor_limite)} por solicitação` : ""}.
+                {recebe !== null && (
+                  <span className="text-foreground font-medium"> Reembolso previsto: {formatarMoeda(recebe)}.</span>
+                )}
+              </p>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="comprovante">
                 Comprovante (PDF/JPG/PNG) *

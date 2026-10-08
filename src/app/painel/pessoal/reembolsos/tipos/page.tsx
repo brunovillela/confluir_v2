@@ -23,6 +23,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarTiposReembolso } from "@/lib/db/reembolsos"
 import { formatarMoeda } from "@/lib/formato"
+import { porcentagemTexto } from "@/lib/reembolsos-calculo"
 
 import { ExcluirTipoReembolsoBotao, TipoReembolsoForm } from "./tipos-form"
 
@@ -63,7 +64,7 @@ export default async function TiposReembolsoPage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           {tipos.length} tipo{tipos.length === 1 ? "" : "s"} — os reembolsos
-          aprovados no acordo coletivo, com teto opcional por solicitação
+          aprovados no acordo coletivo, com a porcentagem da despesa que o ACT paga e um teto opcional por solicitação
         </p>
       </div>
 
@@ -97,6 +98,7 @@ export default async function TiposReembolsoPage({
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead>Nome</TableHead>
+                    <TableHead className="text-right">Paga</TableHead>
                     <TableHead className="text-right">Teto</TableHead>
                     <TableHead>Situação</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -106,7 +108,7 @@ export default async function TiposReembolsoPage({
                   {tipos.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="text-muted-foreground h-20 text-center text-sm"
                       >
                         Nenhum tipo de reembolso cadastrado.
@@ -122,6 +124,9 @@ export default async function TiposReembolsoPage({
                             {t.descricao}
                           </span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
+                        {porcentagemTexto(t.proporcao)}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {t.valor_limite !== null
@@ -180,6 +185,7 @@ export default async function TiposReembolsoPage({
                   nome: emEdicao.nome,
                   descricao: emEdicao.descricao,
                   limiteTexto: limiteTexto(emEdicao.valor_limite),
+                  porcentagemTexto: (Math.round(emEdicao.proporcao * 10000) / 100).toLocaleString("pt-BR"),
                   ativa: emEdicao.ativa,
                 }
               : undefined

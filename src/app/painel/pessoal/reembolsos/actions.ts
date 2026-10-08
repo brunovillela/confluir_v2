@@ -92,10 +92,17 @@ function lerCamposTipo(formData: FormData) {
   if (limiteBruto && (valor_limite === null || valor_limite <= 0)) {
     return { erro: "Teto inválido (ex.: 500,00; em branco = sem teto)." }
   }
+  // Porcentagem da despesa que o ACT paga (em branco = 100%), gravada 0–1.
+  const pctBruto = String(formData.get("porcentagem") ?? "").trim().replace("%", "").replace(",", ".")
+  const pct = pctBruto ? Number(pctBruto) : 100
+  if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+    return { erro: "Porcentagem inválida — de 1 a 100 (ex.: 70; em branco = 100%)." }
+  }
   return {
     nome,
     descricao,
     valor_limite,
+    proporcao_reembolsavel: Math.round(pct * 100) / 10000,
     ativa: formData.get("ativa") === "on",
   }
 }

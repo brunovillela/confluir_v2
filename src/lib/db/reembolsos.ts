@@ -8,6 +8,7 @@ import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { formatarMoeda } from "@/lib/formato"
+import { porcentagemTexto, valorReembolsavel } from "@/lib/reembolsos-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -36,6 +37,8 @@ export type TipoReembolso = {
   nome: string
   descricao: string | null
   valor_limite: number | null
+  /** Porcentagem da despesa que o ACT paga (0–1; 1 = 100%). */
+  proporcao: number
   ativa: boolean
 }
 
@@ -46,7 +49,7 @@ export async function listarTiposReembolso(): Promise<{
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("pessoal_reembolsos_act_tipos")
-    .select("id, nome, descricao, valor_limite, ativa")
+    .select("*")
     .order("nome", { ascending: true })
   if (error) {
     if (esquemaAusente(error)) return { disponivel: false, tipos: [] }
@@ -59,6 +62,7 @@ export async function listarTiposReembolso(): Promise<{
       nome: String(t.nome ?? "(sem nome)"),
       descricao: (t.descricao as string | null) ?? null,
       valor_limite: (t.valor_limite as number | null) ?? null,
+      proporcao: t.proporcao_reembolsavel == null ? 1 : Number(t.proporcao_reembolsavel),
       ativa: t.ativa !== false,
     })),
   }
@@ -82,6 +86,8 @@ export type ReembolsoAct = {
   pagamento_mes: string | null
   pagamento_ano: string | null
   pago_em: string | null
+  /** Quanto o ACT reembolsa desta despesa: porcentagem do tipo, limitada ao teto. */
+  valorReembolsavel: number | null
   created_at: string | null
 }
 
@@ -104,6 +110,7 @@ async function normalizar(
     listarTiposReembolso(),
   ])
   const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]))
+  const tipoPorId = new Map(tipos.map((t) => [t.id, t]))
 
   return brutos.map((r) => ({
     id: String(r.id),
@@ -127,6 +134,10 @@ async function normalizar(
     pagamento_mes: (r.pagamento_mes as string | null) ?? null,
     pagamento_ano: (r.pagamento_ano as string | null) ?? null,
     pago_em: (r.pago_em as string | null) ?? null,
+    valorReembolsavel: valorReembolsavel(
+      (r.valor_solicitado as number | null) ?? null,
+      r.tipo_id ? tipoPorId.get(String(r.tipo_id)) : null
+    ),
     created_at: (r.created_at as string | null) ?? null,
   }))
 }
@@ -209,11 +220,8 @@ export async function criarReembolso(
   }
   const tipo = tipos.find((t) => t.id === novo.tipo_id)
   if (!tipo || !tipo.ativa) return { erro: "Escolha um tipo de reembolso válido." }
-  if (tipo.valor_limite !== null && novo.valor_solicitado > tipo.valor_limite) {
-    return {
-      erro: `O valor passa do teto do ACT para ${tipo.nome} (${formatarMoeda(tipo.valor_limite)}).`,
-    }
-  }
+  // 08/10: o teto vale sobre o que se REEMBOLSA (porcentagem da despesa,
+  // limitada a ele) — a despesa em si pode passar do teto.
 
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_reembolsos_act").insert({
@@ -325,12 +333,12 @@ export async function avaliarReembolso(
     }
     const { tipos } = await listarTiposReembolso()
     const tipo = tipos.find((t) => t.id === reembolso.tipo_id)
-    if (
-      tipo?.valor_limite != null &&
-      avaliacao.valor_aprovado > tipo.valor_limite
-    ) {
+    // O avaliador aprova o valor reembolsável (porcentagem do tipo sobre a
+    // despesa, limitada ao teto) ou menos — glosa —, nunca mais.
+    const maximo = valorReembolsavel(reembolso.valor_solicitado, tipo)
+    if (maximo !== null && avaliacao.valor_aprovado > maximo + 0.001) {
       return {
-        erro: `O valor aprovado passa do teto do ACT para ${tipo.nome} (${formatarMoeda(tipo.valor_limite)}).`,
+        erro: `O valor aprovado passa do reembolsável para ${tipo?.nome ?? "este tipo"} (${formatarMoeda(maximo)}${tipo ? ` — ${porcentagemTexto(tipo.proporcao)} da despesa${tipo.valor_limite != null ? `, teto ${formatarMoeda(tipo.valor_limite)}` : ""}` : ""}).`,
       }
     }
   } else if (!avaliacao.observacao) {

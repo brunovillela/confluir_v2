@@ -85,7 +85,9 @@ export default async function MeusReembolsosPage({
         <SolicitarReembolsoForm
           tipos={ativos.map((t) => ({
             id: t.id,
-            rotulo: `${t.nome}${t.valor_limite !== null ? ` — teto ${formatarMoeda(t.valor_limite)}` : ""}`,
+            rotulo: `${t.nome}${t.proporcao < 1 ? ` — ${Math.round(t.proporcao * 100)}%` : ""}${t.valor_limite !== null ? ` — teto ${formatarMoeda(t.valor_limite)}` : ""}`,
+            proporcao: t.proporcao,
+            valor_limite: t.valor_limite,
           }))}
         />
       )}

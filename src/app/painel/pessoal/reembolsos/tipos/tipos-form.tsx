@@ -24,6 +24,8 @@ export type TipoReembolsoFormDados = {
   descricao: string | null
   /** Teto já em texto pt-BR (ex.: '500,00'). */
   limiteTexto: string
+  /** Porcentagem em texto pt-BR (ex.: '70'). */
+  porcentagemTexto: string
   ativa: boolean
 }
 
@@ -65,7 +67,7 @@ export function TipoReembolsoForm({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="valor_limite">Teto por solicitação (R$)</Label>
+              <Label htmlFor="valor_limite">Teto do reembolso por solicitação (R$)</Label>
               <Input
                 id="valor_limite"
                 name="valor_limite"
@@ -73,6 +75,19 @@ export function TipoReembolsoForm({
                 placeholder="Em branco = sem teto"
                 defaultValue={tipo?.limiteTexto ?? ""}
               />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="porcentagem">Porcentagem paga (%)</Label>
+              <Input
+                id="porcentagem"
+                name="porcentagem"
+                inputMode="decimal"
+                placeholder="Em branco = 100%"
+                defaultValue={tipo?.porcentagemTexto ?? ""}
+              />
+              <p className="text-muted-foreground text-xs">
+                O reembolso é esta porcentagem da despesa, limitada ao teto.
+              </p>
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="descricao">Descrição / regra do ACT</Label>

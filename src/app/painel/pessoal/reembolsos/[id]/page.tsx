@@ -17,6 +17,7 @@ import { requirePermissao } from "@/lib/auth"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { buscarReembolso, listarTiposReembolso } from "@/lib/db/reembolsos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { porcentagemTexto } from "@/lib/reembolsos-calculo"
 
 import { AvaliacaoReembolsoForm, MarcarPagoBotao } from "./avaliacao-form"
 
@@ -65,6 +66,16 @@ export default async function ReembolsoPage({
 
   const { tipos } = await listarTiposReembolso()
   const tipo = tipos.find((t) => t.id === reembolso.tipo_id) ?? null
+  // A conta do ACT por extenso: porcentagem da despesa, limitada ao teto.
+  const bruto = (reembolso.valor_solicitado ?? 0) * (tipo?.proporcao ?? 1)
+  const calculo = [
+    `${porcentagemTexto(tipo?.proporcao ?? 1)} de ${formatarMoeda(reembolso.valor_solicitado)}`,
+    tipo?.valor_limite != null && bruto > tipo.valor_limite
+      ? `limitado ao teto de ${formatarMoeda(tipo.valor_limite)}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
   const comprovante = await urlArquivoPessoal(reembolso.comprovante_url)
 
   return (
@@ -117,17 +128,22 @@ export default async function ReembolsoPage({
             </Campo>
             <Campo rotulo="Tipo (ACT)">
               {reembolso.tipoNome ?? "—"}
-              {tipo?.valor_limite != null && (
+              {tipo && (
                 <span className="text-muted-foreground">
                   {" "}
-                  · teto {formatarMoeda(tipo.valor_limite)}
+                  · paga {porcentagemTexto(tipo.proporcao)}
+                  {tipo.valor_limite != null ? ` · teto ${formatarMoeda(tipo.valor_limite)}` : " · sem teto"}
                 </span>
               )}
             </Campo>
-            <Campo rotulo="Valor solicitado">
+            <Campo rotulo="Valor da despesa">
               <span className="font-medium">
                 {formatarMoeda(reembolso.valor_solicitado)}
               </span>
+            </Campo>
+            <Campo rotulo="Reembolsável pelo ACT">
+              <span className="font-medium">{formatarMoeda(reembolso.valorReembolsavel)}</span>
+              <span className="text-muted-foreground text-xs"> · {calculo}</span>
             </Campo>
             <Campo rotulo="Comprovante">
               {comprovante ? (
@@ -155,12 +171,8 @@ export default async function ReembolsoPage({
       {reembolso.situacao === "aguardando" ? (
         <AvaliacaoReembolsoForm
           reembolsoId={reembolso.id}
-          valorSolicitadoTexto={valorTexto(reembolso.valor_solicitado)}
-          tetoTexto={
-            tipo?.valor_limite != null
-              ? formatarMoeda(tipo.valor_limite)
-              : null
-          }
+          valorReembolsavelTexto={valorTexto(reembolso.valorReembolsavel)}
+          calculoTexto={calculo}
         />
       ) : (
         <Card>

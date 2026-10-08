@@ -38,13 +38,14 @@ const MESES = [
 
 export function AvaliacaoReembolsoForm({
   reembolsoId,
-  valorSolicitadoTexto,
-  tetoTexto,
+  valorReembolsavelTexto,
+  calculoTexto,
 }: {
   reembolsoId: string
-  /** Valor solicitado já em pt-BR, usado como default do aprovado. */
-  valorSolicitadoTexto: string
-  tetoTexto: string | null
+  /** Valor reembolsável (porcentagem com teto) em pt-BR: default e máximo do aprovado. */
+  valorReembolsavelTexto: string
+  /** A conta por extenso (ex.: "70% de R$ 3.000,00, limitado ao teto de R$ 1.957,00"). */
+  calculoTexto: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     avaliarReembolsoAction,
@@ -57,8 +58,8 @@ export function AvaliacaoReembolsoForm({
         <CardTitle className="text-base">Avaliar solicitação</CardTitle>
         <CardDescription>
           Aprovar define o valor e a referência do contracheque em que o
-          reembolso será pago{tetoTexto ? ` (teto do ACT: ${tetoTexto})` : ""}.
-          Reprovar exige o motivo.
+          reembolso será pago. O valor vem calculado pelo ACT ({calculoTexto})
+          e pode ser reduzido — nunca aumentado. Reprovar exige o motivo.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,8 +90,9 @@ export function AvaliacaoReembolsoForm({
                 id="valor_aprovado"
                 name="valor_aprovado"
                 inputMode="decimal"
-                defaultValue={valorSolicitadoTexto}
+                defaultValue={valorReembolsavelTexto}
               />
+              <p className="text-muted-foreground text-xs">Máximo: R$ {valorReembolsavelTexto}</p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="pagamento_mes">Contracheque — mês</Label>
