@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { AquisicaoBadge, SituacaoProcessoBadge } from "@/components/compras"
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
+import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import {
   buscarProcesso,
@@ -250,12 +251,12 @@ export default async function ProcessoCompraPage({
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/compras">
-            <ArrowLeft />
-            Aquisição
-          </Link>
-        </Button>
+        <VoltarLista
+          chave="processos-compra"
+          base="/painel/compras/processos"
+          rotulo="Processos de compra"
+          padrao={{ href: "/painel/compras", rotulo: "Aquisição" }}
+        />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight tabular-nums">

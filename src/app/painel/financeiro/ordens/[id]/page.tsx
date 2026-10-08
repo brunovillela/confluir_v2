@@ -38,7 +38,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { SituacaoBadge } from "../../situacao-badge"
-import { VoltarListaOrdens } from "../lembrar-lista"
+import { VoltarLista } from "@/components/voltar-lista"
 import { AcoesOrdem } from "./acoes-ordem"
 import { DocumentosForm } from "./documentos-form"
 import { EstornoForm } from "./estorno-form"
@@ -214,7 +214,11 @@ export default async function OrdemPage({
   return (
     <>
       <div>
-        <VoltarListaOrdens />
+        <VoltarLista
+          chave="ordens"
+          base="/painel/financeiro/ordens"
+          rotulo="Ordens de pagamento"
+        />
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Ordem {texto(ordem.codigo)}

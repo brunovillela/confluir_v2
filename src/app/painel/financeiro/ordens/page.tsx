@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
 import { FiltroDeptoCentro } from "./filtro-depto-centro"
-import { LembrarListaOrdens } from "./lembrar-lista"
+import { LembrarLista } from "@/components/voltar-lista"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 
 export const metadata: Metadata = {
@@ -248,7 +248,7 @@ export default async function OrdensPage({
 
   return (
     <>
-      <LembrarListaOrdens url={montarUrl(filtros, {})} />
+      <LembrarLista chave="ordens" url={montarUrl(filtros, {})} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">

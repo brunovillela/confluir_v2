@@ -17,6 +17,7 @@ import { ColunaOrdenavel, linkDeOrdem } from "@/components/coluna-ordenavel"
 import { EmpresaCombobox } from "@/components/empresa-combobox"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import {
   ROTULOS_SITUACAO_PROCESSO,
@@ -117,8 +118,17 @@ export default async function ProcessosDeCompraPage({
   const hrefOrdem = linkDeOrdem("/painel/compras/processos", filtrosAtivos, ordem, dir, ["pagina"])
   const temFiltro = Boolean(busca || situacao !== "todas" || aquisicao !== "todas" || fornecedor || meus)
 
+  // Endereço do recorte atual, para o processo voltar a ele.
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(filtrosAtivos)) if (v) q.set(k, v)
+  if (ordem !== "registro") q.set("ordem", ordem)
+  if (dir !== "desc") q.set("dir", dir)
+  if (pag.pagina > 1) q.set("pagina", String(pag.pagina))
+  const urlAtual = `/painel/compras/processos${q.size ? `?${q}` : ""}`
+
   return (
     <>
+      <LembrarLista chave="processos-compra" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
