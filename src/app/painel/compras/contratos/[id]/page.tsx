@@ -2,7 +2,7 @@ import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FilePen, FileText, LinkIcon, Pencil, Plus, ReceiptText } from "lucide-react"
+import { FilePen, FileText, LinkIcon, Pencil, Plus, ReceiptText } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -12,6 +12,7 @@ import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { VoltarLista } from "@/components/voltar-lista"
 import {
   Card,
   CardContent,
@@ -171,12 +172,7 @@ export default async function ContratoPage({
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/compras/contratos">
-            <ArrowLeft />
-            Contratos
-          </Link>
-        </Button>
+        <VoltarLista chave="contratos" base="/painel/compras/contratos" rotulo="Contratos" />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight tabular-nums">

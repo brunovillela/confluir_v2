@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { listarMinutas } from "@/lib/db/contratos-minutas"
 import {
@@ -116,8 +117,15 @@ export default async function ContratosPage({
     return `/painel/compras/contratos${s ? `?${s}` : ""}`
   }
 
+  // Recorte atual, para o contrato voltar a ele.
+  const urlAtual = filtroHref({
+    pagina: pagina > 1 ? String(pagina) : "",
+    porPagina: paginacao.porPagina !== 30 ? String(paginacao.porPagina) : "",
+  })
+
   return (
     <>
+      <LembrarLista chave="contratos" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
