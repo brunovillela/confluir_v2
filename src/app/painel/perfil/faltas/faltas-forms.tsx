@@ -97,7 +97,8 @@ export function AnexarComprovacaoForm({ id }: { id: string }) {
         required
         accept="application/pdf,image/jpeg,image/png,image/webp"
         aria-label="Arquivo da comprovação"
-        className="h-8 max-w-52 text-xs"
+        compacto
+        className="max-w-52"
       />
       <Button type="submit" size="sm" variant="outline" disabled={pendente} className="h-8">
         {pendente ? <Loader2 className="animate-spin" /> : <Paperclip />}

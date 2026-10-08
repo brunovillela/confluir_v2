@@ -2,7 +2,18 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+import { CampoArquivo } from "./campo-arquivo"
+
+type InputProps = React.ComponentProps<"input"> & {
+  /** Só para `type="file"`: versão de uma linha (tabelas, ações em linha). */
+  compacto?: boolean
+  /** Só para `type="file"`: limite mostrado ao lado dos formatos (padrão "até 4 MB"). */
+  limite?: string | null
+}
+
+function Input({ className, type, compacto, limite, ...props }: InputProps) {
+  // Arquivo ganha a área de soltar, com os formatos aceitos à vista.
+  if (type === "file") return <CampoArquivo className={className} compacto={compacto} limite={limite} {...props} />
   return (
     <input
       type={type}

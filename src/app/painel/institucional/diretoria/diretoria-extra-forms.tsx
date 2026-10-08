@@ -113,7 +113,7 @@ export function AdicionarLiberacao({
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="lib-doc">Documento que oficializou (PDF/imagem)</Label>
-        <input
+        <Input
           id="lib-doc"
           name="documento"
           type="file"
@@ -292,7 +292,7 @@ export function AdicionarAssento({
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="as-doc">Documento que oficializa o cargo (PDF/imagem)</Label>
-        <input
+        <Input
           id="as-doc"
           name="documento"
           type="file"

@@ -2,14 +2,17 @@ import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import Link from "next/link"
 import { Suspense } from "react"
-import { Car, Plane } from "lucide-react"
+import { Car, IdCard, Plane } from "lucide-react"
 
 import { CaixaDeEntrada } from "@/components/layout/caixa-entrada"
 import { AbasPainel, COOKIE_ABA, type ChaveAba } from "@/components/painel/abas-painel"
+import { ClimaSedes } from "@/components/painel/clima"
+import { CartaoHud } from "@/components/painel/hud"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { requireSessaoPainel } from "@/lib/auth"
+import { climaDasSedes } from "@/lib/db/clima"
 import { departamentosCoordenados } from "@/lib/db/coordenador"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { ehDiretor, temDecisoes } from "@/lib/db/diretor-home"
@@ -21,6 +24,7 @@ import { AbaCoordenacao } from "./_painel/aba-coordenacao"
 import { AbaDia } from "./_painel/aba-dia"
 import { AbaGestao } from "./_painel/aba-gestao"
 import { CHAVES_INDICADORES, type VistaIndicadores } from "./_painel/aba-indicadores"
+import { ConsultaFiliacao } from "./consulta-filiacao-widget"
 
 export const metadata: Metadata = { title: "Painel — Confluir" }
 
@@ -64,12 +68,13 @@ export default async function PainelPage({
   const uid = sessao.usuario.id as string
   const nome = String(sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? "").split(" ")[0]
 
-  const [pendencias, diretor, coordena, condutor, quadroViagem, jar] = await Promise.all([
+  const [pendencias, diretor, coordena, condutor, quadroViagem, clima, jar] = await Promise.all([
     pendenciasDoUsuario(sessao),
     ehDiretor(sessao).catch(() => false),
     departamentosCoordenados(uid).catch(() => []),
     buscarCondutorDoUsuario(uid).catch(() => null),
     quadroParaDiaria(uid).catch(() => null),
+    climaDasSedes().catch(() => []),
     cookies(),
   ])
   const veIndicadores = podeAcessar(sessao.permissoes, "configuracoes", CHAVES_INDICADORES)
@@ -91,7 +96,7 @@ export default async function PainelPage({
 
   return (
     <div className="hud-fundo grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="hud-rotulo">{hojeExtenso()}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
@@ -99,26 +104,26 @@ export default async function PainelPage({
             {nome ? `, ${nome}` : ""}
           </h1>
         </div>
-        {(condutor || quadroViagem) && (
-          <div className="flex flex-wrap gap-2">
-            {quadroViagem && (
-              <Button asChild variant={condutor ? "outline" : "default"}>
-                <Link href="/painel/perfil/viagens?novo=1">
-                  <Plane />
-                  Solicitar viagem
-                </Link>
-              </Button>
-            )}
-            {condutor && (
-              <Button asChild>
-                <Link href="/painel/solicitar-veiculo">
-                  <Car />
-                  Solicitar veículo
-                </Link>
-              </Button>
-            )}
-          </div>
-        )}
+        {/* À direita, na linha do nome: os atalhos de pedido e o tempo nas sedes. */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {quadroViagem && (
+            <Button asChild variant={condutor ? "outline" : "default"}>
+              <Link href="/painel/perfil/viagens?novo=1">
+                <Plane />
+                Solicitar viagem
+              </Link>
+            </Button>
+          )}
+          {condutor && (
+            <Button asChild>
+              <Link href="/painel/solicitar-veiculo">
+                <Car />
+                Solicitar veículo
+              </Link>
+            </Button>
+          )}
+          <ClimaSedes cidades={clima} />
+        </div>
       </div>
 
       {sp.salvo && ativa === "dia" && (
@@ -127,7 +132,17 @@ export default async function PainelPage({
         </Alert>
       )}
 
-      <CaixaDeEntrada pendencias={pendencias} />
+      {ativa === "dia" ? (
+        // No Meu dia, a consulta de filiação divide a linha com a caixa (3/4 + 1/4).
+        <div className="grid gap-4 lg:grid-cols-4">
+          <CaixaDeEntrada pendencias={pendencias} estreita className="lg:col-span-3" />
+          <CartaoHud titulo="Consulta de filiação" descricao="Informa só a condição — não abre o cadastro" icone={IdCard}>
+            <ConsultaFiliacao />
+          </CartaoHud>
+        </div>
+      ) : (
+        <CaixaDeEntrada pendencias={pendencias} />
+      )}
 
       <AbasPainel abas={abas} ativa={ativa} />
 

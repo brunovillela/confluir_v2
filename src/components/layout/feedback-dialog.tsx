@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { avisarArquivoTrocado } from "@/components/ui/campo-arquivo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -49,6 +50,7 @@ export function FeedbackDialog({ aberto, aoFechar }: { aberto: boolean; aoFechar
     const dt = new DataTransfer()
     dt.items.add(new File([arquivo], `print.${arquivo.type.split("/")[1] ?? "png"}`, { type: arquivo.type }))
     if (arquivoRef.current) arquivoRef.current.files = dt.files
+    avisarArquivoTrocado(arquivoRef.current)
     setPrint(dt.files[0])
   }
 

@@ -188,12 +188,11 @@ export function ReuniaoForm({
           </p>
         )}
         {ata && <p className="text-success-fg text-sm">Anexada: {ata.nome}</p>}
-        <input
+        <Input
           id="ata"
           type="file"
           accept="application/pdf"
           disabled={lendo}
-          className="border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
           onChange={(e) => enviarAta(e.target.files?.[0])}
         />
         <p className="text-muted-foreground text-xs">

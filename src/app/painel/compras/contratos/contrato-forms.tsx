@@ -248,12 +248,11 @@ export function ContratoForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="arquivo">Arquivo do contrato (PDF, até 5 MB)</Label>
-        <input
+        <Input
           id="arquivo"
           name="arquivo"
           type="file"
           accept="application/pdf"
-          className="text-muted-foreground file:bg-muted file:text-foreground file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm text-sm"
         />
         {contrato?.arquivo_contrato && (
           <p className="text-muted-foreground text-xs">

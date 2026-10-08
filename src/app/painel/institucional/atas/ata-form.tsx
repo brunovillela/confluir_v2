@@ -22,8 +22,6 @@ const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 const DATA =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-const FILE =
-  "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
 
 export function AtaForm({
   ata,
@@ -89,12 +87,11 @@ export function AtaForm({
           <Sparkles className="text-primary size-4" />
           Ata em PDF{ata ? " (vazio mantém a atual)" : ""}
         </Label>
-        <input
+        <Input
           id="documento"
           name="documento"
           type="file"
           accept="application/pdf"
-          className={FILE}
           onChange={(e) => lerComIA(e.target.files?.[0])}
         />
         <p className="text-muted-foreground text-xs">

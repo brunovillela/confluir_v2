@@ -6,13 +6,11 @@ import { ExternalLink, Loader2, RefreshCw, RotateCcw, Sparkles } from "lucide-re
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 import { CatForm } from "./cat-forms"
 import { ClassificacaoCatAviso } from "./classificacao-cat"
 import { extrairCatDePdf } from "./importar-pdf-actions"
-
-const FILE =
-  "border-input bg-background text-foreground w-full max-w-md rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
 
 export function ImportarCatPdf() {
   const [estado, formAction, pendente] = useActionState(extrairCatDePdf, {})
@@ -124,12 +122,11 @@ export function ImportarCatPdf() {
 
   return (
     <form action={formAction} className="grid gap-3">
-      <input
+      <Input
         type="file"
         name="arquivo"
         accept="application/pdf"
         required
-        className={FILE}
       />
       <p className="text-muted-foreground text-xs">
         Um PDF de CAT por vez. A IA lê o documento e pré-preenche os 50 campos

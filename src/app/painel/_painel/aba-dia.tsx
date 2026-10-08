@@ -1,13 +1,11 @@
 import Link from "next/link"
-import { Award, Cake, CalendarDays, ClipboardList, ExternalLink, HandCoins, IdCard, Newspaper, Plane, UserRoundX, Wallet } from "lucide-react"
+import { Award, Cake, CalendarDays, ClipboardList, ExternalLink, HandCoins, Newspaper, Plane, UserRoundX, Wallet } from "lucide-react"
 
 import { Carrossel } from "@/components/painel/carrossel"
-import { ClimaSedes } from "@/components/painel/clima"
 import { CartaoHud, ListaHud } from "@/components/painel/hud"
 import { Badge } from "@/components/ui/badge"
 import type { SessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
-import { climaDasSedes } from "@/lib/db/clima"
 import { ultimoResumo } from "@/lib/db/comunicacao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { resumoPainel, ultimasNoticias, type EventoDoDia } from "@/lib/db/painel"
@@ -18,7 +16,6 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_SITUACAO_VIAGEM } from "@/lib/viagens-constantes"
 
-import { ConsultaFiliacao } from "../consulta-filiacao-widget"
 import { MeusVeiculos } from "../meus-veiculos"
 import { ResumoIAPainel } from "../resumo-ia-painel"
 
@@ -41,21 +38,22 @@ function HorarioEvento({ evento }: { evento: EventoDoDia }) {
 }
 
 /**
- * MEU DIA — a aba de todo mundo: o caixa da pessoa, os veículos, quem faz
- * aniversário, quem está ausente, a agenda e as tarefas do dia, a consulta de
- * filiação e as notícias em slides. Cartões só aparecem com conteúdo.
+ * MEU DIA — a aba de todo mundo, em duas colunas: à esquerda (1/3) o que é da
+ * pessoa e do dia — caixa, veículos, agenda, tarefas, ausências, comemorações
+ * e pedidos; à direita (2/3) o resumo do dia e as notícias em slides. Cartões
+ * só aparecem com conteúdo. O tempo nas sedes fica no cabeçalho do painel e a
+ * consulta de filiação, ao lado da caixa de entrada (page.tsx).
  */
 export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
   const uid = sessao.usuario.id as string
   const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
-  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, clima, viagens, diarias] = await Promise.all([
+  const [resumo, noticias, meuCaixa, org, resumoIA, condutor, viagens, diarias] = await Promise.all([
     resumoPainel(uid),
     ultimasNoticias(9),
     contaDoUsuario(uid).catch(() => ({ disponivel: false, detalhe: null })),
     obterOrganizacao(),
     ultimoResumo().catch(() => null),
     buscarCondutorDoUsuario(uid).catch(() => null),
-    climaDasSedes().catch(() => []),
     minhasViagens(uid).catch(() => ({ disponivel: false, viagens: [] as Viagem[] })),
     minhasSolicitacoesDiaria(uid).catch(() => ({ disponivel: false, solicitacoes: [] as SolicitacaoDiaria[] })),
   ])
@@ -66,11 +64,9 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
   const aportePendente = meuCaixa.detalhe?.extrato.some((m) => m.tipo === "aporte" && m.situacao === "pendente")
 
   return (
-    <div className="grid">
-      {/* Colunas encaixadas: cada cartão sobe até o de cima, sem o vão da linha. */}
-      <div className="columns-1 gap-4 md:columns-2 xl:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">
-        <ClimaSedes cidades={clima} />
-
+    <div className="grid items-start gap-4 lg:grid-cols-3">
+      {/* Coluna lateral (1/3): a primeira dobra, cartão sob cartão. */}
+      <div className="grid min-w-0 content-start gap-4 empty:hidden">
         {contaCaixa && (
           <Link href="/painel/perfil/caixa" className="hud-cartao block p-4">
             <p className="hud-rotulo flex items-center gap-1.5">
@@ -236,13 +232,15 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
             </ListaHud>
           </CartaoHud>
         )}
-
-        <CartaoHud titulo="Consulta de filiação" descricao="Informa só a condição — não abre o cadastro" icone={IdCard}>
-          <ConsultaFiliacao />
-        </CartaoHud>
       </div>
 
-      <CartaoHud titulo="Resumo do dia" descricao="Últimas notícias — clique na manchete para ler" icone={Newspaper}>
+      {/* Coluna principal (2/3): resumo do dia e notícias. */}
+      <CartaoHud
+        titulo="Resumo do dia"
+        descricao="Últimas notícias — clique na manchete para ler"
+        icone={Newspaper}
+        className="lg:col-span-2 lg:[div:empty+&]:col-span-3"
+      >
         {resumoIA?.resumo && (
           <ResumoIAPainel
             titulo={resumoIA.titulo ?? "Resumo de notícias"}

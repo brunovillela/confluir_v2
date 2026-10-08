@@ -4,6 +4,8 @@
  * fotos grandes são reduzidas no navegador antes de ir.
  */
 
+import { avisarArquivoTrocado } from "@/components/ui/campo-arquivo"
+
 export const ACEITA_NOTA = "application/pdf,image/jpeg,image/png,image/webp"
 // Corpo da server action vai até 4 MB; foto de celular costuma passar disso.
 export const LIMITE_ARQUIVO = 4 * 1024 * 1024
@@ -42,6 +44,7 @@ export async function prepararArquivo(
   if (!original) return {}
   if (!ACEITA_NOTA.split(",").includes(original.type)) {
     input.value = ""
+    avisarArquivoTrocado(input)
     return { erro: "Envie um PDF ou uma imagem (JPG, PNG ou WEBP)." }
   }
   let arquivo = original
@@ -52,12 +55,14 @@ export async function prepararArquivo(
   }
   if (arquivo.size > LIMITE_ARQUIVO) {
     input.value = ""
+    avisarArquivoTrocado(input)
     return { erro: "O arquivo deve ter no máximo 4 MB." }
   }
   if (arquivo !== original) {
     const dt = new DataTransfer()
     dt.items.add(arquivo)
     input.files = dt.files
+    avisarArquivoTrocado(input)
   }
   return { arquivo }
 }

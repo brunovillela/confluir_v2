@@ -165,12 +165,11 @@ export function DocumentoForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="arquivo">Arquivo (PDF, até 20 MB)</Label>
-            <input
+            <Input
               id="arquivo"
               name="arquivo"
               type="file"
               accept="application/pdf"
-              className="text-muted-foreground file:bg-muted file:text-foreground file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm text-sm"
             />
           </div>
           <CamposVigencia />
@@ -211,13 +210,12 @@ export function NovaVersaoForm({ documentoId }: { documentoId: string }) {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="arquivo">Arquivo (PDF, até 20 MB) *</Label>
-          <input
+          <Input
             id="arquivo"
             name="arquivo"
             type="file"
             accept="application/pdf"
             required
-            className="text-muted-foreground file:bg-muted file:text-foreground file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm text-sm"
           />
         </div>
       </div>

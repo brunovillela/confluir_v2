@@ -46,7 +46,7 @@ export function NovaSolicitacaoForm() {
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="anexo">Anexo (opcional)</Label>
-        <Input id="anexo" name="anexo" type="file" accept={ACEITA} className="min-h-11 pt-2.5" />
+        <Input id="anexo" name="anexo" type="file" accept={ACEITA} limite="até 10 MB" />
         <p className="text-muted-foreground text-xs">PDF, imagem, documento ou planilha, até 10 MB.</p>
       </div>
       {estado.erro && !estado.campo && (
@@ -76,7 +76,7 @@ export function ResponderForm({ atendimentoId }: { atendimentoId: string }) {
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="anexo">Anexo (opcional)</Label>
-        <Input id="anexo" name="anexo" type="file" accept={ACEITA} className="min-h-11 pt-2.5" />
+        <Input id="anexo" name="anexo" type="file" accept={ACEITA} limite="até 10 MB" />
       </div>
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">

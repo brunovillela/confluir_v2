@@ -26,8 +26,6 @@ const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 const DATA =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-const FILE =
-  "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
 
 export function CampanhaForm({
   campanha,
@@ -217,12 +215,11 @@ export function CampanhaForm({
         <Label htmlFor="documento_modelo">
           Documento-modelo p/ assinatura gov.br (PDF, opcional)
         </Label>
-        <input
+        <Input
           id="documento_modelo"
           name="documento_modelo"
           type="file"
           accept="application/pdf"
-          className={FILE}
         />
       </div>
 

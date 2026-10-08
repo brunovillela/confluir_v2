@@ -144,7 +144,8 @@ export function ReceberDocumentoCusteioForm({
         required
         accept={ACEITA_NOTA}
         aria-label="Documento fiscal"
-        className="h-8 max-w-56 text-xs"
+        compacto
+        className="max-w-56"
         onChange={async (e) => {
           const { erro } = await prepararArquivo(e.currentTarget)
           setErroArquivo(erro ?? null)

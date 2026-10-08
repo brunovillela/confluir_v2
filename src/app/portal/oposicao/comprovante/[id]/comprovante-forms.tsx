@@ -5,6 +5,7 @@ import { Loader2, Printer } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 import { enviarDocumento } from "../../actions"
 
@@ -39,12 +40,11 @@ export function EnviarDocumento({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <input
+      <Input
         name="documento"
         type="file"
         accept="application/pdf"
         required
-        className="border-input bg-background w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
       />
       <div>
         <Button type="submit" disabled={pendente}>

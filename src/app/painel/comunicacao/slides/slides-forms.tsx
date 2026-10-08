@@ -19,6 +19,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { avisarArquivoTrocado } from "@/components/ui/campo-arquivo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -62,8 +63,6 @@ type ActionForm = (p: Estado, fd: FormData) => Promise<Estado>
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-const FILE =
-  "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-sm"
 
 function Recado({ estado }: { estado: Estado }) {
   if (!estado.erro && !estado.ok) return null
@@ -675,11 +674,10 @@ export function SlideForm({
             <Label htmlFor={`video-${sufixo}`}>
               Vídeo {slide?.videoUrl ? "(vazio mantém o atual)" : ""}
             </Label>
-            <input
+            <Input
               id={`video-${sufixo}`}
               type="file"
               accept="video/mp4,video/webm"
-              className={FILE}
               disabled={enviandoVideo}
               onChange={(e) => {
                 const arquivo = e.target.files?.[0]
@@ -750,13 +748,12 @@ export function SlideForm({
             <Label htmlFor={`imagem-${sufixo}`}>
               Imagem {slide?.imagemUrl ? "(vazio mantém a atual)" : "(opcional se houver título)"}
             </Label>
-            <input
+            <Input
               ref={entrada}
               id={`imagem-${sufixo}`}
               name="imagem"
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              className={FILE}
               onChange={async (e) => {
                 const original = e.target.files?.[0]
                 if (!original) {
@@ -769,6 +766,7 @@ export function SlideForm({
                   const dt = new DataTransfer()
                   dt.items.add(reduzida)
                   entrada.current.files = dt.files
+                  avisarArquivoTrocado(entrada.current)
                 }
                 setPrevia(URL.createObjectURL(reduzida))
                 setPreparando(false)

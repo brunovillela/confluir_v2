@@ -17,9 +17,6 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
-const FILE =
-  "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-sm"
-
 function CamposNoticia({
   noticia,
 }: {
@@ -52,12 +49,11 @@ function CamposNoticia({
         <Label htmlFor="imagem">
           Imagem {noticia ? "(deixe vazio para manter a atual)" : "(opcional)"}
         </Label>
-        <input
+        <Input
           id="imagem"
           name="imagem"
           type="file"
           accept="image/*"
-          className={FILE}
         />
       </div>
     </>

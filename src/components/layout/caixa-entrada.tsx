@@ -8,12 +8,21 @@ import { cn } from "@/lib/utils"
  * Faixa do topo do painel: tudo que espera a pessoa agir, cada fila em um
  * bloco com a contagem e o link direto (onda 2, U1; visual do painel
  * unificado em 06/10/2026). Sem pendência, uma linha discreta — a ausência
- * também é informação.
+ * também é informação. `estreita`: dividindo a linha com outro cartão
+ * (Meu dia), cabe uma coluna a menos de filas.
  */
-export function CaixaDeEntrada({ pendencias }: { pendencias: Pendencia[] }) {
+export function CaixaDeEntrada({
+  pendencias,
+  estreita = false,
+  className,
+}: {
+  pendencias: Pendencia[]
+  estreita?: boolean
+  className?: string
+}) {
   const total = pendencias.reduce((s, p) => s + p.quantidade, 0)
   return (
-    <section id="caixa-entrada" className="hud-cartao scroll-mt-20 p-4" aria-label="Caixa de entrada">
+    <section id="caixa-entrada" className={cn("hud-cartao min-w-0 scroll-mt-20 p-4", className)} aria-label="Caixa de entrada">
       <header className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <Inbox className="text-primary size-4" />
@@ -34,7 +43,7 @@ export function CaixaDeEntrada({ pendencias }: { pendencias: Pendencia[] }) {
           Nada esperando por você agora.
         </p>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className={cn("grid gap-2 sm:grid-cols-2", estreita ? "xl:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4")}>
           {pendencias.map((p) => (
             <li key={p.chave}>
               <Link

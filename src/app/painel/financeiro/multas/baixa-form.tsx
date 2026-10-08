@@ -44,7 +44,8 @@ export function BaixaCobrancaForm({
           type="file"
           name="comprovante"
           accept="application/pdf,image/jpeg,image/png"
-          className="h-8 w-64 max-w-full text-sm"
+          compacto
+          className="w-64 max-w-full"
         />
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Check />}

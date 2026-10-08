@@ -19,8 +19,6 @@ const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 const DATA =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-const FILE =
-  "border-input bg-background text-foreground w-full rounded-md border px-3 py-1.5 text-sm shadow-xs outline-none file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1"
 
 export function AdicionarDocumento({ empresaId }: { empresaId: string }) {
   const [estado, formAction, pendente] = useActionState(
@@ -71,12 +69,11 @@ export function AdicionarDocumento({ empresaId }: { empresaId: string }) {
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="doc_arquivo">Arquivo (PDF)</Label>
-        <input
+        <Input
           id="doc_arquivo"
           name="arquivo"
           type="file"
           accept="application/pdf"
-          className={FILE}
         />
       </div>
       <div>
