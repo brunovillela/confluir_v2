@@ -5,6 +5,15 @@ import { Check, FileUp, Loader2, QrCode } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -26,7 +35,8 @@ function Retorno({ estado }: { estado: Estado }) {
 
 /**
  * Novo código Pix copia e cola para uma ordem ainda não paga — o código do
- * fornecedor expira. Fechado por padrão: abre com o botão.
+ * fornecedor expira. Ícone com a descrição no hover; o clique abre a janela
+ * com o campo do código.
  */
 export function NovoCodigoPix({
   processoId,
@@ -38,40 +48,60 @@ export function NovoCodigoPix({
   finalAtual: string | null
 }) {
   const [aberto, setAberto] = useState(false)
-  const [estado, acao, pendente] = useActionState(trocarCodigoPixAction, {})
-
-  if (!aberto) {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setAberto(true)}>
-          <QrCode />
-          Novo código Pix
-        </Button>
-        {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
-      </div>
-    )
-  }
+  const [estado, acao, pendente] = useActionState(async (prev: Estado, dados: FormData) => {
+    const r = await trocarCodigoPixAction(prev, dados)
+    if (r.ok) setAberto(false)
+    return r
+  }, {})
+  const descricao = "Incluir novo código Pix copia e cola (o anterior expirou)"
 
   return (
-    <form action={acao} className="grid gap-2 rounded-md border p-3">
-      <input type="hidden" name="processo_id" value={processoId} />
-      <input type="hidden" name="ordem_id" value={ordemId} />
-      <p className="text-muted-foreground text-xs">
-        Cole o código Pix copia e cola novo
-        {finalAtual ? ` — o atual termina em …${finalAtual}` : ""}. O anterior deixa de valer nesta ordem.
-      </p>
-      <Textarea name="pix_codigo" required rows={3} placeholder="000201…" className="font-mono text-xs" />
-      <Retorno estado={estado} />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={pendente}>
-          {pendente && <Loader2 className="animate-spin" />}
-          Salvar código
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(false)}>
-          Fechar
-        </Button>
-      </div>
-    </form>
+    <span className="inline-flex items-center gap-1">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={descricao}>
+                <QrCode />
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{descricao}</TooltipContent>
+        </Tooltip>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo código Pix</DialogTitle>
+            <DialogDescription>
+              Cole o código copia e cola novo{finalAtual ? ` — o atual termina em …${finalAtual}` : ""}. O
+              anterior deixa de valer nesta ordem.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={acao} className="grid gap-3">
+            <input type="hidden" name="processo_id" value={processoId} />
+            <input type="hidden" name="ordem_id" value={ordemId} />
+            <Textarea
+              name="pix_codigo"
+              required
+              rows={4}
+              placeholder="000201…"
+              className="font-mono text-xs break-all"
+              autoFocus
+            />
+            {estado.erro && <Retorno estado={estado} />}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={pendente}>
+                {pendente && <Loader2 className="animate-spin" />}
+                Salvar código
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {!aberto && estado.ok && <Check className="text-success-fg size-4" aria-label={estado.ok} />}
+    </span>
   )
 }
 

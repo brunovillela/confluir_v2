@@ -42,6 +42,13 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
+/** Rótulo da forma no formulário de pagamento (diz o que ela pede). */
+function rotuloForma(forma: string): string {
+  return forma in ROTULO_FORMA_CONTRATO
+    ? ROTULO_FORMA_CONTRATO[forma as keyof typeof ROTULO_FORMA_CONTRATO]
+    : forma
+}
+
 // Mesmo shape do EstadoForm do servidor (lib/contas é server-only).
 type Estado = { erro?: string; ok?: string }
 type AcaoServidor = (prev: Estado, formData: FormData) => Promise<Estado>
@@ -276,9 +283,16 @@ export function GerarOrdemForm({
         const dados = new FormData(e.currentTarget)
         startTransition(() => formAction(dados))
       }}
-      className="bg-background grid gap-3 rounded-md border p-3"
+      className="bg-background grid min-w-0 gap-4 rounded-md border p-4"
     >
-      <p className="text-sm font-medium">{novo ? "Novo pagamento" : "Ordem de pagamento"}</p>
+      <div>
+        <p className="text-sm font-medium">{novo ? "Novo pagamento" : "Ordem de pagamento"}</p>
+        <p className="text-muted-foreground text-xs">
+          {valorRestante !== null
+            ? `Falta lançar ${valorRestante.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} deste fornecimento.`
+            : "Valor todo lançado — um pagamento a mais passa pela confirmação da auditoria."}
+        </p>
+      </div>
       <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -287,14 +301,16 @@ export function GerarOrdemForm({
       )}
       <input type="hidden" name="processo_id" value={processoId} />
       <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
-      <div className="flex flex-wrap items-end gap-3">
+
+      {/* 1. Quanto, quando e como. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_11rem_minmax(0,22rem)]">
         <div className="grid gap-1.5">
-          <Label htmlFor={`valor-${fornecimentoId}`}>Valor (R$)</Label>
+          <Label htmlFor={`valor-${fornecimentoId}`}>Valor (R$) *</Label>
           <Input
             id={`valor-${fornecimentoId}`}
             name="valor"
             inputMode="decimal"
-            className="w-32"
+            placeholder="0,00"
             defaultValue={
               valorRestante !== null
                 ? valorRestante.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -304,28 +320,9 @@ export function GerarOrdemForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor={`vencimento-${fornecimentoId}`}>Vencimento</Label>
-          <Input
-            id={`vencimento-${fornecimentoId}`}
-            name="vencimento"
-            type="date"
-          />
+          <Input id={`vencimento-${fornecimentoId}`} name="vencimento" type="date" />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`nota-${fornecimentoId}`}>
-            Nota fiscal (PDF, opcional — sem ela, vale a da compra)
-          </Label>
-          <Input
-            id={`nota-${fornecimentoId}`}
-            name="nota_fiscal"
-            type="file"
-            accept="application/pdf"
-          />
-        </div>
-      </div>
-      {/* Cada pagamento tem a sua forma; o campo de "para onde" muda com ela
-          (chave Pix do fornecedor, código copia e cola, arquivo do boleto…). */}
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="grid gap-1.5">
+        <div className="grid gap-1.5 sm:col-span-2 lg:col-span-1">
           <Label htmlFor={`forma-${fornecimentoId}`}>Forma de pagamento *</Label>
           <select
             id={`forma-${fornecimentoId}`}
@@ -340,26 +337,44 @@ export function GerarOrdemForm({
             </option>
             {FORMAS_PAGAMENTO_COMPRAS.map((f) => (
               <option key={f} value={f}>
-                {f in ROTULO_FORMA_CONTRATO
-                  ? ROTULO_FORMA_CONTRATO[f as keyof typeof ROTULO_FORMA_CONTRATO]
-                  : f}
+                {rotuloForma(f)}
               </option>
             ))}
           </select>
         </div>
-        {forma && (
-          <DetalhePagamento
-            key={forma}
-            forma={forma}
-            fornecedorId={fornecedorId}
-            cartoes={cartoes}
-            caixas={caixas}
-            buscarMeios={meiosDoFornecedorProcesso}
-            futuro
-          />
+      </div>
+
+      {/* 2. O "para onde" da forma: o campo muda com ela (chave Pix, código
+          copia e cola, arquivo do boleto, conta, cartão ou caixa). */}
+      <div className="bg-muted/40 grid min-w-0 gap-3 rounded-md border p-3">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          {forma ? `Dados do pagamento — ${rotuloForma(forma)}` : "Dados do pagamento"}
+        </p>
+        {forma ? (
+          <div className="grid max-w-3xl min-w-0 grid-cols-1 gap-3 [&>*]:col-span-full!">
+            <DetalhePagamento
+              key={forma}
+              forma={forma}
+              fornecedorId={fornecedorId}
+              cartoes={cartoes}
+              caixas={caixas}
+              buscarMeios={meiosDoFornecedorProcesso}
+              futuro
+            />
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">Escolha a forma de pagamento acima.</p>
         )}
       </div>
-      <div className="flex justify-start gap-2">
+
+      {/* 3. Documento (opcional). */}
+      <div className="grid max-w-xl gap-1.5">
+        <Label htmlFor={`nota-${fornecimentoId}`}>Nota fiscal deste pagamento (opcional)</Label>
+        <Input id={`nota-${fornecimentoId}`} name="nota_fiscal" type="file" accept="application/pdf" />
+        <p className="text-muted-foreground text-xs">Sem ela, o pagamento usa a nota da compra.</p>
+      </div>
+
+      <div className="flex flex-wrap justify-start gap-2">
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
           {rotulo}

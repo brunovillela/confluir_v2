@@ -97,7 +97,7 @@ export function DetalhePagamento({
   if (tipo === "cartao") {
     return (
       <div className="grid gap-1.5">
-        <Label htmlFor="cartao_id">Cartão usado *</Label>
+        <Label htmlFor="cartao_id">{futuro ? "Cartão do pagamento *" : "Cartão usado *"}</Label>
         {cartoes.length === 0 ? (
           <p className="text-destructive text-xs">
             Nenhum cartão cadastrado. Peça ao financeiro para cadastrar em
@@ -122,7 +122,7 @@ export function DetalhePagamento({
   if (tipo === "caixa") {
     return (
       <div className="grid gap-1.5">
-        <Label htmlFor="caixa_conta_id">Conta de caixa de onde saiu o dinheiro *</Label>
+        <Label htmlFor="caixa_conta_id">{futuro ? "Conta de caixa de onde sairá o dinheiro *" : "Conta de caixa de onde saiu o dinheiro *"}</Label>
         {caixas.length === 0 ? (
           <p className="text-destructive text-xs">
             Nenhuma conta de caixa aberta. O financeiro abre e abastece o

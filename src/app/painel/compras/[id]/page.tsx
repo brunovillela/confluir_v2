@@ -77,33 +77,39 @@ function LinhaOrdem({
 }) {
   const pixTrocavel =
     ordem.forma_pagamento === "Pix (QR Code)" && !ORDEM_ENCERRADA.includes(String(ordem.situacao))
+  // Três linhas: código/situação/valor, descrição (quebra, sem estourar a
+  // largura) e os detalhes com os links e os ajustes em ícone.
   return (
-    <div className="grid gap-2">
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Link
-          href={`/painel/financeiro/ordens/${ordem.id}`}
-          className="text-primary font-medium whitespace-nowrap tabular-nums hover:underline"
-        >
-          {ordem.codigo ?? "(sem código)"}
-        </Link>
-        <span className="text-muted-foreground truncate">
-          {ordem.descricao ?? "—"}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="whitespace-nowrap tabular-nums">
+    <div className="grid min-w-0 gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Link
+            href={`/painel/financeiro/ordens/${ordem.id}`}
+            className="text-primary text-sm font-medium whitespace-nowrap tabular-nums hover:underline"
+          >
+            {ordem.codigo ?? "(sem código)"}
+          </Link>
+          <SituacaoBadge situacao={ordem.situacao} />
+        </div>
+        <span className="text-sm font-medium whitespace-nowrap tabular-nums">
           {formatarMoeda(ordem.valor_pago ?? ordem.valor_inicial_cobranca)}
         </span>
-        {ordem.vencimento && (
-          <span className="text-muted-foreground whitespace-nowrap">
-            vence {formatarData(ordem.vencimento)}
-          </span>
-        )}
+      </div>
+      <p className="text-muted-foreground line-clamp-2 text-sm break-words" title={ordem.descricao ?? undefined}>
+        {ordem.descricao ?? "—"}
+      </p>
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {ordem.vencimento && <span className="whitespace-nowrap">vence {formatarData(ordem.vencimento)}</span>}
         {ordem.forma_pagamento && (
-          <span className="text-muted-foreground">
+          <span>
             {ordem.forma_pagamento}
             {ordem.pixCodigoFinal ? ` …${ordem.pixCodigoFinal}` : ""}
+          </span>
+        )}
+        {ordem.autorizado && (
+          <span className="text-success-fg">
+            Aprovada{ordem.autorizadorNome ? ` por ${ordem.autorizadorNome}` : ""}
+            {ordem.autorizacao_data ? ` em ${formatarData(ordem.autorizacao_data)}` : ""}
           </span>
         )}
         <a
@@ -116,29 +122,19 @@ function LinhaOrdem({
           Extrato
         </a>
         {mostrarNota && ordem.notaUrl && (
-          <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+          <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary whitespace-nowrap hover:underline">
             Nota do pagamento
           </a>
         )}
-        <SituacaoBadge situacao={ordem.situacao} />
-        {ordem.autorizado && (
-          <span className="text-success-fg text-xs whitespace-nowrap">
-            Aprovada{ordem.autorizadorNome ? ` por ${ordem.autorizadorNome}` : ""}
-            {ordem.autorizacao_data
-              ? ` em ${formatarData(ordem.autorizacao_data)}`
-              : ""}
+        {podeAjustar && (
+          <span className="inline-flex items-center gap-0.5">
+            {pixTrocavel && (
+              <NovoCodigoPix processoId={processoId} ordemId={ordem.id} finalAtual={ordem.pixCodigoFinal ?? null} />
+            )}
+            <NotaFiscalIcone processoId={processoId} alvo="pagamento" id={ordem.id} temNota={!!ordem.notaFiscal} />
           </span>
         )}
-        {podeAjustar && (
-          <NotaFiscalIcone processoId={processoId} alvo="pagamento" id={ordem.id} temNota={!!ordem.notaFiscal} />
-        )}
       </div>
-    </div>
-    {podeAjustar && pixTrocavel && (
-      <div className="flex flex-wrap items-start gap-2">
-        <NovoCodigoPix processoId={processoId} ordemId={ordem.id} finalAtual={ordem.pixCodigoFinal ?? null} />
-      </div>
-    )}
     </div>
   )
 }
@@ -535,7 +531,7 @@ export default async function ProcessoCompraPage({
             </CardDescription>
           )}
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid min-w-0 gap-4 [&>*]:min-w-0">
           {!processo.comprado &&
             operavel &&
             escolhidas.length > 0 &&
@@ -567,8 +563,8 @@ export default async function ProcessoCompraPage({
           {/* Dois grupos por fornecimento — o que foi comprado (e recebido) e
               os pagamentos dele — para não confundir um com o outro. */}
           {fornecimentosComUrl.map((f, i) => (
-            <section key={f.id} className="grid gap-2">
-            <div className="border-border rounded-md border p-4">
+            <section key={f.id} className="grid min-w-0 gap-3">
+            <div className="border-border min-w-0 rounded-md border p-4">
               <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
                 Fornecimento
               </p>
@@ -679,7 +675,7 @@ export default async function ProcessoCompraPage({
               </div>
             </div>
 
-            <div className="bg-muted/30 border-border rounded-md border p-4">
+            <div className="bg-muted/30 border-border min-w-0 rounded-md border p-4">
                 {(() => {
                   // Vários pagamentos por fornecimento: o que falta lançar em ordens.
                   const lancado = f.pagamentos
@@ -702,7 +698,7 @@ export default async function ProcessoCompraPage({
                         )}
                       </div>
                       {f.pagamentos.length > 0 && (
-                        <div className="divide-border grid divide-y">
+                        <div className="divide-border grid min-w-0 divide-y">
                           {f.pagamentos.map((o) => (
                             <div key={o.id} className="py-2 first:pt-0 last:pb-0">
                               <LinhaOrdem
