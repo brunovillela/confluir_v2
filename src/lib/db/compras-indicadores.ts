@@ -97,9 +97,59 @@ function somar(mapa: Map<string, Fatia>, chave: string, valor: number, quantidad
 
 const fatia = (chave: string, nome: string): Fatia => ({ chave, nome, valor: 0, quantidade: 0 })
 
+// ── Cache ──────────────────────────────────────────────────────────────────
+//
+// O cálculo lê milhares de compras (3,2 mil em 12 meses no sindicato). Fica
+// em memória do servidor por CACHE_MS, por tenant + alcance + período: quem
+// alcança todos os departamentos divide a mesma entrada; quem tem recorte
+// tem a sua (o recorte inclui as compras que a pessoa registrou). Pedidos
+// simultâneos da mesma chave esperam o mesmo cálculo. Não dá para usar o
+// cache do Next: o tenant vem do cabeçalho da requisição (tenantAtual).
+
+const CACHE_MS = 10 * 60 * 1000
+const CACHE_MAX = 200
+
+type EntradaCache = { em: number; promessa: Promise<IndicadoresCompras | null> }
+const cache = new Map<string, EntradaCache>()
+
+function chaveDoCache(emp: string, escopo: EscopoCompras, periodo: PeriodoIndicadores): string {
+  const alcance = escopo.todos
+    ? "todos"
+    : `${[...escopo.departamentoIds].sort().join(",")}|${escopo.usuarioId}`
+  return `${emp}|${periodo}|${alcance}`
+}
+
+/**
+ * Indicadores com cache de 10 minutos. `atualizar` força o recálculo (botão
+ * "Atualizar agora"). `calculadoEm` diz de quando são os números.
+ */
 export async function indicadoresCompras(
   escopo: EscopoCompras,
-  periodo: PeriodoIndicadores = "12m"
+  periodo: PeriodoIndicadores = "12m",
+  atualizar = false
+): Promise<{ dados: IndicadoresCompras | null; calculadoEm: number }> {
+  const emp = await tenantAtual()
+  const chave = chaveDoCache(emp, escopo, periodo)
+  const agora = Date.now()
+  const atual = cache.get(chave)
+  if (atual && !atualizar && agora - atual.em < CACHE_MS) {
+    return { dados: await atual.promessa, calculadoEm: atual.em }
+  }
+  const promessa = calcularIndicadores(escopo, periodo)
+  cache.set(chave, { em: agora, promessa })
+  // Erro não fica guardado: a próxima visita tenta de novo.
+  promessa.catch(() => {
+    if (cache.get(chave)?.promessa === promessa) cache.delete(chave)
+  })
+  if (cache.size > CACHE_MAX) {
+    for (const [k, v] of cache) if (agora - v.em >= CACHE_MS || cache.size > CACHE_MAX) cache.delete(k)
+  }
+  return { dados: await promessa, calculadoEm: agora }
+}
+
+async function calcularIndicadores(
+  escopo: EscopoCompras,
+  periodo: PeriodoIndicadores
 ): Promise<IndicadoresCompras | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()

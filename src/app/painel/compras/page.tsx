@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ClipboardCheck,
   ClipboardList,
@@ -41,6 +42,7 @@ export const metadata: Metadata = { title: "Aquisição — Confluir" };
 type Params = {
   fora?: string;
   periodo?: string;
+  atualizar?: string;
 };
 
 export default async function ComprasPage({
@@ -65,7 +67,14 @@ export default async function ComprasPage({
       : "12m";
 
   const escopo = await escopoComprasDoUsuario(sessao.usuario.id);
-  const [resumo, resumoContr, departamentos, ind] = await Promise.all([
+  const urlDoPeriodo = periodo === "12m" ? "/painel/compras" : `/painel/compras?periodo=${periodo}`;
+  // "Atualizar agora": recalcula (o cache vale 10 min) e volta à URL limpa,
+  // para um F5 depois não recalcular de novo.
+  if (brutos.atualizar === "1") {
+    await indicadoresCompras(escopo, periodo, true);
+    redirect(urlDoPeriodo);
+  }
+  const [resumo, resumoContr, departamentos, { dados: ind, calculadoEm }] = await Promise.all([
     resumoCompras(escopo),
     resumoContratos(),
     escopo.todos ? Promise.resolve([]) : listarDepartamentos(),
@@ -244,6 +253,23 @@ export default async function ComprasPage({
                   e as que você registrou
                 </>
               )}
+            </p>
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Números de{" "}
+              {new Date(calculadoEm).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              (renovados a cada 10 min) ·{" "}
+              <Link
+                href={`${urlDoPeriodo}${urlDoPeriodo.includes("?") ? "&" : "?"}atualizar=1`}
+                prefetch={false}
+                scroll={false}
+                className="text-primary hover:underline"
+              >
+                Atualizar agora
+              </Link>
             </p>
           </div>
           <nav
