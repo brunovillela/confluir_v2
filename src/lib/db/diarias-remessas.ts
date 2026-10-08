@@ -1,12 +1,12 @@
 import "server-only"
 
-import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { contaDoGasto, listarContasDiaria, type QuadroDiaria } from "@/lib/db/diarias-config"
 import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
 import { avaliarSolicitacaoDiaria, solicitacoesDaRemessa, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
-import { registrarEvento } from "@/lib/db/ordens-ciclo"
+import { registrarEvento, SITUACAO_A_PAGAR } from "@/lib/db/ordens-ciclo"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
@@ -521,12 +521,19 @@ async function gerarOrdemDaRemessa(
     .join(" ")
     .replace(" .", ".")
 
+  const autorizacao = `Autorizada na aprovação da remessa de diárias ${remessa.codigo ?? ""}.`
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada(
     {
       codigo,
       tipo: "Diária",
       descricao,
-      situacao: "Em autorização",
+      // 08/10: quem aprova a remessa autoriza a ordem dela — nasce A pagar.
+      situacao: SITUACAO_A_PAGAR,
+      autorizacao_esta_autorizado: true,
+      autorizacao_autorizador_id: usuarioId,
+      // Coluna DATE no legado — o dia de SP.
+      autorizacao_data: hojeSP(),
+      autorizacao_observacao: autorizacao,
       valor_inicial_cobranca: total,
       beneficiario_usuario_id: remessa.beneficiarioId,
       // Conta predominante na ordem; o rateio detalha todas.
@@ -612,11 +619,12 @@ async function gerarOrdemDaRemessa(
     `Gerada pela aprovação da remessa de diárias ${remessa.codigo ?? ""} (${aprovadas.length} diária(s)).`,
     { remessa_id: remessaId, diarias: aprovadas.map((s) => s.id) }
   )
+  await registrarEvento(ordem.id, "autorizada", usuarioId, autorizacao, { valor: total, remessa_id: remessaId })
   // Avisos (sino, Telegram, e-mail) depois da resposta: a tela não espera os envios.
   depoisDaResposta(() =>
     avisarPessoas(
       interessados(remessa, aprovadas),
-      `A remessa de diárias ${remessa.codigo ?? ""} de ${remessa.beneficiarioNome ?? "beneficiário"} foi APROVADA: ${aprovadas.length} diária(s), ${formatarMoeda(total)}. Ordem de pagamento ${codigo} — segue o fluxo do financeiro.`,
+      `A remessa de diárias ${remessa.codigo ?? ""} de ${remessa.beneficiarioNome ?? "beneficiário"} foi APROVADA: ${aprovadas.length} diária(s), ${formatarMoeda(total)}. Ordem de pagamento ${codigo} já autorizada — segue para pagamento no financeiro.`,
       "Remessa de diárias aprovada",
       "/painel/perfil/diarias"
     )

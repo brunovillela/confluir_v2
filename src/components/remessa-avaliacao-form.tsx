@@ -72,7 +72,7 @@ export function AvaliacaoRemessaForm({
         if (decisao === "aprovar") {
           confirmarEnvio(e, {
             titulo: `Aprovar a remessa (${total})?`,
-            descricao: `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados. Ela segue para autorização no Financeiro.`,
+            descricao: `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados — já AUTORIZADA por você, direto para A pagar.`,
             confirmar: "Aprovar",
           })
         } else {
@@ -192,7 +192,7 @@ export function DecisaoRemessaCompacta({ remessaId, resumo }: { remessaId: strin
       className="grid gap-2"
       onSubmit={(e) => {
         const decisao = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
-        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada.`)
+        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada, já autorizada por você (A pagar).`)
       }}
     >
       <input type="hidden" name="remessa_id" value={remessaId} />

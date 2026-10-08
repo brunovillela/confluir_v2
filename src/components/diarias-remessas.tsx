@@ -332,7 +332,8 @@ export function DetalheRemessaDiarias({
           </CardTitle>
           <CardDescription>
             A remessa é avaliada inteira. Aprovada, nasce uma ordem de pagamento com o valor dela,
-            rateada pelos centros de custo configurados (Diárias → Centros de custo). Com alguma não
+            rateada pelos centros de custo configurados (Diárias → Centros de custo) e já autorizada
+            por quem aprovou — vai direto para A pagar. Com alguma não
             conformidade, devolva com a observação — no geral e em cada diária com problema.
           </CardDescription>
         </CardHeader>
