@@ -1,6 +1,7 @@
 As **diárias** cobrem despesas de viagens e deslocamentos. A equipe cadastra os
-tipos, o funcionário solicita, e a solicitação é avaliada — gerando uma ordem de
-pagamento quando aprovada.
+tipos, o funcionário solicita, e as diárias de cada pessoa se juntam numa
+**remessa**, que é avaliada inteira — aprovada, vira uma ordem de pagamento só,
+rateada pelos centros de custo.
 
 <Aviso tipo="dica" titulo="Diretor tem a área dele">
   Esta tela é a das diárias de **funcionário**. As da **diretoria** ficam em
@@ -20,41 +21,134 @@ aparece no formulário de quem está na lista.
 
 <Print src="pessoal/diarias-tipos.png" alt="Tipos de diária: formulário para adicionar com nome, valor, categoria, o campo Vale para (Funcionários, Diretoria ou os dois) e a marcação de disponível, e a tabela de tipos com nome, valor, para quem vale e situação." legenda="Os tipos: o campo Vale para separa funcionários e diretoria." />
 
-## O ciclo da solicitação
+## O ciclo: a diária entra na remessa, e a remessa é avaliada
+
+Cada pessoa tem uma **remessa de diárias** aberta: toda diária que ela pede (ou
+que lançam por ela) entra nessa remessa, com as despesas extras. A avaliação
+**não é diária por diária — é da remessa inteira**: quem avalia confere tudo de
+uma vez e **aprova** (nasce uma ordem de pagamento só, com o valor da remessa)
+ou **devolve** com a observação do que não está de acordo.
 
 <PassoAPasso>
   <Passo titulo="Solicitar">
     Em *Meu perfil → Minhas diárias*, o botão **Solicitar diária** abre o
-    formulário: o tipo, a quantidade, o período e o motivo. O valor total é
-    calculado pela quantidade × valor do tipo.
+    formulário: o tipo, a quantidade, o período e o motivo. O valor é
+    quantidade × valor do tipo. A diária entra na remessa aberta da pessoa.
   </Passo>
   <Passo titulo="Acrescentar as despesas">
-    Enquanto a diária aguarda avaliação, quem pediu pode lançar as **despesas
+    Enquanto a remessa está em avaliação, quem pediu lança as **despesas
     extras** — hospedagem, alimentação, passagem, táxi, pedágio — com valor e
     comprovante. A equipe também lança pela tela da diária.
   </Passo>
-  <Passo titulo="Avaliar">
-    Enquanto está **aguardando**, aparece a ação **Avaliar** — a equipe aprova ou
-    reprova. Também é possível cancelar.
+  <Passo titulo="Avaliar a remessa">
+    Em **Diárias → Remessas**, abra a remessa: as diárias, as despesas e os
+    comprovantes estão todos na mesma tela. **Aprovar a remessa** aprova todas
+    as diárias de uma vez; **Devolver com observação** manda de volta a quem
+    lançou (veja abaixo).
   </Passo>
   <Passo titulo="Pagamento">
-    Ao aprovar, a diária gera uma **ordem de pagamento** no Financeiro, com a
-    diária e as despesas somadas.
+    Aprovada, nasce **uma ordem de pagamento** com o valor da remessa — diárias
+    (líquidas das infrações de trânsito descontadas) mais despesas —, **rateada
+    pelos centros de custo** configurados. Se ela já sai autorizada ou vai para
+    a fila de autorização depende da regra das diárias (veja *Autorização da
+    ordem*, mais abaixo).
   </Passo>
 </PassoAPasso>
 
-No alto da lista ficam os números do ano: quantas diárias aguardam avaliação (e
-quanto somam), quantas foram aprovadas, o valor das diárias e o das despesas
-extras.
+<Print src="pessoal/diarias-remessa.png" alt="Tela de uma remessa de diárias em avaliação: os totais de diárias, despesas e valor da remessa; as duas diárias da remessa, cada uma com tipo, período, departamento, motivo, a despesa de alimentação e o botão Retirar; e o cartão Avaliação da remessa com os botões Devolver com observação e Aprovar a remessa." legenda="A remessa: tudo o que vai ser pago, numa tela só, com Aprovar e Devolver." />
 
-<Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com os quatro números do ano no topo, filtros de busca e situação, e a tabela com funcionário, tipo, quantidade, valor (com o acréscimo em despesas), período e situação." legenda="Diárias: os números do ano, as solicitações e a avaliação da equipe." />
+A diária sozinha não tem mais botão de aprovar: a tela dela mostra a remessa em
+que entrou, com o link. Quem avalia diárias de funcionário também pode decidir
+pelo celular, em **Aprovar**, e o **coordenador do departamento** decide a
+remessa dos funcionários dele na aba **Coordenação** do painel — ninguém avalia
+a própria remessa.
+
+### Devolver com observação
+
+Se algo não está de acordo — falta o relatório da atividade, um comprovante,
+a quantidade de diárias não confere —, use **Devolver com observação**:
+
+1. Escreva **o que não está de acordo** (obrigatório).
+2. Em **Diárias com não conformidade**, marque cada diária com problema e diga
+   o que corrigir nela.
+3. Confirme em **Devolver a remessa**.
+
+<Print src="pessoal/diarias-remessa-devolver.png" alt="Formulário de devolução da remessa: o campo O que não está de acordo preenchido com Falta o relatório da reunião de 21/10, e a lista Diárias com não conformidade com a segunda diária marcada e a observação Anexar a ata ou o relatório da reunião." legenda="Devolver: a observação geral e o que corrigir em cada diária apontada." />
+
+Quem recebe e quem lançou são avisados (sino, Telegram e e-mail, conforme as
+preferências). A remessa fica **Devolvida**, as diárias apontadas aparecem em
+vermelho com a não conformidade, e ela sai da fila de quem avalia até ser
+reenviada.
+
+<Print src="pessoal/diarias-remessa-devolvida.png" alt="Remessa devolvida: o aviso vermelho com a data, quem devolveu e a observação; a diária apontada destacada com Não conformidade: Anexar a ata ou o relatório da reunião; o campo O que foi corrigido com o botão Reenviar para avaliação; e o histórico da avaliação com a devolução." legenda="Devolvida: o que corrigir fica marcado em cada diária, e o reenvio está logo abaixo." />
+
+### Corrigir e reenviar
+
+- **Quem pediu** vê a devolução em *Meu perfil → Minhas diárias*: a
+  observação, as diárias apontadas e o botão **Reenviar para avaliação**.
+  Para corrigir, ajuste as despesas, **cancele** a diária com problema e, se
+  for o caso, peça de novo com os dados certos — a nova entra na mesma
+  remessa.
+- **Quem gere as diárias** também corrige pela tela da remessa: o botão
+  **Retirar** tira (cancela) uma diária da remessa, e o **Reenviar** fica
+  disponível — é o caminho para a diretoria, que quase nunca tem conta no
+  sistema.
+- Reenviada, a remessa volta à fila (**Reenviada**) e quem avalia é avisado.
+  Quem avalia também pode **avaliar de novo sem esperar o reenvio**, quando a
+  correção já foi feita por ele mesmo.
+
+Todo o caminho fica no **Histórico da avaliação** da remessa: quem devolveu e
+por quê, quem reenviou e o que corrigiu, quem aprovou e a ordem gerada.
+
+<Print src="pessoal/diarias-remessa-aprovada.png" alt="Remessa aprovada: os totais, as duas diárias aprovadas, o cartão de avaliação com Aprovada em 08/10/2026 por Operador de Demonstração e o link da ordem de pagamento, e o histórico com a devolução e as não conformidades." legenda="Aprovada: a ordem gerada e o histórico de devoluções e reenvios." />
+
+### A lista de remessas
+
+**Diárias → Remessas** separa as remessas em **Em avaliação** (abertas e
+reenviadas — as que esperam decisão), **Devolvidas** (esperando a correção de
+quem lançou) e **Aprovadas** (com a situação da ordem de pagamento ao lado). O
+botão Remessas, no alto da tela de Diárias, mostra quantas há a avaliar.
+
+<Print src="institucional/diretoria-remessas.png" alt="Lista de remessas de diárias em três blocos: Em avaliação com uma remessa de José Pereira Lima, Devolvidas vazio, e Aprovadas com cinco remessas, cada uma com código, beneficiário, período, número de diárias, valor e as situações da remessa e da ordem de pagamento (A pagar ou Em autorização)." legenda="As remessas: em avaliação, devolvidas e aprovadas, com a situação da ordem." />
+
+No alto da lista de Diárias ficam os números do ano: quantas diárias aguardam
+avaliação (e quanto somam), quantas foram aprovadas, o valor das diárias e o das
+despesas extras.
+
+<Print src="pessoal/diarias.png" alt="Lista de solicitações de diária com os quatro números do ano no topo, filtros de busca e situação, e a tabela com funcionário, tipo, quantidade, valor (com o acréscimo em despesas), período e situação." legenda="Diárias: os números do ano e as solicitações; a avaliação é feita nas remessas." />
+
+## Autorização da ordem
+
+Quando a remessa é aprovada, a ordem de pagamento pode já nascer **A pagar**
+(autorizada por quem aprovou a remessa) ou ir para a **fila de autorização** do
+Financeiro. A regra é uma só para a entidade e fica no topo de
+**Diárias → Centros de custo**, no cartão *Autorização das ordens das remessas*:
+
+| Regra | O que acontece ao aprovar a remessa |
+|---|---|
+| **Quem aprova a remessa autoriza a ordem** (padrão) | A ordem nasce **A pagar**, autorizada por quem aprovou, qualquer que seja o valor. |
+| **A autorização da ordem depende da alçada financeira** | Se o valor couber na **alçada** de quem aprovou, a ordem nasce **A pagar**, autorizada por ele. Se não couber (ou a pessoa não tiver alçada), a ordem vai para a fila **Em autorização** e segue como qualquer outra ordem. |
+
+Antes de aprovar, a tela da remessa já diz o que vai acontecer com a ordem para
+quem está avaliando — "já autorizada por você" ou "enviada à fila de
+autorização". A autorização automática fica registrada na ordem (quem, quando e
+o motivo) e na trilha dela.
+
+<Print src="pessoal/diarias-autorizacao.png" alt="Topo de Centros de custo das diárias com o cartão Autorização das ordens das remessas: as opções Quem aprova a remessa autoriza a ordem (marcada) e A autorização da ordem depende da alçada financeira, cada uma com a explicação, e o botão Salvar regra." legenda="A regra de autorização das ordens das remessas." />
+
+<Aviso tipo="atencao" titulo="Quem muda a regra">
+  É uma decisão financeira: só quem tem **Configurações** ou a **avaliação das
+  ordens de pagamento** muda a regra. Quem gere as diárias vê a regra em vigor,
+  mas não altera.
+</Aviso>
 
 ## Despesas extras e centros de custo
 
-A despesa extra está **submetida à diária** — mesma solicitação, mesma avaliação,
-mesmo pagamento —, mas vai para **outra conta contábil**. Por isso a ordem de
-pagamento sai com **rateio**: um pagamento só, uma linha por conta. O rateio
-aparece no bloco *Centro de custo* da ordem, no Financeiro.
+A despesa extra está **submetida à diária** — mesma remessa, mesma avaliação,
+mesmo pagamento —, mas pode ir para **outra conta contábil**. Por isso a ordem
+da remessa sai com **rateio**: um pagamento só, uma linha por conta (e por
+departamento) — o que cai na mesma conta soma numa linha. O rateio aparece no
+bloco *Centro de custo* da ordem, no Financeiro.
 
 Em **Diárias → Centros de custo** se diz qual conta cada gasto usa. A conta sai
 de três coisas: o **quadro** de quem recebe (funcionário ou diretoria), o
@@ -97,16 +191,27 @@ atalho aparece para quem tem alguma, diretor ou funcionário.
   (`diarias.sql`) — fale com quem administra o sistema.
 - **"A lista está vazia, mas havia diárias no sistema antigo."** Elas estão em
   **Histórico** — a lista principal mostra só as solicitações novas.
-- **"Aprovei a diária, mas o pagamento não saiu."** Ao aprovar, a diária gera
-  uma **ordem de pagamento** no Financeiro que nasce **Em autorização** — ela
-  ainda passa pela alçada antes de ser paga.
+- **"Não acho o botão de aprovar na diária."** A avaliação é da **remessa**:
+  abra Diárias → Remessas (ou o link da remessa na tela da diária).
+- **"Aprovei a remessa, mas a ordem ficou Em autorização."** A regra das
+  diárias está em *depende da alçada* e o valor passou da sua alçada — a ordem
+  segue na fila de quem tem alçada para ela. Veja *Autorização da ordem*.
+- **"Aprovei a remessa, mas o pagamento não saiu."** A ordem nasce **A pagar**
+  no Financeiro; o pagamento em si é registrado lá, como em qualquer ordem.
+- **"A remessa sumiu da fila."** Ela foi **devolvida** e espera a correção —
+  está no bloco Devolvidas da lista de remessas.
+- **"Não consigo reenviar a remessa."** Ela precisa ter ao menos uma diária
+  aguardando. Se você cancelou a única diária, peça a diária corrigida antes de
+  reenviar.
+- **"Não consigo avaliar a remessa."** Ninguém avalia a própria remessa — e a
+  diária de diretor é avaliada pela Diretoria, não pelo Pessoal.
 - **"O valor total veio errado."** O total é **quantidade × valor do tipo**;
   confira o valor de referência cadastrado no tipo de diária. As despesas extras
   aparecem somadas à parte.
 - **"O tipo de diária não aparece na solicitação."** Ele pode estar **inativo** —
   reative-o em Tipos de diária —, **restrito** a outras pessoas ou marcado em
   **Vale para** como sendo do outro quadro.
-- **"Não consigo lançar a despesa."** Depois de avaliada, a diária não aceita
+- **"Não consigo lançar a despesa."** Depois de aprovada, a diária não aceita
   mudança nas despesas — o rateio da ordem já foi fechado.
 - **"A despesa caiu na conta da diária."** Defina a conta daquele tipo de
   despesa em Diárias → Centros de custo.

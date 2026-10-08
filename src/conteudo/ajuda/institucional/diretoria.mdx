@@ -149,6 +149,11 @@ Pessoal. O motor é o mesmo das diárias de funcionário, mas a porta é outra: 
 entra quem tem a permissão **Diárias da diretoria**, então quem cuida de folha e
 ponto não vê nem avalia a diretoria (e vice-versa).
 
+As diárias de cada diretor entram na **remessa** dele, e a avaliação é da
+remessa inteira — o mesmo fluxo de Pessoal, com aprovar, devolver com
+observação e reenviar (veja [Diárias](/painel/ajuda/pessoal/diarias)). As
+remessas da diretoria ficam no botão **Remessas** desta aba.
+
 No alto ficam os números do ano: quantas aguardam avaliação, quantas foram
 aprovadas, o valor das diárias e o das despesas extras — e, logo abaixo, **o
 aprovado por departamento**, que é como a contabilidade enxerga.
@@ -165,9 +170,12 @@ aprovado por departamento**, que é como a contabilidade enxerga.
     Na tela da diária, enquanto ela aguarda avaliação, entram as **despesas
     extras** — hospedagem, alimentação, passagem — com valor e comprovante.
   </Passo>
-  <Passo titulo="Avaliar">
-    Aprovada, a diária gera **uma ordem de pagamento** com o total (diária mais
-    despesas), já classificada na conta do departamento.
+  <Passo titulo="Avaliar a remessa">
+    Em **Remessas**, abra a remessa do diretor e **aprove** — nasce **uma ordem
+    de pagamento** com o valor da remessa, rateada pelas contas dos
+    departamentos — ou **devolva com observação**. Como quase nenhum diretor
+    tem conta, quem corrige e **reenvia** é a própria secretaria, na tela da
+    remessa (o botão **Retirar** tira uma diária com problema).
   </Passo>
 </PassoAPasso>
 
@@ -180,7 +188,7 @@ aprovado por departamento**, que é como a contabilidade enxerga.
 
 <Print src="institucional/diretoria-diarias.png" alt="Aba Diárias da Diretoria: os quatro números do ano (aguardando avaliação, aprovadas, valor das diárias e das despesas extras), o aprovado por departamento, o botão Lançar diária, os filtros por diretor, situação e departamento, e a tabela com diretor, departamento, tipo, valor com o acréscimo em despesas, período e situação." legenda="Diárias da diretoria: os números do ano, o gasto por departamento e a lista." />
 
-<Print src="institucional/diretoria-diaria.png" alt="Tela de uma diária aguardando avaliação: dados da solicitação com diretor, departamento, tipo, quantidade, valor, período e motivo; o cartão de despesas extras com a passagem lançada e o link do comprovante; e o cartão de avaliação com os botões Aprovar e gerar ordem e Reprovar." legenda="Dentro da diária: as despesas extras entram antes da avaliação." />
+<Print src="institucional/diretoria-diaria.png" alt="Tela de uma diária aguardando avaliação: dados da solicitação com diretor, departamento, tipo, quantidade, valor, período, motivo e a remessa de diárias em que entrou; as despesas extras com a alimentação lançada; e o cartão Avaliação explicando que a diária é avaliada junto com a remessa, com o link dela." legenda="Dentro da diária: as despesas extras e o link da remessa em que ela é avaliada." />
 
 As diárias de cada diretor também aparecem **na ficha dele**, com o total
 aprovado no ano.
@@ -217,6 +225,8 @@ aprovado no ano.
   diretoria ou para os dois.
 - **"A diária do diretor apareceu na conta errada."** Confira o departamento da
   solicitação e o de-para em Diárias → Centros de custo.
+- **"Não acho onde aprovar a diária do diretor."** A avaliação é da remessa:
+  botão **Remessas**, nesta aba.
 
 <VejaTambem
   links={[

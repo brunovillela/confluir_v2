@@ -35,10 +35,23 @@ const CUPOM = process.env.CUPOM_TESTE ?? ""
 const FATURA = process.env.FATURA_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 30/09 (15): Painel analítico da Saúde (estilo Power BI). O demo
+  // Rodada de 08/10 (16): avaliação das diárias pela REMESSA. Remessa aberta
+  // do diretor José (2 diárias + jantar, e7b3bacc…) — os prints de devolução
+  // DEVOLVEM a remessa de verdade; a do Carlos (6b7fddf3…) já foi aprovada,
+  // com devolução e reenvio no histórico.
+  ["/painel/institucional/diretoria/diarias/remessas", "institucional/diretoria-remessas.png", { esperar: "Em avaliação", altura: 1000 }],
+  ["/painel/institucional/diretoria/diarias/d2197cc8-78ff-4a73-b0f1-a8f463efdb06", "institucional/diretoria-diaria.png", { esperar: "Dados da solicitação", fullPage: true }],
+  ["/painel/institucional/diretoria/diarias/remessas/e7b3bacc-a686-4233-86d0-b98709f888cc", "pessoal/diarias-remessa.png", { esperar: "Avaliação da remessa", fullPage: true }],
+  ["/painel/institucional/diretoria/diarias/remessas/e7b3bacc-a686-4233-86d0-b98709f888cc", "pessoal/diarias-remessa-devolver.png", { esperar: "Avaliação da remessa", passos: [{ clicar: "Devolver com observação" }, { preencher: ["#observacao", "Falta o relatório da reunião de 21/10."] }, { clicar: 'css=input[type="checkbox"] >> nth=1' }, { preencher: ['input[name="pendencia_3a50e5d8-5c93-4eab-8ca9-f0eb7210f395"]', "Anexar a ata ou o relatório da reunião"] }], scrollTo: "Avaliação da remessa", altura: 1000 }],
+  ["/painel/institucional/diretoria/diarias/remessas/e7b3bacc-a686-4233-86d0-b98709f888cc", "pessoal/diarias-remessa-devolvida.png", { esperar: "Avaliação da remessa", passos: [{ clicar: "Devolver com observação" }, { preencher: ["#observacao", "Falta o relatório da reunião de 21/10."] }, { clicar: 'css=input[type="checkbox"] >> nth=1' }, { preencher: ['input[name="pendencia_3a50e5d8-5c93-4eab-8ca9-f0eb7210f395"]', "Anexar a ata ou o relatório da reunião"] }, { clicar: 'css=button[type="submit"]:has-text("Devolver a remessa")' }, { clicar: 'css=[role="alertdialog"] button:has-text("Devolver")' }, { aguardar: "Reenviar para avaliação" }, { pausa: 1500 }], fullPage: true }],
+  ["/painel/institucional/diretoria/diarias/remessas/6b7fddf3-1846-4db4-9e9e-f5445889180f", "pessoal/diarias-remessa-aprovada.png", { esperar: "Histórico da avaliação", scrollTo: "Avaliação da remessa", altura: 900 }],
+  ["/painel/pessoal/diarias/contas", "pessoal/diarias-autorizacao.png", { esperar: "Autorização das ordens das remessas", altura: 820 }],
+
+  /* Rodada de 30/09 (15): Painel analítico da Saúde (estilo Power BI). O demo
   // recebe CATs fictícias (bubble_id "demo-painel-saude-*") só para o print.
   ["/painel/saude/indicadores", "saude/painel-analitico.png", { esperar: "CATs por ano", fullPage: true }],
   ["/painel/saude/indicadores", "saude/painel-analitico-filtro.png", { esperar: "CATs por ano", passos: [{ clicar: 'css=button:has-text("Trajeto") >> nth=0' }, { pausa: 400 }, { clicar: 'css=button[title^="2024:"]' }, { aguardar: "CATs por mês" }, { pausa: 600 }], altura: 1500 }],
+  */
 
   /*  // Rodada de 30/09 (14): abastecimentos — a prévia da leitura pela IA (placa
   // fora da frota entra sem veículo), o resultado, a lista e a edição de um

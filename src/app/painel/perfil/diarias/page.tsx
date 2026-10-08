@@ -105,7 +105,7 @@ export default async function MinhasDiariasPage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            Solicitação enviada — você será avisado quando for avaliada.
+            Solicitação enviada — ela entrou na sua remessa de diárias, avaliada inteira; você será avisado do resultado.
           </AlertDescription>
         </Alert>
       )}

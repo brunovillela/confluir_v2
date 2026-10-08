@@ -55,7 +55,7 @@ export default async function DiariaDiretoriaPage({
       {nova === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            Diária lançada. Acrescente as despesas extras, se houver, e avalie em seguida.
+            Diária lançada na remessa do diretor. Acrescente as despesas extras, se houver — a avaliação é feita na remessa.
           </AlertDescription>
         </Alert>
       )}
