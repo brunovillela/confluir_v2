@@ -23,17 +23,37 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
 import { requirePermissao } from "@/lib/auth"
 import { listarRpas, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
+import { semAcento } from "@/lib/texto"
 
 import { ConfigRpaForm, ExcluirRpa } from "./rpa-forms"
 
 export const metadata: Metadata = { title: "RPA — Confluir" }
 
+const PADRAO_POR_PAGINA = 30
+const FILTRO =
+  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+
+const RECIBOS = [
+  { valor: "", rotulo: "Assinados e a assinar" },
+  { valor: "assinado", rotulo: "Assinados" },
+  { valor: "a_assinar", rotulo: "A assinar" },
+] as const
+const ORIGENS = [
+  { valor: "", rotulo: "Todas as origens" },
+  { valor: "contrato", rotulo: "De contrato" },
+  { valor: "compra", rotulo: "De compra de serviço" },
+  { valor: "anterior", rotulo: "Sem contrato (anterior)" },
+] as const
+
 export default async function RpaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ excluido?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("aquisicoes_contratos", [
     "aquisicoes_contratos_edicao",
@@ -42,14 +62,51 @@ export default async function RpaPage({
     sessao.permissoes,
     "aquisicoes_contratos_edicao"
   )
-  const { excluido } = await searchParams
-  const [{ ativo, linhas }, config] = await Promise.all([
+  const sp = await searchParams
+  const excluido = sp.excluido
+  const busca = (sp.busca ?? "").trim()
+  const recibo = RECIBOS.some((r) => r.valor === sp.recibo) ? sp.recibo! : ""
+  const origem = ORIGENS.some((o) => o.valor === sp.origem) ? sp.origem! : ""
+  const pag = lerPaginacao(sp, PADRAO_POR_PAGINA)
+
+  const [{ ativo, linhas: todas }, config] = await Promise.all([
     listarRpas(),
     obterConfigRpa(),
   ])
 
+  const termo = semAcento(busca.toLowerCase())
+  const filtradas = todas.filter((r) => {
+    if (recibo === "assinado" && !r.arquivoAssinado) return false
+    if (recibo === "a_assinar" && r.arquivoAssinado) return false
+    if (origem === "compra" && !r.compraId) return false
+    if (origem === "contrato" && (r.compraId || !r.contratoId)) return false
+    if (origem === "anterior" && (r.compraId || r.contratoId)) return false
+    if (termo) {
+      const alvo = semAcento(
+        [r.numero, r.fornecedorNome, r.contratoCodigo, r.contratoObjeto, r.compraCodigo, r.ordemCodigo]
+          .filter((v) => v != null)
+          .join(" ")
+          .toLowerCase()
+      )
+      if (!alvo.includes(termo)) return false
+    }
+    return true
+  })
+  const { linhas, pagina, totalPaginas, total } = paginar(filtradas, pag)
+  const temFiltro = Boolean(busca || recibo || origem)
+
+  // Recorte atual, para o RPA voltar a ele.
+  const q = new URLSearchParams()
+  if (busca) q.set("busca", busca)
+  if (recibo) q.set("recibo", recibo)
+  if (origem) q.set("origem", origem)
+  if (pagina > 1) q.set("pagina", String(pagina))
+  if (pag.porPagina !== PADRAO_POR_PAGINA) q.set("porPagina", String(pag.porPagina))
+  const urlAtual = `/painel/compras/contratos/rpa${q.size ? `?${q}` : ""}`
+
   return (
     <>
+      <LembrarLista chave="rpas" url={urlAtual} />
       <div className="flex items-start justify-between gap-3">
         <div>
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
@@ -64,7 +121,10 @@ export default async function RpaPage({
           <p className="text-muted-foreground mt-1 text-xs">
             Recibo do prestador autônomo (pessoa física) — de um contrato com ele ou de uma compra de serviço.
             Gera a ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
-            serviço. {linhas.length} recibo{linhas.length === 1 ? "" : "s"}.
+            serviço.{" "}
+            {temFiltro
+              ? `${total} de ${todas.length} recibo${todas.length === 1 ? "" : "s"}.`
+              : `${total} recibo${total === 1 ? "" : "s"}.`}
           </p>
         </div>
         {podeEditar && (
@@ -93,6 +153,42 @@ export default async function RpaPage({
         </Alert>
       )}
 
+      <form action="/painel/compras/contratos/rpa" className="flex flex-wrap items-center gap-2">
+        {pag.porPagina !== PADRAO_POR_PAGINA && (
+          <input type="hidden" name="porPagina" value={pag.porPagina} />
+        )}
+        <input
+          type="search"
+          name="busca"
+          defaultValue={busca}
+          placeholder="Nº, prestador, contrato ou compra"
+          aria-label="Buscar RPA"
+          className={`${FILTRO} w-64 max-w-full`}
+        />
+        <select name="recibo" defaultValue={recibo} aria-label="Recibo" className={FILTRO}>
+          {RECIBOS.map((r) => (
+            <option key={r.valor} value={r.valor}>
+              {r.rotulo}
+            </option>
+          ))}
+        </select>
+        <select name="origem" defaultValue={origem} aria-label="Origem" className={FILTRO}>
+          {ORIGENS.map((o) => (
+            <option key={o.valor} value={o.valor}>
+              {o.rotulo}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="outline" size="sm" className="h-9">
+          Filtrar
+        </Button>
+        {temFiltro && (
+          <Button variant="ghost" size="sm" className="h-9" asChild>
+            <Link href="/painel/compras/contratos/rpa">Limpar</Link>
+          </Button>
+        )}
+      </form>
+
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
@@ -116,7 +212,9 @@ export default async function RpaPage({
                 <TableCell colSpan={podeEditar ? 9 : 8} className="h-32">
                   <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
                     <ReceiptText className="size-6" />
-                    <p className="text-sm">Nenhum RPA emitido ainda.</p>
+                    <p className="text-sm">
+                      {temFiltro ? "Nenhum RPA encontrado com estes filtros." : "Nenhum RPA emitido ainda."}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -188,6 +286,13 @@ export default async function RpaPage({
           </TableBody>
         </Table>
       </div>
+      <Paginacao
+        total={total}
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        porPagina={pag.porPagina}
+        padrao={PADRAO_POR_PAGINA}
+      />
 
       {podeEditar && (
         <GrupoColapsavel titulo="Tabelas de retenção (INSS, IRRF e ISS)">

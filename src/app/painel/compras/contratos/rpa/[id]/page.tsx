@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Download, FileCheck2, Trash2 } from "lucide-react"
+import { ArrowLeft, Download, FileCheck2, List, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { VoltarLista } from "@/components/voltar-lista"
 import {
   Card,
   CardContent,
@@ -52,18 +53,26 @@ export default async function RpaDetalhePage({
     <>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-            <Link
-              href={
-                rpa.contratoId
-                  ? `/painel/compras/contratos/${rpa.contratoId}`
-                  : "/painel/compras/contratos/rpa"
-              }
-            >
-              <ArrowLeft />
-              {rpa.contratoId ? (rpa.contratoCodigo ?? "Contrato") : "RPAs"}
-            </Link>
-          </Button>
+          <div className="-ml-2 mb-3 flex flex-wrap gap-1">
+            {rpa.contratoId && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/painel/compras/contratos/${rpa.contratoId}`}>
+                  <ArrowLeft />
+                  {rpa.contratoCodigo ?? "Contrato"}
+                </Link>
+              </Button>
+            )}
+            {/* A lista de RPAs exige a permissão de Contratos. */}
+            {veContratos && (
+              <VoltarLista
+                chave="rpas"
+                base="/painel/compras/contratos/rpa"
+                rotulo="RPAs"
+                icone={rpa.contratoId ? <List /> : <ArrowLeft />}
+                className=""
+              />
+            )}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             RPA nº {rpa.numero ?? "—"}
           </h1>
