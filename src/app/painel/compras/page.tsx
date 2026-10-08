@@ -3,50 +3,44 @@ import Link from "next/link";
 import {
   ClipboardCheck,
   ClipboardList,
+  ListChecks,
   PackageOpen,
   Plus,
   ScrollText,
-  ShoppingCart,
   Truck,
 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { AquisicaoBadge, SituacaoProcessoBadge } from "@/components/compras";
+import { compacto, moeda, rotuloMes } from "@/components/graficos/base";
+import { GraficoColunas } from "@/components/graficos/colunas";
+import { BarraProporcao, GraficoRanking } from "@/components/graficos/ranking";
+import { TileIndicador } from "@/components/graficos/tile";
 import { requirePermissao } from "@/lib/auth";
-import {
-  ROTULOS_SITUACAO_PROCESSO,
-  SITUACOES_PROCESSO,
-  type SituacaoProcesso,
-} from "@/lib/compras-constantes";
-import { listarDepartamentos, listarProcessos, resumoCompras } from "@/lib/db/compras";
+import { listarDepartamentos, resumoCompras } from "@/lib/db/compras";
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso";
+import {
+  indicadoresCompras,
+  PERIODOS_INDICADORES,
+  type PeriodoIndicadores,
+} from "@/lib/db/compras-indicadores";
 import { resumoContratos } from "@/lib/db/contratos";
-import { formatarData, formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
-import { ExportarXlsx } from "@/components/exportar-xlsx";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Aquisição — Confluir" };
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]";
-
 type Params = {
   fora?: string;
-  busca?: string;
-  situacao?: string;
-  aquisicao?: string;
-  pagina?: string;
+  periodo?: string;
 };
 
 export default async function ComprasPage({
@@ -65,24 +59,17 @@ export default async function ComprasPage({
   const p = sessao.permissoes;
 
   const brutos = await searchParams;
-  const situacao = (SITUACOES_PROCESSO as readonly string[]).includes(
-    brutos.situacao ?? "",
-  )
-    ? (brutos.situacao as SituacaoProcesso)
-    : "todas";
-  const aquisicao =
-    brutos.aquisicao === "direta" || brutos.aquisicao === "via_compras"
-      ? brutos.aquisicao
-      : "todas";
-  const busca = (brutos.busca ?? "").trim();
-  const pagina = Number(brutos.pagina) > 0 ? Number(brutos.pagina) : 1;
+  const periodo: PeriodoIndicadores =
+    brutos.periodo && brutos.periodo in PERIODOS_INDICADORES
+      ? (brutos.periodo as PeriodoIndicadores)
+      : "12m";
 
   const escopo = await escopoComprasDoUsuario(sessao.usuario.id);
-  const [resumo, lista, resumoContr, departamentos] = await Promise.all([
+  const [resumo, resumoContr, departamentos, ind] = await Promise.all([
     resumoCompras(escopo),
-    listarProcessos({ busca, situacao, aquisicao, pagina, escopo }),
     resumoContratos(),
     escopo.todos ? Promise.resolve([]) : listarDepartamentos(),
+    indicadoresCompras(escopo, periodo),
   ]);
   const nomesDosDepartamentos = departamentos
     .filter((d) => escopo.departamentoIds.includes(d.id))
@@ -107,20 +94,8 @@ export default async function ComprasPage({
     "aquisicoes_contratos_edicao",
   ]);
 
-  const filtrosQuery = (mudancas: Record<string, string>) => {
-    const q = new URLSearchParams();
-    const estado: Record<string, string> = {
-      busca,
-      situacao,
-      aquisicao,
-      ...mudancas,
-    };
-    for (const [chave, valor] of Object.entries(estado)) {
-      if (valor && valor !== "todas") q.set(chave, valor);
-    }
-    const s = q.toString();
-    return s ? `?${s}` : "";
-  };
+  const processos = (q: Record<string, string>) =>
+    `/painel/compras/processos?${new URLSearchParams(q).toString()}`;
 
   return (
     <>
@@ -132,17 +107,14 @@ export default async function ComprasPage({
             recebimento
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ExportarXlsx href="/painel/compras/exportar" />
-          {podeCriar && (
-            <Button asChild>
-              <Link href="/painel/compras/nova">
-                <Plus />
-                Nova compra
-              </Link>
-            </Button>
-          )}
-        </div>
+        {podeCriar && (
+          <Button asChild>
+            <Link href="/painel/compras/nova">
+              <Plus />
+              Nova compra
+            </Link>
+          </Button>
+        )}
       </div>
 
       {brutos.fora && (
@@ -152,93 +124,82 @@ export default async function ComprasPage({
           </AlertDescription>
         </Alert>
       )}
-      {!escopo.todos && (
-        <p className="text-muted-foreground -mt-2 text-xs">
-          Você vê as compras de{" "}
-          <strong>{nomesDosDepartamentos.join(", ") || "seus departamentos"}</strong> e as que você
-          registrou.
-        </p>
-      )}
 
-      {(veComprador ||
-        veAvaliacoes ||
-        veRecebimentos ||
-        veFornecedores ||
-        veContratos) && (
-        <div className={GRADE_AREAS}>
-          {veComprador && (
-            <CartaoArea
-              titulo="Área do comprador"
-              descricao="Processos Via Aquisição que aguardam sua ação"
-              href="/painel/compras/comprador"
-              icone={ClipboardList}
-              indicador={
-                resumo.emCotacao + resumo.aguardandoCompra > 0
-                  ? `${resumo.emCotacao + resumo.aguardandoCompra} a operar`
-                  : null
-              }
-            />
-          )}
-          {veAvaliacoes && (
-            <CartaoArea
-              titulo="Avaliações"
-              descricao="Ordens de compra aguardando autorização por alçada"
-              href="/painel/compras/avaliacoes"
-              icone={ClipboardCheck}
-              indicador={
-                resumo.ordensEmAutorizacao > 0
-                  ? `${resumo.ordensEmAutorizacao} em autorização`
-                  : null
-              }
-            />
-          )}
-          {veRecebimentos && (
-            <CartaoArea
-              titulo="Recebimentos pendentes"
-              descricao="Compras a receber — direta ou via Aquisição"
-              href="/painel/compras/recebimentos"
-              icone={PackageOpen}
-              indicador={
-                (resumo.aReceber ?? 0) > 0
-                  ? `${resumo.aReceber} a receber`
-                  : null
-              }
-            />
-          )}
-          {veFornecedores && (
-            <CartaoArea
-              titulo="Fornecedores"
-              descricao="Cadastro, contratos e dados dos fornecedores"
-              href="/painel/compras/fornecedores"
-              icone={Truck}
-            />
-          )}
-          {veContratos && (
-            <CartaoArea
-              titulo="Contratos"
-              descricao="Contratos vigentes e a geração de ordens"
-              href="/painel/compras/contratos"
-              icone={ScrollText}
-              indicador={
-                resumoContr.vencendo > 0
-                  ? `${resumoContr.vencendo} vencendo`
-                  : null
-              }
-            />
-          )}
-        </div>
-      )}
+      <div className={GRADE_AREAS}>
+        <CartaoArea
+          titulo="Processos de compra"
+          descricao="Todas as compras que você vê, com filtros e exportação"
+          href="/painel/compras/processos"
+          icone={ListChecks}
+        />
+        {veComprador && (
+          <CartaoArea
+            titulo="Área do comprador"
+            descricao="Processos Via Aquisição que aguardam sua ação"
+            href="/painel/compras/comprador"
+            icone={ClipboardList}
+            indicador={
+              resumo.emCotacao + resumo.aguardandoCompra > 0
+                ? `${resumo.emCotacao + resumo.aguardandoCompra} a operar`
+                : null
+            }
+          />
+        )}
+        {veAvaliacoes && (
+          <CartaoArea
+            titulo="Avaliações"
+            descricao="Ordens de compra aguardando autorização por alçada"
+            href="/painel/compras/avaliacoes"
+            icone={ClipboardCheck}
+            indicador={
+              resumo.ordensEmAutorizacao > 0
+                ? `${resumo.ordensEmAutorizacao} em autorização`
+                : null
+            }
+          />
+        )}
+        {veRecebimentos && (
+          <CartaoArea
+            titulo="Recebimentos pendentes"
+            descricao="Compras a receber — direta ou via Aquisição"
+            href="/painel/compras/recebimentos"
+            icone={PackageOpen}
+            indicador={
+              (resumo.aReceber ?? 0) > 0 ? `${resumo.aReceber} a receber` : null
+            }
+          />
+        )}
+        {veFornecedores && (
+          <CartaoArea
+            titulo="Fornecedores"
+            descricao="Cadastro, contratos e dados dos fornecedores"
+            href="/painel/compras/fornecedores"
+            icone={Truck}
+          />
+        )}
+        {veContratos && (
+          <CartaoArea
+            titulo="Contratos"
+            descricao="Contratos vigentes e a geração de ordens"
+            href="/painel/compras/contratos"
+            icone={ScrollText}
+            indicador={
+              resumoContr.vencendo > 0 ? `${resumoContr.vencendo} vencendo` : null
+            }
+          />
+        )}
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <CardResumo
           rotulo="Em cotação"
           valor={resumo.emCotacao}
-          href={filtrosQuery({ situacao: "em_cotacao", pagina: "" })}
+          href={processos({ situacao: "em_cotacao" })}
         />
         <CardResumo
           rotulo="Cotadas (aguardando compra)"
           valor={resumo.aguardandoCompra}
-          href={filtrosQuery({ situacao: "cotada", pagina: "" })}
+          href={processos({ situacao: "cotada" })}
         />
         <CardResumo
           rotulo="Ordens em autorização"
@@ -262,131 +223,191 @@ export default async function ComprasPage({
         </Alert>
       )}
 
-      <form
-        className="flex flex-wrap items-center gap-2"
-        action="/painel/compras"
-      >
-        <input
-          type="search"
-          name="busca"
-          defaultValue={busca}
-          placeholder="Código ou produto/serviço"
-          className={`${SELECT_FILTRO} w-64 max-w-full`}
-        />
-        <select
-          name="situacao"
-          defaultValue={situacao}
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as situações</option>
-          {SITUACOES_PROCESSO.map((s) => (
-            <option key={s} value={s}>
-              {ROTULOS_SITUACAO_PROCESSO[s]}
-            </option>
-          ))}
-        </select>
-        <select
-          name="aquisicao"
-          defaultValue={aquisicao}
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Direta e via Aquisição</option>
-          <option value="direta">Aquisição direta</option>
-          <option value="via_compras">Via Aquisição</option>
-        </select>
-        <Button type="submit" variant="outline" size="sm">
-          Filtrar
-        </Button>
-      </form>
-
-      <Card>
-        <CardContent>
-          {lista.linhas.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
-              <ShoppingCart className="mx-auto mb-2 size-5" />
-              Nenhum processo encontrado com estes filtros.
+      {/* Indicadores analíticos: só o que a pessoa alcança (escopo). */}
+      <section className="grid gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Indicadores de compras
+            </h2>
+            <p className="text-muted-foreground text-xs">
+              Compras efetivadas (sem as canceladas), pela data da compra
+              {escopo.todos ? (
+                " — toda a entidade"
+              ) : (
+                <>
+                  {" "}
+                  — de{" "}
+                  <strong>
+                    {nomesDosDepartamentos.join(", ") || "seus departamentos"}
+                  </strong>{" "}
+                  e as que você registrou
+                </>
+              )}
             </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Produto ou serviço</TableHead>
-                  <TableHead>Departamento</TableHead>
-                  <TableHead>Aquisição</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Registro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lista.linhas.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>
-                      <Link
-                        href={`/painel/compras/${l.id}`}
-                        className="text-primary font-medium whitespace-nowrap tabular-nums hover:underline"
-                      >
-                        {l.codigo ?? "(sem código)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-80">
-                      <span className="line-clamp-2">
-                        {l.produto ?? (
-                          <span className="text-muted-foreground">
-                            (migração parcial — sem descrição)
-                          </span>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell>{l.departamentoNome ?? "—"}</TableCell>
-                    <TableCell>
-                      <AquisicaoBadge direta={l.aquisicao_direta} />
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap tabular-nums">
-                      {formatarMoeda(l.compra_valor)}
-                    </TableCell>
-                    <TableCell>
-                      <SituacaoProcessoBadge situacao={l.situacao} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatarData(l.created_at)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          {lista.totalPaginas > 1 && (
-            <div className="text-muted-foreground mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-              <span className="tabular-nums">
-                Página {lista.pagina} de {lista.totalPaginas} ·{" "}
-                {lista.total.toLocaleString("pt-BR")} processos
-              </span>
-              <div className="flex gap-2">
-                {lista.pagina > 1 && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link
-                      href={filtrosQuery({ pagina: String(lista.pagina - 1) })}
-                    >
-                      Anterior
-                    </Link>
-                  </Button>
-                )}
-                {lista.pagina < lista.totalPaginas && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link
-                      href={filtrosQuery({ pagina: String(lista.pagina + 1) })}
-                    >
-                      Próxima
-                    </Link>
-                  </Button>
-                )}
-              </div>
+          </div>
+          <nav
+            className="bg-muted inline-flex rounded-md p-0.5 text-sm"
+            aria-label="Período"
+          >
+            {(Object.keys(PERIODOS_INDICADORES) as PeriodoIndicadores[]).map(
+              (chave) => (
+                <Link
+                  key={chave}
+                  href={chave === "12m" ? "/painel/compras" : `/painel/compras?periodo=${chave}`}
+                  scroll={false}
+                  aria-current={chave === periodo ? "page" : undefined}
+                  className={cn(
+                    "rounded px-3 py-1",
+                    chave === periodo
+                      ? "bg-background text-foreground font-medium shadow-xs"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {PERIODOS_INDICADORES[chave]}
+                </Link>
+              ),
+            )}
+          </nav>
+        </div>
+
+        {!ind ? (
+          <Alert variant="warning">
+            <AlertDescription>
+              Indicadores indisponíveis — rode <code>supabase/compras.sql</code>.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <TileIndicador
+                rotulo="Total comprado"
+                valor={compacto(ind.total, true)}
+                sparkline={ind.porMes.map((m) => m.valor)}
+                nota={moeda(ind.total)}
+              />
+              <TileIndicador
+                rotulo="Compras"
+                valor={ind.quantidade.toLocaleString("pt-BR")}
+                sparkline={ind.porMes.map((m) => m.quantidade)}
+              />
+              <TileIndicador
+                rotulo="Ticket médio"
+                valor={moeda(ind.ticketMedio)}
+              />
+              <TileIndicador
+                rotulo="Fornecedores"
+                valor={ind.totalFornecedores.toLocaleString("pt-BR")}
+                nota="distintos no período"
+              />
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Valor comprado por mês</CardTitle>
+                  <CardDescription>
+                    {PERIODOS_INDICADORES[periodo]} · passe o mouse para ver o
+                    valor e a quantidade
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GraficoColunas
+                    titulo="Valor comprado por mês"
+                    categorias={ind.porMes.map((m) => rotuloMes(m.mes))}
+                    series={[
+                      { nome: "Valor comprado", valores: ind.porMes.map((m) => m.valor) },
+                    ]}
+                    emMoeda
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="grid content-start gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Por tipo</CardTitle>
+                    <CardDescription>Bem / produto × prestação de serviço</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <BarraProporcao
+                      titulo="Compras por tipo"
+                      partes={[
+                        ind.tipo.produto,
+                        ind.tipo.servico,
+                        { ...ind.tipo.semDado, outros: true },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Por modalidade</CardTitle>
+                    <CardDescription>Aquisição direta × via setor de compras</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <BarraProporcao
+                      titulo="Compras por modalidade"
+                      partes={[
+                        ind.modalidade.direta,
+                        ind.modalidade.via,
+                        { ...ind.modalidade.semDado, outros: true },
+                      ]}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Maiores fornecedores</CardTitle>
+                  <CardDescription>Valor comprado · clique para ver as compras</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GraficoRanking
+                    titulo="Maiores fornecedores"
+                    itens={ind.fornecedores.map((f) => ({
+                      ...f,
+                      outros: f.chave === "outros",
+                      href:
+                        f.chave !== "outros" && f.chave !== "sem"
+                          ? processos({ fornecedor: f.chave })
+                          : undefined,
+                    }))}
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Por comprador</CardTitle>
+                  <CardDescription>Quem efetivou a compra</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GraficoRanking
+                    titulo="Compras por comprador"
+                    itens={ind.compradores.map((f) => ({ ...f, outros: f.chave === "outros" }))}
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Por departamento</CardTitle>
+                  <CardDescription>Departamento solicitante</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GraficoRanking
+                    titulo="Compras por departamento"
+                    itens={ind.departamentos.map((f) => ({ ...f, outros: f.chave === "outros" }))}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </section>
     </>
   );
 }

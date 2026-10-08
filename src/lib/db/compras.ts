@@ -82,6 +82,9 @@ export type ProcessoLinha = {
   /** true = direta, false = via compras, null = legado (sem o dado). */
   aquisicao_direta: boolean | null
   compra_valor: number | null
+  compra_data: string | null
+  /** Fornecedor da compra (direta) ou dos fornecimentos (via Aquisição), separados por vírgula. */
+  fornecedorNome: string | null
   situacao: SituacaoProcesso
   created_at: string | null
 }
@@ -190,7 +193,7 @@ export type ProcessoDetalhe = {
 
 // ── Auxiliares ─────────────────────────────────────────────────────────────
 
-async function empresasPorId(
+export async function empresasPorId(
   ids: string[]
 ): Promise<Map<string, { nome: string; bloqueado: boolean }>> {
   const mapa = new Map<string, { nome: string; bloqueado: boolean }>()
@@ -287,6 +290,22 @@ export type FiltrosProcessos = {
   porPagina?: number
   /** Departamentos que a pessoa alcança (lib/db/compras-acesso.ts). */
   escopo?: EscopoCompras
+  /** Só as compras deste fornecedor (direta ou em algum fornecimento). */
+  fornecedorId?: string
+  /** Só as registradas por esta pessoa (solicitante_id). */
+  criadoPor?: string
+  ordem?: OrdemProcessos
+  dir?: "asc" | "desc"
+}
+
+export const ORDENS_PROCESSOS = ["registro", "codigo", "produto", "valor", "compra"] as const
+export type OrdemProcessos = (typeof ORDENS_PROCESSOS)[number]
+const COLUNA_DA_ORDEM: Record<OrdemProcessos, string> = {
+  registro: "created_at",
+  codigo: "codigo",
+  produto: "solicitacao_produto",
+  valor: "compra_valor",
+  compra: "compra_data",
 }
 
 export type ListaProcessos = {
@@ -349,12 +368,29 @@ export async function listarProcessos(
 
   if (filtros.aquisicao === "direta") q = q.eq("aquisicao_direta", true)
   if (filtros.aquisicao === "via_compras") q = q.eq("aquisicao_direta", false)
+  if (filtros.criadoPor) q = q.eq("solicitante_id", filtros.criadoPor)
+  if (filtros.fornecedorId && /^[0-9a-f-]{36}$/i.test(filtros.fornecedorId)) {
+    // Via Aquisição o fornecedor está nos fornecimentos; direta, no processo.
+    const { data: fs } = await admin
+      .from("compras_fornecimentos")
+      .select("processo_id")
+      .eq("fornecedor_id", filtros.fornecedorId)
+      .limit(1000)
+    const doFornecimento = [...new Set((fs ?? []).map((f) => String(f.processo_id)))]
+    q = q.or(
+      [`compra_fornecedor_id.eq.${filtros.fornecedorId}`, doFornecimento.length ? `id.in.(${doFornecimento.join(",")})` : null]
+        .filter(Boolean)
+        .join(",")
+    )
+  }
 
   const porPagina = Math.min(1000, Math.max(1, filtros.porPagina ?? PROCESSOS_POR_PAGINA))
   const de = (pagina - 1) * porPagina
+  const coluna = COLUNA_DA_ORDEM[filtros.ordem ?? "registro"] ?? "created_at"
+  const ascendente = filtros.dir === "asc"
   const { data, error, count } = await q
-    .order("created_at", { ascending: false })
-    .order("codigo", { ascending: false })
+    .order(coluna, { ascending: ascendente, nullsFirst: false })
+    .order("codigo", { ascending: ascendente })
     .range(de, de + porPagina - 1)
   if (error) {
     // Filtro por coluna nova sem o SQL rodado: degrada para lista vazia.
@@ -371,6 +407,26 @@ export async function listarProcessos(
   const projetoIds = linhas
     .map((p) => p.solicitacao_projeto_id)
     .filter((v): v is string => Boolean(v))
+
+  // Fornecedor: o da compra direta e os dos fornecimentos (via Aquisição).
+  const { data: fornecimentosDaPagina } = linhas.length
+    ? await admin
+        .from("compras_fornecimentos")
+        .select("processo_id, fornecedor_id")
+        .in("processo_id", linhas.map((p) => String(p.id)))
+    : { data: [] }
+  const fornecedoresPorProcesso = new Map<string, string[]>()
+  for (const f of fornecimentosDaPagina ?? []) {
+    if (!f.fornecedor_id) continue
+    const lista = fornecedoresPorProcesso.get(String(f.processo_id)) ?? []
+    lista.push(String(f.fornecedor_id))
+    fornecedoresPorProcesso.set(String(f.processo_id), lista)
+  }
+  const fornecedoresDaLinha = (p: Record<string, unknown>): string[] => {
+    const ids = fornecedoresPorProcesso.get(String(p.id)) ?? []
+    return [...new Set(ids.length ? ids : p.compra_fornecedor_id ? [String(p.compra_fornecedor_id)] : [])]
+  }
+  const nomesFornecedores = await empresasPorId(linhas.flatMap(fornecedoresDaLinha))
 
   const [departamentos, projetos] = await Promise.all([
     deptoIds.length
@@ -413,6 +469,12 @@ export async function listarProcessos(
         : null,
       aquisicao_direta: (p.aquisicao_direta as boolean | null) ?? null,
       compra_valor: (p.compra_valor as number | null) ?? null,
+      compra_data: (p.compra_data as string | null) ?? null,
+      fornecedorNome:
+        fornecedoresDaLinha(p)
+          .map((id) => nomesFornecedores.get(id)?.nome)
+          .filter(Boolean)
+          .join(", ") || null,
       situacao: derivarSituacao(p),
       created_at: (p.created_at as string | null) ?? null,
     })),
