@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { AlertTriangle, ArrowLeft, FileText, List, Pencil, Plus } from "lucide-react"
 
+import { VoltarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -200,12 +201,13 @@ export default async function FornecedorPage({
               Fornecedores
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/painel/compras/fornecedores/lista">
-              <List />
-              Lista
-            </Link>
-          </Button>
+          <VoltarLista
+            chave="fornecedores"
+            base="/painel/compras/fornecedores/lista"
+            rotulo="Lista"
+            icone={<List />}
+            className=""
+          />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">

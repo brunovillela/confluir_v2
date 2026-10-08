@@ -35,11 +35,15 @@ export function VoltarLista({
   base,
   rotulo,
   padrao = { href: base, rotulo },
+  icone = <ArrowLeft />,
+  className = "-ml-2 mb-3",
 }: {
   chave: string
   base: string
   rotulo: string
   padrao?: { href: string; rotulo: string }
+  icone?: React.ReactNode
+  className?: string
 }) {
   const salvo = useSyncExternalStore(
     semAssinatura,
@@ -56,9 +60,9 @@ export function VoltarLista({
   )
   const destino = salvo ? { href: salvo, rotulo } : padrao
   return (
-    <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
+    <Button variant="ghost" size="sm" asChild className={className}>
       <Link href={destino.href}>
-        <ArrowLeft />
+        {icone}
         {destino.rotulo}
       </Link>
     </Button>

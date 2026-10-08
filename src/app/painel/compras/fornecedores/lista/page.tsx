@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowDown, ArrowLeft, ArrowUp, Plus, Search, Truck } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -97,6 +98,7 @@ export default async function ListaFornecedoresPage({
 
   return (
     <>
+      <LembrarLista chave="fornecedores" url={url(f, {})} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras/fornecedores">
