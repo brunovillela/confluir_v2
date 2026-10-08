@@ -106,11 +106,32 @@ const fatia = (chave: string, nome: string): Fatia => ({ chave, nome, valor: 0, 
 // simultâneos da mesma chave esperam o mesmo cálculo. Não dá para usar o
 // cache do Next: o tenant vem do cabeçalho da requisição (tenantAtual).
 
+//
+// Compra nova (ou cancelada, ou alterada) limpa o cache: cada entrada guarda
+// a "versão" das compras do tenant — o maior updated_at de processos e
+// fornecimentos — e, se ela mudou, recalcula. Funciona em todas as
+// instâncias do servidor, não só na que registrou a compra (o cache é por
+// instância), ao custo de duas consultas de uma linha por visita.
+
 const CACHE_MS = 10 * 60 * 1000
 const CACHE_MAX = 200
 
-type EntradaCache = { em: number; promessa: Promise<IndicadoresCompras | null> }
+type EntradaCache = { em: number; versao: string; promessa: Promise<IndicadoresCompras | null> }
 const cache = new Map<string, EntradaCache>()
+
+async function versaoDasCompras(emp: string): Promise<string> {
+  const admin = await createAdminClient()
+  const ultima = (tabela: string) =>
+    admin
+      .from(tabela)
+      .select("updated_at")
+      .eq("emp_proprietaria_id", emp)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  const [p, f] = await Promise.all([ultima("compras_solicitacoes"), ultima("compras_fornecimentos")])
+  return `${p.data?.updated_at ?? ""}|${f.data?.updated_at ?? ""}`
+}
 
 function chaveDoCache(emp: string, escopo: EscopoCompras, periodo: PeriodoIndicadores): string {
   const alcance = escopo.todos
@@ -132,11 +153,12 @@ export async function indicadoresCompras(
   const chave = chaveDoCache(emp, escopo, periodo)
   const agora = Date.now()
   const atual = cache.get(chave)
-  if (atual && !atualizar && agora - atual.em < CACHE_MS) {
+  const versao = await versaoDasCompras(emp)
+  if (atual && !atualizar && agora - atual.em < CACHE_MS && atual.versao === versao) {
     return { dados: await atual.promessa, calculadoEm: atual.em }
   }
   const promessa = calcularIndicadores(escopo, periodo)
-  cache.set(chave, { em: agora, promessa })
+  cache.set(chave, { em: agora, versao, promessa })
   // Erro não fica guardado: a próxima visita tenta de novo.
   promessa.catch(() => {
     if (cache.get(chave)?.promessa === promessa) cache.delete(chave)

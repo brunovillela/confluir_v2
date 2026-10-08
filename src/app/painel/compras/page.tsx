@@ -261,7 +261,7 @@ export default async function ComprasPage({
                 hour: "2-digit",
                 minute: "2-digit",
               })}{" "}
-              (renovados a cada 10 min) ·{" "}
+              (renovados a cada 10 min ou quando há compra nova) ·{" "}
               <Link
                 href={`${urlDoPeriodo}${urlDoPeriodo.includes("?") ? "&" : "?"}atualizar=1`}
                 prefetch={false}
