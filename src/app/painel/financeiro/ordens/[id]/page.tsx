@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
-  ArrowLeft,
   ExternalLink,
   FileSignature,
   FolderKanban,
@@ -39,6 +38,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { SituacaoBadge } from "../../situacao-badge"
+import { VoltarListaOrdens } from "../lembrar-lista"
 import { AcoesOrdem } from "./acoes-ordem"
 import { DocumentosForm } from "./documentos-form"
 import { EstornoForm } from "./estorno-form"
@@ -214,12 +214,7 @@ export default async function OrdemPage({
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/financeiro/ordens">
-            <ArrowLeft />
-            Ordens de pagamento
-          </Link>
-        </Button>
+        <VoltarListaOrdens />
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">
             Ordem {texto(ordem.codigo)}
