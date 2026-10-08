@@ -1227,7 +1227,15 @@ export const CODIGO_VALOR_EXCEDIDO = "compra_valor_excedido"
  */
 export async function gerarOrdemFornecimento(
   fornecimentoId: string,
-  dados: { vencimento: string | null; nota_fiscal_url: string | null; valor?: number | null },
+  dados: {
+    vencimento: string | null
+    nota_fiscal_url: string | null
+    valor?: number | null
+    /** Forma deste pagamento (padrão: a do fornecimento). */
+    forma_pagamento?: string | null
+    /** O "para onde" da forma (cartão, caixa, chave/conta, código Pix, boleto). */
+    detalhe?: DetalhePagamento | null
+  },
   confirmacao?: Confirmacao
 ): Promise<{ erro?: string; apontamentos?: Apontamento[] }> {
   const admin = await createAdminClient()
@@ -1299,7 +1307,9 @@ export async function gerarOrdemFornecimento(
       descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}`,
       situacao: "Em autorização",
       valor_inicial_cobranca: valor,
-      forma_pagamento: f.forma_pagamento,
+      forma_pagamento: dados.forma_pagamento ?? f.forma_pagamento,
+      // Colunas de supabase/compras-pagamento.sql (o "para onde" da forma).
+      ...(dados.detalhe ?? {}),
       vencimento: dados.vencimento,
       beneficiario_fornecedor_id: f.fornecedor_id,
       departamento_id: processo.solicitacao_departamento_id,

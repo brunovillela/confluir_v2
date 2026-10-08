@@ -8,7 +8,13 @@ import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { FORMAS_PAGAMENTO_COMPRAS } from "@/lib/compras-constantes"
+import { FORMAS_PAGAMENTO_COMPRAS, type FormaPagamentoCompras } from "@/lib/compras-constantes"
+import { lerPagamentoOrdemFutura } from "@/lib/db/compras-pagamento-form"
+import {
+  meiosPagamentoFornecedor,
+  type ContaFornecedor,
+  type PixFornecedor,
+} from "@/lib/db/compras-pagamento"
 import {
   adicionarProposta,
   buscarProcesso,
@@ -226,6 +232,27 @@ export async function gerarOrdemAction(
   const fornecimentoId = texto(formData, "fornecimento_id")
   if (!processoId || !fornecimentoId) return { erro: "Fornecimento inválido." }
 
+  const fornecimento = (await buscarProcesso(processoId))?.fornecimentos?.find((f) => f.id === fornecimentoId)
+  if (!fornecimento) return { erro: "Fornecimento não encontrado neste processo." }
+
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Informe um valor de pagamento válido." }
+
+  // Cada pagamento tem a sua forma e o "para onde" dela (chave Pix, boleto…).
+  const forma = texto(formData, "forma_pagamento")
+  if (!(FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(forma)) {
+    return { erro: "Escolha a forma de pagamento." }
+  }
+  if (!fornecimento.fornecedor_id) return { erro: "O fornecimento não tem fornecedor." }
+  const pagamento = await lerPagamentoOrdemFutura(
+    formData,
+    forma as FormaPagamentoCompras,
+    fornecimento.fornecedor_id
+  )
+  if (pagamento.erro || !pagamento.detalhe) return { erro: pagamento.erro ?? "Dados de pagamento inválidos." }
+  if ((pagamento.boletos?.length ?? 0) > 1) return { erro: "Anexe um boleto só — um por pagamento." }
+
   let notaFiscal: string | null = null
   const arquivo = formData.get("nota_fiscal")
   if (arquivo instanceof File && arquivo.size > 0) {
@@ -236,24 +263,45 @@ export async function gerarOrdemAction(
     if (erro) return { erro }
     notaFiscal = caminho ?? null
   }
-
-  const valorTexto = texto(formData, "valor")
-  const valor = valorTexto ? parseValorBR(valorTexto) : null
-  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Informe um valor de pagamento válido." }
+  const boleto = pagamento.boletos?.[0]
+  if (boleto) {
+    const { caminho, erro } = await subirComprovanteCompras(`boletos/${processoId}`, boleto)
+    if (erro || !caminho) {
+      if (notaFiscal) await (await createAdminClient()).storage.from("compras").remove([notaFiscal])
+      return { erro: erro ?? "Falha ao subir o boleto." }
+    }
+    pagamento.detalhe.arquivo_boleto = caminho
+  }
 
   const { erro, apontamentos } = await gerarOrdemFornecimento(
     fornecimentoId,
-    { vencimento: dataISO(texto(formData, "vencimento")), nota_fiscal_url: notaFiscal, valor },
+    {
+      vencimento: dataISO(texto(formData, "vencimento")),
+      nota_fiscal_url: notaFiscal,
+      valor,
+      forma_pagamento: forma,
+      detalhe: pagamento.detalhe,
+    },
     lerConfirmacao(formData)
   )
-  if (apontamentos) {
-    // Nada foi gravado: a nota sobe de novo no reenvio.
-    if (notaFiscal) await (await createAdminClient()).storage.from("compras").remove([notaFiscal])
-    return { apontamentos }
+  if (apontamentos || erro) {
+    // Nada foi gravado: os arquivos sobem de novo no reenvio.
+    const enviados = [notaFiscal, pagamento.detalhe.arquivo_boleto].filter((c): c is string => !!c)
+    if (enviados.length) await (await createAdminClient()).storage.from("compras").remove(enviados)
+    if (apontamentos) return { apontamentos }
+    return { erro }
   }
-  if (erro) return { erro }
   revalidarProcesso(processoId)
   redirect(`/painel/compras/${processoId}?salvo=1`)
+}
+
+/** Chaves Pix e contas do fornecedor, para a forma de cada pagamento. */
+export async function meiosDoFornecedorProcesso(
+  fornecedorId: string
+): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {
+  await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_comprador"])
+  if (!fornecedorId) return { pix: [], contas: [] }
+  return meiosPagamentoFornecedor(fornecedorId)
 }
 
 export async function registrarRecebimentoAction(

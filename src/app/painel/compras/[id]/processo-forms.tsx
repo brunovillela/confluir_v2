@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useActionState, useRef } from "react"
+import { startTransition, useActionState, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
@@ -11,8 +11,14 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
   FORMAS_PAGAMENTO_COMPRAS,
+  ROTULO_FORMA_CONTRATO,
   hojeLocalISO,
 } from "@/lib/compras-constantes"
+import {
+  DetalhePagamento,
+  type CaixaOpcao,
+  type CartaoOpcao,
+} from "../nova/detalhe-pagamento"
 
 import {
   EmpresaCombobox as FornecedorCombobox,
@@ -25,6 +31,7 @@ import {
   escolherPropostaAction,
   gerarOrdemAction,
   iniciarCotacaoAction,
+  meiosDoFornecedorProcesso,
   reabrirCotacaoAction,
   registrarCompraAction,
   registrarRecebimentoAction,
@@ -221,6 +228,10 @@ export function GerarOrdemForm({
   fornecimentoId,
   valorRestante,
   novo = false,
+  fornecedorId,
+  formaPadrao,
+  cartoes,
+  caixas,
 }: {
   processoId: string
   fornecimentoId: string
@@ -228,9 +239,18 @@ export function GerarOrdemForm({
   valorRestante: number | null
   /** Já há pagamento lançado: o formulário é de um pagamento a mais. */
   novo?: boolean
+  /** Fornecedor do fornecimento (chaves Pix e contas cadastradas). */
+  fornecedorId: string
+  /** Forma do fornecimento — vem pré-escolhida; cada pagamento pode ter outra. */
+  formaPadrao: string | null
+  cartoes: CartaoOpcao[]
+  caixas: CaixaOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(gerarOrdemAction, {})
   const formRef = useRef<HTMLFormElement>(null)
+  const [forma, setForma] = useState(
+    (FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(formaPadrao ?? "") ? formaPadrao! : ""
+  )
   return (
     <form
       ref={formRef}
@@ -285,6 +305,45 @@ export function GerarOrdemForm({
             accept="application/pdf"
           />
         </div>
+      </div>
+      {/* Cada pagamento tem a sua forma; o campo de "para onde" muda com ela
+          (chave Pix do fornecedor, código copia e cola, arquivo do boleto…). */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor={`forma-${fornecimentoId}`}>Forma de pagamento *</Label>
+          <select
+            id={`forma-${fornecimentoId}`}
+            name="forma_pagamento"
+            required
+            value={forma}
+            onChange={(e) => setForma(e.target.value)}
+            className={SELECT}
+          >
+            <option value="" disabled>
+              Escolha a forma
+            </option>
+            {FORMAS_PAGAMENTO_COMPRAS.map((f) => (
+              <option key={f} value={f}>
+                {f in ROTULO_FORMA_CONTRATO
+                  ? ROTULO_FORMA_CONTRATO[f as keyof typeof ROTULO_FORMA_CONTRATO]
+                  : f}
+              </option>
+            ))}
+          </select>
+        </div>
+        {forma && (
+          <DetalhePagamento
+            key={forma}
+            forma={forma}
+            fornecedorId={fornecedorId}
+            cartoes={cartoes}
+            caixas={caixas}
+            buscarMeios={meiosDoFornecedorProcesso}
+            futuro
+          />
+        )}
+      </div>
+      <div className="flex justify-end">
         <Button type="submit" size="sm" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
           {novo ? "Lançar mais um pagamento" : "Gerar ordem de pagamento"}

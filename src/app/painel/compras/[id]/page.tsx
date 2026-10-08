@@ -26,6 +26,8 @@ import {
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
+import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
+import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { podeAcessar } from "@/lib/permissoes"
 
 import {
@@ -104,6 +106,15 @@ function LinhaOrdem({
             {ordem.pixCodigoFinal ? ` …${ordem.pixCodigoFinal}` : ""}
           </span>
         )}
+        <a
+          href={`/painel/compras/${processoId}/ordens/${ordem.id}/extrato`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-primary inline-flex items-center gap-1 whitespace-nowrap hover:underline"
+        >
+          <FileText className="size-3.5" />
+          Extrato
+        </a>
         {mostrarNota && ordem.notaUrl && (
           <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
             Nota do pagamento
@@ -179,6 +190,14 @@ export default async function ProcessoCompraPage({
 
   const fornecedores =
     operavel && !processo.comprado ? await listarFornecedores() : []
+  // Forma de cada pagamento: cartão da entidade e caixa (Dinheiro).
+  const lancaPagamento = operavel && (processo.fornecimentos ?? []).length > 0
+  const [cartoesBrutos, caixas] = lancaPagamento
+    ? await Promise.all([listarCartoes(), contasAbertasParaCompras()])
+    : [{ disponivel: false, cartoes: [] }, []]
+  const cartoes = cartoesBrutos.cartoes
+    .filter((c) => c.ativo)
+    .map((c) => ({ id: c.id, nome: nomeCartao(c) }))
 
   const propostasComUrl = await Promise.all(
     processo.propostas.map(async (p) => ({
@@ -667,6 +686,10 @@ export default async function ProcessoCompraPage({
                           fornecimentoId={f.id}
                           valorRestante={falta ? restante : null}
                           novo={f.pagamentos.length > 0}
+                          fornecedorId={f.fornecedor_id ?? ""}
+                          formaPadrao={f.forma_pagamento}
+                          cartoes={cartoes}
+                          caixas={caixas}
                         />
                       ) : f.pagamentos.length === 0 ? (
                         <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
