@@ -153,6 +153,10 @@ export function DetalheRemessaDiarias({
 }) {
   const validas = solicitacoes.filter((s) => s.situacao === "aguardando" || s.situacao === "aprovada")
   const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando")
+  // Aprovadas no fluxo antigo (por diária, antes de 08/10) e ainda sem ordem:
+  // a aprovação da remessa só gera a ordem delas.
+  const semOrdem = solicitacoes.filter((s) => s.situacao === "aprovada" && !s.ordem_pagamento_id)
+  const aAprovar = aguardando.length + semOrdem.length
   const totalDiarias = validas.reduce((a, s) => a + (s.valor_total ?? 0) - s.valorDescontos, 0)
   const totalDespesas = validas.reduce((a, s) => a + s.valorDespesas, 0)
   const total = Math.round((totalDiarias + totalDespesas) * 100) / 100
@@ -362,7 +366,7 @@ export function DetalheRemessaDiarias({
               ) : (
                 <p className="text-muted-foreground text-sm">Aguardando a correção de quem lançou as diárias.</p>
               )}
-              {podeAvaliar && aguardando.length > 0 && (
+              {podeAvaliar && aAprovar > 0 && (
                 <details className="rounded-md border p-3">
                   <summary className="cursor-pointer text-sm font-medium">
                     Avaliar de novo sem esperar o reenvio
@@ -371,12 +375,12 @@ export function DetalheRemessaDiarias({
                 </details>
               )}
             </div>
-          ) : podeAvaliar && aguardando.length > 0 ? (
+          ) : podeAvaliar && aAprovar > 0 ? (
             formAvaliacao
           ) : (
             <p className="text-muted-foreground text-sm">
-              {aguardando.length === 0
-                ? "Nenhuma diária aguardando nesta remessa."
+              {aAprovar === 0
+                ? "Nenhuma diária a aprovar nesta remessa."
                 : "Aguardando a avaliação de quem gere as diárias."}
             </p>
           )}

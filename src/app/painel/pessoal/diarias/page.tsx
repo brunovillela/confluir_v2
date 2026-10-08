@@ -59,7 +59,7 @@ export default async function DiariasPage({
     listarRemessasNovas({ quadro: "funcionario" }),
   ])
     // Remessas a avaliar (abertas ou reenviadas, com diária aguardando) — 08/10.
-  const prontas = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && r.contagem.aguardando > 0).length
+  const prontas = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && r.contagem.aguardando + r.contagem.aprovada > 0).length
 
   const params = {
     busca: (brutos.busca ?? "").trim(),

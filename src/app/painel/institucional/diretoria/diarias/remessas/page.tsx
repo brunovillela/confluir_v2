@@ -14,7 +14,9 @@ export const metadata: Metadata = { title: "Remessas de diárias — Confluir" }
 export default async function RemessasDiariasPage() {
   await requirePermissao("diretoria_diarias", ["configuracoes"])
   const { disponivel, remessas } = await listarRemessasNovas({ quadro: "diretor" })
-  const aAvaliar = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida")
+  // Remessa só com diárias canceladas/reprovadas não tem o que avaliar.
+  const comDiarias = (r: (typeof remessas)[number]) => r.contagem.aguardando + r.contagem.aprovada > 0
+  const aAvaliar = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && comDiarias(r))
   const devolvidas = remessas.filter((r) => !r.enviada && r.situacao === "devolvida")
   const aprovadas = remessas.filter((r) => r.enviada)
   const base = "/painel/institucional/diretoria/diarias/remessas"

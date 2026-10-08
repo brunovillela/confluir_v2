@@ -75,7 +75,7 @@ export function AvaliacaoRemessaForm({
         if (decisao === "aprovar") {
           confirmarEnvio(e, {
             titulo: `Aprovar a remessa (${total})?`,
-            descricao: `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados — ${destinoOrdem}.`,
+            descricao: `${diarias.length ? `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce` : "Nasce"} UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados — ${destinoOrdem}.`,
             confirmar: "Aprovar",
           })
         } else {
@@ -169,10 +169,14 @@ export function AvaliacaoRemessaForm({
           </>
         ) : (
           <>
-            <Button type="button" variant="outline" onClick={() => setDevolvendo(true)} disabled={pendente}>
-              <Undo2 />
-              Devolver com observação
-            </Button>
+            {/* Só há o que devolver com diária aguardando (as já aprovadas no
+                fluxo antigo só esperam a ordem). */}
+            {diarias.length > 0 && (
+              <Button type="button" variant="outline" onClick={() => setDevolvendo(true)} disabled={pendente}>
+                <Undo2 />
+                Devolver com observação
+              </Button>
+            )}
             <Button type="submit" name="decisao" value="aprovar" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <Check />}
               Aprovar a remessa
