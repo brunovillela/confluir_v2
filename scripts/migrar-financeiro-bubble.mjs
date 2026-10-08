@@ -40,6 +40,7 @@
 //   node scripts/migrar-financeiro-bubble.mjs --renovar         (dry-run com cache novo)
 //   node scripts/migrar-financeiro-bubble.mjs --apply
 //   node scripts/migrar-financeiro-bubble.mjs --so ordens --apply
+//   node scripts/migrar-financeiro-bubble.mjs --so-preenche --apply   (pós-virada: nunca troca)
 // ===========================================================================
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -176,6 +177,9 @@ const editadoAqui = (l) => l.updated_at && l.created_at && new Date(l.updated_at
 // trilha, que a migração não toca); as demais partes só PREENCHEM vazios.
 // `--bubble-manda` volta a trocar em todas (só com o sistema novo intocado).
 const BUBBLE_MANDA_EM_TUDO = args.includes("--bubble-manda")
+// Depois da virada o Confluir é o sistema: `--so-preenche` vale para TODAS as
+// partes (inclusive ordens) — insere o que falta e só completa campos vazios.
+const SO_PREENCHE_TUDO = args.includes("--so-preenche")
 const SO_PREENCHE = new Set(["empresas", "projetos", "centros", "bancarios", "contratos", "compras", "propostas", "remessas", "contracheques", "remessas_ponto", "ponto"])
 
 const PARTES = [
@@ -602,7 +606,8 @@ for (const parte of PARTES) {
       inserir.push(linha)
       continue
     }
-    const protegido = protegidos.has(local.id) || (!BUBBLE_MANDA_EM_TUDO && SO_PREENCHE.has(parte.nome))
+    const protegido =
+      SO_PREENCHE_TUDO || protegidos.has(local.id) || (!BUBBLE_MANDA_EM_TUDO && SO_PREENCHE.has(parte.nome))
     const mudancas = {}
     for (const [col, valor] of Object.entries(novo)) {
       if (vazio(valor) || !(col in local) || igual(local[col], valor)) continue

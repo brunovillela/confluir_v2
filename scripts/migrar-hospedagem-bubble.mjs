@@ -16,6 +16,7 @@
 //
 //   node scripts/migrar-hospedagem-bubble.mjs                 (simulação)
 //   node scripts/migrar-hospedagem-bubble.mjs --apply [--tenant <uuid>]
+//   node scripts/migrar-hospedagem-bubble.mjs --so-novos --detalhar [--apply]   (pós-virada)
 import { readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 
@@ -36,6 +37,16 @@ const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
 })
 const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
+// Depois da virada (01/10) o Confluir é o sistema: `--so-novos` só INSERE o
+// que nasceu no Bubble, sem atualizar o que já existe aqui. `--detalhar`
+// mostra, campo a campo, o que mudaria nos registros existentes.
+const SO_NOVOS = args.includes("--so-novos")
+// `--manter hospedagem_hotel,...`: nessas tabelas o que já existe aqui não é atualizado.
+const MANTER = (() => {
+  const i = args.indexOf("--manter")
+  return new Set(i >= 0 ? (args[i + 1] ?? "").split(",") : [])
+})()
+const DETALHAR = args.includes("--detalhar")
 const i = args.indexOf("--tenant")
 const TENANT = i >= 0 ? args[i + 1] : "c763cb99-edfd-4840-8453-ed3fcb66d4a1"
 // Sem "version-test": os dados de PRODUÇÃO (a versão de teste está quase vazia).
@@ -78,7 +89,20 @@ async function tudo(tabela, colunas, filtro = (q) => q) {
 }
 
 /** Aplica inserts em lote e updates um a um; devolve quantos deram certo. */
-async function gravar(tabela, inserir, atualizar) {
+async function gravar(tabela, inserir, atualizar0) {
+  const atualizar = SO_NOVOS || MANTER.has(tabela) ? [] : atualizar0
+  if (DETALHAR && atualizar0.length) {
+    const ids = atualizar0.map((a) => a.id)
+    const { data: atuais } = await db.from(tabela).select("*").in("id", ids)
+    const porId = new Map((atuais ?? []).map((l) => [l.id, l]))
+    for (const a of atualizar0) {
+      const atual = porId.get(a.id) ?? {}
+      const dif = Object.entries(a)
+        .filter(([k, v]) => k !== "id" && String(atual[k] ?? null) !== String(v ?? null))
+        .map(([k, v]) => `${k}: ${JSON.stringify(atual[k] ?? null)} → ${JSON.stringify(v ?? null)}`)
+      console.log(`    ~ ${tabela} ${atual.bubble_id ?? a.id}: ${dif.join(" · ")}`)
+    }
+  }
   if (!APLICAR) return { inseridos: 0, atualizados: 0 }
   let inseridos = 0
   for (let k = 0; k < inserir.length; k += 200) {
