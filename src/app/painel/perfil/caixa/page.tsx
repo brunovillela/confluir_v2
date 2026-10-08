@@ -3,9 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, Wallet } from "lucide-react"
 
 import { ExtratoCaixa, SituacaoContaBadge } from "@/components/caixa"
-import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,12 +17,7 @@ import { contaDoUsuario } from "@/lib/db/caixa"
 import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
-import {
-  ConfirmarAporte,
-  PrestarContas,
-  RegistrarCompra,
-  RelatarPerda,
-} from "./meu-caixa-acoes"
+import { AcoesDoCaixa, ConfirmarAporte } from "./meu-caixa-acoes"
 
 export const metadata: Metadata = { title: "Meu caixa — Confluir" }
 
@@ -102,6 +95,9 @@ export default async function MeuCaixaPage({
           </h1>
           <SituacaoContaBadge situacao={conta.situacao} ativa={conta.ativa} />
         </div>
+        <div className="mt-3">
+          <AcoesDoCaixa contaAberta={conta.situacao === "aberta"} bloqueio={bloqueio} ocorrencias={ocorrencias} />
+        </div>
       </div>
 
       {salvo === "1" && (
@@ -170,78 +166,6 @@ export default async function MeuCaixaPage({
           </AlertDescription>
         </Alert>
       )}
-
-      {conta.situacao === "aberta" && (
-        <GrupoColapsavel
-          titulo="Registrar compra"
-          descricao="Compra do dia a dia paga em dinheiro com a verba do caixa"
-        >
-          <RegistrarCompra />
-        </GrupoColapsavel>
-      )}
-
-      {conta.situacao === "aberta" && (
-        <GrupoColapsavel
-          titulo="Prestar contas"
-          descricao="Fecha o ciclo: o Financeiro confere o dinheiro e as despesas"
-        >
-          <PrestarContas bloqueio={bloqueio} />
-        </GrupoColapsavel>
-      )}
-
-      <GrupoColapsavel
-        titulo="Relatar problema com dinheiro"
-        descricao="Perda, extravio ou diferença — abre investigação do Financeiro"
-        resumo={
-          ocorrencias.filter((o) => o.situacao !== "resolvida").length > 0 ? (
-            <Badge
-              variant="outline"
-              className="text-destructive border-destructive/40 tabular-nums"
-            >
-              {ocorrencias.filter((o) => o.situacao !== "resolvida").length} em
-              aberto
-            </Badge>
-          ) : undefined
-        }
-      >
-        <div className="grid gap-4">
-          <RelatarPerda />
-          {ocorrencias.length > 0 && (
-            <ul className="grid gap-2 border-t pt-3">
-              {ocorrencias.map((o) => (
-                <li
-                  key={o.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate">{o.descricao}</span>
-                    <span className="text-muted-foreground block text-xs">
-                      {formatarDataHora(o.created_at)}
-                      {o.resolucao && <> · {o.resolucao}</>}
-                    </span>
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      o.situacao === "resolvida"
-                        ? "border-success/40 text-success-fg"
-                        : o.situacao === "em_investigacao"
-                          ? "border-warning/40 text-warning-fg"
-                          : "text-destructive border-destructive/40"
-                    }
-                  >
-                    {o.situacao === "resolvida"
-                      ? "Resolvida"
-                      : o.situacao === "em_investigacao"
-                        ? "Em investigação"
-                        : "Aberta"}
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </GrupoColapsavel>
 
       <Card>
         <CardHeader>

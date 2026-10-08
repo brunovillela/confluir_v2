@@ -27,6 +27,10 @@ export type MovimentacaoCaixa = {
   /** Despesa lançada por outra pessoa: pendente | reconhecida | nao_reconhecida | transferida (null = não exige). */
   reconhecimento?: string | null
   reconhecimentoMotivo?: string | null
+  /** Ordem de pagamento ligada (compra) e o beneficiário dela. */
+  ordemId?: string | null
+  ordemCodigo?: string | null
+  beneficiario?: string | null
 }
 
 export type PrestacaoCaixa = {
@@ -125,6 +129,58 @@ type MovBruta = {
   created_at: string | null
   reconhecimento?: string | null
   reconhecimento_motivo?: string | null
+  ordem_pagamento_id?: string | null
+}
+
+function txtCaixa(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null
+}
+
+/**
+ * Beneficiário de cada ordem (fornecedor da ordem, fornecedor beneficiário,
+ * usuário beneficiário ou nome avulso) e o código — extrato do caixa e busca
+ * de "Vincular ordem de pagamento".
+ */
+export async function beneficiariosDasOrdens(
+  ordemIds: string[]
+): Promise<Map<string, { codigo: string | null; beneficiario: string | null }>> {
+  const mapa = new Map<string, { codigo: string | null; beneficiario: string | null }>()
+  const ids = [...new Set(ordemIds.filter(Boolean))]
+  if (ids.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+    .in("id", ids)
+  const lista = ordens ?? []
+  const empIds = [...new Set(lista.flatMap((o) => [o.fornecedor_id, o.beneficiario_fornecedor_id]).filter((v): v is string => Boolean(v)))]
+  const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => Boolean(v)))]
+  const nomes = new Map<string, string>()
+  if (empIds.length) {
+    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", empIds)
+    for (const e of data ?? []) {
+      const n = txtCaixa(e.nome_fantasia) ?? txtCaixa(e.empresa) ?? txtCaixa(e.nome_razao)
+      if (n) nomes.set(String(e.id), n)
+    }
+  }
+  if (usuIds.length) {
+    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuIds)
+    for (const u of data ?? []) {
+      const n = txtCaixa(u.nome_completo) ?? txtCaixa(u.nome_guerra)
+      if (n) nomes.set(String(u.id), n)
+    }
+  }
+  for (const o of lista) {
+    mapa.set(String(o.id), {
+      codigo: txtCaixa(o.codigo),
+      beneficiario:
+        (o.beneficiario_fornecedor_id && nomes.get(String(o.beneficiario_fornecedor_id))) ||
+        (o.fornecedor_id && nomes.get(String(o.fornecedor_id))) ||
+        (o.beneficiario_usuario_id && nomes.get(String(o.beneficiario_usuario_id))) ||
+        txtCaixa(o.beneficiario_nome_avulso),
+    })
+  }
+  return mapa
 }
 
 /** Todas as contas com saldo e pendências (área do financeiro). */
@@ -259,6 +315,9 @@ export async function detalheContaCaixa(
   ])
 
   const responsavel = nomes.get(conta.responsavel_usuario_id) ?? null
+  const dasOrdens = await beneficiariosDasOrdens(
+    movs.map((m) => m.ordem_pagamento_id).filter((v): v is string => Boolean(v))
+  )
 
   return {
     conta: {
@@ -293,6 +352,9 @@ export async function detalheContaCaixa(
       created_at: m.created_at,
       reconhecimento: m.reconhecimento ?? null,
       reconhecimentoMotivo: m.reconhecimento_motivo ?? null,
+      ordemId: m.ordem_pagamento_id ?? null,
+      ordemCodigo: m.ordem_pagamento_id ? (dasOrdens.get(m.ordem_pagamento_id)?.codigo ?? null) : null,
+      beneficiario: m.ordem_pagamento_id ? (dasOrdens.get(m.ordem_pagamento_id)?.beneficiario ?? null) : null,
     })),
     prestacoes: (prestRes.data ?? []).map((p) => ({
       id: p.id,

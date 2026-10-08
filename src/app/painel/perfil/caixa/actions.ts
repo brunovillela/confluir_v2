@@ -7,8 +7,8 @@ import { redirect } from "next/navigation"
 
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { calcularSaldo } from "@/lib/db/caixa"
 import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
+import { buscarOrdensParaVincular, vincularOrdemAoCaixa, type OrdemVinculavel } from "@/lib/db/caixa-vincular"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -74,53 +74,32 @@ export async function confirmarAporte(
   revalidar(conta.id)
 }
 
-/** Registra uma compra em dinheiro (débito no extrato). */
-export async function registrarCompra(
+/** Busca ordens para vincular ao caixa (beneficiário ou código). */
+export async function buscarOrdensCaixa(termo: string): Promise<{ ordens: OrdemVinculavel[]; erro?: string }> {
+  const sessao = await requireSessaoPainel()
+  const conta = await contaDoResponsavel(sessao.usuario.id)
+  if (!conta) return { ordens: [], erro: "Você não tem uma conta de caixa ativa." }
+  return { ordens: await buscarOrdensParaVincular(termo) }
+}
+
+/**
+ * Vincula uma ordem de pagamento ao caixa (substitui o "Registrar compra"
+ * avulso): a ordem passa a Dinheiro com este caixa e a despesa entra no
+ * extrato ligada a ela.
+ */
+export async function vincularOrdemCaixa(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
   const sessao = await requireSessaoPainel()
-
+  const ordemId = String(formData.get("ordem_id") ?? "")
+  if (!UUID.test(ordemId)) return { erro: "Escolha a ordem de pagamento." }
   const conta = await contaDoResponsavel(sessao.usuario.id)
   if (!conta) return { erro: "Você não tem uma conta de caixa ativa." }
-  if (conta.situacao !== "aberta") {
-    return {
-      erro: "A conta não está aberta — confirme o aporte ou aguarde a decisão da prestação de contas.",
-    }
-  }
-
-  const valor = parseValorBR(String(formData.get("valor") ?? ""))
-  if (valor === null || valor <= 0) return { erro: "Informe o valor da compra." }
-  const descricao = String(formData.get("descricao") ?? "").trim()
-  if (!descricao) return { erro: "Descreva a compra." }
-
-  const admin = await createAdminClient()
-  const { data: movs } = await admin
-    .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor, reconhecimento")
-    .eq("conta_id", conta.id)
-  const saldo = calcularSaldo(
-    (movs ?? []) as { tipo: string; situacao: string; valor: number; reconhecimento: string | null }[]
-  )
-  if (valor > saldo) {
-    return {
-      erro: `A compra (${valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) é maior que o saldo disponível (${saldo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}).`,
-    }
-  }
-
-  const agora = new Date().toISOString()
-  const { error } = await admin.from("caixa_movimentacoes").insert({
-    conta_id: conta.id,
-    tipo: "compra",
-    situacao: "confirmada",
-    valor,
-    descricao,
-    criada_por_usuario_id: sessao.usuario.id,
-    confirmada_em: agora,
-    emp_proprietaria_id: await tenantAtual(),
-  })
-  if (error) return { erro: `Não foi possível registrar: ${error.message}` }
-
+  const { erro } = await vincularOrdemAoCaixa(sessao.usuario.id, ordemId)
+  if (erro) return { erro }
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
   revalidar(conta.id)
 }
 
