@@ -4,6 +4,8 @@ import { CheckCheck, ExternalLink, FileSignature, HandCoins, Receipt } from "luc
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
+import { DecisaoRemessaCompacta } from "@/components/remessa-avaliacao-form"
+import { agruparPorRemessa } from "@/lib/db/diarias"
 import { paraAprovar } from "@/lib/db/diretor-home"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ApontamentosAuditoria } from "@/app/painel/compras/avaliacoes/apontamentos-auditoria"
@@ -20,7 +22,9 @@ export const metadata: Metadata = { title: "Aprovar — Confluir" }
 export default async function AprovarPage() {
   const sessao = await requireSessaoPainel()
   const a = await paraAprovar(sessao)
-  const total = a.ordens.length + a.assinaturas.length + a.diarias.length
+  // 08/10: diária em remessa é decidida com a remessa inteira.
+  const diarias = agruparPorRemessa(a.diarias)
+  const total = a.ordens.length + a.assinaturas.length + diarias.remessas.length + diarias.avulsas.length
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -107,13 +111,64 @@ export default async function AprovarPage() {
         </section>
       )}
 
-      {a.diarias.length > 0 && (
+      {diarias.remessas.length > 0 && (
         <section className="mb-6 grid gap-3">
           <h2 className="flex items-center gap-2 text-sm font-medium">
             <HandCoins className="text-muted-foreground size-4" />
-            Diárias aguardando ({a.diarias.length})
+            Remessas de diárias ({diarias.remessas.length})
           </h2>
-          {a.diarias.map((d) => (
+          {diarias.remessas.map((r) => (
+            <Card key={r.id}>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {r.beneficiarioNome ?? "—"} · {formatarMoeda(r.total)}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Remessa {r.codigo ?? ""} · {r.diarias.length} diária(s)
+                  {r.situacao === "reenviada" ? " · reenviada depois de corrigida" : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <ul className="grid gap-1 text-sm">
+                  {r.diarias.map((d) => (
+                    <li key={d.id} className="flex justify-between gap-2">
+                      <span className="min-w-0">
+                        {d.tipoNome ?? "Diária"}
+                        {d.quantidade ? ` × ${d.quantidade}` : ""}
+                        {d.data_inicio ? ` · ${formatarData(d.data_inicio)}` : ""}
+                      </span>
+                      <span className="tabular-nums">{formatarMoeda((d.valor_total ?? 0) + d.valorDespesas)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={
+                    r.beneficiarioTipo === "diretor"
+                      ? `/painel/institucional/diretoria/diarias/remessas/${r.id}`
+                      : `/painel/pessoal/diarias/remessas/${r.id}`
+                  }
+                  className="text-muted-foreground inline-flex min-h-9 items-center gap-1 text-xs underline underline-offset-4"
+                >
+                  <ExternalLink className="size-3.5" />
+                  Ver a remessa, despesas e comprovantes
+                </Link>
+                <DecisaoRemessaCompacta
+                  remessaId={r.id}
+                  resumo={`a remessa de diárias de ${r.beneficiarioNome ?? "—"} (${formatarMoeda(r.total)})`}
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
+
+      {diarias.avulsas.length > 0 && (
+        <section className="mb-6 grid gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <HandCoins className="text-muted-foreground size-4" />
+            Diárias aguardando ({diarias.avulsas.length})
+          </h2>
+          {diarias.avulsas.map((d) => (
             <Card key={d.id}>
               <CardHeader>
                 <CardTitle className="text-base">

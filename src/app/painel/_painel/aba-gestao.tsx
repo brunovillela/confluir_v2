@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { SessaoPainel } from "@/lib/auth"
 import { gestaoDoUsuario, temDecisoes } from "@/lib/db/diretor-home"
+import { agruparPorRemessa } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { ROTULO_SITUACAO_NEGOCIACAO } from "@/lib/negociacoes-constantes"
 
@@ -45,7 +46,10 @@ export async function AbaGestao({
 }) {
   const h = await gestaoDoUsuario(sessao)
   const decide = temDecisoes(sessao) || h.assinaturas.length > 0
-  const decisoes = h.ordens.length + h.assinaturas.length + h.diarias.length
+  // 08/10: diárias em remessa contam por remessa (a decisão é dela).
+  const grupos = agruparPorRemessa(h.diarias)
+  const diariasADecidir = grupos.remessas.length + grupos.avulsas.length
+  const decisoes = h.ordens.length + h.assinaturas.length + diariasADecidir
   const nome = String(sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? "").split(" ")[0]
 
   return (
@@ -74,11 +78,11 @@ export async function AbaGestao({
             destaque={h.assinaturas.length > 0}
           />
           <KpiHud
-            rotulo="Diárias aguardando"
-            valor={String(h.diarias.length)}
+            rotulo="Remessas de diárias"
+            valor={String(diariasADecidir)}
             nota={h.podeDiariasDiretoria && h.podeDiariasQuadro ? "diretoria e quadro" : h.podeDiariasDiretoria ? "da diretoria" : h.podeDiariasQuadro ? "do quadro" : "sem permissão para avaliar"}
             href="/painel/aprovar"
-            destaque={h.diarias.length > 0}
+            destaque={diariasADecidir > 0}
           />
           <Link href="/painel/aprovar" className="hud-cartao flex flex-col justify-between gap-2 p-3.5">
             <p className="hud-rotulo">Decidir pelo celular</p>

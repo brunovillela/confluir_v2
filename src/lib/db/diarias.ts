@@ -27,7 +27,12 @@ import { SITE_URL } from "@/lib/env"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-import { garantirRemessaAberta, recalcularRemessa } from "@/lib/db/diarias-remessas"
+import {
+  garantirRemessaAberta,
+  recalcularRemessa,
+  situacaoDaRemessa,
+  type SituacaoRemessa,
+} from "@/lib/db/diarias-remessas"
 
 /**
  * Diárias — pagamento avulso que o funcionário SOLICITA por uma atividade
@@ -153,6 +158,10 @@ export type SolicitacaoDiaria = {
   remessaId: string | null
   remessaCodigo: string | null
   remessaEnviada: boolean
+  /** Situação da avaliação da remessa (aberta | devolvida | reenviada | aprovada). */
+  remessaSituacao: SituacaoRemessa | null
+  /** Não conformidade apontada pelo avaliador ao devolver a remessa. */
+  pendenciaObservacao: string | null
   /** Infrações abatidas na aprovação (a diária entra líquida na remessa). */
   valorDescontos: number
   created_at: string | null
@@ -214,13 +223,17 @@ async function normalizarSolicitacoes(
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     despesasDasSolicitacoes(brutas.map((s) => String(s.id))),
     remessaIds.length
-      ? admin.from("pessoal_diarias_remessas").select("id, codigo, enviado").in("id", remessaIds)
+      ? admin.from("pessoal_diarias_remessas").select("*").in("id", remessaIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ])
   const remessa = new Map(
     ((remessas.data ?? []) as Record<string, unknown>[]).map((r) => [
       String(r.id),
-      { codigo: (r.codigo as string | null) ?? null, enviada: r.enviado === true },
+      {
+        codigo: (r.codigo as string | null) ?? null,
+        enviada: r.enviado === true,
+        situacao: situacaoDaRemessa(r),
+      },
     ])
   )
 
@@ -288,6 +301,8 @@ async function normalizarSolicitacoes(
     remessaId: (s.remessa_id as string | null) ?? null,
     remessaCodigo: s.remessa_id ? (remessa.get(String(s.remessa_id))?.codigo ?? null) : null,
     remessaEnviada: s.remessa_id ? (remessa.get(String(s.remessa_id))?.enviada ?? false) : false,
+    remessaSituacao: s.remessa_id ? (remessa.get(String(s.remessa_id))?.situacao ?? null) : null,
+    pendenciaObservacao: (s.pendencia_observacao as string | null) ?? null,
     valorDescontos: Number(s.valor_descontos ?? 0) || 0,
     created_at: (s.created_at as string | null) ?? null,
     }
@@ -588,12 +603,21 @@ export async function avaliarSolicitacaoDiaria(
   avaliadorId: string,
   aprovar: boolean,
   observacao: string | null,
-  aplicarDescontos = true
+  aplicarDescontos = true,
+  /** Chamada pela aprovação da remessa: dispensa a trava e o aviso por diária. */
+  opcoes: { viaRemessa?: boolean } = {}
 ): Promise<{ erro?: string }> {
   const solicitacao = await buscarSolicitacaoDiaria(id)
   if (!solicitacao) return { erro: "Solicitação não encontrada." }
   if (solicitacao.situacao !== "aguardando") {
     return { erro: "Esta solicitação já foi avaliada ou cancelada." }
+  }
+  // 08/10: diária em remessa aberta é avaliada com a REMESSA inteira —
+  // aprovar (gera a ordem) ou devolver com as não conformidades.
+  if (!opcoes.viaRemessa && solicitacao.remessaId && !solicitacao.remessaEnviada && solicitacao.remessaSituacao) {
+    return {
+      erro: `A avaliação é feita na remessa ${solicitacao.remessaCodigo ?? ""} — abra a remessa para aprovar ou devolver.`,
+    }
   }
   if (aprovar && solicitacao.valor_total === null && solicitacao.valorDespesas === 0) {
     return {
@@ -802,6 +826,8 @@ export async function avaliarSolicitacaoDiaria(
     )
   }
 
+  // Na aprovação da remessa, quem recalcula e avisa (uma vez só) é ela.
+  if (opcoes.viaRemessa) return {}
   const daRemessa = remessaId ?? (solicitacao.remessaEnviada ? null : solicitacao.remessaId)
   if (daRemessa) await recalcularRemessa(daRemessa)
   await notificarAvaliacaoDiaria(solicitacao, aprovar, observacao, codigo, Boolean(remessaId))
@@ -865,4 +891,50 @@ export async function tipoDiariaEmUso(tipoId: string): Promise<number> {
       .eq("tipo_id", tipoId),
   ])
   return (solicitacoes.error ? 0 : (solicitacoes.count ?? 0)) + (lancamentos.error ? 0 : (lancamentos.count ?? 0))
+}
+
+// ── Avaliação por remessa (08/10) ──────────────────────────────────────────
+
+export type RemessaAAvaliar = {
+  id: string
+  codigo: string | null
+  beneficiarioNome: string | null
+  beneficiarioTipo: QuadroDiaria
+  situacao: SituacaoRemessa
+  diarias: SolicitacaoDiaria[]
+  total: number
+}
+
+/**
+ * Separa as diárias AGUARDANDO em remessas a avaliar (a decisão é da
+ * remessa) e avulsas (antes das remessas: decisão por diária). Remessa
+ * devolvida fica de fora — espera a correção de quem lançou.
+ */
+export function agruparPorRemessa(diarias: SolicitacaoDiaria[]): {
+  remessas: RemessaAAvaliar[]
+  avulsas: SolicitacaoDiaria[]
+} {
+  const porRemessa = new Map<string, RemessaAAvaliar>()
+  const avulsas: SolicitacaoDiaria[] = []
+  for (const d of diarias) {
+    if (d.situacao !== "aguardando") continue
+    if (!d.remessaId || !d.remessaSituacao || d.remessaEnviada) {
+      avulsas.push(d)
+      continue
+    }
+    if (d.remessaSituacao === "devolvida") continue
+    const r = porRemessa.get(d.remessaId) ?? {
+      id: d.remessaId,
+      codigo: d.remessaCodigo,
+      beneficiarioNome: d.funcionarioNome,
+      beneficiarioTipo: d.beneficiarioTipo,
+      situacao: d.remessaSituacao,
+      diarias: [],
+      total: 0,
+    }
+    r.diarias.push(d)
+    r.total = Math.round((r.total + (d.valor_total ?? 0) + d.valorDespesas) * 100) / 100
+    porRemessa.set(d.remessaId, r)
+  }
+  return { remessas: [...porRemessa.values()], avulsas }
 }

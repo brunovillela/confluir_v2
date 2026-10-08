@@ -14,7 +14,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import type { SessaoPainel } from "@/lib/auth"
 import { ROTULOS_SITUACAO_PROCESSO } from "@/lib/compras-constantes"
+import { DecisaoRemessaCompacta } from "@/components/remessa-avaliacao-form"
 import { areaDoCoordenador } from "@/lib/db/coordenador"
+import { agruparPorRemessa } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { moduloDaRota, podeAcessarModulo } from "@/lib/permissoes"
 import { cn } from "@/lib/utils"
@@ -49,7 +51,10 @@ export async function AbaCoordenacao({
     const m = moduloDaRota(href)
     return !m || podeAcessarModulo(sessao.permissoes, m)
   }
-  const pedidos = a.pedidos.ferias.length + a.pedidos.faltas.length + a.pedidos.diarias.length
+  // 08/10: diária em remessa é decidida com a remessa inteira.
+  const diariasDaEquipe = agruparPorRemessa(a.pedidos.diarias)
+  const pedidos =
+    a.pedidos.ferias.length + a.pedidos.faltas.length + diariasDaEquipe.remessas.length + diariasDaEquipe.avulsas.length
   const emAutorizacao = a.ordens.abertas.filter((o) => o.situacao === "Em autorização")
   const totalAberto = a.ordens.abertas.reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
   const o = a.orcamento
@@ -138,7 +143,26 @@ export async function AbaCoordenacao({
                 />
               </Pedido>
             ))}
-            {a.pedidos.diarias.map((d) => (
+            {diariasDaEquipe.remessas.map((r) => (
+              <Pedido
+                key={r.id}
+                icone={HandCoins}
+                tipo={r.situacao === "reenviada" ? "Remessa de diárias (reenviada)" : "Remessa de diárias"}
+                titulo={`${r.beneficiarioNome ?? "(sem nome)"} — ${formatarMoeda(r.total)}`}
+                detalhe={r.diarias
+                  .map(
+                    (d) =>
+                      `${d.tipoNome ?? "Diária"}${d.quantidade ? ` × ${d.quantidade}` : ""}${d.data_inicio ? ` em ${formatarData(d.data_inicio)}` : ""}${d.motivo ? ` (${d.motivo})` : ""}`
+                  )
+                  .join(" · ")}
+              >
+                <DecisaoRemessaCompacta
+                  remessaId={r.id}
+                  resumo={`a remessa de diárias de ${r.beneficiarioNome ?? "funcionário"} (${formatarMoeda(r.total)})`}
+                />
+              </Pedido>
+            ))}
+            {diariasDaEquipe.avulsas.map((d) => (
               <Pedido
                 key={d.id}
                 icone={HandCoins}

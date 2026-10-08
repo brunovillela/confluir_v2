@@ -12,7 +12,6 @@ import {
   buscarSolicitacaoDiaria,
   tipoDiariaEmUso,
 } from "@/lib/db/diarias"
-import { enviarRemessaDiarias, obterRemessaNova } from "@/lib/db/diarias-remessas"
 import { categoriaDiariaValida } from "@/lib/diarias-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -190,20 +189,3 @@ export async function excluirTipoDiaria(
   return { ok: "Tipo excluído." }
 }
 
-/** Envia a remessa de diárias de FUNCIONÁRIO para pagamento (gera a ordem). */
-export async function enviarRemessaDiariasAction(
-  _prev: EstadoForm,
-  formData: FormData
-): Promise<EstadoForm> {
-  const sessao = await exigirAcesso()
-  const remessaId = String(formData.get("remessa_id") ?? "")
-  if (!remessaId) return { erro: "Remessa inválida." }
-  const dados = await obterRemessaNova(remessaId)
-  if (!dados || dados.remessa.quadro !== "funcionario") return { erro: "Remessa não encontrada." }
-  const { erro, ordemCodigo } = await enviarRemessaDiarias(remessaId, sessao.usuario.id)
-  if (erro) return { erro }
-  revalidar()
-  revalidatePath("/painel/pessoal/diarias/remessas")
-  revalidatePath("/painel/financeiro/ordens")
-  redirect(`/painel/pessoal/diarias/remessas/${remessaId}?enviada=${encodeURIComponent(ordemCodigo ?? "")}`)
-}

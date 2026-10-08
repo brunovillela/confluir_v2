@@ -117,7 +117,14 @@ export function DetalheDiaria({
                 )}
                 <span className="text-muted-foreground">
                   {" "}
-                  · {solicitacao.remessaEnviada ? "enviada para pagamento" : "aberta — acumula as diárias até ser enviada"}
+                  ·{" "}
+                  {solicitacao.remessaEnviada
+                    ? "aprovada — ordem de pagamento gerada"
+                    : solicitacao.remessaSituacao === "devolvida"
+                      ? "devolvida para correção"
+                      : solicitacao.remessaSituacao === "reenviada"
+                        ? "reenviada, em avaliação"
+                        : "em avaliação — acumula as diárias até ser aprovada"}
                 </span>
               </Campo>
             )}
@@ -167,7 +174,34 @@ export function DetalheDiaria({
         </CardContent>
       </Card>
 
-      {aguardando ? (
+      {aguardando && solicitacao.remessaSituacao && !solicitacao.remessaEnviada ? (
+        // 08/10: a avaliação é da remessa inteira, não da diária.
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Avaliação</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {solicitacao.pendenciaObservacao &&
+              (solicitacao.remessaSituacao === "devolvida" || solicitacao.remessaSituacao === "reenviada") && (
+                <p className="text-destructive font-medium">
+                  Não conformidade apontada na devolução: {solicitacao.pendenciaObservacao}
+                </p>
+              )}
+            <p className="text-muted-foreground">
+              Esta diária é avaliada junto com a remessa{" "}
+              {remessaHref ? (
+                <Link href={remessaHref} className="text-primary tabular-nums hover:underline">
+                  {solicitacao.remessaCodigo ?? ""}
+                </Link>
+              ) : (
+                <span className="tabular-nums">{solicitacao.remessaCodigo ?? ""}</span>
+              )}
+              : aprovada, a remessa vira uma ordem de pagamento rateada; com não conformidade, é devolvida
+              a quem lançou.
+            </p>
+          </CardContent>
+        </Card>
+      ) : aguardando ? (
         <AvaliacaoDiariaForm
           solicitacaoId={solicitacao.id}
           valorTexto={formatarMoeda(totalGeral)}

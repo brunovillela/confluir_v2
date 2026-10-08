@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { HandCoins } from "lucide-react"
+import { AlertTriangle, HandCoins } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/table"
 import { SituacaoDiariaBadge } from "@/components/diarias"
 import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
+import { SituacaoRemessaBadge } from "@/components/diarias-remessas"
+import { ReenviarRemessaForm } from "@/components/remessa-avaliacao-form"
+import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
 import { requireSessaoPainel } from "@/lib/auth"
 import { listarTiposDespesaDiaria } from "@/lib/db/diarias-config"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
@@ -51,11 +54,14 @@ export default async function MinhasDiariasPage({
     await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
   }
   const { salvo } = await searchParams
-  const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa] = await Promise.all([
+  const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa, minhasRemessas] = await Promise.all([
     minhasSolicitacoesDiaria(sessao.usuario.id as string),
     listarTiposDiaria(),
     listarTiposDespesaDiaria(),
+    listarRemessasNovas({ beneficiarioId: sessao.usuario.id as string }).catch(() => ({ disponivel: false, remessas: [] })),
   ])
+  // 08/10: a avaliação é da remessa — a pessoa vê a dela e, devolvida, o que corrigir.
+  const remessasEmCurso = minhasRemessas.remessas.filter((r) => !r.enviada && r.valorTotal > 0)
 
   const ativos = tipos.filter(
     (t) =>
@@ -103,6 +109,54 @@ export default async function MinhasDiariasPage({
           </AlertDescription>
         </Alert>
       )}
+
+      {remessasEmCurso.map((r) => {
+        const apontadas = solicitacoes.filter(
+          (s) => s.remessaId === r.id && s.situacao === "aguardando" && s.pendenciaObservacao
+        )
+        return (
+          <Card key={r.id} className={r.situacao === "devolvida" ? "border-destructive/50" : undefined}>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  Remessa {r.codigo ?? ""} · {formatarMoeda(r.valorTotal)}
+                </CardTitle>
+                <SituacaoRemessaBadge remessa={r} />
+              </div>
+              <CardDescription>
+                {r.situacao === "devolvida"
+                  ? "Devolvida para correção — ajuste o que foi apontado e reenvie."
+                  : "Suas diárias são avaliadas juntas, na remessa. Aprovada, vira uma ordem de pagamento."}
+              </CardDescription>
+            </CardHeader>
+            {r.situacao === "devolvida" && (
+              <CardContent className="grid gap-3">
+                <Alert variant="destructive">
+                  <AlertTriangle />
+                  <AlertDescription>
+                    <span className="whitespace-pre-wrap">{r.devolucaoObservacao ?? "—"}</span>
+                    {apontadas.length > 0 && (
+                      <ul className="mt-1 list-disc pl-4 text-xs">
+                        {apontadas.map((s) => (
+                          <li key={s.id}>
+                            {s.tipoNome ?? "Diária"}
+                            {s.data_inicio ? ` de ${formatarData(s.data_inicio)}` : ""}: {s.pendenciaObservacao}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </AlertDescription>
+                </Alert>
+                <p className="text-muted-foreground text-xs">
+                  Para corrigir: ajuste as despesas abaixo, cancele a diária com problema e, se for o caso,
+                  solicite de novo com os dados certos — a nova entra nesta mesma remessa.
+                </p>
+                <ReenviarRemessaForm remessaId={r.id} />
+              </CardContent>
+            )}
+          </Card>
+        )
+      })}
 
       {disponivel && (
         <SolicitarDiariaForm
@@ -193,6 +247,9 @@ export default async function MinhasDiariasPage({
                       </TableCell>
                       <TableCell>
                         <SituacaoDiariaBadge situacao={s.situacao} />
+                        {s.situacao === "aguardando" && s.remessaSituacao === "devolvida" && s.pendenciaObservacao && (
+                          <p className="text-destructive mt-1 max-w-56 text-xs whitespace-normal">{s.pendenciaObservacao}</p>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground hidden md:table-cell">
                         {s.situacao === "aprovada"

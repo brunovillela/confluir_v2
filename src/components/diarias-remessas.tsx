@@ -1,9 +1,13 @@
 import Link from "next/link"
-import { ArrowLeft, Paperclip, Send } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ClipboardCheck, History, Paperclip } from "lucide-react"
 
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { SituacaoDiariaBadge } from "@/components/diarias"
-import { EnviarRemessaForm } from "@/components/enviar-remessa-form"
+import {
+  AvaliacaoRemessaForm,
+  ReenviarRemessaForm,
+  RetirarDiariaBotao,
+} from "@/components/remessa-avaliacao-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,7 +26,8 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 /**
  * Remessas de diárias — as MESMAS telas nas duas portas (Pessoal e
- * Diretoria); muda só a base do link e a action de envio (permissão).
+ * Diretoria); muda só a base do link. Desde 08/10 a avaliação é da REMESSA:
+ * aprovar (nasce a ordem rateada) ou devolver com as não conformidades.
  */
 
 function periodo(inicio: string | null, termino: string | null): string {
@@ -35,12 +40,21 @@ function valorDaDiaria(s: SolicitacaoDiaria): number {
   return Math.round(((s.valor_total ?? 0) - s.valorDescontos + s.valorDespesas) * 100) / 100
 }
 
-export function SituacaoRemessaBadge({ remessa }: { remessa: Pick<RemessaNova, "enviada"> }) {
-  return remessa.enviada ? (
-    <Badge variant="outline" className="border-success/40 text-success-fg">Enviada</Badge>
-  ) : (
-    <Badge variant="outline" className="border-warning/50 text-warning-fg">Aberta</Badge>
-  )
+function rotuloDiaria(s: SolicitacaoDiaria): string {
+  return `${s.tipoNome ?? "Diária"} × ${s.quantidade ?? 1} · ${periodo(s.data_inicio, s.data_termino)} · ${formatarMoeda(valorDaDiaria(s))}`
+}
+
+export function SituacaoRemessaBadge({ remessa }: { remessa: Pick<RemessaNova, "enviada" | "situacao"> }) {
+  if (remessa.enviada || remessa.situacao === "aprovada") {
+    return <Badge variant="outline" className="border-success/40 text-success-fg">Aprovada</Badge>
+  }
+  if (remessa.situacao === "devolvida") {
+    return <Badge variant="outline" className="border-destructive/40 text-destructive">Devolvida</Badge>
+  }
+  if (remessa.situacao === "reenviada") {
+    return <Badge variant="info">Reenviada</Badge>
+  }
+  return <Badge variant="outline" className="border-warning/50 text-warning-fg">Em avaliação</Badge>
 }
 
 export function ListaRemessasDiarias({
@@ -54,7 +68,7 @@ export function ListaRemessasDiarias({
   if (remessas.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
-        Nenhuma remessa ainda — a primeira diária lançada abre a remessa do beneficiário.
+        Nenhuma remessa aqui.
       </p>
     )
   }
@@ -67,41 +81,48 @@ export function ListaRemessasDiarias({
             <TableHead>Beneficiário</TableHead>
             <TableHead className="hidden md:table-cell">Período</TableHead>
             <TableHead>Diárias</TableHead>
-            <TableHead className="text-right">Total aprovado</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
             <TableHead>Situação</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {remessas.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell>
-                <Link href={`${base}/${r.id}`} className="text-primary tabular-nums hover:underline">
-                  {r.codigo ?? "(sem código)"}
-                </Link>
-              </TableCell>
-              <TableCell className="max-w-56 truncate">{r.beneficiarioNome ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
-                {periodo(r.inicio, r.termino)}
-              </TableCell>
-              <TableCell className="text-xs whitespace-nowrap">
-                {r.contagem.aprovada} aprovada(s)
-                {r.contagem.aguardando > 0 && (
-                  <span className="text-warning-fg"> · {r.contagem.aguardando} aguardando</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(r.valorTotal)}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <SituacaoRemessaBadge remessa={r} />
-                  {r.ordemId && <SituacaoBadge situacao={r.ordemSituacao} />}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {remessas.map((r) => {
+            const fora = r.contagem.cancelada + r.contagem.reprovada
+            return (
+              <TableRow key={r.id}>
+                <TableCell>
+                  <Link href={`${base}/${r.id}`} className="text-primary tabular-nums hover:underline">
+                    {r.codigo ?? "(sem código)"}
+                  </Link>
+                </TableCell>
+                <TableCell className="max-w-56 truncate">{r.beneficiarioNome ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
+                  {periodo(r.inicio, r.termino)}
+                </TableCell>
+                <TableCell className="text-xs whitespace-nowrap">
+                  {r.contagem.aguardando + r.contagem.aprovada} diária(s)
+                  {fora > 0 && <span className="text-muted-foreground"> · {fora} fora</span>}
+                </TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(r.valorTotal)}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <SituacaoRemessaBadge remessa={r} />
+                    {r.ordemId && <SituacaoBadge situacao={r.ordemSituacao} />}
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>
   )
+}
+
+const ROTULO_ACAO: Record<string, string> = {
+  devolvida: "Devolvida",
+  reenviada: "Reenviada",
+  aprovada: "Aprovada",
 }
 
 export function DetalheRemessaDiarias({
@@ -110,8 +131,9 @@ export function DetalheRemessaDiarias({
   voltar,
   diariaBase,
   despesasUrls,
-  acaoEnviar,
-  enviada,
+  podeAvaliar,
+  geraDiarias,
+  infracoes,
 }: {
   remessa: RemessaNova
   solicitacoes: SolicitacaoDiaria[]
@@ -119,15 +141,28 @@ export function DetalheRemessaDiarias({
   /** Base do link de cada diária (ex.: /painel/pessoal/diarias). */
   diariaBase: string
   despesasUrls: Map<string, string | null>
-  /** Sem action = quem vê não pode enviar. */
-  acaoEnviar?: (prev: { erro?: string }, formData: FormData) => Promise<{ erro?: string }>
-  enviada?: string | null
+  /** Quem vê pode aprovar/devolver (nunca a própria remessa). */
+  podeAvaliar: boolean
+  /** Quem vê gere as diárias da porta (retira diária, reenvia pela pessoa). */
+  geraDiarias: boolean
+  /** Infrações pendentes do beneficiário (desconto na aprovação). */
+  infracoes: { quantidade: number; total: number } | null
 }) {
-  const aprovadas = solicitacoes.filter((s) => s.situacao === "aprovada")
+  const validas = solicitacoes.filter((s) => s.situacao === "aguardando" || s.situacao === "aprovada")
   const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando")
-  const totalDiarias = aprovadas.reduce((a, s) => a + (s.valor_total ?? 0) - s.valorDescontos, 0)
-  const totalDespesas = aprovadas.reduce((a, s) => a + s.valorDespesas, 0)
+  const totalDiarias = validas.reduce((a, s) => a + (s.valor_total ?? 0) - s.valorDescontos, 0)
+  const totalDespesas = validas.reduce((a, s) => a + s.valorDespesas, 0)
   const total = Math.round((totalDiarias + totalDespesas) * 100) / 100
+  const devolvida = !remessa.enviada && remessa.situacao === "devolvida"
+  const mostrarPendencias = !remessa.enviada && (remessa.situacao === "devolvida" || remessa.situacao === "reenviada")
+  const formAvaliacao = (
+    <AvaliacaoRemessaForm
+      remessaId={remessa.id}
+      total={formatarMoeda(total)}
+      diarias={aguardando.map((s) => ({ id: s.id, rotulo: rotuloDiaria(s) }))}
+      infracoes={infracoes ? { quantidade: infracoes.quantidade, total: formatarMoeda(infracoes.total) } : null}
+    />
+  )
 
   return (
     <>
@@ -150,10 +185,18 @@ export function DetalheRemessaDiarias({
         </p>
       </div>
 
-      {enviada && (
-        <Alert className="border-success/40 text-success-fg">
+      {devolvida && (
+        <Alert variant="destructive">
+          <AlertTriangle />
           <AlertDescription>
-            Remessa enviada — a ordem de pagamento {enviada} seguiu para autorização no Financeiro.
+            <span className="font-medium">
+              Devolvida em {formatarDataHora(remessa.devolvidaEm)}
+              {remessa.devolvidaPor ? ` por ${remessa.devolvidaPor}` : ""}:
+            </span>{" "}
+            <span className="whitespace-pre-wrap">{remessa.devolucaoObservacao ?? "—"}</span>
+            <span className="mt-1 block text-xs">
+              Corrija as diárias apontadas (retire, ajuste as despesas ou relance) e reenvie a remessa.
+            </span>
           </AlertDescription>
         </Alert>
       )}
@@ -161,16 +204,16 @@ export function DetalheRemessaDiarias({
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="gap-1 py-4">
           <CardHeader className="px-4">
-            <CardDescription className="text-xs">Diárias aprovadas (líquidas)</CardDescription>
+            <CardDescription className="text-xs">Diárias{remessa.enviada ? " (líquidas)" : ""}</CardDescription>
             <CardTitle className="text-lg tabular-nums">{formatarMoeda(totalDiarias)}</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <p className="text-muted-foreground text-xs">{aprovadas.length} diária(s)</p>
+            <p className="text-muted-foreground text-xs">{validas.length} diária(s)</p>
           </CardContent>
         </Card>
         <Card className="gap-1 py-4">
           <CardHeader className="px-4">
-            <CardDescription className="text-xs">Despesas das diárias aprovadas</CardDescription>
+            <CardDescription className="text-xs">Despesas das diárias</CardDescription>
             <CardTitle className="text-lg tabular-nums">{formatarMoeda(totalDespesas)}</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
@@ -179,12 +222,16 @@ export function DetalheRemessaDiarias({
         </Card>
         <Card className="gap-1 py-4">
           <CardHeader className="px-4">
-            <CardDescription className="text-xs">Total da remessa</CardDescription>
+            <CardDescription className="text-xs">Valor da remessa</CardDescription>
             <CardTitle className="text-lg tabular-nums">{formatarMoeda(total)}</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
             <p className="text-muted-foreground text-xs">
-              {aguardando.length ? `${aguardando.length} diária(s) ainda aguardando avaliação` : "nada aguardando avaliação"}
+              {remessa.enviada
+                ? "valor da ordem de pagamento"
+                : infracoes
+                  ? "antes do desconto das infrações"
+                  : "vira a ordem de pagamento ao aprovar"}
             </p>
           </CardContent>
         </Card>
@@ -194,86 +241,105 @@ export function DetalheRemessaDiarias({
         <CardHeader>
           <CardTitle className="text-base">Diárias da remessa</CardTitle>
           <CardDescription>
-            Entram na soma só as aprovadas; reprovadas e canceladas ficam registradas aqui.
+            Entram no valor as aguardando e as aprovadas; retiradas e canceladas ficam registradas aqui.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           {solicitacoes.length === 0 && (
             <p className="text-muted-foreground text-sm">Nenhuma diária nesta remessa.</p>
           )}
-          {solicitacoes.map((s) => (
-            <div key={s.id} className="rounded-md border p-3 text-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <Link href={`${diariaBase}/${s.id}`} className="text-primary font-medium hover:underline">
-                    {s.tipoNome ?? "Diária"} × {s.quantidade ?? 1}
-                  </Link>
-                  <span className="text-muted-foreground"> · {periodo(s.data_inicio, s.data_termino)}</span>
-                  {s.departamentoNome && <span className="text-muted-foreground"> · {s.departamentoNome}</span>}
-                  <p className="text-muted-foreground text-xs">{s.motivo ?? "—"}</p>
+          {solicitacoes.map((s) => {
+            const pendencia = mostrarPendencias && s.situacao === "aguardando" ? s.pendenciaObservacao : null
+            return (
+              <div
+                key={s.id}
+                className={`rounded-md border p-3 text-sm ${pendencia ? "border-destructive/50 bg-destructive/5" : ""}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link href={`${diariaBase}/${s.id}`} className="text-primary font-medium hover:underline">
+                      {s.tipoNome ?? "Diária"} × {s.quantidade ?? 1}
+                    </Link>
+                    <span className="text-muted-foreground"> · {periodo(s.data_inicio, s.data_termino)}</span>
+                    {s.departamentoNome && <span className="text-muted-foreground"> · {s.departamentoNome}</span>}
+                    <p className="text-muted-foreground text-xs">{s.motivo ?? "—"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!remessa.enviada && geraDiarias && s.situacao === "aguardando" && (
+                      <RetirarDiariaBotao remessaId={remessa.id} diariaId={s.id} />
+                    )}
+                    <SituacaoDiariaBadge situacao={s.situacao} />
+                    <span className="font-medium tabular-nums">{formatarMoeda(valorDaDiaria(s))}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <SituacaoDiariaBadge situacao={s.situacao} />
-                  <span className="font-medium tabular-nums">{formatarMoeda(valorDaDiaria(s))}</span>
-                </div>
-              </div>
-              <ul className="text-muted-foreground mt-2 grid gap-0.5 text-xs">
-                <li className="flex justify-between gap-2">
-                  <span>
-                    Diária: {s.quantidade ?? 1} × {formatarMoeda(s.valor_unitario)}
-                  </span>
-                  <span className="tabular-nums">{formatarMoeda(s.valor_total)}</span>
-                </li>
-                {s.valorDescontos > 0 && (
-                  <li className="flex justify-between gap-2">
-                    <span>Infrações de trânsito descontadas</span>
-                    <span className="tabular-nums">− {formatarMoeda(s.valorDescontos)}</span>
-                  </li>
+                {pendencia && (
+                  <p className="text-destructive mt-2 flex items-start gap-1.5 text-xs font-medium">
+                    <AlertTriangle className="mt-px size-3.5 shrink-0" />
+                    Não conformidade: {pendencia}
+                  </p>
                 )}
-                {s.despesas.map((d) => {
-                  const url = despesasUrls.get(d.id)
-                  return (
-                    <li key={d.id} className="flex justify-between gap-2">
-                      <span className="min-w-0">
-                        {d.tipoNome ?? "Despesa"}
-                        {d.descricao ? ` — ${d.descricao}` : ""}
-                        {url && (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary ml-2 inline-flex items-center gap-1 hover:underline"
-                          >
-                            <Paperclip className="size-3" />
-                            comprovante
-                          </a>
-                        )}
-                      </span>
-                      <span className="tabular-nums">{formatarMoeda(d.valor)}</span>
+                {(s.situacao === "cancelada" || s.situacao === "reprovada") && s.avaliacao_observacao && (
+                  <p className="text-muted-foreground mt-1 text-xs">{s.avaliacao_observacao}</p>
+                )}
+                <ul className="text-muted-foreground mt-2 grid gap-0.5 text-xs">
+                  <li className="flex justify-between gap-2">
+                    <span>
+                      Diária: {s.quantidade ?? 1} × {formatarMoeda(s.valor_unitario)}
+                    </span>
+                    <span className="tabular-nums">{formatarMoeda(s.valor_total)}</span>
+                  </li>
+                  {s.valorDescontos > 0 && (
+                    <li className="flex justify-between gap-2">
+                      <span>Infrações de trânsito descontadas</span>
+                      <span className="tabular-nums">− {formatarMoeda(s.valorDescontos)}</span>
                     </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+                  )}
+                  {s.despesas.map((d) => {
+                    const url = despesasUrls.get(d.id)
+                    return (
+                      <li key={d.id} className="flex justify-between gap-2">
+                        <span className="min-w-0">
+                          {d.tipoNome ?? "Despesa"}
+                          {d.descricao ? ` — ${d.descricao}` : ""}
+                          {url && (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary ml-2 inline-flex items-center gap-1 hover:underline"
+                            >
+                              <Paperclip className="size-3" />
+                              comprovante
+                            </a>
+                          )}
+                        </span>
+                        <span className="tabular-nums">{formatarMoeda(d.valor)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )
+          })}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Send className="text-muted-foreground size-4" />
-            Pagamento
+            <ClipboardCheck className="text-muted-foreground size-4" />
+            Avaliação da remessa
           </CardTitle>
           <CardDescription>
-            A remessa acumula as diárias do beneficiário até ser enviada. O envio gera uma ordem de
-            pagamento com a soma das diárias aprovadas e das despesas, rateada por conta contábil.
+            A remessa é avaliada inteira. Aprovada, nasce uma ordem de pagamento com o valor dela,
+            rateada pelos centros de custo configurados (Diárias → Centros de custo). Com alguma não
+            conformidade, devolva com a observação — no geral e em cada diária com problema.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {remessa.enviada ? (
             <p className="text-sm">
-              Enviada em {formatarDataHora(remessa.enviadaEm)}
+              Aprovada em {formatarDataHora(remessa.enviadaEm)}
               {remessa.enviadaPor ? ` por ${remessa.enviadaPor}` : ""}.
               {remessa.ordemId && (
                 <>
@@ -285,21 +351,72 @@ export function DetalheRemessaDiarias({
                 </>
               )}
             </p>
-          ) : acaoEnviar ? (
-            <EnviarRemessaForm
-              remessaId={remessa.id}
-              acao={acaoEnviar}
-              total={formatarMoeda(total)}
-              aprovadas={aprovadas.length}
-              aguardando={aguardando.length}
-            />
+          ) : devolvida ? (
+            <div className="grid gap-4">
+              {geraDiarias ? (
+                <ReenviarRemessaForm remessaId={remessa.id} />
+              ) : (
+                <p className="text-muted-foreground text-sm">Aguardando a correção de quem lançou as diárias.</p>
+              )}
+              {podeAvaliar && aguardando.length > 0 && (
+                <details className="rounded-md border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Avaliar de novo sem esperar o reenvio
+                  </summary>
+                  <div className="mt-3">{formAvaliacao}</div>
+                </details>
+              )}
+            </div>
+          ) : podeAvaliar && aguardando.length > 0 ? (
+            formAvaliacao
           ) : (
             <p className="text-muted-foreground text-sm">
-              Aberta — quem gere as diárias envia a remessa para pagamento.
+              {aguardando.length === 0
+                ? "Nenhuma diária aguardando nesta remessa."
+                : "Aguardando a avaliação de quem gere as diárias."}
             </p>
           )}
         </CardContent>
       </Card>
+
+      {remessa.historico.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="text-muted-foreground size-4" />
+              Histórico da avaliação
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="grid gap-2 text-sm">
+              {remessa.historico.map((h, i) => (
+                <li key={i} className="border-l-2 pl-3">
+                  <p>
+                    <span className="font-medium">{ROTULO_ACAO[h.acao] ?? h.acao}</span>
+                    <span className="text-muted-foreground">
+                      {" "}· {formatarDataHora(h.em)}
+                      {h.porNome ? ` · ${h.porNome}` : ""}
+                    </span>
+                  </p>
+                  {h.observacao && <p className="text-muted-foreground text-xs whitespace-pre-wrap">{h.observacao}</p>}
+                  {h.pendencias && h.pendencias.length > 0 && (
+                    <ul className="text-muted-foreground mt-0.5 list-disc pl-4 text-xs">
+                      {h.pendencias.map((p) => {
+                        const s = solicitacoes.find((x) => x.id === p.diariaId)
+                        return (
+                          <li key={p.diariaId}>
+                            {s ? `${s.tipoNome ?? "Diária"} (${periodo(s.data_inicio, s.data_termino)})` : "Diária"}: {p.observacao}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

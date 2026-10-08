@@ -4,40 +4,23 @@ import { notFound, redirect } from "next/navigation"
 import { DetalheRemessaDiarias } from "@/components/diarias-remessas"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
-import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
-import { obterRemessaNova } from "@/lib/db/diarias-remessas"
-
-import { enviarRemessaDiariasAction } from "../../actions"
+import { contextoDaRemessa } from "@/lib/db/diarias-remessa-pagina"
 
 export const metadata: Metadata = { title: "Remessa de diárias — Confluir" }
 
-export default async function RemessaDiariasPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>
-  searchParams: Promise<{ enviada?: string }>
-}) {
-  await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
+export default async function RemessaDiariasPage({ params }: { params: Promise<{ id: string }> }) {
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
   const { id } = await params
-  const { enviada } = await searchParams
-  const dados = await obterRemessaNova(id)
-  if (!dados) notFound()
-  if (dados.remessa.quadro === "diretor") redirect(`/painel/institucional/diretoria/diarias/remessas/${id}`)
-  const urls = await Promise.all(
-    dados.solicitacoes.flatMap((s) => s.despesas).map(async (d) => [d.id, await urlComprovanteDespesa(d.comprovante)] as const)
-  )
+  const ctx = await contextoDaRemessa(id, sessao)
+  if (!ctx) notFound()
+  if (ctx.remessa.quadro === "diretor") redirect(`/painel/institucional/diretoria/diarias/remessas/${id}`)
   return (
     <>
-      <RotuloTrilha valores={{ [id]: `Remessa ${dados.remessa.codigo ?? ""}` }} />
+      <RotuloTrilha valores={{ [id]: `Remessa ${ctx.remessa.codigo ?? ""}` }} />
       <DetalheRemessaDiarias
-        remessa={dados.remessa}
-        solicitacoes={dados.solicitacoes}
+        {...ctx}
         voltar={{ href: "/painel/pessoal/diarias/remessas", rotulo: "Remessas de diárias" }}
         diariaBase="/painel/pessoal/diarias"
-        despesasUrls={new Map(urls)}
-        acaoEnviar={enviarRemessaDiariasAction}
-        enviada={enviada ?? null}
       />
     </>
   )

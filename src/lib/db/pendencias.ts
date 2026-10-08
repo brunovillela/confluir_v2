@@ -98,6 +98,9 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   const pode = (chave: string, alternativas: string[] = []) => podeAcessar(permissoes, chave, alternativas)
   const fontes: Fonte[] = []
   const head = (q: Consulta) => q.select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp)
+  // Remessas de diárias esperando decisão: novas, não aprovadas, abertas ou reenviadas, com valor.
+  const remessasAAvaliar = (q: Consulta) =>
+    head(q).is("bubble_id", null).not("enviado", "is", true).in("situacao", ["aberta", "reenviada"]).gt("valor_total", 0)
 
   // Cada fonte usa O MESMO critério e a MESMA permissão da tela para onde
   // leva — senão a caixa mostra um número e a tela, outro (06/10/2026).
@@ -149,22 +152,22 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   if (pode("pessoal_gestao", ["pessoal_diarias"])) {
     fontes.push({
       chave: "diarias",
-      titulo: "Diárias a avaliar",
-      descricao: "Solicitações de funcionários aguardando decisão",
-      href: "/painel/pessoal/diarias",
-      tabela: "pessoal_diarias_solicitacoes",
-      montar: (q) =>
-        head(q).eq("situacao", "aguardando").or("beneficiario_tipo.is.null,beneficiario_tipo.neq.diretor"),
+      titulo: "Remessas de diárias a avaliar",
+      descricao: "Remessas de funcionários aguardando aprovação",
+      href: "/painel/pessoal/diarias/remessas",
+      tabela: "pessoal_diarias_remessas",
+      // 08/10: a avaliação é da remessa (abertas e reenviadas, com valor).
+      montar: (q) => remessasAAvaliar(q).eq("beneficiario_tipo", "funcionario"),
     })
   }
   if (pode("diretoria_diarias", ["configuracoes"])) {
     fontes.push({
       chave: "diarias_diretoria",
-      titulo: "Diárias da diretoria a avaliar",
-      descricao: "Solicitações de diretores aguardando decisão",
-      href: "/painel/institucional/diretoria/diarias",
-      tabela: "pessoal_diarias_solicitacoes",
-      montar: (q) => head(q).eq("situacao", "aguardando").eq("beneficiario_tipo", "diretor"),
+      titulo: "Remessas de diárias da diretoria",
+      descricao: "Remessas de diretores aguardando aprovação",
+      href: "/painel/institucional/diretoria/diarias/remessas",
+      tabela: "pessoal_diarias_remessas",
+      montar: (q) => remessasAAvaliar(q).eq("beneficiario_tipo", "diretor"),
     })
   }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
@@ -331,15 +334,11 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     if (!pode("pessoal_gestao", ["pessoal_diarias"])) {
       fontes.push({
         chave: "coord_diarias",
-        titulo: "Diárias da equipe a avaliar",
-        descricao: "Pedidos dos funcionários que você coordena",
+        titulo: "Remessas de diárias da equipe",
+        descricao: "Dos funcionários que você coordena",
         href: "/painel?aba=coordenacao#pedidos",
-        tabela: "pessoal_diarias_solicitacoes",
-        montar: (q) =>
-          head(q)
-            .eq("situacao", "aguardando")
-            .in("funcionario_id", equipe)
-            .or("beneficiario_tipo.is.null,beneficiario_tipo.neq.diretor"),
+        tabela: "pessoal_diarias_remessas",
+        montar: (q) => remessasAAvaliar(q).eq("beneficiario_tipo", "funcionario").in("beneficiario_id", equipe),
       })
     }
   }

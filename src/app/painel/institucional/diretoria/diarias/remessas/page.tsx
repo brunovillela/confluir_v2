@@ -14,8 +14,9 @@ export const metadata: Metadata = { title: "Remessas de diárias — Confluir" }
 export default async function RemessasDiariasPage() {
   await requirePermissao("diretoria_diarias", ["configuracoes"])
   const { disponivel, remessas } = await listarRemessasNovas({ quadro: "diretor" })
-  const abertas = remessas.filter((r) => !r.enviada)
-  const enviadas = remessas.filter((r) => r.enviada)
+  const aAvaliar = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida")
+  const devolvidas = remessas.filter((r) => !r.enviada && r.situacao === "devolvida")
+  const aprovadas = remessas.filter((r) => r.enviada)
   const base = "/painel/institucional/diretoria/diarias/remessas"
   return (
     <>
@@ -28,8 +29,9 @@ export default async function RemessasDiariasPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Remessas de diárias</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Cada diretor(a) tem uma remessa aberta que acumula as diárias lançadas; enviada, ela vira
-          uma ordem de pagamento com a soma das diárias aprovadas e das despesas.
+          Cada diretor(a) tem uma remessa que acumula as diárias lançadas. A avaliação é da remessa
+          inteira: aprovada, vira uma ordem de pagamento com o valor dela, rateada pelos centros de
+          custo; com não conformidade, volta a quem lançou com a observação.
         </p>
       </div>
       {!disponivel && (
@@ -41,20 +43,29 @@ export default async function RemessasDiariasPage() {
       )}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Abertas ({abertas.length})</CardTitle>
-          <CardDescription>Acumulando diárias — envie quando for a hora de pagar</CardDescription>
+          <CardTitle className="text-base">Em avaliação ({aAvaliar.length})</CardTitle>
+          <CardDescription>Abertas e reenviadas depois de corrigidas — aprove ou devolva cada remessa</CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={abertas} base={base} />
+          <ListaRemessasDiarias remessas={aAvaliar} base={base} />
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Enviadas ({enviadas.length})</CardTitle>
+          <CardTitle className="text-base">Devolvidas ({devolvidas.length})</CardTitle>
+          <CardDescription>Aguardando a correção de quem lançou</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ListaRemessasDiarias remessas={devolvidas} base={base} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Aprovadas ({aprovadas.length})</CardTitle>
           <CardDescription>Com a ordem de pagamento gerada</CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={enviadas} base={base} />
+          <ListaRemessasDiarias remessas={aprovadas} base={base} />
         </CardContent>
       </Card>
     </>

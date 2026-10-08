@@ -58,8 +58,8 @@ export default async function DiariasPage({
     contarRemessasHistorico(),
     listarRemessasNovas({ quadro: "funcionario" }),
   ])
-  // Remessas abertas com diária aprovada: prontas para ir a pagamento.
-  const prontas = remessas.filter((r) => !r.enviada && r.contagem.aprovada > 0).length
+    // Remessas a avaliar (abertas ou reenviadas, com diária aguardando) — 08/10.
+  const prontas = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && r.contagem.aguardando > 0).length
 
   const params = {
     busca: (brutos.busca ?? "").trim(),
@@ -108,7 +108,7 @@ export default async function DiariasPage({
               {aguardando} aguardando avaliação ·{" "}
               {solicitacoes.length.toLocaleString("pt-BR")} solicitaç
               {solicitacoes.length === 1 ? "ão" : "ões"} no total — cada diária entra
-              na remessa do funcionário, que vira ordem de pagamento quando é enviada
+              na remessa do funcionário, avaliada inteira: aprovada, vira a ordem de pagamento rateada
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -116,7 +116,7 @@ export default async function DiariasPage({
               <Link href="/painel/pessoal/diarias/remessas">
                 <Send />
                 Remessas
-                {prontas > 0 && <> ({prontas} pronta{prontas === 1 ? "" : "s"} para enviar)</>}
+                {prontas > 0 && <> ({prontas} a avaliar)</>}
               </Link>
             </Button>
             <Button variant="outline" asChild>
