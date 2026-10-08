@@ -134,7 +134,10 @@ export function DetalheRemessaDiarias({
   podeAvaliar,
   geraDiarias,
   infracoes,
+  destinoOrdem,
 }: {
+  /** Como a ordem nasce para quem vê (regra das diárias × alçada dele). */
+  destinoOrdem: string
   remessa: RemessaNova
   solicitacoes: SolicitacaoDiaria[]
   voltar: { href: string; rotulo: string }
@@ -161,6 +164,7 @@ export function DetalheRemessaDiarias({
       total={formatarMoeda(total)}
       diarias={aguardando.map((s) => ({ id: s.id, rotulo: rotuloDiaria(s) }))}
       infracoes={infracoes ? { quantidade: infracoes.quantidade, total: formatarMoeda(infracoes.total) } : null}
+      destinoOrdem={destinoOrdem}
     />
   )
 
@@ -332,8 +336,7 @@ export function DetalheRemessaDiarias({
           </CardTitle>
           <CardDescription>
             A remessa é avaliada inteira. Aprovada, nasce uma ordem de pagamento com o valor dela,
-            rateada pelos centros de custo configurados (Diárias → Centros de custo) e já autorizada
-            por quem aprovou — vai direto para A pagar. Com alguma não
+            rateada pelos centros de custo configurados (Diárias → Centros de custo) — {destinoOrdem}. Com alguma não
             conformidade, devolva com a observação — no geral e em cada diária com problema.
           </CardDescription>
         </CardHeader>

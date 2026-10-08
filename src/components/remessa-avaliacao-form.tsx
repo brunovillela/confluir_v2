@@ -48,8 +48,11 @@ export function AvaliacaoRemessaForm({
   total,
   diarias,
   infracoes,
+  destinoOrdem,
 }: {
   remessaId: string
+  /** Como a ordem nasce para quem vê (regra das diárias × alçada dele). */
+  destinoOrdem: string
   /** Total formatado da remessa (entra na pergunta). */
   total: string
   /** Diárias aguardando, para apontar a não conformidade. */
@@ -72,7 +75,7 @@ export function AvaliacaoRemessaForm({
         if (decisao === "aprovar") {
           confirmarEnvio(e, {
             titulo: `Aprovar a remessa (${total})?`,
-            descricao: `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados — já AUTORIZADA por você, direto para A pagar.`,
+            descricao: `As ${diarias.length} diária(s) aguardando ficam aprovadas e nasce UMA ordem de pagamento com o valor da remessa, rateada pelos centros de custo configurados — ${destinoOrdem}.`,
             confirmar: "Aprovar",
           })
         } else {
@@ -192,7 +195,7 @@ export function DecisaoRemessaCompacta({ remessaId, resumo }: { remessaId: strin
       className="grid gap-2"
       onSubmit={(e) => {
         const decisao = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
-        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada, já autorizada por você (A pagar).`)
+        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada — autorizada direto se a regra das diárias permitir; senão, vai para a fila de autorização.`)
       }}
     >
       <input type="hidden" name="remessa_id" value={remessaId} />

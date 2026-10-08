@@ -19,12 +19,16 @@ import {
   contaDoGasto,
   listarContasDiaria,
   listarTiposDespesaDiaria,
+  obterAutorizacaoDiarias,
   ROTULO_QUADRO,
   tiposDeViagem,
   type QuadroConta,
 } from "@/lib/db/diarias-config"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 
+import { podeAcessar } from "@/lib/permissoes"
+
+import { AutorizacaoDiariasForm } from "./autorizacao-form"
 import { ContasDoQuadro, NovoTipoDespesa, type GastoParaConta } from "./contas-forms"
 
 export const metadata: Metadata = { title: "Centros de custo das diárias — Confluir" }
@@ -39,7 +43,7 @@ export default async function ContasDiariaPage({
 }: {
   searchParams: Promise<{ quadro?: string; departamento?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", [
+  const sessao = await requirePermissao("pessoal_gestao", [
     "pessoal_diarias",
     "diretoria_diarias",
     "viagens_gestao",
@@ -51,11 +55,12 @@ export default async function ContasDiariaPage({
     brutos.quadro === "diretor" || brutos.quadro === "convidado" ? brutos.quadro : "funcionario"
   const departamentoId = (brutos.departamento ?? "").trim() || null
 
-  const [{ disponivel, tipos }, { contas }, centros, departamentos] = await Promise.all([
+  const [{ disponivel, tipos }, { contas }, centros, departamentos, autorizacao] = await Promise.all([
     listarTiposDespesaDiaria(),
     listarContasDiaria(),
     centrosDeCustoDespesa(),
     listarDepartamentosCompletos(),
+    obterAutorizacaoDiarias(),
   ])
   const nomeCentro = new Map(centros.map((c) => [c.id, c.nome]))
   const nomeDepartamento = new Map(departamentos.map((d) => [d.id, d.nome]))
@@ -125,6 +130,30 @@ export default async function ContasDiariaPage({
           </AlertDescription>
         </Alert>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Autorização das ordens das remessas</CardTitle>
+          <CardDescription>
+            Como nasce a ordem de pagamento quando uma remessa de diárias é aprovada — vale para
+            funcionários e diretoria.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {!autorizacao.disponivel && (
+            <Alert>
+              <AlertDescription>
+                Rode <code>supabase/diarias-autorizacao-ordem.sql</code> no SQL Editor para poder mudar
+                esta regra. Até lá vale a primeira opção.
+              </AlertDescription>
+            </Alert>
+          )}
+          <AutorizacaoDiariasForm
+            modo={autorizacao.modo}
+            podeEditar={autorizacao.disponivel && podeAcessar(sessao.permissoes, "configuracoes", ["aquisicoes_avaliacoes"])}
+          />
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
         {(["funcionario", "diretor", "convidado"] as const).map((q) => (

@@ -1,12 +1,12 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
-import { contaDoGasto, listarContasDiaria, type QuadroDiaria } from "@/lib/db/diarias-config"
+import { contaDoGasto, listarContasDiaria, obterAutorizacaoDiarias, type QuadroDiaria } from "@/lib/db/diarias-config"
 import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
 import { avaliarSolicitacaoDiaria, solicitacoesDaRemessa, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
-import { registrarEvento, SITUACAO_A_PAGAR } from "@/lib/db/ordens-ciclo"
+import { registrarEvento, SITUACAO_A_PAGAR, SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
@@ -379,6 +379,15 @@ function interessados(remessa: RemessaNova, solicitacoes: SolicitacaoDiaria[]): 
   return [remessa.beneficiarioId ?? "", ...solicitacoes.map((s) => s.solicitanteId ?? "")]
 }
 
+export type ResultadoAprovacao = {
+  erro?: string
+  ordemId?: string
+  ordemCodigo?: string
+  movidas?: number
+  /** A ordem nasceu autorizada (A pagar) ou foi para a fila de autorização. */
+  ordemAutorizada?: boolean
+}
+
 /**
  * APROVA a remessa: aprova as diárias aguardando (abatendo as infrações de
  * trânsito, como antes) e gera UMA ordem com o valor da remessa, rateada pelos
@@ -387,8 +396,12 @@ function interessados(remessa: RemessaNova, solicitacoes: SolicitacaoDiaria[]): 
 export async function aprovarRemessaDiarias(
   remessaId: string,
   avaliadorId: string,
-  opcoes: { aplicarDescontos?: boolean } = {}
-): Promise<{ erro?: string; ordemId?: string; ordemCodigo?: string; movidas?: number }> {
+  opcoes: {
+    aplicarDescontos?: boolean
+    /** Alçada financeira de quem aprova (0 = sem alçada) — vale no modo "alcada". */
+    alcada?: number
+  } = {}
+): Promise<ResultadoAprovacao> {
   const dados = await obterRemessaNova(remessaId)
   if (!dados) return { erro: "Remessa não encontrada." }
   const { remessa, solicitacoes } = dados
@@ -422,7 +435,7 @@ export async function aprovarRemessaDiarias(
   }
 
   // 2. A ordem com o valor da remessa e o rateio.
-  return gerarOrdemDaRemessa(remessaId, avaliadorId)
+  return gerarOrdemDaRemessa(remessaId, avaliadorId, opcoes.alcada ?? 0)
 }
 
 /**
@@ -432,8 +445,9 @@ export async function aprovarRemessaDiarias(
  */
 async function gerarOrdemDaRemessa(
   remessaId: string,
-  usuarioId: string
-): Promise<{ erro?: string; ordemId?: string; ordemCodigo?: string; movidas?: number }> {
+  usuarioId: string,
+  alcada: number
+): Promise<ResultadoAprovacao> {
   const dados = await obterRemessaNova(remessaId)
   if (!dados) return { erro: "Remessa não encontrada." }
   const { remessa, solicitacoes } = dados
@@ -521,19 +535,29 @@ async function gerarOrdemDaRemessa(
     .join(" ")
     .replace(" .", ".")
 
-  const autorizacao = `Autorizada na aprovação da remessa de diárias ${remessa.codigo ?? ""}.`
+  // Autorização da ordem (08/10): pela regra das diárias em financeiro_config —
+  // "remessa" autoriza sempre; "alcada" só se o valor couber na alçada de quem
+  // aprovou a remessa. Fora disso, a ordem vai para a fila "Em autorização".
+  const { modo } = await obterAutorizacaoDiarias()
+  const autoriza = modo === "remessa" || (alcada > 0 && total <= alcada)
+  const autorizacao = autoriza
+    ? `Autorizada na aprovação da remessa de diárias ${remessa.codigo ?? ""}${modo === "alcada" ? ` (dentro da alçada de ${formatarMoeda(alcada)})` : ""}.`
+    : null
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada(
     {
       codigo,
       tipo: "Diária",
       descricao,
-      // 08/10: quem aprova a remessa autoriza a ordem dela — nasce A pagar.
-      situacao: SITUACAO_A_PAGAR,
-      autorizacao_esta_autorizado: true,
-      autorizacao_autorizador_id: usuarioId,
-      // Coluna DATE no legado — o dia de SP.
-      autorizacao_data: hojeSP(),
-      autorizacao_observacao: autorizacao,
+      ...(autoriza
+        ? {
+            situacao: SITUACAO_A_PAGAR,
+            autorizacao_esta_autorizado: true,
+            autorizacao_autorizador_id: usuarioId,
+            // Coluna DATE no legado — o dia de SP.
+            autorizacao_data: hojeSP(),
+            autorizacao_observacao: autorizacao,
+          }
+        : { situacao: SITUACAO_EM_AUTORIZACAO }),
       valor_inicial_cobranca: total,
       beneficiario_usuario_id: remessa.beneficiarioId,
       // Conta predominante na ordem; o rateio detalha todas.
@@ -580,7 +604,7 @@ async function gerarOrdemDaRemessa(
     em: new Date().toISOString(),
     por: usuarioId,
     acao: "aprovada",
-    observacao: `Ordem ${codigo} — ${formatarMoeda(total)}${linhasRateio.length > 1 ? `, rateada em ${linhasRateio.length} centros de custo` : ""}.`,
+    observacao: `Ordem ${codigo} — ${formatarMoeda(total)}${autoriza ? ", autorizada" : ", na fila de autorização (acima da alçada)"}${linhasRateio.length > 1 ? `, rateada em ${linhasRateio.length} centros de custo` : ""}.`,
   }
   const { data: atual } = await admin.from("pessoal_diarias_remessas").select("historico").eq("id", remessaId).maybeSingle()
   const historico = Array.isArray(atual?.historico) ? (atual.historico as EventoRemessa[]) : []
@@ -619,17 +643,19 @@ async function gerarOrdemDaRemessa(
     `Gerada pela aprovação da remessa de diárias ${remessa.codigo ?? ""} (${aprovadas.length} diária(s)).`,
     { remessa_id: remessaId, diarias: aprovadas.map((s) => s.id) }
   )
-  await registrarEvento(ordem.id, "autorizada", usuarioId, autorizacao, { valor: total, remessa_id: remessaId })
+  if (autoriza) {
+    await registrarEvento(ordem.id, "autorizada", usuarioId, autorizacao, { valor: total, alcada, modo, remessa_id: remessaId })
+  }
   // Avisos (sino, Telegram, e-mail) depois da resposta: a tela não espera os envios.
   depoisDaResposta(() =>
     avisarPessoas(
       interessados(remessa, aprovadas),
-      `A remessa de diárias ${remessa.codigo ?? ""} de ${remessa.beneficiarioNome ?? "beneficiário"} foi APROVADA: ${aprovadas.length} diária(s), ${formatarMoeda(total)}. Ordem de pagamento ${codigo} já autorizada — segue para pagamento no financeiro.`,
+      `A remessa de diárias ${remessa.codigo ?? ""} de ${remessa.beneficiarioNome ?? "beneficiário"} foi APROVADA: ${aprovadas.length} diária(s), ${formatarMoeda(total)}. Ordem de pagamento ${codigo} ${autoriza ? "já autorizada — segue para pagamento no financeiro" : "na fila de autorização do financeiro"}.`,
       "Remessa de diárias aprovada",
       "/painel/perfil/diarias"
     )
   )
-  return { ordemId: ordem.id, ordemCodigo: codigo, movidas }
+  return { ordemId: ordem.id, ordemCodigo: codigo, movidas, ordemAutorizada: autoriza }
 }
 
 /**

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { requireSessaoPainel, type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { alcadaDoUsuario } from "@/lib/db/compras"
 import { coordenaFuncionario } from "@/lib/db/coordenador"
 import {
   aprovarRemessaDiarias,
@@ -73,11 +74,17 @@ export async function avaliarRemessaAction(_prev: EstadoForm, fd: FormData): Pro
   if (decisao === "aprovar") {
     const r = await aprovarRemessaDiarias(remessa.id, String(sessao.usuario.id), {
       aplicarDescontos: fd.get("aplicar_descontos") !== "nao",
+      // No modo "alcada" a ordem só nasce autorizada dentro desta alçada.
+      alcada: alcadaDoUsuario(sessao.permissoes as Record<string, unknown>),
     })
     if (r.erro) return { erro: r.erro }
     revalidar(remessa)
     return {
-      ok: `Remessa aprovada — ordem de pagamento ${r.ordemCodigo ?? ""} gerada e autorizada — está A pagar no Financeiro.${
+      ok: `Remessa aprovada — ordem de pagamento ${r.ordemCodigo ?? ""} gerada ${
+        r.ordemAutorizada
+          ? "e autorizada: está A pagar no Financeiro."
+          : "e enviada à fila de autorização (o valor passa da sua alçada financeira)."
+      }${
         r.movidas ? ` ${r.movidas} diária(s) lançada(s) durante a avaliação passaram para a próxima remessa.` : ""
       }`,
     }

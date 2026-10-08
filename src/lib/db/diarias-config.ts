@@ -260,3 +260,41 @@ export async function centrosDeCustoDespesa(): Promise<
       departamentoId: texto(c.departamento_id),
     }))
 }
+
+// ── Autorização da ordem da remessa (08/10/2026) ──────────────────────────
+
+/**
+ * Como nasce a ordem de pagamento de uma remessa de diárias aprovada:
+ *   remessa → autorizada por quem aprovou a remessa, sem olhar alçada;
+ *   alcada  → autorizada só se o valor couber na alçada financeira de quem
+ *             aprovou; acima dela, vai para a fila "Em autorização".
+ * Fica em financeiro_config (supabase/diarias-autorizacao-ordem.sql).
+ */
+export type AutorizacaoDiarias = "remessa" | "alcada"
+
+export async function obterAutorizacaoDiarias(): Promise<{ disponivel: boolean; modo: AutorizacaoDiarias }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("financeiro_config")
+    .select("diarias_autorizacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  // Sem o SQL (ou sem linha de configuração), vale o padrão: autoriza na remessa.
+  if (error) return { disponivel: false, modo: "remessa" }
+  return { disponivel: true, modo: data?.diarias_autorizacao === "alcada" ? "alcada" : "remessa" }
+}
+
+export async function salvarAutorizacaoDiarias(modo: AutorizacaoDiarias): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("financeiro_config").upsert(
+    { emp_proprietaria_id: await tenantAtual(), diarias_autorizacao: modo, updated_at: new Date().toISOString() },
+    { onConflict: "emp_proprietaria_id" }
+  )
+  if (error) {
+    if (esquemaAusente(error) || error.code === "42703" || error.code === "PGRST204") {
+      return { erro: "Rode supabase/diarias-autorizacao-ordem.sql no SQL Editor antes de configurar." }
+    }
+    return { erro: `Não foi possível salvar: ${error.message}` }
+  }
+  return {}
+}

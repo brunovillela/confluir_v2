@@ -6,6 +6,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   definirContaDiaria,
+  salvarAutorizacaoDiarias,
   salvarTipoDespesaDiaria,
   type QuadroConta,
 } from "@/lib/db/diarias-config"
@@ -81,4 +82,21 @@ export async function salvarTipoDespesa(
 
   revalidar()
   return { ok: "Tipo de despesa salvo." }
+}
+
+/**
+ * Regra de autorização da ordem da remessa de diárias. É decisão financeira:
+ * só quem tem configurações ou a avaliação das ordens muda.
+ */
+export async function salvarAutorizacaoDiariasAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("configuracoes", ["aquisicoes_avaliacoes"])
+  const modo = String(formData.get("modo") ?? "")
+  if (modo !== "remessa" && modo !== "alcada") return { erro: "Escolha uma das opções." }
+  const { erro } = await salvarAutorizacaoDiarias(modo)
+  if (erro) return { erro }
+  revalidar()
+  return { ok: "Regra de autorização salva." }
 }
