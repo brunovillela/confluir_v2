@@ -1,7 +1,10 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowRight, CircleCheck, Inbox } from "lucide-react"
 
-import type { Pendencia } from "@/lib/db/pendencias"
+import { usePendencias } from "@/components/layout/contadores-header"
+import type { PendenciasCarimbadas } from "@/lib/db/pendencias-carimbadas"
 import { cn } from "@/lib/utils"
 
 /**
@@ -9,17 +12,19 @@ import { cn } from "@/lib/utils"
  * bloco com a contagem e o link direto (onda 2, U1; visual do painel
  * unificado em 06/10/2026). Sem pendência, uma linha discreta — a ausência
  * também é informação. `estreita`: dividindo a linha com outro cartão
- * (Meu dia), cabe uma coluna a menos de filas.
+ * (Meu dia), cabe uma coluna a menos de filas. Lê do ContadoresProvider
+ * (09/10/2026): atualiza junto com o contador do cabeçalho.
  */
 export function CaixaDeEntrada({
-  pendencias,
+  pendencias: daPagina,
   estreita = false,
   className,
 }: {
-  pendencias: Pendencia[]
+  pendencias: PendenciasCarimbadas
   estreita?: boolean
   className?: string
 }) {
+  const pendencias = usePendencias(daPagina)
   const total = pendencias.reduce((s, p) => s + p.quantidade, 0)
   return (
     <section id="caixa-entrada" className={cn("hud-cartao min-w-0 scroll-mt-20 p-4", className)} aria-label="Caixa de entrada">

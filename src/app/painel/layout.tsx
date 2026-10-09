@@ -4,7 +4,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar"
 import { RegistrarSw } from "@/components/pwa/registrar-sw"
 import { AjudaMenu } from "@/components/layout/ajuda-menu"
 import { BuscaGlobal } from "@/components/layout/busca-global"
-import { ContadoresHeader } from "@/components/layout/contadores-header"
+import { ContadoresHeader, ContadoresProvider } from "@/components/layout/contadores-header"
 import { TrilhaProvider } from "@/components/layout/trilha-rotulos"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { mapaAjuda } from "@/lib/ajuda/rota"
@@ -13,7 +13,7 @@ import { NOVIDADES } from "@/lib/novidades"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
-import { pendenciasDoUsuario, totalPendencias } from "@/lib/db/pendencias"
+import { pendenciasCarimbadas, SEM_PENDENCIAS } from "@/lib/db/pendencias-carimbadas"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { urlFoto } from "@/lib/db/perfil"
 import { jornadaDoUsuario } from "@/lib/db/pessoal-sst"
@@ -43,7 +43,7 @@ export default async function PainelLayout({
     jornadaDoUsuario(sessao.usuario.id),
     urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
     contaFuncao ? ocupantesAtuais([sessao.usuario.id]) : Promise.resolve(null),
-    pendenciasDoUsuario(sessao).catch(() => []),
+    pendenciasCarimbadas(sessao).catch(() => SEM_PENDENCIAS),
   ])
   // Conta de função (ex.: Recepção): no lugar do e-mail, quem está no posto —
   // lembrete de registrar a troca quando o nome não é o de quem está usando.
@@ -68,37 +68,41 @@ export default async function PainelLayout({
   }
 
   return (
-    <SidebarProvider>
-      <RegistrarSw />
-      <AppSidebar
-        usuario={usuario}
-        modulos={modulos}
-        outrasAreas={outrasAreas}
-        temCaixa={temCaixa}
-        tenantNome={tenantNome}
-      />
-      <SidebarInset>
-        <TrilhaProvider>
-          {/* Header e alerta grudam JUNTOS, como um bloco só. Cada um sticky
-              por conta própria fixava os dois em top-0 e o alerta cobria o
-              cabeçalho — texto por cima de texto assim que a página rolava. */}
-          <div className="bg-background sticky top-0 z-(--z-sticky)">
-            <AppHeader
-              acoes={
-                <>
-                  <BuscaGlobal paginas={paginasDaBusca} />
-                  <AjudaMenu mapa={mapaAjuda()} novidadeId={NOVIDADES[0].id} novidadeTitulo={NOVIDADES[0].titulo} />
-                  <ContadoresHeader naoLidas={naoLidas} pendencias={totalPendencias(pendencias)} />
-                </>
-              }
-            />
-            <AlertaForaJornada dias={jornada} />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
-            {children}
-          </div>
-        </TrilhaProvider>
-      </SidebarInset>
-    </SidebarProvider>
+    // Sino, caixa de entrada do cabeçalho e da home e selos das abas leem
+    // do mesmo provedor — atualizam juntos.
+    <ContadoresProvider pendencias={pendencias} naoLidas={naoLidas}>
+      <SidebarProvider>
+        <RegistrarSw />
+        <AppSidebar
+          usuario={usuario}
+          modulos={modulos}
+          outrasAreas={outrasAreas}
+          temCaixa={temCaixa}
+          tenantNome={tenantNome}
+        />
+        <SidebarInset>
+          <TrilhaProvider>
+            {/* Header e alerta grudam JUNTOS, como um bloco só. Cada um sticky
+                por conta própria fixava os dois em top-0 e o alerta cobria o
+                cabeçalho — texto por cima de texto assim que a página rolava. */}
+            <div className="bg-background sticky top-0 z-(--z-sticky)">
+              <AppHeader
+                acoes={
+                  <>
+                    <BuscaGlobal paginas={paginasDaBusca} />
+                    <AjudaMenu mapa={mapaAjuda()} novidadeId={NOVIDADES[0].id} novidadeTitulo={NOVIDADES[0].titulo} />
+                    <ContadoresHeader />
+                  </>
+                }
+              />
+              <AlertaForaJornada dias={jornada} />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+              {children}
+            </div>
+          </TrilhaProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </ContadoresProvider>
   )
 }

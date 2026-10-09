@@ -16,7 +16,7 @@ import { climaDasSedes } from "@/lib/db/clima"
 import { departamentosCoordenados } from "@/lib/db/coordenador"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { ehDiretor, temDecisoes } from "@/lib/db/diretor-home"
-import { pendenciasDoUsuario } from "@/lib/db/pendencias"
+import { pendenciasCarimbadas } from "@/lib/db/pendencias-carimbadas"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -68,8 +68,10 @@ export default async function PainelPage({
   const uid = sessao.usuario.id as string
   const nome = String(sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? "").split(" ")[0]
 
+  // Pendências carimbadas: a caixa e os selos das abas comparam com as do
+  // ContadoresProvider (layout e consulta periódica) e mostram a mais nova.
   const [pendencias, diretor, coordena, condutor, quadroViagem, clima, jar] = await Promise.all([
-    pendenciasDoUsuario(sessao),
+    pendenciasCarimbadas(sessao),
     ehDiretor(sessao).catch(() => false),
     departamentosCoordenados(uid).catch(() => []),
     buscarCondutorDoUsuario(uid).catch(() => null),
@@ -79,12 +81,10 @@ export default async function PainelPage({
   ])
   const veIndicadores = podeAcessar(sessao.permissoes, "configuracoes", CHAVES_INDICADORES)
 
-  const contagem = (aba: ChaveAba) =>
-    pendencias.filter((p) => PENDENCIAS_DA_ABA[aba]?.includes(p.chave)).reduce((s, p) => s + p.quantidade, 0)
-  const abas: { chave: ChaveAba; rotulo: string; contagem?: number }[] = [{ chave: "dia", rotulo: "Meu dia" }]
-  if (coordena.length > 0) abas.push({ chave: "coordenacao", rotulo: "Coordenação", contagem: contagem("coordenacao") })
+  const abas: { chave: ChaveAba; rotulo: string; pendencias?: string[] }[] = [{ chave: "dia", rotulo: "Meu dia" }]
+  if (coordena.length > 0) abas.push({ chave: "coordenacao", rotulo: "Coordenação", pendencias: PENDENCIAS_DA_ABA.coordenacao })
   // Gestão: quem é do mandato, quem decide (alçada, diárias) ou quem lê indicadores.
-  if (diretor || temDecisoes(sessao) || veIndicadores) abas.push({ chave: "gestao", rotulo: "Gestão", contagem: contagem("gestao") })
+  if (diretor || temDecisoes(sessao) || veIndicadores) abas.push({ chave: "gestao", rotulo: "Gestão", pendencias: PENDENCIAS_DA_ABA.gestao })
 
   const disponivel = (c: string | undefined): c is ChaveAba => abas.some((a) => a.chave === c)
   const normalizar = (c: string | undefined) => (c && ABA_ANTIGA[c]) || c
@@ -144,7 +144,7 @@ export default async function PainelPage({
         <CaixaDeEntrada pendencias={pendencias} />
       )}
 
-      <AbasPainel abas={abas} ativa={ativa} />
+      <AbasPainel abas={abas} ativa={ativa} pendencias={pendencias} />
 
       <Suspense key={`${ativa}-${sp.ver ?? ""}-${sp.depto ?? ""}`} fallback={<EsqueletoAba />}>
         {ativa === "coordenacao" ? (
