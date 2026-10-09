@@ -28,6 +28,7 @@ import {
   type FiltrosFiliados,
 } from "@/lib/db/filiados"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { listarGrupos } from "@/lib/db/grupos-empresariais"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
 import { cn } from "@/lib/utils"
@@ -42,6 +43,7 @@ type ParamsBusca = {
   condicao?: string
   sexo?: string
   fonte?: string
+  grupo?: string
   pagina?: string
   ordem?: string
   dir?: string
@@ -55,7 +57,10 @@ const CONDICOES_FILTRO = [
 const SEXOS_FILTRO = ["Masculino", "Feminino", "Outro", "nenhum"] as const
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function normalizarFiltros(params: ParamsBusca): Required<FiltrosFiliados> {
+/** Filtros da página: os da listagem + o grupo empresarial (vira `fontes`). */
+type FiltrosPagina = Required<FiltrosFiliados> & { grupo: string }
+
+function normalizarFiltros(params: ParamsBusca): FiltrosPagina {
   const situacoes = ["todas", "ativas", "excluidas"] as const
   const ordens = ["nome", "matricula", "cadastro"] as const
   return {
@@ -70,6 +75,8 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosFiliados> {
       ? (params.sexo as string)
       : "todos",
     fonte: UUID.test(params.fonte ?? "") ? (params.fonte as string) : "",
+    grupo: UUID.test(params.grupo ?? "") ? (params.grupo as string) : "",
+    fontes: [],
     pagina: Math.max(1, Number(params.pagina) || 1),
     ordem: ordens.includes(params.ordem as never)
       ? (params.ordem as (typeof ordens)[number])
@@ -79,8 +86,8 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosFiliados> {
 }
 
 function montarUrl(
-  filtros: Required<FiltrosFiliados>,
-  mudancas: Partial<Record<keyof FiltrosFiliados, string | number>>
+  filtros: FiltrosPagina,
+  mudancas: Partial<Record<keyof FiltrosFiliados | "grupo", string | number>>
 ): string {
   const merged = { ...filtros, ...mudancas }
   const q = new URLSearchParams()
@@ -89,6 +96,7 @@ function montarUrl(
   if (merged.condicao !== "todas") q.set("condicao", String(merged.condicao))
   if (merged.sexo !== "todos") q.set("sexo", String(merged.sexo))
   if (merged.fonte) q.set("fonte", String(merged.fonte))
+  if (merged.grupo) q.set("grupo", String(merged.grupo))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
   if (merged.ordem !== "nome") q.set("ordem", String(merged.ordem))
   if (merged.dir !== "asc") q.set("dir", String(merged.dir))
@@ -102,7 +110,7 @@ function CabecalhoOrdenavel({
   children,
   className,
 }: {
-  filtros: Required<FiltrosFiliados>
+  filtros: FiltrosPagina
   campo: "nome" | "matricula" | "cadastro"
   children: React.ReactNode
   className?: string
@@ -155,6 +163,16 @@ export default async function FiliadosPage({
   ])
 
   const filtros = normalizarFiltros(await searchParams)
+  // Grupo empresarial: quem tem vínculo com QUALQUER empresa representada dele.
+  const { grupos } = await listarGrupos()
+  const grupo = grupos.find((g) => g.id === filtros.grupo) ?? null
+  if (grupo) {
+    filtros.fontes = grupo.membros.flatMap((m) => (m.empresaId ? [m.empresaId] : []))
+    // Grupo sem empresa representada não lista ninguém (e não "todos").
+    if (filtros.fontes.length === 0) filtros.fontes = ["00000000-0000-0000-0000-000000000000"]
+  } else {
+    filtros.grupo = ""
+  }
   const [lista, fontes] = await Promise.all([
     listarFiliados(filtros),
     listarFontesPagadoras(),
@@ -174,6 +192,7 @@ export default async function FiliadosPage({
     if (filtros.condicao !== "todas") q.set("condicao", filtros.condicao)
     if (filtros.sexo !== "todos") q.set("sexo", filtros.sexo)
     if (filtros.fonte) q.set("fonte", filtros.fonte)
+    if (filtros.grupo) q.set("grupo", filtros.grupo)
     return `/painel/filiados/exportar?${q.toString()}`
   })()
 
@@ -195,6 +214,18 @@ export default async function FiliadosPage({
                   className="text-foreground underline-offset-2 hover:underline"
                 >
                   {nomeFonte(filtros.fonte)}
+                </Link>
+              </>
+            )}
+            {grupo && (
+              <>
+                {" "}
+                · grupo:{" "}
+                <Link
+                  href={`/painel/representacao/empregadores/grupos/${grupo.id}`}
+                  className="text-foreground underline-offset-2 hover:underline"
+                >
+                  {grupo.nome}
                 </Link>
               </>
             )}
@@ -278,6 +309,21 @@ export default async function FiliadosPage({
               </option>
             ))}
           </select>
+          {grupos.length > 0 && (
+            <select
+              name="grupo"
+              defaultValue={filtros.grupo}
+              aria-label="Filtrar por grupo empresarial"
+              className={SELECT_FILTRO}
+            >
+              <option value="">Todos os grupos</option>
+              {grupos.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nome}
+                </option>
+              ))}
+            </select>
+          )}
           <Button type="submit" variant="secondary">
             Buscar
           </Button>

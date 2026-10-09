@@ -30,6 +30,7 @@ import {
   filtrarAcordos,
 } from "@/lib/db/empregador-painel"
 import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
+import { gruposPorFonte } from "@/lib/db/grupos-empresariais"
 import { buscarFontePagadora, estatisticasFonteDetalhe } from "@/lib/db/fontes"
 import { listarDocumentosEmpregador } from "@/lib/db/representacao-docs"
 import { resumoReunioes } from "@/lib/db/representacao-reunioes"
@@ -102,7 +103,12 @@ export default async function FontePage({
   const podeEditar = podeAcessar(sessao.permissoes, "empregadores")
   const { id } = await params
   const sp = await searchParams
-  const [fonte, categorias] = await Promise.all([buscarFontePagadora(id), listarCategoriasFonte()])
+  const [fonte, categorias, grupoDaFonte] = await Promise.all([
+    buscarFontePagadora(id),
+    listarCategoriasFonte(),
+    gruposPorFonte(),
+  ])
+  const grupo = grupoDaFonte.get(id) ?? null
   if (!fonte) notFound()
 
   const permitidas = ABAS_EMPREGADOR.filter((a) => !a.permissao || podeAcessar(sessao.permissoes, a.permissao)).map((a) => a.chave)
@@ -171,6 +177,13 @@ export default async function FontePage({
               ) : (
                 <Badge variant="outline" className="border-success/40 text-success-fg">
                   Ativa
+                </Badge>
+              )}
+              {grupo && (
+                <Badge variant="info" asChild>
+                  <Link href={`/painel/representacao/empregadores/grupos/${grupo.id}`}>
+                    {/^grupo\b/i.test(grupo.nome) ? grupo.nome : `Grupo ${grupo.nome}`}
+                  </Link>
                 </Badge>
               )}
             </div>

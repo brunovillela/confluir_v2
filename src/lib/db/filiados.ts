@@ -41,6 +41,8 @@ export type FiltrosFiliados = {
   sexo?: string
   /** id da fonte pagadora — filtra quem tem a fonte no HISTÓRICO de vínculos. */
   fonte?: string
+  /** Várias fontes (grupo empresarial): quem tem QUALQUER uma no histórico. */
+  fontes?: string[]
   pagina?: number
   ordem?: "nome" | "matricula" | "cadastro"
   dir?: "asc" | "desc"
@@ -244,7 +246,10 @@ async function filtrarPorFonteEmMemoria(
 ): Promise<FiliadoLinha[]> {
   const { ordem = "nome", dir = "asc" } = filtros
   const stats = await estatisticasFontes()
-  const membros = stats.registrosPorFonte.get(filtros.fonte!) ?? new Set()
+  const membros = new Set<string>()
+  for (const f of filtros.fontes?.length ? filtros.fontes : [filtros.fonte!]) {
+    for (const id of stats.registrosPorFonte.get(f) ?? []) membros.add(id)
+  }
 
   const situacao = filtros.situacao ?? "todas"
   const condicao = filtros.condicao ?? "todas"
@@ -319,7 +324,7 @@ export async function listarFiliados(
 ): Promise<ListaFiliados> {
   const { pagina = 1, ordem = "nome", dir = "asc" } = filtros
 
-  if (filtros.fonte) {
+  if (filtros.fonte || filtros.fontes?.length) {
     const linhas = await filtrarPorFonteEmMemoria(filtros)
     const de = (pagina - 1) * FILIADOS_POR_PAGINA
     return {
@@ -363,7 +368,7 @@ export async function listarFiliados(
 export async function listarFiliadosParaExportar(
   filtros: FiltrosFiliados
 ): Promise<FiliadoLinha[]> {
-  if (filtros.fonte) return filtrarPorFonteEmMemoria(filtros)
+  if (filtros.fonte || filtros.fontes?.length) return filtrarPorFonteEmMemoria(filtros)
 
   const admin = await createAdminClient()
   const linhas: FiliadoLinha[] = []

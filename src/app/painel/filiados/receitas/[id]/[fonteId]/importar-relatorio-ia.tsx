@@ -29,12 +29,15 @@ export function ImportarRelatorioIa({
   remessaId,
   fonteId,
   forma,
+  grupoId,
 }: {
   remessaId: string
   /** uuid da fonte ou "sem-fonte". */
   fonteId: string
   /** Forma de recebimento escolhida para a lista. */
   forma: string
+  /** Relação do grupo empresarial (contribuição centralizada). */
+  grupoId?: string
 }) {
   const [estado, extrairAction, extraindo] = useActionState(
     extrairContribuicoesIa,
@@ -51,7 +54,7 @@ export function ImportarRelatorioIa({
     if (!estado.itens) return
     setConfirmando(true)
     setErroConfirm(null)
-    const r = await registrarContribuicoesIa(remessaId, fonteId, estado.itens, forma)
+    const r = await registrarContribuicoesIa(remessaId, fonteId, estado.itens, forma, grupoId)
     setConfirmando(false)
     if (r.erro) {
       setErroConfirm(r.erro)
@@ -183,6 +186,7 @@ export function ImportarRelatorioIa({
     <form action={extrairAction} className="grid gap-3">
       <input type="hidden" name="remessa_id" value={remessaId} />
       <input type="hidden" name="fonte_id" value={fonteId} />
+      {grupoId && <input type="hidden" name="grupo_id" value={grupoId} />}
       <div className="grid gap-1.5">
         <Label htmlFor="arquivo-ia">
           Relatório da empresa (CSV, TXT, Excel, PDF ou imagem)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import { FileText, Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -34,11 +34,14 @@ export function AcordoForm({
   fonteIds,
   aoCancelarHref,
   sugestao,
+  grupos = [],
 }: {
   acordo?: AcordoDetalhe
   fontes: OpcaoFonte[]
   fonteIds: string[]
   aoCancelarHref: string
+  /** Grupos empresariais: marcam de uma vez as empresas representadas. */
+  grupos?: { id: string; nome: string; fonteIds: string[] }[]
   /** Novo acordo pelo PDF: valores lidos pela IA e o PDF já enviado. */
   sugestao?: { caminho: string; nomeArquivo: string; dados: DadosLidos }
 }) {
@@ -49,9 +52,15 @@ export function AcordoForm({
     {}
   )
   const selec = new Set(fonteIds)
+  const formRef = useRef<HTMLFormElement>(null)
+  /** Acordo do grupo inteiro: marca todas as empresas representadas dele. */
+  function marcarGrupo(ids: string[]) {
+    const caixas = formRef.current?.querySelectorAll<HTMLInputElement>('input[name="fonte"]') ?? []
+    for (const c of caixas) if (ids.includes(c.value)) c.checked = true
+  }
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form ref={formRef} action={formAction} className="grid gap-5">
       {acordo && <input type="hidden" name="acordo_id" value={acordo.id} />}
       {estado.erro && (
         <Alert variant="destructive">
@@ -161,6 +170,25 @@ export function AcordoForm({
         <p className="text-muted-foreground text-xs">
           Empregadores abrangidos (ACT). CCT da categoria pode ficar sem fonte.
         </p>
+        {grupos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-muted-foreground text-xs">Acordo do grupo inteiro:</span>
+            {grupos.map((g) => (
+              <Button
+                key={g.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7"
+                onClick={() => marcarGrupo(g.fonteIds)}
+                title={`Marca as ${g.fonteIds.length} empresa(s) representada(s) do grupo`}
+              >
+                <Plus />
+                {g.nome}
+              </Button>
+            ))}
+          </div>
+        )}
         <div className="grid max-h-56 gap-1.5 overflow-y-auto rounded-md border p-3 sm:grid-cols-2">
           {fontes.map((f) => (
             <label key={f.id} className="flex items-center gap-2 text-sm">

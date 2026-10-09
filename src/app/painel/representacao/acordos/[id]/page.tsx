@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { fonteIdsDoAcordo, obterAcordo, opcoesFontes } from "@/lib/db/acordos"
+import { gruposParaSelecao } from "@/lib/db/grupos-empresariais"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { papelDocumento, ROTULO_PAPEL } from "@/lib/negociacoes-constantes"
 import { podeAcessar } from "@/lib/permissoes"
@@ -73,9 +74,9 @@ export default async function AcordoPage({
   const papel = papelDocumento(a.negociacao?.papel)
 
   const editando = editar === "1"
-  const [fontes, fonteIds] = editando
-    ? await Promise.all([opcoesFontes(), fonteIdsDoAcordo(id)])
-    : [[], []]
+  const [fontes, fonteIds, grupos] = editando
+    ? await Promise.all([opcoesFontes(), fonteIdsDoAcordo(id), gruposParaSelecao()])
+    : [[], [], []]
 
   const aqui = `/painel/representacao/acordos/${id}`
   const tema = temaClausula(temaBruto)
@@ -180,6 +181,7 @@ export default async function AcordoPage({
               acordo={a}
               fontes={fontes}
               fonteIds={fonteIds}
+              grupos={grupos}
               aoCancelarHref={aqui}
             />
           ) : (

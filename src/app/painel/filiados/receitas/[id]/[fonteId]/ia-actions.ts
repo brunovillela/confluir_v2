@@ -7,11 +7,12 @@ import * as XLSX from "xlsx"
 import { requirePermissao } from "@/lib/auth"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv } from "@/lib/csv"
+import { grupoParaRecebimento } from "@/lib/db/grupos-empresariais"
 import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
   invalidarCacheRemessa,
   registrarFormaNoCadastro,
-  resolverFiliadosLoteDetalhado,
+  resolverParaGravar,
   type ViaCasamento,
 } from "@/lib/db/receitas"
 import { formaRecebimento } from "@/lib/filiacao"
@@ -108,7 +109,7 @@ export async function extrairContribuicoesIa(
       imagemBase64: Buffer.from(await arquivo.arrayBuffer()).toString("base64"),
       mimeType: mimeImagem,
     })
-    return montarPreview(extracao, fonteDb, remessaId)
+    return montarPreview(extracao, fonteDb, remessaId, String(formData.get("grupo_id") ?? ""))
   }
   if (/\.(heic|heif|tiff?|bmp)$/.test(nomeArq)) {
     return {
@@ -169,7 +170,7 @@ export async function extrairContribuicoesIa(
     return { erro: "O arquivo está vazio ou não tem dados legíveis." }
   }
 
-  return montarPreview(extracao, fonteDb, remessaId)
+  return montarPreview(extracao, fonteDb, remessaId, String(formData.get("grupo_id") ?? ""))
 }
 
 /** jpg/png/webp/gif (pelo tipo ou pela extensão) → mime aceito pela visão. */
@@ -188,7 +189,8 @@ function mimeDeImagem(tipo: string, nomeArq: string): string | null {
 async function montarPreview(
   extracao: Awaited<ReturnType<typeof gerarJsonIA>>,
   fonteDb: string | null,
-  remessaId: string
+  remessaId: string,
+  grupoId = ""
 ): Promise<EstadoExtracaoContrib> {
   const { dados, erro } = extracao
   if (erro || !dados) return { erro: erro ?? "Falha na extração." }
@@ -235,7 +237,10 @@ async function montarPreview(
     }
   }
 
-  const resolvidos = await resolverFiliadosLoteDetalhado(fonteDb, remessaId, base)
+  // Relação do grupo empresarial: a prévia casa no grupo inteiro.
+  const grupo = grupoId && UUID.test(grupoId) ? await grupoParaRecebimento(grupoId) : null
+  if (grupo && "erro" in grupo) return { erro: grupo.erro }
+  const resolvidos = await resolverParaGravar(fonteDb, grupo, remessaId, base)
   const itens: PreviewContribuicao[] = base.map((b, i) => ({
     ...b,
     via: resolvidos[i]?.via ?? null,
@@ -256,7 +261,9 @@ export async function registrarContribuicoesIa(
   remessaId: string,
   fonteId: string,
   itens: ItemContribuicao[],
-  formaEscolhida: string
+  formaEscolhida: string,
+  /** Relação do grupo empresarial (contribuição centralizada). */
+  grupoId?: string
 ): Promise<{ identificados?: number; naoEncontrados?: number; erro?: string }> {
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
   const fonteDb = fonteDoSegmento(fonteId)
@@ -289,7 +296,9 @@ export async function registrarContribuicoesIa(
   }
   if (limpos.length === 0) return { erro: "Nada válido para registrar." }
 
-  const resolvidos = await resolverFiliadosLoteDetalhado(fonteDb, remessaId, limpos)
+  const grupo = grupoId ? (UUID.test(grupoId) ? await grupoParaRecebimento(grupoId) : { erro: "Grupo inválido." }) : null
+  if (grupo && "erro" in grupo) return { erro: grupo.erro }
+  const resolvidos = await resolverParaGravar(fonteDb, grupo, remessaId, limpos)
 
   const admin = await createAdminClient()
   const empId = await tenantAtual()
@@ -304,7 +313,8 @@ export async function registrarContribuicoesIa(
         else naoEncontrados++
         return {
           remessa_id: remessaId,
-          fonte_pg_id: fonteDb,
+          fonte_pg_id: resolvidos[de + j]?.fonteId ?? fonteDb,
+          ...(grupo ? { grupo_empresarial_id: grupo.id } : {}),
           filiado_id: filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
@@ -325,5 +335,9 @@ export async function registrarContribuicoesIa(
   invalidarCacheRemessa(remessaId)
   revalidatePath(`/painel/filiados/receitas/${remessaId}`)
   revalidatePath(`/painel/filiados/receitas/${remessaId}/${fonteId}`)
+  if (grupo) {
+    for (const f of grupo.fonteIds) revalidatePath(`/painel/filiados/receitas/${remessaId}/${f}`)
+    revalidatePath(`/painel/filiados/receitas/${remessaId}/grupo/${grupo.id}`)
+  }
   return { identificados, naoEncontrados }
 }

@@ -615,6 +615,85 @@ export async function resolverFiliadosLoteDetalhado(
   })
 }
 
+export type ResolucaoComFonte = ResolucaoFiliado & {
+  /** Fonte em que a linha é gravada. */
+  fonteId: string | null
+  /** Casou, mas a pessoa não tem vínculo em aberto em nenhuma empresa do grupo. */
+  semVinculoNoGrupo?: boolean
+}
+
+/**
+ * Relação paga por um GRUPO EMPRESARIAL (contribuição centralizada, 09/10/2026):
+ * uma lista só para várias empresas. Cada linha é identificada contra todas as
+ * fontes do grupo e gravada na fonte do trabalhador, para a remessa continuar
+ * fechando por empresa:
+ *   - matrícula → a fonte onde a matrícula casou (matrículas que casam com
+ *     pessoas diferentes em empresas diferentes não decidem);
+ *   - CPF/nome → a fonte do vínculo em aberto da pessoa no grupo;
+ *   - sem vínculo no grupo, ou sem casamento → a empresa pagadora do grupo.
+ */
+export async function resolverFiliadosNoGrupo(
+  grupo: { fonteIds: string[]; pagadoraId: string },
+  remessaId: string,
+  itens: ItemResolver[]
+): Promise<ResolucaoComFonte[]> {
+  const fontes = [...new Set(grupo.fonteIds)]
+  const [porFonte, abertos] = await Promise.all([
+    Promise.all(fontes.map((f) => resolverFiliadosLoteDetalhado(f, remessaId, itens))),
+    Promise.all(fontes.map((f) => vinculosDaFonte(f, { somenteAbertos: true }))),
+  ])
+  // Pessoa → fonte do vínculo em aberto (a pagadora tem preferência se houver dois).
+  const fonteAberta = new Map<string, string>()
+  abertos.forEach((vs, k) => {
+    for (const v of vs) {
+      if (!fonteAberta.has(v.filiado_id) || fontes[k] === grupo.pagadoraId) {
+        fonteAberta.set(v.filiado_id, fontes[k])
+      }
+    }
+  })
+
+  return itens.map((_, i) => {
+    const porMatricula = new Map<string, string>()
+    porFonte.forEach((det, k) => {
+      const r = det[i]
+      if (r?.via === "matricula" && r.filiadoId) porMatricula.set(r.filiadoId, fontes[k])
+    })
+    if (porMatricula.size === 1) {
+      const [[filiadoId, fonteId]] = [...porMatricula]
+      return { filiadoId, via: "matricula" as const, fonteId }
+    }
+    // CPF e nome não dependem da fonte: qualquer resultado serve.
+    const geral = porFonte
+      .map((det) => det[i])
+      .find((r) => r?.filiadoId && r.via !== "matricula")
+    if (geral?.filiadoId) {
+      const fonteId = fonteAberta.get(geral.filiadoId)
+      return {
+        filiadoId: geral.filiadoId,
+        via: geral.via,
+        fonteId: fonteId ?? grupo.pagadoraId,
+        semVinculoNoGrupo: !fonteId,
+      }
+    }
+    return { filiadoId: null, via: null, fonteId: grupo.pagadoraId }
+  })
+}
+
+/**
+ * Para gravar: na fonte (fluxo de sempre) ou no grupo. Devolve, por linha,
+ * o filiado, como casou e a fonte onde o lançamento fica.
+ */
+export async function resolverParaGravar(
+  fonteDb: string | null,
+  grupo: { fonteIds: string[]; pagadoraId: string } | null,
+  remessaId: string,
+  itens: ItemResolver[]
+): Promise<ResolucaoComFonte[]> {
+  if (grupo) return resolverFiliadosNoGrupo(grupo, remessaId, itens)
+  const det = await resolverFiliadosLoteDetalhado(fonteDb, remessaId, itens)
+  return det.map((d) => ({ ...d, fonteId: fonteDb }))
+}
+
 /** Compat: mesma assinatura de antes (usada pela importação manual de CSV). */
 export async function resolverFiliadosLote(
   fonteId: string | null,

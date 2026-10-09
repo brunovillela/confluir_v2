@@ -31,6 +31,7 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   cartoes: "Cartões",
   "centros-custo": "Centros de custo",
   "saude-cadastros": "Saúde dos cadastros",
+  grupos: "Grupos empresariais",
 }
 
 /** Monta a trilha de breadcrumbs a partir da rota, usando os títulos dos módulos. */

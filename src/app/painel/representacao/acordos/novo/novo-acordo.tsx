@@ -19,7 +19,13 @@ export type PdfLido = { caminho: string; nomeArquivo: string; dados: DadosLidos 
  * formulário abaixo já vem preenchido; ao criar, as cláusulas são separadas.
  * Dá para pular e preencher à mão, como antes.
  */
-export function NovoAcordo({ fontes }: { fontes: OpcaoFonte[] }) {
+export function NovoAcordo({
+  fontes,
+  grupos,
+}: {
+  fontes: OpcaoFonte[]
+  grupos: { id: string; nome: string; fonteIds: string[] }[]
+}) {
   const [lido, setLido] = useState<PdfLido | null>(null)
   const [etapa, setEtapa] = useState<"parado" | "enviando" | "lendo">("parado")
   const [erro, setErro] = useState<string | null>(null)
@@ -115,6 +121,7 @@ export function NovoAcordo({ fontes }: { fontes: OpcaoFonte[] }) {
             key={lido?.caminho ?? "manual"}
             fontes={fontes}
             fonteIds={lido?.dados.fonteIds ?? []}
+            grupos={grupos}
             sugestao={lido ?? undefined}
             aoCancelarHref="/painel/representacao/acordos"
           />

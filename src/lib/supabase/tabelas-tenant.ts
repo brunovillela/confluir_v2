@@ -24,6 +24,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "negociacao_empresas",
   "negociacao_eventos",
   "negociacoes",
+  "grupos_empresariais",
+  "grupo_empresarial_membros",
   "acordo_coletivo",
   "acordo_fontes",
   "agenda",

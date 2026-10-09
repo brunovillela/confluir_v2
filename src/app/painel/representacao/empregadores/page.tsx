@@ -6,6 +6,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   Building2,
+  Network,
   Plus,
   Search,
   Tags,
@@ -28,6 +29,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 import { listarFontesPagadoras, type FontePagadora } from "@/lib/db/fontes"
+import { gruposPorFonte, listarGrupos } from "@/lib/db/grupos-empresariais"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -53,6 +55,7 @@ type Filtros = {
   busca: string
   tipo: string
   situacao: string
+  grupo: string
   ordem: Ordem
   asc: boolean
   porPagina: number
@@ -65,6 +68,7 @@ function url(f: Filtros, mudancas: Partial<Filtros> & { pagina?: number }): stri
   if (v.busca) q.set("busca", v.busca)
   if (v.tipo !== "todos") q.set("tipo", v.tipo)
   if (v.situacao !== "todas") q.set("situacao", v.situacao)
+  if (v.grupo) q.set("grupo", v.grupo)
   if (v.ordem !== "filiados") q.set("ordem", v.ordem)
   if (v.asc !== (v.ordem !== "filiados")) q.set("dir", v.asc ? "asc" : "desc")
   if (v.porPagina !== POR_PAGINA_PADRAO) q.set("porPagina", String(v.porPagina))
@@ -106,6 +110,7 @@ export default async function FontesPage({
     excluida?: string
     tipo?: string
     situacao?: string
+    grupo?: string
     busca?: string
     ordem?: string
     dir?: string
@@ -122,10 +127,13 @@ export default async function FontesPage({
     ? (params.situacao as string)
     : "todas"
 
-  const [todasFontes, categorias] = await Promise.all([
+  const [todasFontes, categorias, { grupos }, grupoDaFonte] = await Promise.all([
     listarFontesPagadoras(),
     listarCategoriasFonte(),
+    listarGrupos(),
+    gruposPorFonte(),
   ])
+  const grupo = grupos.some((g) => g.id === params.grupo) ? (params.grupo as string) : ""
   // "fundo" é o valor antigo do filtro (links salvos).
   const tipoBruto = params.tipo === "fundo" ? "fundo_pensao" : params.tipo
   const tipo = categorias.some((c) => c.chave === tipoBruto) ? (tipoBruto as string) : "todos"
@@ -137,6 +145,7 @@ export default async function FontesPage({
     busca: (params.busca ?? "").trim(),
     tipo,
     situacao,
+    grupo,
     ordem,
     // Filiados começa do maior; as demais colunas, de A a Z.
     asc: params.dir ? params.dir === "asc" : ordem !== "filiados",
@@ -150,6 +159,7 @@ export default async function FontesPage({
     if (tipo !== "todos" && chaveCategoriaDaFonte(f, categorias) !== tipo) return false
     if (situacao === "ativas" && f.inativa === true) return false
     if (situacao === "inativas" && f.inativa !== true) return false
+    if (grupo && grupoDaFonte.get(f.id)?.id !== grupo) return false
     if (termo) {
       const nomes = semAcento(`${f.nome_fantasia ?? ""} ${f.nome_razao ?? ""}`.toLowerCase())
       const porCnpj = digitos.length >= 3 && (f.cnpj_cpf ?? "").includes(digitos)
@@ -161,7 +171,8 @@ export default async function FontesPage({
     ordenar(filtradas, filtros, categorias),
     pag
   )
-  const filtrando = Boolean(filtros.busca) || tipo !== "todos" || situacao !== "todas"
+  const filtrando =
+    Boolean(filtros.busca) || tipo !== "todos" || situacao !== "todas" || Boolean(grupo)
   const cabecalho = (rotulo: string, coluna: Ordem, alinhamento?: string) => (
     <Ordenavel
       rotulo={rotulo}
@@ -199,6 +210,12 @@ export default async function FontesPage({
           </div>
           {podeEditar && (
             <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/painel/representacao/empregadores/grupos">
+                  <Network />
+                  Grupos
+                </Link>
+              </Button>
               <Button asChild variant="outline">
                 <Link href="/painel/representacao/empregadores/categorias">
                   <Tags />
@@ -267,12 +284,27 @@ export default async function FontesPage({
           <option value="ativas">Ativas</option>
           <option value="inativas">Inativas</option>
         </select>
+        {grupos.length > 0 && (
+          <select
+            name="grupo"
+            defaultValue={grupo}
+            aria-label="Filtrar por grupo empresarial"
+            className={SELECT_FILTRO}
+          >
+            <option value="">Todos os grupos</option>
+            {grupos.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nome}
+              </option>
+            ))}
+          </select>
+        )}
         <Button type="submit" variant="secondary" size="sm">
           Filtrar
         </Button>
         {filtrando && (
           <Button variant="ghost" size="sm" asChild>
-            <Link href={url(filtros, { busca: "", tipo: "todos", situacao: "todas" })}>
+            <Link href={url(filtros, { busca: "", tipo: "todos", situacao: "todas", grupo: "" })}>
               Limpar
             </Link>
           </Button>
@@ -320,6 +352,14 @@ export default async function FontesPage({
                     >
                       <span className="block truncate">{nome}</span>
                     </Link>
+                    {grupoDaFonte.get(f.id) && (
+                      <Link
+                        href={`/painel/representacao/empregadores/grupos/${grupoDaFonte.get(f.id)!.id}`}
+                        className="text-muted-foreground hover:text-foreground block truncate text-xs font-normal"
+                      >
+                        {grupoDaFonte.get(f.id)!.nome}
+                      </Link>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden font-mono text-xs md:table-cell">
                     {formatarCnpjCpf(f.cnpj_cpf)}

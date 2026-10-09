@@ -44,6 +44,57 @@ indicadores:
 
 <Print src="representacao/empregador.png" alt="Página do empregador Petro Fictícia: o nome com o CNPJ e os selos Empregador e Ativa, os botões Editar e Ver filiados da fonte, os indicadores de filiados ativos, vínculos em aberto, vínculos no histórico e contribuições, os cartões de acordo vigente, reuniões com a empresa, setoriais e próxima agenda, e as abas Visão geral, Acordos, Votações, Oposições, Reuniões e Setoriais." legenda="O empregador: indicadores no alto e as abas com tudo o que a entidade tem com a empresa." />
 
+## Grupos empresariais
+
+Um **grupo empresarial** reúne empresas de um mesmo conglomerado. O sindicato
+pode representar trabalhadores de **parte delas ou de todas**. Abra em
+**Empregadores › Grupos**.
+
+<PassoAPasso>
+  <Passo titulo="Crie o grupo">
+    Em **Novo grupo**, dê o nome e marque os **empregadores** do grupo — as
+    empresas com trabalhadores representados, já cadastradas em Empregadores.
+    Uma empresa representada pertence a um grupo só.
+  </Passo>
+  <Passo titulo="Inclua as demais empresas">
+    Na página do grupo, **Incluir empresa** aceita também as empresas **sem
+    trabalhadores representados**, só com nome e CNPJ (**Preencher pelo CNPJ**
+    traz o nome da Receita). Se o CNPJ for de um empregador cadastrado, ele
+    entra como representado.
+  </Passo>
+  <Passo titulo="Acompanhe o grupo">
+    A página do grupo soma os números das empresas: quantas são representadas
+    (ex.: 3 de 7), filiados ativos, acordos vigentes e reuniões em 12 meses, com
+    a lista das empresas e dos acordos.
+  </Passo>
+</PassoAPasso>
+
+O grupo também aparece no resto do sistema:
+
+- **Selo do grupo** na página de cada empregador, com link para o grupo.
+- **Filtro por grupo** na lista de Empregadores e na lista de **Filiados**
+  (quem tem vínculo com qualquer empresa representada do grupo; a exportação
+  respeita o filtro). **Filiados do grupo**, na página do grupo, abre a lista
+  já filtrada.
+- **Acordo do grupo inteiro**: no formulário do acordo coletivo, o botão com o
+  nome do grupo marca de uma vez todas as empresas representadas dele.
+- **Contribuição centralizada**: veja abaixo.
+
+### Contribuição paga pelo grupo
+
+Quando uma empresa do grupo faz o repasse das contribuições de todas, marque
+no grupo **O grupo paga as contribuições de forma centralizada** e escolha a
+**empresa pagadora**. Em **Filiação › Receitas**, cada remessa passa a mostrar
+o grupo em **Grupos com contribuição centralizada**: a relação do grupo é
+enviada **uma vez só** (CSV ou relatório pela IA).
+
+Cada trabalhador da relação é procurado no grupo inteiro — CPF, matrícula em
+qualquer empresa do grupo e nome — e o pagamento é gravado **na empresa do
+vínculo dele**. Assim a remessa continua fechando empresa por empresa. Quem
+não for encontrado, ou não tiver vínculo em aberto em nenhuma empresa do
+grupo, fica na **empresa pagadora** para conferência. O depósito do grupo é
+registrado na empresa pagadora.
+
 ## Categorias de fonte
 
 Toda fonte tem uma **categoria**, escolhida em **Editar**. Empregador e Fundo

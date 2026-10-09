@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import { opcoesFontes } from "@/lib/db/acordos"
+import { gruposParaSelecao } from "@/lib/db/grupos-empresariais"
 
 import { NovoAcordo } from "./novo-acordo"
 
@@ -15,7 +16,7 @@ export const maxDuration = 300
 
 export default async function NovoAcordoPage() {
   await requirePermissao("acordos_coletivos")
-  const fontes = await opcoesFontes()
+  const [fontes, grupos] = await Promise.all([opcoesFontes(), gruposParaSelecao()])
 
   return (
     <>
@@ -31,7 +32,7 @@ export default async function NovoAcordoPage() {
         </h1>
       </div>
 
-      <NovoAcordo fontes={fontes} />
+      <NovoAcordo fontes={fontes} grupos={grupos} />
     </>
   )
 }

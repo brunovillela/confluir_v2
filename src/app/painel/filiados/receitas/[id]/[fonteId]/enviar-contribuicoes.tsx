@@ -34,12 +34,18 @@ export function EnviarContribuicoes({
   remessaId,
   fonteId,
   ativosNaoPagantes,
+  grupoId,
 }: {
   remessaId: string
   /** uuid da fonte ou "sem-fonte". */
   fonteId: string
   /** Ativos com vínculo em aberto na fonte fora da relação, já em ordem alfabética. */
   ativosNaoPagantes: RelatorioFonte["ativosNaoPagantes"]
+  /**
+   * Relação do grupo empresarial (contribuição centralizada): cada linha vai
+   * para a fonte do trabalhador. Sem o modo Individual.
+   */
+  grupoId?: string
 }) {
   const semFonte = fonteId === "sem-fonte"
   const [forma, setForma] = useState<FormaRecebimento | "">("")
@@ -115,13 +121,14 @@ export function EnviarContribuicoes({
       <div className="bg-muted/60 inline-flex w-fit items-center gap-1 rounded-full p-1">
         {botaoModo("massa", "Em massa (CSV)")}
         {botaoModo("ia", "Relatório (IA)")}
-        {botaoModo("individual", "Individual")}
+        {!grupoId && botaoModo("individual", "Individual")}
       </div>
 
       {modo === "massa" && (
         <form action={massaAction} className="grid gap-3">
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="fonte_id" value={fonteId} />
+          {grupoId && <input type="hidden" name="grupo_id" value={grupoId} />}
           <input type="hidden" name="forma_recebimento" value={forma} />
           <div className="grid gap-1.5">
             <Label htmlFor="arquivo">Relação de pagamentos (CSV ou TXT)</Label>
@@ -284,7 +291,7 @@ export function EnviarContribuicoes({
       )}
 
       {modo === "ia" && (
-        <ImportarRelatorioIa remessaId={remessaId} fonteId={fonteId} forma={forma} />
+        <ImportarRelatorioIa remessaId={remessaId} fonteId={fonteId} forma={forma} grupoId={grupoId} />
       )}
       </>
       )}

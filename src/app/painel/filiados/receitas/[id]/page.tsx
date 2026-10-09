@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   BadgeDollarSign,
   Banknote,
+  Building2,
   ChevronRight,
   CircleAlert,
   ListChecks,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/table"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
+import { listarGrupos } from "@/lib/db/grupos-empresariais"
 import { regrasFiliacao } from "@/lib/db/organizacao"
 import { detalheRemessa } from "@/lib/db/receitas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -51,9 +53,26 @@ export default async function RemessaPage({
 
   const { id } = await params
   const sp = await searchParams
-  const [detalhe, regras] = await Promise.all([detalheRemessa(id), regrasFiliacao()])
+  const [detalhe, regras, { grupos }] = await Promise.all([
+    detalheRemessa(id),
+    regrasFiliacao(),
+    listarGrupos(),
+  ])
   if (!detalhe) notFound()
   const { remessa, totais, fontes, fontesSemInformacao, erroCarga } = detalhe
+  const porFonte = new Map(fontes.map((f) => [f.id, f]))
+  const centralizados = grupos
+    .filter((g) => g.contribuicaoCentralizada && g.representadas > 0)
+    .map((g) => {
+      const ids = g.membros.flatMap((m) => (m.empresaId ? [m.empresaId] : []))
+      return {
+        id: g.id,
+        nome: g.nome,
+        empresas: ids.length,
+        pagantes: ids.reduce((s, f) => s + (porFonte.get(f)?.pagantes ?? 0), 0),
+        total: ids.reduce((s, f) => s + (porFonte.get(f)?.total ?? 0), 0),
+      }
+    })
 
   const indicadores = [
     {
@@ -179,6 +198,41 @@ export default async function RemessaPage({
           </Card>
         ))}
       </div>
+
+      {/* Grupos que pagam numa relação só (09/10/2026). */}
+      {centralizados.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="size-4" />
+              Grupos com contribuição centralizada
+            </CardTitle>
+            <CardDescription>
+              O grupo manda uma relação só para todas as empresas; cada pagamento vai para a
+              empresa do trabalhador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {centralizados.map((g) => (
+              <Link
+                key={g.id}
+                href={`/painel/filiados/receitas/${remessa.id}/grupo/${g.id}`}
+                className="hover:bg-muted/40 flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+              >
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="truncate text-sm font-medium">{g.nome}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {g.empresas} empresa{g.empresas === 1 ? "" : "s"} ·{" "}
+                    {g.pagantes.toLocaleString("pt-BR")} pagante{g.pagantes === 1 ? "" : "s"} ·{" "}
+                    {formatarMoeda(g.total)}
+                  </span>
+                </span>
+                <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

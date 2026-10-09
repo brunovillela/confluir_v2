@@ -10,11 +10,13 @@ import { type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv, normalizarCabecalho, parseCsv } from "@/lib/csv"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
+import { grupoParaRecebimento, type GrupoRecebimento } from "@/lib/db/grupos-empresariais"
 import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
   invalidarCacheRemessa,
   registrarFormaNoCadastro,
   resolverFiliadosLote,
+  resolverParaGravar,
 } from "@/lib/db/receitas"
 import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -73,6 +75,27 @@ async function formaDaLista(
     }
   }
   return { forma }
+}
+
+/**
+ * Relação do GRUPO empresarial (contribuição centralizada): o form traz
+ * `grupo_id`; as linhas são casadas no grupo e cada uma vai para a fonte
+ * do trabalhador. Sem `grupo_id`, null (fluxo de sempre, por fonte).
+ */
+async function grupoDoForm(
+  formData: FormData
+): Promise<GrupoRecebimento | null | { erro: string }> {
+  const grupoId = String(formData.get("grupo_id") ?? "")
+  if (!grupoId) return null
+  if (!UUID.test(grupoId)) return { erro: "Grupo inválido." }
+  return grupoParaRecebimento(grupoId)
+}
+
+/** Revalida a remessa, as fontes tocadas e a página do grupo. */
+function revalidarRecebimento(remessaId: string, fonteIds: string[], grupoId?: string) {
+  revalidatePath(`/painel/filiados/receitas/${remessaId}`)
+  for (const f of new Set(fonteIds)) revalidatePath(`/painel/filiados/receitas/${remessaId}/${f}`)
+  if (grupoId) revalidatePath(`/painel/filiados/receitas/${remessaId}/grupo/${grupoId}`)
 }
 
 function voltar(remessaId: string, fonteId: string, flag: string): never {
@@ -189,6 +212,8 @@ export async function importarContribuicoes(
   const escolha = await formaDaLista(formData, fonteDb)
   if ("erro" in escolha) return { erro: escolha.erro }
   const { forma } = escolha
+  const grupo = await grupoDoForm(formData)
+  if (grupo && "erro" in grupo) return { erro: grupo.erro }
 
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
@@ -255,7 +280,7 @@ export async function importarContribuicoes(
     itens.push({ linha: numeroLinha, cpf: cpf || null, matriculaFonte: matricula, valor })
   }
 
-  const resolvidos = await resolverFiliadosLote(fonteDb, remessaId, itens)
+  const resolvidos = await resolverParaGravar(fonteDb, grupo, remessaId, itens)
 
   const admin = await createAdminClient()
   let identificados = 0
@@ -265,18 +290,19 @@ export async function importarContribuicoes(
     const lote = itens.slice(de, de + 300)
     const { error } = await admin.from("filiacao_recebe").insert(
       lote.map((item, j) => {
-        const filiadoId = resolvidos[de + j]
-        if (filiadoId) identificados++
+        const r = resolvidos[de + j]
+        if (r.filiadoId) identificados++
         else naoEncontrados++
         return {
           remessa_id: remessaId,
-          fonte_pg_id: fonteDb,
-          filiado_id: filiadoId,
+          fonte_pg_id: r.fonteId,
+          filiado_id: r.filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
           valor: item.valor,
           forma_recebimento: forma,
           emp_proprietaria_id: empId,
+          ...(grupo ? { grupo_empresarial_id: grupo.id } : {}),
         }
       })
     )
@@ -284,11 +310,18 @@ export async function importarContribuicoes(
       return { erro: `Falha ao gravar os lançamentos: ${error.message}` }
     }
   }
-  await registrarFormaNoCadastro(remessaId, resolvidos, forma)
+  await registrarFormaNoCadastro(
+    remessaId,
+    resolvidos.map((r) => r.filiadoId),
+    forma
+  )
 
   invalidarCacheRemessa(remessaId)
-  revalidatePath(`/painel/filiados/receitas/${remessaId}`)
-  revalidatePath(`/painel/filiados/receitas/${remessaId}/${fonteId}`)
+  revalidarRecebimento(
+    remessaId,
+    [fonteId, ...resolvidos.flatMap((r) => (r.fonteId ? [r.fonteId] : []))],
+    grupo?.id
+  )
   return {
     resultado: {
       identificados,

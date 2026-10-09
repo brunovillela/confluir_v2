@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
+import { fontesDoGrupo } from "@/lib/db/grupos-empresariais"
 import { formatarCpf } from "@/lib/cpf"
 import {
   listarFiliadosParaExportar,
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
       condicao && condicoes.includes(condicao as never) ? condicao : "todas",
     sexo: sexo && sexos.includes(sexo) ? sexo : "todos",
     fonte: uuid.test(fonte) ? fonte : "",
+  }
+  // Grupo empresarial: as empresas representadas dele.
+  const grupoId = searchParams.get("grupo") ?? ""
+  if (uuid.test(grupoId)) {
+    const ids = await fontesDoGrupo(grupoId)
+    filtros.fontes = ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]
   }
 
   const linhas = await listarFiliadosParaExportar(filtros)
