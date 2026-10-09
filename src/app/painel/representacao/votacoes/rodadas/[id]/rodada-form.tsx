@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { formatarData } from "@/lib/formato"
 
 import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { salvarRodada } from "./actions"
@@ -33,6 +32,8 @@ type Rodada = {
   apuracao_encerrada: boolean
   clausula_filiacao_coletiva: boolean
   filiacao_coletiva_dias: number | null
+  /** Tema da campanha — já aparece no cabeçalho da página. */
+  campanhaTema?: string | null
 }
 
 export function RodadaForm({
@@ -62,7 +63,7 @@ export function RodadaForm({
           <div>
             <CardTitle className="text-base">Dados da rodada</CardTitle>
             <CardDescription className="mt-1">
-              Período, edital e divulgação.
+              Descrição e materiais de divulgação.
             </CardDescription>
           </div>
           {!editando && (
@@ -180,57 +181,40 @@ export function RodadaForm({
             </div>
           </form>
         ) : (
-          <dl className="grid gap-x-6 gap-y-3 text-sm @xs:grid-cols-2 @3xl:grid-cols-3">
-            <CampoLeitura rotulo="Período">
-              {rodada.inicio || rodada.termino
-                ? `${formatarData(rodada.inicio)} a ${formatarData(rodada.termino)}`
-                : "—"}
-            </CampoLeitura>
-            <CampoLeitura rotulo="Apuração">
-              {rodada.apuracao_encerrada ? "Encerrada" : "Em andamento"}
-            </CampoLeitura>
-            <CampoLeitura rotulo="Descrição">
-              {rodada.descricao ?? "—"}
-            </CampoLeitura>
-            <CampoLeitura rotulo="Edital">
-              {editalUrl ? (
-                <LinkArquivo href={editalUrl}>Ver edital</LinkArquivo>
-              ) : (
-                "—"
-              )}
-            </CampoLeitura>
-            <CampoLeitura rotulo="Card gráfico">
-              {cardUrl ? <LinkArquivo href={cardUrl}>Ver card</LinkArquivo> : "—"}
-            </CampoLeitura>
-            <CampoLeitura rotulo="Vídeo indicativo">
-              {rodada.video_indicativo_url ? (
-                <LinkArquivo href={rodada.video_indicativo_url}>
-                  Abrir vídeo
-                </LinkArquivo>
-              ) : (
-                "—"
-              )}
-            </CampoLeitura>
-          </dl>
+          // Só o que não está em outro lugar da página: período e fonte ficam
+          // na faixa de resumo, a apuração no selo do título, o tema da
+          // campanha no subtítulo (e a descrição costuma repeti-lo).
+          <div className="grid gap-3 text-sm">
+            {descricaoPropria(rodada) && (
+              <p className="whitespace-pre-line">{rodada.descricao}</p>
+            )}
+            {editalUrl || cardUrl || rodada.video_indicativo_url ? (
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {editalUrl && <LinkArquivo href={editalUrl}>Ver edital</LinkArquivo>}
+                {cardUrl && <LinkArquivo href={cardUrl}>Ver card</LinkArquivo>}
+                {rodada.video_indicativo_url && (
+                  <LinkArquivo href={rodada.video_indicativo_url}>
+                    Abrir vídeo
+                  </LinkArquivo>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                Sem edital, card ou vídeo anexados.
+              </p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
   )
 }
 
-function CampoLeitura({
-  rotulo,
-  children,
-}: {
-  rotulo: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="grid gap-0.5">
-      <dt className="text-muted-foreground text-xs">{rotulo}</dt>
-      <dd>{children}</dd>
-    </div>
-  )
+/** Descrição que acrescenta algo — igual ao tema da campanha, não se repete. */
+function descricaoPropria(rodada: Rodada): boolean {
+  const d = (rodada.descricao ?? "").trim().toLowerCase()
+  if (!d) return false
+  return d !== (rodada.campanhaTema ?? "").trim().toLowerCase()
 }
 
 function LinkArquivo({
