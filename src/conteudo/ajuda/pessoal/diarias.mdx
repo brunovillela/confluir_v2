@@ -57,8 +57,9 @@ ou **devolve** com a observação do que não está de acordo.
 
 <Print src="pessoal/diarias-remessa.png" alt="Tela de uma remessa de diárias em avaliação: os totais de diárias, despesas e valor da remessa; as duas diárias da remessa, cada uma com tipo, período, departamento, motivo, a despesa de alimentação e o botão Retirar; e o cartão Avaliação da remessa com os botões Devolver com observação e Aprovar a remessa." legenda="A remessa: tudo o que vai ser pago, numa tela só, com Aprovar e Devolver." />
 
-A diária sozinha não tem mais botão de aprovar: a tela dela mostra a remessa em
-que entrou, com o link. Quem avalia diárias de funcionário também pode decidir
+A diária sozinha não é avaliada: na lista de Diárias toda linha tem só **Ver**,
+e a tela da diária mostra a remessa em que ela entrou, com o botão **Abrir a
+remessa para avaliar** — é lá que se aprova ou devolve. Quem avalia diárias de funcionário também pode decidir
 pelo celular, em **Aprovar**, e o **coordenador do departamento** decide a
 remessa dos funcionários dele na aba **Coordenação** do painel — ninguém avalia
 a própria remessa.
@@ -192,7 +193,12 @@ atalho aparece para quem tem alguma, diretor ou funcionário.
 - **"A lista está vazia, mas havia diárias no sistema antigo."** Elas estão em
   **Histórico** — a lista principal mostra só as solicitações novas.
 - **"Não acho o botão de aprovar na diária."** A avaliação é da **remessa**:
-  abra Diárias → Remessas (ou o link da remessa na tela da diária).
+  abra Diárias → **Remessas** (o botão mostra quantas há a avaliar) ou, na
+  tela da diária, **Abrir a remessa para avaliar**.
+- **"A remessa não mostra Aprovar."** Se todas as diárias dela foram
+  canceladas, não há o que avaliar — ela sai da fila Em avaliação. Diária
+  aprovada pelo jeito antigo (por diária, antes da mudança) e ainda sem ordem
+  aparece com **Aprovar a remessa**, que só gera a ordem.
 - **"Aprovei a remessa, mas a ordem ficou Em autorização."** A regra das
   diárias está em *depende da alçada* e o valor passou da sua alçada — a ordem
   segue na fila de quem tem alçada para ela. Veja *Autorização da ordem*.
