@@ -36,6 +36,8 @@ export type ExtratoCompleto = {
   }
   arquivos: {
     notaFiscal: string | null
+    /** Rótulo do documento fiscal (ex.: "RPA assinado" quando a ordem paga um RPA). */
+    rotuloNotaFiscal?: string
     boleto: string | null
     comprovante: string | null
     orcamento: string | null
@@ -44,12 +46,12 @@ export type ExtratoCompleto = {
   codigoVerificacao: string
 }
 
-/** O bucket vem do prefixo do caminho: compras (notas/, boletos/) ou comprovantes. */
+/** O bucket vem do prefixo do caminho: compras (notas/, boletos/, rpa-assinados/) ou comprovantes. */
 export async function urlArquivoOrdem(valor: unknown): Promise<string | null> {
   if (typeof valor !== "string" || !valor.trim()) return null
   if (/^https?:\/\//.test(valor)) return valor
   if (valor.startsWith("//")) return `https:${valor}`
-  const bucket = /^(notas|boletos)\//.test(valor) ? "compras" : "comprovantes"
+  const bucket = /^(notas|boletos|rpa-assinados)\//.test(valor) ? "compras" : "comprovantes"
   const admin = await createAdminClient()
   const { data } = await admin.storage.from(bucket).createSignedUrl(valor, 3600)
   return data?.signedUrl ?? null
@@ -66,6 +68,14 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
   const admin = await createAdminClient()
 
   const procedencia = await procedenciaDaOrdem(o)
+  // Ordem que paga um RPA: o documento fiscal é o RPA ASSINADO (no de
+  // contrato a ordem nem tem nota; no de compra, a nota pode ser outra).
+  const { data: rpa } = await admin
+    .from("compras_rpa")
+    .select("numero, arquivo_assinado")
+    .eq("ordem_pagamento_id", id)
+    .maybeSingle()
+  const rpaAssinado = typeof rpa?.arquivo_assinado === "string" && rpa.arquivo_assinado ? rpa.arquivo_assinado : null
   const [auditoria, eventosGravados, verificacoes, rateio, pagoComDetalhe, notaFiscal, boleto, comprovante, orcamento] =
     await Promise.all([
       auditarOrdem(o, procedencia),
@@ -73,7 +83,7 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
       verificacoesDaOrdem(id),
       rateioDaOrdem(id),
       descreverPagoCom(o),
-      urlArquivoOrdem(o.arquivo_nota_fiscal),
+      urlArquivoOrdem(rpaAssinado ?? o.arquivo_nota_fiscal),
       urlArquivoOrdem(o.arquivo_boleto),
       urlArquivoOrdem(o.arquivo_pagamento),
       urlArquivoOrdem(o.arquivo_orcamento),
@@ -189,7 +199,13 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
     pagoCom,
     favorecido,
     autorizacao,
-    arquivos: { notaFiscal, boleto, comprovante, orcamento },
+    arquivos: {
+      notaFiscal,
+      boleto,
+      comprovante,
+      orcamento,
+      ...(rpaAssinado && rpa ? { rotuloNotaFiscal: `RPA nº ${rpa.numero ?? "—"} assinado (documento fiscal)` } : {}),
+    },
     codigoVerificacao,
   }
 }

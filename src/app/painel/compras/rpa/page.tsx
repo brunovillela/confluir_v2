@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Plus, ReceiptText } from "lucide-react"
+import { ArrowLeft, FileCheck2, Plus, ReceiptText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -275,7 +275,19 @@ export default async function RpaPage({
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {r.arquivoAssinado ? (
-                      <Badge variant="success">Assinado</Badge>
+                      <span className="inline-flex items-center gap-2">
+                        <Badge variant="success">Assinado</Badge>
+                        <a
+                          href={`/painel/compras/rpa/${r.id}/assinado`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                          title="Abrir o RPA assinado"
+                        >
+                          <FileCheck2 className="size-3.5" />
+                          Ver
+                        </a>
+                      </span>
                     ) : (
                       <Badge variant="outline">A assinar</Badge>
                     )}

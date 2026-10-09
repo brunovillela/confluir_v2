@@ -168,7 +168,11 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
       ["Valor líquido (a pagar)", moeda(r.valor_liquido)],
     ])
     p.solicitante = t(r.criado_por) ? { id: String(r.criado_por), nome: null, papel: "Emitiu o RPA" } : null
-    p.documentos = [{ rotulo: "RPA (PDF)", url: `/painel/compras/rpa/${r.id}/pdf` }]
+    // Assinado, o RPA vai no lugar do documento fiscal (extrato) — não se
+    // repete a versão sem assinatura. Sem assinatura, ela é o que há.
+    p.documentos = t(r.arquivo_assinado)
+      ? []
+      : [{ rotulo: "RPA sem assinatura (PDF)", url: `/painel/compras/rpa/${r.id}/pdf` }]
     return p
   }
 

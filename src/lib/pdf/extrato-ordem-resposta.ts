@@ -118,7 +118,12 @@ export async function respostaPdfExtratoOrdem(id: string, req: Request): Promise
       comprovanteUrl: x.arquivos.comprovante,
     },
     documentos: [
-      { rotulo: o.tipo === "Folha de pagamento" ? "Contracheque" : "Nota fiscal / documento fiscal", url: x.arquivos.notaFiscal },
+      {
+        rotulo:
+          x.arquivos.rotuloNotaFiscal ??
+          (o.tipo === "Folha de pagamento" ? "Contracheque" : "Nota fiscal / documento fiscal"),
+        url: x.arquivos.notaFiscal,
+      },
       // Boleto só entra quando é a forma da ordem (ou há arquivo): em Pix/TED
       // "Não anexado" parecia pendência, e não é.
       ...(/boleto/i.test(String(o.forma_pagamento ?? "")) || x.arquivos.boleto
