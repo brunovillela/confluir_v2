@@ -124,18 +124,20 @@ export function EnviarContribuicoes({
           <input type="hidden" name="fonte_id" value={fonteId} />
           <input type="hidden" name="forma_recebimento" value={forma} />
           <div className="grid gap-1.5">
-            <Label htmlFor="arquivo">Relação de pagamentos (CSV)</Label>
+            <Label htmlFor="arquivo">Relação de pagamentos (CSV ou TXT)</Label>
             <Input
               id="arquivo"
               name="arquivo"
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,text/csv,.txt,text/plain"
               required
             />
             <p className="text-muted-foreground text-xs">
               {semFonte
                 ? "Colunas: cpf + valor (sem fonte não há matrícula)."
                 : "Colunas: cpf e/ou matricula (na fonte) + valor."}{" "}
+              TXT com o mesmo cabeçalho e separador (; , ou tabulação) também vale; TXT
+              em outro layout, PDF ou foto da relação vão pela aba Relatório (IA).
               Quem não for encontrado entra como “não encontrado no cadastro”.
             </p>
           </div>

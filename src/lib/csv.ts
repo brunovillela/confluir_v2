@@ -17,11 +17,11 @@ export function decodificarCsv(bytes: ArrayBuffer): string {
 /** Divide o CSV em linhas/campos. Delimitador detectado pela 1ª linha. */
 export function parseCsv(texto: string): string[][] {
   const primeiraLinha = texto.slice(0, texto.indexOf("\n") + 1 || undefined)
-  const delim =
-    (primeiraLinha.match(/;/g)?.length ?? 0) >=
-    (primeiraLinha.match(/,/g)?.length ?? 0)
-      ? ";"
-      : ","
+  const pv = primeiraLinha.match(/;/g)?.length ?? 0
+  const vg = primeiraLinha.match(/,/g)?.length ?? 0
+  const tab = primeiraLinha.match(/\t/g)?.length ?? 0
+  // Tabulação (TXT exportado) só quando domina; senão a regra de sempre.
+  const delim = tab > pv && tab > vg ? "\t" : pv >= vg ? ";" : ","
 
   const linhas: string[][] = []
   let campo = ""

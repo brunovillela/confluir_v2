@@ -15,7 +15,7 @@ import {
   type ViaCasamento,
 } from "@/lib/db/receitas"
 import { formaRecebimento } from "@/lib/filiacao"
-import { gerarJsonIA, gerarJsonIADePdf } from "@/lib/ia"
+import { gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -91,10 +91,31 @@ export async function extrairContribuicoesIa(
 
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
-    return { erro: "Selecione um arquivo (CSV, Excel ou PDF)." }
+    return { erro: "Selecione um arquivo (CSV, TXT, Excel, PDF ou imagem)." }
   }
 
   const nomeArq = arquivo.name.toLowerCase()
+  const mimeImagem = mimeDeImagem(arquivo.type, nomeArq)
+  if (mimeImagem) {
+    // Foto/print da relação → VISÃO direto sobre a imagem.
+    if (arquivo.size > 20 * 1024 * 1024) {
+      return { erro: "Imagem grande demais — máximo de 20 MB." }
+    }
+    const extracao = await gerarJsonIADeImagem({
+      system: SISTEMA,
+      prompt:
+        "Leia o relatório de contribuições desta empresa (foto ou print) e extraia as linhas de empregado.",
+      imagemBase64: Buffer.from(await arquivo.arrayBuffer()).toString("base64"),
+      mimeType: mimeImagem,
+    })
+    return montarPreview(extracao, fonteDb, remessaId)
+  }
+  if (/\.(heic|heif|tiff?|bmp)$/.test(nomeArq)) {
+    return {
+      erro: "Formato de imagem não suportado — use JPG, PNG, WebP ou GIF.",
+    }
+  }
+
   const ehPdf = arquivo.type === "application/pdf" || nomeArq.endsWith(".pdf")
   const ehExcel =
     nomeArq.endsWith(".xlsx") ||
@@ -148,6 +169,27 @@ export async function extrairContribuicoesIa(
     return { erro: "O arquivo está vazio ou não tem dados legíveis." }
   }
 
+  return montarPreview(extracao, fonteDb, remessaId)
+}
+
+/** jpg/png/webp/gif (pelo tipo ou pela extensão) → mime aceito pela visão. */
+function mimeDeImagem(tipo: string, nomeArq: string): string | null {
+  if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(tipo)) {
+    return tipo
+  }
+  if (/\.(jpe?g|jfif)$/.test(nomeArq)) return "image/jpeg"
+  if (nomeArq.endsWith(".png")) return "image/png"
+  if (nomeArq.endsWith(".webp")) return "image/webp"
+  if (nomeArq.endsWith(".gif")) return "image/gif"
+  return null
+}
+
+/** Higieniza o JSON da IA e casa cada linha com o filiado (preview). */
+async function montarPreview(
+  extracao: Awaited<ReturnType<typeof gerarJsonIA>>,
+  fonteDb: string | null,
+  remessaId: string
+): Promise<EstadoExtracaoContrib> {
   const { dados, erro } = extracao
   if (erro || !dados) return { erro: erro ?? "Falha na extração." }
 

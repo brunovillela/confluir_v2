@@ -184,20 +184,22 @@ export function ImportarRelatorioIa({
       <input type="hidden" name="remessa_id" value={remessaId} />
       <input type="hidden" name="fonte_id" value={fonteId} />
       <div className="grid gap-1.5">
-        <Label htmlFor="arquivo-ia">Relatório da empresa (CSV, Excel ou PDF)</Label>
+        <Label htmlFor="arquivo-ia">
+          Relatório da empresa (CSV, TXT, Excel, PDF ou imagem)
+        </Label>
         <Input
           id="arquivo-ia"
           name="arquivo"
           type="file"
-          accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.pdf,application/pdf"
+          accept=".csv,text/csv,.txt,text/plain,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.pdf,application/pdf,.jpg,.jpeg,.jfif,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
           required
         />
         <p className="text-muted-foreground text-xs">
           A IA lê o relatório em qualquer layout e identifica o filiado por nome,
           CPF ou matrícula; você confere e confirma antes de registrar. Casamentos
-          &quot;por nome&quot; aparecem destacados para revisão. Aceita CSV, Excel
-          e PDF — inclusive PDF escaneado (imagem), que usa leitura por visão e
-          pode demorar um pouco mais.
+          &quot;por nome&quot; aparecem destacados para revisão. Aceita CSV, TXT,
+          Excel, PDF e imagem (JPG, PNG, WebP) — PDF escaneado e foto/print da
+          relação usam leitura por visão e podem demorar um pouco mais.
         </p>
       </div>
       {estado.erro && (

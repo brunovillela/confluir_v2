@@ -192,7 +192,7 @@ export async function importarContribuicoes(
 
   const arquivo = formData.get("arquivo")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
-    return { erro: "Selecione um arquivo CSV." }
+    return { erro: "Selecione um arquivo CSV ou TXT." }
   }
 
   const linhasCsv = parseCsv(decodificarCsv(await arquivo.arrayBuffer()))
