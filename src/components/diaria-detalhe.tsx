@@ -199,6 +199,11 @@ export function DetalheDiaria({
               : aprovada, a remessa vira uma ordem de pagamento rateada; com não conformidade, é devolvida
               a quem lançou.
             </p>
+            {remessaHref && (
+              <Button size="sm" asChild className="justify-self-start">
+                <Link href={remessaHref}>Abrir a remessa para avaliar</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : aguardando ? (

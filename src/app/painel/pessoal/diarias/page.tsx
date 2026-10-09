@@ -276,7 +276,7 @@ export default async function DiariasPage({
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild className="h-7 px-2">
                       <Link href={`/painel/pessoal/diarias/${s.id}`}>
-                        {s.situacao === "aguardando" ? "Avaliar" : "Ver"}
+                        Ver
                       </Link>
                     </Button>
                   </TableCell>

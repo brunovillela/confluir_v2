@@ -298,7 +298,7 @@ export default async function DiariasDiretoriaPage({
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/painel/institucional/diretoria/diarias/${s.id}`}>
-                        {s.situacao === "aguardando" ? "Avaliar" : "Ver"}
+                        Ver
                       </Link>
                     </Button>
                   </TableCell>
