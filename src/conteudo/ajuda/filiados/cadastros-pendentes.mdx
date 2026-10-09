@@ -46,9 +46,32 @@ cadastro) com pelo menos uma destas inconsistências:
   **ficha de filiação**. Saída na fonte, carta de desligamento e desfiliação
   não contam: só existem quando o vínculo termina.
 
+Essa é a regra **padrão**. Quem tem a permissão de gestão de filiação pode
+mudá-la — veja **Configurar a saúde dos cadastros**, mais abaixo.
+
 Os cartões do topo dão o total de cada pendência e filtram a lista ao clicar.
 Cada linha mostra as etiquetas do que falta; na de vínculo incompleto, o texto
-lista os campos.
+lista os campos. O cartão **Com apontamento** filtra quem tem apontamentos,
+que aparecem como etiquetas tracejadas.
+
+## Configurar a saúde dos cadastros
+
+No cartão **Saúde dos cadastros** (tela de Filiados), o ícone de engrenagem
+abre a configuração — também há o botão **Configurar** em Cadastros
+pendentes. Há uma aba por **categoria de fonte pagadora** (Empregador e Fundo
+de pensão) e, em cada uma, cada informação recebe um de três níveis:
+
+| Nível | O que acontece quando a informação falta |
+| --- | --- |
+| Pendência | Conta contra a saúde e põe o cadastro na lista de pendentes. |
+| Apontamento | Aparece na lista como aviso, sem derrubar a saúde. |
+| Normal | Não é verificada. |
+
+Vale a categoria da fonte do **vínculo em aberto** do filiado; sem vínculo em
+aberto (ou com vínculo sem fonte), vale a de Empregador. O padrão é tudo como
+pendência, exceto cargo e lotação em fundo de pensão, que ficam como normal.
+**Restaurar padrão** volta a aba aberta para esse padrão. Ao salvar, a saúde
+e a lista são recalculadas na hora.
 
 <Print src="filiados/cadastros-pendentes.png" alt="Tela de cadastros pendentes com os cartões de total por tipo de pendência e a lista de filiados ativos, cada um com as etiquetas do que falta e o botão de abrir o cadastro." legenda="Cadastros pendentes: os cartões filtram por tipo e cada linha mostra as etiquetas do que falta." />
 

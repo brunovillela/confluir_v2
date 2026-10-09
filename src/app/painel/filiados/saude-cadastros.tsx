@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, CopyCheck } from "lucide-react"
+import { ArrowUpRight, CopyCheck, Settings } from "lucide-react"
 
 import {
   faixaDaSaude,
@@ -12,19 +12,19 @@ import { cadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { listarDuplicidades } from "@/lib/db/filiacao-duplicidades"
 
 /** Cartão "Saúde dos cadastros": completos ÷ ativos, com atalho para os pendentes e as duplicidades. */
-export async function SaudeCadastros() {
-  const [{ ativos, linhas }, duplicidades] = await Promise.all([
+export async function SaudeCadastros({ podeConfigurar }: { podeConfigurar: boolean }) {
+  const [{ ativos, pendentes, comApontamento }, duplicidades] = await Promise.all([
     cadastrosPendentes(),
     listarDuplicidades(),
   ])
   const gruposDuplicados = duplicidades.disponivel ? duplicidades.grupos.length : 0
-  const completos = ativos - linhas.length
+  const completos = ativos - pendentes
   const percentual = percentualSaude(completos, ativos)
   const faixa = faixaDaSaude(percentual)
 
   return (
     <Card className="h-full">
-      <CabecalhoSaude />
+      <CabecalhoSaude podeConfigurar={podeConfigurar} />
       <CardContent className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-3xl font-semibold tabular-nums">
@@ -43,8 +43,20 @@ export async function SaudeCadastros() {
             href="/painel/filiados/cadastros-pendentes"
             className="hover:text-foreground underline-offset-2 hover:underline"
           >
-            <span className="tabular-nums">{linhas.length.toLocaleString("pt-BR")}</span> com pendência
+            <span className="tabular-nums">{pendentes.toLocaleString("pt-BR")}</span> com pendência
           </Link>
+          {comApontamento > 0 && (
+            <>
+              {" · "}
+              <Link
+                href="/painel/filiados/cadastros-pendentes?tipo=apontamento"
+                className="hover:text-foreground underline-offset-2 hover:underline"
+              >
+                <span className="tabular-nums">{comApontamento.toLocaleString("pt-BR")}</span> com
+                apontamento
+              </Link>
+            </>
+          )}
         </p>
         {gruposDuplicados > 0 && (
           <Link
@@ -64,7 +76,7 @@ export async function SaudeCadastros() {
   )
 }
 
-function CabecalhoSaude() {
+function CabecalhoSaude({ podeConfigurar }: { podeConfigurar: boolean }) {
   return (
     <CardHeader>
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
@@ -72,23 +84,35 @@ function CabecalhoSaude() {
           <CardTitle className="text-base whitespace-nowrap">Saúde dos cadastros</CardTitle>
           <CardDescription>Filiados ativos sem nenhuma pendência</CardDescription>
         </div>
-        <Link
-          href="/painel/filiados/cadastros-pendentes"
-          className="text-primary inline-flex shrink-0 items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
-        >
-          Cadastros pendentes
-          <ArrowUpRight className="size-4" />
-        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          <Link
+            href="/painel/filiados/cadastros-pendentes"
+            className="text-primary inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+          >
+            Cadastros pendentes
+            <ArrowUpRight className="size-4" />
+          </Link>
+          {podeConfigurar && (
+            <Link
+              href="/painel/filiados/saude-cadastros/configuracao"
+              title="Configurar a saúde dos cadastros"
+              aria-label="Configurar a saúde dos cadastros"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-md p-1.5 transition-colors"
+            >
+              <Settings className="size-4" />
+            </Link>
+          )}
+        </div>
       </div>
     </CardHeader>
   )
 }
 
 /** Enquanto a varredura roda (cache de 10 min expirado), a página já abre. */
-export function SaudeCadastrosCarregando() {
+export function SaudeCadastrosCarregando({ podeConfigurar }: { podeConfigurar: boolean }) {
   return (
     <Card className="h-full">
-      <CabecalhoSaude />
+      <CabecalhoSaude podeConfigurar={podeConfigurar} />
       <CardContent className="grid gap-3">
         <div className="bg-muted h-9 w-32 animate-pulse rounded-md" />
         <div className="bg-muted mx-auto aspect-[26/15] w-full max-w-72 animate-pulse rounded-t-full" />

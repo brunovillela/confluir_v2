@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CopyCheck, FileWarning, Search, X } from "lucide-react"
+import { ArrowLeft, CopyCheck, FileWarning, Search, Settings, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,7 @@ import {
   type TipoPendencia,
 } from "@/lib/db/filiacao-cadastros-pendentes"
 import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { semAcento } from "@/lib/texto"
 
 export const metadata: Metadata = { title: "Cadastros pendentes — Confluir" }
@@ -41,19 +42,25 @@ export default async function CadastrosPendentesPage({
 }: {
   searchParams: Promise<{ busca?: string; pagina?: string; tipo?: string }>
 }) {
-  await requirePermissao("filiacao_filiados", ["filiacao_gestao"])
+  const sessao = await requirePermissao("filiacao_filiados", ["filiacao_gestao"])
+  const podeConfigurar = podeAcessar(sessao.permissoes, "filiacao_gestao")
   const { busca = "", pagina: paginaTexto, tipo: tipoBruto } = await searchParams
   const pagina = Math.max(1, Number(paginaTexto) || 1)
-  const tipo = (TIPOS_PENDENCIA as readonly string[]).includes(tipoBruto ?? "")
-    ? (tipoBruto as TipoPendencia)
-    : null
+  const tipo: TipoPendencia | "apontamento" | null =
+    tipoBruto === "apontamento" ||
+    (TIPOS_PENDENCIA as readonly string[]).includes(tipoBruto ?? "")
+      ? (tipoBruto as TipoPendencia | "apontamento")
+      : null
 
   const dados = await cadastrosPendentes()
 
   const termo = semAcento(busca.trim())
   const digitos = busca.replace(/\D/g, "")
   const filtrados = dados.linhas.filter((f) => {
-    if (tipo && !f.tipos.includes(tipo)) return false
+    // Sem filtro: só quem tem pendência (apontamento não derruba a saúde).
+    if (tipo === "apontamento") {
+      if (f.apontamentos.length === 0) return false
+    } else if (tipo ? !f.tipos.includes(tipo) : f.tipos.length === 0) return false
     if (!termo) return true
     if (digitos.length >= 3 && (f.cpf ?? "").includes(digitos)) return true
     return semAcento(f.nome ?? "").includes(termo)
@@ -62,9 +69,15 @@ export default async function CadastrosPendentesPage({
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const daPagina = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
   const percentual =
-    dados.ativos > 0 ? Math.round((dados.linhas.length / dados.ativos) * 100) : 0
+    dados.ativos > 0 ? Math.round((dados.pendentes / dados.ativos) * 100) : 0
+  const tituloFiltro =
+    tipo === "apontamento"
+      ? "Apontamentos"
+      : tipo
+        ? ROTULO_PENDENCIA[tipo]
+        : "Todas as pendências"
 
-  const urlTipo = (t: TipoPendencia | null) =>
+  const urlTipo = (t: TipoPendencia | "apontamento" | null) =>
     `/painel/filiados/cadastros-pendentes${t ? `?tipo=${t}` : ""}${busca ? `${t ? "&" : "?"}busca=${encodeURIComponent(busca)}` : ""}`
 
   return (
@@ -78,18 +91,30 @@ export default async function CadastrosPendentesPage({
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Cadastros pendentes</h1>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/painel/filiados/duplicidades">
-              <CopyCheck />
-              Possíveis duplicidades
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/painel/filiados/duplicidades">
+                <CopyCheck />
+                Possíveis duplicidades
+              </Link>
+            </Button>
+            {podeConfigurar && (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/painel/filiados/saude-cadastros/configuracao">
+                  <Settings />
+                  Configurar
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Filiados ativos com alguma inconsistência: dado fundamental faltando,
           termo legal não aceito, histórico sem vínculo em aberto ou vínculo
           incompleto. O termo LGPD só conta para quem tem conta na área do
-          associado.
+          associado. O que é pendência, apontamento ou normal segue a
+          configuração da saúde dos cadastros, pela categoria da fonte do
+          vínculo corrente.
         </p>
       </div>
 
@@ -99,11 +124,26 @@ export default async function CadastrosPendentesPage({
             <CardContent className="grid gap-1">
               <span className="text-muted-foreground text-xs">Com pendência</span>
               <span className="text-2xl font-semibold tabular-nums">
-                {dados.linhas.length.toLocaleString("pt-BR")}
+                {dados.pendentes.toLocaleString("pt-BR")}
               </span>
               <span className="text-muted-foreground text-xs">
                 {percentual}% de {dados.ativos.toLocaleString("pt-BR")} ativos
               </span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={urlTipo("apontamento")} className="group">
+          <Card
+            className={
+              tipo === "apontamento" ? "border-primary/50" : "group-hover:border-primary/40"
+            }
+          >
+            <CardContent className="grid gap-1">
+              <span className="text-muted-foreground text-xs">Com apontamento</span>
+              <span className="text-2xl font-semibold tabular-nums">
+                {dados.comApontamento.toLocaleString("pt-BR")}
+              </span>
+              <span className="text-muted-foreground text-xs">não derruba a saúde</span>
             </CardContent>
           </Card>
         </Link>
@@ -126,11 +166,13 @@ export default async function CadastrosPendentesPage({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <CardTitle>
-                {tipo ? ROTULO_PENDENCIA[tipo] : "Todas as pendências"}
+                {tituloFiltro}
               </CardTitle>
               <CardDescription>
                 {total === 0
-                  ? "Ninguém — nenhum cadastro ativo com esta pendência."
+                  ? tipo === "apontamento"
+                    ? "Ninguém — nenhum cadastro ativo com apontamento."
+                    : "Ninguém — nenhum cadastro ativo com esta pendência."
                   : `${total.toLocaleString("pt-BR")} cadastro(s)${busca ? " na busca" : ""}.`}
               </CardDescription>
             </div>
@@ -203,6 +245,16 @@ export default async function CadastrosPendentesPage({
                                 {t === "vinculo"
                                   ? `vínculo: ${f.faltamNoVinculo.join(", ")}`
                                   : ROTULO_PENDENCIA[t]}
+                              </Badge>
+                            ))}
+                            {f.apontamentos.map((a) => (
+                              <Badge
+                                key={a}
+                                variant="outline"
+                                className="text-muted-foreground border-dashed"
+                                title="Apontamento: não derruba a saúde dos cadastros"
+                              >
+                                {a}
                               </Badge>
                             ))}
                           </span>

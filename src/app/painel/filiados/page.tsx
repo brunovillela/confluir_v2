@@ -630,8 +630,8 @@ export default async function FiliadosPage({
       {/* Gráficos */}
       <div className="grid gap-4 xl:grid-cols-3">
         {podeVerPendentes && (
-          <Suspense fallback={<SaudeCadastrosCarregando />}>
-            <SaudeCadastros />
+          <Suspense fallback={<SaudeCadastrosCarregando podeConfigurar={podeRegistrar} />}>
+            <SaudeCadastros podeConfigurar={podeRegistrar} />
           </Suspense>
         )}
         <Card className={podeVerPendentes ? "xl:col-span-2" : "xl:col-span-3"}>

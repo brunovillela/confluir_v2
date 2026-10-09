@@ -5,7 +5,14 @@ import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
 import { lerEmLotes as lerLotes } from "@/lib/db/comum"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { cpfConfiavel, validarCpf } from "@/lib/cpf"
-import { pendenciasDoVinculo } from "@/lib/filiacao"
+import { camposFaltandoNoVinculo, ROTULO_FALTA_VINCULO } from "@/lib/filiacao"
+import { configSaudeCadastros } from "@/lib/db/organizacao"
+import {
+  type CategoriaFonte,
+  categoriaDaFonte,
+  type ChaveCampoSaude,
+  ROTULO_CAMPO_SAUDE,
+} from "@/lib/saude-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -22,9 +29,14 @@ import { tenantAtual } from "@/lib/tenant"
  * Substitui a tela "Fichas pendentes" (decisão do Bruno, 10/09/2026): a ficha
  * continua sendo uma das pendências, mas deixa de ser a única.
  *
+ * CONFIGURÁVEL (09/10/2026): o peso de cada falta — pendência, apontamento ou
+ * normal — vem da configuração da saúde dos cadastros, pela categoria da fonte
+ * do vínculo corrente (lib/saude-cadastros.ts). Só PENDÊNCIA derruba a saúde;
+ * apontamento aparece na lista como aviso. O padrão é a regra acima.
+ *
  * DEFINIÇÃO DE ATIVO: a condição do cadastro (`filiacao_condicao = 'Ativo'`).
  * A varredura passa por todos os ativos e todos os vínculos; o resultado fica
- * em cache por 10 minutos.
+ * em cache por 10 minutos, por tenant.
  */
 
 const VALIDADE_CACHE_MS = 10 * 60 * 1000
@@ -59,22 +71,32 @@ export type CadastroPendente = {
   matricula: string | null
   /** Vínculo corrente (em aberto), quando existe. */
   vinculoId: string | null
+  /** Categoria da fonte do vínculo corrente — define a configuração aplicada. */
+  categoria: CategoriaFonte
+  /** Só as faltas configuradas como PENDÊNCIA. */
   tipos: TipoPendencia[]
   /** Campos que faltam no vínculo corrente (quando tipo inclui "vinculo"). */
   faltamNoVinculo: string[]
+  /** Faltas configuradas como APONTAMENTO (rótulos): avisam, não derrubam a saúde. */
+  apontamentos: string[]
 }
 
 export type CadastrosPendentes = {
   ativos: number
+  /** Cadastros com pendência OU apontamento; `tipos` vazio = só apontamento. */
   linhas: CadastroPendente[]
+  /** Cadastros com ao menos uma pendência (os que derrubam a saúde). */
+  pendentes: number
+  /** Cadastros com ao menos um apontamento. */
+  comApontamento: number
   totais: Record<TipoPendencia, number>
   geradoEm: string
 }
 
-let cache: { dados: CadastrosPendentes; expira: number } | null = null
+const cache = new Map<string, { dados: CadastrosPendentes; expira: number }>()
 
 export function invalidarCacheCadastrosPendentes() {
-  cache = null
+  cache.clear()
 }
 
 type Cadastro = {
@@ -152,11 +174,12 @@ const dataDeFiliacao = (v: LinhaVinculo) => v.data_filiacao ?? v.filiacao_data_a
 const aberto = (v: LinhaVinculo) => !v.data_desfiliacao && !v.filiacao_data_saida
 
 export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
-  if (cache && cache.expira > Date.now()) return cache.dados
+  const emp = await tenantAtual()
+  const emCache = cache.get(emp)
+  if (emCache && emCache.expira > Date.now()) return emCache.dados
 
   const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const [cadastros, vinculos, termos, fontes, comConta, identidades] = await Promise.all([
+  const [cadastros, vinculos, termos, fontes, comConta, identidades, { config }] = await Promise.all([
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
@@ -192,6 +215,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
         .order("id", { ascending: true })
         .range(de, ate)
     ),
+    configSaudeCadastros(),
   ])
 
   const contagem = (chave: (x: { cpf: string | null; matricula_sindical: string | null }) => string | null) => {
@@ -205,7 +229,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
   const usosDoCpf = contagem((x) => cpfConfiavel(x.cpf))
   const usosDaMatricula = contagem((x) => normalizarMatricula(x.matricula_sindical))
 
-  // Fontes que são fundo de pensão: cargo e lotação não se aplicam ao vínculo.
+  // Categoria de cada fonte: decide qual configuração vale para o filiado.
   const fundosPensao = new Set(
     fontes.filter((f) => f.fundo_pensao === true).map((f) => f.id)
   )
@@ -230,42 +254,65 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     vinculo: 0,
   }
   const linhas: CadastroPendente[] = []
+  let pendentes = 0
+  let comApontamento = 0
   for (const c of cadastros) {
-    const tipos: TipoPendencia[] = []
-    const cpf = (c.cpf ?? "").replace(/\D/g, "")
-    if (!cpf || !validarCpf(cpf)) tipos.push("cpf")
-    else if ((usosDoCpf.get(cpf) ?? 0) > 1) tipos.push("cpf_duplicado")
-    const matricula = normalizarMatricula(c.matricula_sindical)
-    if (!matricula || (usosDaMatricula.get(matricula) ?? 0) > 1) tipos.push("matricula")
-    const nome = (c.nome_completo ?? "").trim()
-    if (!nome || !nome.includes(" ")) tipos.push("nome")
-    if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) tipos.push("lgpd")
-    if (termos.desconto && c.tl_desconto_id !== termos.desconto) tipos.push("desconto")
-
     const v = correntePorFiliado.get(c.id) ?? null
-    let faltamNoVinculo: string[] = []
-    if (!v) {
-      tipos.push("historico")
-    } else {
-      faltamNoVinculo = pendenciasDoVinculo({
-        ...v,
-        temFicha: ehArquivo(v.ficha_filiacao),
-        fundoPensao: v.fonte_pagadora_id
-          ? fundosPensao.has(v.fonte_pagadora_id)
-          : false,
-      })
-      if (faltamNoVinculo.length > 0) tipos.push("vinculo")
+    // Sem vínculo em aberto ou sem fonte vale a categoria padrão (empregador).
+    const categoria = categoriaDaFonte(
+      v?.fonte_pagadora_id ? fundosPensao.has(v.fonte_pagadora_id) : false
+    )
+    const niveis = config[categoria]
+
+    // Faltas apuradas; o nível configurado decide o que cada uma vira.
+    const faltas: ChaveCampoSaude[] = []
+    const cpf = (c.cpf ?? "").replace(/\D/g, "")
+    if (!cpf || !validarCpf(cpf)) faltas.push("cpf")
+    else if ((usosDoCpf.get(cpf) ?? 0) > 1) faltas.push("cpf_duplicado")
+    const matricula = normalizarMatricula(c.matricula_sindical)
+    if (!matricula || (usosDaMatricula.get(matricula) ?? 0) > 1) faltas.push("matricula")
+    const nome = (c.nome_completo ?? "").trim()
+    if (!nome || !nome.includes(" ")) faltas.push("nome")
+    if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) faltas.push("lgpd")
+    if (termos.desconto && c.tl_desconto_id !== termos.desconto) faltas.push("desconto")
+    if (!v) faltas.push("historico")
+    else faltas.push(...camposFaltandoNoVinculo({ ...v, temFicha: ehArquivo(v.ficha_filiacao) }))
+
+    const tipos: TipoPendencia[] = []
+    const faltamNoVinculo: string[] = []
+    const apontamentos: string[] = []
+    for (const falta of faltas) {
+      const nivel = niveis[falta]
+      if (nivel === "normal") continue
+      const doVinculo = falta.startsWith("v_")
+      if (nivel === "apontamento") {
+        apontamentos.push(
+          doVinculo
+            ? `vínculo: ${ROTULO_FALTA_VINCULO[falta as keyof typeof ROTULO_FALTA_VINCULO]}`
+            : ROTULO_CAMPO_SAUDE[falta]
+        )
+      } else if (doVinculo) {
+        faltamNoVinculo.push(ROTULO_FALTA_VINCULO[falta as keyof typeof ROTULO_FALTA_VINCULO])
+      } else {
+        tipos.push(falta as TipoPendencia)
+      }
     }
-    if (tipos.length === 0) continue
+    if (faltamNoVinculo.length > 0) tipos.push("vinculo")
+
+    if (tipos.length === 0 && apontamentos.length === 0) continue
     for (const t of tipos) totais[t]++
+    if (tipos.length > 0) pendentes++
+    if (apontamentos.length > 0) comApontamento++
     linhas.push({
       filiadoId: c.id,
       nome: c.nome_completo,
       cpf: c.cpf,
       matricula: c.matricula_sindical,
       vinculoId: v?.id ?? null,
+      categoria,
       tipos,
       faltamNoVinculo,
+      apontamentos,
     })
   }
   linhas.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
@@ -273,9 +320,11 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
   const dados: CadastrosPendentes = {
     ativos: cadastros.length,
     linhas,
+    pendentes,
+    comApontamento,
     totais,
     geradoEm: new Date().toISOString(),
   }
-  cache = { dados, expira: Date.now() + VALIDADE_CACHE_MS }
+  cache.set(emp, { dados, expira: Date.now() + VALIDADE_CACHE_MS })
   return dados
 }

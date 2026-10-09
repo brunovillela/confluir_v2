@@ -1,6 +1,11 @@
 import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { SUPABASE_URL } from "@/lib/env"
+import {
+  type ConfigSaude,
+  configSaudePadrao,
+  normalizarConfigSaude,
+} from "@/lib/saude-cadastros"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -186,6 +191,41 @@ export async function salvarRegrasFiliacao(regras: {
       return { erro: "Rode supabase/empresa-filiacao-exige-fonte.sql para habilitar esta regra." }
     }
     return { erro: `Falha ao salvar a regra: ${error.message}` }
+  }
+  return {}
+}
+
+// ── Saúde dos cadastros (configuração do tenant) ────────────────────────────
+
+/** Configuração da saúde dos cadastros; o padrão vale enquanto a coluna não existe. */
+export async function configSaudeCadastros(): Promise<{
+  config: ConfigSaude
+  /** false enquanto supabase/empresa-filiacao-saude-config.sql não rodou. */
+  disponivel: boolean
+}> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa")
+    .select("filiacao_saude_config")
+    .eq("id", await tenantAtual())
+    .maybeSingle()
+  if (error) return { config: configSaudePadrao(), disponivel: false }
+  return { config: normalizarConfigSaude(data?.filiacao_saude_config), disponivel: true }
+}
+
+export async function salvarConfigSaudeCadastros(
+  config: ConfigSaude
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("empresa")
+    .update({ filiacao_saude_config: config, updated_at: new Date().toISOString() })
+    .eq("id", await tenantAtual())
+  if (error) {
+    if (esquemaAusente(error)) {
+      return { erro: "Rode supabase/empresa-filiacao-saude-config.sql para habilitar a configuração." }
+    }
+    return { erro: `Falha ao salvar a configuração: ${error.message}` }
   }
   return {}
 }

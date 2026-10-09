@@ -1,3 +1,5 @@
+import type { ChaveCampoVinculo } from "@/lib/saude-cadastros"
+
 /**
  * Valores reais de `filiacoes.filiacao_condicao` — campo central de status
  * do filiado (equivalente ao option set "Filiação Condição" do Bubble).
@@ -95,7 +97,16 @@ export function condicaoNaFontePadrao(fundoPensao: boolean): CondicaoNaFonte {
  * aposentado ou pensionista e não tem posto na empresa. Devolve os rótulos
  * do que falta.
  */
-export function pendenciasDoVinculo(v: {
+export function pendenciasDoVinculo(v: VinculoParaPendencias & {
+  /** A fonte pagadora é fundo de pensão: cargo e lotação não se aplicam. */
+  fundoPensao?: boolean
+}): string[] {
+  return camposFaltandoNoVinculo(v)
+    .filter((c) => !(v.fundoPensao && (c === "v_cargo" || c === "v_lotacao")))
+    .map((c) => ROTULO_FALTA_VINCULO[c])
+}
+
+type VinculoParaPendencias = {
   fonte_pagadora_id: string | null
   matricula: string | null
   cargo: string | null
@@ -105,23 +116,39 @@ export function pendenciasDoVinculo(v: {
   condicao_na_fonte: string | null
   regime_trabalho: string | null
   temFicha: boolean
-  /** A fonte pagadora é fundo de pensão: cargo e lotação não se aplicam. */
-  fundoPensao?: boolean
-}): string[] {
-  const faltam: string[] = []
-  if (!v.fonte_pagadora_id) faltam.push("fonte pagadora")
-  if (!v.matricula) faltam.push("matrícula na fonte")
-  if (!v.fundoPensao) {
-    if (!v.cargo) faltam.push("cargo")
-    if (!v.lotacao) faltam.push("lotação")
-  }
-  if (!v.data_entrada_admissao) faltam.push("admissão na fonte")
-  if (!v.data_filiacao) faltam.push("data de filiação")
-  if (!v.condicao_na_fonte) faltam.push("condição na fonte pagadora")
+}
+
+/** Rótulo curto (minúsculo) de cada campo do vínculo, como aparece nas listas. */
+export const ROTULO_FALTA_VINCULO: Record<ChaveCampoVinculo, string> = {
+  v_fonte: "fonte pagadora",
+  v_matricula: "matrícula na fonte",
+  v_cargo: "cargo",
+  v_lotacao: "lotação",
+  v_admissao: "admissão na fonte",
+  v_data_filiacao: "data de filiação",
+  v_condicao: "condição na fonte pagadora",
+  v_regime: "regime de trabalho",
+  v_ficha: "ficha de filiação",
+}
+
+/**
+ * Tudo o que falta no vínculo, SEM isenção por categoria de fonte — quem
+ * decide o peso de cada falta é a configuração da saúde dos cadastros
+ * (lib/saude-cadastros.ts). O regime só é exigido de trabalhador da ativa.
+ */
+export function camposFaltandoNoVinculo(v: VinculoParaPendencias): ChaveCampoVinculo[] {
+  const faltam: ChaveCampoVinculo[] = []
+  if (!v.fonte_pagadora_id) faltam.push("v_fonte")
+  if (!v.matricula) faltam.push("v_matricula")
+  if (!v.cargo) faltam.push("v_cargo")
+  if (!v.lotacao) faltam.push("v_lotacao")
+  if (!v.data_entrada_admissao) faltam.push("v_admissao")
+  if (!v.data_filiacao) faltam.push("v_data_filiacao")
+  if (!v.condicao_na_fonte) faltam.push("v_condicao")
   if (v.condicao_na_fonte === "Trabalhador(a) da ativa" && !v.regime_trabalho) {
-    faltam.push("regime de trabalho")
+    faltam.push("v_regime")
   }
-  if (!v.temFicha) faltam.push("ficha de filiação")
+  if (!v.temFicha) faltam.push("v_ficha")
   return faltam
 }
 
