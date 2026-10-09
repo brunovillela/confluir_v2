@@ -35,7 +35,12 @@ const CUPOM = process.env.CUPOM_TESTE ?? ""
 const FATURA = process.env.FATURA_TESTE ?? ""
 
 const SHOTS = [
-  // Rodada de 09/10 (17): saúde dos cadastros configurável + categorias de
+  // Rodada de 09/10 (18): agenda do portal, que desde 10/09 é a seção "Agenda
+  // de atividades" da página Eventos e agenda. As 3 atividades da demo
+  // (40210000-…-0001..0003) foram levadas para out/nov de 2026.
+  ["/portal/eventos", "portal/agenda.png", { esperar: "Assembleia geral extraordinária", fullPage: true }],
+
+  /* Rodada de 09/10 (17): saúde dos cadastros configurável + categorias de
   // fonte. Na bancada demo a Refinaria Modelo (0 filiados) fica na categoria
   // "Órgão público"; durante o print o regime de trabalho do Empregador vira
   // apontamento (config restaurada depois, fora do script).
@@ -44,6 +49,7 @@ const SHOTS = [
   ["/painel/filiados/saude-cadastros/configuracao", "filiados/saude-config.png", { esperar: "Vínculo em aberto", fullPage: true }],
   ["/painel/representacao/empregadores/categorias", "representacao/categorias.png", { esperar: "Nova categoria", altura: 820 }],
   ["/painel/representacao/empregadores/f0f0f0f0-0000-4000-8000-000000000003/editar", "representacao/fonte-categoria.png", { esperar: "Gerenciar categorias", altura: 620 }],
+  */
 
   /* Rodada de 08/10 (16): avaliação das diárias pela REMESSA. Remessa aberta
   // do diretor José (2 diárias + jantar, e7b3bacc…) — os prints de devolução

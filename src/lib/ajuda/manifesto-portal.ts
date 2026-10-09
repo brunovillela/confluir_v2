@@ -136,7 +136,7 @@ export const AREAS_AJUDA_PORTAL: AreaAjuda[] = [
   {
     slug: "agenda",
     titulo: "Agenda",
-    descricao: "Eventos e compromissos da entidade",
+    descricao: "As atividades da entidade, na página Eventos e agenda",
     icone: "CalendarDays",
     ...sem,
     disponivel: true,
