@@ -3,13 +3,15 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { opcoesFontes } from "@/lib/db/acordos"
 
-import { AcordoForm } from "../acordos-forms"
+import { NovoAcordo } from "./novo-acordo"
 
 export const metadata: Metadata = { title: "Novo acordo — Confluir" }
+
+/** Criar pelo PDF separa as cláusulas na mesma ação (IA em lotes). */
+export const maxDuration = 300
 
 export default async function NovoAcordoPage() {
   await requirePermissao("acordos_coletivos")
@@ -29,18 +31,7 @@ export default async function NovoAcordoPage() {
         </h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados do acordo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AcordoForm
-            fontes={fontes}
-            fonteIds={[]}
-            aoCancelarHref="/painel/representacao/acordos"
-          />
-        </CardContent>
-      </Card>
+      <NovoAcordo fontes={fontes} />
     </>
   )
 }

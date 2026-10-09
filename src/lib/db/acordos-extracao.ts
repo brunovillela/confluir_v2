@@ -69,7 +69,7 @@ export async function confirmarDocumento(acordoId: string, caminho: string): Pro
 
 // ── Extração ─────────────────────────────────────────────────────────────────
 
-async function textoPorPagina(pdf: Uint8Array): Promise<string[]> {
+export async function textoPorPagina(pdf: Uint8Array): Promise<string[]> {
   const doc = await getDocumentProxy(pdf)
   const { text } = await extractText(doc, { mergePages: false })
   return Array.isArray(text) ? text : [text]

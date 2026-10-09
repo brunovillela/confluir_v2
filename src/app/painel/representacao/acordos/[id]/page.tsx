@@ -54,11 +54,17 @@ export default async function AcordoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ editar?: string; salvo?: string; tema?: string }>
+  searchParams: Promise<{
+    editar?: string
+    salvo?: string
+    tema?: string
+    clausulas?: string
+    extracao?: string
+  }>
 }) {
   const sessao = await requirePermissao("acordos_coletivos", ["negociacoes"])
   const { id } = await params
-  const { editar, salvo, tema: temaBruto } = await searchParams
+  const { editar, salvo, tema: temaBruto, clausulas: separadas, extracao } = await searchParams
   const a = await obterAcordo(id)
   if (!a) notFound()
   // Pauta e propostas de negociação: só quem negocia. Acordo comum: só quem
@@ -131,7 +137,26 @@ export default async function AcordoPage({
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Acordo salvo.</AlertDescription>
+          <AlertDescription>
+            Acordo salvo.
+            {separadas !== undefined &&
+              ` ${separadas} cláusula(s) separada(s) do PDF — revise os temas e o texto abaixo.`}
+          </AlertDescription>
+        </Alert>
+      )}
+      {extracao === "falhou" && (
+        <Alert variant="warning">
+          <AlertDescription>
+            O acordo foi criado com o PDF, mas as cláusulas não foram separadas. Use a extração
+            abaixo para tentar de novo.
+          </AlertDescription>
+        </Alert>
+      )}
+      {extracao === "sem-pdf" && (
+        <Alert variant="warning">
+          <AlertDescription>
+            O acordo foi criado, mas o PDF não pôde ser guardado. Envie o documento de novo abaixo.
+          </AlertDescription>
         </Alert>
       )}
 

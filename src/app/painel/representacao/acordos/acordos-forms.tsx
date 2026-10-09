@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { FileText, Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { AcordoDetalhe, OpcaoFonte } from "@/lib/db/acordos"
+import type { DadosLidos } from "@/lib/db/acordos-leitura"
 import {
   CATEGORIAS_CLAUSULA,
   SITUACOES_ACORDO,
@@ -32,12 +33,17 @@ export function AcordoForm({
   fontes,
   fonteIds,
   aoCancelarHref,
+  sugestao,
 }: {
   acordo?: AcordoDetalhe
   fontes: OpcaoFonte[]
   fonteIds: string[]
   aoCancelarHref: string
+  /** Novo acordo pelo PDF: valores lidos pela IA e o PDF já enviado. */
+  sugestao?: { caminho: string; nomeArquivo: string; dados: DadosLidos }
 }) {
+  const ia = sugestao?.dados
+  const podeSeparar = Boolean(ia && !ia.escaneado && ia.clausulas > 0)
   const [estado, formAction, pendente] = useActionState(
     acordo ? atualizarAcordoAction : criarAcordoAction,
     {}
@@ -60,7 +66,7 @@ export function AcordoForm({
             id="tipo"
             name="tipo"
             className={SELECT}
-            defaultValue={acordo?.tipo ?? "act"}
+            defaultValue={acordo?.tipo ?? ia?.tipo ?? "act"}
           >
             {TIPOS_ACORDO.map((t) => (
               <option key={t.chave} value={t.chave}>
@@ -89,7 +95,7 @@ export function AcordoForm({
           <Input
             id="numero_registro"
             name="numero_registro"
-            defaultValue={acordo?.numero_registro ?? ""}
+            defaultValue={acordo?.numero_registro ?? ia?.numero_registro ?? ""}
           />
         </div>
         <div className="grid gap-1.5">
@@ -98,7 +104,7 @@ export function AcordoForm({
             id="data_base"
             name="data_base"
             placeholder="Ex.: Setembro"
-            defaultValue={acordo?.data_base ?? ""}
+            defaultValue={acordo?.data_base ?? ia?.data_base ?? ""}
           />
         </div>
       </div>
@@ -109,7 +115,7 @@ export function AcordoForm({
           id="titulo"
           name="titulo"
           required
-          defaultValue={acordo?.titulo ?? ""}
+          defaultValue={acordo?.titulo ?? ia?.titulo ?? ""}
           placeholder="Ex.: ACT 2024/2025 — Petrobras"
         />
       </div>
@@ -122,7 +128,7 @@ export function AcordoForm({
             name="vigencia_inicio"
             type="date"
             className={DATA}
-            defaultValue={acordo?.vigencia_inicio?.slice(0, 10) ?? ""}
+            defaultValue={acordo?.vigencia_inicio?.slice(0, 10) ?? ia?.vigencia_inicio ?? ""}
           />
         </div>
         <div className="grid gap-1.5">
@@ -132,7 +138,7 @@ export function AcordoForm({
             name="vigencia_fim"
             type="date"
             className={DATA}
-            defaultValue={acordo?.vigencia_fim?.slice(0, 10) ?? ""}
+            defaultValue={acordo?.vigencia_fim?.slice(0, 10) ?? ia?.vigencia_fim ?? ""}
           />
         </div>
       </div>
@@ -144,7 +150,7 @@ export function AcordoForm({
           name="abrangencia"
           rows={2}
           placeholder="Base territorial e categorias cobertas."
-          defaultValue={acordo?.abrangencia ?? ""}
+          defaultValue={acordo?.abrangencia ?? ia?.abrangencia ?? ""}
         />
       </div>
 
@@ -199,19 +205,46 @@ export function AcordoForm({
         />
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="documento">
-          Documento do acordo (PDF{acordo ? ", vazio mantém o atual" : ""})
-        </Label>
-        <Input
-          id="documento"
-          name="documento"
-          type="file"
-          accept="application/pdf"
-        />
-      </div>
+      {sugestao ? (
+        <div className="grid gap-2 rounded-md border p-3">
+          <input type="hidden" name="rascunho" value={sugestao.caminho} />
+          <p className="flex items-center gap-2 text-sm">
+            <FileText className="size-4" />
+            Documento: <strong>{sugestao.nomeArquivo}</strong>
+          </p>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="separar_clausulas"
+              defaultChecked={podeSeparar}
+              disabled={!podeSeparar}
+              className="mt-0.5 size-4"
+            />
+            <span>
+              Separar as cláusulas ao criar
+              <span className="text-muted-foreground block text-xs">
+                {podeSeparar
+                  ? `${ia?.clausulas} cláusula(s) encontradas, com tema e resumo sugeridos pela IA — revise na página do acordo.`
+                  : "Não há cláusulas para separar neste PDF (escaneado ou sem numeração)."}
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : (
+        <div className="grid gap-1.5">
+          <Label htmlFor="documento">
+            Documento do acordo (PDF{acordo ? ", vazio mantém o atual" : ""})
+          </Label>
+          <Input
+            id="documento"
+            name="documento"
+            type="file"
+            accept="application/pdf"
+          />
+        </div>
+      )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
           {acordo ? "Salvar acordo" : "Criar acordo"}
@@ -219,6 +252,11 @@ export function AcordoForm({
         <Button type="button" variant="ghost" asChild>
           <a href={aoCancelarHref}>Cancelar</a>
         </Button>
+        {pendente && sugestao && (
+          <span className="text-muted-foreground text-xs" aria-live="polite">
+            Criando o acordo e separando as cláusulas — pode levar um minuto.
+          </span>
+        )}
       </div>
     </form>
   )

@@ -32,6 +32,12 @@ import {
   marcarClausulasRevisadas,
   salvarClausula,
 } from "@/lib/db/acordos-extracao"
+import {
+  adotarRascunho,
+  criarEnvioRascunho,
+  lerDadosDoRascunho,
+  type DadosLidos,
+} from "@/lib/db/acordos-leitura"
 
 function texto(fd: FormData, campo: string): string {
   return String(fd.get(campo) ?? "").trim()
@@ -97,15 +103,49 @@ export async function criarAcordoAction(
   fd: FormData
 ): Promise<EstadoForm> {
   await requireAcordos()
-  const { caminho, erro: erroArq } = await lerDocumento(fd)
+  // PDF lido pela IA: já está no armazenamento como rascunho.
+  const rascunho = texto(fd, "rascunho")
+  const { caminho, erro: erroArq } = rascunho ? { caminho: null, erro: undefined } : await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const { id, erro } = await criarAcordo({
     ...lerDados(fd),
     documento_url: caminho ?? null,
   })
   if (erro || !id) return { erro: erro ?? "Falha ao criar." }
+
+  let extracao = ""
+  if (rascunho) {
+    const adotado = await adotarRascunho(id, rascunho)
+    if (adotado.erro) {
+      extracao = "&extracao=sem-pdf"
+    } else if (fd.get("separar_clausulas") === "on") {
+      // Falha na separação não desfaz o acordo: a página oferece tentar de novo.
+      const r = await extrairClausulasDoAcordo(id)
+      extracao = r.erro ? "&extracao=falhou" : `&clausulas=${r.clausulas ?? 0}`
+    }
+  }
   revalidar(id)
-  redirect(`/painel/representacao/acordos/${id}?salvo=1`)
+  redirect(`/painel/representacao/acordos/${id}?salvo=1${extracao}`)
+}
+
+// ── Novo acordo pelo PDF (09/10/2026) ───────────────────────────────────────
+
+/** Link de envio direto do PDF (rascunho), antes de o acordo existir. */
+export async function prepararRascunhoAction(): Promise<{
+  caminho?: string
+  token?: string
+  erro?: string
+}> {
+  await requireAcordos()
+  return criarEnvioRascunho()
+}
+
+/** A IA lê o PDF enviado e sugere os dados do acordo. */
+export async function lerPdfDoAcordoAction(
+  caminho: string
+): Promise<{ dados?: DadosLidos; erro?: string }> {
+  await requireAcordos()
+  return lerDadosDoRascunho(caminho)
 }
 
 export async function atualizarAcordoAction(
