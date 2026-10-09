@@ -34,7 +34,28 @@ const CUPOM = process.env.CUPOM_TESTE ?? ""
 // Fatura de cartão-combustível de exemplo (PDF) para a leitura com IA.
 const FATURA = process.env.FATURA_TESTE ?? ""
 
-const SHOTS = [
+// Token do link de assinatura do RPA nº 1 montado para os prints (rodada 19).
+const TOKEN_RPA = process.env.TOKEN_RPA ?? ""
+
+const SHOTS = process.env.RPA_FASE === "2"
+  ? [
+      // Rodada 19, fase 2: o link depois que o recibo assinado foi anexado.
+      [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
+    ]
+  : [
+  // Rodada de 09/10 (19): RPA — entrada no contrato e na compra, gestão na
+  // área própria, assinatura pelo link (estado montado por script: link
+  // pendente no RPA nº 1 da demo, sem e-mail; desfeito depois).
+  ["/painel/compras/rpa", "compras/rpa-lista.png", { esperar: "Prestador e contrato", altura: 760 }],
+  ["/painel/compras/rpa/d6b033ca-666e-4ac8-9907-61b142f54251", "compras/rpa.png", { esperar: "Pelo link no e-mail", scrollTo: "Recibo assinado", altura: 860 }],
+  ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/rpa-anexar.png", { esperar: "Anexar RPA assinado", scrollTo: "RPA — pagamento a autônomo", altura: 760, passos: [{ clicar: "css=button:has-text(\"Anexar RPA assinado\")" }, { aguardar: "RPA nº 1 assinado" }] }],
+  ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/contrato-hierarquia.png", { esperar: "RPA — pagamento a autônomo", scrollTo: "Dados do contrato", altura: 1100 }],
+  // O Chromium headless não exibe PDF embutido: o print foca o passo a passo.
+  [`/assinar/${TOKEN_RPA}`, "compras/rpa-assinar.png", { anon: true, esperar: "Receba o código", ocultarCartao: "Confira o serviço", altura: 920 }],
+  ]
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodadas anteriores, guardadas para refazer
+const SHOTS_ANTIGOS = [
   // Rodada de 09/10 (18): agenda do portal, que desde 10/09 é a seção "Agenda
   // de atividades" da página Eventos e agenda. As 3 atividades da demo
   // (40210000-…-0001..0003) foram levadas para out/nov de 2026.
@@ -372,7 +393,7 @@ const SHOTS = [
   */
 
   // Já capturados nas rodadas anteriores.
-  // ["/painel/compras/comprador", "compras/comprador.png"],
+  ["/painel/compras/comprador", "compras/comprador.png"],
   // ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png", { fullPage: true }],
   // ["/painel/filiados/77777777-7777-4777-8777-000000000003", "filiados/acompanhamento-cadastro.png"],
 
@@ -474,9 +495,9 @@ const SHOTS = [
 
   // Compras (já capturado — seed: demo-seed-compras.sql)
   // ["/painel/compras", "compras/painel.png"],
-  // ["/painel/compras/nova", "compras/nova.png"],
-  // ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000001", "compras/contrato.png"],
-  // ["/painel/compras/fornecedores/f0f0f0f0-0000-4000-8000-000000000004", "compras/fornecedor.png"],
+  ["/painel/compras/nova", "compras/nova.png"],
+  ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000001", "compras/contrato.png"],
+  ["/painel/compras/fornecedores/f0f0f0f0-0000-4000-8000-000000000004", "compras/fornecedor.png"],
 
   // Representação (já capturado — seed: demo-seed-representacao.sql)
   // ["/painel/representacao", "representacao/painel.png"],
@@ -601,6 +622,8 @@ for (const [route, file, opts] of SHOTS) {
     document.querySelectorAll('[role="status"]').forEach((el) => {
       if (el.textContent?.includes("fora do seu hor")) el.remove()
     })
+    // Indicador do Next em desenvolvimento (o "N" no canto): não existe em produção.
+    document.querySelectorAll("nextjs-portal").forEach((el) => el.remove())
   })
   // opts.openMenu: abre o dropdown do rodapé (nome do usuário) para o print
   // do alternador de interfaces.
@@ -667,6 +690,15 @@ for (const [route, file, opts] of SHOTS) {
       await p.getByText(passo.aguardar, { exact: false }).first().waitFor({ timeout: 120000 })
     }
     await p.waitForTimeout(700)
+  }
+  // opts.ocultarCartao: esconde o cartão que contém o texto (ex.: o visor de
+  // PDF, que o Chromium headless não exibe e sai como um bloco cinza vazio).
+  for (const texto of opts?.ocultarCartao ? [].concat(opts.ocultarCartao) : []) {
+    await p.evaluate((t) => {
+      const el = [...document.querySelectorAll("[data-slot=card]")].find((c) => c.textContent?.includes(t))
+      if (el) el.style.display = "none"
+    }, texto)
+    await p.waitForTimeout(300)
   }
   // opts.scrollTo: rola até o texto (foca uma seção abaixo da dobra).
   if (opts?.scrollTo) {
