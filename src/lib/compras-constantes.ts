@@ -46,6 +46,13 @@ export const FORMAS_PAGAMENTO_COMPRAS = [
 export type FormaPagamentoCompras = (typeof FORMAS_PAGAMENTO_COMPRAS)[number]
 
 /**
+ * Pagamento em dinheiro é feito no ato da compra: o vencimento é a data da
+ * compra e a ordem nunca conta como vencida, mesmo lançada dias depois
+ * (09/10 — as raras exceções são desconsideradas).
+ */
+export const FORMA_PAGA_NO_ATO = "Dinheiro" satisfies FormaPagamentoCompras
+
+/**
  * Formas das ordens geradas por CONTRATO (e ajuda institucional): pagamento
  * futuro, sem cartão. Cada uma exige o "para onde" — boleto, chave/conta do
  * fornecedor, código Pix ou o caixa de onde sairá o dinheiro.

@@ -7,7 +7,7 @@ import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { somarDias } from "@/lib/db/ferias"
 import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { relatorioInadimplencia } from "@/lib/db/filiacao-inadimplencia"
-import { SITUACOES_ABERTAS } from "@/lib/db/financeiro"
+import { FORMA_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { pendenciasDoUsuario, totalPendencias } from "@/lib/db/pendencias"
 import { gruposDaPessoa, vencimentosDoTenant } from "@/lib/db/vencimentos"
 import { podeAcessar } from "@/lib/permissoes"
@@ -158,10 +158,10 @@ export async function painelExecutivo(sessao: SessaoPainel): Promise<PainelExecu
   if (veFinanceiro) {
     const admin = await createAdminClient()
     const hoje = hojeSP()
-    const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null }>((de, ate) =>
+    const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null; forma_pagamento: string | null }>((de, ate) =>
       admin
         .from("ordens_pagamento")
-        .select("vencimento, valor_inicial_cobranca, valor_pago")
+        .select("vencimento, valor_inicial_cobranca, valor_pago, forma_pagamento")
         .eq("emp_proprietaria_id", emp)
         .not("excluido", "is", true)
         .in("situacao", [...SITUACOES_ABERTAS])
@@ -176,6 +176,8 @@ export async function painelExecutivo(sessao: SessaoPainel): Promise<PainelExecu
       const v = Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0)
       const venc = String(o.vencimento).slice(0, 10)
       if (venc < hoje) {
+        // Dinheiro foi pago no ato da compra: não é vencida.
+        if (o.forma_pagamento === FORMA_PAGA_NO_ATO) continue
         vencidas.quantidade++
         vencidas.valor += v
       } else if (venc <= limite30) {

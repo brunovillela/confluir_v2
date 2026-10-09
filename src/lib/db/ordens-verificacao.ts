@@ -11,6 +11,7 @@ import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
+import { FORMA_PAGA_NO_ATO } from "@/lib/db/financeiro"
 import {
   registrarEvento,
   SITUACAO_AGUARDANDO_DOCUMENTO,
@@ -304,6 +305,8 @@ async function verificarLinha(
       case "vencimento_passado": {
         const tol = n(p.tolerancia) ?? 0
         if (!venc) r("na", "A ordem não tem vencimento.")
+        // Dinheiro é pago no ato da compra: a data é a da compra, não atraso.
+        else if (t(linha.forma_pagamento) === FORMA_PAGA_NO_ATO) r("na", "Dinheiro — pago no ato da compra.")
         else if (venc < somarDias(hoje, -tol)) r("falha", `Vencimento ${formatarData(venc)} já passou.`)
         else r("ok", `Vence em ${formatarData(venc)}.`)
         break

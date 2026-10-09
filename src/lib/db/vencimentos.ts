@@ -6,7 +6,7 @@ import { avisar, type Destinatario } from "@/lib/db/avisos"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { somarDias } from "@/lib/db/ferias"
-import { SITUACOES_ABERTAS } from "@/lib/db/financeiro"
+import { FILTRO_NAO_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permissoes"
@@ -253,6 +253,7 @@ async function ordensVencidas(f: Fonte): Promise<ItemVencimento[]> {
     .eq("emp_proprietaria_id", f.tenantId)
     .not("excluido", "is", true)
     .in("situacao", [...SITUACOES_ABERTAS])
+    .or(FILTRO_NAO_PAGA_NO_ATO)
     .not("vencimento", "is", null)
     .lte("vencimento", somarDias(f.hoje, 3))
     .order("vencimento")

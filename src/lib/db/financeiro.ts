@@ -1,5 +1,6 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
+import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 
 import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -27,6 +28,11 @@ export const SITUACOES_ABERTAS = [
   "Em autorização",
   "Aguardando informações",
 ]
+
+export { FORMA_PAGA_NO_ATO }
+
+/** Filtro PostgREST `or`: ordens que NÃO são pagas no ato (forma nula conta). */
+export const FILTRO_NAO_PAGA_NO_ATO = `forma_pagamento.is.null,forma_pagamento.neq.${FORMA_PAGA_NO_ATO}`
 
 /**
  * Todas as situações que existem no banco, na ordem do ciclo — opções do

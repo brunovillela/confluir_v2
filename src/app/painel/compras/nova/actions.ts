@@ -20,6 +20,7 @@ import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
 import { impedimentoDoPrestador } from "@/lib/db/compras-rpa"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
+import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { podeAcessar } from "@/lib/permissoes"
@@ -173,7 +174,9 @@ export async function criarCompra(
     ? (formaBruta as FormaPagamentoCompras)
     : null
   if (!forma) return { erro: "Escolha a forma de pagamento.", campo: "forma_pagamento" }
-  const vencimento = dataISO(texto(formData, "vencimento"))
+  // Dinheiro é pago no ato: o vencimento é a data da compra, mesmo lançando depois.
+  const vencimento =
+    forma === FORMA_PAGA_NO_ATO ? dataCompra : dataISO(texto(formData, "vencimento"))
   if (!vencimento) return { erro: "Informe a data de pagamento (Pagar em).", campo: "vencimento" }
   const arquivo = formData.get("nota_fiscal")
   if (!(arquivo instanceof File) || arquivo.size === 0) {

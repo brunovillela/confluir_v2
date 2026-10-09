@@ -2,7 +2,7 @@ import "server-only"
 
 import { serieArrecadacao, serieDespesa } from "@/lib/db/analitica"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
-import { opcoesFiltrosOrdens, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
+import { FILTRO_NAO_PAGA_NO_ATO, FORMA_PAGA_NO_ATO, opcoesFiltrosOrdens, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -45,10 +45,10 @@ export async function fluxoProjetado(mesesAFrente = 4): Promise<FluxoProjetado> 
   const porMes = new Map(meses.map((m) => [m, { mes: m, aPagar: 0, ordens: 0, receitaPrevista: 0 }]))
   const vencidas = { quantidade: 0, valor: 0 }
 
-  const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null }>((de, ate) =>
+  const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null; forma_pagamento: string | null }>((de, ate) =>
     admin
       .from("ordens_pagamento")
-      .select("vencimento, valor_inicial_cobranca, valor_pago")
+      .select("vencimento, valor_inicial_cobranca, valor_pago, forma_pagamento")
       .eq("emp_proprietaria_id", emp)
       .not("excluido", "is", true)
       .in("situacao", [...SITUACOES_ABERTAS])
@@ -60,6 +60,8 @@ export async function fluxoProjetado(mesesAFrente = 4): Promise<FluxoProjetado> 
     const v = Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0)
     const venc = String(o.vencimento).slice(0, 10)
     if (venc < hoje) {
+      // Dinheiro foi pago no ato da compra: não é vencida (nem a pagar).
+      if (o.forma_pagamento === FORMA_PAGA_NO_ATO) continue
       vencidas.quantidade++
       vencidas.valor += v
       continue
@@ -239,6 +241,7 @@ export async function ordensVencidas(limite = 60): Promise<{ linhas: OrdemVencid
       .not("excluido", "is", true)
       .in("situacao", [...SITUACOES_ABERTAS])
       .lt("vencimento", hoje)
+      .or(FILTRO_NAO_PAGA_NO_ATO)
       .order("vencimento", { ascending: true })
       .order("id")
       .range(de, ate)

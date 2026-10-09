@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
+  FORMA_PAGA_NO_ATO,
   FORMAS_PAGAMENTO_COMPRAS,
   hojeLocalISO,
 } from "@/lib/compras-constantes"
@@ -909,16 +910,27 @@ export function NovaCompraForm({
                   ))}
                 </select>
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="vencimento">Pagar em *</Label>
-                <Input
-                  id="vencimento"
-                  name="vencimento"
-                  type="date"
-                  required
-                  defaultValue={semi ? leitura?.vencimento : undefined}
-                />
-              </div>
+              {forma === FORMA_PAGA_NO_ATO && !porRpa ? (
+                // Dinheiro é pago no ato: o vencimento é a data da compra
+                // (o servidor grava assim), mesmo lançando depois.
+                <div className="grid gap-1.5">
+                  <Label>Pagar em</Label>
+                  <p className="text-muted-foreground pt-2 text-sm">
+                    No ato da compra — vale a data da compra.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-1.5">
+                  <Label htmlFor="vencimento">Pagar em *</Label>
+                  <Input
+                    id="vencimento"
+                    name="vencimento"
+                    type="date"
+                    required
+                    defaultValue={semi ? leitura?.vencimento : undefined}
+                  />
+                </div>
+              )}
               {porRpa ? (
                 <div className="grid gap-1.5">
                   <Label>Documento fiscal</Label>
