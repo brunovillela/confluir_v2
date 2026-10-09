@@ -595,7 +595,28 @@ export async function atualizarCampanha(
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao salvar a campanha: ${error.message}` }
   const erroFontes = await sincronizarFontes(id, dados.fonteIds)
-  return erroFontes ? { erro: erroFontes } : {}
+  if (erroFontes) return { erro: erroFontes }
+  // O título na agenda leva o empregador (as fontes): refaz as assembleias.
+  await ressincronizarAgendaDaCampanha(id)
+  return {}
+}
+
+/** Refaz o compromisso na agenda de todas as assembleias da campanha. */
+async function ressincronizarAgendaDaCampanha(campanhaId: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { data: rodadas } = await admin
+    .from("voto_rod_assembleias")
+    .select("id")
+    .eq("campanha_id", campanhaId)
+  const rodadaIds = (rodadas ?? []).map((r) => r.id as string)
+  if (rodadaIds.length === 0) return
+  const { data: assembleias } = await admin
+    .from("voto_assembleias")
+    .select("id")
+    .in("rod_assembleia_id", rodadaIds)
+  for (const a of assembleias ?? []) {
+    await sincronizarAgendaDaAssembleia(a.id as string)
+  }
 }
 
 /** Deixa a junção campanha↔fontes igual à seleção do formulário. */
@@ -1365,14 +1386,28 @@ export async function sincronizarAgendaDaAssembleia(
 ): Promise<void> {
   const admin = await createAdminClient()
 
-  const { data: a, error: erroA } = await admin
+  const { data: bruta, error: erroA } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, descricao, data_inicio, data_termino, online, urnas_de_votacao, rod_assembleia_id"
+      "id, nome_assembleia, descricao, data_inicio, data_termino, online, urnas_de_votacao, rod_assembleia_id, empresa_id" +
+        (await colunasHorario())
     )
     .eq("id", assembleiaId)
     .maybeSingle()
-  if (erroA || !a) return
+  if (erroA || !bruta) return
+  const a = bruta as unknown as {
+    id: string
+    nome_assembleia: string | null
+    descricao: string | null
+    data_inicio: string | null
+    data_termino: string | null
+    online: boolean | null
+    urnas_de_votacao: boolean | null
+    rod_assembleia_id: string | null
+    empresa_id: string | null
+    hora_inicio?: string | null
+    hora_termino?: string | null
+  }
 
   // Localiza um evento já vinculado a esta assembleia.
   const { data: existente, error: erroBusca } = await admin
@@ -1404,13 +1439,24 @@ export async function sincronizarAgendaDaAssembleia(
     .filter(Boolean)
     .join(" ")
 
-  // Datas puras viram meio-dia local para não deslizar de dia por fuso.
+  // Com hora, o compromisso mostra das HH:mm às HH:mm (pedido de 09/10);
+  // sem hora, datas puras viram meio-dia local (dia todo) para não
+  // deslizarem de dia por fuso.
+  const horaIni = a.hora_inicio?.slice(0, 5) || null
+  const horaFim = a.hora_termino?.slice(0, 5) || null
+  const comHora = Boolean(horaIni)
   const linha = {
     atividade: tituloBase,
     informacoes_gerais: detalhes || null,
-    inicio: `${a.data_inicio}T12:00:00-03:00`,
-    termino: a.data_termino ? `${a.data_termino}T12:00:00-03:00` : null,
-    dia_todo: true,
+    inicio: `${a.data_inicio}T${horaIni ?? "12:00"}:00-03:00`,
+    termino: comHora
+      ? horaFim
+        ? `${a.data_termino ?? a.data_inicio}T${horaFim}:00-03:00`
+        : null
+      : a.data_termino
+        ? `${a.data_termino}T12:00:00-03:00`
+        : null,
+    dia_todo: !comHora,
     aplicativo: true,
     tipo: "Atividade sindical",
     assembleia_id: assembleiaId,
@@ -1425,30 +1471,63 @@ export async function sincronizarAgendaDaAssembleia(
   }
 }
 
-/** Título do evento + tema da campanha (para o corpo do evento). */
+/**
+ * Título do evento — "Assembleia da [EMPREGADOR]: [NOME DA ASSEMBLEIA]" — e
+ * o tema da campanha (para o corpo do evento). O empregador é o da própria
+ * assembleia, senão o da rodada, senão as fontes pagadoras da campanha.
+ */
 async function tituloDaAssembleia(a: {
   nome_assembleia: string | null
   rod_assembleia_id: string | null
+  empresa_id: string | null
 }): Promise<[string, string | null]> {
   const admin = await createAdminClient()
   let campanhaTema: string | null = null
+  let campanhaId: string | null = null
   let rodadaNome: string | null = null
+  let rodadaEmpresa: string | null = null
   if (a.rod_assembleia_id) {
     const { data: r } = await admin
       .from("voto_rod_assembleias")
-      .select("nome_assembleia, campanha:campanha_id (tema)")
+      .select("nome_assembleia, empresa_id, campanha_id, campanha:campanha_id (tema)")
       .eq("id", a.rod_assembleia_id)
       .maybeSingle()
     rodadaNome = r?.nome_assembleia ?? null
+    rodadaEmpresa = (r?.empresa_id as string | null) ?? null
+    campanhaId = (r?.campanha_id as string | null) ?? null
     const campanha = r?.campanha as unknown as { tema: string | null } | null
     campanhaTema = campanha?.tema ?? null
   }
+
+  let empresaIds = [a.empresa_id ?? rodadaEmpresa].filter((v): v is string => Boolean(v))
+  if (empresaIds.length === 0 && campanhaId) {
+    const { data: fontes } = await admin
+      .from("voto_campanha_fontes")
+      .select("empresa_id")
+      .eq("campanha_id", campanhaId)
+    empresaIds = (fontes ?? [])
+      .map((f) => f.empresa_id as string | null)
+      .filter((v): v is string => Boolean(v))
+  }
+  let empregador: string | null = null
+  if (empresaIds.length > 0) {
+    const { data: empresas } = await admin
+      .from("empresa")
+      .select("nome_fantasia, nome_razao")
+      .in("id", [...new Set(empresaIds)])
+    const nomes = (empresas ?? [])
+      .map((e) => (e.nome_fantasia as string | null)?.trim() || (e.nome_razao as string | null)?.trim())
+      .filter((n): n is string => Boolean(n))
+      .sort((x, y) => x.localeCompare(y, "pt-BR"))
+    empregador = nomes.length > 0 ? nomes.join(" / ") : null
+  }
+
   const base =
     a.nome_assembleia?.trim() ||
     rodadaNome?.trim() ||
     campanhaTema?.trim() ||
     "Assembleia"
-  return [`Assembleia: ${base}`, campanhaTema]
+  return [empregador ? `Assembleia da ${empregador}: ${base}` : `Assembleia: ${base}`, campanhaTema]
 }
 
 /** Remove o evento da agenda vinculado a uma assembleia (tolerante). */

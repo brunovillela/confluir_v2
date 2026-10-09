@@ -35,8 +35,6 @@ export type EventoDoDia = {
   termino: string | null
   dia_todo: boolean | null
   tipo: string | null
-  /** Assembleia: as empresas cuja base vota (fonte pagadora da campanha). */
-  empresas?: string[]
 }
 
 export type AusenciaDoDia = {
@@ -142,7 +140,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       .not("trabalhador_id", "is", null),
     admin
       .from("agenda")
-      .select("id, atividade, local, inicio, termino, dia_todo, tipo, assembleia_id")
+      .select("id, atividade, local, inicio, termino, dia_todo, tipo")
       .eq("emp_proprietaria_id", await tenantAtual())
       .or(
         `and(inicio.gte.${inicioDia},inicio.lte.${fimDia}),and(inicio.lt.${inicioDia},termino.gte.${inicioDia})`
@@ -233,15 +231,6 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
     }
   }
 
-  // Assembleia na agenda: quais empresas têm base votando (é o que a equipe
-  // pergunta primeiro ao ver "Assembleia" no dia).
-  const empresasPorEvento = await empresasDasAssembleias(
-    (agendaRes.data ?? []).map((e) => ({
-      id: String(e.id),
-      assembleiaId: (e.assembleia_id as string | null) ?? null,
-    }))
-  )
-
   return {
     hoje: hoje.rotulo,
     aniversariantes,
@@ -254,7 +243,6 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       termino: (e.termino as string | null) ?? null,
       dia_todo: (e.dia_todo as boolean | null) ?? null,
       tipo: (e.tipo as string | null) ?? null,
-      empresas: empresasPorEvento.get(String(e.id)) ?? [],
     })),
     ausencias: (ausenciasRes.data ?? []).map((a) => ({
       id: a.id,
@@ -442,103 +430,4 @@ function diaSeguinte(iso: string | null): string | null {
   const d = new Date(`${dia}T12:00:00-03:00`)
   d.setDate(d.getDate() + 1)
   return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
-}
-
-/**
- * Empresas cuja base vota em cada evento de assembleia da agenda: a empresa
- * da própria assembleia, a da rodada e as fontes pagadoras da campanha.
- */
-async function empresasDasAssembleias(
-  eventos: { id: string; assembleiaId: string | null }[]
-): Promise<Map<string, string[]>> {
-  const porEvento = new Map<string, string[]>()
-  const comAssembleia = eventos.filter((e) => e.assembleiaId)
-  if (comAssembleia.length === 0) return porEvento
-
-  const admin = await createAdminClient()
-  const { data: assembleias, error } = await admin
-    .from("voto_assembleias")
-    .select("id, empresa_id, campanha_id, rod_assembleia_id")
-    .in("id", comAssembleia.map((e) => e.assembleiaId as string))
-  if (error) return porEvento
-
-  // Empresa da rodada e campanha da rodada (quando a assembleia não traz).
-  const rodadaIds = [
-    ...new Set(
-      (assembleias ?? [])
-        .map((a) => a.rod_assembleia_id as string | null)
-        .filter((v): v is string => Boolean(v))
-    ),
-  ]
-  const rodadas = new Map<string, { empresa: string | null; campanha: string | null }>()
-  if (rodadaIds.length > 0) {
-    const { data } = await admin
-      .from("voto_rod_assembleias")
-      .select("id, empresa_id, campanha_id")
-      .in("id", rodadaIds)
-    for (const r of data ?? []) {
-      rodadas.set(String(r.id), {
-        empresa: (r.empresa_id as string | null) ?? null,
-        campanha: (r.campanha_id as string | null) ?? null,
-      })
-    }
-  }
-
-  // Fontes pagadoras das campanhas envolvidas.
-  const campanhaIds = [
-    ...new Set(
-      (assembleias ?? []).flatMap((a) => {
-        const daRodada = a.rod_assembleia_id
-          ? rodadas.get(String(a.rod_assembleia_id))?.campanha
-          : null
-        return [(a.campanha_id as string | null) ?? null, daRodada ?? null]
-      }).filter((v): v is string => Boolean(v))
-    ),
-  ]
-  const fontesPorCampanha = new Map<string, string[]>()
-  if (campanhaIds.length > 0) {
-    const { data } = await admin
-      .from("voto_campanha_fontes")
-      .select("campanha_id, empresa_id")
-      .in("campanha_id", campanhaIds)
-    for (const v of data ?? []) {
-      const lista = fontesPorCampanha.get(String(v.campanha_id)) ?? []
-      if (v.empresa_id) lista.push(String(v.empresa_id))
-      fontesPorCampanha.set(String(v.campanha_id), lista)
-    }
-  }
-
-  // Nomes de todas as empresas citadas, num lote só.
-  const idsEmpresa = new Set<string>()
-  const porAssembleia = new Map<string, string[]>()
-  for (const a of assembleias ?? []) {
-    const daRodada = a.rod_assembleia_id ? rodadas.get(String(a.rod_assembleia_id)) : null
-    const campanha = (a.campanha_id as string | null) ?? daRodada?.campanha ?? null
-    const ids = [
-      (a.empresa_id as string | null) ?? null,
-      daRodada?.empresa ?? null,
-      ...(campanha ? (fontesPorCampanha.get(campanha) ?? []) : []),
-    ].filter((v): v is string => Boolean(v))
-    const unicos = [...new Set(ids)]
-    unicos.forEach((id) => idsEmpresa.add(id))
-    porAssembleia.set(String(a.id), unicos)
-  }
-  const nomes = new Map<string, string>()
-  if (idsEmpresa.size > 0) {
-    const { data } = await admin
-      .from("empresa")
-      .select("id, nome_fantasia, nome_razao")
-      .in("id", [...idsEmpresa])
-    for (const e of data ?? []) {
-      const nome = (e.nome_fantasia as string | null)?.trim() || (e.nome_razao as string | null)?.trim()
-      if (nome) nomes.set(String(e.id), nome)
-    }
-  }
-
-  for (const e of comAssembleia) {
-    const ids = porAssembleia.get(String(e.assembleiaId)) ?? []
-    const lista = ids.map((id) => nomes.get(id)).filter((n): n is string => Boolean(n))
-    if (lista.length > 0) porEvento.set(e.id, [...new Set(lista)].sort())
-  }
-  return porEvento
 }

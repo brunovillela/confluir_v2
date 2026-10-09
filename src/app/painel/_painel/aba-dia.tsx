@@ -29,12 +29,27 @@ function HorarioEvento({ evento }: { evento: EventoDoDia }) {
   const inicio = horaSaoPaulo(evento.inicio)
   const termino = horaSaoPaulo(evento.termino)
   if (!inicio) return <>—</>
+  // Termina em outro dia (assembleia de vários dias): mostra a data do fim.
+  const diaFim = diaSaoPaulo(evento.termino)
+  const outroDia = Boolean(diaFim) && diaFim !== diaSaoPaulo(evento.inicio)
+  if (termino && outroDia) {
+    return (
+      <>
+        {inicio} – {diaFim} {termino}
+      </>
+    )
+  }
   return (
     <>
       {inicio}
       {termino && termino !== inicio && <>–{termino}</>}
     </>
   )
+}
+
+function diaSaoPaulo(iso: string | null): string {
+  if (!iso) return ""
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" }).format(new Date(iso))
 }
 
 /**
@@ -102,15 +117,6 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
                   <span className="truncate font-medium">{(e.atividade ?? "(sem título)").trim()}</span>
                   {(e.local || e.tipo) && (
                     <span className="text-muted-foreground truncate text-xs">{[e.local, e.tipo].filter(Boolean).join(" · ")}</span>
-                  )}
-                  {e.empresas && e.empresas.length > 0 && (
-                    <span className="mt-1 flex flex-wrap gap-1">
-                      {e.empresas.map((nome) => (
-                        <Badge key={nome} variant="outline" className="text-xs">
-                          {nome}
-                        </Badge>
-                      ))}
-                    </span>
                   )}
                 </li>
               ))}

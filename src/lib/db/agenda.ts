@@ -46,6 +46,10 @@ export type EventoLinha = {
   local: string | null
   sedeNome: string | null
   departamentoNome: string | null
+  /** Avulso (editável na Agenda) ou espelho de Eventos/Votações. */
+  origem: OrigemAgenda
+  /** Onde se edita o espelho (evento ou rodada da assembleia). */
+  linkOrigem: string | null
 }
 
 export type FiltroAgenda = {
@@ -62,7 +66,7 @@ export async function listarEventos(
   let query = admin
     .from("agenda")
     .select(
-      "id, atividade, tipo, inicio, termino, dia_todo, local, sede_id, departamento_id"
+      "id, atividade, tipo, inicio, termino, dia_todo, local, sede_id, departamento_id, evento_id, assembleia_id"
     )
     .eq("emp_proprietaria_id", await tenantAtual())
 
@@ -81,9 +85,12 @@ export async function listarEventos(
   if (error) throw new Error(`Falha ao listar eventos: ${error.message}`)
 
   const linhas = data ?? []
-  const [sedes, deptos] = await Promise.all([
+  const [sedes, deptos, rodadas] = await Promise.all([
     mapaSedes(),
     mapaDepartamentos(),
+    rodadasDasAssembleias(
+      linhas.map((e) => e.assembleia_id as string | null).filter((v): v is string => Boolean(v))
+    ),
   ])
 
   return linhas.map((e) => ({
@@ -98,7 +105,38 @@ export async function listarEventos(
     departamentoNome: e.departamento_id
       ? (deptos.get(e.departamento_id as string) ?? null)
       : null,
+    origem: origemDaAgenda(e),
+    linkOrigem: linkDaOrigem(e, rodadas),
   }))
+}
+
+/** Assembleia → rodada, para o espelho de Votações abrir a rodada certa. */
+async function rodadasDasAssembleias(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map()
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_assembleias")
+    .select("id, rod_assembleia_id")
+    .in("id", [...new Set(ids)])
+  return new Map(
+    (data ?? [])
+      .filter((a) => a.rod_assembleia_id)
+      .map((a) => [String(a.id), String(a.rod_assembleia_id)])
+  )
+}
+
+function linkDaOrigem(
+  e: { evento_id?: unknown; assembleia_id?: unknown },
+  rodadas: Map<string, string>
+): string | null {
+  if (e.evento_id) return `/painel/eventos/${e.evento_id}`
+  if (e.assembleia_id) {
+    const rodada = rodadas.get(String(e.assembleia_id))
+    return rodada
+      ? `/painel/representacao/votacoes/rodadas/${rodada}`
+      : "/painel/representacao/votacoes"
+  }
+  return null
 }
 
 export async function resumoAgenda(): Promise<{
@@ -139,6 +177,8 @@ export type DetalheEvento = {
   /** Avulso (editável aqui) ou espelho de Eventos/Votações. */
   origem: OrigemAgenda
   eventoId: string | null
+  /** Onde se edita o espelho (evento ou rodada da assembleia). */
+  linkOrigem: string | null
   /** Campos crus para o formulário de edição. */
   sedeId: string | null
   departamentoId: string | null
@@ -154,9 +194,10 @@ export async function obterEvento(id: string): Promise<DetalheEvento | null> {
     .maybeSingle()
   if (!e) return null
 
-  const [sedes, deptos] = await Promise.all([
+  const [sedes, deptos, rodadas] = await Promise.all([
     mapaSedes(),
     mapaDepartamentos(),
+    rodadasDasAssembleias(e.assembleia_id ? [String(e.assembleia_id)] : []),
   ])
 
   return {
@@ -176,6 +217,7 @@ export async function obterEvento(id: string): Promise<DetalheEvento | null> {
       : null,
     origem: origemDaAgenda(e),
     eventoId: texto(e.evento_id),
+    linkOrigem: linkDaOrigem(e, rodadas),
     sedeId: texto(e.sede_id),
     departamentoId: texto(e.departamento_id),
   }

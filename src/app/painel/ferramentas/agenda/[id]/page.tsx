@@ -136,14 +136,10 @@ export default async function EventoPage({
               ? "Este compromisso vem do módulo Eventos e acompanha o evento — altere-o por lá."
               : "Este compromisso vem de uma votação (assembleia) e acompanha suas datas — altere-o em Votações."}
             <Link
-              href={
-                e.origem === "evento" && e.eventoId
-                  ? `/painel/eventos/${e.eventoId}`
-                  : "/painel/representacao/votacoes"
-              }
+              href={e.linkOrigem ?? "/painel/representacao/votacoes"}
               className="text-primary inline-flex items-center gap-1 hover:underline"
             >
-              Abrir
+              {e.origem === "evento" ? "Editar o evento" : "Editar a assembleia"}
               <ExternalLink className="size-3.5" />
             </Link>
           </AlertDescription>

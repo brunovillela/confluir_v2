@@ -241,7 +241,8 @@ export function CompromissoForm({
   )
 }
 
-export function ExcluirCompromissoBotao({ id }: { id: string }) {
+/** `compacto`: só o ícone, para a linha da lista. */
+export function ExcluirCompromissoBotao({ id, compacto = false }: { id: string; compacto?: boolean }) {
   const [estado, acao, pendente] = useActionState(excluirCompromissoAction, {})
   return (
     <form
@@ -254,12 +255,15 @@ export function ExcluirCompromissoBotao({ id }: { id: string }) {
       {estado.erro && <span className="text-destructive mr-2 text-xs">{estado.erro}</span>}
       <Button
         type="submit"
-        variant="outline"
+        variant={compacto ? "ghost" : "outline"}
+        size={compacto ? "icon" : "default"}
         disabled={pendente}
         className="text-destructive hover:text-destructive"
+        title="Excluir"
+        aria-label="Excluir"
       >
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
-        Excluir
+        {!compacto && "Excluir"}
       </Button>
     </form>
   )

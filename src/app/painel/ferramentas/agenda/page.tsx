@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarDays, Plus } from "lucide-react"
+import { CalendarDays, ExternalLink, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -19,6 +19,8 @@ import { requirePermissao } from "@/lib/auth"
 import { listarEventos, resumoAgenda, TIPOS_AGENDA } from "@/lib/db/agenda"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+
+import { ExcluirCompromissoBotao } from "./agenda-forms"
 
 export const metadata: Metadata = { title: "Agenda — Confluir" }
 
@@ -137,6 +139,7 @@ export default async function AgendaPage({
                   <TableHead>Tipo</TableHead>
                   <TableHead>Local / Sede</TableHead>
                   <TableHead>Departamento</TableHead>
+                  {podeCriar && <TableHead className="w-24 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,6 +177,34 @@ export default async function AgendaPage({
                         {e.departamentoNome ?? "—"}
                       </span>
                     </TableCell>
+                    {podeCriar && (
+                      <TableCell className="text-right whitespace-nowrap">
+                        {e.origem === "avulso" ? (
+                          <span className="inline-flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" asChild title="Editar" aria-label="Editar">
+                              <Link href={`/painel/ferramentas/agenda/${e.id}?editar=1`}>
+                                <Pencil />
+                              </Link>
+                            </Button>
+                            <ExcluirCompromissoBotao id={e.id} compacto />
+                          </span>
+                        ) : (
+                          e.linkOrigem && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              title={e.origem === "evento" ? "Editar em Eventos" : "Editar em Votações"}
+                              aria-label={e.origem === "evento" ? "Editar em Eventos" : "Editar em Votações"}
+                            >
+                              <Link href={e.linkOrigem}>
+                                <ExternalLink />
+                              </Link>
+                            </Button>
+                          )
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
