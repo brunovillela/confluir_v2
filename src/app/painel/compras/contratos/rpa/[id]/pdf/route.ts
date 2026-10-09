@@ -1,10 +1,6 @@
-import { createElement } from "react"
-import { renderToBuffer } from "@react-pdf/renderer"
-
 import { requirePermissao } from "@/lib/auth"
 import { buscarRpa } from "@/lib/db/compras-rpa"
-import { listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
-import { RpaPDF } from "@/lib/pdf/rpa"
+import { renderizarPdfRpa } from "@/lib/db/rpa-assinatura"
 
 export const runtime = "nodejs"
 
@@ -22,23 +18,9 @@ export async function GET(
   ])
   const { id } = await params
 
-  const [rpa, organizacao, { sedes }] = await Promise.all([
-    buscarRpa(id),
-    obterOrganizacao(),
-    listarSedes().catch(() => ({ disponivel: false, sedes: [] })),
-  ])
+  const rpa = await buscarRpa(id)
   if (!rpa) return new Response("RPA não encontrado.", { status: 404 })
-
-  const elemento = createElement(RpaPDF, {
-    rpa,
-    organizacao: {
-      nome:
-        organizacao?.nomeRazao ?? organizacao?.nomeFantasia ?? "Organização",
-      cnpj: organizacao?.cnpjCpf ?? null,
-      cidade: sedes[0]?.cidade ?? null,
-    },
-  }) as Parameters<typeof renderToBuffer>[0]
-  const buffer = await renderToBuffer(elemento)
+  const buffer = await renderizarPdfRpa(rpa)
 
   return new Response(new Uint8Array(buffer), {
     headers: {

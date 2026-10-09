@@ -5,6 +5,7 @@ import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { verificarCertificadoMinuta } from "@/lib/db/minuta-assinatura"
+import { verificarCertificadoRpa } from "@/lib/db/rpa-assinatura"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
 import { formatarData } from "@/lib/formato"
 
@@ -26,6 +27,8 @@ export default async function VerificarCertificadoPage({
   const { codigo } = await params
   const contrato = await verificarCertificadoMinuta(decodeURIComponent(codigo))
   if (contrato) return <VerificacaoContrato v={contrato} />
+  const recibo = await verificarCertificadoRpa(decodeURIComponent(codigo))
+  if (recibo) return <VerificacaoContrato v={recibo} documento="recibo" />
   const v = await verificarCertificado(decodeURIComponent(codigo))
 
   return (
@@ -149,9 +152,13 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
 /** Certificado de assinatura de contrato (minuta assinada eletronicamente). */
 function VerificacaoContrato({
   v,
+  documento = "contrato",
 }: {
   v: NonNullable<Awaited<ReturnType<typeof verificarCertificadoMinuta>>>
+  /** O mesmo certificado serve ao contrato e ao recibo (RPA). */
+  documento?: "contrato" | "recibo"
 }) {
+  const doc = documento === "recibo" ? "recibo" : "contrato"
   const valida = v.situacao === "assinado" && v.conteudoIntegro
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
@@ -164,17 +171,17 @@ function VerificacaoContrato({
           <Alert className="border-success/40 text-success-fg">
             <BadgeCheck />
             <AlertDescription>
-              Assinatura <strong>válida</strong>: corresponde a um contrato assinado eletronicamente e o
+              Assinatura <strong>válida</strong>: corresponde a um {doc} assinado eletronicamente e o
               conteúdo não foi alterado desde então.
-              {v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
+              {documento === "recibo" ? "" : v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
             </AlertDescription>
           </Alert>
         ) : v.situacao === "assinado" ? (
           <Alert variant="destructive">
             <AlertTriangle />
             <AlertDescription>
-              Esta pessoa assinou, mas o texto do contrato <strong>mudou depois</strong> ou o envio foi
-              cancelado. Esta assinatura não vale para o texto atual.
+              Esta pessoa assinou, mas o conteúdo do {doc} <strong>mudou depois</strong> ou o envio foi
+              cancelado. Esta assinatura não vale para o conteúdo atual.
             </AlertDescription>
           </Alert>
         ) : (
@@ -210,7 +217,7 @@ function VerificacaoContrato({
           </CardContent>
         </Card>
         <p className="text-muted-foreground text-center text-xs">
-          A página de certificado ao fim do PDF do contrato traz a trilha completa de cada assinatura:
+          A página de certificado ao fim do PDF do {doc} traz a trilha completa de cada assinatura:
           envio, abertura, código de uso único, conferência do CPF e assinatura, com data, hora, IP e
           navegador.
         </p>

@@ -43,10 +43,16 @@ export type RpaLinha = {
   /** Recibo assinado anexado (bucket compras) — com ele, não se exclui. */
   arquivoAssinado: string | null
   assinadoEm: string | null
+  /** eletronica = pelo link do e-mail; anexo = à mão ou gov.br (supabase/rpa-assinatura-eletronica.sql). */
+  assinaturaOrigem: "eletronica" | "anexo" | null
+  /** Validação PAdES do PDF anexado (assinado pelo gov.br). */
+  assinaturaValidacao: unknown
 }
 
 export type RpaDetalhe = RpaLinha & {
   fornecedor_id: string | null
+  /** E-mail de contato do cadastro do fornecedor (sugestão para o envio da assinatura). */
+  fornecedorEmail: string | null
   fornecedorCnpjCpf: string | null
   fornecedorEndereco: string | null
   descricao_servico: string | null
@@ -121,6 +127,11 @@ function camposDeVinculo(r: Record<string, unknown>, v: Vinculos) {
     // Colunas de supabase/rpa-avulso.sql — sem ele, vêm vazias.
     arquivoAssinado: texto(r.arquivo_assinado),
     assinadoEm: texto(r.assinado_em),
+    assinaturaOrigem:
+      r.assinatura_origem === "eletronica" || r.assinatura_origem === "anexo"
+        ? (r.assinatura_origem as "eletronica" | "anexo")
+        : null,
+    assinaturaValidacao: r.assinatura_validacao ?? null,
   }
 }
 
@@ -203,11 +214,12 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
   let fornecedorNome: string | null = null
   let fornecedorCnpjCpf: string | null = null
   let fornecedorEndereco: string | null = null
+  let fornecedorEmail: string | null = null
   if (r.fornecedor_id) {
     const [{ data: f }, { data: ends }] = await Promise.all([
       admin
         .from("empresa")
-        .select("nome_fantasia, nome_razao, cnpj_cpf")
+        .select("nome_fantasia, nome_razao, cnpj_cpf, email_contato")
         .eq("id", r.fornecedor_id)
         .maybeSingle(),
       admin
@@ -221,6 +233,7 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
         (v): v is string => typeof v === "string" && v.trim() !== ""
       ) ?? null
     fornecedorCnpjCpf = texto(f?.cnpj_cpf)
+    fornecedorEmail = texto(f?.email_contato)
     const e = ends?.[0]
     if (e) {
       fornecedorEndereco =
@@ -247,6 +260,7 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
     fornecedorNome,
     fornecedorCnpjCpf,
     fornecedorEndereco,
+    fornecedorEmail,
     descricao_servico: r.descricao_servico as string | null,
     data_servico: r.data_servico as string | null,
     base: r.base as string | null,

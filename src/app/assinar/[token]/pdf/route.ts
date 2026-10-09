@@ -1,5 +1,6 @@
 import { dadosImpressao } from "@/lib/db/oficios"
 import { envelopeMinutaPorToken } from "@/lib/db/minuta-assinatura"
+import { certificacaoDoRpa, envelopeRpaPorToken, renderizarPdfRpa } from "@/lib/db/rpa-assinatura"
 import { renderizarPdfMinuta } from "@/lib/db/minuta-pdf"
 import { envelopePorToken, renderizarPdfOficio } from "@/lib/db/oficios-assinatura"
 
@@ -16,6 +17,29 @@ export async function GET(
 ) {
   const { token } = await params
   const baixarMinuta = new URL(req.url).searchParams.get("baixar") === "1"
+
+  // RPA: o prestador vê o recibo; assinado pelo link, com o certificado.
+  const rpa = await envelopeRpaPorToken(token)
+  if (rpa) {
+    const a = rpa.assinatura
+    if (a.situacao !== "pendente" && a.situacao !== "assinado") {
+      return new Response("Documento indisponível", { status: 404 })
+    }
+    const certificacao =
+      a.situacao === "assinado" && a.hashDocumento ? await certificacaoDoRpa(rpa.rpa.id, a.hashDocumento) : null
+    const pdf = await renderizarPdfRpa(rpa.rpa, {
+      certificacao,
+      dataDocumento: a.situacao === "assinado" ? a.assinadoEm : a.enviadoEm,
+    })
+    return new Response(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${baixarMinuta ? "attachment" : "inline"}; filename="rpa-${rpa.rpa.numero ?? "recibo"}${a.situacao === "assinado" ? "-assinado" : ""}.pdf"`,
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex",
+      },
+    })
+  }
 
   // Minuta de contrato: o assinante vê o texto com a certificação até aqui.
   const minuta = await envelopeMinutaPorToken(token)

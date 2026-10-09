@@ -2,7 +2,7 @@
 
 import { startTransition, useMemo, useRef, useState } from "react"
 import { useActionState } from "react"
-import { FileCheck2, Loader2, Trash2, Upload } from "lucide-react"
+import { FileCheck2, Loader2, Send, Trash2, Upload } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -21,9 +21,12 @@ import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../../nova/detalhe-pagamento"
 import {
   anexarRpaAssinado,
+  cancelarLinkRpaAction,
   emitirRpa,
+  enviarRpaAssinaturaAction,
   excluirRpa,
   meiosDoPrestadorRpa,
+  reenviarLinkRpaAction,
   salvarConfigRpa,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
@@ -636,14 +639,27 @@ export function ExcluirRpa({
  * Anexa (ou substitui) o recibo assinado pelo prestador — PDF ou foto, que é
  * reduzida no navegador se passar do limite do envio.
  */
-export function AnexarRpaAssinado({ id, substituir }: { id: string; substituir?: boolean }) {
+export function AnexarRpaAssinado({
+  id,
+  substituir,
+  linkPendente = false,
+}: {
+  id: string
+  substituir?: boolean
+  /** Há link de assinatura enviado por e-mail aguardando: anexar o cancela. */
+  linkPendente?: boolean
+}) {
   const [estado, action, pend] = useActionState(anexarRpaAssinado, {})
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   return (
     <form
       action={action}
       onSubmit={(e) => {
-        if (!substituir) confirmarEnvio(e, "Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído).")
+        if (!substituir)
+          confirmarEnvio(
+            e,
+            `Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído).${linkPendente ? " O link de assinatura enviado por e-mail ao prestador será cancelado." : ""}`
+          )
       }}
       className="grid gap-3"
     >
@@ -661,7 +677,7 @@ export function AnexarRpaAssinado({ id, substituir }: { id: string; substituir?:
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid min-w-64 flex-1 gap-1.5">
           <Label htmlFor="arquivo_assinado">
-            {substituir ? "Substituir o arquivo" : "Recibo assinado (PDF ou foto)"}
+            {substituir ? "Substituir o arquivo" : "Recibo assinado à mão (PDF ou foto) ou pelo gov.br (PDF)"}
           </Label>
           <Input
             id="arquivo_assinado"
@@ -682,5 +698,85 @@ export function AnexarRpaAssinado({ id, substituir }: { id: string; substituir?:
       </div>
       {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
     </form>
+  )
+}
+
+/** Envia ao prestador o link pessoal para assinar o recibo pelo e-mail. */
+export function EnviarRpaAssinaturaForm({
+  id,
+  nome,
+  email,
+  cpf,
+}: {
+  id: string
+  nome: string
+  email: string
+  /** CPF do cadastro (mascarado na tela) — a pessoa precisa digitá-lo para assinar. */
+  cpf: string | null
+}) {
+  const [estado, action, pend] = useActionState(enviarRpaAssinaturaAction, {})
+  return (
+    <form action={action} className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <input type="hidden" name="id" value={id} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor="assinatura_nome">Nome completo do prestador</Label>
+          <Input id="assinatura_nome" name="nome" defaultValue={nome} required />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="assinatura_email">E-mail do prestador</Label>
+          <Input id="assinatura_email" name="email" type="email" defaultValue={email} required />
+        </div>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Ele recebe um link pessoal, lê o recibo, pede um código de 6 dígitos por e-mail e assina com o nome
+        completo e o CPF{cpf ? ` do cadastro (${cpf})` : ""}. Assinado, o recibo com o certificado entra aqui
+        sozinho.
+      </p>
+      <div>
+        <Button type="submit" disabled={pend}>
+          {pend ? <Loader2 className="animate-spin" /> : <Send />}
+          Enviar link de assinatura
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** Link já enviado: reenviar o e-mail ou cancelar o link. */
+export function AcoesLinkRpa({ id }: { id: string }) {
+  const [reenvio, reenviar, reenviando] = useActionState(reenviarLinkRpaAction, {})
+  const [cancel, cancelar, cancelando] = useActionState(cancelarLinkRpaAction, {})
+  const estado = cancel.erro || cancel.ok ? cancel : reenvio
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap gap-2">
+        <form action={reenviar}>
+          <input type="hidden" name="id" value={id} />
+          <Button type="submit" variant="outline" size="sm" disabled={reenviando}>
+            {reenviando ? <Loader2 className="animate-spin" /> : <Send />}
+            Reenviar o e-mail
+          </Button>
+        </form>
+        <form
+          action={cancelar}
+          onSubmit={(e) => confirmarEnvio(e, "Cancelar o link? O prestador não conseguirá mais assinar por ele.")}
+        >
+          <input type="hidden" name="id" value={id} />
+          <Button type="submit" variant="ghost" size="sm" disabled={cancelando}>
+            {cancelando && <Loader2 className="animate-spin" />}
+            Cancelar o link
+          </Button>
+        </form>
+      </div>
+      {(estado.erro || estado.ok) && (
+        <p className={estado.erro ? "text-destructive text-xs" : "text-success-fg text-xs"}>{estado.erro ?? estado.ok}</p>
+      )}
+    </div>
   )
 }

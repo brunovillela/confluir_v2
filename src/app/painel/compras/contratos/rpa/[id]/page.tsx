@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Download, FileCheck2, List, Trash2 } from "lucide-react"
+import { ArrowLeft, Download, FileCheck2, List, Mail, PenLine, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { SeloAssinatura } from "@/components/selo-assinatura"
+import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
 import { urlArquivoCompras } from "@/lib/db/compras"
 import { buscarRpa } from "@/lib/db/compras-rpa"
+import { mascararCpf } from "@/lib/db/minuta-assinatura"
+import { assinaturasDoRpa, ROTULO_EVENTO_RPA } from "@/lib/db/rpa-assinatura"
 import { formatarCnpjCpf, formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { AnexarRpaAssinado, ExcluirRpa } from "../rpa-forms"
+import { AcoesLinkRpa, AnexarRpaAssinado, EnviarRpaAssinaturaForm, ExcluirRpa } from "../rpa-forms"
 
 export const metadata: Metadata = { title: "RPA — Confluir" }
 
@@ -48,6 +53,11 @@ export default async function RpaDetalhePage({
 
   const retencoes = (rpa.inss ?? 0) + (rpa.irrf ?? 0) + (rpa.iss ?? 0)
   const urlAssinado = await urlArquivoCompras(rpa.arquivoAssinado)
+  // Envio mais recente do link de assinatura (o anterior fica na trilha).
+  const envio = (await assinaturasDoRpa(id, { comEventos: true }))[0] ?? null
+  const linkPendente = envio?.situacao === "pendente"
+  const cpfPrestador =
+    rpa.fornecedorCnpjCpf?.replace(/\D/g, "").length === 11 ? mascararCpf(rpa.fornecedorCnpjCpf) : null
 
   return (
     <>
@@ -225,27 +235,110 @@ export default async function RpaDetalhePage({
           </CardTitle>
           <CardDescription>
             {rpa.arquivoAssinado
-              ? `Anexado em ${formatarData(rpa.assinadoEm ?? rpa.created_at)}. Com o recibo assinado, o RPA é comprovante fiscal e não pode mais ser excluído.`
-              : "Baixe o PDF, colha a assinatura do prestador e anexe aqui o recibo assinado (PDF ou foto). Enquanto não houver recibo assinado, o RPA pode ser excluído."}
+              ? `${rpa.assinaturaOrigem === "eletronica" ? "Assinado pelo prestador pelo link do e-mail" : "Anexado"} em ${formatarData(rpa.assinadoEm ?? rpa.created_at)}. Com o recibo assinado, o RPA é comprovante fiscal e não pode mais ser excluído.`
+              : "O prestador assina de um destes jeitos — o primeiro que chegar vale. Enquanto não houver recibo assinado, o RPA pode ser excluído."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {urlAssinado && (
-            <div>
-              <Button asChild variant="outline" size="sm">
-                <a href={urlAssinado} target="_blank" rel="noopener noreferrer">
-                  <Download />
-                  Ver o recibo assinado
-                </a>
-              </Button>
+          {rpa.arquivoAssinado && (
+            <>
+              {urlAssinado && (
+                <div>
+                  <Button asChild variant="outline" size="sm">
+                    <a href={urlAssinado} target="_blank" rel="noopener noreferrer">
+                      <Download />
+                      Ver o recibo assinado
+                    </a>
+                  </Button>
+                </div>
+              )}
+              {rpa.assinaturaOrigem === "anexo" && rpa.assinaturaValidacao ? (
+                <SeloAssinatura validacao={rpa.assinaturaValidacao as ValidacaoAssinatura} />
+              ) : null}
+              {podeEditar && <AnexarRpaAssinado id={id} substituir />}
+            </>
+          )}
+
+          {!rpa.arquivoAssinado && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid content-start gap-3 rounded-lg border p-4">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <Mail className="size-4" />
+                  Pelo link no e-mail
+                </p>
+                {envio?.situacao === "pendente" ? (
+                  <>
+                    <p className="text-sm">
+                      Enviado para <strong>{envio.email}</strong> em {formatarMomentoAssinatura(envio.enviadoEm)}
+                      {envio.visualizadoEm
+                        ? ` · aberto em ${formatarMomentoAssinatura(envio.visualizadoEm)}`
+                        : " · ainda não aberto"}
+                      . Aguardando a assinatura.
+                    </p>
+                    {podeEditar && <AcoesLinkRpa id={id} />}
+                  </>
+                ) : (
+                  <>
+                    {envio?.situacao === "recusado" && (
+                      <Alert variant="destructive">
+                        <AlertDescription>
+                          {envio.nome ?? "O prestador"} recusou assinar em {formatarMomentoAssinatura(envio.recusadoEm)}
+                          {envio.motivoRecusa ? `: ${envio.motivoRecusa}` : "."}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {podeEditar ? (
+                      <EnviarRpaAssinaturaForm
+                        id={id}
+                        nome={envio?.nome ?? rpa.fornecedorNome ?? ""}
+                        email={envio?.email ?? rpa.fornecedorEmail ?? ""}
+                        cpf={cpfPrestador}
+                      />
+                    ) : (
+                      <p className="text-muted-foreground text-sm">Nenhum link enviado.</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="grid content-start gap-3 rounded-lg border p-4">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <PenLine className="size-4" />
+                  Assinado à mão ou pelo gov.br
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Para quem tem dificuldade com a tecnologia: baixe o PDF, colha a assinatura no papel
+                  (e digitalize ou fotografe) ou peça que o prestador assine pelo assinador do gov.br, e
+                  anexe aqui.
+                  {linkPendente
+                    ? " Ao anexar, o link enviado por e-mail é cancelado — quem abri-lo verá que o recibo assinado já foi entregue."
+                    : ""}
+                </p>
+                {podeEditar ? (
+                  <AnexarRpaAssinado id={id} linkPendente={linkPendente} />
+                ) : (
+                  <p className="text-muted-foreground text-sm">Ainda não anexado.</p>
+                )}
+              </div>
             </div>
           )}
-          {podeEditar ? (
-            <AnexarRpaAssinado id={id} substituir={Boolean(rpa.arquivoAssinado)} />
-          ) : (
-            !rpa.arquivoAssinado && (
-              <p className="text-muted-foreground text-sm">Ainda não anexado.</p>
-            )
+
+          {envio && envio.eventos.length > 0 && (
+            <details className="text-sm">
+              <summary className="text-muted-foreground cursor-pointer text-xs">
+                Trilha do link de assinatura ({envio.email})
+              </summary>
+              <ul className="mt-2 grid gap-1 text-xs">
+                {envio.eventos.map((e, i) => (
+                  <li key={i} className="flex flex-wrap gap-x-3">
+                    <span className="text-muted-foreground tabular-nums">{formatarMomentoAssinatura(e.quando)}</span>
+                    <span>{ROTULO_EVENTO_RPA[e.tipo] ?? e.tipo}</span>
+                    {e.detalhe && e.tipo !== "assinatura" && <span className="text-muted-foreground">{e.detalhe}</span>}
+                    {e.ip && <span className="text-muted-foreground">IP {e.ip}</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
         </CardContent>
       </Card>

@@ -135,8 +135,9 @@ duas maneiras, nas abas de **Todos os RPAs → Novo RPA**:
   recibo** — o que de fato será pago. Não existe mais o RPA avulso.
 </Aviso>
 
-O PDF é baixado, **assinado pelo prestador** e anexado de volta na página do
-RPA — o recibo assinado vale como comprovante fiscal do serviço prestado.
+O recibo precisa ser **assinado pelo prestador** — pelo link no e-mail ou no
+papel / gov.br — e o recibo assinado vale como comprovante fiscal do serviço
+prestado.
 
 <PassoAPasso>
   <Passo titulo="Escolha a base do valor">
@@ -167,20 +168,51 @@ RPA — o recibo assinado vale como comprovante fiscal do serviço prestado.
     ordens do contrato; no de compra, como a ordem do fornecimento — e segue a
     alçada como qualquer ordem.
   </Passo>
-  <Passo titulo="Colha a assinatura e anexe">
+  <Passo titulo="Colha a assinatura do prestador">
     O PDF sai com os valores discriminados (bruto, retenções, líquido) e o
-    termo de quitação. Depois de assinado pelo prestador, anexe-o em **Recibo
-    assinado**, na página do RPA (PDF ou foto). A lista de RPAs mostra quais
-    estão *Assinado* e quais estão *A assinar*.
+    termo de quitação. Em **Recibo assinado**, na página do RPA, há dois
+    caminhos — o primeiro que chegar vale. A lista de RPAs mostra quais estão
+    *Assinado* e quais estão *A assinar*.
   </Passo>
 </PassoAPasso>
+
+### Assinatura pelo link no e-mail
+
+Em **Pelo link no e-mail**, confira o nome e o e-mail do prestador (vêm do
+cadastro do fornecedor) e clique em **Enviar link de assinatura**. Ele recebe um
+link pessoal, lê o recibo, pede um **código de 6 dígitos** no e-mail e assina
+digitando o **nome completo e o CPF** — que precisa ser o CPF do cadastro.
+Assinado, o recibo com a página de **certificado** (data, hora, IP e a trilha)
+entra sozinho como o recibo assinado, e o RPA segue como se você o tivesse
+anexado: no RPA de compra, a ordem sai de *Aguardando documento fiscal* e vai
+para autorização.
+
+Enquanto o link espera, a página mostra para quem foi enviado, se já foi aberto,
+e os botões **Reenviar o e-mail** e **Cancelar o link**. Se o prestador recusar,
+o motivo aparece ali e dá para enviar de novo. A trilha do link (envio,
+abertura, código, assinatura) fica no fim do cartão.
+
+### Assinado à mão ou pelo gov.br
+
+Para quem tem dificuldade com a tecnologia: baixe o PDF, colha a assinatura **no
+papel** (e digitalize ou fotografe) ou peça que o prestador assine pelo
+**assinador do gov.br**, e anexe em **Assinado à mão ou pelo gov.br** (PDF ou
+foto). O PDF assinado pelo gov.br tem a assinatura digital conferida, e o selo
+da validação aparece no RPA.
+
+<Aviso tipo="atencao" titulo="Anexar cancela o link do e-mail">
+  Se já havia um link enviado, ele é **cancelado** ao anexar o recibo assinado.
+  Quem abrir o link vê que um documento foi incluído como comprovante da
+  assinatura e que, em caso de dúvida, deve procurar o contratante.
+</Aviso>
 
 <Print src="compras/rpa.png" alt="RPA nº 1: o cartão Contrato e pagamento com o contrato 2026.0901.0900.0010 e a ordem de pagamento Em autorização; o prestador pessoa física com CPF e endereço, o serviço, e os valores — bruto de R$ 1.800,00, INSS, ISS e o líquido de R$ 1.512,00." legenda="O RPA: o contrato a que pertence e a ordem que gerou." />
 
 <Aviso tipo="atencao" titulo="Só o RPA não assinado pode ser excluído">
   RPAs não são editáveis — para corrigir, exclua e emita outro. **Excluir RPA**
   (na página do RPA ou no ícone da lixeira, na lista) só aparece enquanto o
-  recibo assinado **não** foi anexado: assinado, ele é comprovante fiscal e
+  recibo assinado **não** foi anexado (um link de assinatura pendente é
+  cancelado junto): assinado, ele é comprovante fiscal e
   fica. A ordem vai junto enquanto está *Em autorização*; depois de
   autorizada, peça ao Financeiro para cancelá-la antes.
 </Aviso>

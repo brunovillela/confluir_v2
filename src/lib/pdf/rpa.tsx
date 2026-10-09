@@ -1,6 +1,7 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
 
 import type { RpaDetalhe } from "@/lib/db/compras-rpa"
+import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 
 /**
@@ -59,6 +60,16 @@ const s = StyleSheet.create({
   },
   assinaturaNome: { fontFamily: "Helvetica-Bold", fontSize: 10 },
   assinaturaSub: { fontSize: 8, color: "#444444" },
+  certTitulo: { fontSize: 13, fontFamily: "Helvetica-Bold", marginBottom: 4 },
+  certSub: { fontSize: 8, color: "#444444", marginBottom: 10, lineHeight: 1.35 },
+  certSecao: { fontSize: 9, fontFamily: "Helvetica-Bold", marginTop: 10, marginBottom: 4 },
+  certBloco: { borderWidth: 0.5, borderColor: "#cccccc", borderRadius: 3, padding: 8, marginBottom: 8 },
+  certLinha: { flexDirection: "row", fontSize: 8, marginBottom: 1.5 },
+  certRotulo: { width: 110, color: "#555555" },
+  certValor: { flex: 1 },
+  mono: { fontFamily: "Courier", fontSize: 7.5 },
+  trilha: { flexDirection: "row", fontSize: 7, color: "#444444", marginBottom: 1 },
+  qr: { width: 64, height: 64 },
   rodape: {
     position: "absolute",
     bottom: 16,
@@ -75,9 +86,9 @@ const MESES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ]
 
-function hojePorExtenso(): string {
+function porExtenso(iso?: string | null): string {
   const agora = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
+    (iso ? new Date(iso) : new Date()).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })
   )
   return `${agora.getDate()} de ${MESES[agora.getMonth()]} de ${agora.getFullYear()}`
 }
@@ -92,9 +103,15 @@ function brl(v: number | null): string {
 export function RpaPDF({
   rpa,
   organizacao,
+  dataDocumento,
+  certificacao = null,
 }: {
   rpa: RpaDetalhe
   organizacao: { nome: string; cnpj: string | null; cidade: string | null }
+  /** Data do recibo (padrão: hoje). Na assinatura eletrônica, a da assinatura. */
+  dataDocumento?: string | null
+  /** Página final com o certificado da assinatura eletrônica pelo link. */
+  certificacao?: CertificacaoPDF | null
 }) {
   const ano = rpa.created_at.slice(0, 4)
   return (
@@ -188,10 +205,15 @@ export function RpaPDF({
 
         <Text style={s.dataLocal}>
           {organizacao.cidade ? `${organizacao.cidade}, ` : ""}
-          {hojePorExtenso()}.
+          {porExtenso(dataDocumento)}.
         </Text>
 
         <View style={s.assinatura}>
+          {certificacao?.concluida ? (
+            <Text style={[s.assinaturaSub, { marginBottom: 4 }]}>
+              Assinado eletronicamente — certificado {certificacao.assinantes[0]?.certificado ?? ""} (ver página final)
+            </Text>
+          ) : null}
           <View style={s.assinaturaLinha} />
           <Text style={s.assinaturaNome}>{rpa.fornecedorNome ?? ""}</Text>
           <Text style={s.assinaturaSub}>
@@ -206,6 +228,71 @@ export function RpaPDF({
           {formatarData(rpa.created_at)} via Confluir
         </Text>
       </Page>
+
+      {certificacao ? (
+        <Page size="A4" style={s.page}>
+          <Text style={s.certTitulo}>Certificado de assinatura eletrônica</Text>
+          <Text style={s.certSub}>
+            {certificacao.concluida
+              ? "Recibo assinado eletronicamente pelo prestador."
+              : "Assinatura em andamento."}{" "}
+            A assinatura foi confirmada por link individual e código de uso único enviados ao e-mail do
+            prestador, com conferência do CPF digitado por ele e aceite expresso do conteúdo e da forma
+            eletrônica (MP 2.200-2/2001, art. 10, § 2º). O resumo SHA-256 abaixo identifica o conteúdo
+            assinado: qualquer alteração o torna diferente.
+          </Text>
+          <View style={s.certLinha}>
+            <Text style={s.certRotulo}>Documento</Text>
+            <Text style={s.certValor}>RPA nº {rpa.numero ?? "—"}/{ano} — {organizacao.nome}</Text>
+          </View>
+          <View style={s.certLinha}>
+            <Text style={s.certRotulo}>SHA-256 do conteúdo</Text>
+            <Text style={[s.certValor, s.mono]}>{certificacao.hash}</Text>
+          </View>
+          <Text style={s.certSecao}>Assinatura</Text>
+          {certificacao.assinantes.map((a, i) => (
+            <View key={i} style={s.certBloco} wrap={false}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  {[
+                    ["Papel", a.papel],
+                    ["Nome declarado", a.nome],
+                    ["CPF (conferido)", a.cpf],
+                    ["E-mail", a.email],
+                    ["Situação", a.situacao === "assinado" ? "Assinado" : a.situacao === "recusado" ? "Recusado" : "Pendente"],
+                    ["Assinado em", a.assinadoEm ? `${a.assinadoEm} (horário de Brasília)` : "—"],
+                    ["Endereço IP", a.ip ?? "—"],
+                    ["Navegador", a.navegador ?? "—"],
+                    ["Certificado", a.certificado],
+                    ["Verificação", a.url || "—"],
+                  ].map(([r, v]) => (
+                    <View key={r} style={s.certLinha}>
+                      <Text style={s.certRotulo}>{r}</Text>
+                      <Text style={s.certValor}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- Image do @react-pdf não aceita alt */}
+                {a.qr ? <Image src={a.qr} style={s.qr} /> : null}
+              </View>
+              {a.trilha.length > 0 ? (
+                <View style={{ marginTop: 4 }}>
+                  {a.trilha.map((e, j) => (
+                    <View key={j} style={s.trilha}>
+                      <Text style={{ width: 120 }}>{e.quando}</Text>
+                      <Text style={{ flex: 1 }}>{e.evento}</Text>
+                      <Text style={{ width: 110 }}>{e.ip ?? ""}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ))}
+          <Text style={s.rodape} fixed>
+            RPA nº {rpa.numero ?? "—"}/{ano} — assinatura eletrônica · SHA-256 {certificacao.hash.slice(0, 16)}…
+          </Text>
+        </Page>
+      ) : null}
     </Document>
   )
 }

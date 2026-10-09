@@ -23,9 +23,11 @@ import {
 } from "@/lib/db/cessao-assinatura"
 
 import { envelopeMinutaPorToken, registrarAberturaMinuta } from "@/lib/db/minuta-assinatura"
+import { envelopeRpaPorToken, registrarAberturaRpa } from "@/lib/db/rpa-assinatura"
 
 import { AssinarCessao } from "./cessao"
 import { AssinarMinuta } from "./minuta"
+import { AssinarRpa } from "./rpa"
 import { AssinarForm, RecusarForm } from "./assinatura-forms"
 
 export const metadata: Metadata = {
@@ -55,6 +57,16 @@ export default async function AssinarOficioPage({
   // O envelope agora serve a mais de um tipo de documento. A cessão tem tela
   // própria (dois assinantes, ordem entre eles); o caminho do ofício segue
   // exatamente como estava.
+  const rpa = await envelopeRpaPorToken(token)
+  if (rpa) {
+    const h = await headers()
+    await registrarAberturaRpa(rpa, {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null,
+      userAgent: h.get("user-agent"),
+    })
+    return <AssinarRpa envelope={rpa} token={token} />
+  }
+
   const minuta = await envelopeMinutaPorToken(token)
   if (minuta) {
     const h = await headers()

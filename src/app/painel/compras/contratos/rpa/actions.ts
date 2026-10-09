@@ -17,7 +17,6 @@ import {
 } from "@/lib/db/compras-pagamento"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import {
-  AVISO_SQL_RPA_ASSINATURA,
   AVISO_SQL_RPA_COMPRA,
   AVISO_SQL_RPA_CONTRATO,
   buscarRpa,
@@ -26,7 +25,6 @@ import {
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
-import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
@@ -39,6 +37,13 @@ import {
   type OpcoesRpa,
 } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+import {
+  cancelarAssinaturaRpa,
+  enviarRpaParaAssinatura,
+  reenviarLinkRpa,
+  registrarRpaAssinado,
+} from "@/lib/db/rpa-assinatura"
 import { podeAcessar } from "@/lib/permissoes"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -473,7 +478,7 @@ export async function excluirRpa(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await exigirEdicao()
+  const sessao = await exigirEdicao()
   const id = txt(fd, "id")
   if (!id) return { erro: "RPA inválido." }
   const rpa = await buscarRpa(id)
@@ -483,6 +488,8 @@ export async function excluirRpa(
       erro: "Este RPA já tem o recibo assinado pelo prestador — é comprovante fiscal e não pode ser excluído.",
     }
   }
+  // Link de assinatura pendente deixa de valer junto com o RPA.
+  await cancelarAssinaturaRpa(id, sessao.usuario.id, "RPA excluído")
   // RPA de compra com a ordem esperando o recibo: a ordem é da compra e fica
   // (volta a esperar um RPA); só o recibo sai.
   if (rpa.ordemId && rpa.fornecimentoId && rpa.ordemSituacao === AGUARDANDO_DOCUMENTO) {
@@ -579,81 +586,64 @@ export async function anexarRpaAssinado(
   if (!(arquivo instanceof File) || arquivo.size === 0) {
     return { erro: "Escolha o arquivo do recibo assinado (PDF ou foto)." }
   }
+  // PDF assinado pelo gov.br: confere a assinatura digital (PAdES/ICP-Brasil)
+  // e guarda o resultado; foto ou digitalização à mão passam sem validação.
+  let validacao: ValidacaoAssinatura | null = null
+  if (arquivo.type === "application/pdf") {
+    try {
+      validacao = validarAssinaturasPdf(new Uint8Array(await arquivo.arrayBuffer()), rpa.fornecedorCnpjCpf)
+    } catch (e) {
+      console.error("validação da assinatura do RPA:", e)
+    }
+  }
   const up = await subirComprovanteCompras(`rpa-assinados/${id}`, arquivo)
   if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o arquivo." }
 
-  const admin = await createAdminClient()
-  const { error } = await admin
-    .from("compras_rpa")
-    .update({
-      arquivo_assinado: up.caminho,
-      assinado_em: new Date().toISOString(),
-      assinado_por_id: sessao.usuario.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
-  if (error) {
-    await admin.storage.from("compras").remove([up.caminho])
-    if (esquemaAusente(error)) return { erro: AVISO_SQL_RPA_ASSINATURA }
-    return { erro: `Não foi possível anexar: ${error.message}` }
+  const r = await registrarRpaAssinado(rpa, up.caminho, sessao.usuario.id, "anexo", validacao)
+  if (r.erro) {
+    await (await createAdminClient()).storage.from("compras").remove([up.caminho])
+    return { erro: r.erro }
   }
-  // O anterior (substituído) sai do bucket.
-  if (rpa.arquivoAssinado && !/^(https?:)?\/\//.test(rpa.arquivoAssinado)) {
-    await admin.storage.from("compras").remove([rpa.arquivoAssinado])
-  }
-  // Na compra, o recibo assinado é o documento fiscal: entra como a nota do
-  // fornecimento e da ordem, onde estiver vazia ou for o recibo anterior.
-  if (rpa.fornecimentoId) {
-    const anterior = rpa.arquivoAssinado
-    const alvos = [
-      { tabela: "compras_fornecimentos", coluna: "nota_fiscal_url", id: rpa.fornecimentoId },
-      { tabela: "ordens_pagamento", coluna: "arquivo_nota_fiscal", id: rpa.ordemId },
-    ]
-    for (const a of alvos) {
-      if (!a.id) continue
-      await admin
-        .from(a.tabela)
-        .update({ [a.coluna]: up.caminho })
-        .eq("id", a.id)
-        .or(anterior ? `${a.coluna}.is.null,${a.coluna}.eq."${anterior}"` : `${a.coluna}.is.null`)
-    }
-    if (rpa.compraId) revalidatePath(`/painel/compras/${rpa.compraId}`)
-  }
-  // RPA de compra: o recibo assinado é o documento fiscal que a ordem
-  // esperava — ela segue para autorização.
-  let seguiu = false
-  if (rpa.ordemId && rpa.ordemSituacao === AGUARDANDO_DOCUMENTO) {
-    const { data: movida } = await admin
-      .from("ordens_pagamento")
-      .update({ situacao: "Em autorização", arquivo_nota_fiscal: up.caminho })
-      .eq("id", rpa.ordemId)
-      .eq("situacao", AGUARDANDO_DOCUMENTO)
-      .select("id")
-    if (movida?.length) {
-      seguiu = true
-      await registrarEvento(
-        rpa.ordemId,
-        "documento_fiscal",
-        sessao.usuario.id,
-        `Recibo do RPA nº ${rpa.numero ?? "—"} assinado pelo prestador — seguiu para autorização.`,
-        { arquivo_nota_fiscal: up.caminho }
-      )
-      depoisDaResposta(() => avisarOrdensEmAutorizacao([rpa.ordemId!]))
-      revalidatePath(`/painel/financeiro/ordens/${rpa.ordemId}`)
-      revalidatePath("/painel/compras/avaliacoes")
-    }
-  }
-  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
-  revalidatePath("/painel/compras/contratos/rpa")
-  if (rpa.contratoId) revalidatePath(`/painel/compras/contratos/${rpa.contratoId}`)
+  const link = r.linkCancelado ? " O link de assinatura enviado por e-mail foi cancelado." : ""
   return {
     ok: rpa.arquivoAssinado
-      ? "Recibo assinado substituído."
-      : seguiu
-        ? "Recibo assinado anexado — a ordem de pagamento seguiu para autorização. O RPA não pode mais ser excluído."
-        : "Recibo assinado anexado — o RPA não pode mais ser excluído.",
+      ? `Recibo assinado substituído.${link}`
+      : r.seguiu
+        ? `Recibo assinado anexado — a ordem de pagamento seguiu para autorização. O RPA não pode mais ser excluído.${link}`
+        : `Recibo assinado anexado — o RPA não pode mais ser excluído.${link}`,
   }
+}
+
+// ── Assinatura pelo link no e-mail ──────────────────────────────────────────
+
+/** Envia ao prestador o link pessoal para assinar o recibo. */
+export async function enviarRpaAssinaturaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await exigirEdicao()
+  const id = txt(fd, "id")
+  if (!id) return { erro: "RPA inválido." }
+  const { erro } = await enviarRpaParaAssinatura(id, { nome: txt(fd, "nome") ?? "", email: txt(fd, "email") ?? "" }, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  return { ok: "Link de assinatura enviado ao prestador." }
+}
+
+export async function reenviarLinkRpaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  await exigirEdicao()
+  const id = txt(fd, "id")
+  if (!id) return { erro: "RPA inválido." }
+  const { erro } = await reenviarLinkRpa(id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  return { ok: "E-mail reenviado." }
+}
+
+export async function cancelarLinkRpaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await exigirEdicao()
+  const id = txt(fd, "id")
+  if (!id) return { erro: "RPA inválido." }
+  const { cancelados } = await cancelarAssinaturaRpa(id, sessao.usuario.id, "Cancelado no painel")
+  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  return cancelados ? { ok: "Link cancelado — o prestador não consegue mais assinar por ele." } : { erro: "Não havia link pendente." }
 }
 
 export async function salvarConfigRpa(
