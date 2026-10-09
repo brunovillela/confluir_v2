@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarClock,
   FileSignature,
@@ -21,6 +20,7 @@ import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { VoltarLista } from "@/components/voltar-lista"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -152,12 +152,11 @@ export default async function FontePage({
     <>
       <RotuloTrilha valores={{ [id]: nome }} />
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/representacao/empregadores">
-            <ArrowLeft />
-            Empregadores
-          </Link>
-        </Button>
+        <VoltarLista
+          chave="empregadores"
+          base="/painel/representacao/empregadores"
+          rotulo="Empregadores"
+        />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-3">

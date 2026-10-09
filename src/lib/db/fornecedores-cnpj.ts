@@ -96,17 +96,45 @@ function mesesDesde(iso: string | null): number | null {
   return (Date.now() - d.getTime()) / (30.44 * 24 * 3600 * 1000)
 }
 
-const SISTEMA = `Você ajuda o setor de compras de um sindicato a cadastrar fornecedores a partir do registro público da Receita Federal.
+/**
+ * Para quem é a ficha. O cadastro público é o mesmo; muda o que vira alerta:
+ * no fornecedor, o risco de contratar; no empregador (fonte pagadora dos
+ * filiados), só a situação da empresa.
+ */
+export type PapelCnpj = "fornecedor" | "empregador"
+
+const ALERTAS_POR_PAPEL: Record<PapelCnpj, string> = {
+  fornecedor:
+    "- \"alertas\": lista de frases curtas para quem vai contratar — inclua SÓ o que o registro mostra: situação cadastral diferente de ATIVA (com o motivo, se houver), empresa aberta há menos de 6 meses, MEI ou porte muito pequeno para contratos grandes, natureza jurídica incomum para fornecedor. Lista vazia se não houver nada.",
+  empregador:
+    "- \"alertas\": lista de frases curtas para o sindicato que representa os trabalhadores desta empresa — inclua SÓ o que o registro mostra: situação cadastral diferente de ATIVA (com o motivo, se houver) e se o CNPJ é de uma FILIAL (o empregador costuma ser cadastrado pela matriz). Lista vazia se não houver nada.",
+}
+
+const SISTEMA_BASE = `Você ajuda um sindicato a cadastrar empresas a partir do registro público da Receita Federal.
 Recebe o registro em JSON e devolve um JSON com:
 - "nome_razao": a razão social em caixa de título do português (preposições minúsculas; siglas societárias como LTDA, ME, EPP, S.A., EIRELI em maiúsculas). Não troque palavras.
 - "nome_fantasia": o nome fantasia no mesmo padrão; se o registro não tiver, devolva "" (NÃO invente).
 - "logradouro", "bairro", "cidade", "complemento": o endereço no mesmo padrão de caixa (a cidade sem a UF).
 - "atividade": UMA frase curta, em português, dizendo o que a empresa faz, a partir do CNAE principal. Sem inventar.
-- "alertas": lista de frases curtas para quem vai contratar — inclua SÓ o que o registro mostra: situação cadastral diferente de ATIVA (com o motivo, se houver), empresa aberta há menos de 6 meses, MEI ou porte muito pequeno para contratos grandes, natureza jurídica incomum para fornecedor. Lista vazia se não houver nada.
+{ALERTAS}
 Use só o que está no registro. Não acrescente comentários.`
 
-/** Consulta o CNPJ e devolve a ficha pronta para o formulário do fornecedor. */
-export async function fichaPorCnpj(entrada: string): Promise<{ ficha?: DadosCnpj; erro?: string }> {
+const sistema = (papel: PapelCnpj) =>
+  SISTEMA_BASE.replace("{ALERTAS}", ALERTAS_POR_PAPEL[papel])
+
+/**
+ * Consulta o CNPJ e devolve a ficha pronta para o formulário. Fornecedor por
+ * padrão; o empregador (fonte pagadora) passa o papel e a própria busca de
+ * cadastro já existente.
+ */
+export async function fichaPorCnpj(
+  entrada: string,
+  opcoes: {
+    papel?: PapelCnpj
+    existente?: (cnpj: string) => Promise<{ id: string; nome: string } | null>
+  } = {}
+): Promise<{ ficha?: DadosCnpj; erro?: string }> {
+  const papel = opcoes.papel ?? "fornecedor"
   const cnpj = entrada.replace(/\D/g, "")
   if (cnpj.length === 11) {
     return { erro: "Pessoa física: não há consulta pública de CPF. Preencha os dados à mão." }
@@ -142,8 +170,12 @@ export async function fichaPorCnpj(entrada: string): Promise<{ ficha?: DadosCnpj
     alertas.push(`Situação cadastral na Receita: ${situacao}${motivo && !/sem motivo/i.test(motivo) ? ` (${motivo})` : ""}.`)
   }
   const meses = mesesDesde(abertura)
-  if (meses !== null && meses < 6) {
+  if (papel === "fornecedor" && meses !== null && meses < 6) {
     alertas.push("Empresa aberta há menos de 6 meses — ponto de atenção da auditoria.")
+  }
+  // 1 = matriz, 2 = filial. O empregador costuma entrar pela matriz.
+  if (papel === "empregador" && String(d.identificador_matriz_filial ?? "") === "2") {
+    alertas.push("Este CNPJ é de uma filial — confira se o empregador não deve ser cadastrado pela matriz.")
   }
 
   let viaIA = false
@@ -168,13 +200,14 @@ export async function fichaPorCnpj(entrada: string): Promise<{ ficha?: DadosCnpj
     natureza_juridica: s(d.natureza_juridica),
     porte: s(d.porte) ?? s(d.descricao_porte),
     opcao_pelo_mei: d.opcao_pelo_mei ?? null,
+    matriz_ou_filial: s(d.descricao_identificador_matriz_filial),
     logradouro: base.logradouro,
     complemento: base.complemento,
     bairro: base.bairro,
     municipio: base.cidade,
     uf: s(d.uf),
   }
-  const ia = await gerarJsonIA({ system: SISTEMA, prompt: JSON.stringify(registro) })
+  const ia = await gerarJsonIA({ system: sistema(papel), prompt: JSON.stringify(registro) })
   if (ia.dados) {
     viaIA = true
     const t = (k: string, reserva: string | null) => {
@@ -196,11 +229,16 @@ export async function fichaPorCnpj(entrada: string): Promise<{ ficha?: DadosCnpj
     // Os objetivos ficam; a IA acrescenta o que não repetir.
     for (const a of extras) {
       const repetido = alertas.some((x) => x.slice(0, 20).toLowerCase() === a.slice(0, 20).toLowerCase())
-      if (!repetido && !(situacao?.toUpperCase() !== "ATIVA" && /situa[cç][aã]o/i.test(a))) alertas.push(a.trim())
+      const filialRepetida = papel === "empregador" && /filial/i.test(a) && alertas.some((x) => /filial/i.test(x))
+      if (!repetido && !filialRepetida && !(situacao?.toUpperCase() !== "ATIVA" && /situa[cç][aã]o/i.test(a))) alertas.push(a.trim())
     }
   }
 
-  const existente = await buscarFornecedorExistente({ cnpjCpf: cnpj, nomes: [] })
+  const existente = opcoes.existente
+    ? await opcoes.existente(cnpj)
+    : await buscarFornecedorExistente({ cnpjCpf: cnpj, nomes: [] }).then((e) =>
+        e && e.por === "documento" ? { id: e.id, nome: e.nome } : null
+      )
   const temEndereco = Boolean(base.logradouro || base.cidade)
   return {
     ficha: {
@@ -224,7 +262,7 @@ export async function fichaPorCnpj(entrada: string): Promise<{ ficha?: DadosCnpj
           }
         : null,
       alertas,
-      existente: existente && existente.por === "documento" ? { id: existente.id, nome: existente.nome } : null,
+      existente,
       viaIA,
     },
   }

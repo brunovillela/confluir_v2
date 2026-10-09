@@ -10,7 +10,12 @@ import { type EstadoForm } from "@/lib/contas"
 import { esquemaAusente } from "@/lib/db/comum"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
-import { invalidarCacheFontes, TIPO_FONTE_PAGADORA } from "@/lib/db/fontes"
+import {
+  invalidarCacheFontes,
+  listarFontesPagadoras,
+  TIPO_FONTE_PAGADORA,
+} from "@/lib/db/fontes"
+import { fichaPorCnpj, type DadosCnpj } from "@/lib/db/fornecedores-cnpj"
 import { ehBaseCategoria } from "@/lib/saude-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -154,4 +159,24 @@ export async function excluirFontePagadora(
   invalidarCacheFontes()
   revalidatePath("/painel/representacao/empregadores")
   redirect("/painel/representacao/empregadores?excluida=1")
+}
+
+/**
+ * Preencher pelo CNPJ (09/10/2026) — a mesma consulta da Receita que
+ * Fornecedores usa, com os alertas de quem representa os trabalhadores da
+ * empresa e a checagem de empregador já cadastrado com o CNPJ.
+ */
+export async function consultarCnpjEmpregador(
+  cnpj: string
+): Promise<{ ficha?: DadosCnpj; erro?: string }> {
+  await requirePermissao("empregadores")
+  return fichaPorCnpj(cnpj, {
+    papel: "empregador",
+    existente: async (doc) => {
+      const f = (await listarFontesPagadoras()).find(
+        (x) => (x.cnpj_cpf ?? "").replace(/D/g, "") === doc
+      )
+      return f ? { id: f.id, nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)" } : null
+    },
+  })
 }

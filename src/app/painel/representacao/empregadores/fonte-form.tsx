@@ -1,9 +1,10 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { Loader2, Trash2 } from "lucide-react"
+import { Loader2, Sparkles, Trash2 } from "lucide-react"
 
+import { FichaReceita } from "@/components/ficha-receita"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +16,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import type { DadosCnpj } from "@/lib/db/fornecedores-cnpj"
 import {
   type CategoriaFonte,
   chaveCategoriaDaFonte,
@@ -23,6 +25,7 @@ import {
 
 import {
   atualizarFontePagadora,
+  consultarCnpjEmpregador,
   criarFontePagadora,
   excluirFontePagadora,
 } from "./actions"
@@ -58,6 +61,35 @@ export function FonteForm({
 
   const erro = estado.erro ?? estadoExcluir.erro
 
+  // Preencher pelo CNPJ — o mesmo fluxo de Fornecedores (Receita + IA).
+  const formRef = useRef<HTMLFormElement>(null)
+  const [consultando, iniciarConsulta] = useTransition()
+  const [ficha, setFicha] = useState<DadosCnpj | null>(null)
+  const [erroCnpj, setErroCnpj] = useState<string | null>(null)
+
+  function preencherPeloCnpj() {
+    const form = formRef.current
+    const campo = form?.elements.namedItem("cnpj_cpf") as HTMLInputElement | null
+    setErroCnpj(null)
+    iniciarConsulta(async () => {
+      const r = await consultarCnpjEmpregador(campo?.value ?? "")
+      if (r.erro || !r.ficha) {
+        setFicha(null)
+        setErroCnpj(r.erro ?? "Não foi possível consultar o CNPJ.")
+        return
+      }
+      const f = r.ficha
+      const setar = (nome: string, valor: string | null) => {
+        const el = form?.elements.namedItem(nome) as HTMLInputElement | null
+        if (el && valor) el.value = valor
+      }
+      setar("cnpj_cpf", f.cnpj)
+      setar("nome_razao", f.nome_razao)
+      setar("nome_fantasia", f.nome_fantasia ?? f.nome_razao)
+      setFicha(f)
+    })
+  }
+
   return (
     <div className="grid gap-4">
       {erro && (
@@ -66,7 +98,7 @@ export function FonteForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-4">
+      <form ref={formRef} action={formAction} className="grid gap-4">
         {fonte && <input type="hidden" name="id" value={fonte.id} />}
 
         <Card>
@@ -74,6 +106,48 @@ export function FonteForm({
             <CardTitle className="text-base">Dados da fonte</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="cnpj_cpf">CNPJ / CPF</Label>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="cnpj_cpf"
+                  name="cnpj_cpf"
+                  inputMode="numeric"
+                  defaultValue={fonte?.cnpj_cpf ?? ""}
+                  placeholder="Somente números"
+                  className="max-w-72"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={preencherPeloCnpj}
+                  disabled={consultando}
+                  title="Consulta o cadastro da Receita Federal e padroniza com IA"
+                >
+                  {consultando ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  Preencher pelo CNPJ
+                </Button>
+              </div>
+              {erroCnpj ? (
+                <p className="text-destructive text-xs">{erroCnpj}</p>
+              ) : (
+                !fonte && (
+                  <p className="text-muted-foreground text-xs">
+                    Comece pelo CNPJ: o botão traz a razão social e o nome do
+                    cadastro da Receita Federal, padronizados pela IA.
+                  </p>
+                )
+              )}
+            </div>
+            {ficha && (
+              <div className="sm:col-span-2">
+                <FichaReceita
+                  ficha={ficha}
+                  idAtual={fonte?.id ?? null}
+                  hrefExistente={(id) => `/painel/representacao/empregadores/${id}`}
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label htmlFor="nome_fantasia">Nome *</Label>
               <Input
@@ -89,15 +163,6 @@ export function FonteForm({
                 id="nome_razao"
                 name="nome_razao"
                 defaultValue={fonte?.nome_razao ?? ""}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cnpj_cpf">CNPJ / CPF</Label>
-              <Input
-                id="cnpj_cpf"
-                name="cnpj_cpf"
-                defaultValue={fonte?.cnpj_cpf ?? ""}
-                placeholder="Somente números"
               />
             </div>
             <div className="grid gap-1.5">
