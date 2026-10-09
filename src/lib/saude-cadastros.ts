@@ -7,6 +7,7 @@
  *
  * A categoria vem da fonte do vínculo CORRENTE do filiado. Sem vínculo em
  * aberto (ou vínculo sem fonte) vale a categoria padrão, "empregador".
+ * Além das duas do sistema, a entidade cria as suas (supabase/fonte-categorias.sql).
  *
  * O padrão reproduz a regra anterior: tudo é pendência, exceto cargo e
  * lotação em fundo de pensão (regra do Bruno, 12/09/2026). Gravado em
@@ -72,44 +73,103 @@ export const ROTULO_CAMPO_SAUDE = Object.fromEntries(
   CAMPOS_SAUDE.map((c) => [c.chave, c.rotulo])
 ) as Record<ChaveCampoSaude, string>
 
-/** Categorias de fonte pagadora. Hoje a fonte só distingue fundo de pensão. */
-export const CATEGORIAS_FONTE = ["empregador", "fundo_pensao"] as const
-export type CategoriaFonte = (typeof CATEGORIAS_FONTE)[number]
+// ── Categorias de fonte pagadora ────────────────────────────────────────────
 
-export const ROTULO_CATEGORIA: Record<CategoriaFonte, string> = {
+/**
+ * As duas categorias do SISTEMA, que vêm da marca `empresa.fundo_pensao`.
+ * Toda categoria criada pela entidade (tabela `fonte_categorias`) segue as
+ * regras de uma delas — a `base`.
+ */
+export const CATEGORIAS_SISTEMA = ["empregador", "fundo_pensao"] as const
+export type BaseCategoria = (typeof CATEGORIAS_SISTEMA)[number]
+
+export const ROTULO_CATEGORIA_SISTEMA: Record<BaseCategoria, string> = {
   empregador: "Empregador",
   fundo_pensao: "Fundo de pensão",
 }
 
-export function categoriaDaFonte(fundoPensao: boolean | null | undefined): CategoriaFonte {
-  return fundoPensao === true ? "fundo_pensao" : "empregador"
+export function ehBaseCategoria(v: unknown): v is BaseCategoria {
+  return (CATEGORIAS_SISTEMA as readonly unknown[]).includes(v)
 }
 
-export type ConfigSaude = Record<CategoriaFonte, Record<ChaveCampoSaude, NivelSaude>>
-
-export function configSaudePadrao(): ConfigSaude {
-  const tudo = () =>
-    Object.fromEntries(CAMPOS_SAUDE.map((c) => [c.chave, "pendencia"])) as Record<
-      ChaveCampoSaude,
-      NivelSaude
-    >
-  return {
-    empregador: tudo(),
-    fundo_pensao: { ...tudo(), v_cargo: "normal", v_lotacao: "normal" },
-  }
+/** Categoria para telas e configuração: `chave` é a base (sistema) ou o uuid. */
+export type CategoriaFonte = {
+  chave: string
+  nome: string
+  base: BaseCategoria
+  sistema: boolean
 }
 
-/** Mescla o que veio do banco (ou do formulário) sobre o padrão, descartando lixo. */
-export function normalizarConfigSaude(bruto: unknown): ConfigSaude {
-  const config = configSaudePadrao()
+export function categoriasSistema(): CategoriaFonte[] {
+  return CATEGORIAS_SISTEMA.map((base) => ({
+    chave: base,
+    nome: ROTULO_CATEGORIA_SISTEMA[base],
+    base,
+    sistema: true,
+  }))
+}
+
+/**
+ * Chave da categoria de uma fonte: a categoria criada, se a fonte aponta para
+ * uma que ainda existe; senão a do sistema pela marca de fundo de pensão.
+ */
+export function chaveCategoriaDaFonte(
+  fonte: { fundo_pensao?: boolean | null; fonte_categoria_id?: string | null } | null | undefined,
+  categorias: CategoriaFonte[]
+): string {
+  const id = fonte?.fonte_categoria_id
+  if (id && categorias.some((c) => c.chave === id)) return id
+  return fonte?.fundo_pensao === true ? "fundo_pensao" : "empregador"
+}
+
+/** Nome da categoria de uma fonte, para listas e fichas. */
+export function nomeCategoriaDaFonte(
+  fonte: { fundo_pensao?: boolean | null; fonte_categoria_id?: string | null },
+  categorias: CategoriaFonte[]
+): string {
+  const chave = chaveCategoriaDaFonte(fonte, categorias)
+  return (
+    categorias.find((c) => c.chave === chave)?.nome ??
+    ROTULO_CATEGORIA_SISTEMA[chave as BaseCategoria] ??
+    "Empregador"
+  )
+}
+
+// ── Configuração ────────────────────────────────────────────────────────────
+
+export type NiveisCategoria = Record<ChaveCampoSaude, NivelSaude>
+/** Chave da categoria → nível de cada campo. */
+export type ConfigSaude = Record<string, NiveisCategoria>
+
+/** Padrão de uma base: tudo pendência; em fundo de pensão, cargo e lotação normais. */
+export function niveisPadrao(base: BaseCategoria): NiveisCategoria {
+  const tudo = Object.fromEntries(
+    CAMPOS_SAUDE.map((c) => [c.chave, "pendencia"])
+  ) as NiveisCategoria
+  return base === "fundo_pensao" ? { ...tudo, v_cargo: "normal", v_lotacao: "normal" } : tudo
+}
+
+export function configSaudePadrao(categorias: CategoriaFonte[]): ConfigSaude {
+  return Object.fromEntries(categorias.map((c) => [c.chave, niveisPadrao(c.base)]))
+}
+
+/**
+ * Mescla o que veio do banco (ou do formulário) sobre o padrão de cada
+ * categoria existente, descartando lixo e categorias que não existem mais.
+ */
+export function normalizarConfigSaude(
+  bruto: unknown,
+  categorias: CategoriaFonte[]
+): ConfigSaude {
+  const config = configSaudePadrao(categorias)
   if (!bruto || typeof bruto !== "object") return config
-  for (const cat of CATEGORIAS_FONTE) {
-    const daCategoria = (bruto as Record<string, unknown>)[cat]
+  for (const cat of categorias) {
+    const daCategoria = (bruto as Record<string, unknown>)[cat.chave]
     if (!daCategoria || typeof daCategoria !== "object") continue
     for (const campo of CAMPOS_SAUDE) {
       const nivel = (daCategoria as Record<string, unknown>)[campo.chave]
       if ((NIVEIS_SAUDE as readonly unknown[]).includes(nivel)) {
-        config[cat][campo.chave] = nivel as NivelSaude
+        config[cat.chave][campo.chave] = nivel as NivelSaude
       }
     }
   }

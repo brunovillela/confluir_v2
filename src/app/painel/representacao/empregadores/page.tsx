@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Building2, Plus } from "lucide-react"
+import { ArrowLeft, Building2, Plus, Tags } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -14,9 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { chaveCategoriaDaFonte, nomeCategoriaDaFonte } from "@/lib/saude-cadastros"
 
 export const metadata: Metadata = { title: "Empregadores — Confluir" }
 
@@ -33,17 +35,19 @@ export default async function FontesPage({
 
   const params = await searchParams
   const { salvo, excluida } = params
-  const tipo = ["empregador", "fundo"].includes(params.tipo ?? "")
-    ? (params.tipo as string)
-    : "todos"
   const situacao = ["ativas", "inativas"].includes(params.situacao ?? "")
     ? (params.situacao as string)
     : "todas"
 
-  const todasFontes = await listarFontesPagadoras()
+  const [todasFontes, categorias] = await Promise.all([
+    listarFontesPagadoras(),
+    listarCategoriasFonte(),
+  ])
+  // "fundo" é o valor antigo do filtro (links salvos).
+  const tipoBruto = params.tipo === "fundo" ? "fundo_pensao" : params.tipo
+  const tipo = categorias.some((c) => c.chave === tipoBruto) ? (tipoBruto as string) : "todos"
   const fontes = todasFontes.filter((f) => {
-    if (tipo === "fundo" && f.fundo_pensao !== true) return false
-    if (tipo === "empregador" && f.fundo_pensao === true) return false
+    if (tipo !== "todos" && chaveCategoriaDaFonte(f, categorias) !== tipo) return false
     if (situacao === "ativas" && f.inativa === true) return false
     if (situacao === "inativas" && f.inativa !== true) return false
     return true
@@ -69,12 +73,20 @@ export default async function FontesPage({
             </p>
           </div>
           {podeEditar && (
-            <Button asChild>
-              <Link href="/painel/representacao/empregadores/nova">
-                <Plus />
-                Nova fonte
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href="/painel/representacao/empregadores/categorias">
+                  <Tags />
+                  Categorias
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/painel/representacao/empregadores/nova">
+                  <Plus />
+                  Nova fonte
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -94,12 +106,15 @@ export default async function FontesPage({
         <select
           name="tipo"
           defaultValue={tipo}
-          aria-label="Filtrar por tipo"
+          aria-label="Filtrar por categoria"
           className={SELECT_FILTRO}
         >
-          <option value="todos">Todos os tipos</option>
-          <option value="empregador">Empregadores</option>
-          <option value="fundo">Fundos de pensão</option>
+          <option value="todos">Todas as categorias</option>
+          {categorias.map((c) => (
+            <option key={c.chave} value={c.chave}>
+              {c.nome}
+            </option>
+          ))}
         </select>
         <select
           name="situacao"
@@ -122,7 +137,7 @@ export default async function FontesPage({
             <TableRow className="bg-muted/50">
               <TableHead>Nome</TableHead>
               <TableHead className="hidden md:table-cell">CNPJ / CPF</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Filiados ativos</TableHead>
               <TableHead>Situação</TableHead>
             </TableRow>
@@ -154,7 +169,7 @@ export default async function FontesPage({
                     {formatarCnpjCpf(f.cnpj_cpf)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {f.fundo_pensao === true ? "Fundo de pensão" : "Empregador"}
+                    {nomeCategoriaDaFonte(f, categorias)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {f.filiadosAtivos.toLocaleString("pt-BR")}

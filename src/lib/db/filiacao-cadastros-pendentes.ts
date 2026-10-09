@@ -8,9 +8,9 @@ import { cpfConfiavel, validarCpf } from "@/lib/cpf"
 import { camposFaltandoNoVinculo, ROTULO_FALTA_VINCULO } from "@/lib/filiacao"
 import { configSaudeCadastros } from "@/lib/db/organizacao"
 import {
-  type CategoriaFonte,
-  categoriaDaFonte,
   type ChaveCampoSaude,
+  chaveCategoriaDaFonte,
+  niveisPadrao,
   ROTULO_CAMPO_SAUDE,
 } from "@/lib/saude-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -71,8 +71,8 @@ export type CadastroPendente = {
   matricula: string | null
   /** Vínculo corrente (em aberto), quando existe. */
   vinculoId: string | null
-  /** Categoria da fonte do vínculo corrente — define a configuração aplicada. */
-  categoria: CategoriaFonte
+  /** Chave da categoria da fonte do vínculo corrente — define a configuração aplicada. */
+  categoria: string
   /** Só as faltas configuradas como PENDÊNCIA. */
   tipos: TipoPendencia[]
   /** Campos que faltam no vínculo corrente (quando tipo inclui "vinculo"). */
@@ -179,7 +179,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
   if (emCache && emCache.expira > Date.now()) return emCache.dados
 
   const admin = await createAdminClient()
-  const [cadastros, vinculos, termos, fontes, comConta, identidades, { config }] = await Promise.all([
+  const [cadastros, vinculos, termos, fontes, comConta, identidades, { config, categorias }] = await Promise.all([
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
@@ -230,9 +230,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
   const usosDaMatricula = contagem((x) => normalizarMatricula(x.matricula_sindical))
 
   // Categoria de cada fonte: decide qual configuração vale para o filiado.
-  const fundosPensao = new Set(
-    fontes.filter((f) => f.fundo_pensao === true).map((f) => f.id)
-  )
+  const fontePorId = new Map(fontes.map((f) => [f.id, f]))
 
   // Vínculo corrente = o ABERTO mais recente; sem aberto, é pendência de histórico.
   const correntePorFiliado = new Map<string, LinhaVinculo>()
@@ -259,10 +257,11 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
   for (const c of cadastros) {
     const v = correntePorFiliado.get(c.id) ?? null
     // Sem vínculo em aberto ou sem fonte vale a categoria padrão (empregador).
-    const categoria = categoriaDaFonte(
-      v?.fonte_pagadora_id ? fundosPensao.has(v.fonte_pagadora_id) : false
+    const categoria = chaveCategoriaDaFonte(
+      v?.fonte_pagadora_id ? fontePorId.get(v.fonte_pagadora_id) : null,
+      categorias
     )
-    const niveis = config[categoria]
+    const niveis = config[categoria] ?? niveisPadrao("empregador")
 
     // Faltas apuradas; o nível configurado decide o que cada uma vira.
     const faltas: ChaveCampoSaude[] = []

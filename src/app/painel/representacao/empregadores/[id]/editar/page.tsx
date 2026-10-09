@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 import { buscarFontePagadora } from "@/lib/db/fontes"
 
 import { FonteForm } from "../../fonte-form"
@@ -19,7 +20,7 @@ export default async function EditarFontePage({
   await requirePermissao("empregadores")
 
   const { id } = await params
-  const fonte = await buscarFontePagadora(id)
+  const [fonte, categorias] = await Promise.all([buscarFontePagadora(id), listarCategoriasFonte()])
   if (!fonte) notFound()
 
   return (
@@ -35,7 +36,7 @@ export default async function EditarFontePage({
           Editar empregador
         </h1>
       </div>
-      <FonteForm fonte={fonte} />
+      <FonteForm fonte={fonte} categorias={categorias} />
     </>
   )
 }

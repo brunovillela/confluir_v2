@@ -1,5 +1,5 @@
 import "server-only"
-import { lerEmLotes } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { normalizarMatricula, matriculasEmUso, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
@@ -172,10 +172,37 @@ export type FontePagadora = {
   nome_razao: string | null
   cnpj_cpf: string | null
   fundo_pensao: boolean | null
+  /** Categoria criada pela entidade (null = a do sistema pela marca fundo_pensao). */
+  fonte_categoria_id: string | null
   inativa: boolean | null
   inativa_data: string | null
   created_at: string | null
   filiadosAtivos: number
+}
+
+const COLUNAS_FONTE =
+  "id, nome_fantasia, nome_razao, cnpj_cpf, fundo_pensao, fonte_categoria_id, inativa, inativa_data, created_at"
+/** Antes de supabase/fonte-categorias.sql a coluna da categoria não existe. */
+const COLUNAS_FONTE_SEM_CATEGORIA = COLUNAS_FONTE.replace(" fonte_categoria_id,", "")
+
+type LinhaFonte = Omit<FontePagadora, "filiadosAtivos">
+
+/** Roda a consulta com a coluna da categoria; sem ela, repete sem e devolve null nela. */
+async function lerFontes(
+  consulta: (colunas: string) => PromiseLike<{
+    data: unknown[] | null
+    error: { message: string; code?: string } | null
+  }>
+): Promise<{ data: LinhaFonte[]; error: { message: string } | null }> {
+  const r = await consulta(COLUNAS_FONTE)
+  if (!r.error || !esquemaAusente(r.error)) {
+    return { data: (r.data ?? []) as LinhaFonte[], error: r.error }
+  }
+  const s = await consulta(COLUNAS_FONTE_SEM_CATEGORIA)
+  return {
+    data: ((s.data ?? []) as LinhaFonte[]).map((f) => ({ ...f, fonte_categoria_id: null })),
+    error: s.error,
+  }
 }
 
 export async function listarFontesPagadoras(): Promise<FontePagadora[]> {
@@ -184,19 +211,13 @@ export async function listarFontesPagadoras(): Promise<FontePagadora[]> {
 
   const [referenciadas, marcadas] = await Promise.all([
     stats.fontesReferenciadas.length
-      ? admin
-          .from("empresa")
-          .select(
-            "id, nome_fantasia, nome_razao, cnpj_cpf, fundo_pensao, inativa, inativa_data, created_at"
-          )
-          .in("id", stats.fontesReferenciadas)
-      : Promise.resolve({ data: [], error: null }),
-    admin
-      .from("empresa")
-      .select(
-        "id, nome_fantasia, nome_razao, cnpj_cpf, fundo_pensao, inativa, inativa_data, created_at"
-      )
-      .eq("tipo", TIPO_FONTE_PAGADORA),
+      ? lerFontes((colunas) =>
+          admin.from("empresa").select(colunas).in("id", stats.fontesReferenciadas)
+        )
+      : Promise.resolve({ data: [] as LinhaFonte[], error: null }),
+    lerFontes((colunas) =>
+      admin.from("empresa").select(colunas).eq("tipo", TIPO_FONTE_PAGADORA)
+    ),
   ])
   if (referenciadas.error) {
     throw new Error(`Falha ao listar fontes: ${referenciadas.error.message}`)
@@ -475,13 +496,10 @@ export async function buscarFontePagadora(
   id: string
 ): Promise<FontePagadora | null> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("empresa")
-    .select(
-      "id, nome_fantasia, nome_razao, cnpj_cpf, fundo_pensao, inativa, inativa_data, created_at"
-    )
-    .eq("id", id)
-    .maybeSingle()
+  const { data: linhas } = await lerFontes((colunas) =>
+    admin.from("empresa").select(colunas).eq("id", id).limit(1)
+  )
+  const data = linhas[0]
   if (!data) return null
   const stats = await estatisticasFontes()
   return { ...data, filiadosAtivos: stats.ativosPorFonteId.get(data.id) ?? 0 }

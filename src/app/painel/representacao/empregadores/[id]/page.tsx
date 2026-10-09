@@ -29,11 +29,13 @@ import {
   contarVotacoesDoEmpregador,
   filtrarAcordos,
 } from "@/lib/db/empregador-painel"
+import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 import { buscarFontePagadora, estatisticasFonteDetalhe } from "@/lib/db/fontes"
 import { listarDocumentosEmpregador } from "@/lib/db/representacao-docs"
 import { resumoReunioes } from "@/lib/db/representacao-reunioes"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { nomeCategoriaDaFonte } from "@/lib/saude-cadastros"
 import { ROTULO_TIPO_DOC } from "@/lib/representacao-docs-constantes"
 import { cn } from "@/lib/utils"
 
@@ -100,7 +102,7 @@ export default async function FontePage({
   const podeEditar = podeAcessar(sessao.permissoes, "empregadores")
   const { id } = await params
   const sp = await searchParams
-  const fonte = await buscarFontePagadora(id)
+  const [fonte, categorias] = await Promise.all([buscarFontePagadora(id), listarCategoriasFonte()])
   if (!fonte) notFound()
 
   const permitidas = ABAS_EMPREGADOR.filter((a) => !a.permissao || podeAcessar(sessao.permissoes, a.permissao)).map((a) => a.chave)
@@ -161,7 +163,7 @@ export default async function FontePage({
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">{nome}</h1>
               <Badge variant="outline" className="text-muted-foreground">
-                {fonte.fundo_pensao === true ? "Fundo de pensão" : "Empregador"}
+                {nomeCategoriaDaFonte(fonte, categorias)}
               </Badge>
               {fonte.inativa === true ? (
                 <Badge variant="outline" className="text-muted-foreground">
@@ -289,7 +291,7 @@ export default async function FontePage({
                   <Campo rotulo="Nome">{fonte.nome_fantasia ?? "—"}</Campo>
                   <Campo rotulo="Razão social">{fonte.nome_razao ?? "—"}</Campo>
                   <Campo rotulo="CNPJ / CPF">{formatarCnpjCpf(fonte.cnpj_cpf)}</Campo>
-                  <Campo rotulo="Tipo">{fonte.fundo_pensao === true ? "Fundo de pensão" : "Empregador"}</Campo>
+                  <Campo rotulo="Categoria">{nomeCategoriaDaFonte(fonte, categorias)}</Campo>
                   <Campo rotulo="Cadastro">{formatarData(fonte.created_at)}</Campo>
                   <Campo rotulo="Inativa desde">{fonte.inativa === true ? formatarData(fonte.inativa_data) : "—"}</Campo>
                 </dl>

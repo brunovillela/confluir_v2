@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 
 import { FonteForm } from "../fonte-form"
 
@@ -11,6 +12,7 @@ export const metadata: Metadata = { title: "Novo empregador — Confluir" }
 
 export default async function NovaFontePage() {
   await requirePermissao("empregadores")
+  const categorias = await listarCategoriasFonte()
 
   return (
     <>
@@ -28,7 +30,7 @@ export default async function NovaFontePage() {
           Empregador ou fundo de pensão que paga filiados do sindicato.
         </p>
       </div>
-      <FonteForm />
+      <FonteForm categorias={categorias} />
     </>
   )
 }

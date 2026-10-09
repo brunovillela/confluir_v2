@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { configSaudeCadastros } from "@/lib/db/organizacao"
 import { configSaudePadrao } from "@/lib/saude-cadastros"
 
@@ -14,8 +15,9 @@ export const metadata: Metadata = { title: "Configurar saúde dos cadastros — 
 
 /** Peso de cada falta de informação, por categoria de fonte pagadora. */
 export default async function ConfigSaudeCadastrosPage() {
-  await requirePermissao("filiacao_gestao")
-  const { config, disponivel } = await configSaudeCadastros()
+  const sessao = await requirePermissao("filiacao_gestao")
+  const podeGerirCategorias = podeAcessar(sessao.permissoes, "empregadores")
+  const { config, categorias, disponivel } = await configSaudeCadastros()
 
   return (
     <>
@@ -35,7 +37,8 @@ export default async function ConfigSaudeCadastrosPage() {
           põe o cadastro na lista de pendentes; <strong>apontamento</strong>{" "}
           aparece na lista como aviso; <strong>normal</strong> não é verificado.
           Vale a categoria da fonte do vínculo em aberto do filiado — sem
-          vínculo em aberto, vale a de Empregador.
+          vínculo em aberto, vale a de Empregador. Há uma aba por categoria de
+          fonte, inclusive as criadas pela entidade.
         </p>
       </div>
 
@@ -48,7 +51,12 @@ export default async function ConfigSaudeCadastrosPage() {
         </Alert>
       )}
 
-      <ConfigSaudeForm inicial={config} padrao={configSaudePadrao()} />
+      <ConfigSaudeForm
+        inicial={config}
+        padrao={configSaudePadrao(categorias)}
+        categorias={categorias}
+        podeGerirCategorias={podeGerirCategorias}
+      />
     </>
   )
 }

@@ -1,20 +1,20 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Loader2, RotateCcw, Save } from "lucide-react"
+import Link from "next/link"
+import { Loader2, RotateCcw, Save, Tags } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   CAMPOS_SAUDE,
-  CATEGORIAS_FONTE,
   type CategoriaFonte,
   type ChaveCampoSaude,
   type ConfigSaude,
   EXPLICACAO_NIVEL,
   NIVEIS_SAUDE,
   type NivelSaude,
-  ROTULO_CATEGORIA,
+  ROTULO_CATEGORIA_SISTEMA,
   ROTULO_NIVEL,
 } from "@/lib/saude-cadastros"
 import { cn } from "@/lib/utils"
@@ -35,12 +35,17 @@ const GRUPOS = [
 export function ConfigSaudeForm({
   inicial,
   padrao,
+  categorias,
+  podeGerirCategorias,
 }: {
   inicial: ConfigSaude
   padrao: ConfigSaude
+  categorias: CategoriaFonte[]
+  podeGerirCategorias: boolean
 }) {
   const [config, setConfig] = useState(inicial)
-  const [aba, setAba] = useState<CategoriaFonte>("empregador")
+  const [aba, setAba] = useState(categorias[0]?.chave ?? "empregador")
+  const categoriaAtual = categorias.find((c) => c.chave === aba) ?? categorias[0]
   const [salvando, iniciar] = useTransition()
   const [retorno, setRetorno] = useState<{ ok?: string; erro?: string }>({})
 
@@ -55,19 +60,21 @@ export function ConfigSaudeForm({
     iniciar(async () => setRetorno(await salvarConfigSaudeAction(config)))
   }
 
-  const contagem = (cat: CategoriaFonte) =>
-    Object.values(config[cat]).filter((n) => n === "pendencia").length
+  const contagem = (chave: string) =>
+    Object.values(config[chave] ?? {}).filter((n) => n === "pendencia").length
 
   return (
     <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div
         role="tablist"
         aria-label="Categoria da fonte pagadora"
         className="bg-muted/60 inline-flex w-fit flex-wrap items-center gap-1 rounded-full p-1"
       >
-        {CATEGORIAS_FONTE.map((cat) => (
+        {categorias.map(({ chave: cat, nome, sistema, base }) => (
           <button
             key={cat}
+            title={sistema ? undefined : `Criada pela entidade — segue as regras de ${ROTULO_CATEGORIA_SISTEMA[base]}`}
             type="button"
             role="tab"
             aria-selected={aba === cat}
@@ -79,13 +86,28 @@ export function ConfigSaudeForm({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {ROTULO_CATEGORIA[cat]}
+            {nome}
             <span className="ml-1.5 text-xs opacity-75 tabular-nums">
               {contagem(cat)} pend.
             </span>
           </button>
         ))}
       </div>
+      {podeGerirCategorias && (
+        <Button asChild variant="outline" size="sm">
+          <Link href="/painel/representacao/empregadores/categorias">
+            <Tags />
+            Categorias de fonte
+          </Link>
+        </Button>
+      )}
+      </div>
+      {!categoriaAtual.sistema && (
+        <p className="text-muted-foreground -mt-2 text-xs">
+          Categoria criada pela entidade — segue as regras de{" "}
+          {ROTULO_CATEGORIA_SISTEMA[categoriaAtual.base]} no vínculo e parte do padrão dela.
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {GRUPOS.map(({ grupo, titulo }) => (
@@ -93,7 +115,7 @@ export function ConfigSaudeForm({
             <CardHeader>
               <CardTitle className="text-base">{titulo}</CardTitle>
               <CardDescription>
-                {ROTULO_CATEGORIA[aba]} — o que fazer quando falta a informação
+                {categoriaAtual.nome} — o que fazer quando falta a informação
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-1">
@@ -175,7 +197,7 @@ export function ConfigSaudeForm({
           }}
         >
           <RotateCcw />
-          Restaurar padrão de {ROTULO_CATEGORIA[aba]}
+          Restaurar padrão de {categoriaAtual.nome}
         </Button>
       </div>
     </div>

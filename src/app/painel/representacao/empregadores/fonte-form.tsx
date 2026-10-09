@@ -15,6 +15,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  type CategoriaFonte,
+  chaveCategoriaDaFonte,
+  ROTULO_CATEGORIA_SISTEMA,
+} from "@/lib/saude-cadastros"
 
 import {
   atualizarFontePagadora,
@@ -29,11 +34,19 @@ export type FonteFormDados = {
   nome_razao: string | null
   cnpj_cpf: string | null
   fundo_pensao: boolean | null
+  fonte_categoria_id: string | null
   inativa: boolean | null
   filiadosAtivos: number
 }
 
-export function FonteForm({ fonte }: { fonte?: FonteFormDados }) {
+export function FonteForm({
+  fonte,
+  categorias,
+}: {
+  fonte?: FonteFormDados
+  /** Sistema + criadas pela entidade (lib/db/fonte-categorias). */
+  categorias: CategoriaFonte[]
+}) {
   const [estado, formAction, pendente] = useActionState(
     fonte ? atualizarFontePagadora : criarFontePagadora,
     {}
@@ -87,14 +100,33 @@ export function FonteForm({ fonte }: { fonte?: FonteFormDados }) {
                 placeholder="Somente números"
               />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="categoria">Categoria *</Label>
+              <select
+                id="categoria"
+                name="categoria"
+                required
+                defaultValue={fonte ? chaveCategoriaDaFonte(fonte, categorias) : "empregador"}
+                className="border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              >
+                {categorias.map((c) => (
+                  <option key={c.chave} value={c.chave}>
+                    {c.nome}
+                    {c.sistema ? "" : ` (regras de ${ROTULO_CATEGORIA_SISTEMA[c.base].toLowerCase()})`}
+                  </option>
+                ))}
+              </select>
+              <p className="text-muted-foreground text-xs">
+                Define as regras do vínculo e a aba da saúde dos cadastros.{" "}
+                <Link
+                  href="/painel/representacao/empregadores/categorias"
+                  className="hover:text-foreground underline underline-offset-2"
+                >
+                  Gerenciar categorias
+                </Link>
+              </p>
+            </div>
             <div className="grid content-end gap-2 pb-1">
-              <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                <Checkbox
-                  name="fundo_pensao"
-                  defaultChecked={fonte?.fundo_pensao === true}
-                />
-                É fundo de pensão (senão, empregador)
-              </label>
               {fonte && (
                 <label className="text-muted-foreground flex items-center gap-2 text-sm">
                   <Checkbox

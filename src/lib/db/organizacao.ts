@@ -1,7 +1,9 @@
 import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { SUPABASE_URL } from "@/lib/env"
+import { listarCategoriasFonte } from "@/lib/db/fonte-categorias"
 import {
+  type CategoriaFonte,
   type ConfigSaude,
   configSaudePadrao,
   normalizarConfigSaude,
@@ -200,22 +202,32 @@ export async function salvarRegrasFiliacao(regras: {
 /** Configuração da saúde dos cadastros; o padrão vale enquanto a coluna não existe. */
 export async function configSaudeCadastros(): Promise<{
   config: ConfigSaude
+  /** Categorias de fonte (sistema + criadas): uma aba e uma chave da config cada. */
+  categorias: CategoriaFonte[]
   /** false enquanto supabase/empresa-filiacao-saude-config.sql não rodou. */
   disponivel: boolean
 }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("empresa")
-    .select("filiacao_saude_config")
-    .eq("id", await tenantAtual())
-    .maybeSingle()
-  if (error) return { config: configSaudePadrao(), disponivel: false }
-  return { config: normalizarConfigSaude(data?.filiacao_saude_config), disponivel: true }
+  const [{ data, error }, categorias] = await Promise.all([
+    admin
+      .from("empresa")
+      .select("filiacao_saude_config")
+      .eq("id", await tenantAtual())
+      .maybeSingle(),
+    listarCategoriasFonte(),
+  ])
+  if (error) return { config: configSaudePadrao(categorias), categorias, disponivel: false }
+  return {
+    config: normalizarConfigSaude(data?.filiacao_saude_config, categorias),
+    categorias,
+    disponivel: true,
+  }
 }
 
 export async function salvarConfigSaudeCadastros(
-  config: ConfigSaude
+  bruto: unknown
 ): Promise<{ erro?: string }> {
+  const config = normalizarConfigSaude(bruto, await listarCategoriasFonte())
   const admin = await createAdminClient()
   const { error } = await admin
     .from("empresa")
