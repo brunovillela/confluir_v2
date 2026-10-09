@@ -54,3 +54,6 @@ supabase/.temp/
 # testes E2E (Playwright)
 /test-results/
 /playwright-report/
+
+# Backups de dados tirados antes de correções (podem ter dados pessoais)
+supabase/*backup*.json
