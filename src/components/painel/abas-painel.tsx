@@ -4,7 +4,6 @@ import Link from "next/link"
 import { ChartColumn, Sun, UsersRound } from "lucide-react"
 
 import { usePendencias } from "@/components/layout/contadores-header"
-import type { PendenciasCarimbadas } from "@/lib/db/pendencias-carimbadas"
 
 export type ChaveAba = "dia" | "coordenacao" | "gestao"
 
@@ -20,18 +19,17 @@ export const COOKIE_ABA = "painel_aba"
  * Abas do painel. Cada aba é um link (?aba=…): só a aba aberta é carregada
  * no servidor. A escolha fica num cookie — o painel reabre onde a pessoa
  * parou. O selo soma as filas da caixa de entrada listadas em `pendencias`
- * da aba, lidas do ContadoresProvider (atualiza junto com a caixa).
+ * da aba, lidas do ContadoresProvider (atualiza junto com a caixa, que
+ * publica nele a lista que a página trouxer).
  */
 export function AbasPainel({
   abas,
   ativa,
-  pendencias: daPagina,
 }: {
   abas: { chave: ChaveAba; rotulo: string; pendencias?: string[] }[]
   ativa: ChaveAba
-  pendencias: PendenciasCarimbadas
 }) {
-  const lista = usePendencias(daPagina)
+  const lista = usePendencias() ?? []
   if (abas.length < 2) return null
   return (
     <nav className="hud-abas" aria-label="Seções do painel">

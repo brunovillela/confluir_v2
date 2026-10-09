@@ -11,12 +11,12 @@ import { CartaoHud } from "@/components/painel/hud"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { requireSessaoPainel } from "@/lib/auth"
+import { requireSessaoPainel, type SessaoPainel } from "@/lib/auth"
 import { climaDasSedes } from "@/lib/db/clima"
 import { departamentosCoordenados } from "@/lib/db/coordenador"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { ehDiretor, temDecisoes } from "@/lib/db/diretor-home"
-import { pendenciasCarimbadas } from "@/lib/db/pendencias-carimbadas"
+import { pendenciasCarimbadas, SEM_PENDENCIAS } from "@/lib/db/pendencias-carimbadas"
 import { buscarCondutorDoUsuario } from "@/lib/db/veiculos"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -68,10 +68,9 @@ export default async function PainelPage({
   const uid = sessao.usuario.id as string
   const nome = String(sessao.usuario.nome_guerra ?? sessao.usuario.nome_completo ?? "").split(" ")[0]
 
-  // Pendências carimbadas: a caixa e os selos das abas comparam com as do
-  // ContadoresProvider (layout e consulta periódica) e mostram a mais nova.
-  const [pendencias, diretor, coordena, condutor, quadroViagem, clima, jar] = await Promise.all([
-    pendenciasCarimbadas(sessao),
+  // As pendências NÃO entram aqui: a caixa carrega no próprio Suspense
+  // (CaixaCarregada), e o resto do painel não espera por ela.
+  const [diretor, coordena, condutor, quadroViagem, clima, jar] = await Promise.all([
     ehDiretor(sessao).catch(() => false),
     departamentosCoordenados(uid).catch(() => []),
     buscarCondutorDoUsuario(uid).catch(() => null),
@@ -135,16 +134,20 @@ export default async function PainelPage({
       {ativa === "dia" ? (
         // No Meu dia, a consulta de filiação divide a linha com a caixa (3/4 + 1/4).
         <div className="grid gap-4 lg:grid-cols-4">
-          <CaixaDeEntrada pendencias={pendencias} estreita className="lg:col-span-3" />
+          <Suspense fallback={<CaixaDeEntrada estreita className="lg:col-span-3" />}>
+            <CaixaCarregada sessao={sessao} estreita className="lg:col-span-3" />
+          </Suspense>
           <CartaoHud titulo="Consulta de filiação" descricao="Informa só a condição — não abre o cadastro" icone={IdCard}>
             <ConsultaFiliacao />
           </CartaoHud>
         </div>
       ) : (
-        <CaixaDeEntrada pendencias={pendencias} />
+        <Suspense fallback={<CaixaDeEntrada />}>
+          <CaixaCarregada sessao={sessao} />
+        </Suspense>
       )}
 
-      <AbasPainel abas={abas} ativa={ativa} pendencias={pendencias} />
+      <AbasPainel abas={abas} ativa={ativa} />
 
       <Suspense key={`${ativa}-${sp.ver ?? ""}-${sp.depto ?? ""}`} fallback={<EsqueletoAba />}>
         {ativa === "coordenacao" ? (
@@ -163,6 +166,24 @@ export default async function PainelPage({
       </Suspense>
     </div>
   )
+}
+
+/**
+ * Caixa de entrada com a lista calculada para esta página. Enquanto ela não
+ * chega, o fallback (a mesma caixa, sem lista) mostra a do ContadoresProvider
+ * ou um esqueleto. Falha vem com `em: 0` e fica valendo a do provedor.
+ */
+async function CaixaCarregada({
+  sessao,
+  estreita,
+  className,
+}: {
+  sessao: SessaoPainel
+  estreita?: boolean
+  className?: string
+}) {
+  const pendencias = await pendenciasCarimbadas(sessao).catch(() => SEM_PENDENCIAS)
+  return <CaixaDeEntrada pendencias={pendencias} estreita={estreita} className={className} />
 }
 
 function EsqueletoAba() {

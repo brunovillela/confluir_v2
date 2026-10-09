@@ -35,7 +35,10 @@ export default async function PainelLayout({
     icone: m.icone,
   }))
   const contaFuncao = sessao.usuario.conta_funcao === true
-  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes, pendencias] = await Promise.all([
+  // Pendências: a conta mais cara do painel, NÃO esperada — vai como
+  // promessa ao ContadoresProvider e o contador aparece quando resolve.
+  const pendencias = pendenciasCarimbadas(sessao).catch(() => SEM_PENDENCIAS)
+  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
@@ -43,7 +46,6 @@ export default async function PainelLayout({
     jornadaDoUsuario(sessao.usuario.id),
     urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
     contaFuncao ? ocupantesAtuais([sessao.usuario.id]) : Promise.resolve(null),
-    pendenciasCarimbadas(sessao).catch(() => SEM_PENDENCIAS),
   ])
   // Conta de função (ex.: Recepção): no lugar do e-mail, quem está no posto —
   // lembrete de registrar a troca quando o nome não é o de quem está usando.

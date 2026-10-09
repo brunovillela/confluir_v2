@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ArrowRight, CircleCheck, Inbox } from "lucide-react"
 
 import { usePendencias } from "@/components/layout/contadores-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { PendenciasCarimbadas } from "@/lib/db/pendencias-carimbadas"
 import { cn } from "@/lib/utils"
 
@@ -13,21 +14,29 @@ import { cn } from "@/lib/utils"
  * unificado em 06/10/2026). Sem pendência, uma linha discreta — a ausência
  * também é informação. `estreita`: dividindo a linha com outro cartão
  * (Meu dia), cabe uma coluna a menos de filas. Lê do ContadoresProvider
- * (09/10/2026): atualiza junto com o contador do cabeçalho.
+ * (09/10/2026): atualiza junto com o contador do cabeçalho. Sem
+ * `pendencias` (fallback do Suspense, enquanto a página calcula a lista),
+ * mostra a do provedor ou, se nem ela chegou, um esqueleto.
  */
 export function CaixaDeEntrada({
   pendencias: daPagina,
   estreita = false,
   className,
 }: {
-  pendencias: PendenciasCarimbadas
+  pendencias?: PendenciasCarimbadas
   estreita?: boolean
   className?: string
 }) {
   const pendencias = usePendencias(daPagina)
-  const total = pendencias.reduce((s, p) => s + p.quantidade, 0)
+  const total = (pendencias ?? []).reduce((s, p) => s + p.quantidade, 0)
+  const colunas = cn("grid gap-2 sm:grid-cols-2", estreita ? "xl:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4")
   return (
-    <section id="caixa-entrada" className={cn("hud-cartao min-w-0 scroll-mt-20 p-4", className)} aria-label="Caixa de entrada">
+    <section
+      id="caixa-entrada"
+      className={cn("hud-cartao min-w-0 scroll-mt-20 p-4", className)}
+      aria-label="Caixa de entrada"
+      aria-busy={pendencias === null || undefined}
+    >
       <header className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <Inbox className="text-primary size-4" />
@@ -42,13 +51,19 @@ export function CaixaDeEntrada({
           </span>
         )}
       </header>
-      {pendencias.length === 0 ? (
+      {pendencias === null ? (
+        <div className={colunas}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
+        </div>
+      ) : pendencias.length === 0 ? (
         <p className="text-muted-foreground flex items-center gap-2 text-sm">
           <CircleCheck className="text-success-fg size-4" />
           Nada esperando por você agora.
         </p>
       ) : (
-        <ul className={cn("grid gap-2 sm:grid-cols-2", estreita ? "xl:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4")}>
+        <ul className={colunas}>
           {pendencias.map((p) => (
             <li key={p.chave}>
               <Link

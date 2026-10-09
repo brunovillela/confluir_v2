@@ -18,33 +18,35 @@ type Contadores = {
 
 const Contexto = createContext<Contadores | null>(null)
 
+/** Ainda nada carregado: `em: 0` perde para qualquer lista de verdade. */
+const NADA: PendenciasCarimbadas = { lista: [], em: 0 }
+
 /**
  * FONTE ÚNICA da caixa de entrada e do sino no painel (09/10/2026). Antes, o
  * contador do cabeçalho se atualizava sozinho (a cada minuto e ao voltar o
  * foco) e a caixa da home só ao navegar — os dois divergiam. Agora este
  * provedor faz a consulta a /api/painel/contadores, que devolve a LISTA, e o
- * cabeçalho, a caixa e os selos das abas leem daqui. O servidor renderiza os
- * valores iniciais; falha de rede mantém o último valor.
+ * cabeçalho, a caixa e os selos das abas leem daqui. As pendências do layout
+ * chegam como PROMESSA: o layout não espera por elas (a conta é a mais cara
+ * do painel) e o contador aparece quando ela resolve. Falha de rede mantém o
+ * último valor.
  */
 export function ContadoresProvider({
   pendencias,
   naoLidas,
   children,
 }: {
-  pendencias: PendenciasCarimbadas
+  pendencias: Promise<PendenciasCarimbadas>
   naoLidas: number
   children: React.ReactNode
 }) {
-  const [estado, setEstado] = useState({ pendencias, naoLidas })
-  // O layout re-renderizado (router.refresh, server action) traz valores
-  // novos: eles vencem se forem mais recentes (ajuste durante a renderização).
-  const [doServidor, setDoServidor] = useState({ pendencias, naoLidas })
-  if (doServidor.pendencias.em !== pendencias.em || doServidor.naoLidas !== naoLidas) {
-    setDoServidor({ pendencias, naoLidas })
-    setEstado((e) => ({
-      naoLidas,
-      pendencias: pendencias.em > e.pendencias.em ? pendencias : e.pendencias,
-    }))
+  const [estado, setEstado] = useState({ pendencias: NADA, naoLidas })
+  // O layout re-renderizado (router.refresh, server action) traz não lidas
+  // novas: elas vencem (ajuste durante a renderização, sem efeito).
+  const [naoLidasDoServidor, setNaoLidasDoServidor] = useState(naoLidas)
+  if (naoLidasDoServidor !== naoLidas) {
+    setNaoLidasDoServidor(naoLidas)
+    setEstado((e) => ({ ...e, naoLidas }))
   }
 
   useEffect(() => {
@@ -98,6 +100,19 @@ export function ContadoresProvider({
     []
   )
 
+  // Promessa nova a cada renderização do layout; vale se for a mais recente.
+  // Promise.resolve: a que chega do servidor é um thenable do React, cujo
+  // then() não devolve promessa encadeável.
+  useEffect(() => {
+    let ativo = true
+    Promise.resolve(pendencias)
+      .then((p) => ativo && publicar(p))
+      .catch(() => {})
+    return () => {
+      ativo = false
+    }
+  }, [pendencias, publicar])
+
   return <Contexto.Provider value={{ ...estado, publicar }}>{children}</Contexto.Provider>
 }
 
@@ -106,9 +121,9 @@ export function ContadoresProvider({
  * (`daPagina`). Navegar até o painel não re-renderiza o layout — só a
  * página —, então a lista da página pode ser a mais nova: nesse caso ela é
  * usada já nesta renderização e publicada no provedor, e o cabeçalho a
- * acompanha.
+ * acompanha. `null`: nenhuma das duas carregou ainda.
  */
-export function usePendencias(daPagina?: PendenciasCarimbadas): Pendencia[] {
+export function usePendencias(daPagina?: PendenciasCarimbadas): Pendencia[] | null {
   const ctx = useContext(Contexto)
   const maisNovaNaPagina = !!daPagina && (!ctx || daPagina.em > ctx.pendencias.em)
   const publicar = ctx?.publicar
@@ -116,7 +131,7 @@ export function usePendencias(daPagina?: PendenciasCarimbadas): Pendencia[] {
     if (maisNovaNaPagina && daPagina && publicar) publicar(daPagina)
   }, [maisNovaNaPagina, daPagina, publicar])
   if (maisNovaNaPagina) return daPagina.lista
-  return ctx?.pendencias.lista ?? []
+  return ctx && ctx.pendencias.em > 0 ? ctx.pendencias.lista : null
 }
 
 /** Sino e caixa de entrada do cabeçalho, lidos do provedor. */
