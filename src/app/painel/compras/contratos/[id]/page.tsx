@@ -39,6 +39,8 @@ import {
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
+import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
+import { AnexarRpaAssinadoBotao } from "../../rpa/rpa-forms"
 import { listarMinutas } from "@/lib/db/contratos-minutas"
 import {
   SITUACAO_AGUARDANDO_DOCUMENTO,
@@ -137,6 +139,7 @@ export default async function ContratoPage({
     contratoDoRpa(c.id),
   ])
   const aceitaRpa = Boolean(paraRpa?.fornecedorId && !paraRpa.fornecedorPessoaJuridica)
+  const rpaComLink = await rpasComLinkPendente(rpas.filter((r) => !r.arquivoAssinado).map((r) => r.id))
   const mostrarRpa = aceitaRpa || rpas.length > 0
 
   const paginacao = lerPaginacao(brutos, 10)
@@ -418,12 +421,17 @@ export default async function ContratoPage({
               <div>
                 <CardTitle className="text-base">RPA — pagamento a autônomo</CardTitle>
                 <CardDescription>
-                  Recibos do prestador deste contrato; cada um gera a ordem de pagamento do líquido
+                  Emita o recibo do prestador (gera a ordem do líquido) e anexe aqui o RPA assinado no
+                  papel ou pelo gov.br. O envio do link por e-mail e a trilha ficam na{" "}
+                  <Link href="/painel/compras/rpa" className="text-primary hover:underline">
+                    área RPA
+                  </Link>
+                  .
                 </CardDescription>
               </div>
               {podeEditar && aceitaRpa && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/painel/compras/contratos/rpa/novo?contrato=${c.id}`}>
+                  <Link href={`/painel/compras/rpa/novo?contrato=${c.id}`}>
                     <ReceiptText />
                     Emitir RPA
                   </Link>
@@ -447,6 +455,7 @@ export default async function ContratoPage({
                     <TableHead className="text-right">Bruto</TableHead>
                     <TableHead className="text-right">Líquido</TableHead>
                     <TableHead>Ordem</TableHead>
+                    <TableHead>Recibo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -454,7 +463,7 @@ export default async function ContratoPage({
                     <TableRow key={r.id}>
                       <TableCell className="tabular-nums">
                         <Link
-                          href={`/painel/compras/contratos/rpa/${r.id}`}
+                          href={`/painel/compras/rpa/${r.id}`}
                           className="text-primary font-medium hover:underline"
                         >
                           {r.numero ?? "—"}
@@ -471,6 +480,17 @@ export default async function ContratoPage({
                       </TableCell>
                       <TableCell>
                         {r.ordemId ? <SituacaoBadge situacao={r.ordemSituacao} /> : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {r.arquivoAssinado ? (
+                          <span className="text-success-fg text-sm">Assinado</span>
+                        ) : podeEditar ? (
+                          <AnexarRpaAssinadoBotao id={r.id} numero={r.numero} linkPendente={rpaComLink.has(r.id)} />
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            {rpaComLink.has(r.id) ? "Link enviado" : "A assinar"}
+                          </span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

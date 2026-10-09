@@ -587,18 +587,22 @@ export async function proximoNumeroRpa(): Promise<number> {
 /** RPAs que pagam estes fornecimentos (fornecimento → RPA). Antes do SQL, vazio. */
 export async function rpasDosFornecimentos(
   fornecimentoIds: string[]
-): Promise<Map<string, { id: string; numero: number | null }>> {
-  const mapa = new Map<string, { id: string; numero: number | null }>()
+): Promise<Map<string, { id: string; numero: number | null; assinado: boolean }>> {
+  const mapa = new Map<string, { id: string; numero: number | null; assinado: boolean }>()
   if (!fornecimentoIds.length) return mapa
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("compras_rpa")
-    .select("id, numero, fornecimento_id")
+    .select("id, numero, fornecimento_id, arquivo_assinado")
     .eq("emp_proprietaria_id", await tenantAtual())
     .in("fornecimento_id", fornecimentoIds)
   if (error) return mapa
   for (const r of data ?? []) {
-    mapa.set(String(r.fornecimento_id), { id: String(r.id), numero: (r.numero as number | null) ?? null })
+    mapa.set(String(r.fornecimento_id), {
+      id: String(r.id),
+      numero: (r.numero as number | null) ?? null,
+      assinado: Boolean(r.arquivo_assinado),
+    })
   }
   return mapa
 }

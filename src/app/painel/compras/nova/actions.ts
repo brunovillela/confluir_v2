@@ -166,7 +166,7 @@ export async function criarCompra(
     }
     if (erro || !id || !fornecimentoId) return { erro: erro ?? "Falha ao registrar." }
     revalidatePath("/painel/compras")
-    redirect(`/painel/compras/contratos/rpa/novo?fornecimento=${fornecimentoId}`)
+    redirect(`/painel/compras/rpa/novo?fornecimento=${fornecimentoId}`)
   }
 
   const formaBruta = texto(formData, "forma_pagamento")

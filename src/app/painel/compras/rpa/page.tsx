@@ -55,13 +55,17 @@ export default async function RpaPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
+  // Área própria de Aquisição (saiu de dentro de Contratos em 09/10): quem
+  // vê contratos vê todos os RPAs; quem só opera compras, os RPAs de compra.
+  const permissoesCompra = ["aquisicoes_compras_edicao", "aquisicoes_comprador", "aquisicoes_compra_direta"]
   const sessao = await requirePermissao("aquisicoes_contratos", [
     "aquisicoes_contratos_edicao",
+    ...permissoesCompra,
   ])
-  const podeEditar = podeAcessar(
-    sessao.permissoes,
-    "aquisicoes_contratos_edicao"
-  )
+  const veContratos = podeAcessar(sessao.permissoes, "aquisicoes_contratos", ["aquisicoes_contratos_edicao"])
+  const podeEditar =
+    podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao") ||
+    permissoesCompra.some((p) => podeAcessar(sessao.permissoes, p))
   const sp = await searchParams
   const excluido = sp.excluido
   const busca = (sp.busca ?? "").trim()
@@ -69,10 +73,11 @@ export default async function RpaPage({
   const origem = ORIGENS.some((o) => o.valor === sp.origem) ? sp.origem! : ""
   const pag = lerPaginacao(sp, PADRAO_POR_PAGINA)
 
-  const [{ ativo, linhas: todas }, config] = await Promise.all([
+  const [{ ativo, linhas: todosOsRpas }, config] = await Promise.all([
     listarRpas(),
     obterConfigRpa(),
   ])
+  const todas = veContratos ? todosOsRpas : todosOsRpas.filter((r) => r.compraId)
 
   const termo = semAcento(busca.toLowerCase())
   const filtradas = todas.filter((r) => {
@@ -102,7 +107,7 @@ export default async function RpaPage({
   if (origem) q.set("origem", origem)
   if (pagina > 1) q.set("pagina", String(pagina))
   if (pag.porPagina !== PADRAO_POR_PAGINA) q.set("porPagina", String(pag.porPagina))
-  const urlAtual = `/painel/compras/contratos/rpa${q.size ? `?${q}` : ""}`
+  const urlAtual = `/painel/compras/rpa${q.size ? `?${q}` : ""}`
 
   return (
     <>
@@ -110,9 +115,9 @@ export default async function RpaPage({
       <div className="flex items-start justify-between gap-3">
         <div>
           <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-            <Link href="/painel/compras/contratos">
+            <Link href="/painel/compras">
               <ArrowLeft />
-              Contratos
+              Aquisição
             </Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -129,7 +134,7 @@ export default async function RpaPage({
         </div>
         {podeEditar && (
           <Button asChild>
-            <Link href="/painel/compras/contratos/rpa/novo">
+            <Link href="/painel/compras/rpa/novo">
               <Plus />
               Novo RPA
             </Link>
@@ -153,7 +158,7 @@ export default async function RpaPage({
         </Alert>
       )}
 
-      <form action="/painel/compras/contratos/rpa" className="flex flex-wrap items-center gap-2">
+      <form action="/painel/compras/rpa" className="flex flex-wrap items-center gap-2">
         {pag.porPagina !== PADRAO_POR_PAGINA && (
           <input type="hidden" name="porPagina" value={pag.porPagina} />
         )}
@@ -184,7 +189,7 @@ export default async function RpaPage({
         </Button>
         {temFiltro && (
           <Button variant="ghost" size="sm" className="h-9" asChild>
-            <Link href="/painel/compras/contratos/rpa">Limpar</Link>
+            <Link href="/painel/compras/rpa">Limpar</Link>
           </Button>
         )}
       </form>
@@ -226,7 +231,7 @@ export default async function RpaPage({
                 <TableRow key={r.id}>
                   <TableCell className="font-medium tabular-nums">
                     <Link
-                      href={`/painel/compras/contratos/rpa/${r.id}`}
+                      href={`/painel/compras/rpa/${r.id}`}
                       className="hover:underline"
                     >
                       {r.numero ?? "—"}

@@ -387,9 +387,9 @@ export async function emitirRpa(
     revalidatePath(`/painel/compras/${origem.compra.processoId}`)
     revalidatePath("/painel/compras")
   }
-  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath("/painel/compras/rpa")
   if (origem.contratoId) revalidatePath(`/painel/compras/contratos/${origem.contratoId}`)
-  redirect(`/painel/compras/contratos/rpa/${rpaId}?salvo=1`)
+  redirect(`/painel/compras/rpa/${rpaId}?salvo=1`)
 }
 
 /**
@@ -453,9 +453,9 @@ async function ligarRpaNaOrdemDaCompra(p: {
   await alinharValorDaCompra(p.compra.processoId)
   revalidatePath(`/painel/compras/${p.compra.processoId}`)
   revalidatePath("/painel/compras")
-  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath("/painel/compras/rpa")
   revalidatePath(`/painel/financeiro/ordens/${p.ordemId}`)
-  redirect(`/painel/compras/contratos/rpa/${p.rpaId}?salvo=1`)
+  redirect(`/painel/compras/rpa/${p.rpaId}?salvo=1`)
 }
 
 /** O valor da compra é a soma dos fornecimentos — o do RPA virou o líquido. */
@@ -503,12 +503,12 @@ export async function excluirRpa(
     const { error } = await admin.from("compras_rpa").delete().eq("id", id).eq("emp_proprietaria_id", emp)
     if (error) return { erro: `Não foi possível excluir: ${error.message}` }
     await registrarEvento(rpa.ordemId, "corrigida", await usuarioDaTrilha(), `RPA nº ${rpa.numero ?? "—"} excluído — a ordem segue aguardando o documento fiscal (um novo RPA).`)
-    revalidatePath("/painel/compras/contratos/rpa")
+    revalidatePath("/painel/compras/rpa")
     if (rpa.compraId) {
       revalidatePath(`/painel/compras/${rpa.compraId}`)
       if (txt(fd, "voltar") !== "lista") redirect(`/painel/compras/${rpa.compraId}?salvo=1`)
     }
-    redirect("/painel/compras/contratos/rpa?excluido=1")
+    redirect("/painel/compras/rpa?excluido=1")
   }
   if (rpa.ordemId && rpa.ordemSituacao !== "Em autorização") {
     return {
@@ -555,7 +555,7 @@ export async function excluirRpa(
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath("/painel/compras/rpa")
   if (rpa.compraId) {
     revalidatePath(`/painel/compras/${rpa.compraId}`)
     if (txt(fd, "voltar") !== "lista") redirect(`/painel/compras/${rpa.compraId}?salvo=1`)
@@ -566,7 +566,7 @@ export async function excluirRpa(
       redirect(`/painel/compras/contratos/${rpa.contratoId}?rpaExcluido=1`)
     }
   }
-  redirect("/painel/compras/contratos/rpa?excluido=1")
+  redirect("/painel/compras/rpa?excluido=1")
 }
 
 /**
@@ -623,7 +623,7 @@ export async function enviarRpaAssinaturaAction(_prev: EstadoForm, fd: FormData)
   if (!id) return { erro: "RPA inválido." }
   const { erro } = await enviarRpaParaAssinatura(id, { nome: txt(fd, "nome") ?? "", email: txt(fd, "email") ?? "" }, sessao.usuario.id)
   if (erro) return { erro }
-  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  revalidatePath(`/painel/compras/rpa/${id}`)
   return { ok: "Link de assinatura enviado ao prestador." }
 }
 
@@ -633,7 +633,7 @@ export async function reenviarLinkRpaAction(_prev: EstadoForm, fd: FormData): Pr
   if (!id) return { erro: "RPA inválido." }
   const { erro } = await reenviarLinkRpa(id)
   if (erro) return { erro }
-  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  revalidatePath(`/painel/compras/rpa/${id}`)
   return { ok: "E-mail reenviado." }
 }
 
@@ -642,7 +642,7 @@ export async function cancelarLinkRpaAction(_prev: EstadoForm, fd: FormData): Pr
   const id = txt(fd, "id")
   if (!id) return { erro: "RPA inválido." }
   const { cancelados } = await cancelarAssinaturaRpa(id, sessao.usuario.id, "Cancelado no painel")
-  revalidatePath(`/painel/compras/contratos/rpa/${id}`)
+  revalidatePath(`/painel/compras/rpa/${id}`)
   return cancelados ? { ok: "Link cancelado — o prestador não consegue mais assinar por ele." } : { erro: "Não havia link pendente." }
 }
 
@@ -678,6 +678,6 @@ export async function salvarConfigRpa(
     { onConflict: "emp_proprietaria_id" }
   )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath("/painel/compras/rpa")
   return { ok: "Tabelas de retenção salvas — valem para os próximos RPAs." }
 }

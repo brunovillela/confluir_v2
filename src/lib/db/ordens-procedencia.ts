@@ -156,7 +156,7 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     if (!r) return p
     const contrato = await porId("contratos", r.contrato_id)
     p.titulo = `RPA nº ${r.numero ?? "—"}`
-    p.href = `/painel/compras/contratos/rpa/${r.id}`
+    p.href = `/painel/compras/rpa/${r.id}`
     p.linhas = linhas([
       ["Serviço", t(r.descricao_servico)],
       ["Data do serviço", data(r.data_servico)],
@@ -168,7 +168,7 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
       ["Valor líquido (a pagar)", moeda(r.valor_liquido)],
     ])
     p.solicitante = t(r.criado_por) ? { id: String(r.criado_por), nome: null, papel: "Emitiu o RPA" } : null
-    p.documentos = [{ rotulo: "RPA (PDF)", url: `/painel/compras/contratos/rpa/${r.id}/pdf` }]
+    p.documentos = [{ rotulo: "RPA (PDF)", url: `/painel/compras/rpa/${r.id}/pdf` }]
     return p
   }
 

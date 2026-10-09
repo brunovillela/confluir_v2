@@ -411,8 +411,8 @@ export async function registrarRpaAssinado(
       revalidatePath("/painel/compras/avaliacoes")
     }
   }
-  revalidatePath(`/painel/compras/contratos/rpa/${rpa.id}`)
-  revalidatePath("/painel/compras/contratos/rpa")
+  revalidatePath(`/painel/compras/rpa/${rpa.id}`)
+  revalidatePath("/painel/compras/rpa")
   if (rpa.contratoId) revalidatePath(`/painel/compras/contratos/${rpa.contratoId}`)
   return { seguiu, linkCancelado: cancelados > 0 }
 }
@@ -716,4 +716,19 @@ export async function verificarCertificadoRpa(certificado: string): Promise<Veri
     conteudoIntegro: rpa ? hashDoRpa(rpa) === a.hashDocumento : a.situacao === "assinado",
     concluida: a.situacao === "assinado",
   }
+}
+
+/** Quais destes RPAs têm link de assinatura por e-mail aguardando (anexar o cancela). */
+export async function rpasComLinkPendente(rpaIds: string[]): Promise<Set<string>> {
+  if (rpaIds.length === 0) return new Set()
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("documento_assinaturas")
+    .select("documento_id")
+    .eq("documento_tipo", "rpa")
+    .eq("situacao", "pendente")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("documento_id", rpaIds)
+  if (error) return new Set()
+  return new Set((data ?? []).map((d) => String(d.documento_id)))
 }

@@ -72,16 +72,14 @@ export default async function RpaDetalhePage({
                 </Link>
               </Button>
             )}
-            {/* A lista de RPAs exige a permissão de Contratos. */}
-            {veContratos && (
-              <VoltarLista
-                chave="rpas"
-                base="/painel/compras/contratos/rpa"
-                rotulo="RPAs"
-                icone={rpa.contratoId ? <List /> : <ArrowLeft />}
-                className=""
-              />
-            )}
+            {/* A área RPA abre para contratos e para quem opera compras. */}
+            <VoltarLista
+              chave="rpas"
+              base="/painel/compras/rpa"
+              rotulo="RPAs"
+              icone={rpa.contratoId ? <List /> : <ArrowLeft />}
+              className=""
+            />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             RPA nº {rpa.numero ?? "—"}
@@ -92,7 +90,7 @@ export default async function RpaDetalhePage({
           </p>
         </div>
         <Button asChild>
-          <a href={`/painel/compras/contratos/rpa/${id}/pdf`}>
+          <a href={`/painel/compras/rpa/${id}/pdf`}>
             <Download />
             Baixar PDF
           </a>

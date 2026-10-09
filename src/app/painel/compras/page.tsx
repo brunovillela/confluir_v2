@@ -7,6 +7,7 @@ import {
   ListChecks,
   PackageOpen,
   Plus,
+  ReceiptText,
   ScrollText,
   Truck,
 } from "lucide-react";
@@ -102,6 +103,10 @@ export default async function ComprasPage({
   const veContratos = podeAcessar(p, "aquisicoes_contratos", [
     "aquisicoes_contratos_edicao",
   ]);
+  // A gestão do RPA é área própria (contrato e compra de serviço só emitem e anexam).
+  const veRpa =
+    veContratos ||
+    podeAcessar(p, "aquisicoes_compras_edicao", ["aquisicoes_comprador", "aquisicoes_compra_direta"]);
 
   const processos = (q: Record<string, string>) =>
     `/painel/compras/processos?${new URLSearchParams(q).toString()}`;
@@ -184,6 +189,14 @@ export default async function ComprasPage({
             descricao="Cadastro, contratos e dados dos fornecedores"
             href="/painel/compras/fornecedores"
             icone={Truck}
+          />
+        )}
+        {veRpa && (
+          <CartaoArea
+            titulo="RPA"
+            descricao="Recibos de autônomos: assinatura, recibos assinados e retenções"
+            href="/painel/compras/rpa"
+            icone={ReceiptText}
           />
         )}
         {veContratos && (

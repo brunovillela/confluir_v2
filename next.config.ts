@@ -75,6 +75,10 @@ const nextConfig: NextConfig = {
       { source: "/painel/minhas-diarias", destination: "/painel/perfil/diarias", permanent: true },
       { source: "/painel/meus-reembolsos", destination: "/painel/perfil/reembolsos", permanent: true },
       { source: "/painel/meu-caixa", destination: "/painel/perfil/caixa", permanent: true },
+      // RPA saiu de dentro de Contratos (09/10): a gestão é área própria de
+      // Aquisição; a emissão e o anexo do assinado ficam no contrato e na compra.
+      { source: "/painel/compras/contratos/rpa", destination: "/painel/compras/rpa", permanent: true },
+      { source: "/painel/compras/contratos/rpa/:path*", destination: "/painel/compras/rpa/:path*", permanent: true },
       // Módulo Representação Sindical: Assembleias e Oposição saíram de /painel/assembleias
       // e /painel/filiados/oposicao (esta era área de Filiados).
       { source: "/painel/assembleias", destination: "/painel/representacao/assembleias", permanent: true },

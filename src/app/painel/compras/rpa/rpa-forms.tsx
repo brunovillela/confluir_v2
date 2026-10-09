@@ -11,14 +11,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   calcularPorBruto,
   calcularPorLiquido,
   FORMAS_PAGAMENTO_RPA,
   type ConfigRpa,
 } from "@/lib/rpa-calculo"
 
-import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
-import { DetalhePagamento, type CaixaOpcao } from "../../nova/detalhe-pagamento"
+import { ACEITA_NOTA, prepararArquivo } from "../nova/arquivo-envio"
+import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
 import {
   anexarRpaAssinado,
   cancelarLinkRpaAction,
@@ -778,5 +787,80 @@ export function AcoesLinkRpa({ id }: { id: string }) {
         <p className={estado.erro ? "text-destructive text-xs" : "text-success-fg text-xs"}>{estado.erro ?? estado.ok}</p>
       )}
     </div>
+  )
+}
+
+/**
+ * Entrada do recibo assinado onde o RPA nasce (contrato e compra): botão que
+ * abre a janela para anexar o RPA assinado à mão (foto ou PDF digitalizado)
+ * ou pelo gov.br (PDF). A gestão (link por e-mail, trilha) fica na área RPA.
+ */
+export function AnexarRpaAssinadoBotao({
+  id,
+  numero,
+  linkPendente = false,
+}: {
+  id: string
+  numero: number | null
+  /** Há link de assinatura por e-mail aguardando: anexar o cancela. */
+  linkPendente?: boolean
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, action, pend] = useActionState(async (prev: { erro?: string; ok?: string }, fd: FormData) => {
+    const r = await anexarRpaAssinado(prev, fd)
+    if (r.ok) setAberto(false)
+    return r
+  }, {})
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button type="button" variant="outline" size="sm" className="h-7">
+            <Upload />
+            Anexar RPA assinado
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>RPA nº {numero ?? "—"} assinado</DialogTitle>
+            <DialogDescription>
+              Anexe o recibo assinado pelo prestador: no papel (foto ou PDF digitalizado) ou pelo assinador
+              do gov.br (PDF). Com ele, o RPA vira o documento fiscal e não pode mais ser excluído.
+              {linkPendente ? " O link de assinatura enviado por e-mail ao prestador será cancelado." : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <form action={action} className="grid gap-3">
+            <input type="hidden" name="id" value={id} />
+            <Input
+              name="arquivo"
+              type="file"
+              required
+              accept={ACEITA_NOTA}
+              onChange={async (e) => {
+                const { erro } = await prepararArquivo(e.currentTarget)
+                setErroArquivo(erro ?? null)
+              }}
+            />
+            {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={pend}>
+                {pend ? <Loader2 className="animate-spin" /> : <FileCheck2 />}
+                Anexar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {!aberto && estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
+    </span>
   )
 }

@@ -154,7 +154,7 @@ export default async function ContratosPage({
               </Button>
             )}
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/painel/compras/contratos/rpa">
+              <Link href="/painel/compras/rpa">
                 <ScrollText />
                 Todos os RPAs
               </Link>

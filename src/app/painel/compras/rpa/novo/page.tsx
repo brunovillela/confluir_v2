@@ -63,7 +63,7 @@ export default async function NovoRpaPage({
     ? { href: `/painel/compras/${compra.processoId}`, rotulo: compra.processoCodigo ?? "Compra" }
     : contrato
       ? { href: `/painel/compras/contratos/${contrato.id}`, rotulo: contrato.codigo ?? "Contrato" }
-      : { href: "/painel/compras/contratos/rpa", rotulo: "RPAs" }
+      : { href: "/painel/compras/rpa", rotulo: "RPAs" }
 
   return (
     <>
@@ -148,8 +148,8 @@ export default async function NovoRpaPage({
 /** "De um contrato" × "De uma compra de serviço" — links, para o modo ficar no endereço. */
 function EscolherModo({ daCompra }: { daCompra: boolean }) {
   const opcoes = [
-    { href: "/painel/compras/contratos/rpa/novo", rotulo: "De um contrato", ativo: !daCompra },
-    { href: "/painel/compras/contratos/rpa/novo?modo=compra", rotulo: "De uma compra de serviço", ativo: daCompra },
+    { href: "/painel/compras/rpa/novo", rotulo: "De um contrato", ativo: !daCompra },
+    { href: "/painel/compras/rpa/novo?modo=compra", rotulo: "De uma compra de serviço", ativo: daCompra },
   ]
   return (
     <div className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1" role="tablist">
@@ -212,7 +212,7 @@ function EscolherCompra({ compras }: { compras: Awaited<ReturnType<typeof compra
             {compras.map((c) => (
               <li key={c.fornecimentoId}>
                 <Link
-                  href={`/painel/compras/contratos/rpa/novo?fornecimento=${c.fornecimentoId}`}
+                  href={`/painel/compras/rpa/novo?fornecimento=${c.fornecimentoId}`}
                   className="hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm"
                 >
                   <span className="min-w-0">
@@ -268,7 +268,7 @@ function EscolherContrato({
             </div>
           </div>
         ) : (
-          <form action="/painel/compras/contratos/rpa/novo" className="grid gap-3">
+          <form action="/painel/compras/rpa/novo" className="grid gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="contrato">Contrato *</Label>
               <select id="contrato" name="contrato" required defaultValue="" className={SELECT_CLS}>

@@ -30,6 +30,7 @@ import {
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
+import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { podeAcessar } from "@/lib/permissoes"
@@ -42,6 +43,7 @@ import {
   RegistrarCompraForm,
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
+import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
 export const metadata: Metadata = {
   title: "Processo de aquisição — Confluir",
@@ -268,7 +270,10 @@ export default async function ProcessoCompraPage({
   const servico = processo.e_produto === false && !montarLegado
   const rpaPorFornecimento = servico
     ? await rpasDosFornecimentos(fornecimentosComUrl.map((f) => f.id))
-    : new Map<string, { id: string; numero: number | null }>()
+    : new Map<string, { id: string; numero: number | null; assinado: boolean }>()
+  // RPA emitido e ainda sem o recibo assinado: a compra recebe o anexo aqui.
+  const rpasALinkar = [...rpaPorFornecimento.values()].filter((r) => !r.assinado).map((r) => r.id)
+  const rpaComLink = await rpasComLinkPendente(rpasALinkar)
   const emitirRpa = new Set<string>()
   if (servico && podeAjustar && !processo.cancelado) {
     for (const f of fornecimentosComUrl) {
@@ -640,10 +645,11 @@ export default async function ProcessoCompraPage({
                 )}
                 {rpaPorFornecimento.get(f.id) && (
                   <Link
-                    href={`/painel/compras/contratos/rpa/${rpaPorFornecimento.get(f.id)!.id}`}
+                    href={`/painel/compras/rpa/${rpaPorFornecimento.get(f.id)!.id}`}
                     className="text-primary hover:underline"
                   >
                     RPA nº {rpaPorFornecimento.get(f.id)!.numero ?? "—"}
+                    {rpaPorFornecimento.get(f.id)!.assinado ? " (assinado)" : ""}
                   </Link>
                 )}
                 {podeAjustar && (
@@ -655,6 +661,23 @@ export default async function ProcessoCompraPage({
                   />
                 )}
               </div>
+              {(() => {
+                const r = rpaPorFornecimento.get(f.id)
+                if (!r || r.assinado || !podeAjustar || processo.cancelado) return null
+                return (
+                  <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                    <span className="text-muted-foreground">
+                      <strong>RPA nº {r.numero ?? "—"}</strong> emitido — falta o recibo assinado pelo
+                      prestador. Anexe o assinado no papel ou pelo gov.br, ou envie o link por e-mail na{" "}
+                      <Link href={`/painel/compras/rpa/${r.id}`} className="text-primary hover:underline">
+                        página do RPA
+                      </Link>
+                      .{rpaComLink.has(r.id) ? " Há um link enviado aguardando a assinatura." : ""}
+                    </span>
+                    <AnexarRpaAssinadoBotao id={r.id} numero={r.numero} linkPendente={rpaComLink.has(r.id)} />
+                  </div>
+                )
+              })()}
               {emitirRpa.has(f.id) && (
                 <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
                   <span className="text-muted-foreground">
@@ -672,7 +695,7 @@ export default async function ProcessoCompraPage({
                     )}
                   </span>
                   <Button asChild size="sm">
-                    <Link href={`/painel/compras/contratos/rpa/novo?fornecimento=${f.id}`}>
+                    <Link href={`/painel/compras/rpa/novo?fornecimento=${f.id}`}>
                       <FileText />
                       Emitir RPA
                     </Link>
