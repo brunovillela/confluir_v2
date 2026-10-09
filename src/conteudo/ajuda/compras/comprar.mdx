@@ -111,7 +111,8 @@ Ao mudar para **Aquisição direta**, o formulário pergunta **Como preencher?**
   <Passo titulo="Forma de pagamento, com o quê foi pago e 'Pagar em'">
     Escolha a **forma de pagamento** — cada forma pede o seu complemento (veja a
     tabela abaixo) — e a data em **Pagar em**. Tudo obrigatório: a ordem de
-    pagamento nasce daqui.
+    pagamento nasce daqui. Em **Dinheiro** não há *Pagar em*: o pagamento é
+    feito no ato, e o vencimento é a própria **data da compra**.
   </Passo>
   <Passo titulo="Nota fiscal (obrigatória)">
     Anexe a **nota fiscal, o cupom ou documento equivalente** — em **PDF ou
@@ -135,7 +136,8 @@ compra foi paga. Ao escolher a forma, aparece o campo correspondente:
   cadastrados pelo financeiro em [Cartões](/painel/ajuda/financeiro/cartoes).
 - **Dinheiro** — de qual **conta de caixa** saiu o dinheiro. O valor é
   **debitado** desse caixa na hora; sem saldo suficiente, a compra não é
-  registrada.
+  registrada. O campo *Pagar em* some: dinheiro é pago no ato, então o
+  vencimento da ordem é a **data da compra**.
 - **Pix** — a **chave Pix do fornecedor**, com o tipo. Escolha uma já
   cadastrada ou **informe outra** — a nova fica gravada no cadastro dele.
 - **Pix (QR Code)** — o **código Pix copia e cola** usado no pagamento (começa
@@ -183,7 +185,7 @@ compra foi paga. Ao escolher a forma, aparece o campo correspondente:
   </Passo>
   <Passo titulo="Complete e cadastre">
     Preencha o que a nota não traz — departamento, centro de custo, o
-    complemento da forma de pagamento e **Pagar em** — e cadastre a compra. O
+    complemento da forma de pagamento e **Pagar em** (em dinheiro, não há) — e cadastre a compra. O
     arquivo lido já fica anexado como nota fiscal.
   </Passo>
 </PassoAPasso>
@@ -378,6 +380,22 @@ Aparecem ali a aquisição direta marcada como **não recebida** e os
 fornecimentos **via Aquisição já comprados**. A recepção abre o item, confere e
 registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
 
+## Compras em dinheiro: pagas no ato
+
+Compra em **dinheiro** é paga na hora, no balcão. Por isso:
+
+- o **vencimento** da ordem é sempre a **data da compra** — o formulário não
+  pede *Pagar em*;
+- a ordem **nunca conta como vencida**, mesmo que a compra seja lançada dias
+  depois: não entra nas ordens vencidas do Gerencial, nos números do painel nem
+  no resumo diário de vencimentos;
+- a auditoria **não aponta** "Vencimento já passado" para ela.
+
+O pagamento em dinheiro feito depois da compra é exceção rara e não é tratado à
+parte. Isso vale para a compra; a **parcela de contrato** em dinheiro continua
+com a data de pagamento informada, porque o dinheiro sai do caixa só quando ela
+é paga.
+
 ## Erros comuns
 
 - **"Não consigo salvar — o centro de custo fica vazio."** Escolha o
@@ -385,7 +403,7 @@ registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
   compra é de um projeto, marque **Vinculada a um projeto** — o centro vem do
   projeto automaticamente.
 - **"A compra direta não é cadastrada e diz o que falta."** Na aquisição
-  direta tudo é obrigatório — inclusive **Pagar em**, a **nota** e o
+  direta tudo é obrigatório — inclusive **Pagar em** (salvo em dinheiro), a **nota** e o
   complemento da forma de pagamento (cartão, caixa, chave, conta, código Pix
   ou boleto). Só a observação é facultativa.
 - **"Não aparece nenhum cartão / nenhum caixa."** Cartões são cadastrados pelo
