@@ -37,7 +37,11 @@ const FATURA = process.env.FATURA_TESTE ?? ""
 // Token do link de assinatura do RPA nº 1 montado para os prints (rodada 19).
 const TOKEN_RPA = process.env.TOKEN_RPA ?? ""
 
-const SHOTS = process.env.RPA_FASE === "2"
+// SHOT_UNICO='["/rota", "pasta/arquivo.png", {opções}]' refaz só um print, sem
+// mexer nas rodadas (ex.: um print antigo que ficou com defeito).
+const SHOTS = process.env.SHOT_UNICO
+  ? [JSON.parse(process.env.SHOT_UNICO)]
+  : process.env.RPA_FASE === "2"
   ? [
       // Rodada 19, fase 2: o link depois que o recibo assinado foi anexado.
       [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
@@ -629,7 +633,7 @@ for (const [route, file, opts] of SHOTS) {
   // do alternador de interfaces.
   if (opts?.openMenu) {
     await p.getByText(EMAIL).first().click()
-    await p.getByRole("menuitem", { name: "Meu perfil" }).waitFor({ timeout: 4000 })
+    await p.getByRole("menuitem", { name: "Sair" }).waitFor({ timeout: 8000 })
     await p.waitForTimeout(300)
   }
   // opts.abrir: clica no título de um cartão colapsável — um print do cartão
