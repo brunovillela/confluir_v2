@@ -41,8 +41,9 @@ import {
  *
  * Legado: a migração veio "oca" (produto/justificativa/fornecedor nulos em
  * 100% das 6.500 linhas) — sobreviveram codigo, projeto, flags, valor e
- * datas. O Bubble segue em produção até a virada de chave: processos
- * legados são tratados como SOMENTE LEITURA aqui.
+ * datas. Desde a virada de chave (01/10) o Confluir é o único sistema: os
+ * processos legados são operáveis. Os que vieram sem fornecimento ganham um
+ * (materializarFornecimentoLegado) no primeiro pagamento, nota ou recebimento.
  */
 
 const AVISO_SQL =
@@ -179,10 +180,15 @@ export type ProcessoDetalhe = {
   compradoPorNome: string | null
   compra_data: string | null
   compra_valor: number | null
+  /** Fornecedor da compra no processo (aquisição direta e legado do Bubble). */
+  compra_fornecedor_id: string | null
   recebido: boolean
   recebimento_data: string | null
+  recebimento_de_acordo: boolean | null
+  recebimento_observacao: string | null
+  recebidoPorNome: string | null
   created_at: string | null
-  /** Linha migrada do Bubble (campos descritivos vazios; somente leitura). */
+  /** Linha migrada do Bubble. Desde a virada (01/10) é operável como as demais. */
   legado: boolean
   propostas: Proposta[]
   /** null = tabela ainda não existe (rodar supabase/compras.sql). */
@@ -607,6 +613,7 @@ export async function buscarProcesso(
   const usuarioIds = [
     p.cotacao_responsavel_id,
     p.comprado_por_id,
+    p.recebimento_recebido_por_id,
     ...propostasBrutas.map((x) => x.escolhida_por_id),
     ...(fornecimentosBrutos ?? []).flatMap((x) => [
       x.comprador_id,
@@ -751,8 +758,14 @@ export async function buscarProcesso(
       : null,
     compra_data: (p.compra_data as string | null) ?? null,
     compra_valor: (p.compra_valor as number | null) ?? null,
+    compra_fornecedor_id: (p.compra_fornecedor_id as string | null) ?? null,
     recebido: p.recebido === true,
     recebimento_data: (p.recebimento_data as string | null) ?? null,
+    recebimento_de_acordo: (p.recebimento_de_acordo as boolean | null) ?? null,
+    recebimento_observacao: (p.recebimento_observacao as string | null) ?? null,
+    recebidoPorNome: p.recebimento_recebido_por_id
+      ? (usuarios.get(String(p.recebimento_recebido_por_id)) ?? null)
+      : null,
     created_at: (p.created_at as string | null) ?? null,
     legado: Boolean(p.bubble_id),
     propostas,
@@ -1273,6 +1286,83 @@ function avisarRecebimento(textoAviso: string): void {
       assunto: "Fornecimento a receber",
     })
   )
+}
+
+/** Id de mentira do fornecimento montado na tela para o processo legado sem um. */
+export const FORNECIMENTO_LEGADO = "legado"
+
+/**
+ * Processo migrado do Bubble chegou comprado mas SEM fornecimento (o Bubble
+ * não tinha o desdobramento) — e é no fornecimento que se lançam pagamentos,
+ * nota da compra e recebimento. Grava um a partir do processo (fornecedor,
+ * valor, comprador, data, recebimento) e liga a ele as ordens que já pagam o
+ * processo, para o "lançado X de Y" contar o que já foi pago. Idempotente: se
+ * já houver fornecimento, devolve o primeiro.
+ */
+export async function materializarFornecimentoLegado(
+  processoId: string
+): Promise<{ id?: string; erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: p, error } = await admin
+    .from("compras_solicitacoes")
+    .select("id, comprado, cancelado, compra_fornecedor_id, compra_valor, compra_data, comprado_por_id, recebido, recebimento_data, recebimento_recebido_por_id, recebimento_de_acordo, recebimento_observacao")
+    .eq("id", processoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (error) return { erro: `Falha ao buscar o processo: ${error.message}` }
+  if (!p) return { erro: "Processo não encontrado." }
+  const { data: existente } = await admin
+    .from("compras_fornecimentos")
+    .select("id")
+    .eq("processo_id", processoId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (existente) return { id: String(existente.id) }
+  if (p.comprado !== true || p.cancelado === true) return { erro: "Só processo comprado e não cancelado recebe pagamentos." }
+  if (!p.compra_fornecedor_id) return { erro: "O processo não tem fornecedor da compra — informe-o antes de lançar pagamentos." }
+
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, forma_pagamento, situacao, created_at")
+    .eq("emp_proprietaria_id", emp)
+    .eq("processo_compra_id", processoId)
+    .eq("excluido", false)
+    .order("created_at", { ascending: true })
+  const validas = (ordens ?? []).filter((o) => o.situacao !== "Cancelada")
+  const ultimaForma = [...validas].reverse().find((o) => o.forma_pagamento)?.forma_pagamento ?? null
+
+  const { data: novo, error: erroIns } = await admin
+    .from("compras_fornecimentos")
+    .insert({
+      processo_id: processoId,
+      fornecedor_id: p.compra_fornecedor_id,
+      valor: p.compra_valor,
+      forma_pagamento: ultimaForma,
+      comprador_id: p.comprado_por_id,
+      data_compra: p.compra_data,
+      ordem_pagamento_id: validas[0]?.id ?? null,
+      recebido: p.recebido === true,
+      recebimento_data: p.recebimento_data,
+      recebimento_recebido_por_id: p.recebimento_recebido_por_id,
+      recebimento_de_acordo: p.recebimento_de_acordo,
+      recebimento_observacao: p.recebimento_observacao,
+      emp_proprietaria_id: emp,
+    })
+    .select("id")
+    .single()
+  if (erroIns || !novo) return { erro: `Não foi possível preparar o fornecimento: ${erroIns?.message}` }
+
+  if ((ordens ?? []).length) {
+    const { error: erroVinculo } = await admin
+      .from("ordens_pagamento")
+      .update({ fornecimento_id: novo.id })
+      .eq("processo_compra_id", processoId)
+      .is("fornecimento_id", null)
+    if (erroVinculo && !esquemaAusente(erroVinculo)) console.error("fornecimento legado (vínculo das ordens):", erroVinculo.message)
+  }
+  return { id: String(novo.id) }
 }
 
 /** Código do apontamento "cobranças acima do valor da compra". */

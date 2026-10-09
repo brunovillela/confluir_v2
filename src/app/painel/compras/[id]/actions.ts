@@ -21,7 +21,9 @@ import {
   cancelarProcesso,
   definirEscolhaProposta,
   encerrarCotacao,
+  FORNECIMENTO_LEGADO,
   gerarOrdemFornecimento,
+  materializarFornecimentoLegado,
   hojeSP,
   iniciarCotacao,
   reabrirCotacao,
@@ -41,6 +43,14 @@ function revalidarProcesso(id: string) {
   revalidatePath("/painel/compras")
   revalidatePath("/painel/compras/recebimentos")
   revalidatePath("/painel/compras/avaliacoes")
+}
+
+/**
+ * Processo migrado do Bubble sem fornecimento: a tela mostra um montado a
+ * partir do processo (id "legado"); no primeiro uso ele é gravado de verdade.
+ */
+async function fornecimentoReal(processoId: string, id: string): Promise<{ id?: string; erro?: string }> {
+  return id === FORNECIMENTO_LEGADO ? materializarFornecimentoLegado(processoId) : { id }
 }
 
 function texto(formData: FormData, campo: string): string {
@@ -229,8 +239,10 @@ export async function gerarOrdemAction(
 ): Promise<EstadoComApontamentos> {
   await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
-  const fornecimentoId = texto(formData, "fornecimento_id")
-  if (!processoId || !fornecimentoId) return { erro: "Fornecimento inválido." }
+  const pedido = texto(formData, "fornecimento_id")
+  if (!processoId || !pedido) return { erro: "Fornecimento inválido." }
+  const { id: fornecimentoId, erro: erroLegado } = await fornecimentoReal(processoId, pedido)
+  if (erroLegado || !fornecimentoId) return { erro: erroLegado ?? "Fornecimento inválido." }
 
   const fornecimento = (await buscarProcesso(processoId))?.fornecimentos?.find((f) => f.id === fornecimentoId)
   if (!fornecimento) return { erro: "Fornecimento não encontrado neste processo." }
@@ -313,8 +325,12 @@ export async function registrarRecebimentoAction(
   ])
   const processoId = texto(formData, "processo_id")
   await garantirEscopoDoProcesso(sessao.usuario.id, processoId)
-  const fornecimentoId = texto(formData, "fornecimento_id")
-  if (!fornecimentoId) return { erro: "Fornecimento inválido." }
+  const pedido = texto(formData, "fornecimento_id")
+  if (!pedido) return { erro: "Fornecimento inválido." }
+  const { id: fornecimentoId, erro: erroLegado } = processoId
+    ? await fornecimentoReal(processoId, pedido)
+    : { id: pedido, erro: undefined }
+  if (erroLegado || !fornecimentoId) return { erro: erroLegado ?? "Fornecimento inválido." }
   const data = dataISO(texto(formData, "data")) ?? hojeSP()
 
   const { erro } = await registrarRecebimento(fornecimentoId, {
@@ -367,8 +383,10 @@ export async function trocarNotaFiscalAction(_prev: EstadoForm, formData: FormDa
   const sessao = await requireAjustePagamento(formData)
   const processoId = texto(formData, "processo_id")
   const alvo = texto(formData, "alvo")
-  const id = texto(formData, "id")
-  if (!processoId || !id || (alvo !== "compra" && alvo !== "pagamento")) return { erro: "Pedido inválido." }
+  const pedido = texto(formData, "id")
+  if (!processoId || !pedido || (alvo !== "compra" && alvo !== "pagamento")) return { erro: "Pedido inválido." }
+  const { id, erro: erroLegado } = alvo === "compra" ? await fornecimentoReal(processoId, pedido) : { id: pedido }
+  if (erroLegado || !id) return { erro: erroLegado ?? "Pedido inválido." }
   const arquivo = formData.get("nota_fiscal")
   if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo da nota (PDF ou foto)." }
   const { caminho, erro: erroUpload } = await subirComprovanteCompras(`notas/${processoId}`, arquivo)

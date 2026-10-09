@@ -20,8 +20,11 @@ import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import {
   buscarProcesso,
+  empresasPorId,
+  FORNECIMENTO_LEGADO,
   listarFornecedores,
   urlArquivoCompras,
+  type Fornecimento,
   type OrdemDoProcesso,
 } from "@/lib/db/compras"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
@@ -174,12 +177,11 @@ export default async function ProcessoCompraPage({
   const podeReceber = podeAcessar(sessao.permissoes, "aquisicoes_recebimentos", [
     "aquisicoes_compras_edicao",
   ])
-  // Legado do Bubble em produção até a virada: nada de operar por aqui.
-  const operavel = podeOperar && !processo.legado && !processo.cancelado
+  // Desde a virada (01/10) o processo migrado do Bubble é operável como os demais.
+  const operavel = podeOperar && !processo.cancelado
   // Pix expirado e nota que chega depois: quem opera a compra ajusta, mesmo
   // com o processo já comprado (a ordem pode estar até paga, no caso da nota).
   const podeAjustar =
-    !processo.legado &&
     podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", [
       "aquisicoes_comprador",
       "aquisicoes_compra_direta",
@@ -187,8 +189,49 @@ export default async function ProcessoCompraPage({
 
   const fornecedores =
     operavel && !processo.comprado ? await listarFornecedores() : []
+  // Processo migrado comprado sem fornecimento (o Bubble não tinha o
+  // desdobramento): a tela monta um a partir do processo, com as ordens que já
+  // o pagam; no primeiro pagamento, nota ou recebimento ele é gravado de
+  // verdade (materializarFornecimentoLegado).
+  const montarLegado =
+    processo.fornecimentos !== null &&
+    processo.fornecimentos.length === 0 &&
+    processo.comprado &&
+    !processo.cancelado &&
+    Boolean(processo.compra_fornecedor_id)
+  const fornecedorLegado = montarLegado
+    ? (await empresasPorId([processo.compra_fornecedor_id!])).get(processo.compra_fornecedor_id!)
+    : undefined
+  const fornecimentosBase: Fornecimento[] = montarLegado
+    ? [
+        {
+          id: FORNECIMENTO_LEGADO,
+          proposta_id: null,
+          fornecedor_id: processo.compra_fornecedor_id,
+          fornecedorNome: fornecedorLegado?.nome ?? null,
+          valor: processo.compra_valor,
+          forma_pagamento:
+            [...processo.ordensAvulsas].reverse().find((o) => o.forma_pagamento)?.forma_pagamento ?? null,
+          previsao_entrega: null,
+          comprador_id: null,
+          compradorNome: processo.compradoPorNome,
+          data_compra: processo.compra_data,
+          nota_fiscal_url: null,
+          ordem_pagamento_id: processo.ordensAvulsas[0]?.id ?? null,
+          ordem: processo.ordensAvulsas[0] ?? null,
+          pagamentos: processo.ordensAvulsas,
+          recebido: processo.recebido,
+          recebimento_data: processo.recebimento_data,
+          recebidoPorNome: processo.recebidoPorNome,
+          recebimento_de_acordo: processo.recebimento_de_acordo,
+          recebimento_observacao: processo.recebimento_observacao,
+        },
+      ]
+    : (processo.fornecimentos ?? [])
+  const ordensAvulsas = montarLegado ? [] : processo.ordensAvulsas
+
   // Forma de cada pagamento: cartão da entidade e caixa (Dinheiro).
-  const lancaPagamento = operavel && (processo.fornecimentos ?? []).length > 0
+  const lancaPagamento = operavel && fornecimentosBase.length > 0
   const [cartoesBrutos, caixas] = lancaPagamento
     ? await Promise.all([listarCartoes(), contasAbertasParaCompras()])
     : [{ disponivel: false, cartoes: [] }, []]
@@ -205,13 +248,13 @@ export default async function ProcessoCompraPage({
   // Nota de cada pagamento (vários por fornecimento).
   const notasDasOrdens = new Map(
     await Promise.all(
-      (processo.fornecimentos ?? [])
+      fornecimentosBase
         .flatMap((f) => f.pagamentos)
         .map(async (o) => [o.id, await urlArquivoCompras(o.notaFiscal ?? null)] as const)
     )
   )
   const fornecimentosComUrl = await Promise.all(
-    (processo.fornecimentos ?? []).map(async (f) => ({
+    fornecimentosBase.map(async (f) => ({
       ...f,
       notaUrl: await urlArquivoCompras(f.nota_fiscal_url),
       ordem: f.ordem
@@ -222,7 +265,7 @@ export default async function ProcessoCompraPage({
   // Compra de serviço: o RPA paga o fornecimento de autônomo (pessoa física).
   // Os sem ordem mostram "Emitir RPA" quando o prestador permite; os pagos
   // por RPA, o link do recibo.
-  const servico = processo.e_produto === false && !processo.legado
+  const servico = processo.e_produto === false && !montarLegado
   const rpaPorFornecimento = servico
     ? await rpasDosFornecimentos(fornecimentosComUrl.map((f) => f.id))
     : new Map<string, { id: string; numero: number | null }>()
@@ -236,7 +279,7 @@ export default async function ProcessoCompraPage({
     }
   }
   const avulsasComUrl = await Promise.all(
-    processo.ordensAvulsas.map(async (o) => ({
+    ordensAvulsas.map(async (o) => ({
       ...o,
       notaUrl: await urlArquivoCompras(o.notaFiscal ?? null),
     }))
@@ -290,14 +333,6 @@ export default async function ProcessoCompraPage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Alteração salva.</AlertDescription>
-        </Alert>
-      )}
-      {processo.legado && (
-        <Alert>
-          <AlertDescription>
-            Processo migrado do Bubble — os campos descritivos não vieram na
-            migração e o processo é somente leitura aqui até a virada de chave.
-          </AlertDescription>
         </Alert>
       )}
 
@@ -547,8 +582,8 @@ export default async function ProcessoCompraPage({
             processo.fornecimentos !== null &&
             processo.comprado && (
               <p className="text-muted-foreground text-sm">
-                {processo.legado
-                  ? "Processo legado — desdobramentos de fornecimento não migrados."
+                {processo.legado && !processo.compra_fornecedor_id
+                  ? "Processo migrado do Bubble sem o fornecedor da compra — sem ele não há onde lançar pagamentos."
                   : "Nenhum fornecimento registrado."}
               </p>
             )}
@@ -662,8 +697,7 @@ export default async function ProcessoCompraPage({
                     )}
                   </p>
                 ) : (
-                  podeReceber &&
-                  !processo.legado && (
+                  podeReceber && (
                     <>
                       <Separator />
                       <RecebimentoForm
@@ -753,7 +787,7 @@ export default async function ProcessoCompraPage({
             </div>
           )}
 
-          {processo.legado && processo.recebido && (
+          {processo.legado && processo.recebido && !montarLegado && fornecimentosComUrl.length === 0 && (
             <p className="text-muted-foreground text-sm">
               Recebimento (legado): {formatarData(processo.recebimento_data)}
             </p>
