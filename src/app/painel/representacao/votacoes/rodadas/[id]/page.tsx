@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Eye, UsersRound } from "lucide-react"
 
 import { ApuracaoBadge } from "@/components/assembleias"
+import { CopiarLinkBotao } from "@/components/copiar-link"
 import { Paginacao } from "@/components/paginacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -32,8 +33,12 @@ import {
   urlArquivoAssembleias,
   validarEdicaoPerguntas,
 } from "@/lib/db/assembleias"
+import {
+  fimDaJanelaISO,
+  situacaoDaAssembleia,
+} from "@/lib/db/assembleias-horarios"
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
-import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
+import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 
 import {
@@ -42,10 +47,11 @@ import {
   NovoEleitorBotao,
   RemoverAptoBotao,
 } from "./aptos"
-import { AssembleiasDaRodada } from "./assembleias-rodada"
+import { AssembleiasDaRodada, type JanelaItem } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
 import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
+import { linkUnicoVotacao } from "../../actions"
 import { TrilhaVotacoes } from "../../trilha"
 import { RodadaForm } from "./rodada-form"
 
@@ -104,6 +110,31 @@ export default async function RodadaPage({
       ? MOTIVO_ASSEMBLEIAS_BLOQUEADAS.semPerguntas
       : null
 
+  // Janela de cada assembleia: trava edição/exclusão depois do início e
+  // libera Apurar só depois do término (regra de 09/10/2026).
+  const janelas: Record<string, JanelaItem> = Object.fromEntries(
+    assembleias.linhas.map((a) => [
+      a.id,
+      {
+        situacao: situacaoDaAssembleia(a, rodada.termino),
+        fim: fimDaJanelaISO(a, rodada.termino),
+      },
+    ])
+  )
+  const atas: Record<string, string> = Object.fromEntries(
+    (
+      await Promise.all(
+        assembleias.linhas
+          .filter((a) => a.ata)
+          .map(async (a) => [a.id, await urlArquivoAssembleias(a.ata)] as const)
+      )
+    ).filter((par): par is readonly [string, string] => Boolean(par[1]))
+  )
+  const participacao =
+    contagemAptos.total > 0
+      ? Math.round((contagemAptos.votaram / contagemAptos.total) * 100)
+      : null
+
   return (
     <>
       <TrilhaVotacoes campanhaId={rodada.campanha_id} rodadaId={rodada.id} />
@@ -132,6 +163,11 @@ export default async function RodadaPage({
             {rodada.codigo ? ` · código ${rodada.codigo}` : ""}
           </p>
         </div>
+        {/* Link geral: /votar mostra todas as votações online abertas e as
+            próximas — o mesmo do cartão da página Votações. */}
+        <div title="Página única com todas as votações online abertas e as próximas">
+          <CopiarLinkBotao obterLink={linkUnicoVotacao} rotulo="Copiar link geral" />
+        </div>
       </div>
 
       {brutos.criada === "1" && (
@@ -143,233 +179,262 @@ export default async function RodadaPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <CardResumo rotulo="Perguntas" valor={perguntas.length} />
-        <CardResumo rotulo="Assembleias" valor={assembleias.linhas.length} />
-        <CardResumo rotulo="Aptos a votar" valor={rodada.aptos} />
-        <CardResumo rotulo="Votos online" valor={rodada.votosOnline} />
-        <Card>
-          <CardContent>
-            <p className="text-muted-foreground text-xs">
-              Fonte pagadora vinculada
-            </p>
+      {/* Faixa de resumo: tudo o que situa a rodada numa linha só. */}
+      <Card className="py-0">
+        <CardContent className="flex flex-wrap gap-x-10 gap-y-3 py-4">
+          <Indicador rotulo="Período">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {rodada.inicio || rodada.termino
+                ? `${formatarData(rodada.inicio)} a ${formatarData(rodada.termino)}`
+                : "—"}
+            </span>
+          </Indicador>
+          <Indicador rotulo="Perguntas">
+            <Numero valor={perguntas.length} />
+          </Indicador>
+          <Indicador rotulo="Assembleias">
+            <Numero valor={assembleias.linhas.length} />
+          </Indicador>
+          <Indicador rotulo="Aptos a votar">
+            <Numero valor={rodada.aptos} />
+          </Indicador>
+          <Indicador rotulo="Votaram">
+            <span className="flex items-baseline gap-1.5">
+              <Numero valor={contagemAptos.votaram} />
+              {participacao !== null && (
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {participacao}%
+                </span>
+              )}
+            </span>
+          </Indicador>
+          <Indicador rotulo="Fonte pagadora">
             {rodada.fontes.length === 0 ? (
-              <p className="text-muted-foreground mt-1 text-xs">
+              <span className="text-muted-foreground text-xs">
                 {rodada.campanha_id ? "Nenhuma vinculada" : "Sem campanha"}
-              </p>
+              </span>
             ) : (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <span className="flex flex-wrap gap-1">
                 {rodada.fontes.map((f) => (
                   <Badge key={f} variant="outline">
                     {f}
                   </Badge>
                 ))}
-              </div>
+              </span>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <RodadaForm rodada={rodada} editalUrl={editalUrl} cardUrl={cardUrl} />
-
-      <Perguntas
-        rodadaId={rodada.id}
-        perguntas={perguntas}
-        editavel={motivoPerguntas === null}
-        motivoBloqueio={motivoPerguntas}
-      />
-
-      <AssembleiasDaRodada
-        rodadaId={rodada.id}
-        assembleias={assembleias.linhas}
-        esquemaPronto={assembleias.esquemaPronto}
-        editavel={motivoAssembleias === null}
-        motivoBloqueio={motivoAssembleias}
-      />
-
-      <AvisoAptos
-        rodadaId={rodada.id}
-        resumo={aviso}
-        bloqueio={
-          periodoTerminado(rodada.termino)
-            ? "O período desta rodada já terminou."
-            : assembleias.linhas.length === 0
-              ? "Cadastre ao menos uma assembleia antes de avisar os aptos — o e-mail diz onde e como votar."
-              : null
-        }
-      />
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="text-base">
-              Aptos a votar na rodada
-            </CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <NovoEleitorBotao rodadaId={rodada.id} />
-              <ImportarAptos rodadaId={rodada.id} />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <form
-              className="flex flex-wrap items-center gap-2"
-              action={`/painel/representacao/votacoes/rodadas/${rodada.id}`}
-            >
-              {votou && <input type="hidden" name="votou" value={votou} />}
-              {porPagina !== APTOS_PADRAO && (
-                <input
-                  type="hidden"
-                  name="aptosPorPagina"
-                  value={String(porPagina)}
-                />
-              )}
-              <input
-                type="search"
-                name="busca"
-                defaultValue={busca}
-                placeholder="Nome ou CPF"
-                className={`${INPUT_FILTRO} w-64 max-w-full`}
-              />
-              <Button type="submit" variant="outline" size="sm">
-                Buscar
-              </Button>
-            </form>
-            <div className="flex flex-wrap gap-1.5">
-              <FiltroVotou
-                rotulo="Todos"
-                ativo={!votou}
-                href={hrefFiltro({ busca, porPagina })}
-                contagem={contagemAptos.total}
-              />
-              <FiltroVotou
-                rotulo="Já votou"
-                ativo={votou === "sim"}
-                href={hrefFiltro({ busca, votou: "sim", porPagina })}
-                contagem={contagemAptos.votaram}
-              />
-              <FiltroVotou
-                rotulo="Não votou"
-                ativo={votou === "nao"}
-                href={hrefFiltro({ busca, votou: "nao", porPagina })}
-                contagem={contagemAptos.ausentes}
-              />
-            </div>
-          </div>
-
-          {aptos.linhas.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
-              <UsersRound className="mx-auto mb-2 size-5" />
-              {busca || votou
-                ? "Nenhum eleitor encontrado com estes filtros."
-                : "Nenhum eleitor cadastrado nesta rodada ainda."}
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Votou em</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {aptos.linhas.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="max-w-72 truncate">
-                      {a.nome_completo ?? "—"}
-                      {/* Aviso do próprio eleitor ou da conferência: a
-                          secretaria corrige o cadastro e ele vota. */}
-                      {!a.cpf_conflito && a.conflito_motivo && (
-                        <Badge
-                          variant="outline"
-                          className="border-warning/40 text-warning-fg ml-1.5"
-                          title={a.conflito_motivo}
-                        >
-                          Conferir cadastro
-                        </Badge>
-                      )}
-                      {/* Cadastro pelo link único: o e-mail da empresa foi só
-                          digitado — a comissão revisa. */}
-                      {a.cadastro_canal === "link_unico" && (
-                        <Badge
-                          variant="outline"
-                          className="ml-1.5"
-                          title={`Identificou-se pelo link único ${a.email_contato ? `com o e-mail ${a.email_contato}` : "pelo Telegram"}`}
-                        >
-                          Link único
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {a.cpf ? formatarCnpjCpf(a.cpf) : "—"}
-                      {a.cpf_conflito && (
-                        <Badge
-                          variant="outline"
-                          className="border-destructive/40 text-destructive ml-1.5"
-                          title={`Informou ${formatarCnpjCpf(a.cpf_conflito)} — ${a.conflito_motivo ?? "conflito"}`}
-                        >
-                          CPF em conflito
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {a.matricula ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-64 truncate">
-                      {a.email_corporativo ?? "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {a.hora_voto ? formatarDataHora(a.hora_voto) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Vê a cédula como esse eleitor vê, sem poder votar. */}
-                        <form action={iniciarVisualizacaoEleitor}>
-                          <input type="hidden" name="aptoId" value={a.id} />
-                          <input type="hidden" name="rodadaId" value={rodada.id} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon"
-                            className="size-7"
-                            aria-label="Visualizar área do eleitor"
-                            title="Visualizar área do eleitor"
-                          >
-                            <Eye />
-                          </Button>
-                        </form>
-                        {!a.hora_voto && (
-                          <LinkDeVotoBotao aptoId={a.id} nome={a.nome_completo} />
-                        )}
-                        <EditarEleitorBotao rodadaId={rodada.id} apto={a} />
-                        <RemoverAptoBotao
-                          rodadaId={rodada.id}
-                          aptoId={a.id}
-                          jaVotou={a.hora_voto !== null}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          <Paginacao
-            total={aptos.total}
-            pagina={aptos.pagina}
-            totalPaginas={aptos.totalPaginas}
-            porPagina={porPagina}
-            padrao={APTOS_PADRAO}
-            prefixo="aptos"
-          />
+          </Indicador>
         </CardContent>
       </Card>
+
+      {/* Duas colunas: o que acontece (assembleias, aptos) à esquerda; o que
+          configura (dados, perguntas, aviso) na lateral. */}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <AssembleiasDaRodada
+          rodadaId={rodada.id}
+          assembleias={assembleias.linhas}
+          esquemaPronto={assembleias.esquemaPronto}
+          editavel={motivoAssembleias === null}
+          motivoBloqueio={motivoAssembleias}
+          janelas={janelas}
+          atas={atas}
+          terminoDaRodada={rodada.termino}
+        />
+        <div className="grid gap-4">
+          <RodadaForm rodada={rodada} editalUrl={editalUrl} cardUrl={cardUrl} />
+          <Perguntas
+            rodadaId={rodada.id}
+            perguntas={perguntas}
+            editavel={motivoPerguntas === null}
+            motivoBloqueio={motivoPerguntas}
+          />
+        </div>
+      </div>
+
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">
+                Aptos a votar na rodada
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <NovoEleitorBotao rodadaId={rodada.id} />
+                <ImportarAptos rodadaId={rodada.id} />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <form
+                className="flex flex-wrap items-center gap-2"
+                action={`/painel/representacao/votacoes/rodadas/${rodada.id}`}
+              >
+                {votou && <input type="hidden" name="votou" value={votou} />}
+                {porPagina !== APTOS_PADRAO && (
+                  <input
+                    type="hidden"
+                    name="aptosPorPagina"
+                    value={String(porPagina)}
+                  />
+                )}
+                <input
+                  type="search"
+                  name="busca"
+                  defaultValue={busca}
+                  placeholder="Nome ou CPF"
+                  className={`${INPUT_FILTRO} w-64 max-w-full`}
+                />
+                <Button type="submit" variant="outline" size="sm">
+                  Buscar
+                </Button>
+              </form>
+              <div className="flex flex-wrap gap-1.5">
+                <FiltroVotou
+                  rotulo="Todos"
+                  ativo={!votou}
+                  href={hrefFiltro({ busca, porPagina })}
+                  contagem={contagemAptos.total}
+                />
+                <FiltroVotou
+                  rotulo="Já votou"
+                  ativo={votou === "sim"}
+                  href={hrefFiltro({ busca, votou: "sim", porPagina })}
+                  contagem={contagemAptos.votaram}
+                />
+                <FiltroVotou
+                  rotulo="Não votou"
+                  ativo={votou === "nao"}
+                  href={hrefFiltro({ busca, votou: "nao", porPagina })}
+                  contagem={contagemAptos.ausentes}
+                />
+              </div>
+            </div>
+
+            {aptos.linhas.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center text-sm">
+                <UsersRound className="mx-auto mb-2 size-5" />
+                {busca || votou
+                  ? "Nenhum eleitor encontrado com estes filtros."
+                  : "Nenhum eleitor cadastrado nesta rodada ainda."}
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Matrícula</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Votou em</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {aptos.linhas.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="max-w-72 truncate">
+                        {a.nome_completo ?? "—"}
+                        {/* Aviso do próprio eleitor ou da conferência: a
+                            secretaria corrige o cadastro e ele vota. */}
+                        {!a.cpf_conflito && a.conflito_motivo && (
+                          <Badge
+                            variant="outline"
+                            className="border-warning/40 text-warning-fg ml-1.5"
+                            title={a.conflito_motivo}
+                          >
+                            Conferir cadastro
+                          </Badge>
+                        )}
+                        {/* Cadastro pelo link único: o e-mail da empresa foi só
+                            digitado — a comissão revisa. */}
+                        {a.cadastro_canal === "link_unico" && (
+                          <Badge
+                            variant="outline"
+                            className="ml-1.5"
+                            title={`Identificou-se pelo link único ${a.email_contato ? `com o e-mail ${a.email_contato}` : "pelo Telegram"}`}
+                          >
+                            Link único
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums">
+                        {a.cpf ? formatarCnpjCpf(a.cpf) : "—"}
+                        {a.cpf_conflito && (
+                          <Badge
+                            variant="outline"
+                            className="border-destructive/40 text-destructive ml-1.5"
+                            title={`Informou ${formatarCnpjCpf(a.cpf_conflito)} — ${a.conflito_motivo ?? "conflito"}`}
+                          >
+                            CPF em conflito
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {a.matricula ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-64 truncate">
+                        {a.email_corporativo ?? "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {a.hora_voto ? formatarDataHora(a.hora_voto) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Vê a cédula como esse eleitor vê, sem poder votar. */}
+                          <form action={iniciarVisualizacaoEleitor}>
+                            <input type="hidden" name="aptoId" value={a.id} />
+                            <input type="hidden" name="rodadaId" value={rodada.id} />
+                            <Button
+                              type="submit"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label="Visualizar área do eleitor"
+                              title="Visualizar área do eleitor"
+                            >
+                              <Eye />
+                            </Button>
+                          </form>
+                          {!a.hora_voto && (
+                            <LinkDeVotoBotao aptoId={a.id} nome={a.nome_completo} />
+                          )}
+                          <EditarEleitorBotao rodadaId={rodada.id} apto={a} />
+                          <RemoverAptoBotao
+                            rodadaId={rodada.id}
+                            aptoId={a.id}
+                            jaVotou={a.hora_voto !== null}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            <Paginacao
+              total={aptos.total}
+              pagina={aptos.pagina}
+              totalPaginas={aptos.totalPaginas}
+              porPagina={porPagina}
+              padrao={APTOS_PADRAO}
+              prefixo="aptos"
+            />
+          </CardContent>
+        </Card>
+
+        <AvisoAptos
+          rodadaId={rodada.id}
+          resumo={aviso}
+          bloqueio={
+            periodoTerminado(rodada.termino)
+              ? "O período desta rodada já terminou."
+              : assembleias.linhas.length === 0
+                ? "Cadastre ao menos uma assembleia antes de avisar os aptos — o e-mail diz onde e como votar."
+                : null
+          }
+        />
+      </div>
     </>
   )
 }
@@ -422,15 +487,25 @@ function FiltroVotou({
   )
 }
 
-function CardResumo({ rotulo, valor }: { rotulo: string; valor: number }) {
+function Indicador({
+  rotulo,
+  children,
+}: {
+  rotulo: string
+  children: React.ReactNode
+}) {
   return (
-    <Card>
-      <CardContent>
-        <p className="text-muted-foreground text-xs">{rotulo}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">
-          {valor.toLocaleString("pt-BR")}
-        </p>
-      </CardContent>
-    </Card>
+    <div className="grid min-w-0 content-start gap-1">
+      <p className="text-muted-foreground text-xs">{rotulo}</p>
+      {children}
+    </div>
+  )
+}
+
+function Numero({ valor }: { valor: number }) {
+  return (
+    <span className="text-xl leading-none font-semibold tabular-nums">
+      {valor.toLocaleString("pt-BR")}
+    </span>
   )
 }

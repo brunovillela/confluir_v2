@@ -62,8 +62,7 @@ export function RodadaForm({
           <div>
             <CardTitle className="text-base">Dados da rodada</CardTitle>
             <CardDescription className="mt-1">
-              Período, edital e materiais de divulgação. A janela de votação
-              online usa o início e o término informados aqui.
+              Período, edital e divulgação.
             </CardDescription>
           </div>
           {!editando && (
@@ -74,7 +73,7 @@ export function RodadaForm({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="@container">
         {estado.ok && !editando && (
           <Alert variant="success" className="mb-4">
             <AlertDescription>{estado.ok}</AlertDescription>
@@ -89,8 +88,8 @@ export function RodadaForm({
             )}
             <input type="hidden" name="rodada_id" value={rodada.id} />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-1.5 md:col-span-2">
+            <div className="grid gap-4 @md:grid-cols-2">
+              <div className="grid gap-1.5 @md:col-span-2">
                 <Label htmlFor="nome">Nome da rodada *</Label>
                 <Input
                   id="nome"
@@ -117,7 +116,7 @@ export function RodadaForm({
                   defaultValue={rodada.termino ?? ""}
                 />
               </div>
-              <div className="grid gap-1.5 md:col-span-2">
+              <div className="grid gap-1.5 @md:col-span-2">
                 <Label htmlFor="descricao">Descrição</Label>
                 <textarea
                   id="descricao"
@@ -145,7 +144,7 @@ export function RodadaForm({
                   accept="application/pdf,image/png,image/jpeg,image/webp"
                 />
               </div>
-              <div className="grid gap-1.5 md:col-span-2">
+              <div className="grid gap-1.5 @md:col-span-2">
                 <Label htmlFor="video_indicativo_url">
                   Vídeo indicativo (URL)
                 </Label>
@@ -181,7 +180,7 @@ export function RodadaForm({
             </div>
           </form>
         ) : (
-          <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid gap-x-6 gap-y-3 text-sm @xs:grid-cols-2 @3xl:grid-cols-3">
             <CampoLeitura rotulo="Período">
               {rodada.inicio || rodada.termino
                 ? `${formatarData(rodada.inicio)} a ${formatarData(rodada.termino)}`

@@ -16,11 +16,13 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { dadosApuracao, paisDaAssembleia } from "@/lib/db/assembleias"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
-import { formatarData } from "@/lib/formato"
+import { temVotoOnline } from "@/lib/assembleias-constantes"
+import { formatarDataHora } from "@/lib/formato"
 
 import { TrilhaVotacoes } from "../../trilha"
 import { ApuracaoForm } from "./apuracao-form"
 import { EmSeparadoValidacao } from "./emseparado-validacao"
+import { RelatoriosApuracao } from "./relatorios"
 
 export const metadata: Metadata = { title: "Apuração — Confluir" }
 
@@ -83,9 +85,10 @@ export default async function ApuracaoPage({
       {!dados.apuracaoDisponivel && (
         <Alert variant="warning">
           <AlertDescription>
-            A apuração dos votos só fica disponível após o término da rodada
-            {dados.rodadaTermino ? (
-              <> (em {formatarData(dados.rodadaTermino)})</>
+            A apuração dos votos só fica disponível após o término da
+            assembleia
+            {dados.fimDaJanela ? (
+              <> (em {formatarDataHora(dados.fimDaJanela)})</>
             ) : null}
             . Até lá, para preservar o sigilo, a contagem não é exibida — só o
             comparecimento acima.
@@ -180,6 +183,27 @@ export default async function ApuracaoPage({
           </CardHeader>
           <CardContent>
             <EmSeparadoValidacao assembleiaId={dados.id} registros={emSeparado} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Relatórios da votação online (09/10/2026) — só depois do término. */}
+      {dados.apuracaoDisponivel && temVotoOnline(dados.modalidade) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Relatórios</CardTitle>
+            <CardDescription>
+              Em PDF.{" "}
+              {dados.apuracaoEncerrada
+                ? "A apuração está encerrada: o resultado é o oficial."
+                : "Enquanto a apuração não for encerrada, o resultado sai como provisório."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RelatoriosApuracao
+              assembleiaId={dados.id}
+              hibrida={dados.modalidade === "hibrida"}
+            />
           </CardContent>
         </Card>
       )}

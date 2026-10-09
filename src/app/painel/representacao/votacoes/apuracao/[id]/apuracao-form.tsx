@@ -62,7 +62,7 @@ export function ApuracaoForm({
       {!disponivel && (
         <Alert variant="warning">
           <AlertDescription>
-            A apuração só pode ser encerrada após o término da rodada.
+            A apuração só pode ser encerrada após o término da assembleia.
           </AlertDescription>
         </Alert>
       )}

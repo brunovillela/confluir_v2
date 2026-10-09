@@ -114,13 +114,12 @@ export function AvisoAptos({
           Aviso por e-mail aos aptos
         </CardTitle>
         <CardDescription>
-          Avisa cada apto de que está habilitado a votar nesta rodada, com o botão para a votação e
-          o passo a passo. Vai para o e-mail corporativo da lista ou, sem ele, para o e-mail do
-          filiado dono do CPF. Ninguém recebe duas vezes.
+          Avisa cada apto de que está habilitado a votar, com o botão para a votação. Vai ao
+          e-mail corporativo da lista ou, sem ele, ao do filiado. Ninguém recebe duas vezes.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <CardContent className="@container grid gap-4">
+        <div className="grid grid-cols-3 gap-2 @2xl:grid-cols-5">
           <Numero rotulo="Avisados" valor={resumo.enviados} destaque />
           <Numero rotulo="Pendentes" valor={resumo.pendentes} />
           <Numero rotulo="Sem e-mail" valor={resumo.semEmail} dica="Sem e-mail corporativo nem filiado com e-mail." />
@@ -251,7 +250,7 @@ function Numero({
   dica?: string
 }) {
   return (
-    <div className="rounded-md border p-3" title={dica}>
+    <div className="rounded-md border p-2.5" title={dica}>
       <p className="text-muted-foreground text-xs">{rotulo}</p>
       <p className={destaque ? "text-success-fg text-xl font-semibold" : "text-xl font-semibold"}>
         {valor.toLocaleString("pt-BR")}

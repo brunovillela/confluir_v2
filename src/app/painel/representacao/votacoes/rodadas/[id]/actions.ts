@@ -19,9 +19,13 @@ import {
   excluirAssembleia,
   excluirOpcao,
   excluirPergunta,
+  gravarAtaDaAssembleia,
   importarAptos,
+  MOTIVO_ASSEMBLEIA_INICIADA,
   obterRodada,
+  prorrogarAssembleia,
   removerApto,
+  situacaoAssembleiaPorId,
   subirArquivoAssembleias,
   validarEdicaoAssembleias,
   validarEdicaoPerguntas,
@@ -319,6 +323,9 @@ export async function salvarAssembleia(
   if (!id || !rodadaId) return { erro: "Assembleia inválida." }
   const bloqueio = await validarEdicaoAssembleias(rodadaId)
   if (bloqueio) return { erro: bloqueio }
+  if ((await situacaoAssembleiaPorId(id))?.situacao !== "antes") {
+    return { erro: MOTIVO_ASSEMBLEIA_INICIADA }
+  }
 
   const { dados, erro: erroDados } = dadosAssembleia(formData)
   if (erroDados || !dados) return { erro: erroDados }
@@ -360,11 +367,63 @@ export async function apagarAssembleia(
   const id = texto(formData, "assembleia_id")
   const rodadaId = texto(formData, "rodada_id")
   if (!id || !rodadaId) return { erro: "Assembleia inválida." }
+  if ((await situacaoAssembleiaPorId(id))?.situacao !== "antes") {
+    return { erro: MOTIVO_ASSEMBLEIA_INICIADA }
+  }
 
   const { erro } = await excluirAssembleia(id)
   if (erro) return { erro }
   revalidarRodada(rodadaId)
   return { ok: "Assembleia excluída." }
+}
+
+/** Ata da assembleia — vale a qualquer momento, inclusive depois do início. */
+export async function anexarAtaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+
+  const id = texto(formData, "assembleia_id")
+  const rodadaId = texto(formData, "rodada_id")
+  if (!id || !rodadaId) return { erro: "Assembleia inválida." }
+  if (!(await situacaoAssembleiaPorId(id))) return { erro: "Assembleia não encontrada." }
+  const ata = formData.get("ata")
+  if (!(ata instanceof File) || ata.size === 0) return { erro: "Escolha o arquivo da ata." }
+
+  const { caminho, erro } = await subirArquivoAssembleias(`assembleias/${id}/ata`, ata)
+  if (erro || !caminho) return { erro: erro ?? "Falha ao subir a ata." }
+  const r = await gravarAtaDaAssembleia(id, caminho)
+  if (r.erro) return { erro: r.erro }
+  revalidarRodada(rodadaId)
+  return { ok: "Ata anexada." }
+}
+
+/** Depois do início, só o término muda (data + hora). */
+export async function prorrogarAssembleiaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+
+  const id = texto(formData, "assembleia_id")
+  const rodadaId = texto(formData, "rodada_id")
+  if (!id || !rodadaId) return { erro: "Assembleia inválida." }
+  const data = dataISO(texto(formData, "data_termino"))
+  if (!data) return { erro: "Informe a nova data de término." }
+
+  const r = await prorrogarAssembleia(id, {
+    data_termino: data,
+    hora_termino: horaISO(texto(formData, "hora_termino")),
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidarRodada(rodadaId)
+  revalidatePath(`/painel/representacao/votacoes/apuracao/${id}`)
+  return {
+    ok: r.rodadaEstendida
+      ? "Assembleia prorrogada. O período da rodada foi estendido até a nova data."
+      : "Assembleia prorrogada.",
+  }
 }
 
 // ── Aptos a votar ──────────────────────────────────────────────────────────

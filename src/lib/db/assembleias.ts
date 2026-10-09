@@ -9,11 +9,13 @@ import {
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
 import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
+import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
 import {
   derivarModalidade,
+  janelaAssembleia,
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
   MOTIVO_PERGUNTAS_BLOQUEADAS,
   periodoTerminado,
@@ -21,6 +23,7 @@ import {
   ROTULOS_MODALIDADE,
   temVotoOnline,
   type Modalidade,
+  type SituacaoJanela,
 } from "@/lib/assembleias-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -153,6 +156,7 @@ export type AssembleiaLinha = {
   sala_link: string | null
   sala_data: string | null
   sala_hora: string | null
+  apuracao_encerrada: boolean
 }
 
 export type AptoLinha = {
@@ -1188,7 +1192,7 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
   const { data, error } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata" +
+      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata, apuracao_encerrada" +
         (await colunasHorario()) +
         (await colunasSala())
     )
@@ -1219,6 +1223,7 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
       sala_link: (a.sala_link as string | null) ?? null,
       sala_data: (a.sala_data as string | null) ?? null,
       sala_hora: horaCurta(a.sala_hora as string | null),
+      apuracao_encerrada: a.apuracao_encerrada === true,
     })),
   }
 }
@@ -1370,6 +1375,146 @@ export async function excluirAssembleia(
   return error
     ? { erro: `Falha ao excluir a assembleia: ${error.message}` }
     : {}
+}
+
+// ── Janela em curso: travas de edição e prorrogação ────────────────────────
+
+export type SituacaoAssembleia = {
+  situacao: SituacaoJanela
+  rodadaId: string | null
+  terminoDaRodada: string | null
+  apuracaoEncerrada: boolean
+  data_inicio: string | null
+  hora_inicio: string | null
+  data_termino: string | null
+  hora_termino: string | null
+}
+
+/**
+ * Em que pé está a janela da assembleia (antes / aberta / encerrada). Regra do
+ * usuário (09/10/2026): depois do início, a assembleia não se edita nem se
+ * exclui — só o término pode ser prorrogado.
+ */
+export async function situacaoAssembleiaPorId(
+  id: string
+): Promise<SituacaoAssembleia | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("voto_assembleias")
+    .select(
+      "id, rod_assembleia_id, apuracao_encerrada, data_inicio, data_termino" +
+        (await colunasHorario())
+    )
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (error || !data) return null
+  const a = data as unknown as Record<string, unknown>
+  const rodadaId = (a.rod_assembleia_id as string | null) ?? null
+  const { termino } = rodadaId
+    ? await periodoDaRodada(rodadaId)
+    : { termino: null }
+  return {
+    situacao: situacaoDaAssembleia(a, termino),
+    rodadaId,
+    terminoDaRodada: termino,
+    apuracaoEncerrada: a.apuracao_encerrada === true,
+    data_inicio: (a.data_inicio as string | null) ?? null,
+    hora_inicio: horaCurta(a.hora_inicio as string | null),
+    data_termino: (a.data_termino as string | null) ?? null,
+    hora_termino: horaCurta(a.hora_termino as string | null),
+  }
+}
+
+export const MOTIVO_ASSEMBLEIA_INICIADA =
+  "A assembleia já começou — não pode mais ser editada nem excluída. Para estender o prazo, use Prorrogar."
+
+/**
+ * Prorroga o TÉRMINO da assembleia (data + hora) — a única mudança permitida
+ * depois do início. O novo término precisa ser posterior ao atual e ao
+ * momento presente. Se passar do término da rodada, a rodada é estendida
+ * junto: a janela da assembleia tem de caber nela (regra de 23/09).
+ */
+export async function prorrogarAssembleia(
+  id: string,
+  novo: { data_termino: string; hora_termino: string | null }
+): Promise<{ erro?: string; rodadaEstendida?: boolean }> {
+  const atual = await situacaoAssembleiaPorId(id)
+  if (!atual) return { erro: "Assembleia não encontrada." }
+  if (atual.situacao === "antes") {
+    return {
+      erro: "A assembleia ainda não começou — altere o término pela edição.",
+    }
+  }
+  if (atual.apuracaoEncerrada) {
+    return {
+      erro: "A apuração desta assembleia já foi encerrada. Reabra a apuração antes de prorrogar.",
+    }
+  }
+
+  const fimNovo = janelaAssembleia({
+    data_inicio: atual.data_inicio,
+    hora_inicio: atual.hora_inicio,
+    data_termino: novo.data_termino,
+    hora_termino: novo.hora_termino,
+  }).termino
+  if (fimNovo === null) return { erro: "Informe a nova data de término." }
+  const fimAtual = janelaDaAssembleia(atual, atual.terminoDaRodada).termino
+  if (fimAtual !== null && fimNovo <= fimAtual) {
+    return { erro: "O novo término precisa ser depois do término atual." }
+  }
+  if (fimNovo <= Date.now()) {
+    return { erro: "O novo término precisa ser no futuro." }
+  }
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  let rodadaEstendida = false
+  if (
+    atual.rodadaId &&
+    atual.terminoDaRodada &&
+    novo.data_termino > atual.terminoDaRodada.slice(0, 10)
+  ) {
+    const { error } = await admin
+      .from("voto_rod_assembleias")
+      .update({ termino: novo.data_termino })
+      .eq("id", atual.rodadaId)
+      .eq("emp_proprietaria_id", emp)
+    if (error) {
+      return { erro: `Falha ao estender o período da rodada: ${error.message}` }
+    }
+    rodadaEstendida = true
+  }
+
+  const { error } = await admin
+    .from("voto_assembleias")
+    .update({
+      data_termino: novo.data_termino,
+      ...((await colunasHorario()) ? { hora_termino: novo.hora_termino } : {}),
+    })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Falha ao prorrogar a assembleia: ${error.message}` }
+  await sincronizarAgendaDaAssembleia(id)
+  return { rodadaEstendida }
+}
+
+/**
+ * Grava só a ata — a assembleia que já começou não se edita, mas a ata
+ * costuma chegar depois dela (pedido do usuário, 09/10/2026).
+ */
+export async function gravarAtaDaAssembleia(
+  id: string,
+  caminho: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_assembleias")
+    .update({ ata: caminho })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  return error ? { erro: `Falha ao gravar a ata: ${error.message}` } : {}
 }
 
 // ── Sincronização com a agenda (portal do associado) ───────────────────────
@@ -1894,13 +2039,16 @@ export type ApuracaoAssembleia = {
   online: boolean
   apuracaoEncerrada: boolean
   /**
-   * Regra do usuário (2026-08-29): a apuração dos votos individuais só fica
-   * disponível DEPOIS do término da rodada — nada de resultado parcial. Antes
-   * disso a contagem por opção nem é lida do banco (`perguntas` vem zerada);
-   * só o comparecimento (aptos/votantes) aparece.
+   * A apuração só fica disponível DEPOIS do término da ASSEMBLEIA (regra de
+   * 09/10/2026; antes era o da rodada, desde 29/08) — nada de resultado
+   * parcial. Antes disso a contagem por opção nem é lida do banco
+   * (`perguntas` vem zerada); só o comparecimento (aptos/votantes) aparece.
    */
   apuracaoDisponivel: boolean
   rodadaTermino: string | null
+  /** Fim da janela da assembleia (ISO); sem término próprio, o da rodada. */
+  fimDaJanela: string | null
+  rodadaId: string | null
   aptos: number
   votantes: number
   perguntas: ApuracaoPergunta[]
@@ -1911,18 +2059,33 @@ export async function dadosApuracao(
 ): Promise<ApuracaoAssembleia | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data: a } = await admin
+  const { data } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, rod_assembleia_id"
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, rod_assembleia_id, data_inicio, data_termino" +
+        (await colunasHorario())
     )
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
-  if (!a) return null
+  if (!data) return null
+  // Select montado (horários só depois do SQL): tipo solto de propósito.
+  const a = data as unknown as {
+    id: string
+    nome_assembleia: string | null
+    online: boolean | null
+    urnas_de_votacao: boolean | null
+    apuracao_encerrada: boolean | null
+    rod_assembleia_id: string | null
+    data_inicio: string | null
+    data_termino: string | null
+    hora_inicio?: string | null
+    hora_termino?: string | null
+  }
   const rodId = a.rod_assembleia_id ? String(a.rod_assembleia_id) : null
 
-  // Término da rodada → só depois dele a contagem individual fica disponível.
+  // Término da assembleia (ou, sem término próprio, da rodada) → só depois
+  // dele a contagem individual fica disponível.
   const { data: rod } = rodId
     ? await admin
         .from("voto_rod_assembleias")
@@ -1933,7 +2096,9 @@ export async function dadosApuracao(
     : { data: null }
   const rodadaTermino = rod?.termino ? String(rod.termino) : null
   const apuracaoDisponivel =
-    a.apuracao_encerrada === true || periodoTerminado(rodadaTermino)
+    a.apuracao_encerrada === true ||
+    situacaoDaAssembleia(a, rodadaTermino) === "encerrada"
+  const fimDaJanela = janelaDaAssembleia(a, rodadaTermino).termino
 
   const { data: perguntas } = rodId
     ? await admin
@@ -2038,17 +2203,20 @@ export async function dadosApuracao(
     }
   }
 
+  // Aptos pelo escopo da votação (lista da rodada ou amarrados à
+  // assembleia) — contar só `assembleia_id` dava zero com a lista na rodada.
+  const escopo = filtroAptos(await escopoAptos(assembleiaId))
   const [aptosRes, votantesRes] = await Promise.all([
     admin
       .from("voto_assembleias_aptos")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId),
+      .or(escopo),
     admin
       .from("voto_assembleias_aptos")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId)
+      .or(escopo)
       .not("hora_voto", "is", null),
   ])
 
@@ -2078,6 +2246,8 @@ export async function dadosApuracao(
     apuracaoEncerrada: a.apuracao_encerrada === true,
     apuracaoDisponivel,
     rodadaTermino,
+    fimDaJanela: fimDaJanela === null ? null : new Date(fimDaJanela).toISOString(),
+    rodadaId: rodId,
     aptos: aptosRes.count ?? 0,
     votantes: votantesRes.count ?? 0,
     perguntas: perguntasOut,
@@ -2098,10 +2268,10 @@ export async function encerrarApuracao(
   const dados = await dadosApuracao(assembleiaId)
   if (!dados) return { erro: "Assembleia não encontrada." }
 
-  // Trava: não se encerra a apuração antes de a rodada terminar.
-  if (!periodoTerminado(dados.rodadaTermino)) {
+  // Trava: não se encerra a apuração antes de a assembleia terminar.
+  if (!dados.apuracaoDisponivel) {
     return {
-      erro: "A apuração só pode ser encerrada após o término da rodada.",
+      erro: "A apuração só pode ser encerrada após o término da assembleia.",
     }
   }
 

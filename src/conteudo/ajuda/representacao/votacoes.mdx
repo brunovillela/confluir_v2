@@ -188,7 +188,8 @@ copiar uma mensagem pronta. Cole onde quiser — WhatsApp, Telegram, SMS.
 Na página **Votações**, o cartão **Link único de votação** mostra o endereço
 `…/votar` da entidade, com **Copiar link único**. É uma página só, com todas
 as votações online abertas e as próximas — divulgue por WhatsApp, cartaz ou QR
-code para quem diz que não recebe o e-mail da empresa.
+code para quem diz que não recebe o e-mail da empresa. O mesmo link está no
+alto da página de cada rodada, em **Copiar link geral**.
 
 Quem entra por ele confirma um e-mail pessoal — ou o próprio número pelo bot
 do Telegram — e se identifica com nome
@@ -273,7 +274,7 @@ Cada assembleia tem uma **modalidade**, escolhida ao criá-la:
 
 ### O que trava, e quando
 
-Duas regras protegem a votação de mudanças no meio do caminho:
+Três regras protegem a votação de mudanças no meio do caminho:
 
 - **Perguntas e opções** podem ser criadas, editadas e excluídas até a
   **primeira assembleia da rodada começar**. Depois disso, a cédula já está de
@@ -283,6 +284,19 @@ Duas regras protegem a votação de mudanças no meio do caminho:
 - **O período da assembleia tem de caber no período da rodada.** Não dá para
   marcar uma assembleia que começa antes ou termina depois do que o edital
   anunciou, nem com início posterior ao término.
+- **A assembleia que começou não se edita nem se exclui.** O lápis e a
+  lixeira somem quando a janela abre. O que resta é **Prorrogar**: muda só a
+  data e a hora do **término**, que precisa ficar depois do término atual e no
+  futuro. Se a nova data passar do fim da rodada, o período da rodada é
+  estendido junto (o diálogo avisa antes). Com a apuração encerrada, reabra-a
+  antes de prorrogar.
+
+A **ata** não depende da edição: o botão **Anexar ata** (ou **Trocar ata**,
+quando já existe uma) fica na linha da assembleia a qualquer momento, inclusive
+depois da votação — PDF ou imagem, até 4 MB. **Ver ata** abre o arquivo atual.
+
+A linha de cada assembleia mostra em que pé ela está: **Agendada**, **Em
+votação**, **Encerrada · a apurar** ou **Apuração encerrada**.
 
 <Aviso tipo="nota" titulo="Enquanto nada começou, mexa à vontade">
   Cadastrar a assembleia não trava mais as perguntas: o que trava é o começo da
@@ -477,9 +491,32 @@ conferir um código em `/comprovante/<código>`, sem login.
 O botão **Apurar** de cada assembleia mostra a contagem **por opção** (as opções
 são as cadastradas na rodada — não há resposta fixa), somando os votos
 **digitais/online** e o que os **apuradores** lançaram nas urnas físicas, com
-**branco** e **nulo**. A contagem **só aparece após o término da rodada** (nada
-de resultado parcial). Ao **encerrar**, o resultado é congelado e liberado ao
+**branco** e **nulo**. O botão só fica liberado **depois do término da
+assembleia** (antes disso aparece apagado, com a data em que abre) — nada de
+resultado parcial. Ao **encerrar**, o resultado é congelado e liberado ao
 filiado em **Minhas votações**.
+
+### Relatórios da votação online
+
+Nas assembleias **online** e **híbridas**, a apuração traz o cartão
+**Relatórios**, em PDF:
+
+- **Relação dos votantes** — quem votou, com CPF, matrícula, canal e horário.
+  Registra a participação, nunca o voto.
+- **Informações e resultado** — dados da assembleia, comparecimento e o
+  resultado por pergunta.
+- **Relatório completo** — abre um formulário para marcar o que entra:
+  informações, comparecimento, resultado, perguntas e opções, votantes, votos
+  em separado e (na híbrida) comparecimento por urna.
+
+Enquanto a apuração não for encerrada, o PDF indica que o resultado é
+provisório.
+
+<Aviso tipo="nota" titulo="Rodada com várias assembleias">
+  O apto vota uma vez na rodada, em qualquer assembleia dela. Quando a rodada
+  tem mais de uma, a relação de votantes de uma assembleia traz quem votou pela
+  urna dela ou, online, dentro da janela dela.
+</Aviso>
 
 <Aviso tipo="nota" titulo="Branco e nulo">
   **Branco** é a cédula sem qualquer marcação. **Nulo** é a cédula com mais de
@@ -501,7 +538,9 @@ filiado em **Minhas votações**.
   urna (código de `/urna` digitado no ambiente do mesário) e a presença do
   eleitor precisa ter sido registrada.
 - **"Não consigo encerrar a apuração."** Ela só pode ser encerrada **após o
-  término da rodada**.
+  término da assembleia**.
+- **"Sumiu o lápis da assembleia."** Ela já começou: só dá para **Prorrogar**
+  o término.
 - **"O mesário não registra presença na urna física."** Falta a **Abertura do
   dia** — faça-a com o primeiro eleitor antes.
 - **"O apurador não vê a urna."** Confira se a urna foi **atribuída** a ele e se

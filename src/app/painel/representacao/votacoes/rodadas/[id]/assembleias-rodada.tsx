@@ -2,7 +2,17 @@
 
 import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Activity, Gavel, Loader2, Pencil, Plus, Trash2, Vote } from "lucide-react"
+import {
+  Activity,
+  CalendarClock,
+  FileText,
+  Gavel,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  Vote,
+} from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,6 +25,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -24,11 +43,18 @@ import {
   ROTULOS_MODALIDADE,
   temUrna,
   type Modalidade,
+  type SituacaoJanela,
 } from "@/lib/assembleias-constantes"
 import type { AssembleiaLinha } from "@/lib/db/assembleias"
-import { formatarData } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 
-import { apagarAssembleia, novaAssembleia, salvarAssembleia } from "./actions"
+import {
+  anexarAtaAction,
+  apagarAssembleia,
+  novaAssembleia,
+  prorrogarAssembleiaAction,
+  salvarAssembleia,
+} from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 const TEXTAREA =
@@ -48,12 +74,20 @@ export function AssembleiasDaRodada({
   esquemaPronto,
   editavel,
   motivoBloqueio,
+  janelas,
+  atas,
+  terminoDaRodada,
 }: {
   rodadaId: string
   assembleias: AssembleiaLinha[]
   esquemaPronto: boolean
   editavel: boolean
   motivoBloqueio: string | null
+  /** Situação da janela de cada assembleia, calculada no servidor. */
+  janelas: Record<string, JanelaItem>
+  /** Link assinado da ata de cada assembleia que tem ata. */
+  atas: Record<string, string>
+  terminoDaRodada: string | null
 }) {
   return (
     <Card>
@@ -87,6 +121,9 @@ export function AssembleiasDaRodada({
             rodadaId={rodadaId}
             assembleia={a}
             editavel={editavel}
+            janela={janelas[a.id] ?? { situacao: "antes", fim: null }}
+            ataUrl={atas[a.id] ?? null}
+            terminoDaRodada={terminoDaRodada}
           />
         ))}
         {esquemaPronto && editavel && (
@@ -297,14 +334,44 @@ function VotoEmSeparadoSwitch({ inicial }: { inicial: boolean }) {
   )
 }
 
+export type JanelaItem = {
+  situacao: SituacaoJanela
+  /** Fim da janela (ISO); sem término próprio, o da rodada. */
+  fim: string | null
+}
+
+/** Agendada → Em votação → Encerrada (aguarda ou com apuração). */
+function SituacaoBadge({
+  situacao,
+  apuracaoEncerrada,
+}: {
+  situacao: SituacaoJanela
+  apuracaoEncerrada: boolean
+}) {
+  if (apuracaoEncerrada) {
+    return <Badge variant="secondary">Apuração encerrada</Badge>
+  }
+  if (situacao === "aberta") return <Badge variant="success">Em votação</Badge>
+  if (situacao === "encerrada") {
+    return <Badge variant="warning">Encerrada · a apurar</Badge>
+  }
+  return <Badge variant="info">Agendada</Badge>
+}
+
 function AssembleiaItem({
   rodadaId,
   assembleia,
   editavel,
+  janela,
+  ataUrl,
+  terminoDaRodada,
 }: {
   rodadaId: string
   assembleia: AssembleiaLinha
   editavel: boolean
+  janela: JanelaItem
+  ataUrl: string | null
+  terminoDaRodada: string | null
 }) {
   const [editando, setEditando] = useState(false)
   const [estadoSalvar, salvarAction, salvando] = useActionState(
@@ -317,7 +384,15 @@ function AssembleiaItem({
   )
   const erro = estadoSalvar.erro ?? estadoApagar.erro
 
-  if (editando && editavel) {
+  // Depois do início: nada de editar nem excluir — só prorrogar o término
+  // (regra do usuário, 09/10/2026). Apurar só depois do término.
+  const iniciada = janela.situacao !== "antes"
+  const podeEditar = editavel && !iniciada
+  const podeApurar =
+    janela.situacao === "encerrada" || assembleia.apuracao_encerrada
+  const podeProrrogar = iniciada && !assembleia.apuracao_encerrada
+
+  if (editando && podeEditar) {
     return (
       <form
         action={salvarAction}
@@ -370,17 +445,30 @@ function AssembleiaItem({
   }
 
   return (
-    <div className="grid gap-2 rounded-lg border p-4">
+    <div className="grid gap-3 rounded-lg border p-4">
       {erro && (
         <Alert variant="destructive">
           <AlertDescription>{erro}</AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="grid gap-1">
-          <p className="text-sm font-medium">
-            {assembleia.nome ?? "(sem nome)"}
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="grid min-w-0 gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="mr-1 text-sm font-medium">
+              {assembleia.nome ?? "(sem nome)"}
+            </p>
+            <SituacaoBadge
+              situacao={janela.situacao}
+              apuracaoEncerrada={assembleia.apuracao_encerrada}
+            />
+            <ModalidadeBadge modalidade={assembleia.modalidade} />
+            {assembleia.voto_em_separado && (
+              <Badge variant="outline">Voto em separado</Badge>
+            )}
+            {assembleia.somente_filiados && (
+              <Badge variant="secondary">Somente filiados</Badge>
+            )}
+          </div>
           <p className="text-muted-foreground text-xs">
             {assembleia.data_inicio || assembleia.data_termino
               ? `${formatarData(assembleia.data_inicio)}${assembleia.hora_inicio ? ` ${assembleia.hora_inicio}` : ""} a ${formatarData(assembleia.data_termino)}${assembleia.hora_termino ? ` ${assembleia.hora_termino}` : ""}`
@@ -403,72 +491,284 @@ function AssembleiaItem({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          <ModalidadeBadge modalidade={assembleia.modalidade} />
-          {assembleia.voto_em_separado && (
-            <Badge variant="outline">Voto em separado</Badge>
-          )}
-          {assembleia.somente_filiados && (
-            <Badge variant="secondary">Somente filiados</Badge>
-          )}
-          {temUrna(assembleia.modalidade) && (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/representacao/votacoes/urnas/${assembleia.id}`}>
-                  <Vote />
-                  Urnas e mesários
-                </Link>
+        {podeEditar && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditando(true)}
+              aria-label="Editar assembleia"
+            >
+              <Pencil />
+            </Button>
+            <form
+              action={apagarAction}
+              onSubmit={(e) => {
+                confirmarEnvio(e, "Excluir esta assembleia?")
+              }}
+            >
+              <input type="hidden" name="rodada_id" value={rodadaId} />
+              <input type="hidden" name="assembleia_id" value={assembleia.id} />
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon"
+                disabled={apagando}
+                aria-label="Excluir assembleia"
+              >
+                {apagando ? <Loader2 className="animate-spin" /> : <Trash2 />}
               </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/representacao/votacoes/acompanhamento/${assembleia.id}`}>
-                  <Activity />
-                  Acompanhar
-                </Link>
-              </Button>
-            </>
-          )}
+            </form>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {temUrna(assembleia.modalidade) && (
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/representacao/votacoes/urnas/${assembleia.id}`}>
+                <Vote />
+                Urnas e mesários
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/representacao/votacoes/acompanhamento/${assembleia.id}`}>
+                <Activity />
+                Acompanhar
+              </Link>
+            </Button>
+          </>
+        )}
+        {podeApurar ? (
           <Button variant="outline" size="sm" asChild>
             <Link href={`/painel/representacao/votacoes/apuracao/${assembleia.id}`}>
               <Gavel />
               Apurar
             </Link>
           </Button>
-          {editavel && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditando(true)}
-                aria-label="Editar assembleia"
-              >
-                <Pencil />
-              </Button>
-              <form
-                action={apagarAction}
-                onSubmit={(e) => {
-                  confirmarEnvio(e, "Excluir esta assembleia?")}}
-              >
-                <input type="hidden" name="rodada_id" value={rodadaId} />
-                <input
-                  type="hidden"
-                  name="assembleia_id"
-                  value={assembleia.id}
-                />
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="icon"
-                  disabled={apagando}
-                  aria-label="Excluir assembleia"
-                >
-                  {apagando ? <Loader2 className="animate-spin" /> : <Trash2 />}
-                </Button>
-              </form>
-            </>
-          )}
-        </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title={
+              janela.fim
+                ? `A apuração abre após o término, em ${formatarDataHora(janela.fim)}.`
+                : "A apuração abre após o término da assembleia."
+            }
+          >
+            <Gavel />
+            Apurar
+          </Button>
+        )}
+        {podeProrrogar && (
+          <ProrrogarBotao
+            rodadaId={rodadaId}
+            assembleia={assembleia}
+            fimAtual={janela.fim}
+            terminoDaRodada={terminoDaRodada}
+          />
+        )}
+        <AtaBotao
+          rodadaId={rodadaId}
+          assembleia={assembleia}
+          ataUrl={ataUrl}
+        />
+        {!podeApurar && janela.fim && (
+          <span className="text-muted-foreground text-xs">
+            Apuração liberada em {formatarDataHora(janela.fim)}
+          </span>
+        )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Ata da assembleia: ver a atual e anexar (ou trocar). Fica fora da edição
+ * porque a ata chega depois da assembleia, quando a edição já travou.
+ */
+function AtaBotao({
+  rodadaId,
+  assembleia,
+  ataUrl,
+}: {
+  rodadaId: string
+  assembleia: AssembleiaLinha
+  ataUrl: string | null
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useActionState(anexarAtaAction, {})
+
+  const [estadoAnterior, setEstadoAnterior] = useState(estado)
+  if (estado !== estadoAnterior) {
+    setEstadoAnterior(estado)
+    if (estado.ok) setAberto(false)
+  }
+
+  return (
+    <>
+      {ataUrl && (
+        <Button variant="outline" size="sm" asChild>
+          <a href={ataUrl} target="_blank" rel="noreferrer">
+            <FileText />
+            Ver ata
+          </a>
+        </Button>
+      )}
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant={ataUrl ? "ghost" : "outline"} size="sm">
+            {!ataUrl && <FileText />}
+            {ataUrl ? "Trocar ata" : "Anexar ata"}
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ataUrl ? "Trocar a ata" : "Anexar a ata"}</DialogTitle>
+            <DialogDescription>
+              {assembleia.nome ?? "Assembleia"} — PDF ou imagem, até 4 MB.
+              {ataUrl ? " O arquivo novo substitui o atual." : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <form action={formAction} className="grid gap-4">
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <input type="hidden" name="rodada_id" value={rodadaId} />
+            <input type="hidden" name="assembleia_id" value={assembleia.id} />
+            <Input
+              name="ata"
+              type="file"
+              required
+              accept="application/pdf,image/png,image/jpeg,image/webp"
+              aria-label="Arquivo da ata"
+            />
+            <DialogFooter>
+              <Button type="submit" disabled={pendente}>
+                {pendente ? <Loader2 className="animate-spin" /> : <FileText />}
+                Anexar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {estado.ok && !aberto && (
+        <span className="text-success-fg text-xs">{estado.ok}</span>
+      )}
+    </>
+  )
+}
+
+/** Depois do início, só o término muda: data e hora. */
+function ProrrogarBotao({
+  rodadaId,
+  assembleia,
+  fimAtual,
+  terminoDaRodada,
+}: {
+  rodadaId: string
+  assembleia: AssembleiaLinha
+  fimAtual: string | null
+  terminoDaRodada: string | null
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useActionState(
+    prorrogarAssembleiaAction,
+    {}
+  )
+  const [data, setData] = useState(assembleia.data_termino ?? "")
+
+  // Fecha o diálogo quando a action confirma (ajuste de estado no render).
+  const [estadoAnterior, setEstadoAnterior] = useState(estado)
+  if (estado !== estadoAnterior) {
+    setEstadoAnterior(estado)
+    if (estado.ok) setAberto(false)
+  }
+
+  const estendeRodada =
+    Boolean(terminoDaRodada) && data > (terminoDaRodada ?? "").slice(0, 10)
+
+  return (
+    <>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <CalendarClock />
+            Prorrogar
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Prorrogar a assembleia</DialogTitle>
+            <DialogDescription>
+              {assembleia.nome ?? "Assembleia"} — término atual{" "}
+              {fimAtual ? formatarDataHora(fimAtual) : "não definido"}. Depois
+              do início, só o término pode mudar.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={formAction} className="grid gap-4">
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <input type="hidden" name="rodada_id" value={rodadaId} />
+            <input type="hidden" name="assembleia_id" value={assembleia.id} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor={`${assembleia.id}-prorroga-data`}>
+                  Novo término *
+                </Label>
+                <Input
+                  id={`${assembleia.id}-prorroga-data`}
+                  name="data_termino"
+                  type="date"
+                  required
+                  value={data}
+                  onChange={(e) => setData(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`${assembleia.id}-prorroga-hora`}>
+                  Hora de término
+                </Label>
+                <Input
+                  id={`${assembleia.id}-prorroga-hora`}
+                  name="hora_termino"
+                  type="time"
+                  defaultValue={assembleia.hora_termino ?? ""}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Em branco, fecha às 23h59.
+                </p>
+              </div>
+            </div>
+            {estendeRodada && (
+              <Alert variant="info">
+                <AlertDescription>
+                  A nova data passa do término da rodada (
+                  {formatarData(terminoDaRodada)}). O período da rodada será
+                  estendido junto.
+                </AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button type="submit" disabled={pendente}>
+                {pendente ? <Loader2 className="animate-spin" /> : <CalendarClock />}
+                Prorrogar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {estado.ok && !aberto && (
+        <span className="text-success-fg text-xs">{estado.ok}</span>
+      )}
+    </>
   )
 }
 
