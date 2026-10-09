@@ -1,7 +1,6 @@
 "use client"
 
 import { useActionState, useEffect, useState, useTransition } from "react"
-import Link from "next/link"
 import { Check, CircleAlert, HandCoins, Link2, Loader2, Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -78,12 +77,7 @@ export function PrestarContas({ bloqueio = null }: { bloqueio?: string | null })
       )}
       {bloqueio && !estado.erro && (
         <Alert variant="warning">
-          <AlertDescription>
-            {bloqueio}{" "}
-            <Link href="/painel/perfil/despesas-caixa" className="underline underline-offset-2">
-              Abrir
-            </Link>
-          </AlertDescription>
+          <AlertDescription>{bloqueio}</AlertDescription>
         </Alert>
       )}
       <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">

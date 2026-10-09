@@ -243,7 +243,7 @@ export function ExtratoCaixa({
                         className="h-6 px-2 text-xs"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Link href="/painel/perfil/despesas-caixa">Reconhecer</Link>
+                        <Link href="/painel/perfil/caixa#reconhecer">Reconhecer</Link>
                       </Button>
                     )}
                     {!cancelada && m.reconhecimento === "nao_reconhecida" && (

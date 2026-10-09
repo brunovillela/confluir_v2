@@ -14,9 +14,14 @@ import {
 } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
 import { contaDoUsuario } from "@/lib/db/caixa"
-import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
+import {
+  bloqueioPrestacao,
+  despesasParaReconhecer,
+  reconhecimentosEmAberto,
+} from "@/lib/db/caixa-reconhecimento"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
+import { AvaliarDespesa } from "../despesas-caixa/formularios"
 import { AcoesDoCaixa, ConfirmarAporte } from "./meu-caixa-acoes"
 
 export const metadata: Metadata = { title: "Meu caixa — Confluir" }
@@ -71,7 +76,11 @@ export default async function MeuCaixaPage({
 
   const { conta, extrato, prestacoes, ocorrencias } = detalhe
   // Despesas sem reconhecimento resolvido travam a prestação de contas.
-  const bloqueio = bloqueioPrestacao(await reconhecimentosEmAberto(conta.id))
+  const [abertos, paraReconhecer] = await Promise.all([
+    reconhecimentosEmAberto(conta.id),
+    despesasParaReconhecer(String(sessao.usuario.id)),
+  ])
+  const bloqueio = bloqueioPrestacao(abertos)
   const aportesPendentes = extrato.filter(
     (m) => m.tipo === "aporte" && m.situacao === "pendente"
   )
@@ -148,6 +157,51 @@ export default async function MeuCaixaPage({
           </CardContent>
         </Card>
       ))}
+
+      {/* Compras lançadas por outras pessoas na conta: o dono aprova aqui
+          (caixa de entrada e aviso apontam para #reconhecer). */}
+      {paraReconhecer.lista.length > 0 && (
+        <Card id="reconhecer" className="border-warning/40 scroll-mt-20">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Para reconhecer ({paraReconhecer.lista.length})
+            </CardTitle>
+            <CardDescription>
+              Compras lançadas por outras pessoas no seu caixa. Reconheça se o
+              dinheiro saiu mesmo dele. Se não reconhecer, diga o motivo: o
+              valor volta ao saldo e quem lançou é avisado para transferir a
+              compra para a conta certa.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {paraReconhecer.lista.map((d) => (
+              <div
+                key={d.id}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+              >
+                <div className="min-w-0 flex-1 basis-64">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    <span className="tabular-nums">{formatarMoeda(d.valor)}</span>
+                    <span className="text-muted-foreground font-normal">
+                      · lançada por {d.lancadaPorNome ?? "—"}
+                      {d.contaId !== conta.id && d.contaNome ? ` · ${d.contaNome}` : ""}
+                    </span>
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {d.descricao ?? "—"}
+                    {d.ordemCodigo ? ` · ordem ${d.ordemCodigo}` : ""} ·{" "}
+                    {formatarDataHora(d.criadaEm)}
+                  </p>
+                </div>
+                <AvaliarDespesa
+                  id={d.id}
+                  resumo={`de ${formatarMoeda(d.valor)} (${d.descricao ?? "sem descrição"})`}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {prestacaoAguardando && (
         <Alert className="border-info/40 text-info-fg">

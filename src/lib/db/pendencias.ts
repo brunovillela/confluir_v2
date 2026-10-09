@@ -354,7 +354,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         chave: "caixa_reconhecer",
         titulo: "Despesas no seu caixa para reconhecer",
         descricao: "Lançadas por outras pessoas na sua conta",
-        href: "/painel/perfil/despesas-caixa",
+        href: "/painel/perfil/caixa#reconhecer",
         tabela: "caixa_movimentacoes",
         montar: (q) => head(q).in("conta_id", contas).eq("situacao", "confirmada").eq("reconhecimento", "pendente"),
       })

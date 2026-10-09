@@ -99,7 +99,7 @@ async function pedirReconhecimento(conta: { nome: string; responsavelId: string 
   depoisDaResposta(() =>
     avisar([quem], {
       texto: `${nomes.get(lancadaPor) ?? "Alguém"} lançou ${formatarMoeda(valor)} no seu caixa "${conta.nome}": ${descricao}`.slice(0, 300),
-      link: "/painel/perfil/despesas-caixa",
+      link: "/painel/perfil/caixa#reconhecer",
       evento: "pendencia_caixa",
       assunto: "Despesa lançada no seu caixa — reconheça ou não",
     })
@@ -244,7 +244,7 @@ export async function reconhecimentosEmAberto(contaId: string): Promise<{ penden
 /** Mensagem do bloqueio da prestação de contas (null = pode prestar). */
 export function bloqueioPrestacao(abertos: { pendentes: number; naoReconhecidas: number }): string | null {
   return abertos.pendentes
-    ? `Antes de prestar contas, avalie ${abertos.pendentes} despesa(s) lançada(s) por outras pessoas esperando o seu reconhecimento. Veja em Meu perfil → Despesas em caixas.`
+    ? `Antes de prestar contas, avalie ${abertos.pendentes} despesa(s) lançada(s) por outras pessoas esperando o seu reconhecimento — no quadro "Para reconhecer", aqui no Meu caixa.`
     : null
 }
 
