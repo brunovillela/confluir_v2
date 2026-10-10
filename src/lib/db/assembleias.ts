@@ -509,14 +509,37 @@ async function contarPorCampo(
   const contagens = new Map<string, number>()
   if (ids.length === 0) return contagens
   const admin = await createAdminClient()
-  const { data, error } = await admin.from(tabela).select(campo).in(campo, ids)
-  if (error) {
-    if (esquemaAusente(error)) return contagens
-    throw new Error(`Falha ao contar ${tabela}: ${error.message}`)
+  // Ler as linhas e contar aqui parava no teto de 1.000 do PostgREST — a
+  // campanha mostrava 1.000 aptos numa rodada de 1.075 (10/10/2026; ver
+  // confluir-postgrest-teto-1000). Poucos ids (rodadas de uma campanha):
+  // contagem no banco, uma por id. Muitos (lista de campanhas): leitura
+  // paginada, sem teto.
+  if (ids.length <= 20) {
+    const resultados = await Promise.all(
+      ids.map((id) => admin.from(tabela).select(campo, { count: "exact", head: true }).eq(campo, id))
+    )
+    for (const [k, { count, error }] of resultados.entries()) {
+      if (error) {
+        if (esquemaAusente(error)) return contagens
+        throw new Error(`Falha ao contar ${tabela}: ${error.message}`)
+      }
+      contagens.set(ids[k], count ?? 0)
+    }
+    return contagens
   }
-  for (const linha of (data ?? []) as unknown as Record<string, unknown>[]) {
-    const id = String(linha[campo])
-    contagens.set(id, (contagens.get(id) ?? 0) + 1)
+  try {
+    for (let de = 0; de < ids.length; de += 200) {
+      const linhas = await lerEmLotes<Record<string, unknown>>((a, b) =>
+        admin.from(tabela).select(`id, ${campo}`).in(campo, ids.slice(de, de + 200)).order("id").range(a, b)
+      )
+      for (const linha of linhas) {
+        const id = String(linha[campo])
+        contagens.set(id, (contagens.get(id) ?? 0) + 1)
+      }
+    }
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return contagens
+    throw new Error(`Falha ao contar ${tabela}: ${e instanceof Error ? e.message : "?"}`)
   }
   return contagens
 }
