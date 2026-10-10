@@ -6,8 +6,8 @@
 -- já sem acento (helper `semAcento` em lib/formato.ts). unaccent() é STABLE →
 -- precisamos de um wrapper IMMUTABLE p/ poder usar em coluna gerada.
 
-create extension if not exists unaccent;
-create extension if not exists pg_trgm;
+create extension if not exists unaccent with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
 
 create or replace function public.f_unaccent(text)
   returns text
@@ -15,7 +15,8 @@ create or replace function public.f_unaccent(text)
   immutable
   parallel safe
   strict
-as $$ select public.unaccent('public.unaccent', $1) $$;
+  set search_path = ''
+as $$ select extensions.unaccent('extensions.unaccent'::regdictionary, $1) $$;
 
 -- Filiados
 alter table public.filiacoes

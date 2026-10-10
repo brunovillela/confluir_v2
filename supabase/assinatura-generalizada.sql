@@ -99,10 +99,10 @@ create trigger set_emp_from_jwt before insert on documento_assinaturas
 alter table documento_assinatura_eventos enable row level security;
 drop policy if exists trilha_leitura on documento_assinatura_eventos;
 create policy trilha_leitura on documento_assinatura_eventos for select to authenticated
-  using (true);
+  using (emp_proprietaria_id = (auth.jwt() ->> 'tenant_id')::uuid);
 drop policy if exists trilha_insercao on documento_assinatura_eventos;
 create policy trilha_insercao on documento_assinatura_eventos for insert to authenticated
-  with check (true);
+  with check (emp_proprietaria_id = (auth.jwt() ->> 'tenant_id')::uuid);
 grant select, insert on documento_assinatura_eventos to authenticated;
 
 -- ── 4. O termo de cessão aponta para o envelope ──────────────────────────────

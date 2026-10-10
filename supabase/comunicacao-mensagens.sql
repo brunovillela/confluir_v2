@@ -26,7 +26,7 @@ alter table permissoes add column if not exists comunicacao_mensagens boolean;
 
 -- ── Aniversário: dia e mês sempre coerentes com a data ────────────────────
 create or replace function public.filiacoes_nascimento_dia_mes()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = '' as $$
 begin
   if new.nascimento_data is null then
     new.nascimento_dia := null;
