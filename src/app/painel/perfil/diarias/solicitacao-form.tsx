@@ -115,9 +115,26 @@ export function SolicitarDiariaForm({
             <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
               Fechar
             </Button>
-            <Button type="submit" disabled={pendente}>
+            <Button type="submit" name="acao" value="salvar" variant="outline" disabled={pendente}>
+              {pendente ? <Loader2 className="animate-spin" /> : null}
+              Salvar e lançar outra
+            </Button>
+            <Button
+              type="submit"
+              name="acao"
+              value="enviar"
+              disabled={pendente}
+              onClick={(e) => {
+                if (
+                  !window.confirm(
+                    "Salvar esta diária e enviar a remessa — com todas as diárias dela — para avaliação? Depois de enviada, uma diária nova abre outra remessa."
+                  )
+                )
+                  e.preventDefault()
+              }}
+            >
               {pendente ? <Loader2 className="animate-spin" /> : <Send />}
-              Enviar solicitação
+              Salvar e enviar a remessa
             </Button>
           </div>
         </form>

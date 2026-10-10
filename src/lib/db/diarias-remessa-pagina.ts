@@ -4,7 +4,7 @@ import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { obterAutorizacaoDiarias } from "@/lib/db/diarias-config"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
-import { obterRemessaNova } from "@/lib/db/diarias-remessas"
+import { obterRemessaNova, podeEnviarRemessa } from "@/lib/db/diarias-remessas"
 import { cobrancasDiariaPendentes } from "@/lib/db/veiculos"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -49,6 +49,7 @@ export async function contextoDaRemessa(id: string, sessao: SessaoPainel) {
     geraDiarias,
     destinoOrdem,
     podeAvaliar: geraDiarias && remessa.beneficiarioId !== uid,
+    podeEnviar: podeEnviarRemessa(uid, remessa, solicitacoes),
     infracoes: pendentes.length
       ? { quantidade: pendentes.length, total: pendentes.reduce((a, c) => a + c.valor, 0) }
       : null,

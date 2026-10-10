@@ -7,7 +7,9 @@ import {
   AvaliacaoRemessaForm,
   ReenviarRemessaForm,
   RetirarDiariaBotao,
+  EnviarRemessaBotao,
 } from "@/components/remessa-avaliacao-form"
+import { enviarRemessaAction } from "@/app/painel/pessoal/diarias/remessas/actions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -50,6 +52,9 @@ export function SituacaoRemessaBadge({ remessa }: { remessa: Pick<RemessaNova, "
   }
   if (remessa.situacao === "devolvida") {
     return <Badge variant="outline" className="border-destructive/40 text-destructive">Devolvida</Badge>
+  }
+  if (remessa.situacao === "preparacao") {
+    return <Badge variant="outline" className="text-muted-foreground">Em preparação</Badge>
   }
   if (remessa.situacao === "reenviada") {
     return <Badge variant="info">Reenviada</Badge>
@@ -120,6 +125,7 @@ export function ListaRemessasDiarias({
 }
 
 const ROTULO_ACAO: Record<string, string> = {
+  enviada: "Enviada para avaliação",
   devolvida: "Devolvida",
   reenviada: "Reenviada",
   aprovada: "Aprovada",
@@ -135,7 +141,10 @@ export function DetalheRemessaDiarias({
   geraDiarias,
   infracoes,
   destinoOrdem,
+  podeEnviar,
 }: {
+  /** Quem vê lançou diárias da remessa (ou é o beneficiário): pode enviá-la. */
+  podeEnviar: boolean
   /** Como a ordem nasce para quem vê (regra das diárias × alçada dele). */
   destinoOrdem: string
   remessa: RemessaNova
@@ -345,7 +354,22 @@ export function DetalheRemessaDiarias({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {remessa.enviada ? (
+          {!remessa.enviada && remessa.situacao === "preparacao" ? (
+            <div className="grid gap-3 text-sm">
+              <p className="text-muted-foreground">
+                Em preparação — quem lançou as diárias ainda está juntando e não enviou a remessa para
+                avaliação. Ela só entra na fila de quem avalia depois de enviada
+                {remessa.lembreteEm ? ` (lembrete enviado em ${formatarDataHora(remessa.lembreteEm)})` : ""}.
+              </p>
+              {podeEnviar && aguardando.length > 0 && (
+                <EnviarRemessaBotao
+                  remessaId={remessa.id}
+                  resumo={`${aguardando.length} diária(s), ${formatarMoeda(total)}`}
+                  acao={enviarRemessaAction}
+                />
+              )}
+            </div>
+          ) : remessa.enviada ? (
             <p className="text-sm">
               Aprovada em {formatarDataHora(remessa.enviadaEm)}
               {remessa.enviadaPor ? ` por ${remessa.enviadaPor}` : ""}.

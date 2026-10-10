@@ -7,6 +7,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { criarSolicitacaoDiaria } from "@/lib/db/diarias"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
+import { enviarRemessaParaAvaliacao } from "@/lib/db/diarias-remessas"
 import {
   adicionarDespesaDiaria,
   removerDespesaDiaria,
@@ -49,7 +50,7 @@ export async function lancarDiariaDiretor(
   const diretor = diretores.find((d) => d.usuarioId === diretorId)
   if (!diretor) return { erro: "Essa pessoa não está na diretoria em exercício." }
 
-  const { erro, id } = await criarSolicitacaoDiaria({
+  const { erro, id, remessaId } = await criarSolicitacaoDiaria({
     funcionario_id: diretorId,
     diaria_id: diariaId,
     quantidade,
@@ -63,6 +64,13 @@ export async function lancarDiariaDiretor(
   if (erro) return { erro }
 
   revalidatePath("/painel/institucional/diretoria/diarias")
+  // "Salvar e enviar a remessa": quem lançou envia a remessa do diretor.
+  if (formData.get("acao") === "enviar" && remessaId) {
+    const r = await enviarRemessaParaAvaliacao(remessaId, sessao.usuario.id as string)
+    revalidatePath("/painel/institucional/diretoria/diarias/remessas")
+    if (r.erro) return { erro: `Diária salva, mas a remessa não foi enviada: ${r.erro}` }
+    redirect(`/painel/institucional/diretoria/diarias/remessas/${remessaId}?enviada=1`)
+  }
   if (id) redirect(`/painel/institucional/diretoria/diarias/${id}?nova=1`)
   return { ok: "Diária lançada." }
 }

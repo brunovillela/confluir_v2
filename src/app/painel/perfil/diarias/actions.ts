@@ -14,6 +14,7 @@ import {
   removerDespesaDiaria,
 } from "@/lib/db/diarias-despesas"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
+import { enviarRemessaParaAvaliacao } from "@/lib/db/diarias-remessas"
 
 function revalidar() {
   revalidatePath("/painel/perfil/diarias")
@@ -55,7 +56,7 @@ export async function solicitarDiaria(
     return { erro: "O término não pode ser antes do início.", campo: "data_termino" }
   }
 
-  const { erro } = await criarSolicitacaoDiaria({
+  const { erro, remessaId } = await criarSolicitacaoDiaria({
     funcionario_id: sessao.usuario.id as string,
     diaria_id: diariaId,
     quantidade,
@@ -67,8 +68,25 @@ export async function solicitarDiaria(
   })
   if (erro) return { erro }
 
+  // "Salvar e enviar a remessa": a remessa inteira vai para avaliação.
+  if (formData.get("acao") === "enviar" && remessaId) {
+    const r = await enviarRemessaParaAvaliacao(remessaId, sessao.usuario.id as string)
+    revalidar()
+    if (r.erro) return { erro: `Diária salva, mas a remessa não foi enviada: ${r.erro}` }
+    redirect("/painel/perfil/diarias?enviada=1")
+  }
+
   revalidar()
   redirect("/painel/perfil/diarias?salvo=1")
+}
+
+/** Envia a remessa em preparação para avaliação (Meu perfil). */
+export async function enviarMinhaRemessa(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+  const { erro } = await enviarRemessaParaAvaliacao(String(formData.get("remessa_id") ?? ""), sessao.usuario.id as string)
+  if (erro) return { erro }
+  revalidar()
+  return { ok: "Remessa enviada para avaliação." }
 }
 
 export async function cancelarMinhaDiaria(

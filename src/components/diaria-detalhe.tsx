@@ -124,7 +124,9 @@ export function DetalheDiaria({
                       ? "devolvida para correção"
                       : solicitacao.remessaSituacao === "reenviada"
                         ? "reenviada, em avaliação"
-                        : "em avaliação — acumula as diárias até ser aprovada"}
+                        : solicitacao.remessaSituacao === "preparacao"
+                          ? "em preparação — ainda não enviada para avaliação"
+                          : "enviada — em avaliação"}
                 </span>
               </Campo>
             )}
@@ -201,7 +203,7 @@ export function DetalheDiaria({
             </p>
             {remessaHref && (
               <Button size="sm" asChild className="justify-self-start">
-                <Link href={remessaHref}>Abrir a remessa para avaliar</Link>
+                <Link href={remessaHref}>{solicitacao.remessaSituacao === "preparacao" ? "Abrir a remessa" : "Abrir a remessa para avaliar"}</Link>
               </Button>
             )}
           </CardContent>

@@ -16,7 +16,10 @@ export default async function RemessasDiariasPage() {
   const { disponivel, remessas } = await listarRemessasNovas({ quadro: "diretor" })
   // Remessa só com diárias canceladas/reprovadas não tem o que avaliar.
   const comDiarias = (r: (typeof remessas)[number]) => r.contagem.aguardando + r.contagem.aprovada > 0
-  const aAvaliar = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && comDiarias(r))
+  const emPreparacao = remessas.filter((r) => !r.enviada && r.situacao === "preparacao" && comDiarias(r))
+  const aAvaliar = remessas.filter(
+    (r) => !r.enviada && r.situacao !== "devolvida" && r.situacao !== "preparacao" && comDiarias(r)
+  )
   const devolvidas = remessas.filter((r) => !r.enviada && r.situacao === "devolvida")
   const aprovadas = remessas.filter((r) => r.enviada)
   const base = "/painel/institucional/diretoria/diarias/remessas"
@@ -50,6 +53,18 @@ export default async function RemessasDiariasPage() {
         </CardHeader>
         <CardContent>
           <ListaRemessasDiarias remessas={aAvaliar} base={base} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Em preparação ({emPreparacao.length})</CardTitle>
+          <CardDescription>
+            Quem lançou ainda está juntando as diárias e não enviou para avaliação — só consulta. Depois
+            de 7 dias da primeira diária, o sistema lembra a pessoa toda semana.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ListaRemessasDiarias remessas={emPreparacao} base={base} />
         </CardContent>
       </Card>
       <Card>

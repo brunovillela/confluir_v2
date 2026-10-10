@@ -23,8 +23,10 @@ aparece no formulário de quem está na lista.
 
 ## O ciclo: a diária entra na remessa, e a remessa é avaliada
 
-Cada pessoa tem uma **remessa de diárias** aberta: toda diária que ela pede (ou
-que lançam por ela) entra nessa remessa, com as despesas extras. A avaliação
+Cada pessoa tem uma **remessa de diárias**: toda diária que ela pede (ou que
+lançam por ela) entra nessa remessa, com as despesas extras. A remessa começa
+**em preparação** — a pessoa vai juntando as diárias e, quando terminar, **envia
+para avaliação**. Só então ela aparece para quem avalia. A avaliação
 **não é diária por diária — é da remessa inteira**: quem avalia confere tudo de
 uma vez e **aprova** (nasce uma ordem de pagamento só, com o valor da remessa)
 ou **devolve** com a observação do que não está de acordo.
@@ -33,10 +35,19 @@ ou **devolve** com a observação do que não está de acordo.
   <Passo titulo="Solicitar">
     Em *Meu perfil → Minhas diárias*, o botão **Solicitar diária** abre o
     formulário: o tipo, a quantidade, o período e o motivo. O valor é
-    quantidade × valor do tipo. A diária entra na remessa aberta da pessoa.
+    quantidade × valor do tipo. A diária entra na remessa **em preparação** da
+    pessoa. Dois botões: **Salvar e lançar outra** (continua juntando) e
+    **Salvar e enviar a remessa** (salva e já manda a remessa inteira para
+    avaliação).
+  </Passo>
+  <Passo titulo="Enviar para avaliação">
+    Juntou tudo? No cartão da remessa, em *Meu perfil → Minhas diárias*, o
+    botão **Enviar para avaliação** mostra o resumo (diárias e total) e envia.
+    Quem avalia é avisado. Enviada, a remessa não recebe mais diárias — a
+    próxima abre outra remessa.
   </Passo>
   <Passo titulo="Acrescentar as despesas">
-    Enquanto a remessa está em avaliação, quem pediu lança as **despesas
+    Antes de enviar, quem pediu lança as **despesas
     extras** — hospedagem, alimentação, passagem, táxi, pedágio — com valor e
     comprovante. A equipe também lança pela tela da diária.
   </Passo>
@@ -56,6 +67,14 @@ ou **devolve** com a observação do que não está de acordo.
 </PassoAPasso>
 
 <Print src="pessoal/diarias-remessa.png" alt="Tela de uma remessa de diárias em avaliação: os totais de diárias, despesas e valor da remessa; as duas diárias da remessa, cada uma com tipo, período, departamento, motivo, a despesa de alimentação e o botão Retirar; e o cartão Avaliação da remessa com os botões Devolver com observação e Aprovar a remessa." legenda="A remessa: tudo o que vai ser pago, numa tela só, com Aprovar e Devolver." />
+
+<Aviso tipo="dica" titulo="Quem envia e o lembrete">
+  Envia a remessa **quem recebe** ou **quem lançou** as diárias dela — na
+  diretoria, a secretaria. Quem gere as diárias vê as remessas em preparação
+  (bloco **Em preparação** de Diárias → Remessas), mas só consulta e cobra. Se a
+  primeira diária da remessa tem **7 dias** e ela ainda não foi enviada, o
+  sistema lembra quem recebe e quem lançou — e repete uma vez por semana.
+</Aviso>
 
 A diária sozinha não é avaliada: na lista de Diárias toda linha tem só **Ver**,
 e a tela da diária mostra a remessa em que ela entrou, com o botão **Abrir a
@@ -105,9 +124,10 @@ por quê, quem reenviou e o que corrigiu, quem aprovou e a ordem gerada.
 
 ### A lista de remessas
 
-**Diárias → Remessas** separa as remessas em **Em avaliação** (abertas e
-reenviadas — as que esperam decisão), **Devolvidas** (esperando a correção de
-quem lançou) e **Aprovadas** (com a situação da ordem de pagamento ao lado). O
+**Diárias → Remessas** separa as remessas em **Em avaliação** (enviadas e
+reenviadas — as que esperam decisão), **Em preparação** (a pessoa ainda está
+juntando as diárias; só consulta), **Devolvidas** (esperando a correção de quem
+lançou) e **Aprovadas** (com a situação da ordem de pagamento ao lado). O
 botão Remessas, no alto da tela de Diárias, mostra quantas há a avaliar.
 
 <Print src="institucional/diretoria-remessas.png" alt="Lista de remessas de diárias em três blocos: Em avaliação com uma remessa de José Pereira Lima, Devolvidas vazio, e Aprovadas com cinco remessas, cada uma com código, beneficiário, período, número de diárias, valor e as situações da remessa e da ordem de pagamento (A pagar ou Em autorização)." legenda="As remessas: em avaliação, devolvidas e aprovadas, com a situação da ordem." />
@@ -206,6 +226,12 @@ atalho aparece para quem tem alguma, diretor ou funcionário.
   no Financeiro; o pagamento em si é registrado lá, como em qualquer ordem.
 - **"A remessa sumiu da fila."** Ela foi **devolvida** e espera a correção —
   está no bloco Devolvidas da lista de remessas.
+- **"Lancei a diária, mas ninguém avaliou."** A remessa está **em preparação**:
+  falta **Enviar para avaliação** (Meu perfil → Minhas diárias, ou a tela da
+  remessa para quem lançou pela pessoa).
+- **"Quero enviar a remessa de um funcionário."** Só envia quem recebe ou quem
+  lançou as diárias; quem gere as diárias cobra a pessoa — o sistema também
+  lembra depois de 7 dias.
 - **"Não consigo reenviar a remessa."** Ela precisa ter ao menos uma diária
   aguardando. Se você cancelou a única diária, peça a diária corrigida antes de
   reenviar.

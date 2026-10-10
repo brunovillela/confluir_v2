@@ -414,7 +414,7 @@ export type NovaSolicitacaoDiaria = {
 
 export async function criarSolicitacaoDiaria(
   nova: NovaSolicitacaoDiaria
-): Promise<{ erro?: string; id?: string }> {
+): Promise<{ erro?: string; id?: string; remessaId?: string | null }> {
   const { disponivel, tipos } = await listarTiposDiaria()
   if (!disponivel) {
     return { erro: "Diárias ainda não configuradas — rode supabase/diarias.sql." }
@@ -469,8 +469,10 @@ export async function criarSolicitacaoDiaria(
     return { erro: `Não foi possível solicitar: ${error.message}` }
   }
 
-  // Remessa (05/10): a diária entra na remessa aberta do beneficiário.
+  // Remessa (05/10): a diária entra na remessa do beneficiário — desde
+  // 10/10, a remessa EM PREPARAÇÃO, que a pessoa envia quando juntar tudo.
   const novaId = criada ? String((criada as { id: string }).id) : null
+  let naRemessa: string | null = null
   if (novaId) {
     const remessaId = await garantirRemessaAberta(nova.funcionario_id, quadro, nova.departamento_id ?? null)
     if (remessaId) {
@@ -478,9 +480,15 @@ export async function criarSolicitacaoDiaria(
         .from("pessoal_diarias_solicitacoes")
         .update({ remessa_id: remessaId })
         .eq("id", novaId)
-      if (!erroRemessa) await recalcularRemessa(remessaId)
+      if (!erroRemessa) {
+        naRemessa = remessaId
+        await recalcularRemessa(remessaId)
+      }
     }
   }
+  // Na remessa, quem avalia é avisado quando ela for ENVIADA para avaliação
+  // (enviarRemessaParaAvaliacao), não a cada diária lançada.
+  if (naRemessa) return { id: novaId ?? undefined, remessaId: naRemessa }
 
   // Onda 2 (U2): quem avalia fica sabendo do pedido na hora — o mesmo público
   // da caixa de entrada: diária de diretor vai à Diretoria; de funcionário,
@@ -922,7 +930,7 @@ export function agruparPorRemessa(diarias: SolicitacaoDiaria[]): {
       avulsas.push(d)
       continue
     }
-    if (d.remessaSituacao === "devolvida") continue
+    if (d.remessaSituacao === "devolvida" || d.remessaSituacao === "preparacao") continue
     const r = porRemessa.get(d.remessaId) ?? {
       id: d.remessaId,
       codigo: d.remessaCodigo,

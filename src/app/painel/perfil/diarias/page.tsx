@@ -21,7 +21,7 @@ import {
 import { SituacaoDiariaBadge } from "@/components/diarias"
 import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
 import { SituacaoRemessaBadge } from "@/components/diarias-remessas"
-import { ReenviarRemessaForm } from "@/components/remessa-avaliacao-form"
+import { EnviarRemessaBotao, ReenviarRemessaForm } from "@/components/remessa-avaliacao-form"
 import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
 import { requireSessaoPainel } from "@/lib/auth"
 import { listarTiposDespesaDiaria } from "@/lib/db/diarias-config"
@@ -35,7 +35,7 @@ import {
 } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
-import { adicionarMinhaDespesa, removerMinhaDespesa } from "./actions"
+import { adicionarMinhaDespesa, enviarMinhaRemessa, removerMinhaDespesa } from "./actions"
 import { CancelarDiariaBotao, SolicitarDiariaForm } from "./solicitacao-form"
 
 export const metadata: Metadata = { title: "Minhas diárias — Confluir" }
@@ -44,7 +44,7 @@ export const metadata: Metadata = { title: "Minhas diárias — Confluir" }
 export default async function MinhasDiariasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; enviada?: string }>
 }) {
   const sessao = await requireSessaoPainel()
   // Pedem diária: funcionário com vínculo em vigor E diretor em exercício —
@@ -53,7 +53,7 @@ export default async function MinhasDiariasPage({
   if (!quadro) {
     await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
   }
-  const { salvo } = await searchParams
+  const { salvo, enviada } = await searchParams
   const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa, minhasRemessas] = await Promise.all([
     minhasSolicitacoesDiaria(sessao.usuario.id as string),
     listarTiposDiaria(),
@@ -105,7 +105,15 @@ export default async function MinhasDiariasPage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            Solicitação enviada — ela entrou na sua remessa de diárias, avaliada inteira; você será avisado do resultado.
+            Diária salva na sua remessa, que está em preparação. Lance as outras e, quando
+            terminar, use Enviar para avaliação.
+          </AlertDescription>
+        </Alert>
+      )}
+      {enviada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Remessa enviada para avaliação — você será avisado do resultado. Uma diária nova abre outra remessa.
           </AlertDescription>
         </Alert>
       )}
@@ -126,9 +134,33 @@ export default async function MinhasDiariasPage({
               <CardDescription>
                 {r.situacao === "devolvida"
                   ? "Devolvida para correção — ajuste o que foi apontado e reenvie."
-                  : "Suas diárias são avaliadas juntas, na remessa. Aprovada, vira uma ordem de pagamento."}
+                  : r.situacao === "preparacao"
+                    ? "Em preparação: junte aqui as suas diárias e, quando terminar, envie a remessa para avaliação."
+                    : "Enviada — suas diárias são avaliadas juntas. Aprovada, a remessa vira uma ordem de pagamento."}
               </CardDescription>
             </CardHeader>
+            {r.situacao === "preparacao" && (
+              <CardContent className="grid gap-3">
+                <ul className="grid gap-1 text-sm">
+                  {solicitacoes
+                    .filter((s) => s.remessaId === r.id && s.situacao === "aguardando")
+                    .map((s) => (
+                      <li key={s.id} className="flex justify-between gap-2">
+                        <span className="min-w-0">
+                          {s.tipoNome ?? "Diária"} × {s.quantidade ?? 1}
+                          {s.data_inicio ? ` · ${formatarData(s.data_inicio)}` : ""}
+                        </span>
+                        <span className="tabular-nums">{formatarMoeda((s.valor_total ?? 0) + s.valorDespesas)}</span>
+                      </li>
+                    ))}
+                </ul>
+                <EnviarRemessaBotao
+                  remessaId={r.id}
+                  resumo={`${r.contagem.aguardando} diária(s), ${formatarMoeda(r.valorTotal)}`}
+                  acao={enviarMinhaRemessa}
+                />
+              </CardContent>
+            )}
             {r.situacao === "devolvida" && (
               <CardContent className="grid gap-3">
                 <Alert variant="destructive">

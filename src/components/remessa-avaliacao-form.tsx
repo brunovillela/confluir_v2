@@ -269,3 +269,38 @@ export function RetirarDiariaBotao({ remessaId, diariaId }: { remessaId: string;
     </form>
   )
 }
+
+/** Envio da remessa em preparação para avaliação (quem lançou as diárias). */
+export function EnviarRemessaBotao({
+  remessaId,
+  resumo,
+  acao,
+}: {
+  remessaId: string
+  /** Entra na confirmação (ex.: "3 diárias, R$ 640,00"). */
+  resumo: string
+  acao: (prev: EstadoForm, fd: FormData) => Promise<EstadoForm>
+}) {
+  const [estado, formAction, pendente] = useActionState(acao, {})
+  if (estado.ok) return <Retorno estado={estado} />
+  return (
+    <form
+      action={formAction}
+      className="grid gap-2"
+      onSubmit={(e) =>
+        confirmarEnvio(e, {
+          titulo: `Enviar a remessa para avaliação (${resumo})?`,
+          descricao: "Depois de enviada ela entra na fila de quem avalia e não recebe mais diárias — uma diária nova abre outra remessa.",
+          confirmar: "Enviar",
+        })
+      }
+    >
+      <input type="hidden" name="remessa_id" value={remessaId} />
+      <Retorno estado={estado} />
+      <Button type="submit" disabled={pendente} className="justify-self-start">
+        {pendente ? <Loader2 className="animate-spin" /> : <Send />}
+        Enviar para avaliação
+      </Button>
+    </form>
+  )
+}

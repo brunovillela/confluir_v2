@@ -1,14 +1,16 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { contaDoGasto, listarContasDiaria, obterAutorizacaoDiarias, type QuadroDiaria } from "@/lib/db/diarias-config"
-import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
+import { avisar, avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
 import { avaliarSolicitacaoDiaria, solicitacoesDaRemessa, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import { registrarEvento, SITUACAO_A_PAGAR, SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -50,19 +52,21 @@ export type RemessaNova = {
   devolvidaEm: string | null
   devolvidaPor: string | null
   reenviadaEm: string | null
+  /** Último lembrete de remessa em preparação (10/10). */
+  lembreteEm: string | null
   historico: EventoRemessa[]
   createdAt: string | null
   /** Contagem das diárias por situação. */
   contagem: { aguardando: number; aprovada: number; reprovada: number; cancelada: number }
 }
 
-export type SituacaoRemessa = "aberta" | "devolvida" | "reenviada" | "aprovada"
+export type SituacaoRemessa = "preparacao" | "aberta" | "devolvida" | "reenviada" | "aprovada"
 
 export type EventoRemessa = {
   em: string
   por: string | null
   porNome?: string | null
-  acao: "devolvida" | "reenviada" | "aprovada"
+  acao: "enviada" | "devolvida" | "reenviada" | "aprovada"
   observacao?: string | null
   /** Na devolução: as diárias apontadas, com a não conformidade de cada uma. */
   pendencias?: { diariaId: string; observacao: string }[]
@@ -77,7 +81,7 @@ export function situacaoDaRemessa(r: Record<string, unknown>): SituacaoRemessa |
   if (!("situacao" in r)) return null
   if (r.enviado === true) return "aprovada"
   const s = String(r.situacao ?? "aberta")
-  return s === "devolvida" || s === "reenviada" || s === "aprovada" ? s : "aberta"
+  return s === "preparacao" || s === "devolvida" || s === "reenviada" || s === "aprovada" ? s : "aberta"
 }
 
 const MESES = [
@@ -109,8 +113,10 @@ export function valorNaRemessa(s: SolicitacaoDiaria): number {
 }
 
 /**
- * A remessa aberta do beneficiário naquele quadro — cria uma se não houver.
- * null quando o SQL das remessas ainda não rodou (o chamador degrada).
+ * A remessa do beneficiário naquele quadro que ainda RECEBE diárias — em
+ * preparação ou devolvida para correção —, ou uma nova em preparação. Remessa
+ * já enviada para avaliação não recebe mais nada (10/10). null quando o SQL
+ * das remessas ainda não rodou (o chamador degrada).
  */
 export async function garantirRemessaAberta(
   beneficiarioId: string,
@@ -127,6 +133,7 @@ export async function garantirRemessaAberta(
     .eq("beneficiario_tipo", quadro)
     .is("bubble_id", null)
     .not("enviado", "is", true)
+    .in("situacao", ["preparacao", "devolvida"])
     .order("created_at", { ascending: true })
     .limit(1)
   if (error) {
@@ -147,6 +154,8 @@ export async function garantirRemessaAberta(
       mes: MESES[agora.getMonth()],
       valor_total: 0,
       enviado: false,
+      // Nasce em preparação: a pessoa junta as diárias e envia (10/10).
+      situacao: "preparacao",
       emp_proprietaria_id: emp,
     })
     .select("id")
@@ -250,6 +259,7 @@ async function normalizar(brutas: Record<string, unknown>[]): Promise<RemessaNov
       devolvidaEm: texto(r.devolvida_em),
       devolvidaPor: texto(r.devolvida_por) ? (nomes.get(String(r.devolvida_por)) ?? null) : null,
       reenviadaEm: texto(r.reenviada_em),
+      lembreteEm: texto(r.lembrete_em),
       historico: historicos[i].map((h) => ({ ...h, porNome: h.por ? (nomes.get(h.por) ?? null) : null })),
       createdAt: texto(r.created_at),
       contagem: contagem.get(id) ?? { aguardando: 0, aprovada: 0, reprovada: 0, cancelada: 0 },
@@ -406,6 +416,9 @@ export async function aprovarRemessaDiarias(
   if (!dados) return { erro: "Remessa não encontrada." }
   const { remessa, solicitacoes } = dados
   if (remessa.enviada) return { erro: "Esta remessa já foi aprovada." }
+  if (remessa.situacao === "preparacao") {
+    return { erro: "Esta remessa ainda está em preparação — quem lançou as diárias precisa enviá-la para avaliação." }
+  }
   if (!remessa.beneficiarioId) return { erro: "Remessa sem beneficiário." }
   const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando")
   const jaAprovadas = solicitacoes.filter((s) => s.situacao === "aprovada" && !s.ordem_pagamento_id)
@@ -786,4 +799,116 @@ export async function retirarDiariaDaRemessa(
   if (!remessaId) return { erro: "Diária não encontrada ou já avaliada." }
   await recalcularRemessa(remessaId)
   return { remessaId }
+}
+
+// ── Remessa em preparação (10/10/2026) ─────────────────────────────────────
+
+/** Quem pode ENVIAR a remessa: o beneficiário ou quem lançou alguma diária dela. */
+export function podeEnviarRemessa(usuarioId: string, remessa: RemessaNova, solicitacoes: SolicitacaoDiaria[]): boolean {
+  return remessa.beneficiarioId === usuarioId || solicitacoes.some((s) => s.solicitanteId === usuarioId)
+}
+
+/**
+ * ENVIA a remessa em preparação para avaliação: ela entra na fila de quem
+ * avalia (avisado agora) e deixa de receber diárias — a próxima abre outra.
+ */
+export async function enviarRemessaParaAvaliacao(remessaId: string, usuarioId: string): Promise<{ erro?: string }> {
+  const dados = await obterRemessaNova(remessaId)
+  if (!dados) return { erro: "Remessa não encontrada." }
+  const { remessa, solicitacoes } = dados
+  if (remessa.situacao !== "preparacao") return { erro: "Esta remessa já foi enviada para avaliação." }
+  if (!podeEnviarRemessa(usuarioId, remessa, solicitacoes)) {
+    return { erro: "Só quem lançou as diárias envia a remessa para avaliação." }
+  }
+  const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando")
+  if (aguardando.length === 0) return { erro: "A remessa não tem diária para avaliar." }
+
+  const admin = await createAdminClient()
+  const agora = new Date().toISOString()
+  const r = await avancarRemessa(
+    admin,
+    remessaId,
+    ["preparacao"],
+    { em: agora, por: usuarioId, acao: "enviada", observacao: `${aguardando.length} diária(s), ${formatarMoeda(remessa.valorTotal)}.` },
+    { situacao: "aberta", enviada_avaliacao_em: agora, enviada_avaliacao_por: usuarioId }
+  )
+  if (r.erro) return r
+
+  const link =
+    remessa.quadro === "diretor"
+      ? `/painel/institucional/diretoria/diarias/remessas/${remessaId}`
+      : `/painel/pessoal/diarias/remessas/${remessaId}`
+  const aviso = {
+    texto: `Remessa de diárias de ${remessa.beneficiarioNome ?? "beneficiário"} enviada para avaliação: ${aguardando.length} diária(s), ${formatarMoeda(remessa.valorTotal)}.`.slice(0, 300),
+    evento: "pendencia_pessoal" as const,
+    assunto: "Remessa de diárias a avaliar",
+    exceto: usuarioId,
+    link,
+  }
+  depoisDaResposta(() =>
+    remessa.quadro === "diretor"
+      ? avisarQuemPode("diretoria_diarias", ["configuracoes"], aviso)
+      : avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_diarias"], remessa.beneficiarioId, aviso)
+  )
+  return {}
+}
+
+/**
+ * Rotina diária (api/diarias/lembrete/tick): remessa em preparação cuja
+ * primeira diária aguardando tem 7 dias ou mais lembra o beneficiário e quem
+ * lançou de enviá-la. Um lembrete por semana por remessa.
+ */
+export async function lembrarRemessasEmPreparacao(
+  tenantId: string,
+  client: SupabaseClient,
+  contexto: ContextoEmail
+): Promise<{ remessas: number; avisos: number }> {
+  const seteDias = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const { data: rems, error } = await client
+    .from("pessoal_diarias_remessas")
+    .select("id, codigo, beneficiario_id, beneficiario_tipo, valor_total, lembrete_em")
+    .eq("emp_proprietaria_id", tenantId)
+    .is("bubble_id", null)
+    .not("enviado", "is", true)
+    .eq("situacao", "preparacao")
+  if (error) {
+    if (!esquemaAusente(error) && error.code !== "42703") console.error("lembrarRemessasEmPreparacao:", error.message)
+    return { remessas: 0, avisos: 0 }
+  }
+  let remessas = 0
+  let avisos = 0
+  for (const rem of (rems ?? []) as Record<string, unknown>[]) {
+    if (rem.lembrete_em && new Date(String(rem.lembrete_em)).getTime() > seteDias) continue
+    const { data: dias } = await client
+      .from("pessoal_diarias_solicitacoes")
+      .select("created_at, solicitante_id")
+      .eq("remessa_id", String(rem.id))
+      .eq("situacao", "aguardando")
+      .order("created_at", { ascending: true })
+    const lista = (dias ?? []) as { created_at: string; solicitante_id: string | null }[]
+    if (!lista.length || new Date(lista[0].created_at).getTime() > seteDias) continue
+    const ids = [...new Set([texto(rem.beneficiario_id), ...lista.map((d) => d.solicitante_id)].filter((v): v is string => Boolean(v)))]
+    const { data: us } = await client.from("usuarios").select("id, email, nome_completo, nome_guerra").in("id", ids)
+    const destinatarios = ((us ?? []) as Record<string, unknown>[]).map((u) => ({
+      id: String(u.id),
+      nome: texto(u.nome_completo) ?? texto(u.nome_guerra),
+      email: texto(u.email),
+      permissoes: {},
+    }))
+    const diretor = rem.beneficiario_tipo === "diretor"
+    avisos += await avisar(
+      destinatarios,
+      {
+        texto: `Sua remessa de diárias ${texto(rem.codigo) ?? ""} está em preparação há mais de 7 dias (${lista.length} diária(s), ${formatarMoeda(Number(rem.valor_total ?? 0))}). Quando terminar de juntar as diárias, envie para avaliação.`,
+        link: diretor ? `/painel/institucional/diretoria/diarias/remessas/${rem.id}` : "/painel/perfil/diarias",
+        evento: "diarias",
+        assunto: "Remessa de diárias aguardando o seu envio",
+        umaVezPorDia: true,
+      },
+      { client, tenantId, contexto }
+    )
+    await client.from("pessoal_diarias_remessas").update({ lembrete_em: new Date().toISOString() }).eq("id", String(rem.id))
+    remessas++
+  }
+  return { remessas, avisos }
 }

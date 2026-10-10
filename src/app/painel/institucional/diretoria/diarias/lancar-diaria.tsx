@@ -164,9 +164,26 @@ export function LancarDiariaDiretor({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={pendente}>
+            <Button type="submit" name="acao" value="salvar" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}
-              Lançar diária
+              Salvar e lançar outra
+            </Button>
+            <Button
+              type="submit"
+              name="acao"
+              value="enviar"
+              variant="outline"
+              disabled={pendente}
+              onClick={(e) => {
+                if (
+                  !window.confirm(
+                    "Salvar esta diária e enviar a remessa do diretor — com todas as diárias dela — para avaliação?"
+                  )
+                )
+                  e.preventDefault()
+              }}
+            >
+              Salvar e enviar a remessa
             </Button>
             <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
               Cancelar

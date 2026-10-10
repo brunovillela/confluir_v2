@@ -9,6 +9,7 @@ import { coordenaFuncionario } from "@/lib/db/coordenador"
 import {
   aprovarRemessaDiarias,
   devolverRemessaDiarias,
+  enviarRemessaParaAvaliacao,
   obterRemessaNova,
   reenviarRemessaDiarias,
   retirarDiariaDaRemessa,
@@ -121,6 +122,17 @@ export async function reenviarRemessaAction(_prev: EstadoForm, fd: FormData): Pr
   if (r.erro) return { erro: r.erro }
   revalidar(remessa)
   return { ok: "Remessa reenviada para avaliação." }
+}
+
+/** Envia a remessa em preparação para avaliação — o beneficiário ou quem lançou. */
+export async function enviarRemessaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+  const dados = await carregar(fd)
+  if (!dados) return { erro: "Remessa não encontrada." }
+  const r = await enviarRemessaParaAvaliacao(dados.remessa.id, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidar(dados.remessa)
+  return { ok: "Remessa enviada para avaliação." }
 }
 
 /** Retira (cancela) uma diária aguardando da remessa — quem gere as diárias. */
