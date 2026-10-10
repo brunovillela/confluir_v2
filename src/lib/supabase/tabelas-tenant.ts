@@ -143,6 +143,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "hospedagem_hotel_contas",
   "hospedagem_hotel_usuarios",
   "hospedagem_servico",
+  // supabase/juridico-configuracoes-tenant.sql (10/10)
+  "juridico_configuracoes",
   "juridico_homologacoes",
   "juridico_processos",
   "juridico_reembolsos",

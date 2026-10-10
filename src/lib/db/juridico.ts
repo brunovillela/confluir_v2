@@ -1267,9 +1267,11 @@ export async function contarReembolsosAguardando(): Promise<number> {
 
 // ── Configuração: centro de custo dos reembolsos ─────────────────────────────
 //
-// `juridico_configuracoes` é um singleton (uma linha) com o centro de custo
+// `juridico_configuracoes` tem uma linha por tenant com o centro de custo
 // padrão que as ordens de reembolso do jurídico carregam. Definido pela
-// gestão na fila de reembolsos; aplicado em avaliarReembolso.
+// gestão na fila de reembolsos; aplicado em avaliarReembolso. Tenant-owned
+// (supabase/juridico-configuracoes-tenant.sql): o insert ganha o emp pelo
+// trigger set_emp_from_jwt.
 
 export type CentroCustoJuridico = {
   centroCustoId: string | null
@@ -1281,8 +1283,7 @@ async function linhaConfiguracao(): Promise<{ id: string; centro_custo_id: strin
   const { data, error } = await admin
     .from("juridico_configuracoes")
     .select("id, centro_custo_id")
-    .order("created_at", { ascending: true, nullsFirst: false })
-    .limit(1)
+    .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (error && !esquemaAusente(error)) {
     throw new Error(`Falha ao ler configuração jurídica: ${error.message}`)

@@ -21,6 +21,7 @@
 --    conta). Tratada como compartilhada, como antes.
 --  · financeiro_diarias / noticias — sem FK de pai p/ escopar (e não sensíveis).
 --  · juridico_configuracoes — escopa via centros_de_custo (global); config, 0 linhas.
+--    (10/10: virou tenant-owned em juridico-configuracoes-tenant.sql.)
 --  · Tabelas ainda inexistentes (SQL pendente): pessoal_reembolsos_act,
 --    pessoal_diarias_solicitacoes, veiculos_condutores, hospedagem_reservas,
 --    veiculos_infracoes_historico, veiculos_abastecimentos_lotes — 3ª passada
