@@ -66,6 +66,8 @@ export async function enviarEmail(destino: {
   contexto?: ContextoEmail
   /** Cabeçalhos extras (ex.: List-Unsubscribe da mala direta). */
   cabecalhos?: Record<string, string>
+  /** Arquivos anexos (ex.: o PDF da ordem de compra), em base64. */
+  anexos?: { nome: string; base64: string }[]
 }): Promise<boolean> {
   const usaResend = process.env.EMAIL_PROVEDOR === "resend"
   const chave = usaResend ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
@@ -108,6 +110,9 @@ export async function enviarEmail(destino: {
           html: htmlContent,
           ...(emailContato ? { reply_to: emailContato } : {}),
           ...(Object.keys(cabecalhos).length ? { headers: cabecalhos } : {}),
+          ...(destino.anexos?.length
+            ? { attachments: destino.anexos.map((a) => ({ filename: a.nome, content: a.base64 })) }
+            : {}),
         }),
       })
       return resposta.ok
@@ -134,6 +139,9 @@ export async function enviarEmail(destino: {
           : {}),
         subject: assunto,
         htmlContent,
+        ...(destino.anexos?.length
+          ? { attachment: destino.anexos.map((a) => ({ name: a.nome, content: a.base64 })) }
+          : {}),
         // Testes: o Brevo aceita e descarta, sem entregar (EMAIL_SANDBOX=1).
         ...(process.env.EMAIL_SANDBOX === "1" || Object.keys(cabecalhos).length
           ? {

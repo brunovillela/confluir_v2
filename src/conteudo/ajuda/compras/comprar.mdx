@@ -283,6 +283,30 @@ Cada etapa é uma ação no próprio processo:
 
 <Print src="compras/comprador.png" alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: cada processo na sua etapa, com o prazo e o botão de ação." />
 
+## Ordem de compra para o fornecedor
+
+<RequerPermissao>Operar compras, Comprador ou Compra direta (para enviar)</RequerPermissao>
+
+Cada **fornecimento** de um processo comprado tem a sua **ordem de compra** — o
+pedido formal ao fornecedor. No quadro do fornecimento, na página do processo:
+
+- **Ordem de compra (PDF)** abre o documento: número (o código do processo e o
+  número do fornecimento, ex.: *2026.0728.0900.0002-1*), o **fornecedor** (nome,
+  CNPJ/CPF e endereço do cadastro), os dados para **faturar** (a entidade e o
+  CNPJ), o **item ou serviço** com quantidade e valor, o **pagamento** (forma e
+  as parcelas já lançadas, com os vencimentos), a **entrega** (local e prazo) e
+  a orientação de emitir a nota em nome da entidade citando o número da ordem.
+- **Enviar ao fornecedor** manda o e-mail com o PDF **anexo**. O e-mail vem do
+  cadastro do fornecedor (pode ser trocado na hora) e aceita uma mensagem. As
+  respostas do fornecedor chegam ao e-mail de contato da entidade. Depois do
+  envio, o quadro mostra para quem e quando a ordem foi enviada.
+
+<Aviso tipo="dica" titulo="Mantenha o cadastro do fornecedor completo">
+  CNPJ, endereço e e-mail de contato saem do cadastro em **Aquisição →
+  Fornecedores**. Sem e-mail no cadastro, a janela de envio pede que você o
+  informe.
+</Aviso>
+
 ## RPA de compra de serviço
 
 <RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>

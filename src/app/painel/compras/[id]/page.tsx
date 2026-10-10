@@ -31,6 +31,7 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
+import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { podeAcessar } from "@/lib/permissoes"
@@ -43,6 +44,7 @@ import {
   RegistrarCompraForm,
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
+import { OrdemCompraAcoes } from "./ordem-compra"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
 export const metadata: Metadata = {
@@ -274,6 +276,7 @@ export default async function ProcessoCompraPage({
   // RPA emitido e ainda sem o recibo assinado: a compra recebe o anexo aqui.
   const rpasALinkar = [...rpaPorFornecimento.values()].filter((r) => !r.assinado).map((r) => r.id)
   const rpaComLink = await rpasComLinkPendente(rpasALinkar)
+  const situacaoOc = await situacaoOrdensCompra(fornecimentosComUrl.map((f) => f.id))
   const emitirRpa = new Set<string>()
   if (servico && podeAjustar && !processo.cancelado) {
     for (const f of fornecimentosComUrl) {
@@ -661,6 +664,22 @@ export default async function ProcessoCompraPage({
                   />
                 )}
               </div>
+              {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no banco). */}
+              {f.id !== FORNECIMENTO_LEGADO && !processo.cancelado && (
+                <div className="mt-3">
+                  <OrdemCompraAcoes
+                    processoId={processo.id}
+                    fornecimentoId={f.id}
+                    emailFornecedor={situacaoOc.get(f.id)?.emailFornecedor ?? null}
+                    enviada={
+                      situacaoOc.get(f.id)?.enviadaEm
+                        ? { em: situacaoOc.get(f.id)!.enviadaEm!, para: situacaoOc.get(f.id)!.enviadaPara }
+                        : null
+                    }
+                    podeEnviar={podeAjustar}
+                  />
+                </div>
+              )}
               {(() => {
                 const r = rpaPorFornecimento.get(f.id)
                 if (!r || r.assinado || !podeAjustar || processo.cancelado) return null

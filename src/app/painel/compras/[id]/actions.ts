@@ -35,6 +35,7 @@ import {
 } from "@/lib/db/compras"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { trocarCodigoPix, trocarNotaDaCompra, trocarNotaDaOrdem } from "@/lib/db/compras-ajustes"
+import { enviarOrdemCompra } from "@/lib/db/ordem-compra"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -399,4 +400,23 @@ export async function trocarNotaFiscalAction(_prev: EstadoForm, formData: FormDa
   if (erro) return { erro }
   revalidarProcesso(processoId)
   return { ok: "Nota fiscal salva." }
+}
+
+// ── Ordem de compra ao fornecedor ────────────────────────────────────────────
+
+/** Envia a ordem de compra do fornecimento (PDF anexo) ao e-mail do fornecedor. */
+export async function enviarOrdemCompraAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  if (!processoId || !fornecimentoId) return { erro: "Fornecimento inválido." }
+  const { erro } = await enviarOrdemCompra(
+    processoId,
+    fornecimentoId,
+    { email: texto(formData, "email"), mensagem: texto(formData, "mensagem") || null },
+    sessao.usuario.id
+  )
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  return { ok: "Ordem de compra enviada ao fornecedor." }
 }
