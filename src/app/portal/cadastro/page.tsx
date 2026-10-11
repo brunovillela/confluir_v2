@@ -19,7 +19,6 @@ import { formatarData } from "@/lib/formato"
 import { ContatosEmergencia } from "@/components/contatos-emergencia"
 import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 
-import { PortalShell } from "../portal-shell"
 import { excluirMeuContatoEmergencia, salvarMeuContatoEmergencia } from "./actions"
 import { CadastroForm } from "./cadastro-form"
 
@@ -59,7 +58,7 @@ export default async function CadastroPage({
     : null
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu cadastro</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -166,6 +165,6 @@ export default async function CadastroPage({
           )}
         </>
       )}
-    </PortalShell>
+    </>
   )
 }

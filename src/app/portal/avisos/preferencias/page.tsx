@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { preferenciasDoFiliado } from "@/lib/db/portal-avisos"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../../portal-shell"
 import { PreferenciasForm } from "./preferencias-form"
 
 export const metadata: Metadata = { title: "Preferências de avisos — Portal do Associado" }
@@ -18,7 +17,7 @@ export default async function PreferenciasAvisosPage() {
   const prefs = await preferenciasDoFiliado(filiado.cpf)
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/avisos">
@@ -52,6 +51,6 @@ export default async function PreferenciasAvisosPage() {
           </AcaoVisualizacao>
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

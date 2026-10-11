@@ -17,8 +17,6 @@ import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { datasDaRodada } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
-import { PortalShell } from "../../../portal-shell"
-
 export const metadata: Metadata = { title: "Datas da rodada — Confluir" }
 
 export default async function DatasRodadaPage({
@@ -31,7 +29,7 @@ export default async function DatasRodadaPage({
   const dados = filiado.ativo ? await datasDaRodada(filiado.cpf, id) : null
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/votacao">
@@ -102,6 +100,6 @@ export default async function DatasRodadaPage({
           </CardContent>
         </Card>
       )}
-    </PortalShell>
+    </>
   )
 }

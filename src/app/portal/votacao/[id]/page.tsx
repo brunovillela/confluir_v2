@@ -19,7 +19,6 @@ import {
 } from "@/lib/db/votacao-portal"
 import { formatarDataHora } from "@/lib/formato"
 
-import { PortalShell } from "../../portal-shell"
 import { votarNaAssembleia } from "../actions"
 import { CedulaForm } from "./cedula-form"
 
@@ -43,7 +42,7 @@ export default async function CedulaPage({
     estado?.chave === "votar" ? await perguntasDaAssembleia(id) : []
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/votacao">
@@ -146,6 +145,6 @@ export default async function CedulaPage({
           )}
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

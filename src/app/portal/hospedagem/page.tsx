@@ -52,7 +52,6 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 
-import { PortalShell } from "../portal-shell"
 import {
   CancelarEsperaBotao,
   CancelarMeuCupomBotao,
@@ -110,7 +109,7 @@ export default async function PortalHospedagemPage({
   const paginaAtual = paginar(cupons, paginacao)
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Hospedagem</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -200,7 +199,7 @@ export default async function PortalHospedagemPage({
                         <TableCell className="text-right">
                           <div className="flex flex-wrap items-center justify-end gap-1">
                             {(r.situacao === "confirmada" || r.situacao === "hospedado") && (
-                              <Button variant="outline" size="sm" asChild className="h-7 px-2">
+                              <Button variant="outline" asChild>
                                 <Link href={`/portal/hospedagem/reserva/${r.id}`}>
                                   <QrCode />
                                   QR Code
@@ -348,6 +347,6 @@ export default async function PortalHospedagemPage({
           </p>
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

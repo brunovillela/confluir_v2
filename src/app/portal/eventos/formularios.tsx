@@ -64,11 +64,13 @@ export function ResponderRsvp({
           comparecer. Pode mudar abaixo.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      {/* Tamanho padrão: 44 px no toque (A119). gap-y-3 para as áreas de toque
+          não se sobreporem quando os dois quebram de linha no celular. */}
+      <div className="flex flex-wrap gap-x-2 gap-y-3">
         <form action={formAction}>
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="vem" value="sim" />
-          <Button type="submit" size="sm" disabled={pendente}>
+          <Button type="submit" disabled={pendente}>
             <Check />
             Vou comparecer
           </Button>
@@ -76,7 +78,7 @@ export function ResponderRsvp({
         <form action={formAction}>
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="vem" value="nao" />
-          <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          <Button type="submit" variant="outline" disabled={pendente}>
             <X />
             Não vou poder ir
           </Button>
@@ -100,7 +102,7 @@ export function CancelarInscricao({ inscricaoId }: { inscricaoId: string }) {
       <input type="hidden" name="inscricaoId" value={inscricaoId} />
       <Recado erro={estado.erro} />
       <div>
-        <Button type="submit" size="sm" variant="ghost" disabled={pendente}>
+        <Button type="submit" variant="ghost" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : null}
           Cancelar minha inscrição
         </Button>

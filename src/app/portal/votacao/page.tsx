@@ -24,7 +24,6 @@ import {
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
 
-import { PortalShell } from "../portal-shell"
 import { EmailVotacaoForm } from "./email-form"
 
 export const metadata: Metadata = { title: "Votação — Confluir" }
@@ -39,7 +38,7 @@ export default async function VotacaoPortalPage() {
   ])
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Votação</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -69,8 +68,9 @@ export default async function VotacaoPortalPage() {
               // A mesma regra do banner do Início e da cédula — as três telas
               // não podem dizer coisas diferentes (achado A3).
               const estado = estadoVotacao(a)
+              // Votar e ver as datas no tamanho padrão: 44 px no toque (A119).
               const verDatas = a.rodadaId ? (
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" asChild>
                   <Link href={`/portal/votacao/rodada/${a.rodadaId}`}>
                     <CalendarClock />
                     Ver datas
@@ -134,8 +134,9 @@ export default async function VotacaoPortalPage() {
                       {estado.chave === "nao_abriu" && estado.comUrna && verDatas}
                     </div>
                   ) : estado.chave === "votar" ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" asChild>
+                    // gap-y-3: se "Ver datas" quebrar de linha, as áreas de toque não se sobrepõem.
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+                      <Button asChild>
                         <Link href={`/portal/votacao/${a.assembleiaId}`}>
                           <Vote />
                           Votar agora
@@ -279,6 +280,6 @@ export default async function VotacaoPortalPage() {
           )}
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

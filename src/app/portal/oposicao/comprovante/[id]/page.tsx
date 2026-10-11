@@ -18,6 +18,7 @@ import {
   estadoPrazo,
   ROTULO_SITUACAO_OPOSITOR,
 } from "@/lib/oposicao-constantes"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
 
@@ -28,6 +29,13 @@ export default async function ComprovantePage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  // Na visualização da gestão, a sessão de trabalhador seria a de QUEM ATENDE:
+  // a tela mostraria o comprovante dele sob a faixa "Visualizando a área
+  // de…". O comprovante abre na conta do trabalhador; a lista mostra a
+  // situação do filiado visualizado.
+  const vis = await getVisualizacaoPortal()
+  if (vis?.preview) redirect("/portal/oposicao")
+
   const sessao = await requireSessaoTrabalhador()
   const { id } = await params
   const c = await obterComprovante(id, sessao.cpf)
@@ -49,10 +57,170 @@ export default async function ComprovantePage({
   const prazo = c.campanhaAberta
     ? estadoPrazo(c.prazo_inicio, c.prazo_fim, hojeSP())
     : "depois"
-  const entidade = await nomeEntidade()
 
+  const conteudo = desistente ? (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Você optou por não se opor</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <p className="text-sm">
+          {c.dia ? `Em ${formatarData(c.dia)}, você` : "Você"} escolheu não
+          registrar oposição
+          {c.campanhaNome ? (
+            <>
+              {" "}
+              na campanha <strong>{c.campanhaNome}</strong>
+            </>
+          ) : (
+            " nesta campanha"
+          )}
+          . Nenhuma oposição foi registrada em seu nome.
+        </p>
+        {prazo === "aberto" && c.campanhaId ? (
+          <>
+            <p className="text-sm">
+              O prazo segue aberto até{" "}
+              <strong>{formatarData(c.prazo_fim)}</strong> — você pode mudar
+              de ideia.
+            </p>
+            <Button asChild className="w-fit">
+              <Link href={`/portal/oposicao/${c.campanhaId}`}>
+                Registrar oposição
+                <ArrowRight />
+              </Link>
+            </Button>
+          </>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {prazo === "antes"
+              ? "O prazo para se opor ainda não começou."
+              : "O prazo para se opor já encerrou."}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  ) : aguardando ? (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <FileWarning className="text-warning-fg size-5" />
+          Falta enviar o documento assinado
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <p className="text-sm">
+          Sua oposição foi registrada (protocolo{" "}
+          <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>),
+          mas ainda depende do documento assinado no gov.br.
+        </p>
+        <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 text-sm">
+          <li>Baixe a sua carta de oposição (já preenchida com seus dados).</li>
+          <li>Assine no Assinador gov.br (assinatura digital).</li>
+          <li>Envie o PDF assinado aqui.</li>
+        </ol>
+        <Button variant="outline" asChild className="w-fit">
+          <a
+            href={`/portal/oposicao/comprovante/${c.id}/carta`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Baixar carta (PDF)
+          </a>
+        </Button>
+        <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+      </CardContent>
+    </Card>
+  ) : (
+    <>
+      <Alert className="border-success/40 text-success-fg print:hidden">
+        <AlertDescription className="flex items-center gap-2">
+          <CheckCircle2 className="size-4" />
+          Oposição registrada. Guarde este comprovante.
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              Comprovante de oposição
+            </CardTitle>
+            <Badge variant="secondary">
+              {ROTULO_SITUACAO_OPOSITOR[c.situacao]}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Campo rotulo="Protocolo" valor={c.protocolo?.toString() ?? "—"} />
+            <Campo
+              rotulo="Data/hora"
+              valor={formatarDataHora(c.confirmado_em)}
+            />
+            <Campo rotulo="Nome" valor={c.nome} />
+            <Campo
+              rotulo="CPF"
+              valor={c.cpf ? mascaraCpf(c.cpf) : "—"}
+            />
+            <Campo rotulo="Fonte pagadora" valor={c.empregadorNome} />
+            <Campo rotulo="Matrícula" valor={c.matricula} />
+            <div className="sm:col-span-2">
+              <dt className="text-muted-foreground text-xs">Campanha</dt>
+              <dd className="mt-0.5 text-sm">
+                {c.campanhaNome ?? "—"}
+                {c.detalhe_desconto && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — {c.detalhe_desconto}
+                  </span>
+                )}
+              </dd>
+            </div>
+          </dl>
+
+          {c.texto_declaracao && (
+            <div className="bg-muted/40 rounded-md border p-4 text-sm whitespace-pre-wrap">
+              {c.texto_declaracao}
+            </div>
+          )}
+
+          <p className="text-muted-foreground text-xs">
+            Oposição sujeita à avaliação da Filiação. Documento gerado
+            eletronicamente e registrado para fins de auditoria.
+          </p>
+
+          <div className="print:hidden">
+            <BotaoImprimir />
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  )
+
+  // Na casca do portal (filiado logado — a regra do layout), menu e <main> são
+  // do layout: a página é a coluna de leitura com o caminho de volta à lista,
+  // como nas outras subpáginas do portal (A17). A casca some na impressão.
+  if (vis) {
+    return (
+      <div className="mx-auto grid w-full max-w-2xl gap-4">
+        <div className="print:hidden">
+          <Button variant="ghost" size="sm" asChild className="-ml-2">
+            <Link href="/portal/oposicao">
+              <ArrowLeft />
+              Contribuição assistencial
+            </Link>
+          </Button>
+        </div>
+        {conteudo}
+      </div>
+    )
+  }
+
+  // Trabalhador não filiado: tela enxuta, com o <main> como landmark (A181).
+  const entidade = await nomeEntidade()
   return (
-    <div className="mx-auto grid min-h-dvh max-w-2xl gap-6 px-4 py-8">
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between print:hidden">
         <Marca tenant={entidade} />
         <Button variant="ghost" size="sm" asChild>
@@ -62,146 +230,9 @@ export default async function ComprovantePage({
           </Link>
         </Button>
       </header>
-
-      {desistente ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Você optou por não se opor</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm">
-              {c.dia ? `Em ${formatarData(c.dia)}, você` : "Você"} escolheu não
-              registrar oposição
-              {c.campanhaNome ? (
-                <>
-                  {" "}
-                  na campanha <strong>{c.campanhaNome}</strong>
-                </>
-              ) : (
-                " nesta campanha"
-              )}
-              . Nenhuma oposição foi registrada em seu nome.
-            </p>
-            {prazo === "aberto" && c.campanhaId ? (
-              <>
-                <p className="text-sm">
-                  O prazo segue aberto até{" "}
-                  <strong>{formatarData(c.prazo_fim)}</strong> — você pode mudar
-                  de ideia.
-                </p>
-                <Button asChild className="w-fit">
-                  <Link href={`/portal/oposicao/${c.campanhaId}`}>
-                    Registrar oposição
-                    <ArrowRight />
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {prazo === "antes"
-                  ? "O prazo para se opor ainda não começou."
-                  : "O prazo para se opor já encerrou."}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      ) : aguardando ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileWarning className="text-warning-fg size-5" />
-              Falta enviar o documento assinado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm">
-              Sua oposição foi registrada (protocolo{" "}
-              <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>),
-              mas ainda depende do documento assinado no gov.br.
-            </p>
-            <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 text-sm">
-              <li>Baixe a sua carta de oposição (já preenchida com seus dados).</li>
-              <li>Assine no Assinador gov.br (assinatura digital).</li>
-              <li>Envie o PDF assinado aqui.</li>
-            </ol>
-            <Button variant="outline" asChild className="w-fit">
-              <a
-                href={`/portal/oposicao/comprovante/${c.id}/carta`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Baixar carta (PDF)
-              </a>
-            </Button>
-            <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Alert className="border-success/40 text-success-fg print:hidden">
-            <AlertDescription className="flex items-center gap-2">
-              <CheckCircle2 className="size-4" />
-              Oposição registrada. Guarde este comprovante.
-            </AlertDescription>
-          </Alert>
-
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base">
-                  Comprovante de oposição
-                </CardTitle>
-                <Badge variant="secondary">
-                  {ROTULO_SITUACAO_OPOSITOR[c.situacao]}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                <Campo rotulo="Protocolo" valor={c.protocolo?.toString() ?? "—"} />
-                <Campo
-                  rotulo="Data/hora"
-                  valor={formatarDataHora(c.confirmado_em)}
-                />
-                <Campo rotulo="Nome" valor={c.nome} />
-                <Campo
-                  rotulo="CPF"
-                  valor={c.cpf ? mascaraCpf(c.cpf) : "—"}
-                />
-                <Campo rotulo="Fonte pagadora" valor={c.empregadorNome} />
-                <Campo rotulo="Matrícula" valor={c.matricula} />
-                <div className="sm:col-span-2">
-                  <dt className="text-muted-foreground text-xs">Campanha</dt>
-                  <dd className="mt-0.5 text-sm">
-                    {c.campanhaNome ?? "—"}
-                    {c.detalhe_desconto && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        — {c.detalhe_desconto}
-                      </span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
-
-              {c.texto_declaracao && (
-                <div className="bg-muted/40 rounded-md border p-4 text-sm whitespace-pre-wrap">
-                  {c.texto_declaracao}
-                </div>
-              )}
-
-              <p className="text-muted-foreground text-xs">
-                Oposição sujeita à avaliação da Filiação. Documento gerado
-                eletronicamente e registrado para fins de auditoria.
-              </p>
-
-              <div className="print:hidden">
-                <BotaoImprimir />
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      <main id="conteudo" className="grid gap-6">
+        {conteudo}
+      </main>
     </div>
   )
 }

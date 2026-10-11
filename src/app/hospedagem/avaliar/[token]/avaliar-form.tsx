@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, Star } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import {
   COMENTARIO_MAX,
   ETIQUETAS,
@@ -96,7 +97,8 @@ export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial
                   <label
                     key={e.chave}
                     className={cn(
-                      "cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors select-none",
+                      // A caixa é sr-only: o anel de foco do teclado vai para a etiqueta.
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors select-none has-focus-visible:border-ring has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
                       ativa ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted"
                     )}
                   >
@@ -121,7 +123,8 @@ export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial
             <label htmlFor="comentario" className="text-sm font-medium">
               {comentarioObrigatorio ? "O que aconteceu? *" : "Quer contar mais? (opcional)"}
             </label>
-            <textarea
+            {/* O Textarea cresce com o texto; min-h-24 guarda as ~4 linhas de antes. */}
+            <Textarea
               id="comentario"
               name="comentario"
               rows={4}
@@ -133,7 +136,7 @@ export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial
                   ? "Conte o que deu errado — isso ajuda o sindicato a resolver com o hotel."
                   : "Algo que o hotel ou o sindicato deveria saber?"
               }
-              className="border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
+              className="min-h-24"
             />
             <p className="text-muted-foreground text-xs">
               O hotel vê a nota e o comentário sem o seu nome. A etiqueta &quot;Aplicativo&quot; vai só

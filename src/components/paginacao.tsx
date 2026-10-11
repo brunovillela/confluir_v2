@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 
 /**
@@ -60,18 +61,18 @@ export function Paginacao({
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5">
           <span className="hidden sm:inline">Por página</span>
-          <select
+          <SelectNativo
             value={porPagina}
             onChange={(e) => navegar({ porPagina: Number(e.target.value) })}
             aria-label="Itens por página"
-            className="border-input bg-background text-foreground h-8 rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+            className="text-foreground w-auto px-2"
           >
             {OPCOES_POR_PAGINA.map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
-          </select>
+          </SelectNativo>
         </label>
         <Button
           variant="outline"

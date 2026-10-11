@@ -7,8 +7,6 @@ import { listarConvenios, type Convenio } from "@/lib/db/filiacao-convenios"
 import { formatarTelefone } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../portal-shell"
-
 export const metadata: Metadata = { title: "Convênios — Portal do Associado" }
 
 /**
@@ -27,7 +25,7 @@ export default async function PortalConveniosPage() {
   }
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Convênios</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -113,6 +111,6 @@ export default async function PortalConveniosPage() {
           </section>
         ))
       )}
-    </PortalShell>
+    </>
   )
 }

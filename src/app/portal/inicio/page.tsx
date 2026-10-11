@@ -38,7 +38,6 @@ import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import { minhasVotacoes, assembleiasDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
-import { PortalShell } from "../portal-shell"
 import { AvaliacoesPendentes } from "../hospedagem/avaliacoes-pendentes"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
@@ -116,7 +115,7 @@ export default async function PortalInicioPage() {
     : []
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Olá, {nome.split(" ")[0]}
@@ -297,7 +296,7 @@ export default async function PortalInicioPage() {
         </Link>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
         {SERVICOS.map((servico) => (
           <Link key={servico.href} href={servico.href} className="group">
             <Card className="hover:border-primary/40 h-full transition-colors">
@@ -316,7 +315,7 @@ export default async function PortalInicioPage() {
         ))}
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 md:grid-cols-2">
         {noticias.length > 0 && (
           <Card>
             <CardHeader>
@@ -432,6 +431,6 @@ export default async function PortalInicioPage() {
           </Card>
         )}
       </div>
-    </PortalShell>
+    </>
   )
 }

@@ -413,6 +413,9 @@
   --text-5xl: 2.625rem;
   --text-5xl--line-height: 2.7rem;
   --text-5xl--letter-spacing: -0.022em;
+
+  /* largura: teto do conteúdo do portal do associado em telas 2xl (gera max-w-8xl) */
+  --container-8xl: 96rem;
 }
 
 @layer base {

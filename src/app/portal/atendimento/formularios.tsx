@@ -9,13 +9,11 @@ import { Button } from "@/components/ui/button"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import { ASSUNTOS_ATENDIMENTO } from "@/lib/atendimento-constantes"
 
 import { abrirAtendimentoAction, responderAtendimentoPortalAction } from "./actions"
-
-const SELECT =
-  "border-input bg-background text-foreground min-h-11 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 export function NovaSolicitacaoForm() {
   const [estado, action, enviando] = useActionState(abrirAtendimentoAction, {})
@@ -25,7 +23,8 @@ export function NovaSolicitacaoForm() {
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="assunto">Assunto *</Label>
-        <select id="assunto" name="assunto" required defaultValue="" className={SELECT}>
+        {/* min-h-11 como o Resumo logo abaixo: neste formulário os campos têm 44 px também no mouse. */}
+        <SelectNativo id="assunto" name="assunto" required defaultValue="" className="min-h-11">
           <option value="" disabled>
             Escolha o assunto
           </option>
@@ -34,7 +33,7 @@ export function NovaSolicitacaoForm() {
               {a.rotulo} — {a.descricao}
             </option>
           ))}
-        </select>
+        </SelectNativo>
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="titulo">Resumo *</Label>

@@ -8,8 +8,6 @@ import { buscarNoticia } from "@/lib/db/painel"
 import { formatarData } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../../portal-shell"
-
 export const metadata: Metadata = { title: "Notícia — Portal do Associado" }
 
 export default async function PortalNoticiaPage({
@@ -30,7 +28,7 @@ export default async function PortalNoticiaPage({
     : noticia.imagem
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/portal/noticias">
@@ -58,6 +56,6 @@ export default async function PortalNoticiaPage({
       <div className="max-w-3xl text-sm leading-relaxed whitespace-pre-wrap">
         {noticia.noticia ?? "Sem conteúdo."}
       </div>
-    </PortalShell>
+    </>
   )
 }

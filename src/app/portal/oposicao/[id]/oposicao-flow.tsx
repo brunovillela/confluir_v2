@@ -6,7 +6,9 @@ import { Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
@@ -141,13 +143,7 @@ export function OposicaoFlow({
       {campanha.fontes.length > 0 && (
         <div className="grid gap-1.5">
           <Label htmlFor="empregador_id">Sua fonte pagadora</Label>
-          <select
-            id="empregador_id"
-            name="empregador_id"
-            required
-            defaultValue=""
-            className="border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-          >
+          <SelectNativo id="empregador_id" name="empregador_id" required defaultValue="">
             <option value="" disabled>
               Selecione…
             </option>
@@ -156,17 +152,13 @@ export function OposicaoFlow({
                 {f.nome}
               </option>
             ))}
-          </select>
+          </SelectNativo>
         </div>
       )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="matricula">Matrícula (se souber)</Label>
-        <input
-          id="matricula"
-          name="matricula"
-          className="border-input bg-background h-9 w-48 rounded-md border px-3 text-sm shadow-xs outline-none"
-        />
+        <Input id="matricula" name="matricula" autoComplete="off" className="w-48" />
       </div>
 
       {campanha.perguntas.length > 0 && (

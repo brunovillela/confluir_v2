@@ -28,7 +28,6 @@ import {
 } from "@/lib/hospedagem-garantida-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../../../portal-shell"
 import { CancelarReservaBotao } from "../../cupom-portal"
 
 export const metadata: Metadata = { title: "Reserva de hospedagem — Portal do Associado" }
@@ -54,7 +53,7 @@ export default async function ReservaHospedagemPage({
   const noites = noitesDaEstadia(reserva.checkIn, reserva.checkOut).length
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/portal/hospedagem">
@@ -174,6 +173,6 @@ export default async function ReservaHospedagemPage({
           </Card>
         )}
       </div>
-    </PortalShell>
+    </>
   )
 }

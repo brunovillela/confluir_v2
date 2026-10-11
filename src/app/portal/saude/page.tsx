@@ -18,8 +18,6 @@ import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
-import { PortalShell } from "../portal-shell"
-
 export const metadata: Metadata = { title: "Saúde — Portal do Associado" }
 
 export default async function PortalSaudePage({
@@ -46,7 +44,7 @@ export default async function PortalSaudePage({
   // roda, para o sigilo não depender de esconder coluna.
   if (sessao.preview) {
     return (
-      <PortalShell>
+      <>
         {cabecalho}
         <Alert>
           <Info />
@@ -57,7 +55,7 @@ export default async function PortalSaudePage({
             cada atendimento.
           </AlertDescription>
         </Alert>
-      </PortalShell>
+      </>
     )
   }
 
@@ -71,7 +69,7 @@ export default async function PortalSaudePage({
   const { linhas: pagina, ...info } = paginar(linhas, pag)
 
   return (
-    <PortalShell>
+    <>
       {cabecalho}
 
       {!disponivel ? (
@@ -140,6 +138,6 @@ export default async function PortalSaudePage({
           </Alert>
         </>
       )}
-    </PortalShell>
+    </>
   )
 }

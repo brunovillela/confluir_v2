@@ -13,7 +13,6 @@ import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { formatarMoeda } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../portal-shell"
 import { CopiaECola } from "./cobranca-pix"
 
 export const metadata: Metadata = { title: "Minha contribuição — Portal" }
@@ -68,7 +67,7 @@ export default async function ContribuicaoPage() {
   const qrCobranca = aberta?.brcode ? await QRCode.toDataURL(aberta.brcode, { errorCorrectionLevel: "M", margin: 1, width: 280 }) : null
 
   return (
-    <PortalShell>
+    <>
       <div>
         <div className="flex items-center gap-2">
           <Coins className="text-muted-foreground size-5" />
@@ -207,6 +206,6 @@ export default async function ContribuicaoPage() {
           </Card>
         </>
       )}
-    </PortalShell>
+    </>
   )
 }

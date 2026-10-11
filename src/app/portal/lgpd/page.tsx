@@ -22,7 +22,6 @@ import { Download, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 
-import { PortalShell } from "../portal-shell"
 import { AceiteLgpdForm } from "./aceite-form"
 import { ComunicadosForm } from "./comunicados-form"
 
@@ -57,7 +56,7 @@ export default async function LgpdPage({
   const aceiteDesconto = cadastro?.tl_desconto_data ?? null
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           LGPD — dados pessoais
@@ -258,6 +257,6 @@ export default async function LgpdPage({
           </p>
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

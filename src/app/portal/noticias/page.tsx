@@ -7,8 +7,6 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { ultimasNoticias } from "@/lib/db/painel"
 import { nomeEntidade } from "@/lib/db/organizacao"
 
-import { PortalShell } from "../portal-shell"
-
 export const metadata: Metadata = { title: "Notícias — Portal do Associado" }
 
 export default async function PortalNoticiasPage() {
@@ -16,7 +14,7 @@ export default async function PortalNoticiasPage() {
   const [noticias, entidade] = await Promise.all([ultimasNoticias(20), nomeEntidade()])
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Notícias</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -64,6 +62,6 @@ export default async function PortalNoticiasPage() {
           )}
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

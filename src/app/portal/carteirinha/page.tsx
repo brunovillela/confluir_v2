@@ -12,8 +12,6 @@ import { dadosCarteirinha } from "@/lib/db/carteirinha"
 import { formatarData } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../portal-shell"
-
 export const metadata: Metadata = { title: "Carteirinha — Portal" }
 
 function cpfMascarado(cpf: string | null): string {
@@ -33,7 +31,7 @@ export default async function CarteirinhaPage({
   const qr = dados?.urlVerificacao ? await QRCode.toDataURL(dados.urlVerificacao, { errorCorrectionLevel: "M", margin: 1, width: 320 }) : null
 
   return (
-    <PortalShell>
+    <>
       <div>
         <div className="flex items-center gap-2">
           <IdCard className="text-muted-foreground size-5" />
@@ -142,6 +140,6 @@ export default async function CarteirinhaPage({
           </p>
         </>
       )}
-    </PortalShell>
+    </>
   )
 }

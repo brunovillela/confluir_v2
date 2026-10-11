@@ -9,14 +9,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { type EstadoForm } from "@/lib/contas"
 import { MAX_CONTATOS_EMERGENCIA, VINCULOS_EMERGENCIA } from "@/lib/filiacao"
 import { formatarTelefone } from "@/lib/formato"
 import { mascaraTelefone } from "@/lib/mascaras"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
-
-const SELECT =
-  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 export type ContatoEmergenciaTela = {
   id: string
@@ -218,13 +216,7 @@ function ContatoForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor={`${p}-vinculo`}>Vínculo *</Label>
-          <select
-            id={`${p}-vinculo`}
-            name="vinculo"
-            defaultValue={contato?.vinculo ?? ""}
-            required
-            className={SELECT}
-          >
+          <SelectNativo id={`${p}-vinculo`} name="vinculo" defaultValue={contato?.vinculo ?? ""} required>
             <option value="" disabled>
               Escolha
             </option>
@@ -233,7 +225,7 @@ function ContatoForm({
                 {v}
               </option>
             ))}
-          </select>
+          </SelectNativo>
         </div>
       </div>
       <div className="flex items-center justify-end gap-2">

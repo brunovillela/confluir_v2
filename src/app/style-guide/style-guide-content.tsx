@@ -76,6 +76,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import {
   Sheet,
   SheetContent,
@@ -434,6 +435,31 @@ export function StyleGuideContent() {
               <SelectItem value="aposentado">Aposentado</SelectItem>
             </SelectContent>
           </Select>
+        </Linha>
+        {/* Nativo: abre o seletor do sistema no celular e vai no FormData de
+            server action sem input oculto. Mesma régua do Input (44 px no toque). */}
+        <Linha rotulo="Select nativo (formulários do portal)">
+          <SelectNativo className="w-44" defaultValue="" aria-label="Fonte pagadora">
+            <option value="" disabled>
+              Fonte pagadora
+            </option>
+            <option value="petrobras">Petrobras</option>
+            <option value="transpetro">Transpetro</option>
+            <option value="aposentado">Aposentado</option>
+          </SelectNativo>
+          <SelectNativo className="w-44" defaultValue="transpetro" aria-label="Fonte pagadora (preenchido)">
+            <option value="petrobras">Petrobras</option>
+            <option value="transpetro">Transpetro</option>
+          </SelectNativo>
+          <SelectNativo className="w-44" disabled defaultValue="petrobras" aria-label="Fonte pagadora (desabilitado)">
+            <option value="petrobras">Desabilitado</option>
+          </SelectNativo>
+          <SelectNativo className="w-44" aria-invalid defaultValue="" aria-label="Fonte pagadora (com erro)">
+            <option value="" disabled>
+              Com erro
+            </option>
+            <option value="petrobras">Petrobras</option>
+          </SelectNativo>
         </Linha>
         <Linha rotulo="Seleção">
           <label className="flex items-center gap-2 text-sm">

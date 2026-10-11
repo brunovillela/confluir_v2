@@ -13,7 +13,6 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 
-import { PortalShell } from "../portal-shell"
 import { CancelarInscricao, Inscrever, ResponderRsvp } from "./formularios"
 
 export const metadata: Metadata = { title: "Eventos — Portal do Associado" }
@@ -42,7 +41,7 @@ export default async function PortalEventosPage() {
   const fechados = lista.filter((e) => !e.aberta && !e.inscrito)
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Eventos e agenda</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -265,7 +264,7 @@ export default async function PortalEventosPage() {
           </CardContent>
         </Card>
       </section>
-    </PortalShell>
+    </>
   )
 }
 

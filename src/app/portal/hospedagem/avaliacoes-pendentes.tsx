@@ -3,12 +3,21 @@ import { Star } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { PendenciaAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
+import { ROTULO_NOTA } from "@/lib/hospedagem-avaliacoes-constantes"
 import { dataBR } from "@/lib/hospedagem-garantida-constantes"
 
 /**
+ * Cada estrela: 32 px no mouse, 44 px no toque (A119). Com 2 px entre elas,
+ * as cinco cabem numa tela de 320 px sem cortar a última.
+ */
+const ESTRELA = "rounded-md p-0.5 pointer-coarse:p-2"
+
+/**
  * "Avalie sua hospedagem" — como o Uber, a avaliação reaparece até ser feita
- * e trava um novo pedido. Cada estrela já abre a avaliação com a nota marcada.
- * No "ver como filiado" da gestão, sem links: quem avalia é o filiado.
+ * e trava um novo pedido. Cada estrela já abre a avaliação com a nota marcada
+ * — são links, não uma escolha guardada aqui, por isso um grupo rotulado e não
+ * um radiogroup. No "ver como filiado" da gestão, sem links: quem avalia é o
+ * filiado.
  */
 export function AvaliacoesPendentes({
   pendencias,
@@ -36,18 +45,28 @@ export function AvaliacoesPendentes({
                 {p.checkIn ? `${dataBR(p.checkIn)} a ${dataBR(p.checkOut)}` : `check-out em ${dataBR(p.checkOut)}`}
               </p>
             </div>
-            <div className="flex items-center gap-0.5" aria-label="Escolha a nota">
+            <div
+              role={preview ? undefined : "group"}
+              aria-label={preview ? undefined : `Sua nota para ${p.hotelNome ?? "o hotel parceiro"}`}
+              aria-hidden={preview || undefined}
+              className="flex items-center gap-0.5"
+            >
               {[1, 2, 3, 4, 5].map((n) =>
                 preview ? (
-                  <Star key={n} className="text-muted-foreground/40 size-7" />
+                  <span key={n} className={ESTRELA}>
+                    <Star aria-hidden className="text-muted-foreground/40 size-7" />
+                  </span>
                 ) : (
                   <Link
                     key={n}
                     href={`/hospedagem/avaliar/${p.token}?nota=${n}`}
-                    aria-label={`${n} estrela${n === 1 ? "" : "s"}`}
-                    className="group rounded p-0.5"
+                    aria-label={`${n} estrela${n === 1 ? "" : "s"} — ${ROTULO_NOTA[n]}`}
+                    className={`group ${ESTRELA} outline-none focus-visible:ring-3 focus-visible:ring-ring/50`}
                   >
-                    <Star className="text-muted-foreground/50 group-hover:fill-primary group-hover:text-primary size-7 transition-colors" />
+                    <Star
+                      aria-hidden
+                      className="text-muted-foreground/50 group-hover:fill-primary group-hover:text-primary group-focus-visible:text-primary size-7 transition-colors"
+                    />
                   </Link>
                 )
               )}

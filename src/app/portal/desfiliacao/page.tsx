@@ -19,7 +19,6 @@ import { tenantAtual } from "@/lib/tenant"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { DesistirForm } from "./desistir-form"
-import { PortalShell } from "../portal-shell"
 
 export const metadata: Metadata = { title: "Minha filiação — Confluir" }
 
@@ -45,7 +44,7 @@ export default async function DesfiliacaoPortalPage() {
   const dentroDoPrazo = emColetiva && (!prazo || prazo >= hoje)
 
   return (
-    <PortalShell>
+    <>
       <div className="mx-auto grid w-full max-w-2xl gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -115,6 +114,6 @@ export default async function DesfiliacaoPortalPage() {
           </Card>
         )}
       </div>
-    </PortalShell>
+    </>
   )
 }

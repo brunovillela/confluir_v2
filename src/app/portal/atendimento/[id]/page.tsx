@@ -13,7 +13,6 @@ import { atendimentoDoFiliado } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../../portal-shell"
 import { ResponderForm } from "../formularios"
 
 export const metadata: Metadata = { title: "Solicitação — Portal do Associado" }
@@ -33,7 +32,7 @@ export default async function PortalAtendimentoDetalhePage({
   const { atendimento: a, mensagens } = dados
 
   return (
-    <PortalShell>
+    <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/atendimento">
@@ -84,6 +83,6 @@ export default async function PortalAtendimentoDetalhePage({
           </CardContent>
         </Card>
       )}
-    </PortalShell>
+    </>
   )
 }

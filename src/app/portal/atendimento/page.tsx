@@ -11,7 +11,6 @@ import { meusAtendimentos } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { PortalShell } from "../portal-shell"
 import { NovaSolicitacaoForm } from "./formularios"
 
 export const metadata: Metadata = { title: "Atendimento — Portal do Associado" }
@@ -22,7 +21,7 @@ export default async function PortalAtendimentoPage() {
   const { lista, disponivel } = await meusAtendimentos(filiado.cpf)
 
   return (
-    <PortalShell>
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Atendimento</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -87,6 +86,6 @@ export default async function PortalAtendimentoPage() {
           </Card>
         </>
       )}
-    </PortalShell>
+    </>
   )
 }

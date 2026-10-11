@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { BellOff, Settings2 } from "lucide-react"
 
+import { AvisosLidos } from "@/components/portal/contador-avisos"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,8 +11,6 @@ import { formatarDataHora } from "@/lib/formato"
 import { EVENTOS_PORTAL } from "@/lib/portal-avisos-eventos"
 import { cn } from "@/lib/utils"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-
-import { PortalShell } from "../portal-shell"
 
 export const metadata: Metadata = { title: "Avisos — Portal do Associado" }
 
@@ -29,7 +28,11 @@ export default async function PortalAvisosPage() {
   if (naoLidos > 0 && !preview) await marcarAvisosLidos(filiado.cpf)
 
   return (
-    <PortalShell>
+    <>
+      {/* O layout não re-renderiza ao navegar: zera o selo do sino e do menu
+          aqui, já que tudo foi lido (mesmo sem novos nesta conta, o selo pode
+          vir de antes — lidos em outro aparelho). */}
+      {!preview && <AvisosLidos />}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Avisos</h1>
@@ -92,6 +95,6 @@ export default async function PortalAvisosPage() {
           )}
         </CardContent>
       </Card>
-    </PortalShell>
+    </>
   )
 }

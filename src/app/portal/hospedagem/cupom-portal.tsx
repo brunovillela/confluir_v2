@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectNativo } from "@/components/ui/select-nativo"
 
 import {
   cancelarEsperaPortal,
@@ -21,9 +22,6 @@ import {
   type EstadoPedidoHospedagem,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
-
-const SELECT =
-  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 export type HotelDoPortal = {
   id: string
@@ -80,13 +78,12 @@ export function SolicitarCupomForm({
           )}
           <div className="grid gap-1.5 sm:col-span-2">
             <Label htmlFor="hotel_id">Hotel *</Label>
-            <select
+            <SelectNativo
               id="hotel_id"
               name="hotel_id"
               required
               value={hotelId}
               onChange={(e) => setHotelId(e.target.value)}
-              className={SELECT}
             >
               <option value="" disabled>
                 Escolha o hotel parceiro
@@ -97,7 +94,7 @@ export function SolicitarCupomForm({
                   {h.garantida ? " — reserva na hora" : ""}
                 </option>
               ))}
-            </select>
+            </SelectNativo>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="check_in">{garantida ? "Check-in *" : "Check-in previsto *"}</Label>
@@ -245,12 +242,13 @@ function BotaoAcao({
     >
       <input type="hidden" name={campo} value={valor} />
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      {/* Tamanho padrão (32 px, 44 px no toque pela extensão do Button):
+          confirmar e cancelar reserva são as ações que mais pesam aqui (A119). */}
       <Button
         type="submit"
         variant={variante}
-        size="sm"
         disabled={pendente}
-        className={variante === "ghost" ? "text-destructive hover:text-destructive h-7 px-2" : "h-7 px-2"}
+        className={variante === "ghost" ? "text-destructive hover:text-destructive" : undefined}
       >
         {pendente ? <Loader2 className="animate-spin" /> : icone}
         {rotulo}

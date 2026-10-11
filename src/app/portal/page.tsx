@@ -4,8 +4,8 @@ import { redirect } from "next/navigation"
 
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getSessaoPortal } from "@/lib/auth"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PortalLoginForm } from "./portal-login-form"
 
@@ -18,8 +18,9 @@ export default async function PortalPage({
 }: {
   searchParams: Promise<{ erro?: string }>
 }) {
-  const sessao = await getSessaoPortal()
-  if (sessao) redirect("/portal/inicio")
+  // Quem já está dentro (filiado logado ou gestão em "Ver como filiado") vai
+  // ao Início: a tela de entrada não pode aparecer dentro da casca do layout.
+  if (await getVisualizacaoPortal()) redirect("/portal/inicio")
 
   // Link de acesso recusado em /auth/confirm (vencido, já usado…).
   const { erro } = await searchParams

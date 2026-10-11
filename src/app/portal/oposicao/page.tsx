@@ -43,33 +43,18 @@ export default async function OposicaoPortalPage({
 }: {
   searchParams: Promise<{ desistiu?: string }>
 }) {
-  const sessao = await getSessaoTrabalhador()
-  const { desistiu } = await searchParams
-  const entidade = await nomeEntidade()
-  // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
-  // Quem atende costuma ser filiado também — sem esta precedência, a tela
-  // mostraria a oposição DO ATENDENTE dentro da visualização de outra pessoa.
-  const vis = await getVisualizacaoPortal()
+  const [sessao, { desistiu }, vis] = await Promise.all([
+    getSessaoTrabalhador(),
+    searchParams,
+    // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
+    // Quem atende costuma ser filiado também — sem esta precedência, a tela
+    // mostraria a oposição DO ATENDENTE dentro da visualização de outra pessoa.
+    getVisualizacaoPortal(),
+  ])
   const preview = vis?.preview ? vis : null
 
-  return (
-    <div className="mx-auto grid min-h-dvh max-w-2xl gap-6 px-4 py-8">
-      <header className="flex items-center justify-between">
-        <Marca tenant={entidade} />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          {/* Na visualização o "Sair" derrubaria a sessão do atendente (a saída é a faixa abaixo). */}
-          {sessao && !preview && (
-            <form action={sairDoPortal}>
-              <Button variant="ghost" size="sm" type="submit">
-                <LogOut />
-                Sair
-              </Button>
-            </form>
-          )}
-        </div>
-      </header>
-
+  const conteudo = (
+    <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Oposição à contribuição assistencial
@@ -103,11 +88,6 @@ export default async function OposicaoPortalPage({
             perfil="filiado"
             preview
           />
-          <div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/portal/inicio">Voltar ao portal do associado</Link>
-            </Button>
-          </div>
         </>
       ) : !sessao ? (
         <>
@@ -135,6 +115,40 @@ export default async function OposicaoPortalPage({
       ) : (
         <ListaCampanhas cpf={sessao.cpf} nome={sessao.nome} perfil={sessao.perfil} />
       )}
+    </>
+  )
+
+  // Na casca do portal (a mesma regra do layout: filiado logado ou gestão em
+  // "Ver como filiado"), só a coluna de leitura — menu, cabeçalho, sino e o
+  // <main> são do layout, e o "Sair" que derrubava a sessão do filiado sai
+  // daqui (A17, A125).
+  if (vis) {
+    return <div className="mx-auto grid w-full max-w-2xl gap-6">{conteudo}</div>
+  }
+
+  // Fora dela, o trabalhador não filiado: tela enxuta com a sessão própria da
+  // Oposição, agora com o <main> como landmark (A181). Aqui não há portal para
+  // onde voltar, então o "Sair" continua.
+  const entidade = await nomeEntidade()
+  return (
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-8">
+      <header className="flex items-center justify-between">
+        <Marca tenant={entidade} />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          {sessao && (
+            <form action={sairDoPortal}>
+              <Button variant="ghost" size="sm" type="submit">
+                <LogOut />
+                Sair
+              </Button>
+            </form>
+          )}
+        </div>
+      </header>
+      <main id="conteudo" className="grid gap-6">
+        {conteudo}
+      </main>
     </div>
   )
 }
@@ -174,9 +188,17 @@ async function ListaCampanhas({
       {itens.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-muted-foreground py-8 text-center text-sm">
-              Nenhuma campanha de oposição aberta no momento.
-            </p>
+            <div className="text-muted-foreground grid gap-1 py-8 text-center text-sm">
+              <p>Nenhuma campanha de oposição aberta no momento.</p>
+              {/* Quem paga pode ler "oposição" como parar de pagar a
+                  mensalidade (A125). */}
+              {perfil === "filiado" && (
+                <p>
+                  A contribuição assistencial não tem relação com a sua
+                  mensalidade de associado.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : (
