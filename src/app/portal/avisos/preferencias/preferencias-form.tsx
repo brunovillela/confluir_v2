@@ -10,8 +10,12 @@ import { EVENTOS_PORTAL, type PreferenciasPortal } from "@/lib/portal-avisos-eve
 
 import { salvarPreferenciasPortalAction } from "./actions"
 
-/** Um interruptor por tipo de aviso; o nome do campo é a chave do evento. */
-export function PreferenciasForm({ prefs }: { prefs: PreferenciasPortal }) {
+/**
+ * Um interruptor por tipo de aviso; o nome do campo é a chave do evento. O
+ * mesmo interruptor vale para o e-mail e, quando há push, para o celular
+ * (`canal` só muda o nome lido pelo leitor de tela).
+ */
+export function PreferenciasForm({ prefs, canal = "E-mail" }: { prefs: PreferenciasPortal; canal?: string }) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasPortalAction, {})
 
   return (
@@ -23,7 +27,7 @@ export function PreferenciasForm({ prefs }: { prefs: PreferenciasPortal }) {
               <span className="block text-sm font-medium">{e.rotulo}</span>
               <span className="text-muted-foreground block text-xs">{e.descricao}</span>
             </label>
-            <Switch id={`pref-${e.chave}`} name={e.chave} defaultChecked={prefs[e.chave]} aria-label={`E-mail de ${e.rotulo}`} />
+            <Switch id={`pref-${e.chave}`} name={e.chave} defaultChecked={prefs[e.chave]} aria-label={`${canal}: ${e.rotulo}`} />
           </li>
         ))}
       </ul>
@@ -34,7 +38,7 @@ export function PreferenciasForm({ prefs }: { prefs: PreferenciasPortal }) {
         </Alert>
       )}
       {estado.ok && (
-        <Alert className="border-success/40 text-success-fg">
+        <Alert variant="success">
           <AlertDescription>Preferências salvas.</AlertDescription>
         </Alert>
       )}

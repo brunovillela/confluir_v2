@@ -10,6 +10,7 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { PRAZO_REABRIR_DIAS } from "@/lib/atendimento-constantes"
 
 import { reabrirAtendimentoAction, responderAtendimentoAction } from "./actions"
 
@@ -23,7 +24,7 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
     return (
       <form action={reabrir} className="grid gap-3">
         <input type="hidden" name="atendimento_id" value={atendimentoId} />
-        <p className="text-muted-foreground text-sm">Esta solicitação está concluída. Reabra para continuar a conversa.</p>
+        <p className="text-muted-foreground text-sm">Esta solicitação está concluída. Reabra para continuar a conversa — o filiado é avisado no portal.</p>
         {estadoReabrir.erro && (
           <Alert variant="destructive">
             <AlertDescription>{estadoReabrir.erro}</AlertDescription>
@@ -45,7 +46,13 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="texto">Resposta ao filiado</Label>
-        <Textarea id="texto" name="texto" rows={4} placeholder="O filiado lê esta mensagem no portal e recebe um aviso." />
+        <Textarea
+          id="texto"
+          name="texto"
+          rows={4}
+          defaultValue={estado.valores?.texto}
+          placeholder="O filiado lê esta mensagem no portal e recebe um aviso."
+        />
       </div>
       <CampoAnexo anexo={anexo} />
       {estado.erro && !estado.campo && (
@@ -54,7 +61,7 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
         </Alert>
       )}
       {estado.ok && (
-        <Alert className="border-success/40 text-success-fg">
+        <Alert variant="success">
           <AlertDescription>{estado.ok}</AlertDescription>
         </Alert>
       )}
@@ -69,7 +76,12 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
           value="concluir"
           variant="outline"
           disabled={enviando || anexo.preparando}
-          onClick={(e) => confirmarEnvio(e, "Concluir a solicitação? O filiado é avisado e não poderá mais responder nela.")}
+          onClick={(e) =>
+            confirmarEnvio(
+              e,
+              `Concluir a solicitação? O filiado é avisado. Se não tiver resolvido, ele pode reabri-la pelo portal por até ${PRAZO_REABRIR_DIAS} dias.`
+            )
+          }
         >
           <CheckCheck />
           Responder e concluir

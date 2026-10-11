@@ -9,6 +9,7 @@ import {
 } from "@/lib/contas"
 import { registrarVinculoPendente, vincularIdentidade } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { destinoDoPortal } from "@/lib/portal-destino"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
@@ -71,7 +72,9 @@ export async function loginFiliadoSenha(
     return { erro: vinculo.erro }
   }
 
-  redirect("/portal/inicio")
+  // Volta ao item que trouxe a pessoa (A30). O campo oculto vem do cliente:
+  // valida de novo aqui — só caminhos do portal, nunca outro endereço.
+  redirect(destinoDoPortal(formData.get("next")) ?? "/portal/inicio")
 }
 
 /** Porta 2 — filiados: magic link enviado ao email do cadastro. */
@@ -100,7 +103,9 @@ export async function enviarMagicLinkFiliado(
   const { erro: erroCodigo } = await enviarCodigoAcesso({
     email: filiado.email,
     metadata: { tipo: "filiado" },
-    next: "/portal/inicio",
+    // O link do e-mail passa pelo /auth/confirm e cai no item que trouxe a
+    // pessoa (A30); o `next` do formulário é validado de novo aqui.
+    next: destinoDoPortal(formData.get("next")) ?? "/portal/inicio",
     contexto: "Use o código abaixo para entrar na sua área do filiado.",
   })
   if (erroCodigo) {

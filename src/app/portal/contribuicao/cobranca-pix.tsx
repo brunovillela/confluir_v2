@@ -23,7 +23,8 @@ export function CopiaECola({ codigo }: { codigo: string }) {
         {copiado ? <Check /> : <Copy />}
         {copiado ? "Copiado!" : "Copiar código Pix"}
       </Button>
-      <textarea readOnly value={codigo} rows={3} className="bg-muted/40 w-full rounded-md border p-2 font-mono text-[11px] leading-snug break-all" onFocus={(e) => e.currentTarget.select()} aria-label="Código Pix copia e cola" />
+      {/* 12 px, o piso da escala (A178): o código é para conferir, não para ler de relance — e com a letra maior ocupa mais linhas. */}
+      <textarea readOnly value={codigo} rows={4} className="bg-muted/40 w-full rounded-md border p-2 font-mono text-xs leading-snug break-all" onFocus={(e) => e.currentTarget.select()} aria-label="Código Pix copia e cola" />
     </div>
   )
 }

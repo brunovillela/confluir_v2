@@ -12,10 +12,10 @@ import {
 } from "@/lib/mfa"
 import {
   moduloDaRota,
-  PERMISSOES_USUARIO_FK,
   podeAcessarModulo,
 } from "@/lib/permissoes"
 import { resolverPermissoesComPerfis } from "@/lib/permissoes-resolver"
+import { destinoDoPortal } from "@/lib/portal-destino"
 import { assinarTenant } from "@/lib/tenant-assinatura"
 import { subdominioDoHost } from "@/lib/tenant-host"
 
@@ -272,7 +272,14 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/portal/oposicao") &&
     !user
   ) {
-    return redirecionar("/portal")
+    // O destino vai junto (A30): o "Abrir no portal" dos avisos por e-mail
+    // cai no login e, depois de entrar, volta ao item — não ao Início. Só
+    // caminhos do portal passam; `_rsc` é da navegação interna do Next.
+    const busca = new URLSearchParams(request.nextUrl.search)
+    busca.delete("_rsc")
+    const consulta = busca.toString()
+    const next = destinoDoPortal(consulta ? `${pathname}?${consulta}` : pathname)
+    return redirecionar("/portal", next && next !== "/portal/inicio" ? { next } : undefined)
   }
 
   // ── Interface do hotel (área logada; /hotel é a tela de login) ────────

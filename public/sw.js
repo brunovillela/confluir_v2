@@ -9,6 +9,21 @@
 // este service worker. Quem escolhe a área é o servidor (src/app/page.tsx e o
 // proxy); hoje a raiz ainda manda todo mundo para o /painel.
 const URL_PADRAO = "/"
+// Avisos do associado (A52) chegam com `area: "portal"`: sem link, abrem a
+// lista de avisos do portal (lib/db/push.ts sempre manda um, mas por garantia).
+const URL_PADRAO_PORTAL = "/portal/avisos"
+
+function urlDoAviso(dados) {
+  if (typeof dados.url === "string" && dados.url) return dados.url
+  return dados.area === "portal" ? URL_PADRAO_PORTAL : URL_PADRAO
+}
+
+/** "/portal" ou "/painel" — para reaproveitar só uma janela da mesma área. */
+function areaDe(caminho) {
+  if (caminho === "/portal" || caminho.startsWith("/portal/")) return "/portal"
+  if (caminho === "/painel" || caminho.startsWith("/painel/")) return "/painel"
+  return null
+}
 
 self.addEventListener("install", () => {
   self.skipWaiting()
@@ -19,7 +34,7 @@ self.addEventListener("activate", (event) => {
 })
 
 self.addEventListener("push", (event) => {
-  let dados = { titulo: "Confluir", corpo: "", url: URL_PADRAO }
+  let dados = { titulo: "Confluir", corpo: "", url: "" }
   try {
     if (event.data) dados = { ...dados, ...event.data.json() }
   } catch {
@@ -30,7 +45,7 @@ self.addEventListener("push", (event) => {
       body: dados.corpo || "",
       icon: "/icones/icone-192.png",
       badge: "/icones/icone-maskable-192.png",
-      data: { url: dados.url || URL_PADRAO },
+      data: { url: urlDoAviso(dados) },
       tag: dados.tag || undefined,
       renotify: Boolean(dados.tag),
     })
@@ -39,16 +54,25 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || URL_PADRAO
+  const destino = new URL((event.notification.data && event.notification.data.url) || URL_PADRAO, self.location.origin)
+  const area = areaDe(destino.pathname)
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((lista) => {
-      for (const c of lista) {
-        if ("focus" in c) {
-          c.navigate(url)
-          return c.focus()
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (lista) => {
+      // Reaproveita uma janela da MESMA área: tocar no aviso do portal não
+      // troca a tela do painel aberta ao lado (com um formulário pela metade),
+      // e vice-versa. Sem janela da área, abre uma nova — no celular com o
+      // portal instalado, ela abre dentro do app.
+      const mesma = area ? lista.find((c) => areaDe(new URL(c.url).pathname) === area) : null
+      if (mesma) {
+        try {
+          const focada = await mesma.focus()
+          await (focada || mesma).navigate(destino.href)
+          return
+        } catch {
+          // janela fora do controle deste service worker: segue para uma nova
         }
       }
-      return self.clients.openWindow(url)
+      return self.clients.openWindow(destino.href)
     })
   )
 })

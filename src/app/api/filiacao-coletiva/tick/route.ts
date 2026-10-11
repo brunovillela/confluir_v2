@@ -1,6 +1,9 @@
 import { maturarFiliacoesColetivas, tenantsComColetivaAberta } from "@/lib/db/filiacao-coletiva"
 
 export const runtime = "nodejs"
+// A maturação manda as boas-vindas de quem vira Ativo (aviso "filiacao") em
+// lotes; uma leva grande precisa de mais que o tempo padrão da função.
+export const maxDuration = 300
 
 /**
  * Tick da MATURAÇÃO da filiação coletiva. Protegido por `CRON_SECRET` (header

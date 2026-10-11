@@ -202,7 +202,9 @@ export default async function VotacaoPortalPage() {
             </p>
           ) : (
             historico.map((v) => (
-              <div key={v.assembleiaId} className="rounded-lg border p-3">
+              // id: o aviso "resultado publicado" aponta para #votacao-<id>; scroll-mt
+              // tira o item de baixo do cabeçalho fixo.
+              <div key={v.assembleiaId} id={`votacao-${v.assembleiaId}`} className="scroll-mt-20 rounded-lg border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium">
                     {v.nome ?? v.tema ?? "Assembleia"}

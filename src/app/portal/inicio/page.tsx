@@ -1,435 +1,79 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import {
-  ArrowRight,
-  BedDouble,
-  CalendarClock,
-  CalendarDays,
-  FileSignature,
-  HandCoins,
-  MessagesSquare,
-  Newspaper,
-  ShieldCheck,
-  UserPen,
-  UsersRound,
-  Vote,
-  Sparkles,
-} from "lucide-react"
+import { Suspense } from "react"
 
-import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
 import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { tenantAtual } from "@/lib/tenant"
+  CartaoAgenda,
+  CartaoInscricoesAbertas,
+  CartaoNoticias,
+  CartaoVotacoes,
+  EsqueletoCartao,
+} from "@/components/portal/inicio/blocos-agenda"
+import { EsqueletoMinhaSituacao, MinhaSituacao } from "@/components/portal/inicio/minha-situacao"
+import { EsqueletoNovidades, Novidades } from "@/components/portal/inicio/novidades"
+import { PendenciasInicio } from "@/components/portal/inicio/pendencias-inicio"
+import { ServicosInicio } from "@/components/portal/inicio/servicos-inicio"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
-import { eventosParaFiliado } from "@/lib/db/eventos-portal"
-import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
-import { oposicoesParaFiliado } from "@/lib/db/oposicao"
-import { ultimasNoticias } from "@/lib/db/painel"
-import { situacaoColetivaDoFiliado } from "@/lib/db/filiacao-coletiva"
-import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
-import { minhasVotacoes, assembleiasDoFiliado } from "@/lib/db/votacao-portal"
-import { formatarData, formatarDataHora } from "@/lib/formato"
-
-import { AvaliacoesPendentes } from "../hospedagem/avaliacoes-pendentes"
-import { registrosDoCpf } from "@/lib/db/filiado-portal"
-import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
 
 export const metadata: Metadata = {
   title: "Portal do Associado — Confluir",
 }
 
-const SERVICOS = [
-  {
-    titulo: "Meu cadastro",
-    descricao: "Confira seus dados e atualize telefones, emails e endereço",
-    href: "/portal/cadastro",
-    icone: UserPen,
-  },
-  {
-    titulo: "Hospedagem",
-    descricao: "Solicite cupons de hospedagem subsidiada nos hotéis parceiros",
-    href: "/portal/hospedagem",
-    icone: BedDouble,
-  },
-  {
-    titulo: "Notícias",
-    descricao: "Últimas notícias do sindicato",
-    href: "/portal/noticias",
-    icone: Newspaper,
-  },
-  {
-    titulo: "Votação",
-    descricao: "Assembleias abertas e o histórico das suas participações",
-    href: "/portal/votacao",
-    icone: Vote,
-  },
-  {
-    titulo: "Eventos e agenda",
-    descricao: "Inscrições abertas, suas inscrições e a agenda de atividades",
-    href: "/portal/eventos",
-    icone: CalendarDays,
-  },
-  {
-    titulo: "Atendimento",
-    descricao: "Abra uma solicitação e acompanhe a resposta da entidade",
-    href: "/portal/atendimento",
-    icone: MessagesSquare,
-  },
-  {
-    titulo: "LGPD",
-    descricao: "Seus aceites e direitos sobre dados pessoais",
-    href: "/portal/lgpd",
-    icone: ShieldCheck,
-  },
-]
-
+/**
+ * Início do portal do associado (onda 2 da avaliação de 11/10/2026). A ordem
+ * é a do que pede atenção: saudação → pendências que pedem ação (votação,
+ * oposição, avaliação da hospedagem, filiação coletiva e, no topo da faixa
+ * seguinte, a contribuição com problema) → Minha situação (A2) → Novidades
+ * (A33, A96) → serviços → notícias e agenda.
+ *
+ * Cada bloco carrega no seu próprio Suspense e trata a própria falha (A69):
+ * a saudação e os atalhos aparecem na hora, e uma consulta que cai ou demora
+ * some sozinha em vez de levar a página para a tela de erro. No "Ver como
+ * filiado" nada grava — nem as avaliações pendentes, nem a leitura dos avisos.
+ */
 export default async function PortalInicioPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
-
-  const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas, votacoes, entidade] = await Promise.all([
-    ultimasNoticias(5),
-    eventosDoAplicativo(5),
-    filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
-    filiado.cpf ? oposicoesParaFiliado(filiado.cpf) : Promise.resolve([]),
-    situacaoColetivaDoFiliado(filiado.filiacaoId),
-    eventosParaFiliado(filiado.cpf, await tenantAtual())
-      .then((l) => l.filter((e) => e.aberta && !e.inscrito))
-      .catch(() => []),
-    minhasVotacoes(filiado.cpf).then((l) => l.slice(0, 3)),
-    nomeEntidade(),
-  ])
-  // Como o Uber: a avaliação da última hospedagem aparece logo ao entrar.
-  const avaliacoesPendentes = filiado.cpf
-    ? await registrosDoCpf(filiado.cpf)
-        .then(pendenciasDaPessoa)
-        .catch(() => [])
-    : []
+  // A saudação nunca depende de consulta que possa falhar.
+  const entidade = await nomeEntidade().catch(() => null)
 
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Olá, {nome.split(" ")[0]}
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Olá, {nome.split(" ")[0]}</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Bem-vindo(a) ao portal do associado — {entidade}.
+          {entidade ? `Bem-vindo(a) ao portal do associado — ${entidade}.` : "Bem-vindo(a) ao portal do associado."}
         </p>
       </div>
 
-      <AvaliacoesPendentes pendencias={avaliacoesPendentes} preview={Boolean(preview)} />
+      {/* Sem pendência é o caso comum: nada a reservar enquanto carrega. */}
+      <Suspense fallback={null}>
+        <PendenciasInicio filiado={filiado} preview={preview} />
+      </Suspense>
 
-      {assembleias.length > 0 && (
-        <div className="grid gap-3">
-          {assembleias.map((a) => {
-            // Mesma regra da lista /portal/votacao e da cédula (achado A3): só
-            // quem pode votar AGORA vê "Votar" e a contagem "encerra em"; antes
-            // da abertura e na carência o banner explica, sem botão.
-            const estado = estadoVotacao(a)
-            return (
-              <Link
-                key={a.assembleiaId}
-                href={
-                  estado.chave === "votar"
-                    ? `/portal/votacao/${a.assembleiaId}`
-                    : estado.chave === "presencial" && a.rodadaId
-                      ? `/portal/votacao/rodada/${a.rodadaId}`
-                      : "/portal/votacao"
-                }
-                className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                    {a.online ? (
-                      <Vote className="size-5" />
-                    ) : (
-                      <CalendarClock className="size-5" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">
-                      {estado.titulo}
-                      {(estado.chave === "nao_abriu" || estado.chave === "carencia") && (
-                        <Badge variant={estado.variante} className="ml-2 align-middle">
-                          {estado.rotulo}
-                        </Badge>
-                      )}
-                    </p>
-                    <p className="text-muted-foreground mt-0.5 text-xs">
-                      {a.nome ?? a.tema ?? "Assembleia"}
-                      {a.empregador && <> · {a.empregador}</>}
-                      {estado.chave === "votar" ? (
-                        <>
-                          {" · "}
-                          {a.termino ? (
-                            <ContagemRegressiva ate={a.termino} />
-                          ) : (
-                            ROTULOS_MODALIDADE[a.modalidade]
-                          )}
-                        </>
-                      ) : estado.chave === "presencial" ? (
-                        <>
-                          {" · "}
-                          {a.inicio ? (
-                            <>a partir de {formatarData(a.inicio)}</>
-                          ) : (
-                            "confira as datas"
-                          )}
-                        </>
-                      ) : null}
-                    </p>
-                    {/* "Ainda não abriu" já diz quando no título. */}
-                    {estado.detalhe && estado.chave !== "nao_abriu" && (
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {estado.detalhe}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {estado.chave === "votar" ? (
-                  // Aparência de botão sem <button> dentro do <a>: o banner
-                  // inteiro já é o link.
-                  <span className={buttonVariants({ size: "sm" })}>
-                    <Vote />
-                    Votar
-                  </span>
-                ) : (
-                  <ArrowRight className="text-muted-foreground size-4" />
-                )}
-              </Link>
-            )
-          })}
-        </div>
-      )}
+      <Suspense fallback={<EsqueletoMinhaSituacao />}>
+        <MinhaSituacao filiado={filiado} />
+      </Suspense>
 
-      {oposicoes.length > 0 && (
-        <div className="grid gap-3">
-          {oposicoes.map((o) => (
-            <Link
-              key={o.campanhaId}
-              href={
-                o.pendenteDocumento && o.opositorId
-                  ? `/portal/oposicao/comprovante/${o.opositorId}`
-                  : `/portal/oposicao/${o.campanhaId}`
-              }
-              className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                  {o.pendenteDocumento ? (
-                    <FileSignature className="size-5" />
-                  ) : (
-                    <HandCoins className="size-5" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">
-                    {o.pendenteDocumento
-                      ? "Falta enviar sua carta assinada"
-                      : "Oposição à contribuição aberta"}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    {o.nome ?? "Contribuição assistencial"}
-                    {o.detalhe && <> · {o.detalhe}</>}
-                    {o.prazoFim && (
-                      <>
-                        {" · "}
-                        <ContagemRegressiva ate={`${o.prazoFim}T23:59:59`} />
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-              <Button size="sm" className="pointer-events-none">
-                {o.pendenteDocumento ? (
-                  <>
-                    <FileSignature />
-                    Enviar carta
-                  </>
-                ) : (
-                  <>
-                    <HandCoins />
-                    Opor-me
-                  </>
-                )}
-              </Button>
-            </Link>
-          ))}
-        </div>
-      )}
+      <Suspense fallback={<EsqueletoNovidades />}>
+        <Novidades filiado={filiado} />
+      </Suspense>
 
-      {coletiva.emProcesso && (
-        <Link
-          href="/portal/desfiliacao"
-          className="border-primary/40 bg-primary/5 hover:border-primary flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="bg-background flex size-9 items-center justify-center rounded-lg">
-              <UsersRound className="size-4.5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">
-                Você foi filiado por decisão da assembleia
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                Filiação coletiva aprovada em acordo coletivo
-                {coletiva.prazo && (
-                  <>
-                    {" · desistência até "}
-                    {formatarData(coletiva.prazo)}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-          <Button size="sm" variant="outline" className="pointer-events-none">
-            Saiba mais
-          </Button>
-        </Link>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-        {SERVICOS.map((servico) => (
-          <Link key={servico.href} href={servico.href} className="group">
-            <Card className="hover:border-primary/40 h-full transition-colors">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="bg-muted flex size-9 items-center justify-center rounded-lg">
-                    <servico.icone className="size-4.5" />
-                  </div>
-                  <ArrowRight className="text-muted-foreground size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
-                <CardTitle className="pt-2 text-base">{servico.titulo}</CardTitle>
-                <CardDescription>{servico.descricao}</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <ServicosInicio />
 
       <div className="grid items-start gap-4 md:grid-cols-2">
-        {noticias.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Últimas notícias</CardTitle>
-            </CardHeader>
-            <ul className="grid gap-1 px-6 pb-5">
-              {noticias.map((n, i) => (
-                <li key={n.id ?? n.url ?? i}>
-                  {n.id ? (
-                    <Link
-                      href={`/portal/noticias/${n.id}`}
-                      className="text-sm underline-offset-4 hover:underline"
-                    >
-                      {n.titulo}
-                    </Link>
-                  ) : (
-                    <a
-                      href={n.url ?? "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm underline-offset-4 hover:underline"
-                    >
-                      {n.titulo}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
-        {inscricoesAbertas.length > 0 && (
-          <Card className="border-primary/50 bg-primary/5 ring-1 ring-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="text-primary size-4" />
-                Inscrições abertas
-              </CardTitle>
-            </CardHeader>
-            <ul className="grid gap-2 px-6 pb-5">
-              {inscricoesAbertas.slice(0, 3).map((e) => (
-                <li key={e.evento.id} className="text-sm">
-                  <span className="font-medium">{e.evento.titulo ?? "(sem título)"}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {formatarDataHora(e.evento.inicio)}
-                    {e.evento.local ? ` · ${e.evento.local}` : ""}
-                  </span>
-                </li>
-              ))}
-              <li>
-                <Button asChild size="sm">
-                  <Link href="/portal/eventos">Ver e inscrever-se</Link>
-                </Button>
-              </li>
-            </ul>
-          </Card>
-        )}
-
-        {votacoes.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Suas últimas votações</CardTitle>
-              <CardDescription>
-                Participação registrada — o sistema nunca mostra em quem você votou.
-              </CardDescription>
-            </CardHeader>
-            <ul className="grid gap-2 px-6 pb-5">
-              {votacoes.map((v) => (
-                <li key={v.assembleiaId} className="text-sm">
-                  <span className="font-medium">{v.nome ?? v.tema ?? "Assembleia"}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {v.quando ? `Voto computado em ${formatarDataHora(v.quando)}` : "Participação registrada"}
-                    {v.comprovante ? ` · ${ROTULO_CANAL[v.comprovante.canal]}` : ""}
-                  </span>
-                  {v.comprovante && (
-                    <span className="text-muted-foreground block text-xs">
-                      Comprovante{" "}
-                      <Link
-                        href={`/comprovante/${v.comprovante.codigo}`}
-                        className="text-foreground font-mono tracking-wider underline underline-offset-2"
-                      >
-                        {v.comprovante.codigo}
-                      </Link>
-                    </span>
-                  )}
-                </li>
-              ))}
-              <li>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/portal/votacao">Ver todas as votações</Link>
-                </Button>
-              </li>
-            </ul>
-          </Card>
-        )}
-
-        {eventos.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Agenda de atividades</CardTitle>
-            </CardHeader>
-            <ul className="grid gap-2 px-6 pb-5">
-              {eventos.map((e) => (
-                <li key={e.id} className="text-sm">
-                  <span className="font-medium">{e.atividade ?? "(sem título)"}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {formatarDataHora(e.inicio)}
-                    {e.local ? ` · ${e.local}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        <Suspense fallback={<EsqueletoCartao />}>
+          <CartaoNoticias />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CartaoInscricoesAbertas cpf={filiado.cpf} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CartaoVotacoes cpf={filiado.cpf} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CartaoAgenda />
+        </Suspense>
       </div>
     </>
   )

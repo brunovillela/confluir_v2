@@ -118,7 +118,12 @@ export default async function PortalEventosPage() {
               const recusada = e.situacao === "recusada"
               const confirmada = e.situacao === "confirmada"
               return (
-                <Card key={e.evento.id}>
+                // id: recibo, RSVP e lembrete da véspera apontam para #inscricao-<id>.
+                <Card
+                  key={e.evento.id}
+                  id={e.inscricaoId ? `inscricao-${e.inscricaoId}` : undefined}
+                  className="scroll-mt-20"
+                >
                   <CardContent className="grid gap-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <CabecalhoEvento e={e} />

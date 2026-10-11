@@ -904,15 +904,49 @@ export async function desvincularCupomDaReserva(
     }
   }
 
-  const { error, count } = await admin
+  const { data: desfeitos, error } = await admin
     .from("hospedagem_cupom")
-    .update({ servico_id: null, tarifa_hospede: null }, { count: "exact" })
+    .update({ servico_id: null, tarifa_hospede: null })
     .eq("id", cupomId)
     .eq("servico_id", servicoId)
+    .select("filiado_id, hotel_id, check_in")
   if (error) return { erro: `Não foi possível desvincular: ${error.message}` }
-  if (count === 0) return { erro: "Cupom não está vinculado a esta reserva." }
+  if (!desfeitos?.length) return { erro: "Cupom não está vinculado a esta reserva." }
 
   await reaplicarTarifaDaReserva(servicoId)
+
+  // O filiado fica sabendo que a reserva foi desfeita, como soube quando o
+  // hotel reservou (sino + e-mail por preferência; achado A21). Check-in já
+  // passado (fuso de São Paulo) é acerto de cadastro — "voltou a aguardar"
+  // não faria sentido. O aviso nunca derruba o que já foi gravado.
+  const desfeito = desfeitos[0]
+  const dia = texto(desfeito.check_in)?.slice(0, 10) ?? null
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  if (desfeito.filiado_id && (!dia || dia >= hoje)) {
+    try {
+      const [{ data: f }, hotel] = await Promise.all([
+        admin.from("filiacoes").select("cpf, nome_completo").eq("id", desfeito.filiado_id as string).maybeSingle(),
+        buscarHotel(desfeito.hotel_id as string),
+      ])
+      const cpf = texto(f?.cpf)
+      if (cpf) {
+        const quando = dia ? ` para o check-in de ${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}` : ""
+        const nomeHotel = hotel?.nome ?? "hotel"
+        await avisarFiliado({
+          cpf,
+          nome: texto(f?.nome_completo),
+          evento: "hospedagem",
+          assunto: "A reserva do seu cupom de hospedagem foi desfeita",
+          texto: restringirHotelId
+            ? `O ${nomeHotel} desfez a reserva do seu cupom${quando}. O cupom voltou a aguardar reserva do hotel.`
+            : `A reserva do seu cupom no ${nomeHotel}${quando} foi desfeita. O cupom voltou a aguardar reserva do hotel.`,
+          link: "/portal/hospedagem",
+        })
+      }
+    } catch (e) {
+      console.error("aviso da reserva desfeita:", e)
+    }
+  }
   return { ok: "Cupom desvinculado — voltou a aguardar reserva." }
 }
 

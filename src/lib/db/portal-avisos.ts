@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
+import { enviarPushPortal, temPushPortal } from "@/lib/db/push"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { botaoEmail, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import {
@@ -25,6 +26,11 @@ import { origemAtual } from "@/lib/tenant-url"
  * Quem já manda e-mail transacional por conta própria (reserva confirmada
  * com QR, inscrição avaliada, aviso aos aptos) chama com `soSino: true` para
  * a pessoa não receber dois e-mails sobre a mesma coisa.
+ *
+ * Celular (A52): depois do sino, o aviso vai como notificação para os
+ * aparelhos que a pessoa ligou em Avisos → Preferências (lib/db/push.ts),
+ * obedecendo à mesma preferência por tipo do e-mail — inclusive com
+ * `soSino`. Sem chaves VAPID ou sem a tabela, segue sem push e sem erro.
  */
 
 export type AvisoPortal = {
@@ -35,7 +41,10 @@ export type AvisoPortal = {
   link: string
   assunto?: string
   html?: string
-  /** Só grava no sino: o e-mail desta ação já saiu por outro caminho. */
+  /**
+   * Não manda e-mail: o desta ação já saiu por outro caminho. Grava no sino e,
+   * se a pessoa ligou o celular, avisa no aparelho.
+   */
   soSino?: boolean
   /** Não repete se já há aviso igual (mesmo texto e link) para a pessoa. */
   umaVez?: boolean
@@ -108,7 +117,22 @@ export async function contatoDoFiliado(
  */
 export type ResultadoAviso = false | "sino" | "email"
 
-/** Grava no sino do filiado e, conforme a preferência, manda o e-mail. */
+/**
+ * O assunto pode vir no padrão dos e-mails ("… — {ENTIDADE}"), que só o
+ * `enviarEmail` troca pelo nome. A notificação não passa por ele: troca aqui
+ * ou, sem o nome (dentro de requisição não há `contexto`), tira o marcador.
+ */
+function semMarcadorEntidade(s: string, entidade: string | undefined): string {
+  if (!s.includes("{ENTIDADE}")) return s
+  if (entidade) return s.replaceAll("{ENTIDADE}", entidade)
+  return s.replace(/\s*[—–-]\s*\{ENTIDADE\}/g, "").replaceAll("{ENTIDADE}", "a entidade")
+}
+
+/**
+ * Grava no sino do filiado e, conforme a preferência do tipo, avisa nos
+ * aparelhos ligados e manda o e-mail. O push é melhor esforço e não muda o
+ * retorno: quem chama continua sabendo só do sino e do e-mail.
+ */
 export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Promise<ResultadoAviso> {
   const cpf = cpfConfiavel(aviso.cpf)
   if (!cpf) return false
@@ -141,10 +165,30 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
     }
     noSino = true
 
-    if (aviso.soSino) return "sino"
+    // Celular (A52): vale também com `soSino` — o e-mail dessas ações sai por
+    // outro caminho, mas a notificação no aparelho só sai por aqui. Quem não
+    // tem aparelho ligado (quase todos, num lote) não paga consulta a mais.
+    const celular = await temPushPortal(cpf, { client, tenantId })
+    if (aviso.soSino && !celular) return "sino"
 
+    // A mesma preferência por tipo liga e desliga o e-mail E o celular: uma
+    // decisão só para o associado (Avisos → Preferências). O sino recebe sempre.
     const prefs = await preferenciasDoFiliado(cpf, { client, tenantId })
     if (!prefs[aviso.evento]) return "sino"
+
+    if (celular) {
+      const entidade = contexto?.entidade
+      await enviarPushPortal(
+        cpf,
+        {
+          titulo: semMarcadorEntidade(aviso.assunto || entidade || "Portal do Associado", entidade),
+          corpo: semMarcadorEntidade(aviso.texto, entidade),
+          url: aviso.link,
+        },
+        { client, tenantId }
+      )
+    }
+    if (aviso.soSino) return "sino"
 
     let nome = texto(aviso.nome)
     let email = texto(aviso.email)?.trim() ?? null

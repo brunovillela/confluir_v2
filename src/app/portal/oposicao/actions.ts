@@ -14,6 +14,7 @@ import {
 } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import {
+  avisarOposicaoRegistrada,
   minhaOposicao,
   obterCampanhaPublica,
   registrarDesistencia,
@@ -250,7 +251,7 @@ export async function confirmarOposicao(
   )
   const { ip, ua } = await rastro()
 
-  const { id, erro } = await registrarOposicao(
+  const { id, protocolo, confirmadoEm, erro } = await registrarOposicao(
     {
       campanhaId,
       cpf: sessao.cpf,
@@ -267,6 +268,22 @@ export async function confirmarOposicao(
     exigeDoc
   )
   if (erro || !id) return { erro: erro ?? "Falha ao registrar." }
+  // Comprovante por e-mail (A16), depois da resposta: o filiado também no
+  // sino; o não filiado, no e-mail que confirmou com o código.
+  avisarOposicaoRegistrada({
+    opositorId: id,
+    protocolo: protocolo ?? null,
+    confirmadoEm: confirmadoEm ?? new Date().toISOString(),
+    campanhaNome: campanha.nome,
+    prazoFim: campanha.prazo_fim,
+    exigeDocumento: exigeDoc,
+    pessoa: {
+      cpf: sessao.cpf,
+      nome: sessao.nome,
+      email: sessao.email,
+      filiado: sessao.perfil === "filiado",
+    },
+  })
   redirect(`/portal/oposicao/comprovante/${id}`)
 }
 

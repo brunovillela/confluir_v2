@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache"
 
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { depoisDaResposta } from "@/lib/db/avisos"
 import { obterEvento } from "@/lib/db/eventos"
 import { registrarRsvpNoProntuario } from "@/lib/db/eventos-filiados"
 import {
+  avisarReciboInscricao,
   cancelarInscricaoDoFiliado,
   inscreverFiliado,
 } from "@/lib/db/eventos-portal"
@@ -37,7 +39,7 @@ export async function inscreverAction(
   const evento = await obterEvento(txt(fd, "eventoId"))
   if (!evento) return { erro: "Evento não encontrado." }
 
-  const { erro, situacao, jaInscrito, reinscricao } = await inscreverFiliado(
+  const { erro, situacao, jaInscrito, reinscricao, inscricaoId, token } = await inscreverFiliado(
     evento,
     {
       cpf: filiado.cpf,
@@ -49,6 +51,17 @@ export async function inscreverAction(
   )
   if (erro) return { erro }
 
+  // Recibo no sino (e e-mail, se confirmada) depois da resposta (A122).
+  if (!jaInscrito && inscricaoId && situacao) {
+    depoisDaResposta(() =>
+      avisarReciboInscricao(
+        evento,
+        { id: inscricaoId, token: token ?? null, situacao },
+        { cpf: filiado.cpf, nome: filiado.nome_completo, email: filiado.email }
+      )
+    )
+  }
+
   revalidatePath("/portal/eventos")
   // Nada foi gravado: dizer "Inscrição feita." seria mentir.
   if (jaInscrito) {
@@ -56,7 +69,7 @@ export async function inscreverAction(
   }
   if (situacao === "pendente") {
     return {
-      ok: "Inscrição recebida. Ela passa pela avaliação do sindicato — avisamos por e-mail assim que houver resposta.",
+      ok: "Inscrição recebida. Ela passa pela avaliação do sindicato — você recebe um aviso assim que houver resposta.",
     }
   }
   return {

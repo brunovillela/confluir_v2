@@ -1,17 +1,21 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { buscarFiliadoPorCpf } from "@/lib/contas"
+import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { buscarHotel, contratoDoHotel, type Hotel } from "@/lib/db/hospedagem"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
-import { avisarFiliado } from "@/lib/db/portal-avisos"
-import { enviarEmail } from "@/lib/email"
+import { avisarFiliado, type AvisoPortal, type ResultadoAviso } from "@/lib/db/portal-avisos"
+import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import {
   botaoEmail,
   caixaAviso,
   escaparHtml,
   linkReserva,
   paragrafo,
+  textoSuave,
   tituloEmail,
 } from "@/lib/email-layout"
 import {
@@ -20,6 +24,7 @@ import {
   avaliarNaoComparecimento,
   dataBR,
   dataHoraBR,
+  descreverRegraNaoComparecimento,
   hojeEmSP,
   instanteSP,
   momentoNaoComparecimento,
@@ -49,7 +54,9 @@ import { origemAtual } from "@/lib/tenant-url"
  * Tempo: não há agendador frequente. Tudo que depende de horário (oferta da
  * lista de espera vencida, trava liberada, falta) é conferido na hora em que é
  * usado, e a lista de espera é processada quando alguém cancela, entra na
- * fila ou abre as telas de hospedagem.
+ * fila ou abre as telas de hospedagem. Os AVISOS que dependem do relógio
+ * (falta registrada, oferta perto de vencer) saem pelos `lembretes*` do fim
+ * do arquivo, chamados pelo tick diário da hospedagem.
  *
  * SQL: supabase/hospedagem-demanda-garantida.sql
  */
@@ -197,14 +204,17 @@ function mascararCpf(cpf: string | null): string {
 
 // ── Conferências antes de reservar ───────────────────────────────────────────
 
-export async function lerRegraNaoComparecimento(): Promise<RegraNaoComparecimento> {
-  const admin = await createAdminClient()
+/** Fora de requisição (tick), passe `client` e `tenantId`. */
+export async function lerRegraNaoComparecimento(
+  amb: { client?: SupabaseClient; tenantId?: string } = {}
+): Promise<RegraNaoComparecimento> {
+  const admin = amb.client ?? (await createAdminClient())
   const { data, error } = await admin
     .from("hospedagem_condicoes")
     .select(
       "punir_nao_comparecimento, nao_comparecimento_quantidade, nao_comparecimento_janela_meses, nao_comparecimento_penalidade, nao_comparecimento_periodo, nao_comparecimento_suspensao_dias"
     )
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", amb.tenantId ?? (await tenantAtual()))
     .maybeSingle()
   if (error || !data) return { ...REGRA_NAO_COMPARECIMENTO_PADRAO }
   const penalidade = data.nao_comparecimento_penalidade
@@ -473,9 +483,87 @@ export async function linkDaReserva(token: string): Promise<string> {
   return `${await origemAtual()}/hospedagem/reserva/${token}`
 }
 
+// ── Avisos ao filiado ────────────────────────────────────────────────────────
+
+/**
+ * Client, entidade e identidade do e-mail. Na requisição tudo sai do host;
+ * no tick diário (sem requisição) quem chama passa os três — o mesmo
+ * desenho de `avisarFiliado` e de lib/db/cobrancas.ts.
+ */
+export type AmbienteAvisoHospedagem = {
+  client?: SupabaseClient
+  tenantId?: string
+  contexto?: ContextoEmail
+}
+
+/** Página da reserva garantida no portal (QR, situação, cancelar). */
+function linkReservaNoPortal(cupomId: string): string {
+  return `/portal/hospedagem/reserva/${cupomId}`
+}
+
+/** CPF de cada cadastro (o cupom guarda só `filiado_id`; o portal, o CPF). */
+async function cpfDosCadastros(
+  ids: (string | null | undefined)[],
+  amb: AmbienteAvisoHospedagem = {}
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const lista = [...new Set(ids.filter((v): v is string => !!v && UUID.test(v)))]
+  if (lista.length === 0) return mapa
+  const client = amb.client ?? (await createAdminClient())
+  const tenantId = amb.tenantId ?? (await tenantAtual())
+  for (let i = 0; i < lista.length; i += 200) {
+    const { data } = await client
+      .from("filiacoes")
+      .select("id, cpf")
+      .in("id", lista.slice(i, i + 200))
+      .eq("emp_proprietaria_id", tenantId)
+    for (const f of data ?? []) {
+      const cpf = txt(f.cpf)
+      if (cpf) mapa.set(f.id as string, cpf)
+    }
+  }
+  return mapa
+}
+
+/**
+ * Avisa o dono de um cupom (sino + e-mail pela preferência do evento
+ * "hospedagem") quando OUTRA pessoa mexe nele — hoje, a equipe cancelando a
+ * reserva garantida ou o cupom comum (achado A21). Um aviso que falha nunca
+ * derruba a ação que o gerou.
+ */
+export async function avisarDonoDoCupom(
+  filiadoId: string | null | undefined,
+  aviso: Omit<AvisoPortal, "cpf" | "evento">,
+  amb: AmbienteAvisoHospedagem = {}
+): Promise<ResultadoAviso> {
+  if (!filiadoId) return false
+  try {
+    const cpf = (await cpfDosCadastros([filiadoId], amb)).get(filiadoId)
+    if (!cpf) return false
+    return await avisarFiliado({ ...aviso, cpf, evento: "hospedagem" }, amb)
+  } catch (e) {
+    console.error("aviso do cupom de hospedagem:", e)
+    return false
+  }
+}
+
+/** Id do cupom pelo token do QR (quem só tem o token ainda leva o aviso ao item). */
+async function cupomDoToken(token: string): Promise<string | null> {
+  if (!UUID.test(token)) return null
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("hospedagem_cupom")
+    .select("id")
+    .eq("token", token)
+    .eq("reserva_garantida", true)
+    .maybeSingle()
+  return txt(data?.id)
+}
+
 /**
  * E-mail "Reserva confirmada". Com o `token`, o botão leva direto à reserva
- * (QR Code sem login); sem ele, ao portal. Devolve o e-mail usado.
+ * (QR Code sem login); sem ele, ao portal. O aviso do sino leva à página da
+ * reserva no portal (`cupomId`, ou o cupom do `token`). Devolve o e-mail usado.
  */
 export async function enviarEmailReservaConfirmada(p: {
   cpf: string | null
@@ -483,13 +571,15 @@ export async function enviarEmailReservaConfirmada(p: {
   checkIn: string
   checkOut: string
   token?: string | null
+  cupomId?: string | null
 }): Promise<{ email?: string }> {
   if (!p.cpf) return {}
+  const cupomId = p.cupomId ?? (p.token ? await cupomDoToken(p.token) : null)
   await avisarFiliado({
     cpf: p.cpf,
     evento: "hospedagem",
     texto: `Reserva confirmada no ${p.hotelNome}: check-in em ${dataBR(p.checkIn)}, check-out em ${dataBR(p.checkOut)}.`,
-    link: "/portal/hospedagem",
+    link: cupomId ? linkReservaNoPortal(cupomId) : "/portal/hospedagem",
     soSino: true,
     umaVez: true,
   })
@@ -531,6 +621,7 @@ async function reservaDoCupom(cupomId: string) {
     : { data: null }
   const hotel = await buscarHotel(c.hotel_id as string)
   return {
+    cupomId: c.id as string,
     token: c.token as string,
     situacao: situacaoDaReserva(c),
     cpf: txt(f?.cpf),
@@ -641,6 +732,18 @@ export async function cancelarReservaGarantida(
     .eq("id", cupomId)
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   await admin.from("hospedagem_alocacoes").delete().eq("cupom_id", cupomId)
+
+  // Cancelada pela equipe (cupons e mapa do painel): a viagem da pessoa muda,
+  // então vai sino + e-mail. Quem cancela pelo portal já vê o resultado na
+  // tela; check-in já passado é acerto de cadastro, não muda viagem nenhuma.
+  // Antes da fila: uma falha lá não pode engolir o aviso.
+  if (escopo.porEquipe && (cupom.check_in as string) >= hojeEmSP()) {
+    await avisarDonoDoCupom(txt(cupom.filiado_id), {
+      assunto: "Sua reserva de hospedagem foi cancelada",
+      texto: `Sua reserva no ${hotel.nome ?? "hotel"} para ${dataBR(cupom.check_in as string)} foi cancelada pelo sindicato. Se você não pediu o cancelamento, abra uma solicitação em Atendimento.`,
+      link: linkReservaNoPortal(cupomId),
+    })
+  }
 
   await processarFilaDeEspera(hotel, { forcar: true })
   return {}
@@ -861,6 +964,11 @@ export async function cancelarEspera(
   return {}
 }
 
+/** Página pública da oferta (botão "Confirmar"), sem login. */
+function linkDaOferta(token: string): string {
+  return `/hospedagem/oferta/${token}`
+}
+
 /**
  * Processa a lista de espera de um hotel:
  *  1. ofertas vencidas → a reserva guardada cai e a espera vira "expirada";
@@ -982,18 +1090,20 @@ export async function processarFilaDeEspera(
       .eq("id", e.id as string)
       .maybeSingle()
     if (cpf && esperaAtual?.token) {
+      // O sino leva à página da oferta, a mesma do botão do e-mail: é lá que
+      // está o "Confirmar" (a reserva ainda aguarda confirmação).
       await avisarFiliado({
         cpf,
         evento: "hospedagem",
         texto: `Surgiu vaga no ${hotel.nome ?? "hotel"} para ${dataBR(checkIn)} a ${dataBR(checkOut)}: confirme até ${dataHoraBR(new Date(confirmarAte))}.`,
-        link: "/portal/hospedagem",
+        link: linkDaOferta(esperaAtual.token as string),
         soSino: true,
         umaVez: true,
       })
       const filiado = await buscarFiliadoPorCpf(cpf)
       if (filiado?.email) {
         const origem = await origemAtual()
-        const link = `${origem}/hospedagem/oferta/${esperaAtual.token as string}`
+        const link = `${origem}${linkDaOferta(esperaAtual.token as string)}`
         await enviarEmail({
           email: filiado.email,
           nome: filiado.nome_completo,
@@ -1101,6 +1211,7 @@ export async function confirmarOferta(token: string): Promise<{ erro?: string }>
     checkIn: e.check_in as string,
     checkOut: e.check_out as string,
     token: txt(cupom.token),
+    cupomId: cupom.id as string,
   })
   return {}
 }
@@ -1557,4 +1668,223 @@ export async function liberarPenalidade(
   })
   if (error) return { erro: faltaTabela(error) ? AVISO_SQL : error.message }
   return {}
+}
+
+// ── Lembretes (tick diário, fora de requisição) ─────────────────────────────
+
+/**
+ * Faltas avisadas pelo tick: só as de check-in nos últimos dias. Um tick que
+ * falhou ainda alcança a falta na volta seguinte, e a primeira rodada não
+ * acorda faltas antigas que a pessoa já vê na tela.
+ */
+const JANELA_AVISO_FALTA_DIAS = 7
+
+/**
+ * Lembrete da oferta da lista de espera: quando faltam LEMBRETE_OFERTA_HORAS
+ * ou metade do prazo — o que vier antes —, nunca colado no aviso da oferta
+ * (LEMBRETE_OFERTA_DEPOIS_MIN) nem quando já não dá tempo de confirmar
+ * (LEMBRETE_OFERTA_FOLGA_MIN).
+ */
+const LEMBRETE_OFERTA_HORAS = 3
+const LEMBRETE_OFERTA_DEPOIS_MIN = 60
+const LEMBRETE_OFERTA_FOLGA_MIN = 15
+
+/** Os lembretes rodam sem requisição: client e entidade são obrigatórios. */
+export type AmbienteLembreteHospedagem = {
+  client: SupabaseClient
+  tenantId: string
+  contexto?: ContextoEmail
+}
+
+const RODAPE_PREFERENCIAS = textoSuave(
+  "Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."
+)
+
+/** Nome dos hotéis da entidade (inativos inclusos: a estadia pode ser anterior). */
+async function hoteisDaEntidade(amb: AmbienteLembreteHospedagem): Promise<Map<string, string>> {
+  const { data } = await amb.client
+    .from("hospedagem_hotel")
+    .select("id, nome")
+    .eq("emp_proprietaria_id", amb.tenantId)
+  return new Map((data ?? []).map((h) => [h.id as string, txt(h.nome) ?? "hotel"]))
+}
+
+/** Pedido de abono pelo Atendimento, com o resumo já preenchido. */
+function linkPedidoDeAbono(hotel: string, checkIn: string): string {
+  const titulo = `Abono do não comparecimento de ${dataBR(checkIn)} — ${hotel}`.slice(0, 140)
+  return `/portal/atendimento?assunto=outro&titulo=${encodeURIComponent(titulo)}`
+}
+
+/**
+ * NÃO COMPARECIMENTO (achado A21): reserva garantida com check-in já passado,
+ * sem entrada registrada pelo hotel, não cancelada, que não era oferta da
+ * lista de espera e sem abono — exatamente o que o painel lista como falta.
+ * Sino + e-mail (pela preferência), com o caminho do abono; uma vez por
+ * cupom (`umaVez`: texto e link levam hotel e data). Idempotente: pode rodar
+ * todo dia, ou mais vezes.
+ */
+export async function lembretesNaoComparecimento(
+  amb: AmbienteLembreteHospedagem
+): Promise<{ avisados: number; erro?: string }> {
+  const { client, tenantId } = amb
+  const hoteis = await hoteisDaEntidade(amb)
+  if (hoteis.size === 0) return { avisados: 0 }
+  const hoje = hojeEmSP()
+  const { data, error } = await client
+    .from("hospedagem_cupom")
+    .select("id, filiado_id, hotel_id, check_in")
+    .in("hotel_id", [...hoteis.keys()])
+    .eq("reserva_garantida", true)
+    .eq("cancelado", false)
+    .is("presenca_em", null)
+    .is("confirmar_ate", null)
+    .is("nao_comparecimento_abonado_em", null)
+    .lt("check_in", hoje)
+    .gte("check_in", somarDias(hoje, -JANELA_AVISO_FALTA_DIAS))
+    .order("check_in", { ascending: true })
+    .limit(1000)
+  if (error) return { avisados: 0, erro: faltaTabela(error) ? undefined : error.message }
+  const faltas = data ?? []
+  if (faltas.length === 0) return { avisados: 0 }
+
+  const [cpfs, regra, contexto] = await Promise.all([
+    cpfDosCadastros(faltas.map((c) => txt(c.filiado_id)), amb),
+    lerRegraNaoComparecimento(amb),
+    amb.contexto ?? contextoDoTenant(tenantId, client),
+  ])
+  const regraTexto = descreverRegraNaoComparecimento(regra)
+  const origem = contexto.origem
+
+  let avisados = 0
+  for (const c of faltas) {
+    const cpf = cpfs.get(c.filiado_id as string)
+    if (!cpf) continue
+    const hotel = hoteis.get(c.hotel_id as string) ?? "hotel"
+    const dia = dataBR(c.check_in as string)
+    const linkAbono = linkPedidoDeAbono(hotel, c.check_in as string)
+    const urlReserva = `${origem}${linkReservaNoPortal(c.id as string)}`
+    const r = await avisarFiliado(
+      {
+        cpf,
+        evento: "hospedagem",
+        assunto: "Registramos não comparecimento na sua reserva de hospedagem",
+        texto: `Registramos não comparecimento na sua reserva no ${hotel} de ${dia}. Se houve engano, peça o abono em Atendimento.`,
+        link: linkAbono,
+        umaVez: true,
+        html:
+          tituloEmail("Registramos não comparecimento") +
+          paragrafo(
+            `Na sua reserva no <strong>${escaparHtml(hotel)}</strong> com check-in em <strong>${dia}</strong>, o hotel não registrou a sua entrada e a reserva não foi cancelada.`
+          ) +
+          (regraTexto ? caixaAviso(`Regra do sindicato: ${escaparHtml(regraTexto)}`) : "") +
+          paragrafo(
+            "Se houve engano — você foi ao hotel, ou não pôde ir por um motivo que o sindicato deva considerar —, peça o abono contando o que aconteceu. Se tiver um comprovante, anexe."
+          ) +
+          botaoEmail(`${origem}${linkAbono}`, "Pedir o abono") +
+          textoSuave(
+            `Se você chegou depois e a recepção ainda registrar a sua entrada, a falta deixa de contar. Ver a reserva no portal: <a href="${urlReserva}">${urlReserva}</a>`
+          ) +
+          RODAPE_PREFERENCIAS,
+      },
+      { client, tenantId, contexto }
+    )
+    if (r) avisados++
+  }
+  return { avisados }
+}
+
+/**
+ * OFERTA DA LISTA DE ESPERA PERTO DE VENCER (achado A102): a vaga guardada
+ * ainda sem confirmação recebe UM lembrete (sino + e-mail pela preferência)
+ * com o botão da página da oferta. Só lê: quem derruba a oferta vencida é
+ * `processarFilaDeEspera`.
+ *
+ * Frequência: rodando 1x por dia, só alcança as ofertas cuja hora de lembrar
+ * cai antes do tick e que ainda não venceram; ligada a um tick frequente
+ * (a cada 15 min), alcança todas. É idempotente nos dois casos.
+ */
+export async function lembretesOfertasDeVaga(
+  amb: AmbienteLembreteHospedagem
+): Promise<{ avisados: number; erro?: string }> {
+  const { client, tenantId } = amb
+  const agora = Date.now()
+  const { data, error } = await client
+    .from("hospedagem_espera")
+    .select("id, token, hotel_id, filiado_id, cpf, cupom_id, check_in, check_out, oferecida_em, oferta_expira_em")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("situacao", "oferecida")
+    .gt("oferta_expira_em", new Date(agora + LEMBRETE_OFERTA_FOLGA_MIN * 60_000).toISOString())
+    .order("oferta_expira_em", { ascending: true })
+    .limit(500)
+  if (error) return { avisados: 0, erro: faltaTabela(error) ? undefined : error.message }
+
+  const devidas = (data ?? []).filter((e) => {
+    if (!txt(e.token) || !txt(e.cupom_id) || !txt(e.oferta_expira_em)) return false
+    const expira = new Date(e.oferta_expira_em as string).getTime()
+    const oferecida = txt(e.oferecida_em) ? new Date(e.oferecida_em as string).getTime() : null
+    if (oferecida !== null && agora - oferecida < LEMBRETE_OFERTA_DEPOIS_MIN * 60_000) return false
+    const metadeDoPrazo = oferecida !== null ? (expira - oferecida) / 2 : 0
+    return expira - agora <= Math.max(LEMBRETE_OFERTA_HORAS * 3_600_000, metadeDoPrazo)
+  })
+  if (devidas.length === 0) return { avisados: 0 }
+
+  // A vaga guardada ainda está de pé? (a equipe pode ter cancelado a reserva.)
+  const vivas = new Set<string>()
+  const cupomIds = devidas.map((e) => e.cupom_id as string)
+  for (let i = 0; i < cupomIds.length; i += 200) {
+    const { data: cupons } = await client
+      .from("hospedagem_cupom")
+      .select("id, cancelado, confirmar_ate")
+      .in("id", cupomIds.slice(i, i + 200))
+    for (const c of cupons ?? []) {
+      const ate = txt(c.confirmar_ate)
+      if (c.cancelado !== true && ate && new Date(ate).getTime() > agora) vivas.add(c.id as string)
+    }
+  }
+  const pendentes = devidas.filter((e) => vivas.has(e.cupom_id as string))
+  if (pendentes.length === 0) return { avisados: 0 }
+
+  const [hoteis, cpfsDoCadastro, contexto] = await Promise.all([
+    hoteisDaEntidade(amb),
+    cpfDosCadastros(
+      pendentes.filter((e) => !txt(e.cpf)).map((e) => txt(e.filiado_id)),
+      amb
+    ),
+    amb.contexto ?? contextoDoTenant(tenantId, client),
+  ])
+
+  let avisados = 0
+  for (const e of pendentes) {
+    const cpf = txt(e.cpf) ?? cpfsDoCadastro.get(e.filiado_id as string)
+    if (!cpf) continue
+    const hotel = hoteis.get(e.hotel_id as string) ?? "hotel"
+    const ate = dataHoraBR(new Date(e.oferta_expira_em as string))
+    const periodo = `${dataBR(e.check_in as string)} a ${dataBR(e.check_out as string)}`
+    const link = linkDaOferta(e.token as string)
+    const url = `${contexto.origem}${link}`
+    const r = await avisarFiliado(
+      {
+        cpf,
+        evento: "hospedagem",
+        assunto: "Sua vaga na hospedagem vence em breve — confirme",
+        texto: `Sua vaga no ${hotel} para ${periodo} fica guardada só até ${ate}. Confirme para não perder.`,
+        link,
+        umaVez: true,
+        html:
+          tituloEmail("Sua vaga ainda espera a confirmação") +
+          paragrafo(
+            `A vaga no <strong>${escaparHtml(hotel)}</strong> para <strong>${periodo}</strong> continua guardada para você, mas ainda não foi confirmada.`
+          ) +
+          caixaAviso(
+            `Confirme até <strong>${ate}</strong>. Sem confirmação, ela passa para a próxima pessoa da lista.`
+          ) +
+          botaoEmail(url, "Confirmar minha reserva") +
+          linkReserva(url) +
+          RODAPE_PREFERENCIAS,
+      },
+      { client, tenantId, contexto }
+    )
+    if (r) avisados++
+  }
+  return { avisados }
 }

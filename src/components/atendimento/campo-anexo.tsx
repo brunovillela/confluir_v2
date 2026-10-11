@@ -1,7 +1,10 @@
 "use client"
 
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from "react"
+import { Camera } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import { avisarArquivoTrocado } from "@/components/ui/campo-arquivo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
@@ -10,9 +13,15 @@ import { LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 // no painel (resposta da equipe), porque os dois gravam por guardarAnexo
 // (lib/db/portal-atendimentos.ts) e esbarram no mesmo teto.
 
-const ACEITA = ".pdf,.jpg,.jpeg,.png,.webp,.gif,.docx,.xlsx,.txt"
-// Na conferência vale também o tipo: foto do celular nem sempre chega com a extensão esperada.
-const ACEITA_CONFERENCIA = `${ACEITA},application/pdf,image/jpeg,image/png,image/webp,image/gif`
+// O que o seletor oferece. `image/*` (e não só as extensões) é o que faz o
+// celular oferecer a câmera ao lado da galeria e dos arquivos (A98); `.pdf`
+// com o tipo junto, porque alguns Android só reconhecem um dos dois.
+const ACEITA = "image/*,application/pdf,.pdf,.docx,.xlsx,.txt"
+// O que de fato passa — por extensão e por tipo: foto do celular nem sempre
+// chega com a extensão esperada, e `image/*` no seletor não quer dizer que
+// HEIC ou BMP sirvam.
+const ACEITA_CONFERENCIA =
+  ".pdf,.jpg,.jpeg,.png,.webp,.gif,.docx,.xlsx,.txt,application/pdf,image/jpeg,image/png,image/webp,image/gif"
 // Word e Excel só nos formatos novos: quem tem .doc/.xls precisa saber por que o "Word" foi recusado.
 const ERRO_TIPO =
   "Este tipo de arquivo não é aceito. Envie PDF, foto (JPG, PNG, WEBP ou GIF), Word (.docx), Excel (.xlsx) ou texto (.txt)."
@@ -42,8 +51,7 @@ export function useAnexo() {
   // Cada escolha tem a sua vez: resultado de uma escolha anterior não vale.
   const vez = useRef(0)
 
-  async function aoEscolher(e: ChangeEvent<HTMLInputElement>) {
-    const input = e.currentTarget
+  async function preparar(input: HTMLInputElement) {
     const minha = ++vez.current
     const original = input.files?.[0]
     setErro(null)
@@ -63,6 +71,30 @@ export function useAnexo() {
     if (minha !== vez.current) return
     setPreparando(false)
     setErro(r.erro ?? null)
+  }
+
+  function aoEscolher(e: ChangeEvent<HTMLInputElement>) {
+    void preparar(e.currentTarget)
+  }
+
+  /**
+   * Foto do atalho "Tirar foto": vai para o campo do anexo (é ele que segue no
+   * envio) e passa pela mesma preparação de uma escolha comum.
+   */
+  function aoFotografar(e: ChangeEvent<HTMLInputElement>, campo: HTMLInputElement | null) {
+    const foto = e.currentTarget.files?.[0]
+    e.currentTarget.value = ""
+    if (!foto || !campo) return
+    try {
+      const dt = new DataTransfer()
+      dt.items.add(foto)
+      campo.files = dt.files
+    } catch {
+      setErro("Não deu para usar a foto por este atalho. Toque em “Escolha um arquivo” e escolha a câmera por lá.")
+      return
+    }
+    avisarArquivoTrocado(campo)
+    void preparar(campo)
   }
 
   /** Última conferência, no envio: foto ainda em preparo, anexo ou envio grandes demais. */
@@ -89,17 +121,34 @@ export function useAnexo() {
     setErro(motivo)
   }
 
-  return { erro, preparando, aoEscolher, conferirEnvio }
+  return { erro, preparando, aoEscolher, aoFotografar, conferirEnvio }
 }
 
-export function CampoAnexo({ anexo }: { anexo: ReturnType<typeof useAnexo> }) {
+export function CampoAnexo({
+  anexo,
+  apoio,
+}: {
+  anexo: ReturnType<typeof useAnexo>
+  /** O documento que resolve o pedido (ex.: o contracheque, na contribuição). */
+  apoio?: string | null
+}) {
   const id = useId()
   const idErro = `${id}-erro`
   const idDica = `${id}-dica`
+  const idApoio = `${id}-apoio`
+  const campo = useRef<HTMLInputElement>(null)
+  const camera = useRef<HTMLInputElement>(null)
+  const descritores = [anexo.erro ? idErro : null, apoio ? idApoio : null, idDica].filter(Boolean).join(" ")
   return (
     <div className="grid gap-1.5">
       <Label htmlFor="anexo">Anexo (opcional)</Label>
+      {apoio && (
+        <p id={idApoio} className="text-sm">
+          {apoio}
+        </p>
+      )}
       <Input
+        ref={campo}
         id="anexo"
         name="anexo"
         type="file"
@@ -107,8 +156,27 @@ export function CampoAnexo({ anexo }: { anexo: ReturnType<typeof useAnexo> }) {
         limite={`até ${LIMITE_ROTULO}`}
         onChange={anexo.aoEscolher}
         aria-invalid={anexo.erro ? true : undefined}
-        aria-describedby={anexo.erro ? `${idErro} ${idDica}` : idDica}
+        aria-describedby={descritores}
       />
+      {/* Atalho para a câmera só no toque (A98). O `capture` mora num campo à
+          parte, sem nome — no campo do anexo ele esconderia a galeria e os
+          arquivos; a foto tirada aqui é passada para o campo do anexo. */}
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        tabIndex={-1}
+        aria-hidden
+        className="sr-only"
+        onChange={(e) => anexo.aoFotografar(e, campo.current)}
+      />
+      <div className="hidden pointer-coarse:block">
+        <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => camera.current?.click()}>
+          <Camera />
+          Tirar foto do documento
+        </Button>
+      </div>
       {anexo.erro && (
         <p id={idErro} role="alert" className="text-destructive text-xs">
           {anexo.erro}

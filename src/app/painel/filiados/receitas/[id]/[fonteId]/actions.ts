@@ -9,6 +9,8 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv, normalizarCabecalho, parseCsv } from "@/lib/csv"
+import { depoisDaResposta } from "@/lib/db/avisos"
+import { avisarMudancasDeCondicao } from "@/lib/db/filiacao-condicao-avisos"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
 import { grupoParaRecebimento, type GrupoRecebimento } from "@/lib/db/grupos-empresariais"
 import { regrasFiliacao } from "@/lib/db/organizacao"
@@ -527,6 +529,20 @@ export async function definirCondicaoMarcados(
   }
 
   const admin = await createAdminClient()
+  // Aviso à pessoa (A58) só com a caixa marcada — correção em massa não manda
+  // e-mail a ninguém. A condição de antes decide quem fechou uma trilha.
+  const avisar = formData.get("avisar") === "on"
+  const anteriores = new Map<string, string | null>()
+  if (avisar) {
+    for (let de = 0; de < marcados.length; de += 100) {
+      const { data } = await admin
+        .from("filiacoes")
+        .select("id, filiacao_condicao")
+        .in("id", marcados.slice(de, de + 100))
+        .eq("emp_proprietaria_id", await tenantAtual())
+      for (const f of data ?? []) anteriores.set(String(f.id), (f.filiacao_condicao as string | null) ?? null)
+    }
+  }
   // Carimba a data do marco final (Ativo/Inativo) + o momento da condição, para
   // o acompanhamento e o gráfico de etapas do filiado.
   const agora = new Date().toISOString()
@@ -544,6 +560,11 @@ export async function definirCondicaoMarcados(
     if (error) {
       return { erro: `Não foi possível atualizar: ${error.message}` }
     }
+  }
+  if (avisar && anteriores.size > 0) {
+    depoisDaResposta(() =>
+      avisarMudancasDeCondicao([...anteriores].map(([id, anterior]) => ({ id, anterior, nova: condicao })))
+    )
   }
 
   // A condição vive no snapshot de fontes — invalida para refletir já

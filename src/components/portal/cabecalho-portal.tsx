@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
+import { aoSairDoPortal } from "@/components/portal/sair-do-portal"
 import { sairDoPortal } from "@/lib/actions/sessao"
 import { ajudaDaRotaPortal, INDICE_AJUDA_PORTAL, type EntradaAjudaPortal } from "@/lib/ajuda/mapa-portal"
 
@@ -104,7 +105,7 @@ export function CabecalhoPortal({
           <ThemeToggle />
         </span>
         {!preview && (
-          <form action={sairDoPortal} className="lg:hidden">
+          <form action={sairDoPortal} onSubmit={aoSairDoPortal} className="lg:hidden">
             <Button type="submit" variant="ghost" className="h-11 px-3">
               <LogOut className="hidden sm:block" />
               Sair

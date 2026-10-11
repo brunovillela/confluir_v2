@@ -1,6 +1,8 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { depoisDaResposta } from "@/lib/db/avisos"
+import { avisarMudancasDeCondicao } from "@/lib/db/filiacao-condicao-avisos"
 import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { CONDICAO_COLETIVA, type FiliacaoCondicao } from "@/lib/filiacao"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
@@ -935,5 +937,17 @@ export async function maturarFiliacoesColetivas(tenantId?: string): Promise<{
     )
   }
 
-  return { avancados: (vencidos ?? []).length, ativados: (prontos ?? []).length }
+  // Boas-vindas a quem ficou ativo (A58), depois da resposta. No tick não há
+  // requisição do tenant: a identidade do e-mail sai do próprio tenant.
+  const ativados = prontos ?? []
+  if (ativados.length > 0) {
+    depoisDaResposta(() =>
+      avisarMudancasDeCondicao(
+        ativados.map((f) => ({ id: String(f.id), anterior: proxima, nova: "Ativo" })),
+        { client: admin, tenantId: emp, foraDaRequisicao: Boolean(tenantId) }
+      )
+    )
+  }
+
+  return { avancados: (vencidos ?? []).length, ativados: ativados.length }
 }

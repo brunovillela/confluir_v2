@@ -1,5 +1,9 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
+import { cpfConfiavel } from "@/lib/cpf"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import {
   capacidadeDoEvento,
   capacidadesDosEventos,
@@ -10,7 +14,13 @@ import {
 } from "@/lib/db/eventos"
 import { registrarInscricaoNoProntuario } from "@/lib/db/eventos-filiados"
 import { ZERAR_AO_REINSCREVER } from "@/lib/db/eventos-publico"
+import { avisarFiliado, type AvisoPortal } from "@/lib/db/portal-avisos"
+import { type ContextoEmail } from "@/lib/email"
+import { botaoEmail, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import { deCampoDataHora } from "@/lib/formato"
+import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { origemAtual } from "@/lib/tenant-url"
 
 /**
  * Eventos na área do filiado.
@@ -153,6 +163,8 @@ export async function inscreverFiliado(
 ): Promise<{
   erro?: string
   token?: string
+  /** Id da inscrição gravada agora (o recibo no sino aponta para ela). */
+  inscricaoId?: string
   situacao?: SituacaoInscricao
   jaInscrito?: boolean
   reinscricao?: boolean
@@ -231,7 +243,7 @@ export async function inscreverFiliado(
     // Nenhuma linha: outro envio simultâneo já a reabriu — nada foi gravado aqui.
     if (!reaberta) return { jaInscrito: true }
     await registrarInscricaoNoProntuario(reaberta.id as string, tenantId)
-    return { token: reaberta.token as string, situacao, reinscricao: true }
+    return { token: reaberta.token as string, inscricaoId: reaberta.id as string, situacao, reinscricao: true }
   }
 
   const { data: criada, error } = await service
@@ -258,7 +270,7 @@ export async function inscreverFiliado(
   }
 
   await registrarInscricaoNoProntuario(criada.id as string, tenantId)
-  return { token: criada.token as string, situacao }
+  return { token: criada.token as string, inscricaoId: criada.id as string, situacao }
 }
 
 /**
@@ -299,4 +311,247 @@ export async function cancelarInscricaoDoFiliado(
     .eq("id", inscricaoId)
   if (error) return { erro: "Não foi possível cancelar." }
   return {}
+}
+
+// ── Avisos ao filiado (A122) ─────────────────────────────────────────────────
+
+const PREFERENCIAS_PORTAL =
+  "Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."
+
+/**
+ * Endereço do aviso: a inscrição na página de eventos do portal (o aviso leva
+ * ao item, não à lista). O id na âncora também separa um aviso do outro no
+ * `umaVez`, que compara texto e link.
+ */
+export function linkDaInscricaoNoPortal(inscricaoId: string): string {
+  return `/portal/eventos#inscricao-${inscricaoId}`
+}
+
+/** "11/10/2026" e "19:00" no fuso de São Paulo. */
+function diaEHora(iso: string): { dia: string; hora: string } {
+  const d = new Date(iso)
+  const fuso = { timeZone: "America/Sao_Paulo" } as const
+  return {
+    dia: new Intl.DateTimeFormat("pt-BR", { ...fuso, day: "2-digit", month: "2-digit", year: "numeric" }).format(d),
+    hora: new Intl.DateTimeFormat("pt-BR", { ...fuso, hour: "2-digit", minute: "2-digit" }).format(d),
+  }
+}
+
+/** Data, hora, local e endereço do evento, no miolo do e-mail. */
+function blocoDoEvento(e: { titulo: string | null; inicio: string | null; local: string | null; endereco: string | null }): string {
+  const quando = e.inicio ? diaEHora(e.inicio) : null
+  const linhas = [
+    `<strong>${escaparHtml(e.titulo ?? "Evento")}</strong>`,
+    quando ? `${quando.dia} às ${quando.hora}` : "",
+    escaparHtml(e.local ?? ""),
+    escaparHtml(e.endereco ?? ""),
+  ].filter(Boolean)
+  return paragrafo(linhas.join("<br>"))
+}
+
+/**
+ * Recibo da inscrição feita pelo portal (A122): o que foi feito, a data do
+ * evento e o link para a inscrição. Confirmada → sino + e-mail conforme a
+ * preferência "Eventos", com o botão do código de entrada (é o que se usa na
+ * porta). Pendente → só o sino: o e-mail sai quando a entidade avaliar
+ * (`avisarAvaliacao`), e dois e-mails sobre a mesma inscrição seriam ruído.
+ * Sem `umaVez`: voltar depois de cancelar é uma inscrição nova, com recibo
+ * novo; o clique repetido já não chega aqui (`jaInscrito`).
+ */
+export async function avisarReciboInscricao(
+  evento: Evento,
+  inscricao: { id: string; token: string | null; situacao: SituacaoInscricao },
+  filiado: { cpf: string; nome: string | null; email: string | null }
+): Promise<void> {
+  const titulo = evento.titulo ?? "evento"
+  const quando = evento.inicio ? diaEHora(evento.inicio) : null
+  const sufixo = quando ? ` — ${quando.dia} às ${quando.hora}` : ""
+  const link = linkDaInscricaoNoPortal(inscricao.id)
+  const base = { cpf: filiado.cpf, nome: filiado.nome, email: filiado.email, evento: "eventos" as const, link }
+
+  if (inscricao.situacao !== "confirmada") {
+    await avisarFiliado({ ...base, soSino: true, texto: `Inscrição recebida, aguardando avaliação: ${titulo}${sufixo}.` })
+    return
+  }
+
+  const origem = await origemAtual().catch(() => "")
+  await avisarFiliado({
+    ...base,
+    assunto: `Inscrição confirmada — ${titulo}`,
+    texto: `Inscrição confirmada: ${titulo}${sufixo}.`,
+    html:
+      tituloEmail("Inscrição confirmada") +
+      paragrafo(`Sua inscrição em <strong>${escaparHtml(titulo)}</strong> está confirmada.`) +
+      blocoDoEvento(evento) +
+      (origem && inscricao.token ? botaoEmail(`${origem}/inscricao/${inscricao.token}`, "Ver meu código de entrada") : "") +
+      textoSuave(
+        "Na entrada, tenha à mão o código de entrada e um documento com foto. Se não puder ir, cancele a inscrição no portal para liberar a vaga."
+      ) +
+      textoSuave(PREFERENCIAS_PORTAL),
+  })
+}
+
+export type ResultadoVesperaEventos = {
+  /** Eventos de amanhã com hora e local. */
+  eventos: number
+  /** Inscrições confirmadas de filiados nesses eventos. */
+  inscricoes: number
+  avisados: number
+  porEmail: number
+  /** Já tinham o lembrete desta inscrição para esta data. */
+  jaAvisados: number
+  /** Disseram que não vêm (RSVP) ou sem CPF válido. */
+  pulados: number
+  falhas: number
+  erro?: string
+}
+
+/**
+ * Lembrete na VÉSPERA (A122), para o tick diário — roda FORA de requisição:
+ * passe o service client, o tenant da volta do laço e o contexto do e-mail
+ * (`contextoDoTenant`), como nos outros lembretes; nada aqui lê o tenant ou a
+ * origem da requisição (achado A19).
+ *
+ * Véspera = o evento começa AMANHÃ no calendário de São Paulo, seja qual for
+ * a hora do tick. Só eventos publicados com hora e local (adiado não: a data
+ * ainda é a antiga). Vai às inscrições confirmadas de filiados — o sino é o
+ * deles, e é ele que guarda o "uma vez" — menos a de quem já respondeu que não
+ * vem. Uma vez por inscrição: o texto leva a data e o link leva a inscrição,
+ * e o `umaVez` não repete; se o evento mudar de dia, o lembrete da data nova
+ * sai. O e-mail respeita a preferência "Eventos" e leva o código de entrada.
+ * Inscrição de não filiado fica de fora: sem sino, não haveria onde guardar o
+ * "já avisado" (precisaria de uma coluna em eventos_inscricoes).
+ */
+export async function lembretesVesperaEventos(amb: {
+  client: SupabaseClient
+  tenantId: string
+  contexto: ContextoEmail
+}): Promise<ResultadoVesperaEventos> {
+  const { client, tenantId, contexto } = amb
+  const vazio: ResultadoVesperaEventos = {
+    eventos: 0,
+    inscricoes: 0,
+    avisados: 0,
+    porEmail: 0,
+    jaAvisados: 0,
+    pulados: 0,
+    falhas: 0,
+  }
+  const amanha = somarDiasISO(hojeSP(), 1)
+  const de = deCampoDataHora(`${amanha}T00:00`)
+  const ate = deCampoDataHora(`${somarDiasISO(amanha, 1)}T00:00`)
+  if (!de || !ate) return vazio
+
+  const { data: brutos, error } = await client
+    .from("eventos")
+    .select("id, titulo, inicio, local, endereco")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("situacao", "publicado")
+    .gte("inicio", de)
+    .lt("inicio", ate)
+  if (error) return { ...vazio, erro: esquemaAusente(error) ? "sem tabela de eventos" : error.message }
+  const eventos = new Map(
+    (brutos ?? [])
+      .filter((e) => texto(e.inicio) && (texto(e.local) ?? texto(e.endereco)))
+      .map((e) => [
+        String(e.id),
+        {
+          titulo: texto(e.titulo),
+          inicio: String(e.inicio),
+          local: texto(e.local),
+          endereco: texto(e.endereco),
+        },
+      ])
+  )
+  if (eventos.size === 0) return vazio
+
+  let inscricoes: Record<string, unknown>[]
+  try {
+    inscricoes = await lerEmLotes((ini, fim) =>
+      client
+        .from("eventos_inscricoes")
+        .select("id, evento_id, cpf, nome, email, token, rsvp_confirmado")
+        .eq("emp_proprietaria_id", tenantId)
+        .in("evento_id", [...eventos.keys()])
+        .eq("situacao", "confirmada")
+        .is("anonimizada_em", null)
+        .not("filiacao_id", "is", null)
+        .order("id")
+        .range(ini, fim)
+    )
+  } catch (e) {
+    return { ...vazio, eventos: eventos.size, erro: (e as Error).message }
+  }
+
+  const resultado: ResultadoVesperaEventos = { ...vazio, eventos: eventos.size, inscricoes: inscricoes.length }
+  const lembretes: { cpf: string; aviso: AvisoPortal }[] = []
+  for (const i of inscricoes) {
+    const ev = eventos.get(String(i.evento_id))
+    const cpf = cpfConfiavel(i.cpf as string | null)
+    if (!ev || !cpf || i.rsvp_confirmado === false) {
+      resultado.pulados++
+      continue
+    }
+    const { dia, hora } = diaEHora(ev.inicio)
+    const titulo = ev.titulo ?? "evento"
+    const onde = ev.local ?? ev.endereco ?? ""
+    const nome = texto(i.nome)
+    const primeiro = nome?.trim().split(/\s+/)[0]
+    const token = texto(i.token)
+    lembretes.push({
+      cpf,
+      aviso: {
+        cpf,
+        nome,
+        email: texto(i.email)?.trim() ?? null,
+        evento: "eventos",
+        umaVez: true,
+        link: linkDaInscricaoNoPortal(String(i.id)),
+        assunto: `Amanhã: ${titulo}`,
+        texto: `Amanhã, ${dia} às ${hora}: ${titulo} — ${onde}.`,
+        html:
+          tituloEmail(`Amanhã: ${escaparHtml(titulo)}`) +
+          paragrafo(`${primeiro ? `Olá, ${escaparHtml(primeiro)}!` : "Olá!"} Lembrete da sua inscrição confirmada:`) +
+          blocoDoEvento(ev) +
+          (token ? botaoEmail(`${contexto.origem}/inscricao/${token}`, "Ver meu código de entrada") : "") +
+          textoSuave("Se não puder ir, cancele a inscrição no portal para liberar a vaga para quem está na fila.") +
+          textoSuave(PREFERENCIAS_PORTAL),
+      },
+    })
+  }
+
+  // O que já foi lembrado: a leitura separa "já avisado" de falha no relatório
+  // do tick; o `umaVez` barra a repetição mesmo sem ela. Só os lembretes: o
+  // mesmo link tem recibo, RSVP e avaliação, e 200 links × vários avisos
+  // passariam do teto de 1.000 linhas.
+  const ja = new Set<string>()
+  const links = lembretes.map((l) => l.aviso.link)
+  for (let i = 0; i < links.length; i += 200) {
+    const { data } = await client
+      .from("portal_avisos")
+      .select("cpf, texto, link")
+      .eq("emp_proprietaria_id", tenantId)
+      .eq("evento", "eventos")
+      .like("texto", "Amanhã, %")
+      .in("link", links.slice(i, i + 200))
+    for (const a of data ?? []) ja.add(`${a.cpf}|${a.texto}|${a.link}`)
+  }
+  const novos = lembretes.filter((l) => {
+    const repetido = ja.has(`${l.cpf}|${l.aviso.texto}|${l.aviso.link}`)
+    if (repetido) resultado.jaAvisados++
+    return !repetido
+  })
+
+  // Cinco por vez: sequencial demora num evento grande; tudo junto estoura o provedor.
+  for (let i = 0; i < novos.length; i += 5) {
+    const saidas = await Promise.all(
+      novos.slice(i, i + 5).map((l) => avisarFiliado(l.aviso, { client, tenantId, contexto }))
+    )
+    for (const r of saidas) {
+      if (r) resultado.avisados++
+      else resultado.falhas++
+      if (r === "email") resultado.porEmail++
+    }
+  }
+  return resultado
 }

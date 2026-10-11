@@ -2348,6 +2348,10 @@ export async function encerrarApuracao(
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  // Resultado publicado: avisa quem votou (sino + e-mail pela preferência)
+  // depois da resposta — achado A49 da avaliação do portal. Nunca falha aqui.
+  const { agendarAvisoDoResultado } = await import("@/lib/db/votacao-aviso")
+  await agendarAvisoDoResultado(assembleiaId)
   return {}
 }
 

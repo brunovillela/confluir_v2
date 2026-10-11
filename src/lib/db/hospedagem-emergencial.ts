@@ -11,6 +11,8 @@ import {
   reservarEstadia,
 } from "@/lib/db/hospedagem-garantida"
 import { criarNotificacao } from "@/lib/db/notificacoes"
+import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { dataBR } from "@/lib/hospedagem-garantida-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -25,7 +27,8 @@ import { tenantAtual } from "@/lib/tenant"
  *   - demanda garantida: condições + não comparecimento, e a reserva sai na
  *     hora, com o quarto definido.
  * Fica marcado (emergencial, quem do hotel, quando, motivo) e a gestão é
- * avisada no sino. SQL: supabase/hospedagem-cupom-emergencial.sql.
+ * avisada no sino — o filiado também (no cupom comum, um sino curto; na
+ * garantida, o "Reserva confirmada"). SQL: supabase/hospedagem-cupom-emergencial.sql.
  */
 
 export const AVISO_SQL_EMERGENCIAL =
@@ -146,12 +149,15 @@ export async function registrarCupomEmergencial(p: {
     cupomId = reserva.cupomId
     const { error } = await admin.from("hospedagem_cupom").update(marca).eq("id", cupomId)
     if (error) console.error("Cupom emergencial sem a marca:", error.message)
+    // "Reserva confirmada" (sino + e-mail com o QR) já diz à pessoa que há
+    // uma reserva no nome dela — não vai um segundo aviso.
     await enviarEmailReservaConfirmada({
       cpf: r.cadastro.cpf,
       hotelNome: p.hotel.nome ?? "hotel",
       checkIn: hoje,
       checkOut,
       token: reserva.token,
+      cupomId,
     })
   } else {
     const { data, error } = await admin
@@ -170,6 +176,17 @@ export async function registrarCupomEmergencial(p: {
       .single()
     if (error || !data) return { erro: `Não foi possível registrar o cupom: ${error?.message ?? "?"}` }
     cupomId = String(data.id)
+    // Sino curto (achado A21): a pessoa sabe que há um cupom no nome dela —
+    // também é o controle contra uso indevido do CPF no balcão.
+    if (r.cadastro.cpf) {
+      await avisarFiliado({
+        cpf: r.cadastro.cpf,
+        evento: "hospedagem",
+        texto: `O ${p.hotel.nome ?? "hotel"} emitiu um cupom emergencial no seu nome para hoje (${dataBR(hoje)}). Se não foi você, avise o sindicato em Atendimento.`,
+        link: "/portal/hospedagem",
+        soSino: true,
+      })
+    }
   }
 
   await avisarGestao(

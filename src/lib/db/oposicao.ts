@@ -1,14 +1,23 @@
 import "server-only"
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
-import { hojeSP, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
+import { origemAtual } from "@/lib/tenant-url"
 
+import { depoisDaResposta } from "@/lib/db/avisos"
 import { gerarCodigoProcesso } from "@/lib/db/compras"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { avisarFiliado, type ResultadoAviso } from "@/lib/db/portal-avisos"
 import { empregadoresAtivos } from "@/lib/db/votacao-portal"
+import { enviarEmail, type ContextoEmail } from "@/lib/email"
+import { botaoEmail, caixaAviso, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import { formatarData } from "@/lib/formato"
+import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   estadoPrazo,
@@ -795,7 +804,7 @@ async function proximoProtocolo(
 export async function registrarOposicao(
   dados: DadosOposicao,
   exigeDoc: boolean
-): Promise<{ id?: string; protocolo?: number; erro?: string }> {
+): Promise<{ id?: string; protocolo?: number; confirmadoEm?: string; erro?: string }> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
 
@@ -880,7 +889,7 @@ export async function registrarOposicao(
     dados.ip,
     dados.userAgent
   )
-  return { id: opositorId, protocolo }
+  return { id: opositorId, protocolo, confirmadoEm: campos.confirmado_em }
 }
 
 /**
@@ -1225,6 +1234,14 @@ export async function avaliarOpositor(
   }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
+  // O antes, para avisar só quando a decisão muda (A58): a gestão pode
+  // re-decidir, e o mesmo "Reprovar" salvo duas vezes não é um fato novo.
+  const { data: antes } = await admin
+    .from("oposicao_opositor")
+    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
   const { data, error } = await admin
     .from("oposicao_opositor")
     .update({
@@ -1249,5 +1266,380 @@ export async function avaliarOpositor(
     null,
     null
   )
+  const situacaoNova = aprovar ? "aprovada" : "reprovada"
+  const motivoNovo = aprovar ? null : (motivo?.trim() ?? null)
+  if (antes && (antes.situacao !== situacaoNova || (texto(antes.reprovacao_motivo) ?? null) !== motivoNovo)) {
+    avisarOposicaoAvaliada({
+      opositorId: id,
+      aprovada: aprovar,
+      motivo: motivoNovo,
+      protocolo: antes.protocolo == null ? null : Number(antes.protocolo),
+      campanhaId: texto(antes.campanha_id),
+      pessoa: {
+        cpf: texto(antes.cpf),
+        nome: texto(antes.nome_completo),
+        email: texto(antes.email)?.trim() ?? null,
+        filiado: Boolean(antes.filiacao_id),
+      },
+    })
+  }
   return {}
+}
+
+// ── Avisos ao trabalhador (A16/A58) ──────────────────────────────────────────
+
+const PREFERENCIAS_PORTAL =
+  "Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."
+
+/** "11/10/2026" no fuso de São Paulo (data pura passa direto). */
+function dataSPBR(valor: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) return formatarData(valor)
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(valor))
+}
+
+/** "14:32" no fuso de São Paulo. */
+function horaSPBR(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso))
+}
+
+function saudacaoEmail(nome: string | null): string {
+  const primeiro = nome?.trim().split(/\s+/)[0]
+  return primeiro ? `Olá, ${escaparHtml(primeiro)}!` : "Olá!"
+}
+
+function dadosEmail(pares: [string, string][]): string {
+  return paragrafo(
+    pares.map(([rotulo, valor]) => `<strong>${escaparHtml(rotulo)}:</strong> ${escaparHtml(valor)}`).join("<br>")
+  )
+}
+
+const PASSOS_CARTA = paragrafo(
+  "1. Abra o comprovante e baixe a sua carta, já preenchida com seus dados.<br>" +
+    "2. Assine no Assinador gov.br (assinatura digital).<br>" +
+    "3. Envie o PDF assinado pelo próprio comprovante."
+)
+
+type PessoaDoAviso = {
+  cpf: string | null
+  nome: string | null
+  email: string | null
+  /** Filiado tem sino no portal; o trabalhador não filiado, só o e-mail. */
+  filiado: boolean
+}
+
+type AmbienteAviso = { client?: SupabaseClient; tenantId?: string; contexto?: ContextoEmail }
+
+/**
+ * Entrega um aviso da oposição. Filiado: pelo aviso do portal (sino + e-mail
+ * conforme a preferência "Filiação e oposição"; `umaVez` não repete o mesmo
+ * texto). O trabalhador não filiado não tem sino: o e-mail vai direto ao
+ * endereço que ele confirmou com o código (ajuste de exatidão do A16).
+ *
+ * `umaVez: false` na avaliação: quem decide se é fato novo é a mudança da
+ * decisão. Aceita → não aceita → aceita de novo precisa avisar a terceira, e
+ * o `umaVez` a barraria por ter o mesmo texto da primeira.
+ */
+async function entregarAvisoOposicao(
+  a: { pessoa: PessoaDoAviso; assunto: string; texto: string; link: string; html: string; umaVez?: boolean },
+  amb: AmbienteAviso = {}
+): Promise<ResultadoAviso> {
+  const cpf = cpfConfiavel(a.pessoa.cpf)
+  if (a.pessoa.filiado && cpf) {
+    return avisarFiliado(
+      {
+        cpf,
+        nome: a.pessoa.nome,
+        email: a.pessoa.email,
+        evento: "filiacao",
+        assunto: a.assunto,
+        texto: a.texto,
+        link: a.link,
+        html: a.html + textoSuave(PREFERENCIAS_PORTAL),
+        umaVez: a.umaVez ?? true,
+      },
+      amb
+    )
+  }
+  if (!a.pessoa.email) return false
+  const saiu = await enviarEmail({
+    email: a.pessoa.email,
+    nome: a.pessoa.nome,
+    assunto: a.assunto,
+    html: a.html,
+    contexto: amb.contexto,
+  })
+  return saiu ? "email" : false
+}
+
+/** Para a trilha de auditoria: a entidade sabe se a pessoa foi avisada. */
+function descreverEntrega(r: ResultadoAviso): string {
+  if (r === "email") return "e-mail enviado"
+  if (r === "sino") return "aviso no portal; e-mail não saiu (desligado nas preferências, sem endereço ou recusado)"
+  return "aviso não enviado (já avisado, sem e-mail ou falha no envio)"
+}
+
+/**
+ * Comprovante por e-mail da oposição registrada (A16): protocolo, data e
+ * hora, campanha e o link do comprovante — o único registro de um ato com
+ * prazo legal não pode existir só na tela. Quando falta a carta assinada, o
+ * e-mail diz até quando e como enviá-la (anexar o PDF da carta fica para
+ * depois: o comprovante já a gera). Roda depois da resposta: o registro
+ * nunca espera o provedor de e-mail.
+ */
+export function avisarOposicaoRegistrada(o: {
+  opositorId: string
+  protocolo: number | null
+  confirmadoEm: string
+  campanhaNome: string | null
+  prazoFim: string | null
+  exigeDocumento: boolean
+  pessoa: PessoaDoAviso
+}): void {
+  depoisDaResposta(async () => {
+    const protocolo = o.protocolo == null ? "—" : String(o.protocolo)
+    const campanha = o.campanhaNome ?? "—"
+    const quando = `${dataSPBR(o.confirmadoEm)} às ${horaSPBR(o.confirmadoEm)}`
+    const prazo = o.prazoFim ? formatarData(o.prazoFim) : null
+    const link = `/portal/oposicao/comprovante/${o.opositorId}`
+    const origem = await origemAtual().catch(() => "")
+    const falta = `Falta enviar a carta assinada${prazo ? ` até ${prazo}` : ""}.`
+
+    const html =
+      tituloEmail(o.exigeDocumento ? "Oposição registrada: falta a carta assinada" : "Oposição registrada") +
+      paragrafo(
+        `${saudacaoEmail(o.pessoa.nome)} Registramos a sua oposição à contribuição assistencial. Guarde este e-mail como comprovante.`
+      ) +
+      dadosEmail([
+        ["Protocolo", protocolo],
+        ["Data e hora", quando],
+        ["Campanha", campanha],
+      ]) +
+      (o.exigeDocumento
+        ? caixaAviso(`<strong>${escaparHtml(falta)}</strong> Sem ela, a oposição não é avaliada.`) + PASSOS_CARTA
+        : paragrafo("A entidade vai avaliar a sua oposição, e você recebe outro aviso com o resultado.")) +
+      (origem
+        ? botaoEmail(`${origem}${link}`, o.exigeDocumento ? "Abrir o comprovante e enviar a carta" : "Ver o comprovante")
+        : "")
+
+    const r = await entregarAvisoOposicao({
+      pessoa: o.pessoa,
+      assunto: o.exigeDocumento
+        ? `Oposição registrada — falta enviar a carta (protocolo ${protocolo})`
+        : `Oposição registrada — protocolo ${protocolo}`,
+      texto:
+        `Sua oposição à contribuição assistencial foi registrada em ${quando}: protocolo ${protocolo}, campanha ${campanha}.` +
+        (o.exigeDocumento ? ` ${falta}` : ""),
+      link,
+      html,
+    })
+    await registrarEvento(o.opositorId, "aviso_registro", descreverEntrega(r), null, null)
+  })
+}
+
+/**
+ * Resultado da avaliação (A16/A58): aceita ou não aceita, com o motivo e o
+ * caminho para discordar. Chamada por `avaliarOpositor` só quando a decisão
+ * muda — salvar a mesma decisão de novo não repete o aviso.
+ */
+function avisarOposicaoAvaliada(o: {
+  opositorId: string
+  aprovada: boolean
+  motivo: string | null
+  protocolo: number | null
+  campanhaId: string | null
+  pessoa: PessoaDoAviso
+}): void {
+  depoisDaResposta(async () => {
+    let campanha = "—"
+    if (o.campanhaId) {
+      const admin = await createAdminClient()
+      const { data } = await admin
+        .from("oposicao_campanha")
+        .select("nome")
+        .eq("id", o.campanhaId)
+        .eq("emp_proprietaria_id", await tenantAtual())
+        .maybeSingle()
+      campanha = texto(data?.nome) ?? campanha
+    }
+    const protocolo = o.protocolo == null ? "—" : String(o.protocolo)
+    const link = `/portal/oposicao/comprovante/${o.opositorId}`
+    const origem = await origemAtual().catch(() => "")
+    const resumo = `Sua oposição à contribuição assistencial (protocolo ${protocolo}, campanha ${campanha})`
+
+    const html =
+      tituloEmail(o.aprovada ? "Sua oposição foi aceita" : "Sua oposição não foi aceita") +
+      paragrafo(
+        `${saudacaoEmail(o.pessoa.nome)} ${escaparHtml(resumo)} ${
+          o.aprovada ? "foi <strong>aceita</strong> pela entidade." : "<strong>não foi aceita</strong> pela entidade."
+        }`
+      ) +
+      (o.aprovada
+        ? ""
+        : caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(o.motivo ?? "não informado")}`) +
+          paragrafo("Se discordar da decisão, procure a entidade o quanto antes, informando o número do protocolo.")) +
+      (origem ? botaoEmail(`${origem}${link}`, "Ver o comprovante") : "")
+
+    const r = await entregarAvisoOposicao({
+      pessoa: o.pessoa,
+      assunto: o.aprovada
+        ? `Sua oposição foi aceita — protocolo ${protocolo}`
+        : `Sua oposição não foi aceita — protocolo ${protocolo}`,
+      texto: o.aprovada ? `${resumo} foi aceita.` : `${resumo} não foi aceita. Motivo: ${o.motivo ?? "não informado"}`,
+      link,
+      html,
+      umaVez: false,
+    })
+    await registrarEvento(o.opositorId, "aviso_avaliacao", descreverEntrega(r), null, null)
+  })
+}
+
+/** Quantos dias antes do fim do prazo sai o lembrete da carta. */
+const DIAS_ANTES_DO_PRAZO_CARTA = 3
+
+export type ResultadoLembretesCarta = {
+  /** Oposições aguardando a carta em campanhas perto do fim do prazo. */
+  pendentes: number
+  avisados: number
+  porEmail: number
+  /** Já tinham o lembrete na trilha (ou registraram há menos de um dia). */
+  pulados: number
+  falhas: number
+  erro?: string
+}
+
+/**
+ * Lembrete da carta assinada (A16, parte 3), para o tick diário — roda FORA
+ * de requisição: passe o service client, o tenant da volta do laço e o
+ * contexto do e-mail (`contextoDoTenant`), como nos outros lembretes. Quem
+ * está em 'aguardando_documento' numa campanha aberta cujo prazo termina nos
+ * próximos dias recebe UM lembrete: o envio fica na trilha de auditoria
+ * (`lembrete_carta`), que é também o que impede a repetição — o trabalhador
+ * não filiado não tem sino onde o `umaVez` pudesse conferir. Quem registrou
+ * há menos de um dia fica de fora: o comprovante com o prazo acabou de sair.
+ */
+export async function lembretesCartaOposicao(amb: {
+  client: SupabaseClient
+  tenantId: string
+  contexto: ContextoEmail
+}): Promise<ResultadoLembretesCarta> {
+  const { client, tenantId, contexto } = amb
+  const vazio: ResultadoLembretesCarta = { pendentes: 0, avisados: 0, porEmail: 0, pulados: 0, falhas: 0 }
+  const hoje = hojeSP()
+
+  const { data: campanhas, error } = await client
+    .from("oposicao_campanha")
+    .select("id, nome, prazo_inicio, prazo_fim")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("situacao", "aberta")
+    .gte("prazo_fim", hoje)
+    .lte("prazo_fim", somarDiasISO(hoje, DIAS_ANTES_DO_PRAZO_CARTA))
+  if (error) return { ...vazio, erro: esquemaAusente(error) ? "sem tabela de oposição" : error.message }
+  const porCampanha = new Map(
+    (campanhas ?? [])
+      .filter((c) => estadoPrazo(texto(c.prazo_inicio), texto(c.prazo_fim), hoje) === "aberto")
+      .map((c) => [String(c.id), { nome: texto(c.nome), prazoFim: String(c.prazo_fim).slice(0, 10) }])
+  )
+  if (porCampanha.size === 0) return vazio
+
+  let pendentes: Record<string, unknown>[]
+  try {
+    pendentes = await lerEmLotes((de, ate) =>
+      client
+        .from("oposicao_opositor")
+        .select("id, cpf, nome_completo, email, filiacao_id, protocolo, campanha_id, confirmado_em")
+        .eq("emp_proprietaria_id", tenantId)
+        .in("campanha_id", [...porCampanha.keys()])
+        .eq("situacao", "aguardando_documento")
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    return { ...vazio, erro: (e as Error).message }
+  }
+  if (pendentes.length === 0) return vazio
+
+  // Uma vez por oposição: quem já tem `lembrete_carta` na trilha fica de fora.
+  // Se a trilha não puder ser lida, não arrisca repetir — tenta no dia seguinte.
+  const jaLembrados = new Set<string>()
+  const ids = pendentes.map((p) => String(p.id))
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error: erroTrilha } = await client
+      .from("oposicao_eventos")
+      .select("opositor_id")
+      .eq("emp_proprietaria_id", tenantId)
+      .eq("evento", "lembrete_carta")
+      .in("opositor_id", ids.slice(i, i + 200))
+    if (erroTrilha) return { ...vazio, pendentes: pendentes.length, erro: erroTrilha.message }
+    for (const e of data ?? []) jaLembrados.add(String(e.opositor_id))
+  }
+
+  const resultado: ResultadoLembretesCarta = { ...vazio, pendentes: pendentes.length }
+  const recem = Date.now() - 24 * 60 * 60 * 1000
+  const fila = pendentes.filter((p) => {
+    const registro = texto(p.confirmado_em) ? Date.parse(String(p.confirmado_em)) : Number.NaN
+    const pular = jaLembrados.has(String(p.id)) || (Number.isFinite(registro) && registro > recem)
+    if (pular) resultado.pulados++
+    return !pular
+  })
+
+  // Cinco por vez: sequencial demora numa campanha grande; tudo junto estoura o provedor.
+  for (let i = 0; i < fila.length; i += 5) {
+    await Promise.all(
+      fila.slice(i, i + 5).map(async (p) => {
+        const id = String(p.id)
+        const campanha = porCampanha.get(String(p.campanha_id))
+        const prazo = campanha ? formatarData(campanha.prazoFim) : "—"
+        const protocolo = p.protocolo == null ? "—" : String(p.protocolo)
+        const link = `/portal/oposicao/comprovante/${id}`
+        const pessoa: PessoaDoAviso = {
+          cpf: texto(p.cpf),
+          nome: texto(p.nome_completo),
+          email: texto(p.email)?.trim() ?? null,
+          filiado: Boolean(p.filiacao_id),
+        }
+        const html =
+          tituloEmail("Falta enviar a carta da sua oposição") +
+          paragrafo(
+            `${saudacaoEmail(pessoa.nome)} A sua oposição à contribuição assistencial (protocolo ${escaparHtml(protocolo)}, campanha ${escaparHtml(campanha?.nome ?? "—")}) ainda espera a carta assinada.`
+          ) +
+          caixaAviso(`<strong>O prazo termina em ${escaparHtml(prazo)}.</strong> Sem a carta, a oposição não é avaliada.`) +
+          PASSOS_CARTA +
+          botaoEmail(`${contexto.origem}${link}`, "Abrir o comprovante e enviar a carta")
+        try {
+          const r = await entregarAvisoOposicao(
+            {
+              pessoa,
+              assunto: `Falta enviar a carta da sua oposição — prazo até ${prazo}`,
+              texto: `Falta enviar a carta assinada da sua oposição (protocolo ${protocolo}). O prazo termina em ${prazo}; sem a carta, a oposição não é avaliada.`,
+              link,
+              html,
+            },
+            { client, tenantId, contexto }
+          )
+          if (r) resultado.avisados++
+          else resultado.falhas++
+          if (r === "email") resultado.porEmail++
+          await client.from("oposicao_eventos").insert({
+            opositor_id: id,
+            evento: "lembrete_carta",
+            detalhe: descreverEntrega(r),
+            emp_proprietaria_id: tenantId,
+          })
+        } catch (e) {
+          console.error("lembrete da carta de oposição:", e)
+          resultado.falhas++
+        }
+      })
+    )
+  }
+  return resultado
 }

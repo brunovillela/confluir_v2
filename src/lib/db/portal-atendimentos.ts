@@ -2,18 +2,23 @@ import "server-only"
 
 import { randomUUID } from "node:crypto"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import {
   ASSUNTOS_ATENDIMENTO,
   ATENDIMENTO_ABERTO,
   ATENDIMENTO_AGUARDANDO_EQUIPE,
+  PRAZO_REABRIR_DIAS,
   TIPO_DEMANDA_ATENDIMENTO,
   assuntoAtendimento,
+  reabrirAte,
   type SituacaoAtendimento,
 } from "@/lib/atendimento-constantes"
 import { cpfConfiavel } from "@/lib/cpf"
-import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
-import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
+import { avisar, avisarQuemPode, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { type ContextoEmail } from "@/lib/email"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -26,7 +31,24 @@ import { tenantAtual } from "@/lib/tenant"
  * do filiado avisa quem cuida das demandas. Tabelas em
  * supabase/portal-atendimentos.sql; sem elas o portal diz que o canal ainda
  * não está disponível.
+ *
+ * Avisos ao filiado (A121, A13, A152): recibo com o prazo ao abrir, sino
+ * quando a equipe começa (Demanda em "Fazendo") ou reabre, resposta e
+ * conclusão; o e-mail vai sempre para o endereço ATUAL do cadastro — a
+ * coluna `email` da solicitação é só o registro da época da abertura.
+ * O prazo estourado sem resposta é lembrado por `lembretesPrazoAtendimento`,
+ * que o tick diário chama.
  */
+
+/** Quem cuida das solicitações no painel — os mesmos avisados quando uma chega. */
+const EQUIPE = "ferramentas_demandas"
+const EQUIPE_ALTERNATIVAS = ["ferramentas_tarefas"]
+
+/** DD/MM/AAAA de uma data pura (AAAA-MM-DD). */
+function diaDaData(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso
+}
 
 const BUCKET = "documentos"
 const PASTA = "atendimentos"
@@ -220,16 +242,36 @@ export async function abrirAtendimento(p: {
   if (demanda?.id) await admin.from("portal_atendimentos").update({ demanda_id: demanda.id }).eq("id", id)
 
   depoisDaResposta(() =>
-    avisarQuemPode("ferramentas_demandas", ["ferramentas_tarefas"], {
+    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
       texto: `${p.nome ?? "Um filiado"} abriu uma solicitação de ${assunto.rotulo.toLowerCase()} pelo portal: ${titulo}`,
       link: `/painel/filiados/atendimentos/${id}`,
       evento: "atendimento_filiado",
       assunto: `Nova solicitação de ${assunto.rotulo.toLowerCase()} pelo portal`,
     })
   )
+  // Recibo para o associado (A121): o protocolo que ele guarda, com o prazo.
+  // Sem nome e e-mail: o aviso busca o contato atual do cadastro (A152).
+  depoisDaResposta(() =>
+    avisarFiliado({
+      cpf,
+      evento: "atendimento",
+      umaVez: true,
+      assunto: "Recebemos sua solicitação",
+      texto: `Recebemos sua solicitação de ${assunto.rotulo.toLowerCase()} "${titulo.slice(0, 140)}". A entidade responde até ${diaDaData(prazo)}.`,
+      link: `/portal/atendimento/${id}`,
+    })
+  )
   return { id }
 }
 
+/** Peso na lista do associado: a resposta que espera por ele sobe; as concluídas descem (A96). */
+const PESO_NA_LISTA: Record<SituacaoAtendimento, number> = { respondida: 0, aberta: 1, em_andamento: 1, concluida: 2 }
+
+/**
+ * As solicitações do filiado, na ordem em que pedem atenção: respondidas
+ * (a vez é dele), depois as abertas e em andamento, por fim as concluídas —
+ * dentro de cada grupo, a mexida mais recente primeiro.
+ */
 export async function meusAtendimentos(cpf: string): Promise<{ lista: Atendimento[]; disponivel: boolean }> {
   const chave = cpfConfiavel(cpf)
   if (!chave) return { lista: [], disponivel: true }
@@ -242,7 +284,9 @@ export async function meusAtendimentos(cpf: string): Promise<{ lista: Atendiment
     .order("created_at", { ascending: false })
     .limit(200)
   if (error) return { lista: [], disponivel: !esquemaAusente(error) }
-  return { lista: (data ?? []).map((d) => montar(d as Record<string, unknown>)), disponivel: true }
+  const lista = (data ?? []).map((d) => montar(d as Record<string, unknown>))
+  lista.sort((a, b) => PESO_NA_LISTA[a.situacao] - PESO_NA_LISTA[b.situacao] || b.atualizadoEm.localeCompare(a.atualizadoEm))
+  return { lista, disponivel: true }
 }
 
 async function mensagensDe(atendimentoId: string): Promise<MensagemAtendimento[]> {
@@ -280,7 +324,13 @@ export async function responderComoFiliado(p: {
 }): Promise<{ erro?: string; campo?: string }> {
   const atual = await atendimentoDoFiliado(p.id, p.cpf)
   if (!atual) return { erro: "Solicitação não encontrada." }
-  if (atual.atendimento.situacao === "concluida") return { erro: "Esta solicitação foi concluída — abra uma nova se o assunto voltou." }
+  if (atual.atendimento.situacao === "concluida") {
+    return {
+      erro: reabrirAte(atual.atendimento)
+        ? "Esta solicitação foi concluída. Para continuar a conversa, reabra a solicitação nesta página."
+        : "Esta solicitação foi concluída — abra uma nova se o assunto voltou.",
+    }
+  }
   const corpo = p.texto.trim()
   if (corpo.length < 2) return { erro: "Escreva a mensagem.", campo: "texto" }
   const anexo = await guardarAnexo(p.id, p.anexo)
@@ -303,16 +353,126 @@ export async function responderComoFiliado(p: {
     .from("portal_atendimentos")
     .update({ situacao: atual.atendimento.situacao === "respondida" ? "em_andamento" : atual.atendimento.situacao, updated_at: new Date().toISOString() })
     .eq("id", p.id)
-  if (atual.atendimento.demandaId) {
+  // A Demanda só volta a "Fazendo" junto com a solicitação (respondida → em
+  // andamento). Numa ainda "aberta", o filiado só acrescentou informação: a
+  // equipe não começou, e a Demanda em "Fazendo" deixaria o portal dizendo
+  // "Aberta" sem que a mudança de situação no painel avisasse (A13).
+  if (atual.atendimento.demandaId && atual.atendimento.situacao === "respondida") {
     await admin.from("demandas").update({ situacao: "Fazendo" }).eq("id", atual.atendimento.demandaId).neq("situacao", "Feito")
   }
 
   depoisDaResposta(() =>
-    avisarQuemPode("ferramentas_demandas", ["ferramentas_tarefas"], {
+    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
       texto: `${p.nome ?? "O filiado"} respondeu na solicitação "${atual.atendimento.titulo}"`,
       link: `/painel/filiados/atendimentos/${p.id}`,
       evento: "atendimento_filiado",
       assunto: "Resposta do filiado em uma solicitação",
+    })
+  )
+  return {}
+}
+
+/**
+ * "Resolvido, pode encerrar" (A97): o próprio associado conclui a solicitação
+ * — o problema se resolveu por fora e a Demanda não deve seguir ocupando a
+ * equipe. Fica na conversa como mensagem dele; a Demanda vai para "Feito" e
+ * a equipe é avisada como quando ele responde. Reversível: dá para reabrir
+ * por PRAZO_REABRIR_DIAS dias.
+ */
+export async function encerrarComoFiliado(p: { id: string; cpf: string; nome: string | null }): Promise<{ erro?: string }> {
+  const atual = await atendimentoDoFiliado(p.id, p.cpf)
+  if (!atual) return { erro: "Solicitação não encontrada." }
+  const a = atual.atendimento
+  if (a.situacao === "concluida") return { erro: "Esta solicitação já está concluída." }
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const agora = new Date().toISOString()
+  // Primeiro a situação, só se ainda aberta: sem ela, nada de mensagem nem de
+  // aviso à equipe dizendo que encerrou.
+  const { data: mudou, error } = await admin
+    .from("portal_atendimentos")
+    .update({ situacao: "concluida", concluida_em: agora, updated_at: agora })
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", a.id)
+    .neq("situacao", "concluida")
+    .select("id")
+  if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  if (!mudou?.length) return { erro: "Esta solicitação já está concluída." }
+  const { error: erroMsg } = await admin.from("portal_atendimentos_mensagens").insert({
+    emp_proprietaria_id: emp,
+    atendimento_id: a.id,
+    autor: "filiado",
+    autor_nome: p.nome,
+    texto: "Resolvido, pode encerrar.",
+  })
+  if (erroMsg) console.error("encerrar atendimento (mensagem):", erroMsg.message)
+  if (a.demandaId) await admin.from("demandas").update({ situacao: "Feito" }).eq("emp_proprietaria_id", emp).eq("id", a.demandaId)
+
+  depoisDaResposta(() =>
+    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
+      texto: `${p.nome ?? "O filiado"} encerrou a solicitação "${a.titulo}": está resolvida`,
+      link: `/painel/filiados/atendimentos/${a.id}`,
+      evento: "atendimento_filiado",
+      assunto: "Solicitação encerrada pelo filiado",
+    })
+  )
+  return {}
+}
+
+/**
+ * Reabertura em comum: a equipe (painel) e o associado (portal, dentro do
+ * prazo). Só muda o que ainda está concluído — dois cliques (ou a equipe e o
+ * associado ao mesmo tempo) não avisam duas vezes.
+ */
+async function reabrir(a: Atendimento): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: mudou, error } = await admin
+    .from("portal_atendimentos")
+    .update({ situacao: "em_andamento", concluida_em: null, updated_at: new Date().toISOString() })
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", a.id)
+    .eq("situacao", "concluida")
+    .select("id")
+  if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
+  if (!mudou?.length) return { erro: "Esta solicitação já está aberta." }
+  if (a.demandaId) await admin.from("demandas").update({ situacao: "Fazendo" }).eq("emp_proprietaria_id", emp).eq("id", a.demandaId)
+  return {}
+}
+
+/**
+ * "Não resolveu — reabrir" (A97): o associado retoma a solicitação concluída,
+ * com a conversa inteira, em vez de recomeçar do zero — até
+ * PRAZO_REABRIR_DIAS dias depois da conclusão. A equipe é avisada.
+ */
+export async function reabrirComoFiliado(p: { id: string; cpf: string; nome: string | null }): Promise<{ erro?: string }> {
+  const atual = await atendimentoDoFiliado(p.id, p.cpf)
+  if (!atual) return { erro: "Solicitação não encontrada." }
+  const a = atual.atendimento
+  if (a.situacao !== "concluida") return { erro: "Esta solicitação já está aberta." }
+  if (!reabrirAte(a)) {
+    return { erro: `Passaram-se mais de ${PRAZO_REABRIR_DIAS} dias da conclusão. Se o assunto voltou, abra uma nova solicitação.` }
+  }
+
+  const r = await reabrir(a)
+  if (r.erro) return r
+  const admin = await createAdminClient()
+  const { error } = await admin.from("portal_atendimentos_mensagens").insert({
+    emp_proprietaria_id: await tenantAtual(),
+    atendimento_id: a.id,
+    autor: "filiado",
+    autor_nome: p.nome,
+    texto: "Não resolveu — reabri a solicitação.",
+  })
+  if (error) console.error("reabrir atendimento (mensagem):", error.message)
+
+  depoisDaResposta(() =>
+    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
+      texto: `${p.nome ?? "O filiado"} reabriu a solicitação "${a.titulo}": diz que não resolveu`,
+      link: `/painel/filiados/atendimentos/${a.id}`,
+      evento: "atendimento_filiado",
+      assunto: "Solicitação reaberta pelo filiado",
     })
   )
   return {}
@@ -411,11 +571,11 @@ export async function responderAtendimento(p: {
   }
 
   const a = atual.atendimento
+  // Sem nome e e-mail da solicitação: o aviso busca o contato ATUAL do
+  // cadastro, não o da época da abertura (A152).
   depoisDaResposta(() =>
     avisarFiliado({
       cpf: a.cpf,
-      nome: a.nome,
-      email: a.email,
       evento: "atendimento",
       assunto: p.concluir ? "Sua solicitação foi concluída" : "A entidade respondeu à sua solicitação",
       texto: p.concluir
@@ -431,10 +591,201 @@ export async function responderAtendimento(p: {
 export async function reabrirAtendimento(id: string): Promise<{ erro?: string }> {
   const atual = await obterAtendimento(id)
   if (!atual) return { erro: "Solicitação não encontrada." }
-  const admin = await createAdminClient()
-  await admin.from("portal_atendimentos").update({ situacao: "em_andamento", concluida_em: null, updated_at: new Date().toISOString() }).eq("id", id)
-  if (atual.atendimento.demandaId) await admin.from("demandas").update({ situacao: "Fazendo" }).eq("id", atual.atendimento.demandaId)
+  const a = atual.atendimento
+  if (a.situacao !== "concluida") return { erro: "Esta solicitação já está aberta." }
+  const r = await reabrir(a)
+  if (r.erro) return r
+  // O associado via "Concluída" no portal: sabe que a conversa voltou (A121).
+  depoisDaResposta(() =>
+    avisarFiliado({
+      cpf: a.cpf,
+      evento: "atendimento",
+      soSino: true,
+      texto: `A entidade reabriu sua solicitação "${a.titulo}" e voltou a cuidar dela.`,
+      link: `/portal/atendimento/${a.id}`,
+    })
+  )
   return {}
+}
+
+// ── Demanda ↔ solicitação (A13) ──────────────────────────────────────────────
+
+/** O essencial da solicitação ligada a uma Demanda (sem a conversa); null se não há ou sem tabela. */
+async function solicitacaoDaDemanda(demandaId: string): Promise<Pick<Atendimento, "id" | "cpf" | "nome" | "titulo" | "situacao"> | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(demandaId)) return null
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("portal_atendimentos")
+    .select("id, cpf, nome, titulo, situacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("demanda_id", demandaId)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    id: String(data.id),
+    cpf: String(data.cpf),
+    nome: texto(data.nome),
+    titulo: String(data.titulo),
+    situacao: String(data.situacao) as SituacaoAtendimento,
+  }
+}
+
+/**
+ * Antes de a Demanda mudar de situação (actions de Ferramentas → Demandas):
+ * "Feito" numa demanda cuja solicitação do portal segue aberta é recusado —
+ * senão a equipe dá o trabalho por encerrado e o associado fica com
+ * "Aberta, prazo vencido" para sempre. Concluir com um texto automático
+ * seria a mesma sensação de descaso; quem conclui responde ao associado.
+ * Devolve a mensagem de recusa, ou null.
+ */
+export async function recusaDaSituacaoDaDemanda(demandaId: string, nova: string): Promise<string | null> {
+  if (nova !== "Feito") return null
+  const s = await solicitacaoDaDemanda(demandaId)
+  if (!s || !ATENDIMENTO_ABERTO.includes(s.situacao)) return null
+  const quem = s.nome?.trim().split(/\s+/)[0] || "um filiado"
+  return `Esta demanda é a solicitação de ${quem} pelo portal, que segue aberta para o filiado. Para concluir, use "Responder e concluir" no bloco "Conversa com o filiado", na página desta demanda (ou em Filiados → Atendimentos) — a demanda passa a Feito junto.`
+}
+
+/**
+ * Depois de a Demanda mudar de situação: "Fazendo" numa solicitação ainda
+ * "aberta" passa a "em andamento" no portal, com um sino ao associado — a
+ * equipe começou e ele sabe. (O caminho inverso, a resposta mexendo na
+ * Demanda, está em `responderAtendimento`.)
+ */
+export async function sincronizarAtendimentoDaDemanda(demandaId: string, nova: string): Promise<void> {
+  if (nova !== "Fazendo") return
+  const s = await solicitacaoDaDemanda(demandaId)
+  if (!s || s.situacao !== "aberta") return
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("portal_atendimentos")
+    .update({ situacao: "em_andamento", updated_at: new Date().toISOString() })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", s.id)
+    .eq("situacao", "aberta")
+    .select("id")
+  if (!data?.length) return
+  depoisDaResposta(() =>
+    avisarFiliado({
+      cpf: s.cpf,
+      evento: "atendimento",
+      soSino: true,
+      umaVez: true,
+      texto: `A entidade começou a cuidar da sua solicitação "${s.titulo}".`,
+      link: `/portal/atendimento/${s.id}`,
+    })
+  )
+}
+
+// ── Lembrete de prazo (tick diário) ──────────────────────────────────────────
+
+/** Prazo vencido há até tantos dias entra no lembrete; o tick que falhar um dia alcança no seguinte. */
+const JANELA_LEMBRETE_PRAZO_DIAS = 7
+
+export type ResultadoLembretesPrazo = {
+  /** Solicitações com prazo vencido na janela, ainda sem primeira resposta. */
+  vencidas: number
+  /** Para quantas delas a equipe recebeu o lembrete agora (não repetido). */
+  equipeAvisada: number
+  /** Associados avisados no sino (não repetido). */
+  associadosAvisados: number
+  falhas: number
+  erro?: string
+}
+
+/**
+ * Prazo de resposta estourado (A121), para o tick diário — roda FORA de
+ * requisição: passe o service client, o tenant da volta do laço e o contexto
+ * do e-mail, como no tick das cobranças. Para cada solicitação aberta sem
+ * primeira resposta cujo prazo venceu nos últimos
+ * JANELA_LEMBRETE_PRAZO_DIAS dias:
+ *  - a EQUIPE (quem é avisada quando a solicitação chega:
+ *    ferramentas_demandas/ferramentas_tarefas) recebe "passou do prazo",
+ *    pelos canais que cada um escolheu;
+ *  - o associado recebe no SINO, sem e-mail, que o prazo passou e que a
+ *    entidade ainda vai responder. Admitir o atraso gera mais confiança que
+ *    o silêncio; o selo "prazo vencido" já está na tela dele.
+ * Idempotente: a equipe por `chaveEntrega` (uma por solicitação), o
+ * associado por `umaVez` (texto e link estáveis) — rode quantas vezes for.
+ */
+export async function lembretesPrazoAtendimento(amb: {
+  client: SupabaseClient
+  tenantId: string
+  contexto: ContextoEmail
+}): Promise<ResultadoLembretesPrazo> {
+  const r: ResultadoLembretesPrazo = { vencidas: 0, equipeAvisada: 0, associadosAvisados: 0, falhas: 0 }
+  const { client, tenantId } = amb
+  const hoje = hojeSP()
+  const desde = (() => {
+    const d = new Date(`${hoje}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - JANELA_LEMBRETE_PRAZO_DIAS)
+    return d.toISOString().slice(0, 10)
+  })()
+
+  type Linha = { id: string; cpf: string; nome: string | null; titulo: string; prazo: string }
+  let vencidas: Linha[]
+  try {
+    vencidas = await lerEmLotes<Linha>((de, ate) =>
+      client
+        .from("portal_atendimentos")
+        .select("id, cpf, nome, titulo, prazo")
+        .eq("emp_proprietaria_id", tenantId)
+        .in("situacao", ATENDIMENTO_ABERTO)
+        .is("primeira_resposta_em", null)
+        .lt("prazo", hoje)
+        .gte("prazo", desde)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    const erro = e as { code?: string; message?: string }
+    return { ...r, erro: esquemaAusente(erro) ? "sem tabela de atendimentos" : (erro.message ?? "erro ao ler as solicitações") }
+  }
+  r.vencidas = vencidas.length
+  if (vencidas.length === 0) return r
+
+  // A equipe é a mesma para todas as solicitações do tenant: resolve uma vez.
+  const equipe = await usuariosComPermissao(EQUIPE, EQUIPE_ALTERNATIVAS, amb).catch(() => [])
+
+  for (const s of vencidas) {
+    try {
+      const prazo = diaDaData(String(s.prazo))
+      if (equipe.length > 0) {
+        const n = await avisar(
+          equipe,
+          {
+            texto: `Solicitação de ${s.nome ?? "filiado"} pelo portal passou do prazo (${prazo}) sem resposta: ${s.titulo}`,
+            link: `/painel/filiados/atendimentos/${s.id}`,
+            evento: "atendimento_filiado",
+            assunto: "Solicitação do portal com prazo vencido",
+            chaveEntrega: `atendimento-prazo:${s.id}`,
+          },
+          amb
+        )
+        if (n > 0) r.equipeAvisada++
+      }
+      // Texto fixo (o `umaVez` compara o texto) e sem prometer "a entidade foi
+      // lembrada": o aviso à equipe é opt-in por canal (e-mail, Telegram,
+      // celular) e não entra no sino do painel — quem não ligou nada vê o
+      // atraso só na caixa de entrada e no selo "prazo vencido".
+      const aviso = await avisarFiliado(
+        {
+          cpf: s.cpf,
+          evento: "atendimento",
+          soSino: true,
+          umaVez: true,
+          texto: `Sua solicitação "${s.titulo}" passou do prazo de resposta (${prazo}). A entidade vê o atraso e ainda vai responder.`,
+          link: `/portal/atendimento/${s.id}`,
+        },
+        amb
+      )
+      if (aviso) r.associadosAvisados++
+    } catch (e) {
+      console.error("lembretesPrazoAtendimento:", e)
+      r.falhas++
+    }
+  }
+  return r
 }
 
 // ── Indicadores ──────────────────────────────────────────────────────────────

@@ -1,33 +1,39 @@
 /**
  * Tipos de aviso que o portal do associado entrega (onda 4, F4). Cada um
- * pode ser desligado por e-mail pelo próprio filiado; o sino sempre recebe.
+ * pode ser desligado pelo próprio filiado — a mesma chave vale para o e-mail
+ * e para o celular (A52); o sino sempre recebe.
  * Sem imports de servidor: a lista alimenta o formulário de preferências.
  */
 export const EVENTOS_PORTAL = [
   {
-    chave: "hospedagem",
-    rotulo: "Hospedagem",
-    descricao: "Cupom reservado pelo hotel, reserva confirmada e vaga liberada na lista de espera",
-  },
-  {
-    chave: "eventos",
-    rotulo: "Eventos",
-    descricao: "Inscrição confirmada, recusada ou em lista de espera; evento adiado ou cancelado",
-  },
-  {
-    chave: "votacao",
-    rotulo: "Votações",
-    descricao: "Votação aberta em que você está apto a votar",
+    chave: "contribuicao",
+    rotulo: "Contribuição",
+    descricao: "Contribuição não localizada na remessa da sua fonte pagadora; cobrança Pix disponível, perto de vencer e paga",
   },
   {
     chave: "atendimento",
     rotulo: "Atendimento",
-    descricao: "Resposta ou mudança de situação de uma solicitação sua",
+    descricao: "Recebimento da sua solicitação, resposta da entidade e mudança de situação",
   },
   {
-    chave: "contribuicao",
-    rotulo: "Contribuição",
-    descricao: "Cobrança do mês disponível por Pix e confirmação do pagamento",
+    chave: "hospedagem",
+    rotulo: "Hospedagem",
+    descricao: "Reserva feita, confirmada ou cancelada; vaga liberada na lista de espera; registro de não comparecimento",
+  },
+  {
+    chave: "votacao",
+    rotulo: "Votações",
+    descricao: "Votação aberta em que você está apto a votar, último dia para votar e resultado publicado",
+  },
+  {
+    chave: "eventos",
+    rotulo: "Eventos",
+    descricao: "Inscrição recebida, confirmada, recusada ou em lista de espera; lembrete na véspera; evento adiado ou cancelado",
+  },
+  {
+    chave: "filiacao",
+    rotulo: "Filiação e oposição",
+    descricao: "Filiação ativada, desfiliação concluída e oposição à contribuição registrada ou avaliada",
   },
 ] as const
 

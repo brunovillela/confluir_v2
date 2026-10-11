@@ -1,9 +1,11 @@
 import "server-only"
 
+import { cpfConfiavel } from "@/lib/cpf"
 import { type Evento } from "@/lib/db/eventos"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { enviarEmail } from "@/lib/email"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { normalizarPreferenciasPortal } from "@/lib/portal-avisos-eventos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -31,11 +33,14 @@ export type ResultadoAvisos = {
   enviados: number
   semEmail: number
   falharam: number
+  /** Filiados que desligaram o e-mail de "Eventos": avisados só no portal (A120). */
+  soNoPortal?: number
 }
 
 function frase(r: ResultadoAvisos): string {
   const partes = [`${r.enviados} aviso(s) enviado(s)`]
   if (r.semEmail > 0) partes.push(`${r.semEmail} sem e-mail cadastrado`)
+  if (r.soNoPortal) partes.push(`${r.soNoPortal} só no portal (desligaram o e-mail de eventos)`)
   if (r.falharam > 0) partes.push(`${r.falharam} falharam no envio`)
   return partes.join(", ") + "."
 }
@@ -94,20 +99,61 @@ async function inscritosDoEvento(
   }))
 }
 
-/** Sino do portal para quem tem CPF (o e-mail desta ação já saiu). */
-async function sinoDoPortal(pessoas: Destinatario[], texto: string, evento: Evento): Promise<void> {
-  for (const p of pessoas) {
-    if (!p.cpf) continue
-    await avisarFiliado({
-      cpf: p.cpf,
-      evento: "eventos",
-      texto: `${texto} — ${evento.titulo ?? "evento"}`,
-      link: "/portal/eventos",
-      soSino: true,
-      nome: p.nome,
-      email: p.email,
-    })
+/**
+ * Sino do portal para quem tem CPF (o e-mail desta ação sai por `disparar`).
+ * O link leva à inscrição, não à lista (mesmo endereço de
+ * `linkDaInscricaoNoPortal`); `umaVez` serve ao que pode ser reenviado (RSVP).
+ */
+async function sinoDoPortal(
+  pessoas: Destinatario[],
+  texto: string,
+  evento: Evento,
+  umaVez = false
+): Promise<void> {
+  const comCpf = pessoas.filter((p) => p.cpf)
+  // Dez por vez: um a um, o RSVP de um evento grande prendia a tela por minutos.
+  for (let i = 0; i < comCpf.length; i += 10) {
+    await Promise.all(
+      comCpf.slice(i, i + 10).map((p) =>
+        avisarFiliado({
+          cpf: p.cpf as string,
+          evento: "eventos",
+          texto: `${texto} — ${evento.titulo ?? "evento"}`,
+          link: `/portal/eventos#inscricao-${p.id}`,
+          soSino: true,
+          umaVez,
+          nome: p.nome,
+          email: p.email,
+        })
+      )
+    )
   }
+}
+
+/**
+ * CPFs que desligaram o e-mail de "Eventos" nas preferências do portal (A120):
+ * para eles o aviso fica só no sino, que `sinoDoPortal` já gravou. Quem não
+ * tem preferência gravada (não filiado, ou filiado que nunca mexeu) segue
+ * recebendo; falha na leitura não corta o e-mail de ninguém.
+ */
+async function emailDeEventosDesligado(pessoas: Destinatario[]): Promise<Set<string>> {
+  const desligados = new Set<string>()
+  const cpfs = [...new Set(pessoas.map((p) => cpfConfiavel(p.cpf)).filter((c): c is string => Boolean(c)))]
+  if (cpfs.length === 0) return desligados
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  for (let i = 0; i < cpfs.length; i += 200) {
+    const { data, error } = await admin
+      .from("portal_avisos_preferencias")
+      .select("cpf, email_prefs")
+      .eq("emp_proprietaria_id", emp)
+      .in("cpf", cpfs.slice(i, i + 200))
+    if (error) break
+    for (const linha of data ?? []) {
+      if (!normalizarPreferenciasPortal(linha.email_prefs).eventos) desligados.add(String(linha.cpf))
+    }
+  }
+  return desligados
 }
 
 /** Dispara em lotes e conta o que aconteceu com cada um. */
@@ -116,9 +162,18 @@ async function disparar(
   monta: (p: Destinatario) => { assunto: string; html: string }
 ): Promise<ResultadoAvisos> {
   const resultado: ResultadoAvisos = { enviados: 0, semEmail: 0, falharam: 0 }
+  const desligados = await emailDeEventosDesligado(pessoas)
   const comEmail = pessoas.filter((p) => {
-    if (!p.email) resultado.semEmail++
-    return Boolean(p.email)
+    if (!p.email) {
+      resultado.semEmail++
+      return false
+    }
+    const cpf = cpfConfiavel(p.cpf)
+    if (cpf && desligados.has(cpf)) {
+      resultado.soNoPortal = (resultado.soNoPortal ?? 0) + 1
+      return false
+    }
+    return true
   })
 
   for (let i = 0; i < comEmail.length; i += LOTE) {
@@ -278,7 +333,7 @@ export async function enviarRsvp(
   const emp = await tenantAtual()
   let q = admin
     .from("eventos_inscricoes")
-    .select("id, nome, email, token, rsvp_enviado_em, rsvp_respondido_em")
+    .select("id, nome, email, token, cpf, rsvp_enviado_em, rsvp_respondido_em")
     .eq("emp_proprietaria_id", emp)
     .eq("evento_id", evento.id)
     .eq("situacao", "confirmada")
@@ -292,9 +347,13 @@ export async function enviarRsvp(
     nome: (i.nome as string | null) ?? null,
     email: (i.email as string | null) ?? null,
     token: (i.token as string | null) ?? null,
-    cpf: null,
+    cpf: (i.cpf as string | null) ?? null,
   }))
   if (pessoas.length === 0) return { enviados: 0, semEmail: 0, falharam: 0 }
+
+  // A pergunta também vai ao sino (A122) — o filiado responde no próprio
+  // portal. `umaVez`: o reenvio não empilha a mesma pergunta.
+  await sinoDoPortal(pessoas, "Você vem? Diga se vai comparecer", evento, true)
 
   const origem = await origemAtual()
   const resultado = await disparar(pessoas, (p) => ({
@@ -306,8 +365,9 @@ export async function enviarRsvp(
     html: `${saudacao(p.nome)}<p>Estamos organizando o espaço e a alimentação e precisamos saber quem vem.</p>${blocoEvento(evento)}<p><a href="${origem}/inscricao/${p.token}" style="background:#FF5722;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block">Responder se vou</a></p><p style="font-size:13px;color:#666">Dizer que não vem libera sua vaga para quem está na fila — é melhor do que faltar sem avisar.</p>${assinatura()}`,
   }))
 
-  // Carimba só quem realmente recebeu, para o reenvio saber onde parou.
-  if (resultado.enviados > 0) {
+  // Carimba só quem realmente recebeu, para o reenvio saber onde parou —
+  // inclusive quem recebeu só no portal por ter desligado o e-mail.
+  if (resultado.enviados > 0 || (resultado.soNoPortal ?? 0) > 0) {
     const agora = new Date().toISOString()
     await admin
       .from("eventos_inscricoes")

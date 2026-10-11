@@ -14,6 +14,10 @@ import {
   type DadosDemanda,
 } from "@/lib/db/nucleo"
 import {
+  recusaDaSituacaoDaDemanda,
+  sincronizarAtendimentoDaDemanda,
+} from "@/lib/db/portal-atendimentos"
+import {
   SITUACOES_DEMANDA,
   type SituacaoDemanda,
 } from "@/lib/nucleo-constantes"
@@ -111,11 +115,24 @@ export async function atualizarDemandaAction(
   const dados = lerDados(formData)
   if (!dados.nome) return { erro: "Informe o nome da demanda." }
 
+  // Demanda que nasceu de uma solicitação do portal: a situação conversa com
+  // a dela (A13) — "Feito" só respondendo ao filiado; "Fazendo" avisa que a
+  // equipe começou. O resto do formulário segue igual.
+  const recusa = await recusaDaSituacaoDaDemanda(id, dados.situacao)
+  if (recusa) return { erro: recusa }
+
   const { erro } = await atualizarDemanda(id, dados)
   if (erro) return { erro }
+  await sincronizarAtendimentoDaDemanda(id, dados.situacao)
+  revalidarAtendimento()
   revalidatePath("/painel/ferramentas/demandas")
   revalidatePath(`/painel/ferramentas/demandas/${id}`)
   redirect(`/painel/ferramentas/demandas/${id}?salvo=1`)
+}
+
+/** A lista de Atendimentos do painel mostra a situação que a Demanda pode ter mudado. */
+function revalidarAtendimento() {
+  revalidatePath("/painel/filiados/atendimentos", "layout")
 }
 
 export async function definirSituacaoDemandaAction(
@@ -127,8 +144,14 @@ export async function definirSituacaoDemandaAction(
   const nova = situacao(texto(formData, "situacao"))
   if (!id) return { erro: "Demanda inválida." }
 
+  // Ver atualizarDemandaAction: a solicitação do portal acompanha (A13).
+  const recusa = await recusaDaSituacaoDaDemanda(id, nova)
+  if (recusa) return { erro: recusa }
+
   const { erro } = await definirSituacaoDemanda(id, nova)
   if (erro) return { erro }
+  await sincronizarAtendimentoDaDemanda(id, nova)
+  revalidarAtendimento()
   revalidatePath("/painel/ferramentas/demandas")
   revalidatePath(`/painel/ferramentas/demandas/${id}`)
   return { ok: "Situação atualizada." }

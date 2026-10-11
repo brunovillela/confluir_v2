@@ -9,6 +9,8 @@ import {
   processoDaCondicao,
   proximaCondicao,
 } from "@/lib/filiacao"
+import { depoisDaResposta } from "@/lib/db/avisos"
+import { avisarMudancasDeCondicao } from "@/lib/db/filiacao-condicao-avisos"
 import { invalidarCacheFontes } from "@/lib/db/fontes"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -65,6 +67,9 @@ export async function avancarEtapa(formData: FormData): Promise<void> {
     .eq("id", filiadoId)
     .eq("emp_proprietaria_id", emp)
   if (error) redirect(`${volta}?etapa=erro`)
+
+  // Filiação ativa / desfiliação concluída avisam a pessoa (A58), depois da resposta.
+  depoisDaResposta(() => avisarMudancasDeCondicao([{ id: filiadoId, anterior: atual, nova: proxima }]))
 
   // Trilha de auditoria no prontuário (best-effort — não bloqueia o avanço).
   await admin.from("filiacao_prontuario").insert({

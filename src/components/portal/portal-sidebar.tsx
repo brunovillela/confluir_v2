@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { aoSairDoPortal } from "@/components/portal/sair-do-portal"
 import { sairDoPortal } from "@/lib/actions/sessao"
 import { iniciais } from "@/lib/texto"
 
@@ -191,7 +192,7 @@ export function PortalSidebar({
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <form action={sairDoPortal}>
+                  <form action={sairDoPortal} onSubmit={aoSairDoPortal}>
                     <DropdownMenuItem variant="destructive" asChild className={ALVO_TOQUE}>
                       <button type="submit" className="w-full">
                         <LogOut />

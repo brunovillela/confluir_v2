@@ -38,7 +38,12 @@ function Mensagens({ erro, ok }: { erro?: string; ok?: string }) {
   return null
 }
 
-export function PortalLoginForm() {
+/**
+ * `next`: caminho do portal para onde voltar depois de entrar (A30), já
+ * validado pela página. Vai nos dois formulários; as actions validam de novo.
+ */
+export function PortalLoginForm({ next = null }: { next?: string | null }) {
+  const destino = next ? <input type="hidden" name="next" value={next} /> : null
   const [estadoSenha, actionSenha, pendenteSenha] = useActionState(
     loginFiliadoSenha,
     {}
@@ -69,6 +74,7 @@ export function PortalLoginForm() {
 
           <TabsContent value="link">
             <form action={actionLink} className="grid gap-4 pt-2">
+              {destino}
               <Mensagens erro={estadoLink.erro} ok={estadoLink.ok} />
               <div className="grid gap-2">
                 <Label htmlFor="cpf-link">CPF</Label>
@@ -87,6 +93,7 @@ export function PortalLoginForm() {
 
           <TabsContent value="senha">
             <form action={actionSenha} className="grid gap-4 pt-2">
+              {destino}
               <Mensagens erro={estadoSenha.erro} ok={estadoSenha.ok} />
               <div className="grid gap-2">
                 <Label htmlFor="cpf-senha">CPF</Label>

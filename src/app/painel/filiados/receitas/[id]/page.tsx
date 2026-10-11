@@ -40,7 +40,12 @@ import { regrasFiliacao } from "@/lib/db/organizacao"
 import { detalheRemessa } from "@/lib/db/receitas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
+import { FaltasDaRemessa } from "./faltas-remessa"
+
 export const metadata: Metadata = { title: "Remessa — Confluir" }
+
+// "Avisar" grava no sino e manda e-mail a até 150 filiados por clique.
+export const maxDuration = 300
 
 export default async function RemessaPage({
   params,
@@ -358,6 +363,9 @@ export default async function RemessaPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Quem não veio na remessa e o aviso a eles (onda 2, A20): só na associativa. */}
+      {remessa.tipo === "Associativa" && <FaltasDaRemessa remessaId={remessa.id} />}
     </>
   )
 }

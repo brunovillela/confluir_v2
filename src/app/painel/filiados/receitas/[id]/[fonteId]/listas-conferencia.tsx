@@ -136,6 +136,14 @@ function BotaoAcaoMarcados({
       {estado.erro && (
         <span className="text-destructive text-xs">{estado.erro}</span>
       )}
+      {/* Quem chega ao fim da trilha de filiação recebe as boas-vindas (A58);
+          desmarcar serve à correção em massa, que não deve avisar ninguém. */}
+      {condicao === "Ativo" && (
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <Checkbox name="avisar" defaultChecked />
+          Avisar quem concluiu a filiação (portal e e-mail)
+        </label>
+      )}
       <Button type="submit" size="sm" disabled={pendente || marcados.size === 0}>
         {pendente && <Loader2 className="animate-spin" />}
         {rotulo}

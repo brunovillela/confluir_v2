@@ -10,6 +10,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { buscarHotel, contratoDoHotel } from "@/lib/db/hospedagem"
 import {
+  avisarDonoDoCupom,
   cancelarReservaGarantida,
   conferirPodeReservar,
   ehGarantida,
@@ -19,6 +20,7 @@ import {
   reenviarConfirmacaoReserva,
 } from "@/lib/db/hospedagem-garantida"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
+import { hojeEmSP } from "@/lib/hospedagem-garantida-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { CHAVE_EMITIR_CUPOM, CHAVES_EMITIR_CUPOM_ALT } from "./chaves"
@@ -103,6 +105,7 @@ export async function criarCupom(
       checkIn,
       checkOut,
       token: reserva.token,
+      cupomId: reserva.cupomId,
     })
     revalidatePath("/painel/hospedagem")
     revalidatePath("/painel/hospedagem/cupons")
@@ -191,6 +194,19 @@ export async function cancelarCupom(
     .eq("cancelado", false)
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   if (count === 0) return { erro: "Cupom não encontrado ou já cancelado." }
+
+  // A pessoa fica sabendo (sino + e-mail pela preferência): o cupom era a
+  // hospedagem dela. Check-in já passado é acerto de cadastro — sem aviso.
+  // O cupom já está cancelado: falhar no nome do hotel não vira erro na tela.
+  const checkInAlvo = typeof alvo?.check_in === "string" ? alvo.check_in.slice(0, 10) : null
+  if (alvo?.filiado_id && checkInAlvo && checkInAlvo >= hojeEmSP()) {
+    const hotel = alvo.hotel_id ? await buscarHotel(String(alvo.hotel_id)).catch(() => null) : null
+    await avisarDonoDoCupom(String(alvo.filiado_id), {
+      assunto: "Seu cupom de hospedagem foi cancelado",
+      texto: `Seu cupom de hospedagem no ${hotel?.nome ?? "hotel"} para ${dataBr(checkInAlvo)} foi cancelado pelo sindicato. Se você não pediu o cancelamento, abra uma solicitação em Atendimento.`,
+      link: "/portal/hospedagem",
+    })
+  }
 
   revalidatePath("/painel/hospedagem/cupons")
   revalidatePath("/painel/hospedagem")

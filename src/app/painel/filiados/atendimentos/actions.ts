@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { type EstadoFormAtendimento } from "@/lib/atendimento-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { obterAtendimento, reabrirAtendimento, responderAtendimento } from "@/lib/db/portal-atendimentos"
@@ -20,7 +21,7 @@ function revalidar(id: string, demandaId: string | null) {
   if (demandaId) revalidatePath(`/painel/ferramentas/demandas/${demandaId}`)
 }
 
-export async function responderAtendimentoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+export async function responderAtendimentoAction(_prev: EstadoFormAtendimento, fd: FormData): Promise<EstadoFormAtendimento> {
   const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
   const id = campo(fd, "atendimento_id")
   const anexo = fd.get("anexo")
@@ -32,7 +33,8 @@ export async function responderAtendimentoAction(_prev: EstadoForm, fd: FormData
     anexo: anexo instanceof File && anexo.size > 0 ? anexo : null,
     concluir: campo(fd, "acao") === "concluir",
   })
-  if (r.erro) return { erro: r.erro, campo: r.campo }
+  // A resposta escrita volta ao campo quando o servidor recusa (o React limpa o formulário).
+  if (r.erro) return { erro: r.erro, campo: r.campo, valores: { texto: String(fd.get("texto") ?? "") } }
   const atual = await obterAtendimento(id)
   revalidar(id, atual?.atendimento.demandaId ?? null)
   return { ok: campo(fd, "acao") === "concluir" ? "Solicitação concluída e filiado avisado." : "Resposta enviada ao filiado." }
