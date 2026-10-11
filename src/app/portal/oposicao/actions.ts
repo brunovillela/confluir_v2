@@ -270,14 +270,19 @@ export async function confirmarOposicao(
   redirect(`/portal/oposicao/comprovante/${id}`)
 }
 
+/** "Não quero me opor" — dentro do prazo, a pessoa ainda pode voltar e se opor. */
 export async function desistir(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   const sessao = await requireSessaoTrabalhador()
   const campanhaId = texto(fd, "campanha_id")
+  // Mesma guarda da confirmação (A143): campanha deste tenant, aberta e no
+  // prazo. O CPF é o da sessão, nunca o do formulário.
+  const r = await campanhaNoPrazo(campanhaId)
+  if ("erro" in r) return { erro: r.erro }
   const { ip, ua } = await rastro()
-  await registrarDesistencia(
+  const { erro } = await registrarDesistencia(
     campanhaId,
     {
       cpf: sessao.cpf,
@@ -289,6 +294,7 @@ export async function desistir(
     ip,
     ua
   )
+  if (erro) return { erro }
   redirect("/portal/oposicao?desistiu=1")
 }
 
@@ -305,6 +311,11 @@ export async function enviarDocumento(
   const oposicao = await minhaOposicao(texto(fd, "campanha_id"), sessao.cpf)
   if (!oposicao || oposicao.id !== opositorId) {
     return { erro: "Oposição não encontrada." }
+  }
+  // Quem optou por não se opor registra a oposição antes; o documento sozinho
+  // não pode virar uma oposição "não avaliada".
+  if (oposicao.situacao === "desistente") {
+    return { erro: "Registre a oposição antes de enviar o documento." }
   }
   const { ip, ua } = await rastro()
   const { erro } = await subirDocumentoAssinado(

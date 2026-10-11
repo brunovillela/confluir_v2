@@ -3,8 +3,8 @@ import { notFound } from "next/navigation"
 
 import { Artigo } from "@/components/ajuda/artigo"
 import { EmProducao } from "@/components/ajuda/em-producao"
-import { requireSessaoPortal } from "@/lib/auth"
 import { artigoAjudaPortal } from "@/lib/ajuda/manifesto-portal"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 type Params = { params: Promise<{ area: string; topico: string }> }
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function TopicoPortalPage({ params }: Params) {
-  await requireSessaoPortal()
+  await requireVisualizacaoPortal()
 
   const { area, topico } = await params
   if (topico === "index") notFound() // o overview mora em /portal/ajuda/<area>

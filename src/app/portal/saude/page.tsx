@@ -29,6 +29,38 @@ export default async function PortalSaudePage({
 }) {
   const sessao = await requireVisualizacaoPortal()
 
+  const cabecalho = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Saúde</h1>
+      <p className="text-muted-foreground mt-1 text-xs">
+        Seus atendimentos no serviço de saúde do sindicato
+      </p>
+    </div>
+  )
+
+  // "Ver como filiado": a gestão entra com permissão de FILIAÇÃO, não
+  // clínica. O prontuário já evita revelar o serviço procurado (psicologia,
+  // serviço social… — registrarNoProntuario, lib/db/atendimentos.ts); aqui
+  // nem as datas aparecem, porque a frequência também diz muito, e quem
+  // precisa saber se houve atendimento tem o prontuário. A consulta nem
+  // roda, para o sigilo não depender de esconder coluna.
+  if (sessao.preview) {
+    return (
+      <PortalShell>
+        {cabecalho}
+        <Alert>
+          <Info />
+          <AlertDescription>
+            Na visualização pela gestão, o histórico de saúde não é exibido:
+            é informação do próprio associado. Quando ele entra no portal,
+            vê aqui a data, o serviço, o profissional e as observações de
+            cada atendimento.
+          </AlertDescription>
+        </Alert>
+      </PortalShell>
+    )
+  }
+
   // O CPF se repete em vários registros de filiação (~2,9× por pessoa), e o
   // assistido pode estar ligado a qualquer um deles.
   const filiadoIds = await registrosDoCpf(sessao.filiado.cpf)
@@ -39,13 +71,8 @@ export default async function PortalSaudePage({
   const { linhas: pagina, ...info } = paginar(linhas, pag)
 
   return (
-    <PortalShell preview={sessao.preview ? { filiadoNome: sessao.filiado.nome_completo, gestorNome: sessao.gestorNome } : undefined}>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Saúde</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Seus atendimentos no serviço de saúde do sindicato
-        </p>
-      </div>
+    <PortalShell>
+      {cabecalho}
 
       {!disponivel ? (
         <Alert>

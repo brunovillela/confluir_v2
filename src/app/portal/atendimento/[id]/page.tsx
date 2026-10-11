@@ -25,7 +25,7 @@ export default async function PortalAtendimentoDetalhePage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ aberta?: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const { id } = await params
   const { aberta } = await searchParams
   const dados = await atendimentoDoFiliado(id, filiado.cpf)
@@ -33,7 +33,7 @@ export default async function PortalAtendimentoDetalhePage({
   const { atendimento: a, mensagens } = dados
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/atendimento">

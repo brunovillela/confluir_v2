@@ -30,6 +30,13 @@ export async function GET(
   const { id } = await params
   const c = await obterComprovante(id, sessao.cpf)
   if (!c) return new Response("Não encontrado", { status: 404 })
+  // "Não quero me opor" não gera carta de oposição.
+  if (c.situacao === "desistente") {
+    return new Response(
+      "Este registro é de quem optou por não se opor: não há carta de oposição.",
+      { status: 404 }
+    )
+  }
 
   const org = await obterOrganizacao()
   const logo = await logoDataUri(org?.logoUrl ?? null)

@@ -42,7 +42,7 @@ export async function gerarCobrancasAction(_prev: EstadoForm, fd: FormData): Pro
   const r = await gerarCobrancas(competencia)
   if (r.erro) return { erro: r.erro }
   revalidar()
-  return { ok: `${r.geradas} cobrança(s) gerada(s)${r.jaExistiam ? `, ${r.jaExistiam} já existia(m)` : ""}${r.semValor ? `, ${r.semValor} sem valor definido` : ""}; ${r.avisadas} filiado(s) avisado(s).` }
+  return { ok: `${r.geradas} cobrança(s) gerada(s)${r.jaExistiam ? `, ${r.jaExistiam} já existia(m)` : ""}${r.semValor ? `, ${r.semValor} sem valor definido` : ""}; ${r.avisadas} avisado(s) por e-mail${r.soNoSino ? ` e ${r.soNoSino} só pelo portal (sem e-mail no cadastro, aviso por e-mail desligado ou envio recusado)` : ""}.` }
 }
 
 export async function baixarCobrancaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
@@ -55,7 +55,14 @@ export async function baixarCobrancaAction(_prev: EstadoForm, fd: FormData): Pro
   const r = await baixarCobranca({ cobrancaId: id, dataPagamento: data, valorPago: valor, usuarioId: sessao.usuario.id as string })
   if (r.erro) return { erro: r.erro }
   revalidar()
-  return { ok: "Baixa registrada e filiado avisado." }
+  return {
+    ok:
+      r.aviso === "email"
+        ? "Baixa registrada; filiado avisado por e-mail."
+        : r.aviso === "sino"
+          ? "Baixa registrada; o aviso ficou só no portal (sem e-mail no cadastro, aviso por e-mail desligado ou envio recusado)."
+          : "Baixa registrada.",
+  }
 }
 
 export async function cancelarCobrancaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {

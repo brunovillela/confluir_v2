@@ -58,7 +58,8 @@ export default async function OposicaoPortalPage({
         <Marca tenant={entidade} />
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          {sessao && (
+          {/* Na visualização o "Sair" derrubaria a sessão do atendente (a saída é a faixa abaixo). */}
+          {sessao && !preview && (
             <form action={sairDoPortal}>
               <Button variant="ghost" size="sm" type="submit">
                 <LogOut />
@@ -81,7 +82,7 @@ export default async function OposicaoPortalPage({
       {desistiu === "1" && (
         <Alert className="border-info/40 text-info-fg">
           <AlertDescription>
-            Registramos que você optou por não prosseguir. Obrigado por assistir.
+            Registramos que você optou por não se opor. Obrigado por assistir.
           </AlertDescription>
         </Alert>
       )}
@@ -194,7 +195,9 @@ async function ListaCampanhas({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {minha ? (
+              {/* 'desistente' ("não quero me opor") não é oposição registrada:
+                  no prazo, a pessoa ainda pode mudar de ideia (A14). */}
+              {minha && minha.situacao !== "desistente" ? (
                 <Alert className="border-success/40 text-success-fg">
                   <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
                     <span>
@@ -214,20 +217,36 @@ async function ListaCampanhas({
                   </AlertDescription>
                 </Alert>
               ) : prazo === "aberto" ? (
-                <AcaoVisualizacao
-                  preview={preview}
-                  nota="Só o próprio trabalhador registra a oposição dele."
-                >
-                  <Button asChild>
-                    <Link href={`/portal/oposicao/${campanha.id}`}>
-                      Registrar oposição
-                      <ArrowRight />
-                    </Link>
-                  </Button>
-                </AcaoVisualizacao>
+                <div className="grid gap-3">
+                  {minha && (
+                    <Alert variant="info">
+                      <AlertDescription>
+                        Você optou por não se opor
+                        {minha.dia ? ` em ${formatarData(minha.dia)}` : ""}. O
+                        prazo segue aberto até {formatarData(campanha.prazo_fim)}{" "}
+                        — você pode mudar de ideia.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <AcaoVisualizacao
+                    preview={preview}
+                    nota="Só o próprio trabalhador registra a oposição dele."
+                  >
+                    <Button asChild>
+                      <Link href={`/portal/oposicao/${campanha.id}`}>
+                        Registrar oposição
+                        <ArrowRight />
+                      </Link>
+                    </Button>
+                  </AcaoVisualizacao>
+                </div>
               ) : (
                 <Alert variant="warning">
                   <AlertDescription>
+                    {minha &&
+                      `Você optou por não se opor${
+                        minha.dia ? ` em ${formatarData(minha.dia)}` : ""
+                      }. `}
                     {prazo === "antes"
                       ? "O prazo para se opor ainda não começou."
                       : "O prazo para se opor já encerrou."}

@@ -1,20 +1,21 @@
 import { AjudaNav, type NavArea } from "@/components/ajuda/ajuda-nav"
-import { requireSessaoPortal } from "@/lib/auth"
 import { AREAS_AJUDA_PORTAL } from "@/lib/ajuda/manifesto-portal"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PortalShell } from "../portal-shell"
 
 /**
- * Layout da Ajuda do portal do associado. Exige sessão do filiado e monta a
- * navegação lateral dentro da casca do portal (header + abas). Sem filtro de
- * permissão — o filiado logado vê todas as áreas.
+ * Layout da Ajuda do portal do associado. Exige o filiado logado — ou a
+ * gestão em "Ver como filiado", que também consulta a ajuda ao atender — e
+ * monta a navegação lateral dentro da casca do portal (header + abas). Sem
+ * filtro de permissão — o filiado logado vê todas as áreas.
  */
 export default async function PortalAjudaLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  await requireSessaoPortal()
+  await requireVisualizacaoPortal()
 
   const areas: NavArea[] = AREAS_AJUDA_PORTAL.map((a) => ({
     slug: a.slug,

@@ -40,7 +40,7 @@ export default async function ReservaHospedagemPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const [{ id }, { salvo }] = await Promise.all([params, searchParams])
 
   const [registros, hoteis] = await Promise.all([registrosDoCpf(filiado.cpf), listarHoteis()])
@@ -54,7 +54,7 @@ export default async function ReservaHospedagemPage({
   const noites = noitesDaEstadia(reserva.checkIn, reserva.checkOut).length
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/portal/hospedagem">

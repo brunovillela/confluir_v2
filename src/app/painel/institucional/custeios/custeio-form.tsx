@@ -20,7 +20,7 @@ import {
 
 import { FORMAS_ORDEM_CONTRATO } from "@/lib/compras-constantes"
 
-import { ACEITA_NOTA, prepararArquivo } from "../../compras/nova/arquivo-envio"
+import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../../compras/nova/detalhe-pagamento"
 import { atualizarCusteioAction, criarCusteioAction, meiosDoBeneficiarioAction } from "./actions"
 

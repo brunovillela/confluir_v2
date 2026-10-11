@@ -14,11 +14,11 @@ import { PreferenciasForm } from "./preferencias-form"
 export const metadata: Metadata = { title: "Preferências de avisos — Portal do Associado" }
 
 export default async function PreferenciasAvisosPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const prefs = await preferenciasDoFiliado(filiado.cpf)
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/avisos">

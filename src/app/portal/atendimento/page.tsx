@@ -18,11 +18,11 @@ export const metadata: Metadata = { title: "Atendimento — Portal do Associado"
 
 /** O filiado abre solicitações e acompanha cada uma (onda 4, F2). */
 export default async function PortalAtendimentoPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const { lista, disponivel } = await meusAtendimentos(filiado.cpf)
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Atendimento</h1>
         <p className="text-muted-foreground mt-1 text-xs">

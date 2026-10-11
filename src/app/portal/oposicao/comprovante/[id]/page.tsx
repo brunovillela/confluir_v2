@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, CheckCircle2, FileWarning } from "lucide-react"
+import { notFound, redirect } from "next/navigation"
+import { ArrowLeft, ArrowRight, CheckCircle2, FileWarning } from "lucide-react"
 
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,11 +9,15 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSessaoTrabalhador } from "@/lib/auth"
-import { obterComprovante } from "@/lib/db/oposicao"
+import { hojeSP } from "@/lib/db/comum"
+import { minhaOposicao, obterComprovante } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
-import { formatarDataHora } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
-import { ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
+import {
+  estadoPrazo,
+  ROTULO_SITUACAO_OPOSITOR,
+} from "@/lib/oposicao-constantes"
 
 import { BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
 
@@ -30,6 +34,21 @@ export default async function ComprovantePage({
   if (!c) notFound()
 
   const aguardando = c.situacao === "aguardando_documento"
+  // "Não quero me opor" não é oposição: nada de "Oposição registrada" nem de
+  // comprovante para imprimir — só a escolha e, no prazo, o caminho de volta.
+  const desistente = c.situacao === "desistente"
+  if (desistente && c.campanhaId) {
+    // Sem unique em cpf+campanha, a mesma pessoa pode ter também uma oposição
+    // de fato nesta campanha (legado, ou duas abas): vale a oposição, e esta
+    // página não pode dizer que nenhuma foi registrada.
+    const vigente = await minhaOposicao(c.campanhaId, sessao.cpf)
+    if (vigente && vigente.situacao !== "desistente" && vigente.id !== c.id) {
+      redirect(`/portal/oposicao/comprovante/${vigente.id}`)
+    }
+  }
+  const prazo = c.campanhaAberta
+    ? estadoPrazo(c.prazo_inicio, c.prazo_fim, hojeSP())
+    : "depois"
   const entidade = await nomeEntidade()
 
   return (
@@ -44,7 +63,49 @@ export default async function ComprovantePage({
         </Button>
       </header>
 
-      {aguardando ? (
+      {desistente ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Você optou por não se opor</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <p className="text-sm">
+              {c.dia ? `Em ${formatarData(c.dia)}, você` : "Você"} escolheu não
+              registrar oposição
+              {c.campanhaNome ? (
+                <>
+                  {" "}
+                  na campanha <strong>{c.campanhaNome}</strong>
+                </>
+              ) : (
+                " nesta campanha"
+              )}
+              . Nenhuma oposição foi registrada em seu nome.
+            </p>
+            {prazo === "aberto" && c.campanhaId ? (
+              <>
+                <p className="text-sm">
+                  O prazo segue aberto até{" "}
+                  <strong>{formatarData(c.prazo_fim)}</strong> — você pode mudar
+                  de ideia.
+                </p>
+                <Button asChild className="w-fit">
+                  <Link href={`/portal/oposicao/${c.campanhaId}`}>
+                    Registrar oposição
+                    <ArrowRight />
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {prazo === "antes"
+                  ? "O prazo para se opor ainda não começou."
+                  : "O prazo para se opor já encerrou."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : aguardando ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

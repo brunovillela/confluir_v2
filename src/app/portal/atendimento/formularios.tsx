@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { Loader2, Send } from "lucide-react"
 
+import { CampoAnexo, useAnexo } from "@/components/atendimento/campo-anexo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
@@ -16,12 +17,11 @@ import { abrirAtendimentoAction, responderAtendimentoPortalAction } from "./acti
 const SELECT =
   "border-input bg-background text-foreground min-h-11 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-const ACEITA = ".pdf,.jpg,.jpeg,.png,.webp,.gif,.docx,.xlsx,.txt"
-
 export function NovaSolicitacaoForm() {
   const [estado, action, enviando] = useActionState(abrirAtendimentoAction, {})
+  const anexo = useAnexo()
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} onSubmit={anexo.conferirEnvio} className="grid gap-4">
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="assunto">Assunto *</Label>
@@ -44,19 +44,15 @@ export function NovaSolicitacaoForm() {
         <Label htmlFor="texto">Conte com detalhes *</Label>
         <Textarea id="texto" name="texto" required rows={5} placeholder="O que aconteceu, desde quando, o que você espera da entidade" />
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="anexo">Anexo (opcional)</Label>
-        <Input id="anexo" name="anexo" type="file" accept={ACEITA} limite="até 10 MB" />
-        <p className="text-muted-foreground text-xs">PDF, imagem, documento ou planilha, até 10 MB.</p>
-      </div>
+      <CampoAnexo anexo={anexo} />
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
       <div>
-        <Button type="submit" disabled={enviando} className="min-h-11 w-full sm:w-auto">
-          {enviando ? <Loader2 className="animate-spin" /> : <Send />}
+        <Button type="submit" disabled={enviando || anexo.preparando} className="min-h-11 w-full sm:w-auto">
+          {enviando || anexo.preparando ? <Loader2 className="animate-spin" /> : <Send />}
           Enviar solicitação
         </Button>
       </div>
@@ -66,18 +62,16 @@ export function NovaSolicitacaoForm() {
 
 export function ResponderForm({ atendimentoId }: { atendimentoId: string }) {
   const [estado, action, enviando] = useActionState(responderAtendimentoPortalAction, {})
+  const anexo = useAnexo()
   return (
-    <form action={action} className="grid gap-3" key={estado.ok ? "ok" : "form"}>
+    <form action={action} onSubmit={anexo.conferirEnvio} className="grid gap-3" key={estado.ok ? "ok" : "form"}>
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="texto">Sua mensagem</Label>
         <Textarea id="texto" name="texto" required rows={3} placeholder="Responda ou acrescente informações" />
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="anexo">Anexo (opcional)</Label>
-        <Input id="anexo" name="anexo" type="file" accept={ACEITA} limite="até 10 MB" />
-      </div>
+      <CampoAnexo anexo={anexo} />
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -89,8 +83,8 @@ export function ResponderForm({ atendimentoId }: { atendimentoId: string }) {
         </Alert>
       )}
       <div>
-        <Button type="submit" disabled={enviando} className="min-h-11 w-full sm:w-auto">
-          {enviando ? <Loader2 className="animate-spin" /> : <Send />}
+        <Button type="submit" disabled={enviando || anexo.preparando} className="min-h-11 w-full sm:w-auto">
+          {enviando || anexo.preparando ? <Loader2 className="animate-spin" /> : <Send />}
           Enviar
         </Button>
       </div>

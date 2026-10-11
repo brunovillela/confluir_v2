@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import QRCode from "qrcode"
-import { FileText, IdCard, ShieldCheck } from "lucide-react"
+import { Eye, FileText, IdCard, ShieldCheck } from "lucide-react"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,13 +22,18 @@ function cpfMascarado(cpf: string | null): string {
 }
 
 /** Carteirinha digital do filiado (onda 4, F1): identificação + QR verificável. */
-export default async function CarteirinhaPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+export default async function CarteirinhaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>
+}) {
+  const { filiado, preview } = await requireVisualizacaoPortal()
+  const { aviso } = await searchParams
   const dados = await dadosCarteirinha(filiado.cpf)
   const qr = dados?.urlVerificacao ? await QRCode.toDataURL(dados.urlVerificacao, { errorCorrectionLevel: "M", margin: 1, width: 320 }) : null
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <div className="flex items-center gap-2">
           <IdCard className="text-muted-foreground size-5" />
@@ -37,6 +43,17 @@ export default async function CarteirinhaPage() {
           Mostre na portaria ou no convênio. O QR leva à verificação pública, que confirma só a condição da filiação.
         </p>
       </div>
+
+      {/* A rota da declaração devolve para cá quando é aberta na visualização. */}
+      {preview && aviso === "visualizacao" && (
+        <Alert>
+          <Eye />
+          <AlertDescription>
+            Na visualização pela gestão, a declaração não é emitida: só o
+            próprio associado a emite, pela conta dele.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!dados ? (
         <Alert variant="destructive">
@@ -93,13 +110,25 @@ export default async function CarteirinhaPage() {
             </CardContent>
           </Card>
 
-          <div className="mx-auto flex w-full max-w-md flex-wrap gap-2">
-            <Button asChild>
-              <a href="/portal/carteirinha/declaracao" target="_blank" rel="noreferrer">
-                <FileText />
-                Declaração de filiação (PDF)
-              </a>
-            </Button>
+          <div className="mx-auto flex w-full max-w-md flex-wrap items-start gap-2">
+            <AcaoVisualizacao preview={preview} nota="Só o próprio associado emite a declaração, pela conta dele.">
+              {preview ? (
+                // Na visualização, botão sem link: nada para clicar nem para
+                // abrir em outra aba. O envelope já esmaece — sem o
+                // disabled:opacity-100 o cinza dobraria.
+                <Button type="button" disabled className="disabled:opacity-100">
+                  <FileText />
+                  Declaração de filiação (PDF)
+                </Button>
+              ) : (
+                <Button asChild>
+                  <a href="/portal/carteirinha/declaracao" target="_blank" rel="noreferrer">
+                    <FileText />
+                    Declaração de filiação (PDF)
+                  </a>
+                </Button>
+              )}
+            </AcaoVisualizacao>
             {dados.urlVerificacao && (
               <Button variant="outline" asChild>
                 <Link href={dados.urlVerificacao} target="_blank" rel="noreferrer">

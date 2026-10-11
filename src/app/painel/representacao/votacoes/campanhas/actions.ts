@@ -53,7 +53,7 @@ export async function salvarCampanha(
 
 
 function inteiroPositivo(v: string | null): number | null {
-  const n = Number((v ?? "").replace(/D/g, ""))
+  const n = Number((v ?? "").replace(/\D/g, ""))
   return Number.isFinite(n) && n > 0 ? n : null
 }
 

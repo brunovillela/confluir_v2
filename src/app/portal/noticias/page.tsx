@@ -12,11 +12,11 @@ import { PortalShell } from "../portal-shell"
 export const metadata: Metadata = { title: "Notícias — Portal do Associado" }
 
 export default async function PortalNoticiasPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  await requireVisualizacaoPortal()
   const [noticias, entidade] = await Promise.all([ultimasNoticias(20), nomeEntidade()])
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Notícias</h1>
         <p className="text-muted-foreground mt-1 text-xs">

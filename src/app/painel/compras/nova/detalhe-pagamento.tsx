@@ -16,7 +16,7 @@ import type {
   PixFornecedor,
 } from "@/lib/db/compras-pagamento"
 
-import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "./arquivo-envio"
+import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 import { meiosDoFornecedor } from "./pagamento-actions"
 
 export type CartaoOpcao = { id: string; nome: string }

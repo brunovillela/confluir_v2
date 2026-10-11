@@ -82,7 +82,9 @@ export default async function InscricaoPage({
 
   const precisaFoto = insc.fotoObrigatoria || insc.modoFoto !== "nenhuma"
   const confirmada = insc.situacao === "confirmada"
-  const recusada = insc.situacao === "recusada" || insc.situacao === "cancelada"
+  const recusada = insc.situacao === "recusada"
+  // Quem cancelou pode voltar enquanto o evento aceitar inscrições — não é recusa.
+  const cancelada = insc.situacao === "cancelada"
 
   // O QR carrega o TOKEN, não uma URL: a recepção lê e busca direto, sem
   // depender de o aparelho abrir navegador.
@@ -105,14 +107,16 @@ export default async function InscricaoPage({
         <div className="mt-3">
           <Badge
             variant={
-              confirmada ? "success" : recusada ? "destructive" : "secondary"
+              confirmada ? "success" : recusada ? "destructive" : cancelada ? "outline" : "secondary"
             }
           >
             {confirmada
               ? "Inscrição confirmada"
               : recusada
                 ? "Inscrição não confirmada"
-                : "Inscrição em análise"}
+                : cancelada
+                  ? "Inscrição cancelada"
+                  : "Inscrição em análise"}
           </Badge>
         </div>
       </div>
@@ -122,6 +126,24 @@ export default async function InscricaoPage({
           <AlertDescription>
             Sua inscrição não foi confirmada. Procure a secretaria da entidade
             se tiver dúvidas.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {cancelada && (
+        <Alert className="mb-6">
+          <AlertDescription>
+            Você cancelou esta inscrição. Mudou de ideia? Enquanto as inscrições
+            estiverem abertas, é só se inscrever de novo
+            {insc.eventoSlug ? (
+              <>
+                {" "}pela{" "}
+                <Link href={`/evento/${insc.eventoSlug}`} className="font-medium underline underline-offset-4">
+                  página do evento
+                </Link>
+              </>
+            ) : null}
+            .
           </AlertDescription>
         </Alert>
       )}

@@ -4,9 +4,9 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { requireSessaoPortal } from "@/lib/auth"
 import { buscarNoticia } from "@/lib/db/painel"
 import { formatarData } from "@/lib/formato"
+import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PortalShell } from "../../portal-shell"
 
@@ -17,7 +17,9 @@ export default async function PortalNoticiaPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireSessaoPortal()
+  // Visualização, não sessão: o atendente em "Ver como filiado" também lê a
+  // notícia (com requireSessaoPortal, ele caía na tela de login — A29).
+  await requireVisualizacaoPortal()
   const { id } = await params
   const noticia = await buscarNoticia(id)
   if (!noticia) notFound()

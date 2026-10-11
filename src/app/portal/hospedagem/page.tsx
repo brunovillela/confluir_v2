@@ -71,7 +71,7 @@ export default async function PortalHospedagemPage({
 }: {
   searchParams: Promise<{ salvo?: string; pagina?: string; porPagina?: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const params = await searchParams
   const { salvo } = params
 
@@ -110,7 +110,7 @@ export default async function PortalHospedagemPage({
   const paginaAtual = paginar(cupons, paginacao)
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Hospedagem</h1>
         <p className="text-muted-foreground mt-1 text-xs">

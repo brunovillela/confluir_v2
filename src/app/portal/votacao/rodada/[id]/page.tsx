@@ -26,14 +26,12 @@ export default async function DatasRodadaPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado } = await requireVisualizacaoPortal()
   const { id } = await params
   const dados = filiado.ativo ? await datasDaRodada(filiado.cpf, id) : null
 
   return (
-    <PortalShell
-      preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}
-    >
+    <PortalShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/votacao">

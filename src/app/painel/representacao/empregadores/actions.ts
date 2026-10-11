@@ -174,7 +174,7 @@ export async function consultarCnpjEmpregador(
     papel: "empregador",
     existente: async (doc) => {
       const f = (await listarFontesPagadoras()).find(
-        (x) => (x.cnpj_cpf ?? "").replace(/D/g, "") === doc
+        (x) => (x.cnpj_cpf ?? "").replace(/\D/g, "") === doc
       )
       return f ? { id: f.id, nome: f.nome_fantasia ?? f.nome_razao ?? "(sem nome)" } : null
     },

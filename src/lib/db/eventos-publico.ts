@@ -140,6 +140,28 @@ export async function carregarEventoPublico(
 
 // ── Criar a inscrição ────────────────────────────────────────────────────────
 
+/**
+ * O que não vale mais quando quem CANCELOU se inscreve de novo no mesmo evento.
+ *
+ * A linha é a mesma — um CPF, uma inscrição por evento (índice único) —, mas a
+ * volta é uma inscrição nova: a avaliação, a resposta ao "você vem?" e os
+ * carimbos do prontuário eram da anterior. Zerar o carimbo da inscrição faz a
+ * volta ir ao prontuário como fato novo; o da presença fica, porque presença
+ * registrada impede o cancelamento.
+ *
+ * Serve ao portal (eventos-portal.ts) e ao link público (abaixo).
+ */
+export const ZERAR_AO_REINSCREVER = {
+  avaliada_por: null,
+  avaliada_em: null,
+  motivo: null,
+  rsvp_enviado_em: null,
+  rsvp_respondido_em: null,
+  rsvp_confirmado: null,
+  prontuario_inscricao_em: null,
+  prontuario_rsvp_em: null,
+} as const
+
 export type DadosInscricao = {
   nome: string
   cpf: string
@@ -159,10 +181,11 @@ export async function criarInscricao(
   const service = await createAdminClient()
 
   // Uma pessoa, uma inscrição por evento — o CPF é o identificador, como já é
-  // em `filiacoes`. Reinscrever devolve o token existente em vez de duplicar.
+  // em `filiacoes`. Reinscrever numa inscrição viva devolve o token existente
+  // em vez de duplicar; a cancelada é reaberta na mesma linha.
   const { data: existente } = await service
     .from("eventos_inscricoes")
-    .select("id, token, situacao, email_confirmado_em")
+    .select("id, token, situacao, email_confirmado_em, reservada_por")
     .eq("emp_proprietaria_id", tenantId)
     .eq("evento_id", eventoId)
     .eq("cpf", dados.cpf)
@@ -175,6 +198,58 @@ export async function criarInscricao(
 
   if (existente) {
     const token = existente.token as string
+
+    // Recusada vem antes de tudo: quem recusou foi a entidade, e um novo
+    // código confirmado (confirmarEmail) passaria por cima da decisão.
+    if (existente.situacao === "recusada") {
+      return {
+        erro: "Sua inscrição anterior neste evento não foi aprovada. Se tiver dúvidas, fale com a entidade.",
+      }
+    }
+
+    // Cancelada: a pessoa desistiu e voltou. Recomeça como inscrição nova —
+    // dados e aceite do formulário de agora, 'pendente' e código por e-mail —,
+    // e é a confirmação do código que decide confirmada/pendente, lança no
+    // prontuário e manda o e-mail, como em qualquer inscrição nova. O código é
+    // pedido mesmo se o e-mail já tinha sido confirmado: sem ele, quem
+    // soubesse o CPF de outra pessoa desfaria o cancelamento dela. As vagas
+    // foram conferidas pela action logo antes (carregarEventoPublico).
+    if (existente.situacao === "cancelada") {
+      const agora = new Date().toISOString()
+      const { data: reaberta, error } = await service
+        .from("eventos_inscricoes")
+        .update({
+          ...ZERAR_AO_REINSCREVER,
+          // Convidado continua convidado de quem o trouxe; o resto passa a
+          // ter vindo pelo link público.
+          ...(existente.reservada_por ? {} : { origem: "publica" }),
+          nome: dados.nome,
+          email: dados.email,
+          telefone: dados.telefone || null,
+          situacao: "pendente",
+          email_confirmado_em: null,
+          termo_id: dados.termoId,
+          termo_foto_id: dados.termoFotoId,
+          consentimento_em: agora,
+          consentimento_ip: dados.ip,
+          codigo_hash: hashCodigo(codigo, token),
+          codigo_expira_em: expira,
+          codigo_tentativas: 0,
+          updated_at: agora,
+        })
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("id", existente.id as string)
+        // Só se continuar cancelada: dois envios ao mesmo tempo não se atropelam.
+        .eq("situacao", "cancelada")
+        .select("id")
+        .maybeSingle()
+      if (error || !reaberta) {
+        return { erro: "Não foi possível refazer a inscrição. Tente de novo." }
+      }
+      await gravarRespostas(existente.id as string, tenantId, dados.respostas, true)
+      return { token, codigo }
+    }
+
     // Já confirmada: não reabre nem reenvia código — só devolve o endereço.
     if (existente.email_confirmado_em) return { token }
     await service
@@ -212,8 +287,10 @@ export async function criarInscricao(
     })
     .select("id, token")
     .single()
+  // Sem o texto do banco: quem lê é o público. Num envio duplo (índice único
+  // evento + CPF), tentar de novo já encontra a linha e segue o caminho certo.
   if (error || !criada) {
-    return { erro: `Não foi possível registrar a inscrição: ${error?.message ?? "?"}` }
+    return { erro: "Não foi possível registrar a inscrição. Tente de novo em instantes." }
   }
 
   const token = criada.token as string
@@ -222,19 +299,40 @@ export async function criarInscricao(
     .update({ codigo_hash: hashCodigo(codigo, token) })
     .eq("id", criada.id as string)
 
-  if (dados.respostas.length > 0) {
-    await service.from("eventos_inscricao_respostas").insert(
-      dados.respostas.map((r) => ({
-        emp_proprietaria_id: tenantId,
-        inscricao_id: criada.id as string,
-        campo_id: r.campoId,
-        rotulo: r.rotulo,
-        valor: r.valor,
-      }))
-    )
-  }
+  await gravarRespostas(criada.id as string, tenantId, dados.respostas, false)
 
   return { token, codigo }
+}
+
+/**
+ * Respostas dos campos extras. Na volta de quem cancelou, as do formulário de
+ * agora SUBSTITUEM as da inscrição anterior — senão o mesmo campo ficaria com
+ * duas respostas na ficha.
+ */
+async function gravarRespostas(
+  inscricaoId: string,
+  tenantId: string,
+  respostas: DadosInscricao["respostas"],
+  substituir: boolean
+): Promise<void> {
+  const service = await createAdminClient()
+  if (substituir) {
+    await service
+      .from("eventos_inscricao_respostas")
+      .delete()
+      .eq("emp_proprietaria_id", tenantId)
+      .eq("inscricao_id", inscricaoId)
+  }
+  if (respostas.length === 0) return
+  await service.from("eventos_inscricao_respostas").insert(
+    respostas.map((r) => ({
+      emp_proprietaria_id: tenantId,
+      inscricao_id: inscricaoId,
+      campo_id: r.campoId,
+      rotulo: r.rotulo,
+      valor: r.valor,
+    }))
+  )
 }
 
 export function validarEmail(v: string): boolean {

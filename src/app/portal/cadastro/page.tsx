@@ -39,7 +39,7 @@ export default async function CadastroPage({
 }: {
   searchParams: Promise<{ salvo?: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const { salvo } = await searchParams
   const [cadastro, emergencia] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
@@ -59,7 +59,7 @@ export default async function CadastroPage({
     : null
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu cadastro</h1>
         <p className="text-muted-foreground mt-1 text-xs">

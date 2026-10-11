@@ -263,7 +263,7 @@ export async function vincularPorLinkUnico(dados: {
   const emailSessao = dados.contato.email?.trim().toLowerCase() || null
   const chat = dados.contato.telegramChatId?.trim() || null
   if (!emailSessao && !chat) return { vinculadas: 0, erro: "Sessão expirada. Confirme o seu e-mail ou o Telegram de novo." }
-  const telefoneFinal = (dados.contato.telefone ?? "").replace(/D/g, "").slice(-4)
+  const telefoneFinal = (dados.contato.telefone ?? "").replace(/\D/g, "").slice(-4)
   const rotulo = emailSessao ?? `Telegram, telefone final ${telefoneFinal || "?"}`
   const emailEmpresa = dados.emailEmpresa.trim().toLowerCase()
   if (!validarCpf(cpf)) return { vinculadas: 0, erro: "CPF inválido — confira os números." }

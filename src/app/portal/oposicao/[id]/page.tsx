@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { Marca } from "@/components/marca"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -40,9 +41,12 @@ export default async function RegistrarOposicaoPage({
   const campanha = await obterCampanhaPublica(id)
   if (!campanha || campanha.situacao !== "aberta") notFound()
 
-  // Já se opôs → vai direto ao comprovante.
+  // Já se opôs → vai direto ao comprovante. Quem disse "não quero me opor"
+  // continua podendo registrar enquanto o prazo estiver aberto (A14).
   const minha = await minhaOposicao(id, sessao.cpf)
-  if (minha) redirect(`/portal/oposicao/comprovante/${minha.id}`)
+  if (minha && minha.situacao !== "desistente") {
+    redirect(`/portal/oposicao/comprovante/${minha.id}`)
+  }
 
   const prazo = estadoPrazo(campanha.prazo_inicio, campanha.prazo_fim, hojeSP())
   const ehFiliado = sessao.perfil === "filiado"
@@ -88,11 +92,23 @@ export default async function RegistrarOposicaoPage({
                 : "O prazo para se opor já encerrou."}
             </p>
           ) : (
-            <OposicaoFlow
-              campanha={campanha}
-              videoUrl={videoUrl}
-              videoTempo={videoTempo}
-            />
+            <div className="grid gap-4">
+              {minha && (
+                <Alert variant="info">
+                  <AlertDescription>
+                    Você optou por não se opor
+                    {minha.dia ? ` em ${formatarData(minha.dia)}` : ""}. Se mudou
+                    de ideia, siga os passos abaixo para registrar a sua
+                    oposição.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <OposicaoFlow
+                campanha={campanha}
+                videoUrl={videoUrl}
+                videoTempo={videoTempo}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

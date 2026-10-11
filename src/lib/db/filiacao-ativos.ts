@@ -40,10 +40,14 @@ export type FiliadoAtivo = {
   matricula: string | null
 }
 
-let cache: { dados: Map<string, FiliadoAtivo>; expira: number } | null = null
+// Um processo atende várias entidades (multi-tenant por subdomínio): o cache
+// é por tenant, senão uma entidade recebia por 10 min os ativos da outra.
+const cache = new Map<string, { dados: Map<string, FiliadoAtivo>; expira: number }>()
 
-export function invalidarCacheAtivos() {
-  cache = null
+/** Com o tenant, descarta só o dele; sem (fora de requisição), descarta todos. */
+export function invalidarCacheAtivos(tenantId?: string) {
+  if (tenantId) cache.delete(tenantId)
+  else cache.clear()
 }
 
 /**
@@ -53,10 +57,11 @@ export function invalidarCacheAtivos() {
  * de quem foi anonimizado não sobrou nome nem CPF para cobrar nada.
  */
 export async function filiadosAtivos(): Promise<Map<string, FiliadoAtivo>> {
-  if (cache && cache.expira > Date.now()) return cache.dados
+  const emp = await tenantAtual()
+  const guardado = cache.get(emp)
+  if (guardado && guardado.expira > Date.now()) return guardado.dados
 
   const admin = await createAdminClient()
-  const emp = await tenantAtual()
 
   const dados = new Map<string, FiliadoAtivo>()
   const LOTE = 1000
@@ -83,7 +88,7 @@ export async function filiadosAtivos(): Promise<Map<string, FiliadoAtivo>> {
     if (!data || data.length < LOTE) break
   }
 
-  cache = { dados, expira: Date.now() + VALIDADE_CACHE_MS }
+  cache.set(emp, { dados, expira: Date.now() + VALIDADE_CACHE_MS })
   return dados
 }
 

@@ -32,7 +32,7 @@ const ROTULO: Record<string, string> = {
  * associado já tem; por fim a agenda de atividades do sindicato.
  */
 export default async function PortalEventosPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const [lista, agenda] = await Promise.all([
     eventosParaFiliado(filiado.cpf, await tenantAtual()),
     eventosDoAplicativo(50),
@@ -42,13 +42,7 @@ export default async function PortalEventosPage() {
   const fechados = lista.filter((e) => !e.aberta && !e.inscrito)
 
   return (
-    <PortalShell
-      preview={
-        preview
-          ? { filiadoNome: filiado.nome_completo, gestorNome }
-          : undefined
-      }
-    >
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Eventos e agenda</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -94,6 +88,14 @@ export default async function PortalEventosPage() {
                   {e.evento.descricao && (
                     <p className="line-clamp-3 text-sm">{e.evento.descricao}</p>
                   )}
+                  {/* O aviso de "cancelada" some junto com o card de Minhas
+                      inscrições; esta linha é o que explica a volta do evento. */}
+                  {e.situacao === "cancelada" && (
+                    <p className="text-muted-foreground text-sm">
+                      Você cancelou sua inscrição neste evento. Se mudou de ideia,
+                      é só se inscrever de novo.
+                    </p>
+                  )}
                   <AcaoVisualizacao
                     preview={preview}
                     nota="Somente o próprio associado pode se inscrever."
@@ -113,7 +115,8 @@ export default async function PortalEventosPage() {
           <h2 className="text-lg font-semibold">Minhas inscrições</h2>
           <div className="grid gap-4">
             {minhas.map((e) => {
-              const cancelada = e.situacao === "cancelada" || e.situacao === "recusada"
+              // Cancelada não chega aqui (volta para as abertas); recusada fica.
+              const recusada = e.situacao === "recusada"
               const confirmada = e.situacao === "confirmada"
               return (
                 <Card key={e.evento.id}>
@@ -122,7 +125,7 @@ export default async function PortalEventosPage() {
                       <CabecalhoEvento e={e} />
                       {e.situacao && (
                         <Badge
-                          variant={confirmada ? "success" : cancelada ? "destructive" : "secondary"}
+                          variant={confirmada ? "success" : recusada ? "destructive" : "secondary"}
                         >
                           {ROTULO[e.situacao] ?? e.situacao}
                         </Badge>
@@ -191,6 +194,12 @@ export default async function PortalEventosPage() {
                         que houver resposta.
                       </p>
                     )}
+                    {recusada && (
+                      <p className="text-muted-foreground border-t pt-4 text-sm">
+                        Sua inscrição neste evento não foi aprovada. Se tiver dúvidas,
+                        fale com o sindicato.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -210,6 +219,7 @@ export default async function PortalEventosPage() {
                   <li key={e.evento.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                     <CabecalhoEvento e={e} compacto />
                     <span className="text-muted-foreground text-xs">
+                      {e.situacao === "cancelada" && "Você cancelou sua inscrição. "}
                       {e.motivoFechada ?? "Inscrições fechadas"}
                     </span>
                   </li>

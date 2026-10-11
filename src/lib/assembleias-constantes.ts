@@ -7,6 +7,8 @@
  * as perguntas da sua rodada.
  */
 
+import { formatarData, formatarDataHora } from "@/lib/formato"
+
 /**
  * Modalidade da assembleia — não é coluna: deriva das flags legadas
  * `online` e `urnas_de_votacao` de `voto_assembleias`. As quatro modalidades
@@ -59,6 +61,117 @@ export function temVotoOnline(m: Modalidade): boolean {
 /** A modalidade usa urnas presenciais (com mesário)? */
 export function temUrna(m: Modalidade): boolean {
   return m === "urna" || m === "hibrida"
+}
+
+// ── Estado da votação para quem está apto (portal do associado) ────────────
+
+export type ChaveEstadoVotacao =
+  | "ja_votou"
+  | "nao_abriu"
+  | "carencia"
+  | "votar"
+  | "presencial"
+
+export type EstadoVotacao = {
+  chave: ChaveEstadoVotacao
+  /** Frase de cabeçalho (banner do Início). */
+  titulo: string
+  /** Rótulo curto do selo. */
+  rotulo: string
+  /** Variante do <Badge> do selo. */
+  variante: "success" | "outline" | "warning" | "default"
+  /** Frase de apoio: quando abre, por que ainda não pode, como votar. */
+  detalhe: string | null
+  /** Também há urna presencial — vale oferecer as datas. */
+  comUrna: boolean
+}
+
+/**
+ * O que a pessoa pode fazer AGORA numa votação em que está apta. Uma regra só
+ * para o banner do Início, a lista de /portal/votacao e a cédula: antes cada
+ * tela decidia por conta própria, e o Início chamava para "Votar" (com "encerra
+ * em") uma votação que ainda nem tinha aberto ou que a carência bloqueava
+ * (achados A3 e A89 da avaliação do portal, 11/10/2026).
+ *
+ * A ordem importa: quem já votou na rodada não vota de novo, mesmo numa
+ * assembleia que ainda vai abrir (voto único por rodada) — por isso "já votou"
+ * vem antes de "ainda não abriu". As travas de verdade continuam no servidor
+ * (registrarVotoFiliado/registrarVotoEleitorEmail); isto só explica.
+ */
+export function estadoVotacao(a: {
+  modalidade: Modalidade
+  jaVotou: boolean
+  abreEm: string | null
+  carencia: { motivo: string; liberaEm: string | null } | null
+  /** Fim da votação (ISO) — para não prometer um voto depois do encerramento. */
+  termino?: string | null
+}): EstadoVotacao {
+  const comUrna = temUrna(a.modalidade)
+  if (a.jaVotou) {
+    return {
+      chave: "ja_votou",
+      titulo: "Você já votou nesta assembleia",
+      rotulo: "Você já votou",
+      variante: "success",
+      detalhe: null,
+      comUrna,
+    }
+  }
+  if (!temVotoOnline(a.modalidade)) {
+    return {
+      chave: "presencial",
+      titulo: "Assembleia presencial — confira as datas",
+      rotulo: ROTULOS_MODALIDADE[a.modalidade],
+      variante: "outline",
+      detalhe: null,
+      comUrna,
+    }
+  }
+  if (a.abreEm) {
+    const quando = formatarDataHora(a.abreEm)
+    return {
+      chave: "nao_abriu",
+      titulo: `Votação abre em ${quando}`,
+      rotulo: "Ainda não abriu",
+      variante: "outline",
+      detalhe: `A votação abre em ${quando}.`,
+      comUrna,
+    }
+  }
+  if (a.carencia) {
+    const libera = a.carencia.liberaEm
+    // Carência que só acaba depois do encerramento: "poderá votar a partir
+    // de…" prometeria um voto que esta assembleia não vai mais receber.
+    const depoisDoFim =
+      libera && a.termino ? Date.parse(libera) > Date.parse(a.termino) : false
+    return {
+      chave: "carencia",
+      titulo: "Votação aberta — você ainda está em carência",
+      rotulo: "Ainda em carência",
+      variante: "warning",
+      detalhe:
+        a.carencia.motivo +
+        (!libera
+          ? ""
+          : depoisDoFim
+            ? ` Sua carência termina em ${formatarData(libera)}, depois do encerramento desta votação.`
+            : ` Você poderá votar a partir de ${formatarData(libera)}.`),
+      comUrna,
+    }
+  }
+  return {
+    chave: "votar",
+    titulo: "Assembleia aberta para votação",
+    rotulo: "Votação aberta",
+    variante: "default",
+    // Híbrida: o voto único por rodada vale entre as portas — presença na urna
+    // trava o online e o voto online trava a urna (votacao-portal.ts e
+    // votacao-mesarios.ts conferem hora_voto/presenca_em do apto).
+    detalhe: comUrna
+      ? "Vote online ou compareça a uma urna — vale um só voto."
+      : null,
+    comUrna,
+  }
 }
 
 export function hojeLocalISO(): string {

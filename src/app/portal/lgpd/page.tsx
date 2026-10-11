@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -17,7 +18,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { historicoAceites } from "@/lib/db/lgpd"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora } from "@/lib/formato"
-import { Download } from "lucide-react"
+import { Download, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 
@@ -38,10 +39,10 @@ const DIREITOS = [
 export default async function LgpdPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; aviso?: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
-  const { salvo } = await searchParams
+  const { filiado, preview } = await requireVisualizacaoPortal()
+  const { salvo, aviso } = await searchParams
   const cpf = cpfConfiavel(filiado.cpf)
   const [cadastro, org, entidade, comunicados, aceites] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
@@ -56,7 +57,7 @@ export default async function LgpdPage({
   const aceiteDesconto = cadastro?.tl_desconto_data ?? null
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           LGPD — dados pessoais
@@ -75,6 +76,16 @@ export default async function LgpdPage({
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Aceite registrado. Obrigado!</AlertDescription>
+        </Alert>
+      )}
+      {/* A rota "meus dados" devolve para cá quando é aberta na visualização. */}
+      {preview && aviso === "visualizacao" && (
+        <Alert>
+          <Eye />
+          <AlertDescription>
+            Na visualização pela gestão, os dados não são baixados: a
+            exportação é um ato do próprio associado, pela conta dele.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -133,12 +144,30 @@ export default async function LgpdPage({
             não entram: são secretos e não ficam ligados a você.
           </p>
           <div>
-            <Button asChild variant="outline" size="sm" disabled={preview}>
-              <a href="/portal/lgpd/meus-dados" download>
-                <Download />
-                Baixar meus dados
-              </a>
-            </Button>
+            <AcaoVisualizacao
+              preview={preview}
+              nota="A exportação é um ato do titular: só o próprio associado baixa os dados dele."
+            >
+              {preview ? (
+                // `disabled` num <a> não desliga nada: na visualização o
+                // botão nem tem link. O envelope já esmaece — sem o
+                // disabled:opacity-100 o cinza dobraria.
+                <Button type="button" variant="outline" size="sm" disabled className="disabled:opacity-100">
+                  <Download />
+                  Baixar meus dados
+                </Button>
+              ) : (
+                // Sem o atributo `download`: o cabeçalho "attachment" da rota
+                // já baixa o arquivo, e uma sessão vencida vira navegação
+                // normal até o login, em vez de salvar a tela de login.
+                <Button asChild variant="outline" size="sm">
+                  <a href="/portal/lgpd/meus-dados">
+                    <Download />
+                    Baixar meus dados
+                  </a>
+                </Button>
+              )}
+            </AcaoVisualizacao>
           </div>
           {aceites.length > 0 && (
             <div>

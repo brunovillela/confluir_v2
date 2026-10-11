@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { encerrarVisualizacaoEleitor } from "@/lib/actions/visualizacao-eleitor"
+import { estadoVotacao } from "@/lib/assembleias-constantes"
 import { identidadeDaConta } from "@/lib/auth-identidade"
 import {
   elegibilidadeEleitorEmail,
@@ -219,9 +220,13 @@ function Cedula({
             </AlertDescription>
           </Alert>
         ) : !eleg.online ? (
+          // `online` já inclui a híbrida (online + urna): só a assembleia
+          // apenas presencial — urna ou reunião — chega aqui.
           <Alert variant="warning">
             <AlertDescription>
-              Esta assembleia é presencial — não há cédula online.
+              Esta assembleia é só presencial — o voto é{" "}
+              {eleg.modalidade === "reuniao" ? "na reunião" : "na urna"}, não há
+              cédula online.
             </AlertDescription>
           </Alert>
         ) : eleg.abreEm ? (
@@ -237,6 +242,15 @@ function Cedula({
               {preview
                 ? "Este eleitor já votou nesta assembleia."
                 : "Você já votou nesta assembleia. Obrigado por participar."}
+            </AlertDescription>
+          </Alert>
+        ) : eleg.carencia ? (
+          // Mesmo estado do portal (estadoVotacao): em carência a cédula nem
+          // aparece — antes, a pessoa respondia tudo e só no envio era recusada.
+          <Alert variant="warning">
+            <AlertDescription>
+              {preview ? "Este eleitor ainda está em carência. " : "Você ainda não pode votar nesta assembleia. "}
+              {estadoVotacao(eleg).detalhe}
             </AlertDescription>
           </Alert>
         ) : precisaDados ? (

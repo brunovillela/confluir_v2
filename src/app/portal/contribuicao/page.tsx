@@ -1,12 +1,12 @@
 import type { Metadata } from "next"
-import { Coins, QrCode as QrCodeIcone, TriangleAlert } from "lucide-react"
+import { Coins, Info, QrCode as QrCodeIcone, TriangleAlert } from "lucide-react"
 import QRCode from "qrcode"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { minhaContribuicao } from "@/lib/db/carteirinha"
+import { minhaContribuicao, type MinhaContribuicao, type RemessaPendente } from "@/lib/db/carteirinha"
 import { cobrancasDoFiliado, obterConfigCobranca, rotuloCompetencia } from "@/lib/db/cobrancas"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
@@ -18,11 +18,48 @@ import { CopiaECola } from "./cobranca-pix"
 
 export const metadata: Metadata = { title: "Minha contribuição — Portal" }
 
+/** "a, b e c" */
+function juntar(itens: string[]): string {
+  return itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`
+}
+
+/** "A remessa de 09/2026 da fonte pagadora X ainda não chegou…", agrupando as competências pelas mesmas fontes. */
+function frasesPendentes(pendentes: RemessaPendente[]): string[] {
+  const porFontes = new Map<string, string[]>()
+  for (const p of pendentes) {
+    const chave =
+      p.fontes.length === 0
+        ? "da sua fonte pagadora"
+        : `${p.fontes.length === 1 ? "da fonte pagadora" : "das fontes pagadoras"} ${juntar(p.fontes)}`
+    porFontes.set(chave, [...(porFontes.get(chave) ?? []), p.competencia])
+  }
+  return [...porFontes].map(([fontes, comps]) =>
+    comps.length === 1
+      ? `A remessa de ${comps[0]} ${fontes} ainda não chegou ao sindicato — quando chegar, sua contribuição aparece aqui.`
+      : `As remessas de ${juntar(comps)} ${fontes} ainda não chegaram ao sindicato — quando chegarem, sua contribuição aparece aqui.`
+  )
+}
+
+/** Situação em uma palavra: atraso pela regra > faltas recentes > não apurada > em dia. */
+function situacao(c: MinhaContribuicao): {
+  rotulo: string
+  variante: "error" | "warning" | "outline" | "success"
+  apoio?: string
+} {
+  if (c.inadimplente === true) return { rotulo: "Em atraso", variante: "error" }
+  if (c.emFalta.length > 0) return { rotulo: "Com faltas recentes", variante: "warning" }
+  if (c.inadimplente === null) {
+    return { rotulo: "Situação indisponível", variante: "outline", apoio: "Não foi possível conferir agora. Tente de novo mais tarde." }
+  }
+  return { rotulo: "Em dia", variante: "success" }
+}
+
 /** Minha contribuição (onda 4, F6): descontos por mês e fonte, última remessa e avisos. */
 export default async function ContribuicaoPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado } = await requireVisualizacaoPortal()
   const cadastro = await cadastroDoFiliado(filiado.cpf)
   const c = cadastro ? await minhaContribuicao(filiado.cpf, cadastro.id) : null
+  const sit = c ? situacao(c) : null
   const ultimas = c?.linhas.slice(0, 36) ?? []
   // Cobrança Pix (onda 5, A3): só para quem paga por Pix; a mais recente em aberto vem com o QR.
   const ids = await registrosDoCpf(filiado.cpf)
@@ -31,7 +68,7 @@ export default async function ContribuicaoPage() {
   const qrCobranca = aberta?.brcode ? await QRCode.toDataURL(aberta.brcode, { errorCorrectionLevel: "M", margin: 1, width: 280 }) : null
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <div className="flex items-center gap-2">
           <Coins className="text-muted-foreground size-5" />
@@ -56,15 +93,29 @@ export default async function ContribuicaoPage() {
               </AlertDescription>
             </Alert>
           ) : c.emFalta.length > 0 ? (
-            <Alert>
+            <Alert variant="warning">
               <TriangleAlert />
               <AlertDescription>
-                Não encontramos sua contribuição em {c.emFalta.length === 1 ? "uma remessa recente" : `${c.emFalta.length} remessas recentes`} ({c.emFalta.join(", ")}).
+                {c.porPix
+                  ? `Não encontramos o pagamento da sua contribuição de ${juntar(c.emFalta)}: a cobrança por Pix venceu sem pagamento registrado.`
+                  : `Não encontramos sua contribuição em ${c.emFalta.length === 1 ? "uma remessa recente" : `${c.emFalta.length} remessas recentes`} (${c.emFalta.join(", ")}).`}
                 {c.toleradas !== null && ` A regra da entidade tolera até ${c.toleradas} ${c.toleradas === 1 ? "falta" : "faltas"} antes de considerar inadimplência.`}{" "}
-                Se o desconto apareceu no seu contracheque, avise o sindicato.
+                {c.porPix ? "Se você já pagou, avise o sindicato com o comprovante." : "Se o desconto apareceu no seu contracheque, avise o sindicato."}
               </AlertDescription>
             </Alert>
           ) : null}
+
+          {c.emFalta.length === 0 && c.pendentesDaFonte.length > 0 && (
+            // Informativo, sem pedir ação: "status" em vez do "alert" padrão, que o leitor de tela anuncia com urgência.
+            <Alert variant="info" role="status">
+              <Info />
+              <AlertDescription>
+                {frasesPendentes(c.pendentesDaFonte).map((frase) => (
+                  <p key={frase}>{frase}</p>
+                ))}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {aberta && (
             <Card className="border-primary/40">
@@ -117,10 +168,9 @@ export default async function ContribuicaoPage() {
               <CardContent className="py-4">
                 <p className="text-muted-foreground text-xs">Situação</p>
                 <p className="mt-1">
-                  <Badge variant="outline" className={c.inadimplente ? "border-destructive/40 text-destructive" : c.emFalta.length ? "border-warning/40 text-warning-fg" : "border-success/40 text-success-fg"}>
-                    {c.inadimplente ? "Em atraso" : c.emFalta.length ? "Com faltas recentes" : "Em dia"}
-                  </Badge>
+                  {sit && <Badge variant={sit.variante}>{sit.rotulo}</Badge>}
                 </p>
+                {sit?.apoio && <p className="text-muted-foreground mt-1 text-xs">{sit.apoio}</p>}
               </CardContent>
             </Card>
           </div>

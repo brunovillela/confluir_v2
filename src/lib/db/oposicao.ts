@@ -1,5 +1,6 @@
 import "server-only"
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
+import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
@@ -526,7 +527,9 @@ export async function oposicoesParaFiliado(
     if (estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje) !== "aberto") continue
     const minha = await minhaOposicao(c.id, cpf)
     const pendente = minha?.situacao === "aguardando_documento"
-    if (minha && !pendente) continue // já concluída → fora do banner
+    // Já concluída → fora do banner. 'desistente' também: a pessoa já
+    // escolheu, e a página da oposição segue deixando mudar de ideia no prazo.
+    if (minha && !pendente) continue
     out.push({
       campanhaId: c.id,
       nome: c.nome,
@@ -549,7 +552,10 @@ export async function oposicoesParaFiliado(
 export async function oposicaoRelevanteParaFiliado(
   cpf: string
 ): Promise<boolean> {
-  const cpfLimpo = (cpf ?? "").replace(/D/g, "")
+  // Só dígitos e com verificadores certos: o `/D/g` antigo só tirava a letra
+  // "D" e deixava a máscara (CPF mascarado nunca casava com o histórico), e um
+  // CPF "0" do legado casaria com qualquer opositor gravado como "0".
+  const cpfLimpo = cpfConfiavel(cpf)
   if (!cpfLimpo) return false
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -558,7 +564,7 @@ export async function oposicaoRelevanteParaFiliado(
     .from("oposicao_opositor")
     .select("id")
     .eq("emp_proprietaria_id", emp)
-    .eq("cpf", cpfLimpo)
+    .in("cpf", grafiasDoCpf(cpfLimpo))
     .limit(1)
   if ((historico ?? []).length > 0) return true
 
@@ -671,21 +677,59 @@ export async function obterCampanhaPublica(
   }
 }
 
-/** A oposição do trabalhador nesta campanha (por CPF), se existir. */
+/** Dia de calendário (AAAA-MM-DD) de um instante, no fuso de São Paulo. */
+function diaSP(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d)
+}
+
+export type MinhaOposicao = {
+  id: string
+  situacao: SituacaoOpositor
+  protocolo: number | null
+  /**
+   * Dia (AAAA-MM-DD, fuso de SP) do registro — da oposição ou do "não quero me
+   * opor". Só de `confirmado_em`: no legado do Bubble ele é nulo e o
+   * `created_at` é o dia da MIGRAÇÃO (25/07/2026), não o da escolha.
+   */
+  dia: string | null
+}
+
+/**
+ * A linha do trabalhador nesta campanha (por CPF), se existir. 'desistente'
+ * ("não quero me opor") também volta aqui — quem chama decide: dentro do
+ * prazo ela NÃO tranca a pessoa fora (A14). Não há unique em cpf+campanha e o
+ * legado do Bubble tem CPF repetido na mesma campanha: havendo mais de uma
+ * linha, vale a mais recente que não seja desistência (antes, o
+ * `maybeSingle` falhava e a pessoa parecia nunca ter se oposto). O CPF pode
+ * chegar com máscara (o da filiação, no banner e na visualização da gestão);
+ * a sessão do trabalhador traz só dígitos — as duas grafias valem.
+ */
 export async function minhaOposicao(
   campanhaId: string,
   cpf: string
-): Promise<{ id: string; situacao: SituacaoOpositor } | null> {
+): Promise<MinhaOposicao | null> {
   const admin = await createAdminClient()
   const { data } = await admin
     .from("oposicao_opositor")
-    .select("id, situacao")
+    .select("id, situacao, protocolo, confirmado_em")
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("campanha_id", campanhaId)
-    .eq("cpf", cpf)
-    .maybeSingle()
-  if (!data) return null
-  return { id: String(data.id), situacao: (data.situacao ?? "nao_avaliada") as SituacaoOpositor }
+    .in("cpf", grafiasDoCpf(limparCpf(cpf) || cpf))
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .limit(20)
+  const linhas = data ?? []
+  if (linhas.length === 0) return null
+  const linha =
+    linhas.find((l) => (l.situacao ?? "nao_avaliada") !== "desistente") ?? linhas[0]
+  return {
+    id: String(linha.id),
+    situacao: (linha.situacao ?? "nao_avaliada") as SituacaoOpositor,
+    protocolo: linha.protocolo == null ? null : Number(linha.protocolo),
+    dia: diaSP(texto(linha.confirmado_em)),
+  }
 }
 
 /** Registra um evento de auditoria (append-only). */
@@ -742,7 +786,11 @@ async function proximoProtocolo(
 /**
  * Formaliza a oposição. `exigeDoc` = modo/perfil que precisa do documento
  * assinado → nasce `aguardando_documento`; senão `nao_avaliada`. Idempotente
- * por CPF+campanha (bloqueia duplicidade).
+ * por CPF+campanha (bloqueia duplicidade). Quem tinha dito "não quero me
+ * opor" (linha 'desistente') e voltou dentro do prazo — a action confere o
+ * prazo — tem ESSA linha atualizada, não uma segunda: não há unique em
+ * cpf+campanha para segurar a duplicata. O evento 'desistiu' fica na trilha e
+ * o 'oposicao_confirmada' entra depois dele, contando a história inteira.
  */
 export async function registrarOposicao(
   dados: DadosOposicao,
@@ -752,33 +800,67 @@ export async function registrarOposicao(
   const admin = await createAdminClient()
 
   const existente = await minhaOposicao(dados.campanhaId, dados.cpf)
-  if (existente) {
+  if (existente && existente.situacao !== "desistente") {
     return { erro: "Você já registrou uma oposição nesta campanha." }
   }
 
-  const protocolo = await proximoProtocolo(admin, empId, dados.campanhaId)
-  const { data, error } = await admin
-    .from("oposicao_opositor")
-    .insert({
-      campanha_id: dados.campanhaId,
-      cpf: dados.cpf,
-      nome_completo: dados.nome,
-      email: dados.email,
-      filiacao_id: dados.filiacaoId,
-      empregador_id: dados.empregadorId,
-      matricula: dados.matricula,
-      situacao: exigeDoc ? "aguardando_documento" : "nao_avaliada",
-      protocolo,
-      confirmado_em: new Date().toISOString(),
-      ip: dados.ip,
-      user_agent: dados.userAgent,
-      emp_proprietaria_id: empId,
-    })
-    .select("id")
-    .single()
-  if (error) return { erro: `Falha ao registrar a oposição: ${error.message}` }
+  const protocolo =
+    existente?.protocolo ?? (await proximoProtocolo(admin, empId, dados.campanhaId))
+  const campos = {
+    nome_completo: dados.nome,
+    email: dados.email,
+    filiacao_id: dados.filiacaoId,
+    empregador_id: dados.empregadorId,
+    matricula: dados.matricula,
+    situacao: exigeDoc ? "aguardando_documento" : "nao_avaliada",
+    protocolo,
+    confirmado_em: new Date().toISOString(),
+    ip: dados.ip,
+    user_agent: dados.userAgent,
+  }
 
-  const opositorId = String(data.id)
+  let opositorId: string
+  if (existente) {
+    const { data, error } = await admin
+      .from("oposicao_opositor")
+      .update({
+        ...campos,
+        // O CPF na grafia da sessão (o comprovante confere por ela) e nada de
+        // avaliação/documento herdados da linha antiga: há desistentes do
+        // legado com avaliação gravada, e esta é uma oposição nova, a avaliar.
+        cpf: dados.cpf,
+        desistente: false,
+        avaliacao: null,
+        avaliacao_data: null,
+        avaliacao_avaliador_id: null,
+        reprovacao_motivo: null,
+        documento_assinado_url: null,
+      })
+      .eq("id", existente.id)
+      .eq("emp_proprietaria_id", empId)
+      // Duas abas confirmando juntas: só a primeira acha a linha ainda 'desistente'.
+      .eq("situacao", "desistente")
+      .select("id")
+    if (error) return { erro: `Falha ao registrar a oposição: ${error.message}` }
+    if ((data ?? []).length === 0) {
+      return { erro: "Você já registrou uma oposição nesta campanha." }
+    }
+    opositorId = existente.id
+  } else {
+    const { data, error } = await admin
+      .from("oposicao_opositor")
+      .insert({
+        ...campos,
+        campanha_id: dados.campanhaId,
+        cpf: dados.cpf,
+        emp_proprietaria_id: empId,
+      })
+      .select("id")
+      .single()
+    if (error) return { erro: `Falha ao registrar a oposição: ${error.message}` }
+    opositorId = String(data.id)
+  }
+
   const respostas = dados.respostas.filter((r) => r.resposta.trim())
   if (respostas.length) {
     await admin.from("oposicao_resposta").insert(
@@ -793,14 +875,20 @@ export async function registrarOposicao(
   await registrarEvento(
     opositorId,
     "oposicao_confirmada",
-    `perfil=${dados.perfil}; protocolo=${protocolo}`,
+    `perfil=${dados.perfil}; protocolo=${protocolo}` +
+      (existente ? "; registrada depois de ter optado por não se opor" : ""),
     dados.ip,
     dados.userAgent
   )
   return { id: opositorId, protocolo }
 }
 
-/** Marca desistência (viu o vídeo e desistiu). */
+/**
+ * Marca o "não quero me opor" (viu o vídeo e escolheu não se opor). Só para
+ * campanha DESTE tenant, aberta e dentro do prazo (A143): o id vem do
+ * formulário, e uma linha para campanha de outra entidade ficaria órfã na
+ * trilha — numa encerrada, inflaria a contagem de desistentes.
+ */
 export async function registrarDesistencia(
   campanhaId: string,
   sessao: {
@@ -815,7 +903,28 @@ export async function registrarDesistencia(
 ): Promise<{ erro?: string }> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
-  if (await minhaOposicao(campanhaId, sessao.cpf)) return {}
+  const { data: campanha } = await admin
+    .from("oposicao_campanha")
+    .select("situacao, prazo_inicio, prazo_fim")
+    .eq("id", campanhaId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (!campanha || campanha.situacao !== "aberta") {
+    return { erro: "Campanha indisponível." }
+  }
+  if (
+    estadoPrazo(texto(campanha.prazo_inicio), texto(campanha.prazo_fim), hojeSP()) !==
+    "aberto"
+  ) {
+    return { erro: "Fora do prazo desta campanha." }
+  }
+
+  const existente = await minhaOposicao(campanhaId, sessao.cpf)
+  if (existente) {
+    // Já tinha dito que não quer se opor: nada novo a gravar.
+    if (existente.situacao === "desistente") return {}
+    return { erro: "Você já registrou uma oposição nesta campanha." }
+  }
   const { data, error } = await admin
     .from("oposicao_opositor")
     .insert({
@@ -900,6 +1009,12 @@ export type Comprovante = {
   situacao: SituacaoOpositor
   texto_declaracao: string | null
   confirmado_em: string | null
+  /** Dia (AAAA-MM-DD, fuso de SP) do registro — só de `confirmado_em` (ver MinhaOposicao.dia). */
+  dia: string | null
+  /** Janela da campanha: a página de quem optou por não se opor diz se ainda dá para voltar. */
+  campanhaAberta: boolean
+  prazo_inicio: string | null
+  prazo_fim: string | null
   /** URL assinada do documento-modelo (quando situação = aguardando_documento). */
   modeloUrl: string | null
 }
@@ -926,7 +1041,9 @@ export async function obterComprovante(
     o.campanha_id
       ? admin
           .from("oposicao_campanha")
-          .select("nome, detalhe_desconto, texto_declaracao, documento_modelo_url")
+          .select(
+            "nome, detalhe_desconto, texto_declaracao, documento_modelo_url, situacao, prazo_inicio, prazo_fim"
+          )
           .eq("id", o.campanha_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -963,6 +1080,10 @@ export async function obterComprovante(
     situacao: (o.situacao ?? "nao_avaliada") as SituacaoOpositor,
     texto_declaracao: c ? texto(c.texto_declaracao) : null,
     confirmado_em: texto(o.confirmado_em),
+    dia: diaSP(texto(o.confirmado_em)),
+    campanhaAberta: c?.situacao === "aberta",
+    prazo_inicio: c ? texto(c.prazo_inicio) : null,
+    prazo_fim: c ? texto(c.prazo_fim) : null,
     modeloUrl,
   }
 }

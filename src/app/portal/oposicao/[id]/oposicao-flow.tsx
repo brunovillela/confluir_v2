@@ -5,9 +5,11 @@ import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica } from "@/lib/db/oposicao"
+import { formatarData } from "@/lib/formato"
 
 import { confirmarOposicao, desistir } from "../actions"
 
@@ -35,7 +37,7 @@ export function OposicaoFlow({
     minimo > 0 || videoUrl ? "video" : "form"
   )
   const [estado, formAction, pendente] = useActionState(confirmarOposicao, {})
-  const [, desistirAction, pendDesistir] = useActionState(desistir, {})
+  const [estDesistir, desistirAction, pendDesistir] = useActionState(desistir, {})
 
   useEffect(() => {
     if (etapa !== "video" || restante <= 0) return
@@ -80,14 +82,16 @@ export function OposicaoFlow({
           </p>
         )}
 
-        <div className="flex flex-wrap justify-between gap-2">
-          <form action={desistirAction}>
-            <input type="hidden" name="campanha_id" value={campanha.id} />
-            <Button type="submit" variant="outline" disabled={pendDesistir}>
-              {pendDesistir && <Loader2 className="animate-spin" />}
-              Desistir da oposição
-            </Button>
-          </form>
+        {estDesistir.erro && (
+          <Alert variant="destructive">
+            <AlertDescription>{estDesistir.erro}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* O primário vem sozinho; "não quero me opor" fica embaixo, discreto
+            e com confirmação — lado a lado, parecia um "voltar" (A14). O
+            espaço de 12px impede que as áreas de toque dos dois se encostem. */}
+        <div className="flex flex-col items-start gap-3 sm:items-end">
           <Button
             type="button"
             disabled={restante > 0}
@@ -95,6 +99,31 @@ export function OposicaoFlow({
           >
             Prosseguir com a oposição
           </Button>
+          <form
+            action={desistirAction}
+            onSubmit={(e) =>
+              confirmarEnvio(e, {
+                titulo: "Seguir sem registrar oposição?",
+                descricao: `Nenhuma oposição será registrada agora. Enquanto o prazo estiver aberto${
+                  campanha.prazo_fim ? ` (até ${formatarData(campanha.prazo_fim)})` : ""
+                }, você pode voltar e registrar a sua oposição.`,
+                confirmar: "Não quero me opor",
+                cancelar: "Voltar",
+                destrutivo: false,
+              })
+            }
+          >
+            <input type="hidden" name="campanha_id" value={campanha.id} />
+            <Button
+              type="submit"
+              variant="ghost"
+              disabled={pendDesistir}
+              className="text-muted-foreground"
+            >
+              {pendDesistir && <Loader2 className="animate-spin" />}
+              Não quero me opor
+            </Button>
+          </form>
         </div>
       </div>
     )

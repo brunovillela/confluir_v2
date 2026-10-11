@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   assembleiasDoFiliado,
@@ -30,7 +30,7 @@ import { EmailVotacaoForm } from "./email-form"
 export const metadata: Metadata = { title: "Votação — Confluir" }
 
 export default async function VotacaoPortalPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
 
   const [abertas, historico, emailVot] = await Promise.all([
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
@@ -39,9 +39,7 @@ export default async function VotacaoPortalPage() {
   ])
 
   return (
-    <PortalShell
-      preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}
-    >
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Votação</h1>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -67,85 +65,95 @@ export default async function VotacaoPortalPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {abertas.map((a) => (
-              <div
-                key={a.assembleiaId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {a.nome ?? a.tema ?? "Assembleia"}
-                    <Badge variant="outline" className="ml-2 align-middle">
-                      {ROTULOS_MODALIDADE[a.modalidade]}
-                    </Badge>
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    {a.empregador && <>{a.empregador} · </>}
-                    {a.online ? (
-                      a.termino ? (
-                        <ContagemRegressiva ate={a.termino} />
-                      ) : (
-                        "votação online"
-                      )
-                    ) : (
-                      <>
-                        Presencial — confira as datas
-                        {a.inicio && <> · {formatarData(a.inicio)}</>}
-                        {a.termino && <> a {formatarData(a.termino)}</>}
-                      </>
-                    )}
-                  </p>
-                </div>
-                {a.online ? (
-                  a.jaVotou ? (
-                    <Badge
-                      variant="outline"
-                      className="border-success/40 text-success-fg"
-                    >
-                      Você já votou
-                    </Badge>
-                  ) : a.abreEm ? (
-                    <div className="max-w-xs sm:text-right">
-                      <Badge variant="outline">Ainda não abriu</Badge>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        A votação abre em {formatarDataHora(a.abreEm)}.
+            {abertas.map((a) => {
+              // A mesma regra do banner do Início e da cédula — as três telas
+              // não podem dizer coisas diferentes (achado A3).
+              const estado = estadoVotacao(a)
+              const verDatas = a.rodadaId ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/portal/votacao/rodada/${a.rodadaId}`}>
+                    <CalendarClock />
+                    Ver datas
+                  </Link>
+                </Button>
+              ) : null
+              // A contagem "encerra em" só faz sentido para quem pode votar
+              // agora; antes da abertura ela enganava.
+              const complemento =
+                estado.chave === "votar" ? (
+                  a.termino ? (
+                    <ContagemRegressiva ate={a.termino} />
+                  ) : (
+                    "votação online"
+                  )
+                ) : estado.chave === "presencial" ? (
+                  <>
+                    Presencial — confira as datas
+                    {a.inicio && <> · {formatarData(a.inicio)}</>}
+                    {a.termino && <> a {formatarData(a.termino)}</>}
+                  </>
+                ) : null
+              return (
+                <div
+                  key={a.assembleiaId}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {a.nome ?? a.tema ?? "Assembleia"}
+                      <Badge variant="outline" className="ml-2 align-middle">
+                        {ROTULOS_MODALIDADE[a.modalidade]}
+                      </Badge>
+                    </p>
+                    {(a.empregador || complemento) && (
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {a.empregador}
+                        {a.empregador && complemento && " · "}
+                        {complemento}
                       </p>
-                    </div>
-                  ) : a.carencia ? (
+                    )}
+                    {estado.chave === "votar" && estado.detalhe && (
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {estado.detalhe}
+                      </p>
+                    )}
+                  </div>
+                  {estado.chave === "ja_votou" ? (
+                    <Badge variant={estado.variante}>{estado.rotulo}</Badge>
+                  ) : estado.chave === "nao_abriu" || estado.chave === "carencia" ? (
                     // Recusa EXPLICADA: sumir com o botão faria a pessoa achar
                     // que o sistema está quebrado.
-                    <div className="max-w-xs sm:text-right">
-                      <Badge variant="warning">Ainda em carência</Badge>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {a.carencia.motivo}
-                        {a.carencia.liberaEm
-                          ? ` Você poderá votar a partir de ${formatarData(a.carencia.liberaEm)}.`
-                          : ""}
+                    <div className="flex max-w-xs flex-col items-start gap-1 sm:items-end sm:text-right">
+                      <Badge variant={estado.variante}>{estado.rotulo}</Badge>
+                      <p className="text-muted-foreground text-xs">
+                        {estado.detalhe}
                       </p>
+                      {/* Híbrida que ainda vai abrir: as datas das urnas já
+                          podem ser conferidas. Na carência, não — ela é do
+                          direito de votar, valha a porta que for. */}
+                      {estado.chave === "nao_abriu" && estado.comUrna && verDatas}
+                    </div>
+                  ) : estado.chave === "votar" ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" asChild>
+                        <Link href={`/portal/votacao/${a.assembleiaId}`}>
+                          <Vote />
+                          Votar agora
+                        </Link>
+                      </Button>
+                      {estado.comUrna && verDatas}
                     </div>
                   ) : (
-                    <Button size="sm" asChild>
-                      <Link href={`/portal/votacao/${a.assembleiaId}`}>
-                        <Vote />
-                        Votar agora
-                      </Link>
-                    </Button>
-                  )
-                ) : a.rodadaId ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/portal/votacao/rodada/${a.rodadaId}`}>
-                      <CalendarClock />
-                      Ver datas
-                    </Link>
-                  </Button>
-                ) : (
-                  <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                    <CalendarClock className="size-3.5" />
-                    presencial
-                  </span>
-                )}
-              </div>
-            ))}
+                    verDatas ?? (
+                      <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                        <CalendarClock className="size-3.5" />
+                        presencial
+                      </span>
+                    )
+                  )}
+                </div>
+              )
+            })}
           </CardContent>
         </Card>
       )}

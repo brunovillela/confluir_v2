@@ -28,7 +28,16 @@ import { tenantAtual } from "@/lib/tenant"
 export const COOKIE_VISUALIZACAO = "confluir_ver_filiado"
 const TTL_SEGUNDOS = 60 * 30 // 30 min
 
-/** Chaves de permissão que autorizam ver a área de um filiado. */
+/**
+ * Chaves de permissão que autorizam ver a área de um filiado.
+ *
+ * São permissões de FILIAÇÃO, não clínicas. Na visualização nada pode
+ * revelar o serviço de saúde que a pessoa procurou (decisão de 21/07/2026,
+ * em registrarNoProntuario, lib/db/atendimentos.ts): /portal/saude, em
+ * preview, nem consulta os atendimentos e mostra só um aviso. Toda seção
+ * futura do portal com agenda de saúde, CAT ou afastamento segue a mesma
+ * regra — em preview, não lê; não basta esconder coluna.
+ */
 const PERMISSAO_VER = "filiacao_filiados"
 const PERMISSAO_VER_ALT = ["filiacao_gestao", "filiacao_receitas"]
 

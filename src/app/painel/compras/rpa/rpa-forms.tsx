@@ -26,7 +26,7 @@ import {
   type ConfigRpa,
 } from "@/lib/rpa-calculo"
 
-import { ACEITA_NOTA, prepararArquivo } from "../nova/arquivo-envio"
+import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
 import {
   anexarRpaAssinado,

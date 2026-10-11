@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { ACEITA_NOTA, prepararArquivo } from "../../nova/arquivo-envio"
+import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import {
   editarOrdemContratoAction,
   excluirOrdemContratoAction,

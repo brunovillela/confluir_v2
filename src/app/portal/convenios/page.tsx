@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Convênios — Portal do Associado" 
  * pode aparecer como promessa.
  */
 export default async function PortalConveniosPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  await requireVisualizacaoPortal()
   const convenios = await listarConvenios({ somenteVigentes: true })
 
   const porCategoria = new Map<string, Convenio[]>()
@@ -27,7 +27,7 @@ export default async function PortalConveniosPage() {
   }
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Convênios</h1>
         <p className="text-muted-foreground mt-1 text-xs">

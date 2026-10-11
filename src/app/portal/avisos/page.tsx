@@ -22,14 +22,14 @@ const ROTULO = new Map<string, string>(EVENTOS_PORTAL.map((e) => [e.chave, e.rot
  * portal não há fila de trabalho, só notícias sobre o que é da pessoa.
  */
 export default async function PortalAvisosPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const avisos = await avisosDoFiliado(filiado.cpf)
   const naoLidos = avisos.filter((a) => !a.lidaEm).length
   // A gestão visualizando não "lê" pelo filiado.
   if (naoLidos > 0 && !preview) await marcarAvisosLidos(filiado.cpf)
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Avisos</h1>

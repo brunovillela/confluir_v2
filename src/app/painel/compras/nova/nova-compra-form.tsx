@@ -40,7 +40,7 @@ import {
   type EmpresaOpcao as FornecedorOpcao,
 } from "@/components/empresa-combobox"
 import { criarCompra } from "./actions"
-import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "./arquivo-envio"
+import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 import {
   DetalhePagamento,
   type CaixaOpcao,

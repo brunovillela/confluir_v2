@@ -30,7 +30,12 @@ import { tenantAtual } from "@/lib/tenant"
 
 const BUCKET = "documentos"
 const PASTA = "atendimentos"
-const MAX_ANEXO = 10 * 1024 * 1024
+// O anexo (do filiado e da equipe) viaja no corpo da server action, que o Next
+// corta em 4 MB NO TOTAL (next.config.ts) — e o corpo leva também o texto.
+// 3,5 MB é o teto que dá para cumprir; o mesmo valor está no formulário do
+// portal (app/portal/atendimento/formularios.tsx), que confere e reduz fotos
+// antes de enviar, e no artigo de ajuda (conteudo/portal/atendimento).
+const MAX_ANEXO = 3.5 * 1024 * 1024
 
 export type Atendimento = {
   id: string
@@ -114,7 +119,7 @@ function somarDias(iso: string, dias: number): string {
 
 async function guardarAnexo(atendimentoId: string, arquivo: File | null): Promise<{ caminho: string | null; nome: string | null; erro?: string }> {
   if (!arquivo || arquivo.size === 0) return { caminho: null, nome: null }
-  if (arquivo.size > MAX_ANEXO) return { caminho: null, nome: null, erro: "O anexo deve ter no máximo 10 MB." }
+  if (arquivo.size > MAX_ANEXO) return { caminho: null, nome: null, erro: "O anexo deve ter no máximo 3,5 MB." }
   const ext = (arquivo.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin"
   const caminho = `${PASTA}/${atendimentoId}/${randomUUID()}.${ext}`
   const admin = await createAdminClient()

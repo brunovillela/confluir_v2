@@ -3,11 +3,11 @@
 import { useActionState } from "react"
 import { CheckCheck, Loader2, RotateCcw, Send } from "lucide-react"
 
+import { CampoAnexo, useAnexo } from "@/components/atendimento/campo-anexo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -17,6 +17,7 @@ import { reabrirAtendimentoAction, responderAtendimentoAction } from "./actions"
 export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendimentoId: string; concluida: boolean }) {
   const [estado, action, enviando] = useActionState(responderAtendimentoAction, {})
   const [estadoReabrir, reabrir, reabrindo] = useActionState(reabrirAtendimentoAction, {})
+  const anexo = useAnexo()
 
   if (concluida) {
     return (
@@ -39,17 +40,14 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
   }
 
   return (
-    <form action={action} className="grid gap-3" key={estado.ok ?? "form"}>
+    <form action={action} onSubmit={anexo.conferirEnvio} className="grid gap-3" key={estado.ok ?? "form"}>
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="texto">Resposta ao filiado</Label>
         <Textarea id="texto" name="texto" rows={4} placeholder="O filiado lê esta mensagem no portal e recebe um aviso." />
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="anexo">Anexo (opcional)</Label>
-        <Input id="anexo" name="anexo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.docx,.xlsx,.txt" />
-      </div>
+      <CampoAnexo anexo={anexo} />
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -61,7 +59,7 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
         </Alert>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" name="acao" value="responder" disabled={enviando}>
+        <Button type="submit" name="acao" value="responder" disabled={enviando || anexo.preparando}>
           {enviando ? <Loader2 className="animate-spin" /> : <Send />}
           Responder
         </Button>
@@ -70,7 +68,7 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
           name="acao"
           value="concluir"
           variant="outline"
-          disabled={enviando}
+          disabled={enviando || anexo.preparando}
           onClick={(e) => confirmarEnvio(e, "Concluir a solicitação? O filiado é avisado e não poderá mais responder nela.")}
         >
           <CheckCheck />

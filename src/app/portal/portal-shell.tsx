@@ -32,9 +32,6 @@ const NAV: ItemNavPortal[] = [
   { titulo: "Ajuda", href: "/portal/ajuda" },
 ]
 
-/** Dados da visualização pela gestão (somente leitura). */
-type Preview = { filiadoNome?: string | null; gestorNome?: string | null }
-
 /**
  * A Oposição é um fluxo com sessão própria (do trabalhador), então na
  * visualização ela fica fora da navegação — menos quando tem a ver com ESTE
@@ -50,15 +47,16 @@ async function oposicaoNaNavegacao(cpf: string | null | undefined): Promise<bool
  * Casca da área logada do portal do associado (onda 4, F5 — mobile-first):
  * cabeçalho com sino, navegação no topo em telas médias e barra inferior
  * no celular, com a página atual marcada nas duas.
+ *
+ * O modo "Ver como filiado" sai daqui mesmo, de getVisualizacaoPortal() (em
+ * cache por request — a página já o consultou): faixa "Visualizando…", sem
+ * "Sair" e sem alternador. Não há prop para isso de propósito — antes cada
+ * página repassava a visualização à mão, e a que esquecia mostrava o "Sair"
+ * comum, que desloga o atendente (A29).
  */
-export async function PortalShell({
-  children,
-  preview,
-}: {
-  children: React.ReactNode
-  preview?: Preview
-}) {
+export async function PortalShell({ children }: { children: React.ReactNode }) {
   const vis = await getVisualizacaoPortal()
+  const preview = vis?.preview ? vis : null
   const cpf = vis?.filiado.cpf ?? null
 
   // No modo visualização não mostra o alternador de interfaces (é da gestão,
@@ -80,7 +78,7 @@ export async function PortalShell({
               <Eye className="size-4 shrink-0" />
               <span>
                 Visualizando a área de{" "}
-                <strong>{preview.filiadoNome ?? "filiado"}</strong> — somente
+                <strong>{preview.filiado.nome_completo ?? "filiado"}</strong> — somente
                 leitura
                 {preview.gestorNome ? ` · ${preview.gestorNome}` : ""}
               </span>

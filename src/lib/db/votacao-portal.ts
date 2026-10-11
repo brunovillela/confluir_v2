@@ -1,7 +1,13 @@
 import "server-only"
 import { createHash, randomInt, randomUUID } from "node:crypto"
 
-import { derivarModalidade, horaDoVotoSecreto, type Modalidade } from "@/lib/assembleias-constantes"
+import {
+  derivarModalidade,
+  horaDoVotoSecreto,
+  temVotoOnline,
+  type Modalidade,
+} from "@/lib/assembleias-constantes"
+import { grafiasDoCpf, limparCpf } from "@/lib/cpf"
 import { enviarEmail } from "@/lib/email"
 import { direitoDoFiliado } from "@/lib/db/filiacao-direitos"
 import {
@@ -199,6 +205,10 @@ export type AssembleiaDoFiliado = {
   tema: string | null
   empregador: string | null
   modalidade: Modalidade
+  /**
+   * Aceita voto pela internet (online OU híbrida — temVotoOnline). Na híbrida
+   * a mesma pessoa escolhe entre a cédula online e a urna; o voto é um só.
+   */
   online: boolean
   inicio: string | null
   /** Fim da assembleia (data + hora) — base da contagem regressiva (online). */
@@ -233,7 +243,8 @@ export async function empregadoresAtivos(cpf: string): Promise<Set<string>> {
   const { data: filiacoes } = await admin
     .from("filiacoes")
     .select("id")
-    .eq("cpf", cpf)
+    // O legado tem CPF com e sem máscara: comparar só uma grafia perdia vínculos.
+    .in("cpf", grafiasDoCpf(limparCpf(cpf)))
     .eq("emp_proprietaria_id", emp)
     .not("filiacao_excluida", "is", true)
   const ids = (filiacoes ?? []).map((f) => f.id as string)
@@ -395,7 +406,9 @@ export async function assembleiasDoFiliado(
     const apuracaoEncerrada =
       a.apuracao_encerrada === true || rod?.apuracao_encerrada === true
     const modalidade = derivarModalidade(a)
-    const online = modalidade === "online"
+    // Híbrida também tem cédula online (antes só "online" contava, e a
+    // híbrida aparecia como presencial — achado A11).
+    const online = temVotoOnline(modalidade)
     const inicio = txt(a.data_inicio) ?? txt(a.periodo_inicio)
     const fonte = {
       data_inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
@@ -524,7 +537,10 @@ export async function registrarVotoFiliado(
 
   const eleg = await elegibilidadeParaVotar(cpf, assembleiaId)
   if (!eleg) return { erro: "Você não está apto a votar nesta assembleia." }
-  if (!eleg.online) return { erro: "Esta assembleia não é de votação online." }
+  // `online` inclui a híbrida (temVotoOnline): só urna/reunião param aqui.
+  if (!eleg.online) {
+    return { erro: "Esta assembleia é só presencial — não há voto pela internet." }
+  }
   if (eleg.jaVotou) return { erro: "Você já votou nesta assembleia." }
   if (eleg.abreEm) {
     return { erro: "A votação desta assembleia ainda não começou." }
@@ -954,7 +970,8 @@ export async function elegibilidadeEleitorEmail(
     tema: txt(campRes.data?.tema),
     empregador: empRes.data ? txt(empRes.data.nome_fantasia) ?? txt(empRes.data.nome_razao) : null,
     modalidade: derivarModalidade(a),
-    online: derivarModalidade(a) === "online",
+    // Híbrida também (online + urna); o voto único já conta presenca_em acima.
+    online: temVotoOnline(derivarModalidade(a)),
     inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
     termino,
     abreEm: abreEmISO(fonte),
@@ -979,7 +996,10 @@ export async function registrarVotoEleitorEmail(
 
   const eleg = await elegibilidadeEleitorEmail(alvo, assembleiaId)
   if (!eleg) return { erro: "Você não está apto a votar nesta assembleia." }
-  if (!eleg.online) return { erro: "Esta assembleia não é de votação online." }
+  // `online` inclui a híbrida (temVotoOnline): só urna/reunião param aqui.
+  if (!eleg.online) {
+    return { erro: "Esta assembleia é só presencial — não há voto pela internet." }
+  }
   if (eleg.jaVotou) return { erro: "Você já votou nesta assembleia." }
   if (eleg.abreEm) return { erro: "A votação desta assembleia ainda não começou." }
 

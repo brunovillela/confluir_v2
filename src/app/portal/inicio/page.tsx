@@ -17,7 +17,8 @@ import {
 } from "lucide-react"
 
 import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardDescription,
@@ -27,7 +28,7 @@ import {
 import { tenantAtual } from "@/lib/tenant"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { eventosParaFiliado } from "@/lib/db/eventos-portal"
 import { eventosDoAplicativo } from "@/lib/db/filiado-portal"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
@@ -92,7 +93,7 @@ const SERVICOS = [
 ]
 
 export default async function PortalInicioPage() {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const nome = filiado.nome_completo ?? "Associado(a)"
 
   const [noticias, eventos, assembleias, oposicoes, coletiva, inscricoesAbertas, votacoes, entidade] = await Promise.all([
@@ -115,7 +116,7 @@ export default async function PortalInicioPage() {
     : []
 
   return (
-    <PortalShell preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}>
+    <PortalShell>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Olá, {nome.split(" ")[0]}
@@ -129,60 +130,84 @@ export default async function PortalInicioPage() {
 
       {assembleias.length > 0 && (
         <div className="grid gap-3">
-          {assembleias.map((a) => (
-            <Link
-              key={a.assembleiaId}
-              href={
-                !a.online && a.rodadaId
-                  ? `/portal/votacao/rodada/${a.rodadaId}`
-                  : "/portal/votacao"
-              }
-              className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                  {a.online ? (
-                    <Vote className="size-5" />
-                  ) : (
-                    <CalendarClock className="size-5" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">
-                    {a.online
-                      ? a.jaVotou
-                        ? "Você já votou nesta assembleia"
-                        : "Assembleia aberta para votação"
-                      : "Assembleia presencial — confira as datas"}
-                  </p>
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    {a.nome ?? a.tema ?? "Assembleia"}
-                    {a.empregador && <> · {a.empregador}</>}
-                    {" · "}
+          {assembleias.map((a) => {
+            // Mesma regra da lista /portal/votacao e da cédula (achado A3): só
+            // quem pode votar AGORA vê "Votar" e a contagem "encerra em"; antes
+            // da abertura e na carência o banner explica, sem botão.
+            const estado = estadoVotacao(a)
+            return (
+              <Link
+                key={a.assembleiaId}
+                href={
+                  estado.chave === "votar"
+                    ? `/portal/votacao/${a.assembleiaId}`
+                    : estado.chave === "presencial" && a.rodadaId
+                      ? `/portal/votacao/rodada/${a.rodadaId}`
+                      : "/portal/votacao"
+                }
+                className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
                     {a.online ? (
-                      a.termino ? (
-                        <ContagemRegressiva ate={a.termino} />
-                      ) : (
-                        ROTULOS_MODALIDADE[a.modalidade]
-                      )
-                    ) : a.inicio ? (
-                      <>a partir de {formatarData(a.inicio)}</>
+                      <Vote className="size-5" />
                     ) : (
-                      "confira as datas"
+                      <CalendarClock className="size-5" />
                     )}
-                  </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">
+                      {estado.titulo}
+                      {(estado.chave === "nao_abriu" || estado.chave === "carencia") && (
+                        <Badge variant={estado.variante} className="ml-2 align-middle">
+                          {estado.rotulo}
+                        </Badge>
+                      )}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 text-xs">
+                      {a.nome ?? a.tema ?? "Assembleia"}
+                      {a.empregador && <> · {a.empregador}</>}
+                      {estado.chave === "votar" ? (
+                        <>
+                          {" · "}
+                          {a.termino ? (
+                            <ContagemRegressiva ate={a.termino} />
+                          ) : (
+                            ROTULOS_MODALIDADE[a.modalidade]
+                          )}
+                        </>
+                      ) : estado.chave === "presencial" ? (
+                        <>
+                          {" · "}
+                          {a.inicio ? (
+                            <>a partir de {formatarData(a.inicio)}</>
+                          ) : (
+                            "confira as datas"
+                          )}
+                        </>
+                      ) : null}
+                    </p>
+                    {/* "Ainda não abriu" já diz quando no título. */}
+                    {estado.detalhe && estado.chave !== "nao_abriu" && (
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {estado.detalhe}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {a.online && !a.jaVotou ? (
-                <Button size="sm" className="pointer-events-none">
-                  <Vote />
-                  Votar
-                </Button>
-              ) : (
-                <ArrowRight className="text-muted-foreground size-4" />
-              )}
-            </Link>
-          ))}
+                {estado.chave === "votar" ? (
+                  // Aparência de botão sem <button> dentro do <a>: o banner
+                  // inteiro já é o link.
+                  <span className={buttonVariants({ size: "sm" })}>
+                    <Vote />
+                    Votar
+                  </span>
+                ) : (
+                  <ArrowRight className="text-muted-foreground size-4" />
+                )}
+              </Link>
+            )
+          })}
         </div>
       )}
 

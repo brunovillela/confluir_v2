@@ -37,7 +37,7 @@ export async function inscreverAction(
   const evento = await obterEvento(txt(fd, "eventoId"))
   if (!evento) return { erro: "Evento não encontrado." }
 
-  const { erro, token } = await inscreverFiliado(
+  const { erro, situacao, jaInscrito, reinscricao } = await inscreverFiliado(
     evento,
     {
       cpf: filiado.cpf,
@@ -50,10 +50,19 @@ export async function inscreverAction(
   if (erro) return { erro }
 
   revalidatePath("/portal/eventos")
+  // Nada foi gravado: dizer "Inscrição feita." seria mentir.
+  if (jaInscrito) {
+    return { ok: "Você já está inscrito(a) neste evento. Acompanhe a inscrição aqui mesmo." }
+  }
+  if (situacao === "pendente") {
+    return {
+      ok: "Inscrição recebida. Ela passa pela avaliação do sindicato — avisamos por e-mail assim que houver resposta.",
+    }
+  }
   return {
-    ok: token
-      ? "Inscrição feita. Você pode acompanhá-la aqui mesmo."
-      : "Inscrição feita.",
+    ok: reinscricao
+      ? "Pronto, você está inscrito(a) de novo. Acompanhe a inscrição aqui mesmo."
+      : "Inscrição feita. Você pode acompanhá-la aqui mesmo.",
   }
 }
 
@@ -94,5 +103,7 @@ export async function cancelarAction(
   if (erro) return { erro }
 
   revalidatePath("/portal/eventos")
-  return { ok: "Inscrição cancelada. Sua vaga voltou para a fila." }
+  return {
+    ok: "Inscrição cancelada. Se mudar de ideia, é só se inscrever de novo enquanto as inscrições estiverem abertas e houver vaga.",
+  }
 }

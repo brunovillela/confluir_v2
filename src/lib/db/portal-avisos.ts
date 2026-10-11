@@ -2,9 +2,8 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { buscarFiliadoPorCpf } from "@/lib/contas"
-import { cpfConfiavel } from "@/lib/cpf"
-import { esquemaAusente } from "@/lib/db/comum"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
+import { esquemaAusente, texto } from "@/lib/db/comum"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { botaoEmail, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import {
@@ -63,10 +62,57 @@ function tabelaAusente(error: { code?: string; message?: string } | null): boole
   return !!error && (esquemaAusente(error) || error.code === "42P01")
 }
 
+/**
+ * Nome e e-mail de contato do filiado, pela mesma regra de
+ * `buscarFiliadoPorCpf` (o e-mail que o portal mostra em Avisos →
+ * Preferências): registros não excluídos do CPF, do mais recente para o mais
+ * antigo, o pessoal antes do corporativo. O e-mail sai sem espaços nas pontas
+ * (o legado tem cadastros assim, e o provedor pode recusar o endereço).
+ *
+ * Usa o client e o tenant RECEBIDOS, nunca `tenantAtual()`: o tick mensal das
+ * cobranças percorre todas as entidades numa requisição só, e ali
+ * `tenantAtual()` devolve o tenant do host (apex → tenant padrão), não o da
+ * volta do laço — a busca voltava vazia e o e-mail das outras entidades não
+ * saía (achado A19).
+ */
+export async function contatoDoFiliado(
+  cpf: string,
+  amb: Ambiente = {}
+): Promise<{ nome: string | null; email: string | null } | null> {
+  const chave = cpfConfiavel(cpf)
+  if (!chave) return null
+  const { client, tenantId } = await ambiente(amb)
+  const { data, error } = await client
+    .from("filiacoes")
+    .select("nome_completo, email_pessoal, email_corporativo, updated_at")
+    .in("cpf", grafiasDoCpf(chave))
+    .eq("emp_proprietaria_id", tenantId)
+    .not("filiacao_excluida", "is", true)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+  if (error || !data || data.length === 0) return null
+  return {
+    nome: data.map((f) => texto(f.nome_completo)).find(Boolean) ?? null,
+    email: data.map((f) => texto(f.email_pessoal) ?? texto(f.email_corporativo)).find(Boolean)?.trim() ?? null,
+  }
+}
+
+/**
+ * O que `avisarFiliado` conseguiu fazer:
+ * - `false`: nada gravado (CPF inválido, aviso repetido com `umaVez`, tabela
+ *   ausente ou erro);
+ * - `"sino"`: gravou no sino, mas nenhum e-mail saiu por este caminho
+ *   (`soSino`, preferência desligada, cadastro sem e-mail ou o provedor
+ *   recusou);
+ * - `"email"`: gravou no sino e o provedor aceitou o e-mail.
+ * Os dois valores verdadeiros mantêm o `if (ok)` de quem lia o antigo boolean.
+ */
+export type ResultadoAviso = false | "sino" | "email"
+
 /** Grava no sino do filiado e, conforme a preferência, manda o e-mail. */
-export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Promise<boolean> {
+export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Promise<ResultadoAviso> {
   const cpf = cpfConfiavel(aviso.cpf)
   if (!cpf) return false
+  let noSino = false
   try {
     const { client, tenantId, contexto } = await ambiente(amb)
 
@@ -93,24 +139,26 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
       if (!tabelaAusente(error)) console.error("aviso ao filiado (sino):", error.message)
       return false
     }
+    noSino = true
 
-    if (aviso.soSino) return true
+    if (aviso.soSino) return "sino"
 
     const prefs = await preferenciasDoFiliado(cpf, { client, tenantId })
-    if (!prefs[aviso.evento]) return true
+    if (!prefs[aviso.evento]) return "sino"
 
-    let nome = aviso.nome ?? null
-    let email = aviso.email ?? null
+    let nome = texto(aviso.nome)
+    let email = texto(aviso.email)?.trim() ?? null
     if (!email) {
-      const f = await buscarFiliadoPorCpf(cpf)
-      nome = nome ?? f?.nome_completo ?? null
+      // Mesmo client/tenant do sino: vale dentro e fora de requisição.
+      const f = await contatoDoFiliado(cpf, { client, tenantId })
+      nome = nome ?? f?.nome ?? null
       email = f?.email ?? null
     }
-    if (!email) return true
+    if (!email) return "sino"
 
     const origem = contexto?.origem ?? (await origemAtual().catch(() => ""))
     const url = origem ? `${origem}${aviso.link}` : null
-    await enviarEmail({
+    const saiu = await enviarEmail({
       email,
       nome,
       assunto: aviso.assunto ?? aviso.texto.slice(0, 120),
@@ -122,10 +170,11 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
           textoSuave("Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."),
       contexto,
     })
-    return true
+    return saiu ? "email" : "sino"
   } catch (e) {
     console.error("aviso ao filiado:", e)
-    return false
+    // Falhou depois de gravar o sino: a pessoa vê no portal, o e-mail não saiu.
+    return noSino ? "sino" : false
   }
 }
 

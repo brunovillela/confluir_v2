@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, CalendarClock, Info } from "lucide-react"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,10 +12,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
+import { estadoVotacao } from "@/lib/assembleias-constantes"
 import {
   elegibilidadeParaVotar,
   perguntasDaAssembleia,
 } from "@/lib/db/votacao-portal"
+import { formatarDataHora } from "@/lib/formato"
 
 import { PortalShell } from "../../portal-shell"
 import { votarNaAssembleia } from "../actions"
@@ -28,16 +30,20 @@ export default async function CedulaPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { filiado, preview, gestorNome } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const { id } = await params
 
   const eleg = filiado.ativo ? await elegibilidadeParaVotar(filiado.cpf, id) : null
-  const perguntas = eleg?.online ? await perguntasDaAssembleia(id) : []
+  // Mesma regra da lista e do banner do Início: a cédula só aparece quando dá
+  // para votar AGORA. Antes ela abria antes da abertura e na carência, e o
+  // bloqueio só chegava depois de a pessoa responder tudo (achado A89). As
+  // travas do servidor (registrarVotoFiliado) continuam valendo.
+  const estado = eleg ? estadoVotacao(eleg) : null
+  const perguntas =
+    estado?.chave === "votar" ? await perguntasDaAssembleia(id) : []
 
   return (
-    <PortalShell
-      preview={preview ? { filiadoNome: filiado.nome_completo, gestorNome } : undefined}
-    >
+    <PortalShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/portal/votacao">
@@ -56,7 +62,10 @@ export default async function CedulaPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Cédula</CardTitle>
-          <CardDescription>Escolha uma opção em cada pergunta.</CardDescription>
+          {/* A instrução só vale quando as perguntas estão na tela. */}
+          {estado?.chave === "votar" && perguntas.length > 0 && (
+            <CardDescription>Escolha uma opção em cada pergunta.</CardDescription>
+          )}
         </CardHeader>
         <CardContent className="grid gap-4">
           {preview && (
@@ -67,25 +76,51 @@ export default async function CedulaPage({
               </AlertDescription>
             </Alert>
           )}
-          {!eleg ? (
+          {!eleg || !estado ? (
             <Alert variant="warning">
               <AlertDescription>
                 Você não está apto a votar nesta assembleia, ou a votação não está
                 aberta.
               </AlertDescription>
             </Alert>
-          ) : !eleg.online ? (
-            <Alert variant="warning">
-              <AlertDescription>
-                Esta assembleia é presencial — não há cédula online. Confira as
-                datas na área de votação.
-              </AlertDescription>
-            </Alert>
-          ) : eleg.jaVotou ? (
-            <Alert className="border-success/40 text-success-fg">
+          ) : estado.chave === "ja_votou" ? (
+            <Alert variant="success">
               <AlertDescription>
                 Você já votou nesta assembleia. Obrigado por participar.
               </AlertDescription>
+            </Alert>
+          ) : estado.chave === "presencial" ? (
+            <>
+              <Alert variant="warning">
+                <AlertDescription>
+                  Esta assembleia é só presencial — não há cédula online. Confira
+                  as datas de cada encontro.
+                </AlertDescription>
+              </Alert>
+              {eleg.rodadaId && (
+                <Button variant="outline" size="sm" asChild className="w-fit">
+                  <Link href={`/portal/votacao/rodada/${eleg.rodadaId}`}>
+                    <CalendarClock />
+                    Ver datas
+                  </Link>
+                </Button>
+              )}
+            </>
+          ) : estado.chave === "nao_abriu" ? (
+            // Sem contagem regressiva: o componente fala em "encerra em" e
+            // "encerrada", o contrário do que se quer antes da abertura.
+            <Alert variant="info">
+              <AlertDescription>
+                A votação ainda não começou. Ela abre em{" "}
+                <strong>{formatarDataHora(eleg.abreEm)}</strong>. Volte a partir
+                desse horário para votar.
+              </AlertDescription>
+            </Alert>
+          ) : estado.chave === "carencia" ? (
+            // Mesmo texto da lista (motivo + data de liberação).
+            <Alert variant="warning">
+              <AlertTitle>{estado.rotulo}</AlertTitle>
+              <AlertDescription>{estado.detalhe}</AlertDescription>
             </Alert>
           ) : perguntas.length === 0 ? (
             <Alert variant="warning">
@@ -94,12 +129,20 @@ export default async function CedulaPage({
               </AlertDescription>
             </Alert>
           ) : (
-            <CedulaForm
-              assembleiaId={id}
-              perguntas={perguntas}
-              acao={votarNaAssembleia}
-              preview={preview}
-            />
+            <>
+              {estado.detalhe && (
+                <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
+                  <Info className="mt-0.5 size-3.5 shrink-0" />
+                  {estado.detalhe}
+                </p>
+              )}
+              <CedulaForm
+                assembleiaId={id}
+                perguntas={perguntas}
+                acao={votarNaAssembleia}
+                preview={preview}
+              />
+            </>
           )}
         </CardContent>
       </Card>

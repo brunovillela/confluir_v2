@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { invalidarCacheInadimplencia } from "@/lib/db/filiacao-inadimplencia"
-import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { avisarFiliado, type ResultadoAviso } from "@/lib/db/portal-avisos"
 import { emitirEvento } from "@/lib/db/webhooks"
 import { type ContextoEmail } from "@/lib/email"
 import { formatarMoeda } from "@/lib/formato"
@@ -55,6 +55,11 @@ export type Cobranca = {
   pagoEm: string | null
   valorPago: number | null
   lancamentoId: string | null
+  /**
+   * Quando o e-mail "cobrança disponível" saiu (só o sino não carimba — ver
+   * gerarCobrancas). Cobranças geradas antes de 11/10/2026 podem ter o
+   * carimbo só pelo sino (regra antiga).
+   */
   avisadaEm: string | null
   criadaEm: string
   /** Aberta e vencida. */
@@ -154,10 +159,17 @@ function txidDe(tenantId: string, filiacaoId: string, competencia: string): stri
 /**
  * Gera as cobranças da competência para todo filiado ATIVO com
  * forma_recebimento = pix que ainda não tem a dela. Idempotente.
+ *
+ * Aviso de cada cobrança nova: sempre no sino; por e-mail conforme a
+ * preferência e o cadastro. `avisadas` (e o carimbo `avisada_em`) conta só
+ * quem recebeu o E-MAIL — o provedor aceitou o envio. `soNoSino` conta quem
+ * ficou só com o sino (sem e-mail no cadastro, e-mail de contribuição
+ * desligado ou envio recusado): quantos a secretaria talvez precise procurar,
+ * e o painel não pode tratá-los como avisados.
  */
-export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): Promise<{ geradas: number; semValor: number; jaExistiam: number; avisadas: number; erro?: string }> {
+export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): Promise<{ geradas: number; semValor: number; jaExistiam: number; avisadas: number; soNoSino: number; erro?: string }> {
   const { client, tenantId, contexto } = await ambiente(amb)
-  const vazio = { geradas: 0, semValor: 0, jaExistiam: 0, avisadas: 0 }
+  const vazio = { geradas: 0, semValor: 0, jaExistiam: 0, avisadas: 0, soNoSino: 0 }
   if (!/^\d{4}-\d{2}$/.test(competencia)) return { ...vazio, erro: "Competência inválida (AAAA-MM)." }
   const config = await obterConfigCobranca({ client, tenantId })
   if (!config.disponivel) return { ...vazio, erro: "Falta rodar o SQL supabase/filiacao-cobrancas.sql." }
@@ -166,7 +178,7 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
 
   const { data: pessoas, error } = await client
     .from("filiacoes")
-    .select("id, cpf, nome_completo, contribuicao_valor")
+    .select("id, cpf, nome_completo, email_pessoal, email_corporativo, contribuicao_valor")
     .eq("emp_proprietaria_id", tenantId)
     .eq("filiacao_condicao", "Ativo")
     .eq("forma_recebimento", "pix")
@@ -185,6 +197,7 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
   let geradas = 0
   let semValor = 0
   let avisadas = 0
+  let soNoSino = 0
   for (const p of lista) {
     const id = String(p.id)
     if (jaTem.has(id)) continue
@@ -215,10 +228,14 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
     geradas++
     const cpf = cpfConfiavel(texto(p.cpf))
     if (cpf) {
-      const ok = await avisarFiliado(
+      // E-mail do próprio registro (pessoal antes do corporativo, como no
+      // portal); sem ele, avisarFiliado procura nos outros registros do CPF
+      // com o client/tenant desta volta — nunca o tenant da requisição.
+      const aviso = await avisarFiliado(
         {
           cpf,
           nome: texto(p.nome_completo),
+          email: texto(p.email_pessoal) ?? texto(p.email_corporativo),
           evento: "contribuicao",
           assunto: `Contribuição de ${rotuloCompetencia(competencia)}: Pix de ${formatarMoeda(valor)}`,
           texto: `Sua contribuição de ${rotuloCompetencia(competencia)} (${formatarMoeda(valor)}) está disponível para pagamento por Pix até ${vencimento.split("-").reverse().join("/")}. Abra Contribuição no portal para ver o QR Code.`,
@@ -226,13 +243,20 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
         },
         { client, tenantId, contexto }
       )
-      if (ok) {
+      if (aviso === "email") {
         avisadas++
-        await client.from("filiacao_cobrancas").update({ avisada_em: new Date().toISOString() }).eq("filiacao_id", id).eq("competencia", competencia)
+        await client
+          .from("filiacao_cobrancas")
+          .update({ avisada_em: new Date().toISOString() })
+          .eq("emp_proprietaria_id", tenantId)
+          .eq("filiacao_id", id)
+          .eq("competencia", competencia)
+      } else if (aviso === "sino") {
+        soNoSino++
       }
     }
   }
-  return { geradas, semValor, jaExistiam: jaTem.size, avisadas }
+  return { geradas, semValor, jaExistiam: jaTem.size, avisadas, soNoSino }
 }
 
 // ── Leitura ──────────────────────────────────────────────────────────────────
@@ -312,6 +336,8 @@ async function remessaDaCompetencia(client: SupabaseClient, tenantId: string, co
 /**
  * Dá baixa: cobrança paga + linha em `filiacao_recebe` (forma pix) na
  * remessa Associativa da competência. Idempotente para a mesma cobrança.
+ * `aviso` diz como o "Contribuição recebida" chegou ao filiado ("email",
+ * só "sino" ou `false`) — ausente quando a cobrança já estava paga.
  */
 export async function baixarCobranca(p: {
   cobrancaId: string
@@ -319,7 +345,7 @@ export async function baixarCobranca(p: {
   valorPago: number
   bancoLancamentoId?: string | null
   usuarioId?: string | null
-}, amb: Ambiente = {}): Promise<{ erro?: string; lancamentoId?: string }> {
+}, amb: Ambiente = {}): Promise<{ erro?: string; lancamentoId?: string; aviso?: ResultadoAviso }> {
   const { client, tenantId, contexto } = await ambiente(amb)
   const { data: c } = await client.from("filiacao_cobrancas").select("*").eq("id", p.cobrancaId).eq("emp_proprietaria_id", tenantId).maybeSingle()
   if (!c) return { erro: "Cobrança não encontrada." }
@@ -327,7 +353,12 @@ export async function baixarCobranca(p: {
   if (c.situacao === "cancelada") return { erro: "Cobrança cancelada." }
   const remessaId = await remessaDaCompetencia(client, tenantId, String(c.competencia))
   if (!remessaId) return { erro: "Não foi possível localizar ou criar a remessa da competência." }
-  const { data: filiado } = await client.from("filiacoes").select("cpf, matricula_sindical, nome_completo").eq("id", String(c.filiacao_id)).maybeSingle()
+  const { data: filiado } = await client
+    .from("filiacoes")
+    .select("cpf, matricula_sindical, nome_completo, email_pessoal, email_corporativo")
+    .eq("id", String(c.filiacao_id))
+    .eq("emp_proprietaria_id", tenantId)
+    .maybeSingle()
   const { data: lanc, error } = await client
     .from("filiacao_recebe")
     .insert({
@@ -350,11 +381,13 @@ export async function baixarCobranca(p: {
   if (e2) return { erro: e2.message }
   invalidarCacheInadimplencia()
   const cpf = cpfConfiavel(texto(filiado?.cpf)) ?? cpfConfiavel(texto(c.cpf))
+  let aviso: ResultadoAviso = false
   if (cpf) {
-    await avisarFiliado(
+    aviso = await avisarFiliado(
       {
         cpf,
         nome: texto(filiado?.nome_completo),
+        email: texto(filiado?.email_pessoal) ?? texto(filiado?.email_corporativo),
         evento: "contribuicao",
         assunto: `Contribuição de ${rotuloCompetencia(String(c.competencia))} recebida`,
         texto: `Recebemos sua contribuição de ${rotuloCompetencia(String(c.competencia))} (${formatarMoeda(p.valorPago)}). Obrigado!`,
@@ -364,7 +397,7 @@ export async function baixarCobranca(p: {
     )
   }
   void emitirEvento("cobranca.paga", { cobrancaId: p.cobrancaId, filiacaoId: String(c.filiacao_id), cpf, competencia: String(c.competencia), valor: p.valorPago, pagoEm: p.dataPagamento, lancamentoId: String(lanc.id) }, { client, tenantId })
-  return { lancamentoId: String(lanc.id) }
+  return { lancamentoId: String(lanc.id), aviso }
 }
 
 export async function cancelarCobranca(id: string): Promise<{ erro?: string }> {
