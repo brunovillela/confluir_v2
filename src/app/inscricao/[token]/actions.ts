@@ -115,6 +115,8 @@ export async function enviarFotoAction(
   if (erro) return { erro }
 
   revalidatePath(`/inscricao/${token}`)
+  // O cartão do evento no portal deixa de pedir a foto (A44).
+  revalidatePath("/portal/eventos")
   return { ok: true }
 }
 

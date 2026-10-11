@@ -6,7 +6,7 @@ import { avaliacaoPorToken } from "@/lib/db/hospedagem-avaliacoes"
 import { ROTULO_NOTA } from "@/lib/hospedagem-avaliacoes-constantes"
 import { dataBR } from "@/lib/hospedagem-garantida-constantes"
 
-import { AvaliarForm } from "./avaliar-form"
+import { AvaliarForm, VoltarAHospedagem } from "./avaliar-form"
 
 export const metadata: Metadata = { title: "Avalie sua hospedagem — Confluir" }
 
@@ -40,17 +40,23 @@ export default async function AvaliarHospedagemPage({
         </CardHeader>
         <CardContent>
           {!a ? (
-            <p className="text-sm">
-              Link inválido. Abra a avaliação pelo portal do associado, em Hospedagem.
-            </p>
+            <div className="grid justify-items-start gap-3">
+              <p className="text-sm">
+                Link inválido. Abra a avaliação pelo portal do associado, em Hospedagem.
+              </p>
+              <VoltarAHospedagem />
+            </div>
           ) : a.situacao === "respondida" ? (
-            <p className="text-sm">
-              Esta hospedagem já foi avaliada
-              {a.nota
-                ? ` com ${a.nota} estrela${a.nota === 1 ? "" : "s"} (${ROTULO_NOTA[a.nota].toLowerCase()})`
-                : ""}
-              . Obrigado!
-            </p>
+            <div className="grid justify-items-start gap-3">
+              <p className="text-sm">
+                Esta hospedagem já foi avaliada
+                {a.nota
+                  ? ` com ${a.nota} estrela${a.nota === 1 ? "" : "s"} (${ROTULO_NOTA[a.nota].toLowerCase()})`
+                  : ""}
+                . Obrigado!
+              </p>
+              <VoltarAHospedagem />
+            </div>
           ) : (
             <AvaliarForm token={a.token} notaInicial={notaInicial} />
           )}

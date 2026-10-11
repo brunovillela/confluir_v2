@@ -3,9 +3,12 @@ import { createHash, randomInt, randomUUID } from "node:crypto"
 
 import {
   derivarModalidade,
+  hojeEmBrasilia,
+  horaCurta,
   horaDoVotoSecreto,
   temVotoOnline,
   type Modalidade,
+  type SalaVirtual,
 } from "@/lib/assembleias-constantes"
 import { grafiasDoCpf, limparCpf } from "@/lib/cpf"
 import { enviarEmail } from "@/lib/email"
@@ -18,6 +21,7 @@ import {
 import {
   abreEmISO,
   colunasHorario,
+  colunasSala,
   fimDaJanelaISO,
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
@@ -211,8 +215,12 @@ export type AssembleiaDoFiliado = {
    */
   online: boolean
   inicio: string | null
+  /** Hora de início ('HH:MM'), quando a assembleia tem (presencial: "às 14:00"). */
+  horaInicio: string | null
   /** Fim da assembleia (data + hora) — base da contagem regressiva (online). */
   termino: string | null
+  /** Sala da reunião online, quando há e ainda não passou (achado A47). */
+  sala: SalaVirtual | null
   /** Quando a votação ainda não abriu: o momento em que abre. */
   abreEm: string | null
   apuracaoEncerrada: boolean
@@ -229,6 +237,64 @@ export type AssembleiaDoFiliado = {
 
 function txt(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : null
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Sala da assembleia virtual de uma linha de voto_assembleias (colunasSala).
+ * Só link web (http/https — o mesmo que o painel aceita ao salvar; nada de
+ * javascript:), e só enquanto a data da sala não passou: assembleia velha
+ * não deve exibir link morto. Sem data, vale o link com o que houver.
+ */
+function salaDaLinha(a: Record<string, unknown>): SalaVirtual | null {
+  const link = txt(a.sala_link)?.trim()
+  if (!link || !/^https?:\/\//i.test(link)) return null
+  const data = txt(a.sala_data)?.slice(0, 10) ?? null
+  if (data && data < hojeEmBrasilia()) return null
+  return { link, data, hora: horaCurta(txt(a.sala_hora)) }
+}
+
+/**
+ * Fontes pagadoras de cada campanha (voto_campanha_fontes). Desde 09/2026 o
+ * painel não grava empregador na rodada nem na assembleia (criarRodada /
+ * criarAssembleia): ele mora na campanha. No legado, quando os dois existem,
+ * o empregador da rodada/assembleia é SEMPRE uma fonte da campanha — 13 de 13
+ * rodadas e 38 de 38 assembleias no tenant real (conferido em 11/10/2026).
+ * É a régua do Bruno: empregador ativo "que seja fonte da campanha".
+ */
+async function fontesDasCampanhas(campanhaIds: string[]): Promise<Map<string, string[]>> {
+  const mapa = new Map<string, string[]>()
+  if (campanhaIds.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_campanha_fontes")
+    .select("campanha_id, empresa_id")
+    .in("campanha_id", campanhaIds)
+  for (const f of data ?? []) {
+    const empresa = txt(f.empresa_id)
+    if (!empresa) continue
+    const arr = mapa.get(String(f.campanha_id)) ?? []
+    arr.push(empresa)
+    mapa.set(String(f.campanha_id), arr)
+  }
+  return mapa
+}
+
+/** Nome de exibição de cada empresa (fantasia, senão razão social); sem nome fica de fora. */
+async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  if (ids.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao")
+    .in("id", [...new Set(ids)])
+  for (const e of data ?? []) {
+    const nome = txt(e.nome_fantasia) ?? txt(e.nome_razao)
+    if (nome) mapa.set(String(e.id), nome)
+  }
+  return mapa
 }
 
 /**
@@ -271,7 +337,8 @@ export async function empregadoresAtivos(cpf: string): Promise<Set<string>> {
 
 /**
  * Assembleias abertas em que este filiado ativo está apto (por CPF ou e-mail
- * verificado) e cujo empregador está ativo no vínculo dele.
+ * verificado) e cujo empregador — o da assembleia, o da rodada ou uma fonte
+ * da campanha — está ativo no vínculo dele.
  */
 export async function assembleiasDoFiliado(
   cpf: string
@@ -342,7 +409,8 @@ export async function assembleiasDoFiliado(
     .from("voto_assembleias")
     .select(
       "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id" +
-        (await colunasHorario())
+        (await colunasHorario()) +
+        (await colunasSala())
     )
     .eq("emp_proprietaria_id", emp)
     .in("id", assembleiaIds)
@@ -364,29 +432,31 @@ export async function assembleiasDoFiliado(
     for (const r of data ?? []) rodadas.set(String(r.id), r)
   }
 
-  const empresaIds = new Set<string>()
-  const campanhaIds = new Set<string>()
-  for (const a of assembleias) {
+  const campanhaDe = (a: Record<string, unknown>): string | null => {
     const rod = a.rod_assembleia_id ? rodadas.get(String(a.rod_assembleia_id)) : null
-    const empId = txt(a.empresa_id) ?? txt(rod?.empresa_id)
-    const campId = txt(a.campanha_id) ?? txt(rod?.campanha_id)
-    if (empId) empresaIds.add(empId)
-    if (campId) campanhaIds.add(campId)
+    return txt(a.campanha_id) ?? txt(rod?.campanha_id)
   }
-  const [empresasRes, campanhasRes] = await Promise.all([
-    empresaIds.size
-      ? admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", [...empresaIds])
-      : Promise.resolve({ data: [] }),
+  const campanhaIds = new Set(
+    assembleias.map(campanhaDe).filter((c): c is string => Boolean(c))
+  )
+  // Empregador: o da assembleia, o da rodada ou — sem nenhum dos dois, como
+  // em tudo o que o painel cria desde 09/2026 — as fontes da campanha. Antes
+  // a falta dele escondia do portal TODAS as votações novas (investigação da
+  // onda 3, 11/10/2026: 7 de 7 rodadas recentes com empresa_id nulo).
+  const fontes = await fontesDasCampanhas([...campanhaIds])
+  const empresasDe = (a: Record<string, unknown>): string[] => {
+    const rod = a.rod_assembleia_id ? rodadas.get(String(a.rod_assembleia_id)) : null
+    const propria = txt(a.empresa_id) ?? txt(rod?.empresa_id)
+    if (propria) return [propria]
+    const camp = campanhaDe(a)
+    return camp ? (fontes.get(camp) ?? []) : []
+  }
+  const [nomeEmpresa, campanhasRes] = await Promise.all([
+    nomesDasEmpresas(assembleias.flatMap(empresasDe)),
     campanhaIds.size
       ? admin.from("voto_campanha").select("id, tema").in("id", [...campanhaIds])
       : Promise.resolve({ data: [] }),
   ])
-  const nomeEmpresa = new Map(
-    (empresasRes.data ?? []).map((e) => [
-      String(e.id),
-      txt(e.nome_fantasia) ?? txt(e.nome_razao) ?? "(sem nome)",
-    ])
-  )
   const temaCampanha = new Map(
     (campanhasRes.data ?? []).map((c) => [String(c.id), txt(c.tema)])
   )
@@ -399,9 +469,11 @@ export async function assembleiasDoFiliado(
   const saida: AssembleiaDoFiliado[] = []
   for (const a of assembleias) {
     const rod = a.rod_assembleia_id ? rodadas.get(String(a.rod_assembleia_id)) : null
-    const empId = txt(a.empresa_id) ?? txt(rod?.empresa_id)
-    // Empregador precisa estar ATIVO no vínculo do filiado.
-    if (!empId || !ativos.has(empId)) continue
+    // Um empregador da assembleia precisa estar ATIVO no vínculo do filiado.
+    // Sem empregador nenhum (legado sem rodada nem campanha com fonte), a
+    // assembleia segue fora: a lista de aptos sozinha não basta.
+    const empId = empresasDe(a).find((e) => ativos.has(e))
+    if (!empId) continue
 
     const apuracaoEncerrada =
       a.apuracao_encerrada === true || rod?.apuracao_encerrada === true
@@ -434,7 +506,9 @@ export async function assembleiasDoFiliado(
       modalidade,
       online,
       inicio,
+      horaInicio: horaCurta(txt(a.hora_inicio)),
       termino,
+      sala: salaDaLinha(a),
       abreEm: abreEmISO(fonte, agora),
       apuracaoEncerrada,
       jaVotou: votouPorAssembleia.get(String(a.id)) ?? false,
@@ -517,6 +591,25 @@ export async function elegibilidadeParaVotar(
 }
 
 /**
+ * O comprovante que acabou de sair com o voto — para a tela mostrar na hora
+ * (achado A46). Nunca o conteúdo do voto.
+ */
+export type ComprovanteEmitido = {
+  codigo: string
+  quando: string
+  canal: import("@/lib/db/voto-comprovante").CanalVoto
+  /** Para onde o e-mail de confirmação SAIU; nulo = não saiu. */
+  emailPara: string | null
+}
+
+/** Resultado do registro do voto; `comprovante` nulo = voto valeu, comprovante não saiu. */
+export type VotoRegistrado = {
+  erro?: string
+  ok?: boolean
+  comprovante?: ComprovanteEmitido | null
+}
+
+/**
  * Registra o voto do filiado de forma SECRETA: grava as respostas sem ligar
  * ao eleitor, marca a participação no apto (hora_voto) para impedir voto
  * duplo, e lança um apontamento GENÉRICO no prontuário.
@@ -525,7 +618,7 @@ export async function registrarVotoFiliado(
   cpf: string,
   assembleiaId: string,
   escolhas: { perguntaId: string; opcaoId: string }[]
-): Promise<{ erro?: string; ok?: boolean }> {
+): Promise<VotoRegistrado> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
@@ -614,7 +707,7 @@ export async function registrarVotoFiliado(
 
   // 2b) comprovante de participação + e-mail de confirmação (best-effort: o
   //     voto já está registrado, nada aqui pode derrubá-lo).
-  await comprovarVoto({
+  const comprovante = await comprovarVoto({
     filtroOu,
     assembleiaId,
     quando: agora,
@@ -636,7 +729,104 @@ export async function registrarVotoFiliado(
       modified_at: agora,
     })
   }
-  return { ok: true }
+  return { ok: true, comprovante }
+}
+
+/** A participação do filiado numa assembleia (a rodada dela), sem o voto. */
+export type ParticipacaoNaAssembleia = {
+  quando: string | null
+  codigo: string | null
+  canal: import("@/lib/db/voto-comprovante").CanalVoto | null
+  /** O e-mail de confirmação saiu (comprovante_email_em). */
+  emailEnviado: boolean
+}
+
+/**
+ * Para a tela da cédula depois do voto: quando votou e o comprovante. Lê os
+ * aptos no escopo da assembleia (votacao-escopo.ts: o apto dela ou o da
+ * rodada) — quem votou por um apto amarrado a OUTRA assembleia da rodada
+ * fica sem código aqui, e a tela manda para Minhas votações.
+ * A tela é refeita no servidor logo depois do voto (a action revalida), e é
+ * daqui que ela tira o comprovante — inclusive se a pessoa recarregar.
+ */
+export async function participacaoNaAssembleia(
+  cpf: string,
+  assembleiaId: string
+): Promise<ParticipacaoNaAssembleia | null> {
+  // O id vem da URL e entra no filtro .or() do PostgREST. Diferente do voto
+  // (que passa antes por elegibilidadeParaVotar), aqui nada o valida: um id
+  // com "),or(" abriria o filtro e traria o comprovante de outra pessoa.
+  if (!UUID.test(assembleiaId)) return null
+  const admin = await createAdminClient()
+  const emailVot = await obterEmailVotacao(cpf)
+  const filtros = [`cpf.eq.${cpf}`]
+  if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
+  const { colunasComprovante, comprovanteDaLinha } = await import("@/lib/db/voto-comprovante")
+  // comprovante_email_em nasce no mesmo SQL das outras colunas do comprovante.
+  const colunas = await colunasComprovante()
+  const { data } = await admin
+    .from("voto_assembleias_aptos")
+    .select("hora_voto" + colunas + (colunas ? ", comprovante_email_em" : ""))
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .or(filtroAptos(await escopoAptos(assembleiaId), filtros))
+    .not("hora_voto", "is", null)
+    .order("hora_voto", { ascending: false })
+    .limit(5)
+  const linhas = (data ?? []) as unknown as Record<string, unknown>[]
+  if (linhas.length === 0) return null
+  const comComprovante = linhas.find((l) => comprovanteDaLinha(l)) ?? linhas[0]
+  const comp = comprovanteDaLinha(comComprovante)
+  return {
+    quando: comp?.quando ?? txt(comComprovante.hora_voto),
+    codigo: comp?.codigo ?? null,
+    canal: comp?.canal ?? null,
+    emailEnviado: Boolean(txt(comComprovante.comprovante_email_em)),
+  }
+}
+
+/**
+ * Quando a votação online de uma assembleia termina e se já terminou — para
+ * a cédula dizer "encerrou em 12/10 às 18:00" em vez de insinuar erro de
+ * cadastro (achado A93). Só datas: não diz nada sobre quem é apto.
+ */
+export async function fimDaVotacao(
+  assembleiaId: string
+): Promise<{ termino: string | null; encerrada: boolean } | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: bruta } = await admin
+    .from("voto_assembleias")
+    .select(
+      "id, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, rod_assembleia_id" +
+        (await colunasHorario())
+    )
+    .eq("id", assembleiaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  const a = bruta as unknown as Record<string, unknown> | null
+  if (!a) return null
+  const { data: rod } = txt(a.rod_assembleia_id)
+    ? await admin
+        .from("voto_rod_assembleias")
+        .select("termino, apuracao_encerrada")
+        .eq("id", String(a.rod_assembleia_id))
+        .eq("emp_proprietaria_id", emp)
+        .maybeSingle()
+    : { data: null }
+  const fonte = {
+    data_inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
+    hora_inicio: txt(a.hora_inicio),
+    data_termino: txt(a.data_termino) ?? txt(a.periodo_termino),
+    hora_termino: txt(a.hora_termino),
+  }
+  const terminoRodada = txt(rod?.termino)
+  return {
+    termino: fimDaJanelaISO(fonte, terminoRodada),
+    encerrada:
+      a.apuracao_encerrada === true ||
+      rod?.apuracao_encerrada === true ||
+      situacaoDaAssembleia(fonte, terminoRodada) === "encerrada",
+  }
 }
 
 // ── Minhas votações (participação; nunca o conteúdo do voto) ────────────────
@@ -744,7 +934,7 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
   const { data: assembleias } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, empresa_id, campanha_id"
+      "id, nome_assembleia, online, urnas_de_votacao, apuracao_encerrada, empresa_id, campanha_id, rod_assembleia_id"
     )
     .eq("emp_proprietaria_id", emp)
     .in("id", ids)
@@ -827,30 +1017,41 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
     }
   }
 
-  const empresaIds = [
+  // Empregador e tema: os da assembleia, os da rodada ou as fontes da
+  // campanha — o que o painel cria desde 09/2026 só tem a campanha, e o
+  // histórico ficava sem empresa e sem tema.
+  const rodadaIds = [
     ...new Set(
-      assembleias.map((a) => txt(a.empresa_id)).filter(Boolean) as string[]
+      assembleias.map((a) => txt(a.rod_assembleia_id)).filter(Boolean) as string[]
     ),
   ]
+  const { data: rodadasHist } = rodadaIds.length
+    ? await admin
+        .from("voto_rod_assembleias")
+        .select("id, empresa_id, campanha_id")
+        .eq("emp_proprietaria_id", emp)
+        .in("id", rodadaIds)
+    : { data: [] as { id: string; empresa_id: string | null; campanha_id: string | null }[] }
+  const rodadaHist = new Map((rodadasHist ?? []).map((r) => [String(r.id), r]))
+  const campanhaDe = (a: (typeof assembleias)[number]): string | null =>
+    txt(a.campanha_id) ?? txt(rodadaHist.get(String(a.rod_assembleia_id))?.campanha_id)
   const campanhaIds = [
-    ...new Set(
-      assembleias.map((a) => txt(a.campanha_id)).filter(Boolean) as string[]
-    ),
+    ...new Set(assembleias.map(campanhaDe).filter((c): c is string => Boolean(c))),
   ]
-  const [empresasRes, campanhasRes] = await Promise.all([
-    empresaIds.length
-      ? admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", empresaIds)
-      : Promise.resolve({ data: [] }),
+  const fontes = await fontesDasCampanhas(campanhaIds)
+  const empresasDe = (a: (typeof assembleias)[number]): string[] => {
+    const propria =
+      txt(a.empresa_id) ?? txt(rodadaHist.get(String(a.rod_assembleia_id))?.empresa_id)
+    if (propria) return [propria]
+    const camp = campanhaDe(a)
+    return camp ? (fontes.get(camp) ?? []) : []
+  }
+  const [nomeEmpresa, campanhasRes] = await Promise.all([
+    nomesDasEmpresas(assembleias.flatMap(empresasDe)),
     campanhaIds.length
       ? admin.from("voto_campanha").select("id, tema").in("id", campanhaIds)
       : Promise.resolve({ data: [] }),
   ])
-  const nomeEmpresa = new Map(
-    (empresasRes.data ?? []).map((e) => [
-      String(e.id),
-      txt(e.nome_fantasia) ?? txt(e.nome_razao),
-    ])
-  )
   const temaCampanha = new Map(
     (campanhasRes.data ?? []).map((c) => [String(c.id), txt(c.tema)])
   )
@@ -861,8 +1062,12 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
       return {
         assembleiaId: String(a.id),
         nome: txt(a.nome_assembleia),
-        tema: temaCampanha.get(String(txt(a.campanha_id))) ?? null,
-        empregador: nomeEmpresa.get(String(txt(a.empresa_id))) ?? null,
+        tema: temaCampanha.get(campanhaDe(a) ?? "") ?? null,
+        empregador:
+          empresasDe(a)
+            .map((e) => nomeEmpresa.get(e))
+            .filter(Boolean)
+            .join(" / ") || null,
         modalidade: derivarModalidade(a),
         quando: votouEm.get(String(a.id)) ?? null,
         comprovante: comprovantePor.get(String(a.id)) ?? null,
@@ -920,7 +1125,8 @@ export async function elegibilidadeEleitorEmail(
     .from("voto_assembleias")
     .select(
       "id, nome_assembleia, online, urnas_de_votacao, somente_filiados, data_inicio, data_termino, periodo_inicio, periodo_termino, apuracao_encerrada, empresa_id, rod_assembleia_id, campanha_id" +
-        (await colunasHorario())
+        (await colunasHorario()) +
+        (await colunasSala())
     )
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
@@ -973,7 +1179,9 @@ export async function elegibilidadeEleitorEmail(
     // Híbrida também (online + urna); o voto único já conta presenca_em acima.
     online: temVotoOnline(derivarModalidade(a)),
     inicio: txt(a.data_inicio) ?? txt(a.periodo_inicio),
+    horaInicio: horaCurta(txt(a.hora_inicio)),
     termino,
+    sala: salaDaLinha(a),
     abreEm: abreEmISO(fonte),
     apuracaoEncerrada,
     jaVotou,
@@ -989,7 +1197,7 @@ export async function registrarVotoEleitorEmail(
   escolhas: { perguntaId: string; opcaoId: string }[],
   /** Quem se cadastrou pelo link único recebe o comprovante no e-mail confirmado. */
   emailComprovante?: string | null
-): Promise<{ erro?: string; ok?: boolean }> {
+): Promise<VotoRegistrado> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const alvo = email.trim().toLowerCase()
@@ -1060,20 +1268,21 @@ export async function registrarVotoEleitorEmail(
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
 
-  await comprovarVoto({
+  const comprovante = await comprovarVoto({
     filtroOu: filtroAptos(escopo, filtros),
     assembleiaId,
     quando: agora,
     email: emailComprovante ?? alvo,
     nome: (meus?.[0] as { nome_completo?: string | null } | undefined)?.nome_completo ?? null,
   })
-  return { ok: true }
+  return { ok: true, comprovante }
 }
 
 /**
  * Emite o comprovante nos aptos que acabaram de ser marcados e manda o e-mail
  * de confirmação. Nunca lança: comprovante é um extra do voto, que já está
- * gravado quando esta função roda.
+ * gravado quando esta função roda. Devolve o comprovante para a tela mostrar
+ * na hora; nulo quando ele não saiu (aptos não achados, SQL ausente, falha).
  */
 async function comprovarVoto(dados: {
   filtroOu: string
@@ -1081,21 +1290,24 @@ async function comprovarVoto(dados: {
   quando: string
   email: string | null
   nome: string | null
-}): Promise<void> {
+}): Promise<ComprovanteEmitido | null> {
+  let emitido: ComprovanteEmitido | null = null
   try {
     const { aptosVotantes, emitirComprovante, enviarEmailComprovante } = await import(
       "@/lib/db/voto-comprovante"
     )
     const aptoIds = await aptosVotantes(dados.filtroOu, dados.quando)
-    if (aptoIds.length === 0) return
+    if (aptoIds.length === 0) return null
     const comprovante = await emitirComprovante({
       aptoIds,
       assembleiaId: dados.assembleiaId,
       canal: "online",
       quando: dados.quando,
     })
-    if (!comprovante || !dados.email) return
-    await enviarEmailComprovante({
+    if (!comprovante) return null
+    emitido = { codigo: comprovante.codigo, quando: comprovante.quando, canal: "online", emailPara: null }
+    if (!dados.email) return emitido
+    const enviado = await enviarEmailComprovante({
       aptoIds,
       assembleiaId: dados.assembleiaId,
       comprovante,
@@ -1103,8 +1315,12 @@ async function comprovarVoto(dados: {
       email: dados.email,
       nome: dados.nome,
     })
+    // Só promete o e-mail na tela quando ele saiu de fato.
+    if (enviado) emitido.emailPara = dados.email
+    return emitido
   } catch {
     // e-mail/coluna indisponível não invalida o voto
+    return emitido
   }
 }
 
@@ -1125,6 +1341,12 @@ export type DatasDaRodada = {
     dataInicio: string | null
     dataRealizacao: string | null
     dataTermino: string | null
+    /** 'HH:MM' — a janela vale para as duas modalidades (A48). */
+    horaInicio: string | null
+    horaTermino: string | null
+    sala: SalaVirtual | null
+    /** Urnas presenciais ativas: o mais perto de "onde votar" que os dados têm. */
+    urnas: { nome: string; abertura: string | null; fechamento: string | null }[]
   }[]
 }
 
@@ -1161,33 +1383,65 @@ export async function datasDaRodada(
     .maybeSingle()
   if (!rod) return null
 
-  const [empRes, campRes, assRes] = await Promise.all([
-    txt(rod.empresa_id)
-      ? admin.from("empresa").select("nome_fantasia, nome_razao").eq("id", rod.empresa_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    txt(rod.campanha_id)
-      ? admin.from("voto_campanha").select("tema").eq("id", rod.campanha_id).maybeSingle()
+  // Empregador: o da rodada ou, sem ele, as fontes da campanha (o painel
+  // guarda o empregador na campanha desde 09/2026).
+  const campanhaId = txt(rod.campanha_id)
+  const fontes = txt(rod.empresa_id)
+    ? [String(rod.empresa_id)]
+    : campanhaId
+      ? ((await fontesDasCampanhas([campanhaId])).get(campanhaId) ?? [])
+      : []
+  const [nomeEmpresa, campRes, assRes] = await Promise.all([
+    nomesDasEmpresas(fontes),
+    campanhaId
+      ? admin.from("voto_campanha").select("tema").eq("id", campanhaId).maybeSingle()
       : Promise.resolve({ data: null }),
     admin
       .from("voto_assembleias")
       .select(
-        "id, nome_assembleia, descricao, online, urnas_de_votacao, data_inicio, data_realizacao, data_termino"
+        "id, nome_assembleia, descricao, online, urnas_de_votacao, data_inicio, data_realizacao, data_termino" +
+          (await colunasHorario()) +
+          (await colunasSala())
       )
       .eq("emp_proprietaria_id", emp)
       .eq("rod_assembleia_id", rodadaId)
       .order("data_inicio", { ascending: true, nullsFirst: false }),
   ])
+  const assembleias = (assRes.data ?? []) as unknown as Record<string, unknown>[]
+
+  // Urnas: tabela de supabase/votacao-mesarios.sql — sem ela, nenhuma.
+  const urnasPor = new Map<string, DatasDaRodada["assembleias"][number]["urnas"]>()
+  if (assembleias.length) {
+    const { data: urnas, error } = await admin
+      .from("voto_urnas")
+      .select("assembleia_id, nome, abertura, fechamento, ativa")
+      .eq("emp_proprietaria_id", emp)
+      .in(
+        "assembleia_id",
+        assembleias.map((a) => String(a.id))
+      )
+      .order("abertura", { ascending: true, nullsFirst: false })
+    for (const u of error ? [] : (urnas ?? [])) {
+      const nome = txt(u.nome)
+      if (u.ativa === false || !nome) continue
+      const arr = urnasPor.get(String(u.assembleia_id)) ?? []
+      arr.push({ nome, abertura: txt(u.abertura), fechamento: txt(u.fechamento) })
+      urnasPor.set(String(u.assembleia_id), arr)
+    }
+  }
 
   return {
     rodadaId: String(rod.id),
     nome: txt(rod.nome_assembleia),
     tema: txt(campRes.data?.tema),
-    empregador: empRes.data
-      ? txt(empRes.data.nome_fantasia) ?? txt(empRes.data.nome_razao)
-      : null,
+    empregador:
+      fontes
+        .map((f) => nomeEmpresa.get(f))
+        .filter(Boolean)
+        .join(" / ") || null,
     inicio: txt(rod.inicio),
     termino: txt(rod.termino),
-    assembleias: (assRes.data ?? []).map((a) => ({
+    assembleias: assembleias.map((a) => ({
       id: String(a.id),
       nome: txt(a.nome_assembleia),
       descricao: txt(a.descricao),
@@ -1195,6 +1449,10 @@ export async function datasDaRodada(
       dataInicio: txt(a.data_inicio),
       dataRealizacao: txt(a.data_realizacao),
       dataTermino: txt(a.data_termino),
+      horaInicio: horaCurta(txt(a.hora_inicio)),
+      horaTermino: horaCurta(txt(a.hora_termino)),
+      sala: salaDaLinha(a),
+      urnas: urnasPor.get(String(a.id)) ?? [],
     })),
   }
 }

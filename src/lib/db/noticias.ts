@@ -1,14 +1,17 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
+import { paginar, type Paginacao } from "@/lib/paginacao"
 import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { semAcento } from "@/lib/texto"
 
 /**
- * Notícias — gestão (lado admin). A LEITURA (widget do painel, /portal/noticias
- * e a página /painel/noticias/[id]) vive em db/painel.ts (ultimasNoticias /
- * buscarNoticia). Aqui ficam a lista de gestão e o CRUD. A tabela `noticias`
+ * Notícias — gestão (lado admin). A LEITURA do widget do painel e das páginas
+ * de leitura (/painel/…/noticias/[id], /portal/noticias/[id]) vive em
+ * db/painel.ts (ultimasNoticias / buscarNoticia). Aqui ficam a lista de
+ * gestão, a lista paginada do portal (listarNoticiasPortal) e o CRUD. A tabela `noticias`
  * é tenant-owned desde supabase/noticias.sql (RLS + trigger de emp); a imagem
  * vai para o bucket PÚBLICO `noticias` (aparece no portal — não é sigilosa).
  */
@@ -44,6 +47,109 @@ export async function listarNoticias(busca?: string): Promise<NoticiaLista[]> {
       (n) =>
         !termo || (n.manchete ?? "").toLocaleLowerCase("pt-BR").includes(termo)
     )
+}
+
+export type NoticiaPortal = {
+  id: string
+  manchete: string
+  /** URL pronta para o <img> (as do Bubble chegam sem protocolo). */
+  imagem: string | null
+  created_at: string | null
+  /** Primeiras linhas do texto, sem quebras, cortadas na palavra. */
+  resumo: string | null
+}
+
+/** Imagens migradas do Bubble vêm protocolo-relativas (//cdn…). */
+function urlDaImagem(imagem: string | null): string | null {
+  return imagem?.startsWith("//") ? `https:${imagem}` : imagem
+}
+
+const DATA_SP = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+})
+
+/**
+ * "02/08/2026" no calendário de São Paulo, com o ano (A86). `formatarData`
+ * lê a data UTC de um timestamp: a notícia publicada depois das 21h sairia
+ * com o dia seguinte — e diferente do widget do Início, que já usa São Paulo.
+ */
+export function dataDaNoticia(iso: string | null | undefined): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? null : DATA_SP.format(d)
+}
+
+/** Começo do texto da notícia: sem tags nem quebras, cortado na palavra. */
+export function resumir(textoBruto: string | null, max = 160): string | null {
+  const limpo = (textoBruto ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+  if (!limpo) return null
+  if (limpo.length <= max) return limpo
+  const corte = limpo.slice(0, max)
+  const espaco = corte.lastIndexOf(" ")
+  return `${(espaco > max * 0.6 ? corte.slice(0, espaco) : corte).replace(/[\s.,;:—-]+$/, "")}…`
+}
+
+/**
+ * Notícias do portal do associado (A86), paginadas e com busca na manchete.
+ * A lista inteira vem leve (sem o texto) e em lotes — o PostgREST para em
+ * 1.000 linhas; a busca, sem acento, e o fatiamento são em memória, como nas
+ * outras listas do portal. O texto só é lido para as notícias da página, de
+ * onde sai o resumo.
+ */
+export async function listarNoticiasPortal(opcoes: {
+  busca?: string
+  paginacao: Paginacao
+}): Promise<{
+  noticias: NoticiaPortal[]
+  pagina: number
+  totalPaginas: number
+  total: number
+}> {
+  const admin = await createAdminClient()
+  const tenant = await tenantAtual()
+  const linhas = await lerEmLotes((de, ate) =>
+    admin
+      .from("noticias")
+      .select("id, manchete, imagem, created_at")
+      .eq("emp_proprietaria_id", tenant)
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .order("id")
+      .range(de, ate)
+  )
+
+  const termo = semAcento(opcoes.busca ?? "")
+  const todas = linhas
+    .map((n) => ({
+      id: String(n.id),
+      manchete: texto(n.manchete),
+      imagem: urlDaImagem(texto(n.imagem)),
+      created_at: texto(n.created_at),
+    }))
+    // Sem manchete não há o que listar nem onde clicar (como no widget).
+    .filter((n): n is typeof n & { manchete: string } => n.manchete !== null)
+    .filter((n) => !termo || semAcento(n.manchete).includes(termo))
+
+  const { linhas: pagina, ...info } = paginar(todas, opcoes.paginacao)
+  const resumos = new Map<string, string | null>()
+  if (pagina.length > 0) {
+    const { data } = await admin
+      .from("noticias")
+      .select("id, noticia")
+      .eq("emp_proprietaria_id", tenant)
+      .in(
+        "id",
+        pagina.map((n) => n.id)
+      )
+    for (const n of data ?? []) resumos.set(String(n.id), resumir(texto(n.noticia)))
+  }
+
+  return {
+    ...info,
+    noticias: pagina.map((n) => ({ ...n, resumo: resumos.get(n.id) ?? null })),
+  }
 }
 
 /** Sobe a imagem no bucket público e devolve a URL pública. */

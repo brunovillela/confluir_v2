@@ -747,23 +747,40 @@ async function filiadosDosCpfs(db: Leitura, cpfs: string[]): Promise<Map<string,
 }
 
 /** Empregador da assembleia — o dela ou, sem ele, o da rodada (como assembleiasDoFiliado). */
-async function empregadorDaAssembleia(db: Leitura, assembleiaId: string): Promise<string | null> {
+/**
+ * Empregadores da assembleia: o dela, o da rodada ou — sem nenhum dos dois,
+ * como em tudo o que o painel cria desde 09/2026 — as fontes da campanha
+ * (voto_campanha_fontes). Mesma régua de `assembleiasDoFiliado`
+ * (votacao-portal.ts, onda 3) — mudou lá, muda aqui.
+ */
+async function empregadoresDaAssembleia(db: Leitura, assembleiaId: string): Promise<string[]> {
   const { data: a } = await db.client
     .from("voto_assembleias")
-    .select("empresa_id, rod_assembleia_id")
+    .select("empresa_id, rod_assembleia_id, campanha_id")
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", db.tenantId)
     .maybeSingle()
-  if (!a) return null
+  if (!a) return []
   const propria = texto(a.empresa_id)
-  if (propria || !texto(a.rod_assembleia_id)) return propria
-  const { data: rod } = await db.client
-    .from("voto_rod_assembleias")
+  if (propria) return [propria]
+  let campanha = texto(a.campanha_id)
+  if (texto(a.rod_assembleia_id)) {
+    const { data: rod } = await db.client
+      .from("voto_rod_assembleias")
+      .select("empresa_id, campanha_id")
+      .eq("id", a.rod_assembleia_id)
+      .eq("emp_proprietaria_id", db.tenantId)
+      .maybeSingle()
+    const daRodada = texto(rod?.empresa_id)
+    if (daRodada) return [daRodada]
+    campanha = campanha ?? texto(rod?.campanha_id)
+  }
+  if (!campanha) return []
+  const { data: fontes } = await db.client
+    .from("voto_campanha_fontes")
     .select("empresa_id")
-    .eq("id", a.rod_assembleia_id)
-    .eq("emp_proprietaria_id", db.tenantId)
-    .maybeSingle()
-  return texto(rod?.empresa_id)
+    .eq("campanha_id", campanha)
+  return [...new Set((fontes ?? []).map((f) => texto(f.empresa_id)).filter((e): e is string => Boolean(e)))]
 }
 
 /**
@@ -772,8 +789,9 @@ async function empregadorDaAssembleia(db: Leitura, assembleiaId: string): Promis
  * desfiliação nem demissão). É a régua de `empregadoresAtivos` /
  * `assembleiasDoFiliado` (votacao-portal.ts), refeita em lote e com o
  * ambiente recebido — mudou lá, muda aqui. Sem ela o aviso levaria a uma
- * cédula que responde "você não está apto". Assembleia sem empregador não
- * aparece no portal: ninguém.
+ * cédula que responde "você não está apto". Assembleia sem empregador (nem
+ * da assembleia, nem da rodada, nem fonte da campanha) não aparece no
+ * portal: ninguém.
  */
 async function portalMostraACedula(
   db: Leitura,
@@ -781,8 +799,8 @@ async function portalMostraACedula(
   cpfs: string[]
 ): Promise<Map<string, Filiado>> {
   const saida = new Map<string, Filiado>()
-  const empresa = await empregadorDaAssembleia(db, assembleiaId)
-  if (!empresa || cpfs.length === 0) return saida
+  const empresas = await empregadoresDaAssembleia(db, assembleiaId)
+  if (empresas.length === 0 || cpfs.length === 0) return saida
   const filiados = await filiadosDosCpfs(db, cpfs)
   const cpfDaFiliacao = new Map<string, string>()
   for (const [cpf, f] of filiados) {
@@ -794,7 +812,7 @@ async function portalMostraACedula(
       .from("filiacao_vinculos")
       .select("filiado_id, data_desfiliacao, data_saida_demissao")
       .in("filiado_id", ids.slice(i, i + 200))
-      .eq("fonte_pagadora_id", empresa)
+      .in("fonte_pagadora_id", empresas)
     if (error) throw new Error(`Falha ao ler os vínculos: ${error.message}`)
     for (const v of data ?? []) {
       if (texto(v.data_desfiliacao) || texto(v.data_saida_demissao)) continue

@@ -1,7 +1,8 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { CheckCircle2, Loader2, Star } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, CheckCircle2, Loader2, Star } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,22 @@ import {
 import { cn } from "@/lib/utils"
 
 import { enviarAvaliacaoAction } from "./actions"
+
+/**
+ * Caminho de volta ao portal (achado A148): a avaliação abre fora dele, sem o
+ * menu, e o pedido que estava travado agora pode ser feito. Quem veio pelo
+ * e-mail sem sessão cai no login do portal — o destino certo de todo jeito.
+ */
+export function VoltarAHospedagem() {
+  return (
+    <Button asChild variant="outline">
+      <Link href="/portal/hospedagem">
+        <ArrowLeft />
+        Voltar à Hospedagem
+      </Link>
+    </Button>
+  )
+}
 
 /**
  * Como no Uber: primeiro as estrelas; com elas aparecem as etiquetas (elogios
@@ -36,6 +53,7 @@ export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial
           Ela ajuda o sindicato a cuidar dos convênios de hospedagem. Os novos pedidos no portal já
           estão liberados.
         </p>
+        <VoltarAHospedagem />
       </div>
     )
   }

@@ -71,12 +71,13 @@ export async function solicitarCupom(
   const checkIn = String(formData.get("check_in") ?? "")
   const aceitaColetivo = formData.get("aceita_quarto_coletivo") === "on"
 
-  if (!hotelId) return { erro: "Escolha o hotel." }
+  // `campo`: o erro aparece junto do campo, que recebe o foco (A149).
+  if (!hotelId) return { erro: "Escolha o hotel.", campo: "hotel_id" }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) {
-    return { erro: "Informe a data de check-in." }
+    return { erro: "Informe a data de check-in.", campo: "check_in" }
   }
   if (checkIn < hojeSP()) {
-    return { erro: "O check-in precisa ser de hoje em diante." }
+    return { erro: "O check-in precisa ser de hoje em diante.", campo: "check_in" }
   }
 
   const admin = await createAdminClient()
@@ -91,7 +92,7 @@ export async function solicitarCupom(
     registrosDoCpf(filiado.cpf),
   ])
   if (!hotel || hotel.ativo === false) {
-    return { erro: "Hotel indisponível para novos cupons." }
+    return { erro: "Hotel indisponível para novos cupons.", campo: "hotel_id" }
   }
   if (!cadastro) return { erro: "Cadastro não encontrado." }
   // Avaliação pendente de uma estadia concluída trava o novo pedido.
@@ -115,10 +116,11 @@ export async function solicitarCupom(
     if (!reserva.ok) {
       return {
         erro: reserva.erro,
+        campo: reserva.campo,
         espera: reserva.semVaga ? { hotelId, checkIn, checkOut } : undefined,
       }
     }
-    await enviarEmailReservaConfirmada({
+    const { email } = await enviarEmailReservaConfirmada({
       cpf: filiado.cpf,
       hotelNome: hotelCompleto.nome ?? "hotel",
       checkIn,
@@ -126,7 +128,8 @@ export async function solicitarCupom(
       token: reserva.token,
     })
     revalidarHospedagem(reserva.cupomId)
-    redirect(`/portal/hospedagem/reserva/${reserva.cupomId}?salvo=1`)
+    // Sem e-mail no cadastro, a página da reserva não diz que enviou (A41).
+    redirect(`/portal/hospedagem/reserva/${reserva.cupomId}?salvo=1${email ? "" : "&email=0"}`)
   }
 
   // Cupons só entre hoje e o TÉRMINO DA VIGÊNCIA do contrato do hotel.
@@ -134,11 +137,13 @@ export async function solicitarCupom(
   if (!contrato || !contrato.vigente) {
     return {
       erro: "Este hotel está fora do período de convênio no momento — cupons indisponíveis.",
+      campo: "hotel_id",
     }
   }
   if (contrato.vigenciaTermino && checkIn > contrato.vigenciaTermino) {
     return {
       erro: `O check-in deve ser até o fim da vigência do convênio (${dataBr(contrato.vigenciaTermino)}).`,
+      campo: "check_in",
     }
   }
 
@@ -154,6 +159,7 @@ export async function solicitarCupom(
   if ((duplicado ?? []).length > 0) {
     return {
       erro: "Você já tem um cupom aguardando reserva para este hotel nesta data.",
+      campo: "check_in",
     }
   }
 
@@ -179,7 +185,8 @@ export async function solicitarCupom(
   revalidatePath("/portal/hospedagem")
   revalidatePath("/painel/hospedagem")
   revalidatePath("/painel/hospedagem/cupons")
-  redirect("/portal/hospedagem?salvo=1")
+  // O hotel vai no endereço para o aviso de sucesso mostrar o contato dele (A40).
+  redirect(`/portal/hospedagem?salvo=1&hotel=${encodeURIComponent(hotelId)}`)
 }
 
 /** Cancela um cupom PRÓPRIO que ainda está aguardando reserva. */
@@ -280,14 +287,23 @@ export async function cancelarEsperaPortal(
   return { ok: "Você saiu da lista de espera." }
 }
 
+/**
+ * Confirma a vaga oferecida pela lista de espera — só a da própria pessoa.
+ * Deu certo, abre a página da reserva (QR Code e contato do hotel).
+ */
 export async function confirmarOfertaPortal(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requireSessaoPortal()
+  const { filiado } = await requireSessaoPortal()
   const token = String(formData.get("token") ?? "")
-  const { erro } = await confirmarOferta(token)
-  if (erro) return { erro }
-  revalidarHospedagem()
-  return { ok: "Reserva confirmada! O QR Code está em Minhas reservas." }
+  const registros = await registrosDoCpf(filiado.cpf)
+  const r = await confirmarOferta(token, { registros })
+  if (r.erro) return { erro: r.erro }
+  revalidarHospedagem(r.cupomId)
+  if (!r.cupomId) return { ok: "Reserva confirmada! O QR Code está em Minhas reservas." }
+  // Já estava confirmada (segundo toque): a reserva, sem o aviso de agora —
+  // nada saiu por e-mail neste toque, e isso não quer dizer cadastro sem e-mail.
+  if (r.jaConfirmada) redirect(`/portal/hospedagem/reserva/${r.cupomId}`)
+  redirect(`/portal/hospedagem/reserva/${r.cupomId}?salvo=1${r.email ? "" : "&email=0"}`)
 }

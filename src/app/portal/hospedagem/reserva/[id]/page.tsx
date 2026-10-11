@@ -2,10 +2,10 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import QRCode from "qrcode"
-import { ArrowLeft, IdCard } from "lucide-react"
+import { ArrowLeft, Clock, IdCard } from "lucide-react"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,10 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { registrosDoCpf } from "@/lib/db/filiado-portal"
+import {
+  contatosDosHoteis,
+  registrosDoCpf,
+  type ContatoHotel,
+} from "@/lib/db/filiado-portal"
 import { listarHoteis } from "@/lib/db/hospedagem"
 import {
   ROTULO_SITUACAO_RESERVA,
+  linkDaReserva,
   reservaDaPessoa,
 } from "@/lib/db/hospedagem-garantida"
 import {
@@ -28,7 +33,9 @@ import {
 } from "@/lib/hospedagem-garantida-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-import { CancelarReservaBotao } from "../../cupom-portal"
+import { CancelarReservaBotao, ConfirmarOfertaBotao } from "../../cupom-portal"
+import { ContatoDoHotel } from "../../contato-hotel"
+import { CompartilharReserva } from "./compartilhar-reserva"
 
 export const metadata: Metadata = { title: "Reserva de hospedagem — Portal do Associado" }
 
@@ -37,20 +44,30 @@ export default async function ReservaHospedagemPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; email?: string }>
 }) {
   const { filiado, preview } = await requireVisualizacaoPortal()
-  const [{ id }, { salvo }] = await Promise.all([params, searchParams])
+  const [{ id }, { salvo, email }] = await Promise.all([params, searchParams])
 
   const [registros, hoteis] = await Promise.all([registrosDoCpf(filiado.cpf), listarHoteis()])
   const reserva = await reservaDaPessoa(id, registros, hoteis)
   if (!reserva) notFound()
 
+  const hotel = hoteis.find((h) => h.id === reserva.hotelId) ?? null
   const comQr = reserva.situacao === "confirmada" || reserva.situacao === "hospedado"
-  const qr = comQr
-    ? await QRCode.toDataURL(reserva.token, { errorCorrectionLevel: "M", margin: 1, width: 512 })
-    : null
+  const [qr, contatos, link] = await Promise.all([
+    comQr
+      ? QRCode.toDataURL(reserva.token, { errorCorrectionLevel: "M", margin: 1, width: 512 })
+      : Promise.resolve(null),
+    hotel ? contatosDosHoteis([hotel]) : Promise.resolve(new Map<string, ContatoHotel>()),
+    // O link abre o QR sem login: na visualização da gestão, nem vai à tela.
+    comQr && !preview ? linkDaReserva(reserva.token) : Promise.resolve(null),
+  ])
+  const contato = contatos.get(reserva.hotelId) ?? null
   const noites = noitesDaEstadia(reserva.checkIn, reserva.checkOut).length
+  // Só o horário cadastrado no hotel (sem cadastro, não se inventa um).
+  const horarioCheckin = hotel?.horario_checkin ? hotel.horario_checkin.slice(0, 5) : null
+  const nomeHotel = reserva.hotelNome ?? "Hotel parceiro"
 
   return (
     <>
@@ -63,16 +80,46 @@ export default async function ReservaHospedagemPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Reserva de hospedagem</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          {reserva.hotelNome ?? "Hotel parceiro"} · {dataBR(reserva.checkIn)} a{" "}
-          {dataBR(reserva.checkOut)}
+          {nomeHotel} · {dataBR(reserva.checkIn)} a {dataBR(reserva.checkOut)}
         </p>
       </div>
 
       {salvo === "1" && (
         <Alert variant="success">
           <AlertDescription>
-            Reserva confirmada! O quarto já está definido e o hotel foi avisado.
-            Enviamos os detalhes para o seu e-mail.
+            Reserva confirmada! O quarto já está definido e o hotel foi avisado.{" "}
+            {email === "0" ? (
+              <>
+                Como o seu cadastro está sem e-mail, guarde esta página ou use
+                &quot;Copiar link&quot; abaixo.{" "}
+                <Link href="/portal/cadastro">Cadastre um e-mail em Meu cadastro</Link> para
+                receber as próximas confirmações.
+              </>
+            ) : (
+              "Enviamos os detalhes para o seu e-mail."
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {reserva.situacao === "aguardando_confirmacao" && (
+        <Alert variant="warning">
+          <AlertTitle>Esta vaga veio da lista de espera e falta a sua confirmação</AlertTitle>
+          <AlertDescription>
+            <p>
+              Ela fica guardada até{" "}
+              <strong>
+                {reserva.confirmarAte ? dataHoraBR(new Date(reserva.confirmarAte)) : "—"}
+              </strong>
+              . Sem confirmação, passa para a próxima pessoa da lista.
+            </p>
+            {reserva.esperaToken ? (
+              <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">
+                <ConfirmarOfertaBotao token={reserva.esperaToken} />
+              </AcaoVisualizacao>
+            ) : (
+              <p>Use o botão do e-mail da lista de espera.</p>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -105,6 +152,7 @@ export default async function ReservaHospedagemPage({
             <p>
               <span className="text-muted-foreground">Check-in: </span>
               {dataBR(reserva.checkIn)}
+              {horarioCheckin ? `, a partir das ${horarioCheckin}` : ""}
             </p>
             <p>
               <span className="text-muted-foreground">Check-out: </span>
@@ -113,31 +161,20 @@ export default async function ReservaHospedagemPage({
             <p className="text-muted-foreground text-xs">
               Quarto compartilhado apenas com pessoas do mesmo sexo.
             </p>
-
-            {reserva.situacao === "aguardando_confirmacao" && (
-              <Alert variant="warning">
-                <AlertDescription>
-                  Esta vaga veio da lista de espera e ainda precisa da sua
-                  confirmação. Confirme em{" "}
-                  <Link href="/portal/hospedagem" className="underline">
-                    Hospedagem → Lista de espera
-                  </Link>{" "}
-                  ou pelo botão do e-mail.
-                </AlertDescription>
-              </Alert>
-            )}
+            <ContatoDoHotel contato={contato} className="border-t pt-3" />
 
             {reserva.podeCancelar ? (
-              <div className="grid gap-1 border-t pt-3">
-                <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode cancelar.">
-                  <CancelarReservaBotao id={reserva.id} />
-                </AcaoVisualizacao>
+              <div className="grid gap-2 border-t pt-3">
                 {reserva.prazoCancelamento && (
-                  <p className="text-muted-foreground text-xs">
-                    Você pode cancelar pelo portal até{" "}
+                  <p className="flex items-start gap-2 font-medium">
+                    <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
+                    Não vai poder ir? Cancele pelo portal até{" "}
                     {dataHoraBR(new Date(reserva.prazoCancelamento))}.
                   </p>
                 )}
+                <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode cancelar.">
+                  <CancelarReservaBotao id={reserva.id} />
+                </AcaoVisualizacao>
               </div>
             ) : (
               reserva.situacao === "confirmada" &&
@@ -162,13 +199,35 @@ export default async function ReservaHospedagemPage({
                 recepção do hotel.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center">
+            <CardContent className="grid justify-items-center gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qr}
                 alt="QR Code da reserva"
                 className="size-64 rounded-md border bg-white p-2"
               />
+              <div className="grid w-full gap-1.5">
+                <p className="text-muted-foreground text-xs">
+                  Guarde o link da reserva: ele abre este QR Code sem senha, mesmo sem
+                  entrar no portal.
+                </p>
+                <AcaoVisualizacao
+                  preview={preview}
+                  nota="O link da reserva é só do associado."
+                >
+                  {link ? (
+                    <CompartilharReserva
+                      link={link}
+                      titulo="Reserva de hospedagem"
+                      texto={`Reserva no ${nomeHotel}: ${dataBR(reserva.checkIn)} a ${dataBR(reserva.checkOut)}. QR Code para a recepção:`}
+                    />
+                  ) : (
+                    <Button type="button" variant="outline" disabled>
+                      Copiar link
+                    </Button>
+                  )}
+                </AcaoVisualizacao>
+              </div>
             </CardContent>
           </Card>
         )}

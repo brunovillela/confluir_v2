@@ -119,9 +119,11 @@ export function RespostaRsvp({
           </Button>
         </form>
       </div>
+      {/* A82: a resposta não cancela a inscrição nem devolve a vaga sozinha —
+          só avisa a entidade, que decide chamar a lista de espera. */}
       <p className="text-muted-foreground text-xs">
-        Avisar que não vai não é falta — é o que libera a vaga para outra
-        pessoa.
+        Avisar que não vai não é falta — ajuda a entidade a oferecer seu lugar
+        a quem está na lista de espera.
       </p>
     </div>
   )

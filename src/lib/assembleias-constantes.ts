@@ -174,6 +174,61 @@ export function estadoVotacao(a: {
   }
 }
 
+const FUSO_BRASILIA = "America/Sao_Paulo"
+
+/**
+ * 'AAAA-MM-DD' de hoje no horário de Brasília. O servidor roda em UTC: depois
+ * das 21h, o "hoje" dele já é amanhã (hojeLocalISO lê o relógio da máquina).
+ */
+export function hojeEmBrasilia(agora = new Date()): string {
+  return agora.toLocaleDateString("sv-SE", { timeZone: FUSO_BRASILIA })
+}
+
+/**
+ * ISO → '12/10 às 18:00' no horário de Brasília (com o ano quando não é o
+ * corrente). É como o associado fala do prazo: "até quando dá para votar",
+ * sem fazer conta em cima de "encerra em 1d 2h" (achado A93).
+ */
+export function quandoCurto(iso: string | null | undefined, agora = new Date()): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: FUSO_BRASILIA,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value])
+  )
+  const dia =
+    p.year === hojeEmBrasilia(agora).slice(0, 4)
+      ? `${p.day}/${p.month}`
+      : `${p.day}/${p.month}/${p.year}`
+  return `${dia} às ${p.hour}:${p.minute}`
+}
+
+/** 'AAAA-MM-DD' → '12/10' (com o ano quando não é o corrente). */
+export function diaCurto(data: string | null | undefined, agora = new Date()): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(data ?? "")
+  if (!m) return "—"
+  return m[1] === hojeEmBrasilia(agora).slice(0, 4) ? `${m[3]}/${m[2]}` : `${m[3]}/${m[2]}/${m[1]}`
+}
+
+/** Sala da assembleia virtual (reunião online), como o portal a mostra. */
+export type SalaVirtual = {
+  link: string
+  /** 'AAAA-MM-DD' */
+  data: string | null
+  /** 'HH:MM' */
+  hora: string | null
+}
+
 export function hojeLocalISO(): string {
   const d = new Date()
   return [

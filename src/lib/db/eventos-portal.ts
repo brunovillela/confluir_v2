@@ -8,6 +8,8 @@ import {
   capacidadeDoEvento,
   capacidadesDosEventos,
   inscricoesAbertas,
+  obterConfig,
+  obterEvento,
   obterEventos,
   type Evento,
   type SituacaoInscricao,
@@ -53,12 +55,68 @@ export type EventoDoFiliado = {
   aberta: boolean
   motivoFechada?: string
   vagasRestantes: number | null
+  /**
+   * Inscrições ainda por abrir (A150): a data em que abrem, para a página
+   * dizer "abrem em…" em vez de um "ainda não começaram" genérico.
+   */
+  inscricoesAbremEm: string | null
+  /**
+   * O evento pede foto e a entidade coleta foto (modo ≠ 'nenhuma') — sem ela
+   * a inscrição não se completa na porta (A44). Mesma regra da página pública.
+   */
+  fotoObrigatoria: boolean
+  /** A inscrição viva já tem a foto. */
+  temFoto: boolean
+  /** Já aconteceu (A135) — ver `eventoJaAconteceu`. */
+  passado: boolean
 }
+
+/**
+ * As datas que valem para o evento. Adiado com nova data: a nova, com a mesma
+ * duração da original (o painel só guarda o novo início). Adiado sem nova
+ * data: nenhuma — não há o que pôr no calendário nem como dizer que passou.
+ */
+export function periodoDoEvento(
+  e: Pick<Evento, "situacao" | "inicio" | "termino" | "adiado_para">
+): { inicio: string; termino: string | null } | null {
+  if (e.situacao === "adiado") {
+    if (!e.adiado_para) return null
+    const duracao =
+      e.inicio && e.termino ? new Date(e.termino).getTime() - new Date(e.inicio).getTime() : NaN
+    return {
+      inicio: e.adiado_para,
+      termino:
+        Number.isFinite(duracao) && duracao > 0
+          ? new Date(new Date(e.adiado_para).getTime() + duracao).toISOString()
+          : null,
+    }
+  }
+  if (!e.inicio) return null
+  return { inicio: e.inicio, termino: e.termino }
+}
+
+/**
+ * O evento já aconteceu? Encerrado pela equipe, ou com a data (a nova, se
+ * adiado) no passado: terminou — ou, sem término, já começou (A135). Não há
+ * transição automática para 'encerrado', então a data é que manda.
+ */
+export function eventoJaAconteceu(
+  e: Pick<Evento, "situacao" | "inicio" | "termino" | "adiado_para">,
+  agora = new Date()
+): boolean {
+  if (e.situacao === "encerrado") return true
+  const p = periodoDoEvento(e)
+  if (!p) return false
+  return new Date(p.termino ?? p.inicio) < agora
+}
+
+const JA_ACONTECEU = "Este evento já aconteceu."
 
 /**
  * Eventos que interessam ao filiado: os publicados que ainda não terminaram,
  * mais aqueles em que ele já está inscrito (inclusive adiados — a inscrição
- * dele continua valendo e ele precisa acompanhar).
+ * dele continua valendo e ele precisa acompanhar — e os que já passaram, que
+ * a página mostra em "Eventos anteriores").
  */
 export async function eventosParaFiliado(
   cpf: string,
@@ -66,25 +124,41 @@ export async function eventosParaFiliado(
 ): Promise<EventoDoFiliado[]> {
   const service = await createAdminClient()
 
-  const { data: brutos } = await service
-    .from("eventos")
-    .select("id")
-    .eq("emp_proprietaria_id", tenantId)
-    .in("situacao", ["publicado", "adiado"])
-    .order("inicio", { ascending: true })
-    .limit(50)
+  // Só o que ainda significa algo (A135): terminou de ontem para cá, sem
+  // término começou de ontem para cá, ou foi adiado para uma data adiante.
+  // A consulta tem um dia de folga; o corte exato, na hora, é o de
+  // `eventoJaAconteceu`. Sem o filtro, os publicados antigos (ninguém os
+  // passa a 'encerrado') ocupavam o teto em ordem crescente e empurravam os
+  // eventos novos para fora da lista.
+  const desde = deCampoDataHora(`${somarDiasISO(hojeSP(), -1)}T00:00`)
+  const { data: brutos } = desde
+    ? await service
+        .from("eventos")
+        .select("id")
+        .eq("emp_proprietaria_id", tenantId)
+        .in("situacao", ["publicado", "adiado"])
+        .or(
+          `termino.gte.${desde},and(termino.is.null,inicio.gte.${desde}),adiado_para.gte.${desde}`
+        )
+        .order("inicio", { ascending: true })
+        .limit(200)
+    : { data: [] }
 
   const ids = (brutos ?? []).map((e) => e.id as string)
 
   // As inscrições dele, mesmo em evento que saiu da lista acima.
-  const { data: minhas } = await service
-    .from("eventos_inscricoes")
-    .select(
-      "id, evento_id, token, situacao, rsvp_confirmado, prontuario_presenca_em"
-    )
-    .eq("emp_proprietaria_id", tenantId)
-    .eq("cpf", cpf)
-    .is("anonimizada_em", null)
+  const [{ data: minhas }, { config }] = await Promise.all([
+    service
+      .from("eventos_inscricoes")
+      .select(
+        "id, evento_id, token, situacao, rsvp_confirmado, prontuario_presenca_em, foto_url"
+      )
+      .eq("emp_proprietaria_id", tenantId)
+      .eq("cpf", cpf)
+      .is("anonimizada_em", null),
+    // Uma vez para a lista toda: o modo da foto é da entidade, não do evento.
+    obterConfig().catch(() => ({ config: { modo_foto: "nenhuma" as const } })),
+  ])
 
   const porEvento = new Map(
     (minhas ?? []).map((i) => [i.evento_id as string, i])
@@ -111,15 +185,27 @@ export async function eventosParaFiliado(
     contagem.set(id, (contagem.get(id) ?? 0) + 1)
   }
 
-  // Duas consultas para a lista inteira, não duas por evento.
+  // Duas consultas para a lista inteira, não duas por evento. A capacidade,
+  // só dos que ainda vão acontecer: dos passados ninguém pergunta por vaga, e
+  // quem foi a muitos eventos não precisa ler todas as inscrições deles.
+  const agora = new Date()
   const eventos = await obterEventos(ids)
-  const capacidades = await capacidadesDosEventos(eventos)
+  const capacidades = await capacidadesDosEventos(
+    eventos.filter((e) => !eventoJaAconteceu(e, agora))
+  )
 
+  const coletaFoto = config.modo_foto !== "nenhuma"
   const lista: EventoDoFiliado[] = []
   for (const evento of eventos) {
+    const passado = eventoJaAconteceu(evento, agora)
     const capacidade = capacidades.get(evento.id)
-    if (!capacidade) continue
-    const abertura = inscricoesAbertas(evento, capacidade)
+    if (!passado && !capacidade) continue
+    // Evento que já passou não está "aberto", mesmo sem data de fechamento
+    // das inscrições: a função compartilhada só olha a janela de inscrição.
+    const abertura =
+      passado || !capacidade
+        ? { aberta: false, motivo: JA_ACONTECEU }
+        : inscricoesAbertas(evento, capacidade, agora)
     const minha = porEvento.get(evento.id)
     const viva = minha && minha.situacao !== "cancelada" ? minha : undefined
 
@@ -132,19 +218,140 @@ export async function eventosParaFiliado(
       rsvpConfirmado: (viva?.rsvp_confirmado as boolean | null) ?? null,
       rsvpAberto:
         evento.rsvp_abre_em !== null &&
-        new Date(evento.rsvp_abre_em) <= new Date(),
+        new Date(evento.rsvp_abre_em) <= agora,
       presencas: viva ? (contagem.get(viva.id as string) ?? 0) : 0,
       aberta: abertura.aberta,
       motivoFechada: abertura.motivo,
-      vagasRestantes: capacidade.publicasRestantes,
+      vagasRestantes: capacidade?.publicasRestantes ?? null,
+      inscricoesAbremEm:
+        evento.situacao === "publicado" &&
+        evento.inscricoes_abrem_em &&
+        new Date(evento.inscricoes_abrem_em) > agora
+          ? evento.inscricoes_abrem_em
+          : null,
+      fotoObrigatoria: coletaFoto && evento.exige_foto,
+      temFoto: Boolean(viva?.foto_url),
+      passado,
     })
   }
 
-  // Quem já está inscrito primeiro; depois por data.
-  return lista.sort((a, b) => {
-    if (a.inscrito !== b.inscrito) return a.inscrito ? -1 : 1
-    return (a.evento.inicio ?? "").localeCompare(b.evento.inicio ?? "")
-  })
+  // Por data — a que vale (a nova, se adiado); sem data, por último. A página
+  // separa as seções; a lista só precisa vir em ordem.
+  const quando = (e: EventoDoFiliado) => {
+    const iso = periodoDoEvento(e.evento)?.inicio ?? e.evento.inicio
+    return iso ? new Date(iso).getTime() : Number.MAX_SAFE_INTEGER
+  }
+  return lista.sort((a, b) => quando(a) - quando(b))
+}
+
+/**
+ * Imagem do card dos eventos (A83), com URL assinada de uma hora — o bucket
+ * `eventos` é privado. Uma chamada para a lista inteira, não uma por evento.
+ */
+export async function imagensDosEventos(eventos: Evento[]): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const comImagem = eventos.filter((e) => e.card_url)
+  if (comImagem.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin.storage
+    .from("eventos")
+    .createSignedUrls([...new Set(comImagem.map((e) => e.card_url as string))], 3600)
+  const porCaminho = new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]))
+  for (const e of comImagem) {
+    const url = porCaminho.get(e.card_url as string)
+    if (url) mapa.set(e.id, url)
+  }
+  return mapa
+}
+
+/**
+ * O evento para o "Adicionar ao calendário" (A84) — só se o filiado pode
+ * vê-lo no portal: publicado ou adiado, ou com inscrição viva dele. Rascunho,
+ * cancelado e adiado sem nova data não vão para o calendário.
+ */
+export async function eventoParaCalendario(
+  eventoId: string,
+  cpf: string,
+  tenantId: string
+): Promise<{
+  evento: Evento
+  periodo: { inicio: string; termino: string | null }
+  inscricaoId: string | null
+} | null> {
+  const evento = await obterEvento(eventoId)
+  if (!evento || evento.situacao === "rascunho" || evento.situacao === "cancelado") return null
+  const service = await createAdminClient()
+  const { data: insc } = await service
+    .from("eventos_inscricoes")
+    .select("id, situacao")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("evento_id", eventoId)
+    .eq("cpf", cpf)
+    .is("anonimizada_em", null)
+    .maybeSingle()
+  const viva = insc && insc.situacao !== "cancelada" && insc.situacao !== "recusada" ? insc : null
+  if (!viva && evento.situacao !== "publicado" && evento.situacao !== "adiado") return null
+  const periodo = periodoDoEvento(evento)
+  if (!periodo) return null
+  return { evento, periodo, inscricaoId: (viva?.id as string) ?? null }
+}
+
+/**
+ * A inscrição deste token é do filiado? A página pública do código só oferece
+ * o "Voltar ao portal" ao dono dela (A45) — não a quem apenas tem o portal
+ * aberto no mesmo aparelho, nem à gestão em "Ver como filiado" abrindo a
+ * inscrição de outra pessoa pelo painel.
+ */
+export async function inscricaoEhDoFiliado(
+  token: string,
+  cpf: string,
+  tenantId: string
+): Promise<boolean> {
+  const service = await createAdminClient()
+  const { data } = await service
+    .from("eventos_inscricoes")
+    .select("cpf")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("token", token)
+    .maybeSingle()
+  return Boolean(data?.cpf) && data?.cpf === cpf
+}
+
+export type ItemAgendaCalendario = {
+  id: string
+  atividade: string | null
+  local: string | null
+  inicio: string
+  termino: string | null
+  diaTodo: boolean
+  tipo: string | null
+  informacoes: string | null
+}
+
+/** Compromisso da agenda do portal (A84) — só os marcados para o aplicativo. */
+export async function itemDaAgendaParaCalendario(
+  id: string,
+  tenantId: string
+): Promise<ItemAgendaCalendario | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("agenda")
+    .select("id, atividade, local, inicio, termino, dia_todo, tipo, informacoes_gerais")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("id", id)
+    .eq("aplicativo", true)
+    .maybeSingle()
+  if (!data || !texto(data.inicio)) return null
+  return {
+    id: String(data.id),
+    atividade: texto(data.atividade),
+    local: texto(data.local),
+    inicio: String(data.inicio),
+    termino: texto(data.termino),
+    diaTodo: data.dia_todo === true,
+    tipo: texto(data.tipo),
+    informacoes: texto(data.informacoes_gerais),
+  }
 }
 
 /**
@@ -191,6 +398,8 @@ export async function inscreverFiliado(
 
   // Nova ou de volta depois de cancelar: as mesmas travas, com as vagas
   // contadas AGORA — a de quem cancelou pode ter sido ocupada nesse meio-tempo.
+  // Evento que já passou fecha mesmo sem data de fechamento das inscrições.
+  if (eventoJaAconteceu(evento)) return { erro: JA_ACONTECEU }
   const capacidade = await capacidadeDoEvento(evento)
   const abertura = inscricoesAbertas(evento, capacidade)
   if (!abertura.aberta) {
@@ -276,26 +485,32 @@ export async function inscreverFiliado(
 /**
  * Cancela a própria inscrição — desistir é direito de quem se inscreveu, e
  * voltar também: cancelada reabre o evento para a pessoa (inscreverFiliado).
+ * Vale para a confirmada e também para a que espera avaliação ou está na
+ * lista de espera (A81): quem desiste sai da fila. `situacaoAnterior` deixa a
+ * action escolher a frase certa.
  */
 export async function cancelarInscricaoDoFiliado(
   inscricaoId: string,
   cpf: string,
   tenantId: string
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; situacaoAnterior?: string }> {
   const service = await createAdminClient()
   const { data: insc } = await service
     .from("eventos_inscricoes")
-    .select("id, cpf, situacao")
+    .select("id, cpf, situacao, evento_id")
     .eq("emp_proprietaria_id", tenantId)
     .eq("id", inscricaoId)
     .maybeSingle()
   if (!insc || insc.cpf !== cpf) return { erro: "Inscrição não encontrada." }
-  if (insc.situacao === "cancelada") return {}
+  if (insc.situacao === "cancelada") return { situacaoAnterior: "cancelada" }
   // Como cancelada reabre a inscrição, cancelar uma recusada seria o atalho
   // para desfazer a decisão da entidade.
   if (insc.situacao === "recusada") {
     return { erro: "Esta inscrição não foi aprovada — não há o que cancelar." }
   }
+  // Depois do evento não há vaga a liberar; a inscrição fica como registro.
+  const evento = await obterEvento(insc.evento_id as string)
+  if (evento && eventoJaAconteceu(evento)) return { erro: JA_ACONTECEU }
 
   const { count } = await service
     .from("eventos_presencas")
@@ -308,9 +523,10 @@ export async function cancelarInscricaoDoFiliado(
   const { error } = await service
     .from("eventos_inscricoes")
     .update({ situacao: "cancelada", updated_at: new Date().toISOString() })
+    .eq("emp_proprietaria_id", tenantId)
     .eq("id", inscricaoId)
   if (error) return { erro: "Não foi possível cancelar." }
-  return {}
+  return { situacaoAnterior: insc.situacao as string }
 }
 
 // ── Avisos ao filiado (A122) ─────────────────────────────────────────────────

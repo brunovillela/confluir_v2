@@ -4,6 +4,8 @@ import {
   gerarResumo,
 } from "@/lib/db/comunicacao"
 import { executarAniversarios, executarMalasDiretas } from "@/lib/db/comunicacao-mensagens"
+import { rodarFilasDeEspera, type ResultadoFilasDeEspera } from "@/lib/db/hospedagem-garantida"
+import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
 // O parabéns de um dia pode ter dezenas de e-mails em lotes.
@@ -11,7 +13,7 @@ export const maxDuration = 300
 
 /**
  * Tick diário da Comunicação. Protegido por `CRON_SECRET` (header
- * `x-cron-secret` ou `Authorization: Bearer`). Faz duas coisas:
+ * `x-cron-secret` ou `Authorization: Bearer`). Faz quatro coisas:
  *
  * 1. Resumo de notícias — percorre os tenants com config ativa e, para os que
  *    estão na hora, gera o resumo.
@@ -19,7 +21,11 @@ export const maxDuration = 300
  *    parabéns do dia (mensagem padrão ou específica por pessoa), envia os
  *    e-mails quando automático e manda o aviso à equipe
  *    (lib/db/comunicacao-mensagens.ts).
- * 3. Mala direta — as agendadas cuja hora chegou começam a sair; as que
+ * 3. Lista de espera da hospedagem — a oferta vencida cai, a vaga liberada
+ *    (por ela ou pela trava do último quarto) vai ao próximo da fila e o
+ *    lembrete da oferta perto de vencer sai a tempo (lib/db/hospedagem-
+ *    garantida.ts, `rodarFilasDeEspera`). A tela do portal só lê a fila.
+ * 4. Mala direta — as agendadas cuja hora chegou começam a sair; as que
  *    ficaram pela metade continuam. Para perto do limite da função; o resto
  *    segue no próximo disparo.
  *
@@ -51,9 +57,22 @@ async function handler(req: Request): Promise<Response> {
 
   // Aniversários primeiro (poucos e-mails por dia); a mala direta usa o resto do tempo.
   const aniversarios = await executarAniversarios(inicio + 120_000, unico)
+  // A fila da hospedagem é curta (poucos hotéis); isolada: se falhar, a mala
+  // direta sai do mesmo jeito.
+  let hospedagem: ResultadoFilasDeEspera
+  try {
+    hospedagem = await rodarFilasDeEspera({
+      client: createServiceClient(),
+      limite: inicio + 180_000,
+      tenant: unico,
+    })
+  } catch (e) {
+    hospedagem = { entidades: 0, hoteis: 0, lembretes: 0, erros: [e instanceof Error ? e.message : String(e)] }
+  }
+  if (hospedagem.erros.length) console.error("[comunicacao/tick] fila da hospedagem:", hospedagem.erros.join(" · "))
   // Folga de 40 s antes do maxDuration para gravar a situação do último lote.
   const malasDiretas = await executarMalasDiretas(inicio + 260_000, unico)
-  return Response.json({ verificados: configs.length, gerados: resultados, aniversarios, malasDiretas })
+  return Response.json({ verificados: configs.length, gerados: resultados, aniversarios, hospedagem, malasDiretas })
 }
 
 export const GET = handler

@@ -1,22 +1,25 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Check, Circle } from "lucide-react"
+import { ArrowLeft, Check, Circle } from "lucide-react"
 
 import QRCode from "qrcode"
 
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { inscricaoEhDoFiliado } from "@/lib/db/eventos-portal"
 import { obterInscricaoPorToken } from "@/lib/db/eventos-publico"
 import { formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { ConfirmarEmail, RespostaRsvp } from "./inscricao-passos"
 import { CapturaSelfie } from "./selfie"
@@ -62,7 +65,13 @@ export default async function InscricaoPage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
-  const insc = await obterInscricaoPorToken(token, await tenantAtual())
+  const tenantId = await tenantAtual()
+  const [insc, portal] = await Promise.all([
+    obterInscricaoPorToken(token, tenantId),
+    // Quem chega aqui com o portal aberto (pelo cartão do evento ou pelo
+    // e-mail, já logado) ganha o caminho de volta (A45).
+    getVisualizacaoPortal().catch(() => null),
+  ])
   if (!insc) notFound()
 
   if (insc.anonimizada) {
@@ -91,9 +100,24 @@ export default async function InscricaoPage({
   const qrDataUrl = confirmada
     ? await QRCode.toDataURL(insc.token, { errorCorrectionLevel: "M", margin: 1, width: 512 })
     : ""
+  // Volta ao cartão do evento, não ao topo da página de eventos — e só para o
+  // dono da inscrição: no aparelho de outra pessoa, ou na gestão em "Ver como
+  // filiado", esta página continua sendo a do público.
+  const doPortal =
+    portal !== null &&
+    (await inscricaoEhDoFiliado(insc.token, portal.filiado.cpf, tenantId).catch(() => false))
+  const voltarAoPortal = doPortal ? `/portal/eventos#evento-${insc.eventoId}` : null
 
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
+      {voltarAoPortal && (
+        <Button variant="ghost" asChild className="-ml-2 mb-4">
+          <Link href={voltarAoPortal}>
+            <ArrowLeft />
+            Voltar ao portal
+          </Link>
+        </Button>
+      )}
       <div className="mb-8 flex flex-col items-center text-center">
         <Marca variante="completa" />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight text-balance">
@@ -258,18 +282,32 @@ export default async function InscricaoPage({
       )}
 
       <div className="text-muted-foreground mt-8 grid gap-2 text-center text-xs">
-        <p>
-          Guarde esta página: é o seu acesso à inscrição. O endereço é pessoal —
-          não compartilhe.
-        </p>
-        <p>
-          Para ver, corrigir ou excluir seus dados, entre em{" "}
-          <Link href="/meus-dados" className="underline">
-            Meus dados
-          </Link>{" "}
-          com o e-mail usado nesta inscrição. Se preferir, procure a secretaria
-          da entidade.
-        </p>
+        {/* As duas frases são para quem não tem login: para o associado, o
+            acesso à inscrição e aos dados é o próprio portal (A45). */}
+        {voltarAoPortal ? (
+          <p>
+            Sua inscrição também fica no portal, em{" "}
+            <Link href={voltarAoPortal} className="underline">
+              Eventos
+            </Link>
+            .
+          </p>
+        ) : (
+          <>
+            <p>
+              Guarde esta página: é o seu acesso à inscrição. O endereço é pessoal —
+              não compartilhe.
+            </p>
+            <p>
+              Para ver, corrigir ou excluir seus dados, entre em{" "}
+              <Link href="/meus-dados" className="underline">
+                Meus dados
+              </Link>{" "}
+              com o e-mail usado nesta inscrição. Se preferir, procure a secretaria
+              da entidade.
+            </p>
+          </>
+        )}
         {insc.eventoSlug && (
           <p>
             <Link

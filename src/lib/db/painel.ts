@@ -64,7 +64,10 @@ export type Noticia = {
   titulo: string
   /** Link externo (fallback RSS) — null para notícia interna. */
   url: string | null
+  /** 'DD/MM' — o widget do painel. */
   data: string | null
+  /** Data completa (ISO), para quem precisa do ano — o portal (A86). */
+  quando?: string | null
 }
 
 export type ResumoPainel = {
@@ -350,6 +353,7 @@ export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
       titulo: n.manchete as string,
       url: null,
       data: dataCurta(n.created_at),
+      quando: n.created_at ?? null,
     }))
   }
 
@@ -402,12 +406,17 @@ export async function ultimasNoticias(limite = 6): Promise<Noticia[]> {
           const url = /<link>([\s\S]*?)<\/link>/.exec(item)?.[1]
           const data = /<pubDate>([\s\S]*?)<\/pubDate>/.exec(item)?.[1] ?? null
           if (!titulo || !url) return []
+          const instante = data ? new Date(data) : null
           return [
             {
               id: null,
               titulo: decodificarEntidades(titulo),
               url: url.trim(),
               data: dataCurta(data),
+              quando:
+                instante && !Number.isNaN(instante.getTime())
+                  ? instante.toISOString()
+                  : null,
             },
           ]
         })

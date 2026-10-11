@@ -4,12 +4,15 @@ import { revalidatePath } from "next/cache"
 
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   confirmarVerificacaoEmail,
   definirEmailVotacaoDireto,
   registrarVotoFiliado,
   solicitarVerificacaoEmail,
 } from "@/lib/db/votacao-portal"
+
+import type { EstadoVoto } from "./comprovante-voto"
 
 /** Envia o código de verificação para o e-mail de votação informado. */
 export async function enviarCodigoEmailVotacao(
@@ -46,11 +49,14 @@ export async function confirmarCodigoEmailVotacao(
   return { ok: "E-mail de votação verificado." }
 }
 
-/** Registra o voto do filiado (secreto). Uma escolha por pergunta. */
+/**
+ * Registra o voto do filiado (secreto). Uma escolha por pergunta. Devolve o
+ * comprovante para a tela mostrar na hora (A46) — nunca o conteúdo do voto.
+ */
 export async function votarNaAssembleia(
-  _prev: EstadoForm,
+  _prev: EstadoVoto,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoVoto> {
   const { filiado } = await requireSessaoPortal()
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
   if (!assembleiaId) return { erro: "Assembleia inválida." }
@@ -64,7 +70,21 @@ export async function votarNaAssembleia(
   }
   const r = await registrarVotoFiliado(filiado.cpf, assembleiaId, escolhas)
   if (r.erro) return { erro: r.erro }
+  // A revalidação também refaz a página da cédula: é o ramo "já votou" dela,
+  // lendo a participação do banco, que mostra o comprovante no portal.
   revalidatePath("/portal/votacao")
   revalidatePath("/portal/inicio")
-  return { ok: "Voto registrado. Obrigado por participar." }
+  const c = r.comprovante
+  return {
+    ok: "Voto registrado. Obrigado por participar.",
+    comprovante: c
+      ? {
+          codigo: c.codigo,
+          quando: c.quando,
+          canal: ROTULO_CANAL[c.canal],
+          emailEnviado: Boolean(c.emailPara),
+          emailPara: c.emailPara,
+        }
+      : null,
+  }
 }

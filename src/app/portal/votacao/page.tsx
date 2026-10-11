@@ -1,8 +1,18 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, FileCheck2, Info, ShieldCheck, Vote } from "lucide-react"
+import { CalendarClock, Clock, FileCheck2, Info, ShieldCheck, Vote } from "lucide-react"
 
-import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
+import {
+  AtualizarAo,
+  ContagemRegressiva,
+  EnquantoAberta,
+} from "@/components/portal/contagem-regressiva"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,7 +24,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
-import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import {
+  estadoVotacao,
+  hojeEmBrasilia,
+  quandoCurto,
+  ROTULOS_MODALIDADE,
+} from "@/lib/assembleias-constantes"
 import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   assembleiasDoFiliado,
@@ -23,10 +38,21 @@ import {
 } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
-
 import { EmailVotacaoForm } from "./email-form"
+import { SalaVirtualAviso } from "./sala-virtual"
 
 export const metadata: Metadata = { title: "Votação — Confluir" }
+
+/** Menos de 24 h para o fim: o selo "Último dia" dá a urgência (A93). */
+function ultimoDia(termino: string | null): boolean {
+  if (!termino) return false
+  const resta = Date.parse(termino) - Date.now()
+  return resta > 0 && resta < 24 * 60 * 60 * 1000
+}
+
+const LINK_ATENDIMENTO = `/portal/atendimento?assunto=cadastro&titulo=${encodeURIComponent(
+  "Votação não aparece no portal"
+)}`
 
 export default async function VotacaoPortalPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
@@ -54,13 +80,48 @@ export default async function VotacaoPortalPage() {
         </Alert>
       )}
 
+      {/* Sem assembleia aberta: a página começa explicando, não pelo
+          formulário de e-mail (A90). Inativo já tem o aviso acima. */}
+      {filiado.ativo && abertas.length === 0 && (
+        <Card>
+          <CardContent className="grid gap-3 text-sm">
+            <p className="flex items-start gap-3">
+              <Vote className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+              <span className="grid gap-1">
+                <span className="font-medium">
+                  Nenhuma assembleia aberta para você no momento
+                </span>
+                <span className="text-muted-foreground">
+                  Aqui você vota nas assembleias online e confere as datas das
+                  presenciais. Quando a entidade abrir uma votação em que você
+                  está apto — pela lista de trabalhadores da sua empresa —, ela
+                  aparece nesta página e você recebe um aviso. As votações de que
+                  você já participou ficam em Minhas votações, logo abaixo.
+                </span>
+              </span>
+            </p>
+            <p className="text-muted-foreground border-t pt-3">
+              Recebeu um aviso de votação e ela não aparece aqui?{" "}
+              <a href="#email-votacao" className="text-primary font-medium underline underline-offset-4">
+                Confira seu e-mail de votação
+              </a>{" "}
+              ou{" "}
+              <Link href={LINK_ATENDIMENTO} className="text-primary font-medium underline underline-offset-4">
+                fale com o Atendimento
+              </Link>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Assembleias abertas */}
       {abertas.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Assembleias abertas</CardTitle>
             <CardDescription>
-              Você está apto a participar destas votações.
+              Você está apto a participar destas votações. Horários de Brasília.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
@@ -68,6 +129,10 @@ export default async function VotacaoPortalPage() {
               // A mesma regra do banner do Início e da cédula — as três telas
               // não podem dizer coisas diferentes (achado A3).
               const estado = estadoVotacao(a)
+              // O término vem em ISO (UTC): o fim do dia em Brasília já é o dia
+              // seguinte em UTC, e formatarData lê só a data do texto — saía
+              // "12/10 a 13/10" numa assembleia de um dia só.
+              const diaDoFim = a.termino ? hojeEmBrasilia(new Date(a.termino)) : null
               // Votar e ver as datas no tamanho padrão: 44 px no toque (A119).
               const verDatas = a.rodadaId ? (
                 <Button variant="outline" asChild>
@@ -78,104 +143,133 @@ export default async function VotacaoPortalPage() {
                 </Button>
               ) : null
               // A contagem "encerra em" só faz sentido para quem pode votar
-              // agora; antes da abertura ela enganava.
+              // agora; antes da abertura ela enganava. Junto dela, a hora
+              // exata do fim — é com ela que a pessoa se organiza (A93).
               const complemento =
                 estado.chave === "votar" ? (
                   a.termino ? (
-                    <ContagemRegressiva ate={a.termino} />
+                    <>
+                      <ContagemRegressiva ate={a.termino} atualizarAoZerar={false} />
+                      {" · "}até {quandoCurto(a.termino)}
+                    </>
                   ) : (
                     "votação online"
                   )
                 ) : estado.chave === "presencial" ? (
                   <>
                     Presencial — confira as datas
-                    {a.inicio && <> · {formatarData(a.inicio)}</>}
-                    {a.termino && <> a {formatarData(a.termino)}</>}
+                    {a.inicio && (
+                      <>
+                        {" · "}
+                        {formatarData(a.inicio)}
+                        {a.horaInicio && <> às {a.horaInicio}</>}
+                      </>
+                    )}
+                    {/* Sem dia de início, "a 13/10" ficava solto: vira "até". */}
+                    {diaDoFim && diaDoFim !== a.inicio?.slice(0, 10) && (
+                      <>{a.inicio ? " a " : " · até "}{formatarData(diaDoFim)}</>
+                    )}
                   </>
                 ) : null
+              const botaoVotar = (
+                // gap-y-3: se "Ver datas" quebrar de linha, as áreas de toque não se sobrepõem.
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+                  <Button asChild>
+                    <Link href={`/portal/votacao/${a.assembleiaId}`}>
+                      <Vote />
+                      Votar agora
+                    </Link>
+                  </Button>
+                  {estado.comUrna && verDatas}
+                </div>
+              )
               return (
-                <div
-                  key={a.assembleiaId}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {a.nome ?? a.tema ?? "Assembleia"}
-                      <Badge variant="outline" className="ml-2 align-middle">
-                        {ROTULOS_MODALIDADE[a.modalidade]}
-                      </Badge>
-                    </p>
-                    {(a.empregador || complemento) && (
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {a.empregador}
-                        {a.empregador && complemento && " · "}
-                        {complemento}
+                <div key={a.assembleiaId} className="grid gap-3 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {a.nome ?? a.tema ?? "Assembleia"}
+                        <Badge variant="outline" className="ml-2 align-middle">
+                          {ROTULOS_MODALIDADE[a.modalidade]}
+                        </Badge>
+                        {estado.chave === "votar" && ultimoDia(a.termino) && (
+                          <Badge variant="warning" className="ml-2 align-middle">
+                            <Clock />
+                            Último dia
+                          </Badge>
+                        )}
                       </p>
-                    )}
-                    {estado.chave === "votar" && estado.detalhe && (
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {estado.detalhe}
-                      </p>
+                      {(a.empregador || complemento) && (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {a.empregador}
+                          {a.empregador && complemento && " · "}
+                          {complemento}
+                        </p>
+                      )}
+                      {estado.chave === "votar" && estado.detalhe && (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {estado.detalhe}
+                        </p>
+                      )}
+                    </div>
+                    {estado.chave === "ja_votou" ? (
+                      <Badge variant={estado.variante}>{estado.rotulo}</Badge>
+                    ) : estado.chave === "nao_abriu" || estado.chave === "carencia" ? (
+                      // Recusa EXPLICADA: sumir com o botão faria a pessoa achar
+                      // que o sistema está quebrado.
+                      <div className="flex max-w-xs flex-col items-start gap-1 sm:items-end sm:text-right">
+                        <Badge variant={estado.variante}>{estado.rotulo}</Badge>
+                        <p className="text-muted-foreground text-xs">
+                          {estado.detalhe}
+                        </p>
+                        {/* Híbrida que ainda vai abrir: as datas das urnas já
+                            podem ser conferidas. Na carência, não — ela é do
+                            direito de votar, valha a porta que for. */}
+                        {estado.chave === "nao_abriu" && estado.comUrna && verDatas}
+                        {/* Quando a abertura chega com a tela aberta, a página
+                            se refaz e o botão de votar aparece. */}
+                        {estado.chave === "nao_abriu" && a.abreEm && (
+                          <AtualizarAo instante={a.abreEm} />
+                        )}
+                      </div>
+                    ) : estado.chave === "votar" ? (
+                      a.termino ? (
+                        // Contagem a zero: o botão sai e a linha diz que
+                        // encerrou, em vez de levar a uma recusa que parecia
+                        // erro de cadastro (A93).
+                        <EnquantoAberta
+                          ate={a.termino}
+                          depois={
+                            <div className="flex max-w-xs flex-col items-start gap-1 sm:items-end sm:text-right">
+                              <Badge variant="outline">Votação encerrada</Badge>
+                              <p className="text-muted-foreground text-xs">
+                                Encerrou em {quandoCurto(a.termino)}.
+                              </p>
+                            </div>
+                          }
+                        >
+                          {botaoVotar}
+                        </EnquantoAberta>
+                      ) : (
+                        botaoVotar
+                      )
+                    ) : (
+                      verDatas ?? (
+                        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                          <CalendarClock className="size-3.5" />
+                          presencial
+                        </span>
+                      )
                     )}
                   </div>
-                  {estado.chave === "ja_votou" ? (
-                    <Badge variant={estado.variante}>{estado.rotulo}</Badge>
-                  ) : estado.chave === "nao_abriu" || estado.chave === "carencia" ? (
-                    // Recusa EXPLICADA: sumir com o botão faria a pessoa achar
-                    // que o sistema está quebrado.
-                    <div className="flex max-w-xs flex-col items-start gap-1 sm:items-end sm:text-right">
-                      <Badge variant={estado.variante}>{estado.rotulo}</Badge>
-                      <p className="text-muted-foreground text-xs">
-                        {estado.detalhe}
-                      </p>
-                      {/* Híbrida que ainda vai abrir: as datas das urnas já
-                          podem ser conferidas. Na carência, não — ela é do
-                          direito de votar, valha a porta que for. */}
-                      {estado.chave === "nao_abriu" && estado.comUrna && verDatas}
-                    </div>
-                  ) : estado.chave === "votar" ? (
-                    // gap-y-3: se "Ver datas" quebrar de linha, as áreas de toque não se sobrepõem.
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
-                      <Button asChild>
-                        <Link href={`/portal/votacao/${a.assembleiaId}`}>
-                          <Vote />
-                          Votar agora
-                        </Link>
-                      </Button>
-                      {estado.comUrna && verDatas}
-                    </div>
-                  ) : (
-                    verDatas ?? (
-                      <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                        <CalendarClock className="size-3.5" />
-                        presencial
-                      </span>
-                    )
-                  )}
+                  {/* Sala da reunião online, para quem está apto (A47). */}
+                  {a.sala && <SalaVirtualAviso sala={a.sala} />}
                 </div>
               )
             })}
           </CardContent>
         </Card>
       )}
-
-      {/* E-mail de votação verificado */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">E-mail de votação</CardTitle>
-          <CardDescription>
-            Algumas empresas não informam o CPF nas listas de aptos. Um e-mail
-            verificado permite reconhecer você por ele.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EmailVotacaoForm
-            emailAtual={emailVot.email}
-            pendente={emailVot.pendente}
-            preview={preview}
-          />
-        </CardContent>
-      </Card>
 
       {/* Minhas votações */}
       <Card>
@@ -232,7 +326,9 @@ export default async function VotacaoPortalPage() {
                           {v.comprovante.codigo}
                         </span>
                       </span>
-                      <Button variant="outline" size="sm" asChild>
+                      {/* A página pública do comprovante tem "Voltar ao
+                          portal" para quem está logado (A151). */}
+                      <Button variant="outline" asChild>
                         <Link href={`/comprovante/${v.comprovante.codigo}`}>
                           <FileCheck2 />
                           Ver comprovante
@@ -245,9 +341,15 @@ export default async function VotacaoPortalPage() {
                         ? ` · voto computado em ${formatarDataHora(v.comprovante.quando)}`
                         : ""}
                     </p>
+                    {/* O resumo inteiro (64 caracteres) virava três linhas
+                        no celular. Aqui, o começo — o bastante para bater
+                        com o e-mail; o completo está em "Ver comprovante"
+                        (A166). */}
                     {v.comprovante.hash && (
-                      <p className="text-muted-foreground font-mono break-all">
-                        SHA-256 {v.comprovante.hash}
+                      <p className="text-muted-foreground" title={v.comprovante.hash}>
+                        Resumo SHA-256{" "}
+                        <span className="font-mono">{v.comprovante.hash.slice(0, 12)}…</span>{" "}
+                        (completo no comprovante)
                       </p>
                     )}
                   </div>
@@ -282,6 +384,47 @@ export default async function VotacaoPortalPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* E-mail de votação: tarefa rara, que só serve a quem a empresa
+          mandou sem CPF — vira seção secundária, recolhida, no fim (A91).
+          Abre sozinha só quando pode ser a explicação do "não aparece". */}
+      {filiado.ativo && (
+        <Card id="email-votacao" className="scroll-mt-20">
+          <CardContent>
+            <Accordion
+              type="single"
+              collapsible
+              defaultValue={!emailVot.email && abertas.length === 0 ? "email" : undefined}
+            >
+              <AccordionItem value="email">
+                <AccordionTrigger className="min-h-11 items-center">
+                  {emailVot.email
+                    ? "E-mail de votação"
+                    : "Não encontrou sua votação? Cadastre seu e-mail de votação"}
+                </AccordionTrigger>
+                {/* h-auto: o AccordionContent fixa a altura medida ao abrir, e o
+                    Radix não mede de novo — o campo do código, os avisos e o
+                    "Trocar" que aparecem depois ficavam cortados. */}
+                <AccordionContent className="grid h-auto gap-4 [&_p:not(:last-child)]:mb-0">
+                  <p className="text-muted-foreground">
+                    Algumas empresas mandam a lista de quem vota só com o e-mail,
+                    sem CPF. Informe o e-mail que sua empresa tem no cadastro
+                    (geralmente o corporativo): confirmado, ele faz as votações
+                    dessa lista aparecerem aqui. Se for o mesmo do seu cadastro na
+                    entidade, ele vale na hora.
+                  </p>
+                  <EmailVotacaoForm
+                    emailAtual={emailVot.email}
+                    pendente={emailVot.pendente}
+                    emailCadastro={filiado.email}
+                    preview={preview}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

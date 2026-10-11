@@ -1,4 +1,5 @@
 import "server-only"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { lerPermissoesHotel, type PermissoesHotel } from "@/lib/hotel-permissoes"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
@@ -7,6 +8,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import { emitirEvento } from "@/lib/db/webhooks"
 import { escaparLike } from "@/lib/texto"
 
@@ -54,6 +56,8 @@ export type Hotel = {
   espera_prazo_horas?: number | null
   alocacao_versao?: number | null
   fila_processada_em?: string | null
+  /** Telefone da recepção, para o associado (supabase/hospedagem-hotel-telefone.sql). */
+  telefone?: string | null
 }
 
 /**
@@ -71,11 +75,13 @@ export type ContratoDoHotel = {
   vigente: boolean
 }
 
+/** Fora de requisição (fila da hospedagem no tick), passe `client` e `tenantId`. */
 export async function contratoDoHotel(
-  hotelId: string
+  hotelId: string,
+  amb: { client?: SupabaseClient; tenantId?: string } = {}
 ): Promise<ContratoDoHotel | null> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+  const admin = amb.client ?? (await createAdminClient())
+  const emp = amb.tenantId ?? (await tenantAtual())
   const { data: h } = await admin
     .from("hospedagem_hotel")
     .select("contrato_id")
@@ -600,7 +606,7 @@ export async function efetivarReserva(
 
   const { data: cupons, error: erroCupons } = await admin
     .from("hospedagem_cupom")
-    .select("id, sexo, aceita_quarto_coletivo")
+    .select("id, sexo, aceita_quarto_coletivo, filiado_id")
     .in("id", cupomIds)
     .eq("hotel_id", hotelId)
     .eq("cancelado", false)
@@ -641,7 +647,7 @@ export async function efetivarReserva(
       hotel_id: hotelId,
       emp_proprietaria_id: await tenantAtual(),
     })
-    .select("id")
+    .select("id, codigo")
     .single()
   if (error || !servico) {
     return { erro: `Não foi possível criar a reserva: ${error?.message}` }
@@ -657,7 +663,71 @@ export async function efetivarReserva(
     }
   }
 
+  // Cada hóspede fica sabendo que o hotel reservou (achado A40) — antes, só
+  // quem entrava numa reserva já aberta (vincularCupomAReserva) era avisado.
+  const filiadoIds = [
+    ...new Set((cupons ?? []).map((c) => texto(c.filiado_id)).filter((v): v is string => !!v)),
+  ]
+  if (filiadoIds.length > 0) {
+    try {
+      const [{ data: pessoas }, hotel] = await Promise.all([
+        admin.from("filiacoes").select("cpf, nome_completo").in("id", filiadoIds),
+        buscarHotel(hotelId),
+      ])
+      for (const f of pessoas ?? []) {
+        const cpf = texto(f.cpf)
+        if (!cpf) continue
+        await avisarCupomReservado({
+          cpf,
+          nome: texto(f.nome_completo),
+          hotelNome: hotel?.nome ?? null,
+          checkIn: checkin,
+          checkOut: checkout,
+          codigo: texto(servico.codigo),
+          tarifa: tarifa.custo_por_filiado,
+        })
+      }
+    } catch (e) {
+      console.error("aviso da reserva efetivada:", e)
+    }
+  }
+
   return { id: servico.id }
+}
+
+/**
+ * Avisa o dono do cupom que o hotel o reservou (sino + e-mail pela
+ * preferência): datas da reserva, código e a parte dele — a tarifa que
+ * acabou de ser gravada (achados A39/A40). Uma vez por texto (`umaVez`); um
+ * aviso que falha nunca desfaz a reserva.
+ */
+async function avisarCupomReservado(p: {
+  cpf: string
+  nome: string | null
+  hotelNome: string | null
+  checkIn: string | null
+  checkOut: string | null
+  codigo: string | null
+  tarifa: number | null
+}): Promise<void> {
+  const datas = p.checkIn
+    ? `: check-in em ${formatarData(p.checkIn)}${p.checkOut ? ` e check-out em ${formatarData(p.checkOut)}` : ""}`
+    : ""
+  const codigo = p.codigo ? ` (reserva ${p.codigo})` : ""
+  const parte = p.tarifa !== null ? ` Sua parte, paga no hotel na entrada: ${formatarMoeda(p.tarifa)}.` : ""
+  try {
+    await avisarFiliado({
+      cpf: p.cpf,
+      nome: p.nome,
+      evento: "hospedagem",
+      assunto: "Seu cupom de hospedagem foi reservado",
+      texto: `O ${p.hotelNome ?? "hotel"} reservou o seu cupom${datas}${codigo}.${parte}`,
+      link: "/portal/hospedagem",
+      umaVez: true,
+    })
+  } catch (e) {
+    console.error("aviso do cupom reservado:", e)
+  }
 }
 
 /**
@@ -796,7 +866,7 @@ export async function vincularCupomAReserva(
   const admin = await createAdminClient()
   const { data: servico } = await admin
     .from("hospedagem_servico")
-    .select("id, hotel_id, coletivo, finalizado")
+    .select("id, hotel_id, coletivo, finalizado, codigo, checkin_date, checkout_date")
     .eq("id", servicoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -872,14 +942,15 @@ export async function vincularCupomAReserva(
     ])
     const cpf = texto(f?.cpf)
     if (cpf) {
-      const dia = texto(cupom.check_in)
-      await avisarFiliado({
+      // As datas da RESERVA (o hotel pode ter ajustado o check-in previsto).
+      await avisarCupomReservado({
         cpf,
         nome: texto(f?.nome_completo),
-        evento: "hospedagem",
-        assunto: "Seu cupom de hospedagem foi reservado",
-        texto: `O ${hotel?.nome ?? "hotel"} reservou o seu cupom${dia ? ` para o check-in de ${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}` : ""}.`,
-        link: "/portal/hospedagem",
+        hotelNome: hotel?.nome ?? null,
+        checkIn: texto(servico.checkin_date) ?? texto(cupom.check_in),
+        checkOut: texto(servico.checkout_date),
+        codigo: texto(servico.codigo),
+        tarifa: tarifa.custo_por_filiado,
       })
     }
     void emitirEvento("cupom.reservado", { cupomId, servicoId, hotelId: servico.hotel_id, hotel: hotel?.nome ?? null, filiacaoId: cupom.filiado_id, nome: texto(f?.nome_completo), cpf, checkIn: texto(cupom.check_in) })

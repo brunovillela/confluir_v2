@@ -1,12 +1,16 @@
 import type { Metadata } from "next"
-import { AlertTriangle, BadgeCheck, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { unstable_rethrow } from "next/navigation"
+import { AlertTriangle, ArrowLeft, BadgeCheck, ShieldCheck } from "lucide-react"
 
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import { conferirComprovante, ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 export const metadata: Metadata = {
   title: "Comprovante de votação — Confluir",
@@ -25,10 +29,30 @@ export default async function ComprovantePage({
   params: Promise<{ codigo: string }>
 }) {
   const { codigo } = await params
-  const c = await conferirComprovante(decodeURIComponent(codigo))
+  const [c, portal] = await Promise.all([
+    conferirComprovante(decodeURIComponent(codigo)),
+    // Quem chegou pelo portal (o associado, ou a gestão em "Ver como
+    // filiado") ganha o caminho de volta: fora da casca do portal, sem menu,
+    // só restava o "voltar" do navegador — que o app instalado nem mostra
+    // (A151). Para o público sem sessão, nada muda.
+    // unstable_rethrow: o catch não pode engolir os sinais internos do
+    // Next (cookies() na pré-renderização, redirect).
+    getVisualizacaoPortal().catch((e: unknown) => {
+      unstable_rethrow(e)
+      return null
+    }),
+  ])
 
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
+      {portal && (
+        <Button variant="ghost" asChild className="-ml-2 mb-4">
+          <Link href="/portal/votacao">
+            <ArrowLeft />
+            Voltar ao portal
+          </Link>
+        </Button>
+      )}
       <div className="mb-8 flex flex-col items-center text-center">
         <Marca variante="completa" />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Comprovante de votação</h1>

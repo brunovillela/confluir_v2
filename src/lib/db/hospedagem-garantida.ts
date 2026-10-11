@@ -6,8 +6,23 @@ import { buscarFiliadoPorCpf } from "@/lib/contas"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { buscarHotel, contratoDoHotel, type Hotel } from "@/lib/db/hospedagem"
-import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
-import { avisarFiliado, type AvisoPortal, type ResultadoAviso } from "@/lib/db/portal-avisos"
+import {
+  conferirCondicoesHospedagem,
+  lerCondicoesHospedagem,
+} from "@/lib/db/hospedagem-condicoes"
+import {
+  avisarFiliado,
+  contatoDoFiliado,
+  type AvisoPortal,
+  type ResultadoAviso,
+} from "@/lib/db/portal-avisos"
+import {
+  avaliarCondicoesHospedagem,
+  contarCondicoesAtivas,
+  janelaDoPeriodo,
+  type CondicoesHospedagem,
+  type PeriodoQuantidade,
+} from "@/lib/hospedagem-condicoes-constantes"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import {
   botaoEmail,
@@ -36,6 +51,7 @@ import {
   type ConfigGarantida,
   type Ocupacao,
   type RegraNaoComparecimento,
+  type ReservaDoHistorico,
   type Sexo,
 } from "@/lib/hospedagem-garantida-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -51,12 +67,14 @@ import { origemAtual } from "@/lib/tenant-url"
  * mudou desde a leitura. Se mudou, relê e decide de novo — ninguém pega a
  * mesma vaga nem fura a trava do último quarto.
  *
- * Tempo: não há agendador frequente. Tudo que depende de horário (oferta da
- * lista de espera vencida, trava liberada, falta) é conferido na hora em que é
- * usado, e a lista de espera é processada quando alguém cancela, entra na
- * fila ou abre as telas de hospedagem. Os AVISOS que dependem do relógio
- * (falta registrada, oferta perto de vencer) saem pelos `lembretes*` do fim
- * do arquivo, chamados pelo tick diário da hospedagem.
+ * Tempo: tudo que depende de horário (oferta da lista de espera vencida,
+ * trava liberada, falta) é conferido na hora em que é usado. A lista de
+ * espera é processada onde a disponibilidade muda — cancelamento de reserva,
+ * de oferta ou de pedido da fila, confirmação fora do prazo — e, para o que
+ * só o relógio muda (oferta que venceu, trava que abriu), pelo tick da
+ * Comunicação a cada 15 minutos (`rodarFilasDeEspera`, achado A134). A tela
+ * do portal só LÊ. Os AVISOS que dependem do relógio (falta registrada,
+ * oferta perto de vencer) saem pelos `lembretes*` do fim do arquivo.
  *
  * SQL: supabase/hospedagem-demanda-garantida.sql
  */
@@ -75,6 +93,27 @@ const DATA = /^\d{4}-\d{2}-\d{2}$/
 
 const txt = (v: unknown): string | null =>
   typeof v === "string" && v !== "" ? v : null
+
+/**
+ * Client e entidade de quem mexe na fila. Na requisição saem do host
+ * (`createAdminClient`/`tenantAtual`); no tick da Comunicação, que percorre
+ * todas as entidades sem requisição, vêm explícitos — lá `tenantAtual()`
+ * devolveria o tenant do host, não o da volta do laço. Mesmo desenho de
+ * `avisarFiliado` (lib/db/portal-avisos.ts).
+ */
+export type AmbienteFila = {
+  client: SupabaseClient
+  tenantId: string
+  contexto?: ContextoEmail
+}
+
+async function clienteDe(amb?: AmbienteFila): Promise<SupabaseClient> {
+  return amb?.client ?? (await createAdminClient())
+}
+
+async function tenantDe(amb?: AmbienteFila): Promise<string> {
+  return amb?.tenantId ?? (await tenantAtual())
+}
 
 // ── Configuração do hotel ────────────────────────────────────────────────────
 
@@ -124,10 +163,10 @@ async function lerTudo(
 }
 
 /** Cupons que ainda ocupam vaga: não cancelados e sem oferta vencida. */
-async function cuponsQueOcupam(ids: string[]): Promise<Set<string>> {
+async function cuponsQueOcupam(ids: string[], amb?: AmbienteFila): Promise<Set<string>> {
   const ativos = new Set<string>()
   if (ids.length === 0) return ativos
-  const admin = await createAdminClient()
+  const admin = await clienteDe(amb)
   const agora = Date.now()
   for (let i = 0; i < ids.length; i += 200) {
     const { data } = await admin
@@ -145,11 +184,12 @@ async function cuponsQueOcupam(ids: string[]): Promise<Set<string>> {
 async function ocupacaoDoHotel(
   hotelId: string,
   noites: string[],
-  ignorarCupom?: string
+  ignorarCupom?: string,
+  amb?: AmbienteFila
 ): Promise<Ocupacao> {
   const ocupacao: Ocupacao = new Map()
   if (noites.length === 0) return ocupacao
-  const admin = await createAdminClient()
+  const admin = await clienteDe(amb)
   const linhas = await lerTudo((de, ate) =>
     admin
       .from("hospedagem_alocacoes")
@@ -160,9 +200,10 @@ async function ocupacaoDoHotel(
       .order("id", { ascending: true })
       .range(de, ate)
   )
-  const ativos = await cuponsQueOcupam([
-    ...new Set(linhas.map((l) => l.cupom_id as string)),
-  ])
+  const ativos = await cuponsQueOcupam(
+    [...new Set(linhas.map((l) => l.cupom_id as string))],
+    amb
+  )
   for (const l of linhas) {
     const cupom = l.cupom_id as string
     if (cupom === ignorarCupom || !ativos.has(cupom) || !sexoValido(l.sexo as string)) {
@@ -254,15 +295,16 @@ export async function salvarRegraNaoComparecimento(
   return {}
 }
 
-/** Faltas contam por PESSOA (todos os registros do CPF). */
-export async function conferirNaoComparecimento(p: {
-  cpf: string | null
-  registros: string[]
-  checkIn: string
-}): Promise<{ erro?: string }> {
-  const regra = await lerRegraNaoComparecimento()
-  if (!regra.ativa || p.registros.length === 0) return {}
-  const admin = await createAdminClient()
+/**
+ * Reservas garantidas da pessoa (todos os registros do CPF) e a última
+ * liberação da equipe — o que a regra de não comparecimento avalia. Null se
+ * a leitura falhar (sem tabela: ninguém é barrado por isso).
+ */
+async function lerHistoricoDeFaltas(
+  p: { cpf: string | null; registros: string[] },
+  amb?: AmbienteFila
+): Promise<{ historico: ReservaDoHistorico[]; liberadoEm: Date | null } | null> {
+  const admin = await clienteDe(amb)
   const [{ data: reservas, error }, liberacao] = await Promise.all([
     admin
       .from("hospedagem_cupom")
@@ -273,14 +315,14 @@ export async function conferirNaoComparecimento(p: {
       ? admin
           .from("hospedagem_penalidade_liberacoes")
           .select("created_at")
-          .eq("emp_proprietaria_id", await tenantAtual())
+          .eq("emp_proprietaria_id", await tenantDe(amb))
           .eq("cpf", p.cpf)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ])
-  if (error) return {}
+  if (error) return null
   const historico = (reservas ?? [])
     .filter((r) => txt(r.check_in))
     .map((r) => ({
@@ -293,34 +335,240 @@ export async function conferirNaoComparecimento(p: {
   const liberadoEm = liberacao.data?.created_at
     ? new Date(liberacao.data.created_at as string)
     : null
-  const r = avaliarNaoComparecimento(regra, historico, liberadoEm, p.checkIn, new Date())
+  return { historico, liberadoEm }
+}
+
+/** Faltas contam por PESSOA (todos os registros do CPF). */
+export async function conferirNaoComparecimento(
+  p: {
+    cpf: string | null
+    registros: string[]
+    checkIn: string
+  },
+  amb?: AmbienteFila
+): Promise<{ erro?: string }> {
+  const regra = await lerRegraNaoComparecimento(amb)
+  if (!regra.ativa || p.registros.length === 0) return {}
+  const h = await lerHistoricoDeFaltas(p, amb)
+  if (!h) return {}
+  const r = avaliarNaoComparecimento(regra, h.historico, h.liberadoEm, p.checkIn, new Date())
   return r.ok ? {} : { erro: r.motivo }
 }
 
-/** Condições da entidade + regra de não comparecimento. */
-export async function conferirPodeReservar(p: {
-  cpf: string | null
-  registros: string[]
-  checkIn: string
-}): Promise<{ erro?: string }> {
-  const condicoes = await conferirCondicoesHospedagem(p)
+/**
+ * As condições da entidade com client e entidade EXPLÍCITOS, para a fila
+ * processada no tick (sem requisição). `conferirCondicoesHospedagem`
+ * (lib/db/hospedagem-condicoes.ts) lê a entidade do host — no tick, a errada.
+ * A regra é a mesma função pura; só a leitura dos dados é repetida aqui.
+ */
+async function conferirCondicoesNoTenant(
+  p: { cpf: string | null; registros: string[]; checkIn: string },
+  amb: AmbienteFila
+): Promise<{ erro?: string }> {
+  const { client, tenantId } = amb
+  const { data: linha, error } = await client
+    .from("hospedagem_condicoes")
+    .select(
+      "restringir_fontes, fontes_ids, limitar_quantidade, quantidade_maxima, quantidade_periodo, restringir_regimes, regimes, somente_beneficiarios"
+    )
+    .eq("emp_proprietaria_id", tenantId)
+    .maybeSingle()
+  if (error || !linha) return {}
+  const c: CondicoesHospedagem = {
+    restringirFontes: linha.restringir_fontes === true,
+    fontesIds: (linha.fontes_ids as string[] | null) ?? [],
+    limitarQuantidade: linha.limitar_quantidade === true,
+    quantidadeMaxima: Number(linha.quantidade_maxima ?? 1),
+    quantidadePeriodo: linha.quantidade_periodo === "ano" ? "ano" : "mes",
+    restringirRegimes: linha.restringir_regimes === true,
+    regimes: (linha.regimes as string[] | null) ?? [],
+    somenteBeneficiarios: linha.somente_beneficiarios === true,
+    observacao: null,
+  }
+  if (contarCondicoesAtivas(c) === 0) return {}
+  const registros = p.registros
+
+  const [vinculos, cupons, lista, fontes] = await Promise.all([
+    (c.restringirFontes || c.restringirRegimes) && registros.length > 0
+      ? client
+          .from("filiacao_vinculos")
+          .select("fonte_pagadora_id, regime_trabalho")
+          .in("filiado_id", registros)
+          .eq("emp_proprietaria_id", tenantId)
+          .is("data_desfiliacao", null)
+          .is("filiacao_data_saida", null)
+      : Promise.resolve({ data: [] as Linha[] }),
+    c.limitarQuantidade && registros.length > 0
+      ? (() => {
+          const janela = janelaDoPeriodo(p.checkIn, c.quantidadePeriodo)
+          return client
+            .from("hospedagem_cupom")
+            .select("id", { count: "exact", head: true })
+            .in("filiado_id", registros)
+            .eq("cancelado", false)
+            .gte("check_in", janela.inicio)
+            .lt("check_in", janela.fim)
+        })()
+      : Promise.resolve({ count: 0 }),
+    c.somenteBeneficiarios && p.cpf
+      ? client
+          .from("hospedagem_beneficiarios")
+          .select("id")
+          .eq("emp_proprietaria_id", tenantId)
+          .eq("cpf", p.cpf)
+          .limit(1)
+      : Promise.resolve({ data: [] as Linha[] }),
+    c.restringirFontes && c.fontesIds.length > 0
+      ? client.from("empresa").select("id, nome_fantasia, nome_razao").in("id", c.fontesIds)
+      : Promise.resolve({ data: [] as Linha[] }),
+  ])
+  const nomes = new Map(
+    (fontes.data ?? []).map((e) => [
+      e.id as string,
+      txt(e.nome_fantasia) ?? txt(e.nome_razao) ?? "fonte sem nome",
+    ])
+  )
+  const resultado = avaliarCondicoesHospedagem(
+    c,
+    {
+      vinculosAbertos: (vinculos.data ?? []).map((v) => ({
+        fonteId: txt(v.fonte_pagadora_id),
+        regime: txt(v.regime_trabalho),
+      })),
+      cuponsNoPeriodo: cupons.count ?? 0,
+      naListaDeBeneficiarios: (lista.data ?? []).length > 0,
+    },
+    (id) => nomes.get(id) ?? "fonte sem nome"
+  )
+  return resultado.ok ? {} : { erro: resultado.motivo }
+}
+
+/**
+ * Condições da entidade + regra de não comparecimento. Com `amb` (tick), as
+ * condições são lidas da entidade recebida.
+ */
+export async function conferirPodeReservar(
+  p: {
+    cpf: string | null
+    registros: string[]
+    checkIn: string
+  },
+  amb?: AmbienteFila
+): Promise<{ erro?: string }> {
+  const condicoes = amb ? await conferirCondicoesNoTenant(p, amb) : await conferirCondicoesHospedagem(p)
   if (condicoes.erro) return condicoes
-  return conferirNaoComparecimento(p)
+  return conferirNaoComparecimento(p, amb)
+}
+
+// ── Estado do direito (portal, antes de pedir) ───────────────────────────────
+
+/** Limite de cupons por período e os check-ins que já contam nele. */
+export type CotaHospedagem = {
+  limite: number
+  periodo: PeriodoQuantidade
+  /** Check-ins (AAAA-MM-DD) dos cupons não cancelados, do período atual em diante. */
+  checkIns: string[]
+}
+
+/** O que a regra de não comparecimento avalia, para avaliar no navegador. */
+export type FaltasHospedagem = {
+  regra: RegraNaoComparecimento
+  historico: ReservaDoHistorico[]
+  /** ISO da última liberação da equipe. */
+  liberadoEm: string | null
+}
+
+export type DireitoHospedagem = {
+  /** Recusa das condições da entidade para um check-in HOJE (pode ser só a cota). */
+  condicoesHoje: string | null
+  cota: CotaHospedagem | null
+  /** Só quando a regra está ligada e há hotel de demanda garantida. */
+  faltas: FaltasHospedagem | null
+}
+
+/**
+ * O "saldo" do associado (achado A38): as mesmas conferências da action,
+ * feitas ANTES, para a tela dizer o que barraria o pedido — condições da
+ * entidade, cota do período e faltas — em vez de o associado descobrir no
+ * erro depois de preencher tudo. A cota e as faltas dependem da data
+ * escolhida: vão os dados, e o formulário reavalia a cada data com as
+ * mesmas funções puras do servidor.
+ */
+export async function direitoHospedagem(p: {
+  cpf: string
+  registros: string[]
+  hoje: string
+  comFaltas: boolean
+}): Promise<DireitoHospedagem> {
+  const [condicoes, condicoesHoje, regra] = await Promise.all([
+    lerCondicoesHospedagem(),
+    conferirCondicoesHospedagem({ cpf: p.cpf, registros: p.registros, checkIn: p.hoje }),
+    p.comFaltas ? lerRegraNaoComparecimento() : Promise.resolve(null),
+  ])
+
+  let cota: CotaHospedagem | null = null
+  if (condicoes.limitarQuantidade) {
+    const checkIns: string[] = []
+    if (p.registros.length > 0) {
+      const admin = await createAdminClient()
+      const { inicio } = janelaDoPeriodo(p.hoje, condicoes.quantidadePeriodo)
+      const { data } = await admin
+        .from("hospedagem_cupom")
+        .select("check_in")
+        .in("filiado_id", p.registros)
+        .eq("cancelado", false)
+        .gte("check_in", inicio)
+        .limit(1000)
+      for (const c of data ?? []) {
+        const d = txt(c.check_in)
+        if (d) checkIns.push(d.slice(0, 10))
+      }
+    }
+    cota = {
+      limite: condicoes.quantidadeMaxima,
+      periodo: condicoes.quantidadePeriodo,
+      checkIns,
+    }
+  }
+
+  let faltas: FaltasHospedagem | null = null
+  if (regra?.ativa && p.registros.length > 0) {
+    const h = await lerHistoricoDeFaltas({ cpf: p.cpf, registros: p.registros })
+    if (h) {
+      faltas = {
+        regra,
+        historico: h.historico,
+        liberadoEm: h.liberadoEm ? h.liberadoEm.toISOString() : null,
+      }
+    }
+  }
+
+  return { condicoesHoje: condicoesHoje.erro ?? null, cota, faltas }
 }
 
 // ── Reserva ──────────────────────────────────────────────────────────────────
 
 export type ResultadoReserva =
   | { ok: true; cupomId: string; token: string; quarto: number }
-  | { ok: false; erro: string; semVaga?: boolean }
+  /**
+   * `campo`: o `name` do campo do formulário que causou a recusa.
+   * `ofertaPendente`: a coincidência é só com vaga da fila ainda guardada
+   * para a pessoa (pode ser a de outra passada da fila, em andamento).
+   */
+  | { ok: false; erro: string; semVaga?: boolean; campo?: string; ofertaPendente?: boolean }
 
+/**
+ * O portal não deixa o associado mudar o sexo do cadastro: a correção é
+ * pedida em Atendimento (assunto Cadastro).
+ */
 const MENSAGEM_SEXO =
-  "Para reservar em hotel de demanda garantida, o sexo precisa estar informado no cadastro (Masculino ou Feminino). Atualize em Meu cadastro ou fale com o sindicato."
+  "Para reservar em hotel de demanda garantida, o sexo precisa estar informado no cadastro (Masculino ou Feminino). Peça a correção em Atendimento, no assunto Cadastro."
 
 /**
  * Cria a reserva e escolhe o quarto. Não confere condições nem faltas — quem
  * chama faz isso antes (portal, painel e lista de espera têm mensagens
  * próprias). `confirmarAte` guarda a vaga de uma oferta da lista de espera.
+ * `amb`: a fila processada no tick, sem requisição.
  */
 export async function reservarEstadia(p: {
   hotel: Hotel
@@ -330,18 +578,23 @@ export async function reservarEstadia(p: {
   checkIn: string
   checkOut: string
   confirmarAte?: string | null
+  amb?: AmbienteFila
 }): Promise<ResultadoReserva> {
-  const { hotel } = p
+  const { hotel, amb } = p
   if (!ehGarantida(hotel)) return { ok: false, erro: "Este hotel não é de demanda garantida." }
   if (!sexoValido(p.sexo)) return { ok: false, erro: MENSAGEM_SEXO }
   if (!DATA.test(p.checkIn) || !DATA.test(p.checkOut)) {
-    return { ok: false, erro: "Informe as datas de check-in e check-out." }
+    return {
+      ok: false,
+      erro: "Informe as datas de check-in e check-out.",
+      campo: DATA.test(p.checkIn) ? "check_out" : "check_in",
+    }
   }
   if (p.checkOut <= p.checkIn) {
-    return { ok: false, erro: "O check-out precisa ser depois do check-in." }
+    return { ok: false, erro: "O check-out precisa ser depois do check-in.", campo: "check_out" }
   }
   if (p.checkIn < hojeEmSP()) {
-    return { ok: false, erro: "O check-in precisa ser de hoje em diante." }
+    return { ok: false, erro: "O check-in precisa ser de hoje em diante.", campo: "check_in" }
   }
 
   const cfg = configDoHotel(hotel)
@@ -350,6 +603,7 @@ export async function reservarEstadia(p: {
     return {
       ok: false,
       erro: `Neste hotel a estadia é de até ${cfg.maxNoites} noite${cfg.maxNoites === 1 ? "" : "s"}.`,
+      campo: "check_out",
     }
   }
   if (cfg.vagasPorQuarto < 1 || noites.some((n) => quartosNaNoite(cfg, n) < 1)) {
@@ -360,36 +614,51 @@ export async function reservarEstadia(p: {
     }
   }
 
-  const contrato = await contratoDoHotel(hotel.id)
+  const contrato = await contratoDoHotel(hotel.id, amb)
   if (!contrato || !contrato.vigente) {
-    return { ok: false, erro: "Este hotel está fora do período de convênio no momento." }
+    return {
+      ok: false,
+      erro: "Este hotel está fora do período de convênio no momento.",
+      campo: "hotel_id",
+    }
   }
   const ultimaNoite = noites[noites.length - 1]
   if (contrato.vigenciaTermino && ultimaNoite > contrato.vigenciaTermino) {
     return {
       ok: false,
       erro: `A última noite precisa ser até o fim da vigência do convênio (${dataBR(contrato.vigenciaTermino)}).`,
+      campo: "check_out",
     }
   }
 
-  const admin = await createAdminClient()
+  const admin = await clienteDe(amb)
   if (p.registros.length > 0) {
-    const { data: sobreposta, error: erroSob } = await admin
+    const { data: sobrepostas, error: erroSob } = await admin
       .from("hospedagem_cupom")
-      .select("id")
+      .select("id, confirmar_ate")
       .in("filiado_id", p.registros)
       .eq("reserva_garantida", true)
       .eq("cancelado", false)
       .lt("check_in", p.checkOut)
       .gt("check_out", p.checkIn)
-      .limit(1)
+      .limit(20)
     if (erroSob && faltaTabela(erroSob)) return { ok: false, erro: AVISO_SQL }
-    if ((sobreposta ?? []).length > 0) {
-      return { ok: false, erro: "Já existe uma reserva sua que coincide com essas datas." }
+    // Vaga da fila já vencida não conta: a tela não processa mais a fila
+    // (A134), e ela fica de pé até a próxima passada derrubá-la.
+    const agoraMs = Date.now()
+    const coincidentes = (sobrepostas ?? []).filter(
+      (c) => !c.confirmar_ate || new Date(c.confirmar_ate as string).getTime() > agoraMs
+    )
+    if (coincidentes.length > 0) {
+      return {
+        ok: false,
+        erro: "Já existe uma reserva sua que coincide com essas datas.",
+        ofertaPendente: coincidentes.every((c) => !!c.confirmar_ate),
+      }
     }
   }
 
-  const emp = await tenantAtual()
+  const emp = await tenantDe(amb)
   let cupom: { id: string; token: string } | null = null
   const descartar = async () => {
     if (cupom) await admin.from("hospedagem_cupom").delete().eq("id", cupom.id)
@@ -406,7 +675,7 @@ export async function reservarEstadia(p: {
       return { ok: false, erro: faltaTabela(erroVersao) ? AVISO_SQL : erroVersao.message }
     }
     const versao = Number(versaoLinha?.alocacao_versao ?? 0)
-    const ocupacao = await ocupacaoDoHotel(hotel.id, noites)
+    const ocupacao = await ocupacaoDoHotel(hotel.id, noites, undefined, amb)
     const escolha = alocarEstadia(cfg, ocupacao, { sexo: p.sexo, noites }, new Date())
 
     if (!escolha.ok) {
@@ -449,7 +718,7 @@ export async function reservarEstadia(p: {
       cupom = { id: criado.id as string, token: criado.token as string }
     }
 
-    const { data: resultado, error: erroRpc } = await (await createAdminClient()).rpc(
+    const { data: resultado, error: erroRpc } = await admin.rpc(
       "hospedagem_gravar_alocacao",
       {
         p_emp: emp,
@@ -733,6 +1002,19 @@ export async function cancelarReservaGarantida(
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   await admin.from("hospedagem_alocacoes").delete().eq("cupom_id", cupomId)
 
+  // Vaga da lista de espera ainda não confirmada: o pedido da fila também se
+  // encerra — senão ele seguia "oferecido" e a página da oferta mostrava o
+  // botão de confirmar uma reserva que já não existe.
+  await admin
+    .from("hospedagem_espera")
+    .update({
+      situacao: "cancelada",
+      motivo: escopo.porEquipe ? "A vaga oferecida foi cancelada pelo sindicato." : "Cancelado pela pessoa.",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("cupom_id", cupomId)
+    .eq("situacao", "oferecida")
+
   // Cancelada pela equipe (cupons e mapa do painel): a viagem da pessoa muda,
   // então vai sino + e-mail. Quem cancela pelo portal já vê o resultado na
   // tela; check-in já passado é acerto de cadastro, não muda viagem nenhuma.
@@ -782,6 +1064,13 @@ export type ReservaGarantida = {
   presencaEm: string | null
   podeCancelar: boolean
   prazoCancelamento: string | null
+  /** Vaga da lista de espera: até quando fica guardada sem confirmação. */
+  confirmarAte: string | null
+  /**
+   * Token do pedido da fila que ofereceu esta vaga (aguardando confirmação):
+   * o botão "Confirmar" da linha e da página da reserva usa o mesmo da oferta.
+   */
+  esperaToken: string | null
 }
 
 function situacaoDaReserva(c: Linha, agora = new Date()): SituacaoReserva {
@@ -812,7 +1101,7 @@ export async function reservasGarantidasDaPessoa(
   if (error) return []
   const porId = new Map(hoteis.map((h) => [h.id, h]))
   const agora = new Date()
-  return (data ?? []).map((c) => {
+  const reservas: ReservaGarantida[] = (data ?? []).map((c) => {
     const hotel = porId.get(c.hotel_id as string)
     const situacao = situacaoDaReserva(c, agora)
     const prazo = hotel ? prazoCancelamento(configDoHotel(hotel), c.check_in as string) : null
@@ -831,8 +1120,27 @@ export async function reservasGarantidasDaPessoa(
         !!prazo &&
         agora <= prazo,
       prazoCancelamento: prazo ? prazo.toISOString() : null,
+      confirmarAte: txt(c.confirmar_ate),
+      esperaToken: null,
     }
   })
+
+  // O token da oferta pelo cupom, numa consulta só — e só quando há vaga
+  // aguardando confirmação (quase nunca).
+  const aguardando = reservas.filter((r) => r.situacao === "aguardando_confirmacao")
+  if (aguardando.length > 0) {
+    const { data: ofertas } = await admin
+      .from("hospedagem_espera")
+      .select("cupom_id, token")
+      .in(
+        "cupom_id",
+        aguardando.map((r) => r.id)
+      )
+      .eq("situacao", "oferecida")
+    const tokens = new Map((ofertas ?? []).map((e) => [e.cupom_id as string, txt(e.token)]))
+    for (const r of aguardando) r.esperaToken = tokens.get(r.id) ?? null
+  }
+  return reservas
 }
 
 export async function reservaDaPessoa(
@@ -848,12 +1156,17 @@ export async function reservaDaPessoa(
 export type EsperaDaPessoa = {
   id: string
   token: string
+  hotelId: string
   hotelNome: string | null
   checkIn: string
   checkOut: string
   situacao: "aguardando" | "oferecida" | "confirmada" | "expirada" | "cancelada"
   motivo: string | null
   ofertaExpiraEm: string | null
+  /** Reserva guardada pela oferta (situação "oferecida"). */
+  cupomId: string | null
+  /** Última mudança de situação — dá a idade de um pedido encerrado. */
+  atualizadaEm: string | null
 }
 
 export async function esperasDaPessoa(
@@ -864,7 +1177,7 @@ export async function esperasDaPessoa(
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("hospedagem_espera")
-    .select("id, token, hotel_id, check_in, check_out, situacao, motivo, oferta_expira_em, created_at")
+    .select("id, token, hotel_id, check_in, check_out, situacao, motivo, oferta_expira_em, cupom_id, created_at, updated_at")
     .in("filiado_id", registros)
     .order("created_at", { ascending: false })
     .limit(50)
@@ -873,12 +1186,15 @@ export async function esperasDaPessoa(
   return (data ?? []).map((e) => ({
     id: e.id as string,
     token: e.token as string,
+    hotelId: e.hotel_id as string,
     hotelNome: nomes.get(e.hotel_id as string) ?? null,
     checkIn: e.check_in as string,
     checkOut: e.check_out as string,
     situacao: e.situacao as EsperaDaPessoa["situacao"],
     motivo: txt(e.motivo),
     ofertaExpiraEm: txt(e.oferta_expira_em),
+    cupomId: txt(e.cupom_id),
+    atualizadaEm: txt(e.updated_at) ?? txt(e.created_at),
   }))
 }
 
@@ -969,33 +1285,71 @@ function linkDaOferta(token: string): string {
   return `/hospedagem/oferta/${token}`
 }
 
+/** Intervalo mínimo entre duas passadas da fila do mesmo hotel (sem `forcar`). */
+const INTERVALO_FILA_MS = 5 * 60_000
+
+/**
+ * Trava da passada: só uma execução por vez passa daqui, por hotel. A troca
+ * do carimbo é UM update condicionado no banco (`fila_processada_em` vazio ou
+ * mais velho que o intervalo) — duas visitas no mesmo instante não passam as
+ * duas, como acontecia lendo o carimbo de um objeto carregado antes (A134).
+ * `forcar` (depois de um cancelamento) passa sempre: a vez de cada pessoa da
+ * fila é reivindicada à parte, em `processarFilaDeEspera`.
+ */
+async function travarFila(
+  hotelId: string,
+  agora: Date,
+  forcar: boolean,
+  amb?: AmbienteFila
+): Promise<boolean> {
+  const admin = await clienteDe(amb)
+  let marca = admin
+    .from("hospedagem_hotel")
+    .update({ fila_processada_em: agora.toISOString() })
+    .eq("id", hotelId)
+    .eq("emp_proprietaria_id", await tenantDe(amb))
+  if (!forcar) {
+    const limite = new Date(agora.getTime() - INTERVALO_FILA_MS).toISOString()
+    marca = marca.or(`fila_processada_em.is.null,fila_processada_em.lt."${limite}"`)
+  }
+  const { data, error } = await marca.select("id")
+  if (error) return false
+  return (data ?? []).length > 0
+}
+
 /**
  * Processa a lista de espera de um hotel:
  *  1. ofertas vencidas → a reserva guardada cai e a espera vira "expirada";
+ *     oferta cuja reserva já foi cancelada (pela equipe ou pela pessoa) vira
+ *     "cancelada" — a página da oferta não oferece mais o botão;
  *  2. por ordem de chegada, quem ainda atende às condições e cabe no hotel
  *     recebe a vaga GUARDADA (reserva com `confirmar_ate`) e um e-mail com o
  *     botão de confirmação.
- * Sem `forcar`, roda no máximo a cada 5 minutos por hotel.
+ * Sem `forcar`, roda no máximo a cada 5 minutos por hotel. `amb`: o tick, sem
+ * requisição (client, entidade e identidade do e-mail explícitos).
+ *
+ * Concorrência: a passada é travada por hotel (`travarFila`), menos com
+ * `forcar`, e a vez de cada pessoa é reivindicada com um update condicionado
+ * ao `updated_at` lido. Isso barra a segunda passada que leu a fila ANTES da
+ * reivindicação; a que lê DEPOIS, com a primeira ainda no meio, pode tratar o
+ * mesmo pedido — aí só uma reserva vira "oferecida" (a outra é descartada),
+ * só ela manda o e-mail, e a "reserva que coincide" com a vaga guardada pela
+ * outra passada não encerra o pedido (`ofertaPendente`). Risco que sobra, sem
+ * SQL: com duas passadas simultâneas a ordem de chegada pode inverter entre
+ * dois pedidos vizinhos, e uma passada que morre entre reservar e marcar
+ * "oferecida" deixa uma vaga guardada sem oferta até o prazo dela vencer (a
+ * passada seguinte a libera).
  */
 export async function processarFilaDeEspera(
   hotel: Hotel,
-  opcoes: { forcar?: boolean } = {}
+  opcoes: { forcar?: boolean } = {},
+  amb?: AmbienteFila
 ): Promise<void> {
   if (!ehGarantida(hotel)) return
   const agora = new Date()
-  if (
-    !opcoes.forcar &&
-    hotel.fila_processada_em &&
-    agora.getTime() - new Date(hotel.fila_processada_em).getTime() < 5 * 60_000
-  ) {
-    return
-  }
-  const admin = await createAdminClient()
-  const { error: erroMarca } = await admin
-    .from("hospedagem_hotel")
-    .update({ fila_processada_em: agora.toISOString() })
-    .eq("id", hotel.id)
-  if (erroMarca && faltaTabela(erroMarca)) return
+  if (!(await travarFila(hotel.id, agora, opcoes.forcar === true, amb))) return
+  const admin = await clienteDe(amb)
+  const tenantId = await tenantDe(amb)
 
   // 1. Ofertas vencidas.
   const { data: vencidas } = await admin
@@ -1019,11 +1373,45 @@ export async function processarFilaDeEspera(
       .eq("situacao", "oferecida")
   }
 
+  // 1b. Oferta cuja reserva guardada já caiu por outro caminho (cancelamento
+  // de antes da correção, ou feito fora destas funções). Só a reserva
+  // CANCELADA (ou apagada) conta aqui: a que venceu no relógio depois do
+  // passo 1 é dele na próxima passada — "expirada", com a reserva cancelada.
+  const { data: oferecidas } = await admin
+    .from("hospedagem_espera")
+    .select("id, cupom_id")
+    .eq("hotel_id", hotel.id)
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("situacao", "oferecida")
+  const comCupom = (oferecidas ?? []).filter((e) => txt(e.cupom_id))
+  if (comCupom.length > 0) {
+    const dePe = new Set<string>()
+    const ids = comCupom.map((e) => e.cupom_id as string)
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: cupons, error: erroCupons } = await admin
+        .from("hospedagem_cupom")
+        .select("id, cancelado")
+        .in("id", ids.slice(i, i + 200))
+      // Leitura falhou: nada se encerra por engano.
+      if (erroCupons) for (const id of ids) dePe.add(id)
+      for (const c of cupons ?? []) if (c.cancelado !== true) dePe.add(c.id as string)
+    }
+    for (const e of comCupom) {
+      if (dePe.has(e.cupom_id as string)) continue
+      await admin
+        .from("hospedagem_espera")
+        .update({ situacao: "cancelada", motivo: "A vaga oferecida foi cancelada.", updated_at: agora.toISOString() })
+        .eq("id", e.id as string)
+        .eq("situacao", "oferecida")
+    }
+  }
+
   // 2. Fila, por ordem de chegada.
   const { data: fila } = await admin
     .from("hospedagem_espera")
-    .select("id, filiado_id, cpf, sexo, check_in, check_out")
+    .select("id, filiado_id, cpf, sexo, check_in, check_out, updated_at")
     .eq("hotel_id", hotel.id)
+    .eq("emp_proprietaria_id", tenantId)
     .eq("situacao", "aguardando")
     .order("created_at", { ascending: true })
     .limit(50)
@@ -1031,6 +1419,16 @@ export async function processarFilaDeEspera(
   const hoje = hojeEmSP(agora)
 
   for (const e of fila ?? []) {
+    // A vez desta pessoa: só a passada que troca o `updated_at` que leu segue.
+    let vez = admin
+      .from("hospedagem_espera")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", e.id as string)
+      .eq("situacao", "aguardando")
+    vez = txt(e.updated_at) ? vez.eq("updated_at", e.updated_at as string) : vez.is("updated_at", null)
+    const { data: minha, error: erroVez } = await vez.select("id")
+    if (erroVez || !minha?.length) continue
+
     const checkIn = e.check_in as string
     const checkOut = e.check_out as string
     const marcar = (situacao: string, motivo: string) =>
@@ -1038,14 +1436,15 @@ export async function processarFilaDeEspera(
         .from("hospedagem_espera")
         .update({ situacao, motivo, updated_at: new Date().toISOString() })
         .eq("id", e.id as string)
+        .eq("situacao", "aguardando")
 
     if (checkIn < hoje) {
       await marcar("expirada", "A data do check-in passou sem vaga.")
       continue
     }
     const cpf = txt(e.cpf)
-    const registros = cpf ? await registrosDoCpf(cpf) : [e.filiado_id as string]
-    const pode = await conferirPodeReservar({ cpf, registros, checkIn })
+    const registros = cpf ? await registrosDoCpf(cpf, amb) : [e.filiado_id as string]
+    const pode = await conferirPodeReservar({ cpf, registros, checkIn }, amb)
     if (pode.erro) {
       await marcar("cancelada", pode.erro)
       continue
@@ -1067,13 +1466,20 @@ export async function processarFilaDeEspera(
       checkIn,
       checkOut,
       confirmarAte,
+      amb,
     })
     if (!r.ok) {
-      if (!r.semVaga) await marcar("cancelada", r.erro)
+      // Coincidência só com vaga ainda guardada (de outra passada que trata
+      // este mesmo pedido agora, ou de outra oferta da pessoa): o pedido fica
+      // na fila — a outra passada o marca, ou a próxima o confere de novo.
+      if (!r.semVaga && !r.ofertaPendente) await marcar("cancelada", r.erro)
       continue
     }
 
-    await admin
+    // Só vira "oferecida" se o pedido ainda está na fila: a pessoa pode ter
+    // saído dela enquanto a vaga era guardada — aí a reserva recém-criada é
+    // descartada, como `reservarEstadia` descarta a sua num conflito.
+    const { data: oferecida, error: erroOferta } = await admin
       .from("hospedagem_espera")
       .update({
         situacao: "oferecida",
@@ -1083,30 +1489,37 @@ export async function processarFilaDeEspera(
         updated_at: new Date().toISOString(),
       })
       .eq("id", e.id as string)
-
-    const { data: esperaAtual } = await admin
-      .from("hospedagem_espera")
+      .eq("situacao", "aguardando")
       .select("token")
-      .eq("id", e.id as string)
       .maybeSingle()
-    if (cpf && esperaAtual?.token) {
+    if (!erroOferta && !oferecida) {
+      await admin.from("hospedagem_alocacoes").delete().eq("cupom_id", r.cupomId)
+      await admin.from("hospedagem_cupom").delete().eq("id", r.cupomId)
+      continue
+    }
+    const token = txt(oferecida?.token)
+    if (cpf && token) {
       // O sino leva à página da oferta, a mesma do botão do e-mail: é lá que
-      // está o "Confirmar" (a reserva ainda aguarda confirmação).
-      await avisarFiliado({
-        cpf,
-        evento: "hospedagem",
-        texto: `Surgiu vaga no ${hotel.nome ?? "hotel"} para ${dataBR(checkIn)} a ${dataBR(checkOut)}: confirme até ${dataHoraBR(new Date(confirmarAte))}.`,
-        link: linkDaOferta(esperaAtual.token as string),
-        soSino: true,
-        umaVez: true,
-      })
-      const filiado = await buscarFiliadoPorCpf(cpf)
-      if (filiado?.email) {
-        const origem = await origemAtual()
-        const link = `${origem}${linkDaOferta(esperaAtual.token as string)}`
+      // está o "Confirmar" (a reserva ainda aguarda confirmação). No portal,
+      // a oferta também aparece em destaque no topo da Hospedagem.
+      await avisarFiliado(
+        {
+          cpf,
+          evento: "hospedagem",
+          texto: `Surgiu vaga no ${hotel.nome ?? "hotel"} para ${dataBR(checkIn)} a ${dataBR(checkOut)}: confirme até ${dataHoraBR(new Date(confirmarAte))}.`,
+          link: linkDaOferta(token),
+          soSino: true,
+          umaVez: true,
+        },
+        amb
+      )
+      const contato = await contatoDoFiliado(cpf, amb)
+      if (contato?.email) {
+        const origem = amb?.contexto?.origem ?? (await origemAtual())
+        const link = `${origem}${linkDaOferta(token)}`
         await enviarEmail({
-          email: filiado.email,
-          nome: filiado.nome_completo,
+          email: contato.email,
+          nome: contato.nome,
           assunto: "Surgiu vaga na hospedagem — confirme a sua reserva",
           html:
             tituloEmail("Surgiu vaga na hospedagem") +
@@ -1118,21 +1531,89 @@ export async function processarFilaDeEspera(
             ) +
             botaoEmail(link, "Confirmar minha reserva") +
             linkReserva(link),
+          contexto: amb?.contexto,
         })
       }
     }
   }
 }
 
-/** Processa a fila de todos os hotéis de demanda garantida (telas de hospedagem). */
-export async function processarFilasDosHoteis(hoteis: Hotel[]): Promise<void> {
-  for (const h of hoteis.filter(ehGarantida)) {
+export type ResultadoFilasDeEspera = {
+  /** Entidades com hotel de demanda garantida ativo. */
+  entidades: number
+  /** Passadas de fila feitas (hotel por hotel). */
+  hoteis: number
+  /** Lembretes de oferta perto de vencer. */
+  lembretes: number
+  erros: string[]
+}
+
+/**
+ * Etapa do tick da Comunicação (a cada 15 minutos, achado A134): para cada
+ * entidade com hotel de demanda garantida ativo, passa a fila de cada hotel —
+ * a oferta vencida cai e a vaga que ela (ou a trava do último quarto) liberou
+ * vai ao próximo da fila — e manda o lembrete da oferta perto de vencer, que
+ * no tick diário da hospedagem alcançava poucas ofertas.
+ *
+ * Roda sem requisição: o client de serviço vem de quem chama (a rota do tick)
+ * e cada passada leva a entidade e a identidade do e-mail explícitas. Um
+ * hotel ou uma entidade que falha não impede os outros; passado o `limite`
+ * (ms), não começa hotel novo — o resto fica para o próximo tick.
+ */
+export async function rodarFilasDeEspera(p: {
+  client: SupabaseClient
+  limite: number
+  tenant?: string | null
+}): Promise<ResultadoFilasDeEspera> {
+  const resultado: ResultadoFilasDeEspera = { entidades: 0, hoteis: 0, lembretes: 0, erros: [] }
+  const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e))
+  const { data, error } = await p.client
+    .from("hospedagem_hotel")
+    .select("*")
+    .eq("modalidade", "garantida")
+  if (error) {
+    if (!faltaTabela(error)) resultado.erros.push(error.message)
+    return resultado
+  }
+
+  const porEntidade = new Map<string, Hotel[]>()
+  for (const h of (data ?? []) as (Hotel & { emp_proprietaria_id?: string | null })[]) {
+    const emp = txt(h.emp_proprietaria_id)
+    if (!emp || h.ativo === false || (p.tenant && emp !== p.tenant)) continue
+    porEntidade.set(emp, [...(porEntidade.get(emp) ?? []), h])
+  }
+
+  for (const [tenantId, hoteis] of porEntidade) {
+    if (Date.now() > p.limite) {
+      resultado.erros.push(`${tenantId}: sem tempo neste tick`)
+      continue
+    }
+    resultado.entidades++
+    let amb: AmbienteFila
     try {
-      await processarFilaDeEspera(h)
-    } catch {
-      // Processar a fila nunca pode derrubar a tela que o chamou.
+      amb = { client: p.client, tenantId, contexto: await contextoDoTenant(tenantId, p.client) }
+    } catch (e) {
+      resultado.erros.push(`${tenantId}: ${motivo(e)}`)
+      continue
+    }
+    for (const h of hoteis) {
+      if (Date.now() > p.limite) break
+      try {
+        await processarFilaDeEspera(h, {}, amb)
+        resultado.hoteis++
+      } catch (e) {
+        resultado.erros.push(`${tenantId} · ${h.nome ?? h.id}: ${motivo(e)}`)
+      }
+    }
+    try {
+      const l = await lembretesOfertasDeVaga(amb)
+      resultado.lembretes += l.avisados
+      if (l.erro) resultado.erros.push(`${tenantId} · lembretes: ${l.erro}`)
+    } catch (e) {
+      resultado.erros.push(`${tenantId} · lembretes: ${motivo(e)}`)
     }
   }
+  return resultado
 }
 
 export type OfertaDaEspera = {
@@ -1166,17 +1647,39 @@ export async function ofertaPorToken(token: string): Promise<OfertaDaEspera | nu
   }
 }
 
-export async function confirmarOferta(token: string): Promise<{ erro?: string }> {
+/**
+ * Confirma a vaga oferecida. Pelo link do e-mail o token é a credencial; no
+ * portal, `escopo.registros` exige ainda que o pedido seja da pessoa logada.
+ * Devolve a reserva (id e token do QR) e o e-mail para onde a confirmação
+ * saiu — sem e-mail no cadastro, a tela não diz que enviou. `jaConfirmada`:
+ * o segundo toque (ou outro aparelho) — nada foi enviado AGORA, e a tela não
+ * pode concluir daí que o cadastro está sem e-mail.
+ */
+export async function confirmarOferta(
+  token: string,
+  escopo: { registros?: string[] } = {}
+): Promise<{
+  erro?: string
+  cupomId?: string
+  reservaToken?: string
+  email?: string
+  jaConfirmada?: boolean
+}> {
   if (!UUID.test(token)) return { erro: "Link inválido." }
   const admin = await createAdminClient()
   const { data: e } = await admin
     .from("hospedagem_espera")
-    .select("id, hotel_id, cpf, situacao, cupom_id, check_in, check_out")
+    .select("id, hotel_id, filiado_id, cpf, situacao, cupom_id, check_in, check_out")
     .eq("token", token)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!e) return { erro: "Link inválido." }
-  if (e.situacao === "confirmada") return {}
+  if (escopo.registros && !escopo.registros.includes(e.filiado_id as string)) {
+    return { erro: "Esta oferta não é sua." }
+  }
+  if (e.situacao === "confirmada") {
+    return { cupomId: txt(e.cupom_id) ?? undefined, jaConfirmada: true }
+  }
   if (e.situacao !== "oferecida" || !e.cupom_id) {
     return { erro: "Esta oferta não está mais disponível." }
   }
@@ -1205,7 +1708,7 @@ export async function confirmarOferta(token: string): Promise<{ erro?: string }>
     .eq("id", e.id as string)
 
   const hotel = await buscarHotel(e.hotel_id as string)
-  await enviarEmailReservaConfirmada({
+  const { email } = await enviarEmailReservaConfirmada({
     cpf: txt(e.cpf),
     hotelNome: hotel?.nome ?? "hotel",
     checkIn: e.check_in as string,
@@ -1213,7 +1716,7 @@ export async function confirmarOferta(token: string): Promise<{ erro?: string }>
     token: txt(cupom.token),
     cupomId: cupom.id as string,
   })
-  return {}
+  return { cupomId: cupom.id as string, reservaToken: txt(cupom.token) ?? undefined, email }
 }
 
 // ── Mapa de hóspedes por quarto ──────────────────────────────────────────────
