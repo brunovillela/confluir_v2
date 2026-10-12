@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { consultarCep, digitosDoCep } from "@/lib/cep"
 import { limparCpf, mascararCpfParcial, validarCpf } from "@/lib/cpf"
 
 import { solicitarFiliacaoAction } from "./actions"
@@ -62,26 +63,25 @@ export function FiliarForm({
   const [erroCep, setErroCep] = useState<string | null>(null)
 
   async function buscarCep() {
-    const digitos = cep.replace(/\D/g, "")
-    if (digitos.length !== 8) return
+    if (digitosDoCep(cep).length !== 8) return
     setBuscandoCep(true)
     setErroCep(null)
-    try {
-      const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`)
-      const d = await r.json()
-      if (d?.erro) {
-        setErroCep("CEP não encontrado — preencha o endereço manualmente.")
-        return
-      }
-      setLogradouro(d.logradouro ?? "")
-      setBairro(d.bairro ?? "")
-      setCidade(d.localidade ?? "")
-      setUf(d.uf ?? "")
-    } catch {
-      setErroCep("Não foi possível consultar o CEP — preencha manualmente.")
-    } finally {
-      setBuscandoCep(false)
+    // A consulta mora em lib/cep.ts (compartilhada com o Meu cadastro do portal).
+    const r = await consultarCep(cep)
+    setBuscandoCep(false)
+    if (!r) return
+    if (!r.ok) {
+      setErroCep(
+        r.motivo === "nao_encontrado"
+          ? "CEP não encontrado — preencha o endereço manualmente."
+          : "Não foi possível consultar o CEP — preencha manualmente."
+      )
+      return
     }
+    setLogradouro(r.endereco.logradouro)
+    setBairro(r.endereco.bairro)
+    setCidade(r.endereco.cidade)
+    setUf(r.endereco.uf)
   }
 
   return (

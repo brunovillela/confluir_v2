@@ -10,6 +10,7 @@ import { destinoDoPortal } from "@/lib/portal-destino"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PortalLoginForm } from "./portal-login-form"
+import { avisoDaSessaoSemPortal } from "./situacao-entrada"
 
 export const metadata: Metadata = {
   title: "Portal do Associado — Confluir",
@@ -30,6 +31,11 @@ export default async function PortalPage({
   // Quem já está dentro (filiado logado ou gestão em "Ver como filiado") vai
   // direto ao destino: a tela de entrada não pode aparecer dentro da casca.
   if (await getVisualizacaoPortal()) redirect(next ?? "/portal/inicio")
+
+  // Entrou pelo botão do e-mail, mas a filiação não está ativa (ex.: filiação
+  // coletiva em andamento, A4): explica, em vez de mostrar a entrada muda.
+  // Só aparece para a sessão do próprio dono do CPF.
+  const avisoSessao = await avisoDaSessaoSemPortal()
 
   const secao = next ? tituloDaSecao(next.split("?")[0]) : null
 
@@ -53,8 +59,13 @@ export default async function PortalPage({
             <AlertDescription>{mensagemErro}</AlertDescription>
           </Alert>
         )}
+        {avisoSessao && !mensagemErro && (
+          <Alert variant="warning">
+            <AlertDescription>{avisoSessao}</AlertDescription>
+          </Alert>
+        )}
         {/* Quem veio de um link explica-se: entrar leva de volta ao que abriu. */}
-        {next && !mensagemErro && (
+        {next && !mensagemErro && !avisoSessao && (
           <Alert variant="info">
             <AlertDescription>
               {secao
@@ -63,7 +74,10 @@ export default async function PortalPage({
             </AlertDescription>
           </Alert>
         )}
-        <PortalLoginForm next={next} />
+        <PortalLoginForm
+          next={next}
+          preferirCodigo={typeof erro === "string" && erro.startsWith("link_")}
+        />
       </div>
     </AuthShell>
   )

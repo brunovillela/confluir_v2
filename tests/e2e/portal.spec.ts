@@ -11,12 +11,14 @@ test.describe.serial("portal do filiado", () => {
     await servico().from("lgpd_solicitacoes").delete().eq("emp_proprietaria_id", DEMO.tenant).eq("tipo", "portabilidade")
   })
 
-  test("filiada pede o link, entra e baixa os próprios dados", async ({ page }) => {
+  test("filiada pede o código, entra pelo botão do e-mail e baixa os próprios dados", async ({ page }) => {
     // O pedido pela tela registra o vínculo pendente (e-mail do cadastro ↔ CPF).
+    // As duas abas ficam montadas (a inativa só escondida): o campo da aba de
+    // código é localizado pelo id, não pelo placeholder (que aparece duas vezes).
     await page.goto("/portal")
-    await page.getByPlaceholder("000.000.000-00").fill(DEMO.camila.cpf)
-    await page.getByRole("button", { name: "Enviar link de acesso" }).click()
-    await expect(page.getByText(/Link de acesso enviado/)).toBeVisible()
+    await page.locator("#cpf-codigo").fill(DEMO.camila.cpf)
+    await page.getByRole("button", { name: "Receber código por e-mail" }).click()
+    await expect(page.getByText(/Se o CPF estiver no cadastro com e-mail/)).toBeVisible()
 
     const token = await tokenDeEntrada(DEMO.camila.email)
     await page.goto(`/auth/confirm?token_hash=${token}&type=magiclink&next=%2Fportal%2Finicio`)

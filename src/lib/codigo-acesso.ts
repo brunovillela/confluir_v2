@@ -2,7 +2,15 @@ import "server-only"
 
 import { linkConfirmacaoEmail, linkCriarSenha, textoValidade } from "@/lib/auth-email-constantes"
 import { enviarEmail } from "@/lib/email"
-import { caixaAviso, caixaCodigo, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import {
+  botaoEmail,
+  caixaAviso,
+  caixaCodigo,
+  escaparHtml,
+  paragrafo,
+  textoSuave,
+  tituloEmail,
+} from "@/lib/email-layout"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
@@ -45,6 +53,13 @@ export async function enviarCodigoAcesso(destino: {
   next?: string
   /** Frase que explica o que está sendo liberado. */
   contexto?: string
+  /**
+   * Rótulo do botão que entra direto (ex.: "Entrar no portal"). Com ele, o
+   * e-mail mostra o código em destaque e, logo abaixo, o botão como a outra
+   * forma de entrar (A1: a tela do portal pede o código). Sem ele, o link vai
+   * discreto, como alternativa ("Se preferir…").
+   */
+  botao?: string
 }): Promise<ResultadoCodigo> {
   const email = destino.email.trim().toLowerCase()
   const admin = await createAdminClient()
@@ -76,6 +91,24 @@ export async function enviarCodigoAcesso(destino: {
   // 3. Manda pelo canal do app.
   const origem = await origemAtual()
   const link = linkConfirmacaoEmail(origem, data?.properties, destino.next ?? "/portal")
+  // Código e botão são o MESMO acesso de uso único: o que for usado primeiro
+  // vale, e o outro deixa de funcionar — o aviso diz isso quando há botão.
+  const botao = destino.botao ? escaparHtml(destino.botao) : null
+  const atalho =
+    link && botao
+      ? [
+          paragrafo(`Ou toque em <strong>${botao}</strong> para entrar direto, sem digitar nada:`),
+          botaoEmail(link, botao),
+        ].join("\n")
+      : link
+        ? paragrafo(
+            `Se preferir, <a href="${link}" style="font-weight:600;">clique aqui para entrar direto</a>.`
+          )
+        : ""
+  const usoUnico =
+    link && botao
+      ? "serve uma vez só: vale o código <strong>ou</strong> o botão, o que você usar primeiro"
+      : "serve uma vez só"
   const corpo = [
     tituloEmail("Seu código de acesso"),
     paragrafo(
@@ -83,13 +116,9 @@ export async function enviarCodigoAcesso(destino: {
         "Use o código abaixo para entrar. Ele foi pedido agora, na tela do Confluir."
     ),
     caixaCodigo(codigo),
-    link
-      ? paragrafo(
-          `Se preferir, <a href="${link}" style="font-weight:600;">clique aqui para entrar direto</a>.`
-        )
-      : "",
+    atalho,
     caixaAviso(
-      `O código vale por <strong>${textoValidade()}</strong> e serve uma vez só. <strong>Ninguém do sindicato vai pedir este código</strong> — não o repasse a quem quer que seja.`
+      `O código vale por <strong>${textoValidade()}</strong> e ${usoUnico}. <strong>Ninguém do sindicato vai pedir este código</strong> — não o repasse a quem quer que seja.`
     ),
     textoSuave("Não foi você quem pediu? Ignore este e-mail; nada acontece sem o código."),
   ].join("\n")

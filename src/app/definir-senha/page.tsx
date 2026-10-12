@@ -8,7 +8,20 @@ import { DefinirSenhaForm } from "./definir-senha-form"
 
 export const metadata: Metadata = { title: "Definir senha — Confluir" }
 
-export default async function DefinirSenhaPage() {
+/**
+ * Destino pedido por quem chamou (?destino=). Só caminhos do portal: é o caso
+ * do associado cuja conta nasceu em outro fluxo (votação, oposição) — pelo
+ * tipo da conta, o "Continuar" o levaria ao painel. Nunca URL externa.
+ */
+function destinoPedido(valor: string | undefined): string | null {
+  return valor && /^\/portal\/(?![/\\])/.test(valor) ? valor : null
+}
+
+export default async function DefinirSenhaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ destino?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -17,11 +30,12 @@ export default async function DefinirSenhaPage() {
 
   const tipo = user.user_metadata?.tipo
   const destino =
-    tipo === "filiado"
+    destinoPedido((await searchParams).destino) ??
+    (tipo === "filiado"
       ? "/portal/inicio"
       : tipo === "hotel"
         ? "/hotel/inicio"
-        : "/painel"
+        : "/painel")
 
   return (
     <AuthShell>

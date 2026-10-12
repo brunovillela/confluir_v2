@@ -12,7 +12,13 @@ import { atualizarRegistrosDoCpf } from "@/lib/db/filiado-portal"
 import { registrarAceiteTermo, termoEmVigor } from "@/lib/db/lgpd"
 import { tenantAtual } from "@/lib/tenant"
 
-/** Registra o aceite do termo LGPD (data de hoje em todos os registros do CPF). */
+/**
+ * Registra o aceite do termo LGPD (data de hoje e versão aceita em todos os
+ * registros do CPF). A versão gravada é a em vigor no servidor — a verdade
+ * não vem do cliente —, mas ela tem de ser a mesma que a página mostrou
+ * (`termo_id`): se o termo mudou com a página aberta, a pessoa lê a versão
+ * nova antes de aceitar (A71).
+ */
 export async function registrarAceiteLgpd(
   _prev: EstadoForm,
   formData: FormData
@@ -23,12 +29,26 @@ export async function registrarAceiteLgpd(
     return { erro: "Marque a caixa confirmando a leitura do termo." }
   }
 
+  const termoId = await termoEmVigor("lgpd")
+  if (!termoId) {
+    return {
+      erro: "A entidade ainda não cadastrou o termo de tratamento de dados. Fale com a secretaria.",
+    }
+  }
+  if (String(formData.get("termo_id") ?? "") !== termoId) {
+    revalidatePath("/portal/lgpd")
+    return {
+      erro: "O termo foi atualizado enquanto a página estava aberta. Leia a versão em vigor, que já está na tela, e confirme de novo.",
+    }
+  }
+
   const hoje = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
   }).format(new Date())
 
   const erro = await atualizarRegistrosDoCpf(filiado.cpf, {
     tl_lgpd_data: hoje,
+    tl_lgpd_id: termoId,
   })
   if (erro) return { erro }
 
@@ -38,7 +58,7 @@ export async function registrarAceiteLgpd(
     cpf: filiado.cpf,
     filiacaoId: filiado.filiacaoId,
     tipo: "lgpd",
-    termoId: await termoEmVigor("lgpd"),
+    termoId,
     origem: "portal",
     ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null,
     userAgent: h.get("user-agent"),

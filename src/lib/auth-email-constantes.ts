@@ -46,7 +46,7 @@ export function mensagemLinkRecusado(
 ): string | undefined {
   const pedirNovo =
     destino === "portal"
-      ? "Informe seu CPF abaixo para receber um novo link."
+      ? "Informe seu CPF abaixo para receber um novo código de acesso."
       : "Peça um novo em “Esqueci minha senha”."
   switch (erroParam) {
     case "link_expirado":

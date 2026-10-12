@@ -13,10 +13,16 @@ import { registrarAceiteLgpd } from "./actions"
 export function AceiteLgpdForm({
   preview = false,
   entidade,
+  termoId,
+  versao,
 }: {
   preview?: boolean
   /** Nome da entidade que trata os dados (a do tenant). */
   entidade: string
+  /** Versão exibida na página — a action confere com a em vigor (A71). */
+  termoId: string
+  /** "versão X, de dd/mm/aaaa", para o texto do aceite. */
+  versao: string
 }) {
   const [estado, formAction, pendente] = useActionState(registrarAceiteLgpd, {})
 
@@ -27,10 +33,13 @@ export function AceiteLgpdForm({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+      <input type="hidden" name="termo_id" value={termoId} />
       <label className="flex items-start gap-2 text-sm">
         <Checkbox name="li_e_aceito" className="mt-0.5" />
-        Li e aceito o tratamento dos meus dados pessoais pela entidade{" "}
-        {entidade} nos termos acima.
+        <span>
+          Li e aceito o tratamento dos meus dados pessoais pela entidade{" "}
+          {entidade} nos termos acima ({versao}).
+        </span>
       </label>
       <div>
         <AcaoVisualizacao
