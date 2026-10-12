@@ -1,7 +1,8 @@
 /**
  * Tipos de aviso que o portal do associado entrega (onda 4, F4). Cada um
  * pode ser desligado pelo próprio filiado — a mesma chave vale para o e-mail
- * e para o celular (A52); o sino sempre recebe.
+ * e para o celular (A52); o sino sempre recebe. `semEmail`: o tipo nunca vai
+ * por e-mail, e o interruptor só vale para o celular.
  * Sem imports de servidor: a lista alimenta o formulário de preferências.
  */
 export const EVENTOS_PORTAL = [
@@ -35,16 +36,31 @@ export const EVENTOS_PORTAL = [
     rotulo: "Filiação e oposição",
     descricao: "Filiação ativada, desfiliação concluída e oposição à contribuição registrada ou avaliada",
   },
+  {
+    // A123 e A80: só no sino (nunca por e-mail — por e-mail a entidade tem a
+    // mala direta, com descadastro próprio). Desligado por padrão: o
+    // interruptor só decide se também chega no celular.
+    chave: "noticias",
+    rotulo: "Notícias e convênios",
+    descricao: "Notícia publicada e convênio novo para associados. Já aparecem no sino; ligado, chegam também no celular",
+    padrao: false,
+    semEmail: true,
+  },
 ] as const
 
 export type EventoPortal = (typeof EVENTOS_PORTAL)[number]["chave"]
 
-/** Preferência por evento: ausência = ligado; `false` desliga. */
+/**
+ * Preferência por evento: ausência = ligado; `false` desliga. Nos de
+ * `padrao: false` é o contrário: só `true` liga.
+ */
 export type PreferenciasPortal = Record<EventoPortal, boolean>
 
 export function normalizarPreferenciasPortal(bruto: unknown): PreferenciasPortal {
   const obj = bruto && typeof bruto === "object" ? (bruto as Record<string, unknown>) : {}
   const prefs = {} as PreferenciasPortal
-  for (const { chave } of EVENTOS_PORTAL) prefs[chave] = obj[chave] !== false
+  for (const e of EVENTOS_PORTAL) {
+    prefs[e.chave] = "padrao" in e && e.padrao === false ? obj[e.chave] === true : obj[e.chave] !== false
+  }
   return prefs
 }

@@ -26,9 +26,14 @@ type Area = { titulo: string; href: string }
  * Item da barra (alvo de 56 px). tracking-tight + px-0.5: "Contribuição" e
  * "Atendimento" cabem inteiros a partir de 360 px — com px-1 já viravam
  * "Contribuiç…" em 375 px.
+ *
+ * Tamanho do rótulo (A178): 12 px (text-xs, o piso da escala) de 412 px em
+ * diante, onde cada item tem ~78 px úteis; abaixo disso, 11 px. Medido na
+ * Poppins: "Atendimento" ocupa ~76 px em 12 px (peso 500, do item ativo) —
+ * nos celulares de 360 a 393 px ele viraria "Atendime…".
  */
 const ITEM_BARRA =
-  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] leading-tight tracking-tight"
+  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] leading-tight tracking-tight min-[412px]:text-xs"
 
 /**
  * Barra inferior do portal, a navegação de celular E tablet (até lg; de lg em

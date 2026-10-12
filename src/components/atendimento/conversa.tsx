@@ -14,6 +14,11 @@ import { cn } from "@/lib/utils"
  * A conversa de uma solicitação, igual no portal e no painel: a diferença é
  * de que lado se lê. `ladoDeCa` é quem está olhando — as mensagens dele
  * ficam à direita. `anexoBase` é a rota que serve o anexo nesse lado.
+ *
+ * Itens do tipo "marco" (A51) são a linha do tempo — aberta, em andamento,
+ * primeira resposta, concluída, reaberta — e aparecem como uma linha
+ * centralizada com a data, entre os balões. `conversaComMarcos`
+ * (lib/db/portal-atendimentos) monta a lista completa.
  */
 export function ConversaAtendimento({
   mensagens,
@@ -24,12 +29,27 @@ export function ConversaAtendimento({
   ladoDeCa: "filiado" | "entidade"
   anexoBase: string
 }) {
-  if (mensagens.length === 0) {
+  if (!mensagens.some((m) => m.tipo === "mensagem")) {
     return <p className="text-muted-foreground text-sm">Ainda não há mensagens.</p>
   }
   return (
     <ol className="grid gap-3">
       {mensagens.map((m) => {
+        if (m.tipo === "marco") {
+          return (
+            <li key={m.id} className="flex items-center gap-3 py-1">
+              <span aria-hidden className="bg-border h-px flex-1" />
+              <span className="text-muted-foreground max-w-[80%] text-center text-xs">
+                {m.texto}
+                {" · "}
+                <time dateTime={m.criadoEm} className="whitespace-nowrap">
+                  {formatarDataHora(m.criadoEm)}
+                </time>
+              </span>
+              <span aria-hidden className="bg-border h-px flex-1" />
+            </li>
+          )
+        }
         const minha = m.autor === ladoDeCa
         return (
           <li key={m.id} className={cn("flex", minha ? "justify-end" : "justify-start")}>

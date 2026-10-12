@@ -3,6 +3,9 @@ import Link from "next/link"
 import { ExternalLink, Newspaper, Search } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { LembrarListaPortal } from "@/components/portal/voltar-portal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +15,9 @@ import { ultimasNoticias } from "@/lib/db/painel"
 import { lerPaginacao } from "@/lib/paginacao"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
-export const metadata: Metadata = { title: "Notícias — Portal do Associado" }
+import { ContagemNovas, MarcaNova, NovasDesde } from "./novas-desde"
+
+export const metadata: Metadata = { title: "Notícias" }
 
 /** Página dedicada à lista: 30 por página (DESIGN.md, "Tabelas longas"). */
 const POR_PAGINA = 30
@@ -21,13 +26,15 @@ const POR_PAGINA = 30
  * Notícias da entidade (A86): todas, paginadas, com busca na manchete, data
  * com ano e, quando houver, imagem e as primeiras linhas do texto. Com a
  * tabela vazia, continuam as manchetes do site da entidade (RSS), como antes.
+ * As publicadas depois da última visita ganham o selo "Nova" (A123,
+ * novas-desde.tsx).
  */
 export default async function PortalNoticiasPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requireVisualizacaoPortal()
+  const { preview } = await requireVisualizacaoPortal()
   const p = await searchParams
   const busca = (typeof p.busca === "string" ? p.busca : "").trim().slice(0, 100)
   const paginacao = lerPaginacao(p, POR_PAGINA)
@@ -37,15 +44,27 @@ export default async function PortalNoticiasPage({
   ])
   // Tabela vazia (e sem busca): o feed do site da entidade, se houver.
   const externas = resultado.total === 0 && !busca ? await ultimasNoticias(30) : []
+  // A notícia aberta volta para a lista como estava: busca e página (A173).
+  const recorte = new URLSearchParams()
+  for (const chave of ["busca", "pagina", "porPagina"]) {
+    const valor = p[chave]
+    if (typeof valor === "string" && valor) recorte.set(chave, valor)
+  }
+  const urlDaLista = recorte.toString() ? `/portal/noticias?${recorte}` : "/portal/noticias"
 
   return (
-    <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Notícias</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Notícias publicadas por {entidade}.
-        </p>
-      </div>
+    <NovasDesde maisRecente={resultado.maisRecente} ativo={!preview}>
+      <LembrarListaPortal base="/portal/noticias" url={urlDaLista} />
+      <CabecalhoPagina
+        secao="/portal/noticias"
+        titulo="Notícias"
+        subtitulo={
+          <>
+            Notícias publicadas por {entidade}.
+            <ContagemNovas datas={resultado.noticias.map((n) => n.created_at)} />
+          </>
+        }
+      />
 
       {(resultado.total > 0 || busca) && (
         <form action="/portal/noticias" role="search" className="flex flex-wrap items-center gap-2">
@@ -102,9 +121,12 @@ export default async function PortalNoticiasPage({
                           </span>
                         )}
                         {dataDaNoticia(n.created_at) && (
-                          <time dateTime={n.created_at ?? undefined} className="text-muted-foreground text-xs">
-                            {dataDaNoticia(n.created_at)}
-                          </time>
+                          <span className="flex flex-wrap items-center gap-2">
+                            <time dateTime={n.created_at ?? undefined} className="text-muted-foreground text-xs">
+                              {dataDaNoticia(n.created_at)}
+                            </time>
+                            <MarcaNova criadoEm={n.created_at} />
+                          </span>
                         )}
                       </span>
                     </Link>
@@ -141,17 +163,13 @@ export default async function PortalNoticiasPage({
               ))}
             </ul>
           ) : (
-            <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center">
-              <Newspaper className="size-6" />
-              <p className="text-sm">
-                {busca
-                  ? "Nenhuma notícia com essa busca na manchete."
-                  : "Nenhuma notícia publicada no momento."}
-              </p>
-            </div>
+            <EstadoVazio
+              icone={Newspaper}
+              titulo={busca ? "Nenhuma notícia com essa busca na manchete." : "Nenhuma notícia publicada no momento."}
+            />
           )}
         </CardContent>
       </Card>
-    </>
+    </NovasDesde>
   )
 }

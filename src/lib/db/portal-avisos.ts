@@ -3,10 +3,12 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
+import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { enviarPushPortal, temPushPortal } from "@/lib/db/push"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
-import { botaoEmail, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import { botaoEmail, COR, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import { paginar, type Paginacao } from "@/lib/paginacao"
 import {
   type EventoPortal,
   normalizarPreferenciasPortal,
@@ -70,6 +72,32 @@ async function ambiente(a: Ambiente) {
 function tabelaAusente(error: { code?: string; message?: string } | null): boolean {
   return !!error && (esquemaAusente(error) || error.code === "42P01")
 }
+
+/** Onde o associado ajusta o que recebe fora do portal (A153/A176). */
+export const CAMINHO_PREFERENCIAS_AVISOS = "/portal/avisos/preferencias"
+
+/**
+ * Rodapé dos e-mails de aviso: o nome da página, com link para ela (A153 e
+ * A176). Sem a origem do portal, o caminho por extenso.
+ */
+export function rodapePreferenciasAvisos(origem: string | null | undefined): string {
+  if (!origem) {
+    return textoSuave("Você pode escolher quais avisos recebe por e-mail no portal, em Avisos → Preferências de avisos.")
+  }
+  return textoSuave(
+    `Você pode escolher quais avisos recebe por e-mail em <a href="${origem}${CAMINHO_PREFERENCIAS_AVISOS}" style="color:${COR.laranjaAcao};">Preferências de avisos</a>, no portal.`
+  )
+}
+
+/**
+ * A frase de antes, sem link, que os módulos que montam o próprio e-mail
+ * ainda escrevem (eventos, filiação, hospedagem, oposição, votação). O
+ * `avisarFiliado` a troca pelo rodapé com link até eles passarem a usar
+ * `rodapePreferenciasAvisos`.
+ */
+const RODAPE_SEM_LINK = textoSuave(
+  "Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."
+)
 
 /**
  * Nome e e-mail de contato do filiado, pela mesma regra de
@@ -206,13 +234,18 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
       email,
       nome,
       assunto: aviso.assunto ?? aviso.texto.slice(0, 120),
-      html:
-        aviso.html ??
-        tituloEmail(escaparHtml(aviso.assunto ?? "Aviso do portal")) +
+      html: aviso.html
+        ? aviso.html.replace(RODAPE_SEM_LINK, rodapePreferenciasAvisos(origem))
+        : tituloEmail(escaparHtml(aviso.assunto ?? "Aviso do portal")) +
           paragrafo(escaparHtml(aviso.texto)) +
           (url ? botaoEmail(url, "Abrir no portal") : "") +
-          textoSuave("Você pode escolher quais avisos recebe por e-mail em Portal → Avisos → Preferências."),
+          rodapePreferenciasAvisos(origem),
       contexto,
+      // Todo e-mail que sai daqui obedece à preferência por tipo: o "cancelar
+      // inscrição" do leitor de e-mail abre a página onde ela se ajusta. Sem
+      // List-Unsubscribe-Post: a página pede entrar no portal, e o descadastro
+      // num clique exigiria um link com token, como o da mala direta (A176).
+      cabecalhos: origem ? { "List-Unsubscribe": `<${origem}${CAMINHO_PREFERENCIAS_AVISOS}>` } : undefined,
     })
     return saiu ? "email" : "sino"
   } catch (e) {
@@ -233,26 +266,111 @@ export type AvisoDoFiliado = {
   criadoEm: string
 }
 
-export async function avisosDoFiliado(cpf: string, limite = 200): Promise<AvisoDoFiliado[]> {
+export type ListaDeAvisos = {
+  /** Os avisos desta página. */
+  avisos: AvisoDoFiliado[]
+  /** Quantos há no filtro escolhido (todos ou um tipo). */
+  total: number
+  pagina: number
+  totalPaginas: number
+  /** Não lidos de todos os tipos — o número do sino. */
+  naoLidos: number
+  /** Total e não lidos por tipo, para os filtros (só os tipos com algum aviso). */
+  porTipo: Map<string, { total: number; naoLidos: number }>
+}
+
+/** Por quanto tempo um aviso recém-lido continua no topo da lista (a visita). */
+const LIDO_HA_POUCO_MS = 30 * 60_000
+
+/**
+ * A lista de Avisos (A100, A101): os não lidos primeiro (com os lidos nos
+ * últimos 30 minutos), depois os demais, cada grupo do mais novo para o mais
+ * antigo; filtrada por tipo e paginada.
+ * Lê primeiro só o índice do histórico inteiro (id, tipo, lido, data) — em
+ * lotes, porque o PostgREST para em 1.000 linhas — e o texto só da página.
+ * Sem a tabela, lista vazia; outro erro sobe para a tela de erro, em vez de
+ * dizer "nenhum aviso" a quem tem avisos.
+ */
+export async function listaDeAvisos(
+  cpf: string,
+  opcoes: { tipo?: string | null; paginacao: Paginacao }
+): Promise<ListaDeAvisos> {
+  const vazia: ListaDeAvisos = { avisos: [], total: 0, pagina: 1, totalPaginas: 1, naoLidos: 0, porTipo: new Map() }
   const chave = cpfConfiavel(cpf)
-  if (!chave) return []
+  if (!chave) return vazia
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("portal_avisos")
-    .select("id, evento, texto, link, lida_em, created_at")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("cpf", chave)
-    .order("created_at", { ascending: false })
-    .limit(limite)
-  if (error) return []
-  return (data ?? []).map((a) => ({
-    id: String(a.id),
-    evento: String(a.evento),
-    texto: String(a.texto),
-    link: (a.link as string | null) ?? null,
-    lidaEm: (a.lida_em as string | null) ?? null,
-    criadoEm: String(a.created_at),
-  }))
+  const tenantId = await tenantAtual()
+
+  type Indice = { id: string; evento: string; lida_em: string | null; created_at: string }
+  let indice: Indice[]
+  try {
+    indice = await lerEmLotes<Indice>((de, ate) =>
+      admin
+        .from("portal_avisos")
+        .select("id, evento, lida_em, created_at")
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("cpf", chave)
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (tabelaAusente(e as { code?: string })) return vazia
+    throw e
+  }
+
+  const porTipo = new Map<string, { total: number; naoLidos: number }>()
+  let naoLidos = 0
+  for (const a of indice) {
+    const t = porTipo.get(a.evento) ?? { total: 0, naoLidos: 0 }
+    t.total++
+    if (!a.lida_em) {
+      t.naoLidos++
+      naoLidos++
+    }
+    porTipo.set(a.evento, t)
+  }
+
+  // A ordem do banco já é a da data; o sort é estável, então só sobem os não
+  // lidos. O lido há pouco ainda sobe junto: marcado enquanto a pessoa lê (ao
+  // aparecer, ao abrir numa aba nova), ele não pula para outra página.
+  const agora = Date.now()
+  const doTopo = (a: Indice) => !a.lida_em || agora - Date.parse(a.lida_em) < LIDO_HA_POUCO_MS
+  const selecionados = indice
+    .filter((a) => !opcoes.tipo || a.evento === opcoes.tipo)
+    .sort((a, b) => Number(!doTopo(a)) - Number(!doTopo(b)))
+  const { linhas, ...info } = paginar(selecionados, opcoes.paginacao)
+
+  const textos = new Map<string, { texto: string; link: string | null }>()
+  if (linhas.length > 0) {
+    const { data, error } = await admin
+      .from("portal_avisos")
+      .select("id, texto, link")
+      .eq("emp_proprietaria_id", tenantId)
+      .eq("cpf", chave)
+      .in(
+        "id",
+        linhas.map((a) => a.id)
+      )
+    if (error) throw new Error(`Falha ao ler os avisos: ${error.message}`)
+    for (const a of data ?? []) {
+      textos.set(String(a.id), { texto: String(a.texto), link: (a.link as string | null) ?? null })
+    }
+  }
+
+  return {
+    ...info,
+    naoLidos,
+    porTipo,
+    avisos: linhas.map((a) => ({
+      id: String(a.id),
+      evento: String(a.evento),
+      texto: textos.get(String(a.id))?.texto ?? "",
+      link: textos.get(String(a.id))?.link ?? null,
+      lidaEm: a.lida_em ?? null,
+      criadoEm: String(a.created_at),
+    })),
+  }
 }
 
 export async function contarAvisosNaoLidos(cpf: string): Promise<number> {
@@ -268,17 +386,183 @@ export async function contarAvisosNaoLidos(cpf: string): Promise<number> {
   return error ? 0 : (count ?? 0)
 }
 
-/** Abrir a lista marca tudo como lido: o sino do portal não pede clique por item. */
-export async function marcarAvisosLidos(cpf: string): Promise<void> {
+/**
+ * Marca como lidos os avisos da pessoa (A100): os indicados por `ids` (vistos
+ * na lista ou abertos), os que levam a `link` (a pessoa chegou à página por
+ * outro caminho) ou, sem nenhum dos dois, todos ("Marcar todos como lidos").
+ * Devolve quantos mudaram — zero quando já estavam lidos, e então a tela nem
+ * precisa recarregar.
+ */
+export async function marcarAvisosLidos(
+  cpf: string,
+  alvo: { ids?: string[]; link?: string } = {}
+): Promise<{ marcados: number; erro?: string }> {
   const chave = cpfConfiavel(cpf)
-  if (!chave) return
+  if (!chave) return { marcados: 0 }
+  if (alvo.ids && alvo.ids.length === 0) return { marcados: 0 }
   const admin = await createAdminClient()
-  await admin
+  let consulta = admin
     .from("portal_avisos")
-    .update({ lida_em: new Date().toISOString() })
+    .update({ lida_em: new Date().toISOString() }, { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("cpf", chave)
     .is("lida_em", null)
+  if (alvo.ids) consulta = consulta.in("id", alvo.ids)
+  if (alvo.link) consulta = consulta.eq("link", alvo.link)
+  const { count, error } = await consulta
+  if (error) {
+    if (tabelaAusente(error)) return { marcados: 0 }
+    console.error("avisos do portal (lidos):", error.message)
+    return { marcados: 0, erro: "Não foi possível marcar os avisos agora. Tente de novo em instantes." }
+  }
+  return { marcados: count ?? 0 }
+}
+
+// ── Aviso em massa, só no sino (A80, A123) ───────────────────────────────────
+
+export type AvisoEmMassa = {
+  evento: EventoPortal
+  texto: string
+  /** Caminho no portal. É também a trava: uma vez por pessoa e link. */
+  link: string
+  /** Título da notificação no celular. */
+  assunto: string
+}
+
+export type ResultadoEmMassa = {
+  gravados: number
+  /** Já tinham no sino um aviso com este link. */
+  jaAvisados: number
+  /** Não couberam no tempo desta volta. */
+  restantes: number
+  celular: number
+  erro?: string
+}
+
+/** Linhas por insert no sino. */
+const LOTE_SINO = 500
+/** Folga dentro do tempo da função: o que passar disso fica para a próxima volta. */
+const TEMPO_MAX_EM_MASSA_MS = 45_000
+
+/**
+ * Aviso SÓ NO SINO para muita gente de uma vez — convênio novo (A80),
+ * notícia publicada (A123). Nunca por e-mail: para isso a entidade tem a
+ * mala direta, com descadastro. No celular, só para quem ligou o tipo em
+ * Preferências de avisos (o de notícias nasce desligado).
+ *
+ * `avisarFiliado` por pessoa seriam milhares de idas ao banco; aqui as linhas
+ * entram em lotes de 500. Uma vez por pessoa e link: quem já tem no sino um
+ * aviso com este link não recebe outro — rodar de novo só completa o que
+ * faltou. Cada etapa abre um client novo: o JWT do tenant vale 60 s.
+ */
+export async function avisarNoSinoEmMassa(cpfs: Iterable<string>, aviso: AvisoEmMassa): Promise<ResultadoEmMassa> {
+  const r: ResultadoEmMassa = { gravados: 0, jaAvisados: 0, restantes: 0, celular: 0 }
+  const inicio = Date.now()
+  const todos = [...new Set([...cpfs].map((c) => cpfConfiavel(c)).filter((c): c is string => Boolean(c)))]
+  if (todos.length === 0) return r
+  const tenantId = await tenantAtual()
+
+  let ja: Set<string>
+  try {
+    const client = await createAdminClient()
+    const linhas = await lerEmLotes<{ cpf: string }>((de, ate) =>
+      client
+        .from("portal_avisos")
+        .select("id, cpf")
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("link", aviso.link)
+        .order("id")
+        .range(de, ate)
+    )
+    ja = new Set(linhas.map((l) => String(l.cpf)))
+  } catch (e) {
+    // Sem a tabela não há sino (e avisarFiliado também não grava).
+    if (tabelaAusente(e as { code?: string })) return r
+    return { ...r, erro: (e as Error).message }
+  }
+
+  const novos = todos.filter((c) => !ja.has(c))
+  r.jaAvisados = todos.length - novos.length
+  for (let i = 0; i < novos.length; i += LOTE_SINO) {
+    if (Date.now() - inicio > TEMPO_MAX_EM_MASSA_MS) {
+      r.restantes = novos.length - i
+      break
+    }
+    const lote = novos.slice(i, i + LOTE_SINO)
+    const client = await createAdminClient()
+    const { error } = await client.from("portal_avisos").insert(
+      lote.map((cpf) => ({
+        emp_proprietaria_id: tenantId,
+        cpf,
+        evento: aviso.evento,
+        texto: aviso.texto,
+        link: aviso.link,
+      }))
+    )
+    if (error) {
+      r.restantes = novos.length - i
+      r.erro = error.message
+      break
+    }
+    r.gravados += lote.length
+  }
+
+  // Celular: só quem tem aparelho ligado (quase ninguém, num lote destes — a
+  // lista vem da memória de push.ts) e o tipo ligado nas preferências.
+  try {
+    const amb = { client: await createAdminClient(), tenantId }
+    const comAparelho: string[] = []
+    for (const cpf of novos.slice(0, r.gravados)) if (await temPushPortal(cpf, amb)) comAparelho.push(cpf)
+    for (let i = 0; i < comAparelho.length; i += 5) {
+      if (Date.now() - inicio > TEMPO_MAX_EM_MASSA_MS) break
+      const etapa = { client: await createAdminClient(), tenantId }
+      await Promise.all(
+        comAparelho.slice(i, i + 5).map(async (cpf) => {
+          const prefs = await preferenciasDoFiliado(cpf, etapa)
+          if (!prefs[aviso.evento]) return
+          await enviarPushPortal(cpf, { titulo: aviso.assunto, corpo: aviso.texto, url: aviso.link }, etapa)
+          r.celular++
+        })
+      )
+    }
+  } catch (e) {
+    console.error("aviso em massa (celular):", e)
+  }
+
+  if (r.restantes > 0 || r.erro) {
+    console.warn(
+      `[avisos] ${aviso.link}: ${r.gravados} no sino, ${r.restantes} ficaram para a próxima volta${r.erro ? ` (${r.erro})` : ""}`
+    )
+  }
+  return r
+}
+
+/**
+ * O aviso em massa para os filiados ativos da entidade — a régua de
+ * filiacao-ativos.ts (condição Ativo, sem excluídos nem anonimizados). Vale
+ * dentro da requisição ou no `after` dela (o tenant vem dos cabeçalhos).
+ */
+export async function avisarAtivosNoSino(aviso: AvisoEmMassa): Promise<ResultadoEmMassa> {
+  const ativos = await filiadosAtivos()
+  return avisarNoSinoEmMassa(
+    [...ativos.values()].map((f) => f.cpf ?? ""),
+    aviso
+  )
+}
+
+/** Tira do sino os avisos que levam a um item que deixou de existir (notícia ou convênio excluído). */
+export async function removerAvisosDoLink(link: string): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    const { error } = await admin
+      .from("portal_avisos")
+      .delete()
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("link", link)
+    if (error && !tabelaAusente(error)) console.error("avisos do portal (remover):", error.message)
+  } catch (e) {
+    console.error("avisos do portal (remover):", e)
+  }
 }
 
 // ── Preferências ─────────────────────────────────────────────────────────────

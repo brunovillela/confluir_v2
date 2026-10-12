@@ -1,22 +1,23 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Plus } from "lucide-react"
+import { CheckCheck, Plus } from "lucide-react"
 
-import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { EXPLICACAO_SITUACAO_ATENDIMENTO, prazoLegivel, reabrirAte } from "@/lib/atendimento-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { atendimentoDoFiliado } from "@/lib/db/portal-atendimentos"
+import { atendimentoDoFiliado, concluidaPeloFiliado, conversaComMarcos } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { EncerrarSolicitacaoForm, ReabrirSolicitacaoForm, ResponderForm } from "../formularios"
 
-export const metadata: Metadata = { title: "Solicitação — Portal do Associado" }
+export const metadata: Metadata = { title: "Solicitação" }
 
 export default async function PortalAtendimentoDetalhePage({
   params,
@@ -35,81 +36,105 @@ export default async function PortalAtendimentoDetalhePage({
   const concluida = a.situacao === "concluida"
   // Concluída há pouco: o associado ainda pode reabrir (A97).
   const ate = reabrirAte(a)
+  const porVoce = concluidaPeloFiliado(a, mensagens)
+  // A palavra final da entidade fecha a conversa (concluir exige texto desde a onda 5).
+  const finalDaEntidade = mensagens.filter((m) => m.tipo === "mensagem").at(-1)?.autor === "entidade"
+
+  // A conclusão não é silenciosa (A51): diz quando, quem concluiu, onde está
+  // a palavra final e o que fazer se não resolveu.
+  const avisoConcluida = concluida ? (
+    <Alert variant="info">
+      <CheckCheck />
+      <AlertTitle>Solicitação concluída{a.concluidaEm ? ` em ${formatarDataHora(a.concluidaEm)}` : ""}</AlertTitle>
+      <AlertDescription>
+        {porVoce
+          ? "Você marcou esta solicitação como resolvida."
+          : finalDaEntidade
+            ? "A entidade concluiu esta solicitação. A resposta final está no fim da conversa, abaixo."
+            : "A entidade concluiu esta solicitação."}{" "}
+        {ate ? `Não resolveu? Você pode reabri-la até ${ate}, no fim desta página.` : "Se o assunto voltou, abra uma nova solicitação."}
+      </AlertDescription>
+    </Alert>
+  ) : null
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/portal/atendimento">
-            <ArrowLeft />
-            Atendimento
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">{a.titulo}</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {a.assuntoRotulo} · aberta em {formatarDataHora(a.criadoEm)}
-              {prazo ? ` · ${prazo}` : ""}
-            </p>
-          </div>
-          <SituacaoAtendimentoBadge situacao={a.situacao} atrasada={a.atrasada} />
-        </div>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/atendimento"
+        voltar={{ base: "/portal/atendimento", rotulo: "Atendimento" }}
+        titulo={a.titulo}
+        subtitulo={
+          <>
+            {a.assuntoRotulo} · aberta em {formatarDataHora(a.criadoEm)}
+            {prazo ? ` · ${prazo}` : ""}
+          </>
+        }
+        acoes={<SituacaoAtendimentoBadge situacao={a.situacao} atrasada={a.atrasada} />}
+      />
 
       {aberta === "1" && (
-        <Alert variant="success">
-          <AlertDescription>
-            Solicitação enviada. A entidade responde por aqui{a.prazo ? ` até ${formatarData(a.prazo)}` : ""}, e você recebe um aviso.
-          </AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["aberta"]}>
+          <Alert variant="success">
+            <AlertDescription>
+              Solicitação enviada. A entidade responde por aqui{a.prazo ? ` até ${formatarData(a.prazo)}` : ""}, e você recebe um aviso.
+            </AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
+      {/* Logo depois de o próprio associado encerrar, o aviso de sucesso basta;
+          sem ele (voltar pelo histórico, com a URL já limpa), o "concluída". */}
       {encerrada === "1" && concluida && (
-        <Alert variant="success">
-          <AlertDescription>Solicitação encerrada. A entidade foi avisada.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["encerrada"]} senao={avisoConcluida}>
+          <Alert variant="success">
+            <AlertDescription>Solicitação encerrada. A entidade foi avisada.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
       {reaberta === "1" && !concluida && (
-        <Alert variant="success">
-          <AlertDescription>Solicitação reaberta. A entidade foi avisada — conte abaixo o que ainda falta.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["reaberta"]}>
+          <Alert variant="success">
+            <AlertDescription>Solicitação reaberta. A entidade foi avisada — conte abaixo o que ainda falta.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
-      <p className="text-muted-foreground text-sm">
-        {concluida && !ate ? "Encerrada. Se o assunto voltou, abra uma nova solicitação." : EXPLICACAO_SITUACAO_ATENDIMENTO[a.situacao]}
-      </p>
+      {concluida ? (
+        encerrada !== "1" && avisoConcluida
+      ) : (
+        <p className="text-muted-foreground text-sm">{EXPLICACAO_SITUACAO_ATENDIMENTO[a.situacao]}</p>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Conversa</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Conversa
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <ConversaAtendimento mensagens={mensagens} ladoDeCa="filiado" anexoBase="/portal/atendimento/anexo" />
+          <ConversaAtendimento mensagens={conversaComMarcos(a, mensagens, "filiado")} ladoDeCa="filiado" anexoBase="/portal/atendimento/anexo" />
         </CardContent>
       </Card>
 
       {!concluida ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Responder</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Responder
+            </CardTitle>
           </CardHeader>
+          {/* Na visualização da gestão os formulários ficam à vista e só os
+              envios são desligados (A167). */}
           <CardContent className="grid gap-6">
-            <AcaoVisualizacao preview={preview}>
-              <ResponderForm atendimentoId={a.id} />
-            </AcaoVisualizacao>
+            <ResponderForm atendimentoId={a.id} preview={preview} />
             <div className="border-t pt-4">
-              <AcaoVisualizacao preview={preview}>
-                <EncerrarSolicitacaoForm atendimentoId={a.id} />
-              </AcaoVisualizacao>
+              <EncerrarSolicitacaoForm atendimentoId={a.id} preview={preview} />
             </div>
           </CardContent>
         </Card>
       ) : ate ? (
         <Card>
           <CardContent>
-            <AcaoVisualizacao preview={preview}>
-              <ReabrirSolicitacaoForm atendimentoId={a.id} ate={ate} />
-            </AcaoVisualizacao>
+            <ReabrirSolicitacaoForm atendimentoId={a.id} ate={ate} preview={preview} />
           </CardContent>
         </Card>
       ) : (

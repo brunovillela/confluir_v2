@@ -9,8 +9,20 @@ import { Button } from "@/components/ui/button"
 
 import { alterarComunicadosPortal } from "./actions"
 
-/** Receber ou não os comunicados da mala direta. */
-export function ComunicadosForm({ preview = false, recebe }: { preview?: boolean; recebe: boolean }) {
+/**
+ * Receber ou não os comunicados da mala direta. Mora aqui (LGPD) e aparece
+ * também em Preferências de avisos (A176), com `voltar="preferencias"`: lá a
+ * resposta fica na própria página em vez de voltar para a LGPD.
+ */
+export function ComunicadosForm({
+  preview = false,
+  recebe,
+  voltar,
+}: {
+  preview?: boolean
+  recebe: boolean
+  voltar?: "preferencias"
+}) {
   const [estado, formAction, pendente] = useActionState(alterarComunicadosPortal, {})
 
   return (
@@ -20,10 +32,21 @@ export function ComunicadosForm({ preview = false, recebe }: { preview?: boolean
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+      {estado.ok && (
+        <Alert variant="success">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
       <input type="hidden" name="receber" value={recebe ? "0" : "1"} />
+      {voltar && <input type="hidden" name="voltar" value={voltar} />}
       <div>
         <AcaoVisualizacao preview={preview} nota="Receber ou não os comunicados é escolha do próprio filiado.">
-          <Button type="submit" variant={recebe ? "outline" : "default"} disabled={pendente}>
+          <Button
+            type="submit"
+            variant={recebe ? "outline" : "default"}
+            disabled={pendente}
+            className="pointer-coarse:min-h-11"
+          >
             {pendente && <Loader2 className="animate-spin" />}
             {recebe ? "Não quero mais receber" : "Voltar a receber"}
           </Button>

@@ -2,6 +2,8 @@ import "server-only"
 import { lerEmLotes, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
+import { depoisDaResposta } from "@/lib/db/avisos"
+import { avisarAtivosNoSino, removerAvisosDoLink } from "@/lib/db/portal-avisos"
 import { paginar, type Paginacao } from "@/lib/paginacao"
 import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -107,6 +109,8 @@ export async function listarNoticiasPortal(opcoes: {
   pagina: number
   totalPaginas: number
   total: number
+  /** Data da notícia mais recente da entidade, com ou sem busca — a marca de "já vi até aqui" (A123). */
+  maisRecente: string | null
 }> {
   const admin = await createAdminClient()
   const tenant = await tenantAtual()
@@ -149,6 +153,8 @@ export async function listarNoticiasPortal(opcoes: {
   return {
     ...info,
     noticias: pagina.map((n) => ({ ...n, resumo: resumos.get(n.id) ?? null })),
+    // A lista vem do banco da mais nova para a mais antiga (datas nulas no fim).
+    maisRecente: texto(linhas.find((n) => texto(n.created_at))?.created_at),
   }
 }
 
@@ -213,7 +219,24 @@ export async function criarNoticia(
     }
     return { erro: `Falha ao publicar a notícia: ${error.message}` }
   }
-  return { id: String(data.id) }
+  const id = String(data.id)
+  // A123: notícia nova vai para o sino dos filiados ativos, depois da
+  // resposta — quem publica não espera milhares de linhas. Só sino (e celular
+  // de quem ligou "Notícias e convênios"); e-mail é com a mala direta.
+  depoisDaResposta(() =>
+    avisarAtivosNoSino({
+      evento: "noticias",
+      texto: `Notícia nova: ${manchete.length > 200 ? `${manchete.slice(0, 199)}…` : manchete}`,
+      link: linkDaNoticia(id),
+      assunto: "Notícia nova",
+    })
+  )
+  return { id }
+}
+
+/** Onde o associado lê a notícia — também a trava de "um aviso por notícia". */
+export function linkDaNoticia(id: string): string {
+  return `/portal/noticias/${id}`
 }
 
 export async function atualizarNoticia(
@@ -251,5 +274,7 @@ export async function excluirNoticia(id: string): Promise<{ erro?: string }> {
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao excluir a notícia: ${error.message}` }
+  // O aviso do sino levaria a uma página que não existe mais.
+  depoisDaResposta(() => removerAvisosDoLink(linkDaNoticia(id)))
   return {}
 }

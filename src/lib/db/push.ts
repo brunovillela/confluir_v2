@@ -127,9 +127,10 @@ export async function enviarPushWeb(
  * push dos navegadores (uma assinatura forjada faria o servidor chamar
  * endereços internos) e no máximo MAX_APARELHOS por pessoa.
  *
- * A tabela fica FORA de TABELAS_TENANT até o SQL rodar: a escrita vai pelo
- * service role e a leitura pelo JWT do tenant — por isso toda consulta aqui
- * filtra `emp_proprietaria_id` explicitamente, dentro e fora de requisição.
+ * A tabela está em TABELAS_TENANT desde que o SQL rodou (onda 5): na
+ * requisição, leitura e escrita vão pelo JWT do tenant; fora dela (ticks),
+ * pelo service role — por isso toda consulta aqui continua filtrando
+ * `emp_proprietaria_id` explicitamente.
  */
 const TABELA_PORTAL = "portal_push_assinaturas"
 

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { CalendarClock, Info, Link2, MessageSquarePlus } from "lucide-react"
 
 import { CopiarLinkBotao } from "@/components/copiar-link"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +26,7 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { desistirFiliacaoColetiva, linkDesistenciaAction } from "./actions"
 import { DesistirForm } from "./desistir-form"
 
-export const metadata: Metadata = { title: "Minha filiação — Confluir" }
+export const metadata: Metadata = { title: "Minha filiação" }
 
 /** Pedido de desfiliação pelo Atendimento, com assunto e resumo já preenchidos (A26). */
 const ATENDIMENTO_DESFILIACAO = `/portal/atendimento?${new URLSearchParams({
@@ -37,6 +38,9 @@ const ATENDIMENTO_DESFILIACAO = `/portal/atendimento?${new URLSearchParams({
  * Área do filiado — desistência da FILIAÇÃO COLETIVA. Só habilitada para quem
  * está na condição "Em processo de filiação coletiva" e dentro do prazo; para
  * os demais, o pedido de desfiliação vai pelo Atendimento.
+ *
+ * Na largura das demais páginas do portal (A160/A184): o estreitamento
+ * próprio (max-w-2xl) dentro do contêiner da casca saiu.
  */
 export default async function DesfiliacaoPortalPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
@@ -66,119 +70,120 @@ export default async function DesfiliacaoPortalPage() {
 
   return (
     <>
-      <div className="mx-auto grid w-full max-w-2xl gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Minha filiação
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+      <CabecalhoPagina
+        secao="/portal/desfiliacao"
+        titulo="Minha filiação"
+        subtitulo={
+          <>
             Situação atual: <strong>{condicao ?? "—"}</strong>
-          </p>
-        </div>
+          </>
+        }
+      />
 
-        {dentroDoPrazo ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                <CalendarClock className="mr-1 inline size-4 align-[-3px]" />
-                Você foi filiado por decisão da assembleia
-              </CardTitle>
-              <CardDescription>
-                A categoria aprovou, em assembleia, um acordo coletivo com
-                cláusula de filiação coletiva — por isso você consta como
-                filiado.
-                {prazo && (
-                  <>
-                    {" "}
-                    Se não quiser permanecer, você pode desistir até{" "}
-                    <strong>{formatarData(prazo)}</strong>, aqui mesmo.
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <Alert>
-                <Info />
-                <AlertTitle>O que acontece se você desistir</AlertTitle>
-                <AlertDescription>
-                  <ul className="mt-1 grid list-disc gap-1 pl-5">
-                    {oQueAcontece("portal").map((linha) => (
-                      <li key={linha}>{linha}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-              <DesistirForm action={desistirFiliacaoColetiva} preview={preview} />
-            </CardContent>
-          </Card>
-        ) : emDesfiliacao ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Seu pedido de desfiliação está em andamento
-              </CardTitle>
-              <CardDescription>
-                A entidade comunica a sua empresa para encerrar o desconto. O
-                desconto do mês em curso ainda pode aparecer no contracheque —
-                é esperado: ele para quando a empresa processa o aviso.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="outline">
-                <Link href="/portal/cadastro">Acompanhar em Meu cadastro</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Pedir a desfiliação</CardTitle>
-              <CardDescription>
-                {emColetiva && prazo
-                  ? `O prazo de desistência online da filiação coletiva terminou em ${formatarData(prazo)}. `
-                  : ""}
-                A desfiliação é pedida à entidade pelo Atendimento: o pedido
-                fica registrado, a entidade comunica a sua empresa para
-                encerrar o desconto e você acompanha a resposta por aqui.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button asChild>
-                <Link href={ATENDIMENTO_DESFILIACAO}>
-                  <MessageSquarePlus />
-                  Abrir solicitação de desfiliação
-                </Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link href="/portal/inicio">Voltar ao início</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+      {dentroDoPrazo ? (
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              <CalendarClock aria-hidden className="mr-1 inline size-4 align-[-3px]" />
+              Você foi filiado por decisão da assembleia
+            </CardTitle>
+            <CardDescription>
+              A categoria aprovou, em assembleia, um acordo coletivo com
+              cláusula de filiação coletiva — por isso você consta como
+              filiado.
+              {prazo && (
+                <>
+                  {" "}
+                  Se não quiser permanecer, você pode desistir até{" "}
+                  <strong>{formatarData(prazo)}</strong>, aqui mesmo.
+                </>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Alert>
+              <Info />
+              <AlertTitle>O que acontece se você desistir</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-1 grid list-disc gap-1 pl-5">
+                  {oQueAcontece("portal").map((linha) => (
+                    <li key={linha}>{linha}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+            <DesistirForm action={desistirFiliacaoColetiva} preview={preview} />
+          </CardContent>
+        </Card>
+      ) : emDesfiliacao ? (
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              Seu pedido de desfiliação está em andamento
+            </CardTitle>
+            <CardDescription>
+              A entidade comunica a sua empresa para encerrar o desconto. O
+              desconto do mês em curso ainda pode aparecer no contracheque —
+              é esperado: ele para quando a empresa processa o aviso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/portal/cadastro">Acompanhar em Meu cadastro</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              Pedir a desfiliação
+            </CardTitle>
+            <CardDescription>
+              {emColetiva && prazo
+                ? `O prazo de desistência online da filiação coletiva terminou em ${formatarData(prazo)}. `
+                : ""}
+              A desfiliação é pedida à entidade pelo Atendimento: o pedido
+              fica registrado, a entidade comunica a sua empresa para
+              encerrar o desconto e você acompanha a resposta por aqui.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href={ATENDIMENTO_DESFILIACAO}>
+                <MessageSquarePlus />
+                Abrir solicitação de desfiliação
+              </Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/portal/inicio">Voltar ao início</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-        {gestaoGeraLink && (
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">
-                <Link2 className="mr-1 inline size-4 align-[-3px]" />
-                Link de desistência sem login
-              </CardTitle>
-              <CardDescription>
-                Só a gestão vê este quadro. O link abre uma página pública em
-                que o trabalhador desiste sem entrar no portal; vale até o fim
-                do prazo e não mostra nenhum outro dado do cadastro. Mande-o
-                apenas para o próprio trabalhador.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CopiarLinkBotao
-                obterLink={linkDesistenciaAction}
-                rotulo="Copiar link de desistência"
-              />
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {gestaoGeraLink && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              <Link2 aria-hidden className="mr-1 inline size-4 align-[-3px]" />
+              Link de desistência sem login
+            </CardTitle>
+            <CardDescription>
+              Só a gestão vê este quadro. O link abre uma página pública em
+              que o trabalhador desiste sem entrar no portal; vale até o fim
+              do prazo e não mostra nenhum outro dado do cadastro. Mande-o
+              apenas para o próprio trabalhador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CopiarLinkBotao
+              obterLink={linkDesistenciaAction}
+              rotulo="Copiar link de desistência"
+            />
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

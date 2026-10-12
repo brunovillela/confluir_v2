@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useRef, useState } from "react"
-import { CheckCircle2, Loader2, Vote } from "lucide-react"
+import { Check, CheckCircle2, Loader2, Vote } from "lucide-react"
 
 import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -16,7 +16,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { PerguntaVoto } from "@/lib/db/votacao-portal"
+import { cn } from "@/lib/utils"
 
 import { ComprovanteVoto, type EstadoVoto } from "../comprovante-voto"
 
@@ -50,13 +52,19 @@ export function CedulaForm({
   const [resumo, setResumo] = useState<Escolha[] | null>(null)
   // Segunda passagem do submit (depois do "Confirmar voto"): deixa seguir.
   const confirmado = useRef(false)
+  // Opção marcada em cada pergunta (id da pergunta → id da opção): destaca a
+  // linha escolhida e monta o resumo da confirmação. O voto em si vai pelo
+  // FormData — o RadioGroup grava um input de rádio por opção dentro do form.
+  const [escolhas, setEscolhas] = useState<Record<string, string>>({})
+  // Pergunta deixada sem resposta no último envio (a mensagem fica nela).
+  const [semResposta, setSemResposta] = useState<string | null>(null)
 
   if (estado.ok) {
     if (estado.comprovante || voltarHref) {
       return <ComprovanteVoto comprovante={estado.comprovante ?? null} voltarHref={voltarHref} />
     }
     return (
-      <Alert className="border-success/40 text-success-fg">
+      <Alert variant="success">
         <CheckCircle2 className="size-4" />
         <AlertDescription>{estado.ok}</AlertDescription>
       </Alert>
@@ -67,7 +75,13 @@ export function CedulaForm({
    * Voto é irreversível: antes de enviar, um passo de confirmação com o que
    * foi marcado em cada pergunta (achado A92). Com várias perguntas, quem rola
    * até o botão já não vê as opções lá em cima — e um toque errado no celular
-   * virava voto. A validação do navegador (uma opção por pergunta) vem antes.
+   * virava voto.
+   *
+   * Uma opção por pergunta é conferida aqui, e não pelo `required` do
+   * navegador (A138): o rádio que vai no FormData é um input oculto do
+   * RadioGroup, e o balão nativo apontaria para ele — o leitor de tela não
+   * acharia a pergunta. Aqui a mensagem fica na pergunta e o foco vai para
+   * as opções dela. O servidor confere de novo.
    */
   function aoEnviar(e: React.FormEvent<HTMLFormElement>) {
     if (confirmado.current) {
@@ -76,12 +90,20 @@ export function CedulaForm({
     }
     e.preventDefault()
     const form = e.currentTarget
+    const faltando = perguntas.find((p) => !escolhas[p.id])
+    if (faltando) {
+      setSemResposta(faltando.id)
+      form
+        .querySelector<HTMLElement>(`[data-pergunta="${faltando.id}"] [role="radio"]`)
+        ?.focus()
+      return
+    }
+    setSemResposta(null)
     if (!form.reportValidity()) return
-    const dados = new FormData(form)
     setResumo(
       perguntas.map((p, i) => ({
         pergunta: `${i + 1}. ${p.pergunta ?? "Pergunta"}`,
-        opcao: p.opcoes.find((o) => o.id === dados.get(`p_${p.id}`))?.texto ?? "(opção)",
+        opcao: p.opcoes.find((o) => o.id === escolhas[p.id])?.texto ?? "(opção)",
       }))
     )
   }
@@ -120,30 +142,67 @@ export function CedulaForm({
           </Alert>
         )}
 
-        {perguntas.map((p, i) => (
-          <fieldset key={p.id} className="grid gap-2">
-            <legend className="text-sm font-medium">
-              {i + 1}. {p.pergunta ?? "Pergunta"}
-            </legend>
-            <div className="grid gap-2">
-              {p.opcoes.map((o) => (
-                <label
-                  key={o.id}
-                  className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm"
-                >
-                  <input
-                    type="radio"
-                    name={`p_${p.id}`}
-                    value={o.id}
-                    required
-                    className="size-4"
-                  />
-                  {o.texto ?? "(opção)"}
-                </label>
-              ))}
+        {/* RadioGroup do sistema (A138): anel de foco, setas do teclado
+            (Tab entra na pergunta, as setas escolhem), leitor de tela
+            anunciando a pergunta e "marcado". A linha inteira é o alvo
+            (≥ 44 px) e a escolhida muda de borda, fundo e ganha "Sua
+            escolha" com o ícone — não só a cor do rádio. */}
+        {perguntas.map((p, i) => {
+          const tituloId = `pergunta-${p.id}`
+          const erroId = `pergunta-${p.id}-erro`
+          const faltou = semResposta === p.id
+          return (
+            <div key={p.id} data-pergunta={p.id} className="grid gap-2">
+              <p id={tituloId} className="text-sm font-medium">
+                {i + 1}. {p.pergunta ?? "Pergunta"}
+              </p>
+              <RadioGroup
+                name={`p_${p.id}`}
+                aria-labelledby={tituloId}
+                aria-required="true"
+                aria-invalid={faltou || undefined}
+                aria-describedby={faltou ? erroId : undefined}
+                onValueChange={(v) => {
+                  setEscolhas((atual) => ({ ...atual, [p.id]: v }))
+                  if (faltou) setSemResposta(null)
+                }}
+              >
+                {p.opcoes.map((o) => {
+                  const id = `p_${p.id}_${o.id}`
+                  const marcada = escolhas[p.id] === o.id
+                  return (
+                    <label
+                      key={o.id}
+                      htmlFor={id}
+                      className={cn(
+                        "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors",
+                        marcada
+                          ? "border-primary bg-primary/5 ring-primary font-medium ring-1"
+                          : "hover:bg-muted/50",
+                        faltou && "border-destructive/60"
+                      )}
+                    >
+                      <RadioGroupItem id={id} value={o.id} aria-invalid={faltou || undefined} />
+                      <span className="min-w-0 flex-1">{o.texto ?? "(opção)"}</span>
+                      {marcada && (
+                        // O leitor de tela já diz "marcado"; isto é para os olhos.
+                        <span aria-hidden className="text-primary inline-flex shrink-0 items-center gap-1 text-xs font-medium">
+                          <Check className="size-4" />
+                          Sua escolha
+                        </span>
+                      )}
+                    </label>
+                  )
+                })}
+              </RadioGroup>
+              {faltou && (
+                <p id={erroId} role="alert" className="text-destructive text-xs">
+                  Escolha uma opção nesta pergunta para continuar.
+                </p>
+              )}
             </div>
-          </fieldset>
-        ))}
+          )
+        })}
 
         <Alert>
           <AlertDescription>

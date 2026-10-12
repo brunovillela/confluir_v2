@@ -1,12 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, Clock, FileCheck2, Info, ShieldCheck, Vote } from "lucide-react"
+import { CalendarClock, Clock, FileCheck2, ShieldCheck, Vote } from "lucide-react"
 
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import {
   AtualizarAo,
   ContagemRegressiva,
   EnquantoAberta,
 } from "@/components/portal/contagem-regressiva"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import {
   Accordion,
   AccordionContent,
@@ -41,7 +43,7 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 import { EmailVotacaoForm } from "./email-form"
 import { SalaVirtualAviso } from "./sala-virtual"
 
-export const metadata: Metadata = { title: "Votação — Confluir" }
+export const metadata: Metadata = { title: "Votação" }
 
 /** Menos de 24 h para o fim: o selo "Último dia" dá a urgência (A93). */
 function ultimoDia(termino: string | null): boolean {
@@ -65,12 +67,11 @@ export default async function VotacaoPortalPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Votação</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Suas assembleias abertas e o histórico de participação.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/votacao"
+        titulo="Votação"
+        subtitulo="Suas assembleias abertas e o histórico de participação."
+      />
 
       {!filiado.ativo && (
         <Alert variant="warning">
@@ -119,7 +120,9 @@ export default async function VotacaoPortalPage() {
       {abertas.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Assembleias abertas</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Assembleias abertas
+            </CardTitle>
             <CardDescription>
               Você está apto a participar destas votações. Horários de Brasília.
             </CardDescription>
@@ -274,7 +277,9 @@ export default async function VotacaoPortalPage() {
       {/* Minhas votações */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Minhas votações</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Minhas votações
+          </CardTitle>
           <CardDescription>
             Assembleias em que você participou.
           </CardDescription>
@@ -290,10 +295,7 @@ export default async function VotacaoPortalPage() {
           </Alert>
 
           {historico.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              <Info className="mx-auto mb-2 size-5" />
-              Você ainda não tem participações registradas.
-            </p>
+            <EstadoVazio icone={Vote} titulo="Você ainda não tem participações registradas." />
           ) : (
             historico.map((v) => (
               // id: o aviso "resultado publicado" aponta para #votacao-<id>; scroll-mt

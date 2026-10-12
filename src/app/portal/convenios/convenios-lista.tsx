@@ -171,7 +171,9 @@ function CartaoConvenio({ convenio: c }: { convenio: ConvenioPortal }) {
         <div className="flex items-start gap-3">
           {c.logoUrl && <Logo src={c.logoUrl} />}
           <div className="grid min-w-0 gap-1">
-            <CardTitle className="text-base">{c.conveniador ?? "Convênio"}</CardTitle>
+            <CardTitle role="heading" aria-level={3}>
+              {c.conveniador ?? "Convênio"}
+            </CardTitle>
             {c.infoSumarias && <CardDescription>{c.infoSumarias}</CardDescription>}
             {(c.validade || c.terminaEmBreve) && (
               <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">

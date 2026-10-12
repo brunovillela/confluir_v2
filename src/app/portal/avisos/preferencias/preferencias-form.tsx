@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { Loader2, Save } from "lucide-react"
 
+import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -12,24 +13,45 @@ import { salvarPreferenciasPortalAction } from "./actions"
 
 /**
  * Um interruptor por tipo de aviso; o nome do campo é a chave do evento. O
- * mesmo interruptor vale para o e-mail e, quando há push, para o celular
- * (`canal` só muda o nome lido pelo leitor de tela).
+ * mesmo interruptor vale para o e-mail e, quando há push, para o celular.
+ * Tipo que nunca vai por e-mail (`semEmail`, como Notícias e convênios) só
+ * aparece com o celular disponível — sem ele, o interruptor não mudaria nada.
+ * Na visualização pela gestão os interruptores mexem, mas só o botão de
+ * salvar fica desligado (contrato do AcaoVisualizacao).
  */
-export function PreferenciasForm({ prefs, canal = "E-mail" }: { prefs: PreferenciasPortal; canal?: string }) {
+export function PreferenciasForm({
+  prefs,
+  celular = false,
+  preview = false,
+}: {
+  prefs: PreferenciasPortal
+  celular?: boolean
+  preview?: boolean
+}) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasPortalAction, {})
+  const eventos = EVENTOS_PORTAL.filter((e) => celular || !("semEmail" in e && e.semEmail))
 
   return (
-    <form action={action} className="grid gap-4">
+    <form {...formVisualizacao(preview, action)} className="grid gap-4">
       <ul className="divide-y">
-        {EVENTOS_PORTAL.map((e) => (
-          <li key={e.chave} className="flex min-h-14 items-center justify-between gap-4 py-3">
-            <label htmlFor={`pref-${e.chave}`} className="min-w-0 flex-1 cursor-pointer">
-              <span className="block text-sm font-medium">{e.rotulo}</span>
-              <span className="text-muted-foreground block text-xs">{e.descricao}</span>
-            </label>
-            <Switch id={`pref-${e.chave}`} name={e.chave} defaultChecked={prefs[e.chave]} aria-label={`${canal}: ${e.rotulo}`} />
-          </li>
-        ))}
+        {eventos.map((e) => {
+          // O nome lido pelo leitor de tela diz por onde o aviso sai.
+          const canal = "semEmail" in e && e.semEmail ? "Celular" : celular ? "E-mail e celular" : "E-mail"
+          return (
+            <li key={e.chave} className="flex min-h-14 items-center justify-between gap-4 py-3">
+              <label htmlFor={`pref-${e.chave}`} className="min-w-0 flex-1 cursor-pointer">
+                <span className="block text-sm font-medium">{e.rotulo}</span>
+                <span className="text-muted-foreground block text-xs">{e.descricao}</span>
+              </label>
+              <Switch
+                id={`pref-${e.chave}`}
+                name={e.chave}
+                defaultChecked={prefs[e.chave]}
+                aria-label={`${canal}: ${e.rotulo}`}
+              />
+            </li>
+          )
+        })}
       </ul>
 
       {estado.erro && (
@@ -44,10 +66,12 @@ export function PreferenciasForm({ prefs, canal = "E-mail" }: { prefs: Preferenc
       )}
 
       <div>
-        <Button type="submit" disabled={salvando} className="min-h-11 w-full sm:w-auto">
-          {salvando ? <Loader2 className="animate-spin" /> : <Save />}
-          Salvar
-        </Button>
+        <AcaoVisualizacao preview={preview} nota="Só o próprio associado salva as preferências dele.">
+          <Button type="submit" disabled={salvando} className="min-h-11 w-full sm:w-auto">
+            {salvando ? <Loader2 className="animate-spin" /> : <Save />}
+            Salvar
+          </Button>
+        </AcaoVisualizacao>
       </div>
     </form>
   )

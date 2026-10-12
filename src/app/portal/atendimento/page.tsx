@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ChevronDown, Info, Reply } from "lucide-react"
+import { ChevronDown, Inbox, Info, Reply } from "lucide-react"
 
-import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { assuntoAtendimento, assuntosPorExtenso, prazoLegivel } from "@/lib/atendimento-constantes"
@@ -16,7 +17,7 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { NovaSolicitacaoForm } from "./formularios"
 
-export const metadata: Metadata = { title: "Atendimento — Portal do Associado" }
+export const metadata: Metadata = { title: "Atendimento" }
 
 /** Acima disso, as concluídas recolhem: com duas ou três solicitações, esconder uma atrapalha. */
 const RECOLHER_CONCLUIDAS_ACIMA = 5
@@ -52,24 +53,26 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
 
   // A key remonta o formulário quando outro link traz outro assunto/resumo
   // sem sair da página: o assunto escolhido vive num estado do formulário.
+  // Na visualização da gestão o formulário fica aberto para leitura e só o
+  // envio é desligado (A167): quem atende por telefone percorre os campos
+  // junto com o filiado.
   const formulario = (
-    <AcaoVisualizacao preview={preview}>
-      <NovaSolicitacaoForm
-        key={`${assuntoInicial ?? ""}|${tituloInicial ?? ""}`}
-        assuntoInicial={assuntoInicial}
-        tituloInicial={tituloInicial}
-      />
-    </AcaoVisualizacao>
+    <NovaSolicitacaoForm
+      key={`${assuntoInicial ?? ""}|${tituloInicial ?? ""}`}
+      assuntoInicial={assuntoInicial}
+      tituloInicial={tituloInicial}
+      hoje={hoje}
+      preview={preview}
+    />
   )
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Atendimento</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Fale com a entidade por aqui: {assuntosPorExtenso()}. Cada pedido tem prazo de resposta.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/atendimento"
+        titulo="Atendimento"
+        subtitulo={`Fale com a entidade por aqui: ${assuntosPorExtenso()}. Cada pedido tem prazo de resposta.`}
+      />
 
       {!disponivel ? (
         <Alert>
@@ -79,7 +82,9 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
       ) : lista.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Nova solicitação</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Nova solicitação
+            </CardTitle>
             <CardDescription>Escolha o assunto, resuma o pedido e conte os detalhes. A entidade responde por aqui e você recebe um aviso.</CardDescription>
           </CardHeader>
           <CardContent>{formulario}</CardContent>
@@ -93,7 +98,9 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Minhas solicitações</CardTitle>
+              <CardTitle role="heading" aria-level={2}>
+                Minhas solicitações
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
               {recolher ? (
@@ -101,7 +108,7 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
                   {abertas.length > 0 ? (
                     <ListaSolicitacoes itens={abertas} hoje={hoje} />
                   ) : (
-                    <p className="text-muted-foreground py-2 text-sm">Nenhuma solicitação em aberto.</p>
+                    <EstadoVazio compacto icone={Inbox} titulo="Nenhuma solicitação em aberto." />
                   )}
                   <details className="group border-t pt-2">
                     <summary className="hover:bg-muted/40 -mx-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md px-2 text-sm font-medium [&::-webkit-details-marker]:hidden">

@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -27,12 +29,13 @@ import { AceiteLgpdForm } from "./aceite-form"
 import { ComunicadosForm } from "./comunicados-form"
 import {
   consentimentosDoCadastro,
+  diaSP,
   rotuloVersao,
   termoVigente,
   versoesDosTermos,
 } from "./consentimentos"
 
-export const metadata: Metadata = { title: "LGPD — Portal do Associado" }
+export const metadata: Metadata = { title: "Privacidade e dados" }
 
 /** Conferir/regularizar o registro da autorização de desconto pelo Atendimento (A35). */
 const ATENDIMENTO_DESCONTO = `/portal/atendimento?${new URLSearchParams({
@@ -105,42 +108,48 @@ export default async function LgpdPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          LGPD — dados pessoais
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Seus aceites e seus direitos sobre o tratamento de dados pessoais
-          (Lei nº 13.709/2018).
-        </p>
-      </div>
+      {/* h1 = o nome do menu (A184); a sigla da lei fica no subtítulo. */}
+      <CabecalhoPagina
+        secao="/portal/lgpd"
+        titulo="Privacidade e dados"
+        subtitulo="Seus aceites e seus direitos sobre o tratamento de dados pessoais, pela Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018)."
+      />
 
       {salvo === "comunicados" && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Preferência de comunicados salva.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["salvo"]}>
+          <Alert variant="success">
+            <AlertDescription>Preferência de comunicados salva.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
       {salvo === "1" && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Aceite registrado. Obrigado!</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["salvo"]}>
+          <Alert variant="success">
+            <AlertDescription>Aceite registrado. Obrigado!</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
       {/* A rota "meus dados" devolve para cá quando é aberta na visualização. */}
       {preview && aviso === "visualizacao" && (
-        <Alert>
-          <Eye />
-          <AlertDescription>
-            Na visualização pela gestão, os dados não são baixados: a
-            exportação é um ato do próprio associado, pela conta dele.
-          </AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["aviso"]}>
+          <Alert>
+            <Eye />
+            <AlertDescription>
+              Na visualização pela gestão, os dados não são baixados: a
+              exportação é um ato do próprio associado, pela conta dele.
+            </AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
       <div className="grid items-start gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Termo LGPD</CardDescription>
-            <CardTitle className="text-base">
+            {/* O rótulo é o nome do cartão; o selo abaixo, a situação (A128). */}
+            <CardDescription role="heading" aria-level={2}>
+              Termo LGPD
+            </CardDescription>
+            <CardTitle>
               {aceiteLgpd ? (
                 <Badge
                   variant="outline"
@@ -163,8 +172,10 @@ export default async function LgpdPage({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Autorização de desconto em folha</CardDescription>
-            <CardTitle className="text-base">
+            <CardDescription role="heading" aria-level={2}>
+              Autorização de desconto em folha
+            </CardDescription>
+            <CardTitle>
               {aceiteDesconto ? (
                 <Badge
                   variant="outline"
@@ -223,7 +234,9 @@ export default async function LgpdPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Seus dados</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Seus dados
+          </CardTitle>
           <CardDescription>
             Acesso e portabilidade: baixe tudo o que {entidade} guarda sobre você.
           </CardDescription>
@@ -282,7 +295,9 @@ export default async function LgpdPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Termo de tratamento de dados</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Termo de tratamento de dados
+          </CardTitle>
           <CardDescription>
             Como {entidade} usa seus dados pessoais
           </CardDescription>
@@ -351,17 +366,29 @@ export default async function LgpdPage({
       {comunicados?.disponivel && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Comunicados por e-mail</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Comunicados por e-mail
+            </CardTitle>
             <CardDescription>
               {comunicados.descadastradoEm
-                ? `Você pediu para não receber os comunicados em ${formatarData(comunicados.descadastradoEm)}.`
+                ? // Dia de São Paulo: o `formatarData` lê o dia UTC do timestamp.
+                  `Você pediu para não receber os comunicados em ${diaSP(comunicados.descadastradoEm)}.`
                 : `Você recebe as mensagens que ${entidade} envia por e-mail aos filiados.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             <p className="text-muted-foreground text-sm">
               Avisos ligados ao que você usa — votações, reservas, recuperação de senha — e o
-              parabéns de aniversário continuam chegando.
+              parabéns de aniversário continuam chegando. Os avisos do portal você ajusta
+              em{" "}
+              {/* A176: as duas páginas apontam uma para a outra; a escolha também está lá. */}
+              <Link
+                href="/portal/avisos/preferencias"
+                className="text-foreground font-medium underline underline-offset-4"
+              >
+                Preferências de avisos
+              </Link>
+              , onde esta escolha também aparece.
             </p>
             <ComunicadosForm preview={preview} recebe={!comunicados.descadastradoEm} />
           </CardContent>
@@ -370,7 +397,9 @@ export default async function LgpdPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Seus direitos como titular</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Seus direitos como titular
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
           <ul className="text-muted-foreground grid list-disc gap-1 pl-5 text-sm">

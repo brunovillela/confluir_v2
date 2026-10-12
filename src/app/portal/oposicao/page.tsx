@@ -1,9 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, LogOut } from "lucide-react"
+import { ArrowRight, CheckCircle2, CircleHelp, Clock, FileWarning, LogOut, ScrollText, XCircle } from "lucide-react"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Marca } from "@/components/marca"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -16,27 +19,19 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getSessaoTrabalhador } from "@/lib/auth"
-import { sairDoPortal } from "@/lib/actions/sessao"
-import { campanhasAbertas, minhaOposicao } from "@/lib/db/oposicao"
+import { hojeSP } from "@/lib/db/comum"
+import { campanhasAbertas, minhaOposicao, type MinhaOposicao } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
-import {
-  estadoPrazo,
-  ROTULO_SITUACAO_OPOSITOR,
-} from "@/lib/oposicao-constantes"
+import { estadoPrazo } from "@/lib/oposicao-constantes"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
+import { sairDaOposicao } from "./actions"
 import { AcessoNaoFiliado } from "./oposicao-portal-forms"
+import { PrazoOposicao } from "./prazo-oposicao"
+import { fraseResultado, VARIANTE_SITUACAO_PORTAL } from "./situacao-portal"
 
-export const metadata: Metadata = {
-  title: "Oposição à contribuição — Confluir",
-}
-
-function hojeSP(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
-}
+export const metadata: Metadata = { title: "Oposição à contribuição assistencial" }
 
 export default async function OposicaoPortalPage({
   searchParams,
@@ -55,21 +50,33 @@ export default async function OposicaoPortalPage({
 
   const conteudo = (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Oposição à contribuição assistencial
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Registre, se desejar, sua oposição a uma contribuição assistencial.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/oposicao"
+        titulo="Oposição à contribuição assistencial"
+        subtitulo="Registre, se desejar, sua oposição a uma contribuição assistencial."
+        acoes={
+          // A ajuda do portal é só de quem está nele (A106).
+          vis && (
+            <Button variant="link" asChild className="px-0">
+              <Link href="/portal/ajuda/oposicao">
+                <CircleHelp />
+                Como funciona
+              </Link>
+            </Button>
+          )
+        }
+      />
 
       {desistiu === "1" && (
-        <Alert className="border-info/40 text-info-fg">
-          <AlertDescription>
-            Registramos que você optou por não se opor. Obrigado por assistir.
-          </AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["desistiu"]}>
+          <Alert variant="info">
+            <AlertDescription>
+              Registramos que você optou por não se opor. Se mudar de ideia, dá
+              para registrar a oposição enquanto o prazo da campanha estiver
+              aberto.
+            </AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
       {preview ? (
@@ -93,11 +100,13 @@ export default async function OposicaoPortalPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Acesso</CardTitle>
+              <CardTitle role="heading" aria-level={2}>
+                Acesso
+              </CardTitle>
               <CardDescription>
                 Qualquer trabalhador da fonte pagadora pode se opor. Identifique-se
-                e receba um <strong>código por e-mail</strong>. Seu acesso é
-                registrado para fins de auditoria.
+                e receba um <strong>código por e-mail</strong>. Seu acesso fica
+                registrado.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -128,7 +137,7 @@ export default async function OposicaoPortalPage({
 
   // Fora dela, o trabalhador não filiado: tela enxuta com a sessão própria da
   // Oposição, agora com o <main> como landmark (A181). Aqui não há portal para
-  // onde voltar, então o "Sair" continua.
+  // onde voltar, então o "Sair" continua — e volta a esta entrada.
   const entidade = await nomeEntidade()
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-8">
@@ -137,7 +146,7 @@ export default async function OposicaoPortalPage({
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {sessao && (
-            <form action={sairDoPortal}>
+            <form action={sairDaOposicao}>
               <Button variant="ghost" size="sm" type="submit">
                 <LogOut />
                 Sair
@@ -150,6 +159,59 @@ export default async function OposicaoPortalPage({
         {conteudo}
       </main>
     </div>
+  )
+}
+
+const ICONE_SITUACAO = {
+  aguardando_documento: FileWarning,
+  nao_avaliada: Clock,
+  aprovada: CheckCircle2,
+  reprovada: XCircle,
+} as const
+
+/**
+ * O resultado no cartão da campanha (A15): a mesma frase curta do
+ * comprovante, com a cor e o ícone da situação. O motivo de uma oposição não
+ * aceita fica no comprovante — que só o próprio trabalhador abre.
+ */
+function ResultadoNaLista({
+  minha,
+  prazoFim,
+  preview,
+}: {
+  minha: MinhaOposicao
+  prazoFim: string | null
+  preview: boolean
+}) {
+  const situacao = minha.situacao === "desistente" ? "nao_avaliada" : minha.situacao
+  const Icone = ICONE_SITUACAO[situacao]
+  const variante = VARIANTE_SITUACAO_PORTAL[situacao]
+  const falta = situacao === "aguardando_documento"
+  return (
+    <Alert variant={variante === "secondary" ? "default" : variante}>
+      <Icone />
+      <AlertDescription>
+        {fraseResultado(situacao, {
+          avaliadaEm: minha.avaliadaEm,
+          registradaEm: minha.dia,
+          prazoFim,
+        })}
+        {situacao === "reprovada" && " O motivo está no comprovante."}
+      </AlertDescription>
+      {/* Fora do AlertDescription, que sublinha todo <a> dentro dele. */}
+      <div className="col-start-2 mt-2">
+        <AcaoVisualizacao
+          preview={preview}
+          nota="O comprovante abre na conta do trabalhador."
+        >
+          <Button variant={falta ? "default" : "outline"} asChild>
+            <Link href={`/portal/oposicao/comprovante/${minha.id}`}>
+              {falta ? "Enviar a carta" : "Ver comprovante"}
+            </Link>
+          </Button>
+        </AcaoVisualizacao>
+      </div>
+    </Alert>
   )
 }
 
@@ -186,58 +248,50 @@ async function ListaCampanhas({
       </p>
 
       {itens.length === 0 ? (
-        <Card>
-          <CardContent>
-            <div className="text-muted-foreground grid gap-1 py-8 text-center text-sm">
-              <p>Nenhuma campanha de oposição aberta no momento.</p>
-              {/* Quem paga pode ler "oposição" como parar de pagar a
-                  mensalidade (A125). */}
-              {perfil === "filiado" && (
-                <p>
-                  A contribuição assistencial não tem relação com a sua
-                  mensalidade de associado.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          cartao
+          icone={ScrollText}
+          titulo="Nenhuma campanha de oposição aberta no momento."
+          // Quem paga pode ler "oposição" como parar de pagar a mensalidade (A125).
+          descricao={
+            perfil === "filiado"
+              ? "A contribuição assistencial não tem relação com a sua mensalidade de associado."
+              : undefined
+          }
+        />
       ) : (
         itens.map(({ campanha, prazo, minha }) => (
           <Card key={campanha.id}>
             <CardHeader>
-              <CardTitle className="text-base text-balance">
+              <CardTitle role="heading" aria-level={2} className="text-balance">
                 {campanha.nome ?? "Contribuição assistencial"}
               </CardTitle>
-              <CardDescription>
-                {campanha.detalhe_desconto}
-                <span className="mt-1 block">
-                  Prazo {formatarData(campanha.prazo_inicio)} –{" "}
-                  {formatarData(campanha.prazo_fim)}
-                </span>
+              <CardDescription className="grid gap-2">
+                {campanha.detalhe_desconto && <span>{campanha.detalhe_desconto}</span>}
+                {/* Quanto falta, com destaque perto do fim (A106). Depois de
+                    registrada, o que importa é o resultado — o prazo sai. */}
+                {(!minha || minha.situacao === "desistente" || minha.situacao === "aguardando_documento") && (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span>
+                      Prazo: {formatarData(campanha.prazo_inicio)} a{" "}
+                      {formatarData(campanha.prazo_fim)}
+                    </span>
+                    <PrazoOposicao inicio={campanha.prazo_inicio} fim={campanha.prazo_fim} hoje={hoje} />
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {/* 'desistente' ("não quero me opor") não é oposição registrada:
                   no prazo, a pessoa ainda pode mudar de ideia (A14). */}
               {minha && minha.situacao !== "desistente" ? (
-                <Alert className="border-success/40 text-success-fg">
-                  <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                    <span>
-                      Sua oposição já foi registrada —{" "}
-                      {ROTULO_SITUACAO_OPOSITOR[minha.situacao]}.
-                    </span>
-                    <AcaoVisualizacao
-                      preview={preview}
-                      nota="O comprovante abre na conta do trabalhador."
-                    >
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/portal/oposicao/comprovante/${minha.id}`}>
-                          Ver comprovante
-                        </Link>
-                      </Button>
-                    </AcaoVisualizacao>
-                  </AlertDescription>
-                </Alert>
+                // "Falta enviar a carta até dd/mm" só com o prazo aberto: depois
+                // dele, o selo do prazo já diz que encerrou.
+                <ResultadoNaLista
+                  minha={minha}
+                  prazoFim={prazo === "aberto" ? campanha.prazo_fim : null}
+                  preview={preview}
+                />
               ) : prazo === "aberto" ? (
                 <div className="grid gap-3">
                   {minha && (
@@ -270,8 +324,10 @@ async function ListaCampanhas({
                         minha.dia ? ` em ${formatarData(minha.dia)}` : ""
                       }. `}
                     {prazo === "antes"
-                      ? "O prazo para se opor ainda não começou."
-                      : "O prazo para se opor já encerrou."}
+                      ? `O prazo para se opor começa em ${formatarData(campanha.prazo_inicio)}.`
+                      : prazo === "depois"
+                        ? `O prazo para se opor terminou em ${formatarData(campanha.prazo_fim)}.`
+                        : "Esta campanha está sem prazo definido. Fale com a entidade."}
                   </AlertDescription>
                 </Alert>
               )}

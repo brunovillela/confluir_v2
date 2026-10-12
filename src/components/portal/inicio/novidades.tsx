@@ -1,14 +1,18 @@
 import Link from "next/link"
 import { Bell, Inbox, MessagesSquare } from "lucide-react"
 
+import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { Indisponivel } from "@/components/portal/inicio/indisponivel"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Filiado } from "@/lib/contas"
-import { avisosNaoLidos, respostasAguardando, seguro } from "@/lib/db/portal-inicio"
+import { avisosNaoLidos, respostasAguardando } from "@/lib/db/portal-inicio"
 import { formatarDataHora } from "@/lib/formato"
 import { EVENTOS_PORTAL } from "@/lib/portal-avisos-eventos"
+
+import { tentar } from "./cargas"
 
 const ROTULO = new Map<string, string>(EVENTOS_PORTAL.map((e) => [e.chave, e.rotulo]))
 
@@ -40,10 +44,14 @@ function caminho(link: string): string {
  * contarem a mesma coisa (no "Ver como filiado", então, nada muda).
  */
 export async function Novidades({ filiado }: { filiado: Filiado }) {
-  const [respostas, naoLidos] = await Promise.all([
-    seguro("atendimentos respondidos", () => respostasAguardando(filiado.cpf), []),
-    seguro("avisos não lidos", () => avisosNaoLidos(filiado.cpf, MAX_AVISOS + MAX_RESPOSTAS), { avisos: [], total: 0 }),
+  const [rRespostas, rNaoLidos] = await Promise.all([
+    tentar("atendimentos respondidos", () => respostasAguardando(filiado.cpf)),
+    tentar("avisos não lidos", () => avisosNaoLidos(filiado.cpf, MAX_AVISOS + MAX_RESPOSTAS)),
   ])
+  // Falhou: "Nada novo por aqui" seria mentira — o cartão diz que não carregou (A187).
+  const falhou = !rRespostas || !rNaoLidos
+  const respostas = rRespostas?.valor ?? []
+  const naoLidos = rNaoLidos?.valor ?? { avisos: [], total: 0 }
   const destaques = respostas.slice(0, MAX_RESPOSTAS)
   // O aviso "a entidade respondeu" leva à mesma solicitação do destaque: uma vez basta.
   const jaEmDestaque = new Set(destaques.map((a) => `/portal/atendimento/${a.id}`))
@@ -73,7 +81,7 @@ export async function Novidades({ filiado }: { filiado: Filiado }) {
           <Link
             key={a.id}
             href={`/portal/atendimento/${a.id}`}
-            className="group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+            className="group border-primary/40 bg-primary/5 hover:bg-primary/10 focus-visible:border-ring focus-visible:ring-ring/50 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors outline-none focus-visible:ring-3"
           >
             <div className="flex min-w-0 items-start gap-3">
               <div className="bg-primary/15 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
@@ -86,7 +94,8 @@ export async function Novidades({ filiado }: { filiado: Filiado }) {
                 </p>
               </div>
             </div>
-            {/* Aparência de botão sem <button> dentro do <a>: o cartão inteiro é o link. */}
+            {/* Aparência de botão sem <button> dentro do <a>: o cartão inteiro é o
+                link, com o foco visível no próprio cartão (A156). */}
             <span className={buttonVariants({ size: "sm" })}>Ler resposta</span>
           </Link>
         ))}
@@ -129,11 +138,13 @@ export async function Novidades({ filiado }: { filiado: Filiado }) {
           </ul>
         )}
 
-        {vazio && (
-          <p className="text-muted-foreground flex items-center gap-2 py-1 text-sm">
-            <Inbox className="size-4 shrink-0" aria-hidden />
-            Nada novo por aqui.
-          </p>
+        {vazio && !falhou && <EstadoVazio compacto icone={Inbox} titulo="Nada novo por aqui." />}
+        {falhou && (
+          <Indisponivel className={vazio ? undefined : "text-xs"}>
+            {vazio
+              ? "Não foi possível carregar suas novidades agora. Tente de novo daqui a pouco."
+              : "Parte das novidades não carregou agora."}
+          </Indisponivel>
         )}
       </CardContent>
     </Card>

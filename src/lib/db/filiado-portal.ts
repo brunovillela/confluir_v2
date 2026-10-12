@@ -136,6 +136,25 @@ export type EstadiaConfirmada = {
   checkIn: string | null
   checkOut: string | null
   pessoas: number | null
+  /**
+   * Quanto o sindicato pagou ao hotel por esta pessoa (A62): o custo do
+   * quarto para a entidade (`custo_entidade` do serviço — o mesmo valor que
+   * entra no faturamento) dividido pelas pessoas no quarto. Null quando o
+   * serviço não tem os dois valores (reservas migradas do sistema antigo,
+   * ocupação sem tarifa acordada): nada de estimar.
+   */
+  pagoPeloSindicato: number | null
+}
+
+/** Parte da entidade no quarto, por hóspede, em centavos exatos; null sem os dois valores. */
+function parteDoSindicato(custoEntidade: unknown, ocupantes: unknown): number | null {
+  // numeric pode chegar como texto, conforme a coluna; vazio/nulo não vira zero.
+  const numero = (v: unknown) =>
+    typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : Number.NaN
+  const custo = numero(custoEntidade)
+  const pessoas = numero(ocupantes)
+  if (!Number.isFinite(custo) || custo < 0 || !Number.isInteger(pessoas) || pessoas < 1) return null
+  return Math.round((custo / pessoas) * 100) / 100
 }
 
 /** Reservas (serviços) dos cupons, em lotes de 200 ids. */
@@ -146,7 +165,7 @@ async function estadiasDosServicos(ids: string[]): Promise<Map<string, EstadiaCo
   for (let de = 0; de < ids.length; de += 200) {
     const { data, error } = await admin
       .from("hospedagem_servico")
-      .select("id, codigo, checkin_date, checkout_date, quant_ocupantes")
+      .select("id, codigo, checkin_date, checkout_date, quant_ocupantes, custo_entidade")
       .in("id", ids.slice(de, de + 200))
     if (error) break
     for (const s of data ?? []) {
@@ -155,6 +174,7 @@ async function estadiasDosServicos(ids: string[]): Promise<Map<string, EstadiaCo
         checkIn: s.checkin_date ? String(s.checkin_date).slice(0, 10) : null,
         checkOut: s.checkout_date ? String(s.checkout_date).slice(0, 10) : null,
         pessoas: typeof s.quant_ocupantes === "number" ? s.quant_ocupantes : null,
+        pagoPeloSindicato: parteDoSindicato(s.custo_entidade, s.quant_ocupantes),
       })
     }
   }

@@ -6,21 +6,9 @@ import { obterComprovante } from "@/lib/db/oposicao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { CartaOposicaoPDF } from "@/lib/pdf/carta-oposicao"
 
-export const runtime = "nodejs"
+import { logoDataUri } from "../logo-pdf"
 
-async function logoDataUri(url: string | null): Promise<string | null> {
-  if (!url) return null
-  try {
-    const r = await fetch(url)
-    if (!r.ok) return null
-    const tipo = r.headers.get("content-type") ?? ""
-    if (!/image\/(png|jpe?g)/.test(tipo)) return null
-    const buf = Buffer.from(await r.arrayBuffer())
-    return `data:${tipo};base64,${buf.toString("base64")}`
-  } catch {
-    return null
-  }
-}
+export const runtime = "nodejs"
 
 export async function GET(
   _req: Request,

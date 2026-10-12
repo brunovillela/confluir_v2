@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, MailCheck } from "lucide-react"
 import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -21,6 +22,10 @@ import {
  * O e-mail do cadastro de filiado já vale sem código (a action o aceita
  * direto): ele vira um botão, em vez de obrigar a digitar o próprio e-mail
  * para descobrir que "já valia" (achado A91).
+ *
+ * O envio do código tem limite (A142, app/portal/votacao/limite-envio-codigo):
+ * a recusa volta presa ao campo do e-mail, dizendo quanto falta. Com um código
+ * pendente, o botão vira "Enviar novo código" — o novo substitui o anterior.
  */
 export function EmailVotacaoForm({
   emailAtual,
@@ -56,7 +61,9 @@ export function EmailVotacaoForm({
 
   return (
     <div className="grid gap-4">
-      {estEnvio.erro && (
+      {/* Erro preso ao campo (limite de envio, e-mail inválido) aparece
+          junto dele, no formulário abaixo; aqui só o que não tem campo. */}
+      {estEnvio.erro && !estEnvio.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estEnvio.erro}</AlertDescription>
         </Alert>
@@ -110,6 +117,7 @@ export function EmailVotacaoForm({
 
       {mostrarFormulario && (
         <form {...formVisualizacao(preview, actEnvio)} className="grid gap-2 sm:max-w-md">
+          <ErroNoCampo estado={estEnvio} />
           <Label htmlFor="email-votacao-campo">
             {emailAtual
               ? "Novo e-mail de votação"
@@ -117,24 +125,36 @@ export function EmailVotacaoForm({
                 ? "Ou informe outro e-mail"
                 : "E-mail de votação"}
           </Label>
-          <div className="flex gap-2">
-            <Input
-              id="email-votacao-campo"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="seu@empresa.com.br"
-              defaultValue={pendente ?? ""}
-              required
-            />
+          <div className="flex items-start gap-2">
+            {/* O aviso de erro do campo entra logo abaixo do input, nesta coluna. */}
+            <div className="grid min-w-0 flex-1">
+              <Input
+                id="email-votacao-campo"
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="seu@empresa.com.br"
+                defaultValue={estEnvio.email ?? pendente ?? ""}
+                aria-describedby="email-votacao-ajuda"
+                required
+              />
+            </div>
             <AcaoVisualizacao preview={preview} nota="">
               <Button type="submit" variant="outline" disabled={pendEnvio}>
-                {pendEnvio ? <Loader2 className="animate-spin" /> : "Enviar código"}
+                {pendEnvio ? (
+                  <Loader2 className="animate-spin" />
+                ) : aguardandoCodigo ? (
+                  "Enviar novo código"
+                ) : (
+                  "Enviar código"
+                )}
               </Button>
             </AcaoVisualizacao>
           </div>
-          <p className="text-muted-foreground text-xs">
-            Mandamos um código de 6 dígitos para confirmar que o e-mail é seu.
+          <p id="email-votacao-ajuda" className="text-muted-foreground text-xs">
+            {aguardandoCodigo
+              ? "Um código novo substitui o anterior. Para pedir outro, espere 1 minuto depois do último envio."
+              : "Mandamos um código de 6 dígitos para confirmar que o e-mail é seu."}
           </p>
         </form>
       )}
@@ -151,8 +171,9 @@ export function EmailVotacaoForm({
               <AlertDescription>{estEnvio.ok}</AlertDescription>
             </Alert>
           )}
+          {/* Ligado ao campo do código (A139): o leitor de tela lê o erro ao voltar nele. */}
           {estConf.erro && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" id="codigo-erro">
               <AlertDescription>{estConf.erro}</AlertDescription>
             </Alert>
           )}
@@ -172,6 +193,8 @@ export function EmailVotacaoForm({
               maxLength={6}
               placeholder="000000"
               className="tracking-[0.4em]"
+              aria-invalid={estConf.erro ? true : undefined}
+              aria-describedby={estConf.erro ? "codigo-erro" : undefined}
               required
             />
             <AcaoVisualizacao preview={preview} nota="">

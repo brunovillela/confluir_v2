@@ -8,11 +8,13 @@ import {
   HeartPulse,
   Home,
   IdCard,
+  Landmark,
   MessagesSquare,
   Newspaper,
   ScrollText,
   ShieldCheck,
   UserPen,
+  UserRound,
   Vote,
   type LucideIcon,
 } from "lucide-react"
@@ -46,6 +48,8 @@ export const NAV_PORTAL: ItemNavPortal[] = [
   { titulo: "Eventos", href: "/portal/eventos", grupo: "Participar", icone: CalendarDays },
   { titulo: "Notícias", href: "/portal/noticias", grupo: "Participar", icone: Newspaper },
   { titulo: "Atendimento", href: "/portal/atendimento", grupo: "Falar com o sindicato", icone: MessagesSquare },
+  // Canais oficiais e diretoria vigente (A63, A155).
+  { titulo: "O sindicato", href: "/portal/sindicato", grupo: "Falar com o sindicato", icone: Landmark },
   { titulo: "Avisos", href: "/portal/avisos", grupo: "Falar com o sindicato", icone: Bell },
   // A Oposição é da contribuição ASSISTENCIAL — "Oposição à contribuição"
   // soava como deixar de pagar a mensalidade (A116).
@@ -60,9 +64,13 @@ export const NAV_PORTAL: ItemNavPortal[] = [
  */
 export const FIXOS_INFERIOR = ["/portal/inicio", "/portal/contribuicao", "/portal/carteirinha", "/portal/atendimento"]
 
-/** Páginas fora do menu que ainda assim dão nome ao cabeçalho do celular. */
-const TITULOS_FORA_DO_MENU: { href: string; titulo: string }[] = [
-  { href: "/portal/desfiliacao", titulo: "Desfiliação" },
+/**
+ * Páginas fora do menu que ainda assim dão nome ao cabeçalho do celular e
+ * ícone ao cabeçalho da página. "Minha filiação" é o título da própria página
+ * (A160): a rota é /desfiliacao, mas a página mostra a filiação toda.
+ */
+const TITULOS_FORA_DO_MENU: { href: string; titulo: string; icone: LucideIcon }[] = [
+  { href: "/portal/desfiliacao", titulo: "Minha filiação", icone: UserRound },
 ]
 
 /** A página atual é a do item (ou uma subpágina dele: cédula, reserva, solicitação…). */
@@ -74,6 +82,15 @@ export function ativo(pathname: string, href: string): boolean {
 export function tituloDaSecao(pathname: string): string | null {
   const item = [...NAV_PORTAL, ...TITULOS_FORA_DO_MENU].find((i) => ativo(pathname, i.href))
   return item?.titulo ?? null
+}
+
+/**
+ * Ícone da seção atual — o mesmo da lateral e da folha "Mais" —, para o
+ * cabeçalho das páginas (A184). Subpágina leva o ícone da seção pai.
+ */
+export function iconeDaSecao(pathname: string): LucideIcon | null {
+  const item = [...NAV_PORTAL, ...TITULOS_FORA_DO_MENU].find((i) => ativo(pathname, i.href))
+  return item?.icone ?? null
 }
 
 /** Itens visíveis em grupos, na ordem do menu; grupo vazio some. */

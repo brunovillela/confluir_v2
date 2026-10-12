@@ -13,6 +13,7 @@ import {
   type EstadoForm,
 } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { hojeSP } from "@/lib/db/comum"
 import {
   avisarOposicaoRegistrada,
   minhaOposicao,
@@ -20,6 +21,7 @@ import {
   registrarDesistencia,
   registrarOposicao,
   subirDocumentoAssinado,
+  vinculosAtivos,
 } from "@/lib/db/oposicao"
 import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -31,6 +33,16 @@ function texto(fd: FormData, campo: string): string {
   return String(fd.get(campo) ?? "").trim()
 }
 
+/**
+ * "Não é você? Sair" e o "Sair" da tela do trabalhador: encerra a sessão e
+ * volta à entrada da Oposição — a do portal (/portal) é só para filiados.
+ */
+export async function sairDaOposicao(): Promise<void> {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect("/portal/oposicao")
+}
+
 /** IP e user-agent da requisição, para a trilha de auditoria. */
 async function rastro(): Promise<{ ip: string | null; ua: string | null }> {
   const h = await headers()
@@ -39,12 +51,6 @@ async function rastro(): Promise<{ ip: string | null; ua: string | null }> {
     h.get("x-real-ip") ||
     null
   return { ip, ua: h.get("user-agent") }
-}
-
-function hojeSP(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date())
 }
 
 // ── Acesso por CÓDIGO no e-mail (OTP), espelhando o /votar ───────────────────
@@ -64,7 +70,7 @@ export async function enviarCodigoFiliado(
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (!filiado || !filiado.email) {
     return {
-      erro: "CPF não localizado ou sem e-mail. Use o acesso do trabalhador ao lado.",
+      erro: "CPF não localizado ou sem e-mail no cadastro. Use a aba “Sou trabalhador”.",
     }
   }
   // O CPF fica como vínculo PENDENTE (e-mail do cadastro ↔ CPF) e vira a
@@ -126,7 +132,7 @@ export async function enviarCodigoTrabalhador(
   const filiado = await buscarFiliadoPorCpf(cpf)
   if (filiado?.ativo) {
     return {
-      erro: "Este CPF é de um filiado — use o acesso do filiado (por CPF).",
+      erro: "Este CPF é de um filiado — use a aba “Sou filiado”.",
     }
   }
   // CPF e nome (autodeclarados, como sempre) ficam como vínculo PENDENTE do
@@ -234,11 +240,23 @@ export async function confirmarOposicao(
   const campanha = r.campanha
 
   if (texto(fd, "declaracao") !== "on") {
-    return { erro: "É preciso aceitar a declaração para prosseguir." }
+    return { erro: "Marque a confirmação da oposição para prosseguir." }
   }
-  const empregadorId = texto(fd, "empregador_id") || null
-  if (campanha.fontes.length && !empregadorId) {
-    return { erro: "Selecione sua fonte pagadora." }
+  // A fonte vem de um <select>, mas o valor é do navegador (A144): só vale
+  // uma fonte DESTA campanha — editar a página não registra a oposição numa
+  // empresa onde a pessoa não trabalha (a entidade envia as listas por fonte).
+  let empregadorId: string | null = texto(fd, "empregador_id") || null
+  if (campanha.fontes.length) {
+    if (!empregadorId) return { erro: "Selecione sua fonte pagadora." }
+    if (!campanha.fontes.some((f) => f.id === empregadorId)) {
+      return { erro: "Selecione uma fonte pagadora desta campanha." }
+    }
+  } else if (empregadorId) {
+    // Campanha sem fontes marcadas: o filiado escolhe entre os vínculos ativos
+    // do cadastro (A103), para a carta não sair com a fonte em branco. Fora
+    // deles, nada é gravado.
+    const vinculos = sessao.perfil === "filiado" ? await vinculosAtivos(sessao.cpf) : []
+    if (!vinculos.some((v) => v.fonteId === empregadorId)) empregadorId = null
   }
 
   const respostas = campanha.perguntas.map((p) => ({
@@ -260,7 +278,7 @@ export async function confirmarOposicao(
       perfil: sessao.perfil,
       filiacaoId: sessao.perfil === "filiado" ? sessao.refId : null,
       empregadorId,
-      matricula: texto(fd, "matricula") || null,
+      matricula: texto(fd, "matricula").slice(0, 40) || null,
       respostas,
       ip,
       userAgent: ua,
@@ -335,6 +353,8 @@ export async function enviarDocumento(
     return { erro: "Registre a oposição antes de enviar o documento." }
   }
   const { ip, ua } = await rastro()
+  // A primeira carta e a troca do arquivo (em análise, no prazo) passam pela
+  // mesma função, que decide o que é aceito (A53).
   const { erro } = await subirDocumentoAssinado(
     opositorId,
     sessao.cpf,
@@ -343,5 +363,7 @@ export async function enviarDocumento(
     ua
   )
   if (erro) return { erro }
+  // O comprovante mostra o resultado da conferência da assinatura e o link
+  // para o PDF enviado — lidos do que acabou de ser gravado.
   redirect(`/portal/oposicao/comprovante/${opositorId}`)
 }

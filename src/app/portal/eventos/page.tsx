@@ -33,6 +33,8 @@ import { origemAtual } from "@/lib/tenant-url"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 
 import { itemDoEvento, linkGoogleAgenda } from "./calendario"
 import {
@@ -43,7 +45,7 @@ import {
   ResponderRsvp,
 } from "./formularios"
 
-export const metadata: Metadata = { title: "Eventos — Portal do Associado" }
+export const metadata: Metadata = { title: "Eventos" }
 
 const ROTULO: Record<string, string> = {
   pendente: "aguardando avaliação",
@@ -153,13 +155,11 @@ export default async function PortalEventosPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Eventos e agenda</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Inscreva-se nos eventos abertos, acompanhe suas inscrições e veja a
-          agenda de atividades do sindicato.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/eventos"
+        titulo="Eventos e agenda"
+        subtitulo="Inscreva-se nos eventos abertos, acompanhe suas inscrições e veja a agenda de atividades do sindicato."
+      />
 
       {/* ── Inscrições abertas: o destaque da página ─────────────────── */}
       <section aria-label="Inscrições abertas" className="grid gap-3">
@@ -171,12 +171,7 @@ export default async function PortalEventosPage() {
           )}
         </h2>
         {abertos.length === 0 ? (
-          <Card>
-            <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-8 text-center">
-              <CalendarDays className="size-6" />
-              <p className="text-sm">Nenhum evento com inscrição aberta no momento.</p>
-            </CardContent>
-          </Card>
+          <EstadoVazio cartao icone={CalendarDays} titulo="Nenhum evento com inscrição aberta no momento." />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {abertos.map((e) => {
@@ -557,10 +552,7 @@ export default async function PortalEventosPage() {
         <Card>
           <CardContent>
             {agenda.length === 0 ? (
-              <div className="text-muted-foreground flex flex-col items-center gap-2 py-8 text-center">
-                <CalendarDays className="size-6" />
-                <p className="text-sm">Nenhuma atividade programada no momento.</p>
-              </div>
+              <EstadoVazio icone={CalendarDays} titulo="Nenhuma atividade programada no momento." />
             ) : (
               <ul className="divide-y">
                 {agenda.map((a) => {

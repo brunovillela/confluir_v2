@@ -8,10 +8,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import type { OpcaoContrato } from "@/lib/db/contratos"
+import { formatarTelefone } from "@/lib/formato"
+import { mascaraTelefone } from "@/lib/mascaras"
 import {
   DIAS_SEMANA,
   MODALIDADES_CONVENIO,
@@ -41,6 +44,8 @@ export type HotelFormDados = {
   horario_checkin?: string | null
   cancelamento_horas?: number | null
   espera_prazo_horas?: number | null
+  /** Telefone da recepção, mostrado ao associado no portal. */
+  telefone?: string | null
 }
 
 function dataBr(iso: string | null): string {
@@ -65,7 +70,9 @@ export function HotelForm({
 
   return (
     <form action={formAction} className="grid gap-4">
-      {estado.erro && (
+      {/* Erro de um campo (o telefone) aparece junto dele; o resto, aqui. */}
+      <ErroNoCampo estado={estado} />
+      {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
@@ -81,6 +88,31 @@ export function HotelForm({
           <div className="grid gap-1.5 sm:col-span-2">
             <Label htmlFor="nome">Nome *</Label>
             <Input id="nome" name="nome" defaultValue={hotel?.nome ?? ""} required />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="telefone">Telefone da recepção</Label>
+            <Input
+              id="telefone"
+              name="telefone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="(22) 2772-1234"
+              className="sm:max-w-60"
+              defaultValue={hotel?.telefone ? formatarTelefone(hotel.telefone) : ""}
+              // A mesma regra da action, conferida antes do envio: a recusa do
+              // servidor volta com o formulário inteiro limpo pelo React.
+              pattern="\([1-9][0-9]\) [0-9]{4,5}-[0-9]{4}"
+              title="DDD e número, ex.: (22) 2772-1234 ou (22) 99999-9999"
+              aria-describedby="telefone-ajuda"
+              onChange={(e) => {
+                e.target.value = mascaraTelefone(e.target.value)
+              }}
+            />
+            <p id="telefone-ajuda" className="text-muted-foreground text-xs">
+              Aparece para o associado no portal (Hospedagem e página da reserva), com
+              toque para ligar. Com DDD.
+            </p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="quant_quartos_dedicados">Quartos dedicados</Label>

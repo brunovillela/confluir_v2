@@ -1,28 +1,51 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, ArrowRight, CheckCircle2, FileWarning } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  CheckCircle2,
+  CircleHelp,
+  Clock,
+  Download,
+  ExternalLink,
+  FileText,
+  FileWarning,
+  Mail,
+  MessageSquare,
+  ShieldAlert,
+  XCircle,
+} from "lucide-react"
 
 import { Marca } from "@/components/marca"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { requireSessaoTrabalhador } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
-import { minhaOposicao, obterComprovante } from "@/lib/db/oposicao"
-import { nomeEntidade } from "@/lib/db/organizacao"
-import { formatarData, formatarDataHora } from "@/lib/formato"
+import { minhaOposicao, obterComprovante, type Comprovante } from "@/lib/db/oposicao"
+import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
+import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
-import {
-  estadoPrazo,
-  ROTULO_SITUACAO_OPOSITOR,
-} from "@/lib/oposicao-constantes"
+import { estadoPrazo } from "@/lib/oposicao-constantes"
+import { origemAtual } from "@/lib/tenant-url"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
+import {
+  DEPOIS_DE_ACEITA,
+  fraseResultado,
+  ROTULO_SITUACAO_PORTAL,
+  VARIANTE_SITUACAO_PORTAL,
+} from "../../situacao-portal"
 import { BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
 
-export const metadata: Metadata = { title: "Comprovante — Confluir" }
+export const metadata: Metadata = { title: "Comprovante de oposição" }
+
+/** Assinador gratuito do governo — o mesmo da ficha de filiação. */
+const ASSINADOR_GOVBR = "https://assinador.iti.br"
 
 export default async function ComprovantePage({
   params,
@@ -57,11 +80,30 @@ export default async function ComprovantePage({
   const prazo = c.campanhaAberta
     ? estadoPrazo(c.prazo_inicio, c.prazo_fim, hojeSP())
     : "depois"
+  // Troca do PDF enviado: em análise e dentro do prazo (a lib confere de novo).
+  const podeTrocar = c.situacao === "nao_avaliada" && c.temDocumento && prazo === "aberto"
+  const filiado = sessao.perfil === "filiado"
+
+  const [org, origem] = desistente
+    ? [null, null]
+    : await Promise.all([obterOrganizacao().catch(() => null), origemAtual().catch(() => null)])
+  // Discordar, perguntar, o desconto que veio mesmo assim: o filiado tem o
+  // Atendimento do portal; o trabalhador não filiado, o e-mail da entidade.
+  const contato =
+    vis || org?.emailContato ? (
+      <FalarComEntidade
+        noPortal={Boolean(vis)}
+        email={org?.emailContato ?? null}
+        protocolo={c.protocolo}
+      />
+    ) : null
 
   const conteudo = desistente ? (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Você optou por não se opor</CardTitle>
+        <CardTitle>
+          <h1 className="text-base font-semibold">Você optou por não se opor</h1>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm">
@@ -94,8 +136,10 @@ export default async function ComprovantePage({
         ) : (
           <p className="text-muted-foreground text-sm">
             {prazo === "antes"
-              ? "O prazo para se opor ainda não começou."
-              : "O prazo para se opor já encerrou."}
+              ? `O prazo para se opor começa em ${formatarData(c.prazo_inicio)}.`
+              : c.prazo_fim
+                ? `O prazo para se opor terminou em ${formatarData(c.prazo_fim)}.`
+                : "O prazo para se opor já encerrou."}
           </p>
         )}
       </CardContent>
@@ -103,59 +147,140 @@ export default async function ComprovantePage({
   ) : aguardando ? (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2">
           <FileWarning className="text-warning-fg size-5" />
-          Falta enviar o documento assinado
+          <h1 className="text-base font-semibold">Falta enviar a carta assinada</h1>
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-5">
         <p className="text-sm">
           Sua oposição foi registrada (protocolo{" "}
-          <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>),
-          mas ainda depende do documento assinado no gov.br.
+          <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>, em{" "}
+          {formatarDataHora(c.confirmado_em)}), mas só é avaliada depois que a
+          carta assinada no gov.br chegar
+          {c.prazo_fim && prazo === "aberto" ? (
+            <>
+              {" "}
+              — envie até <strong>{formatarData(c.prazo_fim)}</strong>
+            </>
+          ) : null}
+          .
         </p>
-        <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 text-sm">
-          <li>Baixe a sua carta de oposição (já preenchida com seus dados).</li>
-          <li>Assine no Assinador gov.br (assinatura digital).</li>
-          <li>Envie o PDF assinado aqui.</li>
+        {prazo === "depois" && (
+          <Alert variant="warning">
+            <AlertDescription>
+              O prazo da campanha terminou
+              {c.prazo_fim ? ` em ${formatarData(c.prazo_fim)}` : ""}. A carta
+              ainda pode ser enviada aqui, mas cabe à entidade decidir se aceita
+              o envio fora do prazo: fale com ela.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Os passos do gov.br com o link e o que é preciso (A105). */}
+        <ol className="grid list-decimal gap-3 pl-5 text-sm">
+          <li>
+            <p>Baixe a sua carta de oposição, já preenchida com seus dados.</p>
+            <div className="mt-2 grid gap-1.5">
+              <Button variant="outline" asChild className="w-fit">
+                <a
+                  href={`/portal/oposicao/comprovante/${c.id}/carta`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Download />
+                  Baixar carta (PDF)
+                </a>
+              </Button>
+              {/* O modelo que a gestão cadastrou na campanha chega ao
+                  trabalhador, como alternativa à carta gerada — um
+                  documento só é assinado e enviado. */}
+              {c.modeloUrl && (
+                <p className="text-muted-foreground text-xs">
+                  A entidade também oferece um modelo próprio:{" "}
+                  <a
+                    href={c.modeloUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    baixar o modelo da entidade (PDF)
+                  </a>
+                  . Assine e envie só um dos dois documentos.
+                </p>
+              )}
+            </div>
+          </li>
+          <li>
+            <p>
+              Assine a carta no{" "}
+              <a
+                href={ASSINADOR_GOVBR}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary inline-flex items-center gap-1 underline underline-offset-4"
+              >
+                Assinador gov.br
+                <ExternalLink className="size-3" />
+                <span className="sr-only">(abre em outra aba)</span>
+              </a>
+              .
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              É gratuito e pede uma conta gov.br nível prata ou ouro. Assine com a
+              SUA conta: o CPF da assinatura precisa ser o seu. O gov.br devolve
+              um arquivo novo, já assinado — é ele que você envia.
+            </p>
+          </li>
+          <li>
+            <p>
+              Envie aqui o PDF assinado
+              {c.prazo_fim && prazo === "aberto" ? ` até ${formatarData(c.prazo_fim)}` : ""}.
+            </p>
+            <div className="mt-2">
+              <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+            </div>
+          </li>
         </ol>
-        <Button variant="outline" asChild className="w-fit">
-          <a
-            href={`/portal/oposicao/comprovante/${c.id}/carta`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Baixar carta (PDF)
-          </a>
-        </Button>
-        <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+
+        <OQueAcontece filiado={filiado} faltaCarta />
+
+        <div className="flex flex-wrap gap-2 border-t pt-4 print:hidden">
+          <BotaoPdfComprovante id={c.id} rotulo="Baixar comprovante do registro (PDF)" />
+          {contato}
+        </div>
       </CardContent>
     </Card>
   ) : (
     <>
-      <Alert className="border-success/40 text-success-fg print:hidden">
-        <AlertDescription className="flex items-center gap-2">
-          <CheckCircle2 className="size-4" />
-          Oposição registrada. Guarde este comprovante.
-        </AlertDescription>
-      </Alert>
+      {/* Só no papel: a identificação da entidade, que a casca da tela não
+          imprime (A107). */}
+      <div className="hidden gap-0.5 border-b pb-3 text-sm print:grid">
+        <p className="font-semibold">{org?.nomeRazao ?? org?.nomeFantasia ?? "—"}</p>
+        {org?.cnpjCpf && <p>CNPJ {formatarCnpjCpf(org.cnpjCpf)}</p>}
+        <p>
+          Comprovante eletrônico de oposição — protocolo {c.protocolo ?? "—"} —
+          emitido em {formatarDataHora(new Date().toISOString())}
+        </p>
+        {origem && <p className="break-all">{`${origem}/portal/oposicao/comprovante/${c.id}`}</p>}
+      </div>
+
+      <ResultadoAvaliacao c={c} contato={contato} />
 
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">
-              Comprovante de oposição
+            <CardTitle>
+              <h1 className="text-base font-semibold">Comprovante de oposição</h1>
             </CardTitle>
-            <Badge variant="secondary">
-              {ROTULO_SITUACAO_OPOSITOR[c.situacao]}
-            </Badge>
+            <SeloSituacao situacao={c.situacao} />
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-5">
           <dl className="grid gap-4 sm:grid-cols-2">
             <Campo rotulo="Protocolo" valor={c.protocolo?.toString() ?? "—"} />
             <Campo
-              rotulo="Data/hora"
+              rotulo="Registrada em"
               valor={formatarDataHora(c.confirmado_em)}
             />
             <Campo rotulo="Nome" valor={c.nome} />
@@ -185,12 +310,19 @@ export default async function ComprovantePage({
             </div>
           )}
 
+          {c.temDocumento && (
+            <DocumentoEnviado c={c} podeTrocar={podeTrocar} />
+          )}
+
+          {c.situacao === "nao_avaliada" && <OQueAcontece filiado={filiado} />}
+
           <p className="text-muted-foreground text-xs">
-            Oposição sujeita à avaliação da Filiação. Documento gerado
-            eletronicamente e registrado para fins de auditoria.
+            Documento gerado eletronicamente. O registro da oposição, com data,
+            hora e origem do acesso, fica guardado pela entidade.
           </p>
 
-          <div className="print:hidden">
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <BotaoPdfComprovante id={c.id} rotulo="Baixar comprovante (PDF)" />
             <BotaoImprimir />
           </div>
         </CardContent>
@@ -204,11 +336,18 @@ export default async function ComprovantePage({
   if (vis) {
     return (
       <div className="mx-auto grid w-full max-w-2xl gap-4">
-        <div className="print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <Button variant="ghost" size="sm" asChild className="-ml-2">
             <Link href="/portal/oposicao">
               <ArrowLeft />
               Contribuição assistencial
+            </Link>
+          </Button>
+          {/* A ajuda do portal é só de quem está nele (A106). */}
+          <Button variant="link" asChild className="px-0">
+            <Link href="/portal/ajuda/oposicao">
+              <CircleHelp />
+              Como funciona
             </Link>
           </Button>
         </div>
@@ -243,5 +382,261 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
       <dd className="mt-0.5 text-sm">{valor ?? "—"}</dd>
     </div>
+  )
+}
+
+const ICONE_SITUACAO = {
+  aguardando_documento: FileWarning,
+  nao_avaliada: Clock,
+  aprovada: CheckCircle2,
+  reprovada: XCircle,
+  desistente: Clock,
+} as const
+
+/** A situação com o rótulo do trabalhador e um ícone — não só a cor (A15). */
+function SeloSituacao({ situacao }: { situacao: Comprovante["situacao"] }) {
+  const Icone = ICONE_SITUACAO[situacao]
+  return (
+    <Badge variant={VARIANTE_SITUACAO_PORTAL[situacao]}>
+      <Icone />
+      {ROTULO_SITUACAO_PORTAL[situacao]}
+    </Badge>
+  )
+}
+
+/**
+ * O resultado da avaliação no lugar do antigo rodapé fixo "sujeita à
+ * avaliação" (A15): aceita, não aceita com o motivo, ou em análise — e o que
+ * fazer em cada caso. Sai também no papel; os botões, não.
+ */
+function ResultadoAvaliacao({ c, contato }: { c: Comprovante; contato: React.ReactNode }) {
+  const frase = fraseResultado(c.situacao, {
+    avaliadaEm: c.avaliacao_data,
+    registradaEm: c.dia,
+    prazoFim: c.prazo_fim,
+  })
+  // O botão fica fora do AlertDescription, que sublinha todo <a> dentro dele.
+  const acao = contato ? <div className="col-start-2 mt-2 print:hidden">{contato}</div> : null
+  if (c.situacao === "aprovada") {
+    return (
+      <Alert variant="success">
+        <CheckCircle2 />
+        <AlertTitle>{frase}</AlertTitle>
+        <AlertDescription>{DEPOIS_DE_ACEITA}</AlertDescription>
+        {acao}
+      </Alert>
+    )
+  }
+  if (c.situacao === "reprovada") {
+    return (
+      <Alert variant="error">
+        <XCircle />
+        <AlertTitle>{frase}</AlertTitle>
+        <AlertDescription>
+          <p>
+            <strong>Motivo:</strong> {c.reprovacao_motivo ?? "a entidade não informou o motivo."}
+          </p>
+          <p>
+            Se discordar da decisão, fale com a entidade informando o protocolo{" "}
+            <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>.
+          </p>
+        </AlertDescription>
+        {acao}
+      </Alert>
+    )
+  }
+  return (
+    <Alert variant="info">
+      <Clock />
+      <AlertTitle>{frase}</AlertTitle>
+      <AlertDescription>Guarde este comprovante.</AlertDescription>
+    </Alert>
+  )
+}
+
+/** "O que acontece agora" (A106): sem prometer além do que o sistema faz. */
+function OQueAcontece({ filiado, faltaCarta = false }: { filiado: boolean; faltaCarta?: boolean }) {
+  return (
+    <section aria-labelledby="o-que-acontece" className="grid gap-2">
+      <h2 id="o-que-acontece" className="text-sm font-semibold">
+        O que acontece agora
+      </h2>
+      <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 text-sm">
+        {/* Sem a carta, a gestão nem consegue avaliar (avaliarOpositor só
+            aceita oposição em análise). */}
+        <li>
+          {faltaCarta
+            ? "Quando a carta assinada chegar, a entidade analisa a sua oposição."
+            : "A entidade analisa a sua oposição."}
+        </li>
+        <li>
+          {filiado
+            ? "O resultado aparece nos avisos do portal (e por e-mail, conforme as suas preferências) e neste comprovante."
+            : "O resultado chega no seu e-mail e fica neste comprovante."}
+        </li>
+        <li>
+          Se a oposição for aceita, a entidade informa a sua fonte pagadora
+          para que a contribuição não seja descontada.
+        </li>
+      </ol>
+    </section>
+  )
+}
+
+/**
+ * A carta que chegou (A53): quando, o resultado da conferência da assinatura
+ * dito ao trabalhador (indicativo — quem decide é a entidade), o link para o
+ * PDF enviado e, em análise e no prazo, a troca do arquivo.
+ */
+function DocumentoEnviado({ c, podeTrocar }: { c: Comprovante; podeTrocar: boolean }) {
+  // A conferência automática só serve enquanto a entidade não decidiu: numa
+  // oposição já aceita, "a entidade pode não aceitar o documento" assustaria
+  // à toa; numa não aceita, o motivo de verdade está no resultado acima.
+  const conferencia =
+    c.situacao === "nao_avaliada"
+      ? conferenciaDaAssinatura(c.validacao, podeTrocar ? c.prazo_fim : null)
+      : null
+  return (
+    <section aria-labelledby="carta-enviada" className="grid gap-3 rounded-md border p-4">
+      <h2 id="carta-enviada" className="text-sm font-semibold">
+        Carta assinada
+      </h2>
+      <p className="text-sm">
+        Recebida{c.documentoRecebidoEm ? ` em ${formatarDataHora(c.documentoRecebidoEm)}` : ""}.
+      </p>
+      {conferencia && (
+        <Alert variant={conferencia.variante} className="print:hidden">
+          <conferencia.Icone />
+          <AlertDescription>{conferencia.texto}</AlertDescription>
+        </Alert>
+      )}
+      {c.documentoUrl && (
+        <Button variant="outline" asChild className="w-fit print:hidden">
+          <a href={c.documentoUrl} target="_blank" rel="noreferrer">
+            <FileText />
+            Ver o PDF enviado
+          </a>
+        </Button>
+      )}
+      {podeTrocar &&
+        (conferencia?.problema ? (
+          <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} rotulo="Enviar outro arquivo" />
+        ) : (
+          <details className="print:hidden">
+            <summary className="text-primary focus-visible:ring-ring/50 flex min-h-11 w-fit cursor-pointer items-center rounded-md text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3">
+              Enviou o arquivo errado? Enviar outro
+            </summary>
+            <div className="pt-2">
+              <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} rotulo="Enviar outro arquivo" />
+            </div>
+          </details>
+        ))}
+    </section>
+  )
+}
+
+function conferenciaDaAssinatura(
+  v: ValidacaoAssinatura | null,
+  ate: string | null
+): {
+  variante: "success" | "info" | "warning"
+  Icone: typeof BadgeCheck
+  texto: string
+  problema: boolean
+} | null {
+  if (!v) return null
+  const reenviar = ate
+    ? ` Você pode enviar outro arquivo até ${formatarData(ate)}.`
+    : " Se precisar, fale com a entidade."
+  // "Com o seu CPF" só quando a conferência comparou e bateu (cpfConfere).
+  const comCpf = v.cpfConfere === true ? " com o seu CPF" : ""
+  if (v.situacao === "valida") {
+    return {
+      variante: "success",
+      Icone: BadgeCheck,
+      texto: `Assinatura digital conferida: o PDF está assinado${comCpf}.`,
+      problema: false,
+    }
+  }
+  if (v.situacao === "ressalva") {
+    return {
+      variante: "info",
+      Icone: BadgeCheck,
+      texto: `Encontramos a assinatura digital${comCpf}. A entidade confere o documento na avaliação.`,
+      problema: false,
+    }
+  }
+  if (v.situacao === "erro") {
+    // O leitor de PDF falhou: não alarma — só não deu para conferir sozinho.
+    return {
+      variante: "info",
+      Icone: ShieldAlert,
+      texto: "Não conseguimos conferir a assinatura automaticamente. A entidade confere o documento na avaliação.",
+      problema: false,
+    }
+  }
+  // "Não é do seu CPF" só quando o certificado traz um CPF e ele é outro; se
+  // nem deu para ler o CPF, vale a mensagem geral abaixo.
+  if (v.cpfConfere === false && v.assinaturas.some((a) => Boolean(a.cpf))) {
+    return {
+      variante: "warning",
+      Icone: ShieldAlert,
+      texto: `A assinatura deste PDF não é do seu CPF, e a entidade pode não aceitar o documento. Assine com a sua própria conta gov.br.${reenviar}`,
+      problema: true,
+    }
+  }
+  return {
+    variante: "warning",
+    Icone: ShieldAlert,
+    texto: `Não encontramos assinatura digital válida neste PDF, e a entidade pode não aceitar o documento. Se você assinou no gov.br, confira se enviou o arquivo assinado que ele devolve.${reenviar}`,
+    problema: true,
+  }
+}
+
+function BotaoPdfComprovante({ id, rotulo }: { id: string; rotulo: string }) {
+  return (
+    <Button variant="outline" asChild>
+      <a href={`/portal/oposicao/comprovante/${id}/pdf`} target="_blank" rel="noreferrer">
+        <Download />
+        {rotulo}
+      </a>
+    </Button>
+  )
+}
+
+/**
+ * "Falar com a entidade": o Atendimento do portal para quem está nele; para
+ * o trabalhador não filiado, o e-mail de contato da entidade, se houver.
+ */
+function FalarComEntidade({
+  noPortal,
+  email,
+  protocolo,
+}: {
+  noPortal: boolean
+  email: string | null
+  protocolo: number | null
+}) {
+  if (noPortal) {
+    return (
+      <Button variant="outline" asChild>
+        <Link href="/portal/atendimento">
+          <MessageSquare />
+          Falar com a entidade
+        </Link>
+      </Button>
+    )
+  }
+  if (!email) return null
+  const assunto = encodeURIComponent(
+    `Oposição à contribuição${protocolo != null ? ` — protocolo ${protocolo}` : ""}`
+  )
+  return (
+    <Button variant="outline" asChild>
+      <a href={`mailto:${email}?subject=${assunto}`}>
+        <Mail />
+        Escrever para a entidade
+      </a>
+    </Button>
   )
 }

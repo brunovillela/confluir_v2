@@ -12,8 +12,10 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { PortalLoginForm } from "./portal-login-form"
 import { avisoDaSessaoSemPortal } from "./situacao-entrada"
 
+// Mesmo sufixo das páginas de dentro (A183). O modelo do layout não alcança
+// esta página (é o mesmo segmento), então o título vai inteiro.
 export const metadata: Metadata = {
-  title: "Portal do Associado — Confluir",
+  title: "Entrar — Portal do Associado",
 }
 
 export default async function PortalPage({

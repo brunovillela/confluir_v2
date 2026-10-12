@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import type { ContatoHotel } from "@/lib/db/filiado-portal"
 import type { CotaHospedagem, FaltasHospedagem } from "@/lib/db/hospedagem-garantida"
-import { dataBR } from "@/lib/hospedagem-garantida-constantes"
+import { formatarData } from "@/lib/formato"
 
 import {
   cancelarEsperaPortal,
@@ -160,7 +160,9 @@ export function SolicitarCupomForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Solicitar hospedagem</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Solicitar hospedagem
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         {observacao && (
@@ -289,7 +291,7 @@ export function SolicitarCupomForm({
                 />
                 {hotel?.vigenciaTermino && (
                   <p className="text-muted-foreground text-xs">
-                    Convênio válido até {dataBR(hotel.vigenciaTermino)}.
+                    Convênio válido até {formatarData(hotel.vigenciaTermino)}.
                   </p>
                 )}
               </div>
@@ -431,7 +433,12 @@ function EntrarNaEsperaForm({
         Quer entrar na lista de espera para essas datas? Se abrir vaga, você
         recebe um e-mail e um aviso aqui no portal com um botão para confirmar.
       </p>
-      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {/* Alert: o role="alert" faz o leitor de tela dizer que não deu (A139). */}
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
       <div>
         <Button type="submit" variant="outline" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <ListPlus />}
@@ -460,28 +467,41 @@ function BotaoAcao({
   icone: React.ReactNode
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
-  if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
+  // role="status": o leitor de tela anuncia que deu certo sem interromper.
+  if (estado.ok)
+    return (
+      <span role="status" className="text-success-fg text-xs">
+        {estado.ok}
+      </span>
+    )
   return (
     <form
       action={formAction}
-      className="inline-flex items-center gap-2"
+      className="inline-flex flex-col items-start gap-1"
       onSubmit={(e) => {
         if (confirmacao) confirmarEnvio(e, confirmacao)
       }}
     >
       <input type="hidden" name={campo} value={valor} />
-      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
       {/* Tamanho padrão (32 px, 44 px no toque pela extensão do Button):
           confirmar e cancelar reserva são as ações que mais pesam aqui (A119). */}
       <Button
         type="submit"
         variant={variante}
         disabled={pendente}
+        aria-describedby={estado.erro ? `${campo}-${valor}-erro` : undefined}
         className={variante === "ghost" ? "text-destructive hover:text-destructive" : undefined}
       >
         {pendente ? <Loader2 className="animate-spin" /> : icone}
         {rotulo}
       </Button>
+      {/* O erro numa linha própria, embaixo do botão, e anunciado (A139):
+          antes ficava espremido à esquerda dele, mudo para o leitor de tela. */}
+      {estado.erro && (
+        <p id={`${campo}-${valor}-erro`} role="alert" className="text-destructive max-w-64 text-xs">
+          {estado.erro}
+        </p>
+      )}
     </form>
   )
 }

@@ -13,8 +13,9 @@ const Contexto = createContext<ContadorAvisos | null>(null)
  * Por que um provedor: o layout do portal NÃO re-renderiza ao navegar, então
  * o número que ele contou na entrada ficaria velho. Dois caminhos o
  * atualizam, sem consulta extra:
- *  - a página /portal/avisos marca tudo como lido na própria renderização e
- *    monta <AvisosLidos />, que zera o selo na hora (sem recarregar);
+ *  - em /portal/avisos, "Marcar todos como lidos" monta <AvisosLidos />, que
+ *    zera o selo na hora (sem recarregar); os avisos lidos um a um (ao abrir
+ *    ou rolar a lista, onda 5) descontam no próximo render do layout;
  *  - quando o layout volta a renderizar (envio de formulário que redireciona,
  *    recarga), o valor novo do servidor vence — ajuste durante a
  *    renderização, como no ContadoresProvider do painel.
@@ -49,8 +50,8 @@ export function useDentroDaCasca(): boolean {
 }
 
 /**
- * Montado pela página de avisos depois de marcar tudo como lido: zera o selo
- * da casca sem recarregar a página. Não desenha nada.
+ * Montado pela lista de avisos depois de "Marcar todos como lidos": zera o
+ * selo da casca sem recarregar a página. Não desenha nada.
  */
 export function AvisosLidos() {
   const contador = useContext(Contexto)

@@ -67,7 +67,7 @@ export function termoVigente(versoes: TermoVersao[]): TermoVersao | null {
  * Dia (em São Paulo) de um timestamp. `formatarData` lê só o AAAA-MM-DD do
  * início da string — de um timestamptz em UTC, à noite, sairia o dia seguinte.
  */
-function diaSP(timestamp: string): string {
+export function diaSP(timestamp: string): string {
   const d = new Date(timestamp)
   if (Number.isNaN(d.getTime())) return formatarData(timestamp)
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(d)

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, QrCode, TriangleAlert } from "lucide-react"
 
+import { Indisponivel } from "@/components/portal/inicio/indisponivel"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,8 @@ import { minhaContribuicao, type MinhaContribuicao } from "@/lib/db/carteirinha"
 import { cobrancasDoFiliado, rotuloCompetencia } from "@/lib/db/cobrancas"
 import { registrosDaPessoa, seguro } from "@/lib/db/portal-inicio"
 import { formatarMoeda } from "@/lib/formato"
+
+import { tentar } from "./cargas"
 
 /** "a, b e c" */
 function juntar(itens: string[]): string {
@@ -36,14 +39,11 @@ function diaMes(data: string): string {
  * de "Em dia".
  */
 export async function MinhaSituacao({ filiado }: { filiado: Filiado }) {
-  const [c, cobrancas] = await Promise.all([
+  const [c, rCobrancas] = await Promise.all([
     seguro<MinhaContribuicao | null>("contribuição", () => minhaContribuicao(filiado.cpf, filiado.filiacaoId), null),
-    seguro(
-      "cobranças Pix",
-      async () => (await cobrancasDoFiliado(await registrosDaPessoa(filiado.cpf))).cobrancas,
-      []
-    ),
+    tentar("cobranças Pix", async () => (await cobrancasDoFiliado(await registrosDaPessoa(filiado.cpf))).cobrancas),
   ])
+  const cobrancas = rCobrancas?.valor ?? []
   // Sem a apuração, a régua já devolve "Situação indisponível" — nunca "Em dia".
   // Com ela, a mesma variante da página: recém-filiado sem histórico vê
   // "Aguardando o primeiro desconto", não "Em dia" (A126).
@@ -145,6 +145,13 @@ export async function MinhaSituacao({ filiado }: { filiado: Filiado }) {
               </span>
               <ArrowRight className="text-muted-foreground size-4 shrink-0" aria-hidden />
             </Link>
+          </CardContent>
+        )}
+        {/* Quem paga por Pix e a lista de cobranças não veio: não dá para
+            dizer que não há nada a pagar (A187). */}
+        {c?.porPix && !rCobrancas && (
+          <CardContent>
+            <Indisponivel className="text-xs">Não foi possível conferir agora se há cobrança por Pix em aberto.</Indisponivel>
           </CardContent>
         )}
       </Card>

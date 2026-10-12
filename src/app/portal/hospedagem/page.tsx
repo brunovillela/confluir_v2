@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { BellRing, ChevronDown, QrCode } from "lucide-react"
+import { BedDouble, BellRing, ChevronDown, HandCoins, ListOrdered, QrCode, Ticket } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,12 +17,17 @@ import {
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { LembrarListaPortal } from "@/components/portal/voltar-portal"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import {
   cadastroDoFiliado,
@@ -47,14 +52,12 @@ import {
   type SituacaoReserva,
 } from "@/lib/db/hospedagem-garantida"
 import {
-  dataBR,
-  dataHoraBR,
   descreverRegraNaoComparecimento,
   descreverRegrasGarantida,
   hojeEmSP,
   sexoValido,
 } from "@/lib/hospedagem-garantida-constantes"
-import { formatarData } from "@/lib/formato"
+import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
@@ -74,7 +77,7 @@ import { RegrasUtilizacao } from "./regras-utilizacao"
 import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
 import { avaliacoesPendentesSoLeitura } from "@/lib/db/portal-inicio"
 
-export const metadata: Metadata = { title: "Hospedagem — Portal do Associado" }
+export const metadata: Metadata = { title: "Hospedagem" }
 
 /** Pedido da fila encerrado há mais que isso sai da lista (achado A162). */
 const DIAS_ESPERA_ENCERRADA = 30
@@ -97,7 +100,7 @@ function textoDaEspera(e: EsperaDaPessoa, emDestaque: boolean, hoje: string): st
   }
   if (e.situacao === "oferecida") {
     return emDestaque
-      ? `Abriu vaga! Confirme até ${e.ofertaExpiraEm ? dataHoraBR(new Date(e.ofertaExpiraEm)) : "—"}.`
+      ? `Abriu vaga! Confirme até ${e.ofertaExpiraEm ? formatarDataHora(e.ofertaExpiraEm) : "—"}.`
       : "O prazo para confirmar a vaga terminou."
   }
   if (e.situacao === "confirmada") return "Vaga confirmada: veja em Minhas reservas."
@@ -228,33 +231,57 @@ export default async function PortalHospedagemPage({
   // Página concorrida (formulário + lista): 10 por página.
   const paginacao = lerPaginacao(params, 10)
   const paginaAtual = paginar(cupons, paginacao)
+  // A página dos cupons, para o "voltar" da reserva abrir a lista onde estava (A173).
+  const recorte = new URLSearchParams()
+  if (params.pagina) recorte.set("pagina", params.pagina)
+  if (params.porPagina) recorte.set("porPagina", params.porPagina)
+  const urlDaLista = recorte.toString() ? `/portal/hospedagem?${recorte}` : "/portal/hospedagem"
+
+  // Quanto o sindicato pagou pelas estadias do último ano (A62): só as já
+  // encerradas, não canceladas e sem falta registrada — o hotel só fatura a
+  // reserva com comparecimento (servicosFaturaveis), então quem não
+  // compareceu fica de fora da conta e da coluna. A soma usa só as que têm o
+  // valor registrado na reserva — as migradas do sistema antigo não têm, e a
+  // frase diz quantas ficaram de fora em vez de estimar.
+  const pagoPeloSindicato = (c: (typeof cupons)[number]) =>
+    c.compareceu === false ? null : (c.estadia?.pagoPeloSindicato ?? null)
+  const umAnoAtras = `${Number(hoje.slice(0, 4)) - 1}${hoje.slice(4)}`
+  const encerradasNoAno = cupons.filter((c) => {
+    const fim = c.estadia?.checkOut ?? c.estadia?.checkIn
+    return c.cancelado !== true && c.compareceu !== false && !!fim && fim < hoje && fim >= umAnoAtras
+  })
+  const estadiasComValor = encerradasNoAno.filter((c) => pagoPeloSindicato(c) != null)
+  const pagoNoAno = estadiasComValor.reduce((t, c) => t + (pagoPeloSindicato(c) ?? 0), 0)
+  const semValorNoAno = encerradasNoAno.length - estadiasComValor.length
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Hospedagem</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Cupons de hospedagem subsidiada nos hotéis parceiros do sindicato.
-        </p>
-      </div>
+      <LembrarListaPortal base="/portal/hospedagem" url={urlDaLista} />
+      <CabecalhoPagina
+        secao="/portal/hospedagem"
+        titulo="Hospedagem"
+        subtitulo="Cupons de hospedagem subsidiada nos hotéis parceiros do sindicato."
+      />
 
       {salvo === "1" && (
-        <Alert variant="success">
-          <AlertTitle>Pedido registrado</AlertTitle>
-          <AlertDescription>
-            <p>
-              Próximo passo: o hotel monta a reserva. Quando ele confirmar, o cupom aparece
-              como Reservado em Meus cupons, com as datas, quantas pessoas ficaram no quarto e
-              o valor da sua parte — e você recebe um aviso no sino.
-            </p>
-            {contatoDoPedido && (
-              <div className="grid gap-1">
-                <p>Dúvidas sobre a reserva? Fale com o {hotelDoPedido?.nome ?? "hotel"}:</p>
-                <ContatoDoHotel contato={contatoDoPedido} />
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["salvo", "hotel"]}>
+          <Alert variant="success">
+            <AlertTitle>Pedido registrado</AlertTitle>
+            <AlertDescription>
+              <p>
+                Próximo passo: o hotel monta a reserva. Quando ele confirmar, o cupom aparece
+                como Reservado em Meus cupons, com as datas, quantas pessoas ficaram no quarto e
+                o valor da sua parte — e você recebe um aviso no sino.
+              </p>
+              {contatoDoPedido && (
+                <div className="grid gap-1">
+                  <p>Dúvidas sobre a reserva? Fale com o {hotelDoPedido?.nome ?? "hotel"}:</p>
+                  <ContatoDoHotel contato={contatoDoPedido} />
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
       {/* Precisa da sua ação: a vaga da lista de espera tem prazo de horas (A7). */}
@@ -264,9 +291,9 @@ export default async function PortalHospedagemPage({
           <AlertTitle>Abriu vaga para você no {e.hotelNome ?? "hotel parceiro"}</AlertTitle>
           <AlertDescription>
             <p>
-              Check-in em {dataBR(e.checkIn)} e check-out em {dataBR(e.checkOut)}. A vaga fica
+              Check-in em {formatarData(e.checkIn)} e check-out em {formatarData(e.checkOut)}. A vaga fica
               guardada até{" "}
-              <strong>{e.ofertaExpiraEm ? dataHoraBR(new Date(e.ofertaExpiraEm)) : "—"}</strong>
+              <strong>{e.ofertaExpiraEm ? formatarDataHora(e.ofertaExpiraEm) : "—"}</strong>
               ; sem confirmação, passa para a próxima pessoa da lista.
             </p>
             <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">
@@ -302,7 +329,9 @@ export default async function PortalHospedagemPage({
       {mostrarReservas && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Minhas reservas</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Minhas reservas
+            </CardTitle>
             <CardDescription className="text-xs">
               Reservas nos hotéis de reserva na hora. Na chegada, apresente o QR Code e um
               documento oficial com foto.
@@ -310,7 +339,7 @@ export default async function PortalHospedagemPage({
           </CardHeader>
           <CardContent className="grid gap-3">
             {proximas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma reserva próxima.</p>
+              <EstadoVazio compacto icone={BedDouble} titulo="Nenhuma reserva próxima." />
             ) : (
               <div className="overflow-x-auto">
                 <Table className="tabela-cards">
@@ -342,7 +371,7 @@ export default async function PortalHospedagemPage({
                         <span className="font-medium">{r.hotelNome ?? "Hotel parceiro"}</span>
                         <span className="text-muted-foreground">
                           {" "}
-                          · {dataBR(r.checkIn)} a {dataBR(r.checkOut)}
+                          · {formatarData(r.checkIn)} a {formatarData(r.checkOut)}
                         </span>
                       </span>
                       <span className="flex items-center gap-2">
@@ -370,7 +399,9 @@ export default async function PortalHospedagemPage({
       {(esperasAtivas.length > 0 || esperasEncerradas.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Lista de espera</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Lista de espera
+            </CardTitle>
             <CardDescription className="text-xs">
               Quando abre vaga, ela fica guardada por algumas horas para você
               confirmar. Sem confirmação, passa para a próxima pessoa.
@@ -378,7 +409,7 @@ export default async function PortalHospedagemPage({
           </CardHeader>
           <CardContent className="grid gap-2">
             {esperasAtivas.length === 0 && (
-              <p className="text-muted-foreground text-sm">Nenhum pedido na fila agora.</p>
+              <EstadoVazio compacto icone={ListOrdered} titulo="Nenhum pedido na fila agora." />
             )}
             {esperasAtivas.map((e) => (
               <div
@@ -387,8 +418,8 @@ export default async function PortalHospedagemPage({
               >
                 <div className="min-w-0">
                   <p className="font-medium">
-                    {e.hotelNome ?? "Hotel parceiro"} · {dataBR(e.checkIn)} a{" "}
-                    {dataBR(e.checkOut)}
+                    {e.hotelNome ?? "Hotel parceiro"} · {formatarData(e.checkIn)} a{" "}
+                    {formatarData(e.checkOut)}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {textoDaEspera(e, emDestaque.has(e.id), hoje)}
@@ -408,8 +439,8 @@ export default async function PortalHospedagemPage({
                   {esperasEncerradas.map((e) => (
                     <li key={e.id} className="grid gap-0.5 px-3 py-2 text-sm">
                       <span className="font-medium">
-                        {e.hotelNome ?? "Hotel parceiro"} · {dataBR(e.checkIn)} a{" "}
-                        {dataBR(e.checkOut)}
+                        {e.hotelNome ?? "Hotel parceiro"} · {formatarData(e.checkIn)} a{" "}
+                        {formatarData(e.checkOut)}
                       </span>
                       <span className="text-muted-foreground text-xs">
                         {textoDaEspera(e, false, hoje)}
@@ -425,125 +456,155 @@ export default async function PortalHospedagemPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Meus cupons</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Meus cupons
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table className="tabela-cards">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hotel</TableHead>
-                  <TableHead>Estadia</TableHead>
-                  <TableHead>Quarto coletivo</TableHead>
-                  <TableHead>Sua parte</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginaAtual.total === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-muted-foreground h-20 text-center text-sm"
-                    >
-                      Você ainda não tem cupons.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {paginaAtual.linhas.map((c) => {
-                  const e = c.estadia
-                  // O hotel confirmou outra data de entrada: é o que mais precisa ser visto.
-                  const ajustado =
-                    !!e?.checkIn && !!c.check_in && e.checkIn !== c.check_in.slice(0, 10)
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell data-rotulo="Hotel" className="max-w-56 font-medium">
-                        <span className="block truncate">{c.hotelNome ?? "—"}</span>
-                        {e?.codigo && (
-                          <span className="text-muted-foreground block text-xs font-normal">
-                            Reserva {e.codigo}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell data-rotulo="Estadia" className="text-muted-foreground">
-                        {e?.checkIn ? (
-                          <span className="grid gap-0.5">
-                            <span className="text-foreground">
-                              {formatarData(e.checkIn)}
-                              {e.checkOut ? ` a ${formatarData(e.checkOut)}` : ""}
-                              {e.pessoas
-                                ? ` · ${e.pessoas} ${e.pessoas === 1 ? "pessoa" : "pessoas"} no quarto`
-                                : ""}
-                            </span>
-                            {ajustado && (
-                              <span className="text-warning-fg text-xs">
-                                O hotel ajustou a entrada (você pediu {formatarData(c.check_in)})
+          {estadiasComValor.length > 0 && (
+            <div className="bg-muted/40 mb-4 flex items-start gap-3 rounded-lg border p-3 text-sm">
+              <HandCoins aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
+              <p>
+                Nos últimos 12 meses, o sindicato pagou{" "}
+                <strong className="tabular-nums">{formatarMoeda(pagoNoAno)}</strong> aos hotéis
+                parceiros{" "}
+                {semValorNoAno === 0
+                  ? encerradasNoAno.length === 1
+                    ? "pela sua estadia."
+                    : `pelas suas ${encerradasNoAno.length} estadias.`
+                  : `por ${estadiasComValor.length} das suas ${encerradasNoAno.length} estadias — ${
+                      semValorNoAno === 1 ? "a outra não tem" : "as demais não têm"
+                    } esse valor registrado.`}
+              </p>
+            </div>
+          )}
+          {paginaAtual.total === 0 ? (
+            <EstadoVazio
+              icone={Ticket}
+              titulo="Você ainda não tem cupons."
+              descricao="Os seus pedidos de hospedagem aparecem aqui, com as datas, a situação e o valor da sua parte."
+            />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table className="tabela-cards">
+                  <TableCaption className="sr-only">Meus cupons de hospedagem</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hotel</TableHead>
+                      <TableHead>Estadia</TableHead>
+                      <TableHead>Quarto coletivo</TableHead>
+                      <TableHead>Sua parte</TableHead>
+                      <TableHead>Pago pelo sindicato</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="w-24" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginaAtual.linhas.map((c) => {
+                      const e = c.estadia
+                      const pago = pagoPeloSindicato(c)
+                      // O hotel confirmou outra data de entrada: é o que mais precisa ser visto.
+                      const ajustado =
+                        !!e?.checkIn && !!c.check_in && e.checkIn !== c.check_in.slice(0, 10)
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell data-rotulo="Hotel" className="max-w-56 font-medium">
+                            <span className="block truncate">{c.hotelNome ?? "—"}</span>
+                            {e?.codigo && (
+                              <span className="text-muted-foreground block text-xs font-normal">
+                                Reserva {e.codigo}
                               </span>
                             )}
-                          </span>
-                        ) : (
-                          `Check-in previsto: ${formatarData(c.check_in)}`
-                        )}
-                      </TableCell>
-                      <TableCell
-                        data-rotulo="Quarto coletivo"
-                        className={
-                          c.aceita_quarto_coletivo === true
-                            ? "text-muted-foreground"
-                            : "text-muted-foreground max-sm:hidden!"
-                        }
-                      >
-                        {c.aceita_quarto_coletivo === true ? "Aceita" : "Não"}
-                      </TableCell>
-                      <TableCell
-                        data-rotulo="Sua parte"
-                        className={
-                          c.tarifa_hospede === null
-                            ? "text-muted-foreground tabular-nums max-sm:hidden!"
-                            : "text-muted-foreground tabular-nums"
-                        }
-                      >
-                        {c.tarifa_hospede === null
-                          ? "—"
-                          : c.tarifa_hospede.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                      </TableCell>
-                      <TableCell data-rotulo="Situação">
-                        <SituacaoCupomBadge
-                          cancelado={c.cancelado}
-                          servicoId={c.servico_id}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {c.situacao === "aguardando" && (
-                          <AcaoVisualizacao preview={preview} nota="">
-                            <CancelarMeuCupomBotao id={c.id} />
-                          </AcaoVisualizacao>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="mt-4">
-            <Paginacao
-              total={paginaAtual.total}
-              pagina={paginaAtual.pagina}
-              totalPaginas={paginaAtual.totalPaginas}
-              porPagina={paginacao.porPagina}
-              padrao={10}
-            />
-          </div>
-          <p className="text-muted-foreground mt-3 text-xs">
-            O valor cobrado é o da ocupação que o hotel confirmar — quantas pessoas ficaram
-            no quarto —, conforme as tarifas do convênio. Os valores já incluem os impostos e
-            a sua parte é paga no hotel, na entrada.
-          </p>
+                          </TableCell>
+                          <TableCell data-rotulo="Estadia" className="text-muted-foreground">
+                            {e?.checkIn ? (
+                              <span className="grid gap-0.5">
+                                <span className="text-foreground">
+                                  {formatarData(e.checkIn)}
+                                  {e.checkOut ? ` a ${formatarData(e.checkOut)}` : ""}
+                                  {e.pessoas
+                                    ? ` · ${e.pessoas} ${e.pessoas === 1 ? "pessoa" : "pessoas"} no quarto`
+                                    : ""}
+                                </span>
+                                {ajustado && (
+                                  <span className="text-warning-fg text-xs">
+                                    O hotel ajustou a entrada (você pediu {formatarData(c.check_in)})
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              `Check-in previsto: ${formatarData(c.check_in)}`
+                            )}
+                          </TableCell>
+                          <TableCell
+                            data-rotulo="Quarto coletivo"
+                            className={
+                              c.aceita_quarto_coletivo === true
+                                ? "text-muted-foreground"
+                                : "text-muted-foreground max-sm:hidden!"
+                            }
+                          >
+                            {c.aceita_quarto_coletivo === true ? "Aceita" : "Não"}
+                          </TableCell>
+                          <TableCell
+                            data-rotulo="Sua parte"
+                            className={
+                              c.tarifa_hospede === null
+                                ? "text-muted-foreground tabular-nums max-sm:hidden!"
+                                : "text-muted-foreground tabular-nums"
+                            }
+                          >
+                            {formatarMoeda(c.tarifa_hospede)}
+                          </TableCell>
+                          <TableCell
+                            data-rotulo="Pago pelo sindicato"
+                            className={
+                              pago == null
+                                ? "text-muted-foreground tabular-nums max-sm:hidden!"
+                                : "tabular-nums"
+                            }
+                          >
+                            {pago == null ? "—" : formatarMoeda(pago)}
+                          </TableCell>
+                          <TableCell data-rotulo="Situação">
+                            <SituacaoCupomBadge
+                              cancelado={c.cancelado}
+                              servicoId={c.servico_id}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {c.situacao === "aguardando" && (
+                              <AcaoVisualizacao preview={preview} nota="">
+                                <CancelarMeuCupomBotao id={c.id} />
+                              </AcaoVisualizacao>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-4">
+                <Paginacao
+                  total={paginaAtual.total}
+                  pagina={paginaAtual.pagina}
+                  totalPaginas={paginaAtual.totalPaginas}
+                  porPagina={paginacao.porPagina}
+                  padrao={10}
+                />
+              </div>
+              <p className="text-muted-foreground mt-3 text-xs">
+                O valor cobrado é o da ocupação que o hotel confirmar — quantas pessoas ficaram
+                no quarto —, conforme as tarifas do convênio. Os valores já incluem os impostos e
+                a sua parte é paga no hotel, na entrada. <strong className="font-medium">Pago pelo
+                sindicato</strong> é a sua fatia do que o sindicato paga ao hotel pelo quarto (o
+                valor do quarto dividido pelas pessoas nele); aparece quando a reserva tem esse
+                valor registrado e não aparece se o hotel registrou que você não compareceu.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -571,7 +632,7 @@ function LinhaDaReserva({ r, preview }: { r: ReservaGarantida; preview: boolean 
         {r.hotelNome ?? "—"}
       </TableCell>
       <TableCell data-rotulo="Estadia" className="text-muted-foreground whitespace-nowrap">
-        {dataBR(r.checkIn)} a {dataBR(r.checkOut)}
+        {formatarData(r.checkIn)} a {formatarData(r.checkOut)}
       </TableCell>
       <TableCell data-rotulo="Situação">
         <span className="grid justify-items-end gap-0.5 sm:justify-items-start">
@@ -580,7 +641,7 @@ function LinhaDaReserva({ r, preview }: { r: ReservaGarantida; preview: boolean 
           </Badge>
           {r.situacao === "aguardando_confirmacao" && r.confirmarAte && (
             <span className="text-muted-foreground text-xs">
-              guardada até {dataHoraBR(new Date(r.confirmarAte))}
+              guardada até {formatarDataHora(r.confirmarAte)}
             </span>
           )}
         </span>

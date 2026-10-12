@@ -37,6 +37,23 @@ function lerCampos(formData: FormData) {
 }
 
 /**
+ * Telefone da recepção (opcional), que o associado vê no portal com toque
+ * para ligar (Hospedagem e página da reserva — supabase/hospedagem-hotel-telefone.sql).
+ * Mesma regra do telefone no cadastro do filiado: DDD + número, 10 ou 11
+ * dígitos, sem o zero na frente. Chega mascarado da tela; guarda só os dígitos.
+ */
+function telefoneDaRecepcao(formData: FormData): { valor: string | null } | { erro: string } {
+  const digitos = String(formData.get("telefone") ?? "").replace(/\D/g, "")
+  if (digitos === "") return { valor: null }
+  if (digitos.length < 10 || digitos.length > 11 || digitos.startsWith("0")) {
+    return {
+      erro: "Telefone da recepção: informe o DDD (sem o zero) e o número, ex.: (22) 2772-1234 ou (22) 99999-9999.",
+    }
+  }
+  return { valor: digitos }
+}
+
+/**
  * Campos da modalidade. Demanda garantida valida e grava os parâmetros; ao
  * voltar para pagamento por uso, só a modalidade muda (os parâmetros ficam,
  * para uma eventual volta). Hotel que nunca foi garantido não envia nada —
@@ -111,6 +128,9 @@ function camposDaModalidade(
 
 /** Coluna ausente = SQL da demanda garantida ainda não rodado. */
 function mensagemDeErroHotel(error: { code?: string; message: string }): string {
+  if ((error.code === "PGRST204" || error.code === "42703") && /telefone/.test(error.message)) {
+    return "o campo do telefone ainda não está instalado no banco — rode supabase/hospedagem-hotel-telefone.sql."
+  }
   if (error.code === "PGRST204" || error.code === "42703") {
     return "a demanda garantida ainda não está instalada no banco — rode supabase/hospedagem-demanda-garantida.sql."
   }
@@ -128,6 +148,8 @@ export async function criarHotel(
   if (!dados.contrato_id) {
     return { erro: "Vincule um contrato ao hotel (obrigatório)." }
   }
+  const telefone = telefoneDaRecepcao(formData)
+  if ("erro" in telefone) return { erro: telefone.erro, campo: "telefone" }
 
   const modalidade = camposDaModalidade(formData, dados)
   if ("erro" in modalidade) return { erro: modalidade.erro }
@@ -135,6 +157,7 @@ export async function criarHotel(
   const admin = await createAdminClient()
   const { error } = await admin.from("hospedagem_hotel").insert({
     ...dados,
+    telefone: telefone.valor,
     ...modalidade.campos,
     emp_proprietaria_id: await tenantAtual(),
   })
@@ -159,6 +182,8 @@ export async function atualizarHotel(
   if (!dados.contrato_id) {
     return { erro: "Vincule um contrato ao hotel (obrigatório)." }
   }
+  const telefone = telefoneDaRecepcao(formData)
+  if ("erro" in telefone) return { erro: telefone.erro, campo: "telefone" }
 
   const modalidade = camposDaModalidade(formData, dados)
   if ("erro" in modalidade) return { erro: modalidade.erro }
@@ -166,7 +191,7 @@ export async function atualizarHotel(
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("hospedagem_hotel")
-    .update({ ...dados, ...modalidade.campos }, { count: "exact" })
+    .update({ ...dados, telefone: telefone.valor, ...modalidade.campos }, { count: "exact" })
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível salvar: ${mensagemDeErroHotel(error)}` }

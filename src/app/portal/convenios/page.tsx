@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { Handshake } from "lucide-react"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { hojeSP } from "@/lib/db/comum"
 import { listarConvenios, type Convenio, type UnidadeConvenio } from "@/lib/db/filiacao-convenios"
 import { formatarData, formatarTelefone } from "@/lib/formato"
@@ -16,7 +17,7 @@ import {
   type UnidadePortal,
 } from "./convenios-lista"
 
-export const metadata: Metadata = { title: "Convênios — Portal do Associado" }
+export const metadata: Metadata = { title: "Convênios" }
 
 /** A partir de quantos convênios a busca aparece: com menos, tudo cabe na tela. */
 const MINIMO_PARA_BUSCA = 6
@@ -161,23 +162,14 @@ export default async function PortalConveniosPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Convênios</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Descontos e serviços negociados pelo sindicato para você. Apresente sua
-          carteira de associado no atendimento.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/convenios"
+        titulo="Convênios"
+        subtitulo="Descontos e serviços negociados pelo sindicato para você. Apresente sua carteira de associado no atendimento."
+      />
 
       {convenios.length === 0 ? (
-        <Card>
-          <CardContent>
-            <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center">
-              <Handshake className="size-6" />
-              <p className="text-sm">Nenhum convênio vigente no momento.</p>
-            </div>
-          </CardContent>
-        </Card>
+        <EstadoVazio cartao icone={Handshake} titulo="Nenhum convênio vigente no momento." />
       ) : (
         <ConveniosLista grupos={grupos} comBusca={convenios.length >= MINIMO_PARA_BUSCA} />
       )}

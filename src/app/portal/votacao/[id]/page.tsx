@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CalendarClock, Clock, Info } from "lucide-react"
+import { CalendarClock, Clock, Info } from "lucide-react"
 
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import {
   AtualizarAo,
   ContagemRegressiva,
@@ -33,7 +34,7 @@ import { ComprovanteVoto, type ComprovanteNaTela } from "../comprovante-voto"
 import { SalaVirtualAviso } from "../sala-virtual"
 import { CedulaForm } from "./cedula-form"
 
-export const metadata: Metadata = { title: "Cédula — Confluir" }
+export const metadata: Metadata = { title: "Cédula" }
 
 function naTela(p: ParticipacaoNaAssembleia | null): ComprovanteNaTela | null {
   if (!p) return null
@@ -82,26 +83,20 @@ export default async function CedulaPage({
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/portal/votacao">
-            <ArrowLeft />
-            Votação
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {eleg?.nome ?? "Cédula de votação"}
-        </h1>
-        {eleg?.empregador && (
-          <p className="text-muted-foreground mt-1 text-xs">{eleg.empregador}</p>
-        )}
-      </div>
+      <CabecalhoPagina
+        secao="/portal/votacao"
+        voltar={{ base: "/portal/votacao", rotulo: "Votação" }}
+        titulo={eleg?.nome ?? "Cédula de votação"}
+        subtitulo={eleg?.empregador ?? undefined}
+      />
 
       {eleg?.sala && <SalaVirtualAviso sala={eleg.sala} />}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Cédula</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Cédula
+          </CardTitle>
           {/* A instrução só vale quando as perguntas estão na tela. */}
           {estado?.chave === "votar" && perguntas.length > 0 && (
             <CardDescription>Escolha uma opção em cada pergunta.</CardDescription>

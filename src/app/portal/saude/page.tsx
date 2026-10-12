@@ -3,6 +3,8 @@ import Link from "next/link"
 import { CalendarDays, HeartPulse, Info, MessageSquare } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +26,7 @@ import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
 
-export const metadata: Metadata = { title: "Saúde — Portal do Associado" }
+export const metadata: Metadata = { title: "Saúde" }
 
 /** Atendimento com o assunto "Saúde" já escolhido (A76); o resumo, quando houver. */
 function linkServicoSaude(titulo?: string): string {
@@ -77,15 +79,12 @@ export default async function PortalSaudePage({
   const sessao = await requireVisualizacaoPortal()
 
   const cabecalho = (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Saúde</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Seus atendimentos no serviço de saúde do sindicato
-        </p>
-      </div>
-      <FalarComServico className="w-full sm:w-auto" />
-    </div>
+    <CabecalhoPagina
+      secao="/portal/saude"
+      titulo="Saúde"
+      subtitulo="Seus atendimentos no serviço de saúde do sindicato"
+      acoes={<FalarComServico className="w-full sm:w-auto" />}
+    />
   )
 
   // "Ver como filiado": a gestão entra com permissão de FILIAÇÃO, não
@@ -141,7 +140,9 @@ export default async function PortalSaudePage({
       {agenda.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Próximos agendamentos</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Próximos agendamentos
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
             <ul className="divide-y">
@@ -191,7 +192,9 @@ export default async function PortalSaudePage({
       {cats.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Acidentes de trabalho (CAT)</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Acidentes de trabalho (CAT)
+            </CardTitle>
             <CardDescription>
               Comunicações de acidente de trabalho que o serviço de saúde ligou ao
               seu cadastro. Para pedir uma cópia, use o botão de cada uma.
@@ -254,38 +257,28 @@ export default async function PortalSaudePage({
       )}
 
       {!disponivel ? (
-        <Card>
-          <CardContent>
-            <div className="text-muted-foreground flex flex-col items-center gap-3 py-8 text-center">
-              <Info className="size-5" />
-              <p className="text-sm">
-                O histórico de atendimentos ainda não está disponível. Para marcar
-                um atendimento ou tirar uma dúvida, fale com o serviço de saúde.
-              </p>
-              <FalarComServico variant="outline" />
-            </div>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          cartao
+          icone={Info}
+          titulo="O histórico de atendimentos ainda não está disponível."
+          descricao="Para marcar um atendimento ou tirar uma dúvida, fale com o serviço de saúde."
+          acao={<FalarComServico variant="outline" />}
+        />
       ) : linhas.length === 0 ? (
-        <Card>
-          <CardContent>
-            <div className="text-muted-foreground flex flex-col items-center gap-3 py-8 text-center">
-              <HeartPulse className="size-5" />
-              <p className="text-sm">
-                {/* "Ainda… no histórico": quem tem agendamento no card acima
-                    não lê que "não tem atendimento". */}
-                Você ainda não tem atendimentos no histórico. Para marcar um
-                atendimento ou tirar uma dúvida, fale com o serviço de saúde.
-              </p>
-              <FalarComServico variant="outline" />
-            </div>
-          </CardContent>
-        </Card>
+        // "Ainda… no histórico": quem tem agendamento no card acima não lê
+        // que "não tem atendimento".
+        <EstadoVazio
+          cartao
+          icone={HeartPulse}
+          titulo="Você ainda não tem atendimentos no histórico."
+          descricao="Para marcar um atendimento ou tirar uma dúvida, fale com o serviço de saúde."
+          acao={<FalarComServico variant="outline" />}
+        />
       ) : (
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">
+              <CardTitle role="heading" aria-level={2}>
                 Histórico de atendimentos
               </CardTitle>
             </CardHeader>

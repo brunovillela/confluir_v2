@@ -31,7 +31,7 @@ test.describe("páginas públicas", () => {
 
   test("oposição à contribuição abre com as duas portas", async ({ page }) => {
     await page.goto("/portal/oposicao")
-    await expect(page.getByRole("button", { name: "Sou trabalhador" })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Sou filiado" })).toBeVisible()
+    await expect(page.getByRole("tab", { name: "Sou trabalhador" })).toBeVisible()
+    await expect(page.getByRole("tab", { name: "Sou filiado" })).toBeVisible()
   })
 })

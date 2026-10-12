@@ -433,7 +433,7 @@ export function CadastroForm({
     >
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Contato</CardTitle>
+          <CardTitle role="heading" aria-level={2}>Contato</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <CampoTexto
@@ -546,7 +546,7 @@ export function CadastroForm({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Endereço</CardTitle>
+          <CardTitle role="heading" aria-level={2}>Endereço</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <CampoTexto

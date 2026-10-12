@@ -1,100 +1,60 @@
-import Link from "next/link"
-import {
-  ArrowRight,
-  BedDouble,
-  CalendarDays,
-  HandCoins,
-  IdCard,
-  MessagesSquare,
-  Newspaper,
-  ShieldCheck,
-  UserPen,
-  Vote,
-} from "lucide-react"
-
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
+import { NAV_PORTAL } from "@/components/portal/navegacao-portal"
+import { servicosOcultosDoPortal } from "@/lib/db/sindicato-portal"
 
 /**
- * Atalhos do Início. Contribuição e Carteirinha entraram com a onda 2 (A2):
- * antes só se chegava a elas pelo menu. Ícones iguais aos do menu
- * (navegacao-portal.ts).
+ * Atalhos do Início (A55): o padrão de hub do sistema — `CartaoArea` dentro
+ * de `GRADE_AREAS` (DESIGN.md), em vez de uma grade própria. Primeiro o que o
+ * associado paga para ter (contribuição, carteirinha, hospedagem, convênios,
+ * saúde), depois o resto: dez cartões, duas linhas cheias de cinco na tela
+ * larga. Notícias tem o cartão próprio no fim da página (com "Ver todas");
+ * Avisos, Privacidade e Ajuda ficam só no menu.
+ *
+ * O nome e o ícone vêm do menu (navegacao-portal.ts) — os dois não divergem
+ * mais; aqui só a ordem e a descrição.
  */
-const SERVICOS = [
-  {
-    titulo: "Meu cadastro",
-    descricao: "Confira seus dados e atualize telefones, emails e endereço",
-    href: "/portal/cadastro",
-    icone: UserPen,
-  },
-  {
-    titulo: "Contribuição",
-    descricao: "O que foi descontado mês a mês e se está tudo em dia",
-    href: "/portal/contribuicao",
-    icone: HandCoins,
-  },
-  {
-    titulo: "Carteirinha",
-    descricao: "Sua carteirinha digital e a declaração de filiação",
-    href: "/portal/carteirinha",
-    icone: IdCard,
-  },
-  {
-    titulo: "Hospedagem",
-    descricao: "Solicite cupons de hospedagem subsidiada nos hotéis parceiros",
-    href: "/portal/hospedagem",
-    icone: BedDouble,
-  },
-  {
-    titulo: "Notícias",
-    descricao: "Últimas notícias do sindicato",
-    href: "/portal/noticias",
-    icone: Newspaper,
-  },
-  {
-    titulo: "Votação",
-    descricao: "Assembleias abertas e o histórico das suas participações",
-    href: "/portal/votacao",
-    icone: Vote,
-  },
-  {
-    titulo: "Eventos e agenda",
-    descricao: "Inscrições abertas, suas inscrições e a agenda de atividades",
-    href: "/portal/eventos",
-    icone: CalendarDays,
-  },
-  {
-    titulo: "Atendimento",
-    descricao: "Abra uma solicitação e acompanhe a resposta da entidade",
-    href: "/portal/atendimento",
-    icone: MessagesSquare,
-  },
-  {
-    titulo: "LGPD",
-    descricao: "Seus aceites e direitos sobre dados pessoais",
-    href: "/portal/lgpd",
-    icone: ShieldCheck,
-  },
+const SERVICOS: { href: string; descricao: string }[] = [
+  { href: "/portal/contribuicao", descricao: "O que foi descontado mês a mês e se está tudo em dia" },
+  { href: "/portal/carteirinha", descricao: "Carteirinha digital com QR e a declaração de filiação" },
+  { href: "/portal/hospedagem", descricao: "Cupons de hospedagem subsidiada nos hotéis parceiros" },
+  { href: "/portal/convenios", descricao: "Descontos e serviços negociados pelo sindicato" },
+  { href: "/portal/saude", descricao: "Seus atendimentos no serviço de saúde do sindicato" },
+  { href: "/portal/cadastro", descricao: "Confira seus dados e atualize telefones, e-mails e endereço" },
+  { href: "/portal/eventos", descricao: "Inscrições abertas, suas inscrições e a agenda de atividades" },
+  { href: "/portal/votacao", descricao: "Assembleias abertas e o histórico das suas participações" },
+  { href: "/portal/atendimento", descricao: "Abra uma solicitação e acompanhe a resposta" },
+  { href: "/portal/sindicato", descricao: "Canais oficiais, endereço e quem compõe a diretoria" },
 ]
 
-export function ServicosInicio() {
+/**
+ * A grade. Sem `ocultos`, mostra todos — é o que aparece enquanto a consulta
+ * do que a entidade oferece corre (na dúvida, o item aparece, como no menu).
+ */
+export function ServicosInicio({ ocultos = [] }: { ocultos?: string[] }) {
+  // Item que saiu do menu sai da grade também: o menu é a fonte do nome e do ícone.
+  const itens = SERVICOS.filter((s) => !ocultos.includes(s.href)).flatMap((s) => {
+    const nav = NAV_PORTAL.find((n) => n.href === s.href)
+    return nav ? [{ ...s, titulo: nav.titulo, icone: nav.icone }] : []
+  })
   return (
-    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-      {SERVICOS.map((servico) => (
-        <Link key={servico.href} href={servico.href} className="group">
-          <Card className="hover:border-primary/40 h-full transition-colors">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="bg-muted flex size-9 items-center justify-center rounded-lg">
-                  <servico.icone className="size-4.5" />
-                </div>
-                <ArrowRight className="text-muted-foreground size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-              </div>
-              <CardTitle className="pt-2 text-base">{servico.titulo}</CardTitle>
-              <CardDescription>{servico.descricao}</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-      ))}
-    </div>
+    <section aria-labelledby="inicio-servicos" className="grid gap-3">
+      <h2 id="inicio-servicos" className="text-lg font-semibold">
+        Serviços
+      </h2>
+      <div className={GRADE_AREAS}>
+        {itens.map((s) => (
+          <CartaoArea key={s.href} titulo={s.titulo} descricao={s.descricao} href={s.href} icone={s.icone} />
+        ))}
+      </div>
+    </section>
   )
+}
+
+/**
+ * A grade com o que a entidade de fato oferece: sem hotel ativo ou convênio
+ * vigente, Hospedagem e Convênios saem — a mesma regra do menu (A57).
+ */
+export async function ServicosDaEntidade() {
+  const ocultos = await servicosOcultosDoPortal()
+  return <ServicosInicio ocultos={ocultos} />
 }

@@ -13,12 +13,18 @@ import {
 } from "@/lib/db/votacao-portal"
 
 import type { EstadoVoto } from "./comprovante-voto"
+import {
+  descartarCodigoNaoEnviado,
+  recusaDeEnvioDeCodigo,
+  registrarEnvioDeCodigo,
+  type EstadoEnvioCodigo,
+} from "./limite-envio-codigo"
 
 /** Envia o código de verificação para o e-mail de votação informado. */
 export async function enviarCodigoEmailVotacao(
-  _prev: EstadoForm,
+  _prev: EstadoEnvioCodigo,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoEnvioCodigo> {
   const { filiado } = await requireSessaoPortal()
   const email = String(formData.get("email") ?? "").trim()
   if (!email) return { erro: "Informe o e-mail." }
@@ -30,8 +36,20 @@ export async function enviarCodigoEmailVotacao(
     return { ok: "E-mail definido e verificado." }
   }
 
+  // Limite de envio (A142): intervalo entre códigos e teto por filiado e por
+  // endereço — sem ele, dava para disparar e-mails sem fim para qualquer um.
+  const recusa = await recusaDeEnvioDeCodigo(filiado.cpf, email)
+  if (recusa) return { erro: recusa, campo: "email", email }
+
   const r = await solicitarVerificacaoEmail(filiado.cpf, email)
-  if (r.erro) return { erro: r.erro }
+  if (r.erro) {
+    // Código gravado e e-mail não enviado: a pendência sai, para o intervalo
+    // não dizer "acabamos de enviar" nem a tela pedir um código que não veio.
+    await descartarCodigoNaoEnviado(filiado.cpf, email)
+    revalidatePath("/portal/votacao")
+    return { erro: r.erro, campo: "email", email }
+  }
+  await registrarEnvioDeCodigo(filiado.cpf, email)
   revalidatePath("/portal/votacao")
   return { ok: r.ok }
 }

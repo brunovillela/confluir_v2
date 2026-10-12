@@ -704,6 +704,8 @@ export type MinhaOposicao = {
    * `created_at` é o dia da MIGRAÇÃO (25/07/2026), não o da escolha.
    */
   dia: string | null
+  /** Dia da avaliação (coluna DATE), para a frase do resultado na lista (A15). */
+  avaliadaEm: string | null
 }
 
 /**
@@ -723,7 +725,7 @@ export async function minhaOposicao(
   const admin = await createAdminClient()
   const { data } = await admin
     .from("oposicao_opositor")
-    .select("id, situacao, protocolo, confirmado_em")
+    .select("id, situacao, protocolo, confirmado_em, avaliacao_data")
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("campanha_id", campanhaId)
     .in("cpf", grafiasDoCpf(limparCpf(cpf) || cpf))
@@ -738,7 +740,64 @@ export async function minhaOposicao(
     situacao: (linha.situacao ?? "nao_avaliada") as SituacaoOpositor,
     protocolo: linha.protocolo == null ? null : Number(linha.protocolo),
     dia: diaSP(texto(linha.confirmado_em)),
+    avaliadaEm: texto(linha.avaliacao_data)?.slice(0, 10) ?? null,
   }
+}
+
+export type VinculoAtivo = {
+  fonteId: string
+  fonteNome: string
+  matricula: string | null
+}
+
+/**
+ * Fontes pagadoras e matrículas dos vínculos ATIVOS do filiado (A103), para o
+ * formulário da oposição vir preenchido com o cadastro. Mesma régua de
+ * `empregadoresAtivos` (votacao-portal.ts): vínculo sem data de desfiliação
+ * nem de demissão. A matrícula do vínculo cai para a do legado
+ * (`fonte_pg_matricula`). Em ordem alfabética, uma linha por fonte.
+ */
+export async function vinculosAtivos(cpf: string): Promise<VinculoAtivo[]> {
+  const cpfLimpo = cpfConfiavel(cpf)
+  if (!cpfLimpo) return []
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: filiacoes } = await admin
+    .from("filiacoes")
+    .select("id")
+    .in("cpf", grafiasDoCpf(cpfLimpo))
+    .eq("emp_proprietaria_id", emp)
+    .not("filiacao_excluida", "is", true)
+  const ids = (filiacoes ?? []).map((f) => String(f.id))
+  if (ids.length === 0) return []
+
+  const { data: vinc } = await admin
+    .from("filiacao_vinculos")
+    .select("fonte_pagadora_id, matricula, fonte_pg_matricula, data_desfiliacao, data_saida_demissao")
+    .in("filiado_id", ids)
+    .eq("emp_proprietaria_id", emp)
+  const matriculaPorFonte = new Map<string, string | null>()
+  for (const v of vinc ?? []) {
+    const fonte = texto(v.fonte_pagadora_id)
+    if (!fonte || texto(v.data_desfiliacao) || texto(v.data_saida_demissao)) continue
+    const matricula = texto(v.matricula)?.trim() || texto(v.fonte_pg_matricula)?.trim() || null
+    if (!matriculaPorFonte.has(fonte) || (!matriculaPorFonte.get(fonte) && matricula)) {
+      matriculaPorFonte.set(fonte, matricula)
+    }
+  }
+  if (matriculaPorFonte.size === 0) return []
+
+  const { data: emps } = await admin
+    .from("empresa")
+    .select("id, nome_fantasia, nome_razao")
+    .in("id", [...matriculaPorFonte.keys()])
+  return (emps ?? [])
+    .map((e) => ({
+      fonteId: String(e.id),
+      fonteNome: texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "(sem nome)",
+      matricula: matriculaPorFonte.get(String(e.id)) ?? null,
+    }))
+    .sort((a, b) => a.fonteNome.localeCompare(b.fonteNome, "pt-BR"))
 }
 
 /** Registra um evento de auditoria (append-only). */
@@ -956,26 +1015,64 @@ export async function registrarDesistencia(
   return {}
 }
 
-/** Sobe o documento assinado (gov.br) e move p/ nao_avaliada. */
+/**
+ * Sobe o documento assinado (gov.br) e move p/ nao_avaliada. Devolve a
+ * validação da assinatura (A53) — a mesma que fica gravada e que o
+ * comprovante mostra ao trabalhador.
+ *
+ * Quando aceita: na primeira carta ('aguardando_documento') e na TROCA do
+ * arquivo, enquanto a oposição está em análise ('nao_avaliada' com documento)
+ * e o prazo da campanha segue aberto — quem mandou o PDF errado corrige sem
+ * perder o prazo. Avaliada, desistente ou oposição que não pede documento,
+ * não: antes, qualquer upload devolvia a oposição a 'nao_avaliada', inclusive
+ * uma já avaliada. Na troca, o arquivo anterior fica no bucket e o caminho
+ * dele vai para a trilha ('documento_reenviado'), para a auditoria.
+ */
 export async function subirDocumentoAssinado(
   opositorId: string,
   cpf: string,
   arquivo: File,
   ip: string | null,
   userAgent: string | null
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; validacao?: ValidacaoAssinatura | null }> {
   if (arquivo.type !== "application/pdf") return { erro: "Envie o PDF assinado." }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   // Confirma posse (mesmo CPF) antes de aceitar o upload.
   const { data: o } = await admin
     .from("oposicao_opositor")
-    .select("id")
+    .select("id, situacao, documento_assinado_url, campanha_id")
     .eq("id", opositorId)
     .eq("cpf", cpf)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (!o) return { erro: "Oposição não encontrada." }
+
+  const situacao = (o.situacao ?? "nao_avaliada") as SituacaoOpositor
+  const anterior = texto(o.documento_assinado_url)
+  const troca = situacao === "nao_avaliada" && Boolean(anterior)
+  if (situacao !== "aguardando_documento" && !troca) {
+    return {
+      erro:
+        situacao === "aprovada" || situacao === "reprovada"
+          ? "Esta oposição já foi avaliada pela entidade; o documento não pode mais ser trocado."
+          : "Esta oposição não recebe documento.",
+    }
+  }
+  if (troca) {
+    const { data: campanha } = o.campanha_id
+      ? await admin
+          .from("oposicao_campanha")
+          .select("situacao, prazo_inicio, prazo_fim")
+          .eq("id", o.campanha_id)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle()
+      : { data: null }
+    const noPrazo =
+      campanha?.situacao === "aberta" &&
+      estadoPrazo(texto(campanha.prazo_inicio), texto(campanha.prazo_fim), hojeSP()) === "aberto"
+    if (!noPrazo) return { erro: "O prazo da campanha terminou: o documento enviado não pode mais ser trocado." }
+  }
 
   // Validação PAdES/ICP-Brasil (onda 5, A4): CPF do certificado × CPF do opositor.
   let validacao: ValidacaoAssinatura | null = null
@@ -991,18 +1088,41 @@ export async function subirDocumentoAssinado(
     .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
   if (up.error) return { erro: `Falha ao subir o documento: ${up.error.message}` }
 
-  let { error } = await admin
-    .from("oposicao_opositor")
-    .update({ documento_assinado_url: caminho, situacao: "nao_avaliada", assinatura_validacao: validacao })
-    .eq("id", opositorId)
-    .eq("emp_proprietaria_id", empId)
+  // Só grava se a situação ainda é a que foi lida: uma avaliação no meio do
+  // caminho não pode ser desfeita pelo upload.
+  const gravar = (campos: Record<string, unknown>) =>
+    admin
+      .from("oposicao_opositor")
+      .update(campos)
+      .eq("id", opositorId)
+      .eq("emp_proprietaria_id", empId)
+      .eq("situacao", situacao)
+      .select("id")
+  let { data: gravado, error } = await gravar({
+    documento_assinado_url: caminho,
+    situacao: "nao_avaliada",
+    assinatura_validacao: validacao,
+  })
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // Sem a coluna (supabase/assinatura-validacao.sql): grava sem o resultado.
-    ;({ error } = await admin.from("oposicao_opositor").update({ documento_assinado_url: caminho, situacao: "nao_avaliada" }).eq("id", opositorId).eq("emp_proprietaria_id", empId))
+    ;({ data: gravado, error } = await gravar({ documento_assinado_url: caminho, situacao: "nao_avaliada" }))
+  }
+  if (error || (gravado ?? []).length === 0) {
+    // Nada gravado: o PDF que acabou de subir não fica órfão no bucket.
+    await admin.storage.from("oposicao").remove([caminho]).catch(() => undefined)
   }
   if (error) return { erro: error.message }
-  await registrarEvento(opositorId, "documento_enviado", null, ip, userAgent)
-  return {}
+  if ((gravado ?? []).length === 0) {
+    return { erro: "A situação da sua oposição mudou enquanto o arquivo subia. Recarregue a página e confira." }
+  }
+  await registrarEvento(
+    opositorId,
+    troca ? "documento_reenviado" : "documento_enviado",
+    troca ? `substitui ${anterior}` : null,
+    ip,
+    userAgent
+  )
+  return { validacao }
 }
 
 export type Comprovante = {
@@ -1026,7 +1146,21 @@ export type Comprovante = {
   prazo_fim: string | null
   /** URL assinada do documento-modelo (quando situação = aguardando_documento). */
   modeloUrl: string | null
+  /** Resultado da avaliação (A15): dia (AAAA-MM-DD) e, se não aceita, o motivo. */
+  avaliacao_data: string | null
+  reprovacao_motivo: string | null
+  /** Há PDF assinado enviado (A53). */
+  temDocumento: boolean
+  /** URL assinada (1 h) do PDF que o trabalhador enviou — "Ver o PDF enviado". */
+  documentoUrl: string | null
+  /** Quando o último PDF chegou (trilha de auditoria). */
+  documentoRecebidoEm: string | null
+  /** Validação da assinatura do último PDF; null sem a coluna ou sem validação. */
+  validacao: ValidacaoAssinatura | null
 }
+
+const COLUNAS_COMPROVANTE =
+  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url"
 
 /** Comprovante da oposição — só para o próprio CPF (segurança). */
 export async function obterComprovante(
@@ -1035,37 +1169,57 @@ export async function obterComprovante(
 ): Promise<Comprovante | null> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
-  const { data: o } = await admin
-    .from("oposicao_opositor")
-    .select(
-      "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em"
-    )
-    .eq("id", id)
-    .eq("cpf", cpf)
-    .eq("emp_proprietaria_id", empId)
-    .maybeSingle()
+  const ler = (colunas: string) =>
+    admin
+      .from("oposicao_opositor")
+      .select(colunas)
+      .eq("id", id)
+      .eq("cpf", cpf)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle()
+  // A validação da assinatura é coluna de supabase/assinatura-validacao.sql:
+  // sem ela, o comprovante sai sem o resultado, como o upload já tolera.
+  let lido = await ler(`${COLUNAS_COMPROVANTE}, assinatura_validacao`)
+  if (lido.error && esquemaAusente(lido.error)) lido = await ler(COLUNAS_COMPROVANTE)
+  const o = lido.data as Record<string, unknown> | null
   if (!o) return null
 
-  const [camp, emp] = await Promise.all([
+  const caminhoDocumento = texto(o.documento_assinado_url)
+  const [camp, emp, docUrl, recebido] = await Promise.all([
     o.campanha_id
       ? admin
           .from("oposicao_campanha")
           .select(
             "nome, detalhe_desconto, texto_declaracao, documento_modelo_url, situacao, prazo_inicio, prazo_fim"
           )
-          .eq("id", o.campanha_id)
+          .eq("id", String(o.campanha_id))
+          .eq("emp_proprietaria_id", empId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
     o.empregador_id
       ? admin
           .from("empresa")
           .select("nome_fantasia, nome_razao")
-          .eq("id", o.empregador_id)
+          .eq("id", String(o.empregador_id))
           .maybeSingle()
+      : Promise.resolve({ data: null }),
+    caminhoDocumento
+      ? admin.storage.from("oposicao").createSignedUrl(caminhoDocumento, 3600)
+      : Promise.resolve({ data: null }),
+    caminhoDocumento
+      ? admin
+          .from("oposicao_eventos")
+          .select("created_at")
+          .eq("opositor_id", id)
+          .eq("emp_proprietaria_id", empId)
+          .in("evento", ["documento_enviado", "documento_reenviado"])
+          .order("created_at", { ascending: false })
+          .limit(1)
       : Promise.resolve({ data: null }),
   ])
   const c = camp.data as Record<string, unknown> | null
   const e = emp.data as Record<string, unknown> | null
+  const validacao = (o.assinatura_validacao ?? null) as ValidacaoAssinatura | null
 
   let modeloUrl: string | null = null
   const modeloPath = c ? texto(c.documento_modelo_url) : null
@@ -1094,6 +1248,14 @@ export async function obterComprovante(
     prazo_inicio: c ? texto(c.prazo_inicio) : null,
     prazo_fim: c ? texto(c.prazo_fim) : null,
     modeloUrl,
+    avaliacao_data: texto(o.avaliacao_data)?.slice(0, 10) ?? null,
+    reprovacao_motivo: texto(o.reprovacao_motivo),
+    temDocumento: Boolean(caminhoDocumento),
+    documentoUrl: docUrl.data?.signedUrl ?? null,
+    documentoRecebidoEm:
+      texto((recebido.data as { created_at?: unknown }[] | null)?.[0]?.created_at) ??
+      (validacao?.verificadoEm || null),
+    validacao: validacao && typeof validacao === "object" && "situacao" in validacao ? validacao : null,
   }
 }
 

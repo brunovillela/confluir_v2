@@ -73,11 +73,18 @@ export function NovaNoticiaForm() {
         </Alert>
       )}
       <CamposNoticia />
-      <div>
-        <Button type="submit" disabled={pendente}>
-          {pendente && <Loader2 className="animate-spin" />}
-          Publicar notícia
-        </Button>
+      <div className="grid gap-1.5">
+        <div>
+          <Button type="submit" disabled={pendente}>
+            {pendente && <Loader2 className="animate-spin" />}
+            Publicar notícia
+          </Button>
+        </div>
+        {/* A123: quem publica sabe que o associado é avisado (lib/db/noticias.ts). */}
+        <p className="text-muted-foreground text-xs">
+          Ao publicar, a notícia aparece no portal do associado e vai para o sino dos filiados ativos (sem
+          e-mail).
+        </p>
       </div>
     </form>
   )

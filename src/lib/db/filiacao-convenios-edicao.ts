@@ -2,8 +2,10 @@ import "server-only"
 
 import { randomUUID } from "node:crypto"
 
+import { depoisDaResposta } from "@/lib/db/avisos"
 import { ehDoBubble } from "@/lib/db/filiacao-documentos"
-import { lerEmLotes } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes } from "@/lib/db/comum"
+import { avisarAtivosNoSino, removerAvisosDoLink } from "@/lib/db/portal-avisos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -204,17 +206,39 @@ export async function obterConvenio(id: string): Promise<ConvenioEditavel | null
 
 // ── Convênio ───────────────────────────────────────────────────────────────
 
+/** Vigente pela régua do portal (`listarConvenios`): ativo e sem término passado, no dia de São Paulo. */
+function vigente(ativo: boolean, termino: string | null): boolean {
+  return ativo && (!termino || termino >= hojeSP())
+}
+
+/** Para onde o aviso leva — e a trava de "um aviso por pessoa e convênio". */
+function linkDoConvenio(id: string): string {
+  return `/portal/convenios#convenio-${id}`
+}
+
 export async function salvarConvenio(dados: DadosConvenio, id?: string): Promise<Resultado> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
   const { data: empresa } = await admin
     .from("empresa")
-    .select("id, conveniador")
+    .select("id, conveniador, nome_fantasia, nome_razao")
     .eq("emp_proprietaria_id", emp)
     .eq("id", dados.conveniadorId)
     .maybeSingle()
   if (!empresa) return { erro: "Conveniador não encontrado." }
+
+  // Antes de gravar: o convênio já estava ao alcance dos associados? (A80)
+  let eraVigente = false
+  if (id) {
+    const { data: antes } = await admin
+      .from("filiacao_convenios")
+      .select("ativo, data_termino")
+      .eq("emp_proprietaria_id", emp)
+      .eq("id", id)
+      .maybeSingle()
+    eraVigente = antes ? vigente(antes.ativo === true, (antes.data_termino as string | null) ?? null) : false
+  }
 
   if (dados.categoriaId) {
     const { data: cat } = await admin
@@ -263,6 +287,28 @@ export async function salvarConvenio(dados: DadosConvenio, id?: string): Promise
       .eq("emp_proprietaria_id", emp)
       .eq("id", dados.conveniadorId)
   }
+
+  // A80: convênio que passou a valer agora (criado vigente ou reativado) vai
+  // para o sino dos filiados ativos — sem e-mail, depois da resposta. Editar
+  // um convênio que já valia não avisa de novo, e o link é a trava: quem já
+  // recebeu o aviso deste convênio não recebe outro, nem se ele for
+  // desativado e reativado.
+  if (!eraVigente && vigente(dados.ativo, dados.dataTermino)) {
+    // Fantasia em branco ("" no legado) cai para a razão social.
+    const nome =
+      (empresa.nome_fantasia as string | null)?.trim() || (empresa.nome_razao as string | null)?.trim() || "Convênio"
+    const resumo = dados.infoSumarias?.replace(/\s+/g, " ").trim() ?? ""
+    const texto = `Novo convênio para associados: ${nome}${resumo ? ` — ${resumo}` : ""}`
+    const link = linkDoConvenio(convenioId)
+    depoisDaResposta(() =>
+      avisarAtivosNoSino({
+        evento: "noticias",
+        texto: texto.length > 240 ? `${texto.slice(0, 239)}…` : texto,
+        link,
+        assunto: "Novo convênio",
+      })
+    )
+  }
   return { ok: true, id: convenioId }
 }
 
@@ -289,6 +335,8 @@ export async function excluirConvenio(id: string): Promise<{ erro?: string }> {
     (v): v is string => Boolean(v) && !ehDoBubble(v)
   )
   if (nossos.length > 0) await admin.storage.from(BUCKET).remove(nossos)
+  // "Novo convênio" de um convênio que não existe mais sai do sino (A80).
+  depoisDaResposta(() => removerAvisosDoLink(linkDoConvenio(id)))
   return {}
 }
 

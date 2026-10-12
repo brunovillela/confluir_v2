@@ -7,6 +7,7 @@
  * não de uma cópia — o aviso na tela e o erro da action dizem a mesma coisa.
  */
 import type { CotaHospedagem, FaltasHospedagem } from "@/lib/db/hospedagem-garantida"
+import { formatarMoeda } from "@/lib/formato"
 import {
   CONDICOES_HOSPEDAGEM_PADRAO,
   avaliarCondicoesHospedagem,
@@ -82,8 +83,6 @@ export function resumoDaCota(cota: CotaHospedagem, data: string): string {
   return `${usados} de ${cota.limite} ${cupons} em ${rotuloDoPeriodo(data, cota.periodo)}`
 }
 
-const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-
 /**
  * "1 pessoa no quarto: R$ 120,00 · 2 pessoas: R$ 80,00" — ou null sem
  * tarifa cadastrada (quem mostra diz "confirme com o sindicato"; nunca se
@@ -94,8 +93,8 @@ export function linhaDasTarifas(tarifas: { pessoas: number; valor: number }[]): 
   return tarifas
     .map((t, i) =>
       i === 0
-        ? `${t.pessoas} ${t.pessoas === 1 ? "pessoa" : "pessoas"} no quarto: ${moeda(t.valor)}`
-        : `${t.pessoas} ${t.pessoas === 1 ? "pessoa" : "pessoas"}: ${moeda(t.valor)}`
+        ? `${t.pessoas} ${t.pessoas === 1 ? "pessoa" : "pessoas"} no quarto: ${formatarMoeda(t.valor)}`
+        : `${t.pessoas} ${t.pessoas === 1 ? "pessoa" : "pessoas"}: ${formatarMoeda(t.valor)}`
     )
     .join(" · ")
 }

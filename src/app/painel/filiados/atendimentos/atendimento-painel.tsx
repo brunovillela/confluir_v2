@@ -3,7 +3,7 @@ import { ExternalLink, UserRound } from "lucide-react"
 
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Atendimento, MensagemAtendimento } from "@/lib/db/portal-atendimentos"
+import { conversaComMarcos, type Atendimento, type MensagemAtendimento } from "@/lib/db/portal-atendimentos"
 import { formatarCpf } from "@/lib/cpf"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
@@ -70,7 +70,12 @@ export function AtendimentoPainel({
           <CardDescription className="text-xs">O que a entidade escreve aqui aparece no portal e dispara um aviso ao filiado.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <ConversaAtendimento mensagens={mensagens} ladoDeCa="entidade" anexoBase="/painel/filiados/atendimentos/anexo" />
+          {/* Mesma linha do tempo do portal (aberta, primeira resposta, encerrada…), do lado da entidade. */}
+          <ConversaAtendimento
+            mensagens={conversaComMarcos(a, mensagens, "entidade")}
+            ladoDeCa="entidade"
+            anexoBase="/painel/filiados/atendimentos/anexo"
+          />
           <RespostaAtendimentoForm atendimentoId={a.id} concluida={a.situacao === "concluida"} />
         </CardContent>
       </Card>

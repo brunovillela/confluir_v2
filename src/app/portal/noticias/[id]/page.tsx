@@ -1,11 +1,10 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { cache } from "react"
-import { ArrowLeft } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { dataDaNoticia, resumir } from "@/lib/db/noticias"
+import { AvisoDoLinkLido } from "@/app/portal/avisos/aviso-do-link-lido"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { dataDaNoticia, linkDaNoticia, resumir } from "@/lib/db/noticias"
 import { buscarNoticia } from "@/lib/db/painel"
 import { getVisualizacaoPortal, requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -24,17 +23,14 @@ const lerNoticia = cache((id: string) => buscarNoticia(id))
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [{ id }, vis] = await Promise.all([params, getVisualizacaoPortal()])
   const noticia = vis ? await lerNoticia(id) : null
-  return {
-    title: noticia?.manchete
-      ? `${noticia.manchete} — Portal do Associado`
-      : "Notícia — Portal do Associado",
-  }
+  // O sufixo vem do modelo do layout do portal (A183).
+  return { title: noticia?.manchete ?? "Notícia" }
 }
 
 export default async function PortalNoticiaPage({ params }: Props) {
   // Visualização, não sessão: o atendente em "Ver como filiado" também lê a
   // notícia (com requireSessaoPortal, ele caía na tela de login — A29).
-  await requireVisualizacaoPortal()
+  const { preview } = await requireVisualizacaoPortal()
   const { id } = await params
   const noticia = await lerNoticia(id)
   if (!noticia) notFound()
@@ -47,20 +43,18 @@ export default async function PortalNoticiaPage({ params }: Props) {
 
   return (
     <>
-      <div>
-        <Button variant="ghost" asChild className="-ml-2 mb-3">
-          <Link href="/portal/noticias">
-            <ArrowLeft />
-            Notícias
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">{manchete}</h1>
-        {noticia.created_at && dataDaNoticia(noticia.created_at) && (
-          <p className="text-muted-foreground mt-1 text-xs">
+      {/* Leu a notícia: o aviso dela no sino (A123) conta como lido. */}
+      {!preview && <AvisoDoLinkLido link={linkDaNoticia(noticia.id)} />}
+      <CabecalhoPagina
+        secao="/portal/noticias"
+        voltar={{ base: "/portal/noticias", rotulo: "Notícias" }}
+        titulo={manchete}
+        subtitulo={
+          noticia.created_at && dataDaNoticia(noticia.created_at) ? (
             <time dateTime={noticia.created_at}>{dataDaNoticia(noticia.created_at)}</time>
-          </p>
-        )}
-      </div>
+          ) : undefined
+        }
+      />
 
       <CompartilharNoticia
         id={noticia.id}

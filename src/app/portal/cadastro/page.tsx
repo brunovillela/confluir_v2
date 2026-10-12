@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
+import { Building2, ChevronRight } from "lucide-react"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { CondicaoBadge } from "@/app/painel/filiados/condicao-badge"
 import { TrilhaEtapas } from "@/components/trilha-etapas"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -28,7 +31,7 @@ import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 import { excluirMeuContatoEmergencia, salvarMeuContatoEmergencia } from "./actions"
 import { CadastroForm } from "./cadastro-form"
 
-export const metadata: Metadata = { title: "Meu cadastro — Confluir" }
+export const metadata: Metadata = { title: "Meu cadastro" }
 
 /** Pedidos de correção vão ao Atendimento com o assunto já escolhido (A34). */
 function linkAtendimento(titulo: string): string {
@@ -87,23 +90,28 @@ export default async function CadastroPage({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Meu cadastro</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Você pode atualizar telefones, e-mails, endereço e contatos de
-          emergência. Os demais dados são alterados pela secretaria da
-          entidade —{" "}
-          <Link href={LINK_CORRECAO} className="text-primary font-medium underline underline-offset-4">
-            peça a correção pelo Atendimento
-          </Link>
-          .
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/cadastro"
+        titulo="Meu cadastro"
+        subtitulo={
+          <>
+            Você pode atualizar telefones, e-mails, endereço e contatos de
+            emergência. Os demais dados são alterados pela secretaria da
+            entidade —{" "}
+            <Link href={LINK_CORRECAO} className="text-primary font-medium underline underline-offset-4">
+              peça a correção pelo Atendimento
+            </Link>
+            .
+          </>
+        }
+      />
 
       {salvo === "1" && (
-        <Alert variant="success">
-          <AlertDescription>Cadastro atualizado com sucesso.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["salvo"]}>
+          <Alert variant="success">
+            <AlertDescription>Cadastro atualizado com sucesso.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
       {!cadastro ? (
@@ -118,19 +126,21 @@ export default async function CadastroPage({
               desfiliação): a confirmação fica junto da trilha, e a trilha
               vem antes de tudo — é o que a pessoa veio acompanhar. */}
           {salvo === "desfiliacao" && (
-            <Alert variant="success">
-              <AlertDescription>
-                {trilha?.processo === "desfiliacao"
-                  ? "Pedido de desistência registrado — acompanhe as etapas abaixo."
-                  : "Pedido de desistência registrado. A secretaria dá andamento e você acompanha por aqui."}
-              </AlertDescription>
-            </Alert>
+            <AvisoDaUrl parametros={["salvo"]}>
+              <Alert variant="success">
+                <AlertDescription>
+                  {trilha?.processo === "desfiliacao"
+                    ? "Pedido de desistência registrado — acompanhe as etapas abaixo."
+                    : "Pedido de desistência registrado. A secretaria dá andamento e você acompanha por aqui."}
+                </AlertDescription>
+              </Alert>
+            </AvisoDaUrl>
           )}
 
           {trilha && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">
+                <CardTitle role="heading" aria-level={2}>
                   {trilha.processo === "desfiliacao"
                     ? "Andamento da sua desfiliação"
                     : "Andamento da sua filiação"}
@@ -147,7 +157,7 @@ export default async function CadastroPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Identificação</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Identificação</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
@@ -172,7 +182,7 @@ export default async function CadastroPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Seu vínculo com a fonte pagadora</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Seu vínculo com a fonte pagadora</CardTitle>
               <CardDescription>
                 Onde a sua contribuição é descontada e com qual matrícula. Quem
                 altera estes dados é a secretaria.
@@ -187,12 +197,12 @@ export default async function CadastroPage({
                   </AlertDescription>
                 </Alert>
               ) : vinculos.abertos.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  Nenhum vínculo em aberto com fonte pagadora no seu cadastro.
-                  Se você trabalha (ou é aposentado ou pensionista) em uma
-                  empresa ou fundo de pensão que desconta a contribuição, avise
-                  a secretaria.
-                </p>
+                <EstadoVazio
+                  compacto
+                  icone={Building2}
+                  titulo="Nenhum vínculo em aberto com fonte pagadora no seu cadastro."
+                  descricao="Se você trabalha (ou é aposentado ou pensionista) em uma empresa ou fundo de pensão que desconta a contribuição, avise a secretaria."
+                />
               ) : (
                 vinculos.abertos.map((v) => (
                   <div key={v.id} className="grid gap-3 rounded-lg border p-3">
@@ -283,7 +293,7 @@ export default async function CadastroPage({
           {emergencia.disponivel && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Contatos de emergência</CardTitle>
+                <CardTitle role="heading" aria-level={2}>Contatos de emergência</CardTitle>
                 <CardDescription>
                   Quem o sindicato deve avisar se você sofrer um acidente ou
                   precisar de ajuda durante uma atividade. Até 5 pessoas.
@@ -306,7 +316,7 @@ export default async function CadastroPage({
               exige a sessão aberta — o destino traz de volta para cá. */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Senha de acesso</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Senha de acesso</CardTitle>
               <CardDescription>
                 Com uma senha você entra pelo CPF, sem esperar o código por
                 e-mail. Também serve para trocar a senha que você já tem.

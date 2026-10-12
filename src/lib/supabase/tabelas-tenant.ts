@@ -46,6 +46,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "portal_avisos_preferencias",
   "portal_atendimentos",
   "portal_atendimentos_mensagens",
+  // supabase/portal-push.sql (11/10)
+  "portal_push_assinaturas",
   "push_assinaturas",
   "banco_extratos",
   "banco_lancamentos",

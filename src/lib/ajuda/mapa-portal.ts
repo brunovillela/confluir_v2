@@ -4,13 +4,13 @@ import { artigoAjudaPortal } from "@/lib/ajuda/manifesto-portal"
  * AJUDA LIGADA À SEÇÃO DO PORTAL (A136): de que artigo da ajuda do associado
  * fala a página em que ele está — o "?" do cabeçalho da casca leva direto a
  * ele. No painel (rota.ts) a área sai do segmento do módulo; aqui o mapa é
- * EXPLÍCITO porque as áreas da ajuda não são 1:1 com o menu (Carteirinha e
- * Contribuição numa área só, o Início no artigo de boas-vindas). A área
- * "agenda" não tem página própria: /portal/agenda só redireciona para Eventos
- * e agenda, que fica com o artigo de eventos (o de agenda segue no índice do
- * manual). Subpáginas (cédula, reserva, solicitação, preferências de avisos…)
- * herdam o artigo da seção pelo prefixo. Seção sem entrada — ou cujo artigo
- * saiu do manifesto — leva ao índice da ajuda.
+ * EXPLÍCITO porque as áreas da ajuda não são 1:1 com o menu (o Início fica
+ * no artigo de boas-vindas; a Desfiliação, fora do menu, num artigo da área
+ * Contribuição). /portal/agenda só redireciona para Eventos e agenda, que fica
+ * com o artigo de eventos — onde a agenda foi parar (A169). Subpáginas
+ * (cédula, reserva, solicitação, preferências de avisos…) herdam o artigo da
+ * seção pelo prefixo. Seção sem entrada — ou cujo artigo saiu do manifesto —
+ * leva ao índice da ajuda.
  */
 
 export const INDICE_AJUDA_PORTAL = "/portal/ajuda"
@@ -20,7 +20,8 @@ const ARTIGO_DA_SECAO: Record<string, string> = {
   "/portal/inicio": "visao-geral",
   "/portal/cadastro": "cadastro",
   "/portal/carteirinha": "carteirinha",
-  "/portal/contribuicao": "carteirinha",
+  // A54: a contribuição ganhou área própria (antes caía na carteirinha).
+  "/portal/contribuicao": "contribuicao",
   "/portal/hospedagem": "hospedagem",
   "/portal/convenios": "convenios",
   "/portal/saude": "saude",
@@ -31,7 +32,7 @@ const ARTIGO_DA_SECAO: Record<string, string> = {
   "/portal/avisos": "avisos",
   "/portal/oposicao": "oposicao",
   "/portal/lgpd": "lgpd",
-  // Desfiliação não tem artigo próprio: cai no índice.
+  "/portal/desfiliacao": "contribuicao/desfiliacao",
 }
 
 export type EntradaAjudaPortal = {

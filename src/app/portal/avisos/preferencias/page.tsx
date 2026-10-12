@@ -1,18 +1,27 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, BellRing, Smartphone } from "lucide-react"
+import { BellRing, Mail, Smartphone } from "lucide-react"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { PushCelular, type RotasPush } from "@/components/pwa/push-celular"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ComunicadosForm } from "@/app/portal/lgpd/comunicados-form"
+// O dia em São Paulo do pedido, o mesmo cálculo do cartão da LGPD (A182):
+// `formatarData` lê o dia UTC de um timestamp.
+import { diaSP } from "@/app/portal/lgpd/consentimentos"
+import { cpfConfiavel } from "@/lib/cpf"
+import { situacaoComunicados } from "@/lib/db/comunicacao-descadastro"
+import { nomeEntidade } from "@/lib/db/organizacao"
 import { preferenciasDoFiliado } from "@/lib/db/portal-avisos"
 import { estadoPushPortal } from "@/lib/db/push"
+import { tenantAtual } from "@/lib/tenant"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { PreferenciasForm } from "./preferencias-form"
 
-export const metadata: Metadata = { title: "Preferências de avisos — Portal do Associado" }
+export const metadata: Metadata = { title: "Preferências de avisos" }
 
 /** Rotas do push do associado (A52) — as do painel exigem a sessão de funcionário. */
 const ROTAS_PUSH_PORTAL: RotasPush = {
@@ -21,41 +30,50 @@ const ROTAS_PUSH_PORTAL: RotasPush = {
   estado: "/api/portal/push/estado",
 }
 
+/** Link no meio do texto. */
+const LINK_TEXTO = "text-foreground font-medium underline underline-offset-4"
+
 /**
- * Avisos → Preferências: o que, além do sino, chega fora do portal. Um
+ * Preferências de avisos: o que, além do sino, chega fora do portal. Um
  * interruptor por tipo vale para o e-mail e para o celular (A52) — uma decisão
  * só para o associado. O card "Receber no celular" aparece só com as chaves
  * VAPID configuradas e a tabela supabase/portal-push.sql criada; sem isso, a
  * página é a de antes, só com o e-mail.
+ *
+ * Os comunicados da entidade (mala direta) também se escolhem aqui (A176):
+ * o mesmo formulário e a mesma gravação do cartão da LGPD, que continua lá
+ * por ser onde mora o direito do titular.
  */
 export default async function PreferenciasAvisosPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
-  const [prefs, celular] = await Promise.all([
+  const cpf = cpfConfiavel(filiado.cpf)
+  const [prefs, celular, comunicados, entidade] = await Promise.all([
     preferenciasDoFiliado(filiado.cpf),
     estadoPushPortal(filiado.cpf).catch(() => ({ disponivel: false, aparelhos: 0 })),
+    cpf ? situacaoComunicados({ emp: await tenantAtual(), cpf }).catch(() => null) : null,
+    nomeEntidade(),
   ])
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/portal/avisos">
-            <ArrowLeft />
-            Avisos
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Preferências de avisos</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          O sino do portal recebe tudo. Aqui você escolhe o que também chega por e-mail
-          {filiado.email ? ` (${filiado.email})` : ""}
-          {celular.disponivel ? " e no celular" : ""}.
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/avisos"
+        voltar={{ base: "/portal/avisos", rotulo: "Avisos" }}
+        titulo="Preferências de avisos"
+        subtitulo={
+          <>
+            O sino do portal recebe tudo. Aqui você escolhe o que também chega por e-mail
+            {filiado.email ? ` (${filiado.email})` : ""}
+            {celular.disponivel ? " e no celular" : ""}
+            {comunicados?.disponivel ? ", e se quer receber os comunicados da entidade" : ""}.
+          </>
+        }
+      />
 
       {celular.disponivel && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle role="heading" aria-level={2} className="flex items-center gap-2">
               <Smartphone className="text-muted-foreground size-4" aria-hidden />
               Receber no celular
             </CardTitle>
@@ -91,7 +109,9 @@ export default async function PreferenciasAvisosPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{celular.disponivel ? "Por e-mail e no celular" : "Por e-mail"}</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            {celular.disponivel ? "Por e-mail e no celular" : "Por e-mail"}
+          </CardTitle>
           <CardDescription className="text-xs">
             {celular.disponivel
               ? "Desligue um tipo e ele continua aparecendo no sino, só não vai para o seu e-mail nem para o celular."
@@ -102,16 +122,45 @@ export default async function PreferenciasAvisosPage() {
         <CardContent>
           {!filiado.email && (
             <p className="text-muted-foreground mb-4 text-sm">
+              Seu cadastro não tem e-mail — inclua um em{" "}
+              <Link href="/portal/cadastro" className={LINK_TEXTO}>
+                Meu cadastro
+              </Link>
               {celular.disponivel
-                ? "Seu cadastro não tem e-mail — inclua um em Meu cadastro para receber os avisos também por e-mail."
-                : "Seu cadastro não tem e-mail — inclua um em Meu cadastro para receber avisos fora do portal."}
+                ? " para receber os avisos também por e-mail."
+                : " para receber avisos fora do portal."}
             </p>
           )}
-          <AcaoVisualizacao preview={preview}>
-            <PreferenciasForm prefs={prefs} canal={celular.disponivel ? "E-mail e celular" : "E-mail"} />
-          </AcaoVisualizacao>
+          <PreferenciasForm prefs={prefs} celular={celular.disponivel} preview={preview} />
         </CardContent>
       </Card>
+
+      {comunicados?.disponivel && (
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2} className="flex items-center gap-2">
+              <Mail className="text-muted-foreground size-4" aria-hidden />
+              Comunicados da entidade
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {comunicados.descadastradoEm
+                ? `Você pediu para não receber os comunicados em ${diaSP(comunicados.descadastradoEm)}.`
+                : `Você recebe as mensagens que ${entidade} envia por e-mail aos filiados.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <p className="text-muted-foreground text-sm">
+              Vale só para os comunicados: os avisos acima e o parabéns de aniversário continuam como estão. A mesma
+              escolha aparece em{" "}
+              <Link href="/portal/lgpd" className={LINK_TEXTO}>
+                Privacidade e dados
+              </Link>
+              .
+            </p>
+            <ComunicadosForm preview={preview} recebe={!comunicados.descadastradoEm} voltar="preferencias" />
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

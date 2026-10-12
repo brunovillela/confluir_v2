@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, CalendarClock, Info, Vote } from "lucide-react"
+import { CalendarClock, Info, Vote } from "lucide-react"
 
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -19,7 +19,7 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { SalaVirtualAviso } from "../../sala-virtual"
 
-export const metadata: Metadata = { title: "Datas da rodada — Confluir" }
+export const metadata: Metadata = { title: "Datas da rodada" }
 
 type AssembleiaDaRodada = DatasDaRodada["assembleias"][number]
 
@@ -69,21 +69,15 @@ export default async function DatasRodadaPage({
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/portal/votacao">
-            <ArrowLeft />
-            Votação
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {dados?.nome ?? dados?.tema ?? "Datas da rodada"}
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {[dados?.empregador, dados?.tema].filter(Boolean).join(" · ") ||
-            "Confira as datas das assembleias desta rodada."}
-        </p>
-      </div>
+      <CabecalhoPagina
+        secao="/portal/votacao"
+        voltar={{ base: "/portal/votacao", rotulo: "Votação" }}
+        titulo={dados?.nome ?? dados?.tema ?? "Datas da rodada"}
+        subtitulo={
+          [dados?.empregador, dados?.tema].filter(Boolean).join(" · ") ||
+          "Confira as datas das assembleias desta rodada."
+        }
+      />
 
       {!dados ? (
         <Alert variant="warning">
@@ -93,15 +87,13 @@ export default async function DatasRodadaPage({
           </AlertDescription>
         </Alert>
       ) : dados.assembleias.length === 0 ? (
-        <Alert>
-          <AlertDescription>
-            Ainda não há assembleias com datas nesta rodada.
-          </AlertDescription>
-        </Alert>
+        <EstadoVazio cartao icone={CalendarClock} titulo="Ainda não há assembleias com datas nesta rodada." />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Assembleias desta rodada</CardTitle>
+            <CardTitle role="heading" aria-level={2}>
+              Assembleias desta rodada
+            </CardTitle>
             <CardDescription>
               Dia, horário e modalidade de cada encontro. Horários de Brasília.
             </CardDescription>

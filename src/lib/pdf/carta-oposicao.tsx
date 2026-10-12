@@ -28,14 +28,19 @@ export type DadosCartaOposicao = {
 
 const CM = 28.35
 
-const MESES = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-]
-
-function porExtenso(iso: string | null): string {
+/**
+ * "31 de outubro de 2026" no fuso de São Paulo (A109). `confirmado_em` é ISO
+ * em UTC e o servidor roda em UTC: sem o fuso, uma oposição das 22h de 31/10
+ * saía datada de 1º de novembro — fora do prazo, num documento assinado.
+ */
+export function dataPorExtensoSP(iso: string | null): string {
   const d = iso ? new Date(iso) : new Date()
-  return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(Number.isNaN(d.getTime()) ? new Date() : d)
 }
 
 function fmtCpf(cpf: string | null): string {
@@ -112,8 +117,15 @@ export function CartaOposicaoPDF({
           Eu, <Text style={s.rotulo}>{dados.nome ?? "—"}</Text>, inscrito(a) no
           CPF sob o nº <Text style={s.rotulo}>{fmtCpf(dados.cpf)}</Text>
           {dados.matricula ? `, matrícula ${dados.matricula}` : ""}, trabalhador(a)
-          vinculado(a) à fonte pagadora{" "}
-          <Text style={s.rotulo}>{dados.empregador ?? "—"}</Text>, venho, pela
+          {/* Sem fonte informada, a frase não leva um "—" no lugar do nome
+              (A103): o documento vai ser assinado no gov.br. */}
+          {dados.empregador ? (
+            <>
+              {" "}vinculado(a) à fonte pagadora{" "}
+              <Text style={s.rotulo}>{dados.empregador}</Text>
+            </>
+          ) : null}
+          , venho, pela
           presente, manifestar de forma livre e expressa a minha{" "}
           <Text style={s.rotulo}>OPOSIÇÃO</Text> ao desconto de {alvo}
           {dados.campanha ? ` (${dados.campanha})` : ""}, nos termos da legislação
@@ -133,7 +145,7 @@ export function CartaOposicaoPDF({
           <Text style={s.protocolo}>Protocolo: {dados.protocolo}</Text>
         ) : null}
 
-        <Text style={s.local}>{porExtenso(dados.data)}.</Text>
+        <Text style={s.local}>{dataPorExtensoSP(dados.data)}.</Text>
 
         <View style={s.assinatura}>
           <View style={s.linhaAssinatura} />

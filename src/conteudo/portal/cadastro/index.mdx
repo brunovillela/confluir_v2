@@ -5,12 +5,19 @@ dia. Assim a entidade fala com você pelo canal certo.
 
 <PassoAPasso>
   <Passo titulo="Identificação">
-    Nome completo, CPF, matrícula sindical, condição da filiação, data de
-    nascimento e sexo aparecem apenas para conferência.
+    Nome completo, CPF, matrícula sindical, condição da filiação, desde quando
+    você é filiado, data de nascimento e sexo aparecem apenas para conferência.
+  </Passo>
+  <Passo titulo="Seu vínculo com a fonte pagadora">
+    A empresa (ou o fundo de pensão) em que a sua contribuição é descontada,
+    com a matrícula, a condição, o cargo e a lotação. Vínculos antigos ficam em
+    **Vínculos anteriores**.
   </Passo>
   <Passo titulo="Quem altera esses dados">
-    Nome, matrícula e condição da filiação são mantidos pela equipe de
-    filiação. Se algo estiver errado, fale com a secretaria.
+    A secretaria da entidade. Se algo estiver errado, toque em **peça a
+    correção pelo Atendimento**, no alto da página. Mudou de lotação, se
+    aposentou ou a matrícula está diferente? Use **Avisar que algo mudou**, no
+    cartão do vínculo: é isso que garante o desconto no contracheque certo.
   </Passo>
 </PassoAPasso>
 
@@ -22,10 +29,12 @@ dia. Assim a entidade fala com você pelo canal certo.
     se é WhatsApp.
   </Passo>
   <Passo titulo="Endereço">
-    CEP, logradouro, número, complemento, bairro, cidade e UF.
+    Digite o CEP: logradouro, bairro, cidade e UF são preenchidos sozinhos.
+    Confira e informe o número e o complemento. Se o CEP não for encontrado,
+    preencha à mão.
   </Passo>
   <Passo titulo="Salvar">
-    Clique em **Salvar alterações**. A atualização vale para todos os seus
+    Toque em **Salvar alterações**. A atualização vale para todos os seus
     registros na entidade.
   </Passo>
 </PassoAPasso>
@@ -38,7 +47,7 @@ sindicato.
 
 <PassoAPasso>
   <Passo titulo="Adicione o contato">
-    Clique em **Adicionar contato** e informe o **nome**, o **telefone com DDD**
+    Toque em **Adicionar contato** e informe o **nome**, o **telefone com DDD**
     e o **vínculo** com você (cônjuge, filho(a), pai ou mãe, amigo(a)…).
   </Passo>
   <Passo titulo="Mantenha em dia">
@@ -47,14 +56,25 @@ sindicato.
   </Passo>
 </PassoAPasso>
 
+## Filiação ou desfiliação em andamento
+
+Enquanto a sua filiação — ou a sua desfiliação — está sendo processada, o topo
+da página mostra o **andamento**, etapa por etapa. Veja também
+[Desfiliação](/portal/ajuda/contribuicao/desfiliacao).
+
 <Print src="portal/cadastro.png" alt="Página Meu cadastro com o card de identificação e o formulário de contato e endereço." legenda="Meu cadastro: identificação (leitura) e contato/endereço (edição)." />
 
 <VejaTambem
   links={[
     {
-      titulo: "LGPD e meus dados",
+      titulo: "Sua contribuição",
+      href: "/portal/ajuda/contribuicao",
+      descricao: "Os descontos feitos pela sua fonte pagadora",
+    },
+    {
+      titulo: "Privacidade e dados",
       href: "/portal/ajuda/lgpd",
-      descricao: "Como pedir correção ou exclusão dos seus dados",
+      descricao: "Como baixar seus dados ou pedir a exclusão",
     },
   ]}
 />

@@ -9,29 +9,43 @@ ativa.
 <PassoAPasso>
   <Passo titulo="Mostrar a carteirinha">
     Abra **Carteirinha** no celular e apresente a tela. Quem ler o QR Code vê
-    só nome, matrícula, condição e desde quando — nada mais.
+    só o nome, a matrícula, a condição atual da filiação e desde quando você é
+    filiado — nada mais.
   </Passo>
   <Passo titulo="Baixar a declaração de filiação">
-    O botão **Declaração em PDF** gera, na hora, uma declaração com o timbre
-    da entidade, a data por extenso e o mesmo QR Code de verificação.
+    O botão **Declaração de filiação (PDF)** gera, na hora, uma declaração com
+    o timbre da entidade, a data de hoje por extenso e o mesmo QR Code de
+    verificação.
   </Passo>
-  <Passo titulo="Acompanhar a contribuição">
-    Em **Contribuição** você vê os descontos repassados mês a mês, a última
-    contribuição e a sua situação: em dia, com faltas recentes ou em atraso
-    pela regra da entidade.
+  <Passo titulo="Conferir a verificação">
+    **Ver a página de verificação** abre a mesma página que aparece para quem
+    lê o QR Code — útil para saber o que o convênio vai ver.
   </Passo>
 </PassoAPasso>
 
 <Aviso tipo="nota" titulo="A verificação lê o cadastro de hoje">
-  O QR Code não tem validade fixa: cada leitura consulta a condição atual.
-  Se a filiação for encerrada, a mesma carteirinha passa a aparecer como não
-  ativa.
+  O QR Code não tem validade fixa: cada leitura consulta a condição atual. Se
+  a filiação for encerrada, a mesma carteirinha — e qualquer declaração antiga
+  — passa a aparecer como não ativa.
 </Aviso>
 
-
-<Aviso tipo="nota" titulo="Paga por Pix?">
-  Se a sua contribuição não é descontada em folha, a página **Contribuição**
-  mostra, todo mês, o QR Code e o código Pix da cobrança do mês. Pague pelo
-  app do banco; quando o pagamento aparece no extrato da entidade, você
-  recebe a confirmação no sino.
+<Aviso tipo="dica" titulo="Procurando os seus descontos?">
+  A contribuição tem página e ajuda próprias: veja
+  [Sua contribuição](/portal/ajuda/contribuicao) — as situações, o Pix e o
+  extrato do ano.
 </Aviso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Sua contribuição",
+      href: "/portal/ajuda/contribuicao",
+      descricao: "Os descontos mês a mês, o Pix e o extrato",
+    },
+    {
+      titulo: "Convênios",
+      href: "/portal/ajuda/convenios",
+      descricao: "Onde a carteirinha dá desconto",
+    },
+  ]}
+/>

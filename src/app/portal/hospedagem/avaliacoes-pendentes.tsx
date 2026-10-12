@@ -4,7 +4,7 @@ import { Star } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { PendenciaAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { ROTULO_NOTA } from "@/lib/hospedagem-avaliacoes-constantes"
-import { dataBR } from "@/lib/hospedagem-garantida-constantes"
+import { formatarData } from "@/lib/formato"
 
 /**
  * Cada estrela: 32 px no mouse, 44 px no toque (A119). Com 2 px entre elas,
@@ -18,19 +18,26 @@ const ESTRELA = "rounded-md p-0.5 pointer-coarse:p-2"
  * — são links, não uma escolha guardada aqui, por isso um grupo rotulado e não
  * um radiogroup. No "ver como filiado" da gestão, sem links: quem avalia é o
  * filiado.
+ *
+ * O título é seção (h2) na Hospedagem; no Início ele fica sob o h2 "Para você
+ * resolver" e desce para h3 (A128).
  */
 export function AvaliacoesPendentes({
   pendencias,
   preview = false,
+  nivelTitulo = 2,
 }: {
   pendencias: PendenciaAvaliacao[]
   preview?: boolean
+  nivelTitulo?: 2 | 3
 }) {
   if (!pendencias.length) return null
   return (
     <Card className="border-primary/40">
       <CardHeader>
-        <CardTitle className="text-base">Avalie sua hospedagem</CardTitle>
+        <CardTitle role="heading" aria-level={nivelTitulo}>
+          Avalie sua hospedagem
+        </CardTitle>
         <CardDescription>
           Leva menos de um minuto. Enquanto a avaliação estiver pendente, um novo pedido de
           hospedagem fica aguardando. O hotel vê a nota sem o seu nome.
@@ -42,7 +49,9 @@ export function AvaliacoesPendentes({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{p.hotelNome ?? "Hotel parceiro"}</p>
               <p className="text-muted-foreground text-xs">
-                {p.checkIn ? `${dataBR(p.checkIn)} a ${dataBR(p.checkOut)}` : `check-out em ${dataBR(p.checkOut)}`}
+                {p.checkIn
+                  ? `${formatarData(p.checkIn)} a ${formatarData(p.checkOut)}`
+                  : `check-out em ${formatarData(p.checkOut)}`}
               </p>
             </div>
             <div

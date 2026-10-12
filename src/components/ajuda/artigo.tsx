@@ -12,6 +12,7 @@ export function Artigo({
   titulo,
   resumo,
   manualHref = "/painel/ajuda",
+  manualRotulo = "Manual",
   children,
 }: {
   areaTitulo: string
@@ -20,6 +21,8 @@ export function Artigo({
   resumo?: string
   /** Raiz da seção de ajuda (painel ou portal). */
   manualHref?: string
+  /** Nome da raiz no breadcrumb (A170): "Manual" no painel e no hotel, "Ajuda" no portal. */
+  manualRotulo?: string
   children: React.ReactNode
 }) {
   return (
@@ -29,7 +32,7 @@ export function Artigo({
         className="text-muted-foreground mb-3 flex flex-wrap items-center gap-1 text-xs"
       >
         <Link href={manualHref} className="hover:text-foreground">
-          Manual
+          {manualRotulo}
         </Link>
         <ChevronRight className="size-3" />
         <Link href={areaHref} className="hover:text-foreground">

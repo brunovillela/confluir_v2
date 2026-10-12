@@ -87,7 +87,26 @@ export type MensagemAtendimento = {
   anexoCaminho: string | null
   anexoNome: string | null
   criadoEm: string
+  /**
+   * "marco" = registro de mudança de situação gravado pelo sistema (a equipe
+   * começou, a entidade reabriu) — a conversa mostra como linha do tempo, não
+   * como balão (A51).
+   */
+  tipo: "mensagem" | "marco"
 }
+
+/**
+ * Marcos de situação gravados na própria conversa (A51), sem SQL: o check da
+ * tabela só aceita autor 'filiado' ou 'entidade', então o marco é da
+ * entidade, sem usuário e com este nome — a resposta de alguém da equipe
+ * sempre leva o usuário (`autor_usuario_id`).
+ */
+const AUTOR_MARCO = "Sistema"
+const MARCO_EM_ANDAMENTO = "A entidade começou a cuidar da solicitação"
+const MARCO_REABERTA_PELA_ENTIDADE = "A entidade reabriu a solicitação"
+/** Textos fixos que o próprio associado grava ao encerrar e ao reabrir (A97). */
+const TEXTO_ENCERRADA_PELO_FILIADO = "Resolvido, pode encerrar."
+const TEXTO_REABERTA_PELO_FILIADO = "Não resolveu — reabri a solicitação."
 
 function montar(d: Record<string, unknown>): Atendimento {
   const situacao = String(d.situacao) as SituacaoAtendimento
@@ -113,15 +132,31 @@ function montar(d: Record<string, unknown>): Atendimento {
 }
 
 function montarMensagem(m: Record<string, unknown>): MensagemAtendimento {
+  const autor = m.autor === "entidade" ? "entidade" : "filiado"
+  const ehMarco = autor === "entidade" && !m.autor_usuario_id && texto(m.autor_nome) === AUTOR_MARCO
   return {
     id: String(m.id),
-    autor: m.autor === "entidade" ? "entidade" : "filiado",
+    autor,
     autorNome: texto(m.autor_nome),
     texto: String(m.texto),
     anexoCaminho: texto(m.anexo_caminho),
     anexoNome: texto(m.anexo_nome),
     criadoEm: String(m.created_at),
+    tipo: ehMarco ? "marco" : "mensagem",
   }
+}
+
+/** Grava um marco de situação na conversa; falha só vai para o log (o marco é acessório). */
+async function gravarMarco(atendimentoId: string, textoDoMarco: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("portal_atendimentos_mensagens").insert({
+    emp_proprietaria_id: await tenantAtual(),
+    atendimento_id: atendimentoId,
+    autor: "entidade",
+    autor_nome: AUTOR_MARCO,
+    texto: textoDoMarco,
+  })
+  if (error) console.error("atendimento (marco):", error.message)
 }
 
 const COLS = "id, cpf, filiacao_id, nome, email, assunto, titulo, situacao, prazo, demanda_id, primeira_resposta_em, concluida_em, created_at, updated_at"
@@ -293,10 +328,85 @@ async function mensagensDe(atendimentoId: string): Promise<MensagemAtendimento[]
   const admin = await createAdminClient()
   const { data } = await admin
     .from("portal_atendimentos_mensagens")
-    .select("id, autor, autor_nome, texto, anexo_caminho, anexo_nome, created_at")
+    .select("id, autor, autor_nome, autor_usuario_id, texto, anexo_caminho, anexo_nome, created_at")
     .eq("atendimento_id", atendimentoId)
     .order("created_at", { ascending: true })
   return (data ?? []).map((m) => montarMensagem(m as Record<string, unknown>))
+}
+
+/** O associado concluiu (o "Resolvido, pode encerrar" é gravado junto da conclusão). */
+export function concluidaPeloFiliado(a: Atendimento, mensagens: MensagemAtendimento[]): boolean {
+  if (a.situacao !== "concluida" || !a.concluidaEm) return false
+  const quando = Date.parse(a.concluidaEm)
+  return mensagens.some(
+    (m) =>
+      m.autor === "filiado" &&
+      m.texto === TEXTO_ENCERRADA_PELO_FILIADO &&
+      Math.abs(Date.parse(m.criadoEm) - quando) < 5 * 60_000
+  )
+}
+
+function marco(id: string, textoDoMarco: string, quando: string): MensagemAtendimento {
+  return { id, autor: "entidade", autorNome: null, texto: textoDoMarco, anexoCaminho: null, anexoNome: null, criadoEm: quando, tipo: "marco" }
+}
+
+/** A reabertura que fica na conversa: o marco gravado pela equipe ou o texto fixo do associado. */
+function ehReabertura(m: MensagemAtendimento): boolean {
+  return (
+    (m.tipo === "marco" && m.texto === MARCO_REABERTA_PELA_ENTIDADE) ||
+    (m.tipo === "mensagem" && m.autor === "filiado" && m.texto === TEXTO_REABERTA_PELO_FILIADO)
+  )
+}
+
+/**
+ * A conversa com a linha do tempo (A51): aos balões e aos marcos gravados
+ * (em andamento, reaberta pela entidade) somam-se os marcos que já se tiram
+ * da solicitação, sem SQL — aberta (no topo), a primeira resposta da entidade
+ * (antes do primeiro balão dela) e a conclusão (no fim: concluída, nada entra
+ * na conversa até reabrir). A posição vem da ordem, não do relógio: a
+ * conclusão é carimbada antes de a mensagem final ser gravada. `lado` é quem
+ * lê — "você" no portal.
+ *
+ * A reabertura apaga `concluida_em`; a conclusão anterior não sumir da linha
+ * do tempo depende da mensagem que a acompanhou (a palavra final da entidade
+ * ou o "Resolvido, pode encerrar"), a última antes da reabertura — enquanto
+ * concluída, ninguém escreve na conversa. Sem essa mensagem (conclusão muda,
+ * antes de a onda 5 exigir texto), o marco fica de fora em vez de levar uma
+ * data inventada.
+ */
+export function conversaComMarcos(
+  a: Atendimento,
+  mensagens: MensagemAtendimento[],
+  lado: "filiado" | "entidade"
+): MensagemAtendimento[] {
+  const encerrouRotulo = lado === "filiado" ? "Você encerrou a solicitação" : "O filiado encerrou a solicitação"
+  const itens: MensagemAtendimento[] = [
+    marco("marco-aberta", lado === "filiado" ? "Você abriu a solicitação" : "O filiado abriu a solicitação pelo portal", a.criadoEm),
+  ]
+  let respondeu = false
+  let anterior: MensagemAtendimento | null = null
+  for (const m of mensagens) {
+    if (ehReabertura(m) && anterior) {
+      const rotulo =
+        anterior.autor === "filiado" && anterior.texto === TEXTO_ENCERRADA_PELO_FILIADO
+          ? encerrouRotulo
+          : anterior.autor === "entidade"
+            ? "A entidade concluiu a solicitação"
+            : null
+      if (rotulo) itens.push(marco(`marco-concluida-${anterior.id}`, rotulo, anterior.criadoEm))
+    }
+    if (!respondeu && m.tipo === "mensagem" && m.autor === "entidade") {
+      respondeu = true
+      itens.push(marco("marco-primeira-resposta", "Primeira resposta da entidade", m.criadoEm))
+    }
+    itens.push(m)
+    if (m.tipo === "mensagem") anterior = m
+  }
+  if (a.situacao === "concluida" && a.concluidaEm) {
+    const rotulo = concluidaPeloFiliado(a, mensagens) ? encerrouRotulo : "A entidade concluiu a solicitação"
+    itens.push(marco("marco-concluida", rotulo, a.concluidaEm))
+  }
+  return itens
 }
 
 /** A solicitação do próprio filiado (CPF conferido), com a conversa. */
@@ -404,7 +514,7 @@ export async function encerrarComoFiliado(p: { id: string; cpf: string; nome: st
     atendimento_id: a.id,
     autor: "filiado",
     autor_nome: p.nome,
-    texto: "Resolvido, pode encerrar.",
+    texto: TEXTO_ENCERRADA_PELO_FILIADO,
   })
   if (erroMsg) console.error("encerrar atendimento (mensagem):", erroMsg.message)
   if (a.demandaId) await admin.from("demandas").update({ situacao: "Feito" }).eq("emp_proprietaria_id", emp).eq("id", a.demandaId)
@@ -463,7 +573,7 @@ export async function reabrirComoFiliado(p: { id: string; cpf: string; nome: str
     atendimento_id: a.id,
     autor: "filiado",
     autor_nome: p.nome,
-    texto: "Não resolveu — reabri a solicitação.",
+    texto: TEXTO_REABERTA_PELO_FILIADO,
   })
   if (error) console.error("reabrir atendimento (mensagem):", error.message)
 
@@ -536,26 +646,34 @@ export async function responderAtendimento(p: {
   const atual = await obterAtendimento(p.id)
   if (!atual) return { erro: "Solicitação não encontrada." }
   const corpo = p.texto.trim()
-  if (corpo.length < 2 && !p.concluir) return { erro: "Escreva a resposta.", campo: "texto" }
+  // Concluir também exige texto (A51): o associado recebe "foi concluída",
+  // abre a conversa e precisa encontrar a palavra final da entidade — uma
+  // conclusão muda, só com o selo trocado, parece descaso.
+  if (corpo.length < 2) {
+    return {
+      erro: p.concluir
+        ? "Escreva ao filiado o que foi feito antes de concluir — é a mensagem final que ele lê no portal."
+        : "Escreva a resposta.",
+      campo: "texto",
+    }
+  }
   const anexo = await guardarAnexo(p.id, p.anexo)
   if (anexo.erro) return { erro: anexo.erro, campo: "anexo" }
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const agora = new Date().toISOString()
-  if (corpo.length > 0) {
-    const { error } = await admin.from("portal_atendimentos_mensagens").insert({
-      emp_proprietaria_id: emp,
-      atendimento_id: p.id,
-      autor: "entidade",
-      autor_nome: p.usuarioNome,
-      autor_usuario_id: p.usuarioId,
-      texto: corpo,
-      anexo_caminho: anexo.caminho,
-      anexo_nome: anexo.nome,
-    })
-    if (error) return { erro: `Não foi possível responder: ${error.message}` }
-  }
+  const { error } = await admin.from("portal_atendimentos_mensagens").insert({
+    emp_proprietaria_id: emp,
+    atendimento_id: p.id,
+    autor: "entidade",
+    autor_nome: p.usuarioNome,
+    autor_usuario_id: p.usuarioId,
+    texto: corpo,
+    anexo_caminho: anexo.caminho,
+    anexo_nome: anexo.nome,
+  })
+  if (error) return { erro: `Não foi possível responder: ${error.message}` }
   const nova: SituacaoAtendimento = p.concluir ? "concluida" : "respondida"
   await admin
     .from("portal_atendimentos")
@@ -579,7 +697,7 @@ export async function responderAtendimento(p: {
       evento: "atendimento",
       assunto: p.concluir ? "Sua solicitação foi concluída" : "A entidade respondeu à sua solicitação",
       texto: p.concluir
-        ? `Sua solicitação "${a.titulo}" foi concluída${corpo ? " com uma resposta da entidade" : ""}.`
+        ? `Sua solicitação "${a.titulo}" foi concluída. Leia no portal a resposta final da entidade.`
         : `A entidade respondeu à sua solicitação "${a.titulo}".`,
       link: `/portal/atendimento/${a.id}`,
     })
@@ -595,6 +713,9 @@ export async function reabrirAtendimento(id: string): Promise<{ erro?: string }>
   if (a.situacao !== "concluida") return { erro: "Esta solicitação já está aberta." }
   const r = await reabrir(a)
   if (r.erro) return r
+  // Na conversa, um marco datado (A51): sem ele, o associado via a solicitação
+  // voltar a "Em andamento" sem nada escrito sobre isso.
+  await gravarMarco(a.id, MARCO_REABERTA_PELA_ENTIDADE)
   // O associado via "Concluída" no portal: sabe que a conversa voltou (A121).
   depoisDaResposta(() =>
     avisarFiliado({
@@ -665,6 +786,8 @@ export async function sincronizarAtendimentoDaDemanda(demandaId: string, nova: s
     .eq("situacao", "aberta")
     .select("id")
   if (!data?.length) return
+  // A data em que a equipe começou fica na conversa, como marco (A51).
+  await gravarMarco(s.id, MARCO_EM_ANDAMENTO)
   depoisDaResposta(() =>
     avisarFiliado({
       cpf: s.cpf,

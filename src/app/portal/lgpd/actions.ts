@@ -11,6 +11,7 @@ import { definirComunicados } from "@/lib/db/comunicacao-descadastro"
 import { atualizarRegistrosDoCpf } from "@/lib/db/filiado-portal"
 import { registrarAceiteTermo, termoEmVigor } from "@/lib/db/lgpd"
 import { tenantAtual } from "@/lib/tenant"
+import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 /**
  * Registra o aceite do termo LGPD (data de hoje e versão aceita em todos os
@@ -68,20 +69,34 @@ export async function registrarAceiteLgpd(
   redirect("/portal/lgpd?salvo=1")
 }
 
-/** Liga ou desliga os comunicados da mala direta (todos os registros do CPF). */
+/**
+ * Liga ou desliga os comunicados da mala direta (todos os registros do CPF).
+ * Vem da LGPD ou de Preferências de avisos (A176, `voltar=preferencias`):
+ * de lá, a resposta fica na própria página.
+ */
 export async function alterarComunicadosPortal(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
+  // Na visualização pela gestão a sessão é a de quem visualiza: gravaria na
+  // conta DELE, se ele também tiver acesso ao portal.
+  if ((await getVisualizacaoPortal())?.preview) {
+    return { erro: "Na visualização pela gestão, só o próprio associado escolhe." }
+  }
   const { filiado } = await requireSessaoPortal()
   const cpf = cpfConfiavel(filiado.cpf)
   if (!cpf) return { erro: "Cadastro sem CPF: fale com a secretaria." }
-  const r = await definirComunicados(
-    { emp: await tenantAtual(), cpf },
-    formData.get("receber") === "1",
-    "portal"
-  )
+  const receber = formData.get("receber") === "1"
+  const r = await definirComunicados({ emp: await tenantAtual(), cpf }, receber, "portal")
   if (r.erro) return { erro: r.erro }
   revalidatePath("/portal/lgpd")
+  revalidatePath("/portal/avisos/preferencias")
+  if (formData.get("voltar") === "preferencias") {
+    return {
+      ok: receber
+        ? "Pronto: você volta a receber os comunicados por e-mail."
+        : "Pronto: você não recebe mais os comunicados por e-mail.",
+    }
+  }
   redirect("/portal/lgpd?salvo=comunicados")
 }

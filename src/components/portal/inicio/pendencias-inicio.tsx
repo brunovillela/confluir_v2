@@ -3,6 +3,7 @@ import { ArrowRight, CalendarClock, FileSignature, HandCoins, UsersRound, Vote }
 
 import { AvaliacoesPendentes } from "@/app/portal/hospedagem/avaliacoes-pendentes"
 import { ContagemRegressiva } from "@/components/portal/contagem-regressiva"
+import { Indisponivel } from "@/components/portal/inicio/indisponivel"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
@@ -10,13 +11,26 @@ import type { Filiado } from "@/lib/contas"
 import { situacaoColetivaDoFiliado } from "@/lib/db/filiacao-coletiva"
 import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
-import { avaliacoesPendentesSoLeitura, registrosDaPessoa, seguro } from "@/lib/db/portal-inicio"
-import { assembleiasDoFiliado } from "@/lib/db/votacao-portal"
-import { formatarData } from "@/lib/formato"
+import { avaliacoesPendentesSoLeitura, registrosDaPessoa } from "@/lib/db/portal-inicio"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 
-/** Cartão de destaque das pendências (o mesmo padrão em todas). */
+import { assembleiasSeAtivo, tentar } from "./cargas"
+
+/**
+ * Cartão de destaque das pendências (o mesmo padrão em todas). O cartão
+ * inteiro é o link: foco visível no próprio cartão, também no tema escuro
+ * (A156), e nenhum <button> dentro dele.
+ */
 const DESTAQUE =
-  "group border-primary/40 bg-primary/5 hover:bg-primary/10 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
+  "group border-primary/40 bg-primary/5 hover:bg-primary/10 focus-visible:border-ring focus-visible:ring-ring/50 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-colors outline-none focus-visible:ring-3"
+
+/**
+ * Votação que pede ação agora (votar) ou que está aberta e trava a pessoa
+ * (carência). A que já recebeu o voto, a que ainda vai abrir e a presencial
+ * vão para "Seus próximos compromissos" (compromissos.tsx) — o laranja aqui
+ * é só do que pede ação (A146).
+ */
+const PEDEM_ACAO = new Set(["votar", "carencia"])
 
 /**
  * O que pede ação da pessoa, logo abaixo da saudação (onda 2, ordem do
@@ -24,46 +38,49 @@ const DESTAQUE =
  * com prazo de desistência. A situação da contribuição, quando há problema,
  * vem logo depois, no topo da faixa "Minha situação" (minha-situacao.tsx).
  *
- * Cada consulta tem a própria saída (A69): uma que falha some sozinha. No
+ * Cada consulta tem a própria saída (A69): uma que falha não derruba as
+ * outras — e não some calada (A187): a seção diz que algo não carregou, que
+ * pode haver uma votação ou uma avaliação pendente que não apareceu. No
  * "Ver como filiado" nada grava — as avaliações pendentes são só lidas, sem
  * gerar as que faltam.
+ *
+ * A seção ganha o título "Para você resolver" (A146) e só aparece quando há
+ * o que resolver (ou o aviso de que algo não carregou).
  */
 export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado; preview: boolean }) {
-  const [assembleias, oposicoes, avaliacoes, coletiva] = await Promise.all([
-    filiado.ativo ? seguro("assembleias", () => assembleiasDoFiliado(filiado.cpf), []) : Promise.resolve([]),
-    seguro("oposição", () => oposicoesParaFiliado(filiado.cpf), []),
+  const [rAssembleias, rOposicoes, rAvaliacoes, rColetiva] = await Promise.all([
+    assembleiasSeAtivo(filiado, "assembleias"),
+    tentar("oposição", () => oposicoesParaFiliado(filiado.cpf)),
     // Como o Uber: a avaliação da última hospedagem aparece logo ao entrar.
-    seguro(
-      "avaliações de hospedagem",
-      async () => {
-        const registros = await registrosDaPessoa(filiado.cpf)
-        return preview ? avaliacoesPendentesSoLeitura(registros) : pendenciasDaPessoa(registros)
-      },
-      []
-    ),
-    seguro("filiação coletiva", () => situacaoColetivaDoFiliado(filiado.filiacaoId), null),
+    tentar("avaliações de hospedagem", async () => {
+      const registros = await registrosDaPessoa(filiado.cpf)
+      return preview ? avaliacoesPendentesSoLeitura(registros) : pendenciasDaPessoa(registros)
+    }),
+    tentar("filiação coletiva", () => situacaoColetivaDoFiliado(filiado.filiacaoId)),
   ])
+  const falhou = !rAssembleias || !rOposicoes || !rAvaliacoes || !rColetiva
+  const assembleias = (rAssembleias?.valor ?? []).filter((a) => PEDEM_ACAO.has(estadoVotacao(a).chave))
+  const oposicoes = rOposicoes?.valor ?? []
+  const avaliacoes = rAvaliacoes?.valor ?? []
+  const coletiva = rColetiva?.valor ?? null
 
   const nada = assembleias.length === 0 && oposicoes.length === 0 && avaliacoes.length === 0 && !coletiva?.emProcesso
-  if (nada) return null
+  if (nada && !falhou) return null
 
   return (
-    <div className="grid gap-3">
+    <section aria-labelledby="inicio-resolver" className="grid gap-3">
+      <h2 id="inicio-resolver" className="text-lg font-semibold">
+        Para você resolver
+      </h2>
       {assembleias.map((a) => {
         // Mesma regra da lista /portal/votacao e da cédula (achado A3): só
-        // quem pode votar AGORA vê "Votar" e a contagem "encerra em"; antes
-        // da abertura e na carência o banner explica, sem botão.
+        // quem pode votar AGORA vê "Votar" e a contagem "encerra em"; na
+        // carência o banner explica, sem botão.
         const estado = estadoVotacao(a)
         return (
           <Link
             key={a.assembleiaId}
-            href={
-              estado.chave === "votar"
-                ? `/portal/votacao/${a.assembleiaId}`
-                : estado.chave === "presencial" && a.rodadaId
-                  ? `/portal/votacao/rodada/${a.rodadaId}`
-                  : "/portal/votacao"
-            }
+            href={estado.chave === "votar" ? `/portal/votacao/${a.assembleiaId}` : "/portal/votacao"}
             className={DESTAQUE}
           >
             <div className="flex min-w-0 items-start gap-3">
@@ -73,7 +90,7 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
               <div className="min-w-0">
                 <p className="text-sm font-semibold">
                   {estado.titulo}
-                  {(estado.chave === "nao_abriu" || estado.chave === "carencia") && (
+                  {estado.chave === "carencia" && (
                     <Badge variant={estado.variante} className="ml-2 align-middle">
                       {estado.rotulo}
                     </Badge>
@@ -85,19 +102,22 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
                   {estado.chave === "votar" ? (
                     <>
                       {" · "}
-                      {a.termino ? <ContagemRegressiva ate={a.termino} /> : ROTULOS_MODALIDADE[a.modalidade]}
-                    </>
-                  ) : estado.chave === "presencial" ? (
-                    <>
-                      {" · "}
-                      {a.inicio ? <>a partir de {formatarData(a.inicio)}</> : "confira as datas"}
+                      {a.termino ? (
+                        // O relógio muda a cada segundo e faz parte do nome
+                        // do link: o leitor de tela ouve a hora fixa (A156).
+                        <>
+                          <span aria-hidden>
+                            <ContagemRegressiva ate={a.termino} />
+                          </span>
+                          <span className="sr-only">encerra em {formatarDataHora(a.termino)}</span>
+                        </>
+                      ) : (
+                        ROTULOS_MODALIDADE[a.modalidade]
+                      )}
                     </>
                   ) : null}
                 </p>
-                {/* "Ainda não abriu" já diz quando no título. */}
-                {estado.detalhe && estado.chave !== "nao_abriu" && (
-                  <p className="text-muted-foreground mt-0.5 text-xs">{estado.detalhe}</p>
-                )}
+                {estado.detalhe && <p className="text-muted-foreground mt-0.5 text-xs">{estado.detalhe}</p>}
               </div>
             </div>
             {estado.chave === "votar" ? (
@@ -138,7 +158,9 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
                 {o.prazoFim && (
                   <>
                     {" · "}
-                    <ContagemRegressiva ate={`${o.prazoFim}T23:59:59`} />
+                    {/* 23:59:59 de Brasília, não do relógio do aparelho (A185):
+                        é o mesmo fim que o servidor aplica (estadoPrazo). */}
+                    <ContagemRegressiva ate={`${o.prazoFim.slice(0, 10)}T23:59:59-03:00`} />
                   </>
                 )}
               </p>
@@ -160,7 +182,7 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
         </Link>
       ))}
 
-      <AvaliacoesPendentes pendencias={avaliacoes} preview={preview} />
+      <AvaliacoesPendentes pendencias={avaliacoes} preview={preview} nivelTitulo={3} />
 
       {coletiva?.emProcesso && (
         <Link href="/portal/desfiliacao" className={DESTAQUE}>
@@ -181,9 +203,17 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
               </p>
             </div>
           </div>
-          <span className={buttonVariants({ size: "sm", variant: "outline" })}>Saiba mais</span>
+          <span className={buttonVariants({ size: "sm", variant: "outline" })}>Ver minha filiação</span>
         </Link>
       )}
-    </div>
+
+      {falhou && (
+        <Indisponivel className="text-xs">
+          {nada
+            ? "Não foi possível conferir agora se há votação, avaliação ou outra pendência para você. Tente de novo daqui a pouco."
+            : "Parte das pendências não carregou agora — pode haver outra além destas."}
+        </Indisponivel>
+      )}
+    </section>
   )
 }

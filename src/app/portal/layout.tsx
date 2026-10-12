@@ -13,11 +13,9 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { encerrarVisualizacaoFiliado } from "@/lib/actions/visualizacao"
 import { mapaAjudaPortal } from "@/lib/ajuda/mapa-portal"
 import { areasDaConta } from "@/lib/auth"
-import { listarConvenios } from "@/lib/db/filiacao-convenios"
-import { hoteisDisponiveis } from "@/lib/db/filiado-portal"
-import { oposicaoRelevanteParaFiliado } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { contarAvisosNaoLidos } from "@/lib/db/portal-avisos"
+import { secoesOcultasDoPortal } from "@/lib/db/sindicato-portal"
 import { cn } from "@/lib/utils"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -26,9 +24,15 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
  * painel): quem instala o app por aqui abre em /portal/inicio, não no login
  * dos funcionários (A56). O manifest mora fora de /portal — ver
  * src/app/manifest-portal.webmanifest/route.ts.
+ *
+ * Título da aba com um sufixo só (A183): cada página exporta só o nome dela
+ * ("Início", "Carteirinha"…) e o modelo completa. O modelo vale para as
+ * páginas ABAIXO deste segmento — a tela de entrada (/portal/page.tsx, no
+ * mesmo segmento) escreve o título inteiro.
  */
 export const metadata: Metadata = {
   manifest: "/manifest-portal.webmanifest",
+  title: { template: "%s — Portal do Associado", default: "Portal do Associado" },
 }
 
 /** Estado aberto/recolhido da lateral do portal — separado do `sidebar_state` do painel. */
@@ -65,7 +69,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const preview = vis.preview ? vis : null
   const cpf = vis.filiado.cpf
 
-  const [entidade, outrasAreas, naoLidos, mostraOposicao, temHotel, temConvenio, jar] = await Promise.all([
+  const [entidade, outrasAreas, naoLidos, ocultos, jar] = await Promise.all([
     nomeEntidade(),
     // O alternador de interfaces é da conta logada: na visualização seria o da gestão.
     preview
@@ -74,25 +78,13 @@ export default async function PortalLayout({ children }: { children: React.React
           .then((a) => a.filter((x) => x.href !== "/portal/inicio"))
           .catch(() => []),
     contarAvisosNaoLidos(cpf).catch(() => 0),
-    // Contribuição assistencial só para quem tem a ver com ela: oposição já
-    // registrada ou campanha no prazo que alcança a fonte dele (A125).
-    oposicaoRelevanteParaFiliado(cpf).catch(() => true),
-    // Sem hotel ou convênio vigente na entidade, o item sai do menu (A57). A
-    // rota continua aberta: links de aviso e histórico de cupons seguem valendo.
-    hoteisDisponiveis()
-      .then((l) => l.length > 0)
-      .catch(() => true),
-    listarConvenios({ somenteVigentes: true })
-      .then((l) => l.length > 0)
-      .catch(() => true),
+    // O que sai do menu: Contribuição assistencial para quem não tem a ver com
+    // ela (A125); Hospedagem sem hotel que aceite pedido e Convênios sem
+    // convênio vigente (A57). A MESMA regra da grade do Início — as duas nunca
+    // divergem. A rota continua aberta (links de aviso, histórico de cupons).
+    secoesOcultasDoPortal(cpf).catch(() => []),
     cookies(),
   ])
-
-  const ocultos = [
-    !mostraOposicao && "/portal/oposicao",
-    !temHotel && "/portal/hospedagem",
-    !temConvenio && "/portal/convenios",
-  ].filter((h): h is string => typeof h === "string")
   const lateralAberta = jar.get(COOKIE_LATERAL)?.value !== "false"
 
   return (
@@ -139,13 +131,18 @@ export default async function PortalLayout({ children }: { children: React.React
 
           <CabecalhoPortal entidade={entidade} preview={Boolean(preview)} mapaAjuda={mapaAjudaPortal()} />
 
-          {/* pb-28: abaixo de lg a barra inferior fixa cobre o fim da página.
+          {/* Abaixo de lg a barra inferior fixa cobre o fim da página: a folga
+              é a altura dela (3,5rem) mais a área segura do aparelho — a mesma
+              conta que a barra faz — e 2rem de respiro (A175).
               scroll-mt-14: ao receber o foco do "Pular para o conteúdo" com a
               página rolada, o topo não fica sob o cabeçalho sticky (h-14). */}
           <main
             id="conteudo"
             tabIndex={-1}
-            className={cn(CONTAINER, "flex flex-1 scroll-mt-14 flex-col gap-6 pt-6 pb-28 outline-none md:pt-8 lg:pb-10")}
+            className={cn(
+              CONTAINER,
+              "flex flex-1 scroll-mt-14 flex-col gap-6 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none md:pt-8 lg:pb-10"
+            )}
           >
             {children}
           </main>

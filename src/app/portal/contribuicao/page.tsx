@@ -4,7 +4,6 @@ import {
   CircleAlert,
   CircleCheck,
   CircleDashed,
-  Coins,
   Eye,
   FileText,
   Hourglass,
@@ -18,11 +17,14 @@ import {
 import QRCode from "qrcode"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
+import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ajudaDaRotaPortal, mapaAjudaPortal } from "@/lib/ajuda/mapa-portal"
 import {
   fraseRegra,
@@ -41,7 +43,7 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { CopiaECola } from "./cobranca-pix"
 
-export const metadata: Metadata = { title: "Minha contribuição — Portal" }
+export const metadata: Metadata = { title: "Minha contribuição" }
 
 type Busca = Promise<{ ano?: string | string[]; aviso?: string | string[] }>
 
@@ -188,37 +190,39 @@ export default async function ContribuicaoPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <div className="flex items-center gap-2">
-            <Coins className="text-muted-foreground size-5" />
-            <h1 className="text-2xl font-semibold tracking-tight">Minha contribuição</h1>
-          </div>
-          <Button asChild variant="link" className="px-0">
-            <Link href={ajuda.href}>Entenda sua contribuição</Link>
-          </Button>
-        </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {c?.porPix
+      <CabecalhoPagina
+        secao="/portal/contribuicao"
+        titulo="Minha contribuição"
+        subtitulo={
+          c?.porPix
             ? "Suas contribuições ao sindicato, mês a mês. Cada pagamento por Pix aparece aqui depois de reconhecido no extrato da entidade."
             : c?.comoContribui.forma === "boleto"
               ? "Suas contribuições ao sindicato, mês a mês. Cada pagamento aparece aqui depois de reconhecido pelo sindicato."
-              : "O que a empresa descontou e repassou ao sindicato, mês a mês. Cada mês aparece aqui depois que a empresa envia ao sindicato a relação de descontos daquele mês."}
-        </p>
-      </div>
+              : "O que a empresa descontou e repassou ao sindicato, mês a mês. Cada mês aparece aqui depois que a empresa envia ao sindicato a relação de descontos daquele mês."
+        }
+        acoes={
+          <Button asChild variant="link" className="px-0">
+            <Link href={ajuda.href}>Entenda sua contribuição</Link>
+          </Button>
+        }
+      />
 
       {/* A rota do extrato devolve para cá quando é aberta na visualização ou falha. */}
       {preview && aviso === "visualizacao" && (
-        <Alert role="status">
-          <Eye />
-          <AlertDescription>Na visualização pela gestão, o extrato não é emitido: só o próprio associado o emite, pela conta dele.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["aviso"]}>
+          <Alert role="status">
+            <Eye />
+            <AlertDescription>Na visualização pela gestão, o extrato não é emitido: só o próprio associado o emite, pela conta dele.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
       {aviso === "extrato" && (
-        <Alert variant="warning">
-          <CircleAlert />
-          <AlertDescription>Não foi possível gerar o extrato agora. Tente de novo em alguns minutos.</AlertDescription>
-        </Alert>
+        <AvisoDaUrl parametros={["aviso"]}>
+          <Alert variant="warning">
+            <CircleAlert />
+            <AlertDescription>Não foi possível gerar o extrato agora. Tente de novo em alguns minutos.</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
       )}
 
       {!c ? (
@@ -361,7 +365,9 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
           <CardHeader>
             <div className="flex items-center gap-2">
               <QrCodeIcone className="text-primary size-5" />
-              <CardTitle className="text-base">Contribuição de {rotuloCompetencia(aberta.competencia)}: pague por Pix</CardTitle>
+              <CardTitle role="heading" aria-level={2}>
+                Contribuição de {rotuloCompetencia(aberta.competencia)}: pague por Pix
+              </CardTitle>
             </div>
             <CardDescription className="text-sm">
               Leia o QR Code no app do banco ou copie o código. O pagamento é reconhecido pelo extrato da entidade em até 2 dias úteis.
@@ -451,7 +457,9 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Como você contribui</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Como você contribui
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-3">
@@ -481,17 +489,30 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
       {(c.porPix || c.cobrancas.length > 0) && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Cobranças por Pix</CardTitle>
-            <CardDescription className="text-sm">
-              {c.cobrancas.length > 0
-                ? "Serve de comprovante: o mês, o valor, a situação e o identificador de cada cobrança."
-                : "Nenhuma cobrança gerada para você até agora."}
-              {proxima && ` ${proxima}`}
-            </CardDescription>
+            <CardTitle role="heading" aria-level={2}>
+              Cobranças por Pix
+            </CardTitle>
+            {c.cobrancas.length > 0 && (
+              <CardDescription className="text-sm">
+                Serve de comprovante: o mês, o valor, a situação e o identificador de cada cobrança.
+                {proxima && ` ${proxima}`}
+              </CardDescription>
+            )}
           </CardHeader>
-          {c.cobrancas.length > 0 && (
+          {c.cobrancas.length === 0 ? (
+            // Lista vazia no desenho comum do portal (A140), com quando sai a próxima.
+            <CardContent>
+              <EstadoVazio
+                compacto
+                icone={QrCodeIcone}
+                titulo="Nenhuma cobrança gerada para você até agora."
+                descricao={proxima ?? undefined}
+              />
+            </CardContent>
+          ) : (
             <CardContent>
               <Table className="tabela-cards">
+                <TableCaption className="sr-only">Cobranças por Pix</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Mês de referência</TableHead>
@@ -548,7 +569,9 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Histórico</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Histórico
+          </CardTitle>
           <CardDescription className="text-sm">
             {c.linhas.length === 0
               ? "Nenhuma contribuição registrada ainda."
@@ -596,6 +619,9 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
                 )}
               </div>
               <Table className="tabela-cards">
+                <TableCaption className="sr-only">
+                  {ano === "sem-data" ? "Contribuições sem mês informado" : `Contribuições de ${ano}`}
+                </TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Mês de referência</TableHead>
