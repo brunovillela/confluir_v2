@@ -52,13 +52,16 @@ export type RegistroSnapshot = {
  * aberto. PostgREST do projeto não permite agregações — leitura em lotes
  * com cache em memória por 10 minutos.
  */
-let cacheFontes: { expira: number; dados: EstatisticasFontes } | null = null
+// Um processo atende várias entidades (multi-tenant por subdomínio): o cache
+// é por tenant, senão uma entidade recebia por 10 min as fontes da outra.
+const cacheFontes = new Map<string, { expira: number; dados: EstatisticasFontes }>()
 
 export async function estatisticasFontes(): Promise<EstatisticasFontes> {
-  if (cacheFontes && cacheFontes.expira > Date.now()) return cacheFontes.dados
+  const empId = await tenantAtual()
+  const guardado = cacheFontes.get(empId)
+  if (guardado && guardado.expira > Date.now()) return guardado.dados
 
   const admin = await createAdminClient()
-  const empId = await tenantAtual()
 
   // .order("id") garante paginação estável (sem ele, linhas repetem/somem)
   const [filiacoes, vinculos] = await Promise.all([
@@ -138,13 +141,17 @@ export async function estatisticasFontes(): Promise<EstatisticasFontes> {
     registrosPorFonte,
     registros: filiacoes,
   }
-  cacheFontes = { expira: Date.now() + 10 * 60_000, dados }
+  cacheFontes.set(empId, { expira: Date.now() + 10 * 60_000, dados })
   return dados
 }
 
-/** Invalida o cache após criar/editar fontes. */
-export function invalidarCacheFontes() {
-  cacheFontes = null
+/**
+ * Invalida o cache após criar/editar fontes. Com o tenant, descarta só o
+ * dele; sem (fora de requisição), descarta todos.
+ */
+export function invalidarCacheFontes(tenantId?: string) {
+  if (tenantId) cacheFontes.delete(tenantId)
+  else cacheFontes.clear()
 }
 
 export async function nomesDeEmpresas(

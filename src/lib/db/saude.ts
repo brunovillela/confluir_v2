@@ -349,14 +349,20 @@ export type Facetas = {
  * um cache em memória de 10 minutos resolve — mesmo desenho de
  * `listarTodosProntuarios`. Chamar `invalidarCacheFacetas()` após importar.
  */
-let cacheFacetas: { expira: number; dados: Facetas } | null = null
+// Um processo atende várias entidades (multi-tenant por subdomínio): o cache
+// é por tenant, senão uma entidade recebia por 10 min as facetas da outra.
+const cacheFacetas = new Map<string, { expira: number; dados: Facetas }>()
 
-export function invalidarCacheFacetas() {
-  cacheFacetas = null
+/** Com o tenant, descarta só o dele; sem (fora de requisição), descarta todos. */
+export function invalidarCacheFacetas(tenantId?: string) {
+  if (tenantId) cacheFacetas.delete(tenantId)
+  else cacheFacetas.clear()
 }
 
 export async function facetasCat(): Promise<Facetas> {
-  if (cacheFacetas && cacheFacetas.expira > Date.now()) return cacheFacetas.dados
+  const emp = await tenantAtual()
+  const guardado = cacheFacetas.get(emp)
+  if (guardado && guardado.expira > Date.now()) return guardado.dados
 
   const { linhas, disponivel } = await buscarTodos<{
     local_uf: string | null
@@ -401,7 +407,7 @@ export async function facetasCat(): Promise<Facetas> {
     ),
     anos: [...anos].sort().reverse(),
   }
-  cacheFacetas = { expira: Date.now() + 10 * 60_000, dados }
+  cacheFacetas.set(emp, { expira: Date.now() + 10 * 60_000, dados })
   return dados
 }
 

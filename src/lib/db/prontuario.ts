@@ -116,13 +116,20 @@ export type ApontamentoGeral = Apontamento & {
  * carga terminar — leitura em lotes com cache em memória por 5 minutos;
  * nomes de filiados resolvidos pelo snapshot de fontes (sem N queries).
  */
-let cacheGeral: {
-  expira: number
-  dados: { apontamentos: ApontamentoGeral[]; tipos: string[] }
-} | null = null
+// Um processo atende várias entidades (multi-tenant por subdomínio): o cache
+// é por tenant, senão uma entidade recebia por 5 min os prontuários da outra.
+const cacheGeral = new Map<
+  string,
+  {
+    expira: number
+    dados: { apontamentos: ApontamentoGeral[]; tipos: string[] }
+  }
+>()
 
-export function invalidarCacheProntuarios() {
-  cacheGeral = null
+/** Com o tenant, descarta só o dele; sem (fora de requisição), descarta todos. */
+export function invalidarCacheProntuarios(tenantId?: string) {
+  if (tenantId) cacheGeral.delete(tenantId)
+  else cacheGeral.clear()
 }
 
 export async function listarTodosProntuarios(): Promise<{
@@ -130,8 +137,10 @@ export async function listarTodosProntuarios(): Promise<{
   apontamentos: ApontamentoGeral[]
   tipos: string[]
 }> {
-  if (cacheGeral && cacheGeral.expira > Date.now()) {
-    return { disponivel: true, ...cacheGeral.dados }
+  const emp = await tenantAtual()
+  const guardado = cacheGeral.get(emp)
+  if (guardado && guardado.expira > Date.now()) {
+    return { disponivel: true, ...guardado.dados }
   }
 
   const admin = await createAdminClient()
@@ -216,10 +225,10 @@ export async function listarTodosProntuarios(): Promise<{
     ),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-  cacheGeral = {
+  cacheGeral.set(emp, {
     expira: Date.now() + 5 * 60_000,
     dados: { apontamentos, tipos },
-  }
+  })
   return { disponivel: true, apontamentos, tipos }
 }
 
