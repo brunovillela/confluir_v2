@@ -585,12 +585,14 @@ export async function contagensAtendimento(): Promise<{
   cipa: number | null
 }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const contar = async (tabela: string): Promise<number | null> => {
     // GET com count, não head: em tabela ausente o HEAD volta sem corpo e
     // perde o PGRST205, então a degradação não seria detectada.
     const { count, error } = await admin
       .from(tabela)
       .select("id", { count: "exact" })
+      .eq("emp_proprietaria_id", emp)
       .limit(1)
     if (error) return null
     return count ?? 0

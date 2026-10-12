@@ -51,6 +51,10 @@ export function hojeSP(): string {
 /**
  * Mapa id → nome de usuários. Prefere `nome_completo` caindo para
  * `nome_guerra`; passe `"guerra"` para inverter a preferência.
+ *
+ * Em fatias de 200 ids: uma lista grande em .in() estoura a URL do
+ * PostgREST (e passaria do teto de 1.000 linhas). Fatia que falha só deixa
+ * os nomes dela de fora, como antes.
  */
 export async function nomesDosUsuarios(
   ids: string[],
@@ -60,19 +64,21 @@ export async function nomesDosUsuarios(
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return nomes
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .in("id", unicos)
-  for (const u of data ?? []) {
-    const candidatos =
-      preferir === "guerra"
-        ? [u.nome_guerra, u.nome_completo]
-        : [u.nome_completo, u.nome_guerra]
-    const nome = candidatos.find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(u.id as string, nome)
+  for (let de = 0; de < unicos.length; de += 200) {
+    const { data } = await admin
+      .from("usuarios")
+      .select("id, nome_completo, nome_guerra")
+      .in("id", unicos.slice(de, de + 200))
+    for (const u of data ?? []) {
+      const candidatos =
+        preferir === "guerra"
+          ? [u.nome_guerra, u.nome_completo]
+          : [u.nome_completo, u.nome_guerra]
+      const nome = candidatos.find(
+        (v): v is string => typeof v === "string" && v.trim() !== ""
+      )
+      if (nome) nomes.set(u.id as string, nome)
+    }
   }
   return nomes
 }

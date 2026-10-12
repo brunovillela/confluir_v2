@@ -283,27 +283,34 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
 export async function listarCobrancas(filtro: { competencia?: string; situacao?: string } = {}): Promise<{ disponivel: boolean; cobrancas: Cobranca[]; competencias: string[] }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  let q = admin.from("filiacao_cobrancas").select("*, filiacao:filiacao_id (nome_completo)").eq("emp_proprietaria_id", emp)
-  if (filtro.competencia) q = q.eq("competencia", filtro.competencia)
-  if (filtro.situacao === "vencidas") q = q.eq("situacao", "aberta").lt("vencimento", hojeSP())
-  else if (filtro.situacao && filtro.situacao !== "todas") q = q.eq("situacao", filtro.situacao)
-  // PostgREST corta em 1.000 linhas: as competências (uma linha por cobrança)
-  // são lidas em lotes para o seletor não perder os meses mais antigos.
-  const [{ data, error }, comps] = await Promise.all([
-    q.order("competencia", { ascending: false }).order("vencimento").limit(1000),
-    lerEmLotes<{ competencia: string }>((de, ate) =>
-      admin.from("filiacao_cobrancas").select("competencia").eq("emp_proprietaria_id", emp).order("competencia", { ascending: false }).order("id").range(de, ate)
-    ).catch(() => [] as { competencia: string }[]),
-  ])
-  if (error) return { disponivel: !esquemaAusente(error), cobrancas: [], competencias: [] }
   const hoje = hojeSP()
+  // PostgREST corta em 1.000 linhas: a lista (que, sem competência escolhida,
+  // junta todos os meses) e as competências do seletor (uma linha por
+  // cobrança) são lidas em lotes; a lista é montada de novo a cada lote.
+  const comps = lerEmLotes<{ competencia: string }>((de, ate) =>
+    admin.from("filiacao_cobrancas").select("competencia").eq("emp_proprietaria_id", emp).order("competencia", { ascending: false }).order("id").range(de, ate)
+  ).catch(() => [] as { competencia: string }[])
+  type Linha = Record<string, unknown> & { filiacao?: unknown }
+  let data: Linha[]
+  try {
+    data = await lerEmLotes<Linha>((de, ate) => {
+      let q = admin.from("filiacao_cobrancas").select("*, filiacao:filiacao_id (nome_completo)").eq("emp_proprietaria_id", emp)
+      if (filtro.competencia) q = q.eq("competencia", filtro.competencia)
+      if (filtro.situacao === "vencidas") q = q.eq("situacao", "aberta").lt("vencimento", hoje)
+      else if (filtro.situacao && filtro.situacao !== "todas") q = q.eq("situacao", filtro.situacao)
+      return q.order("competencia", { ascending: false }).order("vencimento").order("id").range(de, ate)
+    })
+  } catch (e) {
+    return { disponivel: !esquemaAusente(e as { code?: string }), cobrancas: [], competencias: [] }
+  }
+  const competencias = await comps
   return {
     disponivel: true,
-    cobrancas: (data ?? []).map((c) => {
+    cobrancas: data.map((c) => {
       const f = (Array.isArray(c.filiacao) ? c.filiacao[0] : c.filiacao) as { nome_completo?: string | null } | null
-      return { ...montar(c as Record<string, unknown>, hoje), nome: f?.nome_completo ?? null }
+      return { ...montar(c, hoje), nome: f?.nome_completo ?? null }
     }),
-    competencias: [...new Set(comps.map((c) => String(c.competencia)))],
+    competencias: [...new Set(competencias.map((c) => String(c.competencia)))],
   }
 }
 
