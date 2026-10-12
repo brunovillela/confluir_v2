@@ -7,7 +7,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { calcularSaldo } from "@/lib/db/caixa"
+import { saldoDaConta } from "@/lib/db/caixa"
 import { reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
@@ -151,13 +151,11 @@ export async function aprovarPrestacao(
     return { erro: "Prestação não encontrada ou já decidida." }
   }
 
-  const { data: movs } = await admin
-    .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor, reconhecimento")
-    .eq("conta_id", contaId)
-  const saldo = calcularSaldo(
-    (movs ?? []) as { tipo: string; situacao: string; valor: number; reconhecimento: string | null }[]
-  )
+  // Todas as movimentações (paginado): o acerto zera o saldo real da conta.
+  const saldo = await saldoDaConta(contaId).catch(() => null)
+  if (saldo === null) {
+    return { erro: "Não foi possível calcular o saldo da conta. Tente de novo." }
+  }
 
   const agora = new Date().toISOString()
 

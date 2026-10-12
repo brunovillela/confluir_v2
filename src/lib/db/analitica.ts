@@ -1,5 +1,6 @@
 import "server-only"
 
+import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -42,20 +43,35 @@ function semEsquema(error: { code?: string; message?: string } | null): boolean 
   return !!error && (["PGRST202", "42883", "42P01"].includes(error.code ?? "") || /does not exist|Could not find the function/i.test(error.message ?? ""))
 }
 
-async function ler<T>(funcao: string, meses: number, mapear: (r: Record<string, unknown>) => T): Promise<Serie<T>> {
+/**
+ * `chave` = colunas do índice único do fato dentro do tenant: a ordem das
+ * funções (mes, tipo) não desempata, e sem ordem única os lotes repetem ou
+ * pulam linhas.
+ */
+async function ler<T>(funcao: string, meses: number, chave: string[], mapear: (r: Record<string, unknown>) => T): Promise<Serie<T>> {
   const admin = await createAdminClient()
-  const { data, error } = await admin.rpc(funcao, { p_emp: await tenantAtual(), p_meses: meses })
-  if (error) {
-    if (semEsquema(error)) return { disponivel: false, linhas: [] }
-    throw new Error(`Falha na camada analítica (${funcao}): ${error.message}`)
+  const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas também no rpc: as funções saem em ordem
+  // de mês crescente, então sem paginar os meses mais recentes sumiam (a
+  // despesa de 12 meses tem ~1.300 linhas).
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotes<Record<string, unknown>>((de, ate) => {
+      let q = admin.rpc(funcao, { p_emp: emp, p_meses: meses })
+      for (const coluna of chave) q = q.order(coluna)
+      return q.range(de, ate)
+    })
+  } catch (e) {
+    if (semEsquema(e as { code?: string; message?: string })) return { disponivel: false, linhas: [] }
+    throw new Error(`Falha na camada analítica (${funcao}): ${(e as Error).message}`)
   }
-  return { disponivel: true, linhas: ((data ?? []) as Record<string, unknown>[]).map(mapear) }
+  return { disponivel: true, linhas: linhas.map(mapear) }
 }
 
 export const avisoAnalitica = AVISO_SQL
 
 export function serieFiliacao(meses = 12): Promise<Serie<FiliacaoMensal>> {
-  return ler("analitica_filiacao", meses, (r) => ({
+  return ler("analitica_filiacao", meses, ["mes"], (r) => ({
     mes: String(r.mes).slice(0, 10),
     entradas: num(r.entradas),
     saidas: num(r.saidas),
@@ -64,7 +80,7 @@ export function serieFiliacao(meses = 12): Promise<Serie<FiliacaoMensal>> {
 }
 
 export function serieArrecadacao(meses = 12): Promise<Serie<ArrecadacaoMensal>> {
-  return ler("analitica_arrecadacao", meses, (r) => ({
+  return ler("analitica_arrecadacao", meses, ["mes", "tipo", "fonte_chave"], (r) => ({
     mes: String(r.mes).slice(0, 10),
     tipo: String(r.tipo ?? ""),
     fonteId: r.fonte_id ? String(r.fonte_id) : null,
@@ -75,7 +91,7 @@ export function serieArrecadacao(meses = 12): Promise<Serie<ArrecadacaoMensal>> 
 }
 
 export function serieDespesa(meses = 12): Promise<Serie<DespesaMensal>> {
-  return ler("analitica_despesa", meses, (r) => ({
+  return ler("analitica_despesa", meses, ["mes", "tipo", "centro_chave", "departamento_chave"], (r) => ({
     mes: String(r.mes).slice(0, 10),
     tipo: String(r.tipo ?? ""),
     centroCustoId: r.centro_custo_despesa_id ? String(r.centro_custo_despesa_id) : null,
@@ -86,7 +102,7 @@ export function serieDespesa(meses = 12): Promise<Serie<DespesaMensal>> {
 }
 
 export function serieFrota(meses = 12): Promise<Serie<FrotaMensal>> {
-  return ler("analitica_frota", meses, (r) => ({
+  return ler("analitica_frota", meses, ["mes", "veiculo_id"], (r) => ({
     mes: String(r.mes).slice(0, 10),
     veiculoId: String(r.veiculo_id),
     abastecimentoValor: num(r.abastecimento_valor),

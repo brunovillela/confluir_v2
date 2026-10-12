@@ -1055,10 +1055,19 @@ export async function listarPerguntas(
         .select("id, opcao_resposta, pergunta_id")
         .in("pergunta_id", perguntaIds)
         .order("created_at", { ascending: true }),
-      admin
-        .from("voto_online")
-        .select("pergunta_id, resposta_id")
-        .in("pergunta_id", perguntaIds),
+      // Todos os votos (paginado): o PostgREST corta em 1.000 linhas e a
+      // contagem por opção parava aí (auditoria de 10/10/2026).
+      lerEmLotes<{ pergunta_id: string | null; resposta_id: string | null }>((de, ate) =>
+        admin
+          .from("voto_online")
+          .select("id, pergunta_id, resposta_id")
+          .in("pergunta_id", perguntaIds)
+          .order("id")
+          .range(de, ate)
+      ).then(
+        (data) => ({ data, error: null as { message: string } | null }),
+        (e: unknown) => ({ data: [], error: { message: e instanceof Error ? e.message : "?" } })
+      ),
     ])
     if (opcoes.error) {
       throw new Error(`Falha ao listar opções: ${opcoes.error.message}`)
@@ -1923,15 +1932,23 @@ export async function importarAptos(
 ): Promise<{ resultado?: ResultadoImportacaoAptos; erro?: string }> {
   const admin = await createAdminClient()
 
-  const { data: existentes, error: erroExistentes } = await admin
-    .from("voto_assembleias_aptos")
-    .select("cpf")
-    .eq("rod_assembleia_id", rodadaId)
-    .not("cpf", "is", null)
-  if (erroExistentes) {
-    return { erro: `Falha ao conferir aptos existentes: ${erroExistentes.message}` }
+  // Todos os CPFs da rodada (paginado): com mais de 1.000 aptos, o corte do
+  // PostgREST deixava CPFs de fora e a reimportação duplicava gente.
+  let existentes: { cpf: string | null }[]
+  try {
+    existentes = await lerEmLotes<{ cpf: string | null }>((de, ate) =>
+      admin
+        .from("voto_assembleias_aptos")
+        .select("id, cpf")
+        .eq("rod_assembleia_id", rodadaId)
+        .not("cpf", "is", null)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    return { erro: `Falha ao conferir aptos existentes: ${e instanceof Error ? e.message : "?"}` }
   }
-  const jaAptos = new Set((existentes ?? []).map((a) => a.cpf as string))
+  const jaAptos = new Set(existentes.map((a) => a.cpf as string))
 
   const resultado: ResultadoImportacaoAptos = {
     totalLinhas: linhas.length,
@@ -2151,29 +2168,36 @@ export async function dadosApuracao(
   // Votos EM SEPARADO só entram na conta se o cadastro foi DEFERIDO.
   const votosPorOpcao = new Map<string, number>()
   if (apuracaoDisponivel) {
-    const { data: votos } = await admin
-      .from("voto_online")
-      .select("resposta_id, em_separado_id")
-      .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId)
-      .not("valido", "is", false)
+    // TODOS os votos (paginado): sem isto a contagem parava em 1.000 votos e
+    // o encerramento gravava esse número como resultado final (10/10/2026).
+    const votos = await lerEmLotes<{ resposta_id: string | null; em_separado_id: string | null }>(
+      (de, ate) =>
+        admin
+          .from("voto_online")
+          .select("id, resposta_id, em_separado_id")
+          .eq("emp_proprietaria_id", emp)
+          .eq("assembleia_id", assembleiaId)
+          .not("valido", "is", false)
+          .order("id")
+          .range(de, ate)
+    )
     const emSepIds = [
       ...new Set(
-        (votos ?? [])
+        votos
           .map((v) => (v.em_separado_id ? String(v.em_separado_id) : null))
           .filter(Boolean) as string[]
       ),
     ]
     const statusPorId = new Map<string, string>()
-    if (emSepIds.length) {
+    for (let de = 0; de < emSepIds.length; de += 200) {
       const { data: regs } = await admin
         .from("voto_em_separado")
         .select("id, status")
         .eq("emp_proprietaria_id", emp)
-        .in("id", emSepIds)
+        .in("id", emSepIds.slice(de, de + 200))
       for (const r of regs ?? []) statusPorId.set(String(r.id), String(r.status))
     }
-    for (const v of votos ?? []) {
+    for (const v of votos) {
       if (!v.resposta_id) continue
       // Voto em separado só conta se DEFERIDO (pendente/indeferido fora).
       if (v.em_separado_id) {
@@ -2288,7 +2312,16 @@ export async function encerrarApuracao(
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const dados = await dadosApuracao(assembleiaId)
+  // A leitura dos votos é paginada e LANÇA se uma página falhar — melhor
+  // recusar o encerramento do que gravar um resultado com votos faltando.
+  let dados: ApuracaoAssembleia | null
+  try {
+    dados = await dadosApuracao(assembleiaId)
+  } catch (e) {
+    return {
+      erro: `Não foi possível ler os votos: ${e instanceof Error ? e.message : "?"}`,
+    }
+  }
   if (!dados) return { erro: "Assembleia não encontrada." }
 
   // Trava: não se encerra a apuração antes de a assembleia terminar.

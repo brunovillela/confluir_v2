@@ -9,6 +9,7 @@ import {
   temUrna,
   type Modalidade,
 } from "@/lib/assembleias-constantes"
+import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
@@ -95,17 +96,29 @@ async function contarPresenca(
   assembleiaId: string
 ): Promise<{ total: number; porUrna: Map<string, number> }> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("voto_assembleias_aptos")
-    .select("presenca_urna_id, hora_voto")
-    .eq("emp_proprietaria_id", emp)
-    .or(filtroAptos(await escopoAptos(assembleiaId)))
+  const filtro = filtroAptos(await escopoAptos(assembleiaId))
+  // PostgREST corta em 1.000 linhas: lê o colégio inteiro em lotes. Erro
+  // (como antes) vira presença zerada em vez de derrubar o painel.
+  let data: { presenca_urna_id: string | null }[] = []
+  try {
+    data = await lerEmLotes<{ presenca_urna_id: string | null }>((de, ate) =>
+      admin
+        .from("voto_assembleias_aptos")
+        .select("id, presenca_urna_id")
+        .eq("emp_proprietaria_id", emp)
+        .or(filtro)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    data = []
+  }
   const porUrna = new Map<string, number>()
-  for (const a of data ?? []) {
+  for (const a of data) {
     const u = txt(a.presenca_urna_id)
     if (u) porUrna.set(u, (porUrna.get(u) ?? 0) + 1)
   }
-  return { total: (data ?? []).length, porUrna }
+  return { total: data.length, porUrna }
 }
 
 export async function dadosUrnasAssembleia(
@@ -423,7 +436,12 @@ export async function urnasDoMesario(): Promise<{
     ...new Set(urnas.map((u) => String(u.assembleia_id))),
   ]
 
-  const [{ data: assembleias }, { data: aptos }, { data: terminais }] =
+  type AptoContagem = {
+    assembleia_id: string | null
+    rod_assembleia_id: string | null
+    presenca_urna_id: string | null
+  }
+  const [{ data: assembleias }, aptos, { data: terminais }] =
     await Promise.all([
       assembleiaIds.length
         ? admin
@@ -431,13 +449,20 @@ export async function urnasDoMesario(): Promise<{
             .select("id, nome_assembleia")
             .in("id", assembleiaIds)
         : Promise.resolve({ data: [] }),
+      // PostgREST corta em 1.000 linhas: os totais por assembleia e a presença
+      // por urna precisam do colégio inteiro, lido em lotes. Erro (como antes)
+      // vira contagem zerada em vez de derrubar a tela do mesário.
       assembleiaIds.length
-        ? admin
-            .from("voto_assembleias_aptos")
-            .select("assembleia_id, rod_assembleia_id, presenca_urna_id")
-            .eq("emp_proprietaria_id", emp)
-            .or(filtroAptosDeVarias(assembleiaIds, rodadas as string[]))
-        : Promise.resolve({ data: [] }),
+        ? lerEmLotes<AptoContagem>((de, ate) =>
+            admin
+              .from("voto_assembleias_aptos")
+              .select("id, assembleia_id, rod_assembleia_id, presenca_urna_id")
+              .eq("emp_proprietaria_id", emp)
+              .or(filtroAptosDeVarias(assembleiaIds, rodadas as string[]))
+              .order("id")
+              .range(de, ate)
+          ).catch((): AptoContagem[] => [])
+        : Promise.resolve([] as AptoContagem[]),
       admin
         .from("voto_urna_terminais")
         .select("urna_id")
@@ -460,11 +485,7 @@ export async function urnasDoMesario(): Promise<{
     conj.add(String(u.assembleia_id))
     assembleiasDaRodada.set(r, conj)
   }
-  for (const a of (aptos ?? []) as {
-    assembleia_id: string | null
-    rod_assembleia_id: string | null
-    presenca_urna_id: string | null
-  }[]) {
+  for (const a of aptos) {
     const alvos = a.assembleia_id
       ? [String(a.assembleia_id)]
       : [...(assembleiasDaRodada.get(String(a.rod_assembleia_id)) ?? [])]
@@ -606,31 +627,48 @@ export async function operacaoUrna(
     .order("nome_completo", { ascending: true })
     .limit(50)
 
-  const [{ data: aptos }, { data: todos }, { data: term }, assembleiaNome] =
-    await Promise.all([
-      q,
-      admin
-        .from("voto_assembleias_aptos")
-        .select("hora_voto, presenca_em")
-        .eq("emp_proprietaria_id", emp)
-        .or(filtroAptos(escopo)),
-      admin
-        .from("voto_urna_terminais")
-        .select("id")
-        .eq("emp_proprietaria_id", emp)
-        .eq("urna_id", urnaId)
-        .eq("pareada", true)
-        .eq("encerrada", false)
-        .limit(1),
-      admin
-        .from("voto_assembleias")
-        .select("nome_assembleia")
-        .eq("id", urna.assembleiaId)
-        .maybeSingle()
-        .then((r) => txt(r.data?.nome_assembleia)),
-    ])
+  // Totais por contagem no banco: ler as linhas parava em 1.000 (teto do
+  // PostgREST) e a rodada pode ter dezenas de milhares de aptos.
+  const [
+    { data: aptos },
+    { count: totalAptos },
+    { count: compareceram },
+    { data: term },
+    assembleiaNome,
+  ] = await Promise.all([
+    q,
+    admin
+      .from("voto_assembleias_aptos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .or(filtroAptos(escopo)),
+    // Compareceu = presença marcada OU voto registrado (a mesma regra da lista).
+    admin
+      .from("voto_assembleias_aptos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .or(
+        filtroAptos(escopo, [
+          "presenca_em.not.is.null",
+          "hora_voto.not.is.null",
+        ])
+      ),
+    admin
+      .from("voto_urna_terminais")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("urna_id", urnaId)
+      .eq("pareada", true)
+      .eq("encerrada", false)
+      .limit(1),
+    admin
+      .from("voto_assembleias")
+      .select("nome_assembleia")
+      .eq("id", urna.assembleiaId)
+      .maybeSingle()
+      .then((r) => txt(r.data?.nome_assembleia)),
+  ])
 
-  const listaTodos = todos ?? []
   return {
     urnaId,
     nome: urna.nome,
@@ -640,8 +678,8 @@ export async function operacaoUrna(
     fechamento: urna.fechamento,
     assembleiaId: urna.assembleiaId,
     assembleiaNome,
-    totalAptos: listaTodos.length,
-    compareceram: listaTodos.filter((a) => a.presenca_em || a.hora_voto).length,
+    totalAptos: totalAptos ?? 0,
+    compareceram: compareceram ?? 0,
     terminalPareado: (term ?? []).length > 0,
     estadoDia,
     eventos,
@@ -1678,23 +1716,59 @@ export async function acompanhamentoAssembleia(
     (urnas ?? []).map((u) => [String(u.id), txt(u.nome)])
   )
 
-  const [{ data: aptos }, { data: separados }] = await Promise.all([
+  // PostgREST corta em 1.000 linhas: o total de aptos vem por contagem no
+  // banco e quem votou (e os em separado) é lido em lotes. Erro (como antes)
+  // vira lista vazia em vez de derrubar o acompanhamento.
+  const filtro = filtroAptos(await escopoAptos(assembleiaId))
+  type AptoVotante = {
+    nome_completo: string | null
+    cpf: string | null
+    hora_voto: string | null
+    presenca_urna_id: string | null
+  }
+  type SeparadoLinha = {
+    id: string
+    nome_completo: string | null
+    cpf: string | null
+    data_nascimento: string | null
+    telefone: string | null
+    email: string | null
+    urna_id: string | null
+    status: string | null
+    votou_em: string | null
+    created_at: string | null
+  }
+  const [{ count: totalAptos }, votantes, separados] = await Promise.all([
     admin
       .from("voto_assembleias_aptos")
-      .select("nome_completo, cpf, hora_voto, presenca_urna_id")
+      .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp)
-      .or(filtroAptos(await escopoAptos(assembleiaId))),
-    admin
-      .from("voto_em_separado")
-      .select(
-        "id, nome_completo, cpf, data_nascimento, telefone, email, urna_id, status, votou_em, created_at"
-      )
-      .eq("emp_proprietaria_id", emp)
-      .eq("assembleia_id", assembleiaId)
-      .order("created_at", { ascending: true }),
+      .or(filtro),
+    lerEmLotes<AptoVotante>((de, ate) =>
+      admin
+        .from("voto_assembleias_aptos")
+        .select("id, nome_completo, cpf, hora_voto, presenca_urna_id")
+        .eq("emp_proprietaria_id", emp)
+        .or(filtro)
+        .not("hora_voto", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch((): AptoVotante[] => []),
+    lerEmLotes<SeparadoLinha>((de, ate) =>
+      admin
+        .from("voto_em_separado")
+        .select(
+          "id, nome_completo, cpf, data_nascimento, telefone, email, urna_id, status, votou_em, created_at"
+        )
+        .eq("emp_proprietaria_id", emp)
+        .eq("assembleia_id", assembleiaId)
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    ).catch((): SeparadoLinha[] => []),
   ])
 
-  const lista = aptos ?? []
+  const lista = votantes
   const quemVotou: QuemVotou[] = lista
     .filter((x) => x.hora_voto)
     .map((x) => ({
@@ -1705,7 +1779,7 @@ export async function acompanhamentoAssembleia(
     }))
     .sort((p, q) => (q.quando ?? "").localeCompare(p.quando ?? ""))
 
-  const emSeparado: EmSeparadoLinha[] = (separados ?? []).map((s) => ({
+  const emSeparado: EmSeparadoLinha[] = separados.map((s) => ({
     id: String(s.id),
     nome: txt(s.nome_completo),
     cpf: txt(s.cpf),
@@ -1770,7 +1844,7 @@ export async function acompanhamentoAssembleia(
   return {
     assembleiaId,
     nome: txt(a.nome_assembleia),
-    totalAptos: lista.length,
+    totalAptos: totalAptos ?? 0,
     votaram: quemVotou.length,
     quemVotou,
     emSeparado,

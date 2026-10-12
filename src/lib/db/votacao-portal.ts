@@ -1547,19 +1547,26 @@ export async function dadosUrna(
     )
     .order("nome_completo", { ascending: true })
     .limit(50)
-  const [{ data: aptos }, contagem, perguntas, empRes] = await Promise.all([
+  // Totais por contagem no banco: ler as linhas parava em 1.000 (teto do
+  // PostgREST) e a rodada pode ter dezenas de milhares de aptos.
+  const [{ data: aptos }, total, votantes, perguntas, empRes] = await Promise.all([
     q,
     admin
       .from("voto_assembleias_aptos")
-      .select("hora_voto")
+      .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp)
       .or(filtroAptos(escopo)),
+    admin
+      .from("voto_assembleias_aptos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .or(filtroAptos(escopo))
+      .not("hora_voto", "is", null),
     perguntasDaAssembleia(assembleiaId),
     txt(a.empresa_id)
       ? admin.from("empresa").select("nome_fantasia, nome_razao").eq("id", a.empresa_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
-  const todas = contagem.data ?? []
   return {
     assembleiaId,
     nome: txt(a.nome_assembleia),
@@ -1567,8 +1574,8 @@ export async function dadosUrna(
       ? txt(empRes.data.nome_fantasia) ?? txt(empRes.data.nome_razao)
       : null,
     aberta: info.ok,
-    totalAptos: todas.length,
-    votaram: todas.filter((x) => x.hora_voto).length,
+    totalAptos: total.count ?? 0,
+    votaram: votantes.count ?? 0,
     aptos: (aptos ?? []).map((x) => ({
       id: String(x.id),
       nome: txt(x.nome_completo),

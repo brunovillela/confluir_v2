@@ -1,6 +1,11 @@
 import "server-only"
 
-import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import {
+  esquemaAusente,
+  hojeSP,
+  lerEmLotes,
+  nomesDosUsuarios,
+} from "@/lib/db/comum"
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { avisarMudancasDeCondicao } from "@/lib/db/filiacao-condicao-avisos"
 import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
@@ -94,7 +99,9 @@ const LOTE = 1000
 
 /**
  * Lê TODAS as linhas de uma consulta, em lotes de 1.000 (limite do PostgREST).
- * Sem isso, tabelas grandes voltam truncadas silenciosamente.
+ * Sem isso, tabelas grandes voltam truncadas silenciosamente. Página que
+ * falha LANÇA: uma conciliação feita sobre cadastro cortado mandaria criar
+ * filiações que já existem (aplicarProcesso transforma o erro em mensagem).
  */
 async function paginar<T>(
   consulta: (
@@ -105,7 +112,10 @@ async function paginar<T>(
   const todas: T[] = []
   for (let de = 0; ; de += LOTE) {
     const { data, error } = await consulta(de, de + LOTE - 1)
-    if (error) break
+    if (error) {
+      const msg = typeof error === "object" && error && "message" in error ? String((error as { message: unknown }).message) : String(error)
+      throw new Error(`Falha ao ler em lotes: ${msg}`)
+    }
     const linhas = (data ?? []) as T[]
     todas.push(...linhas)
     if (linhas.length < LOTE) break
@@ -306,13 +316,36 @@ export async function listarProcessos(): Promise<{
     throw new Error(`Falha ao listar filiações coletivas: ${error.message}`)
   }
   const ids = (data ?? []).map((p) => p.id as string)
-  const [itens, rodadas, acordos, nomes] = await Promise.all([
-    ids.length
-      ? admin
-          .from("filiacao_coletiva_itens")
-          .select("coletiva_id, resultado, ativado_em")
-          .in("coletiva_id", ids)
-      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+  // PostgREST corta em 1.000 linhas: um lote grande sozinho estoura o teto.
+  // Os totais vêm de contagens no banco (head), por processo × resultado.
+  const contar = async (
+    coletivaId: string,
+    filtro?: { resultado?: string; ativado?: true }
+  ): Promise<number> => {
+    let q = admin
+      .from("filiacao_coletiva_itens")
+      .select("id", { count: "exact", head: true })
+      .eq("coletiva_id", coletivaId)
+    if (filtro?.resultado) q = q.eq("resultado", filtro.resultado)
+    if (filtro?.ativado) q = q.not("ativado_em", "is", null)
+    const { count } = await q
+    return count ?? 0
+  }
+  const totaisDe = async (coletivaId: string): Promise<typeof VAZIO> => {
+    const [total, criados, recarimbados, mantidos, duvidas, desistiram, ativados] =
+      await Promise.all([
+        contar(coletivaId),
+        contar(coletivaId, { resultado: "criado" }),
+        contar(coletivaId, { resultado: "recarimbado" }),
+        contar(coletivaId, { resultado: "mantido_ativo" }),
+        contar(coletivaId, { resultado: "duvida" }),
+        contar(coletivaId, { resultado: "desistiu" }),
+        contar(coletivaId, { ativado: true }),
+      ])
+    return { total, criados, recarimbados, mantidos, duvidas, desistiram, ativados }
+  }
+  const [totais, rodadas, acordos, nomes] = await Promise.all([
+    Promise.all(ids.map(async (id) => [id, await totaisDe(id)] as const)),
     admin
       .from("voto_rod_assembleias")
       .select("id, nome_assembleia")
@@ -334,19 +367,7 @@ export async function listarProcessos(): Promise<{
   const tituloAcordo = new Map(
     (acordos.data ?? []).map((a) => [a.id as string, a.titulo as string | null])
   )
-  const porLote = new Map<string, typeof VAZIO>()
-  for (const i of (itens.data ?? []) as Record<string, unknown>[]) {
-    const k = i.coletiva_id as string
-    const t = porLote.get(k) ?? { ...VAZIO }
-    t.total++
-    if (i.resultado === "criado") t.criados++
-    if (i.resultado === "recarimbado") t.recarimbados++
-    if (i.resultado === "mantido_ativo") t.mantidos++
-    if (i.resultado === "duvida") t.duvidas++
-    if (i.resultado === "desistiu") t.desistiram++
-    if (i.ativado_em) t.ativados++
-    porLote.set(k, t)
-  }
+  const porLote = new Map<string, typeof VAZIO>(totais)
   return {
     ativo: true,
     linhas: (data ?? []).map((p) => ({
@@ -397,29 +418,44 @@ export async function buscarProcesso(id: string): Promise<{
   const processo = linhas.find((p) => p.id === id)
   if (!processo) return null
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("filiacao_coletiva_itens")
-    .select(
-      "id, cpf, nome_completo, matricula, email, chave_casamento, resultado, condicao_anterior, filiacao_id, desistencia_em, ativado_em"
+  // PostgREST corta em 1.000 linhas — o lote pode ter milhares de itens.
+  let data: Record<string, unknown>[] = []
+  try {
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("filiacao_coletiva_itens")
+        .select(
+          "id, cpf, nome_completo, matricula, email, chave_casamento, resultado, condicao_anterior, filiacao_id, desistencia_em, ativado_em"
+        )
+        .eq("coletiva_id", id)
+        .order("nome_completo", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(de, ate)
     )
-    .eq("coletiva_id", id)
-    .order("nome_completo", { ascending: true, nullsFirst: false })
-  const filiacaoIds = (data ?? [])
-    .map((i) => i.filiacao_id as string | null)
-    .filter((v): v is string => !!v)
+  } catch {
+    data = []
+  }
+  const filiacaoIds = [
+    ...new Set(
+      data
+        .map((i) => i.filiacao_id as string | null)
+        .filter((v): v is string => !!v)
+    ),
+  ]
   const condicoes = new Map<string, string | null>()
-  if (filiacaoIds.length) {
+  // .in() em blocos de 200: milhares de ids estourariam a URL.
+  for (let k = 0; k < filiacaoIds.length; k += 200) {
     const { data: fs } = await admin
       .from("filiacoes")
       .select("id, filiacao_condicao")
-      .in("id", filiacaoIds)
+      .in("id", filiacaoIds.slice(k, k + 200))
     for (const f of fs ?? []) {
       condicoes.set(f.id as string, f.filiacao_condicao as string | null)
     }
   }
   return {
     processo,
-    itens: (data ?? []).map((i) => ({
+    itens: data.map((i) => ({
       id: i.id as string,
       cpf: i.cpf as string | null,
       nome_completo: i.nome_completo as string | null,
@@ -540,7 +576,13 @@ export async function aplicarProcesso(
     return { erro: "Este processo foi revertido e não pode ser aplicado de novo." }
   }
 
-  const conciliacao = await conciliar(proc.rod_assembleia_id as string)
+  let conciliacao: Conciliacao
+  try {
+    conciliacao = await conciliar(proc.rod_assembleia_id as string)
+  } catch (e) {
+    // Sem a conciliação completa, nada é gravado (evita filiação em dobro).
+    return { erro: `Não foi possível conferir os cadastros agora. Nada foi aplicado. ${(e as Error).message}` }
+  }
   const hoje = hojeSP()
   const dias = (proc.dias_desistencia as number | null) ?? 0
   const prazo = somarDias(hoje, dias)
@@ -777,13 +819,24 @@ export async function reverterProcesso(
     return { erro: "Só um processo aplicado pode ser revertido." }
   }
 
-  const { data: itens } = await admin
-    .from("filiacao_coletiva_itens")
-    .select("id, filiacao_id, resultado, condicao_anterior, vinculo_id")
-    .eq("coletiva_id", coletivaId)
+  // PostgREST corta em 1.000 linhas: sem paginar, um lote grande seria
+  // revertido só em parte e ainda assim marcado como "revertido".
+  let itens: Record<string, unknown>[]
+  try {
+    itens = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("filiacao_coletiva_itens")
+        .select("id, filiacao_id, resultado, condicao_anterior, vinculo_id")
+        .eq("coletiva_id", coletivaId)
+        .order("id", { ascending: true })
+        .range(de, ate)
+    )
+  } catch (e) {
+    return { erro: `Falha ao ler os itens do lote: ${(e as Error).message}` }
+  }
 
   let revertidos = 0
-  for (const i of itens ?? []) {
+  for (const i of itens) {
     const filiacaoId = i.filiacao_id as string | null
     if (!filiacaoId) continue
     if (i.resultado === "criado") {
@@ -849,14 +902,21 @@ export async function reverterProcesso(
 export async function tenantsComColetivaAberta(): Promise<string[]> {
   try {
     const service = createServiceClient()
-    const { data } = await service
-      .from("filiacoes")
-      .select("emp_proprietaria_id")
-      .not("filiacao_coletiva_id", "is", null)
-      .in("filiacao_condicao", [CONDICAO_COLETIVA, "Filiação aguarda fonte"])
+    // PostgREST corta em 1.000 linhas — sem paginar, tenants além do
+    // primeiro milhar de filiações nunca maturariam.
+    const data = await lerEmLotes<{ emp_proprietaria_id: string | null }>(
+      (de, ate) =>
+        service
+          .from("filiacoes")
+          .select("emp_proprietaria_id")
+          .not("filiacao_coletiva_id", "is", null)
+          .in("filiacao_condicao", [CONDICAO_COLETIVA, "Filiação aguarda fonte"])
+          .order("id", { ascending: true })
+          .range(de, ate)
+    )
     return [
       ...new Set(
-        (data ?? [])
+        data
           .map((f) => f.emp_proprietaria_id as string | null)
           .filter((v): v is string => !!v)
       ),
@@ -877,16 +937,22 @@ export async function maturarFiliacoesColetivas(tenantId?: string): Promise<{
   const hoje = hojeSP()
 
   // 1) vencidos na condição de coletiva → informada à fonte
-  const { data: vencidos } = await admin
-    .from("filiacoes")
-    .select("id, filiacao_coletiva_id")
-    .eq("emp_proprietaria_id", emp)
-    .eq("filiacao_condicao", CONDICAO_COLETIVA)
-    .not("filiacao_coletiva_prazo", "is", null)
-    .lte("filiacao_coletiva_prazo", hoje)
+  // PostgREST corta em 1.000 linhas — lê tudo ANTES de alterar (as
+  // atualizações tiram as linhas do filtro, e paginar no meio pularia gente).
+  const vencidos = await lerEmLotes<{ id: string }>((de, ate) =>
+    admin
+      .from("filiacoes")
+      .select("id, filiacao_coletiva_id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("filiacao_condicao", CONDICAO_COLETIVA)
+      .not("filiacao_coletiva_prazo", "is", null)
+      .lte("filiacao_coletiva_prazo", hoje)
+      .order("id", { ascending: true })
+      .range(de, ate)
+  ).catch(() => [] as { id: string }[])
 
   const proxima: FiliacaoCondicao = "Filiação aguarda fonte"
-  for (const f of vencidos ?? []) {
+  for (const f of vencidos) {
     await admin
       .from("filiacoes")
       .update({
@@ -905,16 +971,20 @@ export async function maturarFiliacoesColetivas(tenantId?: string): Promise<{
   }
 
   // 2) já informados à fonte e vindos de lote coletivo → Ativo
-  const { data: prontos } = await admin
-    .from("filiacoes")
-    .select("id")
-    .eq("emp_proprietaria_id", emp)
-    .eq("filiacao_condicao", proxima)
-    .not("filiacao_coletiva_id", "is", null)
-    .not("filiacao_informada_fonte_em", "is", null)
-    .lt("filiacao_informada_fonte_em", hoje)
+  const prontos = await lerEmLotes<{ id: string }>((de, ate) =>
+    admin
+      .from("filiacoes")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("filiacao_condicao", proxima)
+      .not("filiacao_coletiva_id", "is", null)
+      .not("filiacao_informada_fonte_em", "is", null)
+      .lt("filiacao_informada_fonte_em", hoje)
+      .order("id", { ascending: true })
+      .range(de, ate)
+  ).catch(() => [] as { id: string }[])
 
-  for (const f of prontos ?? []) {
+  for (const f of prontos) {
     await admin
       .from("filiacoes")
       .update({
@@ -939,15 +1009,14 @@ export async function maturarFiliacoesColetivas(tenantId?: string): Promise<{
 
   // Boas-vindas a quem ficou ativo (A58), depois da resposta. No tick não há
   // requisição do tenant: a identidade do e-mail sai do próprio tenant.
-  const ativados = prontos ?? []
-  if (ativados.length > 0) {
+  if (prontos.length > 0) {
     depoisDaResposta(() =>
       avisarMudancasDeCondicao(
-        ativados.map((f) => ({ id: String(f.id), anterior: proxima, nova: "Ativo" })),
+        prontos.map((f) => ({ id: String(f.id), anterior: proxima, nova: "Ativo" })),
         { client: admin, tenantId: emp, foraDaRequisicao: Boolean(tenantId) }
       )
     )
   }
 
-  return { avancados: (vencidos ?? []).length, ativados: ativados.length }
+  return { avancados: vencidos.length, ativados: prontos.length }
 }

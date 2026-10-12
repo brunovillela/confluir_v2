@@ -74,19 +74,18 @@ export async function listarCampos(eventoId: string): Promise<CampoExtra[]> {
   if (campos.length === 0) return []
 
   // Quantas respostas cada campo já tem: é o que decide se ele pode ser
-  // apagado ou apenas desativado.
-  const { data: respostas } = await admin
-    .from("eventos_inscricao_respostas")
-    .select("campo_id")
-    .in(
-      "campo_id",
-      campos.map((c) => c.id as string)
-    )
+  // apagado ou apenas desativado. Contagem no banco, um campo por vez:
+  // PostgREST corta em 1.000 linhas, e somar em JS errava a partir daí.
   const contagem = new Map<string, number>()
-  for (const r of respostas ?? []) {
-    const id = r.campo_id as string
-    contagem.set(id, (contagem.get(id) ?? 0) + 1)
-  }
+  await Promise.all(
+    campos.map(async (c) => {
+      const { count } = await admin
+        .from("eventos_inscricao_respostas")
+        .select("id", { count: "exact", head: true })
+        .eq("campo_id", c.id as string)
+      contagem.set(c.id as string, count ?? 0)
+    })
+  )
 
   return campos.map((c) => ({
     id: c.id as string,

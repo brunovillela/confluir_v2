@@ -1,6 +1,7 @@
 import "server-only"
 
 import { cpfConfiavel } from "@/lib/cpf"
+import { lerEmLotes } from "@/lib/db/comum"
 import { type Evento } from "@/lib/db/eventos"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { enviarEmail } from "@/lib/email"
@@ -83,14 +84,25 @@ async function inscritosDoEvento(
 ): Promise<Destinatario[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("eventos_inscricoes")
-    .select("id, nome, email, token, cpf")
-    .eq("emp_proprietaria_id", emp)
-    .eq("evento_id", eventoId)
-    .in("situacao", situacoes)
-    .is("anonimizada_em", null)
-  return (data ?? []).map((i) => ({
+  // PostgREST corta em 1.000 linhas: sem os lotes, o aviso de cancelamento
+  // não chegava a quem passasse do milésimo inscrito.
+  let data: Record<string, unknown>[] = []
+  try {
+    data = await lerEmLotes((de, ate) =>
+      admin
+        .from("eventos_inscricoes")
+        .select("id, nome, email, token, cpf")
+        .eq("emp_proprietaria_id", emp)
+        .eq("evento_id", eventoId)
+        .in("situacao", situacoes)
+        .is("anonimizada_em", null)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    data = []
+  }
+  return data.map((i) => ({
     id: i.id as string,
     nome: (i.nome as string | null) ?? null,
     email: (i.email as string | null) ?? null,
@@ -331,18 +343,29 @@ export async function enviarRsvp(
 ): Promise<ResultadoAvisos> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  let q = admin
-    .from("eventos_inscricoes")
-    .select("id, nome, email, token, cpf, rsvp_enviado_em, rsvp_respondido_em")
-    .eq("emp_proprietaria_id", emp)
-    .eq("evento_id", evento.id)
-    .eq("situacao", "confirmada")
-    .is("anonimizada_em", null)
-    .is("rsvp_respondido_em", null)
-  if (!reenviar) q = q.is("rsvp_enviado_em", null)
+  // Montada de novo a cada lote: o builder é mutável.
+  const montar = () => {
+    let q = admin
+      .from("eventos_inscricoes")
+      .select("id, nome, email, token, cpf, rsvp_enviado_em, rsvp_respondido_em")
+      .eq("emp_proprietaria_id", emp)
+      .eq("evento_id", evento.id)
+      .eq("situacao", "confirmada")
+      .is("anonimizada_em", null)
+      .is("rsvp_respondido_em", null)
+    if (!reenviar) q = q.is("rsvp_enviado_em", null)
+    return q
+  }
 
-  const { data } = await q
-  const pessoas: Destinatario[] = (data ?? []).map((i) => ({
+  // PostgREST corta em 1.000 linhas: a pergunta tem de ir a TODOS os
+  // confirmados, não só aos primeiros mil.
+  let data: Record<string, unknown>[] = []
+  try {
+    data = await lerEmLotes((de, ate) => montar().order("id").range(de, ate))
+  } catch {
+    data = []
+  }
+  const pessoas: Destinatario[] = data.map((i) => ({
     id: i.id as string,
     nome: (i.nome as string | null) ?? null,
     email: (i.email as string | null) ?? null,
@@ -369,13 +392,14 @@ export async function enviarRsvp(
   // inclusive quem recebeu só no portal por ter desligado o e-mail.
   if (resultado.enviados > 0 || (resultado.soNoPortal ?? 0) > 0) {
     const agora = new Date().toISOString()
-    await admin
-      .from("eventos_inscricoes")
-      .update({ rsvp_enviado_em: agora })
-      .in(
-        "id",
-        pessoas.filter((p) => p.email).map((p) => p.id)
-      )
+    // Em lotes de 200 ids: milhares num `.in` estouram a URL.
+    const enviados = pessoas.filter((p) => p.email).map((p) => p.id)
+    for (let i = 0; i < enviados.length; i += 200) {
+      await admin
+        .from("eventos_inscricoes")
+        .update({ rsvp_enviado_em: agora })
+        .in("id", enviados.slice(i, i + 200))
+    }
     // Carimbo no EVENTO: é o que impede o varredor de disparar de novo.
     await admin
       .from("eventos")

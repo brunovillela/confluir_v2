@@ -127,8 +127,12 @@ async function lerPagamentoCusteio(
       break
     case "caixa":
       p.caixaContaId = texto(formData, "caixa_conta_id") || null
-      if (!p.caixaContaId || (await saldoCaixaAberta(p.caixaContaId)) === null) {
-        return { erro: "Escolha uma conta de caixa aberta." }
+      if (!p.caixaContaId) return { erro: "Escolha uma conta de caixa aberta." }
+      {
+        // saldoCaixaAberta lança se a leitura falhar: vira mensagem, não tela de erro.
+        const saldo = await saldoCaixaAberta(p.caixaContaId).catch(() => undefined)
+        if (saldo === undefined) return { erro: "Não foi possível conferir o caixa. Tente de novo." }
+        if (saldo === null) return { erro: "Escolha uma conta de caixa aberta." }
       }
       break
     case "boleto": {

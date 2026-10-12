@@ -118,7 +118,12 @@ export async function salvarPagamento(
   const caixaId = ordem.caixa_conta_id ? String(ordem.caixa_conta_id) : null
   const debitarAgora = !editando && caixaId !== null && !(await caixaJaDebitado(id))
   if (debitarAgora) {
-    const saldo = await saldoCaixaAberta(caixaId!)
+    // saldoCaixaAberta lança se a leitura falhar (soma todas as movimentações):
+    // vira mensagem, não tela de erro — e nada é debitado.
+    const saldo = await saldoCaixaAberta(caixaId!).catch(() => undefined)
+    if (saldo === undefined) {
+      return { erro: "Não foi possível conferir o saldo do caixa. Tente de novo." }
+    }
     if (saldo === null) {
       return { erro: "A conta de caixa desta ordem não está aberta — peça ao responsável para reabri-la." }
     }

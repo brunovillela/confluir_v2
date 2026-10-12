@@ -1,7 +1,7 @@
 import "server-only"
 
 import { avisar, depoisDaResposta, type Destinatario } from "@/lib/db/avisos"
-import { calcularSaldo } from "@/lib/db/caixa"
+import { saldoDaConta } from "@/lib/db/caixa"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { formatarMoeda } from "@/lib/formato"
@@ -347,18 +347,8 @@ export async function transferirDespesaCaixa(
     .maybeSingle()
   if (!nova || nova.ativa !== true || nova.situacao !== "aberta") return { erro: "A conta de destino precisa estar aberta." }
   const valor = Number(mov.valor)
-  const { data: movsNova } = await admin
-    .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor, reconhecimento")
-    .eq("conta_id", novaContaId)
-  const saldo = calcularSaldo(
-    (movsNova ?? []).map((m) => ({
-      tipo: String(m.tipo),
-      situacao: String(m.situacao),
-      valor: Number(m.valor),
-      reconhecimento: (m.reconhecimento as string | null) ?? null,
-    }))
-  )
+  const saldo = await saldoDaConta(novaContaId).catch(() => null)
+  if (saldo === null) return { erro: `Não foi possível calcular o saldo da conta "${nova.nome}". Tente de novo.` }
   if (saldo < valor) return { erro: `A conta "${nova.nome}" não tem saldo para a despesa (${formatarMoeda(saldo)}).` }
 
   const contaAntiga = await contaComResponsavel(String(mov.conta_id))

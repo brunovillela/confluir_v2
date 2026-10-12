@@ -2,7 +2,7 @@ import "server-only"
 
 import { createHash } from "node:crypto"
 
-import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { listarRemessas } from "@/lib/db/receitas"
@@ -121,6 +121,28 @@ function montarExtrato(e: Record<string, unknown>): Extrato {
   }
 }
 
+/** Divide uma lista grande de ids para `.in()` (a URL do PostgREST tem teto). */
+function emFatias<T>(lista: T[], tam = 200): T[][] {
+  const saida: T[][] = []
+  for (let i = 0; i < lista.length; i += tam) saida.push(lista.slice(i, i + tam))
+  return saida
+}
+
+/** Ids (da coluna `coluna`) já conciliados entre os informados — em fatias de 200. */
+async function idsJaConciliados(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  emp: string,
+  coluna: "ordem_id" | "comprovacao_id",
+  ids: string[]
+): Promise<Set<string>> {
+  const set = new Set<string>()
+  for (const fatia of emFatias(ids)) {
+    const { data } = await admin.from("banco_lancamentos").select(coluna).eq("emp_proprietaria_id", emp).eq("situacao", "conciliado").in(coluna, fatia)
+    for (const u of (data ?? []) as Record<string, unknown>[]) set.add(String(u[coluna]))
+  }
+  return set
+}
+
 function somarDias(iso: string, dias: number): string {
   const d = new Date(`${iso}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + dias)
@@ -225,30 +247,45 @@ async function ordensCandidatas(lancs: Lancamento[]): Promise<Map<string, Candid
   const datas = debitos.map((l) => l.data).sort()
   const de = somarDias(datas[0], -TOLERANCIA_ORDEM_DIAS)
   const ate = somarDias(datas[datas.length - 1], TOLERANCIA_ORDEM_DIAS)
-  const { data: ordens } = await admin
-    .from("ordens_pagamento")
-    .select("id, codigo, descricao, valor_pago, valor_inicial_cobranca, data_pagamento, forma_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
-    .eq("emp_proprietaria_id", emp)
-    .eq("situacao", "Paga")
-    .not("excluido", "is", true)
-    .gte("data_pagamento", de)
-    .lte("data_pagamento", ate)
-    .limit(5000)
-  const lista = ordens ?? []
+  // PostgREST corta em 1.000 linhas (o .limit(5000) não passava disso): lê em lotes.
+  type OrdemLida = {
+    id: string
+    codigo: string | null
+    descricao: string | null
+    valor_pago: number | null
+    valor_inicial_cobranca: number | null
+    data_pagamento: string | null
+    forma_pagamento: string | null
+    fornecedor_id: string | null
+    beneficiario_fornecedor_id: string | null
+    beneficiario_usuario_id: string | null
+    beneficiario_nome_avulso: string | null
+  }
+  const lista = await lerEmLotes<OrdemLida>((a, b) =>
+    admin
+      .from("ordens_pagamento")
+      .select("id, codigo, descricao, valor_pago, valor_inicial_cobranca, data_pagamento, forma_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+      .eq("emp_proprietaria_id", emp)
+      .eq("situacao", "Paga")
+      .not("excluido", "is", true)
+      .gte("data_pagamento", de)
+      .lte("data_pagamento", ate)
+      .order("id")
+      .range(a, b)
+  ).catch(() => [] as OrdemLida[])
   if (lista.length === 0) return saida
   // Ordens já conciliadas ficam fora.
-  const { data: usadas } = await admin.from("banco_lancamentos").select("ordem_id").eq("emp_proprietaria_id", emp).in("ordem_id", lista.map((o) => o.id)).eq("situacao", "conciliado")
-  const jaUsadas = new Set((usadas ?? []).map((u) => String(u.ordem_id)))
+  const jaUsadas = await idsJaConciliados(admin, emp, "ordem_id", lista.map((o) => String(o.id)))
   // Nomes dos favorecidos.
   const empIds = [...new Set(lista.flatMap((o) => [o.fornecedor_id, o.beneficiario_fornecedor_id]).filter((v): v is string => !!v))]
   const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => !!v))]
   const nomes = new Map<string, string>()
-  if (empIds.length) {
-    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", empIds)
+  for (const fatia of emFatias(empIds)) {
+    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", fatia)
     for (const e of data ?? []) nomes.set(String(e.id), texto(e.empresa) ?? texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "")
   }
-  if (usuIds.length) {
-    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuIds)
+  for (const fatia of emFatias(usuIds)) {
+    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", fatia)
     for (const u of data ?? []) nomes.set(String(u.id), texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "")
   }
   const candidatas: CandidataOrdem[] = lista
@@ -285,17 +322,20 @@ async function comprovacoesCandidatas(lancs: Lancamento[]): Promise<Map<string, 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const datas = creditos.map((l) => l.data).sort()
-  const { data: comps } = await admin
-    .from("filiacao_recebe_comprovacao")
-    .select("id, remessa_id, fonte_pg_id, data, valor")
-    .eq("emp_proprietaria_id", emp)
-    .gte("data", somarDias(datas[0], -TOLERANCIA_DEPOSITO_DIAS))
-    .lte("data", somarDias(datas[datas.length - 1], TOLERANCIA_DEPOSITO_DIAS))
-    .limit(5000)
-  const lista = comps ?? []
+  // PostgREST corta em 1.000 linhas: lê em lotes.
+  type CompLida = { id: string; remessa_id: string | null; fonte_pg_id: string | null; data: string | null; valor: number | null }
+  const lista = await lerEmLotes<CompLida>((a, b) =>
+    admin
+      .from("filiacao_recebe_comprovacao")
+      .select("id, remessa_id, fonte_pg_id, data, valor")
+      .eq("emp_proprietaria_id", emp)
+      .gte("data", somarDias(datas[0], -TOLERANCIA_DEPOSITO_DIAS))
+      .lte("data", somarDias(datas[datas.length - 1], TOLERANCIA_DEPOSITO_DIAS))
+      .order("id")
+      .range(a, b)
+  ).catch(() => [] as CompLida[])
   if (lista.length === 0) return saida
-  const { data: usadas } = await admin.from("banco_lancamentos").select("comprovacao_id").eq("emp_proprietaria_id", emp).in("comprovacao_id", lista.map((c) => c.id)).eq("situacao", "conciliado")
-  const jaUsadas = new Set((usadas ?? []).map((u) => String(u.comprovacao_id)))
+  const jaUsadas = await idsJaConciliados(admin, emp, "comprovacao_id", lista.map((c) => String(c.id)))
   const [remessas, fontes] = await Promise.all([listarRemessas().catch(() => []), listarFontesPagadoras().catch(() => [])])
   const rotuloRemessa = new Map(remessas.map((r) => [r.id, `${r.tipo ?? "Remessa"} ${r.rotulo}`]))
   const nomeFonte = new Map(fontes.map((f) => [f.id, f.nome_fantasia ?? f.nome_razao ?? "(fonte)"]))
@@ -320,8 +360,11 @@ async function comprovacoesCandidatas(lancs: Lancamento[]): Promise<Map<string, 
 /** Casa sozinho o que tem exatamente um candidato. Devolve quantos casou. */
 async function casarAutomaticamente(extratoId: string, usuarioId: string): Promise<number> {
   const admin = await createAdminClient()
-  const { data } = await admin.from("banco_lancamentos").select("*").eq("extrato_id", extratoId).eq("situacao", "pendente").limit(MAX_LINHAS)
-  const lancs = (data ?? []).map((l) => montarLancamento(l as Record<string, unknown>))
+  // PostgREST corta em 1.000 linhas e o extrato pode ter até MAX_LINHAS: lê em lotes.
+  const data = await lerEmLotes<Record<string, unknown>>((a, b) =>
+    admin.from("banco_lancamentos").select("*").eq("extrato_id", extratoId).eq("situacao", "pendente").order("id").range(a, b)
+  ).catch(() => [] as Record<string, unknown>[])
+  const lancs = data.map((l) => montarLancamento(l))
   if (lancs.length === 0) return 0
   const [ordens, comps, cobs] = await Promise.all([ordensCandidatas(lancs), comprovacoesCandidatas(lancs), cobrancasCandidatas(lancs.filter((l) => l.valor > 0)).catch(() => new Map())])
   // Uma ordem não pode casar com dois lançamentos no mesmo lote.
@@ -359,8 +402,18 @@ export async function resumoConciliacao(): Promise<ResumoConciliacao> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const vazio: ResumoConciliacao = { disponivel: false, pendentes: 0, pendentesCreditos: 0, pendentesDebitos: 0, conciliados: 0, ignorados: 0, ultimoExtrato: null, ordensSemExtrato: 0 }
-  const { data: pend, error } = await admin.from("banco_lancamentos").select("valor").eq("emp_proprietaria_id", emp).eq("situacao", "pendente").limit(MAX_LINHAS)
-  if (error) return esquemaAusente(error) ? vazio : { ...vazio, disponivel: true }
+  // PostgREST corta em 1.000 linhas: os pendentes (quantidade e somas) são
+  // lidos em lotes. É também a leitura que detecta a tabela ausente — um
+  // count com head:true não traz o código do erro (404 sem corpo vira sucesso).
+  type Pend = { valor: number | string | null }
+  let pendentes: Pend[]
+  try {
+    pendentes = await lerEmLotes<Pend>((a, b) =>
+      admin.from("banco_lancamentos").select("id, valor").eq("emp_proprietaria_id", emp).eq("situacao", "pendente").order("id").range(a, b)
+    )
+  } catch (e) {
+    return esquemaAusente(e as { code?: string }) ? vazio : { ...vazio, disponivel: true }
+  }
   const contar = async (situacao: string) => {
     const { count } = await admin.from("banco_lancamentos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("situacao", situacao)
     return count ?? 0
@@ -371,22 +424,23 @@ export async function resumoConciliacao(): Promise<ResumoConciliacao> {
     admin.from("banco_extratos").select("*").eq("emp_proprietaria_id", emp).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ])
   // Ordens pagas nos últimos 90 dias que nenhum lançamento aponta.
-  const { data: pagas } = await admin
-    .from("ordens_pagamento")
-    .select("id")
-    .eq("emp_proprietaria_id", emp)
-    .eq("situacao", "Paga")
-    .not("excluido", "is", true)
-    .gte("data_pagamento", somarDias(hojeSP(), -90))
-    .limit(5000)
+  const pagas = await lerEmLotes<{ id: string }>((a, b) =>
+    admin
+      .from("ordens_pagamento")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("situacao", "Paga")
+      .not("excluido", "is", true)
+      .gte("data_pagamento", somarDias(hojeSP(), -90))
+      .order("id")
+      .range(a, b)
+  ).catch(() => [] as { id: string }[])
   let semExtrato = 0
-  if (pagas?.length) {
+  if (pagas.length) {
     const ids = pagas.map((p) => String(p.id))
-    const { data: usadas } = await admin.from("banco_lancamentos").select("ordem_id").eq("emp_proprietaria_id", emp).eq("situacao", "conciliado").in("ordem_id", ids)
-    const set = new Set((usadas ?? []).map((u) => String(u.ordem_id)))
+    const set = await idsJaConciliados(admin, emp, "ordem_id", ids)
     semExtrato = ids.filter((id) => !set.has(id)).length
   }
-  const pendentes = pend ?? []
   return {
     disponivel: true,
     pendentes: pendentes.length,

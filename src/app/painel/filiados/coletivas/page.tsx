@@ -44,18 +44,35 @@ async function noPrazo(): Promise<{
   }[]
 }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("filiacoes")
-    .select("id, nome_completo, filiacao_coletiva_prazo, filiacao_coletiva_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("filiacao_condicao", CONDICAO_COLETIVA)
-    .order("filiacao_coletiva_prazo", { ascending: true, nullsFirst: false })
-    .limit(100)
-  if (error) return { total: 0, vencemEm7: 0, linhas: [] }
+  const emp = await tenantAtual()
   const hoje = hojeSP()
   const limite = new Date(`${hoje}T12:00:00`)
   limite.setDate(limite.getDate() + 7)
   const limiteIso = limite.toISOString().slice(0, 10)
+  // A lista mostra só os 100 primeiros; os totais vêm de contagens no banco
+  // (PostgREST corta em 1.000 linhas e o .limit(100) travaria o número).
+  const [{ data, error }, total, em7] = await Promise.all([
+    admin
+      .from("filiacoes")
+      .select("id, nome_completo, filiacao_coletiva_prazo, filiacao_coletiva_id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("filiacao_condicao", CONDICAO_COLETIVA)
+      .order("filiacao_coletiva_prazo", { ascending: true, nullsFirst: false })
+      .limit(100),
+    admin
+      .from("filiacoes")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("filiacao_condicao", CONDICAO_COLETIVA),
+    admin
+      .from("filiacoes")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("filiacao_condicao", CONDICAO_COLETIVA)
+      .not("filiacao_coletiva_prazo", "is", null)
+      .lte("filiacao_coletiva_prazo", limiteIso),
+  ])
+  if (error) return { total: 0, vencemEm7: 0, linhas: [] }
   const linhas = (data ?? []).map((f) => ({
     id: f.id as string,
     nome: f.nome_completo as string | null,
@@ -63,8 +80,8 @@ async function noPrazo(): Promise<{
     coletivaId: f.filiacao_coletiva_id as string | null,
   }))
   return {
-    total: linhas.length,
-    vencemEm7: linhas.filter((l) => l.prazo && l.prazo <= limiteIso).length,
+    total: total.count ?? linhas.length,
+    vencemEm7: em7.count ?? 0,
     linhas,
   }
 }
@@ -207,6 +224,13 @@ export default async function FiliacoesColetivasPage() {
               <>
                 {" "}
                 <strong>{prazo.vencemEm7}</strong> vencem nos próximos 7 dias.
+              </>
+            )}
+            {prazo.total > prazo.linhas.length && (
+              <>
+                {" "}
+                A lista mostra os {prazo.linhas.length} de prazo mais próximo,
+                de {prazo.total}.
               </>
             )}
           </CardDescription>

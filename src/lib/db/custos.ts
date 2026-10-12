@@ -1,7 +1,7 @@
 import "server-only"
 
 import { serieFrota } from "@/lib/db/analitica"
-import { hojeSP, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { listarSolicitacoesDiaria } from "@/lib/db/diarias"
 import { listarHoteis } from "@/lib/db/hospedagem"
 import { listarVeiculos } from "@/lib/db/veiculos"
@@ -73,13 +73,17 @@ export async function custosConsolidados(): Promise<Custos> {
     serieFrota(12).catch(() => ({ disponivel: false, linhas: [] })),
     listarVeiculos({ situacao: "todos" }).catch(() => []),
     listarHoteis().catch(() => []),
-    admin
-      .from("hospedagem_servico")
-      .select("id, hotel_id, checkin_date, quant_ocupantes, custo_entidade")
-      .eq("emp_proprietaria_id", emp)
-      .gte("checkin_date", inicio)
-      .not("custo_entidade", "is", null)
-      .limit(5000),
+    // PostgREST corta em 1.000 linhas (também com .limit): lê em lotes.
+    lerEmLotes<{ id: string; hotel_id: string | null; checkin_date: string | null; quant_ocupantes: number | null; custo_entidade: number | null }>((de, ate) =>
+      admin
+        .from("hospedagem_servico")
+        .select("id, hotel_id, checkin_date, quant_ocupantes, custo_entidade")
+        .eq("emp_proprietaria_id", emp)
+        .gte("checkin_date", inicio)
+        .not("custo_entidade", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => []),
     listarViagens().catch(() => ({ disponivel: false, viagens: [] })),
     listarSolicitacoesDiaria().catch(() => ({ disponivel: false, solicitacoes: [] })),
   ])
@@ -123,7 +127,7 @@ export async function custosConsolidados(): Promise<Custos> {
   // ── Hospedagem ─────────────────────────────────────────────────────────────
   const nomeHotel = new Map((hoteis as { id: string; nome: string | null }[]).map((h) => [h.id, h.nome ?? "Hotel"]))
   const porHotel = new Map<string, CustoHotel>()
-  for (const s of servicos.data ?? []) {
+  for (const s of servicos) {
     const hotelId = String(s.hotel_id ?? "")
     const custo = Number(s.custo_entidade ?? 0)
     const h = porHotel.get(hotelId) ?? { hotelId, hotel: nomeHotel.get(hotelId) ?? "Hotel", quartos: 0, hospedes: 0, total: 0, mediaPorQuarto: null }

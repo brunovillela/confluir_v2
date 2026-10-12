@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -99,25 +99,34 @@ export async function listarAtendimentos(filtros: {
   assistidoId?: string
   tipoId?: string
   busca?: string
+  /** Uso interno (buscarAtendimento): um atendimento só. */
+  id?: string
 }): Promise<{ linhas: AtendimentoLinha[]; disponivel: boolean }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
 
-  let q = admin
-    .from("saude_atendimentos")
-    .select(
-      "id,data_atendimento,observacao_aberta,assistido_id,tipo_id," +
-        "profissional_id,atendente_id,acompanhamento_id"
-    )
-    .eq("emp_proprietaria_id", await tenantAtual())
-  if (filtros.assistidoId) q = q.eq("assistido_id", filtros.assistidoId)
-  if (filtros.tipoId) q = q.eq("tipo_id", filtros.tipoId)
-
-  const { data, error } = await q
-    .order("data_atendimento", { ascending: false, nullsFirst: false })
-    .limit(1000)
-
-  if (error) {
-    if (esquemaAusente(error)) return { linhas: [], disponivel: false }
+  // Em lotes: o PostgREST corta em 1.000 linhas — o .limit(1000) antigo
+  // deixava os atendimentos mais antigos fora da lista e da busca.
+  let data: unknown[]
+  try {
+    data = await lerEmLotes((de, ate) => {
+      let q = admin
+        .from("saude_atendimentos")
+        .select(
+          "id,data_atendimento,observacao_aberta,assistido_id,tipo_id," +
+            "profissional_id,atendente_id,acompanhamento_id"
+        )
+        .eq("emp_proprietaria_id", emp)
+      if (filtros.id) q = q.eq("id", filtros.id)
+      if (filtros.assistidoId) q = q.eq("assistido_id", filtros.assistidoId)
+      if (filtros.tipoId) q = q.eq("tipo_id", filtros.tipoId)
+      return q
+        .order("data_atendimento", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    })
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return { linhas: [], disponivel: false }
     throw error
   }
 
@@ -125,7 +134,7 @@ export async function listarAtendimentos(filtros: {
     AtendimentoLinha,
     "assistidoNome" | "assistidoFiliadoId" | "tipoNome" | "profissionalNome" | "temRelatorio"
   >
-  const brutos = (data ?? []) as unknown as Bruto[]
+  const brutos = data as Bruto[]
   if (brutos.length === 0) return { linhas: [], disponivel: true }
 
   const [assistidos, tipos, profissionais, comRelatorio] = await Promise.all([
@@ -185,8 +194,9 @@ async function idsComRelatorio(ids: string[]): Promise<Set<string>> {
 export async function buscarAtendimento(
   id: string
 ): Promise<AtendimentoLinha | null> {
-  const { linhas } = await listarAtendimentos({})
-  return linhas.find((l) => l.id === id) ?? null
+  // Direto pelo id: procurar dentro da lista falhava além das 1.000 linhas.
+  const { linhas } = await listarAtendimentos({ id })
+  return linhas[0] ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -648,15 +658,28 @@ export async function listarAgenda(filtros: {
 
   // Marca quem já foi atendido na data agendada — evita que a equipe cobre
   // comparecimento de quem já compareceu.
-  const { data: ats } = await admin
-    .from("saude_atendimentos")
-    .select("assistido_id,data_atendimento")
-    .eq("emp_proprietaria_id", await tenantAtual())
-  const feitos = new Set(
-    ((ats ?? []) as { assistido_id: string | null; data_atendimento: string | null }[])
-      .filter((a) => a.assistido_id && a.data_atendimento)
-      .map((a) => `${a.assistido_id}|${a.data_atendimento}`)
-  )
+  // Só os assistidos da agenda, em fatias de 200 e em lotes: o PostgREST
+  // corta em 1.000 linhas, e a leitura de todos os atendimentos deixava
+  // gente atendida marcada como pendente.
+  const emp = await tenantAtual()
+  const idsAgenda = [...new Set(brutos.map((a) => a.assistido_id).filter((v): v is string => Boolean(v)))]
+  const feitos = new Set<string>()
+  for (let i = 0; i < idsAgenda.length; i += 200) {
+    const fatia = idsAgenda.slice(i, i + 200)
+    const ats = await lerEmLotes<{ id: string; assistido_id: string | null; data_atendimento: string | null }>(
+      (de, ate) =>
+        admin
+          .from("saude_atendimentos")
+          .select("id,assistido_id,data_atendimento")
+          .eq("emp_proprietaria_id", emp)
+          .in("assistido_id", fatia)
+          .order("id")
+          .range(de, ate)
+    ).catch(() => [])
+    for (const a of ats) {
+      if (a.assistido_id && a.data_atendimento) feitos.add(`${a.assistido_id}|${a.data_atendimento}`)
+    }
+  }
 
   return {
     linhas: brutos.map((a) => ({
@@ -845,16 +868,29 @@ export async function listarAssistidos(busca?: string): Promise<{
   linhas: Assistido[]
   disponivel: boolean
 }> {
-  const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("saude_assistidos")
-    .select(CAMPOS_ASSISTIDO)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("nome")
-    .limit(1000)
+  return lerAssistidos({ busca })
+}
 
-  if (error) {
-    if (esquemaAusente(error)) return { linhas: [], disponivel: false }
+async function lerAssistidos(opcoes: { busca?: string; id?: string }): Promise<{
+  linhas: Assistido[]
+  disponivel: boolean
+}> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  // Em lotes: o PostgREST corta em 1.000 linhas — o .limit(1000) antigo
+  // escondia da lista (e da busca) quem vinha depois na ordem alfabética.
+  let data: unknown[]
+  try {
+    data = await lerEmLotes((de, ate) => {
+      let q = admin
+        .from("saude_assistidos")
+        .select(CAMPOS_ASSISTIDO)
+        .eq("emp_proprietaria_id", emp)
+      if (opcoes.id) q = q.eq("id", opcoes.id)
+      return q.order("nome").order("id").range(de, ate)
+    })
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return { linhas: [], disponivel: false }
     throw error
   }
 
@@ -862,7 +898,7 @@ export async function listarAssistidos(busca?: string): Promise<{
     Assistido,
     "filiadoNome" | "filiadoCpf" | "filiadoCondicao" | "atendimentos"
   >
-  const brutos = (data ?? []) as unknown as Bruto[]
+  const brutos = data as Bruto[]
   if (brutos.length === 0) return { linhas: [], disponivel: true }
 
   // Dados do filiado vêm do cadastro. Quando ele foi anonimizado, não há
@@ -894,12 +930,17 @@ export async function listarAssistidos(busca?: string): Promise<{
     }
   }
 
-  const { data: ats } = await admin
-    .from("saude_atendimentos")
-    .select("assistido_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
+  // Contagem por assistido — em lotes, pelo mesmo corte de 1.000 linhas.
+  const ats = await lerEmLotes<{ assistido_id: string | null }>((de, ate) => {
+    let q = admin
+      .from("saude_atendimentos")
+      .select("id,assistido_id")
+      .eq("emp_proprietaria_id", emp)
+    if (opcoes.id) q = q.eq("assistido_id", opcoes.id)
+    return q.order("id").range(de, ate)
+  }).catch(() => [] as { assistido_id: string | null }[])
   const contagem = new Map<string, number>()
-  for (const a of (ats ?? []) as { assistido_id: string | null }[]) {
+  for (const a of ats) {
     if (a.assistido_id) {
       contagem.set(a.assistido_id, (contagem.get(a.assistido_id) ?? 0) + 1)
     }
@@ -918,7 +959,7 @@ export async function listarAssistidos(busca?: string): Promise<{
     }
   })
 
-  const t = busca?.trim().toLowerCase()
+  const t = opcoes.busca?.trim().toLowerCase()
   if (t) {
     const digitos = t.replace(/\D/g, "")
     linhas = linhas.filter(
@@ -933,8 +974,9 @@ export async function listarAssistidos(busca?: string): Promise<{
 }
 
 export async function buscarAssistido(id: string): Promise<Assistido | null> {
-  const { linhas } = await listarAssistidos()
-  return linhas.find((a) => a.id === id) ?? null
+  // Direto pelo id: procurar dentro da lista falhava além das 1.000 linhas.
+  const { linhas } = await lerAssistidos({ id })
+  return linhas[0] ?? null
 }
 
 export type DadosAssistido = {
@@ -1056,28 +1098,28 @@ export async function listarTiposAtendimento(comUso = false): Promise<{
   const tipos = (data ?? []) as TipoAtendimento[]
   if (!comUso || tipos.length === 0) return { tipos, disponivel: true }
 
-  const [profs, atends] = await Promise.all([
-    admin.from("saude_profissionais").select("tipo_id"),
-    admin.from("saude_atendimentos").select("tipo_id"),
-  ])
-  const conta = (linhas: { tipo_id: string | null }[] | null) => {
-    const m = new Map<string, number>()
-    for (const l of linhas ?? []) {
-      if (l.tipo_id) m.set(l.tipo_id, (m.get(l.tipo_id) ?? 0) + 1)
-    }
-    return m
+  // Contagem no banco, um tipo por vez: ler as linhas e contar em JS parava
+  // nas 1.000 que o PostgREST devolve.
+  const emp = await tenantAtual()
+  const contar = async (tabela: "saude_profissionais" | "saude_atendimentos", tipoId: string) => {
+    const { count } = await admin
+      .from(tabela)
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("tipo_id", tipoId)
+    return count ?? 0
   }
-  const cp = conta(profs.data as { tipo_id: string | null }[] | null)
-  const ca = conta(atends.data as { tipo_id: string | null }[] | null)
+  const usos = await Promise.all(
+    tipos.map(async (t) => {
+      const [profissionais, atendimentos] = await Promise.all([
+        contar("saude_profissionais", t.id),
+        contar("saude_atendimentos", t.id),
+      ])
+      return { ...t, profissionais, atendimentos }
+    })
+  )
 
-  return {
-    tipos: tipos.map((t) => ({
-      ...t,
-      profissionais: cp.get(t.id) ?? 0,
-      atendimentos: ca.get(t.id) ?? 0,
-    })),
-    disponivel: true,
-  }
+  return { tipos: usos, disponivel: true }
 }
 
 export async function salvarTipoAtendimento(

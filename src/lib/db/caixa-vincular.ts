@@ -1,6 +1,6 @@
 import "server-only"
 
-import { beneficiariosDasOrdens, calcularSaldo } from "@/lib/db/caixa"
+import { beneficiariosDasOrdens, saldoDaConta } from "@/lib/db/caixa"
 import { hojeSP } from "@/lib/db/comum"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -147,13 +147,8 @@ export async function vincularOrdemAoCaixa(
 
   const valor = Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0)
   if (!(valor > 0)) return { erro: "A ordem não tem valor." }
-  const { data: movs } = await admin
-    .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor, reconhecimento")
-    .eq("conta_id", conta.id)
-  const saldo = calcularSaldo(
-    (movs ?? []) as { tipo: string; situacao: string; valor: number; reconhecimento: string | null }[]
-  )
+  const saldo = await saldoDaConta(conta.id).catch(() => null)
+  if (saldo === null) return { erro: "Não foi possível calcular o saldo do caixa. Tente de novo." }
   if (valor > saldo + 0.005) {
     const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
     return { erro: `A ordem (${moeda(valor)}) é maior que o saldo disponível (${moeda(saldo)}).` }

@@ -1,5 +1,5 @@
 import "server-only"
-import { hojeSP } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { listarFuncionarios } from "@/lib/db/pessoal"
@@ -183,9 +183,16 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     admin
       .from("pessoal_treinamentos")
       .select("id, vencimento_meses"),
-    admin
-      .from("pessoal_treinamentos_alunos")
-      .select("treinamento_id, data_termino"),
+    // PostgREST corta em 1.000 linhas — lê em lotes (erro tolerado como antes).
+    lerEmLotes<{ treinamento_id: string | null; data_termino: string | null }>(
+      (de, ate) =>
+        admin
+          .from("pessoal_treinamentos_alunos")
+          .select("treinamento_id, data_termino")
+          .not("data_termino", "is", null)
+          .order("id")
+          .range(de, ate)
+    ).catch(() => []),
     // Tabelas que podem não existir (SQL pendente): GET com limit(1) em vez
     // de head — requisição HEAD não tem corpo e o código PGRST205 se perde.
     contar(() =>
@@ -219,7 +226,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     (treinamentos.data ?? []).map((t) => [t.id, t.vencimento_meses])
   )
   let certificadosVencidos = 0
-  for (const a of alunos.data ?? []) {
+  for (const a of alunos) {
     const meses = a.treinamento_id
       ? validadePorTreinamento.get(a.treinamento_id)
       : null

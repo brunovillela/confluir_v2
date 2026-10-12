@@ -1,6 +1,7 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
+import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -117,6 +118,41 @@ async function nomesDeUsuarios(ids: string[]): Promise<Map<string, string>> {
   return nomes
 }
 
+/**
+ * Movimentações de várias contas, TODAS (paginado): o saldo soma a conta
+ * desde a criação, e o PostgREST corta qualquer leitura em 1.000 linhas —
+ * sem isto, uma conta com mais de mil lançamentos teria saldo errado e o
+ * acerto de fechamento sairia com o valor errado (auditoria de 10/10/2026).
+ */
+export async function movimentacoesDasContas<T = Record<string, unknown>>(
+  contaIds: string[],
+  colunas = "id, conta_id, tipo, situacao, valor, reconhecimento"
+): Promise<T[]> {
+  if (contaIds.length === 0) return []
+  const admin = await createAdminClient()
+  const todas: T[] = []
+  for (let de = 0; de < contaIds.length; de += 100) {
+    const parte = contaIds.slice(de, de + 100)
+    todas.push(
+      ...(await lerEmLotes<T>((a, b) =>
+        admin.from("caixa_movimentacoes").select(colunas).in("conta_id", parte).order("id").range(a, b)
+      ))
+    )
+  }
+  return todas
+}
+
+/** Saldo de uma conta sobre TODAS as movimentações dela. */
+export async function saldoDaConta(contaId: string): Promise<number> {
+  const movs = await movimentacoesDasContas<{
+    tipo: string
+    situacao: string
+    valor: number
+    reconhecimento: string | null
+  }>([contaId], "id, tipo, situacao, valor, reconhecimento")
+  return calcularSaldo(movs.map((m) => ({ ...m, valor: Number(m.valor) })))
+}
+
 type MovBruta = {
   id: string
   conta_id: string
@@ -148,23 +184,36 @@ export async function beneficiariosDasOrdens(
   const ids = [...new Set(ordemIds.filter(Boolean))]
   if (ids.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data: ordens } = await admin
-    .from("ordens_pagamento")
-    .select("id, codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
-    .in("id", ids)
-  const lista = ordens ?? []
+  // Em fatias de 200: o extrato da conta agora vem inteiro (sem o teto de
+  // 1.000), e uma lista grande em .in() estoura a URL do PostgREST.
+  type OrdemBenef = {
+    id: string
+    codigo: string | null
+    fornecedor_id: string | null
+    beneficiario_fornecedor_id: string | null
+    beneficiario_usuario_id: string | null
+    beneficiario_nome_avulso: string | null
+  }
+  const lista: OrdemBenef[] = []
+  for (let de = 0; de < ids.length; de += 200) {
+    const { data } = await admin
+      .from("ordens_pagamento")
+      .select("id, codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+      .in("id", ids.slice(de, de + 200))
+    lista.push(...((data ?? []) as OrdemBenef[]))
+  }
   const empIds = [...new Set(lista.flatMap((o) => [o.fornecedor_id, o.beneficiario_fornecedor_id]).filter((v): v is string => Boolean(v)))]
   const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => Boolean(v)))]
   const nomes = new Map<string, string>()
-  if (empIds.length) {
-    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", empIds)
+  for (let de = 0; de < empIds.length; de += 200) {
+    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", empIds.slice(de, de + 200))
     for (const e of data ?? []) {
       const n = txtCaixa(e.nome_fantasia) ?? txtCaixa(e.empresa) ?? txtCaixa(e.nome_razao)
       if (n) nomes.set(String(e.id), n)
     }
   }
-  if (usuIds.length) {
-    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuIds)
+  for (let de = 0; de < usuIds.length; de += 200) {
+    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuIds.slice(de, de + 200))
     for (const u of data ?? []) {
       const n = txtCaixa(u.nome_completo) ?? txtCaixa(u.nome_guerra)
       if (n) nomes.set(String(u.id), n)
@@ -207,11 +256,8 @@ export async function listarContasCaixa(): Promise<{
   if (brutas.length === 0) return { disponivel: true, contas: [] }
 
   const ids = brutas.map((c) => c.id)
-  const [movsRes, prestRes, ocorRes, nomes] = await Promise.all([
-    admin
-      .from("caixa_movimentacoes")
-      .select("conta_id, tipo, situacao, valor, reconhecimento")
-      .in("conta_id", ids),
+  const [movsTodas, prestRes, ocorRes, nomes] = await Promise.all([
+    movimentacoesDasContas<MovBruta>(ids),
     admin
       .from("caixa_prestacoes")
       .select("conta_id")
@@ -226,7 +272,7 @@ export async function listarContasCaixa(): Promise<{
   ])
 
   const movsPorConta = new Map<string, MovBruta[]>()
-  for (const m of (movsRes.data ?? []) as MovBruta[]) {
+  for (const m of movsTodas) {
     if (!movsPorConta.has(m.conta_id)) movsPorConta.set(m.conta_id, [])
     movsPorConta.get(m.conta_id)!.push(m)
   }
@@ -280,13 +326,18 @@ export async function detalheContaCaixa(
   }
   if (!conta) return null
 
-  const [movsRes, prestRes, ocorRes] = await Promise.all([
+  const [movs, prestRes, ocorRes] = await Promise.all([
     // select("*"): as colunas do reconhecimento podem ainda não existir.
-    admin
-      .from("caixa_movimentacoes")
-      .select("*")
-      .eq("conta_id", id)
-      .order("created_at", { ascending: false }),
+    // Paginado: o saldo abaixo soma a conta inteira.
+    lerEmLotes<MovBruta>((de, ate) =>
+      admin
+        .from("caixa_movimentacoes")
+        .select("*")
+        .eq("conta_id", id)
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(de, ate)
+    ),
     admin
       .from("caixa_prestacoes")
       .select(
@@ -303,7 +354,6 @@ export async function detalheContaCaixa(
       .order("created_at", { ascending: false }),
   ])
 
-  const movs = (movsRes.data ?? []) as MovBruta[]
   const nomes = await nomesDeUsuarios([
     ...new Set(
       [

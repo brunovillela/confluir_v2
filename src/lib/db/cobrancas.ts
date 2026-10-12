@@ -5,7 +5,7 @@ import { createHash } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel } from "@/lib/cpf"
-import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { invalidarCacheInadimplencia } from "@/lib/db/filiacao-inadimplencia"
 import { avisarFiliado, type ResultadoAviso } from "@/lib/db/portal-avisos"
 import { emitirEvento } from "@/lib/db/webhooks"
@@ -176,21 +176,40 @@ export async function gerarCobrancas(competencia: string, amb: Ambiente = {}): P
   const recebedor = await recebedorPix({ client, tenantId })
   if ("erro" in recebedor) return { ...vazio, erro: recebedor.erro }
 
-  const { data: pessoas, error } = await client
-    .from("filiacoes")
-    .select("id, cpf, nome_completo, email_pessoal, email_corporativo, contribuicao_valor")
-    .eq("emp_proprietaria_id", tenantId)
-    .eq("filiacao_condicao", "Ativo")
-    .eq("forma_recebimento", "pix")
-    .not("filiacao_excluida", "is", true)
-    .is("mesclado_em", null)
-    .limit(5000)
-  if (error) return { ...vazio, erro: error.code === "42703" ? "Falta rodar o SQL supabase/filiacao-cobrancas.sql (coluna contribuicao_valor)." : error.message }
-  const lista = pessoas ?? []
+  // PostgREST corta em 1.000 linhas: filiados e cobranças já existentes são
+  // lidos em lotes (senão quem passa do milésimo fica sem cobrança, e as já
+  // geradas além do milésimo voltam a ser inseridas — a chave única barra,
+  // mas viram erro no log e somem de jaExistiam).
+  type Pessoa = { id: string; cpf: string | null; nome_completo: string | null; email_pessoal: string | null; email_corporativo: string | null; contribuicao_valor: number | null }
+  let lista: Pessoa[]
+  try {
+    lista = await lerEmLotes<Pessoa>((de, ate) =>
+      client
+        .from("filiacoes")
+        .select("id, cpf, nome_completo, email_pessoal, email_corporativo, contribuicao_valor")
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("filiacao_condicao", "Ativo")
+        .eq("forma_recebimento", "pix")
+        .not("filiacao_excluida", "is", true)
+        .is("mesclado_em", null)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    const error = e as { code?: string; message: string }
+    return { ...vazio, erro: error.code === "42703" ? "Falta rodar o SQL supabase/filiacao-cobrancas.sql (coluna contribuicao_valor)." : error.message }
+  }
   if (lista.length === 0) return vazio
 
-  const { data: existentes } = await client.from("filiacao_cobrancas").select("filiacao_id").eq("emp_proprietaria_id", tenantId).eq("competencia", competencia)
-  const jaTem = new Set((existentes ?? []).map((e) => String(e.filiacao_id)))
+  let existentes: { filiacao_id: string }[]
+  try {
+    existentes = await lerEmLotes<{ filiacao_id: string }>((de, ate) =>
+      client.from("filiacao_cobrancas").select("id, filiacao_id").eq("emp_proprietaria_id", tenantId).eq("competencia", competencia).order("id").range(de, ate)
+    )
+  } catch (e) {
+    return { ...vazio, erro: `Não foi possível ler as cobranças já geradas: ${(e as Error).message}` }
+  }
+  const jaTem = new Set(existentes.map((e) => String(e.filiacao_id)))
   const [ano, mes] = competencia.split("-").map(Number)
   const vencimento = `${competencia}-${String(config.diaVencimento).padStart(2, "0")}`
   const ordem = ano * 100 + mes
@@ -268,9 +287,13 @@ export async function listarCobrancas(filtro: { competencia?: string; situacao?:
   if (filtro.competencia) q = q.eq("competencia", filtro.competencia)
   if (filtro.situacao === "vencidas") q = q.eq("situacao", "aberta").lt("vencimento", hojeSP())
   else if (filtro.situacao && filtro.situacao !== "todas") q = q.eq("situacao", filtro.situacao)
+  // PostgREST corta em 1.000 linhas: as competências (uma linha por cobrança)
+  // são lidas em lotes para o seletor não perder os meses mais antigos.
   const [{ data, error }, comps] = await Promise.all([
     q.order("competencia", { ascending: false }).order("vencimento").limit(1000),
-    admin.from("filiacao_cobrancas").select("competencia").eq("emp_proprietaria_id", emp).order("competencia", { ascending: false }).limit(2000),
+    lerEmLotes<{ competencia: string }>((de, ate) =>
+      admin.from("filiacao_cobrancas").select("competencia").eq("emp_proprietaria_id", emp).order("competencia", { ascending: false }).order("id").range(de, ate)
+    ).catch(() => [] as { competencia: string }[]),
   ])
   if (error) return { disponivel: !esquemaAusente(error), cobrancas: [], competencias: [] }
   const hoje = hojeSP()
@@ -280,7 +303,7 @@ export async function listarCobrancas(filtro: { competencia?: string; situacao?:
       const f = (Array.isArray(c.filiacao) ? c.filiacao[0] : c.filiacao) as { nome_completo?: string | null } | null
       return { ...montar(c as Record<string, unknown>, hoje), nome: f?.nome_completo ?? null }
     }),
-    competencias: [...new Set((comps.data ?? []).map((c) => String(c.competencia)))],
+    competencias: [...new Set(comps.map((c) => String(c.competencia)))],
   }
 }
 
@@ -302,12 +325,16 @@ export async function indicadoresCobranca(): Promise<IndicadoresCobranca> {
   const d = new Date(`${hoje}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() - 30)
   const ha30 = d.toISOString().slice(0, 10)
-  const [{ data: abertas }, { data: pagas }] = await Promise.all([
-    admin.from("filiacao_cobrancas").select("valor, vencimento").eq("emp_proprietaria_id", emp).eq("situacao", "aberta").limit(5000),
-    admin.from("filiacao_cobrancas").select("valor_pago, valor").eq("emp_proprietaria_id", emp).eq("situacao", "paga").gte("pago_em", ha30).limit(5000),
+  // PostgREST corta em 1.000 linhas: abertas e pagas lidas em lotes — as
+  // quantidades e as somas saem da mesma leitura, completa.
+  type Aberta = { valor: number | null; vencimento: string | null }
+  type Paga = { valor_pago: number | null; valor: number | null }
+  const [a, p] = await Promise.all([
+    lerEmLotes<Aberta>((de, ate) => admin.from("filiacao_cobrancas").select("id, valor, vencimento").eq("emp_proprietaria_id", emp).eq("situacao", "aberta").order("id").range(de, ate)).catch(() => [] as Aberta[]),
+    lerEmLotes<Paga>((de, ate) =>
+      admin.from("filiacao_cobrancas").select("id, valor_pago, valor").eq("emp_proprietaria_id", emp).eq("situacao", "paga").gte("pago_em", ha30).order("id").range(de, ate)
+    ).catch(() => [] as Paga[]),
   ])
-  const a = abertas ?? []
-  const p = pagas ?? []
   return {
     abertas: a.length,
     vencidas: a.filter((x) => String(x.vencimento) < hoje).length,
@@ -411,8 +438,12 @@ export async function cobrancasCandidatas(creditos: { id: string; valor: number;
   const saida = new Map<string, { porTxid: boolean; cobrancas: Cobranca[] }>()
   if (creditos.length === 0) return saida
   const admin = await createAdminClient()
-  const { data, error } = await admin.from("filiacao_cobrancas").select("*, filiacao:filiacao_id (nome_completo)").eq("emp_proprietaria_id", await tenantAtual()).eq("situacao", "aberta").limit(5000)
-  if (error || !data?.length) return saida
+  const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas: todas as abertas, lidas em lotes.
+  const data = await lerEmLotes<Record<string, unknown> & { filiacao?: unknown }>((de, ate) =>
+    admin.from("filiacao_cobrancas").select("*, filiacao:filiacao_id (nome_completo)").eq("emp_proprietaria_id", emp).eq("situacao", "aberta").order("id").range(de, ate)
+  ).catch(() => [] as (Record<string, unknown> & { filiacao?: unknown })[])
+  if (!data.length) return saida
   const hoje = hojeSP()
   const abertas = data.map((c) => {
     const f = (Array.isArray(c.filiacao) ? c.filiacao[0] : c.filiacao) as { nome_completo?: string | null } | null

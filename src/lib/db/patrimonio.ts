@@ -4,7 +4,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { AVISO_SQL_PATRIMONIO, type SituacaoItem } from "@/lib/patrimonio-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 
 /**
  * Patrimônio — itens, recintos, notas fiscais e cautelas (mapeado do Bubble,
@@ -72,9 +72,11 @@ export async function resumoPatrimonio(): Promise<ResumoPatrimonio> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
+  // PostgREST corta em 1.000 linhas: os KPIs saem de contagens no banco,
+  // não do tamanho da lista lida.
   const itens = await admin
     .from("patrimonio_item")
-    .select("id, ativo, responsavel_cautela_id", { count: "exact", head: false })
+    .select("id", { count: "exact", head: true })
     .eq("emp_proprietaria_id", emp)
   if (itens.error) {
     if (esquemaAusente(itens.error)) {
@@ -89,9 +91,17 @@ export async function resumoPatrimonio(): Promise<ResumoPatrimonio> {
     }
     throw new Error(`Falha no resumo de patrimônio: ${itens.error.message}`)
   }
-  const linhas = (itens.data ?? []) as Record<string, unknown>[]
-
-  const [recintos, notas] = await Promise.all([
+  const [ativos, emCautela, recintos, notas] = await Promise.all([
+    admin
+      .from("patrimonio_item")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("ativo", true),
+    admin
+      .from("patrimonio_item")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .not("responsavel_cautela_id", "is", null),
     admin
       .from("patrimonio_recinto")
       .select("id", { count: "exact", head: true })
@@ -104,9 +114,9 @@ export async function resumoPatrimonio(): Promise<ResumoPatrimonio> {
 
   return {
     disponivel: true,
-    totalItens: linhas.length,
-    ativos: linhas.filter((i) => i.ativo === true).length,
-    emCautela: linhas.filter((i) => texto(i.responsavel_cautela_id)).length,
+    totalItens: itens.count ?? 0,
+    ativos: ativos.count ?? 0,
+    emCautela: emCautela.count ?? 0,
     recintos: recintos.count ?? 0,
     notas: notas.count ?? 0,
   }
@@ -133,12 +143,18 @@ export type FiltrosItens = {
 /** Mapa id → nome do recinto, do tenant (para juntar nas listagens). */
 async function nomesDosRecintos(): Promise<Map<string, string>> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("patrimonio_recinto")
-    .select("id, nome_recinto")
-    .eq("emp_proprietaria_id", await tenantAtual())
+  const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas: em lotes.
+  const data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("patrimonio_recinto")
+      .select("id, nome_recinto")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
   const mapa = new Map<string, string>()
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
+  for (const r of data) {
     const nome = texto(r.nome_recinto)
     if (nome) mapa.set(String(r.id), nome)
   }
@@ -370,11 +386,16 @@ export async function listarUsuariosParaCautela(): Promise<OpcaoUsuario[]> {
     ),
   ]
   if (ids.length === 0) return []
-  const { data: usuarios } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra, inativo, deletado")
-    .in("id", ids)
-  return ((usuarios ?? []) as Record<string, unknown>[])
+  // .in() em fatias de 200 ids (URL e teto de 1.000 linhas do PostgREST).
+  const usuarios: Record<string, unknown>[] = []
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: lote } = await admin
+      .from("usuarios")
+      .select("id, nome_completo, nome_guerra, inativo, deletado")
+      .in("id", ids.slice(i, i + 200))
+    usuarios.push(...((lote ?? []) as Record<string, unknown>[]))
+  }
+  return usuarios
     .filter((u) => u.inativo !== true && u.deletado !== true)
     .map((u) => ({
       id: String(u.id),
@@ -512,24 +533,35 @@ export type RecintoLinha = {
 export async function listarRecintos(): Promise<RecintoLinha[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data, error } = await admin
-    .from("patrimonio_recinto")
-    .select("*")
-    .eq("emp_proprietaria_id", emp)
-    .order("nome_recinto", { ascending: true })
-  if (error) {
-    if (esquemaAusente(error)) return []
-    throw new Error(`Falha ao listar recintos: ${error.message}`)
+  // PostgREST corta em 1.000 linhas: em lotes.
+  let recintos: Record<string, unknown>[]
+  try {
+    recintos = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("patrimonio_recinto")
+        .select("*")
+        .eq("emp_proprietaria_id", emp)
+        .order("nome_recinto", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return []
+    throw new Error(`Falha ao listar recintos: ${(e as Error).message}`)
   }
-  const recintos = (data ?? []) as Record<string, unknown>[]
 
-  // Contagem de itens por recinto (uma leitura só).
-  const { data: itens } = await admin
-    .from("patrimonio_item")
-    .select("recinto_id")
-    .eq("emp_proprietaria_id", emp)
+  // Contagem de itens por recinto. PostgREST corta em 1.000 linhas: em lotes.
+  const itens = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("patrimonio_item")
+      .select("id, recinto_id")
+      .eq("emp_proprietaria_id", emp)
+      .not("recinto_id", "is", null)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
   const contagem = new Map<string, number>()
-  for (const it of (itens ?? []) as Record<string, unknown>[]) {
+  for (const it of itens) {
     const rid = texto(it.recinto_id)
     if (rid) contagem.set(rid, (contagem.get(rid) ?? 0) + 1)
   }
@@ -549,13 +581,18 @@ export async function listarRecintosOpcoes(): Promise<
   { id: string; rotulo: string }[]
 > {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("patrimonio_recinto")
-    .select("id, nome_recinto, codigo")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("nome_recinto", { ascending: true })
-  if (error) return []
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+  const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas: em lotes (erro → lista vazia, como antes).
+  const data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("patrimonio_recinto")
+      .select("id, nome_recinto, codigo")
+      .eq("emp_proprietaria_id", emp)
+      .order("nome_recinto", { ascending: true })
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  return data.map((r) => ({
     id: String(r.id),
     rotulo:
       texto(r.nome_recinto) ??
@@ -656,15 +693,25 @@ export async function listarItensDoRecinto(
   recintoId: string
 ): Promise<{ id: string; nome: string | null; numero_patrimonio: string | null; ativo: boolean }[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("patrimonio_item")
-    .select("id, nome, numero_patrimonio, ativo")
-    .eq("recinto_id", recintoId)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("ativo", { ascending: false })
-    .order("nome", { ascending: true })
-  if (error) return []
-  return ((data ?? []) as Record<string, unknown>[]).map((i) => ({
+  const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas: em lotes.
+  let data: Record<string, unknown>[]
+  try {
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("patrimonio_item")
+        .select("id, nome, numero_patrimonio, ativo")
+        .eq("recinto_id", recintoId)
+        .eq("emp_proprietaria_id", emp)
+        .order("ativo", { ascending: false })
+        .order("nome", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    return []
+  }
+  return data.map((i) => ({
     id: String(i.id),
     nome: texto(i.nome),
     numero_patrimonio: texto(i.numero_patrimonio),
@@ -766,15 +813,18 @@ async function nomesDasEmpresas(ids: string[]): Promise<Map<string, string>> {
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return nomes
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("empresa")
-    .select("id, nome_fantasia, nome_razao")
-    .in("id", unicos)
-  for (const e of (data ?? []) as Record<string, unknown>[]) {
-    const nome = [e.nome_fantasia, e.nome_razao].find(
-      (v): v is string => typeof v === "string" && v.trim() !== ""
-    )
-    if (nome) nomes.set(String(e.id), nome)
+  // .in() em fatias de 200 ids (URL e teto de 1.000 linhas do PostgREST).
+  for (let i = 0; i < unicos.length; i += 200) {
+    const { data } = await admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao")
+      .in("id", unicos.slice(i, i + 200))
+    for (const e of (data ?? []) as Record<string, unknown>[]) {
+      const nome = [e.nome_fantasia, e.nome_razao].find(
+        (v): v is string => typeof v === "string" && v.trim() !== ""
+      )
+      if (nome) nomes.set(String(e.id), nome)
+    }
   }
   return nomes
 }
@@ -791,27 +841,39 @@ export type NotaLinha = {
 export async function listarNotas(): Promise<NotaLinha[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data, error } = await admin
-    .from("patrimonio_nota_fiscal")
-    .select("*")
-    .eq("emp_proprietaria_id", emp)
-    .order("data_emissao", { ascending: false, nullsFirst: false })
-  if (error) {
-    if (esquemaAusente(error)) return []
-    throw new Error(`Falha ao listar notas fiscais: ${error.message}`)
+  // PostgREST corta em 1.000 linhas: em lotes.
+  let brutos: Record<string, unknown>[]
+  try {
+    brutos = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("patrimonio_nota_fiscal")
+        .select("*")
+        .eq("emp_proprietaria_id", emp)
+        .order("data_emissao", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return []
+    throw new Error(`Falha ao listar notas fiscais: ${(e as Error).message}`)
   }
-  const brutos = (data ?? []) as Record<string, unknown>[]
 
   const nomes = await nomesDasEmpresas(
     brutos.map((n) => String(n.fornecedor_id ?? "")).filter(Boolean)
   )
-  // Contagem de itens por NF (entrada ou saída) — uma leitura só.
-  const { data: itens } = await admin
-    .from("patrimonio_item")
-    .select("nota_fiscal_entrada_id, nota_fiscal_saida_id")
-    .eq("emp_proprietaria_id", emp)
+  // Contagem de itens por NF (entrada ou saída). PostgREST corta em 1.000
+  // linhas: em lotes, só os itens com alguma NF.
+  const itens = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("patrimonio_item")
+      .select("id, nota_fiscal_entrada_id, nota_fiscal_saida_id")
+      .eq("emp_proprietaria_id", emp)
+      .or("nota_fiscal_entrada_id.not.is.null,nota_fiscal_saida_id.not.is.null")
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
   const contagem = new Map<string, number>()
-  for (const it of (itens ?? []) as Record<string, unknown>[]) {
+  for (const it of itens) {
     for (const k of [it.nota_fiscal_entrada_id, it.nota_fiscal_saida_id]) {
       const id = texto(k)
       if (id) contagem.set(id, (contagem.get(id) ?? 0) + 1)
@@ -949,14 +1011,23 @@ export async function listarItensDaNota(
 ): Promise<{ id: string; nome: string | null; numero_patrimonio: string | null; tipo: "entrada" | "saída" }[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data, error } = await admin
-    .from("patrimonio_item")
-    .select("id, nome, numero_patrimonio, nota_fiscal_entrada_id, nota_fiscal_saida_id")
-    .eq("emp_proprietaria_id", emp)
-    .or(`nota_fiscal_entrada_id.eq.${nfId},nota_fiscal_saida_id.eq.${nfId}`)
-    .order("nome", { ascending: true })
-  if (error) return []
-  return ((data ?? []) as Record<string, unknown>[]).map((i) => ({
+  // PostgREST corta em 1.000 linhas: em lotes.
+  let data: Record<string, unknown>[]
+  try {
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("patrimonio_item")
+        .select("id, nome, numero_patrimonio, nota_fiscal_entrada_id, nota_fiscal_saida_id")
+        .eq("emp_proprietaria_id", emp)
+        .or(`nota_fiscal_entrada_id.eq.${nfId},nota_fiscal_saida_id.eq.${nfId}`)
+        .order("nome", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    return []
+  }
+  return data.map((i) => ({
     id: String(i.id),
     nome: texto(i.nome),
     numero_patrimonio: texto(i.numero_patrimonio),

@@ -873,13 +873,26 @@ export async function enviarLote(
   const meus = new Set((pendentes ?? []).map((p) => String(p.id)))
 
   // O mesmo e-mail em duas pessoas (casal, e-mail da família) recebe uma vez.
-  const { data: jaEnviados } = await db
-    .from("comunicacao_envios")
-    .select("id, email")
-    .eq("mensagem_id", mensagemId)
-    .in("email_situacao", ["enviado", "processando"])
+  // Em lotes: o PostgREST corta em 1.000 linhas — sem isso, numa lista maior
+  // os já enviados além do milésimo voltavam a receber.
+  let jaEnviados: { id: unknown; email: unknown }[] = []
+  try {
+    jaEnviados = await lerEmLotes<{ id: unknown; email: unknown }>((de, ate) =>
+      db
+        .from("comunicacao_envios")
+        .select("id, email")
+        .eq("mensagem_id", mensagemId)
+        .in("email_situacao", ["enviado", "processando"])
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    // Devolve a reserva à fila em vez de arriscar mandar em dobro.
+    if (meus.size) await db.from("comunicacao_envios").update({ email_situacao: "pendente" }).in("id", [...meus])
+    return { enviados: 0, falhas: 0, restantes: 0, erro: e instanceof Error ? e.message : String(e) }
+  }
   const vistos = new Set(
-    (jaEnviados ?? []).filter((e) => !meus.has(String(e.id))).map((e) => String(e.email ?? "").toLowerCase())
+    jaEnviados.filter((e) => !meus.has(String(e.id))).map((e) => String(e.email ?? "").toLowerCase())
   )
 
   // Mala direta: quem se descadastrou depois de a lista ser fechada sai agora.

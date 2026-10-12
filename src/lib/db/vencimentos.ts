@@ -3,7 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { avisar, type Destinatario } from "@/lib/db/avisos"
-import { hojeSP, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { somarDias } from "@/lib/db/ferias"
 import { FILTRO_NAO_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
@@ -153,34 +153,55 @@ async function locacoes(f: Fonte): Promise<ItemVencimento[]> {
     .filter((i): i is ItemVencimento => i !== null)
 }
 
-async function usuariosAtivos(f: Fonte): Promise<Map<string, string>> {
-  const { data } = await f.svc
-    .from("usuarios")
-    .select("id, nome_completo, nome_guerra")
-    .eq("emp_proprietaria_id", f.tenantId)
-    .not("inativo", "is", true)
-    .not("deletado", "is", true)
-  return new Map((data ?? []).map((u) => [String(u.id), texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "(sem nome)"]))
+/**
+ * Nome dos usuários ATIVOS do tenant entre os ids dados — o recorte de ASO,
+ * férias e treinamentos. Só os ids que essas fontes trazem: ler todos os
+ * ativos (12 mil, filiados inclusos) parava em 1.000 no PostgREST e, em
+ * lotes, custava 13 idas ao banco a cada resumo. Fatias de 200 no .in(); erro
+ * numa fatia deixa aqueles ids de fora (antes, erro → mapa vazio).
+ */
+async function pessoasAtivas(f: Fonte, ids: unknown[]): Promise<Map<string, string>> {
+  const unicos = [...new Set(ids.map((v) => texto(v)).filter((v): v is string => v !== null))]
+  const pessoas = new Map<string, string>()
+  for (let i = 0; i < unicos.length; i += 200) {
+    const { data } = await f.svc
+      .from("usuarios")
+      .select("id, nome_completo, nome_guerra")
+      .in("id", unicos.slice(i, i + 200))
+      .eq("emp_proprietaria_id", f.tenantId)
+      .not("inativo", "is", true)
+      .not("deletado", "is", true)
+    for (const u of data ?? []) pessoas.set(String(u.id), texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "(sem nome)")
+  }
+  return pessoas
 }
 
-async function asos(f: Fonte, pessoas: Map<string, string>): Promise<ItemVencimento[]> {
-  if (pessoas.size === 0) return []
-  // `aso` não tem tenant: o recorte vem das pessoas do tenant.
-  const { data } = await f.svc
-    .from("aso")
-    .select("id, funcionario_id, vencimento, tipo")
-    .in("funcionario_id", [...pessoas.keys()])
-    .eq("ultimo", true)
-    .not("vencimento", "is", null)
-    .lte("vencimento", somarDias(f.hoje, 90))
-    .order("vencimento")
-    .limit(100)
-  return (data ?? [])
+async function asos(f: Fonte): Promise<ItemVencimento[]> {
+  // `aso` não tem tenant: o recorte vem do funcionário, usuário do tenant —
+  // filtrado no banco pelo embed (FK funcionario_id), em vez de mandar os ids
+  // de todas as pessoas num .in() (12 mil: teto de 1.000 e URL estourada).
+  // Depois, só os ativos; a ordem e o teto de 100 são reaplicados aqui.
+  const linhas = await lerEmLotes<{ funcionario_id: unknown; vencimento: unknown }>((de, ate) =>
+    f.svc
+      .from("aso")
+      .select("id, funcionario_id, vencimento, usuarios!funcionario_id!inner(emp_proprietaria_id)")
+      .eq("usuarios.emp_proprietaria_id", f.tenantId)
+      .eq("ultimo", true)
+      .not("vencimento", "is", null)
+      .lte("vencimento", somarDias(f.hoje, 90))
+      .order("id")
+      .range(de, ate)
+  )
+  const pessoas = await pessoasAtivas(f, linhas.map((a) => a.funcionario_id))
+  return linhas
+    .filter((a) => pessoas.has(String(a.funcionario_id)))
+    .sort((a, b) => String(a.vencimento).localeCompare(String(b.vencimento)))
+    .slice(0, 100)
     .map((a) => item(`ASO de ${pessoas.get(String(a.funcionario_id)) ?? "funcionário"}`, a.vencimento, "/painel/pessoal/aso", f.hoje))
     .filter((i): i is ItemVencimento => i !== null)
 }
 
-async function ferias(f: Fonte, pessoas: Map<string, string>): Promise<ItemVencimento[]> {
+async function ferias(f: Fonte): Promise<ItemVencimento[]> {
   const { data } = await f.svc
     .from("pessoal_ferias")
     .select("id, trabalhador_id, concessivo_termino")
@@ -190,22 +211,27 @@ async function ferias(f: Fonte, pessoas: Map<string, string>): Promise<ItemVenci
     .lte("concessivo_termino", somarDias(f.hoje, 120))
     .order("concessivo_termino")
     .limit(100)
+  const pessoas = await pessoasAtivas(f, (data ?? []).map((p) => p.trabalhador_id))
   return (data ?? [])
     .filter((p) => pessoas.has(String(p.trabalhador_id)))
     .map((p) => item(`Férias de ${pessoas.get(String(p.trabalhador_id))} (fim do período concessivo)`, p.concessivo_termino, "/painel/pessoal/ferias", f.hoje))
     .filter((i): i is ItemVencimento => i !== null)
 }
 
-async function treinamentos(f: Fonte, pessoas: Map<string, string>): Promise<ItemVencimento[]> {
-  const [{ data: cursos }, { data: alunos }] = await Promise.all([
+async function treinamentos(f: Fonte): Promise<ItemVencimento[]> {
+  const [{ data: cursos }, alunos] = await Promise.all([
     f.svc.from("pessoal_treinamentos").select("id, treinamento, vencimento_meses").eq("emp_proprietaria_id", f.tenantId).not("vencimento_meses", "is", null),
-    f.svc.from("pessoal_treinamentos_alunos").select("id, aluno_id, treinamento_id, data_termino").eq("emp_proprietaria_id", f.tenantId).not("data_termino", "is", null),
+    // PostgREST corta em 1.000 linhas — matrículas em lotes (erro → vazio, como antes).
+    lerEmLotes<{ id: string; aluno_id: unknown; treinamento_id: unknown; data_termino: unknown }>((de, ate) =>
+      f.svc.from("pessoal_treinamentos_alunos").select("id, aluno_id, treinamento_id, data_termino").eq("emp_proprietaria_id", f.tenantId).not("data_termino", "is", null).order("id").range(de, ate)
+    ).catch(() => []),
   ])
   const porCurso = new Map((cursos ?? []).map((c) => [String(c.id), c]))
+  const pessoas = await pessoasAtivas(f, alunos.filter((a) => porCurso.has(String(a.treinamento_id))).map((a) => a.aluno_id))
   const limite = somarDias(f.hoje, 30)
   // Só a matrícula mais recente de cada pessoa no curso conta.
   const maisRecente = new Map<string, { aluno: string; curso: string; validoAte: string }>()
-  for (const a of alunos ?? []) {
+  for (const a of alunos) {
     const curso = porCurso.get(String(a.treinamento_id))
     if (!curso || !pessoas.has(String(a.aluno_id))) continue
     const termino = String(a.data_termino).slice(0, 10)
@@ -338,7 +364,6 @@ async function cipa(f: Fonte): Promise<ItemVencimento[]> {
 
 export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencimento[]> {
   const f: Fonte = { tenantId, svc: createServiceClient(), hoje: hojeSP() }
-  const pessoas = await usuariosAtivos(f)
   const seguro = async (fn: () => Promise<ItemVencimento[]>) => {
     try {
       return await fn()
@@ -354,9 +379,9 @@ export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencim
     { chave: "cnh", titulo: "CNH dos condutores", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => cnh(f)) },
     { chave: "seguros", titulo: "Seguro dos veículos", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => seguros(f)) },
     { chave: "locacoes", titulo: "Locação de veículos", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => locacoes(f)) },
-    { chave: "asos", titulo: "ASO", permissao: { chave: "pessoal_gestao", alternativas: ["pessoal_aso"] }, itens: await seguro(() => asos(f, pessoas)) },
-    { chave: "ferias", titulo: "Férias (período concessivo)", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => ferias(f, pessoas)) },
-    { chave: "treinamentos", titulo: "Treinamentos", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => treinamentos(f, pessoas)) },
+    { chave: "asos", titulo: "ASO", permissao: { chave: "pessoal_gestao", alternativas: ["pessoal_aso"] }, itens: await seguro(() => asos(f)) },
+    { chave: "ferias", titulo: "Férias (período concessivo)", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => ferias(f)) },
+    { chave: "treinamentos", titulo: "Treinamentos", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => treinamentos(f)) },
     { chave: "faturas", titulo: "Faturas de viagem", permissao: { chave: "viagens_gestao", alternativas: [] }, itens: await seguro(() => faturasViagem(f)) },
     { chave: "ordens", titulo: "Ordens de pagamento", permissao: { chave: "financeiro_pagamento", alternativas: ["financeiro_leitura"] }, itens: await seguro(() => ordensVencidas(f)) },
     { chave: "mandatos", titulo: "Mandato da diretoria", permissao: { chave: "diretoria_mandatos", alternativas: ["configuracoes"] }, itens: await seguro(() => mandatos(f)) },

@@ -1,5 +1,5 @@
 import "server-only"
-import { hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
@@ -79,16 +79,22 @@ export async function listarTreinamentos(): Promise<Treinamento[]> {
       .from("pessoal_treinamentos")
       .select("id, treinamento, carga_horaria, vencimento_meses, created_at")
       .order("treinamento", { ascending: true, nullsFirst: false }),
-    admin.from("pessoal_treinamentos_alunos").select("id, treinamento_id"),
+    // PostgREST corta em 1.000 linhas — a contagem por curso lê em lotes.
+    lerEmLotes<{ id: string; treinamento_id: string | null }>((de, ate) =>
+      admin
+        .from("pessoal_treinamentos_alunos")
+        .select("id, treinamento_id")
+        .order("id")
+        .range(de, ate)
+    ).catch((e: Error) => {
+      throw new Error(`Falha ao contar alunos: ${e.message}`)
+    }),
   ])
   if (treinamentos.error) {
     throw new Error(`Falha ao listar treinamentos: ${treinamentos.error.message}`)
   }
-  if (alunos.error) {
-    throw new Error(`Falha ao contar alunos: ${alunos.error.message}`)
-  }
   const porTreinamento = new Map<string, number>()
-  for (const a of alunos.data ?? []) {
+  for (const a of alunos) {
     if (a.treinamento_id) {
       porTreinamento.set(
         a.treinamento_id,
@@ -138,15 +144,24 @@ export async function alunosDoTreinamento(
   treinamento: Treinamento
 ): Promise<AlunoTreinamento[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_treinamentos_alunos")
-    .select(
-      "id, aluno_id, treinamento_id, data_inicio, data_termino, certificado_url, created_at"
+  type Linha = Parameters<typeof normalizarAluno>[0]
+  // PostgREST corta em 1.000 linhas — turmas grandes leem em lotes.
+  let linhas: Linha[]
+  try {
+    linhas = await lerEmLotes<Linha>((de, ate) =>
+      admin
+        .from("pessoal_treinamentos_alunos")
+        .select(
+          "id, aluno_id, treinamento_id, data_inicio, data_termino, certificado_url, created_at"
+        )
+        .eq("treinamento_id", treinamento.id)
+        .order("data_inicio", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
     )
-    .eq("treinamento_id", treinamento.id)
-    .order("data_inicio", { ascending: false, nullsFirst: false })
-  if (error) throw new Error(`Falha ao listar alunos: ${error.message}`)
-  const linhas = data ?? []
+  } catch (e) {
+    throw new Error(`Falha ao listar alunos: ${(e as Error).message}`)
+  }
   const nomes = await nomesDosUsuarios([
     ...new Set(linhas.map((a) => a.aluno_id).filter((v): v is string => !!v)),
   ])

@@ -6,7 +6,7 @@ import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { emitirEvento } from "@/lib/db/webhooks"
@@ -1137,40 +1137,80 @@ export type FaturaLinha = {
 
 export async function listarFaturas(hotelId?: string): Promise<FaturaLinha[]> {
   const admin = await createAdminClient()
-  let q = admin
-    .from("hospedagem_fatura")
-    .select("id, codigo, nota_fiscal, hotel_id, ordem_pagamento_id, created_at")
-    .order("created_at", { ascending: false })
-  if (hotelId) q = q.eq("hotel_id", hotelId)
-  const { data: faturas, error } = await q
-  if (error) throw new Error(`Falha ao listar faturas: ${error.message}`)
-  if (!faturas || faturas.length === 0) return []
+  type FaturaBruta = Pick<
+    FaturaLinha,
+    "id" | "codigo" | "nota_fiscal" | "hotel_id" | "ordem_pagamento_id" | "created_at"
+  >
+  // PostgREST corta em 1.000 linhas: faturas, serviços (somados por fatura)
+  // e ordens vêm em lotes; os .in() vão em fatias de 200 ids.
+  let faturas: FaturaBruta[]
+  try {
+    faturas = await lerEmLotes<FaturaBruta>((de, ate) => {
+      let q = admin
+        .from("hospedagem_fatura")
+        .select("id, codigo, nota_fiscal, hotel_id, ordem_pagamento_id, created_at")
+        .order("created_at", { ascending: false })
+        .order("id")
+      if (hotelId) q = q.eq("hotel_id", hotelId)
+      return q.range(de, ate)
+    })
+  } catch (e) {
+    throw new Error(`Falha ao listar faturas: ${(e as Error).message}`)
+  }
+  if (faturas.length === 0) return []
 
   const ids = faturas.map((f) => f.id)
   const ordemIds = faturas
     .map((f) => f.ordem_pagamento_id)
     .filter((v): v is string => !!v)
 
-  const [hoteis, servicosRes, ordensRes] = await Promise.all([
-    listarHoteis(),
-    admin
-      .from("hospedagem_servico")
-      .select("fatura_id, custo_entidade")
-      .in("fatura_id", ids),
-    ordemIds.length
-      ? admin
-          .from("ordens_pagamento")
-          .select("id, situacao, vencimento, forma_pagamento")
-          .in("id", ordemIds)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-  if (servicosRes.error) {
-    throw new Error(`Falha nos serviços das faturas: ${servicosRes.error.message}`)
+  type ServicoBruto = { fatura_id: string | null; custo_entidade: number | null }
+  const lerServicos = async (): Promise<ServicoBruto[]> => {
+    const linhas: ServicoBruto[] = []
+    for (let i = 0; i < ids.length; i += 200) {
+      const fatia = ids.slice(i, i + 200)
+      linhas.push(
+        ...(await lerEmLotes<ServicoBruto>((de, ate) =>
+          admin
+            .from("hospedagem_servico")
+            .select("id, fatura_id, custo_entidade")
+            .in("fatura_id", fatia)
+            .order("id")
+            .range(de, ate)
+        ))
+      )
+    }
+    return linhas
   }
+  type OrdemBruta = {
+    id: string
+    situacao: string | null
+    vencimento: string | null
+    forma_pagamento: string | null
+  }
+  const lerOrdens = async (): Promise<OrdemBruta[]> => {
+    const linhas: OrdemBruta[] = []
+    for (let i = 0; i < ordemIds.length; i += 200) {
+      const { data } = await admin
+        .from("ordens_pagamento")
+        .select("id, situacao, vencimento, forma_pagamento")
+        .in("id", ordemIds.slice(i, i + 200))
+      linhas.push(...((data ?? []) as OrdemBruta[]))
+    }
+    return linhas
+  }
+
+  const [hoteis, servicos, ordensLidas] = await Promise.all([
+    listarHoteis(),
+    lerServicos().catch((e: Error) => {
+      throw new Error(`Falha nos serviços das faturas: ${e.message}`)
+    }),
+    lerOrdens(),
+  ])
 
   const nomeHotel = new Map(hoteis.map((h) => [h.id, h.nome]))
   const porFatura = new Map<string, { n: number; total: number }>()
-  for (const s of servicosRes.data ?? []) {
+  for (const s of servicos) {
     if (!s.fatura_id) continue
     const atual = porFatura.get(s.fatura_id) ?? { n: 0, total: 0 }
     atual.n++
@@ -1178,7 +1218,7 @@ export async function listarFaturas(hotelId?: string): Promise<FaturaLinha[]> {
     porFatura.set(s.fatura_id, atual)
   }
   const ordens = new Map(
-    (ordensRes.data ?? []).map((o) => [
+    ordensLidas.map((o) => [
       o.id,
       {
         situacao: o.situacao as string | null,

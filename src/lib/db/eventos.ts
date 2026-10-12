@@ -1,6 +1,6 @@
 import "server-only"
 
-import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { type ConfigEventos, type ModoFoto } from "@/lib/eventos-constantes"
@@ -332,13 +332,24 @@ export async function capacidadeDoEvento(
 ): Promise<Capacidade> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("eventos_inscricoes")
-    .select("situacao, reservada_por")
-    .eq("emp_proprietaria_id", emp)
-    .eq("evento_id", evento.id)
+  // PostgREST corta em 1.000 linhas: contar só o primeiro lote subestimava
+  // as confirmadas e abria vagas que não existem (overbooking).
+  let linhas: LinhaCapacidade[] = []
+  try {
+    linhas = await lerEmLotes<LinhaCapacidade>((de, ate) =>
+      admin
+        .from("eventos_inscricoes")
+        .select("situacao, reservada_por")
+        .eq("emp_proprietaria_id", emp)
+        .eq("evento_id", evento.id)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    linhas = []
+  }
 
-  return calcularCapacidade(evento, (data ?? []) as LinhaCapacidade[])
+  return calcularCapacidade(evento, linhas)
 }
 
 type LinhaCapacidade = { situacao: string; reservada_por: string | null }
@@ -482,33 +493,46 @@ export async function listarInscricoes(filtro: {
 }): Promise<Inscricao[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  let q = admin
-    .from("eventos_inscricoes")
-    .select(CAMPOS_INSCRICAO)
-    .eq("emp_proprietaria_id", emp)
-    .eq("evento_id", filtro.eventoId)
-  if (filtro.situacao && filtro.situacao !== "todas") {
-    q = q.eq("situacao", filtro.situacao)
-  }
   const busca = (filtro.busca ?? "").trim()
-  if (busca) {
-    const digitos = busca.replace(/\D/g, "")
-    q = q.or(
-      [
-        `nome.ilike.%${busca}%`,
-        `email.ilike.%${busca}%`,
-        digitos ? `cpf.like.%${digitos}%` : null,
-      ]
-        .filter(Boolean)
-        .join(",")
+  // Consulta montada de novo a cada lote: o builder é mutável, e reaproveitá-lo
+  // empilharia os `order` na URL.
+  const montar = () => {
+    let q = admin
+      .from("eventos_inscricoes")
+      .select(CAMPOS_INSCRICAO)
+      .eq("emp_proprietaria_id", emp)
+      .eq("evento_id", filtro.eventoId)
+    if (filtro.situacao && filtro.situacao !== "todas") {
+      q = q.eq("situacao", filtro.situacao)
+    }
+    if (busca) {
+      const digitos = busca.replace(/\D/g, "")
+      q = q.or(
+        [
+          `nome.ilike.%${busca}%`,
+          `email.ilike.%${busca}%`,
+          digitos ? `cpf.like.%${digitos}%` : null,
+        ]
+          .filter(Boolean)
+          .join(",")
+      )
+    }
+    return q
+  }
+  // PostgREST corta em 1.000 linhas: a lista (e os indicadores feitos sobre
+  // ela) precisa de todas as inscrições.
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotes((de, ate) =>
+      montar()
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(de, ate)
     )
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return []
+    throw new Error(`Falha ao listar inscrições: ${(error as Error).message}`)
   }
-  const { data, error } = await q.order("created_at", { ascending: false })
-  if (error) {
-    if (esquemaAusente(error)) return []
-    throw new Error(`Falha ao listar inscrições: ${error.message}`)
-  }
-  const linhas = data ?? []
 
   // Presenças e nome do titular numa consulta cada, não uma por linha.
   const ids = linhas.map((i) => i.id as string)
@@ -553,13 +577,26 @@ async function contarPresencas(
   const mapa = new Map<string, number>()
   if (inscricaoIds.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("eventos_presencas")
-    .select("inscricao_id")
-    .in("inscricao_id", inscricaoIds)
-  for (const p of data ?? []) {
-    const id = p.inscricao_id as string
-    mapa.set(id, (mapa.get(id) ?? 0) + 1)
+  // PostgREST corta em 1.000 linhas, e um `.in` com milhares de ids estoura a
+  // URL: lotes de 200 ids, cada um lido por inteiro.
+  for (let i = 0; i < inscricaoIds.length; i += 200) {
+    const lote = inscricaoIds.slice(i, i + 200)
+    let data: { inscricao_id: string }[] = []
+    try {
+      data = await lerEmLotes<{ inscricao_id: string }>((de, ate) =>
+        admin
+          .from("eventos_presencas")
+          .select("inscricao_id")
+          .in("inscricao_id", lote)
+          .order("id")
+          .range(de, ate)
+      )
+    } catch {
+      data = []
+    }
+    for (const p of data) {
+      mapa.set(p.inscricao_id, (mapa.get(p.inscricao_id) ?? 0) + 1)
+    }
   }
   return mapa
 }
@@ -699,20 +736,31 @@ export async function capacidadesDosEventos(
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("eventos_inscricoes")
-    .select("evento_id, situacao, reservada_por")
-    .eq("emp_proprietaria_id", emp)
-    .in(
-      "evento_id",
-      eventos.map((e) => e.id)
+  // PostgREST corta em 1.000 linhas: somadas, as inscrições da página passam
+  // disso fácil — lidas em lotes, ou as confirmadas saem subestimadas.
+  let data: Record<string, unknown>[] = []
+  try {
+    data = await lerEmLotes((de, ate) =>
+      admin
+        .from("eventos_inscricoes")
+        .select("evento_id, situacao, reservada_por")
+        .eq("emp_proprietaria_id", emp)
+        .in(
+          "evento_id",
+          eventos.map((e) => e.id)
+        )
+        .order("id")
+        .range(de, ate)
     )
+  } catch {
+    data = []
+  }
 
   const porEvento = new Map<
     string,
     { situacao: string; reservada_por: string | null }[]
   >()
-  for (const i of data ?? []) {
+  for (const i of data) {
     const id = i.evento_id as string
     const lista = porEvento.get(id) ?? []
     lista.push({

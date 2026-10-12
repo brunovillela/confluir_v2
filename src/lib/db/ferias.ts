@@ -1,6 +1,6 @@
 import "server-only"
 import { avisarQuemPodeOuCoordena, depoisDaResposta, querEmail } from "@/lib/db/avisos"
-import { nomesDosUsuarios } from "@/lib/db/comum"
+import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { referenciaDaData } from "@/lib/db/carreira"
@@ -191,36 +191,43 @@ function gozoDoPeriodo(
 
 export async function listarPeriodosFerias(): Promise<PeriodoFerias[]> {
   const admin = await createAdminClient()
-  const [periodos, gozos] = await Promise.all([
-    admin
-      .from("pessoal_ferias")
-      .select(
-        "id, trabalhador_id, aquisitivo_inicio, aquisitivo_termino, concessivo_inicio, concessivo_termino, dias_disponiveis, abono_pecuniario, finalizado, created_at"
-      )
-      .order("aquisitivo_inicio", { ascending: false, nullsFirst: false }),
-    admin
-      .from("pessoal_ferias_gozo")
-      .select(SELECT_GOZO)
-      .order("inicio", { ascending: true, nullsFirst: false }),
+  // PostgREST corta em 1.000 linhas — períodos e gozos leem em lotes (os
+  // gozos vêm por início crescente: sem lotes, os recentes sumiam).
+  const [periodos, brutosGozos] = await Promise.all([
+    lerEmLotes<Omit<PeriodoFerias, "funcionarioNome" | "gozos">>((de, ate) =>
+      admin
+        .from("pessoal_ferias")
+        .select(
+          "id, trabalhador_id, aquisitivo_inicio, aquisitivo_termino, concessivo_inicio, concessivo_termino, dias_disponiveis, abono_pecuniario, finalizado, created_at"
+        )
+        .order("aquisitivo_inicio", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    ).catch((e: Error) => {
+      throw new Error(`Falha ao listar férias: ${e.message}`)
+    }),
+    lerEmLotes<GozoBruto>((de, ate) =>
+      admin
+        .from("pessoal_ferias_gozo")
+        .select(SELECT_GOZO)
+        .order("inicio", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    ).catch((e: Error) => {
+      throw new Error(`Falha ao listar gozos: ${e.message}`)
+    }),
   ])
-  if (periodos.error) {
-    throw new Error(`Falha ao listar férias: ${periodos.error.message}`)
-  }
-  if (gozos.error) {
-    throw new Error(`Falha ao listar gozos: ${gozos.error.message}`)
-  }
 
-  const brutosGozos = (gozos.data ?? []) as GozoBruto[]
   const nomes = await nomesDosUsuarios([
     ...new Set(
       [
-        ...(periodos.data ?? []).map((p) => p.trabalhador_id),
+        ...periodos.map((p) => p.trabalhador_id),
         ...brutosGozos.map((g) => g.autorizador_id),
       ].filter((v): v is string => Boolean(v))
     ),
   ])
 
-  return (periodos.data ?? []).map((p) => ({
+  return periodos.map((p) => ({
     ...p,
     funcionarioNome: p.trabalhador_id
       ? (nomes.get(p.trabalhador_id) ?? null)

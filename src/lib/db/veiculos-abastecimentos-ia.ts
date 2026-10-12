@@ -184,11 +184,19 @@ export async function resolverAbastecimentos(
   let listaUsuarios: { id: string; nome: string }[] | null = null
   const usuarios = async () => {
     if (listaUsuarios) return listaUsuarios
-    const { data } = await admin
-      .from("usuarios")
-      .select("id, nome_completo, inativo, deletado")
-      .eq("emp_proprietaria_id", emp)
-    listaUsuarios = ((data ?? []) as Record<string, unknown>[])
+    // PostgREST corta em 1.000 linhas: em lotes, já sem inativos/excluídos.
+    const data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("usuarios")
+        .select("id, nome_completo, inativo, deletado")
+        .eq("emp_proprietaria_id", emp)
+        .not("inativo", "is", true)
+        .not("deletado", "is", true)
+        .not("nome_completo", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [])
+    listaUsuarios = data
       .filter((u) => u.nome_completo && u.inativo !== true && u.deletado !== true)
       .map((u) => ({ id: String(u.id), nome: String(u.nome_completo) }))
     return listaUsuarios

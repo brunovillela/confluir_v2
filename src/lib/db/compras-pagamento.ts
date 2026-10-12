@@ -1,7 +1,7 @@
 import "server-only"
 
 import { marcarParaReconhecimento } from "@/lib/db/caixa-reconhecimento"
-import { calcularSaldo } from "@/lib/db/caixa"
+import { saldoDaConta } from "@/lib/db/caixa"
 import { esquemaAusente } from "@/lib/db/comum"
 import { formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -203,7 +203,11 @@ export async function inserirMeioFornecedor(
 
 // ── Caixa ───────────────────────────────────────────────────────────────────
 
-/** Saldo atual de uma conta de caixa ABERTA do tenant (null = não usável). */
+/**
+ * Saldo atual de uma conta de caixa ABERTA do tenant (null = não usável).
+ * Soma TODAS as movimentações (paginado) e lança se a leitura falhar — antes
+ * o erro virava saldo zero.
+ */
 export async function saldoCaixaAberta(contaId: string): Promise<number | null> {
   const admin = await createAdminClient()
   const { data: conta } = await admin
@@ -215,18 +219,7 @@ export async function saldoCaixaAberta(contaId: string): Promise<number | null> 
     .eq("situacao", "aberta")
     .maybeSingle()
   if (!conta) return null
-  const { data: movs } = await admin
-    .from("caixa_movimentacoes")
-    .select("tipo, situacao, valor, reconhecimento")
-    .eq("conta_id", contaId)
-  return calcularSaldo(
-    (movs ?? []).map((m) => ({
-      tipo: String(m.tipo),
-      situacao: String(m.situacao),
-      valor: Number(m.valor),
-      reconhecimento: (m.reconhecimento as string | null) ?? null,
-    }))
-  )
+  return await saldoDaConta(contaId)
 }
 
 // ── Validação e gravação do detalhe ─────────────────────────────────────────
@@ -254,7 +247,9 @@ export async function validarDetalhePagamento(
     return "Cartão inválido ou desativado."
   }
   if (detalhe.caixa_conta_id) {
-    const saldo = await saldoCaixaAberta(detalhe.caixa_conta_id)
+    // undefined = falha ao ler as movimentações (saldoDaConta lança).
+    const saldo = await saldoCaixaAberta(detalhe.caixa_conta_id).catch(() => undefined)
+    if (saldo === undefined) return "Não foi possível conferir o saldo do caixa. Tente de novo."
     if (saldo === null) return "A conta de caixa escolhida não está aberta."
     if (saldo < valor) {
       return `Saldo insuficiente no caixa (${formatarMoeda(saldo)}). Peça um aporte ao financeiro antes de lançar a compra.`

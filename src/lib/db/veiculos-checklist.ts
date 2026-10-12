@@ -1,6 +1,6 @@
 import "server-only"
 
-import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -273,18 +273,25 @@ export async function situacaoDaFrota(): Promise<{
     throw new Error(`Falha ao listar a frota: ${error.message}`)
   }
 
-  const { data: checklists } = await admin
-    .from("veiculos_checklists")
-    .select("id, veiculo_id, realizado_em, pendencias")
-    .eq("emp_proprietaria_id", emp)
-    .order("realizado_em", { ascending: false })
+  // Em lotes: lido de uma vez, o PostgREST cortava em 1.000 linhas e o
+  // veículo sem checklist entre as 1.000 mais recentes aparecia como "nunca".
+  // Erro → sem checklist, como antes.
+  const checklists = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("veiculos_checklists")
+      .select("id, veiculo_id, realizado_em, pendencias")
+      .eq("emp_proprietaria_id", emp)
+      .order("realizado_em", { ascending: false })
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
 
   // primeiro de cada veículo = o mais recente (a consulta já veio ordenada)
   const ultimoPorVeiculo = new Map<
     string,
     { id: string; realizado_em: string; pendencias: number }
   >()
-  for (const c of checklists ?? []) {
+  for (const c of checklists) {
     const vid = c.veiculo_id as string
     if (!vid || ultimoPorVeiculo.has(vid)) continue
     ultimoPorVeiculo.set(vid, {

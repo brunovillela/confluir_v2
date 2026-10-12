@@ -1,6 +1,6 @@
 import { cache as cacheReact } from "react"
 import "server-only"
-import { nomesDosUsuarios } from "@/lib/db/comum"
+import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { referenciaDaData } from "@/lib/db/carreira"
@@ -67,12 +67,20 @@ const SELECT_ATESTADO =
 
 export async function listarAtestados(): Promise<Atestado[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pes_atestados_medicos")
-    .select(SELECT_ATESTADO)
-    .order("inicio", { ascending: false, nullsFirst: false })
-  if (error) throw new Error(`Falha ao listar atestados: ${error.message}`)
-  const linhas = (data ?? []) as Omit<Atestado, "funcionarioNome">[]
+  // PostgREST corta em 1.000 linhas — lê em lotes.
+  let linhas: Omit<Atestado, "funcionarioNome">[]
+  try {
+    linhas = await lerEmLotes<Omit<Atestado, "funcionarioNome">>((de, ate) =>
+      admin
+        .from("pes_atestados_medicos")
+        .select(SELECT_ATESTADO)
+        .order("inicio", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar atestados: ${(e as Error).message}`)
+  }
   const nomes = await nomesDosUsuarios([
     ...new Set(
       linhas.map((a) => a.funcionario_id).filter((v): v is string => !!v)
@@ -82,8 +90,20 @@ export async function listarAtestados(): Promise<Atestado[]> {
 }
 
 export async function buscarAtestado(id: string): Promise<Atestado | null> {
-  const atestados = await listarAtestados()
-  return atestados.find((a) => a.id === id) ?? null
+  // Direto pelo id: achar na lista perdia os antigos (PostgREST corta em 1.000 linhas).
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pes_atestados_medicos")
+    .select(SELECT_ATESTADO)
+    .eq("id", id)
+    .maybeSingle()
+  if (error) throw new Error(`Falha ao buscar atestado: ${error.message}`)
+  if (!data) return null
+  const linha = data as Omit<Atestado, "funcionarioNome">
+  const nomes = await nomesDosUsuarios(
+    linha.funcionario_id ? [linha.funcionario_id] : []
+  )
+  return comNomes([linha], nomes)[0]
 }
 
 export type DadosAtestado = {
@@ -180,16 +200,25 @@ export type Ausencia = {
 
 export async function listarAusencias(): Promise<Ausencia[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_ausencias")
-    .select(
-      "id, funcionario_id, inicio, termino, motivo, atestado_id, created_at" +
-        ((await temObservacao()) ? ", observacao" : "")
+  const colunas =
+    "id, funcionario_id, inicio, termino, motivo, atestado_id, created_at" +
+    ((await temObservacao()) ? ", observacao" : "")
+  const tenant = await tenantAtual()
+  // PostgREST corta em 1.000 linhas — lê em lotes.
+  let linhas: Omit<Ausencia, "funcionarioNome">[]
+  try {
+    linhas = await lerEmLotes<Omit<Ausencia, "funcionarioNome">>((de, ate) =>
+      admin
+        .from("pessoal_ausencias")
+        .select(colunas)
+        .eq("emp_proprietaria_id", tenant)
+        .order("inicio", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
     )
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("inicio", { ascending: false, nullsFirst: false })
-  if (error) throw new Error(`Falha ao listar ausências: ${error.message}`)
-  const linhas = (data ?? []) as unknown as Omit<Ausencia, "funcionarioNome">[]
+  } catch (e) {
+    throw new Error(`Falha ao listar ausências: ${(e as Error).message}`)
+  }
   const nomes = await nomesDosUsuarios([
     ...new Set(
       linhas.map((a) => a.funcionario_id).filter((v): v is string => !!v)
@@ -312,12 +341,20 @@ const SELECT_ASO =
 
 export async function listarAsos(): Promise<Aso[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("aso")
-    .select(SELECT_ASO)
-    .order("data", { ascending: false, nullsFirst: false })
-  if (error) throw new Error(`Falha ao listar ASOs: ${error.message}`)
-  const linhas = (data ?? []) as Omit<Aso, "funcionarioNome">[]
+  // PostgREST corta em 1.000 linhas — lê em lotes.
+  let linhas: Omit<Aso, "funcionarioNome">[]
+  try {
+    linhas = await lerEmLotes<Omit<Aso, "funcionarioNome">>((de, ate) =>
+      admin
+        .from("aso")
+        .select(SELECT_ASO)
+        .order("data", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar ASOs: ${(e as Error).message}`)
+  }
   const nomes = await nomesDosUsuarios([
     ...new Set(
       linhas.map((a) => a.funcionario_id).filter((v): v is string => !!v)
@@ -327,8 +364,20 @@ export async function listarAsos(): Promise<Aso[]> {
 }
 
 export async function buscarAso(id: string): Promise<Aso | null> {
-  const asos = await listarAsos()
-  return asos.find((a) => a.id === id) ?? null
+  // Direto pelo id: achar na lista perdia os antigos (PostgREST corta em 1.000 linhas).
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("aso")
+    .select(SELECT_ASO)
+    .eq("id", id)
+    .maybeSingle()
+  if (error) throw new Error(`Falha ao buscar ASO: ${error.message}`)
+  if (!data) return null
+  const linha = data as Omit<Aso, "funcionarioNome">
+  const nomes = await nomesDosUsuarios(
+    linha.funcionario_id ? [linha.funcionario_id] : []
+  )
+  return comNomes([linha], nomes)[0]
 }
 
 /** ASOs do próprio funcionário (autosserviço). */

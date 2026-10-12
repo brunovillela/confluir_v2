@@ -1,6 +1,7 @@
 import "server-only"
 import { cpfConfiavel } from "@/lib/cpf"
 
+import { lerEmLotes } from "@/lib/db/comum"
 import { type Evento } from "@/lib/db/eventos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -231,46 +232,80 @@ export async function conciliarFiliados(
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  let q = admin
-    .from("eventos_inscricoes")
-    .select("id, cpf")
-    .eq("emp_proprietaria_id", emp)
-    .is("filiacao_id", null)
-    .is("anonimizada_em", null)
-    .not("cpf", "is", null)
-  if (eventoId) q = q.eq("evento_id", eventoId)
+  // Montada de novo a cada lote: o builder é mutável.
+  const montar = () => {
+    let q = admin
+      .from("eventos_inscricoes")
+      .select("id, cpf")
+      .eq("emp_proprietaria_id", emp)
+      .is("filiacao_id", null)
+      .is("anonimizada_em", null)
+      .not("cpf", "is", null)
+    if (eventoId) q = q.eq("evento_id", eventoId)
+    return q
+  }
 
-  const { data } = await q.limit(1000)
-  const linhas = data ?? []
+  // PostgREST corta em 1.000 linhas: com `.limit(1000)` as que nunca casam
+  // voltavam sempre as mesmas e o resto não era conferido nunca.
+  let linhas: Record<string, unknown>[] = []
+  try {
+    linhas = await lerEmLotes((de, ate) => montar().order("id").range(de, ate))
+  } catch {
+    linhas = []
+  }
   if (linhas.length === 0) return { conferidas: 0, casadas: 0 }
 
-  // Uma consulta para todos os CPFs, não uma por inscrição.
+  // Uma consulta por lote de 200 CPFs, não uma por inscrição.
   const cpfs = [
     ...new Set(linhas.map((i) => cpfConfiavel(i.cpf as string | null)).filter((c): c is string => Boolean(c))),
   ]
-  const { data: filiacoes } = await admin
-    .from("filiacoes")
-    .select("id, cpf, updated_at")
-    .eq("emp_proprietaria_id", emp)
-    .in("cpf", cpfs)
-    .not("filiacao_excluida", "is", true)
-    .order("updated_at", { ascending: false, nullsFirst: false })
+  const filiacoes: Record<string, unknown>[] = []
+  for (let i = 0; i < cpfs.length; i += 200) {
+    const lote = cpfs.slice(i, i + 200)
+    try {
+      filiacoes.push(
+        ...(await lerEmLotes((de, ate) =>
+          admin
+            .from("filiacoes")
+            .select("id, cpf, updated_at")
+            .eq("emp_proprietaria_id", emp)
+            .in("cpf", lote)
+            .not("filiacao_excluida", "is", true)
+            .order("updated_at", { ascending: false, nullsFirst: false })
+            .order("id")
+            .range(de, ate)
+        ))
+      )
+    } catch {
+      // Como antes: falha na busca só deixa esse lote sem casar.
+    }
+  }
 
+  // Cada lote vem em ordem; entre lotes os CPFs não se repetem, então o
+  // primeiro visto de cada CPF continua sendo o mais recente.
   const porCpf = new Map<string, string>()
-  for (const f of filiacoes ?? []) {
+  for (const f of filiacoes) {
     const cpf = f.cpf as string
     if (!porCpf.has(cpf)) porCpf.set(cpf, f.id as string)
   }
 
-  let casadas = 0
-  for (const i of linhas) {
+  // Sem o teto de 1.000, um evento grande pode casar milhares de uma vez:
+  // vinte gravações por vez, não uma a uma, para a ação não estourar o tempo.
+  const aCasar = linhas.flatMap((i) => {
     const filiacaoId = porCpf.get(i.cpf as string)
-    if (!filiacaoId) continue
-    const { error } = await admin
-      .from("eventos_inscricoes")
-      .update({ filiacao_id: filiacaoId })
-      .eq("id", i.id as string)
-    if (!error) casadas++
+    return filiacaoId ? [{ id: i.id as string, filiacaoId }] : []
+  })
+  let casadas = 0
+  for (let k = 0; k < aCasar.length; k += 20) {
+    const saidas = await Promise.all(
+      aCasar.slice(k, k + 20).map(({ id, filiacaoId }) =>
+        admin
+          .from("eventos_inscricoes")
+          .update({ filiacao_id: filiacaoId })
+          .eq("id", id)
+      )
+    )
+    casadas += saidas.filter(({ error }) => !error).length
   }
 
   return { conferidas: linhas.length, casadas }
@@ -282,16 +317,20 @@ export async function contarFiliados(
 ): Promise<{ filiados: number; naoFiliados: number }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("eventos_inscricoes")
-    .select("filiacao_id")
-    .eq("emp_proprietaria_id", emp)
-    .eq("evento_id", eventoId)
-    .is("anonimizada_em", null)
-
-  const linhas = data ?? []
-  const filiados = linhas.filter((i) => i.filiacao_id !== null).length
-  return { filiados, naoFiliados: linhas.length - filiados }
+  // Contagem no banco: PostgREST corta em 1.000 linhas, e o indicador
+  // travava nesse teto em evento grande.
+  const base = () =>
+    admin
+      .from("eventos_inscricoes")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("evento_id", eventoId)
+      .is("anonimizada_em", null)
+  const [{ count: filiados }, { count: naoFiliados }] = await Promise.all([
+    base().not("filiacao_id", "is", null),
+    base().is("filiacao_id", null),
+  ])
+  return { filiados: filiados ?? 0, naoFiliados: naoFiliados ?? 0 }
 }
 
 // ── Agenda ───────────────────────────────────────────────────────────────────

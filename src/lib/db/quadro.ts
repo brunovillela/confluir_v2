@@ -1,7 +1,7 @@
 import "server-only"
 
 import { cpfConfiavel } from "@/lib/cpf"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import {
@@ -61,78 +61,137 @@ export type PessoaQuadro = {
 /** Matrícula comparável: sem zeros à esquerda; "0" e vazia não contam. */
 const matriculaUtil = (m: string | null) => (m ?? "").trim().replace(/^0+/, "") || null
 
-async function emLotes<T>(
+type Linha = Record<string, unknown>
+type Consulta = Parameters<typeof lerEmLotes>[0]
+
+/**
+ * `.in(coluna, ids)` em fatias de 200, cada fatia lida em lotes — PostgREST
+ * corta em 1.000 linhas. Erro numa fatia é tolerado (como antes).
+ */
+async function emLotes(
   ids: string[],
-  consulta: (lote: string[]) => PromiseLike<{ data: T[] | null }>
-): Promise<T[]> {
-  const saida: T[] = []
+  consulta: (lote: string[], de: number, ate: number) => ReturnType<Consulta>
+): Promise<Linha[]> {
+  const saida: Linha[] = []
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await consulta(ids.slice(i, i + 200))
-    saida.push(...(data ?? []))
+    const lote = ids.slice(i, i + 200)
+    try {
+      saida.push(...(await lerEmLotes<Linha>((de, ate) => consulta(lote, de, ate))))
+    } catch {
+      // fatia ilegível: segue sem ela
+    }
   }
   return saida
+}
+
+/**
+ * Quem tem ao menos uma linha em `tabela` — sem ler tudo (ponto e
+ * contracheque têm milhares de linhas por fatia). PostgREST corta em 1.000
+ * linhas: quando a página vem cheia, repete só com quem ainda falta.
+ */
+async function comAlgumRegistro(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  tabela: string,
+  coluna: string,
+  ids: string[]
+): Promise<Set<string>> {
+  const achados = new Set<string>()
+  for (let i = 0; i < ids.length; i += 200) {
+    let faltam = ids.slice(i, i + 200)
+    while (faltam.length > 0) {
+      const { data, error } = await admin.from(tabela).select(coluna).in(coluna, faltam).limit(1000)
+      if (error || !data) break
+      const linhas = data as unknown as Linha[]
+      for (const r of linhas) achados.add(String(r[coluna]))
+      if (linhas.length < 1000) break
+      faltam = faltam.filter((id) => !achados.has(id))
+    }
+  }
+  return achados
 }
 
 export async function listarQuadro(): Promise<PessoaQuadro[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const [{ data: classificados }, { data: vinculosEnt }] = await Promise.all([
-    admin
-      .from("usuarios")
-      .select("id")
-      .eq("emp_proprietaria_id", emp)
-      .not("vinculo_instituicao", "is", null)
-      .not("deletado", "is", true),
-    admin
-      .from("vinculos_trabalhistas")
-      .select("id, trabalhador_id, cargo, lotacao, matricula, contrato_trabalho, contrato_admissao, contrato_demissao")
-      .eq("empregador_id", emp),
+  // PostgREST corta em 1.000 linhas — as duas fontes leem em lotes.
+  const [classificados, vinculosEnt] = await Promise.all([
+    lerEmLotes<Linha>((de, ate) =>
+      admin
+        .from("usuarios")
+        .select("id")
+        .eq("emp_proprietaria_id", emp)
+        .not("vinculo_instituicao", "is", null)
+        .not("deletado", "is", true)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Linha[]),
+    lerEmLotes<Linha>((de, ate) =>
+      admin
+        .from("vinculos_trabalhistas")
+        .select("id, trabalhador_id, cargo, lotacao, matricula, contrato_trabalho, contrato_admissao, contrato_demissao")
+        .eq("empregador_id", emp)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Linha[]),
   ])
   const ids = [
     ...new Set([
-      ...(classificados ?? []).map((u) => String(u.id)),
-      ...(vinculosEnt ?? []).map((v) => texto(v.trabalhador_id)).filter((v): v is string => Boolean(v)),
+      ...classificados.map((u) => String(u.id)),
+      ...vinculosEnt.map((v) => texto(v.trabalhador_id)).filter((v): v is string => Boolean(v)),
     ]),
   ]
   if (ids.length === 0) return []
 
   const [usuarios, externos, acessos, contracheques, ponto, ferias] = await Promise.all([
-    emLotes(ids, (l) =>
+    emLotes(ids, (l, de, ate) =>
       admin
         .from("usuarios")
         .select("id, nome_completo, nome_guerra, email, cpf, vinculo_instituicao, inativo, deletado, auth_user_id")
         .in("id", l)
+        .order("id")
+        .range(de, ate)
     ),
-    emLotes(ids, (l) =>
+    emLotes(ids, (l, de, ate) =>
       admin
         .from("vinculos_trabalhistas")
         .select("trabalhador_id, empregador_id, cargo, matricula")
         .in("trabalhador_id", l)
         .neq("empregador_id", emp)
+        .order("id")
+        .range(de, ate)
     ),
-    emLotes(ids, (l) => admin.from("permissoes").select("usuario_id").eq("emp_proprietaria_id", emp).in("usuario_id", l)),
-    emLotes(ids, (l) => admin.from("pessoal_contracheques").select("funcionario_id").in("funcionario_id", l)),
-    emLotes(ids, (l) => admin.from("pessoal_registro_ponto").select("funcionario_id").in("funcionario_id", l)),
-    emLotes(ids, (l) => admin.from("pessoal_ferias").select("trabalhador_id").in("trabalhador_id", l)),
+    emLotes(ids, (l, de, ate) =>
+      admin.from("permissoes").select("usuario_id").eq("emp_proprietaria_id", emp).in("usuario_id", l).order("id").range(de, ate)
+    ),
+    comAlgumRegistro(admin, "pessoal_contracheques", "funcionario_id", ids),
+    comAlgumRegistro(admin, "pessoal_registro_ponto", "funcionario_id", ids),
+    comAlgumRegistro(admin, "pessoal_ferias", "trabalhador_id", ids),
   ])
 
   const empresaIds = [...new Set(externos.map((e) => texto(e.empregador_id)).filter((v): v is string => Boolean(v)))]
-  const empresas = await emLotes(empresaIds, (l) => admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", l))
+  const empresas = await emLotes(empresaIds, (l, de, ate) =>
+    admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", l).order("id").range(de, ate)
+  )
   const nomeEmpresa = new Map(empresas.map((e) => [String(e.id), texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "empresa"]))
 
   const cpfs = usuarios.map((u) => cpfConfiavel(texto(u.cpf))).filter((v): v is string => Boolean(v))
-  const filiacoes = await emLotes(cpfs, (l) =>
-    admin.from("filiacoes").select("cpf").eq("emp_proprietaria_id", emp).in("cpf", l).not("filiacao_excluida", "is", true)
+  const filiacoes = await emLotes(cpfs, (l, de, ate) =>
+    admin
+      .from("filiacoes")
+      .select("cpf")
+      .eq("emp_proprietaria_id", emp)
+      .in("cpf", l)
+      .not("filiacao_excluida", "is", true)
+      .order("id")
+      .range(de, ate)
   )
   const cpfsFiliados = new Set(filiacoes.map((f) => String(f.cpf)))
   const comAcesso = new Set(acessos.map((a) => String(a.usuario_id)))
-  const registros = new Map<string, number>()
-  for (const r of [...contracheques, ...ponto]) registros.set(String(r.funcionario_id), (registros.get(String(r.funcionario_id)) ?? 0) + 1)
-  for (const r of ferias) registros.set(String(r.trabalhador_id), (registros.get(String(r.trabalhador_id)) ?? 0) + 1)
+  const comRegistros = new Set([...contracheques, ...ponto, ...ferias])
 
   const comVinculoAberto = new Set(
-    (vinculosEnt ?? []).filter((v) => !v.contrato_demissao).map((v) => String(v.trabalhador_id))
+    vinculosEnt.filter((v) => !v.contrato_demissao).map((v) => String(v.trabalhador_id))
   )
   return usuarios
     // Excluído só aparece se ainda está ativo no Pessoal — é o que precisa de conserto.
@@ -140,7 +199,7 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
     .map((u) => {
       const id = String(u.id)
       const classificacao = texto(u.vinculo_instituicao)
-      const vinculosEntidade: VinculoEntidade[] = (vinculosEnt ?? [])
+      const vinculosEntidade: VinculoEntidade[] = vinculosEnt
         .filter((v) => v.trabalhador_id === id)
         .map((v) => ({
           id: String(v.id),
@@ -158,7 +217,7 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
           cargo: texto(e.cargo),
           matricula: texto(e.matricula),
         }))
-      const temRegistrosPessoal = (registros.get(id) ?? 0) > 0
+      const temRegistrosPessoal = comRegistros.has(id)
 
       const excluido = u.deletado === true
       const alertas: string[] = []

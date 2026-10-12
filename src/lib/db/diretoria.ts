@@ -2,7 +2,7 @@ import "server-only"
 import { randomUUID } from "node:crypto"
 
 import { cpfConfiavel } from "@/lib/cpf"
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -355,12 +355,28 @@ async function integrantesLiberadosHoje(
   if (ids.length === 0) return liberados
   const admin = await createAdminClient()
   const hoje = hojeISO()
-  const { data, error } = await admin
-    .from("diretoria_liberacoes")
-    .select("integrante_id, inicio, fim")
-    .in("integrante_id", ids)
-  if (error) return liberados // tabela ausente antes do SQL
-  for (const l of data ?? []) {
+  // Só as que não terminaram (o resto do "hoje" é conferido abaixo), em
+  // fatias de 200 ids e em lotes: o PostgREST corta em 1.000 linhas.
+  const data: Record<string, unknown>[] = []
+  try {
+    for (let i = 0; i < ids.length; i += 200) {
+      const fatia = ids.slice(i, i + 200)
+      data.push(
+        ...(await lerEmLotes((de, ate) =>
+          admin
+            .from("diretoria_liberacoes")
+            .select("id, integrante_id, inicio, fim")
+            .in("integrante_id", fatia)
+            .or(`fim.is.null,fim.gte.${hoje}`)
+            .order("id")
+            .range(de, ate)
+        ))
+      )
+    }
+  } catch {
+    return liberados // tabela ausente antes do SQL
+  }
+  for (const l of data) {
     const inicio = texto(l.inicio)
     const fim = texto(l.fim)
     if ((!inicio || inicio <= hoje) && (!fim || fim >= hoje)) {
@@ -760,32 +776,40 @@ export async function listarLiberacoes(
   const nomeIntegrante = new Map(integrantes.map((i) => [i.id as string, texto(i.nome)]))
   const idsIntegrantes = integrantes.map((i) => String(i.id))
 
+  // Em lotes: o PostgREST corta em 1.000 linhas.
   let lote = true
-  let { data, error } = await admin
-    .from("diretoria_liberacoes")
-    .select("*")
-    .or(
-      idsIntegrantes.length
-        ? `mandato_id.eq.${mandatoId},integrante_id.in.(${idsIntegrantes.join(",")})`
-        : `mandato_id.eq.${mandatoId}`
-    )
-    .order("inicio", { ascending: false, nullsFirst: false })
-  if (error && esquemaAusente(error)) {
-    // Antes de diretoria-liberacoes-lote.sql não há mandato_id.
-    lote = false
-    if (idsIntegrantes.length === 0) return { disponivel: true, lote, liberacoes: [] }
-    ;({ data, error } = await admin
-      .from("diretoria_liberacoes")
-      .select("*")
-      .in("integrante_id", idsIntegrantes)
-      .order("inicio", { ascending: false, nullsFirst: false }))
-  }
-  if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, lote: false, liberacoes: [] }
-    throw new Error(`Falha ao listar liberações: ${error.message}`)
+  const ler = (filtro: "lote" | "antigo") =>
+    lerEmLotes((de, ate) => {
+      const q = admin.from("diretoria_liberacoes").select("*")
+      return (
+        filtro === "lote"
+          ? q.or(
+              idsIntegrantes.length
+                ? `mandato_id.eq.${mandatoId},integrante_id.in.(${idsIntegrantes.join(",")})`
+                : `mandato_id.eq.${mandatoId}`
+            )
+          : q.in("integrante_id", idsIntegrantes)
+      )
+        .order("inicio", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    })
+  let linhas: Record<string, unknown>[]
+  try {
+    try {
+      linhas = await ler("lote")
+    } catch (e) {
+      if (!esquemaAusente(e as { code?: string })) throw e
+      // Antes de diretoria-liberacoes-lote.sql não há mandato_id.
+      lote = false
+      if (idsIntegrantes.length === 0) return { disponivel: true, lote, liberacoes: [] }
+      linhas = await ler("antigo")
+    }
+  } catch (error) {
+    if (esquemaAusente(error as { code?: string })) return { disponivel: false, lote: false, liberacoes: [] }
+    throw new Error(`Falha ao listar liberações: ${(error as Error).message}`)
   }
 
-  const linhas = data ?? []
   const [empresas, oficios, urls] = await Promise.all([
     nomesDasEmpresas(linhas.map((l) => l.empresa_id as string).filter(Boolean)),
     rotulosDosOficios(linhas.map((l) => texto(l.oficio_id)).filter((v): v is string => Boolean(v))),

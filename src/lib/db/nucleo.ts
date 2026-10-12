@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -85,23 +85,31 @@ export async function listarDemandas(filtro: {
   tipo?: string
 } = {}): Promise<DemandaLinha[]> {
   const admin = await createAdminClient()
-  let query = admin
-    .from("demandas")
-    .select("id, nome, situacao, prazo, orcamento, membro_responsavel_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-
+  const emp = await tenantAtual()
   const busca = (filtro.busca ?? "").trim()
-  if (busca) query = query.ilike("nome", `%${busca}%`)
-  if (filtro.situacao === "abertas") query = query.neq("situacao", "Feito")
-  else if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
-  if (filtro.tipo) query = query.eq("tipo", filtro.tipo)
 
-  const { data, error } = await query
-    .order("prazo", { ascending: true, nullsFirst: false })
-    .order("nome", { ascending: true })
-  if (error) throw new Error(`Falha ao listar demandas: ${error.message}`)
+  // Em lotes: o PostgREST corta em 1.000 linhas.
+  let linhas: (Record<string, unknown> & { id: string })[]
+  try {
+    linhas = await lerEmLotes<Record<string, unknown> & { id: string }>((de, ate) => {
+      let query = admin
+        .from("demandas")
+        .select("id, nome, situacao, prazo, orcamento, membro_responsavel_id")
+        .eq("emp_proprietaria_id", emp)
+      if (busca) query = query.ilike("nome", `%${busca}%`)
+      if (filtro.situacao === "abertas") query = query.neq("situacao", "Feito")
+      else if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
+      if (filtro.tipo) query = query.eq("tipo", filtro.tipo)
+      return query
+        .order("prazo", { ascending: true, nullsFirst: false })
+        .order("nome", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    })
+  } catch (error) {
+    throw new Error(`Falha ao listar demandas: ${(error as Error).message}`)
+  }
 
-  const linhas = data ?? []
   const responsaveis = await nomesDosUsuarios(
     linhas.map((d) => d.membro_responsavel_id as string).filter(Boolean)
   )
@@ -134,17 +142,22 @@ export async function resumoDemandas(): Promise<{
   feito: number
 }> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("demandas")
-    .select("situacao")
-    .eq("emp_proprietaria_id", await tenantAtual())
-  const linhas = data ?? []
-  return {
-    total: linhas.length,
-    aFazer: linhas.filter((d) => d.situacao === "A fazer").length,
-    fazendo: linhas.filter((d) => d.situacao === "Fazendo").length,
-    feito: linhas.filter((d) => d.situacao === "Feito").length,
+  const emp = await tenantAtual()
+  // Contagem no banco: ler as linhas e contar em JS parava nas 1.000 que o
+  // PostgREST devolve.
+  const contar = async (situacao?: string) => {
+    let q = admin.from("demandas").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp)
+    if (situacao) q = q.eq("situacao", situacao)
+    const { count } = await q
+    return count ?? 0
   }
+  const [total, aFazer, fazendo, feito] = await Promise.all([
+    contar(),
+    contar("A fazer"),
+    contar("Fazendo"),
+    contar("Feito"),
+  ])
+  return { total, aFazer, fazendo, feito }
 }
 
 export type DetalheDemanda = {
@@ -395,12 +408,27 @@ async function contarTarefasPorPai(
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("demandas_check_tarefas")
-    .select(`${coluna}, concluido`)
-    .in(coluna, unicos)
-  if (error) return mapa // coluna ausente antes do SQL → sem contagem
-  for (const linha of (data ?? []) as LinhaTarefaBruta[]) {
+  // Fatias de 200 ids, cada uma em lotes: o PostgREST corta em 1.000 linhas e
+  // a contagem das demandas além disso saía zerada.
+  const data: LinhaTarefaBruta[] = []
+  try {
+    for (let i = 0; i < unicos.length; i += 200) {
+      const fatia = unicos.slice(i, i + 200)
+      data.push(
+        ...(await lerEmLotes<LinhaTarefaBruta>((de, ate) =>
+          admin
+            .from("demandas_check_tarefas")
+            .select(`id, ${coluna}, concluido`)
+            .in(coluna, fatia)
+            .order("id")
+            .range(de, ate)
+        ))
+      )
+    }
+  } catch {
+    return mapa // coluna ausente antes do SQL → sem contagem
+  }
+  for (const linha of data) {
     const pid = linha[coluna] as string | null
     if (!pid) continue
     const atual = mapa.get(pid) ?? { total: 0, concluidas: 0 }
@@ -645,26 +673,32 @@ export async function listarAnomalias(filtro: {
   estagio?: "abertas" | "verificadas" | "todas"
 } = {}): Promise<AnomaliaLinha[]> {
   const admin = await createAdminClient()
-  let query = admin
-    .from("ferramentas_anomalias")
-    .select(
-      "id, fato, data_ocorrencia, responsavel_id, anomalia_investigada, anomalia_tratada, eficacia_verificada"
-    )
-    .eq("emp_proprietaria_id", await tenantAtual())
-
+  const emp = await tenantAtual()
   const busca = (filtro.busca ?? "").trim()
-  if (busca) query = query.ilike("fato", `%${busca}%`)
-  if (filtro.estagio === "verificadas") query = query.eq("eficacia_verificada", true)
-  else if (filtro.estagio === "abertas")
-    query = query.not("eficacia_verificada", "is", true)
 
-  const { data, error } = await query.order("data_ocorrencia", {
-    ascending: false,
-    nullsFirst: false,
-  })
-  if (error) throw new Error(`Falha ao listar anomalias: ${error.message}`)
+  // Em lotes: o PostgREST corta em 1.000 linhas.
+  let linhas: (Record<string, unknown> & { id: string })[]
+  try {
+    linhas = await lerEmLotes<Record<string, unknown> & { id: string }>((de, ate) => {
+      let query = admin
+        .from("ferramentas_anomalias")
+        .select(
+          "id, fato, data_ocorrencia, responsavel_id, anomalia_investigada, anomalia_tratada, eficacia_verificada"
+        )
+        .eq("emp_proprietaria_id", emp)
+      if (busca) query = query.ilike("fato", `%${busca}%`)
+      if (filtro.estagio === "verificadas") query = query.eq("eficacia_verificada", true)
+      else if (filtro.estagio === "abertas")
+        query = query.not("eficacia_verificada", "is", true)
+      return query
+        .order("data_ocorrencia", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    })
+  } catch (error) {
+    throw new Error(`Falha ao listar anomalias: ${(error as Error).message}`)
+  }
 
-  const linhas = data ?? []
   const responsaveis = await nomesDosUsuarios(
     linhas.map((a) => a.responsavel_id as string).filter(Boolean)
   )
@@ -693,13 +727,18 @@ export async function resumoAnomalias(): Promise<{
   verificadas: number
 }> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("ferramentas_anomalias")
-    .select("eficacia_verificada")
-    .eq("emp_proprietaria_id", await tenantAtual())
-  const linhas = data ?? []
-  const verificadas = linhas.filter((a) => a.eficacia_verificada === true).length
-  return { total: linhas.length, abertas: linhas.length - verificadas, verificadas }
+  const emp = await tenantAtual()
+  // Contagem no banco: ler as linhas e contar em JS parava nas 1.000 que o
+  // PostgREST devolve.
+  const [{ count: total }, { count: verificadas }] = await Promise.all([
+    admin.from("ferramentas_anomalias").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp),
+    admin
+      .from("ferramentas_anomalias")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("eficacia_verificada", true),
+  ])
+  return { total: total ?? 0, abertas: (total ?? 0) - (verificadas ?? 0), verificadas: verificadas ?? 0 }
 }
 
 export type DetalheAnomalia = {

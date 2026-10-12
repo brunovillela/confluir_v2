@@ -1,7 +1,7 @@
 import "server-only"
 
 import { avisar, type Destinatario } from "@/lib/db/avisos"
-import { hojeSP, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { somarDias } from "@/lib/db/ferias"
 import { SITUACOES_ABERTAS } from "@/lib/db/financeiro"
@@ -58,14 +58,18 @@ async function retratoDoTenant(tenantId: string): Promise<Retrato> {
   ])
 
   const financeiro = { abertas: { q: 0, v: 0 }, vencidas: { q: 0, v: 0 }, vencendo7d: { q: 0, v: 0 } }
-  const { data: abertas } = await svc
-    .from("ordens_pagamento")
-    .select("vencimento, valor_inicial_cobranca, valor_pago")
-    .eq("emp_proprietaria_id", tenantId)
-    .not("excluido", "is", true)
-    .in("situacao", [...SITUACOES_ABERTAS])
-    .limit(1000)
-  for (const o of abertas ?? []) {
+  // PostgREST corta em 1.000 linhas: lê todas as abertas em lotes antes de somar.
+  const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null }>((de, ate) =>
+    svc
+      .from("ordens_pagamento")
+      .select("vencimento, valor_inicial_cobranca, valor_pago")
+      .eq("emp_proprietaria_id", tenantId)
+      .not("excluido", "is", true)
+      .in("situacao", [...SITUACOES_ABERTAS])
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  for (const o of abertas) {
     const v = Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0)
     financeiro.abertas.q++
     financeiro.abertas.v += v

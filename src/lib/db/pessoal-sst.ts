@@ -1,5 +1,5 @@
 import "server-only"
-import { hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { somarMeses } from "@/lib/db/treinamentos"
@@ -31,6 +31,45 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * Escrita fica nas actions das rotas. Ver [[confluir-fase-3a]] e o SQL
  * supabase/pessoal-atribuicoes-sst.sql.
  */
+
+// ── Leitura sem o teto de 1.000 linhas ───────────────────────────────────────
+
+/**
+ * Todas as linhas em lotes — PostgREST corta em 1.000 linhas. Devolve no
+ * formato `{ data }` das leituras de antes; erro vira data null (já tolerado).
+ */
+function emLotes<T>(
+  consulta: Parameters<typeof lerEmLotes>[0]
+): Promise<{ data: T[] | null }> {
+  return lerEmLotes<T>(consulta).then(
+    (data) => ({ data }),
+    () => ({ data: null })
+  )
+}
+
+/** Como `emLotes`, para `.in(coluna, ids)` grande: ids em fatias de 200. */
+async function emLotesPorIds<T>(
+  ids: string[],
+  consulta: (
+    lote: string[],
+    de: number,
+    ate: number
+  ) => ReturnType<Parameters<typeof lerEmLotes>[0]>
+): Promise<{ data: T[] | null }> {
+  try {
+    const linhas: T[] = []
+    for (let i = 0; i < ids.length; i += 200) {
+      const lote = ids.slice(i, i + 200)
+      linhas.push(...(await lerEmLotes<T>((de, ate) => consulta(lote, de, ate))))
+    }
+    return { data: linhas }
+  } catch {
+    return { data: null }
+  }
+}
+
+/** Coluna de texto/uuid/data que pode vir nula. */
+type Texto = string | null
 
 // ── Configuração ─────────────────────────────────────────────────────────────
 
@@ -66,14 +105,22 @@ export async function listarFuncoes(): Promise<Funcao[]> {
       .select("id, nome, descricao, ativo")
       .eq("emp_proprietaria_id", emp)
       .order("nome", { ascending: true, nullsFirst: false }),
-    admin
-      .from("pessoal_funcionario_funcao")
-      .select("funcao_id")
-      .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_atribuicoes_cargo")
-      .select("funcao_id, atividade_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ funcao_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_funcionario_funcao")
+        .select("funcao_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
+    emLotes<{ funcao_id: Texto; atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atribuicoes_cargo")
+        .select("funcao_id, atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
   if (funcoes.error) {
     throw new Error(`Falha ao listar funções: ${funcoes.error.message}`)
@@ -171,10 +218,14 @@ export async function funcoesDosFuncionarios(): Promise<
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const [vinc, funcoes] = await Promise.all([
-    admin
-      .from("pessoal_funcionario_funcao")
-      .select("funcionario_id, funcao_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ funcionario_id: Texto; funcao_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_funcionario_funcao")
+        .select("funcionario_id, funcao_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
     admin
       .from("pessoal_funcoes")
       .select("id, nome")
@@ -233,20 +284,31 @@ export async function comparativoFuncao(
 
   const ids = vinculados.map((v) => v.funcionarioId)
   const [exec, atividades, funcoes, planosTodos] = await Promise.all([
-    admin
-      .from("pessoal_atividades_executores")
-      .select("funcionario_id, atividade_id")
-      .eq("emp_proprietaria_id", emp)
-      .in("funcionario_id", ids),
+    // PostgREST corta em 1.000 linhas — executores e plano em lotes.
+    emLotesPorIds<{ funcionario_id: Texto; atividade_id: Texto }>(
+      ids,
+      (lote, de, ate) =>
+        admin
+          .from("pessoal_atividades_executores")
+          .select("funcionario_id, atividade_id")
+          .eq("emp_proprietaria_id", emp)
+          .in("funcionario_id", lote)
+          .order("id")
+          .range(de, ate)
+    ),
     admin
       .from("pessoal_atividades")
       .select("id, nome")
       .eq("emp_proprietaria_id", emp),
     admin.from("pessoal_funcoes").select("id, nome").eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_atribuicoes_cargo")
-      .select("funcao_id, atividade_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ funcao_id: Texto; atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atribuicoes_cargo")
+        .select("funcao_id, atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
 
   const ativById = new Map(
@@ -359,18 +421,31 @@ export async function listarAtividades(): Promise<Atividade[]> {
       .select("id, nome, descricao, presenca, avaliada_em, observacoes")
       .eq("emp_proprietaria_id", emp)
       .order("nome", { ascending: true, nullsFirst: false }),
-    admin
-      .from("pessoal_atividades_executores")
-      .select("atividade_id")
-      .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_atividades_perigos")
-      .select("atividade_id")
-      .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_atividades_riscos")
-      .select("atividade_id")
-      .eq("emp_proprietaria_id", emp),
+    // PostgREST corta em 1.000 linhas — as contagens leem em lotes.
+    emLotes<{ atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atividades_executores")
+        .select("atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
+    emLotes<{ atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atividades_perigos")
+        .select("atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
+    emLotes<{ atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atividades_riscos")
+        .select("atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
   if (atividades.error) {
     throw new Error(`Falha ao listar atividades: ${atividades.error.message}`)
@@ -646,23 +721,44 @@ export async function matrizTreinamento(): Promise<LinhaMatriz[]> {
 
   const [exec, atividades, medidas, treinCatalogo, alunos, funcoesMap] =
     await Promise.all([
-      admin
-        .from("pessoal_atividades_executores")
-        .select("atividade_id, funcionario_id")
-        .eq("emp_proprietaria_id", emp),
+      // PostgREST corta em 1.000 linhas — executores e alunos leem em lotes.
+      emLotes<{ atividade_id: Texto; funcionario_id: Texto }>((de, ate) =>
+        admin
+          .from("pessoal_atividades_executores")
+          .select("atividade_id, funcionario_id")
+          .eq("emp_proprietaria_id", emp)
+          .order("id")
+          .range(de, ate)
+      ),
       admin
         .from("pessoal_atividades")
         .select("id, nome")
         .eq("emp_proprietaria_id", emp),
-      admin
-        .from("pessoal_atividade_medidas_seguranca")
-        .select("atividade_id, tipo, descricao, treinamento_id, recorrencia_meses")
-        .eq("emp_proprietaria_id", emp)
-        .eq("tipo", "treinamento"),
+      // Medidas são por atividade, como os perigos: também em lotes.
+      emLotes<{
+        atividade_id: Texto
+        tipo: Texto
+        descricao: Texto
+        treinamento_id: Texto
+        recorrencia_meses: number | null
+      }>((de, ate) =>
+        admin
+          .from("pessoal_atividade_medidas_seguranca")
+          .select("atividade_id, tipo, descricao, treinamento_id, recorrencia_meses")
+          .eq("emp_proprietaria_id", emp)
+          .eq("tipo", "treinamento")
+          .order("id")
+          .range(de, ate)
+      ),
       admin.from("pessoal_treinamentos").select("id, treinamento, vencimento_meses"),
-      admin
-        .from("pessoal_treinamentos_alunos")
-        .select("aluno_id, treinamento_id, data_termino"),
+      emLotes<{ aluno_id: Texto; treinamento_id: Texto; data_termino: Texto }>(
+        (de, ate) =>
+          admin
+            .from("pessoal_treinamentos_alunos")
+            .select("aluno_id, treinamento_id, data_termino")
+            .order("id")
+            .range(de, ate)
+      ),
       funcoesDosFuncionarios(),
     ])
 
@@ -820,26 +916,52 @@ export async function relatorioDeFuncionarios(
 
   const [exec, atividades, perigos, riscos, nomes, funcoesMap, jornadas] =
     await Promise.all([
-      admin
-        .from("pessoal_atividades_executores")
-        .select("id, atividade_id, funcionario_id, tempo_min_mes, recorrencia")
-        .eq("emp_proprietaria_id", emp)
-        .in("funcionario_id", ids),
+      // PostgREST corta em 1.000 linhas — executores, perigos e riscos em lotes.
+      emLotesPorIds<{
+        id: string
+        atividade_id: Texto
+        funcionario_id: Texto
+        tempo_min_mes: number | null
+        recorrencia: Texto
+      }>(ids, (lote, de, ate) =>
+        admin
+          .from("pessoal_atividades_executores")
+          .select("id, atividade_id, funcionario_id, tempo_min_mes, recorrencia")
+          .eq("emp_proprietaria_id", emp)
+          .in("funcionario_id", lote)
+          .order("id")
+          .range(de, ate)
+      ),
       admin
         .from("pessoal_atividades")
         .select("id, nome, presenca")
         .eq("emp_proprietaria_id", emp),
-      admin
-        .from("pessoal_atividades_perigos")
-        .select("atividade_id")
-        .eq("emp_proprietaria_id", emp),
-      admin
-        .from("pessoal_atividades_riscos")
-        .select(
-          "executor_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual"
-        )
-        .eq("emp_proprietaria_id", emp)
-        .not("executor_id", "is", null),
+      emLotes<{ atividade_id: Texto }>((de, ate) =>
+        admin
+          .from("pessoal_atividades_perigos")
+          .select("atividade_id")
+          .eq("emp_proprietaria_id", emp)
+          .order("id")
+          .range(de, ate)
+      ),
+      emLotes<{
+        executor_id: Texto
+        categoria: Texto
+        probabilidade: number | null
+        severidade: number | null
+        probabilidade_residual: number | null
+        severidade_residual: number | null
+      }>((de, ate) =>
+        admin
+          .from("pessoal_atividades_riscos")
+          .select(
+            "executor_id, categoria, probabilidade, severidade, probabilidade_residual, severidade_residual"
+          )
+          .eq("emp_proprietaria_id", emp)
+          .not("executor_id", "is", null)
+          .order("id")
+          .range(de, ate)
+      ),
       nomesDosUsuarios(ids),
       funcoesDosFuncionarios(),
       jornadasDosFuncionarios(ids),
@@ -982,12 +1104,22 @@ export async function jornadasDosFuncionarios(
   const ids = [...new Set(usuarioIds.filter(Boolean))]
   if (ids.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_funcionario_jornada")
-    .select("funcionario_id, dia_semana, hora_inicio, hora_fim")
-    .in("funcionario_id", ids)
-  if (error) return mapa // schema ausente → sem jornadas
-  for (const j of data ?? []) {
+  // PostgREST corta em 1.000 linhas (até 7 por pessoa) — fatias + lotes.
+  const { data } = await emLotesPorIds<{
+    funcionario_id: Texto
+    dia_semana: number | null
+    hora_inicio: Texto
+    hora_fim: Texto
+  }>(ids, (lote, de, ate) =>
+    admin
+      .from("pessoal_funcionario_jornada")
+      .select("funcionario_id, dia_semana, hora_inicio, hora_fim")
+      .in("funcionario_id", lote)
+      .order("id")
+      .range(de, ate)
+  )
+  if (!data) return mapa // schema ausente → sem jornadas
+  for (const j of data) {
     if (!j.funcionario_id || typeof j.dia_semana !== "number") continue
     const arr = mapa.get(j.funcionario_id) ?? []
     arr.push({
@@ -1060,10 +1192,14 @@ export async function listarGhes(): Promise<Ghe[]> {
       .select("id, nome, descricao")
       .eq("emp_proprietaria_id", emp)
       .order("nome", { ascending: true, nullsFirst: false }),
-    admin
-      .from("pessoal_ghe_membros")
-      .select("ghe_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ ghe_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_ghe_membros")
+        .select("ghe_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
   if (ghes.error) return [] // schema ausente
   const cont = new Map<string, number>()
@@ -1135,19 +1271,28 @@ export type SugestaoGhe = {
 export async function sugerirGhes(): Promise<SugestaoGhe[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  // PostgREST corta em 1.000 linhas — executores e membros em lotes.
   const [exec, atividades, membros] = await Promise.all([
-    admin
-      .from("pessoal_atividades_executores")
-      .select("funcionario_id, atividade_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ funcionario_id: Texto; atividade_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atividades_executores")
+        .select("funcionario_id, atividade_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
     admin
       .from("pessoal_atividades")
       .select("id, nome")
       .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_ghe_membros")
-      .select("ghe_id, funcionario_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ ghe_id: Texto; funcionario_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_ghe_membros")
+        .select("ghe_id, funcionario_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
   const nomeAtiv = new Map(
     (atividades.data ?? []).map((a) => [a.id as string, a.nome as string | null])
@@ -1430,10 +1575,16 @@ export async function executoresParaDocumentos(): Promise<{
 }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { data } = await admin
-    .from("pessoal_atividades_executores")
-    .select("funcionario_id, fornecedor_id")
-    .eq("emp_proprietaria_id", emp)
+  // PostgREST corta em 1.000 linhas — lê em lotes.
+  const { data } = await emLotes<{ funcionario_id: Texto; fornecedor_id: Texto }>(
+    (de, ate) =>
+      admin
+        .from("pessoal_atividades_executores")
+        .select("funcionario_id, fornecedor_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+  )
   const contar = (chave: "funcionario_id" | "fornecedor_id") => {
     const m = new Map<string, number>()
     for (const e of data ?? []) {
@@ -1511,19 +1662,28 @@ export async function resumoSST(): Promise<ResumoSST> {
       .from("pessoal_funcoes")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_atividades_executores")
-      .select("avaliado_em")
-      .eq("emp_proprietaria_id", emp),
+    // PostgREST corta em 1.000 linhas — executores e jornadas em lotes.
+    emLotes<{ avaliado_em: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_atividades_executores")
+        .select("avaliado_em")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
     matrizTreinamento(),
     admin
       .from("pessoal_ghe")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_funcionario_jornada")
-      .select("funcionario_id")
-      .eq("emp_proprietaria_id", emp),
+    emLotes<{ funcionario_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_funcionario_jornada")
+        .select("funcionario_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
   ])
 
   const atividadesSemAvaliacao = (atividades ?? []).filter(

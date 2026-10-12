@@ -237,11 +237,15 @@ export async function registrarAvaliacao(
 /** Sino para quem gere a hospedagem no tenant (notas baixas). */
 async function avisarGestao(empId: string, textoAviso: string): Promise<void> {
   const svc = createServiceClient()
-  const { data: perms } = await svc.from("permissoes").select("usuario_id, filiacao_hospedagens_gestao")
+  // PostgREST corta em 1.000 linhas (e o service client vê todos os tenants):
+  // filtra no banco só quem tem a permissão.
+  const { data: perms } = await svc
+    .from("permissoes")
+    .select("usuario_id")
+    .eq("filiacao_hospedagens_gestao", true)
   const ids = [
     ...new Set(
       (perms ?? [])
-        .filter((p) => p.filiacao_hospedagens_gestao === true)
         .map((p) => texto(p.usuario_id))
         .filter((v): v is string => !!v)
     ),
@@ -448,14 +452,37 @@ export async function convidarParaAvaliar(empId: string): Promise<{
   const { criadas, erro } = await gerarPendencias(empId)
   if (erro) return { criadas: 0, convites: 0, lembretes: 0, erro }
   const svc = createServiceClient()
-  const { data: pend } = await svc
-    .from("hospedagem_avaliacoes")
-    .select("id, token, hotel_id, filiado_id, check_out, convite_enviado_em, lembrete_enviado_em")
-    .eq("emp_proprietaria_id", empId)
-    .eq("situacao", "pendente")
-  if (!pend?.length) return { criadas, convites: 0, lembretes: 0 }
-
   const limiteLembrete = Date.now() - DIAS_LEMBRETE * 86_400_000
+  // PostgREST corta em 1.000 linhas: lê em lotes e só as pendentes que ainda
+  // pedem e-mail (sem convite, ou convidadas há DIAS_LEMBRETE sem lembrete) —
+  // senão o acúmulo de pendentes antigas esconderia as novas.
+  type Pendente = {
+    id: string
+    token: string | null
+    hotel_id: string | null
+    filiado_id: string | null
+    check_out: string | null
+    convite_enviado_em: string | null
+    lembrete_enviado_em: string | null
+  }
+  let pend: Pendente[] = []
+  try {
+    const corte = new Date(limiteLembrete).toISOString()
+    pend = await lerEmLotes<Pendente>((de, ate) =>
+      svc
+        .from("hospedagem_avaliacoes")
+        .select("id, token, hotel_id, filiado_id, check_out, convite_enviado_em, lembrete_enviado_em")
+        .eq("emp_proprietaria_id", empId)
+        .eq("situacao", "pendente")
+        .or(`convite_enviado_em.is.null,and(lembrete_enviado_em.is.null,convite_enviado_em.lte."${corte}")`)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch {
+    pend = []
+  }
+  if (!pend.length) return { criadas, convites: 0, lembretes: 0 }
+
   const aConvidar = pend.filter((a) => !a.convite_enviado_em)
   const aLembrar = pend.filter(
     (a) => a.convite_enviado_em && !a.lembrete_enviado_em && new Date(String(a.convite_enviado_em)).getTime() <= limiteLembrete
