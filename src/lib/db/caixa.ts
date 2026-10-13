@@ -19,7 +19,7 @@ export type SituacaoConta = "fechada" | "aberta" | "prestacao_pendente"
 export type MovimentacaoCaixa = {
   id: string
   tipo: string // aporte | compra | perda | acerto
-  situacao: string // pendente | confirmada | cancelada
+  situacao: string // pendente | confirmada | cancelada | recusada (aporte recusado pelo responsável)
   valor: number
   descricao: string | null
   criadaPor: string | null

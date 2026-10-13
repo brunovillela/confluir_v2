@@ -250,6 +250,49 @@ export function bloqueioPrestacao(abertos: { pendentes: number; naoReconhecidas:
 
 // ── Decisões ─────────────────────────────────────────────────────────────────
 
+/**
+ * O responsável RECUSA um aporte pendente (não recebeu o dinheiro, valor
+ * errado…): a linha vira "recusada" (fora do saldo, a conta não abre) e quem
+ * lançou é avisado. Quem recusou, quando e o motivo ficam nas colunas
+ * reconhecimento_por_usuario_id/_em/_motivo — reconhecimento segue null.
+ */
+export async function recusarAporteCaixa(movId: string, contaId: string, usuarioId: string, motivo: string): Promise<{ erro?: string }> {
+  const conta = await contaComResponsavel(contaId)
+  if (!conta || conta.responsavelId !== usuarioId) return { erro: "Só o responsável da conta recusa o aporte." }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("caixa_movimentacoes")
+    .update({
+      situacao: "recusada",
+      reconhecimento_por_usuario_id: usuarioId,
+      reconhecimento_em: new Date().toISOString(),
+      reconhecimento_motivo: motivo,
+    })
+    .eq("id", movId)
+    .eq("conta_id", contaId)
+    .eq("tipo", "aporte")
+    .eq("situacao", "pendente")
+    .select("valor, criada_por_usuario_id")
+  if (error) return { erro: `Não foi possível recusar: ${error.message}` }
+  const mov = data?.[0]
+  if (!mov) return { erro: "Aporte não encontrado ou já decidido." }
+
+  const lancadaPor = texto(mov.criada_por_usuario_id)
+  const dest = lancadaPor && lancadaPor !== usuarioId ? await destinatario(lancadaPor) : null
+  if (dest) {
+    const nomes = await nomesDosUsuarios([usuarioId])
+    depoisDaResposta(() =>
+      avisar([dest], {
+        texto: `${nomes.get(usuarioId) ?? "O responsável"} recusou o aporte de ${formatarMoeda(Number(mov.valor))} no caixa "${conta.nome}": ${motivo}`.slice(0, 300),
+        link: `/painel/financeiro/caixas/${contaId}`,
+        evento: "pendencia_caixa",
+        assunto: "Aporte de caixa recusado pelo responsável",
+      })
+    )
+  }
+  return {}
+}
+
 async function carregarMov(movId: string) {
   const admin = await createAdminClient()
   const { data } = await admin

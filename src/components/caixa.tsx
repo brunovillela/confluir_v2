@@ -189,6 +189,7 @@ export function ExtratoCaixa({
             const assinado = valorAssinado(m)
             const pendente = m.situacao === "pendente"
             const cancelada = m.situacao === "cancelada"
+            const recusada = m.situacao === "recusada"
             // Não reconhecida pelo responsável: fora do saldo (o valor voltou).
             const foraDoSaldo = !cancelada && m.reconhecimento === "nao_reconhecida"
             // Débito ligado a uma ordem: a linha abre o extrato da despesa.
@@ -199,7 +200,7 @@ export function ExtratoCaixa({
             return (
               <TableRow
                 key={m.id}
-                className={cn(cancelada && "opacity-50", hrefExtrato && "hover:bg-muted/50 cursor-pointer")}
+                className={cn((cancelada || recusada) && "opacity-50", hrefExtrato && "hover:bg-muted/50 cursor-pointer")}
                 onClick={hrefExtrato ? abrir : undefined}
                 onKeyDown={
                   hrefExtrato
@@ -229,6 +230,15 @@ export function ExtratoCaixa({
                     {cancelada && (
                       <Badge variant="outline" className="text-muted-foreground">
                         {m.reconhecimento === "transferida" ? "Transferida para outra conta" : "Cancelada"}
+                      </Badge>
+                    )}
+                    {recusada && (
+                      <Badge
+                        variant="outline"
+                        className="border-destructive/40 text-destructive"
+                        title={m.reconhecimentoMotivo ?? undefined}
+                      >
+                        Recusado pelo responsável
                       </Badge>
                     )}
                     {!cancelada && m.reconhecimento === "pendente" && (
@@ -278,7 +288,7 @@ export function ExtratoCaixa({
                   className={cn(
                     "text-right whitespace-nowrap tabular-nums",
                     foraDoSaldo && "text-muted-foreground line-through",
-                    !pendente && !cancelada && !foraDoSaldo && (assinado >= 0 ? "text-success-fg" : "text-destructive")
+                    !pendente && !cancelada && !recusada && !foraDoSaldo && (assinado >= 0 ? "text-success-fg" : "text-destructive")
                   )}
                 >
                   {assinado >= 0 ? "+" : "−"}

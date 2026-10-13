@@ -7,7 +7,7 @@ import { redirect } from "next/navigation"
 
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { bloqueioPrestacao, reconhecimentosEmAberto } from "@/lib/db/caixa-reconhecimento"
+import { bloqueioPrestacao, reconhecimentosEmAberto, recusarAporteCaixa } from "@/lib/db/caixa-reconhecimento"
 import { buscarOrdensParaVincular, vincularOrdemAoCaixa, type OrdemVinculavel } from "@/lib/db/caixa-vincular"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
@@ -70,6 +70,27 @@ export async function confirmarAporte(
       .update({ situacao: "aberta", updated_at: agora })
       .eq("id", conta.id)
   }
+
+  revalidar(conta.id)
+}
+
+/** Recusa o aporte (com motivo) — fica fora do saldo e quem lançou é avisado. */
+export async function recusarAporte(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+
+  const movId = String(formData.get("movimentacao_id") ?? "")
+  if (!UUID.test(movId)) return { erro: "Aporte inválido." }
+  const motivo = String(formData.get("motivo") ?? "").trim()
+  if (motivo.length < 5) return { erro: "Diga por que você recusa o aporte." }
+
+  const conta = await contaDoResponsavel(sessao.usuario.id)
+  if (!conta) return { erro: "Você não tem uma conta de caixa ativa." }
+
+  const { erro } = await recusarAporteCaixa(movId, conta.id, sessao.usuario.id, motivo)
+  if (erro) return { erro }
 
   revalidar(conta.id)
 }

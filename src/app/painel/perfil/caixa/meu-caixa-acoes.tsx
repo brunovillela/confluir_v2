@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useState, useTransition } from "react"
-import { Check, CircleAlert, HandCoins, Link2, Loader2, Search } from "lucide-react"
+import { Check, CircleAlert, HandCoins, Link2, Loader2, Search, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -26,6 +26,7 @@ import {
   buscarOrdensCaixa,
   confirmarAporte,
   prestarContas,
+  recusarAporte,
   relatarPerda,
   vincularOrdemCaixa,
 } from "./actions"
@@ -39,23 +40,77 @@ export function ConfirmarAporte({
   valor: string
 }) {
   const [estado, formAction, pendente] = useActionState(confirmarAporte, {})
+  // A recusa fica fora do <form>: o submit do diálogo (portal) borbulharia
+  // pela árvore React até o onSubmit da confirmação.
   return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`)
-      }}
-      className="flex flex-wrap items-center gap-2"
-    >
-      <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
-      {estado.erro && (
-        <span className="text-destructive text-xs">{estado.erro}</span>
-      )}
-      <Button type="submit" size="sm" disabled={pendente}>
-        {pendente ? <Loader2 className="animate-spin" /> : <Check />}
-        Confirmar recebimento de {valor}
-      </Button>
-    </form>
+    <div className="flex flex-wrap items-center gap-2">
+      <form
+        action={formAction}
+        onSubmit={(e) => {
+          confirmarEnvio(e, `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`)
+        }}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
+        {estado.erro && (
+          <span className="text-destructive text-xs">{estado.erro}</span>
+        )}
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Check />}
+          Confirmar recebimento de {valor}
+        </Button>
+      </form>
+      <RecusarAporte movimentacaoId={movimentacaoId} valor={valor} />
+    </div>
+  )
+}
+
+/** Recusa o aporte com motivo — o Financeiro (quem lançou) é avisado. */
+function RecusarAporte({ movimentacaoId, valor }: { movimentacaoId: string; valor: string }) {
+  const [estado, formAction, pendente] = useActionState(recusarAporte, {})
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="outline" className="text-destructive">
+          <X />
+          Recusar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Recusar o aporte de {valor}</DialogTitle>
+          <DialogDescription>
+            O aporte fica fora do saldo e quem o lançou é avisado com o seu motivo.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={formAction} className="grid gap-3">
+          <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
+          {estado.erro && (
+            <Alert variant="destructive">
+              <AlertDescription>{estado.erro}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-1.5">
+            <Label htmlFor={`motivo-recusa-${movimentacaoId}`}>Motivo *</Label>
+            <textarea
+              id={`motivo-recusa-${movimentacaoId}`}
+              name="motivo"
+              required
+              minLength={5}
+              rows={3}
+              className="border-input placeholder:text-muted-foreground w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none"
+              placeholder="Não recebi o dinheiro, valor diferente do combinado…"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" size="sm" variant="destructive" disabled={pendente}>
+              {pendente ? <Loader2 className="animate-spin" /> : <X />}
+              Recusar aporte
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 

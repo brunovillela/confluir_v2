@@ -36,6 +36,7 @@ create table if not exists public.caixa_movimentacoes (
   -- aporte | compra | perda | acerto
   tipo text not null,
   -- pendente (aporte aguardando confirmação) | confirmada | cancelada
+  -- | recusada (aporte recusado pelo responsável; motivo em reconhecimento_motivo)
   situacao text not null default 'confirmada',
   valor numeric(15, 2) not null,
   descricao text,

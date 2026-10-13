@@ -146,7 +146,8 @@ export default async function MeuCaixaPage({
             <CardDescription>
               Lançado em {formatarDataHora(m.created_at)}
               {m.descricao && <> · {m.descricao}</>} — confirme apenas depois
-              de receber o dinheiro em mãos.
+              de receber o dinheiro em mãos. Se não recebeu (ou o valor está
+              errado), recuse dizendo o motivo.
             </CardDescription>
           </CardHeader>
           <CardContent>
