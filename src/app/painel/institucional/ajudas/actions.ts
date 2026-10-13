@@ -12,6 +12,7 @@ import {
   gerarOrdensContrato,
 } from "@/lib/db/contratos"
 import { subirPdfCompras } from "@/lib/db/compras"
+import { marcarEntidadeApoiada } from "@/lib/db/fornecedores"
 import {
   meiosPagamentoFornecedor,
   type ContaFornecedor,
@@ -56,12 +57,15 @@ export async function criarAjudaAction(
   await requireEdicaoAjudas()
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
+  const dados = lerDadosContrato(formData)
   const { id, erro } = await criarContrato({
-    ...lerDadosContrato(formData),
+    ...dados,
     apoio_institucional: true,
     arquivo_contrato: caminho ?? null,
   })
   if (erro || !id) return { erro: erro ?? "Falha ao cadastrar." }
+  // Fornecedor comum escolhido como favorecido passa a ser entidade apoiada.
+  if (dados.fornecedor_id) await marcarEntidadeApoiada(dados.fornecedor_id)
   revalidar(id)
   redirect(`/painel/institucional/ajudas/${id}?salvo=1`)
 }
@@ -75,12 +79,14 @@ export async function atualizarAjudaAction(
   if (!id) return { erro: "Ajuda inválida." }
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
+  const dados = lerDadosContrato(formData)
   const { erro } = await atualizarContrato(id, {
-    ...lerDadosContrato(formData),
+    ...dados,
     apoio_institucional: true,
     arquivo_contrato: caminho,
   })
   if (erro) return { erro }
+  if (dados.fornecedor_id) await marcarEntidadeApoiada(dados.fornecedor_id)
   revalidar(id)
   redirect(`/painel/institucional/ajudas/${id}?salvo=1`)
 }

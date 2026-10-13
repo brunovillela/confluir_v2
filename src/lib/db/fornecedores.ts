@@ -448,6 +448,27 @@ export async function listarEntidadesApoiadas(
   }))
 }
 
+/**
+ * Marca um cadastro existente como entidade apoiada — usado quando uma ajuda
+ * institucional é salva com um fornecedor comum como favorecido, para que ele
+ * passe a constar em Entidades apoiadas. Idempotente.
+ */
+export async function marcarEntidadeApoiada(
+  id: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("empresa")
+    .update({ entidade_apoiada: true })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("entidade_apoiada", "is", true)
+  if (error && !esquemaAusente(error)) {
+    return { erro: `Falha ao marcar a entidade apoiada: ${error.message}` }
+  }
+  return {}
+}
+
 export async function criarEntidadeApoiada(
   dados: DadosFornecedor
 ): Promise<{ id?: string; erro?: string }> {

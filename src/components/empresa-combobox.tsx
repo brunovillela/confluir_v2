@@ -13,6 +13,8 @@ export type EmpresaOpcao = {
   bloqueado: boolean
   /** Razão social, quando difere do nome exibido (nome fantasia) — também buscável. */
   razao?: string | null
+  /** Rótulo curto à direita da opção (ex.: "Fornecedor" na busca de entidade apoiada). */
+  etiqueta?: string | null
 }
 
 /**
@@ -163,6 +165,10 @@ export function EmpresaCombobox({
                   <span className="text-warning-fg flex shrink-0 items-center gap-1 text-xs">
                     <TriangleAlert className="size-3.5" />
                     Bloqueado
+                  </span>
+                ) : f.etiqueta ? (
+                  <span className="text-muted-foreground border-border shrink-0 rounded border px-1.5 text-xs">
+                    {f.etiqueta}
                   </span>
                 ) : (
                   <Check className="text-muted-foreground/0 size-4 shrink-0" />

@@ -1052,6 +1052,7 @@ export type OpcoesContrato = {
     cnpj_cpf: string | null
     razao?: string | null
     bloqueado: boolean
+    etiqueta?: string | null
   }[]
   departamentos: { id: string; nome: string }[]
   centrosCusto: { id: string; nome: string }[]
@@ -1092,24 +1093,42 @@ export async function carregarOpcoesContrato(): Promise<OpcoesContrato> {
 }
 
 /**
- * Opções do formulário de AJUDA institucional: o favorecido é uma entidade
- * apoiada (não um fornecedor), e não há categoria. As categorias vêm vazias
- * para satisfazer o mesmo tipo do formulário compartilhado.
+ * Opções do formulário de AJUDA institucional. O favorecido é, de preferência,
+ * uma entidade apoiada — elas vêm primeiro —, mas os fornecedores comuns
+ * também entram, etiquetados: ao salvar a ajuda, o escolhido ganha a marca
+ * `entidade_apoiada` (ver marcarEntidadeApoiada). Não há categoria; as
+ * categorias vêm vazias para satisfazer o mesmo tipo do formulário.
  */
 export async function carregarOpcoesAjuda(): Promise<OpcoesContrato> {
-  const [entidades, departamentos, centrosCusto, usuarios] = await Promise.all([
-    listarEntidadesApoiadas(),
-    listarDepartamentos(),
-    listarCentrosCusto(),
-    listarUsuariosAtivos(),
-  ])
+  const [entidades, fornecedores, departamentos, centrosCusto, usuarios] =
+    await Promise.all([
+      listarEntidadesApoiadas(),
+      listarFornecedores(),
+      listarDepartamentos(),
+      listarCentrosCusto(),
+      listarUsuariosAtivos(),
+    ])
+  const apoiadas = new Set(entidades.map((e) => e.id))
   return {
-    fornecedores: entidades.map((e) => ({
-      id: e.id,
-      nome: e.nome,
-      cnpj_cpf: e.cnpj_cpf,
-      bloqueado: e.bloqueado,
-    })),
+    fornecedores: [
+      ...entidades.map((e) => ({
+        id: e.id,
+        nome: e.nome,
+        cnpj_cpf: e.cnpj_cpf,
+        razao: e.nome_razao,
+        bloqueado: e.bloqueado,
+      })),
+      ...fornecedores
+        .filter((f) => !apoiadas.has(f.id))
+        .map((f) => ({
+          id: f.id,
+          nome: f.nome,
+          cnpj_cpf: f.cnpj_cpf,
+          razao: f.nome_razao,
+          bloqueado: f.bloqueado,
+          etiqueta: "Fornecedor",
+        })),
+    ],
     departamentos,
     centrosCusto: centrosCusto.map((c) => ({
       id: String(c.id),
