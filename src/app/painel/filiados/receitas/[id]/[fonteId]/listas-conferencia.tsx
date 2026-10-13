@@ -2,10 +2,11 @@
 
 import { useActionState, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowDown, ArrowUp, Loader2 } from "lucide-react"
+import { ArrowDown, ArrowUp, Loader2, UserRoundPlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import { formatarMoeda } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
 import { CondicaoBadge } from "../../../condicao-badge"
-import { definirCondicaoMarcados } from "./actions"
+import { cadastrarNaoEncontradosAction, definirCondicaoMarcados } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 type Direcao = "asc" | "desc"
@@ -267,6 +268,8 @@ export type PaganteNaoAtivo = {
 
 export type PaganteNaoEncontrado = {
   id: string
+  /** Nome como veio na relação (null nos lançamentos antigos). */
+  nome: string | null
   matriculaFonte: string | null
   cpf: string | null
   valor: number | null
@@ -277,11 +280,14 @@ export function ListaPagantesNaoAtivos({
   fonteId,
   pagantes,
   naoEncontrados,
+  podeCadastrar,
 }: {
   remessaId: string
   fonteId: string
   pagantes: PaganteNaoAtivo[]
   naoEncontrados: PaganteNaoEncontrado[]
+  /** Gestão de filiação, numa fonte de verdade (não "sem fonte"). */
+  podeCadastrar: boolean
 }) {
   type Campo = "nome" | "condicao" | "valor"
   const { ordem, dir, aoOrdenar } = useOrdenacao<Campo>("nome")
@@ -290,7 +296,7 @@ export function ListaPagantesNaoAtivos({
     [pagantes, ordem, dir]
   )
 
-  type CampoNE = "matriculaFonte" | "cpf" | "valor"
+  type CampoNE = "nome" | "matriculaFonte" | "cpf" | "valor"
   const ordNE = useOrdenacao<CampoNE>("matriculaFonte")
   const neOrdenadas = useMemo(
     () =>
@@ -307,17 +313,29 @@ export function ListaPagantesNaoAtivos({
   )
   const { marcados, todosMarcados, alternar, alternarTodos } =
     useSelecao(filiadosUnicos)
+  const selNE = useSelecao(naoEncontrados.map((l) => l.id))
+  const cadastro = useActionState(cadastrarNaoEncontradosAction, {})
+  // Nome digitado por linha; começa com o que veio na relação.
+  const [nomes, setNomes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(naoEncontrados.map((l) => [l.id, l.nome ?? ""]))
+  )
+
+  const resultado = <ResultadoCadastro estado={cadastro[0]} />
 
   if (pagantes.length === 0 && naoEncontrados.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Todos os pagantes foram encontrados e estão ativos.
-      </p>
+      <div className="grid gap-3">
+        {resultado}
+        <p className="text-muted-foreground text-sm">
+          Todos os pagantes foram encontrados e estão ativos.
+        </p>
+      </div>
     )
   }
 
   return (
     <div className="grid gap-5">
+      {resultado}
       {pagantes.length > 0 && (
         <div className="grid gap-3">
           <p className="text-muted-foreground text-xs font-medium">
@@ -397,12 +415,31 @@ export function ListaPagantesNaoAtivos({
       {naoEncontrados.length > 0 && (
         <div className="grid gap-3">
           <p className="text-muted-foreground text-xs font-medium">
-            Não encontrados no cadastro ({naoEncontrados.length}) — sem
-            registro para ativar
+            Não encontrados no cadastro ({naoEncontrados.length})
+            {podeCadastrar
+              ? " — marque quem cadastrar como filiado ativo desta fonte"
+              : " — sem registro para ativar"}
           </p>
           <Table>
             <TableHeader>
               <TableRow>
+                {podeCadastrar && (
+                  <TableHead className="w-8">
+                    <Checkbox
+                      checked={selNE.todosMarcados}
+                      onCheckedChange={(v) => selNE.alternarTodos(v === true)}
+                      aria-label="Marcar todos os não encontrados"
+                    />
+                  </TableHead>
+                )}
+                <CabecalhoOrdenavel
+                  campo="nome"
+                  ordem={ordNE.ordem}
+                  dir={ordNE.dir}
+                  aoOrdenar={ordNE.aoOrdenar}
+                >
+                  Nome na relação
+                </CabecalhoOrdenavel>
                 <CabecalhoOrdenavel
                   campo="matriculaFonte"
                   ordem={ordNE.ordem}
@@ -432,7 +469,36 @@ export function ListaPagantesNaoAtivos({
             </TableHeader>
             <TableBody>
               {neOrdenadas.map((l) => (
-                <TableRow key={l.id}>
+                <TableRow
+                  key={l.id}
+                  data-state={selNE.marcados.has(l.id) ? "selected" : undefined}
+                >
+                  {podeCadastrar && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selNE.marcados.has(l.id)}
+                        onCheckedChange={(v) => selNE.alternar(l.id, v === true)}
+                        aria-label={`Marcar ${nomes[l.id] || l.matriculaFonte || "pagante"}`}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className="min-w-40">
+                    {podeCadastrar ? (
+                      <Input
+                        value={nomes[l.id] ?? ""}
+                        onChange={(e) => {
+                          const valor = e.target.value
+                          setNomes((n) => ({ ...n, [l.id]: valor }))
+                        }}
+                        placeholder="Nome completo"
+                        aria-label="Nome completo"
+                        aria-invalid={selNE.marcados.has(l.id) && (nomes[l.id] ?? "").trim().length < 3}
+                        className="h-8"
+                      />
+                    ) : (
+                      <span className="truncate">{l.nome ?? "—"}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">
                     {l.matriculaFonte ?? "—"}
                   </TableCell>
@@ -451,7 +517,95 @@ export function ListaPagantesNaoAtivos({
               ))}
             </TableBody>
           </Table>
+          {podeCadastrar && (
+            <CadastrarMarcados
+              acao={cadastro}
+              remessaId={remessaId}
+              fonteId={fonteId}
+              itens={naoEncontrados
+                .filter((l) => selNE.marcados.has(l.id))
+                .map((l) => ({ lancamentoId: l.id, nome: nomes[l.id] ?? "" }))}
+            />
+          )}
         </div>
+      )}
+    </div>
+  )
+}
+
+type EstadoCadastro = Awaited<ReturnType<typeof cadastrarNaoEncontradosAction>>
+
+function CadastrarMarcados({
+  acao,
+  remessaId,
+  fonteId,
+  itens,
+}: {
+  acao: [EstadoCadastro, (fd: FormData) => void, boolean]
+  remessaId: string
+  fonteId: string
+  itens: { lancamentoId: string; nome: string }[]
+}) {
+  const [estado, formAction, pendente] = acao
+  const semNome = itens.filter((i) => i.nome.trim().length < 3).length
+  const plural = itens.length === 1 ? "" : "s"
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        confirmarEnvio(
+          e,
+          `Cadastrar ${itens.length} pessoa${plural} como filiado${plural} ativo${plural} desta fonte? Quem tiver CPF já cadastrado não é duplicado: o cadastro existente é usado.`
+        )
+      }}
+      className="grid justify-items-end gap-2"
+    >
+      <input type="hidden" name="remessa_id" value={remessaId} />
+      <input type="hidden" name="fonte_id" value={fonteId} />
+      <input type="hidden" name="itens" value={JSON.stringify(itens)} />
+      <p className="text-muted-foreground max-w-xl text-right text-xs">
+        Cada marcado vira filiado <strong>Ativo</strong> com o nome ao lado, o CPF
+        da relação (quando veio) e um vínculo nesta fonte com a matrícula da
+        relação; o pagamento passa a ser dele. O que faltar (CPF, admissão,
+        ficha…) aparece em Cadastros pendentes.
+      </p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {semNome > 0 && (
+          <span className="text-destructive text-xs">
+            {semNome} marcado{semNome === 1 ? "" : "s"} sem nome
+          </span>
+        )}
+        {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+        <Button type="submit" size="sm" disabled={pendente || itens.length === 0 || semNome > 0}>
+          {pendente ? <Loader2 className="animate-spin" /> : <UserRoundPlus />}
+          Cadastrar como ativos os marcados
+          {itens.length > 0 && ` (${itens.length})`}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+function ResultadoCadastro({ estado }: { estado: EstadoCadastro }) {
+  const r = estado.resultado
+  if (!r) return null
+  return (
+    <div className="border-success/40 bg-success/5 rounded-md border p-3 text-sm">
+      <p className="font-medium">
+        {r.criados.toLocaleString("pt-BR")} cadastrado{r.criados === 1 ? "" : "s"} como ativo
+        {r.criados === 1 ? "" : "s"}
+        {r.reaproveitados > 0 &&
+          ` · ${r.reaproveitados.toLocaleString("pt-BR")} já com cadastro pelo CPF (ligado e ativado)`}
+        {r.erros.length > 0 && ` · ${r.erros.length} com problema`}
+      </p>
+      {r.erros.length > 0 && (
+        <ul className="text-muted-foreground mt-1 grid gap-0.5 text-xs">
+          {r.erros.slice(0, 30).map((e, i) => (
+            <li key={i}>
+              {e.nome} · {e.motivo}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

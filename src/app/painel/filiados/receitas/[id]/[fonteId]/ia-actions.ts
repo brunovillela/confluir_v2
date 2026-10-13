@@ -318,6 +318,7 @@ export async function registrarContribuicoesIa(
           filiado_id: filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
+          nome: item.nome,
           valor: item.valor,
           forma_recebimento: forma,
           emp_proprietaria_id: empId,

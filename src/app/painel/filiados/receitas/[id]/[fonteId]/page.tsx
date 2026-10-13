@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { nomesDeEmpresas } from "@/lib/db/fontes"
 import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
@@ -67,7 +68,7 @@ export default async function RelatorioFontePage({
     condicoes?: string
   }>
 }) {
-  await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
+  const sessao = await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
 
   const { id, fonteId } = await params
   const sp = await searchParams
@@ -369,10 +370,12 @@ export default async function RelatorioFontePage({
           }))}
           naoEncontrados={naoEncontrados.map((l) => ({
             id: l.id,
+            nome: l.nome,
             matriculaFonte: l.matriculaFonte,
             cpf: l.cpf,
             valor: l.valor,
           }))}
+          podeCadastrar={!semFonte && podeAcessar(sessao.permissoes, "filiacao_gestao")}
         />
       </GrupoColapsavel>
         </div>

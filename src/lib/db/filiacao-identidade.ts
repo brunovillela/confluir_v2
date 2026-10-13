@@ -36,7 +36,7 @@ export type CadastroParecido = {
 }
 
 /** Cadastros NÃO excluídos com o CPF (qualquer grafia), fora os ignorados. */
-async function cadastrosComCpf(cpf: string, ignorarIds: string[]): Promise<CadastroParecido[]> {
+export async function cadastrosComCpf(cpf: string, ignorarIds: string[]): Promise<CadastroParecido[]> {
   const admin = await createAdminClient()
   const { data } = await admin
     .from("filiacoes")

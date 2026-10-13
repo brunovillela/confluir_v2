@@ -141,8 +141,8 @@ export function EnviarContribuicoes({
             />
             <p className="text-muted-foreground text-xs">
               {semFonte
-                ? "Colunas: cpf + valor (sem fonte não há matrícula)."
-                : "Colunas: cpf e/ou matricula (na fonte) + valor."}{" "}
+                ? "Colunas: cpf + valor (sem fonte não há matrícula); nome é opcional."
+                : "Colunas: cpf e/ou matricula (na fonte) + valor; nome é opcional e ajuda a cadastrar quem não for encontrado."}{" "}
               TXT com o mesmo cabeçalho e separador (; , ou tabulação) também vale; TXT
               em outro layout, PDF ou foto da relação vão pela aba Relatório (IA).
               Quem não for encontrado entra como “não encontrado no cadastro”.

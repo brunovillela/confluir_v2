@@ -375,6 +375,23 @@ export async function relatorioFonteRemessa(
           b.matriculaFonte ?? b.cpf ?? ""
         ) || 0
     )
+  // O nome como veio na relação (supabase/filiacao-recebe-nome.sql): só dos
+  // não encontrados, e fora do carregamento da remessa para não perder o
+  // índice cobrindo. Sem a coluna, ficam sem nome.
+  if (naoEncontrados.length > 0) {
+    const admin = await createAdminClient()
+    const nomes = new Map<string, string>()
+    for (let de = 0; de < naoEncontrados.length; de += 200) {
+      const { data, error } = await admin
+        .from("filiacao_recebe")
+        .select("id, nome")
+        .in("id", naoEncontrados.slice(de, de + 200).map((l) => l.id))
+        .not("nome", "is", null)
+      if (error) break
+      for (const r of data ?? []) nomes.set(String(r.id), String(r.nome))
+    }
+    for (const l of naoEncontrados) l.nome = nomes.get(l.id) ?? null
+  }
   const pagantesNaoAtivos = lancamentos.filter(
     (l) => l.condicao !== "Ativo"
   )

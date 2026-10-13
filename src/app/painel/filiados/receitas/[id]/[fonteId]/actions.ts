@@ -20,6 +20,12 @@ import {
   resolverFiliadosLote,
   resolverParaGravar,
 } from "@/lib/db/receitas"
+import {
+  cadastrarNaoEncontrados,
+  type ItemCadastro,
+  MAX_CADASTRO_LOTE,
+  type ResultadoCadastro,
+} from "@/lib/db/receitas-nao-encontrados"
 import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -197,6 +203,10 @@ const CABECALHOS: Record<string, string> = {
   matriculadafonte: "matricula",
   matriculadafontepagadora: "matricula",
   valor: "valor",
+  nome: "nome",
+  nomecompleto: "nome",
+  empregado: "nome",
+  trabalhador: "nome",
 }
 
 const MAX_LINHAS = 10_000
@@ -249,6 +259,7 @@ export async function importarContribuicoes(
     linha: number
     cpf: string | null
     matriculaFonte: string | null
+    nome: string | null
     valor: number
   }[] = []
 
@@ -279,7 +290,13 @@ export async function importarContribuicoes(
       })
       continue
     }
-    itens.push({ linha: numeroLinha, cpf: cpf || null, matriculaFonte: matricula, valor })
+    itens.push({
+      linha: numeroLinha,
+      cpf: cpf || null,
+      matriculaFonte: matricula,
+      nome: valores.nome?.replace(/s+/g, " ").slice(0, 160) || null,
+      valor,
+    })
   }
 
   const resolvidos = await resolverParaGravar(fonteDb, grupo, remessaId, itens)
@@ -301,6 +318,7 @@ export async function importarContribuicoes(
           filiado_id: r.filiadoId,
           cpf: item.cpf,
           fonte_pg_matricula: item.matriculaFonte,
+          nome: item.nome,
           valor: item.valor,
           forma_recebimento: forma,
           emp_proprietaria_id: empId,
@@ -653,4 +671,50 @@ export async function excluirLancamentosDaFonte(
   redirect(
     `/painel/filiados/receitas/${ids.remessaId}/${ids.fonteId}?fonte_limpa=${count ?? 0}`
   )
+}
+
+export type EstadoCadastroNaoEncontrados = {
+  erro?: string
+  resultado?: ResultadoCadastro
+}
+
+/**
+ * Cadastra como filiados ATIVOS da fonte os "não encontrados" marcados, com
+ * os dados da relação (ver lib/db/receitas-nao-encontrados.ts). Criar
+ * cadastro é da gestão de filiação.
+ */
+export async function cadastrarNaoEncontradosAction(
+  _prev: EstadoCadastroNaoEncontrados,
+  formData: FormData
+): Promise<EstadoCadastroNaoEncontrados> {
+  await requirePermissao("filiacao_gestao")
+  const ids = idsDoForm(formData)
+  if (!ids?.fonteDb) return { erro: "Remessa ou fonte inválida." }
+
+  let itens: ItemCadastro[] = []
+  try {
+    const bruto = JSON.parse(String(formData.get("itens") ?? "[]")) as unknown
+    if (Array.isArray(bruto)) {
+      itens = bruto
+        .filter(
+          (i): i is ItemCadastro =>
+            typeof i?.lancamentoId === "string" && UUID.test(i.lancamentoId) && typeof i?.nome === "string"
+        )
+        .map((i) => ({ lancamentoId: i.lancamentoId, nome: i.nome }))
+    }
+  } catch {
+    return { erro: "Seleção inválida." }
+  }
+  if (itens.length === 0) return { erro: "Marque ao menos uma pessoa." }
+  if (itens.length > MAX_CADASTRO_LOTE) {
+    return { erro: `Marque no máximo ${MAX_CADASTRO_LOTE} pessoas por vez.` }
+  }
+
+  const r = await cadastrarNaoEncontrados(ids.remessaId, ids.fonteDb, itens)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/filiados")
+  revalidatePath("/painel/filiados/lista")
+  revalidatePath(`/painel/filiados/receitas/${ids.remessaId}`)
+  revalidatePath(`/painel/filiados/receitas/${ids.remessaId}/${ids.fonteId}`)
+  return { resultado: r.resultado }
 }

@@ -888,7 +888,6 @@ export async function avaliarSolicitacao(
         cargo: texto(s.cargo),
         lotacao: texto(s.lotacao),
         matricula: texto(s.matricula),
-        filiacao_condicao: condicao,
         emp_proprietaria_id: empId,
       })
     }

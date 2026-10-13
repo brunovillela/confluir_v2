@@ -136,7 +136,6 @@ export async function registrarFiliacao(
       matricula: texto("matricula_fonte"),
       data_entrada_admissao: data("data_entrada_admissao"),
       data_filiacao: data("data_filiacao"),
-      filiacao_condicao: condicao,
       emp_proprietaria_id: await tenantAtual(),
     })
     if (erroVinculo) {
