@@ -1,5 +1,6 @@
 import "server-only"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
+import { formatarCnpjCpf } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -278,17 +279,31 @@ async function cnpjDuplicado(
   cnpj: string,
   ignorarId?: string
 ): Promise<boolean> {
+  return (await outroComDocumento(cnpj, ignorarId)) !== null
+}
+
+/**
+ * Outro cadastro ativo com o mesmo CNPJ/CPF (só dígitos; o legado do Bubble
+ * guardava com pontuação — compara as duas formas).
+ */
+async function outroComDocumento(
+  cnpj: string,
+  ignorarId?: string
+): Promise<{ id: string; nome: string } | null> {
   const admin = await createAdminClient()
+  const formas = [cnpj, formatarCnpjCpf(cnpj)].filter((v, i, a) => v && a.indexOf(v) === i)
   let q = admin
     .from("empresa")
-    .select("id")
+    .select("id, nome_fantasia, nome_razao")
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("cnpj_cpf", cnpj)
+    .in("cnpj_cpf", formas)
     .not("inativa", "is", true)
     .limit(1)
   if (ignorarId) q = q.neq("id", ignorarId)
   const { data } = await q
-  return (data ?? []).length > 0
+  const e = data?.[0]
+  if (!e) return null
+  return { id: String(e.id), nome: String(e.nome_fantasia || e.nome_razao || "(sem nome)") }
 }
 
 export type FornecedorEncontrado = {
@@ -511,10 +526,27 @@ export async function atualizarFornecedor(
 ): Promise<{ erro?: string }> {
   const invalido = validarDados(dados)
   if (invalido) return { erro: invalido }
-  if (dados.cnpj_cpf && (await cnpjDuplicado(dados.cnpj_cpf, id))) {
-    return { erro: "Já existe outro cadastro ativo com este CNPJ/CPF." }
-  }
   const admin = await createAdminClient()
+  // Cadastro que JÁ divide o CNPJ/CPF com outro (duplicidade antiga) segue
+  // editável — nome, bloqueio, endereço… A recusa é só para quem TROCA o
+  // documento por um que já é de outro cadastro. Duplicados se resolvem
+  // mesclando (Fornecedores → Cadastros duplicados).
+  const { data: atual } = await admin
+    .from("empresa")
+    .select("cnpj_cpf")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!atual) return { erro: "Fornecedor não encontrado." }
+  const documentoAntes = String(atual.cnpj_cpf ?? "").replace(/\D/g, "")
+  if (dados.cnpj_cpf && dados.cnpj_cpf !== documentoAntes) {
+    const outro = await outroComDocumento(dados.cnpj_cpf, id)
+    if (outro) {
+      return {
+        erro: `Este CNPJ/CPF já é do cadastro "${outro.nome}". Para juntar os dois, use Mesclar em Fornecedores → Cadastros duplicados.`,
+      }
+    }
+  }
   const { data, error } = await admin
     .from("empresa")
     .update({

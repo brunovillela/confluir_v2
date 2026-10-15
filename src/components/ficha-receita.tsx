@@ -64,11 +64,13 @@ export function FichaReceita({
           <AlertTriangle />
           <AlertDescription>
             <span>
-              Já existe um cadastro ativo com este CNPJ:{" "}
+              {idAtual ? "Outro cadastro ativo tem este CNPJ:" : "Já existe um cadastro ativo com este CNPJ:"}{" "}
               <a href={hrefExistente(duplicado.id)} className="font-medium underline">
                 {duplicado.nome}
               </a>
-              . Use-o em vez de criar outro.
+              {idAtual
+                ? ". Para juntar os dois cadastros, use Mesclar em Cadastros duplicados."
+                : ". Use-o em vez de criar outro."}
             </span>
           </AlertDescription>
         </Alert>
