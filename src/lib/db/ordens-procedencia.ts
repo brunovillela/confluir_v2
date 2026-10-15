@@ -266,7 +266,8 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
     const solicitante = t(proc.solicitante_id)
     const comprador = t(forn?.comprador_id) ?? t(proc.comprado_por_id)
     p.solicitante = solicitante ? { id: solicitante, nome: null, papel: "Solicitou" } : comprador ? { id: comprador, nome: null, papel: "Comprou" } : null
-    if (comprador && comprador !== solicitante) p.envolvidos.push({ id: comprador, nome: null, papel: "Comprou" })
+    // Sem solicitante, quem comprou já está no lugar dele: não repete.
+    if (comprador && solicitante && comprador !== solicitante) p.envolvidos.push({ id: comprador, nome: null, papel: "Comprou" })
     const recebido = forn ? forn.recebido === true : proc.recebido === true
     const recebedor = t(forn?.recebimento_recebido_por_id) ?? t(proc.recebimento_recebido_por_id)
     p.recebimento = {

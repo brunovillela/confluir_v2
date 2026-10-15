@@ -368,6 +368,53 @@ fica na **trilha da ordem**, com a nota anterior.
   [Auditoria das ordens](/painel/ajuda/financeiro/auditoria).
 </Aviso>
 
+## Editar a compra antes da autorização
+
+<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+
+Enquanto **nenhuma ordem da compra foi autorizada**, ela ainda está nas mãos
+de quem a registrou: o botão **Editar compra**, no topo da página do processo,
+abre o formulário já preenchido para corrigir o que for preciso — por exemplo,
+depois de um alerta da IA sobre a descrição.
+
+- **Sempre**: produto ou serviço, observações, tipo, departamento, centro de
+  custo, projeto e entrega (no ato, ou limite e local para receber).
+- **Compra de um só pagamento** (o caso da aquisição direta): também
+  fornecedor, data, valor, comprador, "Pagar em", a nota fiscal (substituir é
+  opcional) e — marcando **Alterar a forma de pagamento** — a forma e o seu
+  complemento (cartão, chave, conta, código Pix ou boleto). Com outro
+  fornecedor, informe de novo a chave ou a conta dele.
+- **Compra com vários pagamentos**: edita-se a solicitação; o valor e a forma
+  de cada pagamento, o Financeiro corrige na ordem.
+
+O que fica travado e por quê:
+
+- **Paga por RPA**: o valor é o líquido do recibo e o prestador é o do RPA —
+  para mudá-los, exclua o RPA e emita outro.
+- **Em dinheiro**: o valor já saiu do caixa no lançamento — valor e forma não
+  mudam (cancele e lance de novo). Pelo mesmo motivo, a edição não troca uma
+  compra para Dinheiro.
+
+Ao salvar, a auditoria (regras e IA) **analisa a compra de novo** antes de
+gravar, com a mesma tela de confirmação do registro: o que o ajuste resolveu
+aparece como resolvido; o que persiste, você ajusta ou confirma. A ordem
+recebe a descrição, o centro de custo, o valor e a forma novos, e a correção
+fica na trilha com o antes e o depois. Ordem **devolvida para informações**
+volta para a autorização ao salvar a edição.
+
+Depois que **uma** ordem da compra é autorizada (A pagar, Processando, Paga),
+o botão some: a compra saiu da sua jurisdição e a correção é com o Financeiro
+(**Corrigir ordem**).
+
+<Aviso tipo="nota" titulo="Toda alteração é reavaliada">
+  Não é só a edição: qualquer mudança numa ordem — correção pelo Financeiro,
+  nota ou boleto novos, código Pix novo, RPA emitido ou assinado, dados de
+  pagamento corrigidos após estorno — faz a auditoria refazer as regras e a
+  IA. Os alertas da ordem passam a ser os da ordem como ficou, e a trilha
+  registra o que surgiu e o que foi resolvido. A IA só é consultada de novo se
+  a descrição mudou.
+</Aviso>
+
 ## Aprovação por alçada
 
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>

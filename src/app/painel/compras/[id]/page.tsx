@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { FileText } from "lucide-react"
+import { FileText, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +32,7 @@ import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
+import { edicaoDaCompra } from "@/lib/db/compras-edicao"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { podeAcessar } from "@/lib/permissoes"
@@ -152,7 +153,7 @@ export default async function ProcessoCompraPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ criado?: string; salvo?: string }>
+  searchParams: Promise<{ criado?: string; salvo?: string; editada?: string }>
 }) {
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
@@ -160,7 +161,7 @@ export default async function ProcessoCompraPage({
     "aquisicoes_recebimentos",
   ])
   const { id } = await params
-  const { criado, salvo } = await searchParams
+  const { criado, salvo, editada } = await searchParams
 
   const processo = await buscarProcesso(id)
   if (!processo) notFound()
@@ -190,6 +191,11 @@ export default async function ProcessoCompraPage({
       "aquisicoes_comprador",
       "aquisicoes_compra_direta",
     ])
+
+  // Antes da autorização a compra é de quem a registrou: edita tudo (15/10).
+  const podeEditar =
+    podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", ["aquisicoes_compra_direta", "aquisicoes_comprador"]) &&
+    (await edicaoDaCompra(processo)).pode
 
   const fornecedores =
     operavel && !processo.comprado ? await listarFornecedores() : []
@@ -317,16 +323,26 @@ export default async function ProcessoCompraPage({
             <AquisicaoBadge direta={processo.aquisicao_direta} />
             {processo.legado && <Badge variant="outline">Migrado do Bubble</Badge>}
           </div>
-          {operavel && !processo.comprado && (
-            <BotaoAcaoProcesso
-              acao="cancelar"
-              campos={{ processo_id: processo.id }}
-              confirmacao="Cancelar este processo de aquisição?"
-              variant="destructive"
-            >
-              Cancelar processo
-            </BotaoAcaoProcesso>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {podeEditar && (
+              <Button asChild variant="outline">
+                <Link href={`/painel/compras/${processo.id}/editar`}>
+                  <Pencil />
+                  Editar compra
+                </Link>
+              </Button>
+            )}
+            {operavel && !processo.comprado && (
+              <BotaoAcaoProcesso
+                acao="cancelar"
+                campos={{ processo_id: processo.id }}
+                confirmacao="Cancelar este processo de aquisição?"
+                variant="destructive"
+              >
+                Cancelar processo
+              </BotaoAcaoProcesso>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Registrado em {formatarDataHora(processo.created_at)}
@@ -336,6 +352,13 @@ export default async function ProcessoCompraPage({
       {criado === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Processo registrado.</AlertDescription>
+        </Alert>
+      )}
+      {editada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Compra editada. A auditoria analisou de novo e os alertas da ordem foram atualizados.
+          </AlertDescription>
         </Alert>
       )}
       {salvo === "1" && (

@@ -57,6 +57,32 @@ A parcela recorrente que **aguarda o documento fiscal** não acusa *Sem nota
 fiscal* ao ser gerada — a nota vem depois, e a análise roda de novo quando
 ela é recebida, antes de a ordem seguir para autorização.
 
+A mesma tela aparece em **Editar compra** (Aquisição): enquanto nenhuma ordem
+da compra foi autorizada, quem a registrou corrige tudo — descrição,
+fornecedor, valor, forma — e a análise roda de novo antes de gravar. Ver
+[Editar a compra antes da autorização](/painel/ajuda/compras/comprar).
+
+## Reavaliação a cada alteração
+
+Uma ordem que **muda depois de criada** passa de novo pelas regras e pela IA,
+qualquer que seja a origem: correção pelo Financeiro (*Corrigir ordem*), nota
+fiscal ou boleto anexados, código Pix novo, RPA emitido ou assinado, compra
+editada, dados de pagamento corrigidos após estorno, reembolso editado. Os
+alertas da ordem passam a ser os da ordem **como ficou**:
+
+- o que deixou de valer some da lista (ex.: o vencimento corrigido resolve
+  *Vencimento já passado*);
+- o que surgiu entra como alerta novo — e, mesmo que a mesma regra tenha sido
+  confirmada antes por quem registrou, volta a aparecer como não confirmado
+  para quem autoriza;
+- a **trilha** registra cada reavaliação: *Reavaliada após alteração (motivo)
+  — N alertas · novos: … · resolvidos: …*.
+
+A IA só é consultada de novo quando a **descrição** mudou. Regras que dependem
+de dados guardados fora da ordem (início da diária, condutor da multa,
+comprovante do reembolso, nota na fatura do hotel) ficam com o resultado
+anterior.
+
 ## Configurar
 
 Em **Financeiro → Auditoria das ordens**, escolha a **origem** nas abas —
@@ -69,9 +95,10 @@ ainda não foi personalizado.
 
 <Print src="financeiro/auditoria-regras.png" alt="Tela Auditoria das ordens com as abas das origens e a aba Aquisição aberta: cada regra num cartão com a pergunta, a explicação e as opções Aceitar, Aceitar com alerta e Bloquear; algumas com parâmetros, como o número de dias, os critérios mínimos da descrição para a IA e os valores-limite de uma só proposta e da aquisição direta." legenda="As regras de Aquisição: a pergunta, a resposta e os parâmetros de cada uma." />
 
-<Aviso tipo="nota" titulo="Vale para as próximas ordens">
+<Aviso tipo="nota" titulo="Vale para as próximas ordens (e as alteradas)">
   Mudar uma regra não altera as ordens já criadas: cada ordem guarda o resultado
-  das verificações feitas quando nasceu.
+  das verificações feitas quando nasceu. Se uma ordem for alterada depois, a
+  reavaliação usa as regras vigentes.
 </Aviso>
 
 ## As regras
@@ -122,12 +149,13 @@ ainda não foi personalizado.
 
 ## Onde aparece o resultado
 
-- Na **ordem**, no cartão **Verificações na criação**: cada regra conferida,
-  com OK, Alerta ou N/A e o motivo.
+- Na **ordem**, no cartão **Verificações da auditoria**: cada regra conferida,
+  com OK, Alerta ou N/A e o motivo — pela última análise (a da criação ou a
+  da reavaliação depois da última alteração, com as duas datas).
 - No **extrato em PDF**, na seção de mesmo nome.
 - Na fila de **Avaliações de ordens**, a etiqueta **N alertas da auditoria**.
 
-<Print src="financeiro/ordem-verificacoes.png" alt="Cartão Verificações na criação de uma compra direta de R$ 15.000, com 3 alertas: CPF/CNPJ do favorecido inválido, chave Pix de outro CNPJ e aquisição direta acima do limite de R$ 10.000; as demais regras aparecem como OK ou N/A, com o motivo." legenda="O que foi conferido quando a ordem nasceu — e por que houve alerta." />
+<Print src="financeiro/ordem-verificacoes.png" alt="Fim da página de uma ordem de compra: a trilha mostra a compra editada, uma correção que gerou o alerta Vencimento já passado e outra que o resolveu, cada uma seguida de Verificada pelas regras de auditoria. Abaixo, o cartão Verificações da auditoria, conferidas na criação (07/10) e de novo após a última alteração (15/10), com 1 alerta — CPF/CNPJ do favorecido inválido — e as demais regras OK ou N/A, com o motivo." legenda="A última análise de cada regra — e, na trilha, o que cada alteração trouxe ou resolveu." />
 
 ## Erros comuns
 
@@ -142,7 +170,10 @@ ainda não foi personalizado.
   configurado, ou a IA estava indisponível no momento — nesse caso a ordem é
   criada normalmente.
 - **"Mudei a regra e a ordem antiga continua com o alerta."** É o esperado: o
-  resultado é o da criação.
+  resultado é o da criação. Se a ordem for alterada, a reavaliação já usa a
+  regra nova.
+- **"Corrigi a ordem e o alerta sumiu."** É a reavaliação: a correção
+  resolveu o ponto. A trilha mostra o que foi resolvido e quando.
 
 <VejaTambem
   links={[

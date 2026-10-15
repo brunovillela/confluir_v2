@@ -138,6 +138,9 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
  * Grava eventos na trilha. Falha na trilha NUNCA desfaz a operação (só loga):
  * sem o SQL rodado, o sistema segue funcionando sem histórico.
  */
+/** Eventos de ordem que mudam o conteúdo dela — a auditoria reavalia. */
+const EVENTOS_QUE_REAVALIAM: TipoEvento[] = ["corrigida", "documento_fiscal", "estorno_corrigido"]
+
 export async function registrarEvento(
   ordemIds: string | string[],
   tipo: TipoEvento,
@@ -161,6 +164,14 @@ export async function registrarEvento(
   )
   if (error && !esquemaAusente(error)) {
     console.error("registrarEvento:", error.message)
+  }
+  // Ordem alterada: regras e IA de novo, e os alertas passam a valer para a
+  // ordem como ficou. Quem já reanalisou antes de gravar marca `reavaliada`.
+  if (EVENTOS_QUE_REAVALIAM.includes(tipo) && dados?.reavaliada !== true) {
+    const { reavaliarOrdens } = await import("@/lib/db/ordens-verificacao")
+    await reavaliarOrdens(ids, descricao?.trim() || ROTULO_EVENTO[tipo], usuarioId).catch((e) =>
+      console.error("reavaliarOrdens:", e)
+    )
   }
   // Webhooks de saída (onda 5, A9): os marcos que outros sistemas querem saber.
   const eventoWebhook = ({ paga: "ordem.paga", autorizada: "ordem.autorizada", devolvida: "ordem.devolvida" } as const)[tipo as "paga" | "autorizada" | "devolvida"]

@@ -908,7 +908,7 @@ export default async function OrdemPage({
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
-                    Verificações na criação
+                    Verificações da auditoria
                     {x.verificacoes.some((v) => v.status === "alerta") ? (
                       <Badge variant="outline" className={ESTILO_STATUS.alerta.classe}>
                         {x.verificacoes.filter((v) => v.status === "alerta").length} alerta(s)
@@ -918,8 +918,13 @@ export default async function OrdemPage({
                     )}
                   </CardTitle>
                   <CardDescription>
-                    Regras de auditoria do Financeiro conferidas quando a ordem foi criada,
-                    em {formatarDataHora(x.verificacoes[0].quando)}
+                    {(() => {
+                      const criacao = x.verificacoes[0].criadaEm
+                      const ultima = x.verificacoes.map((v) => v.quando).sort().at(-1) ?? criacao
+                      return ultima.slice(0, 16) !== criacao.slice(0, 16)
+                        ? `Regras de auditoria do Financeiro conferidas na criação (${formatarDataHora(criacao)}) e de novo após a última alteração da ordem, em ${formatarDataHora(ultima)}`
+                        : `Regras de auditoria do Financeiro conferidas quando a ordem foi criada, em ${formatarDataHora(criacao)}`
+                    })()}
                   </CardDescription>
                 </div>
                 <ShieldCheck className="text-muted-foreground size-4" />

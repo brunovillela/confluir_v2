@@ -3,6 +3,7 @@ import "server-only"
 import {
   CRITERIOS_DESCRICAO_PADRAO,
   origemDoTipo,
+  REGRAS_AUDITORIA,
   type OrigemOrdem,
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
@@ -40,6 +41,8 @@ import { tenantAtual } from "@/lib/tenant"
  */
 
 type Linha = Record<string, unknown>
+
+const CODIGOS_DO_CATALOGO = new Set(REGRAS_AUDITORIA.map((r) => r.codigo))
 
 /** Dados da origem que não estão na linha da ordem. */
 export type ContextoVerificacao = {
@@ -178,7 +181,32 @@ const SISTEMA_DESCRICAO = `Você audita ordens de pagamento de um sindicato. Ava
 Seja objetivo. Não exija o que os critérios não pedem. Considere o tipo da ordem e o valor.
 Devolva um JSON com: "atende" (true/false), "faltando" (lista curta do que falta, vazia se atende) e "comentario" (uma frase).`
 
+/**
+ * Pareceres recentes da IA (30 min, por instância): quem vê o alerta e
+ * confirma reenvia a mesma compra — a análise roda de novo sem nova chamada.
+ */
+const PARECERES_IA = new Map<string, { em: number; parecer: { status: StatusVerificacao; detalhe: string } }>()
+const PARECER_IA_MS = 30 * 60 * 1000
+
 async function avaliarDescricaoIA(
+  descricao: string,
+  criterios: string,
+  tipo: string,
+  valor: number | null
+): Promise<{ status: StatusVerificacao; detalhe: string }> {
+  const chave = JSON.stringify([await tenantAtual(), descricao, criterios, tipo, valor])
+  const guardado = PARECERES_IA.get(chave)
+  if (guardado && Date.now() - guardado.em < PARECER_IA_MS) return guardado.parecer
+  const parecer = await consultarIA(descricao, criterios, tipo, valor)
+  // Falha da IA não fica guardada: a próxima análise tenta de novo.
+  if (parecer.status !== "na") {
+    if (PARECERES_IA.size > 500) PARECERES_IA.clear()
+    PARECERES_IA.set(chave, { em: Date.now(), parecer })
+  }
+  return parecer
+}
+
+async function consultarIA(
   descricao: string,
   criterios: string,
   tipo: string,
@@ -199,6 +227,14 @@ async function avaliarDescricaoIA(
   return dados.atende === true
     ? { status: "ok", detalhe: comentario || "A descrição atende aos critérios." }
     : { status: "falha", detalhe: `${faltando.length ? `Falta: ${faltando.join("; ")}.` : ""} ${comentario}`.trim() }
+}
+
+/** A descrição-base avaliada pela IA (sem o "parcela x/y" do lote nem o "(pagamento n)" da compra). */
+function chaveDaDescricao(descricao: string): string {
+  return descricao
+    .replace(/parcela \d+\/\d+.*$/i, "")
+    .replace(/\s*\(pagamento \d+\)\s*$/i, "")
+    .trim()
 }
 
 async function verificarLinha(
@@ -323,7 +359,7 @@ async function verificarLinha(
           break
         }
         // Parcelas de um lote têm a mesma descrição-base: avalia uma vez.
-        const chaveMemo = descricao.replace(/parcela \d+\/\d+.*$/i, "").trim()
+        const chaveMemo = chaveDaDescricao(descricao)
         if (!memoIA.has(chaveMemo)) {
           memoIA.set(chaveMemo, await avaliarDescricaoIA(descricao, String(p.criterios || CRITERIOS_DESCRICAO_PADRAO), tipo, valor))
         }
@@ -411,15 +447,19 @@ async function verificarLinha(
         const ref = venc ?? hoje
         const ini = `${ref.slice(0, 7)}-01`
         const fimMes = somarDias(somarDias(ini, 32).slice(0, 7) + "-01", -1)
-        const { data } = await admin
+        let qRpa = admin
           .from("ordens_pagamento")
           .select("valor_inicial_cobranca")
           .eq("emp_proprietaria_id", emp)
           .eq("tipo", "RPA")
           .eq("beneficiario_fornecedor_id", fornId)
           .not("situacao", "in", '("Cancelada","Estornado")')
+          .not("excluido", "is", true)
           .gte("vencimento", ini)
           .lte("vencimento", fimMes)
+        // Reavaliação de uma ordem já gravada: ela entra como "esta ordem".
+        if (t(linha.id)) qRpa = qRpa.neq("id", t(linha.id)!)
+        const { data } = await qRpa
         const soma = (data ?? []).reduce((a, o) => a + (n(o.valor_inicial_cobranca) ?? 0), 0) + valor
         const teto = n(p.valor) ?? 0
         r(soma > teto ? "falha" : "ok", `${formatarMoeda(soma)} no mês ${ref.slice(5, 7)}/${ref.slice(0, 4)} com esta ordem — teto ${formatarMoeda(teto)}.`)
@@ -463,13 +503,18 @@ async function verificarLinha(
 /** Confere as regras de uma ordem (ou lote) sem gravar nada. */
 export async function verificarOrdens(
   linhas: Linha[],
-  ctx: ContextoVerificacao = {}
+  ctx: ContextoVerificacao = {},
+  /**
+   * Pareceres da IA já dados (reavaliação, ou várias ordens da mesma compra):
+   * a mesma descrição não volta à IA. O mapa recebe os pareceres novos.
+   */
+  iaAnterior?: Map<string, { status: StatusVerificacao; detalhe: string }>
 ): Promise<{ origem: OrigemOrdem | null; resultados: ResultadoVerificacao[][] }> {
   const origem = origemDoTipo(t(linhas[0]?.tipo))
   if (!origem) return { origem: null, resultados: linhas.map(() => []) }
   const regras = (await regrasConfiguradas(origem)).filter((r) => r.severidade !== "aceitar")
   const buscar = cache()
-  const memoIA = new Map<string, { status: StatusVerificacao; detalhe: string }>()
+  const memoIA = iaAnterior ?? new Map<string, { status: StatusVerificacao; detalhe: string }>()
   const resultados: ResultadoVerificacao[][] = []
   for (const l of linhas) resultados.push(await verificarLinha(l, regras, ctx, buscar, memoIA))
   return { origem, resultados }
@@ -556,6 +601,7 @@ export async function inserirOrdensVerificadas(
         {
           alertas: lista.filter((v) => v.status === "falha").map((v) => v.codigo),
           ...(ctx.confirmacao && al ? { confirmados: ctx.confirmacao.codigos } : {}),
+          ...descricaoAvaliada(linhas[i], lista),
         }
       )
     }
@@ -563,50 +609,189 @@ export async function inserirOrdensVerificadas(
   return { ids, alertas }
 }
 
+/** Grava o resultado das verificações de uma ordem (cada rodada soma linhas; vale a mais recente por regra). */
+async function gravarVerificacoes(ordemId: string, origem: OrigemOrdem, lista: ResultadoVerificacao[]): Promise<void> {
+  if (!lista.length) return
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin.from("ordens_pagamento_verificacoes").insert(
+    lista.map((v) => ({
+      emp_proprietaria_id: emp,
+      ordem_id: ordemId,
+      origem,
+      codigo: v.codigo,
+      titulo: v.titulo,
+      severidade: v.severidade,
+      status: v.status === "falha" ? "alerta" : v.status,
+      detalhe: v.detalhe,
+    }))
+  )
+  if (error && !esquemaAusente(error)) console.error("verificações:", error.message)
+}
+
+/**
+ * Para o evento "verificada": a descrição que a IA avaliou. Na reavaliação,
+ * descrição igual reaproveita o parecer (sem nova chamada à IA).
+ */
+function descricaoAvaliada(linha: Linha | undefined, lista: ResultadoVerificacao[]): { descricao_avaliada?: string } {
+  const d = t(linha?.descricao)
+  const avaliou = lista.some((v) => v.codigo === "descricao_ia" && (v.status === "ok" || v.status === "falha"))
+  return d && avaliou ? { descricao_avaliada: chaveDaDescricao(d) } : {}
+}
+
+/** O último parecer da IA sobre a ordem — só se foi sobre esta mesma descrição. */
+async function parecerAnteriorDaIA(
+  ordemId: string,
+  descricao: unknown
+): Promise<Map<string, { status: StatusVerificacao; detalhe: string }> | undefined> {
+  const d = t(descricao)
+  if (!d) return undefined
+  const chave = chaveDaDescricao(d)
+  const admin = await createAdminClient()
+  const [ev, ver] = await Promise.all([
+    admin
+      .from("ordens_pagamento_eventos")
+      .select("dados")
+      .eq("ordem_id", ordemId)
+      .eq("tipo", "verificada")
+      .order("created_at", { ascending: false })
+      .limit(1),
+    admin
+      .from("ordens_pagamento_verificacoes")
+      .select("status, detalhe")
+      .eq("ordem_id", ordemId)
+      .eq("codigo", "descricao_ia")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ])
+  const ultimo = (ev.data?.[0]?.dados ?? null) as Record<string, unknown> | null
+  const v = ver.data?.[0]
+  if (!v || ultimo?.descricao_avaliada !== chave || (v.status !== "ok" && v.status !== "alerta")) return undefined
+  return new Map([[chave, { status: v.status === "alerta" ? "falha" : "ok", detalhe: String(v.detalhe ?? "") }]])
+}
+
+/**
+ * Regras que dependem de dados da origem que a ordem não guarda (início da
+ * diária, condutor da multa, comprovante do reembolso, nota na fatura do
+ * hotel). Sem esse contexto, a reavaliação não as refaz: vale o resultado
+ * anterior.
+ */
+function dependeDaOrigem(codigo: string, origem: OrigemOrdem, ctx: ContextoVerificacao): boolean {
+  if (codigo === "diaria_retroativa") return !("dataInicio" in ctx)
+  if (codigo === "multa_sem_condutor") return !("condutorId" in ctx)
+  if (codigo === "reembolso_sem_comprovante") return !("comprovante" in ctx)
+  if (codigo === "sem_documento_fiscal") return origem === "hospedagem" && !("notaFiscal" in ctx)
+  return false
+}
+
 /**
  * Reanálise de uma ordem JÁ GRAVADA que vai mudar (ex.: a parcela recorrente
- * que recebe a nota e segue para autorização). Confere a ordem como ficará;
- * com apontamento não confirmado, devolve-os sem mexer em nada. Senão, a
- * gravação fica com quem chamou — depois dela, `registrar` guarda o
- * resultado na ordem, como na criação.
+ * que recebe a nota e segue para autorização, a compra editada por quem a
+ * registrou). Confere a ordem como ficará; com apontamento não confirmado,
+ * devolve-os sem mexer em nada. Senão, a gravação fica com quem chamou —
+ * depois dela, `registrar` guarda o resultado na ordem, como na criação.
  */
 export async function reverificarOrdem(
   ordemId: string,
   mudancas: Linha,
-  ctx: ContextoVerificacao & { confirmacao: Confirmacao }
+  ctx: ContextoVerificacao & { confirmacao: Confirmacao },
+  /** Pareceres da IA compartilhados entre as ordens de uma mesma edição. */
+  memoIA: Map<string, { status: StatusVerificacao; detalhe: string }> = new Map()
 ): Promise<{ apontamentos?: Apontamento[]; registrar: (motivo: string) => Promise<void> }> {
   const admin = await createAdminClient()
   const { data: atual } = await admin.from("ordens_pagamento").select("*").eq("id", ordemId).maybeSingle()
-  const linha = { ...((atual as Linha | null) ?? {}), ...mudancas, id: ordemId }
-  const { origem, resultados } = await verificarOrdens([linha], ctx)
+  const linha: Linha = { ...((atual as Linha | null) ?? {}), ...mudancas, id: ordemId }
+  const anterior = await parecerAnteriorDaIA(ordemId, linha.descricao)
+  anterior?.forEach((v, k) => memoIA.set(k, v))
+  const { origem, resultados } = await verificarOrdens([linha], ctx, memoIA)
   const apontamentos = apontamentosDe(resultados, ctx.confirmacao)
   const registrar = async (motivo: string) => {
-    const lista = resultados[0] ?? []
+    const lista = (resultados[0] ?? []).filter((v) => !origem || !dependeDaOrigem(v.codigo, origem, ctx))
     if (!origem || !lista.length) return
-    const emp = await tenantAtual()
-    const { error } = await admin.from("ordens_pagamento_verificacoes").insert(
-      lista.map((v) => ({
-        emp_proprietaria_id: emp,
-        ordem_id: ordemId,
-        origem,
-        codigo: v.codigo,
-        titulo: v.titulo,
-        severidade: v.severidade,
-        status: v.status === "falha" ? "alerta" : v.status,
-        detalhe: v.detalhe,
-      }))
-    )
-    if (error && !esquemaAusente(error)) console.error("verificações:", error.message)
+    await gravarVerificacoes(ordemId, origem, lista)
     const al = lista.filter((v) => v.status === "falha")
     await registrarEvento(
       ordemId,
       "verificada",
       await usuarioDaTrilha(),
       `${lista.length} verificação(ões) ${motivo} — ${al.length ? `${al.length} alerta(s) confirmados por quem registrou` : "sem alertas"}.`,
-      { alertas: al.map((v) => v.codigo), confirmados: ctx.confirmacao.codigos }
+      { alertas: al.map((v) => v.codigo), confirmados: ctx.confirmacao.codigos, ...descricaoAvaliada(linha, lista) }
     )
   }
   return precisaConfirmar(apontamentos) ? { apontamentos, registrar } : { registrar }
+}
+
+/**
+ * REAVALIAÇÃO depois de uma alteração (15/10/2026): toda ordem corrigida —
+ * pela compra, pelo Financeiro, por nota/boleto/Pix novos, pelo estorno —
+ * passa de novo pelas regras e pela IA, e os alertas passam a refletir a
+ * ordem como está. A IA só é chamada de novo se a descrição mudou. A trilha
+ * registra o que surgiu e o que deixou de ser alerta.
+ */
+export async function reavaliarOrdens(
+  ordemIds: string[],
+  motivo: string,
+  usuarioId?: string | null
+): Promise<void> {
+  const ids = [...new Set(ordemIds.filter(Boolean))]
+  if (!ids.length) return
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento")
+    .select("*")
+    .in("id", ids)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  const usuario = usuarioId === undefined ? await usuarioDaTrilha() : usuarioId
+  const vigentes = await apontamentosPorOrdem(ids)
+  const porque = motivo.length > 140 ? `${motivo.slice(0, 137)}…` : motivo
+  for (const linha of (data ?? []) as Linha[]) {
+    if (linha.excluido === true || linha.situacao === "Cancelada") continue
+    const ordemId = String(linha.id)
+    const { origem, resultados } = await verificarOrdens([linha], {}, await parecerAnteriorDaIA(ordemId, linha.descricao))
+    if (!origem) continue
+    const todas = resultados[0] ?? []
+    const lista = todas.filter((v) => !dependeDaOrigem(v.codigo, origem, {}))
+    // Alerta de regra que não vale mais para a ordem (a origem mudou — ex.:
+    // compra que virou RPA — ou a regra passou a "aceitar"): sai da lista.
+    // Só regras do catálogo: apontamentos de outros fluxos (valor acima do
+    // escolhido, reconhecimento do caixa) seguem com quem os registrou.
+    const obsoletos: ResultadoVerificacao[] = (vigentes.get(ordemId) ?? [])
+      .filter((a) => CODIGOS_DO_CATALOGO.has(a.codigo) && !todas.some((v) => v.codigo === a.codigo))
+      .filter((a) => !dependeDaOrigem(a.codigo, origem, {}))
+      .map((a) => ({
+        codigo: a.codigo,
+        titulo: a.titulo,
+        severidade: a.severidade as Severidade,
+        status: "na",
+        detalhe: "Regra que não se aplica mais a esta ordem.",
+      }))
+    lista.push(...obsoletos)
+    if (!lista.length) continue
+    await gravarVerificacoes(ordemId, origem, lista)
+
+    const antes = new Set((vigentes.get(ordemId) ?? []).map((a) => a.codigo))
+    const agora = lista.filter((v) => v.status === "falha")
+    const novos = agora.filter((v) => !antes.has(v.codigo))
+    const resolvidos = lista.filter((v) => v.status !== "falha" && antes.has(v.codigo))
+    const partes = [
+      agora.length ? `${agora.length} alerta(s)` : "sem alertas",
+      novos.length ? `novo(s): ${novos.map((v) => v.titulo).join("; ")}` : null,
+      resolvidos.length ? `resolvido(s): ${resolvidos.map((v) => v.titulo).join("; ")}` : null,
+    ].filter(Boolean)
+    await registrarEvento(
+      ordemId,
+      "verificada",
+      usuario,
+      `Reavaliada após alteração (${porque}) — ${partes.join(" · ")}.`,
+      {
+        alertas: agora.map((v) => v.codigo),
+        reavaliacao: true,
+        ...(novos.length ? { novos: novos.map((v) => v.codigo) } : {}),
+        ...(resolvidos.length ? { resolvidos: resolvidos.map((v) => v.codigo) } : {}),
+        ...descricaoAvaliada(linha, lista),
+      }
+    )
+  }
 }
 
 export type VerificacaoGravada = {
@@ -615,7 +800,10 @@ export type VerificacaoGravada = {
   severidade: string
   status: "ok" | "alerta" | "na"
   detalhe: string | null
+  /** A verificação vigente desta regra (a mais recente). */
   quando: string
+  /** A primeira verificação da ordem (na criação). */
+  criadaEm: string
 }
 
 export async function verificacoesDaOrdem(ordemId: string): Promise<VerificacaoGravada[]> {
@@ -626,14 +814,22 @@ export async function verificacoesDaOrdem(ordemId: string): Promise<VerificacaoG
     .eq("ordem_id", ordemId)
     .order("created_at")
   if (error) return []
-  return (data ?? []).map((v) => ({
-    codigo: String(v.codigo),
-    titulo: String(v.titulo),
-    severidade: String(v.severidade),
-    status: v.status as VerificacaoGravada["status"],
-    detalhe: (v.detalhe as string | null) ?? null,
-    quando: String(v.created_at),
-  }))
+  // Cada regra pela última verificação (a ordem reavaliada depois de uma
+  // alteração substitui o resultado anterior), na ordem em que apareceram.
+  const ultima = new Map<string, VerificacaoGravada>()
+  const criadaEm = String(data?.[0]?.created_at ?? "")
+  for (const v of data ?? []) {
+    ultima.set(String(v.codigo), {
+      codigo: String(v.codigo),
+      titulo: String(v.titulo),
+      severidade: String(v.severidade),
+      status: v.status as VerificacaoGravada["status"],
+      detalhe: (v.detalhe as string | null) ?? null,
+      quando: String(v.created_at),
+      criadaEm,
+    })
+  }
+  return [...ultima.values()]
 }
 
 /** Um apontamento da auditoria para quem avalia a ordem. */
@@ -666,18 +862,21 @@ export async function apontamentosPorOrdem(
       .order("created_at", { ascending: true }),
     admin
       .from("ordens_pagamento_eventos")
-      .select("ordem_id, dados")
+      .select("ordem_id, dados, created_at")
       .in("ordem_id", ordemIds)
       .eq("tipo", "verificada"),
   ])
   if (verif.error) return m
-  const confirmados = new Map<string, Set<string>>()
-  for (const e of (eventos.data ?? []) as { ordem_id: string; dados: Record<string, unknown> | null }[]) {
+  // Quando cada alerta foi confirmado por quem registrou. Vale a confirmação
+  // feita depois da verificação que o gerou: alerta que reaparece numa
+  // reavaliação (ordem alterada) volta a ser novidade para quem avalia.
+  const confirmados = new Map<string, Map<string, string>>()
+  for (const e of (eventos.data ?? []) as { ordem_id: string; dados: Record<string, unknown> | null; created_at: string }[]) {
     const lista = Array.isArray(e.dados?.confirmados) ? (e.dados.confirmados as unknown[]).map(String) : []
     if (!lista.length) continue
-    const s = confirmados.get(e.ordem_id) ?? new Set<string>()
-    lista.forEach((c) => s.add(c))
-    confirmados.set(e.ordem_id, s)
+    const m = confirmados.get(e.ordem_id) ?? new Map<string, string>()
+    for (const c of lista) if (!m.has(c) || String(m.get(c)) < e.created_at) m.set(c, e.created_at)
+    confirmados.set(e.ordem_id, m)
   }
   // Última verificação de cada regra, por ordem.
   const ultima = new Map<string, Map<string, Record<string, unknown>>>()
@@ -695,7 +894,7 @@ export async function apontamentosPorOrdem(
         titulo: String(v.titulo),
         detalhe: (v.detalhe as string | null) ?? null,
         severidade: String(v.severidade),
-        confirmado: confirmados.get(ordem)?.has(String(v.codigo)) ?? false,
+        confirmado: (confirmados.get(ordem)?.get(String(v.codigo)) ?? "") >= String(v.created_at),
       }))
     if (lista.length) m.set(ordem, lista)
   }

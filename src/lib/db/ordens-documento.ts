@@ -142,6 +142,8 @@ export async function receberDocumentoFiscal(
     {
       arquivo_nota_fiscal: up.caminho,
       ...(!mesmoValor ? { valor_antes: valorAnterior, valor } : {}),
+      // A análise já rodou antes de gravar (analise.registrar, logo abaixo).
+      reavaliada: true,
     }
   )
   await analise.registrar(`no recebimento do documento fiscal ${dados.onde}`)

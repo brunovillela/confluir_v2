@@ -127,7 +127,7 @@ const SHOTS_ANTIGOS = [
   // as verificações na criação e a fila de avaliação com os alertas. A ordem de
   // exemplo (compra direta de R$ 15.000) é criada e apagada pelo teste.
   ["/painel/financeiro/auditoria?origem=compras", "financeiro/auditoria-regras.png", { esperar: "Uma só proposta", fullPage: true }],
-  ["/painel/financeiro/ordens/1d1bc88f-8a50-457e-8d56-55d924437f81", "financeiro/ordem-verificacoes.png", { esperar: "Verificações na criação", scrollTo: "Verificações na criação", altura: 1000 }],
+  ["/painel/financeiro/ordens/eb6f7eb6-33c5-4532-9a59-9469eede24e3", "financeiro/ordem-verificacoes.png", { esperar: "Verificações da auditoria", scrollTo: "Verificações da auditoria", altura: 1000 }],
   ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
   */
 

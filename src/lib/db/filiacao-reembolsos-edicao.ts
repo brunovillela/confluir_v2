@@ -1,5 +1,6 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { cpfConfiavel } from "@/lib/cpf"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
@@ -354,6 +355,8 @@ export async function atualizarReembolso(
     }
     if (!paga) ordem.valor_inicial_cobranca = dados.valor
     await admin.from("ordens_pagamento").update(ordem).eq("emp_proprietaria_id", emp).eq("id", atual.ordem.id)
+    // Na trilha da ordem — e a auditoria reavalia a ordem como ficou.
+    await registrarEvento(atual.ordem.id, "corrigida", await usuarioDaTrilha(), "Reembolso de participação editado.", ordem)
   }
   if (atual.prontuarioId) {
     await admin

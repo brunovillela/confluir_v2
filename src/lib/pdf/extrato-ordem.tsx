@@ -393,7 +393,7 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
 
         {!p.simplificado && p.verificacoes.length > 0 ? (
           <SecaoLista
-            titulo="Verificações na criação (regras do Financeiro)"
+            titulo="Verificações da auditoria (regras do Financeiro, última análise)"
             vazio=""
             linhas={p.verificacoes.map((i) => (
               <View key={i.rotulo} style={s.linhaTabela}>
