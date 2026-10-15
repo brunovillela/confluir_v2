@@ -25,6 +25,10 @@ import { EnviarContribuicoes } from "../../[fonteId]/enviar-contribuicoes"
 
 export const metadata: Metadata = { title: "Relação do grupo — Confluir" }
 
+// A leitura da relação pela IA roda em blocos e pode levar minutos em listas
+// de milhares de linhas (server action desta página).
+export const maxDuration = 300
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**

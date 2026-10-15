@@ -90,8 +90,8 @@ export function ImportarRelatorioIa({
         <Alert className="border-warning/40">
           <AlertDescription>
             <p className="font-medium">
-              A IA leu {itens.length.toLocaleString("pt-BR")} contribuição
-              {itens.length === 1 ? "" : "ões"} · total{" "}
+              A IA leu {itens.length.toLocaleString("pt-BR")} contribuiç
+              {itens.length === 1 ? "ão" : "ões"} · total{" "}
               {brl(estado.totalValor ?? 0)}
             </p>
             <p className="mt-0.5 text-sm">
@@ -105,8 +105,31 @@ export function ImportarRelatorioIa({
               . Confira o total com o depósito antes de confirmar — a IA pode
               errar valores ou pular linhas.
             </p>
+            {estado.linhasComValor ? (
+              <p className="mt-0.5 text-sm">
+                O arquivo tem cerca de{" "}
+                {estado.linhasComValor.toLocaleString("pt-BR")} linha
+                {estado.linhasComValor === 1 ? "" : "s"} com valor (contando as de
+                total).
+              </p>
+            ) : null}
           </AlertDescription>
         </Alert>
+        {estado.avisos && estado.avisos.length > 0 && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              <p className="font-medium">
+                A IA pode ter pulado linhas — confira estes trechos antes de
+                confirmar:
+              </p>
+              <ul className="mt-1 grid gap-0.5 text-sm">
+                {estado.avisos.slice(0, 20).map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="max-h-72 overflow-auto rounded-md border">
           <Table>

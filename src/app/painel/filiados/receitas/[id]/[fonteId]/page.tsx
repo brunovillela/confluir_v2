@@ -51,6 +51,10 @@ import { TrocarRemessa } from "./trocar-remessa"
 
 export const metadata: Metadata = { title: "Relatório da fonte — Confluir" }
 
+// A leitura da relação pela IA roda em blocos e pode levar minutos em listas
+// de milhares de linhas (server action desta página).
+export const maxDuration = 300
+
 const POR_PAGINA = 100
 
 export default async function RelatorioFontePage({

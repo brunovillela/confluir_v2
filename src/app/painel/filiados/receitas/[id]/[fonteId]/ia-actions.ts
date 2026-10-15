@@ -31,7 +31,17 @@ function fonteDoSegmento(fonteId: string): string | null | undefined {
   if (fonteId === SEM_FONTE) return null
   return UUID.test(fonteId) ? fonteId : undefined
 }
-const MAX_TEXTO = 120000
+/**
+ * Relações grandes (as fontes pagam milhares de pessoas) são lidas EM BLOCOS
+ * de linhas, em paralelo: numa chamada só, o modelo teria de reescrever cada
+ * linha em JSON e esbarrava no teto de saída (~500 a 1.000 linhas) — a
+ * resposta era cortada ou a lista parava no meio. O texto também era cortado
+ * em 120 mil caracteres antes de ir para a IA. (15/10/2026)
+ */
+const LINHAS_POR_BLOCO = 200
+const BLOCOS_EM_PARALELO = 8
+/** Linha que parece de pagamento: tem um valor com centavos. */
+const COM_VALOR = /\d[.,]\d{2}(?!\d)/
 
 /** '1.234,56' | '1234,56' | '1234.56' → número (ou null). */
 function parseValor(bruto: string): number | null {
@@ -62,6 +72,10 @@ export type EstadoExtracaoContrib = {
   casados?: number
   naoCasados?: number
   descartadas?: number
+  /** Linhas do arquivo que parecem de pagamento (têm valor com centavos). */
+  linhasComValor?: number
+  /** Trechos em que a IA leu bem menos linhas do que o arquivo tinha. */
+  avisos?: string[]
   erro?: string
 }
 
@@ -150,12 +164,9 @@ export async function extrairContribuicoesIa(
   // Digital/planilha → extrai do texto. PDF escaneado (sem texto) → VISÃO
   // nativa do modelo sobre o próprio PDF.
   let extracao
+  let conferencia: Conferencia | undefined
   if (texto.length >= 20) {
-    const conteudo = texto.length > MAX_TEXTO ? texto.slice(0, MAX_TEXTO) : texto
-    extracao = await gerarJsonIA({
-      system: SISTEMA,
-      prompt: `Relatório da empresa:\n\n${conteudo}`,
-    })
+    ;({ extracao, conferencia } = await extrairDoTexto(texto))
   } else if (ehPdf && pdfBuffer) {
     if (arquivo.size > 20 * 1024 * 1024) {
       return { erro: "PDF escaneado grande demais — máximo de 20 MB." }
@@ -170,7 +181,83 @@ export async function extrairContribuicoesIa(
     return { erro: "O arquivo está vazio ou não tem dados legíveis." }
   }
 
-  return montarPreview(extracao, fonteDb, remessaId, String(formData.get("grupo_id") ?? ""))
+  return montarPreview(extracao, fonteDb, remessaId, String(formData.get("grupo_id") ?? ""), conferencia)
+}
+
+type Conferencia = { linhasComValor: number; avisos: string[] }
+
+/**
+ * Texto do arquivo → contribuições. Até LINHAS_POR_BLOCO linhas vai numa
+ * chamada; acima disso, em blocos paralelos, cada um com as primeiras linhas
+ * do arquivo só como contexto das colunas. Um bloco que falha derruba a
+ * leitura inteira — melhor do que registrar uma relação pela metade.
+ */
+async function extrairDoTexto(
+  texto: string
+): Promise<{ extracao: Awaited<ReturnType<typeof gerarJsonIA>>; conferencia: Conferencia }> {
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim())
+  const blocos: string[][] = []
+  for (let de = 0; de < linhas.length && de < MAX_ITENS; de += LINHAS_POR_BLOCO) {
+    blocos.push(linhas.slice(de, de + LINHAS_POR_BLOCO))
+  }
+  const contexto = linhas.slice(0, 3).join("\n")
+
+  const resultados = await emParalelo(blocos, BLOCOS_EM_PARALELO, (bloco, i) =>
+    gerarJsonIA({
+      system: SISTEMA,
+      prompt:
+        blocos.length === 1
+          ? `Relatório da empresa:\n\n${bloco.join("\n")}`
+          : i === 0
+            ? `Trecho 1 de ${blocos.length} de um relatório maior. Extraia todas as linhas de empregado DESTE trecho:\n\n${bloco.join("\n")}`
+            : `Trecho ${i + 1} de ${blocos.length} de um relatório maior.\n\nPRIMEIRAS LINHAS DO ARQUIVO — só para entender as colunas; NÃO extraia nada daqui:\n${contexto}\n\nLINHAS DESTE TRECHO — extraia todas as linhas de empregado:\n${bloco.join("\n")}`,
+    })
+  )
+
+  const contribuicoes: unknown[] = []
+  const avisos: string[] = []
+  let linhasComValor = 0
+  for (let i = 0; i < resultados.length; i++) {
+    const r = resultados[i]
+    const trecho = blocos.length > 1 ? `Trecho ${i + 1} de ${blocos.length}: ` : ""
+    if (r.erro || !r.dados) {
+      return {
+        extracao: { erro: `${trecho}${r.erro ?? "Falha na extração."}` },
+        conferencia: { linhasComValor: 0, avisos: [] },
+      }
+    }
+    const lidas = Array.isArray(r.dados.contribuicoes) ? (r.dados.contribuicoes as unknown[]) : []
+    contribuicoes.push(...lidas)
+    const comValor = blocos[i].filter((l) => COM_VALOR.test(l)).length
+    linhasComValor += comValor
+    // Linhas de total também têm valor, daí a folga de 10%.
+    if (comValor >= 10 && lidas.length < comValor * 0.9) {
+      const primeira = i * LINHAS_POR_BLOCO + 1
+      avisos.push(
+        `Linhas ${primeira} a ${primeira + blocos[i].length - 1} do arquivo: a IA leu ${lidas.length} de cerca de ${comValor} linhas com valor.`
+      )
+    }
+  }
+  return { extracao: { dados: { contribuicoes } }, conferencia: { linhasComValor, avisos } }
+}
+
+/** Roda `tarefa` em cada item, no máximo `limite` ao mesmo tempo, mantendo a ordem. */
+async function emParalelo<T, R>(
+  itens: T[],
+  limite: number,
+  tarefa: (item: T, i: number) => Promise<R>
+): Promise<R[]> {
+  const saida = new Array<R>(itens.length)
+  let proximo = 0
+  await Promise.all(
+    Array.from({ length: Math.min(limite, itens.length) }, async () => {
+      while (proximo < itens.length) {
+        const i = proximo++
+        saida[i] = await tarefa(itens[i], i)
+      }
+    })
+  )
+  return saida
 }
 
 /** jpg/png/webp/gif (pelo tipo ou pela extensão) → mime aceito pela visão. */
@@ -190,7 +277,8 @@ async function montarPreview(
   extracao: Awaited<ReturnType<typeof gerarJsonIA>>,
   fonteDb: string | null,
   remessaId: string,
-  grupoId = ""
+  grupoId = "",
+  conferencia?: Conferencia
 ): Promise<EstadoExtracaoContrib> {
   const { dados, erro } = extracao
   if (erro || !dados) return { erro: erro ?? "Falha na extração." }
@@ -254,6 +342,8 @@ async function montarPreview(
     casados,
     naoCasados: itens.length - casados,
     descartadas,
+    linhasComValor: conferencia?.linhasComValor,
+    avisos: conferencia?.avisos.length ? conferencia.avisos : undefined,
   }
 }
 
