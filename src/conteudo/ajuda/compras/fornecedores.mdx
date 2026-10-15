@@ -55,6 +55,14 @@ Cada fornecedor tem nome fantasia, razão social, CNPJ/CPF e a marcação de
 pessoa física ou jurídica. Um fornecedor pode ser bloqueado para fornecimento
 sem ser apagado — assim ele sai das buscas de cotação, mas o histórico fica.
 
+Um fornecedor com **CPF/CNPJ repetido** (outro cadastro ativo tem o mesmo
+documento) continua editável: nome, razão, bloqueio, endereços e contas são
+salvos normalmente. O que o sistema recusa é **trocar** o documento por um que
+já é de outro cadastro — a mensagem diz qual. Para acabar com a duplicidade,
+use **Mesclar os cadastros com este CPF/CNPJ** (no aviso da página do
+fornecedor) ou **Cadastros duplicados**: os registros dos demais passam para o
+cadastro escolhido.
+
 ## Endereços e dados bancários
 
 <PassoAPasso>
