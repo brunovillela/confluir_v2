@@ -10,7 +10,6 @@ import {
   type FormaPagamentoCompras,
 } from "@/lib/compras-constantes"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
-import { formatarMoeda } from "@/lib/formato"
 import type {
   ContaFornecedor,
   PixFornecedor,
@@ -143,8 +142,7 @@ export function DetalhePagamento({
               {caixas.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
-                  {c.responsavel ? ` — ${c.responsavel}` : ""} (saldo{" "}
-                  {formatarMoeda(c.saldo)})
+                  {c.responsavel ? ` — ${c.responsavel}` : ""}
                 </option>
               ))}
             </select>

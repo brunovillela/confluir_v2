@@ -112,7 +112,7 @@ export default async function DespesasCaixaPage() {
                   id={d.id}
                   contas={contas
                     .filter((c) => c.id !== d.contaId)
-                    .map((c) => ({ id: c.id, rotulo: `${c.nome}${c.responsavel ? ` — ${c.responsavel}` : ""} (${formatarMoeda(c.saldo)})` }))}
+                    .map((c) => ({ id: c.id, rotulo: `${c.nome}${c.responsavel ? ` — ${c.responsavel}` : ""}` }))}
                 />
               </Linha>
             ))
