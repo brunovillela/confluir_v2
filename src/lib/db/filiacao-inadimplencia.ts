@@ -3,7 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
-import { hojeSP } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { CONDICAO_ATIVO, filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { lerRegrasInadimplencia } from "@/lib/db/filiacao-direitos"
 import type { RegraInadimplencia } from "@/lib/filiacao-direitos-constantes"
@@ -321,14 +321,21 @@ export async function relatorioInadimplencia(): Promise<RelatorioInadimplencia> 
   }
 
   // ── Efeito suspensivo ─────────────────────────────────────────────────────
-  const { data: suspensoes } = await admin
-    .from("filiacao_suspensoes")
-    .select("cpf, alvo, vigencia_ate")
-    .eq("emp_proprietaria_id", emp)
-    .eq("escopo", "inadimplencia")
-    .is("revogada_em", null)
+  // Todas as suspensões vigentes (paginado): com mais de 1.000, quem estava
+  // suspenso podia aparecer como inadimplente.
+  const suspensoes = await lerEmLotes<{ cpf: string; alvo: string | null; vigencia_ate: string | null }>(
+    (de, ate) =>
+      admin
+        .from("filiacao_suspensoes")
+        .select("id, cpf, alvo, vigencia_ate")
+        .eq("emp_proprietaria_id", emp)
+        .eq("escopo", "inadimplencia")
+        .is("revogada_em", null)
+        .order("id")
+        .range(de, ate)
+  ).catch(() => [])
 
-  const suspensosPorCpf = suspensoesVigentes(suspensoes ?? [])
+  const suspensosPorCpf = suspensoesVigentes(suspensoes)
 
   // Nome e matrícula só de quem entra na lista.
   const nomePorCpf = new Map<string, { nome: string | null; matricula: string | null }>()

@@ -36,6 +36,31 @@ export async function lerEmLotes<T = Record<string, unknown>>(
   return linhas
 }
 
+/**
+ * lerEmLotes para uma lista de ids: fatias de 200 (a URL do .in() tem
+ * limite) e, em cada fatia, todas as páginas. A consulta recebe a fatia e o
+ * intervalo e precisa terminar em .order(...).order("id").range(de, ate).
+ */
+export async function lerEmLotesPorIds<T = Record<string, unknown>>(
+  ids: string[],
+  consulta: (
+    fatia: string[],
+    de: number,
+    ate: number
+  ) => PromiseLike<{
+    data: unknown[] | null
+    error: { message: string; code?: string } | null
+  }>
+): Promise<T[]> {
+  const unicos = [...new Set(ids.filter(Boolean))]
+  const linhas: T[] = []
+  for (let i = 0; i < unicos.length; i += 200) {
+    const fatia = unicos.slice(i, i + 200)
+    linhas.push(...(await lerEmLotes<T>((de, ate) => consulta(fatia, de, ate))))
+  }
+  return linhas
+}
+
 /** String com conteúdo (trim) ou null. */
 export function texto(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v : null

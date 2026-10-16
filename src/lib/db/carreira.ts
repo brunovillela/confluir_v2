@@ -1,5 +1,5 @@
 import "server-only"
-import { nomesDosUsuarios } from "@/lib/db/comum"
+import { nomesDosUsuarios, lerEmLotes } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
@@ -212,12 +212,20 @@ function normalizarAnuenio(
 /** ~500 lançamentos: busca/filtro/paginação acontecem em memória na página. */
 export async function listarAnuenios(): Promise<AnuenioLancamento[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_anuenio")
-    .select(SELECT_ANUENIO)
-    .order("nivel_atual_data", { ascending: false, nullsFirst: false })
-  if (error) throw new Error(`Falha ao listar anuênios: ${error.message}`)
-  const linhas = (data ?? []) as unknown as Record<string, unknown>[]
+  // Paginado: o PostgREST corta em 1.000 linhas e a lista cresce todo ano.
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("pessoal_anuenio")
+        .select(SELECT_ANUENIO)
+        .order("nivel_atual_data", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar anuênios: ${e instanceof Error ? e.message : "?"}`)
+  }
   const nomes = await nomesDosUsuarios([
     ...new Set(
       linhas
@@ -309,13 +317,21 @@ async function normalizarNiveis(
 
 export async function listarNiveisSalariais(): Promise<NivelLancamento[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_nivel_salarial")
-    .select(SELECT_NIVEL)
-    .order("nivel_atual_data", { ascending: false, nullsFirst: false })
-  if (error)
-    throw new Error(`Falha ao listar níveis salariais: ${error.message}`)
-  return normalizarNiveis((data ?? []) as unknown as Record<string, unknown>[])
+  // Paginado: o PostgREST corta em 1.000 linhas e a lista cresce todo ano.
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("pessoal_nivel_salarial")
+        .select(SELECT_NIVEL)
+        .order("nivel_atual_data", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    throw new Error(`Falha ao listar níveis salariais: ${e instanceof Error ? e.message : "?"}`)
+  }
+  return normalizarNiveis(linhas)
 }
 
 export async function buscarNivelSalarial(

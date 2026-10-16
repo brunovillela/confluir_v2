@@ -8,7 +8,7 @@ import {
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import type { Confirmacao } from "@/lib/db/ordens-verificacao"
 import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
-import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 
@@ -377,12 +377,17 @@ export async function listarProcessos(
   if (filtros.criadoPor) q = q.eq("solicitante_id", filtros.criadoPor)
   if (filtros.fornecedorId && /^[0-9a-f-]{36}$/i.test(filtros.fornecedorId)) {
     // Via Aquisição o fornecedor está nos fornecimentos; direta, no processo.
-    const { data: fs } = await admin
-      .from("compras_fornecimentos")
-      .select("processo_id")
-      .eq("fornecedor_id", filtros.fornecedorId)
-      .limit(1000)
-    const doFornecimento = [...new Set((fs ?? []).map((f) => String(f.processo_id)))]
+    // Todos os fornecimentos do fornecedor (o PostgREST corta em 1.000).
+    const fornecedorId = filtros.fornecedorId
+    const fs = await lerEmLotes<{ processo_id: string | null }>((de, ate) =>
+      admin
+        .from("compras_fornecimentos")
+        .select("id, processo_id")
+        .eq("fornecedor_id", fornecedorId)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [])
+    const doFornecimento = [...new Set(fs.map((f) => String(f.processo_id)))]
     q = q.or(
       [`compra_fornecedor_id.eq.${filtros.fornecedorId}`, doFornecimento.length ? `id.in.(${doFornecimento.join(",")})` : null]
         .filter(Boolean)
@@ -1584,18 +1589,23 @@ export async function listarRecebimentosPendentes(): Promise<{
   pendentes: RecebimentoPendente[]
 }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("compras_fornecimentos")
-    .select("*")
-    .eq("recebido", false)
-    .order("previsao_entrega", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: true })
-    .range(0, 4999)
-  if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, pendentes: [] }
-    throw new Error(`Falha ao listar recebimentos: ${error.message}`)
+  // Paginado: .range(0, 4999) também parava em 1.000 linhas no PostgREST.
+  let brutos: Record<string, unknown>[]
+  try {
+    brutos = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("compras_fornecimentos")
+        .select("*")
+        .eq("recebido", false)
+        .order("previsao_entrega", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return { disponivel: false, pendentes: [] }
+    throw new Error(`Falha ao listar recebimentos: ${e instanceof Error ? e.message : "?"}`)
   }
-  const brutos = (data ?? []) as Record<string, unknown>[]
   const processoIds = [
     ...new Set(brutos.map((x) => String(x.processo_id)).filter(Boolean)),
   ]
@@ -1605,14 +1615,14 @@ export async function listarRecebimentosPendentes(): Promise<{
         .map((x) => x.fornecedor_id)
         .filter((v): v is string => Boolean(v))
     ),
-    processoIds.length
-      ? admin
-          .from("compras_solicitacoes")
-          .select(
-            "id, codigo, solicitacao_produto, solicitacao_departamento_id"
-          )
-          .in("id", processoIds)
-      : Promise.resolve({ data: [] }),
+    lerEmLotesPorIds<Record<string, unknown>>(processoIds, (fatia, de, ate) =>
+      admin
+        .from("compras_solicitacoes")
+        .select("id, codigo, solicitacao_produto, solicitacao_departamento_id")
+        .in("id", fatia)
+        .order("id")
+        .range(de, ate)
+    ).then((data) => ({ data })),
   ])
   const processos = new Map(
     ((processosRes.data ?? []) as Record<string, unknown>[]).map((p) => [
@@ -2017,22 +2027,30 @@ export async function listarFilaComprador(): Promise<{
   itens: ItemFilaComprador[]
 }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("compras_solicitacoes")
-    .select(
-      "id, codigo, solicitacao_produto, solicitacao_departamento_id, em_cotacao, cotacao_termino, solicitacao_data_limite, created_at, cancelado, comprado, recebido"
+  const emp = await tenantAtual()
+  // Paginado: o PostgREST corta em 1.000 linhas (processos abertos do legado
+  // podem passar disso).
+  let brutos: Record<string, unknown>[]
+  try {
+    brutos = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("compras_solicitacoes")
+        .select(
+          "id, codigo, solicitacao_produto, solicitacao_departamento_id, em_cotacao, cotacao_termino, solicitacao_data_limite, created_at, cancelado, comprado, recebido"
+        )
+        .eq("emp_proprietaria_id", emp)
+        .eq("aquisicao_direta", false)
+        .eq("cancelado", false)
+        .eq("comprado", false)
+        .order("solicitacao_data_limite", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(de, ate)
     )
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("aquisicao_direta", false)
-    .eq("cancelado", false)
-    .eq("comprado", false)
-    .order("solicitacao_data_limite", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: true })
-  if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, itens: [] }
-    throw new Error(`Falha ao listar a fila do comprador: ${error.message}`)
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return { disponivel: false, itens: [] }
+    throw new Error(`Falha ao listar a fila do comprador: ${e instanceof Error ? e.message : "?"}`)
   }
-  const brutos = (data ?? []) as Record<string, unknown>[]
 
   const deptoIds = [
     ...new Set(

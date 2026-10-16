@@ -31,28 +31,30 @@ export type RemessaInformes = {
 
 export async function listarRemessasInformes(): Promise<RemessaInformes[]> {
   const admin = await createAdminClient()
-  const [remessas, itens] = await Promise.all([
-    admin
-      .from("pessoal_informes_rendimentos_remessas")
-      .select("id, ano_referencia_os, ordem, fechada, created_at")
-      .eq("emp_proprietaria_id", await tenantAtual())
-      .order("ordem", { ascending: false, nullsFirst: false }),
-    admin
-      .from("pessoal_informes_rendimentos")
-      .select("id, remessa_id")
-      .eq("emp_proprietaria_id", await tenantAtual()),
-  ])
+  const emp = await tenantAtual()
+  const remessas = await admin
+    .from("pessoal_informes_rendimentos_remessas")
+    .select("id, ano_referencia_os, ordem, fechada, created_at")
+    .eq("emp_proprietaria_id", emp)
+    .order("ordem", { ascending: false, nullsFirst: false })
   if (remessas.error) {
     throw new Error(`Falha ao listar remessas: ${remessas.error.message}`)
   }
-  if (itens.error) {
-    throw new Error(`Falha ao contar informes: ${itens.error.message}`)
-  }
+  // Contagem no banco, por remessa: ler os informes e contar aqui parava no
+  // teto de 1.000 linhas do PostgREST (funcionários × anos passa disso).
   const porRemessa = new Map<string, number>()
-  for (const i of itens.data ?? []) {
-    if (i.remessa_id) {
-      porRemessa.set(i.remessa_id, (porRemessa.get(i.remessa_id) ?? 0) + 1)
-    }
+  const contagens = await Promise.all(
+    (remessas.data ?? []).map((r) =>
+      admin
+        .from("pessoal_informes_rendimentos")
+        .select("id", { count: "exact", head: true })
+        .eq("emp_proprietaria_id", emp)
+        .eq("remessa_id", r.id)
+    )
+  )
+  for (const [k, { count, error }] of contagens.entries()) {
+    if (error) throw new Error(`Falha ao contar informes: ${error.message}`)
+    porRemessa.set((remessas.data ?? [])[k].id, count ?? 0)
   }
   return (remessas.data ?? []).map((r) => ({
     ...r,

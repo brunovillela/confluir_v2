@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { normalizarMatricula, matriculasEmUso, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
@@ -212,18 +212,41 @@ async function lerFontes(
   }
 }
 
+/** Leitura completa como resultado { data, error } (o lerFontes testa o código do erro). */
+function comoResultado(
+  leitura: Promise<unknown[]>
+): Promise<{ data: unknown[] | null; error: { message: string; code?: string } | null }> {
+  return leitura.then(
+    (data) => ({ data, error: null }),
+    (e: { message?: string; code?: string }) => ({
+      data: null,
+      error: { message: e?.message ?? "?", code: e?.code },
+    })
+  )
+}
+
 export async function listarFontesPagadoras(): Promise<FontePagadora[]> {
   const stats = await estatisticasFontes()
   const admin = await createAdminClient()
 
   const [referenciadas, marcadas] = await Promise.all([
+    // Fontes referenciadas em fatias (a URL do .in() tem limite) e as duas
+    // leituras paginadas: o PostgREST corta em 1.000 linhas.
     stats.fontesReferenciadas.length
       ? lerFontes((colunas) =>
-          admin.from("empresa").select(colunas).in("id", stats.fontesReferenciadas)
+          comoResultado(
+            lerEmLotesPorIds(stats.fontesReferenciadas, (fatia, de, ate) =>
+              admin.from("empresa").select(colunas).in("id", fatia).order("id").range(de, ate)
+            )
+          )
         )
       : Promise.resolve({ data: [] as LinhaFonte[], error: null }),
     lerFontes((colunas) =>
-      admin.from("empresa").select(colunas).eq("tipo", TIPO_FONTE_PAGADORA)
+      comoResultado(
+        lerEmLotes((de, ate) =>
+          admin.from("empresa").select(colunas).eq("tipo", TIPO_FONTE_PAGADORA).order("id").range(de, ate)
+        )
+      )
     ),
   ])
   if (referenciadas.error) {

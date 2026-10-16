@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { hojeSP } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { analisarSST, sugerirPlanoCargos } from "@/lib/db/pessoal-sst-ia"
 import { buscarAtividade } from "@/lib/db/pessoal-sst"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -139,16 +139,31 @@ export async function importarFuncoesDosCargos(
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const { data: vinculos, error } = await admin
-    .from("vinculos_trabalhistas")
-    .select("trabalhador_id, cargo, contrato_admissao, contrato_demissao")
-    .eq("empregador_id", emp)
-  if (error) return { erro: `Falha ao ler vínculos: ${error.message}` }
+  // Listas completas (paginado): o PostgREST corta em 1.000 linhas, e quem
+  // ficasse de fora não ganharia função nem entraria nos totais.
+  let vinculos: {
+    trabalhador_id: string | null
+    cargo: string | null
+    contrato_admissao: string | null
+    contrato_demissao: string | null
+  }[]
+  try {
+    vinculos = await lerEmLotes((de, ate) =>
+      admin
+        .from("vinculos_trabalhistas")
+        .select("id, trabalhador_id, cargo, contrato_admissao, contrato_demissao")
+        .eq("empregador_id", emp)
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    return { erro: `Falha ao ler vínculos: ${e instanceof Error ? e.message : "?"}` }
+  }
 
   // um cargo por pessoa (vínculo ativo mais recente com cargo preenchido)
   type V = { trabalhador_id: string; cargo: string; adm: string }
   const porPessoa = new Map<string, V>()
-  for (const v of vinculos ?? []) {
+  for (const v of vinculos) {
     const cargo = String(v.cargo ?? "").trim()
     const tid = v.trabalhador_id as string | null
     if (!tid || !cargo) continue
@@ -182,12 +197,18 @@ export async function importarFuncoesDosCargos(
   }
 
   // funções e vínculos existentes
-  const [{ data: funcoesExist }, { data: vincExist }] = await Promise.all([
-    admin.from("pessoal_funcoes").select("id, nome").eq("emp_proprietaria_id", emp),
-    admin
-      .from("pessoal_funcionario_funcao")
-      .select("funcionario_id")
-      .eq("emp_proprietaria_id", emp),
+  const [funcoesExist, vincExist] = await Promise.all([
+    lerEmLotes<{ id: string; nome: string | null }>((de, ate) =>
+      admin.from("pessoal_funcoes").select("id, nome").eq("emp_proprietaria_id", emp).order("id").range(de, ate)
+    ).catch(() => []),
+    lerEmLotes<{ funcionario_id: string }>((de, ate) =>
+      admin
+        .from("pessoal_funcionario_funcao")
+        .select("id, funcionario_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => []),
   ])
   const funcaoPorChave = new Map<string, string>()
   for (const f of funcoesExist ?? []) {

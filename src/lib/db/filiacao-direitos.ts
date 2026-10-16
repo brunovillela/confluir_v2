@@ -10,6 +10,7 @@ import {
   type EscopoSuspensao,
   type RegraInadimplencia,
 } from "@/lib/filiacao-direitos-constantes"
+import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -80,12 +81,18 @@ export async function salvarCarencia(
 /** Tipos de remessa que a entidade realmente usa — não uma lista fixa. */
 export async function tiposDeRemessa(): Promise<string[]> {
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("filiacao_recebe_remessa")
-    .select("tipo")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .not("tipo", "is", null)
-  return [...new Set((data ?? []).map((r) => r.tipo as string))].sort()
+  const emp = await tenantAtual()
+  // Todas as remessas (paginado): um tipo raro podia ficar fora das 1.000.
+  const data = await lerEmLotes<{ tipo: string }>((de, ate) =>
+    admin
+      .from("filiacao_recebe_remessa")
+      .select("id, tipo")
+      .eq("emp_proprietaria_id", emp)
+      .not("tipo", "is", null)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  return [...new Set(data.map((r) => r.tipo))].sort()
 }
 
 export async function lerRegrasInadimplencia(): Promise<RegraInadimplencia[]> {

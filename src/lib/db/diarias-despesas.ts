@@ -1,6 +1,6 @@
 import "server-only"
 
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -47,16 +47,23 @@ export async function despesasDasSolicitacoes(
   const porSolicitacao = new Map<string, DespesaDiaria[]>()
   if (solicitacaoIds.length === 0) return porSolicitacao
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_diarias_solicitacao_despesas")
-    .select("id, solicitacao_id, tipo_id, descricao, valor, comprovante, created_at")
-    .in("solicitacao_id", solicitacaoIds)
-    .order("created_at", { ascending: true })
-  if (error) {
-    if (esquemaAusente(error)) return porSolicitacao
-    throw new Error(`Falha ao listar as despesas da diária: ${error.message}`)
+  // Em fatias e paginado: a lista de diárias inteira passa por aqui, e o
+  // PostgREST corta em 1.000 linhas.
+  let linhas: Record<string, unknown>[]
+  try {
+    linhas = await lerEmLotesPorIds<Record<string, unknown>>(solicitacaoIds, (fatia, de, ate) =>
+      admin
+        .from("pessoal_diarias_solicitacao_despesas")
+        .select("id, solicitacao_id, tipo_id, descricao, valor, comprovante, created_at")
+        .in("solicitacao_id", fatia)
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(de, ate)
+    )
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return porSolicitacao
+    throw new Error(`Falha ao listar as despesas da diária: ${e instanceof Error ? e.message : "?"}`)
   }
-  const linhas = (data ?? []) as Record<string, unknown>[]
   const tipoIds = [...new Set(linhas.map((l) => texto(l.tipo_id)).filter((v): v is string => Boolean(v)))]
   const nomeTipo = new Map<string, string>()
   if (tipoIds.length) {

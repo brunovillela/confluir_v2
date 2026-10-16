@@ -1,7 +1,7 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
-import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, lerEmLotesPorIds, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -212,12 +212,10 @@ async function normalizarSolicitacoes(
     tipoIds.length
       ? admin.from("financeiro_diarias").select("*").in("id", tipoIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-    ordemIds.length
-      ? admin
-          .from("ordens_pagamento")
-          .select("id, codigo, situacao")
-          .in("id", ordemIds)
-      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    // Uma ordem por solicitação: com muitas, o .in() precisa de fatias.
+    lerEmLotesPorIds<Record<string, unknown>>(ordemIds, (fatia, de, ate) =>
+      admin.from("ordens_pagamento").select("id, codigo, situacao").in("id", fatia).order("id").range(de, ate)
+    ).then((data) => ({ data })),
     deptoIds.length
       ? admin.from("empresa_departamentos").select("id, departamento").in("id", deptoIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
@@ -333,12 +331,18 @@ export async function listarSolicitacoesDiaria(
   solicitacoes: SolicitacaoDiaria[]
 }> {
   const admin = await createAdminClient()
-  let query = admin.from("pessoal_diarias_solicitacoes").select(SELECT_SOLICITACAO)
-  if (filtro.beneficiarioId) query = query.eq("funcionario_id", filtro.beneficiarioId)
-  const { data, error } = await query.order("created_at", { ascending: false })
-  if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, solicitacoes: [] }
-    throw new Error(`Falha ao listar solicitações: ${error.message}`)
+  // Todas as solicitações (paginado): o PostgREST corta em 1.000 linhas, e
+  // custos e a área do coordenador usam esta lista como completa.
+  let data: Record<string, unknown>[]
+  try {
+    data = await lerEmLotes<Record<string, unknown>>((de, ate) => {
+      let query = admin.from("pessoal_diarias_solicitacoes").select(SELECT_SOLICITACAO)
+      if (filtro.beneficiarioId) query = query.eq("funcionario_id", filtro.beneficiarioId)
+      return query.order("created_at", { ascending: false }).order("id").range(de, ate)
+    })
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string })) return { disponivel: false, solicitacoes: [] }
+    throw new Error(`Falha ao listar solicitações: ${e instanceof Error ? e.message : "?"}`)
   }
   // Filtra pelo quadro DEPOIS de normalizar: antes do SQL da diretoria a
   // coluna não existe e tudo é de funcionário.

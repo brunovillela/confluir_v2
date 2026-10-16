@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { urlArquivoDocumento } from "@/lib/db/documentos"
@@ -622,32 +622,40 @@ export async function candidatosDaEmpresa(
   const admin = await createAdminClient()
   const campoData = tipo === "desfiliacao" ? "data_desfiliacao" : "data_filiacao"
 
-  let query = admin
-    .from("filiacao_vinculos")
-    .select("id, filiado_id, matricula, fonte_pg_matricula, " + campoData)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("fonte_pagadora_id", empresaId)
-    .not(campoData, "is", null)
-  if (janela.de) query = query.gte(campoData, janela.de)
-  if (janela.ate) query = query.lte(campoData, janela.ate)
+  const emp = await tenantAtual()
+  // Todos os vínculos da janela (paginado). Antes pegava os 500 mais recentes
+  // e só DEPOIS tirava os já oficiados — os mais antigos nunca apareciam.
+  let todos: Record<string, unknown>[]
+  try {
+    todos = await lerEmLotes<Record<string, unknown>>((de, ate) => {
+      let query = admin
+        .from("filiacao_vinculos")
+        .select("id, filiado_id, matricula, fonte_pg_matricula, " + campoData)
+        .eq("emp_proprietaria_id", emp)
+        .eq("fonte_pagadora_id", empresaId)
+        .not(campoData, "is", null)
+      if (janela.de) query = query.gte(campoData, janela.de)
+      if (janela.ate) query = query.lte(campoData, janela.ate)
+      return query.order(campoData, { ascending: false }).order("id").range(de, ate)
+    })
+  } catch (e) {
+    throw new Error(`Falha ao buscar candidatos: ${e instanceof Error ? e.message : "?"}`)
+  }
+  if (todos.length === 0) return []
 
-  const { data, error } = await query.order(campoData, { ascending: false }).limit(500)
-  if (error) throw new Error(`Falha ao buscar candidatos: ${error.message}`)
-  // Select dinâmico (campoData) impede a inferência do tipo — tratamos como bruto.
-  const vinculos = (data ?? []) as unknown as Record<string, unknown>[]
-  if (vinculos.length === 0) return []
-
-  // Exclui os já oficiados (em ofício não cancelado).
-  const jaOficiados = await vinculosJaOficiados(vinculos.map((v) => v.id as string))
+  // Exclui os já oficiados (em ofício não cancelado) e só então limita a
+  // tela aos 500 mais recentes.
+  const jaOficiados = await vinculosJaOficiados(todos.map((v) => v.id as string))
+  const vinculos = todos.filter((v) => !jaOficiados.has(v.id as string)).slice(0, 500)
 
   // Nomes dos filiados.
   const filiadoIds = [...new Set(vinculos.map((v) => v.filiado_id).filter(Boolean))] as string[]
   const nomes = new Map<string, string>()
-  if (filiadoIds.length > 0) {
+  for (let i = 0; i < filiadoIds.length; i += 200) {
     const { data: fs } = await admin
       .from("filiacoes")
       .select("id, nome_completo")
-      .in("id", filiadoIds)
+      .in("id", filiadoIds.slice(i, i + 200))
     for (const f of fs ?? []) {
       const n = texto(f.nome_completo)
       if (n) nomes.set(f.id as string, n)
@@ -655,7 +663,6 @@ export async function candidatosDaEmpresa(
   }
 
   return vinculos
-    .filter((v) => !jaOficiados.has(v.id as string))
     .map((v) => {
       const filiadoId = texto(v.filiado_id)
       return {
@@ -673,12 +680,17 @@ async function vinculosJaOficiados(vinculoIds: string[]): Promise<Set<string>> {
   const ids = [...new Set(vinculoIds.filter(Boolean))]
   if (ids.length === 0) return usados
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("oficios_filiados")
-    .select("vinculo_id, oficios!inner(situacao)")
-    .in("vinculo_id", ids)
-    .neq("oficios.situacao", "Cancelado")
-  for (const r of data ?? []) {
+  // Em fatias (a URL do .in() tem limite) e paginado.
+  const data = await lerEmLotesPorIds<{ vinculo_id: string | null }>(ids, (fatia, de, ate) =>
+    admin
+      .from("oficios_filiados")
+      .select("id, vinculo_id, oficios!inner(situacao)")
+      .in("vinculo_id", fatia)
+      .neq("oficios.situacao", "Cancelado")
+      .order("id")
+      .range(de, ate)
+  )
+  for (const r of data) {
     const v = (r as { vinculo_id: string | null }).vinculo_id
     if (v) usados.add(v)
   }

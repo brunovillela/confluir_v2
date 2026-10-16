@@ -1,5 +1,5 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -64,24 +64,30 @@ export async function listarDocumentos(filtro: {
 
   // Categorias por documento (junction usa o id real).
   const idsDocs = documentos.map((d) => d.id)
-  const [{ data: junction }, { data: cats }, { data: versoes }] =
-    await Promise.all([
+  // Em fatias e paginado: o PostgREST corta em 1.000 linhas (a junção não
+  // tem id — a ordem estável é o par documento/categoria).
+  const [junction, { data: cats }, versoes] = await Promise.all([
+    lerEmLotesPorIds<{ documento_id: string; categoria_id: string }>(idsDocs, (fatia, de, ate) =>
       admin
         .from("fa_documentos_categorias_junction")
         .select("documento_id, categoria_id")
-        .in("documento_id", idsDocs),
-      admin.from("fa_documentos_categorias").select("id, nome"),
-      admin
-        .from("fa_documentos_versao")
-        .select("documento_raw, created_at"),
-    ])
+        .in("documento_id", fatia)
+        .order("documento_id")
+        .order("categoria_id")
+        .range(de, ate)
+    ).catch(() => []),
+    admin.from("fa_documentos_categorias").select("id, nome"),
+    lerEmLotes<{ documento_raw: string | null; created_at: string | null }>((de, ate) =>
+      admin.from("fa_documentos_versao").select("id, documento_raw, created_at").order("id").range(de, ate)
+    ).catch(() => []),
+  ])
 
   const nomeCategoria = new Map(
     (cats ?? []).map((c) => [c.id as string, texto(c.nome)])
   )
   const categoriasPorDoc = new Map<string, string[]>()
   const categoriaIdsPorDoc = new Map<string, Set<string>>()
-  for (const j of junction ?? []) {
+  for (const j of junction) {
     const docId = j.documento_id as string
     const catId = j.categoria_id as string
     const nome = nomeCategoria.get(catId)
@@ -97,7 +103,7 @@ export async function listarDocumentos(filtro: {
 
   // Versões contadas e data mais recente por bubble_id do documento.
   const versoesPorBubble = new Map<string, { n: number; ultima: string | null }>()
-  for (const v of versoes ?? []) {
+  for (const v of versoes) {
     const raw = v.documento_raw as string | null
     if (!raw) continue
     const atual = versoesPorBubble.get(raw) ?? { n: 0, ultima: null }
@@ -421,19 +427,23 @@ export async function listarCategoriasDocumentosComUso(): Promise<
 > {
   const admin = await createAdminClient()
   const empId = await tenantAtual()
-  const [catRes, junRes] = await Promise.all([
-    admin
-      .from("fa_documentos_categorias")
-      .select("id, nome")
-      .eq("emp_proprietaria_id", empId)
-      .order("nome", { ascending: true }),
-    admin.from("fa_documentos_categorias_junction").select("categoria_id"),
-  ])
+  const catRes = await admin
+    .from("fa_documentos_categorias")
+    .select("id, nome")
+    .eq("emp_proprietaria_id", empId)
+    .order("nome", { ascending: true })
+  // Uso de cada categoria contado no banco (ler a junção inteira parava no
+  // teto de 1.000 linhas do PostgREST).
   const usos = new Map<string, number>()
-  for (const j of junRes.data ?? []) {
-    const cid = j.categoria_id as string
-    if (cid) usos.set(cid, (usos.get(cid) ?? 0) + 1)
-  }
+  const contagens = await Promise.all(
+    (catRes.data ?? []).map((c) =>
+      admin
+        .from("fa_documentos_categorias_junction")
+        .select("categoria_id", { count: "exact", head: true })
+        .eq("categoria_id", c.id as string)
+    )
+  )
+  contagens.forEach(({ count }, k) => usos.set((catRes.data ?? [])[k].id as string, count ?? 0))
   return (catRes.data ?? []).map((c) => ({
     id: c.id as string,
     nome: texto(c.nome),

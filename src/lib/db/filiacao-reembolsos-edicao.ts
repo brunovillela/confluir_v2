@@ -4,7 +4,7 @@ import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { cpfConfiavel } from "@/lib/cpf"
 
 import { gerarCodigoProcesso } from "@/lib/db/compras"
-import { hojeSP, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
 import { formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -172,15 +172,21 @@ export async function lancadoNoMes(dataRef: string): Promise<{ total: number; qu
   const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`
   const fimDate = new Date(Date.UTC(ano, mes, 0))
   const fim = fimDate.toISOString().slice(0, 10)
-  const { data } = await admin
-    .from("filiacao_reembolsos")
-    .select("valor")
-    .eq("emp_proprietaria_id", emp)
-    .gte("data", inicio)
-    .lte("data", fim)
+  // Todos os lançamentos do mês (paginado): a soma decide o teto mensal, e o
+  // PostgREST corta em 1.000 linhas.
+  const data = await lerEmLotes<{ valor: number | null }>((de, ate) =>
+    admin
+      .from("filiacao_reembolsos")
+      .select("id, valor")
+      .eq("emp_proprietaria_id", emp)
+      .gte("data", inicio)
+      .lte("data", fim)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
   let total = 0
-  for (const r of data ?? []) total += Number(r.valor ?? 0)
-  return { total, quantidade: (data ?? []).length }
+  for (const r of data) total += Number(r.valor ?? 0)
+  return { total, quantidade: data.length }
 }
 
 // ── Lançamento ─────────────────────────────────────────────────────────────

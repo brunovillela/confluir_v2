@@ -40,16 +40,18 @@ export async function listarCategoriasCriadas(): Promise<{
     .order("nome")
   if (error) return { categorias: [], disponivel: false }
 
+  // Fontes por categoria contadas no banco (ler e contar aqui parava no
+  // teto de 1.000 linhas do PostgREST).
   const usos = new Map<string, number>()
-  const { data: fontes } = await admin
-    .from("empresa")
-    .select("fonte_categoria_id")
-    .not("fonte_categoria_id", "is", null)
-    .in("fonte_categoria_id", (data ?? []).map((c) => c.id))
-  for (const f of fontes ?? []) {
-    const id = String(f.fonte_categoria_id)
-    usos.set(id, (usos.get(id) ?? 0) + 1)
-  }
+  const contagens = await Promise.all(
+    (data ?? []).map((c) =>
+      admin
+        .from("empresa")
+        .select("id", { count: "exact", head: true })
+        .eq("fonte_categoria_id", c.id)
+    )
+  )
+  contagens.forEach(({ count }, k) => usos.set(String((data ?? [])[k].id), count ?? 0))
 
   return {
     categorias: (data ?? []).map((c) => ({
