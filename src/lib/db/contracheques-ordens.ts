@@ -13,6 +13,7 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 /**
  * Contracheque → ordem de pagamento em favor do funcionário.
@@ -96,7 +97,7 @@ export async function centrosDeCustoParaFolha(): Promise<{ id: string; nome: str
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("centros_de_custo")
-    .select("id, nome_da_conta, classificador, usavel")
+    .select("id, nome_da_conta, acesso, classificador, usavel")
     .eq("emp_proprietaria_id", await tenantAtual())
     .order("classificador", { ascending: true, nullsFirst: false })
     .order("nome_da_conta", { ascending: true })
@@ -105,7 +106,7 @@ export async function centrosDeCustoParaFolha(): Promise<{ id: string; nome: str
     .filter((c) => c.usavel !== false)
     .map((c) => ({
       id: String(c.id),
-      nome: [c.classificador, c.nome_da_conta].filter(Boolean).join(" - ") || "(sem nome)",
+      nome: rotuloCentroCusto(c),
     }))
 }
 

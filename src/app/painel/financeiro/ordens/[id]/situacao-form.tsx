@@ -19,8 +19,8 @@ const TEXTAREA =
 /**
  * Troca manual da situação de uma ordem não paga. Antes de gravar, a
  * confirmação diz para onde a ordem vai (fila de alçada, fila de pagamento,
- * devolvida, de volta ao contrato). Paga e Cancelada ficam de fora: têm os
- * botões próprios (Registrar pagamento / Cancelar ordem).
+ * devolvida, de volta ao contrato). Paga tem o caminho próprio (remover o
+ * pagamento); Cancelada usa o mesmo formulário para desfazer o cancelamento.
  */
 export function SituacaoForm({
   ordemId,
@@ -90,6 +90,13 @@ export function SituacaoForm({
 
   if (opcoes.length === 0) return null
 
+  // Cancelada: desfazer o cancelamento leva a ordem à situação escolhida.
+  const cancelada = situacao === "Cancelada"
+  const rotuloBotao = cancelada ? "Desfazer cancelamento" : "Trocar situação"
+  const avisoCancelada = cancelada
+    ? " O cancelamento é desfeito (motivo, data e autor ficam na trilha). Débito de caixa cancelado junto não volta: se a ordem for paga em dinheiro, o pagamento debita o caixa de novo."
+    : ""
+
   return (
     <div className="mt-4 grid gap-3 border-t pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -100,7 +107,7 @@ export function SituacaoForm({
         </p>
         <Button variant="outline" size="sm" onClick={() => setAberto(!aberto)}>
           <ArrowRightLeft />
-          Trocar situação
+          {rotuloBotao}
         </Button>
       </div>
 
@@ -109,9 +116,11 @@ export function SituacaoForm({
           action={acao}
           onSubmit={(e) =>
             confirmarEnvio(e, {
-              titulo: `Trocar a situação para "${nova}"?`,
-              descricao: destino ?? "",
-              confirmar: "Trocar",
+              titulo: cancelada
+                ? `Desfazer o cancelamento e levar a ordem para "${nova}"?`
+                : `Trocar a situação para "${nova}"?`,
+              descricao: (destino ?? "") + avisoCancelada,
+              confirmar: cancelada ? "Desfazer" : "Trocar",
             })
           }
           className="grid gap-3 rounded-md border p-3"
@@ -123,7 +132,7 @@ export function SituacaoForm({
             </Alert>
           )}
           <div className="grid gap-1.5">
-            <Label htmlFor="sit_nova">Nova situação</Label>
+            <Label htmlFor="sit_nova">{cancelada ? "Voltar para" : "Nova situação"}</Label>
             <select
               id="sit_nova"
               name="situacao"
@@ -137,7 +146,7 @@ export function SituacaoForm({
                 </option>
               ))}
             </select>
-            {destino && <p className="text-muted-foreground text-xs">{destino}</p>}
+            {destino && <p className="text-muted-foreground text-xs">{destino}{avisoCancelada}</p>}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="sit_motivo">{semMotivo ? "Observação (opcional)" : "Motivo *"}</Label>
@@ -145,7 +154,7 @@ export function SituacaoForm({
           </div>
           <Button type="submit" size="sm" disabled={pendente} className="justify-self-start">
             {pendente ? <Loader2 className="animate-spin" /> : <ArrowRightLeft />}
-            Trocar situação
+            {rotuloBotao}
           </Button>
         </form>
       )}

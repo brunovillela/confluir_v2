@@ -11,6 +11,7 @@ import { obterProjeto } from "@/lib/db/projetos"
 
 import { atualizarProjetoAction } from "../../actions"
 import { ProjetoForm } from "../../projeto-form"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Editar projeto — Confluir" }
 
@@ -57,9 +58,7 @@ export default async function EditarProjetoPage({
             }}
             centros={centros.map((c) => ({
               id: c.id,
-              rotulo: c.classificador
-                ? `${c.classificador} — ${c.nome_da_conta ?? ""}`
-                : (c.nome_da_conta ?? "(sem nome)"),
+              rotulo: rotuloCentroCusto(c),
             }))}
           />
         </CardContent>

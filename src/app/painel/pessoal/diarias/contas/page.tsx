@@ -97,7 +97,7 @@ export default async function ContasDiariaPage({
   const opcoes = centros.map((c) => ({
     id: c.id,
     nome: c.nome,
-    classificador: c.classificador,
+    codigo: c.codigo,
     grupo: c.departamentoId
       ? (nomeDepartamento.get(c.departamentoId) ?? "Outros")
       : "Sem departamento",

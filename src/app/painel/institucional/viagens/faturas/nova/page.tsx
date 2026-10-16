@@ -85,7 +85,7 @@ export default async function NovaFaturaPage() {
             contas={centros.map((c) => ({
               id: c.id,
               nome: c.nome,
-              classificador: c.classificador,
+              codigo: c.codigo,
               grupo: c.departamentoId
                 ? (nomeDepto.get(c.departamentoId) ?? "Outros")
                 : "Sem departamento",

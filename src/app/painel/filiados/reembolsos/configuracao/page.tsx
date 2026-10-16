@@ -9,6 +9,7 @@ import { configReembolsoCompleta } from "@/lib/db/filiacao-reembolsos-edicao"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 
 import { ConfigForm } from "./config-form"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Configuração de reembolsos — Confluir" }
 
@@ -43,7 +44,7 @@ export default async function ConfiguracaoReembolsosPage() {
               .filter((c) => c.usavel !== false)
               .map((c) => ({
                 id: c.id,
-                nome: [c.classificador, c.nome_da_conta].filter(Boolean).join(" — "),
+                nome: rotuloCentroCusto(c),
               }))}
           />
         </CardContent>

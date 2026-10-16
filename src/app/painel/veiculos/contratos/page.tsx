@@ -22,6 +22,7 @@ import { listarContratos, listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { NovoContratoForm } from "./contrato-forms"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Contratos de aluguel — Confluir" }
 
@@ -90,9 +91,7 @@ export default async function ContratosPage({
           departamentos={departamentos.map((d) => ({ id: d.id, rotulo: d.nome }))}
           centrosCusto={centros.map((c) => ({
             id: String(c.id),
-            rotulo:
-              [c.classificador, c.nome_da_conta].filter(Boolean).join(" - ") ||
-              "(sem nome)",
+            rotulo: rotuloCentroCusto(c),
           }))}
           responsavelPadraoId={sessao.usuario.id}
         />

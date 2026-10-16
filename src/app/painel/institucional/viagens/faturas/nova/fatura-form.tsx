@@ -31,7 +31,7 @@ export type ItemParaFatura = {
   departamentoNome: string | null
 }
 
-export type ContaOpcao = { id: string; nome: string; classificador: string | null; grupo: string }
+export type ContaOpcao = { id: string; nome: string; codigo: string | null; grupo: string }
 
 function lerValor(s: string): number {
   const limpo = s.replace(/\s|R\$/g, "")
@@ -225,7 +225,7 @@ export function FaturaForm({
                           .filter((c) => c.grupo === g)
                           .map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.classificador ? `${c.classificador} — ` : ""}
+                              {c.codigo ? `${c.codigo} - ` : ""}
                               {c.nome}
                             </option>
                           ))}

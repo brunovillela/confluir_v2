@@ -177,8 +177,9 @@ export function AcoesOrdem({
             <textarea id="canc_motivo" name="motivo" rows={2} required className={TEXTAREA} />
           </div>
           <p className="text-muted-foreground text-xs">
-            A ordem sai da fila de pagamento e não pode ser reaberta. Se foi uma
-            compra em dinheiro, o débito do caixa é cancelado junto.
+            A ordem sai da fila de pagamento (o Financeiro pode desfazer o
+            cancelamento depois). Se foi uma compra em dinheiro, o débito do
+            caixa é cancelado junto.
           </p>
           <Button type="submit" size="sm" variant="destructive" disabled={pendCancelar} className="justify-self-start">
             {pendCancelar ? <Loader2 className="animate-spin" /> : <Ban />}

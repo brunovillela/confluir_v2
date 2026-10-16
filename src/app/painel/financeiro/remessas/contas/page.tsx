@@ -12,6 +12,7 @@ import { obterOrganizacao } from "@/lib/db/organizacao"
 import { listarContasBancarias, obterContaBancaria } from "@/lib/db/remessas"
 
 import { ContaForm } from "./conta-form"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Contas bancárias — Confluir" }
 
@@ -106,7 +107,7 @@ export default async function ContasBancariasPage({ searchParams }: { searchPara
           <CardContent>
             <ContaForm
               conta={editando}
-              centros={centros.map((c) => ({ id: c.id, nome: [c.classificador, c.nome_da_conta].filter(Boolean).join(" · ") }))}
+              centros={centros.map((c) => ({ id: c.id, nome: rotuloCentroCusto(c) }))}
               titularPadrao={{ nome: org?.nomeRazao ?? org?.nomeFantasia ?? null, documento: org?.cnpjCpf ?? null }}
             />
           </CardContent>

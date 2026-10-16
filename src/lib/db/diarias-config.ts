@@ -227,14 +227,14 @@ export function contaDoGasto(
 
 /** Centros de custo de despesa usáveis, para os selects da configuração. */
 export async function centrosDeCustoDespesa(): Promise<
-  { id: string; nome: string; classificador: string | null; departamentoId: string | null }[]
+  { id: string; nome: string; codigo: string | null; departamentoId: string | null }[]
 > {
   const admin = await createAdminClient()
   const linhas: Record<string, unknown>[] = []
   for (let de = 0; ; de += 1000) {
     const { data, error } = await admin
       .from("centros_de_custo")
-      .select("id, nome_da_conta, classificador, tipo_da_conta, usavel, departamento_id")
+      .select("id, nome_da_conta, acesso, classificador, tipo_da_conta, usavel, departamento_id")
       .order("classificador", { ascending: true })
       .range(de, de + 999)
     if (error) {
@@ -256,7 +256,7 @@ export async function centrosDeCustoDespesa(): Promise<
     .map((c) => ({
       id: String(c.id),
       nome: String(c.nome_da_conta ?? "(sem nome)"),
-      classificador: texto(c.classificador),
+      codigo: texto(c.acesso),
       departamentoId: texto(c.departamento_id),
     }))
 }

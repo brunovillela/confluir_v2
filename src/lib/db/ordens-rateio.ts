@@ -2,6 +2,7 @@ import "server-only"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 /**
  * Rateio de uma ordem de pagamento — a divisão entre contas contábeis quando
@@ -41,7 +42,7 @@ export async function rateioDaOrdem(ordemId: string): Promise<LinhaRateio[]> {
   ]
   const [centros, deptos] = await Promise.all([
     centroIds.length
-      ? admin.from("centros_de_custo").select("id, nome_da_conta, classificador").in("id", centroIds)
+      ? admin.from("centros_de_custo").select("id, nome_da_conta, acesso").in("id", centroIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     deptoIds.length
       ? admin.from("empresa_departamentos").select("id, departamento").in("id", deptoIds)
@@ -50,7 +51,7 @@ export async function rateioDaOrdem(ordemId: string): Promise<LinhaRateio[]> {
   const nomeCentro = new Map(
     ((centros.data ?? []) as Record<string, unknown>[]).map((c) => [
       String(c.id),
-      `${c.classificador ? `${c.classificador} · ` : ""}${c.nome_da_conta ?? "(sem nome)"}`,
+      rotuloCentroCusto(c),
     ])
   )
   const nomeDepto = new Map(

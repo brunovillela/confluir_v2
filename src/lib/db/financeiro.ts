@@ -4,6 +4,7 @@ import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 
 import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const ORDENS_POR_PAGINA = 50
 
@@ -292,7 +293,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     ).catch(() => [] as Record<string, unknown>[]),
     admin
       .from("centros_de_custo")
-      .select("id, nome_da_conta, classificador, departamento_id")
+      .select("id, nome_da_conta, acesso, classificador, departamento_id")
       .order("classificador", { ascending: true, nullsFirst: false })
       .order("nome_da_conta", { ascending: true })
       .limit(1000),
@@ -329,10 +330,7 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     .filter((f) => f.nome)
   const centrosCusto = (centros.data ?? []).map((c) => ({
     id: c.id as string,
-    nome:
-      [texto(c.classificador), texto(c.nome_da_conta)]
-        .filter(Boolean)
-        .join(" — ") || "Centro de custo",
+    nome: rotuloCentroCusto(c),
     departamentoId: texto(c.departamento_id),
   }))
   const departamentos = (deptos.data ?? []).map((d) => ({

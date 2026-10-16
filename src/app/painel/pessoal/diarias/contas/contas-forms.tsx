@@ -18,7 +18,7 @@ const SELECT =
 export type ContaOpcao = {
   id: string
   nome: string
-  classificador: string | null
+  codigo: string | null
   grupo: string
 }
 
@@ -75,7 +75,7 @@ export function ContasDoQuadro({
                     .filter((c) => c.grupo === grupo)
                     .map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.classificador ? `${c.classificador} · ` : ""}
+                        {c.codigo ? `${c.codigo} - ` : ""}
                         {c.nome}
                       </option>
                     ))}

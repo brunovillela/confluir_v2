@@ -21,6 +21,7 @@ import {
   debitarCaixaCompra,
   type DetalhePagamento,
 } from "@/lib/db/compras-pagamento"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 /**
  * Compras — processos de aquisição (espelha o fluxo do Bubble, confirmado
@@ -648,7 +649,7 @@ export async function buscarProcesso(
       p.solicitacao_centro_custo_id
         ? admin
             .from("centros_de_custo")
-            .select("id, nome_da_conta, classificador")
+            .select("id, nome_da_conta, acesso, classificador")
             .eq("id", p.solicitacao_centro_custo_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -753,9 +754,7 @@ export async function buscarProcesso(
       (depto.data?.departamento as string | undefined) ?? null,
     centro_custo_id: (p.solicitacao_centro_custo_id as string | null) ?? null,
     centroCustoNome: centro.data
-      ? [centro.data.classificador, centro.data.nome_da_conta]
-          .filter(Boolean)
-          .join(" - ") || null
+      ? rotuloCentroCusto(centro.data)
       : null,
     projeto_id: (p.solicitacao_projeto_id as string | null) ?? null,
     projetoNome: (projeto.data?.descricao_sumaria as string | undefined) ?? null,
@@ -2017,7 +2016,7 @@ export async function listarCentrosCustoParaCompra(): Promise<
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("centros_de_custo")
-    .select("id, nome_da_conta, classificador, usavel, departamento_id")
+    .select("id, nome_da_conta, acesso, classificador, usavel, departamento_id")
     .order("classificador", { ascending: true, nullsFirst: false })
     .order("nome_da_conta", { ascending: true })
   if (error) {
@@ -2027,9 +2026,7 @@ export async function listarCentrosCustoParaCompra(): Promise<
     .filter((c) => c.usavel !== false)
     .map((c) => ({
       id: String(c.id),
-      nome:
-        [c.classificador, c.nome_da_conta].filter(Boolean).join(" - ") ||
-        "(sem nome)",
+      nome: rotuloCentroCusto(c),
       departamentoId: (c.departamento_id as string | null) ?? null,
     }))
 }

@@ -582,8 +582,9 @@ export default async function OrdemPage({
                   </div>
                 )}
             </dl>
-            {podeEditar && (aberta || (situacao === "Paga" && !estornoPendente)) && !editandoPagamento && (
+            {podeEditar && (aberta || situacao === "Cancelada" || (situacao === "Paga" && !estornoPendente)) && !editandoPagamento && (
               <SituacaoForm
+                key={situacao}
                 ordemId={id}
                 situacao={situacao}
                 temContrato={Boolean(ordem.contrato_id)}

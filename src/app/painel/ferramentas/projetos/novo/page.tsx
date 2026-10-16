@@ -9,6 +9,7 @@ import { listarCentrosCusto } from "@/lib/db/financeiro"
 
 import { criarProjetoAction } from "../actions"
 import { ProjetoForm } from "../projeto-form"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Novo projeto — Confluir" }
 
@@ -34,9 +35,7 @@ export default async function NovoProjetoPage() {
             action={criarProjetoAction}
             centros={centros.map((c) => ({
               id: c.id,
-              rotulo: c.classificador
-                ? `${c.classificador} — ${c.nome_da_conta ?? ""}`
-                : (c.nome_da_conta ?? "(sem nome)"),
+              rotulo: rotuloCentroCusto(c),
             }))}
           />
         </CardContent>

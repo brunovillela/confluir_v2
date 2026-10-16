@@ -26,6 +26,7 @@ import {
   AvaliarReembolsoForm,
   ConfigCentroCustoForm,
 } from "../processos/reembolso-forms"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Reembolsos jurídicos — Confluir" }
 
@@ -70,10 +71,7 @@ export default async function ReembolsosPage({
     .filter((c) => c.usavel !== false)
     .map((c) => ({
       id: c.id,
-      rotulo:
-        [c.classificador, c.nome_da_conta].filter(Boolean).join(" - ") ||
-        c.nome_da_conta ||
-        "(sem nome)",
+      rotulo: rotuloCentroCusto(c),
     }))
 
   const comprovantes = new Map(

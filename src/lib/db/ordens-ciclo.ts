@@ -34,6 +34,7 @@ export const SITUACAO_AGUARDANDO = "Aguardando informações"
  * "A pagar", quando é a parcela fixa já aprovada no contrato).
  */
 export const SITUACAO_AGUARDANDO_DOCUMENTO = "Aguardando documento fiscal"
+export const SITUACAO_CANCELADA = "Cancelada"
 /** Ainda não autorizadas — podem ser excluídas pelo contrato. */
 export const SITUACOES_NAO_AUTORIZADAS = [
   SITUACAO_AGUARDANDO_DOCUMENTO,
@@ -106,6 +107,7 @@ export type TipoEvento =
   | "estorno_corrigido"
   | "documento_fiscal"
   | "situacao_alterada"
+  | "cancelamento_desfeito"
   | "excluida"
   | "caixa_reconhecimento"
   | "caixa_transferida"
@@ -129,6 +131,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   estorno_corrigido: "Dados de pagamento corrigidos após o estorno — reenviada para autorização",
   documento_fiscal: "Documento fiscal recebido",
   situacao_alterada: "Situação alterada pelo Financeiro",
+  cancelamento_desfeito: "Cancelamento desfeito pelo Financeiro",
   excluida: "Excluída",
   caixa_reconhecimento: "Despesa no caixa avaliada pelo responsável da conta",
   caixa_transferida: "Despesa transferida para outra conta de caixa",
@@ -619,7 +622,11 @@ export async function alterarSituacaoOrdem(
   const autorizada = o.autorizacao_esta_autorizado === true || atual === SITUACAO_A_PAGAR
   if (atual === nova) return { erro: `A ordem já está "${nova}".` }
   if (!motivo.trim() && !motivoOpcional(atual, nova)) return { erro: "Informe o motivo da troca de situação." }
-  if (SITUACOES_ENCERRADAS.includes(atual)) {
+  // Cancelada pode voltar ao fluxo (16/10/2026): o Financeiro escolhe a
+  // situação. O débito de caixa cancelado junto NÃO volta — se a ordem for
+  // paga em dinheiro de novo, o pagamento debita o caixa outra vez.
+  const reabrindo = atual === SITUACAO_CANCELADA
+  if (SITUACOES_ENCERRADAS.includes(atual) && !reabrindo) {
     return {
       erro:
         atual === "Paga"
@@ -677,6 +684,9 @@ export async function alterarSituacaoOrdem(
             autorizacao_observacao: motivo,
           }
         : { situacao: nova, ...limpaAutorizacao }
+  if (reabrindo) {
+    Object.assign(campos, { cancelamento_motivo: null, cancelado_em: null, cancelado_por_id: null })
+  }
 
   // A situação no filtro evita sobrescrever uma mudança feita por outra pessoa.
   const { data, error } = await admin
@@ -689,7 +699,13 @@ export async function alterarSituacaoOrdem(
   if ((data ?? []).length === 0) {
     return { erro: "A ordem mudou de situação enquanto você editava — recarregue a página." }
   }
-  await registrarEvento(ordemId, "situacao_alterada", usuarioId, motivo.trim() || null, { de: atual, para: nova })
+  await registrarEvento(
+    ordemId,
+    reabrindo ? "cancelamento_desfeito" : "situacao_alterada",
+    usuarioId,
+    motivo.trim() || null,
+    { de: atual, para: nova }
+  )
   // Autorizada ou devolvida à mão: os mesmos marcos (e webhooks) da avaliação.
   if (soSituacao) {
     // sem novo marco de autorização

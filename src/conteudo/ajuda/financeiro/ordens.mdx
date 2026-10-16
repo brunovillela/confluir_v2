@@ -182,8 +182,14 @@ No cartão **Procedência** de uma ordem ainda não paga:
   centro de custo da despesa, com o **motivo**. O histórico guarda o antes e o
   depois. **Mudar o valor de uma ordem já autorizada a devolve para
   autorização** — o que foi aprovado era outro valor.
-- **Cancelar ordem** — com o **motivo**; a ordem sai da fila e não volta. Numa
-  compra em dinheiro, o débito do caixa é cancelado junto.
+- **Cancelar ordem** — com o **motivo**; a ordem sai da fila. Numa compra em
+  dinheiro, o débito do caixa é cancelado junto.
+- **Desfazer cancelamento** — numa ordem **Cancelada**, em *Detalhes do
+  pagamento*: o Financeiro escolhe para qual situação ela volta (*Em
+  autorização*, *A pagar*, *Aguardando informações*…) e diz o motivo. Os dados
+  do cancelamento são limpos e a trilha registra o cancelamento e a volta. O
+  débito de caixa cancelado junto **não** volta: se a ordem for paga em
+  dinheiro, o pagamento debita o caixa de novo.
 - **Reenviar para autorização** — para uma ordem **devolvida**, dizendo o que
   foi complementado.
 
