@@ -84,6 +84,7 @@ export async function respostaPdfExtratoOrdem(id: string, req: Request): Promise
     procedencia: { origem: pr.origem, titulo: pr.titulo, linhas: pr.linhas, pessoas, detalhamento: pr.detalhamento ?? null },
     favorecido: {
       nome: x.favorecido.nome ?? "—",
+      razaoSocial: x.favorecido.razaoSocial ?? null,
       documento: x.favorecido.documento,
       tipo: x.favorecido.tipo,
     },

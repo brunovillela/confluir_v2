@@ -152,7 +152,7 @@ export type ExtratoOrdemProps = {
       total: string
     } | null
   }
-  favorecido: { nome: string; documento: string | null; tipo: string | null }
+  favorecido: { nome: string; razaoSocial?: string | null; documento: string | null; tipo: string | null }
   classificacao: {
     despesa: string | null
     debito: string | null
@@ -313,7 +313,8 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
 
         <Secao titulo="Favorecido">
           <View style={s.grade}>
-            <Campo rotulo="Nome" valor={p.favorecido.nome} />
+            <Campo rotulo={p.favorecido.razaoSocial ? "Nome fantasia" : "Nome"} valor={p.favorecido.nome} />
+            {p.favorecido.razaoSocial ? <Campo rotulo="Razão social" valor={p.favorecido.razaoSocial} /> : null}
             <Campo rotulo="CPF/CNPJ" valor={p.favorecido.documento} />
             <Campo rotulo="Natureza" valor={p.favorecido.tipo} />
           </View>

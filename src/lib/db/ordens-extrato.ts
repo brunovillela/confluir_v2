@@ -29,7 +29,7 @@ export type ExtratoCompleto = {
   verificacoes: VerificacaoGravada[]
   rateio: LinhaRateio[]
   pagoCom: string | null
-  favorecido: { nome: string | null; documento: string | null; tipo: string | null }
+  favorecido: { nome: string | null; documento: string | null; tipo: string | null; razaoSocial?: string | null }
   autorizacao: {
     situacao: "dispensada" | "autorizada" | "devolvida" | "pendente" | "encerrada"
     texto: string
@@ -98,10 +98,11 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
   let favorecido: ExtratoCompleto["favorecido"] = { nome: detalhe.favorecido, documento: null, tipo: null }
   const fornId = (o.beneficiario_fornecedor_id ?? o.fornecedor_id) as string | null
   if (fornId) {
-    const { data: e } = await admin.from("empresa").select("cnpj_cpf, pessoa_juridica").eq("id", fornId).maybeSingle()
+    const { data: e } = await admin.from("empresa").select("cnpj_cpf, pessoa_juridica, nome_razao").eq("id", fornId).maybeSingle()
     const doc = (e?.cnpj_cpf as string | null) ?? null
     favorecido = {
       nome: detalhe.favorecido,
+      razaoSocial: typeof e?.nome_razao === "string" && e.nome_razao.trim() ? e.nome_razao.trim() : null,
       documento: doc ? formatarCnpjCpf(doc) : null,
       tipo: doc ? (doc.replace(/\D/g, "").length === 11 ? "Pessoa física" : "Pessoa jurídica") : e?.pessoa_juridica ? "Pessoa jurídica" : null,
     }
