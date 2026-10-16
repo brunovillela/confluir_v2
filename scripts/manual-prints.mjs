@@ -47,6 +47,18 @@ const SHOTS = process.env.SHOT_UNICO
       [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
     ]
   : [
+  // Rodada de 16/10 (20): movimento da folha para a contabilidade. Na demo,
+  // Outubro/2026 ficou enviada e recebida (dados "TESTE MOVIMENTO") e uma
+  // falta de 14/10 lançada depois do envio caiu em Novembro como retroativa.
+  ["/painel/pessoal", "pessoal/painel-visao-geral.png", { esperar: "Movimento da folha", fullPage: true }],
+  ["/painel/pessoal/contabilidade", "pessoal/movimento-folha-lista.png", { esperar: "Competências enviadas", altura: 720 }],
+  ["/painel/pessoal/contabilidade/2026-10", "pessoal/movimento-folha-competencia.png", { esperar: "Alterações contratuais", altura: 1000 }],
+  ["/painel/pessoal/contabilidade/2026-11", "pessoal/movimento-folha-retroativo.png", { esperar: "Retroativo", altura: 600 }],
+  ]
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodadas anteriores, guardadas para refazer
+const SHOTS_ANTIGOS = [
+  /*
   // Rodada de 09/10 (19): RPA — entrada no contrato e na compra, gestão na
   // área própria, assinatura pelo link (estado montado por script: link
   // pendente no RPA nº 1 da demo, sem e-mail; desfeito depois).
@@ -56,10 +68,8 @@ const SHOTS = process.env.SHOT_UNICO
   ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/contrato-hierarquia.png", { esperar: "RPA — pagamento a autônomo", scrollTo: "Dados do contrato", altura: 1100 }],
   // O Chromium headless não exibe PDF embutido: o print foca o passo a passo.
   [`/assinar/${TOKEN_RPA}`, "compras/rpa-assinar.png", { anon: true, esperar: "Receba o código", ocultarCartao: "Confira o serviço", altura: 920 }],
-  ]
+  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodadas anteriores, guardadas para refazer
-const SHOTS_ANTIGOS = [
   // Rodada de 09/10 (18): agenda do portal, que desde 10/09 é a seção "Agenda
   // de atividades" da página Eventos e agenda. As 3 atividades da demo
   // (40210000-…-0001..0003) foram levadas para out/nov de 2026.

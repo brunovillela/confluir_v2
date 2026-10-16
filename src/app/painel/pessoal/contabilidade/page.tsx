@@ -26,12 +26,16 @@ export default async function MovimentoFolhaPage() {
   const envia = sessao.permissoes["pessoal_contabilidade_envio"] === true
   const { disponivel, competencias } = await listarCompetencias()
 
-  // Abertas: a atual e, se a anterior não foi enviada, ela também.
+  // Abertas: a atual e, se a anterior não foi enviada, ela também. Enviada a
+  // atual, a seguinte já aparece — é nela que caem os retroativos.
   const atual = competenciaAtual()
   const enviadas = new Set(competencias.map((c) => c.competencia))
+  const proxima = deslocarCompetencia(atual, 1)
   const abertas = envia
-    ? [deslocarCompetencia(atual, -1), atual].filter(
-        (c) => !enviadas.has(c) && (c === atual || competencias.length === 0 || competencias[0].competencia < c)
+    ? [deslocarCompetencia(atual, -1), atual, proxima].filter(
+        (c) =>
+          !enviadas.has(c) &&
+          (c === proxima ? enviadas.has(atual) : c === atual || competencias.length === 0 || competencias[0].competencia < c)
       )
     : []
 
@@ -66,8 +70,11 @@ export default async function MovimentoFolhaPage() {
                     <Badge variant="warning">Aberta</Badge>
                   </div>
                   <CardDescription>
-                    {c < atual ? "Competência anterior ainda não enviada." : "Competência em curso."} Confira e envie à
-                    contabilidade.
+                    {c < atual
+                      ? "Competência anterior ainda não enviada. Confira e envie à contabilidade."
+                      : c > atual
+                        ? "Próxima competência — o que for lançado agora, inclusive os retroativos, já aparece aqui."
+                        : "Competência em curso. Confira e envie à contabilidade."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="text-primary flex items-center gap-1 text-sm">
