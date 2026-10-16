@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DetalheDiaria } from "@/components/diaria-detalhe"
 import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
+import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria } from "@/lib/db/diarias"
@@ -69,6 +70,12 @@ export default async function DiariaDiretoriaPage({
         infracoesPendentes={infracoesPendentes}
         descontos={descontos}
         salvo={salvo === "1"}
+      />
+
+      <DespesasDepoisDaViagem
+        diaria={solicitacao}
+        diariaBase="/painel/institucional/diretoria/diarias"
+        remessaBase="/painel/institucional/diretoria/diarias/remessas"
       />
 
       {aguardando && (

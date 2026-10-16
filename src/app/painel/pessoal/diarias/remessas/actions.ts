@@ -6,6 +6,8 @@ import { requireSessaoPainel, type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { coordenaFuncionario } from "@/lib/db/coordenador"
+import { buscarSolicitacaoDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
+import { complementoAberto, lancarDespesaPosterior, removerDespesaPosterior } from "@/lib/db/diarias-complemento"
 import {
   aprovarRemessaDiarias,
   devolverRemessaDiarias,
@@ -122,6 +124,62 @@ export async function reenviarRemessaAction(_prev: EstadoForm, fd: FormData): Pr
   if (r.erro) return { erro: r.erro }
   revalidar(remessa)
   return { ok: "Remessa reenviada para avaliação." }
+}
+
+/**
+ * Despesa DEPOIS DA VIAGEM (16/10): lança na diária recebida (o formulário
+ * manda o id da diária original em solicitacao_id). Pode o beneficiário, quem
+ * lançou a diária ou quem gere as diárias daquele quadro.
+ */
+async function podeMexerNaDiaria(sessao: SessaoPainel, diaria: SolicitacaoDiaria): Promise<boolean> {
+  const uid = String(sessao.usuario.id)
+  if (diaria.funcionario_id === uid || diaria.solicitanteId === uid) return true
+  return diaria.beneficiarioTipo === "diretor"
+    ? podeAcessar(sessao.permissoes, "diretoria_diarias", ["configuracoes"])
+    : podeAcessar(sessao.permissoes, "pessoal_gestao", ["pessoal_diarias"])
+}
+
+function revalidarDiaria(diaria: SolicitacaoDiaria) {
+  revalidatePath("/painel/perfil/diarias")
+  revalidatePath(`/painel/pessoal/diarias/${diaria.id}`)
+  revalidatePath(`/painel/institucional/diretoria/diarias/${diaria.id}`)
+  revalidatePath("/painel/pessoal/diarias/remessas")
+  revalidatePath("/painel/institucional/diretoria/diarias/remessas")
+}
+
+export async function lancarDespesaPosteriorAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+  const origem = await buscarSolicitacaoDiaria(String(fd.get("solicitacao_id") ?? ""))
+  if (!origem) return { erro: "Diária não encontrada." }
+  if (!(await podeMexerNaDiaria(sessao, origem))) return { erro: "Você não lança despesas nesta diária." }
+  const arquivo = fd.get("comprovante")
+  const r = await lancarDespesaPosterior({
+    origemId: origem.id,
+    usuarioId: String(sessao.usuario.id),
+    tipoId: String(fd.get("tipo_id") ?? "").trim() || null,
+    descricao: String(fd.get("descricao") ?? "").trim() || null,
+    valor: Number(String(fd.get("valor") ?? "").replace(/\./g, "").replace(",", ".")),
+    arquivo: arquivo instanceof File ? arquivo : null,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidarDiaria(origem)
+  return { ok: "Despesa lançada — entrou na sua remessa em preparação." }
+}
+
+export async function removerDespesaPosteriorAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+  const origem = await buscarSolicitacaoDiaria(String(fd.get("solicitacao_id") ?? ""))
+  if (!origem) return { erro: "Diária não encontrada." }
+  if (!(await podeMexerNaDiaria(sessao, origem))) return { erro: "Você não mexe nas despesas desta diária." }
+  const aberto = await complementoAberto(origem.id)
+  const id = String(fd.get("id") ?? "")
+  if (!aberto || !aberto.despesas.some((d) => d.id === id)) {
+    return { erro: "Só a despesa ainda não enviada para avaliação pode ser excluída." }
+  }
+  const r = await removerDespesaPosterior(id)
+  if (r.erro) return { erro: r.erro }
+  revalidarDiaria(origem)
+  return { ok: "Despesa excluída." }
 }
 
 /** Envia a remessa em preparação para avaliação — o beneficiário ou quem lançou. */

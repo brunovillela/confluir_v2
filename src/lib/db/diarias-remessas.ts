@@ -502,12 +502,11 @@ async function gerarOrdemDaRemessa(
     grupos.set(chave, g)
   }
   for (const s of aprovadas) {
-    somar(
-      contaDoGasto(contas, remessa.quadro, s.departamentoId, null),
-      s.departamentoId,
-      "diária",
-      Math.round(((s.valor_total ?? 0) - (s.valorDescontos ?? 0)) * 100) / 100
-    )
+    // Complemento (despesas depois da viagem) não tem valor de diária.
+    const liquidaDiaria = Math.round(((s.valor_total ?? 0) - (s.valorDescontos ?? 0)) * 100) / 100
+    if (liquidaDiaria !== 0) {
+      somar(contaDoGasto(contas, remessa.quadro, s.departamentoId, null), s.departamentoId, "diária", liquidaDiaria)
+    }
     for (const d of s.despesas) {
       somar(
         contaDoGasto(contas, remessa.quadro, s.departamentoId, d.tipoId),

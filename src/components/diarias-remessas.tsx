@@ -43,7 +43,8 @@ function valorDaDiaria(s: SolicitacaoDiaria): number {
 }
 
 function rotuloDiaria(s: SolicitacaoDiaria): string {
-  return `${s.tipoNome ?? "Diária"} × ${s.quantidade ?? 1} · ${periodo(s.data_inicio, s.data_termino)} · ${formatarMoeda(valorDaDiaria(s))}`
+  const nome = s.complementoDe ? `Despesas depois da viagem (${s.tipoNome ?? "diária"})` : `${s.tipoNome ?? "Diária"} × ${s.quantidade ?? 1}`
+  return `${nome} · ${periodo(s.data_inicio, s.data_termino)} · ${formatarMoeda(valorDaDiaria(s))}`
 }
 
 export function SituacaoRemessaBadge({ remessa }: { remessa: Pick<RemessaNova, "enviada" | "situacao"> }) {
@@ -275,7 +276,9 @@ export function DetalheRemessaDiarias({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <Link href={`${diariaBase}/${s.id}`} className="text-primary font-medium hover:underline">
-                      {s.tipoNome ?? "Diária"} × {s.quantidade ?? 1}
+                      {s.complementoDe
+                        ? `Despesas depois da viagem (${s.tipoNome ?? "diária"})`
+                        : `${s.tipoNome ?? "Diária"} × ${s.quantidade ?? 1}`}
                     </Link>
                     <span className="text-muted-foreground"> · {periodo(s.data_inicio, s.data_termino)}</span>
                     {s.departamentoNome && <span className="text-muted-foreground"> · {s.departamentoNome}</span>}
@@ -299,12 +302,14 @@ export function DetalheRemessaDiarias({
                   <p className="text-muted-foreground mt-1 text-xs">{s.avaliacao_observacao}</p>
                 )}
                 <ul className="text-muted-foreground mt-2 grid gap-0.5 text-xs">
-                  <li className="flex justify-between gap-2">
-                    <span>
-                      Diária: {s.quantidade ?? 1} × {formatarMoeda(s.valor_unitario)}
-                    </span>
-                    <span className="tabular-nums">{formatarMoeda(s.valor_total)}</span>
-                  </li>
+                  {!s.complementoDe && (
+                    <li className="flex justify-between gap-2">
+                      <span>
+                        Diária: {s.quantidade ?? 1} × {formatarMoeda(s.valor_unitario)}
+                      </span>
+                      <span className="tabular-nums">{formatarMoeda(s.valor_total)}</span>
+                    </li>
+                  )}
                   {s.valorDescontos > 0 && (
                     <li className="flex justify-between gap-2">
                       <span>Infrações de trânsito descontadas</span>

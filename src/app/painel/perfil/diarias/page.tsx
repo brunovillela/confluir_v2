@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table"
 import { SituacaoDiariaBadge } from "@/components/diarias"
 import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
+import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { SituacaoRemessaBadge } from "@/components/diarias-remessas"
 import { EnviarRemessaBotao, ReenviarRemessaForm } from "@/components/remessa-avaliacao-form"
 import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
@@ -69,7 +70,9 @@ export default async function MinhasDiariasPage({
       t.valor_reembolso !== null &&
       tipoDiariaLiberado(t, sessao.usuario.id as string, quadro?.quadro)
   )
-  const emAvaliacao = solicitacoes.filter((s) => s.situacao === "aguardando")
+  // Complemento (despesas depois da viagem) aparece no bloco da diária original.
+  const emAvaliacao = solicitacoes.filter((s) => s.situacao === "aguardando" && !s.complementoDe)
+  const recebidas = solicitacoes.filter((s) => s.situacao === "aprovada" && !s.complementoDe)
   const urlsComprovantes = new Map(
     await Promise.all(
       emAvaliacao
@@ -216,6 +219,10 @@ export default async function MinhasDiariasPage({
           acaoAdicionar={adicionarMinhaDespesa}
           acaoRemover={removerMinhaDespesa}
         />
+      ))}
+
+      {recebidas.map((s) => (
+        <DespesasDepoisDaViagem key={s.id} diaria={s} />
       ))}
 
       <Card>

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { DetalheDiaria } from "@/components/diaria-detalhe"
+import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria } from "@/lib/db/diarias"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
@@ -59,6 +60,11 @@ export default async function SolicitacaoDiariaPage({
         descontos={descontos}
         salvo={salvo === "1"}
         remessaHref={solicitacao.remessaId ? `/painel/pessoal/diarias/remessas/${solicitacao.remessaId}` : null}
+      />
+      <DespesasDepoisDaViagem
+        diaria={solicitacao}
+        diariaBase="/painel/pessoal/diarias"
+        remessaBase="/painel/pessoal/diarias/remessas"
       />
     </>
   )

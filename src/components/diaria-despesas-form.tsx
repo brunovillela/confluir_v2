@@ -32,7 +32,11 @@ export function DespesasDaDiaria({
   tipos,
   acaoAdicionar,
   acaoRemover,
+  titulo = "Despesas extras",
+  descricao = "Hospedagem, alimentação, passagem — cada uma vai para a conta contábil dela, dentro da mesma ordem de pagamento.",
 }: {
+  titulo?: string
+  descricao?: string
   solicitacaoId: string
   despesas: DespesaNaTela[]
   tipos: { id: string; nome: string; exigeComprovante: boolean }[]
@@ -54,11 +58,8 @@ export function DespesasDaDiaria({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Despesas extras</CardTitle>
-        <CardDescription>
-          Hospedagem, alimentação, passagem — cada uma vai para a conta contábil dela, dentro da
-          mesma ordem de pagamento.
-        </CardDescription>
+        <CardTitle className="text-base">{titulo}</CardTitle>
+        <CardDescription>{descricao}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {despesas.length > 0 ? (

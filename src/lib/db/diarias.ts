@@ -162,6 +162,8 @@ export type SolicitacaoDiaria = {
   remessaSituacao: SituacaoRemessa | null
   /** Não conformidade apontada pelo avaliador ao devolver a remessa. */
   pendenciaObservacao: string | null
+  /** Diária recebida de que esta é complemento (despesas depois da viagem, 16/10). */
+  complementoDe: string | null
   /** Infrações abatidas na aprovação (a diária entra líquida na remessa). */
   valorDescontos: number
   created_at: string | null
@@ -301,6 +303,7 @@ async function normalizarSolicitacoes(
     remessaEnviada: s.remessa_id ? (remessa.get(String(s.remessa_id))?.enviada ?? false) : false,
     remessaSituacao: s.remessa_id ? (remessa.get(String(s.remessa_id))?.situacao ?? null) : null,
     pendenciaObservacao: (s.pendencia_observacao as string | null) ?? null,
+    complementoDe: (s.complemento_de as string | null) ?? null,
     valorDescontos: Number(s.valor_descontos ?? 0) || 0,
     created_at: (s.created_at as string | null) ?? null,
     }

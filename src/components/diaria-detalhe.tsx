@@ -103,6 +103,14 @@ export function DetalheDiaria({
                 "—"
               )}
             </Campo>
+            {solicitacao.complementoDe && (
+              <Campo rotulo="Complemento de" colSpan>
+                <Link href={`${voltar.href}/${solicitacao.complementoDe}`} className="text-primary hover:underline">
+                  diária já recebida
+                </Link>
+                <span className="text-muted-foreground"> — despesas lançadas depois da viagem (sem valor de diária)</span>
+              </Campo>
+            )}
             <Campo rotulo="Motivo" colSpan>
               <span className="whitespace-pre-wrap">{solicitacao.motivo ?? "—"}</span>
             </Campo>
