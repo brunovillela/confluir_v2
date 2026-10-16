@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  FileClock,
   ClipboardCheck,
   ClipboardList,
   ListChecks,
@@ -29,6 +30,7 @@ import { TileIndicador } from "@/components/graficos/tile";
 import { requirePermissao } from "@/lib/auth";
 import { listarDepartamentos, resumoCompras } from "@/lib/db/compras";
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso";
+import { DIAS_AVISO_NOTA, listarNotasAReceber } from "@/lib/db/compras-marketplace";
 import {
   indicadoresCompras,
   PERIODOS_INDICADORES,
@@ -108,6 +110,17 @@ export default async function ComprasPage({
     veContratos ||
     podeAcessar(p, "aquisicoes_compras_edicao", ["aquisicoes_comprador", "aquisicoes_compra_direta"]);
 
+  // Compras em marketplace sem a nota do vendedor (o comprador central vê todas).
+  const veNotas = podeAcessar(p, "aquisicoes_compras", [
+    "aquisicoes_compras_edicao",
+    "aquisicoes_compra_direta",
+    "aquisicoes_comprador",
+  ]);
+  const notas = veNotas
+    ? await listarNotasAReceber(podeAcessar(p, "aquisicoes_comprador") ? null : escopo).catch(() => null)
+    : null;
+  const notasAtrasadas = (notas?.itens ?? []).filter((i) => i.dias >= DIAS_AVISO_NOTA).length;
+
   const processos = (q: Record<string, string>) =>
     `/painel/compras/processos?${new URLSearchParams(q).toString()}`;
 
@@ -180,6 +193,19 @@ export default async function ComprasPage({
             icone={PackageOpen}
             indicador={
               (resumo.aReceber ?? 0) > 0 ? `${resumo.aReceber} a receber` : null
+            }
+          />
+        )}
+        {veNotas && notas?.disponivel && (
+          <CartaoArea
+            titulo="Notas a receber"
+            descricao="Compras em marketplace aguardando a nota fiscal do vendedor"
+            href="/painel/compras/notas-a-receber"
+            icone={FileClock}
+            indicador={
+              notas.itens.length > 0
+                ? `${notas.itens.length} aguardando${notasAtrasadas ? ` · ${notasAtrasadas} há ${DIAS_AVISO_NOTA}+ dias` : ""}`
+                : null
             }
           />
         )}

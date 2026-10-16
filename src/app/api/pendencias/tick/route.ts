@@ -1,4 +1,5 @@
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
+import { avisarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -23,8 +24,12 @@ export const maxDuration = 300
  * atrasam o que já existia. Uma falha num tenant ou numa etapa não impede o
  * resto; tudo é idempotente, e rodar de novo no dia não repete aviso.
  *
+ * Por fim, as NOTAS A RECEBER das compras em marketplace: 7 dias depois da
+ * compra sem a nota do vendedor, quem comprou recebe um e-mail — uma vez por
+ * compra (lib/db/compras-marketplace.ts).
+ *
  * `?tenant=<uuid>` roda um tenant só (disparo manual e testes na demo);
- * `?etapa=pendencias` ou `?etapa=portal` roda só uma das duas partes.
+ * `?etapa=pendencias`, `?etapa=portal` ou `?etapa=notas` roda só uma das partes.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -42,7 +47,7 @@ async function handler(req: Request): Promise<Response> {
   const tenants = (await tenantsDoLembrete()).filter((t) => !unico || t.id === unico)
 
   const resultados: { tenant: string; pessoas: number; lembretes: number; erro?: string }[] = []
-  if (etapa !== "portal") {
+  if (etapa !== "portal" && etapa !== "notas") {
     for (const t of tenants) {
       try {
         resultados.push({ tenant: t.id, ...(await lembrarPendencias(t.id)) })
@@ -53,7 +58,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const portal: ({ tenant: string } & ResultadoLembretesDoPortal)[] = []
-  if (etapa !== "pendencias") {
+  if (etapa !== "pendencias" && etapa !== "notas") {
     const svc = createServiceClient()
     for (const t of tenants) {
       try {
@@ -68,7 +73,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal })
+  const notas: { tenant: string; avisados: number; erros: string[] }[] = []
+  if (!etapa || etapa === "notas") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        notas.push({ tenant: t.id, ...(await avisarNotasAReceber(svc, t.id, contexto)) })
+      } catch (e) {
+        notas.push({ tenant: t.id, avisados: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const n of notas) {
+      if (n.erros.length) console.error(`[pendencias/tick] notas a receber (${n.tenant}):`, n.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas })
 }
 
 export const GET = handler

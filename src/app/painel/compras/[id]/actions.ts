@@ -35,6 +35,7 @@ import {
 } from "@/lib/db/compras"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { trocarCodigoPix, trocarNotaDaCompra, trocarNotaDaOrdem } from "@/lib/db/compras-ajustes"
+import { receberNotaMarketplace, vincularVendedor } from "@/lib/db/compras-marketplace"
 import { enviarOrdemCompra } from "@/lib/db/ordem-compra"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
@@ -400,6 +401,50 @@ export async function trocarNotaFiscalAction(_prev: EstadoForm, formData: FormDa
   if (erro) return { erro }
   revalidarProcesso(processoId)
   return { ok: "Nota fiscal salva." }
+}
+
+// ── Compra em marketplace: a nota do vendedor chega depois ───────────────────
+
+/** Anexa a nota do vendedor e liga o vendedor ("XYZ, comprado através do …"). */
+export async function anexarNotaMarketplaceAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  if (!processoId || !fornecimentoId) return { erro: "Pedido inválido." }
+  const vendedorId = texto(formData, "vendedor_id") || null
+  if (!vendedorId) return { erro: "Identifique o vendedor (o emitente da nota)." }
+  const arquivo = formData.get("nota_fiscal")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo da nota (PDF ou foto)." }
+  const { caminho, erro: erroUpload } = await subirComprovanteCompras(`notas/${processoId}`, arquivo)
+  if (erroUpload || !caminho) return { erro: erroUpload ?? "Falha ao subir a nota." }
+  const { erro } = await receberNotaMarketplace({
+    processoId,
+    fornecimentoId,
+    caminho,
+    vendedorId,
+    usuarioId: sessao.usuario.id,
+  })
+  if (erro) {
+    await (await createAdminClient()).storage.from("compras").remove([caminho])
+    return { erro }
+  }
+  revalidarProcesso(processoId)
+  revalidatePath("/painel/compras/notas-a-receber")
+  return { ok: "Nota anexada e vendedor vinculado." }
+}
+
+/** Liga (ou troca) o vendedor de uma compra em marketplace. */
+export async function vincularVendedorAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  const vendedorId = texto(formData, "vendedor_id")
+  if (!processoId || !fornecimentoId) return { erro: "Pedido inválido." }
+  if (!vendedorId) return { erro: "Escolha o vendedor." }
+  const { erro } = await vincularVendedor({ processoId, fornecimentoId, vendedorId, usuarioId: sessao.usuario.id })
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  return { ok: "Vendedor vinculado." }
 }
 
 // ── Ordem de compra ao fornecedor ────────────────────────────────────────────

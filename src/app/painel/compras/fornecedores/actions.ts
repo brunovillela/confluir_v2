@@ -47,6 +47,8 @@ function lerDados(formData: FormData): DadosFornecedor {
     cnpj_cpf: ouNull(texto(formData, "cnpj_cpf").replace(/\D/g, "")),
     pessoa_juridica: texto(formData, "pessoa_juridica") === "on",
     fornecedor_bloqueado: texto(formData, "fornecedor_bloqueado") === "on",
+    // Só o formulário de fornecedor traz a marcação (entidades apoiadas não).
+    ...(formData.has("marketplace") ? { marketplace: texto(formData, "marketplace") === "on" } : {}),
   }
 }
 

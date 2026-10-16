@@ -108,6 +108,13 @@ export type Fornecimento = {
   proposta_id: string | null
   fornecedor_id: string | null
   fornecedorNome: string | null
+  /** O fornecedor é um marketplace (a nota vem do vendedor). */
+  marketplace: boolean
+  /** Marketplace sem a nota ainda (Notas a receber). */
+  nota_a_receber: boolean
+  /** Quem vendeu pela plataforma ("XYZ, comprado através do …"). */
+  vendedor_id: string | null
+  vendedorNome: string | null
   valor: number | null
   forma_pagamento: string | null
   previsao_entrega: string | null
@@ -201,23 +208,22 @@ export type ProcessoDetalhe = {
 
 export async function empresasPorId(
   ids: string[]
-): Promise<Map<string, { nome: string; bloqueado: boolean }>> {
-  const mapa = new Map<string, { nome: string; bloqueado: boolean }>()
+): Promise<Map<string, { nome: string; bloqueado: boolean; marketplace: boolean }>> {
+  const mapa = new Map<string, { nome: string; bloqueado: boolean; marketplace: boolean }>()
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return mapa
   const admin = await createAdminClient()
-  const { data } = await admin
-    .from("empresa")
-    .select("id, nome_fantasia, nome_razao, fornecedor_bloqueado, bloqueado")
-    .in("id", unicos)
-  for (const e of data ?? []) {
+  // select("*"): `marketplace` só existe depois de supabase/compras-marketplace.sql.
+  const { data } = await admin.from("empresa").select("*").in("id", unicos)
+  for (const e of (data ?? []) as Record<string, unknown>[]) {
     const nome =
       [e.nome_fantasia, e.nome_razao].find(
         (v): v is string => typeof v === "string" && v.trim() !== ""
       ) ?? "(sem nome)"
-    mapa.set(e.id, {
+    mapa.set(String(e.id), {
       nome,
       bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+      marketplace: e.marketplace === true,
     })
   }
   return mapa
@@ -614,6 +620,7 @@ export async function buscarProcesso(
   const empresaIds = [
     ...propostasBrutas.map((x) => x.fornecedor_id),
     ...(fornecimentosBrutos ?? []).map((x) => x.fornecedor_id),
+    ...(fornecimentosBrutos ?? []).map((x) => x.vendedor_id),
   ].filter((v): v is string => Boolean(v))
   const usuarioIds = [
     p.cotacao_responsavel_id,
@@ -692,6 +699,10 @@ export async function buscarProcesso(
           fornecedorNome: x.fornecedor_id
             ? (empresas.get(String(x.fornecedor_id))?.nome ?? null)
             : null,
+          marketplace: x.fornecedor_id ? (empresas.get(String(x.fornecedor_id))?.marketplace ?? false) : false,
+          nota_a_receber: x.nota_a_receber === true,
+          vendedor_id: (x.vendedor_id as string | null) ?? null,
+          vendedorNome: x.vendedor_id ? (empresas.get(String(x.vendedor_id))?.nome ?? null) : null,
           valor: (x.valor as number | null) ?? null,
           forma_pagamento: (x.forma_pagamento as string | null) ?? null,
           previsao_entrega: (x.previsao_entrega as string | null) ?? null,
@@ -867,6 +878,12 @@ export type NovaCompraDireta = NovaSolicitacao & {
   por_rpa?: boolean
   /** Tela de confirmação da auditoria: os alertas já confirmados. */
   confirmacao?: Confirmacao
+  /**
+   * Compra em marketplace sem a nota no ato (supabase/compras-marketplace.sql):
+   * o fornecimento fica em Notas a receber; o vendedor, se já conhecido.
+   */
+  nota_a_receber?: boolean
+  vendedor_id?: string | null
 }
 
 /**
@@ -972,6 +989,7 @@ export async function criarCompraDireta(
       recebimento_observacao: nova.ja_recebido
         ? "Item avaliado no ato da compra."
         : null,
+      ...(nova.nota_a_receber ? { nota_a_receber: true, vendedor_id: nova.vendedor_id ?? null } : {}),
       emp_proprietaria_id: await tenantAtual(),
     })
     .select("id")
@@ -1226,6 +1244,13 @@ export async function registrarCompra(
   if (semValor) return { erro: "Há proposta escolhida sem valor definido." }
 
   const empId = await tenantAtual()
+  // Proposta de marketplace: a nota vem depois, do vendedor (Notas a receber).
+  const { data: plataformas } = await admin
+    .from("empresa")
+    .select("id")
+    .in("id", (escolhidas ?? []).map((x) => String(x.fornecedor_id)))
+    .eq("marketplace", true)
+  const ehMarketplace = new Set((plataformas ?? []).map((e) => String(e.id)))
   const { error: erroFornecimentos } = await admin
     .from("compras_fornecimentos")
     .insert(
@@ -1238,6 +1263,7 @@ export async function registrarCompra(
         previsao_entrega: x.previsao_entrega,
         comprador_id: compradorId,
         data_compra: dataCompra,
+        ...(ehMarketplace.has(String(x.fornecedor_id)) ? { nota_a_receber: true } : {}),
         emp_proprietaria_id: empId,
       }))
     )
@@ -1870,6 +1896,8 @@ export type FornecedorLinha = {
   cnpj_cpf: string | null
   pessoa_juridica: boolean
   bloqueado: boolean
+  /** Plataforma de venda: a nota vem depois, do vendedor. */
+  marketplace: boolean
 }
 
 export async function listarFornecedores(
@@ -1883,7 +1911,7 @@ export async function listarFornecedores(
   const consulta = () => {
     const q = admin
       .from("empresa")
-      .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa")
+      .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa, marketplace")
       .eq("emp_proprietaria_id", emp)
       .not("inativa", "is", true)
     return termo
@@ -1923,6 +1951,7 @@ export async function listarFornecedores(
     cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
     pessoa_juridica: e.pessoa_juridica === true,
     bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+    marketplace: e.marketplace === true,
   }))
 }
 

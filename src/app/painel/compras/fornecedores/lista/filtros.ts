@@ -24,6 +24,7 @@ export const NATUREZAS = [
   { valor: "pj", rotulo: "Pessoa jurídica" },
   { valor: "pf", rotulo: "Pessoa física" },
   { valor: "apoiada", rotulo: "Entidade apoiada" },
+  { valor: "marketplace", rotulo: "Marketplace" },
 ] as const
 export const PROBLEMAS = [
   { valor: "todos", rotulo: "Com ou sem problema" },
@@ -57,6 +58,7 @@ export function filtrar(linhas: LinhaFornecedor[], f: Filtros): LinhaFornecedor[
     if (f.natureza === "pj" && !l.pessoa_juridica) return false
     if (f.natureza === "pf" && l.pessoa_juridica) return false
     if (f.natureza === "apoiada" && !l.apoiada) return false
+    if (f.natureza === "marketplace" && !l.marketplace) return false
     if (f.problema === "com" && !l.problemas.some(ehProblema)) return false
     if (f.problema === "trava" && !l.problemas.some((p) => TRAVA.includes(p.codigo))) return false
     if (f.problema in ROTULO_PROBLEMA && !l.problemas.some((p) => p.codigo === f.problema)) return false

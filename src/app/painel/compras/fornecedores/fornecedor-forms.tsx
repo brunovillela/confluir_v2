@@ -142,6 +142,8 @@ export function FornecedorForm({
   const [bloqueado, setBloqueado] = useState(
     fornecedor?.fornecedor_bloqueado ?? false
   )
+  const comMarketplace = rotuloEntidade === "fornecedor"
+  const [marketplace, setMarketplace] = useState(fornecedor?.marketplace ?? false)
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-4">
@@ -219,6 +221,24 @@ export function FornecedorForm({
           {rotuloBloqueio}
         </label>
       </div>
+      {comMarketplace && (
+        <label className="flex items-start gap-2 text-sm">
+          <Switch
+            checked={marketplace}
+            onCheckedChange={setMarketplace}
+            aria-label="É marketplace"
+            className="mt-0.5"
+          />
+          <span>
+            É marketplace
+            <span className="text-muted-foreground block text-xs">
+              Plataforma de venda (Mercado Livre, Amazon, Shopee…): a compra é paga a ela, e a nota
+              fiscal vem depois, emitida pelo vendedor — a compra entra em Notas a receber.
+            </span>
+          </span>
+        </label>
+      )}
+      {comMarketplace && <input type="hidden" name="marketplace" value={marketplace ? "on" : ""} />}
       {ficha && (
         <FichaReceita
           ficha={ficha}

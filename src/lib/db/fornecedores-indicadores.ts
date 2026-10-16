@@ -107,6 +107,8 @@ export type LinhaFornecedor = {
   bloqueado: boolean
   inativa: boolean
   apoiada: boolean
+  /** Plataforma de venda (supabase/compras-marketplace.sql). */
+  marketplace: boolean
   created_at: string | null
   /** Veio da migração do Bubble. */
   legado: boolean
@@ -150,7 +152,7 @@ export async function panoramaFornecedores(): Promise<LinhaFornecedor[]> {
     lerEmLotes<Record<string, unknown>>((de, ate) =>
       admin
         .from("empresa")
-        .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa, entidade_apoiada, created_at, bubble_id")
+        .select("id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa, entidade_apoiada, marketplace, created_at, bubble_id")
         .eq("emp_proprietaria_id", emp)
         .order("id")
         .range(de, ate)
@@ -204,6 +206,7 @@ export async function panoramaFornecedores(): Promise<LinhaFornecedor[]> {
       cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
       pessoa_juridica: pessoaJuridica,
       bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+      marketplace: e.marketplace === true,
       inativa,
       apoiada: e.entidade_apoiada === true,
       created_at: (e.created_at as string | null) ?? null,

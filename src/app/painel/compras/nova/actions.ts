@@ -34,6 +34,16 @@ function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
 }
 
+/** O fornecedor é um marketplace (a nota pode vir depois)? */
+async function ehMarketplace(fornecedorId: string): Promise<boolean> {
+  const { data } = await (await createAdminClient())
+    .from("empresa")
+    .select("marketplace")
+    .eq("id", fornecedorId)
+    .maybeSingle()
+  return data?.marketplace === true
+}
+
 export async function criarCompra(
   _prev: EstadoComApontamentos,
   formData: FormData
@@ -178,8 +188,13 @@ export async function criarCompra(
   const vencimento =
     forma === FORMA_PAGA_NO_ATO ? dataCompra : dataISO(texto(formData, "vencimento"))
   if (!vencimento) return { erro: "Informe a data de pagamento (Pagar em).", campo: "vencimento" }
+  // Marketplace: a nota pode vir depois (a compra entra em Notas a receber).
+  const marketplace = texto(formData, "nota_depois") === "on" ? await ehMarketplace(fornecedorId) : false
+  const vendedorInformado = marketplace ? texto(formData, "vendedor_id") || null : null
+  const vendedorId = vendedorInformado && vendedorInformado !== fornecedorId ? vendedorInformado : null
   const arquivo = formData.get("nota_fiscal")
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
+  const temArquivo = arquivo instanceof File && arquivo.size > 0
+  if (!temArquivo && !marketplace) {
     return { erro: "Anexe a nota fiscal, o cupom ou o documento equivalente." }
   }
 
@@ -191,8 +206,12 @@ export async function criarCompra(
   )
   if (erroDetalhe || !detalhe) return { erro: erroDetalhe ?? "Pagamento inválido." }
 
-  const { caminho, erro: erroArquivo } = await subirComprovanteCompras("notas", arquivo)
-  if (erroArquivo || !caminho) return { erro: erroArquivo ?? "Falha ao subir a nota." }
+  let caminho: string | null = null
+  if (temArquivo) {
+    const r = await subirComprovanteCompras("notas", arquivo)
+    if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir a nota." }
+    caminho = r.caminho
+  }
   if (boleto) {
     const r = await subirComprovanteCompras("boletos", boleto)
     if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir o boleto." }
@@ -212,6 +231,7 @@ export async function criarCompra(
     ja_recebido: entregaNoAto,
     recebedor_id: sessao.usuario.id,
     detalhe,
+    ...(marketplace && !caminho ? { nota_a_receber: true, vendedor_id: vendedorId } : {}),
   })
   if (apontamentos) {
     // Nada foi gravado: os arquivos sobem de novo no reenvio.

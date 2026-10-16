@@ -415,6 +415,50 @@ o botão some: a compra saiu da sua jurisdição e a correção é com o Finance
   a descrição mudou.
 </Aviso>
 
+## Compras em marketplace: a nota vem depois
+
+<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+
+Na compra num **marketplace** (Mercado Livre, Amazon, Shopee…), o pagamento vai
+para a **plataforma**, mas a nota fiscal chega depois e é emitida pelo
+**vendedor** — outra empresa. O Confluir trata assim:
+
+- **O marketplace é marcado no cadastro** do fornecedor (**É marketplace**, em
+  [Fornecedores](/painel/ajuda/compras/fornecedores)). Ele aparece com o selo
+  *Marketplace* na busca de fornecedores.
+- **Aquisição direta:** ao escolher um marketplace como fornecedor, aparece
+  **Compra em marketplace — a nota fiscal virá depois** (já marcada). A nota
+  deixa de ser obrigatória e, se já souber, informe o **vendedor**. Proposta
+  de marketplace escolhida **via Aquisição** entra no mesmo caminho ao
+  registrar a compra.
+- **A ordem de pagamento não espera a nota**: sai em nome do marketplace (quem
+  recebeu o dinheiro) e segue para autorização e pagamento como qualquer
+  outra. Na auditoria, *Sem nota fiscal* aparece como **N/A — nota do vendedor
+  vem depois**, não como alerta.
+- **Notas a receber** (Aquisição → *Notas a receber*): a lista das compras em
+  marketplace sem nota, com marketplace, vendedor, valor, data, comprador e
+  **há quantos dias** esperam. Cada um vê as suas e as dos departamentos que
+  alcança; o comprador central vê todas. A caixa de entrada de quem comprou
+  mostra **Notas fiscais a receber**.
+- **Anexar nota:** na compra, o quadro amarelo *Nota fiscal a receber* tem o
+  botão **Anexar nota**. Escolha o arquivo e clique em **Ler com IA**: a IA lê o
+  emitente — achado no cadastro, ele já vem escolhido; se não estiver
+  cadastrado, **Cadastrar como fornecedor e usar**. Confirme o vendedor e
+  anexe: a nota vai para a compra e para as ordens dela, a auditoria reavalia
+  as ordens e a compra sai de Notas a receber.
+- **"XYZ, comprado através do …"**: a compra passa a mostrar o vendedor e o
+  marketplace — na página do processo, na procedência da ordem e no extrato.
+  Na ficha do vendedor aparece **Vendas através de marketplaces**; na do
+  marketplace, **Compras feitas neste marketplace**, com o vendedor de cada
+  uma. Vendedor errado ou faltando: **Vincular/Trocar vendedor**, no quadro do
+  fornecimento.
+- **E-mail após 7 dias:** se a nota não subir em 7 dias da compra, quem
+  comprou (ou quem lançou) recebe **um** e-mail e um aviso no sino lembrando
+  de anexá-la.
+
+No marketplace o pedido é feito na própria plataforma: a **ordem de compra
+para o fornecedor** não aparece nesses fornecimentos.
+
 ## Aprovação por alçada
 
 <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
@@ -471,6 +515,10 @@ com a data de pagamento informada, porque o dinheiro sai do caixa só quando ela
 
 ## Erros comuns
 
+- **"Comprei no marketplace e o sistema exige a nota."** O fornecedor escolhido
+  não está marcado como marketplace. Peça a quem cuida de Fornecedores para
+  marcar **É marketplace** no cadastro — a opção *a nota fiscal virá depois*
+  passa a aparecer.
 - **"Não consigo salvar — o centro de custo fica vazio."** Escolha o
   **departamento** primeiro; a lista de centros aparece filtrada por ele. Se a
   compra é de um projeto, marque **Vinculada a um projeto** — o centro vem do

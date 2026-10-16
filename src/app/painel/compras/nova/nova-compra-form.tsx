@@ -172,6 +172,11 @@ export function NovaCompraForm({
   const mostrarCampos = !direta || modo === "manual" || (semi && leitura !== null)
   // Com nota em mãos (semiautomático) não há RPA: o recibo substitui a nota.
   const porRpa = direta && !semi && tipo === "servico" && rpaMarcado
+  // Marketplace: a nota costuma chegar depois, emitida pelo vendedor.
+  const [notaDepois, setNotaDepois] = useState(true)
+  const ehMarketplace =
+    direta && !semi && !porRpa && fornecedores.some((f) => f.id === fornecedorId && f.marketplace)
+  const semNotaAgora = ehMarketplace && notaDepois
 
   function escolherFornecedor(opcao: FornecedorOpcao) {
     setFornecedores((lista) =>
@@ -832,6 +837,39 @@ export function NovaCompraForm({
                   defaultId={fornecedorId || undefined}
                   onChange={(id) => setFornecedorId(id ?? "")}
                 />
+                {ehMarketplace && (
+                  <div className="grid gap-2 rounded-md border border-dashed p-3">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={notaDepois}
+                        onChange={(e) => setNotaDepois(e.target.checked)}
+                        className="mt-0.5 size-4"
+                      />
+                      <span>
+                        <strong>Compra em marketplace — a nota fiscal virá depois</strong>
+                        <span className="text-muted-foreground block text-xs">
+                          A ordem de pagamento sai em nome do marketplace e segue normalmente; a compra
+                          fica em Notas a receber até a nota do vendedor ser anexada.
+                        </span>
+                      </span>
+                    </label>
+                    {notaDepois && (
+                      <div className="grid gap-1.5">
+                        <Label>Vendedor (se já souber)</Label>
+                        <FornecedorCombobox
+                          empresas={fornecedores.filter((f) => !f.marketplace)}
+                          name="vendedor_id"
+                        />
+                        <p className="text-muted-foreground text-xs">
+                          Quem vendeu pela plataforma. Pode ficar para depois: ao anexar a nota, a IA
+                          identifica o emitente.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <input type="hidden" name="nota_depois" value={semNotaAgora ? "on" : ""} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-1.5">
@@ -943,6 +981,13 @@ export function NovaCompraForm({
                   <Label>Nota fiscal</Label>
                   <p className="text-muted-foreground truncate pt-2 text-sm">
                     {notaNome} (anexada)
+                  </p>
+                </div>
+              ) : semNotaAgora ? (
+                <div className="grid gap-1.5">
+                  <Label>Nota fiscal</Label>
+                  <p className="text-muted-foreground pt-2 text-sm">
+                    Virá depois — a compra entra em Notas a receber.
                   </p>
                 </div>
               ) : (

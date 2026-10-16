@@ -163,7 +163,8 @@ function dataIso(v: unknown): string {
 
 /** Lê a nota/cupom com a IA e devolve os campos para pré-preencher a compra. */
 export async function lerNotaCompra(formData: FormData): Promise<LeituraNota> {
-  await requirePermissao("aquisicoes_compra_direta")
+  // Também para a nota que chega depois (compra em marketplace, via Aquisição).
+  await requirePermissao("aquisicoes_compra_direta", ["aquisicoes_compras_edicao", "aquisicoes_comprador"])
 
   const arquivo = formData.get("nota_fiscal")
   if (!(arquivo instanceof File) || arquivo.size === 0) {
@@ -308,7 +309,7 @@ export async function cadastrarFornecedorDaNota(
   fornecedor?: { id: string; nome: string; cnpj_cpf: string | null; bloqueado: boolean }
   erro?: string
 }> {
-  await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
+  await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta", "aquisicoes_comprador"])
 
   const cnpjCpf = dados.cnpj_cpf.replace(/\D/g, "") || null
   if (cnpjCpf && !(cnpjCpf.length === 14 ? validarCnpj(cnpjCpf) : validarCpf(cnpjCpf))) {

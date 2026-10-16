@@ -44,6 +44,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -148,7 +149,11 @@ export default async function FornecedorPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
-  const [incorporados, destinoMescla] = await Promise.all([incorporadosPor(f.id), mescladoEm(f.id)])
+  const [incorporados, destinoMescla, viaMarketplace] = await Promise.all([
+    incorporadosPor(f.id),
+    mescladoEm(f.id),
+    comprasViaMarketplace(f.id, f.marketplace),
+  ])
 
   const editando = brutos.editar === "1" && podeEditar
   // Formulários de endereço e conta só abrem para quem edita.
@@ -218,6 +223,7 @@ export default async function FornecedorPage({
             {f.fornecedor_bloqueado && (
               <Badge variant="warning">Bloqueado para fornecimento</Badge>
             )}
+            {f.marketplace && <Badge variant="info">Marketplace</Badge>}
             {f.inativa && <Badge variant="outline">Inativo</Badge>}
           </div>
           {podeEditar && (
@@ -617,6 +623,43 @@ export default async function FornecedorPage({
           )}
         </CardContent>
       </Card>
+
+      {viaMarketplace.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {f.marketplace ? "Compras feitas neste marketplace" : "Vendas através de marketplaces"}
+            </CardTitle>
+            <CardDescription>
+              {f.marketplace
+                ? "A plataforma recebeu o pagamento; o vendedor de cada compra emite a nota."
+                : "Compras pagas a uma plataforma em que este fornecedor foi o vendedor (emitente da nota)."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-border grid divide-y text-sm">
+              {viaMarketplace.map((c) => (
+                <li key={`${c.processoId}-${c.dataCompra}-${c.valor}`} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span className="min-w-0">
+                    <Link href={`/painel/compras/${c.processoId}`} className="text-primary font-medium tabular-nums hover:underline">
+                      {c.codigo ?? "(sem código)"}
+                    </Link>{" "}
+                    <span className="text-muted-foreground">{c.produto ?? ""}</span>
+                    <span className="text-muted-foreground block text-xs">
+                      {f.marketplace ? `Vendedor: ${c.outro ?? "a identificar"}` : `Através de ${c.outro ?? "marketplace"}`}
+                      {c.dataCompra ? ` · ${formatarData(c.dataCompra)}` : ""}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {c.notaAReceber && <Badge variant="warning">Nota a receber</Badge>}
+                    <span className="tabular-nums">{formatarMoeda(c.valor)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {verFinanceiro && (
       <Card>

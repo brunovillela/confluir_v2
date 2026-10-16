@@ -228,6 +228,7 @@ export default async function ListaFornecedoresPage({
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
+                          {l.marketplace && <Badge variant="info">Marketplace</Badge>}
                           {l.bloqueado && <Badge variant="warning">Bloqueado</Badge>}
                           {l.problemas.map((p) => (
                             <Badge

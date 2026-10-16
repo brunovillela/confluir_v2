@@ -243,6 +243,20 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Compras em marketplace que EU fiz e cuja nota do vendedor não chegou
+  // (supabase/compras-marketplace.sql; sem a coluna, a fonte some).
+  if (amb.usuarioId && pode("aquisicoes_compras_edicao", ["aquisicoes_compra_direta", "aquisicoes_comprador"])) {
+    const usuarioId = amb.usuarioId
+    fontes.push({
+      chave: "notas_marketplace",
+      titulo: "Notas fiscais a receber",
+      descricao: "Suas compras em marketplace sem a nota do vendedor",
+      href: "/painel/compras/notas-a-receber",
+      tabela: "compras_fornecimentos",
+      montar: (q) => head(q).eq("nota_a_receber", true).eq("comprador_id", usuarioId),
+    })
+  }
+
   // Minhas assinaturas pendentes (ofícios, termos, minutas) — o signatário é
   // identificado pelo e-mail do convite. "Aprovar" lista todas elas.
   const email = (amb.email ?? "").trim().toLowerCase()

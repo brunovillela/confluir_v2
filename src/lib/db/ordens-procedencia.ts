@@ -241,7 +241,12 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
   // 4. Compras (direta ou via Aquisição)
   if (t(ordem.processo_compra_id)) {
     const proc = await porId("compras_solicitacoes", ordem.processo_compra_id)
-    const forn = await umaPor("compras_fornecimentos", "ordem_pagamento_id", id)
+    const forn =
+      (await umaPor("compras_fornecimentos", "ordem_pagamento_id", id)) ??
+      (t(ordem.fornecimento_id) ? await porId("compras_fornecimentos", ordem.fornecimento_id) : null)
+    // Compra em marketplace: a plataforma recebe; quem vende emite a nota.
+    const plataforma = forn ? await porId("empresa", forn.fornecedor_id) : null
+    const marketplace = plataforma?.marketplace === true
     const admin = await createAdminClient()
     const { count: propostas } = await admin
       .from("compras_propostas")
@@ -261,6 +266,9 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
       ["Data da compra", data(forn?.data_compra ?? proc.compra_data)],
       ["Valor da compra", moeda(forn?.valor ?? proc.compra_valor)],
       ["Propostas", direta ? "Aquisição direta (sem cotação)" : propostas === null ? null : String(propostas)],
+      ["Comprado através de", marketplace ? await nomeEmpresa(forn?.fornecedor_id) : null],
+      ["Vendedor", marketplace ? ((await nomeEmpresa(forn?.vendedor_id)) ?? "a identificar") : null],
+      ["Nota fiscal do vendedor", marketplace && forn?.nota_a_receber === true ? "a receber (Notas a receber)" : null],
       ["Entrega", proc.solicitacao_entrega_no_ato === true ? "No ato da compra" : t(proc.solicitacao_local) ? `${t(proc.solicitacao_local)} até ${data(proc.solicitacao_data_limite)}` : null],
     ])
     const solicitante = t(proc.solicitante_id)

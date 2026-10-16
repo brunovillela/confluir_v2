@@ -76,6 +76,8 @@ export default async function NovaCompraPage() {
           cnpj_cpf: f.cnpj_cpf,
           razao: f.nome_razao ?? null,
           bloqueado: f.bloqueado,
+          marketplace: f.marketplace,
+          etiqueta: f.marketplace ? "Marketplace" : null,
         }))}
         cartoes={cartoes.cartoes
           .filter((c) => c.ativo)

@@ -18,6 +18,9 @@ import {
   type ItemFilaComprador,
 } from "@/lib/db/compras"
 import { formatarData } from "@/lib/formato"
+import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
+import { listarNotasAReceber } from "@/lib/db/compras-marketplace"
+import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Área do comprador — Confluir" }
 
@@ -91,8 +94,14 @@ function ItemProcesso({
 }
 
 export default async function CompradorPage() {
-  await requirePermissao("aquisicoes_comprador", ["aquisicoes_compras_edicao"])
-  const { disponivel, itens } = await listarFilaComprador()
+  const sessao = await requirePermissao("aquisicoes_comprador", ["aquisicoes_compras_edicao"])
+  const [{ disponivel, itens }, notas] = await Promise.all([
+    listarFilaComprador(),
+    listarNotasAReceber(
+      podeAcessar(sessao.permissoes, "aquisicoes_comprador") ? null : await escopoComprasDoUsuario(sessao.usuario.id)
+    ).catch(() => null),
+  ])
+  const notasAReceber = notas?.itens.length ?? 0
 
   const porEtapa = (chave: string) =>
     itens.filter((i) => i.situacao === chave)
@@ -113,6 +122,21 @@ export default async function CompradorPage() {
           Processos Via Aquisição que aguardam sua ação, da solicitação à compra.
         </p>
       </div>
+
+      {notasAReceber > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <span>
+              {notasAReceber} compra{notasAReceber === 1 ? "" : "s"} em marketplace aguardando a nota fiscal do
+              vendedor —{" "}
+              <Link href="/painel/compras/notas-a-receber" className="font-medium underline">
+                ver Notas a receber
+              </Link>
+              .
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!disponivel && (
         <Alert variant="warning">

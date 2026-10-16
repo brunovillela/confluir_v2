@@ -28,6 +28,8 @@ export type Fornecedor = {
   cnpj_cpf: string | null
   pessoa_juridica: boolean
   fornecedor_bloqueado: boolean
+  /** Plataforma de venda (Mercado Livre, Amazon…): a nota vem depois, do vendedor. */
+  marketplace: boolean
   inativa: boolean
   inativa_data: string | null
   created_at: string | null
@@ -105,6 +107,7 @@ function normalizarFornecedor(e: Record<string, unknown>): Fornecedor {
     cnpj_cpf: (e.cnpj_cpf as string | null) ?? null,
     pessoa_juridica: e.pessoa_juridica === true,
     fornecedor_bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
+    marketplace: e.marketplace === true,
     inativa: e.inativa === true,
     inativa_data: (e.inativa_data as string | null) ?? null,
     created_at: (e.created_at as string | null) ?? null,
@@ -259,6 +262,8 @@ export type DadosFornecedor = {
   cnpj_cpf: string | null
   pessoa_juridica: boolean
   fornecedor_bloqueado: boolean
+  /** Marketplace (supabase/compras-marketplace.sql). Ausente = não mexe. */
+  marketplace?: boolean
 }
 
 function validarDados(dados: DadosFornecedor): string | null {
@@ -390,6 +395,7 @@ export async function criarFornecedor(
       cnpj_cpf: dados.cnpj_cpf,
       pessoa_juridica: dados.pessoa_juridica,
       fornecedor_bloqueado: dados.fornecedor_bloqueado,
+      ...(dados.marketplace ? { marketplace: true } : {}),
       empresa: false,
       bloqueado: false,
       inativa: false,
@@ -555,6 +561,7 @@ export async function atualizarFornecedor(
       cnpj_cpf: dados.cnpj_cpf,
       pessoa_juridica: dados.pessoa_juridica,
       fornecedor_bloqueado: dados.fornecedor_bloqueado,
+      ...(dados.marketplace === undefined ? {} : { marketplace: dados.marketplace }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -594,6 +601,7 @@ export async function excluirFornecedor(id: string): Promise<{ erro?: string }> 
     ["ordens_pagamento", "beneficiario_fornecedor_id"],
     ["compras_propostas", "fornecedor_id"],
     ["compras_fornecimentos", "fornecedor_id"],
+    ["compras_fornecimentos", "vendedor_id"],
     ["contratos", "fornecedor_id"],
     ["compras_solicitacoes", "compra_fornecedor_id"],
   ]

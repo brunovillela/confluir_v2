@@ -15,6 +15,8 @@ export type EmpresaOpcao = {
   razao?: string | null
   /** Rótulo curto à direita da opção (ex.: "Fornecedor" na busca de entidade apoiada). */
   etiqueta?: string | null
+  /** Plataforma de venda (compras): a nota vem depois, do vendedor. */
+  marketplace?: boolean
 }
 
 /**

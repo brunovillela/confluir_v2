@@ -399,6 +399,12 @@ async function verificarLinha(
           break
         }
         const tem = Boolean(t(linha.arquivo_nota_fiscal) || t(ctx.notaFiscal))
+        // Marketplace: a nota vem depois, emitida pelo vendedor — prevista,
+        // não faltando (a compra fica em Notas a receber).
+        if (!tem && fornecedor?.marketplace === true) {
+          r("na", "Compra em marketplace: a nota fiscal do vendedor vem depois (Notas a receber).")
+          break
+        }
         r(tem ? "ok" : "falha", tem ? "Anexado." : "Sem nota fiscal ou documento equivalente.")
         break
       }

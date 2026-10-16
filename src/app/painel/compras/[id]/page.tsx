@@ -46,6 +46,7 @@ import {
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { OrdemCompraAcoes } from "./ordem-compra"
+import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
 export const metadata: Metadata = {
@@ -71,6 +72,12 @@ function Campo({
 
 // Sem pagamento a fazer: código Pix novo não se aplica (espelha SITUACOES_ENCERRADAS).
 const ORDEM_ENCERRADA = ["Paga", "Cancelada", "Estornado"]
+
+/** Dias desde a data (AAAA-MM-DD), pelo calendário de São Paulo. */
+function diasDesde(data: string): number {
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  return Math.max(0, Math.round((Date.parse(`${hoje}T12:00:00`) - Date.parse(`${data.slice(0, 10)}T12:00:00`)) / 864e5))
+}
 
 function LinhaOrdem({
   ordem,
@@ -219,6 +226,10 @@ export default async function ProcessoCompraPage({
           proposta_id: null,
           fornecedor_id: processo.compra_fornecedor_id,
           fornecedorNome: fornecedorLegado?.nome ?? null,
+          marketplace: fornecedorLegado?.marketplace ?? false,
+          nota_a_receber: false,
+          vendedor_id: null,
+          vendedorNome: null,
           valor: processo.compra_valor,
           forma_pagamento:
             [...processo.ordensAvulsas].reverse().find((o) => o.forma_pagamento)?.forma_pagamento ?? null,
@@ -239,6 +250,14 @@ export default async function ProcessoCompraPage({
       ]
     : (processo.fornecimentos ?? [])
   const ordensAvulsas = montarLegado ? [] : processo.ordensAvulsas
+
+  // Compra em marketplace: quem pode ser o vendedor (fornecedores que não são plataforma).
+  const vendedoresPossiveis =
+    podeAjustar && fornecimentosBase.some((f) => f.marketplace)
+      ? (await listarFornecedores())
+          .filter((x) => !x.marketplace)
+          .map((x) => ({ id: x.id, nome: x.nome, cnpj_cpf: x.cnpj_cpf, razao: x.nome_razao, bloqueado: x.bloqueado }))
+      : []
 
   // Forma de cada pagamento: cartão da entidade e caixa (Dinheiro).
   const lancaPagamento = operavel && fornecimentosBase.length > 0
@@ -637,7 +656,21 @@ export default async function ProcessoCompraPage({
               </p>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
-                  Fornecimento {i + 1} — {f.fornecedorNome ?? "(sem fornecedor)"}
+                  Fornecimento {i + 1} —{" "}
+                  {f.marketplace ? (
+                    <>
+                      {f.vendedorNome ?? <span className="text-muted-foreground">vendedor a identificar</span>}
+                      <span className="text-muted-foreground font-normal">, comprado através de </span>
+                      {f.fornecedorNome}
+                    </>
+                  ) : (
+                    (f.fornecedorNome ?? "(sem fornecedor)")
+                  )}
+                  {f.marketplace && (
+                    <Badge variant="info" className="ml-2 align-middle">
+                      Marketplace
+                    </Badge>
+                  )}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium tabular-nums">
@@ -678,7 +711,7 @@ export default async function ProcessoCompraPage({
                     {rpaPorFornecimento.get(f.id)!.assinado ? " (assinado)" : ""}
                   </Link>
                 )}
-                {podeAjustar && (
+                {podeAjustar && !f.nota_a_receber && (
                   <NotaFiscalIcone
                     processoId={processo.id}
                     alvo="compra"
@@ -686,9 +719,42 @@ export default async function ProcessoCompraPage({
                     temNota={!!f.nota_fiscal_url}
                   />
                 )}
+                {podeAjustar && f.marketplace && !f.nota_a_receber && !processo.cancelado && (
+                  <VincularVendedor
+                    processoId={processo.id}
+                    fornecimentoId={f.id}
+                    fornecedores={vendedoresPossiveis}
+                    vendedorAtual={f.vendedor_id}
+                  />
+                )}
               </div>
-              {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no banco). */}
-              {f.id !== FORNECIMENTO_LEGADO && !processo.cancelado && (
+              {f.nota_a_receber && !processo.cancelado && (
+                <div className="border-warning/40 bg-warning/5 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                  <span>
+                    <strong>Nota fiscal a receber</strong>
+                    {f.data_compra
+                      ? diasDesde(f.data_compra) === 0
+                        ? " desde hoje"
+                        : ` há ${diasDesde(f.data_compra)} dia(s)`
+                      : ""}{" "}
+                    — a compra foi feita em{" "}
+                    {f.fornecedorNome}, e a nota vem do vendedor. A ordem segue normalmente; anexe a nota quando
+                    ela chegar.
+                  </span>
+                  {podeAjustar && (
+                    <AnexarNotaMarketplace
+                      processoId={processo.id}
+                      fornecimentoId={f.id}
+                      marketplace={{ id: f.fornecedor_id, nome: f.fornecedorNome ?? "marketplace" }}
+                      fornecedores={vendedoresPossiveis}
+                      vendedorAtual={f.vendedor_id}
+                    />
+                  )}
+                </div>
+              )}
+              {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no
+                  banco; no marketplace o pedido é feito na própria plataforma). */}
+              {f.id !== FORNECIMENTO_LEGADO && !f.marketplace && !processo.cancelado && (
                 <div className="mt-3">
                   <OrdemCompraAcoes
                     processoId={processo.id}

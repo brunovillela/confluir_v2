@@ -115,7 +115,8 @@ export async function trocarNotaDaCompra(
 
   const { error } = await admin
     .from("compras_fornecimentos")
-    .update({ nota_fiscal_url: caminho, updated_at: new Date().toISOString() })
+    // Compra em marketplace: com a nota, sai de Notas a receber.
+    .update({ nota_fiscal_url: caminho, nota_a_receber: false, updated_at: new Date().toISOString() })
     .eq("id", fornecimentoId)
   if (error) return { erro: `Não foi possível salvar a nota: ${error.message}` }
 
