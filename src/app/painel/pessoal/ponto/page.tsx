@@ -1,138 +1,55 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowLeft, ArrowUp, BarChart3, Clock4, Plus } from "lucide-react"
+import { ArrowLeft, ArrowRight, BarChart3, Plus } from "lucide-react"
 
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Card, CardContent } from "@/components/ui/card"
+import { SelectNativo } from "@/components/ui/select-nativo"
+import { LembrarLista } from "@/components/voltar-lista"
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
 import { requirePermissao } from "@/lib/auth"
 import { listarRemessasPonto } from "@/lib/db/pessoal"
-import { Paginacao } from "@/components/paginacao"
-import { formatarData } from "@/lib/formato"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { anosDaBase, carregarBasePonto, indicadoresDe, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
-import { cn } from "@/lib/utils"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
-export const metadata: Metadata = {
-  title: "Remessas de controle de ponto — Confluir",
-}
+import { horas } from "./analise/componentes"
+import { ListaRemessasPonto } from "./remessas-lista"
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+export const metadata: Metadata = { title: "Controle de ponto — Confluir" }
 
-type ParamsLista = {
-  excluida?: string
-  busca?: string
-  ano?: string
-  situacao?: string
-  ordem?: string
-  dir?: string
-  pagina?: string
-  porPagina?: string
-}
+const ORDENS = ["nome", "he", "he100", "meses", "saldo", "alertas"] as const
 
-function CabecalhoOrdenavel({
-  params,
-  campo,
-  children,
-  className,
-}: {
-  params: Required<Pick<ParamsLista, "busca" | "ano" | "situacao" | "ordem" | "dir">>
-  campo: string
-  children: React.ReactNode
-  className?: string
-}) {
-  const ativo = params.ordem === campo
-  const dir = ativo && params.dir === "asc" ? "desc" : "asc"
-  const q = new URLSearchParams()
-  if (params.busca) q.set("busca", params.busca)
-  if (params.ano !== "todos") q.set("ano", params.ano)
-  if (params.situacao !== "todas") q.set("situacao", params.situacao)
-  q.set("ordem", campo)
-  q.set("dir", dir)
-  return (
-    <Link
-      href={`/painel/pessoal/ponto?${q.toString()}`}
-      className={cn("inline-flex items-center gap-1 hover:underline", className)}
-    >
-      {children}
-      {ativo &&
-        (params.dir === "asc" ? (
-          <ArrowUp className="size-3.5" />
-        ) : (
-          <ArrowDown className="size-3.5" />
-        ))}
-    </Link>
-  )
-}
-
-export default async function RemessasPontoPage({
+/**
+ * Controle de ponto — nível 1 do padrão das áreas do Pessoal: indicadores do
+ * ano, a remessa aberta e as abas Funcionários (inicial) e Remessas.
+ */
+export default async function PontoPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao")
-  const brutos = await searchParams
-  const { excluida } = brutos
+  const sp = await searchParams
+  const aba = sp.aba === "remessas" ? "remessas" : "funcionarios"
 
-  const todas = await listarRemessasPonto()
-  const anos = [
-    ...new Set(
-      todas.map((r) => r.ano_referencia_os).filter((v): v is string => !!v)
-    ),
-  ].sort((a, b) => b.localeCompare(a))
+  const [base, remessas, funcionarios] = await Promise.all([carregarBasePonto(), listarRemessasPonto(), funcionariosDaArea()])
+  const anos = anosDaBase(base)
+  const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anos[0]
+  const ind = ano ? indicadoresDe(base, { escopo: "ano", ano }) : null
 
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    ano: anos.includes(brutos.ano ?? "") ? brutos.ano! : "todos",
-    situacao: ["abertas", "finalizadas"].includes(brutos.situacao ?? "")
-      ? brutos.situacao!
-      : "todas",
-    ordem: ["nome", "criada", "itens", "recentes"].includes(brutos.ordem ?? "")
-      ? brutos.ordem!
-      : "recentes",
-    dir: brutos.dir === "asc" ? "asc" : "desc",
-  }
-
-  const filtradas = todas.filter((r) => {
-    if (
-      params.busca &&
-      !(r.nome_remessa ?? "").toLowerCase().includes(params.busca.toLowerCase())
-    ) {
-      return false
-    }
-    if (params.ano !== "todos" && r.ano_referencia_os !== params.ano) return false
-    if (params.situacao === "abertas" && r.finalizada === true) return false
-    if (params.situacao === "finalizadas" && r.finalizada !== true) return false
-    return true
-  })
-
-  const fator = params.dir === "asc" ? 1 : -1
-  const remessas = [...filtradas].sort((a, b) => {
-    if (params.ordem === "nome") {
-      return (
-        fator *
-        (a.nome_remessa ?? "￿").localeCompare(b.nome_remessa ?? "￿", "pt-BR")
-      )
-    }
-    if (params.ordem === "criada") {
-      return fator * (a.created_at ?? "").localeCompare(b.created_at ?? "")
-    }
-    if (params.ordem === "itens") return fator * (a.itens - b.itens)
-    return fator * ((a.ordem ?? 0) - (b.ordem ?? 0))
-  })
-
-  // Página dedicada à lista: 30 por página.
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(remessas, paginacao)
+  // Remessa em andamento: a mais recente ainda não finalizada.
+  const aberta = remessas
+    .filter((r) => r.finalizada !== true)
+    .map((r) => ({ ...r, comp: base.remessas.find((b) => b.id === r.id)?.competencia ?? "" }))
+    .sort((a, b) => b.comp.localeCompare(a.comp))[0]
+  const ativos = funcionarios.filter((f) => f.ativo).length
 
   return (
     <>
@@ -145,17 +62,14 @@ export default async function RemessasPontoPage({
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Remessas de controle de ponto
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Controle de ponto</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {remessas.length} remessa{remessas.length === 1 ? "" : "s"} — cada
-              remessa agrupa os registros de ponto de um mês de referência
+              Espelhos de ponto, horas extras e banco de horas — por funcionário e por remessa mensal
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
-              <Link href="/painel/pessoal/ponto/analise">
+              <Link href={`/painel/pessoal/ponto/analise${ano ? `?ano=${ano}` : ""}`}>
                 <BarChart3 />
                 Indicadores e resenhas
               </Link>
@@ -170,129 +84,174 @@ export default async function RemessasPontoPage({
         </div>
       </div>
 
-      {excluida === "1" && (
+      {sp.excluida === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Remessa excluída.</AlertDescription>
         </Alert>
       )}
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome da remessa"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar remessa"
-        />
-        <select
-          name="ano"
-          defaultValue={params.ano}
-          aria-label="Filtrar por ano"
-          className={SELECT_FILTRO}
-        >
-          <option value="todos">Todos os anos</option>
-          {anos.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-        <select
-          name="situacao"
-          defaultValue={params.situacao}
-          aria-label="Filtrar por situação"
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as situações</option>
-          <option value="abertas">Abertas</option>
-          <option value="finalizadas">Finalizadas</option>
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+      {ind && (
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <TileIndicador rotulo={`Horas extras em ${ano}`} valor={horas(ind.he)} nota={`${horas(ind.he100)} a 100%`} />
+          <TileIndicador rotulo="Funcionários com horas extras" valor={`${ind.comHE} de ${ind.funcionarios}`} />
+          <TileIndicador rotulo="Banco de horas" valor={horas(ind.saldo)} nota="saldo na última remessa de cada um" />
+          <TileIndicador
+            rotulo="Em atenção"
+            valor={String(ind.pessoas.filter((p) => p.alertas.length).length)}
+            nota="com algum alerta no ano"
+            href={`/painel/pessoal/ponto/analise?ano=${ano}`}
+          />
+          <TileIndicador
+            rotulo="Meses sem remessa"
+            valor={String(ind.mesesSemRemessa.length)}
+            nota={ind.mesesSemRemessa.length ? ind.mesesSemRemessa.map(rotuloCompetenciaPonto).join(", ") : "nenhum"}
+          />
+        </section>
+      )}
 
-      <div className="overflow-hidden rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>
-                <CabecalhoOrdenavel params={params} campo="nome">
-                  Remessa
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead className="hidden md:table-cell">
-                <CabecalhoOrdenavel params={params} campo="criada">
-                  Criada em
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead className="text-right">
-                <CabecalhoOrdenavel params={params} campo="itens">
-                  Registros
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead>Situação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginaAtual.total === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="h-40">
-                  <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                    <Clock4 className="size-6" />
-                    <p className="text-sm">Nenhuma remessa de controle de ponto.</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-            {paginaAtual.linhas.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="max-w-64 font-medium">
-                  <Link
-                    href={`/painel/pessoal/ponto/${r.id}`}
-                    className="hover:underline"
-                  >
-                    <span className="block truncate">
-                      {r.nome_remessa ??
-                        [r.mes_referencia_os, r.ano_referencia_os]
-                          .filter(Boolean)
-                          .join("/") ??
-                        "(sem nome)"}
-                    </span>
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden md:table-cell">
-                  {formatarData(r.created_at)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {r.itens.toLocaleString("pt-BR")}
-                </TableCell>
-                <TableCell>
-                  {r.finalizada === true ? (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Finalizada
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-success/40 text-success-fg"
-                    >
-                      Aberta
-                    </Badge>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {aberta && (
+        <Link href={`/painel/pessoal/ponto/${aberta.id}`} className="group block">
+          <Card className="group-hover:border-primary transition-colors">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div>
+                <p className="text-sm font-medium">{aberta.nome_remessa ?? "Remessa"} — aberta</p>
+                <p className="text-muted-foreground text-xs">
+                  {aberta.itens} de {ativos} funcionário(s) ativo(s) lançado(s)
+                </p>
+              </div>
+              <span className="text-primary inline-flex items-center gap-1 text-sm">
+                Continuar <ArrowRight className="size-4" />
+              </span>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+      <AbasLink
+        rotulo="Visões do controle de ponto"
+        abas={[
+          { href: "/painel/pessoal/ponto", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/ponto?aba=remessas", rotulo: "Remessas", ativo: aba === "remessas", contador: remessas.length },
+        ]}
+      />
+
+      {aba === "remessas" ? (
+        <ListaRemessasPonto brutos={sp} />
+      ) : (
+        <AbaFuncionarios sp={sp} ano={ano} anos={anos} ind={ind} funcionarios={funcionarios} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  ano,
+  anos,
+  ind,
+  funcionarios,
+}: {
+  sp: Record<string, string | undefined>
+  ano: string | undefined
+  anos: string[]
+  ind: ReturnType<typeof indicadoresDe> | null
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+}) {
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const pessoa = new Map((ind?.pessoas ?? []).map((p) => [p.id, p]))
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const p = pessoa.get(l.usuarioId)
+    switch (f.ordem) {
+      case "he":
+        return p?.he
+      case "he100":
+        return p?.he100
+      case "meses":
+        return p?.mesesComHE
+      case "saldo":
+        return p?.saldo
+      case "alertas":
+        return p?.alertas.length
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const extras = { ano: sp.ano }
+  const params = paramsDosFiltros(f, extras)
+  const urlAtual = `/painel/pessoal/ponto?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="ponto-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios
+        filtros={f}
+        departamentos={departamentosDaLista(funcionarios)}
+        extras={
+          anos.length > 0 && (
+            <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
+              {anos.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </SelectNativo>
+          )
+        }
+      />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/ponto", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/ponto/funcionario/${l.usuarioId}${ano ? `?ano=${ano}` : ""}`}
+        colunas={[
+          {
+            chave: "he",
+            rotulo: `Horas extras ${ano ?? ""}`.trim(),
+            className: "text-right tabular-nums",
+            valor: (l) => (pessoa.has(l.usuarioId) ? horas(pessoa.get(l.usuarioId)!.he) : "—"),
+          },
+          {
+            chave: "he100",
+            rotulo: "A 100%",
+            className: "hidden text-right tabular-nums md:table-cell",
+            valor: (l) => (pessoa.has(l.usuarioId) ? horas(pessoa.get(l.usuarioId)!.he100) : "—"),
+          },
+          {
+            chave: "meses",
+            rotulo: "Meses com HE",
+            className: "hidden text-right tabular-nums md:table-cell",
+            valor: (l) => {
+              const p = pessoa.get(l.usuarioId)
+              return p ? `${p.mesesComHE}/${p.meses}` : "—"
+            },
+          },
+          {
+            chave: "saldo",
+            rotulo: "Banco",
+            className: "text-right tabular-nums",
+            valor: (l) => (pessoa.has(l.usuarioId) ? horas(pessoa.get(l.usuarioId)!.saldo) : "—"),
+          },
+          {
+            chave: "alertas",
+            rotulo: "Alertas",
+            className: "text-right",
+            valor: (l) => {
+              const n = pessoa.get(l.usuarioId)?.alertas.length ?? 0
+              return n ? (
+                <span className="text-warning-fg font-medium tabular-nums">{n}</span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+        ]}
       />
     </>
   )

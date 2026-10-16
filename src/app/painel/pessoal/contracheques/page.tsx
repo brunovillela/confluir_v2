@@ -1,150 +1,59 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, ReceiptText, Settings } from "lucide-react"
+import { ArrowLeft, ArrowRight, Plus, Settings } from "lucide-react"
 
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Card, CardContent } from "@/components/ui/card"
+import { SelectNativo } from "@/components/ui/select-nativo"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import {
-  listarRemessasContracheques,
-  naturezaRemessaContracheques,
-} from "@/lib/db/pessoal"
-import { Paginacao } from "@/components/paginacao"
-import { formatarData } from "@/lib/formato"
+import { carregarBaseContracheques, resumirContracheques, type ContrachequeArea } from "@/lib/db/contracheques-area"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
-import { cn } from "@/lib/utils"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
-export const metadata: Metadata = {
-  title: "Remessas de contracheques — Confluir",
-}
+import { ListaRemessasContracheques } from "./remessas-lista"
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+export const metadata: Metadata = { title: "Contracheques — Confluir" }
 
-const NATUREZAS_FILTRO = [
-  { valor: "mensal", rotulo: "Mensal" },
-  { valor: "adiantamento", rotulo: "Adiantamento" },
-  { valor: "decimo_terceiro", rotulo: "13º salário" },
-  { valor: "ferias", rotulo: "Férias" },
-  { valor: "complementar_mensal", rotulo: "Complementar (mensal)" },
-]
+const ORDENS = ["nome", "quantidade", "bloqueados", "valor", "ultimo"] as const
 
-type ParamsLista = {
-  excluida?: string
-  busca?: string
-  natureza?: string
-  situacao?: string
-  ordem?: string
-  dir?: string
-  pagina?: string
-  porPagina?: string
-}
-
-function CabecalhoOrdenavel({
-  params,
-  campo,
-  children,
-  className,
-}: {
-  params: Required<Pick<ParamsLista, "busca" | "natureza" | "situacao" | "ordem" | "dir">>
-  campo: string
-  children: React.ReactNode
-  className?: string
-}) {
-  const ativo = params.ordem === campo
-  const dir = ativo && params.dir === "asc" ? "desc" : "asc"
-  const q = new URLSearchParams()
-  if (params.busca) q.set("busca", params.busca)
-  if (params.natureza !== "todas") q.set("natureza", params.natureza)
-  if (params.situacao !== "todas") q.set("situacao", params.situacao)
-  q.set("ordem", campo)
-  q.set("dir", dir)
-  return (
-    <Link
-      href={`/painel/pessoal/contracheques?${q.toString()}`}
-      className={cn("inline-flex items-center gap-1 hover:underline", className)}
-    >
-      {children}
-      {ativo &&
-        (params.dir === "asc" ? (
-          <ArrowUp className="size-3.5" />
-        ) : (
-          <ArrowDown className="size-3.5" />
-        ))}
-    </Link>
-  )
-}
-
-export default async function RemessasContrachequesPage({
+/**
+ * Contracheques — nível 1 do padrão das áreas do Pessoal: indicadores do ano,
+ * a remessa aberta, quem ficou sem contracheque e as abas Funcionários
+ * (inicial) e Remessas.
+ */
+export default async function ContrachequesPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
   const gestao = podeAcessar(sessao.permissoes, "pessoal_gestao")
-  const brutos = await searchParams
-  const { excluida } = brutos
+  const sp = await searchParams
+  const aba = sp.aba === "remessas" ? "remessas" : "funcionarios"
 
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    natureza: NATUREZAS_FILTRO.some((n) => n.valor === brutos.natureza)
-      ? brutos.natureza!
-      : "todas",
-    situacao: ["abertas", "finalizadas"].includes(brutos.situacao ?? "")
-      ? brutos.situacao!
-      : "todas",
-    ordem: ["nome", "criada", "itens", "recentes"].includes(brutos.ordem ?? "")
-      ? brutos.ordem!
-      : "recentes",
-    dir: brutos.dir === "asc" ? "asc" : "desc",
-  }
+  const [{ remessas, contracheques }, funcionarios] = await Promise.all([carregarBaseContracheques(), funcionariosDaArea()])
+  const anos = [...new Set(contracheques.map((c) => c.ano).filter(Boolean))].sort().reverse()
+  const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anos[0]
+  const doAno = contracheques.filter((c) => c.ano === ano)
+  const resumo = resumirContracheques(doAno)
 
-  const todas = await listarRemessasContracheques()
-  const filtradas = todas.filter((r) => {
-    if (
-      params.busca &&
-      !(r.nome_remessa ?? "").toLowerCase().includes(params.busca.toLowerCase())
-    ) {
-      return false
-    }
-    if (params.natureza !== "todas") {
-      const rotulo = NATUREZAS_FILTRO.find((n) => n.valor === params.natureza)!.rotulo
-      if (naturezaRemessaContracheques(r) !== rotulo) return false
-    }
-    if (params.situacao === "abertas" && r.finalizada === true) return false
-    if (params.situacao === "finalizadas" && r.finalizada !== true) return false
-    return true
-  })
-
-  const fator = params.dir === "asc" ? 1 : -1
-  const remessas = [...filtradas].sort((a, b) => {
-    if (params.ordem === "nome") {
-      return (
-        fator *
-        (a.nome_remessa ?? "￿").localeCompare(b.nome_remessa ?? "￿", "pt-BR")
-      )
-    }
-    if (params.ordem === "criada") {
-      return fator * (a.created_at ?? "").localeCompare(b.created_at ?? "")
-    }
-    if (params.ordem === "itens") return fator * (a.itens - b.itens)
-    return fator * ((a.ordem ?? 0) - (b.ordem ?? 0))
-  })
-
-  // Página dedicada à lista: 30 por página.
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(remessas, paginacao)
+  const aberta = remessas.filter((r) => r.finalizada !== true).sort((a, b) => (b.ordem ?? 0) - (a.ordem ?? 0))[0]
+  // Quem está ativo e ficou de fora da última remessa mensal.
+  const ultimaMensal = contracheques.find((c) => c.natureza === "Mensal")
+  const naUltima = new Set(contracheques.filter((c) => c.remessaId === ultimaMensal?.remessaId).map((c) => c.funcionarioId))
+  const semNaUltima = ultimaMensal ? funcionarios.filter((f) => f.ativo && !naUltima.has(f.usuarioId)) : []
+  const ativos = funcionarios.filter((f) => f.ativo).length
 
   return (
     <>
@@ -157,12 +66,9 @@ export default async function RemessasContrachequesPage({
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Remessas de contracheques
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Contracheques</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {remessas.length} remessa{remessas.length === 1 ? "" : "s"} — cada
-              remessa agrupa os contracheques de um período/natureza
+              Contracheques por funcionário e por remessa — mensal, adiantamento, 13º e férias
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -184,129 +90,200 @@ export default async function RemessasContrachequesPage({
         </div>
       </div>
 
-      {excluida === "1" && (
+      {sp.excluida === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Remessa excluída.</AlertDescription>
         </Alert>
       )}
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome da remessa"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar remessa"
-        />
-        <select
-          name="natureza"
-          defaultValue={params.natureza}
-          aria-label="Filtrar por natureza"
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as naturezas</option>
-          {NATUREZAS_FILTRO.map((n) => (
-            <option key={n.valor} value={n.valor}>
-              {n.rotulo}
-            </option>
-          ))}
-        </select>
-        <select
-          name="situacao"
-          defaultValue={params.situacao}
-          aria-label="Filtrar por situação"
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as situações</option>
-          <option value="abertas">Abertas</option>
-          <option value="finalizadas">Finalizadas</option>
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+      {ano && (
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <TileIndicador
+            rotulo={`Contracheques em ${ano}`}
+            valor={resumo.quantidade.toLocaleString("pt-BR")}
+            nota={`${new Set(doAno.map((c) => c.remessaId)).size} remessa(s)`}
+          />
+          <TileIndicador
+            rotulo="Bloqueados"
+            valor={resumo.bloqueados.toLocaleString("pt-BR")}
+            nota="ainda não visíveis ao funcionário"
+          />
+          <TileIndicador
+            rotulo="Valor líquido no ano"
+            valor={resumo.comValor ? formatarMoeda(resumo.valor) : "—"}
+            nota={resumo.comValor ? `${resumo.comValor} com valor informado` : "valores não informados nas remessas"}
+          />
+          <TileIndicador
+            rotulo="Sem contracheque na última mensal"
+            valor={String(semNaUltima.length)}
+            nota={ultimaMensal ? ultimaMensal.remessaNome : "nenhuma remessa mensal"}
+          />
+        </section>
+      )}
 
-      <div className="overflow-hidden rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead>
-                <CabecalhoOrdenavel params={params} campo="nome">
-                  Remessa
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead className="hidden sm:table-cell">Natureza</TableHead>
-              <TableHead className="hidden md:table-cell">
-                <CabecalhoOrdenavel params={params} campo="criada">
-                  Criada em
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead className="text-right">
-                <CabecalhoOrdenavel params={params} campo="itens">
-                  Contracheques
-                </CabecalhoOrdenavel>
-              </TableHead>
-              <TableHead>Situação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginaAtual.total === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="h-40">
-                  <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                    <ReceiptText className="size-6" />
-                    <p className="text-sm">Nenhuma remessa de contracheques.</p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-            {paginaAtual.linhas.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="max-w-64 font-medium">
-                  <Link
-                    href={`/painel/pessoal/contracheques/${r.id}`}
-                    className="hover:underline"
-                  >
-                    <span className="block truncate">
-                      {r.nome_remessa ?? "(sem nome)"}
-                    </span>
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden sm:table-cell">
-                  {naturezaRemessaContracheques(r)}
-                </TableCell>
-                <TableCell className="text-muted-foreground hidden md:table-cell">
-                  {formatarData(r.created_at)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {r.itens.toLocaleString("pt-BR")}
-                </TableCell>
-                <TableCell>
-                  {r.finalizada === true ? (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Finalizada
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-success/40 text-success-fg"
-                    >
-                      Aberta
-                    </Badge>
-                  )}
-                </TableCell>
-              </TableRow>
+      {aberta && (
+        <Link href={`/painel/pessoal/contracheques/${aberta.id}`} className="group block">
+          <Card className="group-hover:border-primary transition-colors">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div>
+                <p className="text-sm font-medium">{aberta.nome_remessa ?? "Remessa"} — aberta</p>
+                <p className="text-muted-foreground text-xs">
+                  {aberta.itens} contracheque(s) lançado(s) · {ativos} funcionário(s) ativo(s)
+                </p>
+              </div>
+              <span className="text-primary inline-flex items-center gap-1 text-sm">
+                Continuar <ArrowRight className="size-4" />
+              </span>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {semNaUltima.length > 0 && ultimaMensal && (
+        <Alert>
+          <AlertDescription>
+            Sem contracheque em {ultimaMensal.remessaNome}:{" "}
+            {semNaUltima.map((f, i) => (
+              <span key={f.usuarioId}>
+                {i > 0 && ", "}
+                <Link href={`/painel/pessoal/contracheques/funcionario/${f.usuarioId}`} className="hover:underline">
+                  {f.nome}
+                </Link>
+              </span>
             ))}
-          </TableBody>
-        </Table>
-      </div>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+      <AbasLink
+        rotulo="Visões dos contracheques"
+        abas={[
+          { href: "/painel/pessoal/contracheques", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/contracheques?aba=remessas", rotulo: "Remessas", ativo: aba === "remessas", contador: remessas.length },
+        ]}
+      />
+
+      {aba === "remessas" ? (
+        <ListaRemessasContracheques brutos={sp} />
+      ) : (
+        <AbaFuncionarios sp={sp} ano={ano} anos={anos} doAno={doAno} funcionarios={funcionarios} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  ano,
+  anos,
+  doAno,
+  funcionarios,
+}: {
+  sp: Record<string, string | undefined>
+  ano: string | undefined
+  anos: string[]
+  doAno: ContrachequeArea[]
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+}) {
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const porPessoa = new Map<string, ContrachequeArea[]>()
+  for (const c of doAno) {
+    const l = porPessoa.get(c.funcionarioId) ?? []
+    l.push(c)
+    porPessoa.set(c.funcionarioId, l)
+  }
+  const resumo = new Map([...porPessoa].map(([id, l]) => [id, resumirContracheques(l)]))
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const r = resumo.get(l.usuarioId)
+    switch (f.ordem) {
+      case "quantidade":
+        return r?.quantidade
+      case "bloqueados":
+        return r?.bloqueados
+      case "valor":
+        return r?.comValor ? r.valor : null
+      case "ultimo":
+        return r?.ultimo?.remessaOrdem
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f, { ano: sp.ano })
+  const urlAtual = `/painel/pessoal/contracheques?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="contracheques-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios
+        filtros={f}
+        departamentos={departamentosDaLista(funcionarios)}
+        extras={
+          anos.length > 0 && (
+            <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
+              {anos.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </SelectNativo>
+          )
+        }
+      />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/contracheques", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/contracheques/funcionario/${l.usuarioId}${ano ? `?ano=${ano}` : ""}`}
+        colunas={[
+          {
+            chave: "quantidade",
+            rotulo: `Em ${ano ?? ""}`.trim(),
+            className: "text-right tabular-nums",
+            valor: (l) => resumo.get(l.usuarioId)?.quantidade ?? "—",
+          },
+          {
+            chave: "bloqueados",
+            rotulo: "Bloqueados",
+            className: "hidden text-right tabular-nums md:table-cell",
+            valor: (l) => {
+              const n = resumo.get(l.usuarioId)?.bloqueados ?? 0
+              return n ? <span className="text-warning-fg font-medium">{n}</span> : <span className="text-muted-foreground">—</span>
+            },
+          },
+          {
+            chave: "valor",
+            rotulo: "Líquido no ano",
+            className: "hidden text-right tabular-nums lg:table-cell",
+            valor: (l) => {
+              const r = resumo.get(l.usuarioId)
+              return r?.comValor ? formatarMoeda(r.valor) : "—"
+            },
+          },
+          {
+            chave: "ultimo",
+            rotulo: "Último",
+            valor: (l) => {
+              const u = resumo.get(l.usuarioId)?.ultimo
+              if (!u) return <span className="text-muted-foreground">—</span>
+              return (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <Link href={`/painel/pessoal/contracheques/funcionario/${l.usuarioId}/${u.id}`} className="hover:underline">
+                    {u.remessaNome}
+                  </Link>
+                  {!u.liberado && <Badge variant="warning">Bloqueado</Badge>}
+                </span>
+              )
+            },
+          },
+        ]}
       />
     </>
   )

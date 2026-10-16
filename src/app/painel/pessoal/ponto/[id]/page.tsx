@@ -214,7 +214,7 @@ export default async function RemessaPontoPage({
                         <TableCell className="max-w-52 truncate font-medium">
                           {i.funcionario_id ? (
                             <Link
-                              href={`/painel/pessoal/${i.funcionario_id}`}
+                              href={`/painel/pessoal/ponto/funcionario/${i.funcionario_id}/${i.id}?de=remessa`}
                               className="hover:underline"
                             >
                               {i.funcionarioNome ?? "(sem nome)"}

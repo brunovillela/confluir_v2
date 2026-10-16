@@ -25,7 +25,8 @@ async function exigirAcesso() {
 }
 
 function revalidar(remessaId?: string) {
-  revalidatePath("/painel/pessoal/contracheques")
+  // "layout": a área inteira — inclui as páginas do funcionário e do contracheque.
+  revalidatePath("/painel/pessoal/contracheques", "layout")
   if (remessaId) revalidatePath(`/painel/pessoal/contracheques/${remessaId}`)
   revalidatePath("/painel/perfil/contracheques")
   revalidatePath("/painel/financeiro/ordens")

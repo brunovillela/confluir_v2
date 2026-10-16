@@ -284,3 +284,42 @@ export function avaliarJornada(m: MarcacoesEspelho | null): OcorrenciasJornada |
   }
   return o
 }
+
+export type DiaDetalhado = {
+  data: string
+  diaSemana: string
+  ocorrencia: string | null
+  marcacoes: string[]
+  trabalhadoMin: number
+  intervaloMin: number | null
+  alertas: string[]
+}
+
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+
+/** O mês dia a dia, com o total trabalhado, o intervalo e os alertas de cada dia. */
+export function detalharDias(m: MarcacoesEspelho | null): DiaDetalhado[] {
+  if (!m || !Array.isArray(m.dias)) return []
+  const o = avaliarJornada(m)
+  const em = (lista: string[] | undefined, d: string) => Boolean(lista?.includes(d))
+  const seguidos = (o?.seteDiasSeguidos ?? []).map((s) => s.split(" a "))
+  return m.dias.map((d) => {
+    const ps = pares(d.marcacoes)
+    const alertas: string[] = []
+    if (em(o?.jornadaAcima10, d.data)) alertas.push("Jornada acima de 10 h")
+    if (em(o?.intervaloCurto, d.data)) alertas.push("Intervalo menor que 1 h")
+    if (em(o?.interjornadaCurta, d.data)) alertas.push("Menos de 11 h desde a jornada anterior")
+    if (em(o?.domingoFeriado, d.data)) alertas.push("Domingo ou feriado trabalhado")
+    if (em(o?.incompletas, d.data)) alertas.push("Marcação incompleta")
+    if (ps.length && seguidos.some(([a, b]) => d.data >= a && d.data <= b)) alertas.push("Sequência de 7+ dias sem folga")
+    return {
+      data: d.data,
+      diaSemana: DIAS_SEMANA[new Date(`${d.data}T12:00:00Z`).getUTCDay()],
+      ocorrencia: d.ocorrencia,
+      marcacoes: d.marcacoes,
+      trabalhadoMin: ps.reduce((s, p) => s + (p.fim - p.ini), 0),
+      intervaloMin: ps.length > 1 ? ps[1].ini - ps[0].fim : null,
+      alertas,
+    }
+  })
+}

@@ -192,7 +192,7 @@ export default async function RemessaContrachequesPage({
                         <TableCell className="max-w-64 truncate font-medium">
                           {i.funcionario_id ? (
                             <Link
-                              href={`/painel/pessoal/${i.funcionario_id}`}
+                              href={`/painel/pessoal/contracheques/funcionario/${i.funcionario_id}/${i.id}?de=remessa`}
                               className="hover:underline"
                             >
                               {i.funcionarioNome ?? "(sem nome)"}

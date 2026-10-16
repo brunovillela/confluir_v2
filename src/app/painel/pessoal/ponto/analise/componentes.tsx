@@ -177,7 +177,7 @@ export function PainelIndicadores({
                   {emAtencao.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="min-w-44 align-top">
-                        <Link href={`/painel/pessoal/${p.id}`} className="font-medium hover:underline">
+                        <Link href={`/painel/pessoal/ponto/funcionario/${p.id}`} className="font-medium hover:underline">
                           {p.nome}
                         </Link>
                         <span className="text-muted-foreground block text-xs">{p.departamento}</span>
