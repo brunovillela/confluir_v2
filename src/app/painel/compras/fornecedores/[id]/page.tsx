@@ -808,11 +808,12 @@ export default async function FornecedorPage({
                     <TableCell className="whitespace-nowrap">
                       {o.tipo ?? "—"}
                     </TableCell>
-                    <TableCell className="max-w-96">
+                    <TableCell className="max-w-96 min-w-64">
                       {o.processo_compra_id ? (
                         <Link
                           href={`/painel/compras/${o.processo_compra_id}`}
-                          className="text-primary hover:underline"
+                          className="text-primary line-clamp-2 hover:underline"
+                          title={[o.processoCodigo, o.processoProduto].filter(Boolean).join(" — ")}
                         >
                           <span className="tabular-nums">
                             {o.processoCodigo ?? "(processo)"}
@@ -825,7 +826,7 @@ export default async function FornecedorPage({
                           )}
                         </Link>
                       ) : (
-                        <span className="line-clamp-2">{o.descricao ?? "—"}</span>
+                        <span className="line-clamp-2" title={o.descricao ?? undefined}>{o.descricao ?? "—"}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap tabular-nums">

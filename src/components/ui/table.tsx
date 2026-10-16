@@ -84,7 +84,10 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        // Célula com limite de largura (max-w-*) quebra linha: o navegador
+        // ignora max-width em <td>, e com nowrap o texto longo invadia as
+        // colunas seguintes (ex.: descrição nas ordens do fornecedor).
+        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&[class*='max-w-']]:whitespace-normal [&[class*='max-w-']]:break-words",
         className
       )}
       {...props}
