@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
+import { ArrowLeft, BarChart3, ExternalLink, Pencil } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -31,14 +31,21 @@ import {
   urlArquivoPessoal,
 } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
+import { carregarBasePonto, indicadoresDe } from "@/lib/db/ponto-analise"
+import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
+import { obterResenha } from "@/lib/db/ponto-resenha"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
+import { LerEspelhosBotao } from "../analise/botoes"
+import { CartaoResenha, PainelIndicadores } from "../analise/componentes"
 import { RemessaPontoForm } from "../remessa-form"
 import { ExcluirRegistroBotao, RegistroPontoForm } from "./registro-itens"
 
 export const metadata: Metadata = {
   title: "Remessa de controle de ponto — Confluir",
 }
+// Leitura dos espelhos e resenha da IA podem levar alguns minutos.
+export const maxDuration = 300
 
 function horas(v: number | null): string {
   return v === null
@@ -56,6 +63,7 @@ export default async function RemessaPontoPage({
     editar?: string
     pagina?: string
     porPagina?: string
+    aba?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
@@ -63,6 +71,7 @@ export default async function RemessaPontoPage({
   const { id } = await params
   const paramsBusca = await searchParams
   const { salvo, editar } = paramsBusca
+  const naAnalise = paramsBusca.aba === "indicadores"
   const [remessa, itens, funcionarios] = await Promise.all([
     buscarRemessaPonto(id),
     registrosDaRemessaPonto(id),
@@ -141,8 +150,27 @@ export default async function RemessaPontoPage({
         </Alert>
       )}
 
+      {!editandoRemessa && (
+        <nav className="flex gap-1 border-b text-sm" aria-label="Abas da remessa">
+          {[
+            { href: `/painel/pessoal/ponto/${id}`, rotulo: "Registros", ativo: !naAnalise },
+            { href: `/painel/pessoal/ponto/${id}?aba=indicadores`, rotulo: "Indicadores e resenha", ativo: naAnalise },
+          ].map((a) => (
+            <Link
+              key={a.rotulo}
+              href={a.href}
+              className={`-mb-px border-b-2 px-3 py-2 ${a.ativo ? "border-primary font-medium" : "text-muted-foreground hover:text-foreground border-transparent"}`}
+            >
+              {a.rotulo}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       {editandoRemessa ? (
         <RemessaPontoForm remessa={remessa} />
+      ) : naAnalise ? (
+        <AnaliseDaRemessa remessaId={id} />
       ) : (
         <>
           <Card>
@@ -299,6 +327,41 @@ export default async function RemessaPontoPage({
           )}
         </>
       )}
+    </>
+  )
+}
+
+async function AnaliseDaRemessa({ remessaId }: { remessaId: string }) {
+  const [base, pendentes, { disponivel, resenha }] = await Promise.all([
+    carregarBasePonto(),
+    espelhosPendentes(remessaId),
+    obterResenha("remessa", remessaId),
+  ])
+  const ind = indicadoresDe(base, { escopo: "remessa", remessaId })
+  const ano = base.remessas.find((r) => r.id === remessaId)?.competencia.slice(0, 4)
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {pendentes !== null && pendentes > 0 ? (
+          <LerEspelhosBotao remessaId={remessaId} pendentes={pendentes} />
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            {pendentes === null
+              ? "Rode supabase/ponto-analise.sql para ler as marcações dos espelhos."
+              : "Espelhos desta remessa já processados."}
+          </span>
+        )}
+        {ano && (
+          <Button variant="outline" asChild>
+            <Link href={`/painel/pessoal/ponto/analise?ano=${ano}`}>
+              <BarChart3 />
+              Indicadores do ano
+            </Link>
+          </Button>
+        )}
+      </div>
+      <PainelIndicadores ind={ind} hrefDepartamento={ano ? (d) => `/painel/pessoal/ponto/analise?ano=${ano}&departamento=${encodeURIComponent(d)}` : undefined} />
+      <CartaoResenha disponivel={disponivel} resenha={resenha} escopo="remessa" remessaId={remessaId} />
     </>
   )
 }

@@ -7,7 +7,9 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { depoisDaResposta } from "@/lib/db/avisos"
 import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
+import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -264,6 +266,8 @@ export async function criarRegistroPonto(
   if (liberado) {
     await notificarLiberacaoPessoal(funcionarioId, "ponto", remessa.nome, criado.id)
   }
+  // Marcações do espelho para os indicadores (lib/db/ponto-marcacoes), sem fazer esperar.
+  if (upload.caminho) depoisDaResposta(() => lerEspelhoDoRegistro(criado.id))
 
   revalidar(remessaId)
   redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1`)
@@ -312,6 +316,8 @@ export async function atualizarRegistroPonto(
     .eq("remessa_id", remessaId)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Registro não encontrado." }
+
+  if (upload.caminho) depoisDaResposta(() => lerEspelhoDoRegistro(id))
 
   // Aviso só na TRANSIÇÃO para liberado (não repete a cada edição).
   if (liberado && anterior.liberado !== true && anterior.funcionario_id) {

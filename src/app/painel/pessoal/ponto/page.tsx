@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowLeft, ArrowUp, Clock4, Plus } from "lucide-react"
+import { ArrowDown, ArrowLeft, ArrowUp, BarChart3, Clock4, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -153,12 +153,20 @@ export default async function RemessasPontoPage({
               remessa agrupa os registros de ponto de um mês de referência
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/pessoal/ponto/nova">
-              <Plus />
-              Nova remessa
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/ponto/analise">
+                <BarChart3 />
+                Indicadores e resenhas
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/painel/pessoal/ponto/nova">
+                <Plus />
+                Nova remessa
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
