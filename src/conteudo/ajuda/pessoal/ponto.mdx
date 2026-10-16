@@ -32,6 +32,59 @@ funcionário.
 
 <Print src="pessoal/ponto-remessas.png" alt="Lista de remessas de controle de ponto, com filtros por ano e situação e a tabela de remessas." legenda="Remessas de controle de ponto, filtráveis por ano e situação." />
 
+## Indicadores e resenha da IA
+
+O ponto também serve para enxergar **riscos trabalhistas** antes que virem
+problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
+
+| Recorte | Onde |
+| --- | --- |
+| **Remessa** (o mês) | Aba **Indicadores e resenha** dentro da remessa |
+| **Ano** | Botão **Indicadores e resenhas** na lista de remessas |
+| **Departamento no ano** | Tabela de departamentos do ano — clique no nome da área |
+
+<PassoAPasso>
+  <Passo titulo="Os números">
+    Horas extras realizadas a 70% e a 100%, quantos funcionários fizeram horas
+    extras, média por funcionário, saldo do banco de horas, atestados e faltas
+    injustificadas. No ano, a evolução mês a mês e os **meses sem remessa** (a
+    falta do registro também é um risco).
+  </Passo>
+  <Passo titulo="As marcações do espelho">
+    Quando o espelho de ponto é um PDF com texto (o do Secullum), a IA lê as
+    batidas de cada dia e o sistema confere: jornada acima de 10 h, intervalo
+    menor que 1 h, menos de 11 h entre uma jornada e outra, domingo ou feriado
+    trabalhado, 7 dias seguidos sem folga, marcação incompleta e ponto
+    "britânico" (horários sempre iguais). O espelho é lido sozinho ao salvar o
+    registro; para os que já estavam lá, use **Ler marcações dos espelhos**.
+  </Passo>
+  <Passo titulo="Funcionários em atenção">
+    Cada funcionário com alerta aparece com o motivo e o artigo da CLT ou a
+    súmula do TST: mês acima de 44 h extras (mais de 2 h por dia útil), horas
+    extras habituais, banco de horas alto ou crescendo, dias a 100%, as
+    ocorrências das marcações e atestados junto com muitas horas extras
+    (possível sobrecarga).
+  </Passo>
+  <Passo titulo="A resenha">
+    **Gerar resenha com IA** redige, a partir desses indicadores, o panorama do
+    período, os riscos trabalhistas em ordem de gravidade, quem acompanhar de
+    perto (funcionários e departamentos) com uma sugestão para cada um, as
+    recomendações e as limitações dos dados. Ela fica guardada; **Gerar de
+    novo** refaz com os números atuais.
+  </Passo>
+</PassoAPasso>
+
+<Print src="pessoal/ponto-indicadores.png" alt="Aba Indicadores e resenha da remessa, com os totais de horas extras, as ocorrências tiradas das marcações e os funcionários em atenção." legenda="Indicadores da remessa: horas, ocorrências nas marcações e quem merece atenção." />
+
+<Print src="pessoal/ponto-resenha.png" alt="Resenha da IA com o panorama, os riscos trabalhistas classificados por gravidade e os funcionários a acompanhar." legenda="A resenha da IA: riscos com o fundamento legal e quem acompanhar de perto." />
+
+<Aviso tipo="nota" titulo="O que a análise não alcança">
+  Os espelhos escaneados que vieram do sistema antigo (até julho de 2025) não
+  têm texto e não são lidos — para esses meses valem só as horas lançadas. O
+  departamento usado é o **atual** de cada funcionário, inclusive nos anos
+  anteriores. A resenha é um apoio: confira os números antes de agir.
+</Aviso>
+
 ## Regras e travas
 
 - Uma remessa **finalizada** não aceita inclusão, edição ou exclusão de itens —

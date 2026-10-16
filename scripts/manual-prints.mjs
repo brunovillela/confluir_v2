@@ -47,6 +47,15 @@ const SHOTS = process.env.SHOT_UNICO
       [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
     ]
   : [
+  // Rodada de 16/10 (21): indicadores e resenha do ponto. Remessa demo de
+  // março/2026 com espelhos FICTÍCIOS (gerados por script, layout Secullum) e
+  // resenhas já geradas da remessa e do Administrativo.
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-indicadores.png", { esperar: "Funcionários em atenção", altura: 1300 }],
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-resenha.png", { esperar: "Riscos trabalhistas", scrollTo: "Resenha da IA", altura: 1200 }],
+  ]
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodada anterior
+const SHOTS_RODADA_20 = [
   // Rodada de 16/10 (20): movimento da folha para a contabilidade. Na demo,
   // Outubro/2026 ficou enviada e recebida (dados "TESTE MOVIMENTO") e uma
   // falta de 14/10 lançada depois do envio caiu em Novembro como retroativa.
