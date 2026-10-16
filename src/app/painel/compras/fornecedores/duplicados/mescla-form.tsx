@@ -20,7 +20,8 @@ export type CadastroDuplicado = {
 }
 
 /**
- * Um grupo de cadastros com o mesmo CPF/CNPJ: escolhe-se o que FICA (os
+ * Um grupo de cadastros da mesma empresa (mesmo CPF/CNPJ, ou mesmo nome com
+ * documento faltando ou inválido): escolhe-se o que FICA (os
  * outros marcados são incorporados a ele). Quem só consulta vê o grupo sem
  * os controles.
  */
@@ -46,7 +47,7 @@ export function MesclaGrupoForm({
         confirmarEnvio(e, {
           titulo: `Mesclar ${incorporados.length} cadastro(s) em "${nomePrincipal}"?`,
           descricao:
-            "Ordens de pagamento, contratos, propostas, contas bancárias, endereços e demais registros dos incorporados passam para o cadastro que fica. Os incorporados ficam inativos, apontando para ele. A operação não se desfaz pela tela.",
+            "Ordens de pagamento, contratos, propostas, contas bancárias, endereços e demais registros dos incorporados passam para o cadastro que fica — que herda o CPF/CNPJ válido do grupo, se não tiver um, e os dados que lhe faltarem. Os incorporados ficam inativos, apontando para ele. A operação não se desfaz pela tela.",
           confirmar: "Mesclar",
         })
       }

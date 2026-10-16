@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { AlertTriangle, ArrowLeft, FileText, List, Pencil, Plus } from "lucide-react"
+import { AlertTriangle, ArrowLeft, FileText, List, Merge, Pencil, Plus } from "lucide-react"
 
 import { VoltarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -228,6 +228,14 @@ export default async function FornecedorPage({
           </div>
           {podeEditar && (
           <div className="flex flex-wrap gap-2">
+            {!f.inativa && !destinoMescla && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/painel/compras/fornecedores/${f.id}/mesclar`}>
+                  <Merge />
+                  Mesclar com outro cadastro
+                </Link>
+              </Button>
+            )}
             <BotaoAcaoFornecedor
               acao="inativar"
               campos={{ fornecedor_id: f.id, inativa: f.inativa ? "0" : "1" }}
@@ -322,6 +330,11 @@ export default async function FornecedorPage({
                     className="font-medium underline"
                   >
                     Mesclar os cadastros com este CPF/CNPJ
+                  </Link>
+                )}
+                {problemas.some((p) => p.codigo === "sem_documento" || p.codigo === "documento_invalido") && (
+                  <Link href={`/painel/compras/fornecedores/${f.id}/mesclar`} className="font-medium underline">
+                    É duplicado de outro cadastro? Mesclar
                   </Link>
                 )}
               </div>

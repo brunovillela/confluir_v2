@@ -63,6 +63,34 @@ use **Mesclar os cadastros com este CPF/CNPJ** (no aviso da página do
 fornecedor) ou **Cadastros duplicados**: os registros dos demais passam para o
 cadastro escolhido.
 
+### Mesclar cadastros sem o mesmo documento (legado)
+
+No legado é comum a mesma empresa aparecer duas vezes, uma com CNPJ e outra
+**sem CPF/CNPJ** ou com um **inválido**. Há dois caminhos:
+
+- **Cadastros duplicados → Mesmo nome, documento faltando ou inválido**: o
+  sistema agrupa os cadastros ativos com o mesmo nome (ignorando acentos,
+  pontuação e LTDA/ME/EPP/EIRELI) em que algum está sem documento ou com um
+  inválido. Sugere ficar o que tem CPF/CNPJ válido.
+- **Na ficha do fornecedor → Mesclar com outro cadastro** (ou **É duplicado de
+  outro cadastro? Mesclar**, no aviso de documento faltando/inválido): busque
+  o outro cadastro pelo nome, razão social ou CNPJ, clique em **Comparar**,
+  marque o que fica e mescle. Serve também para nomes diferentes que são a
+  mesma empresa.
+
+Regras da mescla:
+
+- Pode haver **no máximo um** CPF/CNPJ válido entre os cadastros. Se o que
+  fica não tem um (ou tem um inválido), ele **herda o válido** do grupo; os
+  dados que lhe faltam (razão social, telefone…) vêm dos incorporados.
+- **Dois CPF/CNPJ válidos e diferentes não se mesclam** — são empresas
+  diferentes (matriz e filial, homônimas). Se um deles está errado, corrija o
+  cadastro primeiro.
+- Ordens de pagamento, contratos, propostas, compras, contas bancárias,
+  endereços e demais registros dos incorporados passam para o que fica; os
+  incorporados ficam **inativos**, apontando para ele (a ficha mostra
+  **Cadastros incorporados**). A mescla não se desfaz pela tela.
+
 **É marketplace** marca as plataformas de venda (Mercado Livre, Amazon,
 Shopee…). A compra é paga a elas, mas a nota fiscal vem depois, emitida pelo
 **vendedor**: a compra fica em **Notas a receber** até a nota ser anexada, e o

@@ -1,7 +1,13 @@
 import "server-only"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
+import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
+
+/** CPF (11) ou CNPJ (14) com dígitos verificadores corretos. */
+function documentoValido(d: string): boolean {
+  return d.length === 11 ? validarCpf(d) : d.length === 14 ? validarCnpj(d) : false
+}
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { esquemaAusente } from "@/lib/db/comum"
@@ -801,16 +807,38 @@ export async function mesclarFornecedores(dados: {
   const tenant = await tenantAtual()
   const { data: linhas, error } = await admin
     .from("empresa")
-    .select("id, cnpj_cpf")
+    .select("id, cnpj_cpf, nome_fantasia, nome_razao")
     .eq("emp_proprietaria_id", tenant)
     .in("id", [dados.principal, ...secundarios])
   if (error) return { erro: `Falha ao carregar os cadastros: ${error.message}` }
-  const docs = new Set((linhas ?? []).map((l) => String(l.cnpj_cpf ?? "").replace(/\D/g, "")))
   if ((linhas ?? []).length !== secundarios.length + 1) {
     return { erro: "Algum dos cadastros não foi encontrado nesta entidade." }
   }
-  if (docs.size !== 1 || docs.has("")) {
-    return { erro: "Só cadastros com o MESMO CPF/CNPJ podem ser mesclados." }
+  // Mesma empresa = no máximo UM CPF/CNPJ válido no grupo. Os demais podem
+  // estar vazios ou inválidos (o legado do Bubble tem os dois casos); dois
+  // documentos válidos diferentes são empresas diferentes.
+  const validos = new Map<string, string>()
+  for (const l of linhas ?? []) {
+    const d = String(l.cnpj_cpf ?? "").replace(/\D/g, "")
+    if (documentoValido(d)) validos.set(d, String(l.nome_fantasia || l.nome_razao || "(sem nome)"))
+  }
+  if (validos.size > 1) {
+    return {
+      erro: `Os cadastros têm CPF/CNPJ válidos e diferentes (${[...validos.entries()].map(([d, n]) => `${n}: ${formatarCnpjCpf(d)}`).join("; ")}) — são empresas diferentes e não se mesclam.`,
+    }
+  }
+  // O que fica sem documento válido herda o válido do grupo (a mescla no
+  // banco só completa campos VAZIOS — o inválido ficaria).
+  const docValido = [...validos.keys()][0] ?? null
+  const principal = (linhas ?? []).find((l) => l.id === dados.principal)
+  const docPrincipal = String(principal?.cnpj_cpf ?? "").replace(/\D/g, "")
+  if (docValido && docPrincipal !== docValido) {
+    const { error: erroDoc } = await admin
+      .from("empresa")
+      .update({ cnpj_cpf: docValido, pessoa_juridica: docValido.length === 14, updated_at: new Date().toISOString() })
+      .eq("id", dados.principal)
+      .eq("emp_proprietaria_id", tenant)
+    if (erroDoc) return { erro: `Não foi possível corrigir o CPF/CNPJ do cadastro que fica: ${erroDoc.message}` }
   }
 
   const { data, error: erroRpc } = await admin.rpc("mesclar_fornecedores", {
