@@ -167,6 +167,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Informes de rendimentos",
         resumo: "A geração dos informes anuais e a liberação ao funcionário",
       },
+      {
+        slug: "movimento-folha",
+        titulo: "Movimento da folha",
+        resumo: "O que mudou na competência, conferido e enviado à contabilidade",
+      },
     ],
   },
 

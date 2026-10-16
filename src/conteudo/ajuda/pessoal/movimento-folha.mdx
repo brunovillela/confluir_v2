@@ -1,0 +1,100 @@
+O **Movimento da folha** reúne, por **competência** (o mês da folha), tudo o que
+mudou para os funcionários e que a contabilidade precisa para fechar a folha e
+transmitir o eSocial. A entidade confere e envia; o escritório consulta, exporta
+e confirma o recebimento — sem planilha por e-mail.
+
+<RequerPermissao>Movimento da folha — conferir e enviar · Movimento da folha — contabilidade</RequerPermissao>
+
+São duas permissões, que podem ser dadas a pessoas diferentes:
+
+| Permissão | Quem | O que faz |
+| --- | --- | --- |
+| **Conferir e enviar** | Quem cuida do Pessoal (delegável) | Vê a competência aberta, confere as linhas e envia |
+| **Contabilidade** | O escritório de contabilidade | Vê só as competências **enviadas**, exporta e marca como recebida |
+
+## O calendário
+
+A folha é paga dentro do mês (adiantamento no dia 10, complemento no dia 25),
+por isso a competência é **única** e o **corte é no dia 15**. A partir do dia
+15, quem envia vê na caixa de entrada **Movimento da folha a enviar** até a
+competência ser enviada.
+
+## O que entra no relatório
+
+As linhas vêm dos próprios cadastros do sistema, organizadas pelos eventos do eSocial:
+
+| Seção | Evento | De onde vem |
+| --- | --- | --- |
+| Admissões e desligamentos | S-2200 / S-2299 | Datas de admissão e demissão do vínculo |
+| Alterações contratuais | S-2206 | Cargo, lotação, matrícula, regime, jornada, função, progressões e reajuste da tabela salarial |
+| Alterações cadastrais | S-2205 | Nome, CPF, estado civil, conta bancária e Pix, endereço, dependentes |
+| Férias | S-2230 | Gozos autorizados que começam no mês (ou até o dia 2 do mês seguinte, cujo pagamento sai antes) |
+| Afastamentos e licenças | S-2230 | Atestados (com alerta acima de 15 dias, que vão ao INSS) e ausências do tipo Licença |
+| Faltas | S-1200 | Faltas justificadas autorizadas e ausências do tipo **Falta injustificada** (a descontar) |
+| Variáveis da remuneração | S-1200 | Horas extras pagas a 70% e 100% (remessa de ponto do mês), anuênios e reembolsos do ACT com pagamento no mês |
+| Descontos | S-1200 | Multas de trânsito a descontar em contracheque |
+| Pendências do cadastro | — | Funcionários ativos sem CPF ou sem conta bancária (informativo) |
+
+<Aviso tipo="nota" titulo="Alterações de contrato e de cadastro">
+  Essas linhas saem do **histórico de alterações** do sistema, com a data em que
+  a mudança foi feita, e mostram o antes e o depois (ex.: "Cargo: Assistente →
+  Assistente II"). O histórico começou em 16/10/2026: mudanças anteriores a essa
+  data não aparecem.
+</Aviso>
+
+## Conferir e enviar
+
+<PassoAPasso>
+  <Passo titulo="Abrir a competência">
+    Em **Pessoal → Movimento da folha**, clique na competência **Aberta**. A tela
+    é uma prévia calculada na hora; cada linha leva ao lançamento de origem para
+    corrigir o que estiver errado.
+  </Passo>
+  <Passo titulo="Exportar, se quiser">
+    **Exportar planilha (CSV)** baixa as mesmas linhas para o Excel.
+  </Passo>
+  <Passo titulo="Enviar">
+    Escreva uma observação, se precisar (ex.: "reajuste do ACT a partir deste
+    mês"), e clique em **Enviar à contabilidade**. A competência fica
+    **congelada** como foi entregue e o escritório é avisado.
+  </Passo>
+</PassoAPasso>
+
+## Retroativos: o que entra depois do envio
+
+Nada se perde e nada se repete. Um lançamento feito **depois** do envio, mesmo
+com data no mês já enviado (uma falta do dia 14 registrada no dia 20), entra na
+**competência seguinte** com a marca **Retroativo**. Linhas já entregues não
+aparecem de novo.
+
+## Para a contabilidade
+
+<PassoAPasso>
+  <Passo titulo="Aviso">
+    Quando a entidade envia, aparece **Movimento da folha a receber** na caixa de
+    entrada (e por e-mail ou Telegram, se o aviso estiver ligado em Meu perfil →
+    Avisos).
+  </Passo>
+  <Passo titulo="Consultar e exportar">
+    Abra a competência, leia a observação de quem enviou e exporte a planilha.
+  </Passo>
+  <Passo titulo="Confirmar o recebimento">
+    Clique em **Marcar como recebido**. Quem enviou é avisado e a competência
+    passa a **Recebida**.
+  </Passo>
+</PassoAPasso>
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Atestados e ASO",
+      href: "/painel/ajuda/pessoal/atestados-aso",
+      descricao: "Atestados, ausências e o tipo Falta injustificada",
+    },
+    {
+      titulo: "Contracheques",
+      href: "/painel/ajuda/pessoal/contracheques",
+      descricao: "Remessas e liberação ao funcionário",
+    },
+  ]}
+/>
