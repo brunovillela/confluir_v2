@@ -8,7 +8,7 @@ import {
   janelaDaAssembleia,
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
-import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
+import { esquemaAusente, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -2007,6 +2007,86 @@ export async function removerApto(id: string): Promise<{ erro?: string }> {
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   return error ? { erro: `Falha ao remover o apto: ${error.message}` } : {}
+}
+
+/**
+ * Exclusão em massa de aptos da rodada (16/10/2026): os marcados ou todos.
+ * Só sai quem ainda NÃO votou e não teve presença registrada numa urna —
+ * esses ficam, e a contagem volta para a tela. Sempre restrito à rodada.
+ */
+export async function removerAptosEmMassa(
+  rodadaId: string,
+  alvo: { ids: string[] } | { todos: true }
+): Promise<{ removidos: number; mantidos: number; erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  type Linha = { id: string; hora_voto: string | null; presenca_em?: string | null }
+
+  // Quem está na rodada (paginado: rodadas passam de 1.000 aptos). Antes do
+  // SQL dos mesários a coluna presenca_em não existe — cai para só o voto.
+  const ler = (colunas: string) =>
+    "todos" in alvo
+      ? lerEmLotes<Linha>((de, ate) =>
+          admin
+            .from("voto_assembleias_aptos")
+            .select(colunas)
+            .eq("emp_proprietaria_id", emp)
+            .eq("rod_assembleia_id", rodadaId)
+            .order("id")
+            .range(de, ate)
+        )
+      : lerEmLotesPorIds<Linha>(alvo.ids, (fatia, de, ate) =>
+          admin
+            .from("voto_assembleias_aptos")
+            .select(colunas)
+            .eq("emp_proprietaria_id", emp)
+            .eq("rod_assembleia_id", rodadaId)
+            .in("id", fatia)
+            .order("id")
+            .range(de, ate)
+        )
+  let linhas: Linha[]
+  try {
+    linhas = await ler("id, hora_voto, presenca_em")
+  } catch (e) {
+    if (!esquemaAusente(e as { code?: string })) {
+      return { removidos: 0, mantidos: 0, erro: `Falha ao ler os aptos: ${e instanceof Error ? e.message : "?"}` }
+    }
+    linhas = await ler("id, hora_voto")
+  }
+
+  const podem = linhas.filter((l) => !l.hora_voto && !l.presenca_em).map((l) => l.id)
+  let mantidos = linhas.length - podem.length
+  let removidos = 0
+  for (let i = 0; i < podem.length; i += 200) {
+    const fatia = podem.slice(i, i + 200)
+    // hora_voto nulo de novo no delete: quem votar no meio do caminho fica.
+    const { count, error } = await admin
+      .from("voto_assembleias_aptos")
+      .delete({ count: "exact" })
+      .eq("emp_proprietaria_id", emp)
+      .eq("rod_assembleia_id", rodadaId)
+      .is("hora_voto", null)
+      .in("id", fatia)
+    if (!error) {
+      removidos += count ?? 0
+      mantidos += fatia.length - (count ?? 0)
+      continue
+    }
+    // Algum apto da fatia está preso a outro registro (ex.: terminal de urna
+    // que o liberou): tenta um a um e mantém só os presos.
+    for (const id of fatia) {
+      const r = await admin
+        .from("voto_assembleias_aptos")
+        .delete({ count: "exact" })
+        .eq("emp_proprietaria_id", emp)
+        .eq("id", id)
+        .is("hora_voto", null)
+      if (r.error || !r.count) mantidos++
+      else removidos++
+    }
+  }
+  return { removidos, mantidos }
 }
 
 // ── Arquivos (bucket 'assembleias') ────────────────────────────────────────

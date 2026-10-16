@@ -25,6 +25,7 @@ import {
   obterRodada,
   prorrogarAssembleia,
   removerApto,
+  removerAptosEmMassa,
   situacaoAssembleiaPorId,
   subirArquivoAssembleias,
   validarEdicaoAssembleias,
@@ -567,6 +568,37 @@ export async function excluirApto(
   if (erro) return { erro }
   revalidarRodada(rodadaId)
   return { ok: "Apto removido da lista." }
+}
+
+export async function excluirAptosEmMassa(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+
+  const rodadaId = texto(formData, "rodada_id")
+  if (!rodadaId) return { erro: "Rodada inválida." }
+  const todos = texto(formData, "modo") === "todos"
+  const ids = formData
+    .getAll("apto_ids")
+    .map(String)
+    .filter((v) => /^[0-9a-f-]{36}$/i.test(v))
+  if (!todos && ids.length === 0) return { erro: "Marque ao menos um apto." }
+
+  const r = await removerAptosEmMassa(rodadaId, todos ? { todos: true } : { ids })
+  if (r.erro) return { erro: r.erro }
+  revalidarRodada(rodadaId)
+  const n = (v: number) => v.toLocaleString("pt-BR")
+  if (r.removidos === 0) {
+    return { erro: "Nenhum apto foi removido: os escolhidos já votaram ou tiveram presença registrada." }
+  }
+  return {
+    ok:
+      `${n(r.removidos)} apto(s) removido(s) da lista.` +
+      (r.mantidos > 0
+        ? ` ${n(r.mantidos)} ficaram por já terem votado ou registrado presença.`
+        : ""),
+  }
 }
 
 /** Lê e valida os campos comuns do formulário de eleitor. */

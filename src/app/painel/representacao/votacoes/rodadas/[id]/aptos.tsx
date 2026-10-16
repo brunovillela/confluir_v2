@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState, type ReactNode } from "react"
+import { useActionState, useEffect, useState, type ReactNode } from "react"
 import { FileUp, Loader2, Pencil, Trash2, UserPlus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -21,10 +21,11 @@ import type { AptoLinha } from "@/lib/db/assembleias"
 import {
   cadastrarEleitor,
   excluirApto,
+  excluirAptosEmMassa,
   importarAptosCsv,
   salvarEleitor,
 } from "./actions"
-import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
 
 /** Importação de aptos por CSV (colunas: cpf, nome, matricula, email, telefone). */
 export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
@@ -342,6 +343,126 @@ export function RemoverAptoBotao({
       >
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
       </Button>
+    </form>
+  )
+}
+
+/** Id do formulário que junta as caixas de seleção das linhas da tabela. */
+const formExclusaoAptos = (rodadaId: string) => `exclusao-aptos-${rodadaId}`
+
+/** Só as caixas visíveis: o streaming do Next pode deixar uma cópia escondida
+ * da página, cujas caixas também se ligariam ao formulário. */
+const caixas = (formId: string) =>
+  Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      `input[type="checkbox"][name="apto_ids"][form="${formId}"]`
+    )
+  ).filter((c) => !c.closest("[hidden]"))
+
+/** Caixa do cabeçalho: marca/desmarca os aptos da página que ainda podem sair. */
+export function MarcarTodosAptos({ rodadaId }: { rodadaId: string }) {
+  const formId = formExclusaoAptos(rodadaId)
+  return (
+    <input
+      type="checkbox"
+      className="size-4"
+      aria-label="Marcar todos os aptos desta página"
+      title="Marcar todos desta página (quem já votou fica de fora)"
+      onChange={(e) => {
+        for (const c of caixas(formId)) if (!c.disabled) c.checked = e.target.checked
+        document.dispatchEvent(new Event("aptos-selecao"))
+      }}
+    />
+  )
+}
+
+/**
+ * Exclusão em massa (16/10/2026): os marcados na página ou todos os que não
+ * votaram na rodada. Quem já votou ou teve presença na urna nunca sai.
+ */
+export function ExclusaoEmMassaAptos({
+  rodadaId,
+  naoVotaram,
+}: {
+  rodadaId: string
+  /** Aptos da rodada que ainda não votaram (o alvo de "todos"). */
+  naoVotaram: number
+}) {
+  const formId = formExclusaoAptos(rodadaId)
+  const [estado, formAction, pendente] = useActionState(excluirAptosEmMassa, {})
+  const [marcados, setMarcados] = useState(0)
+
+  useEffect(() => {
+    const contar = () => setMarcados(caixas(formId).filter((c) => c.checked).length)
+    const aoMudar = (e: Event) => {
+      const alvo = e.target as HTMLInputElement | null
+      if (alvo?.name === "apto_ids") contar()
+    }
+    document.addEventListener("change", aoMudar)
+    document.addEventListener("aptos-selecao", contar)
+    contar()
+    return () => {
+      document.removeEventListener("change", aoMudar)
+      document.removeEventListener("aptos-selecao", contar)
+    }
+  }, [formId])
+
+  // Depois de excluir, a lista recarrega: zera a contagem.
+  const [estadoAnterior, setEstadoAnterior] = useState(estado)
+  if (estado !== estadoAnterior) {
+    setEstadoAnterior(estado)
+    if (estado.ok) setMarcados(0)
+  }
+
+  const n = (v: number) => v.toLocaleString("pt-BR")
+
+  async function enviar(modo: "selecionados" | "todos", e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault()
+    const form = document.getElementById(formId) as HTMLFormElement | null
+    if (!form) return
+    const ok = await confirmar({
+      titulo:
+        modo === "todos"
+          ? `Remover os ${n(naoVotaram)} aptos que ainda não votaram?`
+          : `Remover os ${n(marcados)} aptos marcados?`,
+      descricao:
+        "Eles saem da lista desta rodada e perdem o acesso à votação. Quem já votou ou teve presença registrada numa urna fica. Para voltar, será preciso importar ou cadastrar de novo.",
+      confirmar: "Remover",
+      destrutivo: true,
+    })
+    if (!ok) return
+    const modoCampo = form.elements.namedItem("modo") as HTMLInputElement | null
+    if (modoCampo) modoCampo.value = modo
+    form.requestSubmit()
+  }
+
+  return (
+    <form id={formId} action={formAction} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="rodada_id" value={rodadaId} />
+      <input type="hidden" name="modo" value="selecionados" />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={pendente || marcados === 0}
+        onClick={(e) => enviar("selecionados", e)}
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        Excluir marcados{marcados > 0 ? ` (${n(marcados)})` : ""}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive"
+        disabled={pendente || naoVotaram === 0}
+        onClick={(e) => enviar("todos", e)}
+      >
+        <Trash2 />
+        Excluir todos que não votaram ({n(naoVotaram)})
+      </Button>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
     </form>
   )
 }

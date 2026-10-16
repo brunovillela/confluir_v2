@@ -43,7 +43,9 @@ import { lerPaginacao } from "@/lib/paginacao"
 
 import {
   EditarEleitorBotao,
+  ExclusaoEmMassaAptos,
   ImportarAptos,
+  MarcarTodosAptos,
   NovoEleitorBotao,
   RemoverAptoBotao,
 } from "./aptos"
@@ -300,6 +302,13 @@ export default async function RodadaPage({
                 </div>
               </div>
 
+              {contagemAptos.total > 0 && (
+                <ExclusaoEmMassaAptos
+                  rodadaId={rodada.id}
+                  naoVotaram={contagemAptos.ausentes}
+                />
+              )}
+
               {aptos.linhas.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">
                   <UsersRound className="mx-auto mb-2 size-5" />
@@ -311,6 +320,9 @@ export default async function RodadaPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <MarcarTodosAptos rodadaId={rodada.id} />
+                      </TableHead>
                       <TableHead>Nome</TableHead>
                       <TableHead>CPF</TableHead>
                       <TableHead>Matrícula</TableHead>
@@ -322,6 +334,19 @@ export default async function RodadaPage({
                   <TableBody>
                     {aptos.linhas.map((a) => (
                       <TableRow key={a.id}>
+                        <TableCell className="w-8">
+                          {/* Caixa ligada ao formulário da exclusão em massa. */}
+                          <input
+                            type="checkbox"
+                            name="apto_ids"
+                            value={a.id}
+                            form={`exclusao-aptos-${rodada.id}`}
+                            disabled={a.hora_voto !== null}
+                            className="size-4"
+                            aria-label={`Marcar ${a.nome_completo ?? "apto"}`}
+                            title={a.hora_voto ? "Já votou — não pode ser removido" : undefined}
+                          />
+                        </TableCell>
                         <TableCell className="max-w-72 truncate">
                           {a.nome_completo ?? "—"}
                           {/* Aviso do próprio eleitor ou da conferência: a
