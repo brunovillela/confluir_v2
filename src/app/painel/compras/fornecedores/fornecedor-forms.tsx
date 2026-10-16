@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { mascaraTelefone } from "@/lib/mascaras"
 import type {
   ContaBancaria,
+  ContatoFornecedor,
   EnderecoFornecedor,
   Fornecedor,
 } from "@/lib/db/fornecedores"
@@ -21,9 +23,11 @@ import {
   criarFornecedorAction,
   definirInativaAction,
   excluirContaAction,
+  excluirContatoAction,
   excluirEnderecoAction,
   excluirFornecedorAction,
   salvarContaAction,
+  salvarContatoAction,
   salvarEnderecoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
@@ -39,6 +43,7 @@ const ACOES_SIMPLES: Record<string, AcaoServidor> = {
   excluirFornecedor: excluirFornecedorAction,
   excluirEndereco: excluirEnderecoAction,
   excluirConta: excluirContaAction,
+  excluirContato: excluirContatoAction,
 }
 
 export function BotaoAcaoFornecedor({
@@ -262,6 +267,73 @@ export function FornecedorForm({
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
           {fornecedor ? "Salvar alterações" : `Cadastrar ${rotuloEntidade}`}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** Contato do fornecedor: nome, cargo/setor, telefone e e-mail. */
+export function ContatoForm({
+  fornecedorId,
+  contato,
+  aoCancelarHref,
+}: {
+  fornecedorId: string
+  contato?: ContatoFornecedor
+  aoCancelarHref: string
+}) {
+  const [estado, formAction, pendente] = useActionState(salvarContatoAction, {})
+  const [telefone, setTelefone] = useState(contato?.telefone ? mascaraTelefone(contato.telefone) : "")
+  return (
+    <form action={formAction} className="grid gap-4 rounded-md border p-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <input type="hidden" name="fornecedor_id" value={fornecedorId} />
+      {contato && <input type="hidden" name="contato_id" value={contato.id} />}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor="ct-nome">Nome *</Label>
+          <Input id="ct-nome" name="nome" required defaultValue={contato?.nome ?? ""} placeholder="Quem atende" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="ct-cargo">Cargo ou setor</Label>
+          <Input id="ct-cargo" name="cargo" defaultValue={contato?.cargo ?? ""} placeholder="Ex.: Vendas, Financeiro" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="ct-telefone">Telefone</Label>
+          <Input
+            id="ct-telefone"
+            name="telefone"
+            inputMode="tel"
+            value={telefone}
+            onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
+            placeholder="(00) 00000-0000"
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="ct-email">E-mail</Label>
+          <Input id="ct-email" name="email" type="email" defaultValue={contato?.email ?? ""} placeholder="nome@fornecedor.com.br" />
+        </div>
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="ct-obs">Observação</Label>
+        <Input id="ct-obs" name="observacao" defaultValue={contato?.observacao ?? ""} placeholder="Ex.: atende de manhã; WhatsApp" />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="principal" defaultChecked={contato?.principal ?? false} className="size-4" />
+        Contato principal — o e-mail dele é o sugerido no envio da ordem de compra
+      </label>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" asChild>
+          <a href={aoCancelarHref}>Cancelar</a>
+        </Button>
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          {contato ? "Salvar contato" : "Adicionar contato"}
         </Button>
       </div>
     </form>

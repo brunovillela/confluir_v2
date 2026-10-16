@@ -28,6 +28,7 @@ import { requirePermissao } from "@/lib/auth"
 import {
   buscarFornecedor,
   incorporadosPor,
+  listarContatos,
   mescladoEm,
   type ContratoFornecedor,
 } from "@/lib/db/fornecedores"
@@ -44,6 +45,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { mascaraTelefone } from "@/lib/mascaras"
 import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -53,6 +55,7 @@ import {
   BotaoAcaoFornecedor,
   ContaForm,
   EnderecoForm,
+  ContatoForm,
   FornecedorForm,
 } from "../fornecedor-forms"
 
@@ -130,6 +133,7 @@ export default async function FornecedorPage({
     editar?: string
     endereco?: string
     conta?: string
+    contato?: string
     pagina?: string
     porPagina?: string
     mesclado?: string
@@ -149,16 +153,18 @@ export default async function FornecedorPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
-  const [incorporados, destinoMescla, viaMarketplace] = await Promise.all([
+  const [incorporados, destinoMescla, viaMarketplace, contatos] = await Promise.all([
     incorporadosPor(f.id),
     mescladoEm(f.id),
     comprasViaMarketplace(f.id, f.marketplace),
+    listarContatos(f.id),
   ])
 
   const editando = brutos.editar === "1" && podeEditar
   // Formulários de endereço e conta só abrem para quem edita.
   const enderecoParam = podeEditar ? (brutos.endereco ?? "") : ""
   const contaParam = podeEditar ? (brutos.conta ?? "") : ""
+  const contatoParam = podeEditar ? (brutos.contato ?? "") : ""
   const aqui = `/painel/compras/fornecedores/${f.id}`
 
   const paginacao = lerPaginacao(brutos, 10)
@@ -412,6 +418,94 @@ export default async function FornecedorPage({
               </div>
             </dl>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Contatos</CardTitle>
+              <CardDescription>Quem atende no fornecedor — telefone e e-mail</CardDescription>
+            </div>
+            {podeEditar && contatos !== null && contatoParam !== "novo" && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`${aqui}?contato=novo`}>
+                  <Plus />
+                  Adicionar
+                </Link>
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {contatos === null ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                Rode <code>supabase/fornecedores-contatos.sql</code> para habilitar os contatos.
+              </AlertDescription>
+            </Alert>
+          ) : contatos.length === 0 && contatoParam !== "novo" ? (
+            <p className="text-muted-foreground text-sm">Nenhum contato cadastrado.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {contatos.map((c) =>
+                contatoParam === c.id ? (
+                  <div key={c.id} className="md:col-span-2">
+                    <ContatoForm fornecedorId={f.id} contato={c} aoCancelarHref={aqui} />
+                  </div>
+                ) : (
+                  <div
+                    key={c.id}
+                    className="border-border flex flex-wrap items-start justify-between gap-2 rounded-md border p-3 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {c.nome}
+                        {c.principal && (
+                          <Badge variant="info" className="ml-2 align-middle">
+                            Principal
+                          </Badge>
+                        )}
+                      </p>
+                      {c.cargo && <p className="text-muted-foreground text-xs">{c.cargo}</p>}
+                      {c.telefone && (
+                        <p>
+                          <a href={`tel:${c.telefone.replace(/\D/g, "")}`} className="hover:underline">
+                            {mascaraTelefone(c.telefone)}
+                          </a>
+                        </p>
+                      )}
+                      {c.email && (
+                        <p className="break-all">
+                          <a href={`mailto:${c.email}`} className="text-primary hover:underline">
+                            {c.email}
+                          </a>
+                        </p>
+                      )}
+                      {c.observacao && <p className="text-muted-foreground text-xs">{c.observacao}</p>}
+                    </div>
+                    {podeEditar && (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`${aqui}?contato=${c.id}`}>Editar</Link>
+                        </Button>
+                        <BotaoAcaoFornecedor
+                          acao="excluirContato"
+                          campos={{ fornecedor_id: f.id, contato_id: c.id }}
+                          confirmacao="Excluir este contato?"
+                          variant="ghost"
+                        >
+                          Excluir
+                        </BotaoAcaoFornecedor>
+                      </div>
+                    )}
+                  </div>
+                )
+              )}
+            </div>
+          )}
+          {contatos !== null && contatoParam === "novo" && <ContatoForm fornecedorId={f.id} aoCancelarHref={aqui} />}
         </CardContent>
       </Card>
 

@@ -10,10 +10,12 @@ import {
   criarFornecedor,
   definirInativa,
   excluirConta,
+  excluirContato,
   excluirEndereco,
   excluirFornecedor,
   mesclarFornecedores,
   salvarConta,
+  salvarContato,
   salvarEndereco,
   type DadosEndereco,
   type DadosFornecedor,
@@ -140,6 +142,45 @@ export async function excluirEnderecoAction(
   const enderecoId = texto(formData, "endereco_id")
   if (!fornecedorId || !enderecoId) return { erro: "Endereço inválido." }
   const { erro } = await excluirEndereco(fornecedorId, enderecoId)
+  if (erro) return { erro }
+  revalidarFornecedor(fornecedorId)
+  redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)
+}
+
+export async function salvarContatoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireGestaoFornecedores()
+  const fornecedorId = texto(formData, "fornecedor_id")
+  if (!fornecedorId) return { erro: "Fornecedor inválido." }
+  const contatoId = texto(formData, "contato_id") || undefined
+  const { erro } = await salvarContato(
+    fornecedorId,
+    {
+      nome: texto(formData, "nome"),
+      cargo: ouNull(texto(formData, "cargo")),
+      telefone: ouNull(texto(formData, "telefone")),
+      email: ouNull(texto(formData, "email").toLowerCase()),
+      principal: texto(formData, "principal") === "on",
+      observacao: ouNull(texto(formData, "observacao")),
+    },
+    contatoId
+  )
+  if (erro) return { erro }
+  revalidarFornecedor(fornecedorId)
+  redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)
+}
+
+export async function excluirContatoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireGestaoFornecedores()
+  const fornecedorId = texto(formData, "fornecedor_id")
+  const contatoId = texto(formData, "contato_id")
+  if (!fornecedorId || !contatoId) return { erro: "Contato inválido." }
+  const { erro } = await excluirContato(fornecedorId, contatoId)
   if (erro) return { erro }
   revalidarFornecedor(fornecedorId)
   redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)

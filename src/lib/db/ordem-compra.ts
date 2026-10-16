@@ -250,6 +250,21 @@ export async function situacaoOrdensCompra(
     ? await admin.from("empresa").select("id, email_contato").in("id", fornIds)
     : { data: [] }
   const emailDe = new Map((emps ?? []).map((e) => [String(e.id), texto(e.email_contato)]))
+  // Sem e-mail no cadastro: o do contato principal (ou o primeiro com e-mail).
+  // Sem supabase/fornecedores-contatos.sql, a consulta falha e nada muda.
+  const semEmail = fornIds.filter((id) => !emailDe.get(id))
+  if (semEmail.length) {
+    const { data: contatos } = await admin
+      .from("empresa_contatos")
+      .select("empresa_id, email, principal")
+      .in("empresa_id", semEmail)
+      .not("email", "is", null)
+      .order("principal", { ascending: false })
+    for (const c of (contatos ?? []) as Record<string, unknown>[]) {
+      const id = String(c.empresa_id)
+      if (!emailDe.get(id)) emailDe.set(id, texto(c.email))
+    }
+  }
   for (const l of linhas) {
     mapa.set(String(l.id), {
       emailFornecedor: texto(l.fornecedor_id) ? (emailDe.get(String(l.fornecedor_id)) ?? null) : null,

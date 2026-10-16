@@ -704,6 +704,95 @@ export async function salvarEndereco(
   return {}
 }
 
+// ── Contatos (supabase/fornecedores-contatos.sql) ──────────────────────────
+
+export type ContatoFornecedor = {
+  id: string
+  nome: string
+  cargo: string | null
+  telefone: string | null
+  email: string | null
+  principal: boolean
+  observacao: string | null
+}
+
+export type DadosContato = Omit<ContatoFornecedor, "id">
+
+const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Contatos do fornecedor, o principal primeiro. null = SQL ainda não rodado. */
+export async function listarContatos(fornecedorId: string): Promise<ContatoFornecedor[] | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa_contatos")
+    .select("id, nome, cargo, telefone, email, principal, observacao")
+    .eq("empresa_id", fornecedorId)
+    .order("principal", { ascending: false })
+    .order("nome", { ascending: true })
+  if (error) {
+    if (esquemaAusente(error)) return null
+    throw new Error(`Falha ao buscar contatos: ${error.message}`)
+  }
+  return ((data ?? []) as Record<string, unknown>[]).map((c) => ({
+    id: String(c.id),
+    nome: String(c.nome ?? ""),
+    cargo: (c.cargo as string | null) ?? null,
+    telefone: (c.telefone as string | null) ?? null,
+    email: (c.email as string | null) ?? null,
+    principal: c.principal === true,
+    observacao: (c.observacao as string | null) ?? null,
+  }))
+}
+
+/** E-mail do contato principal (ou do primeiro com e-mail), para sugerir em envios. */
+export async function emailDoContatoPrincipal(fornecedorId: string): Promise<string | null> {
+  const contatos = await listarContatos(fornecedorId).catch(() => null)
+  return (contatos ?? []).find((c) => c.email)?.email ?? null
+}
+
+export async function salvarContato(
+  fornecedorId: string,
+  dados: DadosContato,
+  contatoId?: string
+): Promise<{ erro?: string }> {
+  if (!dados.nome.trim()) return { erro: "Informe o nome do contato." }
+  if (!dados.telefone?.trim() && !dados.email?.trim()) {
+    return { erro: "Informe ao menos o telefone ou o e-mail do contato." }
+  }
+  if (dados.email && !EMAIL_VALIDO.test(dados.email)) return { erro: "E-mail inválido." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: dono } = await admin
+    .from("empresa")
+    .select("id")
+    .eq("id", fornecedorId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!dono) return { erro: "Fornecedor não encontrado." }
+  // Um só principal por fornecedor.
+  if (dados.principal) {
+    let q = admin.from("empresa_contatos").update({ principal: false }).eq("empresa_id", fornecedorId)
+    if (contatoId) q = q.neq("id", contatoId)
+    await q
+  }
+  const linha = { ...dados, updated_at: new Date().toISOString() }
+  const { error } = contatoId
+    ? await admin.from("empresa_contatos").update(linha).eq("id", contatoId).eq("empresa_id", fornecedorId)
+    : await admin.from("empresa_contatos").insert({ ...linha, empresa_id: fornecedorId, emp_proprietaria_id: emp })
+  if (error) {
+    if (esquemaAusente(error)) return { erro: "Rode supabase/fornecedores-contatos.sql para habilitar os contatos." }
+    return { erro: `Não foi possível salvar o contato: ${error.message}` }
+  }
+  return {}
+}
+
+export async function excluirContato(fornecedorId: string, contatoId: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin.from("empresa_contatos").delete().eq("id", contatoId).eq("empresa_id", fornecedorId)
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  return {}
+}
+
 export async function excluirEndereco(
   fornecedorId: string,
   enderecoId: string
