@@ -174,7 +174,18 @@ export const MODULOS: Modulo[] = [
       "pessoal_aso",
       "pessoal_informes_rendimentos",
       "pessoal_faltas_justificadas",
+      "pessoal_contabilidade",
+      "pessoal_contabilidade_envio",
     ],
+  },
+  {
+    titulo: "Movimento da folha",
+    href: "/painel/pessoal/contabilidade",
+    icone: "BriefcaseBusiness",
+    descricao: "O que mudou na competência, para a contabilidade fechar a folha",
+    chave: "pessoal_contabilidade_envio",
+    chavesAlternativas: ["pessoal_contabilidade"],
+    oculto: true,
   },
   {
     titulo: "Informes de rendimentos",

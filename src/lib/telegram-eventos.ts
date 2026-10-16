@@ -72,6 +72,7 @@ export const EVENTOS_TELEGRAM = [
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },
   { chave: "pendencia_pessoal", rotulo: "Pedido de férias, diária, reembolso ou falta a avaliar", grupo: "pendencia", acesso: { permissoes: ["pessoal_gestao", "pessoal_diarias", "pessoal_faltas_justificadas", "diretoria_diarias", "configuracoes"], coordenador: true } },
+  { chave: "pendencia_contabilidade", rotulo: "Movimento da folha enviado à contabilidade ou a enviar", grupo: "pendencia", acesso: { permissoes: ["pessoal_contabilidade", "pessoal_contabilidade_envio"] } },
   { chave: "pendencia_filiacao", rotulo: "Solicitação de filiação ou reembolso jurídico a avaliar", grupo: "pendencia", acesso: { permissoes: ["filiacao_gestao", "juridico_gestao", "juridico_geral"] } },
   { chave: "pendencia_espacos", rotulo: "Pedido de uso de espaço", grupo: "pendencia", acesso: { permissoes: ["espacos", "espacos_gestao"] } },
   { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender", grupo: "pendencia", acesso: { permissoes: ["viagens_gestao"] } },

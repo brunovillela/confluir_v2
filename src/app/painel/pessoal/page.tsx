@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   CalendarCheck,
   Clock4,
+  FileSpreadsheet,
   FileBadge,
   GraduationCap,
   HandCoins,
@@ -81,6 +82,8 @@ export default async function PessoalPage() {
     "pessoal_aso",
     "pessoal_informes_rendimentos",
     "pessoal_faltas_justificadas",
+    "pessoal_contabilidade",
+    "pessoal_contabilidade_envio",
   ]);
   const veGestao = sessao.permissoes["pessoal_gestao"] === true;
   const ve = (chave: string) => veGestao || sessao.permissoes[chave] === true;
@@ -356,6 +359,14 @@ export default async function PessoalPage() {
       ),
       descricao: "Remessas anuais para o imposto de renda",
       icone: FileBadge,
+    },
+    {
+      mostrar: ve("pessoal_contabilidade") || ve("pessoal_contabilidade_envio"),
+      href: "/painel/pessoal/contabilidade",
+      titulo: "Movimento da folha",
+      indicador: "Por competência",
+      descricao: "O que mudou no mês, para a contabilidade fechar a folha e o eSocial",
+      icone: FileSpreadsheet,
     },
   ];
 

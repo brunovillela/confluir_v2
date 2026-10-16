@@ -7,6 +7,8 @@
  */
 export const TIPOS_AUSENCIA = [
   "Falta justificada",
+  // 16/10: vai ao movimento da folha (desconto) — antes não havia onde registrar.
+  "Falta injustificada",
   "Afastamento médico",
   "Férias",
   "Compensação de banco de horas",

@@ -170,6 +170,39 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) => remessasAAvaliar(q).eq("beneficiario_tipo", "diretor"),
     })
   }
+  // Movimento da folha (16/10): a contabilidade recebe; quem envia, depois do corte.
+  if (p["pessoal_contabilidade"] === true) {
+    fontes.push({
+      chave: "folha_receber",
+      titulo: "Movimento da folha a receber",
+      descricao: "Competência enviada pela entidade, aguardando o recebimento da contabilidade",
+      href: "/painel/pessoal/contabilidade",
+      tabela: "pessoal_folha_competencias",
+      montar: (q) => head(q).is("recebida_em", null),
+    })
+  }
+  if (p["pessoal_contabilidade_envio"] === true) {
+    const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+    if (Number(hoje.slice(8, 10)) >= 15) {
+      fontes.push({
+        chave: "folha_enviar",
+        titulo: "Movimento da folha a enviar",
+        descricao: "Passou o dia 15: confira e envie a competência à contabilidade",
+        href: `/painel/pessoal/contabilidade/${hoje.slice(0, 7)}`,
+        tabela: "pessoal_folha_competencias",
+        montar: (q) => head(q),
+        contarCom: async () => {
+          const { count, error } = await client
+            .from("pessoal_folha_competencias")
+            .select("id", { count: "exact", head: true })
+            .eq("emp_proprietaria_id", emp)
+            .eq("competencia", hoje.slice(0, 7))
+          if (error) return null
+          return (count ?? 0) > 0 ? 0 : 1
+        },
+      })
+    }
+  }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({
       chave: "faltas",

@@ -67,6 +67,8 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "pessoal_faltas_justificadas", rotulo: "Faltas justificadas" },
       { chave: "pessoal_registro_ponto", rotulo: "Registro de ponto" },
       { chave: "pessoal_informes_rendimentos", rotulo: "Informes de rendimentos" },
+      { chave: "pessoal_contabilidade", rotulo: "Movimento da folha — contabilidade (consultar, exportar, dar recebimento)" },
+      { chave: "pessoal_contabilidade_envio", rotulo: "Movimento da folha — conferir e enviar à contabilidade" },
     ],
   },
   {
