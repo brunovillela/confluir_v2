@@ -4,8 +4,12 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
-import type { ContaFornecedor, PixFornecedor } from "@/lib/db/compras-pagamento"
+import { gerarCodigoProcesso, listarFornecedores, subirComprovanteCompras } from "@/lib/db/compras"
+import {
+  meiosPagamentoFornecedor,
+  type ContaFornecedor,
+  type PixFornecedor,
+} from "@/lib/db/compras-pagamento"
 import {
   camposRecorrenteAutorizada,
   registrarEvento,
@@ -392,6 +396,23 @@ async function resolverSnapshot(
     }
   }
 
+  if (tipo === "assessoria") {
+    // Assessoria sai do cadastro de fornecedores; Pix e contas vêm de
+    // dados_bancarios do fornecedor (meiosDoBeneficiario), não do snapshot.
+    const { data } = await admin
+      .from("empresa")
+      .select("id, nome_fantasia, nome_razao, cnpj_cpf")
+      .eq("id", beneficiarioId)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle()
+    if (!data) return SNAPSHOT_VAZIO
+    return {
+      ...SNAPSHOT_VAZIO,
+      beneficiario_nome: texto(data.nome_fantasia) ?? texto(data.nome_razao),
+      beneficiario_cpf: texto(data.cnpj_cpf),
+    }
+  }
+
   if (tipo === "diretor") {
     const { data: integrante } = await admin
       .from("diretoria_integrantes")
@@ -669,6 +690,8 @@ async function montarRegistroCusteio(
       dados.tipoBeneficiario === "filiado" ? dados.beneficiarioId : null,
     convidado_id:
       dados.tipoBeneficiario === "convidado" ? dados.beneficiarioId : null,
+    fornecedor_id:
+      dados.tipoBeneficiario === "assessoria" ? dados.beneficiarioId : null,
     ...snapshot,
     descricao: texto(dados.descricao),
     evento: texto(dados.evento),
@@ -912,8 +935,11 @@ async function gerarOrdensCusteio(
   const puladas = alvos.length - novos.length
   if (novos.length === 0) return { geradas: 0, puladas }
 
-  // Favorecido: casa por CPF em `usuarios`; sem conta → avulso.
-  const cpf = cpfConfiavel(texto(c.beneficiario_cpf))
+  // Favorecido: assessoria → o próprio fornecedor; pessoa → casa por CPF em
+  // `usuarios`; sem conta → avulso.
+  const fornecedorId =
+    c.tipo_beneficiario === "assessoria" ? texto(c.fornecedor_id) : null
+  const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
   let usuarioId: string | null = null
   if (cpf) {
     const { data: u } = await admin
@@ -955,8 +981,10 @@ async function gerarOrdensCusteio(
     arquivo_boleto: recorrente ? null : texto(c.arquivo_boleto),
     vencimento: venc,
     beneficiario_usuario_id: usuarioId,
-    beneficiario_nome_avulso: usuarioId ? null : nome,
-    beneficiario_doc_avulso: usuarioId ? null : texto(c.beneficiario_cpf),
+    beneficiario_fornecedor_id: fornecedorId,
+    beneficiario_nome_avulso: usuarioId || fornecedorId ? null : nome,
+    beneficiario_doc_avulso:
+      usuarioId || fornecedorId ? null : texto(c.beneficiario_cpf),
     centro_custo_despesa_id: centroCusto,
     custeio_id: custeioId,
     excluido: false,
@@ -991,6 +1019,7 @@ export async function meiosDoBeneficiario(
   beneficiarioId: string
 ): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {
   if (!tipo || !beneficiarioId) return { pix: [], contas: [] }
+  if (tipo === "assessoria") return meiosPagamentoFornecedor(beneficiarioId)
   const snap = await resolverSnapshot(tipo, beneficiarioId)
   const pix: PixFornecedor[] = []
   const contas: ContaFornecedor[] = []
@@ -1093,7 +1122,9 @@ export async function registrarExtraordinarioCusteio(
     arquivoBoleto = up.caminho
   }
 
-  const cpf = cpfConfiavel(texto(c.beneficiario_cpf))
+  const fornecedorId =
+    c.tipo_beneficiario === "assessoria" ? texto(c.fornecedor_id) : null
+  const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
   let usuarioId: string | null = null
   if (cpf) {
     const { data: u } = await admin.from("usuarios").select("id").eq("cpf", cpf).eq("emp_proprietaria_id", empId).limit(1).maybeSingle()
@@ -1114,8 +1145,9 @@ export async function registrarExtraordinarioCusteio(
         arquivo_boleto: arquivoBoleto,
         vencimento: dados.vencimento,
         beneficiario_usuario_id: usuarioId,
-        beneficiario_nome_avulso: usuarioId ? null : nome,
-        beneficiario_doc_avulso: usuarioId ? null : texto(c.beneficiario_cpf),
+        beneficiario_fornecedor_id: fornecedorId,
+        beneficiario_nome_avulso: usuarioId || fornecedorId ? null : nome,
+        beneficiario_doc_avulso: usuarioId || fornecedorId ? null : texto(c.beneficiario_cpf),
         centro_custo_despesa_id: texto(c.centro_custo_despesa_id),
         custeio_id: custeioId,
         excluido: false,
@@ -1153,4 +1185,18 @@ export async function pagoComDoCusteio(custeioId: string, forma: string | null):
     return `Conta do beneficiário — ${c.banco ?? "—"}, ag. ${c.agencia ?? "—"}, conta ${c.conta} (${texto(c.conta_favorecido) ?? texto(c.beneficiario_nome) ?? "—"})`
   }
   return null
+}
+
+/** Opções do beneficiário "Assessoria": o cadastro de fornecedores do tenant. */
+export async function listarAssessoriasParaCusteio(): Promise<
+  { id: string; nome: string; cnpj_cpf: string | null; razao: string | null; bloqueado: boolean }[]
+> {
+  const fornecedores = await listarFornecedores()
+  return fornecedores.map((f) => ({
+    id: f.id,
+    nome: f.nome,
+    cnpj_cpf: f.cnpj_cpf,
+    razao: f.nome_razao,
+    bloqueado: f.bloqueado,
+  }))
 }

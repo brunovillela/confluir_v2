@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import {
+  listarAssessoriasParaCusteio,
   listarConvidados,
   listarDiretoresParaCusteio,
   listarFinalidades,
@@ -20,12 +21,13 @@ export const metadata: Metadata = { title: "Novo custeio — Confluir" }
 export default async function NovoCusteioPage() {
   await requirePermissao("custeio_institucional_edicao")
 
-  const [finalidades, centros, diretores, convidados, caixas] = await Promise.all([
+  const [finalidades, centros, diretores, convidados, caixas, assessorias] = await Promise.all([
     listarFinalidades(),
     listarCentrosCusto(),
     listarDiretoresParaCusteio(),
     listarConvidados(),
     contasAbertasParaCompras(),
+    listarAssessoriasParaCusteio(),
   ])
 
   return (
@@ -66,6 +68,7 @@ export default async function NovoCusteioPage() {
               detalhe: d.detalhe,
             }))}
             convidados={convidados.map((c) => ({ id: c.id, nome: c.nome }))}
+            fornecedores={assessorias}
             aoCancelarHref="/painel/institucional/custeios"
           />
         </CardContent>

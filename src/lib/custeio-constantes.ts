@@ -20,6 +20,7 @@ export const TIPOS_BENEFICIARIO = [
   { chave: "diretor", rotulo: "Diretor" },
   { chave: "filiado", rotulo: "Filiado (demitido político)" },
   { chave: "convidado", rotulo: "Convidado externo" },
+  { chave: "assessoria", rotulo: "Assessoria" },
 ] as const
 
 export type TipoBeneficiario = (typeof TIPOS_BENEFICIARIO)[number]["chave"]

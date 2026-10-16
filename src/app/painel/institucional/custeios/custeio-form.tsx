@@ -20,6 +20,7 @@ import {
 
 import { FORMAS_ORDEM_CONTRATO } from "@/lib/compras-constantes"
 
+import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../../compras/nova/detalhe-pagamento"
 import { atualizarCusteioAction, criarCusteioAction, meiosDoBeneficiarioAction } from "./actions"
@@ -53,6 +54,7 @@ export type CusteioInicial = {
   diretoria_integrante_id: string | null
   filiacao_id: string | null
   convidado_id: string | null
+  fornecedor_id?: string | null
   beneficiario_nome: string | null
   descricao: string | null
   evento: string | null
@@ -74,6 +76,7 @@ export function CusteioForm({
   centrosCusto,
   diretores,
   convidados,
+  fornecedores = [],
   caixas = [],
   aoCancelarHref,
 }: {
@@ -82,6 +85,8 @@ export function CusteioForm({
   centrosCusto: Opcao[]
   diretores: Opcao[]
   convidados: Opcao[]
+  /** Cadastro de fornecedores — de onde sai o beneficiário "Assessoria". */
+  fornecedores?: EmpresaOpcao[]
   /** Contas de caixa abertas (forma Dinheiro). */
   caixas?: CaixaOpcao[]
   aoCancelarHref: string
@@ -95,6 +100,7 @@ export function CusteioForm({
     custeio?.diretoria_integrante_id ??
     custeio?.filiacao_id ??
     custeio?.convidado_id ??
+    custeio?.fornecedor_id ??
     ""
 
   const [finalidadeId, setFinalidadeId] = useState(custeio?.finalidade_id ?? "")
@@ -193,6 +199,7 @@ export function CusteioForm({
         tipo={tipo}
         diretores={diretores}
         convidados={convidados}
+        fornecedores={fornecedores}
         beneficiarioId={beneficiarioId}
         beneficiarioNome={beneficiarioNome}
         onSelecionar={(id, nome) => {
@@ -422,6 +429,7 @@ function SeletorBeneficiario({
   tipo,
   diretores,
   convidados,
+  fornecedores,
   beneficiarioId,
   beneficiarioNome,
   onSelecionar,
@@ -429,10 +437,35 @@ function SeletorBeneficiario({
   tipo: TipoBeneficiario
   diretores: Opcao[]
   convidados: Opcao[]
+  fornecedores: EmpresaOpcao[]
   beneficiarioId: string
   beneficiarioNome: string
   onSelecionar: (id: string, nome: string) => void
 }) {
+  if (tipo === "assessoria") {
+    return (
+      <div className="grid gap-1.5">
+        <Label>Assessoria</Label>
+        <EmpresaCombobox
+          empresas={fornecedores}
+          name="assessoria_fornecedor_id"
+          defaultId={beneficiarioId || undefined}
+          onChange={(id) => {
+            const f = fornecedores.find((x) => x.id === id)
+            onSelecionar(id ?? "", f?.nome ?? "")
+          }}
+        />
+        <p className="text-muted-foreground text-xs">
+          Vem do cadastro de fornecedores — Pix e contas são os do fornecedor.{" "}
+          <Link href="/painel/compras/fornecedores/novo" className="underline">
+            Cadastrar fornecedor
+          </Link>
+          .
+        </p>
+      </div>
+    )
+  }
+
   if (tipo === "diretor" || tipo === "convidado") {
     const opcoes = tipo === "diretor" ? diretores : convidados
     return (

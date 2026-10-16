@@ -24,6 +24,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import {
   detalheCusteio,
+  listarAssessoriasParaCusteio,
   listarConvidados,
   listarDiretoresParaCusteio,
   listarFinalidades,
@@ -104,6 +105,7 @@ export default async function CusteioPage({
         listarDiretoresParaCusteio(),
         listarConvidados(),
         contasAbertasParaCompras(),
+        listarAssessoriasParaCusteio(),
       ])
     : null
   const urlFormalizacao = await urlFormalizacaoCusteio(str(c.arquivo_formalizacao))
@@ -117,6 +119,7 @@ export default async function CusteioPage({
         diretoria_integrante_id: str(c.diretoria_integrante_id),
         filiacao_id: str(c.filiacao_id),
         convidado_id: str(c.convidado_id),
+        fornecedor_id: str(c.fornecedor_id),
         beneficiario_nome: str(c.beneficiario_nome),
         descricao: str(c.descricao),
         evento: str(c.evento),
@@ -254,12 +257,13 @@ export default async function CusteioPage({
               }))}
               convidados={opcoes[3].map((cv) => ({ id: cv.id, nome: cv.nome }))}
               caixas={opcoes[4]}
+              fornecedores={opcoes[5]}
               aoCancelarHref={aqui}
             />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Campo rotulo="Beneficiário" valor={str(c.beneficiario_nome)} />
-              <Campo rotulo="CPF" valor={str(c.beneficiario_cpf)} />
+              <Campo rotulo={c.tipo_beneficiario === "assessoria" ? "CNPJ/CPF" : "CPF"} valor={str(c.beneficiario_cpf)} />
               <Campo
                 rotulo="Finalidade"
                 valor={detalhe.finalidade?.nome ?? null}
