@@ -134,6 +134,9 @@ export function separarCbo(v: string | null | undefined): {
   if (!t) return { codigo: null, descricao: null }
   const m = /^(\d{6})\s*-\s*(.+)$/.exec(t)
   if (m) return { codigo: m[1], descricao: sentenca(m[2]) }
+  // Só o código, como a CAT do eSocial imprime ("2142-05").
+  const so = /^(\d{4})-?(\d{2})$/.exec(t)
+  if (so) return { codigo: so[1] + so[2], descricao: null }
   // Códigos colados e mutilados ("71133Torrista", 5 dígitos onde o CBO tem
   // 6) não são separados no chute — entram como descrição.
   return { codigo: null, descricao: sentenca(t) }

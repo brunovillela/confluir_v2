@@ -118,6 +118,14 @@ export type ResultadoJsonIA = {
   erro?: string
 }
 
+/**
+ * Esquema JSON para Structured Outputs (modo estrito): a resposta sai com
+ * TODAS as chaves, no tipo e na lista de opções declarados. Sem esquema, vale
+ * o modo JSON livre, em que o modelo pode trocar string por número ou
+ * devolver um valor fora da lista.
+ */
+export type EsquemaJsonIA = { nome: string; schema: Record<string, unknown> }
+
 /** Isola o objeto JSON de uma resposta (tolera cercas ```json e texto ao redor). */
 function extrairJson(bruto: string): Record<string, unknown> | null {
   let t = bruto.trim()
@@ -151,7 +159,8 @@ function extrairJson(bruto: string): Record<string, unknown> | null {
  */
 async function chamarJsonIA(
   system: string,
-  content: OpenAI.Responses.ResponseInputMessageContentList
+  content: OpenAI.Responses.ResponseInputMessageContentList,
+  esquema?: EsquemaJsonIA
 ): Promise<ResultadoJsonIA> {
   const client = cliente()
   if (!client) return { erro: SEM_CHAVE }
@@ -172,7 +181,11 @@ async function chamarJsonIA(
           ],
         },
       ],
-      text: { format: { type: "json_object" } },
+      text: {
+        format: esquema
+          ? { type: "json_schema", name: esquema.nome, schema: esquema.schema, strict: true }
+          : { type: "json_object" },
+      },
       store: false,
     })
 
@@ -199,11 +212,13 @@ async function chamarJsonIA(
 export async function gerarJsonIA({
   system,
   prompt,
+  esquema,
 }: {
   system: string
   prompt: string
+  esquema?: EsquemaJsonIA
 }): Promise<ResultadoJsonIA> {
-  return chamarJsonIA(system, [{ type: "input_text", text: prompt }])
+  return chamarJsonIA(system, [{ type: "input_text", text: prompt }], esquema)
 }
 
 /**
@@ -215,19 +230,25 @@ export async function gerarJsonIADePdf({
   system,
   prompt,
   pdfBase64,
+  esquema,
 }: {
   system: string
   prompt: string
   pdfBase64: string
+  esquema?: EsquemaJsonIA
 }): Promise<ResultadoJsonIA> {
-  return chamarJsonIA(system, [
-    {
-      type: "input_file",
-      filename: "documento.pdf",
-      file_data: `data:application/pdf;base64,${pdfBase64}`,
-    },
-    { type: "input_text", text: prompt },
-  ])
+  return chamarJsonIA(
+    system,
+    [
+      {
+        type: "input_file",
+        filename: "documento.pdf",
+        file_data: `data:application/pdf;base64,${pdfBase64}`,
+      },
+      { type: "input_text", text: prompt },
+    ],
+    esquema
+  )
 }
 
 /**
