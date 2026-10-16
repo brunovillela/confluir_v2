@@ -52,7 +52,7 @@ create index if not exists caixa_movimentacoes_conta_idx
 create table if not exists public.caixa_prestacoes (
   id uuid primary key default gen_random_uuid(),
   conta_id uuid not null references public.caixa_contas (id),
-  -- aguardando | aprovada | rejeitada
+  -- aguardando | aprovada | rejeitada | desfeita (envio desfeito pelo responsável)
   situacao text not null default 'aguardando',
   observacao text,
   observacao_financeiro text,

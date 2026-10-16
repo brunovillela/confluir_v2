@@ -36,7 +36,7 @@ export type MovimentacaoCaixa = {
 
 export type PrestacaoCaixa = {
   id: string
-  situacao: string // aguardando | aprovada | rejeitada
+  situacao: string // aguardando | aprovada | rejeitada | desfeita (envio desfeito pelo responsável)
   observacao: string | null
   observacao_financeiro: string | null
   saldo_declarado: number | null

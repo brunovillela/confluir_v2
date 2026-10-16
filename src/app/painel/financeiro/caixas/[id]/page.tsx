@@ -294,14 +294,18 @@ export default async function ContaCaixaPage({
                       ? "border-success/40 text-success-fg"
                       : p.situacao === "rejeitada"
                         ? "text-destructive border-destructive/40"
-                        : "border-info/40 text-info-fg"
+                        : p.situacao === "desfeita"
+                          ? "text-muted-foreground"
+                          : "border-info/40 text-info-fg"
                   }
                 >
                   {p.situacao === "aprovada"
                     ? "Aprovada"
                     : p.situacao === "rejeitada"
                       ? "Rejeitada"
-                      : "Aguardando"}
+                      : p.situacao === "desfeita"
+                        ? "Desfeita pelo responsável"
+                        : "Aguardando"}
                 </Badge>
               </li>
             ))}

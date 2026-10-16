@@ -164,6 +164,52 @@ export async function prestarContas(
   revalidar(conta.id)
 }
 
+/**
+ * Desfaz o envio da prestação enquanto o gestor ainda não decidiu: a
+ * prestação fica "desfeita" no histórico e a conta volta a abrir.
+ */
+export async function desfazerPrestacao(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireSessaoPainel()
+
+  const prestacaoId = String(formData.get("prestacao_id") ?? "")
+  if (!UUID.test(prestacaoId)) return { erro: "Prestação inválida." }
+
+  const conta = await contaDoResponsavel(sessao.usuario.id)
+  if (!conta) return { erro: "Você não tem uma conta de caixa ativa." }
+
+  const agora = new Date().toISOString()
+  const admin = await createAdminClient()
+  // O filtro em "aguardando" garante que o gestor não decidiu no meio-tempo.
+  const { error, count } = await admin
+    .from("caixa_prestacoes")
+    .update(
+      {
+        situacao: "desfeita",
+        decidida_por_usuario_id: sessao.usuario.id,
+        decidida_em: agora,
+      },
+      { count: "exact" }
+    )
+    .eq("id", prestacaoId)
+    .eq("conta_id", conta.id)
+    .eq("situacao", "aguardando")
+  if (error) return { erro: `Não foi possível desfazer: ${error.message}` }
+  if (count === 0) {
+    return { erro: "A prestação já foi avaliada pelo gestor e não pode mais ser desfeita." }
+  }
+
+  await admin
+    .from("caixa_contas")
+    .update({ situacao: "aberta", updated_at: agora })
+    .eq("id", conta.id)
+    .eq("situacao", "prestacao_pendente")
+
+  revalidar(conta.id)
+}
+
 /** Relata perda/problema com o dinheiro — abre ocorrência para investigação. */
 export async function relatarPerda(
   _prev: EstadoForm,

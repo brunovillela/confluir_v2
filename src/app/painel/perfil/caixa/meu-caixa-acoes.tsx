@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useState, useTransition } from "react"
-import { Check, CircleAlert, HandCoins, Link2, Loader2, Search, X } from "lucide-react"
+import { Check, CircleAlert, HandCoins, Link2, Loader2, Search, Undo2, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import {
   buscarOrdensCaixa,
   confirmarAporte,
+  desfazerPrestacao,
   prestarContas,
   recusarAporte,
   relatarPerda,
@@ -160,6 +161,29 @@ export function PrestarContas({ bloqueio = null }: { bloqueio?: string | null })
           Prestar contas
         </Button>
       </div>
+    </form>
+  )
+}
+
+/** Desfaz o envio da prestação enquanto ela aguarda o gestor dos caixas. */
+export function DesfazerPrestacao({ prestacaoId }: { prestacaoId: string }) {
+  const [estado, formAction, pendente] = useActionState(desfazerPrestacao, {})
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        confirmarEnvio(e, "Desfazer o envio da prestação de contas? Ela sai da fila do gestor e a conta volta a abrir para compras.")
+      }}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <input type="hidden" name="prestacao_id" value={prestacaoId} />
+      {estado.erro && (
+        <span className="text-destructive text-xs">{estado.erro}</span>
+      )}
+      <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <Undo2 />}
+        Desfazer envio
+      </Button>
     </form>
   )
 }

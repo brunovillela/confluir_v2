@@ -22,7 +22,7 @@ import {
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { AvaliarDespesa } from "../despesas-caixa/formularios"
-import { AcoesDoCaixa, ConfirmarAporte } from "./meu-caixa-acoes"
+import { AcoesDoCaixa, ConfirmarAporte, DesfazerPrestacao } from "./meu-caixa-acoes"
 
 export const metadata: Metadata = { title: "Meu caixa — Confluir" }
 
@@ -206,10 +206,14 @@ export default async function MeuCaixaPage({
 
       {prestacaoAguardando && (
         <Alert className="border-info/40 text-info-fg">
-          <AlertDescription>
-            Sua prestação de contas de{" "}
-            {formatarDataHora(prestacaoAguardando.created_at)} está com o
-            Financeiro para conferência.
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Sua prestação de contas de{" "}
+              {formatarDataHora(prestacaoAguardando.created_at)} está com o
+              Financeiro para conferência. Enquanto o gestor não a avaliar,
+              você pode desfazer o envio.
+            </span>
+            <DesfazerPrestacao prestacaoId={prestacaoAguardando.id} />
           </AlertDescription>
         </Alert>
       )}
