@@ -83,13 +83,21 @@ const ERRO_PREFERENCIA = "preferencia"
 
 async function contar(
   rodadaId: string,
-  filtro: (q: ReturnType<typeof base>) => ReturnType<typeof base>
+  filtro: (q: ReturnType<typeof base>) => ReturnType<typeof base>,
+  client?: SupabaseClient
 ): Promise<number> {
-  const { count } = await filtro(base(await createAdminClient(), rodadaId))
+  const { count } = await filtro(base(client ?? (await createAdminClient()), rodadaId))
   return count ?? 0
 }
 
-function base(admin: Awaited<ReturnType<typeof createAdminClient>>, rodadaId: string) {
+/**
+ * Fora de requisição (tick do envio automático, fase 2 de 16/10/2026): o
+ * service client, o tenant e o contexto do e-mail vão explícitos — ali
+ * `tenantAtual()` e `origemAtual()` não valem.
+ */
+export type AmbienteEnvio = { client: SupabaseClient; tenantId: string; contexto: ContextoEmail }
+
+function base(admin: SupabaseClient, rodadaId: string) {
   return admin
     .from("voto_assembleias_aptos")
     .select("id", { count: "exact", head: true })
@@ -135,10 +143,11 @@ export async function resumoAvisoAptos(rodadaId: string): Promise<ResumoAvisoApt
 
 /** O conteúdo comum a todos os e-mails da rodada. Erro quando não dá para avisar. */
 export async function dadosDoAviso(
-  rodadaId: string
+  rodadaId: string,
+  amb?: AmbienteEnvio
 ): Promise<{ dados?: DadosAvisoAptos; erro?: string }> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+  const admin = amb?.client ?? (await createAdminClient())
+  const emp = amb?.tenantId ?? (await tenantAtual())
   const { data: rodada } = await admin
     .from("voto_rod_assembleias")
     .select("id, nome_assembleia, inicio, termino, campanha:campanha_id (tema)")
@@ -153,7 +162,10 @@ export async function dadosDoAviso(
 
   const { data: assembleias } = await admin
     .from("voto_assembleias")
-    .select("id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, created_at" + (await colunasSala()))
+    .select(
+      "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, created_at" +
+        (amb ? await colunasSalaDe(amb.client) : await colunasSala())
+    )
     .eq("rod_assembleia_id", rodadaId)
     .eq("emp_proprietaria_id", emp)
     .order("data_inicio", { ascending: true, nullsFirst: false })
@@ -174,7 +186,7 @@ export async function dadosDoAviso(
   }
 
   const online = lista.find((a) => temVotoOnline(a.modalidade))
-  const origem = await origemAtual()
+  const origem = amb?.contexto.origem ?? (await origemAtual())
   const campanha = rodada.campanha as { tema?: string | null } | { tema?: string | null }[] | null
   const tema = Array.isArray(campanha) ? campanha[0]?.tema : campanha?.tema
   return {
@@ -198,6 +210,12 @@ export async function dadosDoAviso(
       temPresencial: lista.some((a) => a.modalidade !== "online"),
     },
   }
+}
+
+/** Colunas da sala virtual pelo client dado (fora de requisição o cache de colunasSala não serve). */
+async function colunasSalaDe(client: SupabaseClient): Promise<string> {
+  const { error } = await client.from("voto_assembleias").select("sala_link").limit(1)
+  return error ? "" : ", sala_link, sala_data, sala_hora"
 }
 
 /** Envia o e-mail de exemplo (porta do e-mail corporativo) para um endereço. */
@@ -238,16 +256,17 @@ const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 /** Processa até `limite` aptos pendentes da rodada. */
 export async function enviarLoteAviso(
   rodadaId: string,
-  limite = 60
+  limite = 60,
+  amb?: AmbienteEnvio
 ): Promise<{ resultado?: ResultadoLoteAviso; erro?: string }> {
   if (!process.env.BREVO_API_KEY || !process.env.EMAIL_REMETENTE) {
     return { erro: "O envio de e-mails não está configurado neste ambiente." }
   }
-  const { dados, erro } = await dadosDoAviso(rodadaId)
+  const { dados, erro } = await dadosDoAviso(rodadaId, amb)
   if (!dados) return { erro }
 
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+  const admin = amb?.client ?? (await createAdminClient())
+  const emp = amb?.tenantId ?? (await tenantAtual())
   const { data, error } = await admin
     .from("voto_assembleias_aptos")
     .select("id, cpf, nome_completo, email_corporativo, assembleia_id")
@@ -291,7 +310,7 @@ export async function enviarLoteAviso(
 
   // Link pessoal: abre a cédula direto, sem depender do código por e-mail.
   const { gerarTokenAcesso } = await import("@/lib/acesso-eleitor")
-  const origem = await origemAtual()
+  const origem = amb?.contexto.origem ?? (await origemAtual())
   const links = (aptoId: string): { pessoal: string | null; naoSouEu: string | null } => {
     if (!dados.assembleiaOnlineId) return { pessoal: null, naoSouEu: null }
     const t = encodeURIComponent(gerarTokenAcesso(aptoId, dados.assembleiaOnlineId))
@@ -337,6 +356,7 @@ export async function enviarLoteAviso(
     const { data: avisados } = await admin
       .from("voto_assembleias_aptos")
       .select("aviso_email_para")
+      .eq("emp_proprietaria_id", emp)
       .eq("rod_assembleia_id", rodadaId)
       .is("aviso_email_erro", null)
       .in("aviso_email_para", emails)
@@ -416,6 +436,7 @@ export async function enviarLoteAviso(
           nome: e.destino.nome,
           assunto,
           html: montarEmailAvisoAptos(dados, e.destino),
+          contexto: amb?.contexto,
         })
       )
     )
@@ -433,7 +454,7 @@ export async function enviarLoteAviso(
   // outro no "Reenviar a quem não votou".
   const textoSino = `Votação aberta: ${dados.rodadaNome}${dados.termino ? ` (até ${formatarData(dados.termino)})` : ""}. Você está apto a votar.`
   // Client novo: o do começo do lote pode ter vencido durante os envios (JWT de 60 s).
-  const dbSino = { client: await createAdminClient(), tenantId: emp }
+  const dbSino = { client: amb?.client ?? (await createAdminClient()), tenantId: emp }
   const jaTemSino = await cpfsComAviso(dbSino, textoSino, cpfsDoLote).catch(() => new Set<string>())
   for (const a of aptos) {
     const cpf = cpfConfiavel(a.cpf)
@@ -447,7 +468,7 @@ export async function enviarLoteAviso(
       soSino: true,
       umaVez: true,
       nome: a.nome_completo,
-    })
+    }, amb)
   }
 
   // Grava as marcas agrupadas por (para, erro).
@@ -462,15 +483,27 @@ export async function enviarLoteAviso(
   // A escrita vai pelo JWT do tenant, que vence em 60 s: e-mails e sinos do
   // lote podem passar disso, e uma marca perdida reenviaria o e-mail no
   // próximo clique. Client novo para gravar.
-  const gravar = await createAdminClient()
+  const gravar = amb?.client ?? (await createAdminClient())
   for (const g of grupos.values()) {
     await gravar
       .from("voto_assembleias_aptos")
       .update({ aviso_email_em: agora, aviso_email_para: g.para, aviso_email_erro: g.erro })
+      .eq("emp_proprietaria_id", emp)
       .in("id", g.ids)
+    // Primeiro envio que saiu: nunca é zerado pelo reenvio (fase 2). Sem a
+    // coluna (antes de supabase/votacao-aviso-fase2.sql), a escrita falha e
+    // nada muda.
+    if (g.erro === null) {
+      await gravar
+        .from("voto_assembleias_aptos")
+        .update({ aviso_primeiro_em: agora })
+        .eq("emp_proprietaria_id", emp)
+        .in("id", g.ids)
+        .is("aviso_primeiro_em", null)
+    }
   }
 
-  resultado.restantes = await contar(rodadaId, (q) => q.is("aviso_email_em", null))
+  resultado.restantes = await contar(rodadaId, (q) => q.eq("emp_proprietaria_id", emp).is("aviso_email_em", null), gravar)
   return { resultado }
 }
 

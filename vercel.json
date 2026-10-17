@@ -44,6 +44,10 @@
     {
       "path": "/api/diarias/lembrete/tick",
       "schedule": "15 12 * * *"
+    },
+    {
+      "path": "/api/votacao/tick",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

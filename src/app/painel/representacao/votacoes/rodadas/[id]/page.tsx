@@ -41,6 +41,8 @@ import {
 } from "@/lib/db/assembleias-horarios"
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
+import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
+import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 
@@ -54,6 +56,7 @@ import {
 } from "./aptos"
 import { AssembleiasDaRodada, type JanelaItem } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
+import { DuplicadosAptos } from "./duplicados-aptos"
 import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
 import { linkUnicoVotacao } from "../../actions"
@@ -100,7 +103,7 @@ export default async function RodadaPage({
   const rodada = await obterRodada(id)
   if (!rodada) notFound()
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -110,8 +113,12 @@ export default async function RodadaPage({
       urlArquivoAssembleias(rodada.card_grafico_url),
       resumoAvisoAptos(id),
       semLinkDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
+      avisoAutoDaRodada(id),
+      aptosDuplicados(id),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
+  // O link pessoal só importa enquanto a rodada não terminou.
+  const linkImporta = temOnline && !periodoTerminado(rodada.termino)
 
   // Travas de edição — a MESMA função que as actions usam, para a tela nunca
   // prometer o que o servidor recusa.
@@ -318,7 +325,7 @@ export default async function RodadaPage({
 
               {/* Link pessoal de voto: quem ficou sem ele depende do código por
                   e-mail (plano de 16/10/2026). */}
-              {temOnline && aviso.esquemaPronto && (
+              {linkImporta && aviso.esquemaPronto && (
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-muted-foreground mr-1 text-xs">Link pessoal:</span>
                   {(semLink || link === "sem_link") && (
@@ -349,6 +356,8 @@ export default async function RodadaPage({
                   )}
                 </div>
               )}
+
+              <DuplicadosAptos rodadaId={rodada.id} grupos={duplicados} />
 
               {contagemAptos.total > 0 && (
                 <ExclusaoEmMassaAptos
@@ -437,7 +446,7 @@ export default async function RodadaPage({
                         </TableCell>
                         <TableCell className="max-w-64 truncate">
                           {a.email_corporativo ?? "—"}
-                          {temOnline && !a.hora_voto && <SituacaoLink apto={a} />}
+                          {linkImporta && !a.hora_voto && <SituacaoLink apto={a} />}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {a.hora_voto ? formatarDataHora(a.hora_voto) : "—"}
@@ -499,6 +508,7 @@ export default async function RodadaPage({
             id="aviso-aptos"
             rodadaId={rodada.id}
             resumo={aviso}
+            auto={temOnline ? avisoAuto : null}
             bloqueio={
               periodoTerminado(rodada.termino)
                 ? "O período desta rodada já terminou."

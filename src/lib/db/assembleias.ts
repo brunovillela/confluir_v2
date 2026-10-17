@@ -1971,23 +1971,33 @@ export async function importarAptos(
 ): Promise<{ resultado?: ResultadoImportacaoAptos; erro?: string }> {
   const admin = await createAdminClient()
 
-  // Todos os CPFs da rodada (paginado): com mais de 1.000 aptos, o corte do
-  // PostgREST deixava CPFs de fora e a reimportação duplicava gente.
-  let existentes: { cpf: string | null }[]
+  // Todos os aptos da rodada (paginado): com mais de 1.000 aptos, o corte do
+  // PostgREST deixava gente de fora e a reimportação duplicava.
+  type Existente = { cpf: string | null; email_corporativo: string | null; nome_completo: string | null }
+  let existentes: Existente[]
   try {
-    existentes = await lerEmLotes<{ cpf: string | null }>((de, ate) =>
+    existentes = await lerEmLotes<Existente>((de, ate) =>
       admin
         .from("voto_assembleias_aptos")
-        .select("id, cpf")
+        .select("id, cpf, email_corporativo, nome_completo")
         .eq("rod_assembleia_id", rodadaId)
-        .not("cpf", "is", null)
         .order("id")
         .range(de, ate)
     )
   } catch (e) {
     return { erro: `Falha ao conferir aptos existentes: ${e instanceof Error ? e.message : "?"}` }
   }
-  const jaAptos = new Set(existentes.map((a) => a.cpf as string))
+  const jaAptos = new Set(existentes.map((a) => a.cpf).filter((c): c is string => Boolean(c)))
+  // Sem CPF, o par e-mail + nome identifica a pessoa (fase 2, 16/10/2026): a
+  // lista da SLB veio com 11 pessoas repetidas assim.
+  const chaveEmailNome = (email: string | null, nome: string | null) => {
+    const e = email?.trim().toLowerCase()
+    const n = semAcento(nome ?? "").toUpperCase().replace(/\s+/g, " ").trim()
+    return e && n ? `${e}|${n}` : null
+  }
+  const jaPorEmailNome = new Set(
+    existentes.map((a) => chaveEmailNome(a.email_corporativo, a.nome_completo)).filter((k): k is string => Boolean(k))
+  )
 
   const resultado: ResultadoImportacaoAptos = {
     totalLinhas: linhas.length,
@@ -1998,13 +2008,19 @@ export async function importarAptos(
   const inserir: Record<string, unknown>[] = []
   const vistosNoArquivo = new Set<string>()
   for (const l of linhas) {
-    // sem CPF não há como deduplicar com segurança — a linha entra e a
-    // conciliação da filiação coletiva resolve por nome/matrícula depois
+    // Com CPF, o CPF decide; sem CPF, o par e-mail + nome (sem os dois, a
+    // linha entra e a conciliação da filiação coletiva resolve depois).
+    const chave = chaveEmailNome(l.email, l.nome_completo)
     if (l.cpf && (jaAptos.has(l.cpf) || vistosNoArquivo.has(l.cpf))) {
       resultado.ignorados++
       continue
     }
+    if (!l.cpf && chave && (jaPorEmailNome.has(chave) || vistosNoArquivo.has(chave))) {
+      resultado.ignorados++
+      continue
+    }
     if (l.cpf) vistosNoArquivo.add(l.cpf)
+    if (chave) vistosNoArquivo.add(chave)
     inserir.push({
       rod_assembleia_id: rodadaId,
       cpf: l.cpf,

@@ -9,9 +9,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { ResumoAvisoAptos } from "@/lib/db/votacao-aviso"
+import type { AvisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { formatarDataHora } from "@/lib/formato"
 
-import { enviarAvisoAptosTeste, enviarLoteAvisoAptos, reabrirAvisosAptos } from "./actions"
+import {
+  configurarAvisoAutoAction,
+  enviarAvisoAptosTeste,
+  enviarLoteAvisoAptos,
+  reabrirAvisosAptos,
+} from "./actions"
 
 type Mensagem = { tipo: "ok" | "erro"; texto: string } | null
 
@@ -24,12 +30,15 @@ export function AvisoAptos({
   id,
   rodadaId,
   resumo,
+  auto,
   bloqueio,
 }: {
   /** Âncora do alerta "Ir para o envio" (aptos sem link). */
   id?: string
   rodadaId: string
   resumo: ResumoAvisoAptos
+  /** Envio automático dos links (fase 2); null = rodada sem voto pela internet. */
+  auto: AvisoAutoDaRodada | null
   /** Motivo para não enviar (sem assembleia, período encerrado…). */
   bloqueio: string | null
 }) {
@@ -141,6 +150,14 @@ export function AvisoAptos({
           </Alert>
         )}
 
+        {auto && !bloqueio && (
+          <EnvioAutomatico
+            auto={auto}
+            desativado={travado}
+            aoMudar={(horas) => executar(() => configurarAvisoAutoAction(rodadaId, horas))}
+          />
+        )}
+
         {enviando && (
           <div className="grid gap-1.5" aria-live="polite">
             <Progress value={pct} className="h-2" />
@@ -238,6 +255,60 @@ export function AvisoAptos({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+const OPCOES_AUTO = [24, 48, 72] as const
+
+/**
+ * Envio automático dos links pessoais: N horas antes da abertura os links
+ * começam a sair sozinhos (a cada 15 min), inclusive a quem entrar na lista
+ * depois; a falha do provedor é tentada de novo uma vez, 1 h depois.
+ */
+function EnvioAutomatico({
+  auto,
+  desativado,
+  aoMudar,
+}: {
+  auto: AvisoAutoDaRodada
+  desativado: boolean
+  aoMudar: (horas: number | null) => void
+}) {
+  if (!auto.disponivel) {
+    return (
+      <p className="text-muted-foreground text-xs">
+        Envio automático: rode o SQL <code>supabase/votacao-aviso-fase2.sql</code> para ligar.
+      </p>
+    )
+  }
+  return (
+    <div className="grid gap-1.5 rounded-md border p-2.5">
+      <label className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium">Envio automático</span>
+        <select
+          className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+          value={auto.horas === null ? "" : String(auto.horas)}
+          disabled={desativado}
+          onChange={(e) => aoMudar(e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">Desligado</option>
+          {OPCOES_AUTO.map((h) => (
+            <option key={h} value={h}>
+              {h} h antes da abertura
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-muted-foreground text-xs">
+        {auto.horas === null
+          ? "Ligado, os links saem sozinhos antes da abertura e a quem entrar na lista depois, sem precisar desta página aberta."
+          : auto.ativo
+            ? "Em andamento: os pendentes recebem o link a cada 15 minutos, e uma falha do provedor é tentada de novo 1 h depois."
+            : auto.comecaEm !== null
+              ? `Os links começam a sair em ${formatarDataHora(new Date(auto.comecaEm).toISOString())}.`
+              : "Começa quando a votação pela internet tiver data de abertura."}
+      </p>
+    </div>
   )
 }
 

@@ -674,6 +674,36 @@ export async function enviarLoteAvisoAptos(
   return r
 }
 
+/** Mantém uma linha de cada pessoa repetida na lista de aptos (fase 2). */
+export async function unificarDuplicadosAction(rodadaId: string): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { unificarDuplicados } = await import("@/lib/db/aptos-duplicados")
+  const r = await unificarDuplicados(rodadaId)
+  if (r.erro) return { erro: r.erro }
+  revalidarRodada(rodadaId)
+  const n = (v: number) => v.toLocaleString("pt-BR")
+  return {
+    ok:
+      `${n(r.unificados)} linha(s) repetida(s) removida(s); fica uma de cada pessoa.` +
+      (r.mantidos > 0 ? ` ${n(r.mantidos)} ficaram (comprovante próprio ou ligadas a outro registro).` : ""),
+  }
+}
+
+/** Liga (horas antes da abertura) ou desliga o envio automático dos links (fase 2). */
+export async function configurarAvisoAutoAction(rodadaId: string, horas: number | null): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { configurarAvisoAuto } = await import("@/lib/db/votacao-aviso-auto")
+  const { erro } = await configurarAvisoAuto(rodadaId, horas)
+  if (erro) return { erro }
+  revalidarRodada(rodadaId)
+  return {
+    ok:
+      horas === null
+        ? "Envio automático desligado."
+        : `Envio automático ligado: os links saem sozinhos ${horas} h antes da abertura.`,
+  }
+}
+
 export async function enviarAvisoAptosTeste(rodadaId: string): Promise<EstadoForm> {
   const sessao = await requirePermissao("assembleias")
   const email = sessao.user.email

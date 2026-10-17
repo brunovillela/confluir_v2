@@ -77,6 +77,11 @@ link pessoal.
 
 ## Fase 2 — Envio e lista de aptos (SQL pequeno)
 
+> **Feita em 17/10/2026** (SQL: `supabase/votacao-aviso-fase2.sql`). A nova tentativa
+> automática das falhas vale nas rodadas com o envio automático ligado (nas outras, o
+> botão "Tentar de novo as falhas" continua). Duplicados: aviso + "Ver e unificar" na
+> rodada; a participação fica certa depois de unificar.
+
 1. **Guardar o primeiro envio do link**: nova coluna `aviso_primeiro_em`, que o
    reenvio não apaga. Assim o alerta e os indicadores sabem quem recebeu o link
    antes da abertura.

@@ -128,6 +128,24 @@ Na página da rodada ficam os aptos a votar.
   </Passo>
 </PassoAPasso>
 
+### Aptos repetidos
+
+Quando a mesma pessoa aparece mais de uma vez na lista — mesmo CPF, ou mesmo
+e-mail sem CPFs diferentes —, a página da rodada avisa: **"N pessoas aparecem
+mais de uma vez na lista"**. O voto de uma linha marca as outras, e a
+participação passa a contar linhas em vez de pessoas (na SLB, 703 "votaram"
+para 692 votos).
+
+Em **Ver e unificar**, cada pessoa mostra a linha que **fica** (a que votou, tem
+comprovante, CPF ou recebeu o link) e as que **saem**. **Unificar** apaga as
+repetidas e completa a que fica com o que só elas tinham (CPF, matrícula,
+e-mail, telefone). Uma repetida com comprovante de votação próprio fica, para o
+código continuar valendo.
+
+A **importação** também passou a ignorar a linha sem CPF cujo e-mail e nome já
+estão na rodada (ou no próprio arquivo) — era assim que a lista da SLB vinha
+repetida.
+
 ### Excluir vários aptos de uma vez
 
 Cada linha da lista tem uma caixa de seleção (a do cabeçalho marca todos da
@@ -177,6 +195,16 @@ quem recebeu por causa de um endereço cadastrado errado.
 <Print src="representacao/aviso-aptos.png" alt="Cartão de aviso por e-mail com os números de avisados, pendentes, sem e-mail, e-mail repetido e falhas, e os botões de envio." legenda="O cartão de aviso na página da rodada." />
 
 <Print src="representacao/aviso-email.png" alt="E-mail 'Você está habilitado a votar' com o período, as assembleias, o botão Ir para a votação e o passo a passo." legenda="O e-mail que o apto recebe (versão de quem entra pelo e-mail corporativo)." />
+
+**Envio automático.** No mesmo cartão, **Envio automático** escolhe quando os links saem sozinhos:
+**24, 48 ou 72 h antes da abertura** da votação pela internet. A partir daí, a
+cada 15 minutos, quem está pendente recebe o link — inclusive quem entrar na
+lista depois —, sem precisar da página aberta. Uma **falha** do provedor é
+tentada de novo uma vez, 1 h depois. O cartão diz quando os envios começam.
+
+O sistema guarda também a data do **primeiro envio** do link de cada pessoa,
+que o reenvio não apaga — base para saber quantos receberam o link antes da
+abertura.
 
 Quem entrar na lista depois do envio aparece como **pendente** e recebe só o
 dele no próximo clique. **Reenviar a quem não votou** devolve à fila só quem

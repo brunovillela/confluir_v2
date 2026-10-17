@@ -52,7 +52,90 @@ export type RodadaSemLink = {
   semLink: number
 }
 
-type Ambiente = { client: SupabaseClient; emp: string }
+export type Ambiente = { client: SupabaseClient; emp: string }
+
+/** Janela da votação pela internet de uma rodada (só as não encerradas). */
+export type JanelaOnline = {
+  rodadaId: string
+  rodadaNome: string | null
+  campanhaId: string | null
+  /** Votação pela internet já aberta em alguma assembleia da rodada. */
+  aberta: boolean
+  /** Próxima abertura (ms) quando ainda não abriu. */
+  abreEm: number | null
+  /** Assembleias com voto pela internet ainda não encerradas. */
+  online: string[]
+  /** Envio automático dos links: horas antes da abertura (null = desligado). */
+  avisoAutoHoras: number | null
+}
+
+/**
+ * Rodadas com voto pela internet ainda por abrir ou aberta (apuração não
+ * encerrada) e a janela de cada uma. Base do alerta de aptos sem link e do
+ * envio automático dos links (tick). Tolerante: erro de leitura → vazio.
+ */
+export async function janelasOnline(
+  amb: Ambiente,
+  filtro: { rodadaIds?: string[]; campanhaIds?: string[]; soComEnvioAutomatico?: boolean } = {}
+): Promise<JanelaOnline[]> {
+  const { client, emp } = amb
+  // aviso_auto_horas só existe depois de supabase/votacao-aviso-fase2.sql.
+  const comAuto = !(await client.from("voto_rod_assembleias").select("aviso_auto_horas").limit(1)).error
+  if (filtro.soComEnvioAutomatico && !comAuto) return []
+  let qr = client
+    .from("voto_rod_assembleias")
+    .select("id, nome_assembleia, termino, campanha_id, apuracao_encerrada" + (comAuto ? ", aviso_auto_horas" : ""))
+    .eq("emp_proprietaria_id", emp)
+    .not("apuracao_encerrada", "is", true)
+    .or(`termino.gte.${hojeSP()},termino.is.null`)
+  if (filtro.rodadaIds) qr = qr.in("id", filtro.rodadaIds.length ? filtro.rodadaIds : ["00000000-0000-0000-0000-000000000000"])
+  if (filtro.campanhaIds) qr = qr.in("campanha_id", filtro.campanhaIds.length ? filtro.campanhaIds : ["00000000-0000-0000-0000-000000000000"])
+  if (filtro.soComEnvioAutomatico) qr = qr.not("aviso_auto_horas", "is", null)
+  const { data, error } = await qr
+  // Select montado (coluna opcional): tipo solto de propósito.
+  const rodadas = (data ?? []) as unknown as Record<string, unknown>[]
+  if (error || !rodadas.length) return []
+  const rodadaPorId = new Map(rodadas.map((r) => [String(r.id), r]))
+
+  // Horários só depois do SQL de horários: pede as colunas se existirem.
+  const sonda = await client.from("voto_assembleias").select("hora_inicio").limit(1)
+  const horas = sonda.error ? "" : ", hora_inicio, hora_termino"
+  const { data: brutas, error: erroA } = await client
+    .from("voto_assembleias")
+    .select("id, online, urnas_de_votacao, data_inicio, data_termino, apuracao_encerrada, rod_assembleia_id" + horas)
+    .eq("emp_proprietaria_id", emp)
+    .in("rod_assembleia_id", [...rodadaPorId.keys()])
+  if (erroA) return []
+
+  const agora = Date.now()
+  const porRodada = new Map<string, JanelaOnline>()
+  for (const a of (brutas ?? []) as unknown as Record<string, unknown>[]) {
+    if (a.apuracao_encerrada === true || !temVotoOnline(derivarModalidade(a))) continue
+    const rodadaId = String(a.rod_assembleia_id)
+    const r = rodadaPorId.get(rodadaId)
+    const termino = texto(r?.termino)
+    const situacao = situacaoDaAssembleia(a, termino, agora)
+    if (situacao === "encerrada") continue
+    const item = porRodada.get(rodadaId) ?? {
+      rodadaId,
+      rodadaNome: texto(r?.nome_assembleia),
+      campanhaId: texto(r?.campanha_id),
+      aberta: false,
+      abreEm: null,
+      online: [],
+      avisoAutoHoras: typeof r?.aviso_auto_horas === "number" ? r.aviso_auto_horas : null,
+    }
+    item.online.push(String(a.id))
+    if (situacao === "aberta") item.aberta = true
+    else {
+      const inicio = janelaDaAssembleia(a, termino).inicio
+      if (inicio !== null && (item.abreEm === null || inicio < item.abreEm)) item.abreEm = inicio
+    }
+    porRodada.set(rodadaId, item)
+  }
+  for (const j of porRodada.values()) if (j.aberta) j.abreEm = null
+  return [...porRodada.values()]
+}
 
 /**
  * Rodadas com voto pela internet ainda por abrir ou aberta (apuração não
@@ -65,49 +148,13 @@ export async function rodadasComAptosSemLink(
 ): Promise<RodadaSemLink[]> {
   const { client, emp } = amb
   try {
-    let qr = client
-      .from("voto_rod_assembleias")
-      .select("id, nome_assembleia, termino, campanha_id, apuracao_encerrada")
-      .eq("emp_proprietaria_id", emp)
-      .not("apuracao_encerrada", "is", true)
-      .or(`termino.gte.${hojeSP()},termino.is.null`)
-    if (filtro.rodadaIds) qr = qr.in("id", filtro.rodadaIds.length ? filtro.rodadaIds : ["00000000-0000-0000-0000-000000000000"])
-    if (filtro.campanhaIds) qr = qr.in("campanha_id", filtro.campanhaIds.length ? filtro.campanhaIds : ["00000000-0000-0000-0000-000000000000"])
-    const { data: rodadas, error } = await qr
-    if (error || !rodadas?.length) return []
-    const rodadaPorId = new Map(rodadas.map((r) => [String(r.id), r]))
-
-    // Horários só depois do SQL de horários: pede as colunas se existirem.
-    const sonda = await client.from("voto_assembleias").select("hora_inicio").limit(1)
-    const horas = sonda.error ? "" : ", hora_inicio, hora_termino"
-    const { data: brutas, error: erroA } = await client
-      .from("voto_assembleias")
-      .select("id, online, urnas_de_votacao, data_inicio, data_termino, apuracao_encerrada, rod_assembleia_id" + horas)
-      .eq("emp_proprietaria_id", emp)
-      .in("rod_assembleia_id", [...rodadaPorId.keys()])
-    if (erroA) return []
-
+    const janelas = await janelasOnline(amb, filtro)
+    if (janelas.length === 0) return []
     const agora = Date.now()
-    const porRodada = new Map<string, { aberta: boolean; abreEm: number | null; online: string[] }>()
-    for (const a of (brutas ?? []) as unknown as Record<string, unknown>[]) {
-      if (a.apuracao_encerrada === true || !temVotoOnline(derivarModalidade(a))) continue
-      const rodadaId = String(a.rod_assembleia_id)
-      const termino = texto(rodadaPorId.get(rodadaId)?.termino)
-      const situacao = situacaoDaAssembleia(a, termino, agora)
-      if (situacao === "encerrada") continue
-      const item = porRodada.get(rodadaId) ?? { aberta: false, abreEm: null, online: [] }
-      item.online.push(String(a.id))
-      if (situacao === "aberta") item.aberta = true
-      else {
-        const inicio = janelaDaAssembleia(a, termino).inicio
-        if (inicio !== null && (item.abreEm === null || inicio < item.abreEm)) item.abreEm = inicio
-      }
-      porRodada.set(rodadaId, item)
-    }
-    if (porRodada.size === 0) return []
 
     const resultado = await Promise.all(
-      [...porRodada.entries()].map(async ([rodadaId, item]) => {
+      janelas.map(async (item) => {
+        const rodadaId = item.rodadaId
         // Ainda não votou (nem pela urna) e é apto da rodada inteira ou de
         // uma assembleia com voto pela internet — o apto amarrado a uma
         // assembleia só presencial não precisa de link.
@@ -129,13 +176,12 @@ export async function rodadasComAptosSemLink(
           contar("aviso_email_erro.eq.sem_email"),
           contar("aviso_email_erro.eq.falha"),
         ])
-        const r = rodadaPorId.get(rodadaId)
         return {
           rodadaId,
-          rodadaNome: texto(r?.nome_assembleia),
-          campanhaId: texto(r?.campanha_id),
+          rodadaNome: item.rodadaNome,
+          campanhaId: item.campanhaId,
           aberta: item.aberta,
-          abreEm: item.aberta ? null : item.abreEm,
+          abreEm: item.abreEm,
           horasParaAbrir: item.aberta || item.abreEm === null ? null : (item.abreEm - agora) / 3600_000,
           pendentes,
           semEmail,
