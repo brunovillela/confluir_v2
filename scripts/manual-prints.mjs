@@ -56,6 +56,38 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
       ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
     ]
+  : process.env.RODADA === "niveis23"
+  ? (() => {
+      // Rodada de 17/10 (26): nível 2 (a funcionária na área) e nível 3 (o
+      // registro) de cada área do Pessoal, todos da Ana (seed da demo). A falta
+      // de 06/10 é criada só para o print e apagada depois.
+      const ANA = "33333333-3333-4333-8333-000000000001"
+      const o = { esperar: "Ana Beatriz Nogueira", altura: 1100 }
+      const p = "/painel/pessoal"
+      return [
+        [`${p}/contracheques/funcionario/${ANA}`, "pessoal/contracheques-funcionario.png", o],
+        [`${p}/contracheques/funcionario/${ANA}/899dfe88-fbaf-4ce3-8a84-9bca1c2d0a9b`, "pessoal/contracheques-registro.png", o],
+        [`${p}/ponto/funcionario/${ANA}`, "pessoal/ponto-funcionario.png", o],
+        [`${p}/ferias/66666666-6666-4666-8666-000000000001`, "pessoal/ferias-registro.png", o],
+        [`${p}/niveis/5a300000-0000-4000-8000-000000000001?de=carreira`, "pessoal/niveis-registro.png", o],
+        [`${p}/anuenios/5a500000-0000-4000-8000-000000000001?de=carreira`, "pessoal/anuenios-registro.png", o],
+        [`${p}/informes/funcionario/${ANA}`, "pessoal/informes-funcionario.png", o],
+        [`${p}/informes/funcionario/${ANA}/5e200000-0000-4000-8000-000000000001`, "pessoal/informes-registro.png", { ...o, altura: 900 }],
+        [`${p}/diarias/funcionario/${ANA}`, "pessoal/diarias-funcionario.png", o],
+        [`${p}/diarias/5b200000-0000-4000-8000-000000000001`, "pessoal/diarias-registro.png", o],
+        [`${p}/reembolsos/funcionario/${ANA}`, "pessoal/reembolsos-funcionario.png", o],
+        [`${p}/reembolsos/5c200000-0000-4000-8000-000000000001`, "pessoal/reembolsos-registro.png", o],
+        [`${p}/faltas/funcionario/${ANA}`, "pessoal/faltas-funcionario.png", o],
+        [`${p}/faltas/c47009d8-de16-47f8-bcc8-0b33be4cf064`, "pessoal/faltas-registro.png", o],
+        [`${p}/atestados/funcionario/${ANA}`, "pessoal/atestados-funcionario.png", o],
+        [`${p}/atestados/5f200000-0000-4000-8000-000000000001`, "pessoal/atestados-registro.png", { ...o, altura: 900 }],
+        [`${p}/aso/funcionario/${ANA}`, "pessoal/aso-funcionario.png", o],
+        [`${p}/aso/5f300000-0000-4000-8000-000000000001`, "pessoal/aso-registro.png", { ...o, altura: 900 }],
+        [`${p}/treinamentos/funcionario/${ANA}`, "pessoal/treinamentos-funcionario.png", o],
+        [`${p}/treinamentos/5d100000-0000-4000-8000-000000000001`, "pessoal/treinamentos-registro.png", o],
+        [`${p}/atribuicoes/funcionario/${ANA}`, "pessoal/sst-funcionario.png", o],
+      ]
+    })()
   : process.env.RODADA === "areas"
   ? [
       // Rodada de 17/10 (25): as outras áreas do Pessoal no padrão de 3 níveis
