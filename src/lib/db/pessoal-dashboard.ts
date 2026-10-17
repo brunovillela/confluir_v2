@@ -36,7 +36,11 @@ export type ResumoPessoal = {
   atestadosTotal: number
   treinamentosTotal: number
   certificadosVencidos: number
-  /** null = tabela ainda não criada (rodar SQL). */
+  /**
+   * Remessas de diárias de FUNCIONÁRIOS a avaliar — o mesmo critério da caixa
+   * de entrada e da área (desde 08/10 a avaliação é da remessa; as da diretoria
+   * têm porta própria). null = tabela ainda não criada (rodar SQL).
+   */
   diariasAguardando: number | null
   /** Remessas do sistema anterior (só leitura) — o cartão aponta o caminho. */
   diariasNoHistorico: number | null
@@ -197,9 +201,14 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     // de head — requisição HEAD não tem corpo e o código PGRST205 se perde.
     contar(() =>
       admin
-        .from("pessoal_diarias_solicitacoes")
+        .from("pessoal_diarias_remessas")
         .select("id", { count: "exact" })
-        .eq("situacao", "aguardando")
+        .eq("emp_proprietaria_id", empId)
+        .is("bubble_id", null)
+        .not("enviado", "is", true)
+        .in("situacao", ["aberta", "reenviada"])
+        .gt("valor_total", 0)
+        .eq("beneficiario_tipo", "funcionario")
         .limit(1)
     ),
     contar(() =>

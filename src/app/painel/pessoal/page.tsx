@@ -97,11 +97,11 @@ export default async function PessoalPage() {
 
   // Alertas acionáveis — só aparecem com pendência E permissão na área.
   const alertas: { href: string; texto: string; icone: Icone }[] = [];
-  if (veGestao && (r.diariasAguardando ?? 0) > 0) {
+  if (ve("pessoal_diarias") && (r.diariasAguardando ?? 0) > 0) {
     alertas.push({
-      href: "/painel/pessoal/diarias",
+      href: "/painel/pessoal/diarias/remessas",
       icone: HandCoins,
-      texto: `${plural(r.diariasAguardando!, "diária aguarda", "diárias aguardam")} avaliação.`,
+      texto: `${plural(r.diariasAguardando!, "remessa de diárias aguarda", "remessas de diárias aguardam")} avaliação.`,
     });
   }
   if (ve("pessoal_reembolsos") && (r.reembolsosAguardando ?? 0) > 0) {
@@ -264,7 +264,7 @@ export default async function PessoalPage() {
       indicador:
         r.diariasAguardando === null
           ? "Configurar"
-          : plural(r.diariasAguardando, "aguardando", "aguardando"),
+          : plural(r.diariasAguardando, "remessa a avaliar", "remessas a avaliar"),
       descricao:
         r.diariasAguardando === null
           ? "Rode supabase/diarias.sql para ativar"
@@ -340,7 +340,15 @@ export default async function PessoalPage() {
       indicador:
         sst && sst.ativo
           ? sst.treinamentosPendentes + sst.atividadesSemAvaliacao > 0
-            ? `${sst.treinamentosPendentes + sst.atividadesSemAvaliacao} pendência${sst.treinamentosPendentes + sst.atividadesSemAvaliacao === 1 ? "" : "s"}`
+            ? // Diz o que está pendente: "1 treino exigido" e "1 atividade sem avaliação" não se confundem.
+              [
+                sst.treinamentosPendentes > 0 &&
+                  plural(sst.treinamentosPendentes, "treino exigido pendente", "treinos exigidos pendentes"),
+                sst.atividadesSemAvaliacao > 0 &&
+                  plural(sst.atividadesSemAvaliacao, "atividade sem avaliação", "atividades sem avaliação"),
+              ]
+                .filter(Boolean)
+                .join(" · ")
             : plural(sst.atividades, "atividade", "atividades")
           : "Configurar",
       descricao:
