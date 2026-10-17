@@ -310,7 +310,9 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
                         {l.campanhas}
                         {l.abertas > 0 && <span className="text-muted-foreground text-xs"> · {l.abertas} aberta(s)</span>}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{l.proxima ? formatarData(l.proxima) : "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {l.emCurso ? <Badge variant="success">Em votação</Badge> : l.proxima ? formatarData(l.proxima) : "—"}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">{l.ultima ? formatarData(l.ultima) : "—"}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {l.participacaoUltima !== null ? `${l.participacaoUltima}%` : "—"}

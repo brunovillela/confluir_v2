@@ -15,6 +15,7 @@ import {
   panoramaDaFonte,
   participacao,
   resumoResultado,
+  temParticipacao,
   ROTULO_SITUACAO_RODADA,
   type CampanhaDaFonte,
   type RodadaPanorama,
@@ -54,7 +55,8 @@ export default async function FontePage({
 
   const semLink = await semLinkDasRodadas({ campanhaIds: panorama.campanhas.map((c) => c.id) })
   const todas: RodadaPanorama[] = [...panorama.campanhas.flatMap((c) => c.rodadas), ...panorama.rodadasSemCampanha]
-  const realizadas = todas.filter((r) => (r.situacao === "apurada" || r.situacao === "a_apurar") && r.aptos > 0)
+  // Só as com participação registrada (o legado do Bubble não guardava quem votou).
+  const realizadas = todas.filter(temParticipacao)
   const media = realizadas.length
     ? Math.round(realizadas.reduce((s, r) => s + (participacao(r) ?? 0), 0) / realizadas.length)
     : null

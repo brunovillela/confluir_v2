@@ -1,10 +1,11 @@
 import "server-only"
 
 import { temVotoOnline } from "@/lib/assembleias-constantes"
+import { janelaDaAssembleia, situacaoDaAssembleia } from "@/lib/db/assembleias-horarios"
 import { hojeSP, texto } from "@/lib/db/comum"
 import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
 import { gruposPorFonte } from "@/lib/db/grupos-empresariais"
-import { panoramaRodadas, participacao, type RodadaPanorama } from "@/lib/db/votacao-panorama"
+import { panoramaRodadas, participacao, temParticipacao, type RodadaPanorama } from "@/lib/db/votacao-panorama"
 import { janelasOnline, semLinkDasRodadas, semLinkUrgente, type RodadaSemLink } from "@/lib/db/votacao-sem-link"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -110,7 +111,7 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
 
   // Participação média das últimas 5 rodadas realizadas.
   const realizadas = panorama
-    .filter((r) => (r.situacao === "apurada" || r.situacao === "a_apurar") && r.aptos > 0)
+    .filter(temParticipacao)
     .sort((x, y) => (y.fimEm ?? 0) - (x.fimEm ?? 0))
     .slice(0, 5)
   const media = realizadas.length
@@ -221,11 +222,13 @@ export type LinhaFonte = {
   grupo: { id: string; nome: string } | null
   campanhas: number
   abertas: number
-  /** Data (AAAA-MM-DD) do fim da última rodada já passada. */
+  /** Fim (ISO) da última votação já encerrada. */
   ultima: string | null
   ultimaRodadaId: string | null
-  /** Data de início da próxima rodada (ou de uma em curso). */
+  /** Abertura (ISO) da próxima votação. */
   proxima: string | null
+  /** Alguma assembleia da fonte está em votação agora. */
+  emCurso: boolean
   participacaoUltima: number | null
   aptosUltima: number | null
   anos: string[]
@@ -251,30 +254,61 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
   anos: string[]
 }> {
   const { campanhas, fontesPorCampanha, rodadas, admin, emp } = await base()
-  const hoje = hojeSP()
-  const em7 = new Date(Date.now() + 7 * DIA).toISOString().slice(0, 10)
   const grupos = await gruposPorFonte().catch(() => new Map<string, { id: string; nome: string }>())
   const rodadasPorCampanha = new Map<string, RodadaBruta[]>()
   for (const r of rodadas) if (r.campanha_id) rodadasPorCampanha.set(r.campanha_id, [...(rodadasPorCampanha.get(r.campanha_id) ?? []), r])
 
-  type Acum = LinhaFonte & { _ultimaData: string; _temas: string }
+  // Próxima e última votação pelas ASSEMBLEIAS (o período da rodada pode ir
+  // além da votação: a Light House votou em 23/09 numa rodada até 22/10).
+  // Rodada sem assembleia (legado) cai nas datas dela.
+  const agoraMs = Date.now()
+  const terminoRodada = new Map(rodadas.map((r) => [r.id, r.termino]))
+  const sonda = await admin.from("voto_assembleias").select("hora_inicio").limit(1)
+  const { data: brutas } = await admin
+    .from("voto_assembleias")
+    .select("id, rod_assembleia_id, data_inicio, data_termino" + (sonda.error ? "" : ", hora_inicio, hora_termino"))
+    .eq("emp_proprietaria_id", emp)
+    .not("rod_assembleia_id", "is", null)
+  type Janelas = { inicios: number[]; fins: number[]; aberta: boolean }
+  const janelasPorRodada = new Map<string, Janelas>()
+  for (const a of (brutas ?? []) as unknown as Record<string, unknown>[]) {
+    const rid = String(a.rod_assembleia_id)
+    const j = janelaDaAssembleia(a, terminoRodada.get(rid) ?? null)
+    const item = janelasPorRodada.get(rid) ?? { inicios: [], fins: [], aberta: false }
+    if (j.inicio !== null) item.inicios.push(j.inicio)
+    if (j.termino !== null) item.fins.push(j.termino)
+    if (situacaoDaAssembleia(a, terminoRodada.get(rid) ?? null, agoraMs) === "aberta") item.aberta = true
+    janelasPorRodada.set(rid, item)
+  }
+  const meiaNoite = (d: string | null, fim: boolean) => (d ? Date.parse(`${d.slice(0, 10)}T${fim ? "23:59:59" : "00:00:00"}-03:00`) : null)
+
+  type Acum = LinhaFonte & { _ultimaMs: number; _proximaMs: number; _temas: string }
   const porFonte = new Map<string, Acum>()
   const acumular = (id: string, nome: string, cnpj: string | null, c: (typeof campanhas)[number]) => {
     const a: Acum =
       porFonte.get(id) ??
-      ({ id, nome, cnpj, grupo: grupos.get(id) ?? null, campanhas: 0, abertas: 0, ultima: null, ultimaRodadaId: null, proxima: null, participacaoUltima: null, aptosUltima: null, anos: [], _ultimaData: "", _temas: "" } as Acum)
+      ({ id, nome, cnpj, grupo: grupos.get(id) ?? null, campanhas: 0, abertas: 0, ultima: null, ultimaRodadaId: null, proxima: null, emCurso: false, participacaoUltima: null, aptosUltima: null, anos: [], _ultimaMs: 0, _proximaMs: 0, _temas: "" } as Acum)
     a.campanhas++
     a._temas += " " + semAcento(c.tema ?? "").toLowerCase()
     if (!c.finalizada) a.abertas++
     for (const r of rodadasPorCampanha.get(c.id) ?? []) {
-      const fim = r.termino ?? r.inicio
-      if (fim && fim < hoje && fim > a._ultimaData) {
-        a._ultimaData = fim
-        a.ultima = fim
-        a.ultimaRodadaId = r.id
+      const j = janelasPorRodada.get(r.id)
+      const fins = j?.fins.length ? j.fins : [meiaNoite(r.termino ?? r.inicio, true)].filter((x): x is number => x !== null)
+      const inicios = j?.inicios.length ? j.inicios : [meiaNoite(r.inicio, false)].filter((x): x is number => x !== null)
+      if (j?.aberta) a.emCurso = true
+      for (const fim of fins) {
+        if (fim < agoraMs && fim > a._ultimaMs) {
+          a._ultimaMs = fim
+          a.ultima = new Date(fim).toISOString()
+          a.ultimaRodadaId = r.id
+        }
       }
-      const ini = r.inicio
-      if (ini && (r.termino ?? ini) >= hoje && (!a.proxima || ini < a.proxima)) a.proxima = ini
+      for (const ini of inicios) {
+        if (ini > agoraMs && (!a._proximaMs || ini < a._proximaMs)) {
+          a._proximaMs = ini
+          a.proxima = new Date(ini).toISOString()
+        }
+      }
       const ano = (r.inicio ?? "").slice(0, 4)
       if (ano && !a.anos.includes(ano)) a.anos.push(ano)
     }
@@ -303,7 +337,7 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
     if (f.situacao === "abertas" && l.abertas === 0) return false
     if (f.situacao === "encerradas" && l.abertas > 0) return false
     if (f.ano && !l.anos.includes(f.ano)) return false
-    if (f.em7dias && !(l.proxima && l.proxima <= em7)) return false
+    if (f.em7dias && !l.emCurso && !(l._proximaMs && l._proximaMs <= agoraMs + 7 * DIA)) return false
     return true
   })
   const ordem = f.ordem ?? "proxima"
@@ -312,12 +346,13 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
     if (y.id === SEM_FONTE) return -1
     if (ordem === "nome") return x.nome.localeCompare(y.nome, "pt-BR")
     if (ordem === "campanhas") return y.campanhas - x.campanhas
-    if (ordem === "ultima") return (y.ultima ?? "").localeCompare(x.ultima ?? "")
-    // próxima primeiro; sem próxima, pela última
-    if (x.proxima && y.proxima) return x.proxima.localeCompare(y.proxima)
-    if (x.proxima) return -1
-    if (y.proxima) return 1
-    return (y.ultima ?? "").localeCompare(x.ultima ?? "")
+    if (ordem === "ultima") return y._ultimaMs - x._ultimaMs
+    // em votação primeiro; depois a próxima; sem próxima, pela última
+    if (x.emCurso !== y.emCurso) return x.emCurso ? -1 : 1
+    if (x._proximaMs && y._proximaMs) return x._proximaMs - y._proximaMs
+    if (x._proximaMs) return -1
+    if (y._proximaMs) return 1
+    return y._ultimaMs - x._ultimaMs
   })
 
   const porPagina = f.porPagina && f.porPagina > 0 ? f.porPagina : 20
@@ -334,7 +369,8 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
         admin.from("voto_assembleias_aptos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("rod_assembleia_id", l.ultimaRodadaId as string)
       const [{ count: aptos }, { count: votaram }] = await Promise.all([q(), q().not("hora_voto", "is", null)])
       l.aptosUltima = aptos ?? 0
-      l.participacaoUltima = aptos ? Math.round(((votaram ?? 0) / aptos) * 100) : null
+      // Encerrada sem nenhum voto registrado = legado do Bubble (não guardava quem votou).
+      l.participacaoUltima = aptos && votaram ? Math.round((votaram / aptos) * 100) : null
     })
   )
 
@@ -343,7 +379,8 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
   return {
     linhas: lista.map((l) => {
       const c: Partial<Acum> = { ...l }
-      delete c._ultimaData
+      delete c._ultimaMs
+      delete c._proximaMs
       delete c._temas
       return c as LinhaFonte
     }),

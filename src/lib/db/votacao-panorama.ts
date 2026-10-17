@@ -322,9 +322,20 @@ export async function panoramaDaFonte(fonteId: string): Promise<PanoramaFonte | 
   }
 }
 
-/** Participação (votaram/aptos) em %, ou null sem aptos. */
-export function participacao(r: { aptos: number; votaram: number }): number | null {
-  return r.aptos > 0 ? Math.round((r.votaram / r.aptos) * 100) : null
+/**
+ * Participação (votaram/aptos) em %, ou null sem aptos — e null também numa
+ * votação já encerrada sem nenhum voto registrado: é o legado do Bubble, que
+ * não guardava quem votou (mostrar 0% seria falso).
+ */
+export function participacao(r: { aptos: number; votaram: number; situacao?: SituacaoRodada }): number | null {
+  if (r.aptos <= 0) return null
+  if (r.votaram === 0 && (r.situacao === "apurada" || r.situacao === "a_apurar")) return null
+  return Math.round((r.votaram / r.aptos) * 100)
+}
+
+/** Rodada realizada com participação registrada (entra em médias e gráficos). */
+export function temParticipacao(r: RodadaPanorama): boolean {
+  return (r.situacao === "apurada" || r.situacao === "a_apurar") && participacao(r) !== null
 }
 
 /** A opção mais votada da primeira pergunta ("Aprovo — 62%"). */

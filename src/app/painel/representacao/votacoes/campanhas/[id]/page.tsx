@@ -218,7 +218,9 @@ function ItemRodada({
       <div className="grid gap-1">
         <div className="text-muted-foreground flex justify-between text-xs">
           <span>
-            {r.votaram.toLocaleString("pt-BR")} de {r.aptos.toLocaleString("pt-BR")} aptos votaram
+            {p === null && r.aptos > 0 && r.votaram === 0 && (r.situacao === "apurada" || r.situacao === "a_apurar")
+              ? `${r.aptos.toLocaleString("pt-BR")} aptos · participação não registrada (legado)`
+              : `${r.votaram.toLocaleString("pt-BR")} de ${r.aptos.toLocaleString("pt-BR")} aptos votaram`}
           </span>
           <span>{p !== null ? `${p}%` : "—"}</span>
         </div>
