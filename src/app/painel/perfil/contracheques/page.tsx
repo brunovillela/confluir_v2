@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { TabelaDocumentosPessoal } from "@/components/tabela-documentos-pessoal"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
@@ -38,6 +39,7 @@ export default async function MeusContrachequesPage({
   const noAno = contracheques.filter((c) => anoDe(c.remessaNome, c.created_at) === anoAtual).length
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Meus contracheques

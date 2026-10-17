@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, BellRing } from "lucide-react"
+import { BellRing } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { preferenciasDeAviso } from "@/lib/db/avisos"
 import { contarAssinaturasPush, pushConfigurado } from "@/lib/db/push"
@@ -37,12 +36,7 @@ export default async function AvisosPerfilPage() {
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/perfil">
-            <ArrowLeft />
-            Meu perfil
-          </Link>
-        </Button>
+        <VoltarPerfil />
         <div className="flex flex-wrap items-center gap-2">
           <BellRing className="text-muted-foreground size-5" />
           <h1 className="text-2xl font-semibold tracking-tight">Avisos</h1>

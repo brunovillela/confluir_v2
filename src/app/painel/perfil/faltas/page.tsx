@@ -5,6 +5,7 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   Table,
   TableBody,
@@ -77,6 +78,7 @@ export default async function MinhasFaltasPage() {
 
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minhas faltas justificadas</h1>
         <p className="text-muted-foreground mt-1 text-xs">

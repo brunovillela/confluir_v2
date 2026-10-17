@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, Download, Handshake } from "lucide-react"
+import { Download, Handshake } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   Card,
   CardContent,
@@ -35,12 +35,7 @@ export default async function MeusAcordosPage() {
   return (
     <>
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-          <Link href="/painel/perfil">
-            <ArrowLeft />
-            Meu perfil
-          </Link>
-        </Button>
+        <VoltarPerfil />
         <h1 className="text-2xl font-semibold tracking-tight">
           Acordos coletivos de trabalho
         </h1>

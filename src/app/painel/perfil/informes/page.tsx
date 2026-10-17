@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { TileIndicador } from "@/components/graficos/tile"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { ExternalLink, FileBadge } from "lucide-react"
 
 import {
@@ -39,6 +40,7 @@ export default async function MeusInformesPage() {
 
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Meus informes de rendimentos

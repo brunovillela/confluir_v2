@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
 import { TileIndicador } from "@/components/graficos/tile"
-import Link from "next/link"
-import { ArrowLeft, CalendarX2 } from "lucide-react"
+import { CalendarX2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   Table,
   TableBody,
@@ -40,14 +39,7 @@ export default async function MinhasAusenciasPage() {
   const atAno = atestados.filter((a) => (a.inicio ?? "").startsWith(anoAtual))
   return (
     <>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/painel/perfil">
-            <ArrowLeft />
-            Meu perfil
-          </Link>
-        </Button>
-      </div>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Minhas ausências e atestados

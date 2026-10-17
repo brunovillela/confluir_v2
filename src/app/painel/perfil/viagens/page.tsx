@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table"
 import { ViagemForm } from "@/components/viagem-form"
 import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import {
@@ -63,6 +64,7 @@ export default async function MinhasViagensPage({
 
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minhas viagens</h1>
         <p className="text-muted-foreground mt-1 text-xs">

@@ -24,6 +24,7 @@ import { DespesasDaDiaria } from "@/components/diaria-despesas-form"
 import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { SituacaoRemessaBadge } from "@/components/diarias-remessas"
 import { EnviarRemessaBotao, ReenviarRemessaForm } from "@/components/remessa-avaliacao-form"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
 import { requireSessaoPainel } from "@/lib/auth"
 import { listarTiposDespesaDiaria } from "@/lib/db/diarias-config"
@@ -89,6 +90,7 @@ export default async function MinhasDiariasPage({
   )
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Minhas diárias

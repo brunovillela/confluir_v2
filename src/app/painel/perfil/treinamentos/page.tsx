@@ -3,6 +3,7 @@ import { TileIndicador } from "@/components/graficos/tile"
 import { ExternalLink, GraduationCap } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   Card,
   CardContent,
@@ -41,6 +42,7 @@ export default async function MeusTreinamentosPage() {
   const cargaTreinos = treinamentos.reduce((s, t) => s + (t.carga_horaria ?? 0), 0)
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Meus treinamentos

@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, History } from "lucide-react"
+import { History } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   DadosRemessa,
   LancamentosRemessa,
@@ -30,12 +29,7 @@ export default async function DiariasAnterioresPage() {
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/perfil">
-            <ArrowLeft />
-            Meu perfil
-          </Link>
-        </Button>
+        <VoltarPerfil />
         <h1 className="text-2xl font-semibold tracking-tight">Diárias anteriores</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Remessas lançadas no sistema anterior — {remessas.length} remessa{remessas.length === 1 ? "" : "s"} ·{" "}

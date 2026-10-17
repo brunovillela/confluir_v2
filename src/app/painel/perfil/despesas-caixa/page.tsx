@@ -1,11 +1,10 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft, HandCoins, Wallet } from "lucide-react"
+import { HandCoins, Wallet } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { despesasLancadasEmAberto, despesasParaReconhecer, type DespesaCaixa } from "@/lib/db/caixa-reconhecimento"
@@ -34,12 +33,7 @@ export default async function DespesasCaixaPage() {
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/perfil">
-            <ArrowLeft />
-            Meu perfil
-          </Link>
-        </Button>
+        <VoltarPerfil />
         <div className="flex flex-wrap items-center gap-2">
           <HandCoins className="text-muted-foreground size-5" />
           <h1 className="text-2xl font-semibold tracking-tight">Despesas em caixas</h1>

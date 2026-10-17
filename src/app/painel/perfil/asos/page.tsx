@@ -5,6 +5,7 @@ import { ROTULO_SITUACAO_ASO, situacaoAso } from "@/lib/aso-situacao"
 import { ExternalLink, HeartPulse } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import {
   Card,
   CardContent,
@@ -44,6 +45,7 @@ export default async function MeusAsosPage() {
   const sitAso = situacaoAso(ultimoAso, hojeSP())
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meus ASOs</h1>
         <p className="text-muted-foreground mt-1 text-xs">

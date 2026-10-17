@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { minhasFerias, resumoPeriodo } from "@/lib/db/ferias"
@@ -68,6 +69,7 @@ export default async function MinhasFeriasPage({
   const aguardandoFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).aguardando, 0)
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minhas férias</h1>
         <p className="text-muted-foreground mt-1 text-xs">

@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
@@ -59,6 +60,7 @@ export default async function MeusReembolsosPage({
   const somaAprovado = (lista: typeof reembolsos) => lista.reduce((t, r) => t + (r.valor_aprovado ?? 0), 0)
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Meus reembolsos do ACT

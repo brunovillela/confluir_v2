@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { TileIndicador } from "@/components/graficos/tile"
+import { VoltarPerfil } from "@/components/voltar-perfil"
 import { hojeSP } from "@/lib/db/comum"
 import { Award, TrendingUp } from "lucide-react"
 
@@ -46,6 +47,7 @@ export default async function MinhaCarreiraPage() {
   const atrasadoNota = (d: string | null | undefined) => (d && d < hojeCarreira ? " · em atualização pelo departamento" : "")
   return (
     <>
+      <VoltarPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minha carreira</h1>
         <p className="text-muted-foreground mt-1 text-xs">
