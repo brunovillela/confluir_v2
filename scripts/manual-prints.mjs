@@ -84,7 +84,7 @@ const SHOTS = process.env.SHOT_UNICO
         [`${p}/aso/funcionario/${ANA}`, "pessoal/aso-funcionario.png", o],
         [`${p}/aso/5f300000-0000-4000-8000-000000000001`, "pessoal/aso-registro.png", { ...o, altura: 900 }],
         [`${p}/treinamentos/funcionario/${ANA}`, "pessoal/treinamentos-funcionario.png", o],
-        [`${p}/treinamentos/5d100000-0000-4000-8000-000000000001`, "pessoal/treinamentos-registro.png", o],
+        [`${p}/treinamentos/5d100000-0000-4000-8000-000000000001?pessoa=${ANA}`, "pessoal/treinamentos-registro.png", o],
         [`${p}/atribuicoes/funcionario/${ANA}`, "pessoal/sst-funcionario.png", o],
       ]
     })()

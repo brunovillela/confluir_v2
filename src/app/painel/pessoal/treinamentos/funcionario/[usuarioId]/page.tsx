@@ -78,7 +78,7 @@ export default async function TreinamentosFuncionarioPage({ params }: { params: 
                     <TableRow key={i.chave}>
                       <TableCell className="font-medium">
                         {i.treinamento_id ? (
-                          <Link href={`/painel/pessoal/treinamentos/${i.treinamento_id}`} className="hover:underline">
+                          <Link href={`/painel/pessoal/treinamentos/${i.treinamento_id}?pessoa=${usuarioId}`} className="hover:underline">
                             {i.descricao}
                           </Link>
                         ) : (
@@ -120,7 +120,7 @@ export default async function TreinamentosFuncionarioPage({ params }: { params: 
                   {daPessoa.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/painel/pessoal/treinamentos/${m.treinamentoId}`} className="hover:underline">
+                        <Link href={`/painel/pessoal/treinamentos/${m.treinamentoId}?pessoa=${usuarioId}`} className="hover:underline">
                           {m.treinamento}
                         </Link>
                       </TableCell>

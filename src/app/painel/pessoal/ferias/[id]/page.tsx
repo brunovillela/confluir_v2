@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +28,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { buscarPeriodoFerias, listarPeriodosFerias, resumoPeriodo } from "@/lib/db/ferias"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
 
 import { ExcluirPeriodoBotao } from "../excluir-periodo"
@@ -51,7 +53,7 @@ export default async function PeriodoFeriasPage({
   /** de: "area" (fila da área) ou "periodos" (aba Períodos); sem ele, volta ao funcionário. */
   searchParams: Promise<{ salvo?: string; editar?: string; de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao")
+  const sessao = await requirePermissao("pessoal_gestao")
 
   const { id } = await params
   const { salvo, editar, de } = await searchParams
@@ -63,6 +65,8 @@ export default async function PeriodoFeriasPage({
   if (!periodo) notFound()
 
   const trabalhador = periodo.trabalhador_id
+  const funcionario = trabalhador ? await funcionarioDaArea(trabalhador) : null
+  const anos = `${(periodo.aquisitivo_inicio ?? "").slice(0, 4)}/${(periodo.aquisitivo_termino ?? "").slice(0, 4)}`
   const voltar =
     de === "area" || !trabalhador
       ? { href: "/painel/pessoal/ferias", rotulo: "Férias" }
@@ -97,61 +101,55 @@ export default async function PeriodoFeriasPage({
 
   return (
     <>
-      <RotuloTrilha valores={{ [id]: periodo.funcionarioNome ?? "(sem nome)" }} />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href={voltar.href}>
-            <ArrowLeft />
-            {voltar.rotulo}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {periodo.funcionarioNome ?? "(sem nome)"}
-              </h1>
-              {finalizado ? (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Finalizado
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="border-success/40 text-success-fg"
-                >
-                  Em aberto
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Aquisitivo {formatarData(periodo.aquisitivo_inicio)} –{" "}
-              {formatarData(periodo.aquisitivo_termino)} · concessivo{" "}
-              {formatarData(periodo.concessivo_inicio)} –{" "}
-              {formatarData(periodo.concessivo_termino)}
-            </p>
-          </div>
-          {!editandoPeriodo && (
-            <div className="flex flex-wrap gap-2">
-              {periodo.gozos.length === 0 && (
-                <ExcluirPeriodoBotao
-                  periodoId={id}
-                  voltarPara={
-                    periodo.trabalhador_id
-                      ? `/painel/pessoal/ferias/funcionario/${periodo.trabalhador_id}`
-                      : undefined
-                  }
-                />
-              )}
-              <Button variant="outline" asChild>
-                <Link href={`/painel/pessoal/ferias/${id}?editar=periodo`}>
-                  <Pencil />
-                  Editar período
-                </Link>
-              </Button>
-            </div>
+      <RotuloTrilha valores={{ [id]: `Período ${anos}` }} />
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+        <Link href={voltar.href}>
+          <ArrowLeft />
+          {voltar.rotulo}
+        </Link>
+      </Button>
+      {funcionario ? (
+        <CabecalhoFuncionario
+          funcionario={funcionario}
+          area="ferias"
+          permissoes={sessao.permissoes}
+          titulo={`${funcionario.nome} — período ${anos}`}
+        />
+      ) : (
+        <h1 className="text-2xl font-semibold tracking-tight">{periodo.funcionarioNome ?? "(sem nome)"}</h1>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {finalizado ? (
+            <Badge variant="outline" className="text-muted-foreground">
+              Finalizado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-success/40 text-success-fg">
+              Em aberto
+            </Badge>
           )}
+          <span className="text-muted-foreground text-xs">
+            Aquisitivo {formatarData(periodo.aquisitivo_inicio)} – {formatarData(periodo.aquisitivo_termino)} · concessivo{" "}
+            {formatarData(periodo.concessivo_inicio)} – {formatarData(periodo.concessivo_termino)}
+          </span>
         </div>
+        {!editandoPeriodo && (
+          <div className="flex flex-wrap gap-2">
+            {periodo.gozos.length === 0 && (
+              <ExcluirPeriodoBotao
+                periodoId={id}
+                voltarPara={periodo.trabalhador_id ? `/painel/pessoal/ferias/funcionario/${periodo.trabalhador_id}` : undefined}
+              />
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/pessoal/ferias/${id}?editar=periodo`}>
+                <Pencil />
+                Editar período
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       <NavegacaoRegistro

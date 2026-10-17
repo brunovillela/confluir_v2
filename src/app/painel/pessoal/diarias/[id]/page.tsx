@@ -2,11 +2,13 @@ import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { DetalheDiaria } from "@/components/diaria-detalhe"
 import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria, listarSolicitacoesDiaria } from "@/lib/db/diarias"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
 import { cobrancasDiariaPendentes } from "@/lib/db/veiculos"
@@ -23,7 +25,7 @@ export default async function SolicitacaoDiariaPage({
   /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
   searchParams: Promise<{ salvo?: string; de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
 
   const { id } = await params
   const { salvo, de } = await searchParams
@@ -35,6 +37,7 @@ export default async function SolicitacaoDiariaPage({
   }
 
   const fid = solicitacao.funcionario_id
+  const funcionario = fid ? await funcionarioDaArea(fid) : null
   const voltar =
     de === "solicitacoes" || !fid
       ? { href: "/painel/pessoal/diarias?aba=solicitacoes", rotulo: "Solicitações de diária" }
@@ -72,17 +75,6 @@ export default async function SolicitacaoDiariaPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Solicitação de diária" }} />
-      {daPessoa.length > 1 && (
-        <NavegacaoRegistro
-          eixos={[
-            {
-              titulo: `Diárias do funcionário (${iP + 1} de ${daPessoa.length})`,
-              anterior: destino(daPessoa[iP - 1]),
-              proximo: destino(daPessoa[iP + 1]),
-            },
-          ]}
-        />
-      )}
       <DetalheDiaria
         solicitacao={solicitacao}
         voltar={voltar}
@@ -92,6 +84,30 @@ export default async function SolicitacaoDiariaPage({
         descontos={descontos}
         salvo={salvo === "1"}
         remessaHref={solicitacao.remessaId ? `/painel/pessoal/diarias/remessas/${solicitacao.remessaId}` : null}
+        diariaBase="/painel/pessoal/diarias"
+        cabecalho={
+          funcionario ? (
+            <>
+              <CabecalhoFuncionario
+                funcionario={funcionario}
+                area="diarias"
+                permissoes={sessao.permissoes}
+                titulo={`${funcionario.nome} — diária de ${formatarData(solicitacao.data_inicio ?? solicitacao.created_at)}`}
+              />
+              {daPessoa.length > 1 && (
+                <NavegacaoRegistro
+                  eixos={[
+                    {
+                      titulo: `Diárias do funcionário (${iP + 1} de ${daPessoa.length})`,
+                      anterior: destino(daPessoa[iP - 1]),
+                      proximo: destino(daPessoa[iP + 1]),
+                    },
+                  ]}
+                />
+              )}
+            </>
+          ) : undefined
+        }
       />
       <DespesasDepoisDaViagem
         diaria={solicitacao}

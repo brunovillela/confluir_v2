@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import {
   alunosDoTreinamento,
   buscarTreinamento,
@@ -39,17 +41,22 @@ export default async function TreinamentoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; editar?: string }>
+  /** pessoa: veio da trilha do funcionário — mostra o cabeçalho dele e volta para lá. */
+  searchParams: Promise<{ salvo?: string; editar?: string; pessoa?: string }>
 }) {
-  await requirePermissao("pessoal_gestao")
+  const sessao = await requirePermissao("pessoal_gestao")
 
   const { id } = await params
-  const { salvo, editar } = await searchParams
+  const { salvo, editar, pessoa } = await searchParams
   const [treinamento, funcionarios] = await Promise.all([
     buscarTreinamento(id),
     funcionariosParaSelecao(),
   ])
   if (!treinamento) notFound()
+  const funcionario = pessoa ? await funcionarioDaArea(pessoa) : null
+  const voltar = funcionario
+    ? { href: `/painel/pessoal/treinamentos/funcionario/${funcionario.usuarioId}`, rotulo: funcionario.nome }
+    : { href: "/painel/pessoal/treinamentos", rotulo: "Treinamentos" }
 
   const alunos = await alunosDoTreinamento(treinamento)
   const vencidos = alunos.filter((a) => a.vencido).length
@@ -66,16 +73,26 @@ export default async function TreinamentoPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: treinamento.treinamento ?? "(sem nome)" }} />
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+        <Link href={voltar.href}>
+          <ArrowLeft />
+          {voltar.rotulo}
+        </Link>
+      </Button>
+      {funcionario && (
+        <CabecalhoFuncionario
+          funcionario={funcionario}
+          area="treinamentos"
+          permissoes={sessao.permissoes}
+          titulo={`${funcionario.nome} — ${treinamento.treinamento ?? "treinamento"}`}
+        />
+      )}
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/treinamentos">
-            <ArrowLeft />
-            Treinamentos
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {treinamento.treinamento ?? "(sem nome)"}
-        </h1>
+        {funcionario ? (
+          <h2 className="text-base font-semibold">Turma: {treinamento.treinamento ?? "(sem nome)"}</h2>
+        ) : (
+          <h1 className="text-2xl font-semibold tracking-tight">{treinamento.treinamento ?? "(sem nome)"}</h1>
+        )}
         <p className="text-muted-foreground mt-1 text-xs">
           {alunos.length} aluno{alunos.length === 1 ? "" : "s"}
           {treinamento.carga_horaria !== null && (

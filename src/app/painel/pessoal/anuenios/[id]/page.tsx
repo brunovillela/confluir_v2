@@ -4,14 +4,17 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
+import { formatarData } from "@/lib/formato"
 import {
   buscarAnuenio,
   formatarAliquota,
   listarAnuenioBase,
 } from "@/lib/db/carreira"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 
 import { AnuenioLancamentoForm } from "../lancamento-form"
 
@@ -27,7 +30,7 @@ export default async function EditarAnuenioPage({
   /** de: "carreira" (Carreira do funcionário), "funcionarios" (aba Funcionários); sem ele, Lançamentos. */
   searchParams: Promise<{ de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
 
   const { id } = await params
   const { de } = await searchParams
@@ -37,6 +40,7 @@ export default async function EditarAnuenioPage({
     listarAnuenioBase(),
   ])
   if (!lancamento) notFound()
+  const funcionario = lancamento.funcionario_id ? await funcionarioDaArea(lancamento.funcionario_id) : null
   const voltar =
     de === "carreira" && lancamento.funcionario_id
       ? { href: `/painel/pessoal/carreira/funcionario/${lancamento.funcionario_id}`, rotulo: lancamento.funcionarioNome ?? "Carreira" }
@@ -47,21 +51,23 @@ export default async function EditarAnuenioPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Editar lançamento de anuênio" }} />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href={voltar.href}>
-            <ArrowLeft />
-            {voltar.rotulo}
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Editar lançamento de anuênio
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {lancamento.funcionarioNome ?? "(sem nome)"} — próximo nível é
-          recalculado ao salvar.
-        </p>
-      </div>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+        <Link href={voltar.href}>
+          <ArrowLeft />
+          {voltar.rotulo}
+        </Link>
+      </Button>
+      {funcionario ? (
+        <CabecalhoFuncionario
+          funcionario={funcionario}
+          area="carreira"
+          permissoes={sessao.permissoes}
+          titulo={`${funcionario.nome} — anuênio de ${formatarData(lancamento.nivel_atual_data)}`}
+        />
+      ) : (
+        <h1 className="text-2xl font-semibold tracking-tight">Editar lançamento de anuênio</h1>
+      )}
+      <p className="text-muted-foreground text-xs">O próximo nível é recalculado ao salvar.</p>
       <AnuenioLancamentoForm
         funcionarios={funcionarios}
         niveis={base.map((b) => ({

@@ -3,7 +3,7 @@ import { ArrowLeft, Paperclip } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SituacaoDiariaBadge } from "@/components/diarias"
 import type { DescontoDiaria, SolicitacaoDiaria } from "@/lib/db/diarias"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
@@ -23,6 +23,8 @@ export function DetalheDiaria({
   descontos,
   salvo,
   remessaHref,
+  diariaBase,
+  cabecalho,
 }: {
   solicitacao: SolicitacaoDiaria
   voltar: { href: string; rotulo: string }
@@ -33,30 +35,53 @@ export function DetalheDiaria({
   salvo?: boolean
   /** Página da remessa em que a diária entrou (porta de quem vê). */
   remessaHref?: string | null
+  /** Base das páginas de diária da porta (padrão: o "voltar"). */
+  diariaBase?: string
+  /**
+   * Cabeçalho da pessoa (nível 3 do Pessoal: CabecalhoFuncionario e a
+   * navegação). Com ele, a situação e a data vão para o título do cartão.
+   */
+  cabecalho?: React.ReactNode
 }) {
   const totalDescontado = descontos.reduce((s, d) => s + d.valor, 0)
   const aguardando = solicitacao.situacao === "aguardando"
   const totalGeral = (solicitacao.valor_total ?? 0) + solicitacao.valorDespesas
+  const solicitadaEm = (
+    <>
+      solicitada em {formatarDataHora(solicitacao.created_at)}
+      {solicitacao.solicitanteNome && <> · lançada por {solicitacao.solicitanteNome}</>}
+    </>
+  )
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href={voltar.href}>
-            <ArrowLeft />
-            {voltar.rotulo}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Solicitação de diária</h1>
-          <SituacaoDiariaBadge situacao={solicitacao.situacao} />
+      {cabecalho ? (
+        <>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+            <Link href={voltar.href}>
+              <ArrowLeft />
+              {voltar.rotulo}
+            </Link>
+          </Button>
+          {cabecalho}
+        </>
+      ) : (
+        <div>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
+            <Link href={voltar.href}>
+              <ArrowLeft />
+              {voltar.rotulo}
+            </Link>
+          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">Solicitação de diária</h1>
+            <SituacaoDiariaBadge situacao={solicitacao.situacao} />
+          </div>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {solicitacao.funcionarioNome ?? "(sem nome)"} · {solicitadaEm}
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {solicitacao.funcionarioNome ?? "(sem nome)"} · solicitada em{" "}
-          {formatarDataHora(solicitacao.created_at)}
-          {solicitacao.solicitanteNome && <> · lançada por {solicitacao.solicitanteNome}</>}
-        </p>
-      </div>
+      )}
 
       {salvo && (
         <Alert className="border-success/40 text-success-fg">
@@ -69,7 +94,11 @@ export function DetalheDiaria({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados da solicitação</CardTitle>
+          <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+            Dados da solicitação
+            {cabecalho && <SituacaoDiariaBadge situacao={solicitacao.situacao} />}
+          </CardTitle>
+          {cabecalho && <CardDescription>{solicitadaEm}</CardDescription>}
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -105,7 +134,7 @@ export function DetalheDiaria({
             </Campo>
             {solicitacao.complementoDe && (
               <Campo rotulo="Complemento de" colSpan>
-                <Link href={`${voltar.href}/${solicitacao.complementoDe}`} className="text-primary hover:underline">
+                <Link href={`${diariaBase ?? voltar.href}/${solicitacao.complementoDe}`} className="text-primary hover:underline">
                   diária já recebida
                 </Link>
                 <span className="text-muted-foreground"> — despesas lançadas depois da viagem (sem valor de diária)</span>

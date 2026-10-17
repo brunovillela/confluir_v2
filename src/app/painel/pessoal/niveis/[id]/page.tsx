@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -13,7 +14,8 @@ import {
   TIPOS_AVANCO,
 } from "@/lib/db/carreira"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
-import { formatarMoeda } from "@/lib/formato"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { NivelLancamentoForm } from "../lancamento-form"
 
@@ -29,7 +31,7 @@ export default async function EditarNivelPage({
   /** de: "carreira" (Carreira do funcionário), "funcionarios" (aba Funcionários); sem ele, Lançamentos. */
   searchParams: Promise<{ de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
 
   const { id } = await params
   const { de } = await searchParams
@@ -39,6 +41,7 @@ export default async function EditarNivelPage({
     listarNivelSalarialBase(),
   ])
   if (!lancamento) notFound()
+  const funcionario = lancamento.funcionario_id ? await funcionarioDaArea(lancamento.funcionario_id) : null
   const voltar =
     de === "carreira" && lancamento.funcionario_id
       ? { href: `/painel/pessoal/carreira/funcionario/${lancamento.funcionario_id}`, rotulo: lancamento.funcionarioNome ?? "Carreira" }
@@ -49,20 +52,22 @@ export default async function EditarNivelPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Editar lançamento de nível salarial" }} />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href={voltar.href}>
-            <ArrowLeft />
-            {voltar.rotulo}
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Editar lançamento de nível salarial
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {lancamento.funcionarioNome ?? "(sem nome)"}
-        </p>
-      </div>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+        <Link href={voltar.href}>
+          <ArrowLeft />
+          {voltar.rotulo}
+        </Link>
+      </Button>
+      {funcionario ? (
+        <CabecalhoFuncionario
+          funcionario={funcionario}
+          area="carreira"
+          permissoes={sessao.permissoes}
+          titulo={`${funcionario.nome} — nível salarial de ${formatarData(lancamento.nivel_atual_data)}`}
+        />
+      ) : (
+        <h1 className="text-2xl font-semibold tracking-tight">Editar lançamento de nível salarial</h1>
+      )}
       <NivelLancamentoForm
         funcionarios={funcionarios}
         tiposAvanco={TIPOS_AVANCO}

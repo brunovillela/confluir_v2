@@ -4,18 +4,21 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import { requirePermissao } from "@/lib/auth"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { buscarReembolso, listarTiposReembolso, listarReembolsos } from "@/lib/db/reembolsos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { porcentagemTexto } from "@/lib/reembolsos-calculo"
@@ -59,7 +62,7 @@ export default async function ReembolsoPage({
   /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
   searchParams: Promise<{ salvo?: string; de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 
   const { id } = await params
   const { salvo, de } = await searchParams
@@ -80,6 +83,8 @@ export default async function ReembolsoPage({
     .join(", ")
   const comprovante = await urlArquivoPessoal(reembolso.comprovante_url)
   const fid = reembolso.funcionario_id
+  const funcionario = fid ? await funcionarioDaArea(fid) : null
+  const solicitadaEm = `solicitada em ${formatarDataHora(reembolso.created_at)}`
   const voltar =
     de === "solicitacoes" || !fid
       ? { href: "/painel/pessoal/reembolsos?aba=solicitacoes", rotulo: "Solicitações de reembolso" }
@@ -100,24 +105,30 @@ export default async function ReembolsoPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Solicitação de reembolso" }} />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href={voltar.href}>
-            <ArrowLeft />
-            {voltar.rotulo}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Solicitação de reembolso
-          </h1>
-          <SituacaoReembolsoBadge situacao={reembolso.situacao} />
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+        <Link href={voltar.href}>
+          <ArrowLeft />
+          {voltar.rotulo}
+        </Link>
+      </Button>
+      {funcionario ? (
+        <CabecalhoFuncionario
+          funcionario={funcionario}
+          area="reembolsos"
+          permissoes={sessao.permissoes}
+          titulo={`${funcionario.nome} — reembolso de ${formatarDataHora(reembolso.created_at).slice(0, 10)}`}
+        />
+      ) : (
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">Solicitação de reembolso</h1>
+            <SituacaoReembolsoBadge situacao={reembolso.situacao} />
+          </div>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {reembolso.funcionarioNome ?? "(sem nome)"} · {solicitadaEm}
+          </p>
         </div>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {reembolso.funcionarioNome ?? "(sem nome)"} · solicitada em{" "}
-          {formatarDataHora(reembolso.created_at)}
-        </p>
-      </div>
+      )}
 
       {daPessoa.length > 1 && (
         <NavegacaoRegistro
@@ -141,7 +152,11 @@ export default async function ReembolsoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dados da solicitação</CardTitle>
+          <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+            Dados da solicitação
+            {funcionario && <SituacaoReembolsoBadge situacao={reembolso.situacao} />}
+          </CardTitle>
+          {funcionario && <CardDescription>{solicitadaEm}</CardDescription>}
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">
