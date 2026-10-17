@@ -71,6 +71,7 @@ export default async function FeriasDoFuncionarioPage({
     situacao.proximoAquisitivo ? `&inicio=${situacao.proximoAquisitivo}` : ""
   }`
   const gozados = periodos.reduce((s, p) => s + resumoPeriodo(p).gozados, 0)
+  const aguardandoDias = periodos.reduce((s, p) => s + resumoPeriodo(p).aguardando, 0)
 
   return (
     <>
@@ -130,7 +131,11 @@ export default async function FeriasDoFuncionarioPage({
               : "nada marcado"
           }
         />
-        <Tile rotulo="Dias já gozados" valor={gozados} detalhe="em todos os períodos" />
+        <Tile
+          rotulo="Dias autorizados"
+          valor={gozados}
+          detalhe={aguardandoDias ? `+ ${aguardandoDias} dia(s) aguardando autorização` : "em todos os períodos"}
+        />
       </div>
 
       <Card>
@@ -167,7 +172,8 @@ export default async function FeriasDoFuncionarioPage({
                     </p>
                     <p className="text-muted-foreground text-xs">
                       Concessivo até {formatarData(p.concessivo_termino)} · direito {r.direito}
-                      {r.abono > 0 ? ` · ${r.abono} vendidos` : ""} · gozados {r.gozados} ·{" "}
+                      {r.abono > 0 ? ` · ${r.abono} vendidos` : ""} · gozados {r.gozados}
+                      {r.aguardando ? ` · aguardando ${r.aguardando}` : ""} ·{" "}
                       <span className="text-foreground font-medium">saldo {r.saldo}</span>
                     </p>
                   </div>

@@ -1,4 +1,6 @@
 import "server-only"
+
+import { gozoRecusado } from "@/lib/ferias-painel"
 import { avisarQuemPodeOuCoordena, depoisDaResposta, querEmail } from "@/lib/db/avisos"
 import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -163,14 +165,19 @@ export function resumoPeriodo(p: PeriodoFerias): {
   direito: number
   abono: number
   descanso: number
+  /** Dias de gozos AUTORIZADOS (17/10: antes somava também os pedidos sem decisão e os não autorizados). */
   gozados: number
+  /** Dias pedidos e ainda sem decisão — reservam o saldo para não serem pedidos de novo. */
+  aguardando: number
   saldo: number
 } {
   const direito = p.dias_disponiveis ?? 0
   const abono = p.abono_pecuniario === true ? Math.floor(direito / 3) : 0
   const descanso = direito - abono
-  const gozados = p.gozos.reduce((soma, g) => soma + (g.dias ?? 0), 0)
-  return { direito, abono, descanso, gozados, saldo: descanso - gozados }
+  const soma = (lista: typeof p.gozos) => lista.reduce((s, g) => s + (g.dias ?? 0), 0)
+  const gozados = soma(p.gozos.filter((g) => g.autorizado === true))
+  const aguardando = soma(p.gozos.filter((g) => g.autorizado !== true && !gozoRecusado(g)))
+  return { direito, abono, descanso, gozados, aguardando, saldo: descanso - gozados - aguardando }
 }
 
 type GozoBruto = Omit<GozoFerias, "autorizadorNome">
@@ -360,6 +367,8 @@ function validarGozos(
 ): string | null {
   const { descanso } = resumoPeriodo({ ...periodo, gozos: [] })
   const ultimoDia = ultimoDiaDoPeriodo(novo.inicio, novo.dias)
+  // O gozo não autorizado não ocupa dias, nem uma das 3 partes (17/10).
+  outros = outros.filter((g) => !gozoRecusado(g))
 
   if (novo.dias < 5) {
     return "Nenhum período de gozo pode ter menos de 5 dias corridos (CLT art. 134)."

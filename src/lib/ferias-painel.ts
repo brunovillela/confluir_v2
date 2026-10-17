@@ -23,6 +23,14 @@ export function gozoAguardandoAutorizacao(g: {
   return g.autorizado !== true && !g.data_autorizacao && Boolean(g.inicio)
 }
 
+/**
+ * Gozo NÃO autorizado (decisão contrária registrada): não conta como gozado,
+ * não reserva saldo e não ocupa uma das 3 partes do período (17/10/2026).
+ */
+export function gozoRecusado(g: { autorizado: boolean | null; data_autorizacao?: string | null }): boolean {
+  return g.autorizado !== true && Boolean(g.data_autorizacao)
+}
+
 /** Alerta de prazo: mesmo corte do painel inicial do Pessoal. */
 export const DIAS_ALERTA_CONCESSIVO = 120
 
@@ -53,8 +61,9 @@ type PeriodoBase = {
 function saldoDo(p: PeriodoBase): number {
   const direito = p.dias_disponiveis ?? 0
   const abono = p.abono_pecuniario === true ? Math.floor(direito / 3) : 0
-  const gozados = p.gozos.reduce((s, g) => s + (g.dias ?? 0), 0)
-  return direito - abono - gozados
+  // Autorizados e aguardando reservam o saldo; os não autorizados, não.
+  const reservados = p.gozos.filter((g) => !gozoRecusado(g)).reduce((s, g) => s + (g.dias ?? 0), 0)
+  return direito - abono - reservados
 }
 
 function diasEntre(deISO: string, ateISO: string): number {

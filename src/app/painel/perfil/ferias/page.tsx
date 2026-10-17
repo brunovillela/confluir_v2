@@ -65,6 +65,7 @@ export default async function MinhasFeriasPage({
   // Indicadores (padrão de 3 níveis): a mesma situação de férias que a gestão vê.
   const situacaoFerias = situacaoDoFuncionario(ferias, hojeSP(), null)
   const gozadosFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).gozados, 0)
+  const aguardandoFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).aguardando, 0)
   return (
     <>
       <div>
@@ -84,7 +85,11 @@ export default async function MinhasFeriasPage({
           valor={situacaoFerias.proximoGozo ? formatarData(situacaoFerias.proximoGozo.inicio) : "—"}
           nota={situacaoFerias.proximoGozo ? (situacaoFerias.proximoGozo.autorizado ? "autorizadas" : "aguardando autorização") : "nada marcado"}
         />
-        <TileIndicador rotulo="Dias já gozados" valor={String(gozadosFerias)} />
+        <TileIndicador
+          rotulo="Dias autorizados"
+          valor={String(gozadosFerias)}
+          nota={aguardandoFerias ? `+ ${aguardandoFerias} dia(s) aguardando autorização` : "gozados ou marcados"}
+        />
       </section>
 
       {salvo === "1" && (
@@ -142,7 +147,7 @@ export default async function MinhasFeriasPage({
                     {p.abono_pecuniario === true && (
                       <> · abono 1/3 ({r.abono} dias vendidos)</>
                     )}{" "}
-                    · gozados {r.gozados} · saldo{" "}
+                    · gozados {r.gozados}{r.aguardando ? ` · aguardando ${r.aguardando}` : ""} · saldo{" "}
                     <span className="text-foreground font-medium">{r.saldo}</span>
                   </p>
                 </div>
