@@ -19,7 +19,8 @@ import { readFileSync, mkdirSync } from "node:fs"
 import { chromium } from "playwright"
 
 const BASE = "http://localhost:3222"
-const EMAIL = "demo@confluir.local"
+// PRINT_EMAIL troca o login (ex.: a funcionária da demo, para os prints do Meu perfil).
+const EMAIL = process.env.PRINT_EMAIL ?? "demo@confluir.local"
 
 // [rota, arquivo relativo a public/ajuda/] — edite por módulo a cada rodada.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- usados nos blocos comentados
@@ -45,6 +46,15 @@ const SHOTS = process.env.SHOT_UNICO
   ? [
       // Rodada 19, fase 2: o link depois que o recibo assinado foi anexado.
       [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
+    ]
+  : process.env.RODADA === "perfil"
+  ? [
+      // Rodada de 17/10 (23): Meu perfil com os indicadores — rodar com
+      // PRINT_EMAIL=ana.demo@confluir.local (a Ana precisa estar vinculada ao
+      // login e ter linha em permissoes; na demo isso é ligado só para o print).
+      ["/painel/perfil/ponto", "pessoal/perfil-ponto.png", { esperar: "Banco de horas", altura: 760 }],
+      ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
+      ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
     ]
   : [
   // Rodada de 17/10 (22): padrão de 3 níveis do Pessoal (área → funcionário → registro) e a ficha com o painel Áreas.
