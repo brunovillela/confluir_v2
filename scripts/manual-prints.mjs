@@ -55,6 +55,15 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/perfil/ponto", "pessoal/perfil-ponto.png", { esperar: "Banco de horas", altura: 760 }],
       ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
       ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
+      // Rodada de 17/10 (27): o Meu perfil das outras áreas do Pessoal.
+      ["/painel/perfil/contracheques", "pessoal/perfil-contracheques.png", { esperar: "Último liberado", altura: 900 }],
+      ["/painel/perfil/informes", "pessoal/perfil-informes.png", { esperar: "Informes disponíveis", altura: 900 }],
+      ["/painel/perfil/diarias", "pessoal/perfil-diarias.png", { esperar: "Valor recebido", altura: 1000 }],
+      ["/painel/perfil/reembolsos", "pessoal/perfil-reembolsos.png", { esperar: "A receber no contracheque", altura: 1000 }],
+      ["/painel/perfil/faltas", "pessoal/perfil-faltas.png", { esperar: "Minhas faltas justificadas", altura: 1000 }],
+      ["/painel/perfil/ausencias", "pessoal/perfil-ausencias.png", { esperar: "Dias de afastamento", altura: 900 }],
+      ["/painel/perfil/asos", "pessoal/perfil-asos.png", { esperar: "Último exame", altura: 900 }],
+      ["/painel/perfil/treinamentos", "pessoal/perfil-treinamentos.png", { esperar: "Certificados vencidos", altura: 900 }],
     ]
   : process.env.RODADA === "niveis23"
   ? (() => {
