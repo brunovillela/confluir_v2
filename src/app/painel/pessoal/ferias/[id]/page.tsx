@@ -3,7 +3,9 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 
+import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { buscarPeriodoFerias, resumoPeriodo } from "@/lib/db/ferias"
+import { buscarPeriodoFerias, listarPeriodosFerias, resumoPeriodo } from "@/lib/db/ferias"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
 
@@ -37,31 +39,47 @@ import {
 
 export const metadata: Metadata = { title: "Período de férias — Confluir" }
 
-function Tile({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border px-4 py-3">
-      <p className="text-muted-foreground text-xs">{rotulo}</p>
-      <p className="mt-0.5 text-xl font-semibold tabular-nums">{valor}</p>
-    </div>
-  )
-}
+const Tile = ({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) => (
+  <TileIndicador rotulo={rotulo} valor={String(valor ?? "—")} />
+)
 
 export default async function PeriodoFeriasPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; editar?: string }>
+  /** de: "area" (fila da área) ou "periodos" (aba Períodos); sem ele, volta ao funcionário. */
+  searchParams: Promise<{ salvo?: string; editar?: string; de?: string }>
 }) {
   await requirePermissao("pessoal_gestao")
 
   const { id } = await params
-  const { salvo, editar } = await searchParams
-  const [periodo, funcionarios] = await Promise.all([
+  const { salvo, editar, de } = await searchParams
+  const [periodo, funcionarios, todos] = await Promise.all([
     buscarPeriodoFerias(id),
     funcionariosParaSelecao(),
+    listarPeriodosFerias(),
   ])
   if (!periodo) notFound()
+
+  const trabalhador = periodo.trabalhador_id
+  const voltar =
+    de === "area" || !trabalhador
+      ? { href: "/painel/pessoal/ferias", rotulo: "Férias" }
+      : de === "periodos"
+        ? { href: "/painel/pessoal/ferias?aba=periodos", rotulo: "Períodos de férias" }
+        : { href: `/painel/pessoal/ferias/funcionario/${trabalhador}`, rotulo: periodo.funcionarioNome ?? "Funcionário" }
+  const daPessoa = todos
+    .filter((p) => trabalhador && p.trabalhador_id === trabalhador)
+    .sort((a, b) => (a.aquisitivo_inicio ?? "").localeCompare(b.aquisitivo_inicio ?? ""))
+  const iP = daPessoa.findIndex((p) => p.id === id)
+  const destino = (p: (typeof daPessoa)[number] | undefined) =>
+    p
+      ? {
+          href: `/painel/pessoal/ferias/${p.id}${de ? `?de=${de}` : ""}`,
+          rotulo: `${formatarData(p.aquisitivo_inicio)} – ${formatarData(p.aquisitivo_termino)}`,
+        }
+      : null
 
   const r = resumoPeriodo(periodo)
   const editandoPeriodo = editar === "periodo"
@@ -82,9 +100,9 @@ export default async function PeriodoFeriasPage({
       <RotuloTrilha valores={{ [id]: periodo.funcionarioNome ?? "(sem nome)" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/ferias">
+          <Link href={voltar.href}>
             <ArrowLeft />
-            Férias
+            {voltar.rotulo}
           </Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -135,6 +153,16 @@ export default async function PeriodoFeriasPage({
           )}
         </div>
       </div>
+
+      <NavegacaoRegistro
+        eixos={[
+          {
+            titulo: `Períodos do funcionário (${iP + 1} de ${daPessoa.length})`,
+            anterior: destino(daPessoa[iP - 1]),
+            proximo: destino(daPessoa[iP + 1]),
+          },
+        ]}
+      />
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">

@@ -1,9 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Plus, TreePalm, UserRound } from "lucide-react"
+import { Plus, TreePalm } from "lucide-react"
 
+import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
+import { VoltarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +27,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarPeriodosFerias, resumoPeriodo } from "@/lib/db/ferias"
-import { listarFuncionarios } from "@/lib/db/pessoal"
+import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { situacaoDoFuncionario } from "@/lib/ferias-painel"
 import { formatarData } from "@/lib/formato"
 
@@ -37,15 +40,9 @@ function hojeSP(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
 }
 
-function Tile({ rotulo, valor, detalhe }: { rotulo: string; valor: React.ReactNode; detalhe?: React.ReactNode }) {
-  return (
-    <div className="bg-card rounded-xl border p-4 shadow-xs">
-      <p className="text-muted-foreground text-xs">{rotulo}</p>
-      <p className="mt-0.5 text-2xl font-semibold tabular-nums">{valor}</p>
-      {detalhe && <p className="text-muted-foreground text-xs">{detalhe}</p>}
-    </div>
-  )
-}
+const Tile = ({ rotulo, valor, detalhe }: { rotulo: string; valor: React.ReactNode; detalhe?: string }) => (
+  <TileIndicador rotulo={rotulo} valor={String(valor ?? "—")} nota={detalhe} />
+)
 
 /**
  * Férias de UM funcionário: situação atual, histórico de todos os períodos
@@ -58,22 +55,18 @@ export default async function FeriasDoFuncionarioPage({
   params: Promise<{ usuarioId: string }>
   searchParams: Promise<{ excluido?: string }>
 }) {
-  await requirePermissao("pessoal_gestao")
+  const sessao = await requirePermissao("pessoal_gestao")
 
   const { usuarioId } = await params
   const { excluido } = await searchParams
-  const [{ linhas }, todos] = await Promise.all([
-    listarFuncionarios({ situacao: "todos" }),
-    listarPeriodosFerias(),
-  ])
-  const funcionario = linhas.find((f) => f.usuarioId === usuarioId)
+  const [funcionario, todos] = await Promise.all([funcionarioDaArea(usuarioId), listarPeriodosFerias()])
   const periodos = todos.filter((p) => p.trabalhador_id === usuarioId)
   if (!funcionario && periodos.length === 0) notFound()
 
   const nome = funcionario?.nome ?? periodos[0]?.funcionarioNome ?? "(sem nome)"
-  const desligado = Boolean(funcionario?.contrato_demissao)
+  const desligado = funcionario ? !funcionario.ativo : false
   const hoje = hojeSP()
-  const situacao = situacaoDoFuncionario(periodos, hoje, funcionario?.contrato_admissao ?? null)
+  const situacao = situacaoDoFuncionario(periodos, hoje, funcionario?.admissao ?? null)
   const novoHref = `/painel/pessoal/ferias/novo?funcionario=${usuarioId}${
     situacao.proximoAquisitivo ? `&inicio=${situacao.proximoAquisitivo}` : ""
   }`
@@ -81,53 +74,32 @@ export default async function FeriasDoFuncionarioPage({
 
   return (
     <>
-      <RotuloTrilha valores={{ funcionario: "Funcionário", [usuarioId]: nome }} />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/ferias">
-            <ArrowLeft />
-            Férias
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">{nome}</h1>
-              <BadgeSituacao chave={situacao.chave} />
-              {desligado && (
-                <Badge variant="outline" className="text-muted-foreground">
-                  Desligado
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {funcionario?.cargo ? `${funcionario.cargo} · ` : ""}
-              Admissão {formatarData(funcionario?.contrato_admissao ?? null)}
-              {situacao.detalhe && (
-                <>
-                  {" · "}
-                  <DetalheSituacao situacao={situacao} />
-                </>
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href={`/painel/pessoal/${usuarioId}`}>
-                <UserRound />
-                Ficha
-              </Link>
-            </Button>
-            {!desligado && (
-              <Button asChild>
-                <Link href={novoHref}>
-                  <Plus />
-                  Novo período
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
+      <RotuloTrilha valores={{ funcionario: "Funcionários", [usuarioId]: nome }} />
+      <VoltarLista chave="ferias-funcionarios" base="/painel/pessoal/ferias" rotulo="Férias" />
+      <CabecalhoFuncionario
+        funcionario={
+          funcionario ?? { usuarioId, nome, matricula: null, cargo: null, departamento: null, ativo: false }
+        }
+        area="ferias"
+        permissoes={sessao.permissoes}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <BadgeSituacao chave={situacao.chave} />
+          {situacao.detalhe && (
+            <span className="text-muted-foreground text-xs">
+              <DetalheSituacao situacao={situacao} />
+            </span>
+          )}
+        </p>
+        {!desligado && (
+          <Button asChild>
+            <Link href={novoHref}>
+              <Plus />
+              Novo período
+            </Link>
+          </Button>
+        )}
       </div>
 
       {excluido === "1" && (

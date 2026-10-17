@@ -1,84 +1,62 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Award, Plus, Table2 } from "lucide-react"
+import { ArrowLeft, Plus, Table2 } from "lucide-react"
 
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import { formatarAliquota, listarAnuenios } from "@/lib/db/carreira"
+import { hojeSP } from "@/lib/db/comum"
+import { avancaAte, carregarCarreira } from "@/lib/db/carreira-area"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
+
+import { ListaLancamentosAnuenios } from "./lancamentos-lista"
 
 export const metadata: Metadata = { title: "Anuênios — Confluir" }
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const ORDENS = ["nome", "nivel", "desde", "proximo", "contabilidade"] as const
 
-type ParamsLista = {
-  salvo?: string
-  excluido?: string
-  busca?: string
-  ano?: string
-  contabilidade?: string
-  pagina?: string
-  porPagina?: string
+const somarDias = (iso: string, dias: number) => {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Anuênios — nível 1 do padrão das áreas do Pessoal: indicadores e as abas
+ * Funcionários (inicial: o anuênio atual de cada um) e Lançamentos. O nome
+ * leva à Carreira do funcionário (nível 2).
+ */
 export default async function AnueniosPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
+  const sp = await searchParams
+  const aba = sp.aba === "lancamentos" ? "lancamentos" : "funcionarios"
+  const [{ anuenios, anuenioDe }, funcionarios] = await Promise.all([carregarCarreira(), funcionariosDaArea()])
 
-  const brutos = await searchParams
-  const { salvo, excluido } = brutos
-  const todos = await listarAnuenios()
-
-  const anos = [
-    ...new Set(todos.map((a) => a.ano).filter((v): v is string => Boolean(v))),
-  ].sort((a, b) => b.localeCompare(a))
-
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    ano: anos.includes(brutos.ano ?? "") ? brutos.ano! : "todos",
-    contabilidade: ["informados", "pendentes"].includes(
-      brutos.contabilidade ?? ""
-    )
-      ? brutos.contabilidade!
-      : "todos",
-  }
-
-  const filtrados = todos.filter((a) => {
-    if (
-      params.busca &&
-      !(a.funcionarioNome ?? "")
-        .toLocaleLowerCase("pt-BR")
-        .includes(params.busca.toLocaleLowerCase("pt-BR"))
-    ) {
-      return false
-    }
-    if (params.ano !== "todos" && a.ano !== params.ano) return false
-    if (params.contabilidade === "informados" && a.informado_contabilidade !== true)
-      return false
-    if (params.contabilidade === "pendentes" && a.informado_contabilidade === true)
-      return false
-    return true
+  const hoje = hojeSP()
+  const em30 = somarDias(hoje, 30)
+  const ativos = funcionarios.filter((f) => f.ativo)
+  const comAnuenio = ativos.filter((f) => anuenioDe.has(f.usuarioId))
+  // Avanço previsto que já passou e ninguém lançou o novo nível.
+  const atrasados = comAnuenio.filter((f) => {
+    const d = anuenioDe.get(f.usuarioId)!.proximo?.data
+    return Boolean(d && d < hoje)
   })
-
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(filtrados, paginacao)
+  const avancam = comAnuenio.filter((f) => avancaAte(anuenioDe.get(f.usuarioId)!.proximo?.data, hoje, em30))
+  const pendentesContab = comAnuenio.filter((f) => !anuenioDe.get(f.usuarioId)!.informado)
 
   return (
     <>
@@ -93,9 +71,7 @@ export default async function AnueniosPage({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Anuênios</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {filtrados.length} lançamento{filtrados.length === 1 ? "" : "s"} —
-              alíquota sobre o salário básico por ano de casa; avança no
-              aniversário de emprego
+              Alíquota sobre o salário básico por ano de casa; avança no aniversário de emprego
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -115,156 +91,166 @@ export default async function AnueniosPage({
         </div>
       </div>
 
-      {salvo === "1" && (
+      {sp.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento salvo.</AlertDescription>
         </Alert>
       )}
-      {excluido === "1" && (
+      {sp.excluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento excluído.</AlertDescription>
         </Alert>
       )}
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome do funcionário"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar por funcionário"
+      {atrasados.length > 0 && (
+        <Alert>
+          <AlertDescription>
+            Avanço previsto já passou, sem novo lançamento:{" "}
+            {atrasados.map((f, i) => (
+              <span key={f.usuarioId}>
+                {i > 0 && ", "}
+                <Link href={`/painel/pessoal/carreira/funcionario/${f.usuarioId}`} className="hover:underline">
+                  {f.nome}
+                </Link>{" "}
+                ({formatarData(anuenioDe.get(f.usuarioId)!.proximo?.data ?? null)})
+              </span>
+            ))}
+            .
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Ativos com anuênio" valor={`${comAnuenio.length} de ${ativos.length}`} />
+        <TileIndicador
+          rotulo="Avançam em 30 dias"
+          valor={String(avancam.length)}
+          nota={avancam.length ? avancam.map((f) => f.nome.split(" ")[0]).join(", ") : "nenhum"}
+          href="/painel/pessoal/anuenios?ordem=proximo&dir=asc"
         />
-        <select
-          name="ano"
-          defaultValue={params.ano}
-          aria-label="Filtrar por ano"
-          className={SELECT_FILTRO}
-        >
-          <option value="todos">Todos os anos</option>
-          {anos.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-        <select
-          name="contabilidade"
-          defaultValue={params.contabilidade}
-          aria-label="Filtrar por contabilidade"
-          className={SELECT_FILTRO}
-        >
-          <option value="todos">Contabilidade — todos</option>
-          <option value="informados">Informados</option>
-          <option value="pendentes">Pendentes</option>
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+        <TileIndicador
+          rotulo="Não informados à contabilidade"
+          valor={String(pendentesContab.length)}
+          nota="no lançamento mais recente de cada um"
+          href="/painel/pessoal/anuenios?ordem=contabilidade&dir=asc"
+        />
+        <TileIndicador rotulo="Lançamentos" valor={anuenios.length.toLocaleString("pt-BR")} nota="em todo o histórico" />
+      </section>
 
-      <div className="overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Funcionário</TableHead>
-                <TableHead className="hidden sm:table-cell">
-                  Referência
-                </TableHead>
-                <TableHead className="text-right">Nível</TableHead>
-                <TableHead className="text-right">Alíquota</TableHead>
-                <TableHead>Vale desde</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  Próximo nível
-                </TableHead>
-                <TableHead>Contabilidade</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginaAtual.total === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-40">
-                    <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                      <Award className="size-6" />
-                      <p className="text-sm">
-                        Nenhum lançamento de anuênio
-                        {params.busca && <> para “{params.busca}”</>}.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-              {paginaAtual.linhas.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="max-w-56 font-medium">
-                    {a.funcionario_id ? (
-                      <Link
-                        href={`/painel/pessoal/${a.funcionario_id}`}
-                        className="hover:underline"
-                      >
-                        <span className="block truncate">
-                          {a.funcionarioNome ?? "(sem nome)"}
-                        </span>
-                      </Link>
-                    ) : (
-                      "(sem funcionário)"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap sm:table-cell">
-                    {[a.mes, a.ano].filter(Boolean).join(" / ") || "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {a.nivelAtual?.nivel ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatarAliquota(a.nivelAtual?.aliquota)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {formatarData(a.nivel_atual_data)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
-                    {a.proximoNivel
-                      ? `Nível ${a.proximoNivel.nivel ?? "?"} em ${formatarData(a.proximo_nivel_data)}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {a.informado_contabilidade === true ? (
-                      <Badge
-                        variant="outline"
-                        className="border-success/40 text-success-fg"
-                      >
-                        Informado
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-warning/40 text-warning-fg"
-                      >
-                        Pendente
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/anuenios/${a.id}`}>
-                        Editar
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <AbasLink
+        rotulo="Visões dos anuênios"
+        abas={[
+          { href: "/painel/pessoal/anuenios", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/anuenios?aba=lancamentos", rotulo: "Lançamentos", ativo: aba === "lancamentos", contador: anuenios.length },
+        ]}
+      />
 
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+      {aba === "lancamentos" ? (
+        <ListaLancamentosAnuenios brutos={sp} />
+      ) : (
+        <AbaFuncionarios sp={sp} funcionarios={funcionarios} anuenioDe={anuenioDe} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  funcionarios,
+  anuenioDe,
+}: {
+  sp: Record<string, string | undefined>
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+  anuenioDe: Awaited<ReturnType<typeof carregarCarreira>>["anuenioDe"]
+}) {
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const a = anuenioDe.get(l.usuarioId)
+    switch (f.ordem) {
+      case "nivel":
+        return a ? Number(a.atual.nivelAtual?.nivel ?? 0) : null
+      case "desde":
+        return a?.desde
+      case "proximo":
+        return a?.proximo?.data
+      case "contabilidade":
+        return a ? (a.informado ? 1 : 0) : null
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f)
+  const urlAtual = `/painel/pessoal/anuenios?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="carreira-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios filtros={f} departamentos={departamentosDaLista(funcionarios)} />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/anuenios", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/carreira/funcionario/${l.usuarioId}`}
+        colunas={[
+          {
+            chave: "nivel",
+            rotulo: "Anuênio atual",
+            valor: (l) => {
+              const a = anuenioDe.get(l.usuarioId)
+              return a ? (
+                <Link href={`/painel/pessoal/anuenios/${a.atual.id}?de=funcionarios`} className="hover:underline">
+                  {a.rotulo} · {a.aliquota}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+          {
+            chave: "desde",
+            rotulo: "Desde",
+            className: "text-muted-foreground hidden whitespace-nowrap md:table-cell",
+            valor: (l) => formatarData(anuenioDe.get(l.usuarioId)?.desde ?? null),
+          },
+          {
+            chave: "proximo",
+            rotulo: "Próximo avanço",
+            className: "whitespace-nowrap",
+            valor: (l) => {
+              const p = anuenioDe.get(l.usuarioId)?.proximo
+              return p ? (
+                <>
+                  {formatarData(p.data)}
+                  {p.data && p.data < hojeSP() && (
+                    <Badge variant="warning" className="ml-1.5">
+                      Atrasado
+                    </Badge>
+                  )}
+                  <span className="text-muted-foreground ml-1 hidden text-xs lg:inline">{p.rotulo}</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+          {
+            chave: "contabilidade",
+            rotulo: "Contabilidade",
+            className: "hidden md:table-cell",
+            valor: (l) => {
+              const a = anuenioDe.get(l.usuarioId)
+              if (!a) return <span className="text-muted-foreground">—</span>
+              return a.informado ? <Badge variant="success">Informado</Badge> : <Badge variant="warning">Pendente</Badge>
+            },
+          },
+        ]}
       />
     </>
   )

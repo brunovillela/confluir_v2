@@ -1,80 +1,66 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Percent, Plus, Table2, TrendingUp } from "lucide-react"
+import { ArrowLeft, Percent, Plus, Table2 } from "lucide-react"
 
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import {
-  listarNiveisSalariais,
-  rotuloNivelSalarial,
-  TIPOS_AVANCO,
-} from "@/lib/db/carreira"
+import { hojeSP } from "@/lib/db/comum"
+import { avancaAte, carregarCarreira } from "@/lib/db/carreira-area"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
+
+import { ListaLancamentosNiveis } from "./lancamentos-lista"
 
 export const metadata: Metadata = { title: "Níveis salariais — Confluir" }
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const ORDENS = ["nome", "nivel", "salario", "desde", "proximo"] as const
 
-type ParamsLista = {
-  salvo?: string
-  excluido?: string
-  busca?: string
-  tipo?: string
-  pagina?: string
-  porPagina?: string
+const somarDias = (iso: string, dias: number) => {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Níveis salariais — nível 1 do padrão das áreas do Pessoal: indicadores e as
+ * abas Funcionários (inicial: o degrau atual de cada um) e Lançamentos. O
+ * nome leva à Carreira do funcionário (nível 2).
+ */
 export default async function NiveisPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const sessao = await requirePermissao("pessoal_gestao", [
-    "pessoal_niveis_salariais",
-  ])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
   // Reajuste mexe em todos os salários — só a gestão completa vê o atalho.
   const temGestao = podeAcessar(sessao.permissoes, "pessoal_gestao")
+  const sp = await searchParams
+  const aba = sp.aba === "lancamentos" ? "lancamentos" : "funcionarios"
+  const [{ niveis, nivelDe }, funcionarios] = await Promise.all([carregarCarreira(), funcionariosDaArea()])
 
-  const brutos = await searchParams
-  const { salvo, excluido } = brutos
-  const todos = await listarNiveisSalariais()
-
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    tipo: (TIPOS_AVANCO as readonly string[]).includes(brutos.tipo ?? "")
-      ? brutos.tipo!
-      : "todos",
-  }
-
-  const filtrados = todos.filter((n) => {
-    if (
-      params.busca &&
-      !(n.funcionarioNome ?? "")
-        .toLocaleLowerCase("pt-BR")
-        .includes(params.busca.toLocaleLowerCase("pt-BR"))
-    ) {
-      return false
-    }
-    if (params.tipo !== "todos" && n.tipo_avanco !== params.tipo) return false
-    return true
+  const hoje = hojeSP()
+  const em30 = somarDias(hoje, 30)
+  const ativos = funcionarios.filter((f) => f.ativo)
+  const comNivel = ativos.filter((f) => nivelDe.has(f.usuarioId))
+  // Avanço previsto que já passou e ninguém lançou o novo nível.
+  const atrasados = comNivel.filter((f) => {
+    const d = nivelDe.get(f.usuarioId)!.proximo?.data
+    return Boolean(d && d < hoje)
   })
-
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(filtrados, paginacao)
+  const avancam = comNivel.filter((f) => avancaAte(nivelDe.get(f.usuarioId)!.proximo?.data, hoje, em30))
+  const salarios = comNivel.map((f) => nivelDe.get(f.usuarioId)!.salario).filter((v): v is number => v !== null)
+  const folhaBase = salarios.reduce((s, v) => s + v, 0)
 
   return (
     <>
@@ -87,12 +73,9 @@ export default async function NiveisPage({
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Níveis salariais
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Níveis salariais</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {filtrados.length} lançamento{filtrados.length === 1 ? "" : "s"} —
-              degraus do acordo coletivo que definem o salário básico por cargo
+              Degraus do acordo coletivo que definem o salário básico por cargo
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -120,130 +103,164 @@ export default async function NiveisPage({
         </div>
       </div>
 
-      {salvo === "1" && (
+      {sp.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento salvo.</AlertDescription>
         </Alert>
       )}
-      {excluido === "1" && (
+      {sp.excluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento excluído.</AlertDescription>
         </Alert>
       )}
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome do funcionário"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar por funcionário"
+      {atrasados.length > 0 && (
+        <Alert>
+          <AlertDescription>
+            Avanço previsto já passou, sem novo lançamento:{" "}
+            {atrasados.map((f, i) => (
+              <span key={f.usuarioId}>
+                {i > 0 && ", "}
+                <Link href={`/painel/pessoal/carreira/funcionario/${f.usuarioId}`} className="hover:underline">
+                  {f.nome}
+                </Link>{" "}
+                ({formatarData(nivelDe.get(f.usuarioId)!.proximo?.data ?? null)})
+              </span>
+            ))}
+            .
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Ativos com nível" valor={`${comNivel.length} de ${ativos.length}`} />
+        <TileIndicador
+          rotulo="Avançam em 30 dias"
+          valor={String(avancam.length)}
+          nota={avancam.length ? avancam.map((f) => f.nome.split(" ")[0]).join(", ") : "nenhum"}
+          href="/painel/pessoal/niveis?ordem=proximo&dir=asc"
         />
-        <select
-          name="tipo"
-          defaultValue={params.tipo}
-          aria-label="Filtrar por tipo de avanço"
-          className={SELECT_FILTRO}
-        >
-          <option value="todos">Todos os tipos de avanço</option>
-          {TIPOS_AVANCO.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+        <TileIndicador
+          rotulo="Salário básico (soma)"
+          valor={salarios.length ? formatarMoeda(folhaBase) : "—"}
+          nota={salarios.length ? `média ${formatarMoeda(folhaBase / salarios.length)}` : "sem salários na tabela"}
+        />
+        <TileIndicador rotulo="Lançamentos" valor={niveis.length.toLocaleString("pt-BR")} nota="em todo o histórico" />
+      </section>
 
-      <div className="overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Nível</TableHead>
-                <TableHead className="hidden lg:table-cell">Cargo</TableHead>
-                <TableHead className="text-right">Salário básico</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  Tipo de avanço
-                </TableHead>
-                <TableHead>Vale desde</TableHead>
-                <TableHead className="hidden xl:table-cell">
-                  Próximo nível
-                </TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginaAtual.total === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-40">
-                    <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                      <TrendingUp className="size-6" />
-                      <p className="text-sm">
-                        Nenhum lançamento de nível salarial
-                        {params.busca && <> para “{params.busca}”</>}.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-              {paginaAtual.linhas.map((n) => (
-                <TableRow key={n.id}>
-                  <TableCell className="max-w-56 font-medium">
-                    {n.funcionario_id ? (
-                      <Link
-                        href={`/painel/pessoal/${n.funcionario_id}`}
-                        className="hover:underline"
-                      >
-                        <span className="block truncate">
-                          {n.funcionarioNome ?? "(sem nome)"}
-                        </span>
-                      </Link>
-                    ) : (
-                      "(sem funcionário)"
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {rotuloNivelSalarial(n.nivelAtual)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden max-w-48 truncate lg:table-cell">
-                    {n.cargoNome ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(n.nivelAtual?.salario_base)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden md:table-cell">
-                    {n.tipo_avanco ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {formatarData(n.nivel_atual_data)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap xl:table-cell">
-                    {n.proximoNivel
-                      ? `${rotuloNivelSalarial(n.proximoNivel)}${n.proximo_nivel_data ? ` em ${formatarData(n.proximo_nivel_data)}` : ""}`
-                      : (n.proximo_nivel_texto ?? "—")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/niveis/${n.id}`}>Editar</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <AbasLink
+        rotulo="Visões dos níveis salariais"
+        abas={[
+          { href: "/painel/pessoal/niveis", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/niveis?aba=lancamentos", rotulo: "Lançamentos", ativo: aba === "lancamentos", contador: niveis.length },
+        ]}
+      />
 
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+      {aba === "lancamentos" ? (
+        <ListaLancamentosNiveis brutos={sp} />
+      ) : (
+        <AbaFuncionarios sp={sp} funcionarios={funcionarios} nivelDe={nivelDe} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  funcionarios,
+  nivelDe,
+}: {
+  sp: Record<string, string | undefined>
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+  nivelDe: Awaited<ReturnType<typeof carregarCarreira>>["nivelDe"]
+}) {
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const n = nivelDe.get(l.usuarioId)
+    switch (f.ordem) {
+      case "nivel":
+        return n?.rotulo
+      case "salario":
+        return n?.salario
+      case "desde":
+        return n?.desde
+      case "proximo":
+        return n?.proximo?.data
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f)
+  const urlAtual = `/painel/pessoal/niveis?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="carreira-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios filtros={f} departamentos={departamentosDaLista(funcionarios)} />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/niveis", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/carreira/funcionario/${l.usuarioId}`}
+        colunas={[
+          {
+            chave: "nivel",
+            rotulo: "Nível atual",
+            valor: (l) => {
+              const n = nivelDe.get(l.usuarioId)
+              return n ? (
+                <Link href={`/painel/pessoal/niveis/${n.atual.id}?de=funcionarios`} className="hover:underline">
+                  {n.rotulo}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+          {
+            chave: "salario",
+            rotulo: "Salário básico",
+            className: "text-right tabular-nums",
+            valor: (l) => {
+              const s = nivelDe.get(l.usuarioId)?.salario
+              return s !== null && s !== undefined ? formatarMoeda(s) : "—"
+            },
+          },
+          {
+            chave: "desde",
+            rotulo: "Desde",
+            className: "text-muted-foreground hidden whitespace-nowrap md:table-cell",
+            valor: (l) => formatarData(nivelDe.get(l.usuarioId)?.desde ?? null),
+          },
+          {
+            chave: "proximo",
+            rotulo: "Próximo avanço",
+            className: "whitespace-nowrap",
+            valor: (l) => {
+              const p = nivelDe.get(l.usuarioId)?.proximo
+              return p ? (
+                <>
+                  {formatarData(p.data)}
+                  {p.data && p.data < hojeSP() && (
+                    <Badge variant="warning" className="ml-1.5">
+                      Atrasado
+                    </Badge>
+                  )}
+                  <span className="text-muted-foreground ml-1 hidden text-xs lg:inline">{p.rotulo}</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+        ]}
       />
     </>
   )

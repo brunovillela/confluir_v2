@@ -3,6 +3,7 @@ import { IdCard } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { usoCarreira } from "@/lib/db/carreira-area"
 import { formatarData } from "@/lib/formato"
 import { areasDoFuncionario, type AreaFuncionario } from "@/lib/pessoal-area"
 import type { Permissoes } from "@/lib/permissoes"
@@ -11,7 +12,7 @@ import type { Permissoes } from "@/lib/permissoes"
  * Cabeçalho do nível 2 (o funcionário numa área): quem é a pessoa e os
  * atalhos para as outras áreas dela — troca de assunto sem perder a pessoa.
  */
-export function CabecalhoFuncionario({
+export async function CabecalhoFuncionario({
   funcionario,
   area,
   permissoes,
@@ -33,7 +34,9 @@ export function CabecalhoFuncionario({
   titulo?: string
 }) {
   const f = funcionario
-  const areas = areasDoFuncionario(permissoes)
+  // Multitenant: a Carreira só aparece para quem usa anuênio ou níveis salariais.
+  const uso = await usoCarreira()
+  const areas = areasDoFuncionario(permissoes).filter((a) => a.chave !== "carreira" || uso.anuenios || uso.niveis)
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">

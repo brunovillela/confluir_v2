@@ -21,27 +21,37 @@ export const metadata: Metadata = {
 
 export default async function EditarAnuenioPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  /** de: "carreira" (Carreira do funcionário), "funcionarios" (aba Funcionários); sem ele, Lançamentos. */
+  searchParams: Promise<{ de?: string }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
 
   const { id } = await params
+  const { de } = await searchParams
   const [lancamento, funcionarios, base] = await Promise.all([
     buscarAnuenio(id),
     funcionariosParaSelecao(),
     listarAnuenioBase(),
   ])
   if (!lancamento) notFound()
+  const voltar =
+    de === "carreira" && lancamento.funcionario_id
+      ? { href: `/painel/pessoal/carreira/funcionario/${lancamento.funcionario_id}`, rotulo: lancamento.funcionarioNome ?? "Carreira" }
+      : de === "funcionarios"
+        ? { href: "/painel/pessoal/anuenios", rotulo: "Anuênios" }
+        : { href: "/painel/pessoal/anuenios?aba=lancamentos", rotulo: "Lançamentos de anuênios" }
 
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Editar lançamento de anuênio" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/anuenios">
+          <Link href={voltar.href}>
             <ArrowLeft />
-            Anuênios
+            {voltar.rotulo}
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">

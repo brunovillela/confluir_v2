@@ -109,13 +109,15 @@ export function ordenarPor<T extends FuncionarioBasico>(
 
 // ── Áreas que já seguem o padrão (os atalhos do cabeçalho do funcionário) ──
 
-export type AreaFuncionario = "contracheques" | "ponto" | "ferias"
+export type AreaFuncionario = "contracheques" | "ponto" | "ferias" | "carreira" | "informes"
 
 /** Ordem e permissão de cada área com página do funcionário (nível 2). */
 const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; href: (id: string) => string }[] = [
   { chave: "contracheques", rotulo: "Contracheques", permissoes: ["pessoal_gestao", "pessoal_contracheque"], href: (id) => `/painel/pessoal/contracheques/funcionario/${id}` },
   { chave: "ponto", rotulo: "Ponto", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/ponto/funcionario/${id}` },
   { chave: "ferias", rotulo: "Férias", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/ferias/funcionario/${id}` },
+  { chave: "carreira", rotulo: "Carreira", permissoes: ["pessoal_gestao", "pessoal_anuenios", "pessoal_niveis_salariais"], href: (id) => `/painel/pessoal/carreira/funcionario/${id}` },
+  { chave: "informes", rotulo: "Informes", permissoes: ["pessoal_gestao", "pessoal_informes_rendimentos"], href: (id) => `/painel/pessoal/informes/funcionario/${id}` },
 ]
 
 export function areasDoFuncionario(permissoes: Permissoes | null) {
