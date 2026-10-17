@@ -9,6 +9,7 @@ import { colunasHorario, janelaDaAssembleia } from "@/lib/db/assembleias-horario
 import { MARCA_NAO_RECONHECE } from "@/lib/db/votacao-primeiro-acesso"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { CANAIS_ACESSO, type CanalAcesso } from "@/lib/votacao-canais"
 
 /**
  * LINK PESSOAL DE VOTO — a porta que não depende de um segundo e-mail.
@@ -99,7 +100,8 @@ export function gerarTokenAcesso(aptoId: string, assembleiaId: string): string {
   return `${corpo}.${assinar(corpo)}`
 }
 
-type Payload = { a: string; s: string; exp?: number }
+/** c = por onde a sessão foi aberta (fase 4): link pessoal ou link geral. */
+type Payload = { a: string; s: string; exp?: number; c?: string }
 
 function lerToken(token: string | undefined | null): Payload | null {
   if (!token) return null
@@ -144,13 +146,18 @@ export async function aptoDoToken(
  * Cria a sessão de voto por link (cookie assinado, só para aquela
  * assembleia), válida até o fim da votação.
  */
-export async function abrirSessaoPorLink(aptoId: string, assembleiaId: string): Promise<void> {
+export async function abrirSessaoPorLink(
+  aptoId: string,
+  assembleiaId: string,
+  canal: CanalAcesso = "link_pessoal"
+): Promise<void> {
   const ttl = await segundosAteFimDaVotacao(assembleiaId)
   const corpo = Buffer.from(
     JSON.stringify({
       a: aptoId,
       s: assembleiaId,
       exp: Math.floor(Date.now() / 1000) + ttl,
+      c: canal,
     })
   ).toString("base64url")
   const jar = await cookies()
@@ -174,6 +181,8 @@ export type EleitorPorLink = {
   nome: string | null
   cpf: string | null
   email: string | null
+  /** Por onde a sessão foi aberta (sessões antigas, sem a marca: link pessoal). */
+  canal: CanalAcesso
 }
 
 /**
@@ -200,6 +209,7 @@ export const eleitorPorLink = cache(
       nome: (data.nome_completo as string | null) ?? null,
       cpf: (data.cpf as string | null) ?? null,
       email: (data.email_corporativo as string | null) ?? null,
+      canal: (CANAIS_ACESSO as readonly string[]).includes(dados.c ?? "") ? (dados.c as CanalAcesso) : "link_pessoal",
     }
   }
 )

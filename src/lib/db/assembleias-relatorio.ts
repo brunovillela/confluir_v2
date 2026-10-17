@@ -1,6 +1,6 @@
 import "server-only"
 
-import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { ROTULOS_MODALIDADE, temVotoOnline } from "@/lib/assembleias-constantes"
 import {
   dadosApuracao,
   listarAssembleiasDaRodada,
@@ -11,8 +11,10 @@ import { janelaDaAssembleia } from "@/lib/db/assembleias-horarios"
 import { lerEmLotes } from "@/lib/db/comum"
 import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
+import { entregaDaAssembleia, type EntregaAssembleia } from "@/lib/db/votacao-entrega"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { ROTULOS_CANAL_CURTOS, type CanalAcesso } from "@/lib/votacao-canais"
 
 export {
   SECOES_DO_TIPO,
@@ -61,6 +63,8 @@ export type DadosRelatorioApuracao = {
   rodadaComVarias: boolean
   emSeparado: { total: number; pendente: number; deferido: number; indeferido: number }
   votosPorUrna: { urna: string | null; compareceram: number }[]
+  /** Entrega da votação pela internet (fase 4); null sem voto pela internet. */
+  entrega: EntregaAssembleia | null
 }
 
 const CANAL: Record<string, string> = {
@@ -110,6 +114,7 @@ export async function dadosRelatorioApuracao(
     rodadaComVarias,
     emSeparado: acomp?.emSeparadoContagem ?? { total: 0, pendente: 0, deferido: 0, indeferido: 0 },
     votosPorUrna: acomp?.votosPorUrna ?? [],
+    entrega: temVotoOnline(apuracao.modalidade) ? await entregaDaAssembleia(assembleiaId).catch(() => null) : null,
   }
 }
 
@@ -149,7 +154,7 @@ async function votantesDaAssembleia(
     )
   let linhas: Record<string, unknown>[]
   try {
-    linhas = await consulta("id, nome_completo, cpf, matricula, hora_voto, presenca_urna_id, comprovante_canal")
+    linhas = await consulta("id, nome_completo, cpf, matricula, hora_voto, presenca_urna_id, comprovante_canal, acesso_canal")
   } catch {
     // Sem o SQL do comprovante, a coluna do canal não existe.
     linhas = await consulta("id, nome_completo, cpf, matricula, hora_voto, presenca_urna_id")
@@ -172,11 +177,13 @@ async function votantesDaAssembleia(
       const canal =
         t(l.comprovante_canal) ??
         (urna ? (tipoUrna.get(urna) === "fisica" ? "urna_fisica" : "urna_digital") : "online")
+      // Pela internet, o canal de acesso (fase 4) diz mais que "Online".
+      const acesso = t(l.acesso_canal) as CanalAcesso | null
       return {
         nome: t(l.nome_completo),
         cpf: t(l.cpf),
         matricula: t(l.matricula),
-        canal: CANAL[canal] ?? canal,
+        canal: acesso && ROTULOS_CANAL_CURTOS[acesso] ? ROTULOS_CANAL_CURTOS[acesso] : (CANAL[canal] ?? canal),
         quando: t(l.hora_voto),
       }
     })

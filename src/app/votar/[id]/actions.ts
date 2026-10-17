@@ -299,7 +299,7 @@ export async function votarPublico(
       }
     }
     const { registrarVotoPorLink } = await import("@/lib/db/votacao-portal")
-    const rl = await registrarVotoPorLink(porLink.aptoId, assembleiaId, escolhas)
+    const rl = await registrarVotoPorLink(porLink.aptoId, assembleiaId, escolhas, porLink.canal)
     return rl.erro ? { erro: rl.erro } : { ok: "Voto registrado. Obrigado por participar." }
   }
 
@@ -307,7 +307,7 @@ export async function votarPublico(
   const cpf = identidade?.tipo === "filiado" ? identidade.cpf : null
   let r: { erro?: string; ok?: boolean }
   if (cpf) {
-    r = await registrarVotoFiliado(cpf, assembleiaId, escolhas)
+    r = await registrarVotoFiliado(cpf, assembleiaId, escolhas, "codigo_email")
   } else if (user?.email) {
     // Sem os dados do primeiro acesso não há voto: é o que impede a mesma
     // pessoa votar pelo e-mail e, de novo, pelo CPF.

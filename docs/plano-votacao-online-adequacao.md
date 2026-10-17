@@ -116,6 +116,10 @@ link pessoal.
 
 ## Fase 4 — Indicadores de entrega (SQL pequeno)
 
+> **Feita em 17/10/2026** (SQL: `supabase/votacao-acesso-canal.sql`). Os códigos contam só os
+> enviados a e-mails de aptos da assembleia, de 24 h antes da abertura ao fim (o registro de
+> códigos não diz para qual votação). Urna sai do comprovante, sem coluna nova.
+
 Objetivo: medir, em vez de depender de reclamações.
 
 1. **Registrar o canal de acesso de cada voto** no apto, sem tocar no voto, que segue

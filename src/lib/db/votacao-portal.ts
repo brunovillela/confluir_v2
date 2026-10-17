@@ -27,6 +27,7 @@ import {
 } from "@/lib/db/assembleias-horarios"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import type { CanalAcesso } from "@/lib/votacao-canais"
 
 /**
  * Votação na ÁREA DO FILIADO (complemento ao ambiente público).
@@ -614,10 +615,31 @@ export type VotoRegistrado = {
  * ao eleitor, marca a participação no apto (hora_voto) para impedir voto
  * duplo, e lança um apontamento GENÉRICO no prontuário.
  */
+/**
+ * Grava por onde a pessoa entrou para votar (fase 4 do plano de 16/10/2026),
+ * na participação — nunca no voto. Melhor esforço: sem a coluna
+ * (supabase/votacao-acesso-canal.sql) ou com erro, o voto já está gravado.
+ */
+async function marcarCanal(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  emp: string,
+  ids: string[],
+  canal: CanalAcesso
+): Promise<void> {
+  if (ids.length === 0) return
+  try {
+    await admin.from("voto_assembleias_aptos").update({ acesso_canal: canal }).eq("emp_proprietaria_id", emp).in("id", ids)
+  } catch {
+    // o canal é indicador; o voto já está registrado
+  }
+}
+
 export async function registrarVotoFiliado(
   cpf: string,
   assembleiaId: string,
-  escolhas: { perguntaId: string; opcaoId: string }[]
+  escolhas: { perguntaId: string; opcaoId: string }[],
+  /** Por onde entrou: o portal (padrão), o código na página da votação ou o link. */
+  canal: CanalAcesso = "portal"
 ): Promise<VotoRegistrado> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -704,6 +726,8 @@ export async function registrarVotoFiliado(
       .in("id", reservados.map((r) => String(r.id)))
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
+
+  await marcarCanal(admin, emp, reservados.map((r) => String(r.id)), canal)
 
   // 2b) comprovante de participação + e-mail de confirmação (best-effort: o
   //     voto já está registrado, nada aqui pode derrubá-lo).
@@ -1196,7 +1220,9 @@ export async function registrarVotoEleitorEmail(
   assembleiaId: string,
   escolhas: { perguntaId: string; opcaoId: string }[],
   /** Quem se cadastrou pelo link único recebe o comprovante no e-mail confirmado. */
-  emailComprovante?: string | null
+  emailComprovante?: string | null,
+  /** Por onde entrou: o código na página da votação (padrão) ou o link. */
+  canal: CanalAcesso = "codigo_email"
 ): Promise<VotoRegistrado> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -1267,6 +1293,8 @@ export async function registrarVotoEleitorEmail(
       .in("id", reservados.map((r) => String(r.id)))
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
+
+  await marcarCanal(admin, emp, reservados.map((r) => String(r.id)), canal)
 
   const comprovante = await comprovarVoto({
     filtroOu: filtroAptos(escopo, filtros),
@@ -1779,14 +1807,16 @@ export async function elegibilidadePorLink(
 export async function registrarVotoPorLink(
   aptoId: string,
   assembleiaId: string,
-  escolhas: { perguntaId: string; opcaoId: string }[]
+  escolhas: { perguntaId: string; opcaoId: string }[],
+  /** Link pessoal (padrão) ou o link geral, por e-mail pessoal ou Telegram. */
+  canal: CanalAcesso = "link_pessoal"
 ): Promise<{ erro?: string; ok?: boolean }> {
   const apto = await aptoNoEscopo(aptoId, assembleiaId)
   if (!apto) return { erro: "Este link não vale para esta assembleia." }
   const r = apto.email
-    ? await registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas, apto.emailContato)
+    ? await registrarVotoEleitorEmail(apto.email, assembleiaId, escolhas, apto.emailContato, canal)
     : apto.cpf
-      ? await registrarVotoFiliado(apto.cpf, assembleiaId, escolhas)
+      ? await registrarVotoFiliado(apto.cpf, assembleiaId, escolhas, canal)
       : { erro: "Cadastro de eleitor sem e-mail nem CPF — procure o sindicato." }
   // Quem se identificou pelo Telegram recebe o comprovante por lá também.
   if (r.ok && apto.telegramChatId) await comprovantePorTelegram(apto.id, apto.telegramChatId, assembleiaId)

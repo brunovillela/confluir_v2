@@ -227,7 +227,7 @@ export async function abrirCedulaLinkUnico(formData: FormData): Promise<void> {
   if (!vinculo) redirect("/votar")
 
   const { abrirSessaoPorLink } = await import("@/lib/acesso-eleitor")
-  await abrirSessaoPorLink(vinculo.aptoId, assembleiaId)
+  await abrirSessaoPorLink(vinculo.aptoId, assembleiaId, quem.telegram ? "link_unico_telegram" : "link_unico_email")
   redirect(`/votar/${assembleiaId}`)
 }
 

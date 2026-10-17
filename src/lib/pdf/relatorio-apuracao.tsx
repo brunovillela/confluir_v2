@@ -211,6 +211,43 @@ export function RelatorioApuracaoPDF({
           </>
         )}
 
+        {tem("entrega") && d.entrega && (
+          <>
+            <Text style={s.secao}>Entrega da votação pela internet</Text>
+            <View style={s.grade}>
+              <Tile rotulo="Receberam o link pessoal" valor={`${n(d.entrega.link.enviados)} de ${n(d.entrega.aptos)}`} />
+              <Tile
+                rotulo="Link antes da abertura"
+                valor={d.entrega.link.antesDaAbertura === null ? "—" : n(d.entrega.link.antesDaAbertura)}
+              />
+              <Tile rotulo="Códigos pedidos por aptos" valor={n(d.entrega.codigos.enviados)} />
+              <Tile rotulo="Pediram código e não votaram" valor={n(d.entrega.codigos.pediramENaoVotaram)} />
+            </View>
+            {d.entrega.porCanal.map((c) => (
+              <View key={c.canal} style={s.linha}>
+                <Text style={s.cel}>{c.rotulo}</Text>
+                <Text style={s.celNum}>{n(c.votos)}</Text>
+                <Text style={s.celPct}>{pct(c.votos, d.entrega?.votaram ?? 0)}</Text>
+              </View>
+            ))}
+            {d.entrega.codigos.porDominio.length > 0 && (
+              <Text style={s.nota}>
+                Códigos por domínio:{" "}
+                {d.entrega.codigos.porDominio
+                  .slice(0, 6)
+                  .map((x) => `${x.dominio} (${n(x.codigos)})`)
+                  .join(", ")}
+                .
+              </Text>
+            )}
+            {d.entrega.semRegistro > 0 && (
+              <Text style={s.nota}>
+                &quot;Não registrado&quot;: votos de antes de 17/10/2026, quando o canal de acesso ainda não era gravado.
+              </Text>
+            )}
+          </>
+        )}
+
         {tem("em_separado") && (
           <>
             <Text style={s.secao}>Votos em separado</Text>

@@ -16,12 +16,14 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { dadosApuracao, paisDaAssembleia } from "@/lib/db/assembleias"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
+import { entregaDaAssembleia } from "@/lib/db/votacao-entrega"
 import { temVotoOnline } from "@/lib/assembleias-constantes"
 import { formatarDataHora } from "@/lib/formato"
 
 import { TrilhaVotacoes } from "../../trilha"
 import { ApuracaoForm } from "./apuracao-form"
 import { EmSeparadoValidacao } from "./emseparado-validacao"
+import { EntregaCard } from "./entrega-card"
 import { RelatoriosApuracao } from "./relatorios"
 
 export const metadata: Metadata = { title: "Apuração — Confluir" }
@@ -37,6 +39,8 @@ export default async function ApuracaoPage({
   if (!dados) notFound()
   const acomp = await acompanhamentoAssembleia(id)
   const emSeparado = acomp?.emSeparado ?? []
+  // Entrega da votação pela internet (fase 4): participação, nunca o voto.
+  const entrega = temVotoOnline(dados.modalidade) ? await entregaDaAssembleia(id).catch(() => null) : null
 
   const participacao =
     dados.aptos > 0 ? Math.round((dados.votantes / dados.aptos) * 100) : null
@@ -192,6 +196,8 @@ export default async function ApuracaoPage({
           </CardContent>
         </Card>
       )}
+
+      {entrega && <EntregaCard e={entrega} />}
 
       {/* Relatórios da votação online (09/10/2026) — só depois do término. */}
       {dados.apuracaoDisponivel && temVotoOnline(dados.modalidade) && (

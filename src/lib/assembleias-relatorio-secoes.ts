@@ -9,6 +9,7 @@ export const SECOES_RELATORIO = [
   { chave: "resultado", rotulo: "Resultado por pergunta", dica: "Votos por opção, com branco, nulo e porcentagem." },
   { chave: "perguntas", rotulo: "Perguntas e opções", dica: "A cédula como foi apresentada ao eleitor." },
   { chave: "votantes", rotulo: "Relação dos votantes", dica: "Nome, CPF, matrícula, canal e horário do voto." },
+  { chave: "entrega", rotulo: "Entrega da votação pela internet", dica: "Link pessoal, canal de quem votou e códigos por e-mail." },
   { chave: "em_separado", rotulo: "Votos em separado", dica: "Quantos foram deferidos, indeferidos ou estão pendentes." },
   { chave: "urnas", rotulo: "Comparecimento por urna", dica: "Só nas assembleias híbridas." },
 ] as const

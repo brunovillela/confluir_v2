@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Vote } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, BarChart3, Plus, Vote } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -125,12 +125,20 @@ export default async function VotacoesPage({
             Campanhas, rodadas de assembleias e apuração
           </p>
         </div>
-        <Button asChild>
-          <Link href="/painel/representacao/votacoes/campanhas/nova">
-            <Plus />
-            Nova campanha
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/painel/representacao/votacoes/entrega">
+              <BarChart3 />
+              Entrega das votações
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/painel/representacao/votacoes/campanhas/nova">
+              <Plus />
+              Nova campanha
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {!resumo.esquemaPronto && (
