@@ -20,9 +20,12 @@ const ROTULO = {
 export function EmSeparadoValidacao({
   assembleiaId,
   registros,
+  encerrada,
 }: {
   assembleiaId: string
   registros: EmSeparadoLinha[]
+  /** Apuração encerrada: decisões travadas (reabrir para mudar). */
+  encerrada: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     validarEmSeparadoAction,
@@ -36,6 +39,14 @@ export function EmSeparadoValidacao({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+      {encerrada && (
+        <Alert variant="info">
+          <AlertDescription>
+            A apuração está encerrada e o resultado oficial já foi gravado com estas decisões. Para mudar
+            alguma, reabra a apuração.
+          </AlertDescription>
+        </Alert>
+      )}
       {registros.map((s) => (
         <div
           key={s.id}
@@ -47,6 +58,7 @@ export function EmSeparadoValidacao({
               {s.cpf ? formatarCpf(s.cpf) : "sem CPF"}
               {s.dataNascimento ? ` · nasc. ${s.dataNascimento}` : ""}
               {s.urna ? ` · ${s.urna}` : ""}
+              {!s.votou ? " · cadastrado, não chegou a votar" : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -71,7 +83,7 @@ export function EmSeparadoValidacao({
                 value="deferido"
                 size="sm"
                 variant="outline"
-                disabled={pendente || s.status === "deferido"}
+                disabled={encerrada || pendente || s.status === "deferido"}
                 className="border-success/40 text-success-fg"
               >
                 {pendente ? <Loader2 className="animate-spin" /> : <Check />}
@@ -83,7 +95,7 @@ export function EmSeparadoValidacao({
                 value="indeferido"
                 size="sm"
                 variant="outline"
-                disabled={pendente || s.status === "indeferido"}
+                disabled={encerrada || pendente || s.status === "indeferido"}
                 className="border-destructive/40"
               >
                 <X />

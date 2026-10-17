@@ -184,6 +184,36 @@ falta votar — é o botão do meio da votação. **Reenviar para todos** manda 
 lembrete à lista inteira. O e-mail vai para o e-mail corporativo da lista; sem
 ele, para o e-mail do filiado dono do CPF.
 
+### Aptos sem link pessoal
+
+O link pessoal é o que livra o eleitor do código por e-mail, que o firewall da
+empresa costuma barrar. Na assembleia da SLB (14/10), em que todos os aptos
+receberam o link, 79% votaram por ele e quase ninguém reclamou de código; na da
+Baker (07/10), só 20% tinham recebido o link.
+
+Por isso, numa rodada com voto pela internet ainda por abrir ou aberta, o
+sistema avisa quem ainda **não votou e está sem o link**: aviso ainda não
+enviado, **sem e-mail** ou **falha no envio**. ("E-mail repetido" não conta: o
+mesmo endereço já recebeu o link por outro apto.)
+
+- **Alerta no topo da rodada** — "N aptos ainda sem link pessoal de voto", com
+  a data de abertura. Fica **âmbar** a 48 h da abertura e **vermelho** a 24 h ou
+  com a votação aberta. Traz **Ir para o envio**, **Ver quem está sem link** e
+  **Baixar os links (planilha)**.
+- **Filtros na lista de aptos** — em **Link pessoal**: Sem link, Sem e-mail,
+  Falha no envio e E-mail repetido. Na linha de quem ainda não votou, um selo
+  diz o que falta.
+- **Selo nas listas** — "N sem link" na campanha (por rodada) e na lista de
+  Votações (por campanha).
+- **Caixa de entrada do painel** — com a votação aberta ou abrindo em até 48 h,
+  entra a pendência **Aptos sem link pessoal de voto** para quem cuida das
+  votações. Vai também no lembrete diário de pendências, para quem o ligou em
+  Meu perfil → Avisos.
+
+A **planilha** traz nome, CPF, matrícula, telefone, situação e o link pessoal de
+cada um: serve para distribuir por WhatsApp, delegados ou na portaria a quem não
+tem e-mail. Cada link vota por aquela pessoa — trate a planilha como sigilosa.
+
 ### Mandar o link por WhatsApp ou Telegram
 
 Quando alguém diz que não recebeu o e-mail, o ícone de **corrente** na linha do
@@ -427,10 +457,15 @@ perguntas com as opções e a área de marcação.
 
 ## Voto em separado
 
-É o voto de quem **alega ter direito mas não está na lista de aptos**. No
-ambiente do mesário, em **Voto em separado**, cadastre o eleitor (nome completo,
-CPF, data de nascimento, telefone e e-mail). O sistema mostra na tela as
-**orientações do procedimento** (anotações e envelope) e:
+É o voto de quem **alega ter direito mas não está na lista de aptos**. Existe
+só nas **urnas presenciais** e só quando a chave **Voto em separado** está
+ligada no cadastro da assembleia — desligada, o mesário não tem a opção. Na
+votação pela internet, quem não está na lista não vota (a chave nem aparece
+para assembleia só online).
+
+No ambiente do mesário, em **Voto em separado**, cadastre o eleitor (nome
+completo, CPF, data de nascimento, telefone e e-mail). O sistema mostra na tela
+as **orientações do procedimento** (anotações e envelope) e:
 
 <PassoAPasso>
   <Passo titulo="Urna digital">
@@ -445,7 +480,17 @@ CPF, data de nascimento, telefone e e-mail). O sistema mostra na tela as
 
 Na **apuração**, cada voto em separado é **deferido** (entra na contagem) ou
 **indeferido** (é descartado). Na urna digital, a contagem passa a incluir os
-deferidos automaticamente; na física, use a lista como controle dos envelopes.
+deferidos automaticamente; na física, o apurador vê na tela da urna quais
+envelopes abrir e somar (os deferidos), quais esperar (sem decisão) e quais
+guardar sem abrir (indeferidos). Os números por opção da página da rodada
+também só contam os votos válidos.
+
+<Aviso tipo="atencao" titulo="Decida todos antes de encerrar">
+  A apuração **não se encerra** com voto em separado sem decisão — senão ele
+  ficaria fora do resultado oficial sem ninguém perceber. Depois de encerrada, os
+  botões **Deferir** e **Indeferir** travam: para mudar uma decisão, **reabra a
+  apuração** e encerre de novo.
+</Aviso>
 
 ## Acompanhamento e lacres
 

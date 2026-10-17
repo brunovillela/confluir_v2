@@ -151,15 +151,18 @@ export default async function OperarUrnaPage({
             }
             aptos={dados.aptos}
           />
-          <div className="border-t pt-3">
-            <VotoEmSeparado
-              urnaId={dados.urnaId}
-              aberta={
-                dados.aberta &&
-                (dados.tipo !== "fisica" || dados.estadoDia.abertaHoje)
-              }
-            />
-          </div>
+          {/* Só com a chave "Voto em separado" ligada na assembleia. */}
+          {dados.votoEmSeparado && (
+            <div className="border-t pt-3">
+              <VotoEmSeparado
+                urnaId={dados.urnaId}
+                aberta={
+                  dados.aberta &&
+                  (dados.tipo !== "fisica" || dados.estadoDia.abertaHoje)
+                }
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -25,10 +25,12 @@ import {
   type AtividadeCampanha,
   type OrdemCampanha,
 } from "@/lib/db/assembleias"
+import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
 
 import { linkUnicoVotacao } from "./actions"
+import { SeloSemLink } from "./selo-sem-link"
 
 export const metadata: Metadata = { title: "Votações — Confluir" }
 
@@ -68,7 +70,7 @@ export default async function VotacoesPage({
   const ascPedido =
     brutos.dir === "asc" ? true : brutos.dir === "desc" ? false : undefined
 
-  const [resumo, lista, empresas] = await Promise.all([
+  const [resumo, lista, empresas, semLink] = await Promise.all([
     resumoAssembleias(),
     listarCampanhas({
       busca,
@@ -80,6 +82,7 @@ export default async function VotacoesPage({
       asc: ascPedido,
     }),
     empresasDasCampanhas(),
+    semLinkDasRodadas(),
   ])
 
   const filtrosQuery = (mudancas: Record<string, string>) => {
@@ -320,6 +323,21 @@ export default async function VotacoesPage({
                       >
                         {c.tema ?? "(sem tema)"}
                       </Link>
+                      {(() => {
+                        const daCampanha = semLink.filter((r) => r.campanhaId === c.id)
+                        return daCampanha.length > 0 ? (
+                          <div className="mt-1">
+                            <SeloSemLink
+                              itens={daCampanha}
+                              href={
+                                daCampanha.length === 1
+                                  ? `/painel/representacao/votacoes/rodadas/${daCampanha[0].rodadaId}?link=sem_link#aptos`
+                                  : `/painel/representacao/votacoes/campanhas/${c.id}`
+                              }
+                            />
+                          </div>
+                        ) : null
+                      })()}
                     </TableCell>
                     <TableCell className="max-w-72">
                       {c.fontes.length === 0 ? (

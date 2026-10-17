@@ -177,12 +177,18 @@ export default async function ApuracaoPage({
             </CardTitle>
             <CardDescription>
               Defira os que têm direito (o voto entra na contagem) ou indefira
-              (o voto é descartado). Nas urnas físicas, use como controle dos
-              envelopes; nas digitais, a contagem acima já respeita a decisão.
+              (o voto é descartado). Nas urnas digitais, a contagem acima já
+              respeita a decisão; nas físicas, some à contagem da urna as
+              cédulas dos envelopes deferidos. A apuração só se encerra com
+              todos decididos.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EmSeparadoValidacao assembleiaId={dados.id} registros={emSeparado} />
+            <EmSeparadoValidacao
+              assembleiaId={dados.id}
+              registros={emSeparado}
+              encerrada={dados.apuracaoEncerrada}
+            />
           </CardContent>
         </Card>
       )}

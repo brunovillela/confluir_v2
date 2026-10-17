@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { flagsDaModalidade, MODALIDADES } from "@/lib/assembleias-constantes"
+import { flagsDaModalidade, MODALIDADES, temUrna } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
@@ -276,7 +276,8 @@ function dadosAssembleia(formData: FormData): {
       nome,
       descricao: texto(formData, "descricao") || null,
       ...flagsDaModalidade(modalidade),
-      voto_em_separado: texto(formData, "voto_em_separado") === "on",
+      // Voto em separado só existe nas urnas (16/10/2026).
+      voto_em_separado: temUrna(modalidade) && texto(formData, "voto_em_separado") === "on",
       somente_filiados: texto(formData, "somente_filiados") === "on",
       data_inicio: dataISO(texto(formData, "data_inicio")),
       data_termino: dataISO(texto(formData, "data_termino")),

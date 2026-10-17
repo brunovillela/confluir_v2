@@ -141,6 +141,8 @@ function CamposAssembleia({
   assembleia?: AssembleiaLinha
   prefixo: string
 }) {
+  // A modalidade decide se a chave do voto em separado faz sentido (só urnas).
+  const [modalidade, setModalidade] = useState<Modalidade>(assembleia?.modalidade ?? "online")
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2">
@@ -212,7 +214,8 @@ function CamposAssembleia({
         <Label>Modalidade *</Label>
         <RadioGroup
           name="modalidade"
-          defaultValue={assembleia?.modalidade ?? "online"}
+          value={modalidade}
+          onValueChange={(v) => setModalidade(v as Modalidade)}
           className="grid gap-2 md:grid-cols-2"
         >
           {MODALIDADES.map((m) => (
@@ -234,7 +237,10 @@ function CamposAssembleia({
         </RadioGroup>
       </div>
 
-      <VotoEmSeparadoSwitch inicial={assembleia?.voto_em_separado ?? false} />
+      <VotoEmSeparadoSwitch
+        inicial={assembleia?.voto_em_separado ?? false}
+        comUrna={temUrna(modalidade)}
+      />
       <SomenteFiliadosSwitch inicial={assembleia?.somente_filiados ?? false} />
 
       <div className="grid gap-3 rounded-lg border p-3">
@@ -317,20 +323,41 @@ function SomenteFiliadosSwitch({ inicial }: { inicial: boolean }) {
   )
 }
 
-function VotoEmSeparadoSwitch({ inicial }: { inicial: boolean }) {
+/**
+ * Voto em separado: o mesário cadastra o eleitor que alega direito mas não
+ * está na lista, e o voto só conta se deferido na apuração. Existe só nas
+ * urnas — na votação pela internet, quem não está na lista não vota. Desligada,
+ * o mesário não tem o botão (16/10/2026).
+ */
+function VotoEmSeparadoSwitch({ inicial, comUrna }: { inicial: boolean; comUrna: boolean }) {
   const [ativo, setAtivo] = useState(inicial)
+  if (!comUrna) {
+    return (
+      <p className="text-muted-foreground text-xs">
+        Voto em separado: só nas urnas presenciais. Na votação pela internet, quem não está na lista de
+        aptos não vota.
+      </p>
+    )
+  }
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <Switch
-        checked={ativo}
-        onCheckedChange={setAtivo}
-        aria-label="Permitir voto em separado"
-      />
-      <span className={ativo ? "font-medium" : "text-muted-foreground"}>
-        Voto em separado
-      </span>
-      <input type="hidden" name="voto_em_separado" value={ativo ? "on" : ""} />
-    </label>
+    <div className="grid gap-1">
+      <label className="flex items-center gap-2 text-sm">
+        <Switch
+          checked={ativo}
+          onCheckedChange={setAtivo}
+          aria-label="Permitir voto em separado"
+        />
+        <span className={ativo ? "font-medium" : "text-muted-foreground"}>
+          Voto em separado
+        </span>
+        <input type="hidden" name="voto_em_separado" value={ativo ? "on" : ""} />
+      </label>
+      <p className="text-muted-foreground text-xs">
+        {ativo
+          ? "O mesário pode cadastrar quem alega direito mas não está na lista; o voto só conta se deferido na apuração."
+          : "Desligado, o mesário não tem a opção: quem não está na lista não vota."}
+      </p>
+    </div>
   )
 }
 
@@ -462,7 +489,7 @@ function AssembleiaItem({
               apuracaoEncerrada={assembleia.apuracao_encerrada}
             />
             <ModalidadeBadge modalidade={assembleia.modalidade} />
-            {assembleia.voto_em_separado && (
+            {assembleia.voto_em_separado && temUrna(assembleia.modalidade) && (
               <Badge variant="outline">Voto em separado</Badge>
             )}
             {assembleia.somente_filiados && (

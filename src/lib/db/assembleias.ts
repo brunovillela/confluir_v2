@@ -173,7 +173,13 @@ export type AptoLinha = {
   /** Cadastro feito pelo link único de votação (/votar) e o e-mail confirmado. */
   cadastro_canal?: string | null
   email_contato?: string | null
+  /** Situação do link pessoal (aviso por e-mail): ver votacao-sem-link.ts. */
+  aviso_email_em?: string | null
+  aviso_email_erro?: string | null
 }
+
+/** Filtro da lista de aptos pela situação do link pessoal de voto. */
+export type FiltroLinkApto = "sem_link" | "sem_email" | "falha" | "duplicado"
 
 // ── Resumo (hub) ───────────────────────────────────────────────────────────
 
@@ -1056,15 +1062,36 @@ export async function listarPerguntas(
         .in("pergunta_id", perguntaIds)
         .order("created_at", { ascending: true }),
       // Todos os votos (paginado): o PostgREST corta em 1.000 linhas e a
-      // contagem por opção parava aí (auditoria de 10/10/2026).
-      lerEmLotes<{ pergunta_id: string | null; resposta_id: string | null }>((de, ate) =>
-        admin
-          .from("voto_online")
-          .select("id, pergunta_id, resposta_id")
-          .in("pergunta_id", perguntaIds)
-          .order("id")
-          .range(de, ate)
-      ).then(
+      // contagem por opção parava aí (auditoria de 10/10/2026). Só os
+      // válidos: anulado fora e voto em separado só se DEFERIDO — a mesma
+      // régua da apuração (16/10/2026).
+      Promise.all([
+        lerEmLotes<{
+          pergunta_id: string | null
+          resposta_id: string | null
+          em_separado_id: string | null
+        }>((de, ate) =>
+          admin
+            .from("voto_online")
+            .select("id, pergunta_id, resposta_id, em_separado_id")
+            .in("pergunta_id", perguntaIds)
+            .not("valido", "is", false)
+            .order("id")
+            .range(de, ate)
+        ),
+        lerEmLotes<{ id: string }>((de, ate) =>
+          admin
+            .from("voto_em_separado")
+            .select("id")
+            .eq("rod_assembleia_id", rodadaId)
+            .eq("status", "deferido")
+            .order("id")
+            .range(de, ate)
+        ).catch((): { id: string }[] => []),
+      ]).then(([lidos, deferidos]) => {
+        const valem = new Set(deferidos.map((d) => String(d.id)))
+        return lidos.filter((v) => !v.em_separado_id || valem.has(String(v.em_separado_id)))
+      }).then(
         (data) => ({ data, error: null as { message: string } | null }),
         (e: unknown) => ({ data: [], error: { message: e instanceof Error ? e.message : "?" } })
       ),
@@ -1733,6 +1760,8 @@ export async function listarAptos(
     porPagina?: number
     /** "sim" = já votou (hora_voto preenchida); "nao" = ainda não votou. */
     votou?: "sim" | "nao"
+    /** Situação do link pessoal; "sem_link" = ainda não votou e sem link (pendente, sem e-mail ou falha). */
+    link?: FiltroLinkApto
   }
 ): Promise<{
   linhas: AptoLinha[]
@@ -1771,6 +1800,14 @@ export async function listarAptos(
   }
   if (filtros.votou === "sim") q = q.not("hora_voto", "is", null)
   if (filtros.votou === "nao") q = q.is("hora_voto", null)
+  if (filtros.link === "sem_link") {
+    q = q
+      .is("hora_voto", null)
+      .is("presenca_em", null)
+      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha)")
+  } else if (filtros.link) {
+    q = q.eq("aviso_email_erro", filtros.link)
+  }
 
   const de = (pagina - 1) * porPagina
   const { data, error, count } = await q
@@ -1791,6 +1828,8 @@ export async function listarAptos(
       conflito_motivo: (a.conflito_motivo as string | null) ?? null,
       cadastro_canal: (a.cadastro_canal as string | null) ?? null,
       email_contato: (a.email_contato as string | null) ?? null,
+      aviso_email_em: (a.aviso_email_em as string | null) ?? null,
+      aviso_email_erro: (a.aviso_email_erro as string | null) ?? null,
     })),
     total: count ?? 0,
     pagina,
@@ -2408,6 +2447,28 @@ export async function encerrarApuracao(
   if (!dados.apuracaoDisponivel) {
     return {
       erro: "A apuração só pode ser encerrada após o término da assembleia.",
+    }
+  }
+
+  // Trava: voto em separado sem decisão ficaria fora do resultado oficial sem
+  // ninguém perceber (16/10/2026). Conta só quem chegou a votar — o cadastro
+  // cujo eleitor não votou não tem voto a decidir.
+  const { count: semDecisao, error: erroSeparado } = await admin
+    .from("voto_em_separado")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", assembleiaId)
+    .eq("status", "pendente")
+    .not("votou_em", "is", null)
+  if (erroSeparado && !esquemaAusente(erroSeparado)) {
+    return { erro: `Não foi possível conferir os votos em separado: ${erroSeparado.message}` }
+  }
+  if ((semDecisao ?? 0) > 0) {
+    return {
+      erro:
+        semDecisao === 1
+          ? "Há 1 voto em separado sem decisão. Defira ou indefira antes de encerrar a apuração."
+          : `Há ${semDecisao} votos em separado sem decisão. Defira ou indefira cada um antes de encerrar a apuração.`,
     }
   }
 

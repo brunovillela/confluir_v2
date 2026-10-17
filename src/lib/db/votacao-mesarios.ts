@@ -584,6 +584,8 @@ export type OperacaoUrna = {
   fechamento: string | null
   assembleiaId: string
   assembleiaNome: string | null
+  /** A assembleia aceita voto em separado (chave no cadastro dela). */
+  votoEmSeparado: boolean
   totalAptos: number
   compareceram: number
   terminalPareado: boolean
@@ -663,10 +665,13 @@ export async function operacaoUrna(
       .limit(1),
     admin
       .from("voto_assembleias")
-      .select("nome_assembleia")
+      .select("nome_assembleia, voto_em_separado")
       .eq("id", urna.assembleiaId)
       .maybeSingle()
-      .then((r) => txt(r.data?.nome_assembleia)),
+      .then((r) => ({
+        nome: txt(r.data?.nome_assembleia),
+        votoEmSeparado: r.data?.voto_em_separado === true,
+      })),
   ])
 
   return {
@@ -677,7 +682,8 @@ export async function operacaoUrna(
     abertura: urna.abertura,
     fechamento: urna.fechamento,
     assembleiaId: urna.assembleiaId,
-    assembleiaNome,
+    assembleiaNome: assembleiaNome.nome,
+    votoEmSeparado: assembleiaNome.votoEmSeparado,
     totalAptos: totalAptos ?? 0,
     compareceram: compareceram ?? 0,
     terminalPareado: (term ?? []).length > 0,
@@ -1574,9 +1580,14 @@ export async function registrarVotoEmSeparado(
 
   const { data: a } = await admin
     .from("voto_assembleias")
-    .select("rod_assembleia_id")
+    .select("rod_assembleia_id, voto_em_separado")
     .eq("id", urna.assembleiaId)
     .maybeSingle()
+  // A chave do cadastro da assembleia vale (16/10/2026): desligada, não há
+  // voto em separado — o eleitor fora da lista não vota.
+  if (a?.voto_em_separado !== true) {
+    return { erro: "Esta assembleia não aceita voto em separado." }
+  }
 
   const digital = urna.tipo === "digital"
   const { data: reg, error } = await admin
@@ -1854,12 +1865,33 @@ export async function acompanhamentoAssembleia(
   }
 }
 
-/** Defere/indefere um voto em separado (na apuração). */
+/**
+ * Defere/indefere um voto em separado (na apuração). Com a apuração
+ * encerrada, a decisão fica travada: o resultado oficial já foi gravado e não
+ * mudaria — é preciso reabrir a apuração (16/10/2026).
+ */
 export async function validarEmSeparado(
   id: string,
   status: "deferido" | "indeferido"
 ): Promise<{ erro?: string; ok?: boolean }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: reg } = await admin
+    .from("voto_em_separado")
+    .select("assembleia_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!reg) return { erro: "Registro não encontrado." }
+  const { data: a } = await admin
+    .from("voto_assembleias")
+    .select("apuracao_encerrada")
+    .eq("id", String(reg.assembleia_id))
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (a?.apuracao_encerrada === true) {
+    return { erro: "A apuração está encerrada. Reabra a apuração para mudar a decisão." }
+  }
   const agora = new Date().toISOString()
   const { error } = await admin
     .from("voto_em_separado")

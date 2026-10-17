@@ -21,8 +21,10 @@ import {
   obterCampanha,
 } from "@/lib/db/assembleias"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { formatarData } from "@/lib/formato"
 
+import { SeloSemLink } from "../../selo-sem-link"
 import { TrilhaVotacoes } from "../../trilha"
 import { CampanhaForm, type FonteOpcao } from "../campanha-form"
 import { NovaRodadaForm } from "./nova-rodada-form"
@@ -46,7 +48,10 @@ export default async function CampanhaPage({
   ])
   if (!campanha) notFound()
 
-  const rodadas = await listarRodadasDaCampanha(id)
+  const [rodadas, semLink] = await Promise.all([
+    listarRodadasDaCampanha(id),
+    semLinkDasRodadas({ campanhaIds: [id] }),
+  ])
   const opcoes: FonteOpcao[] = fontes.map((f) => ({
     id: f.id,
     nome: f.nome_fantasia?.trim() || f.nome_razao?.trim() || "(sem nome)",
@@ -137,7 +142,13 @@ export default async function CampanhaPage({
                       {r.assembleias}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {r.aptos.toLocaleString("pt-BR")}
+                      <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                        <SeloSemLink
+                          itens={semLink.filter((s) => s.rodadaId === r.id)}
+                          href={`/painel/representacao/votacoes/rodadas/${r.id}?link=sem_link#aptos`}
+                        />
+                        {r.aptos.toLocaleString("pt-BR")}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {r.votosOnline.toLocaleString("pt-BR")}

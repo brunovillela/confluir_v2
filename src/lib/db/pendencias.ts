@@ -7,6 +7,7 @@ import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
+import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
 import { ATENDIMENTO_AGUARDANDO_EQUIPE } from "@/lib/atendimento-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -417,6 +418,30 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   }
 
   const limite = dataLimiteParada()
+  // Votação pela internet aberta ou abrindo em até 48 h com aptos sem o link
+  // pessoal (plano de 16/10/2026): sem ele, o eleitor depende do código por
+  // e-mail, que o firewall da empresa barra. Vai também no lembrete diário.
+  if (pode("assembleias")) {
+    const urgentes = (await rodadasComAptosSemLink({ client, emp })).filter((r) => semLinkUrgente(r))
+    if (urgentes.length > 0) {
+      fontes.push({
+        chave: "votacao_sem_link",
+        titulo: "Aptos sem link pessoal de voto",
+        descricao:
+          urgentes.length === 1
+            ? `${urgentes[0].rodadaNome ?? "Rodada"}: votação pela internet ${urgentes[0].aberta ? "aberta" : "abre em até 48 h"}`
+            : `${urgentes.length} rodadas com votação pela internet aberta ou abrindo em até 48 h`,
+        href:
+          urgentes.length === 1
+            ? `/painel/representacao/votacoes/rodadas/${urgentes[0].rodadaId}?link=sem_link#aptos`
+            : "/painel/representacao/votacoes",
+        tabela: "voto_assembleias_aptos",
+        montar: (q) => head(q),
+        contarCom: async () => urgentes.reduce((s, r) => s + r.semLink, 0),
+      })
+    }
+  }
+
   const contagens = await Promise.all(
     fontes.map(async (f) => {
       if (f.contarCom) return { quantidade: await f.contarCom(), antigas: undefined }

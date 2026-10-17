@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Box } from "lucide-react"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -44,6 +45,43 @@ export default async function ApurarUrnaPage({
           {dados.tipo === "fisica" ? "física" : "digital"}
         </p>
       </div>
+
+      {/* Envelopes de voto em separado (urna física): o apurador soma à
+          contagem só as cédulas dos deferidos (16/10/2026). */}
+      {dados.tipo === "fisica" &&
+        dados.emSeparado.deferidos.length + dados.emSeparado.pendentes + dados.emSeparado.indeferidos > 0 && (
+          <Alert variant={dados.emSeparado.pendentes > 0 ? "warning" : "info"}>
+            <AlertTitle>Envelopes de voto em separado</AlertTitle>
+            <AlertDescription>
+              {dados.emSeparado.deferidos.length > 0 && (
+                <p>
+                  <strong>
+                    {dados.emSeparado.deferidos.length}{" "}
+                    {dados.emSeparado.deferidos.length === 1 ? "deferido" : "deferidos"}
+                  </strong>{" "}
+                  — abra e some à contagem abaixo as cédulas de: {dados.emSeparado.deferidos.join(", ")}.
+                </p>
+              )}
+              {dados.emSeparado.pendentes > 0 && (
+                <p>
+                  <strong>
+                    {dados.emSeparado.pendentes} sem decisão
+                  </strong>{" "}
+                  — não abra esses envelopes; a comissão decide na apuração da assembleia.
+                </p>
+              )}
+              {dados.emSeparado.indeferidos > 0 && (
+                <p>
+                  <strong>
+                    {dados.emSeparado.indeferidos}{" "}
+                    {dados.emSeparado.indeferidos === 1 ? "indeferido" : "indeferidos"}
+                  </strong>{" "}
+                  — não entram na contagem; guarde sem abrir.
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
       <Card>
         <CardHeader>

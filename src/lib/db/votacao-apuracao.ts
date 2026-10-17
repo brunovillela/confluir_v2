@@ -276,6 +276,12 @@ export type ApuracaoUrnaDados = {
     status: "nao_iniciada" | "em_andamento" | "concluida"
   }
   contagem: ContagemLinha[]
+  /**
+   * Envelopes de voto em separado desta urna (física): os deferidos entram na
+   * contagem, os pendentes esperam a decisão na apuração, os indeferidos são
+   * descartados sem abrir (16/10/2026).
+   */
+  emSeparado: { deferidos: string[]; pendentes: number; indeferidos: number }
 }
 
 export async function dadosApuracaoUrna(
@@ -286,7 +292,7 @@ export async function dadosApuracaoUrna(
   const { emp, urna } = auth
   const admin = await createAdminClient()
 
-  const [assembleiaNome, perguntas, lacres, { data: sessao }] =
+  const [assembleiaNome, perguntas, lacres, { data: sessao }, { data: separados }] =
     await Promise.all([
       admin
         .from("voto_assembleias")
@@ -302,7 +308,20 @@ export async function dadosApuracaoUrna(
         .eq("emp_proprietaria_id", emp)
         .eq("urna_id", urnaId)
         .maybeSingle(),
+      admin
+        .from("voto_em_separado")
+        .select("nome_completo, status")
+        .eq("emp_proprietaria_id", emp)
+        .eq("urna_id", urnaId)
+        .not("votou_em", "is", null)
+        .order("nome_completo"),
     ])
+  const emSeparado = { deferidos: [] as string[], pendentes: 0, indeferidos: 0 }
+  for (const s of separados ?? []) {
+    if (s.status === "deferido") emSeparado.deferidos.push(txt(s.nome_completo) ?? "(sem nome)")
+    else if (s.status === "indeferido") emSeparado.indeferidos++
+    else emSeparado.pendentes++
+  }
 
   let contagem: ContagemLinha[] = []
   if (sessao?.id) {
@@ -338,6 +357,7 @@ export async function dadosApuracaoUrna(
             : "nao_iniciada",
     },
     contagem,
+    emSeparado,
   }
 }
 

@@ -21,11 +21,13 @@ import {
 import {
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
   periodoTerminado,
+  temVotoOnline,
 } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { iniciarVisualizacaoEleitor } from "@/lib/actions/visualizacao-eleitor"
 import {
   contarAptosPorVoto,
+  type FiltroLinkApto,
   listarAptos,
   listarAssembleiasDaRodada,
   listarPerguntas,
@@ -38,6 +40,7 @@ import {
   situacaoDaAssembleia,
 } from "@/lib/db/assembleias-horarios"
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
+import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 
@@ -56,6 +59,7 @@ import { Perguntas } from "./perguntas"
 import { linkUnicoVotacao } from "../../actions"
 import { TrilhaVotacoes } from "../../trilha"
 import { RodadaForm } from "./rodada-form"
+import { SemLinkAlerta } from "./sem-link-alerta"
 
 export const metadata: Metadata = { title: "Rodada de assembleias — Confluir" }
 
@@ -65,6 +69,7 @@ const INPUT_FILTRO =
 type Params = {
   busca?: string
   votou?: string
+  link?: string
   aptosPagina?: string
   aptosPorPagina?: string
   criada?: string
@@ -86,21 +91,27 @@ export default async function RodadaPage({
   const busca = (brutos.busca ?? "").trim()
   const votou =
     brutos.votou === "sim" || brutos.votou === "nao" ? brutos.votou : undefined
+  // Situação do link pessoal (plano de 16/10/2026): exclui o filtro de voto.
+  const link = (["sem_link", "sem_email", "falha", "duplicado"] as const).find((v) => v === brutos.link) as
+    | FiltroLinkApto
+    | undefined
   const { pagina, porPagina } = lerPaginacao(brutos, APTOS_PADRAO, "aptos")
 
   const rodada = await obterRodada(id)
   if (!rodada) notFound()
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
-      listarAptos(id, { busca, pagina, porPagina, votou }),
+      listarAptos(id, { busca, pagina, porPagina, votou: link ? undefined : votou, link }),
       contarAptosPorVoto(id),
       urlArquivoAssembleias(rodada.edital_url),
       urlArquivoAssembleias(rodada.card_grafico_url),
       resumoAvisoAptos(id),
+      semLinkDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
     ])
+  const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
 
   // Travas de edição — a MESMA função que as actions usam, para a tela nunca
   // prometer o que o servidor recusa.
@@ -181,6 +192,8 @@ export default async function RodadaPage({
         </Alert>
       )}
 
+      {semLink && <SemLinkAlerta rodadaId={rodada.id} r={semLink} />}
+
       {/* Faixa de resumo: tudo o que situa a rodada numa linha só. */}
       <Card className="py-0">
         <CardContent className="flex flex-wrap gap-x-10 gap-y-3 py-4">
@@ -243,7 +256,7 @@ export default async function RodadaPage({
             atas={atas}
             terminoDaRodada={rodada.termino}
           />
-          <Card>
+          <Card id="aptos" className="scroll-mt-4">
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-base">
@@ -261,7 +274,8 @@ export default async function RodadaPage({
                   className="flex flex-wrap items-center gap-2"
                   action={`/painel/representacao/votacoes/rodadas/${rodada.id}`}
                 >
-                  {votou && <input type="hidden" name="votou" value={votou} />}
+                  {votou && !link && <input type="hidden" name="votou" value={votou} />}
+                  {link && <input type="hidden" name="link" value={link} />}
                   {porPagina !== APTOS_PADRAO && (
                     <input
                       type="hidden"
@@ -283,24 +297,58 @@ export default async function RodadaPage({
                 <div className="flex flex-wrap gap-1.5">
                   <FiltroVotou
                     rotulo="Todos"
-                    ativo={!votou}
+                    ativo={!votou && !link}
                     href={hrefFiltro({ busca, porPagina })}
                     contagem={contagemAptos.total}
                   />
                   <FiltroVotou
                     rotulo="Já votou"
-                    ativo={votou === "sim"}
+                    ativo={votou === "sim" && !link}
                     href={hrefFiltro({ busca, votou: "sim", porPagina })}
                     contagem={contagemAptos.votaram}
                   />
                   <FiltroVotou
                     rotulo="Não votou"
-                    ativo={votou === "nao"}
+                    ativo={votou === "nao" && !link}
                     href={hrefFiltro({ busca, votou: "nao", porPagina })}
                     contagem={contagemAptos.ausentes}
                   />
                 </div>
               </div>
+
+              {/* Link pessoal de voto: quem ficou sem ele depende do código por
+                  e-mail (plano de 16/10/2026). */}
+              {temOnline && aviso.esquemaPronto && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-muted-foreground mr-1 text-xs">Link pessoal:</span>
+                  {(semLink || link === "sem_link") && (
+                    <FiltroVotou
+                      rotulo="Sem link"
+                      ativo={link === "sem_link"}
+                      href={hrefFiltro({ busca, link: "sem_link", porPagina })}
+                      contagem={semLink?.semLink ?? 0}
+                    />
+                  )}
+                  {[
+                    { chave: "sem_email" as const, rotulo: "Sem e-mail", n: aviso.semEmail },
+                    { chave: "falha" as const, rotulo: "Falha no envio", n: aviso.falhas },
+                    { chave: "duplicado" as const, rotulo: "E-mail repetido", n: aviso.duplicados },
+                  ]
+                    .filter((f) => f.n > 0 || link === f.chave)
+                    .map((f) => (
+                      <FiltroVotou
+                        key={f.chave}
+                        rotulo={f.rotulo}
+                        ativo={link === f.chave}
+                        href={hrefFiltro({ busca, link: f.chave, porPagina })}
+                        contagem={f.n}
+                      />
+                    ))}
+                  {!semLink && aviso.semEmail + aviso.falhas + aviso.duplicados === 0 && link !== "sem_link" && (
+                    <span className="text-success-fg text-xs">todos os que ainda não votaram têm o link.</span>
+                  )}
+                </div>
+              )}
 
               {contagemAptos.total > 0 && (
                 <ExclusaoEmMassaAptos
@@ -312,7 +360,7 @@ export default async function RodadaPage({
               {aptos.linhas.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">
                   <UsersRound className="mx-auto mb-2 size-5" />
-                  {busca || votou
+                  {busca || votou || link
                     ? "Nenhum eleitor encontrado com estes filtros."
                     : "Nenhum eleitor cadastrado nesta rodada ainda."}
                 </p>
@@ -389,6 +437,7 @@ export default async function RodadaPage({
                         </TableCell>
                         <TableCell className="max-w-64 truncate">
                           {a.email_corporativo ?? "—"}
+                          {temOnline && !a.hora_voto && <SituacaoLink apto={a} />}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {a.hora_voto ? formatarDataHora(a.hora_voto) : "—"}
@@ -447,6 +496,7 @@ export default async function RodadaPage({
             motivoBloqueio={motivoPerguntas}
           />
           <AvisoAptos
+            id="aviso-aptos"
             rodadaId={rodada.id}
             resumo={aviso}
             bloqueio={
@@ -467,15 +517,18 @@ export default async function RodadaPage({
 function hrefFiltro({
   busca,
   votou,
+  link,
   porPagina,
 }: {
   busca: string
   votou?: "sim" | "nao"
+  link?: FiltroLinkApto
   porPagina: number
 }): string {
   const q = new URLSearchParams()
   if (busca) q.set("busca", busca)
   if (votou) q.set("votou", votou)
+  if (link) q.set("link", link)
   if (porPagina !== APTOS_PADRAO) q.set("aptosPorPagina", String(porPagina))
   const s = q.toString()
   return s ? `?${s}` : "?"
@@ -508,6 +561,32 @@ function FiltroVotou({
         </Badge>
       </Link>
     </Button>
+  )
+}
+
+/** Selo do link pessoal na linha do apto que ainda não votou (só o que falta). */
+function SituacaoLink({
+  apto,
+}: {
+  apto: { aviso_email_em?: string | null; aviso_email_erro?: string | null }
+}) {
+  const rotulo =
+    apto.aviso_email_erro === "sem_email"
+      ? "Sem e-mail"
+      : apto.aviso_email_erro === "falha"
+        ? "Falha no envio"
+        : !apto.aviso_email_em
+          ? "Link não enviado"
+          : null
+  if (!rotulo) return null
+  return (
+    <Badge
+      variant="outline"
+      className="border-warning/40 text-warning-fg ml-1.5"
+      title="Sem o link pessoal, a pessoa depende do código por e-mail. Use o botão de link de voto para mandar por outro canal."
+    >
+      {rotulo}
+    </Badge>
   )
 }
 

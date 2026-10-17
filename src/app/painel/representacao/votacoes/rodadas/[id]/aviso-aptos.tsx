@@ -21,10 +21,13 @@ type Mensagem = { tipo: "ok" | "erro"; texto: string } | null
  * repete ninguém — e quem entrar na lista mais tarde aparece como pendente.
  */
 export function AvisoAptos({
+  id,
   rodadaId,
   resumo,
   bloqueio,
 }: {
+  /** Âncora do alerta "Ir para o envio" (aptos sem link). */
+  id?: string
   rodadaId: string
   resumo: ResumoAvisoAptos
   /** Motivo para não enviar (sem assembleia, período encerrado…). */
@@ -107,7 +110,7 @@ export function AvisoAptos({
   const travado = enviando || ocupado
 
   return (
-    <Card>
+    <Card id={id} className="scroll-mt-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Mail className="size-4" />
