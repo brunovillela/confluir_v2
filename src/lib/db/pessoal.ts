@@ -763,6 +763,8 @@ export type MeuDocumentoPessoal = {
   remessaNome: string | null
   arquivo: string | null
   created_at: string | null
+  /** Só no ponto: horas extras realizadas e o banco ao fim do mês (horas decimais). */
+  horas?: { he70: number; he100: number; saldo: number }
 }
 
 /** Contracheques e espelhos de ponto LIBERADOS do próprio funcionário. */
@@ -778,7 +780,7 @@ export async function meusDocumentosPessoal(
       .eq("liberado", true),
     admin
       .from("pessoal_registro_ponto")
-      .select("id, arquivo, remessa_id, created_at")
+      .select("id, arquivo, remessa_id, created_at, horas_realizadas_70, horas_realizadas_100, saldo_remanescente_70, saldo_remanescente_100")
       .eq("funcionario_id", usuarioId)
       .eq("liberado", true),
     admin
@@ -817,6 +819,11 @@ export async function meusDocumentosPessoal(
       remessaNome: nomeP.get(String(i.remessa_id))?.nome_remessa ?? null,
       arquivo: (i.arquivo as string | null) ?? null,
       created_at: (i.created_at as string | null) ?? null,
+      horas: {
+        he70: Number(i.horas_realizadas_70 ?? 0),
+        he100: Number(i.horas_realizadas_100 ?? 0),
+        saldo: Number(i.saldo_remanescente_70 ?? 0) + Number(i.saldo_remanescente_100 ?? 0),
+      },
     })),
   }
 }

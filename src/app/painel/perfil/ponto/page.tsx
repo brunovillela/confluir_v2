@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
+import { hojeSP } from "@/lib/db/comum"
 import { Clock4 } from "lucide-react"
 
 import {
@@ -29,6 +31,13 @@ export default async function MeuPontoPage({
   const params = await searchParams
   const paginacao = lerPaginacao(params, 10)
 
+  // Indicadores (padrão de 3 níveis): horas extras e banco, só dos espelhos liberados.
+  const anoAtual = hojeSP().slice(0, 4)
+  const anoDe = (nome: string | null, criado: string | null) => /(20\d{2})/.exec(nome ?? "")?.[1] ?? (criado ?? "").slice(0, 4)
+  const doAno = pontos.filter((p) => anoDe(p.remessaNome, p.created_at) === anoAtual)
+  const heAno = doAno.reduce((s, p) => s + (p.horas?.he70 ?? 0) + (p.horas?.he100 ?? 0), 0)
+  const he100Ano = doAno.reduce((s, p) => s + (p.horas?.he100 ?? 0), 0)
+  const h = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h`
   return (
     <>
       <div>
@@ -39,6 +48,15 @@ export default async function MeuPontoPage({
           Espelhos de ponto liberados pelo departamento de pessoal.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo={`Horas extras em ${anoAtual}`} valor={h(heAno)} nota={`${h(he100Ano)} a 100%`} />
+        <TileIndicador
+          rotulo="Meses com horas extras"
+          valor={`${doAno.filter((p) => (p.horas?.he70 ?? 0) + (p.horas?.he100 ?? 0) > 0).length} de ${doAno.length}`}
+        />
+        <TileIndicador rotulo="Banco de horas" valor={h(pontos[0]?.horas?.saldo ?? 0)} nota={pontos[0]?.remessaNome ? `ao fim de ${pontos[0].remessaNome}` : undefined} />
+      </section>
 
       <Card>
         <CardHeader>

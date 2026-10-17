@@ -1,4 +1,7 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
+import { hojeSP } from "@/lib/db/comum"
+import { situacaoDoFuncionario } from "@/lib/ferias-painel"
 import { ExternalLink, TreePalm } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -59,6 +62,9 @@ export default async function MinhasFeriasPage({
       }
     })
 
+  // Indicadores (padrão de 3 níveis): a mesma situação de férias que a gestão vê.
+  const situacaoFerias = situacaoDoFuncionario(ferias, hojeSP(), null)
+  const gozadosFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).gozados, 0)
   return (
     <>
       <div>
@@ -69,6 +75,17 @@ export default async function MinhasFeriasPage({
           seguinte ao último.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Saldo a gozar" valor={`${situacaoFerias.saldo} dia(s)`} nota={`${situacaoFerias.periodosAbertos} período(s) em aberto`} />
+        <TileIndicador rotulo="Prazo para gozar" valor={situacaoFerias.prazo ? formatarData(situacaoFerias.prazo) : "—"} nota="fim do concessivo com saldo" />
+        <TileIndicador
+          rotulo="Próximas férias"
+          valor={situacaoFerias.proximoGozo ? formatarData(situacaoFerias.proximoGozo.inicio) : "—"}
+          nota={situacaoFerias.proximoGozo ? (situacaoFerias.proximoGozo.autorizado ? "autorizadas" : "aguardando autorização") : "nada marcado"}
+        />
+        <TileIndicador rotulo="Dias já gozados" valor={String(gozadosFerias)} />
+      </section>
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">

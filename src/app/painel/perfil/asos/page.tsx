@@ -1,4 +1,7 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
+import { hojeSP } from "@/lib/db/comum"
+import { ROTULO_SITUACAO_ASO, situacaoAso } from "@/lib/aso-situacao"
 import { ExternalLink, HeartPulse } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +39,9 @@ export default async function MeusAsosPage() {
     urls.set(a.id, await urlArquivoPessoal(a.arquivo))
   }
 
+  // Indicadores (padrão de 3 níveis): a vigência do exame, como a gestão vê.
+  const ultimoAso = [...asos].filter((a) => a.realizado !== false).sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""))[0]
+  const sitAso = situacaoAso(ultimoAso, hojeSP())
   return (
     <>
       <div>
@@ -45,6 +51,12 @@ export default async function MeusAsosPage() {
           exames periódicos.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Situação" valor={ROTULO_SITUACAO_ASO[sitAso]} />
+        <TileIndicador rotulo="Último exame" valor={ultimoAso ? formatarData(ultimoAso.data) : "—"} nota={ultimoAso?.tipo ?? undefined} />
+        <TileIndicador rotulo="Vencimento" valor={ultimoAso?.vencimento ? formatarData(ultimoAso.vencimento) : "—"} />
+      </section>
 
       <Card>
         <CardHeader>

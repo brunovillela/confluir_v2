@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
+import { hojeSP } from "@/lib/db/comum"
 import { Award, TrendingUp } from "lucide-react"
 
 import {
@@ -37,6 +39,11 @@ export default async function MinhaCarreiraPage() {
   const anuenioAtual = carreira.anuenios[0] ?? null
   const nivelAtual = carreira.niveis[0] ?? null
 
+  // Indicadores (padrão de 3 níveis): o mesmo resumo da Carreira que a gestão vê.
+  const hojeCarreira = hojeSP()
+  const anuAtual = carreira.anuenios[0]
+  const nivAtual = carreira.niveis[0]
+  const atrasadoNota = (d: string | null | undefined) => (d && d < hojeCarreira ? " · em atualização pelo departamento" : "")
   return (
     <>
       <div>
@@ -46,6 +53,37 @@ export default async function MinhaCarreiraPage() {
           acordo coletivo.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {anuAtual && (
+          <>
+            <TileIndicador
+              rotulo="Anuênio atual"
+              valor={formatarAliquota(anuAtual.nivelAtual?.aliquota)}
+              nota={`nível ${anuAtual.nivelAtual?.nivel ?? "?"} desde ${formatarData(anuAtual.nivel_atual_data)}`}
+            />
+            <TileIndicador
+              rotulo="Próximo anuênio"
+              valor={anuAtual.proximo_nivel_data ? formatarData(anuAtual.proximo_nivel_data) : "—"}
+              nota={anuAtual.proximoNivel ? `${formatarAliquota(anuAtual.proximoNivel.aliquota)}${atrasadoNota(anuAtual.proximo_nivel_data)}` : undefined}
+            />
+          </>
+        )}
+        {nivAtual && (
+          <>
+            <TileIndicador
+              rotulo="Nível salarial"
+              valor={rotuloNivelSalarial(nivAtual.nivelAtual)}
+              nota={nivAtual.nivelAtual?.salario_base != null ? `salário básico ${formatarMoeda(nivAtual.nivelAtual.salario_base)}` : undefined}
+            />
+            <TileIndicador
+              rotulo="Próxima progressão"
+              valor={nivAtual.proximo_nivel_data ? formatarData(nivAtual.proximo_nivel_data) : "—"}
+              nota={nivAtual.proximoNivel ? rotuloNivelSalarial(nivAtual.proximoNivel) : undefined}
+            />
+          </>
+        )}
+      </section>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>

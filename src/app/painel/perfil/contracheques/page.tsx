@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
+import { hojeSP } from "@/lib/db/comum"
 import { ReceiptText } from "lucide-react"
 
 import {
@@ -30,6 +32,10 @@ export default async function MeusContrachequesPage({
   const params = await searchParams
   const pagContracheques = lerPaginacao(params, 10, "c")
 
+  // Indicadores (padrão de 3 níveis): os mesmos números que a gestão vê, só do que foi liberado.
+  const anoAtual = hojeSP().slice(0, 4)
+  const anoDe = (nome: string | null, criado: string | null) => /(20\d{2})/.exec(nome ?? "")?.[1] ?? (criado ?? "").slice(0, 4)
+  const noAno = contracheques.filter((c) => anoDe(c.remessaNome, c.created_at) === anoAtual).length
   return (
     <>
       <div>
@@ -40,6 +46,12 @@ export default async function MeusContrachequesPage({
           Contracheques liberados pelo departamento de pessoal.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo={`Contracheques em ${anoAtual}`} valor={String(noAno)} />
+        <TileIndicador rotulo="Último liberado" valor={contracheques[0]?.remessaNome ?? "—"} />
+        <TileIndicador rotulo="Disponíveis" valor={String(contracheques.length)} nota="em todo o histórico" />
+      </section>
 
       <Card>
         <CardHeader>

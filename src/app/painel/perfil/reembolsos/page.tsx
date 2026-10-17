@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
 import { ExternalLink, ReceiptText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -52,6 +53,10 @@ export default async function MeusReembolsosPage({
     urls.set(r.id, await urlArquivoPessoal(r.comprovante_url))
   }
 
+  // Indicadores (padrão de 3 níveis): os números do ano, como a gestão vê.
+  const anoReemb = new Date().getFullYear().toString()
+  const doAnoReemb = reembolsos.filter((r) => (r.created_at ?? "").startsWith(anoReemb))
+  const somaAprovado = (lista: typeof reembolsos) => lista.reduce((t, r) => t + (r.valor_aprovado ?? 0), 0)
   return (
     <>
       <div>
@@ -63,6 +68,13 @@ export default async function MeusReembolsosPage({
           são pagos no seu contracheque.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo={`Pedidos em ${anoReemb}`} valor={String(doAnoReemb.length)} />
+        <TileIndicador rotulo="Reembolsado no ano" valor={formatarMoeda(somaAprovado(doAnoReemb.filter((r) => r.situacao === "aprovado" || r.situacao === "pago")))} />
+        <TileIndicador rotulo="A receber no contracheque" valor={formatarMoeda(somaAprovado(reembolsos.filter((r) => r.situacao === "aprovado")))} />
+        <TileIndicador rotulo="Aguardando avaliação" valor={String(reembolsos.filter((r) => r.situacao === "aguardando").length)} />
+      </section>
 
       {!disponivel && (
         <Alert>

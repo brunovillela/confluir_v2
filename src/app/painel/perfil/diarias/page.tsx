@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
 import Link from "next/link"
 import { AlertTriangle, HandCoins } from "lucide-react"
 
@@ -81,6 +82,11 @@ export default async function MinhasDiariasPage({
     )
   )
 
+  // Indicadores (padrão de 3 níveis): os números do ano, como a gestão vê.
+  const anoDiarias = new Date().getFullYear().toString()
+  const aprovadasAno = solicitacoes.filter(
+    (s) => s.situacao === "aprovada" && (s.data_inicio ?? s.created_at ?? "").startsWith(anoDiarias)
+  )
   return (
     <>
       <div>
@@ -95,6 +101,15 @@ export default async function MinhasDiariasPage({
           </Link>
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador
+          rotulo={`Diárias recebidas em ${anoDiarias}`}
+          valor={String(aprovadasAno.filter((s) => !s.complementoDe).reduce((t, s) => t + (s.quantidade ?? 1), 0))}
+        />
+        <TileIndicador rotulo="Valor recebido" valor={formatarMoeda(aprovadasAno.reduce((t, s) => t + (s.valor_total ?? 0) + s.valorDespesas, 0))} nota="diárias e despesas" />
+        <TileIndicador rotulo="Aguardando avaliação" valor={String(solicitacoes.filter((s) => s.situacao === "aguardando").length)} />
+      </section>
 
       {!disponivel && (
         <Alert>

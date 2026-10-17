@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
 import { ExternalLink, FileBadge } from "lucide-react"
 
 import {
@@ -46,6 +47,11 @@ export default async function MeusInformesPage() {
           Documentos para a sua declaração de imposto de renda.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Último ano-base" valor={informes[0]?.ano ?? "—"} />
+        <TileIndicador rotulo="Informes disponíveis" valor={String(informes.length)} />
+      </section>
 
       <Card>
         <CardHeader>

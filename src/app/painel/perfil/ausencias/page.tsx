@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
 import Link from "next/link"
 import { ArrowLeft, CalendarX2 } from "lucide-react"
 
@@ -34,6 +35,9 @@ export default async function MinhasAusenciasPage() {
     meusAtestados(usuario.id),
   ])
 
+  // Indicadores (padrão de 3 níveis): os números do ano.
+  const anoAtual = new Date().getFullYear().toString()
+  const atAno = atestados.filter((a) => (a.inicio ?? "").startsWith(anoAtual))
   return (
     <>
       <div className="flex items-center gap-2">
@@ -53,6 +57,12 @@ export default async function MinhasAusenciasPage() {
           pessoal
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo={`Atestados em ${anoAtual}`} valor={String(atAno.length)} />
+        <TileIndicador rotulo="Dias de afastamento" valor={String(atAno.reduce((s, a) => s + (a.quantidade_dias ?? 0), 0))} />
+        <TileIndicador rotulo={`Ausências em ${anoAtual}`} valor={String(ausencias.filter((a) => (a.inicio ?? "").startsWith(anoAtual)).length)} />
+      </section>
 
       <Card>
         <CardHeader>

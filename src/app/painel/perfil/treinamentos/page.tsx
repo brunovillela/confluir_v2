@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { TileIndicador } from "@/components/graficos/tile"
 import { ExternalLink, GraduationCap } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +37,8 @@ export default async function MeusTreinamentosPage() {
     urls.set(t.id, await urlArquivoPessoal(t.certificado_url))
   }
 
+  // Indicadores (padrão de 3 níveis): a trilha da pessoa.
+  const cargaTreinos = treinamentos.reduce((s, t) => s + (t.carga_horaria ?? 0), 0)
   return (
     <>
       <div>
@@ -47,6 +50,12 @@ export default async function MeusTreinamentosPage() {
           validade.
         </p>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Treinamentos feitos" valor={String(treinamentos.length)} />
+        <TileIndicador rotulo="Carga horária" valor={`${cargaTreinos.toLocaleString("pt-BR")} h`} />
+        <TileIndicador rotulo="Certificados vencidos" valor={String(treinamentos.filter((t) => t.vencido).length)} />
+      </section>
 
       <Card>
         <CardHeader>
