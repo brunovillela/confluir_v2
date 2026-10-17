@@ -56,6 +56,32 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
       ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
     ]
+  : process.env.RODADA === "areas"
+  ? [
+      // Rodada de 17/10 (25): as outras áreas do Pessoal no padrão de 3 níveis
+      // (nível 1 = indicadores, fila e aba Funcionários) e as abas que os artigos descrevem.
+      ["/painel/pessoal/contracheques", "pessoal/contracheques-area.png", { esperar: "Valor líquido no ano", altura: 1000 }],
+      ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png", { esperar: "Adicionar contracheque", altura: 1100 }],
+      ["/painel/pessoal/ponto?aba=remessas", "pessoal/ponto-remessas.png", { esperar: "Meses sem remessa", altura: 1000 }],
+      ["/painel/pessoal/informes", "pessoal/informes-area.png", { esperar: "Anos-base", altura: 900 }],
+      ["/painel/pessoal/informes?aba=remessas", "pessoal/informes.png", { esperar: "Anos-base", altura: 900 }],
+      ["/painel/pessoal/niveis", "pessoal/niveis-area.png", { esperar: "Salário básico (soma)", altura: 1000 }],
+      ["/painel/pessoal/niveis?aba=lancamentos", "pessoal/niveis.png", { esperar: "Salário básico (soma)", altura: 1000 }],
+      ["/painel/pessoal/anuenios", "pessoal/anuenios-area.png", { esperar: "Ativos com anuênio", altura: 1000 }],
+      ["/painel/pessoal/anuenios?aba=lancamentos", "pessoal/anuenios.png", { esperar: "Ativos com anuênio", altura: 1000 }],
+      ["/painel/pessoal/diarias", "pessoal/diarias-area.png", { esperar: "Funcionários", altura: 1000 }],
+      ["/painel/pessoal/diarias?aba=solicitacoes", "pessoal/diarias.png", { esperar: "Funcionários", altura: 1000 }],
+      ["/painel/pessoal/reembolsos", "pessoal/reembolsos-area.png", { esperar: "Aprovados a pagar", altura: 1000 }],
+      ["/painel/pessoal/reembolsos?aba=solicitacoes", "pessoal/reembolsos.png", { esperar: "Aprovados a pagar", altura: 1000 }],
+      ["/painel/pessoal/faltas", "pessoal/faltas-area.png", { esperar: "No limite do ano", altura: 1000 }],
+      ["/painel/pessoal/atestados", "pessoal/atestados-area.png", { esperar: "Acima de 15 dias", altura: 1000 }],
+      ["/painel/pessoal/atestados?aba=atestados", "pessoal/atestados.png", { esperar: "Acima de 15 dias", altura: 1000 }],
+      ["/painel/pessoal/aso", "pessoal/aso-area.png", { esperar: "Vencem em 90 dias", altura: 1000 }],
+      ["/painel/pessoal/aso?aba=registros", "pessoal/aso.png", { esperar: "Vencem em 90 dias", altura: 1000 }],
+      ["/painel/pessoal/treinamentos", "pessoal/treinamentos-area.png", { esperar: "Exigidos pendentes", altura: 1000 }],
+      ["/painel/pessoal/treinamentos?aba=catalogo", "pessoal/treinamentos.png", { esperar: "Exigidos pendentes", altura: 1000 }],
+      ["/painel/pessoal/atribuicoes/funcionarios", "pessoal/sst-funcionarios.png", { esperar: "SST por funcionário", altura: 1000 }],
+    ]
   : process.env.RODADA === "ferias"
   ? [
       // Rodada de 17/10 (24): Férias no padrão de 3 níveis e os dias autorizados.

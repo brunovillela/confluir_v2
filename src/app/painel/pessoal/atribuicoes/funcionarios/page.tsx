@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { linkDeOrdem } from "@/components/coluna-ordenavel"
 import { TileIndicador } from "@/components/graficos/tile"
+import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
 import { RiscoBadge } from "@/components/pessoal/risco-badge"
 import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
@@ -74,6 +75,7 @@ export default async function SstFuncionariosPage({
 
   return (
     <>
+      <RotuloTrilha valores={{ funcionarios: "Funcionários" }} />
       <VoltarLista chave="sst-hub" base="/painel/pessoal/atribuicoes" rotulo="Atribuições e SST" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">SST por funcionário</h1>
