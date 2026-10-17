@@ -243,7 +243,7 @@ const SHOTS_ANTIGOS = [
   /* Rodada de 30/09 (11): Auditoria das ordens — regras de Compras, a ordem com
   // as verificações na criação e a fila de avaliação com os alertas. A ordem de
   // exemplo (compra direta de R$ 15.000) é criada e apagada pelo teste.
-  ["/painel/financeiro/auditoria?origem=compras", "financeiro/auditoria-regras.png", { esperar: "Uma só proposta", fullPage: true }],
+  ["/painel/financeiro/auditoria?origem=compras", "financeiro/auditoria-regras.png", { esperar: "Auditoria das ordens", fullPage: true }],
   ["/painel/financeiro/ordens/eb6f7eb6-33c5-4532-9a59-9469eede24e3", "financeiro/ordem-verificacoes.png", { esperar: "Verificações da auditoria", scrollTo: "Verificações da auditoria", altura: 1000 }],
   ["/painel/compras/avaliacoes", "compras/avaliacoes.png", { esperar: "Na sua alçada", altura: 1100 }],
   */
@@ -272,7 +272,7 @@ const SHOTS_ANTIGOS = [
     passos: [
       { clicar: SWITCH_DIRETA },
       { clicar: 'css=button[aria-pressed]:has-text("Manual")' },
-      { preencher: ['input[placeholder="Busque por nome ou CNPJ/CPF"]', "Tech Supri"] },
+      { preencher: ['input[placeholder="Busque por nome fantasia, razão social ou CNPJ/CPF"]', "Tech Supri"] },
       { clicar: "Tech Suprimentos" },
       { selecionar: ["#forma_pagamento", "Pix"] },
       { aguardar: "Chave Pix do fornecedor" },
