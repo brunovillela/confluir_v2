@@ -102,6 +102,16 @@ export default async function CampanhaPage({
         )}
       </div>
 
+      {caminho.fontesDaCampanha.length === 0 && (
+        <Alert variant="error">
+          <CircleAlert />
+          <AlertDescription>
+            Esta campanha está <strong>sem fonte pagadora</strong>. Não há votação sem fonte: escolha a fonte em
+            &ldquo;Editar campanha&rdquo; (ao lado). Até lá, não dá para criar rodadas nem criar ou editar assembleias.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {criada === "1" && (
         <Alert variant="success">
           <AlertDescription>Campanha criada. Agora cadastre as rodadas de assembleias.</AlertDescription>

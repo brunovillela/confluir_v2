@@ -594,10 +594,46 @@ export async function obterCampanha(
   }
 }
 
+/**
+ * NÃO HÁ VOTAÇÃO SEM FONTE PAGADORA (regra do usuário, 17/10/2026): a
+ * campanha da rodada de 20/10 foi criada sem fonte e caiu em "Sem fonte
+ * pagadora", sem o nome da empresa em lugar nenhum. A campanha exige ao menos
+ * uma fonte, e rodada e assembleia não nascem nem mudam numa campanha sem ela.
+ */
+export const ERRO_SEM_FONTE =
+  "Escolha ao menos uma fonte pagadora — não há votação sem fonte pagadora."
+
+/** A campanha tem ao menos uma fonte pagadora vinculada? */
+export async function campanhaTemFonte(campanhaId: string | null): Promise<boolean> {
+  if (!campanhaId) return false
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("voto_campanha_fontes")
+    .select("id", { count: "exact", head: true })
+    .eq("campanha_id", campanhaId)
+  if (error) return esquemaAusente(error)
+  return (count ?? 0) > 0
+}
+
+/** Rodada e assembleia só numa campanha com fonte: o motivo, ou null. */
+async function semFonteNaRodada(rodadaId: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_rod_assembleias")
+    .select("campanha_id")
+    .eq("id", rodadaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return (await campanhaTemFonte((data?.campanha_id as string | null) ?? null))
+    ? null
+    : "A campanha desta rodada está sem fonte pagadora. Vincule a fonte na campanha antes — não há votação sem fonte pagadora."
+}
+
 export async function criarCampanha(dados: {
   tema: string
   fonteIds: string[]
 }): Promise<{ id?: string; erro?: string }> {
+  if (dados.fonteIds.length === 0) return { erro: ERRO_SEM_FONTE }
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("voto_campanha")
@@ -620,6 +656,7 @@ export async function atualizarCampanha(
   id: string,
   dados: { tema: string; finalizado: boolean; fonteIds: string[] }
 ): Promise<{ erro?: string }> {
+  if (dados.fonteIds.length === 0) return { erro: ERRO_SEM_FONTE }
   const admin = await createAdminClient()
   const { error } = await admin
     .from("voto_campanha")
@@ -765,6 +802,9 @@ export async function criarRodada(dados: {
   clausula_filiacao_coletiva?: boolean
   filiacao_coletiva_dias?: number | null
 }): Promise<{ id?: string; erro?: string }> {
+  if (!(await campanhaTemFonte(dados.campanha_id))) {
+    return { erro: "Esta campanha está sem fonte pagadora. Edite a campanha e vincule a fonte antes de criar a rodada." }
+  }
   const admin = await createAdminClient()
   const base = {
     campanha_id: dados.campanha_id,
@@ -1365,6 +1405,8 @@ export async function criarAssembleia(dados: {
   sala_data: string | null
   sala_hora: string | null
 }): Promise<{ id?: string; erro?: string }> {
+  const semFonte = await semFonteNaRodada(dados.rod_assembleia_id)
+  if (semFonte) return { erro: semFonte }
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("voto_assembleias")
@@ -1419,6 +1461,12 @@ export async function atualizarAssembleia(
     ata?: string
   }
 ): Promise<{ erro?: string }> {
+  {
+    const admin = await createAdminClient()
+    const { data: atual } = await admin.from("voto_assembleias").select("rod_assembleia_id").eq("id", id).maybeSingle()
+    const semFonte = atual?.rod_assembleia_id ? await semFonteNaRodada(String(atual.rod_assembleia_id)) : null
+    if (semFonte) return { erro: semFonte }
+  }
   const admin = await createAdminClient()
   const atualizacao: Record<string, unknown> = {
     nome_assembleia: dados.nome,

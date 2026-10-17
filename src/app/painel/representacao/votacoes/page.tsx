@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { BarChart3, Building2, CircleAlert, Plus, Vote } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, BarChart3, Building2, CircleAlert, Plus, Vote } from "lucide-react"
 
 import { ModalidadeBadge } from "@/components/assembleias"
 import { CopiarLinkBotao } from "@/components/copiar-link"
@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { resumoAssembleias } from "@/lib/db/assembleias"
-import { listarFontesVotacao, painelVotacoes, type OrdemFontes } from "@/lib/db/votacao-painel"
+import { listarFontesVotacao, painelVotacoes, SENTIDO_PADRAO, type OrdemFontes } from "@/lib/db/votacao-painel"
 import { participacao } from "@/lib/db/votacao-panorama"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
@@ -24,12 +24,7 @@ import { ContagemRegressiva } from "./contagem-regressiva"
 export const metadata: Metadata = { title: "Votações — Confluir" }
 
 const INPUT = "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none"
-const ORDENS: { chave: OrdemFontes; rotulo: string }[] = [
-  { chave: "proxima", rotulo: "Próxima votação" },
-  { chave: "ultima", rotulo: "Última votação" },
-  { chave: "nome", rotulo: "Nome" },
-  { chave: "campanhas", rotulo: "Nº de campanhas" },
-]
+const ORDENS: OrdemFontes[] = ["nome", "campanhas", "proxima", "ultima", "participacao"]
 
 type Busca = {
   busca?: string
@@ -38,6 +33,7 @@ type Busca = {
   ano?: string
   em7dias?: string
   ordem?: string
+  dir?: string
   pagina?: string
 }
 
@@ -51,7 +47,8 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
   await requirePermissao("assembleias")
   const sp = await searchParams
   const situacao = sp.situacao === "abertas" || sp.situacao === "encerradas" ? sp.situacao : ""
-  const ordem = (ORDENS.find((o) => o.chave === sp.ordem)?.chave ?? "proxima") as OrdemFontes
+  const ordem: OrdemFontes = ORDENS.includes(sp.ordem as OrdemFontes) ? (sp.ordem as OrdemFontes) : "proxima"
+  const dir = sp.dir === "asc" || sp.dir === "desc" ? sp.dir : SENTIDO_PADRAO[ordem]
   const filtros = {
     busca: (sp.busca ?? "").trim(),
     grupo: sp.grupo ?? "",
@@ -59,6 +56,7 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
     ano: sp.ano ?? "",
     em7dias: sp.em7dias === "1",
     ordem,
+    dir: dir as "asc" | "desc",
     pagina: Number(sp.pagina) > 0 ? Number(sp.pagina) : 1,
   }
 
@@ -77,6 +75,7 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
       ano: filtros.ano,
       em7dias: filtros.em7dias ? "1" : "",
       ordem: filtros.ordem === "proxima" ? "" : filtros.ordem,
+      dir: filtros.dir === SENTIDO_PADRAO[filtros.ordem] ? "" : filtros.dir,
       pagina: filtros.pagina > 1 ? String(filtros.pagina) : "",
       ...mudar,
     }
@@ -255,13 +254,9 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
                 ))}
               </select>
             )}
-            <select name="ordem" defaultValue={filtros.ordem === "proxima" ? "" : filtros.ordem} className={INPUT} aria-label="Ordenar por">
-              {ORDENS.map((o) => (
-                <option key={o.chave} value={o.chave === "proxima" ? "" : o.chave}>
-                  Ordenar: {o.rotulo}
-                </option>
-              ))}
-            </select>
+            {/* A ordem escolhida nos títulos da tabela segue ao filtrar. */}
+            {filtros.ordem !== "proxima" && <input type="hidden" name="ordem" value={filtros.ordem} />}
+            {filtros.dir !== SENTIDO_PADRAO[filtros.ordem] && <input type="hidden" name="dir" value={filtros.dir} />}
             <label className="flex items-center gap-1.5 text-sm">
               <input type="checkbox" name="em7dias" value="1" defaultChecked={filtros.em7dias} className="size-4" />
               Votação em 7 dias
@@ -269,7 +264,7 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
             <Button type="submit" variant="outline" size="sm">
               Filtrar
             </Button>
-            {(filtros.busca || filtros.grupo || filtros.situacao || filtros.ano || filtros.em7dias || filtros.ordem !== "proxima") && (
+            {(filtros.busca || filtros.grupo || filtros.situacao || filtros.ano || filtros.em7dias || filtros.ordem !== "proxima" || filtros.dir !== SENTIDO_PADRAO[filtros.ordem]) && (
               <Button variant="ghost" size="sm" asChild>
                 <Link href={RAIZ_VOTACOES}>Limpar</Link>
               </Button>
@@ -283,11 +278,21 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fonte pagadora</TableHead>
-                    <TableHead className="text-right">Campanhas</TableHead>
-                    <TableHead>Próxima votação</TableHead>
-                    <TableHead>Última votação</TableHead>
-                    <TableHead className="text-right">Participação (última)</TableHead>
+                    <TableHead>
+                      <Ordenavel rotulo="Fonte pagadora" coluna="nome" filtros={filtros} query={query} />
+                    </TableHead>
+                    <TableHead>
+                      <Ordenavel rotulo="Campanhas" coluna="campanhas" filtros={filtros} query={query} direita />
+                    </TableHead>
+                    <TableHead>
+                      <Ordenavel rotulo="Próxima votação" coluna="proxima" filtros={filtros} query={query} />
+                    </TableHead>
+                    <TableHead>
+                      <Ordenavel rotulo="Última votação" coluna="ultima" filtros={filtros} query={query} />
+                    </TableHead>
+                    <TableHead>
+                      <Ordenavel rotulo="Participação (última)" coluna="participacao" filtros={filtros} query={query} direita />
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -347,6 +352,43 @@ export default async function VotacoesPage({ searchParams }: { searchParams: Pro
         </CardContent>
       </Card>
     </>
+  )
+}
+
+/**
+ * Título de coluna que ordena: clicar ordena pela coluna (no sentido padrão
+ * dela); clicar de novo inverte. A seta mostra a coluna e o sentido ativos.
+ */
+function Ordenavel({
+  rotulo,
+  coluna,
+  filtros,
+  query,
+  direita,
+}: {
+  rotulo: string
+  coluna: OrdemFontes
+  filtros: { ordem: OrdemFontes; dir: "asc" | "desc" }
+  query: (mudar: Partial<Record<keyof Busca, string>>) => string
+  direita?: boolean
+}) {
+  const ativa = filtros.ordem === coluna
+  const proximo = ativa ? (filtros.dir === "asc" ? "desc" : "asc") : SENTIDO_PADRAO[coluna]
+  const Icone = !ativa ? ArrowUpDown : filtros.dir === "asc" ? ArrowUp : ArrowDown
+  return (
+    <Link
+      href={query({
+        ordem: coluna === "proxima" ? "" : coluna,
+        dir: proximo === SENTIDO_PADRAO[coluna] ? "" : proximo,
+        pagina: "",
+      })}
+      className={`hover:text-foreground flex items-center gap-1 ${direita ? "justify-end" : ""} ${ativa ? "text-foreground font-medium" : ""}`}
+      aria-label={`Ordenar por ${rotulo}`}
+      aria-sort={ativa ? (filtros.dir === "asc" ? "ascending" : "descending") : undefined}
+    >
+      {rotulo}
+      <Icone className={`size-3 ${ativa ? "" : "opacity-40"}`} />
+    </Link>
   )
 }
 

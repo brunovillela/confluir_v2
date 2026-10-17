@@ -212,7 +212,7 @@ function CampanhaFormEdicao({
           )}
 
           <div className="grid gap-1.5">
-            <Label>Fontes pagadoras</Label>
+            <Label>Fontes pagadoras *</Label>
             <Input
               type="search"
               value={busca}
@@ -246,7 +246,7 @@ function CampanhaFormEdicao({
             </div>
             <p className="text-muted-foreground text-xs">
               {selecionadas.size === 0
-                ? "Nenhuma fonte selecionada."
+                ? "Escolha ao menos uma — não há votação sem fonte pagadora."
                 : `${selecionadas.size} fonte${selecionadas.size === 1 ? "" : "s"} selecionada${selecionadas.size === 1 ? "" : "s"}.`}
             </p>
           </div>
@@ -254,7 +254,7 @@ function CampanhaFormEdicao({
       </Card>
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={pendente}>
+        <Button type="submit" disabled={pendente || selecionadas.size === 0}>
           {pendente ? <Loader2 className="animate-spin" /> : <Save />}
           {campanha ? "Salvar campanha" : "Criar campanha"}
         </Button>

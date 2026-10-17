@@ -237,6 +237,18 @@ export default async function RodadaPage({
         </Alert>
       )}
 
+      {caminho.campanha && caminho.fontesDaCampanha.length === 0 && (
+        <Alert variant="error">
+          <AlertDescription>
+            A campanha desta rodada está <strong>sem fonte pagadora</strong> — não há votação sem fonte. Até vincular,
+            não dá para criar nem editar assembleias.{" "}
+            <Link href={hrefCampanha(caminho.campanha.id, null)} className="font-medium underline underline-offset-4">
+              Vincular a fonte na campanha
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {semLink && <SemLinkAlerta rodadaId={rodada.id} fonte={fonte} r={semLink} />}
 
       {/* Faixa de resumo: tudo o que situa a rodada numa linha só. */}

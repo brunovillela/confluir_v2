@@ -159,6 +159,20 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
       }
     }
   }
+  // Não há votação sem fonte pagadora (regra de 17/10/2026): campanha com
+  // rodada por vir ou em votação e sem fonte vinculada.
+  const avisadas = new Set<string>()
+  for (const r of panorama) {
+    if (!r.campanhaId || avisadas.has(r.campanhaId) || fontesPorCampanha.has(r.campanhaId)) continue
+    if (r.situacao !== "agendada" && r.situacao !== "em_votacao") continue
+    avisadas.add(r.campanhaId)
+    alertas.push({
+      tom: "erro",
+      texto: `A campanha "${campanhaPorId.get(r.campanhaId)?.tema ?? "sem tema"}" tem votação ${r.situacao === "em_votacao" ? "aberta" : "marcada"} e está sem fonte pagadora.`,
+      rotulo: "Vincular a fonte",
+      href: `/painel/representacao/votacoes/campanhas/${r.campanhaId}`,
+    })
+  }
   // Envio automático desligado em rodada online que abre em até 72 h.
   const janelas = await janelasOnline({ client: admin, emp }).catch(() => [])
   for (const j of janelas) {
@@ -213,7 +227,16 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
 
 // ── Fontes pagadoras ────────────────────────────────────────────────────────
 
-export type OrdemFontes = "nome" | "ultima" | "proxima" | "campanhas"
+export type OrdemFontes = "nome" | "campanhas" | "proxima" | "ultima" | "participacao"
+
+/** Sentido padrão de cada coluna (clicar de novo inverte). */
+export const SENTIDO_PADRAO: Record<OrdemFontes, "asc" | "desc"> = {
+  nome: "asc",
+  campanhas: "desc",
+  proxima: "asc",
+  ultima: "desc",
+  participacao: "desc",
+}
 
 export type LinhaFonte = {
   id: string
@@ -241,6 +264,8 @@ export type FiltrosFontes = {
   ano?: string
   em7dias?: boolean
   ordem?: OrdemFontes
+  /** Sentido; sem ele, o padrão da coluna. */
+  dir?: "asc" | "desc"
   pagina?: number
   porPagina?: number
 }
@@ -341,18 +366,43 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
     return true
   })
   const ordem = f.ordem ?? "proxima"
+  const sentido = f.dir ?? SENTIDO_PADRAO[ordem]
+  const s = sentido === "asc" ? 1 : -1
+
+  // Participação da última rodada (contagens no banco): de todas as fontes
+  // quando a ordem é por ela; senão, só das desta página (mais adiante).
+  const calcularParticipacao = (alvo: Acum[]) =>
+    Promise.all(
+      alvo.map(async (l) => {
+        if (!l.ultimaRodadaId) return
+        const q = () =>
+          admin.from("voto_assembleias_aptos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("rod_assembleia_id", l.ultimaRodadaId as string)
+        const [{ count: aptos }, { count: votaram }] = await Promise.all([q(), q().not("hora_voto", "is", null)])
+        l.aptosUltima = aptos ?? 0
+        // Encerrada sem nenhum voto registrado = legado do Bubble (não guardava quem votou).
+        l.participacaoUltima = aptos && votaram ? Math.round((votaram / aptos) * 100) : null
+      })
+    )
+  if (ordem === "participacao") await calcularParticipacao(lista)
+
+  // Vazio (sem data, sem participação) vai sempre para o fim, nos dois sentidos.
+  const porNumero = (a: number | null, b: number | null) => (a === null || a === 0 ? (b === null || b === 0 ? 0 : 1) : b === null || b === 0 ? -1 : s * (a - b))
   lista.sort((x, y) => {
     if (x.id === SEM_FONTE) return 1
     if (y.id === SEM_FONTE) return -1
-    if (ordem === "nome") return x.nome.localeCompare(y.nome, "pt-BR")
-    if (ordem === "campanhas") return y.campanhas - x.campanhas
-    if (ordem === "ultima") return y._ultimaMs - x._ultimaMs
-    // em votação primeiro; depois a próxima; sem próxima, pela última
-    if (x.emCurso !== y.emCurso) return x.emCurso ? -1 : 1
-    if (x._proximaMs && y._proximaMs) return x._proximaMs - y._proximaMs
-    if (x._proximaMs) return -1
-    if (y._proximaMs) return 1
-    return y._ultimaMs - x._ultimaMs
+    let r = 0
+    if (ordem === "nome") r = s * x.nome.localeCompare(y.nome, "pt-BR")
+    else if (ordem === "campanhas") r = s * (x.campanhas - y.campanhas)
+    else if (ordem === "ultima") r = porNumero(x._ultimaMs, y._ultimaMs)
+    else if (ordem === "participacao") r = porNumero(x.participacaoUltima, y.participacaoUltima)
+    else {
+      // em votação primeiro; depois a próxima; sem próxima, pela última
+      if (x.emCurso !== y.emCurso) return x.emCurso ? -1 : 1
+      r = porNumero(x._proximaMs, y._proximaMs)
+      // empate (sem próxima): a votação mais recente primeiro, nos dois sentidos
+      if (r === 0) r = y._ultimaMs - x._ultimaMs
+    }
+    return r || x.nome.localeCompare(y.nome, "pt-BR")
   })
 
   const porPagina = f.porPagina && f.porPagina > 0 ? f.porPagina : 20
@@ -360,19 +410,7 @@ export async function listarFontesVotacao(f: FiltrosFontes): Promise<{
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
   const pagina = Math.min(Math.max(1, f.pagina ?? 1), totalPaginas)
   lista = lista.slice((pagina - 1) * porPagina, pagina * porPagina)
-
-  // Participação da última rodada só das fontes desta página (contagens no banco).
-  await Promise.all(
-    lista.map(async (l) => {
-      if (!l.ultimaRodadaId) return
-      const q = () =>
-        admin.from("voto_assembleias_aptos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("rod_assembleia_id", l.ultimaRodadaId as string)
-      const [{ count: aptos }, { count: votaram }] = await Promise.all([q(), q().not("hora_voto", "is", null)])
-      l.aptosUltima = aptos ?? 0
-      // Encerrada sem nenhum voto registrado = legado do Bubble (não guardava quem votou).
-      l.participacaoUltima = aptos && votaram ? Math.round((votaram / aptos) * 100) : null
-    })
-  )
+  if (ordem !== "participacao") await calcularParticipacao(lista)
 
   const anos = [...new Set([...porFonte.values()].flatMap((l) => l.anos))].sort().reverse()
   const listaGrupos = [...new Map([...grupos.values()].map((g) => [g.id, g])).values()].sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR"))
