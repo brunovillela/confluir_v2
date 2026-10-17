@@ -56,7 +56,7 @@ export default async function InformePage({
   return (
     <>
       <RotuloTrilha valores={{ funcionario: "Funcionários", [usuarioId]: funcionario.nome, [informeId]: `Ano-base ${inf.ano}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 justify-self-start">
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
         <Link href={voltar.href}>
           <ArrowLeft />
           {voltar.rotulo}

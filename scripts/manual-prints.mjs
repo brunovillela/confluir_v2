@@ -56,6 +56,12 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
       ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
     ]
+  : process.env.RODADA === "ferias"
+  ? [
+      // Rodada de 17/10 (24): Férias no padrão de 3 níveis e os dias autorizados.
+      ["/painel/pessoal/ferias", "pessoal/ferias-area.png", { esperar: "Distribuição por mês", altura: 1100 }],
+      ["/painel/pessoal/ferias/funcionario/33333333-3333-4333-8333-000000000001", "pessoal/ferias-funcionario.png", { esperar: "Dias autorizados", altura: 1000 }],
+    ]
   : [
   // Rodada de 17/10 (22): padrão de 3 níveis do Pessoal (área → funcionário → registro) e a ficha com o painel Áreas.
   ["/painel/pessoal/ponto", "pessoal/padrao-area.png", { esperar: "Meses sem remessa", altura: 1000 }],

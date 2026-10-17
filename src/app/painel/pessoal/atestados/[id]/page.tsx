@@ -55,7 +55,7 @@ export default async function AtestadoPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: `Atestado de ${formatarData(a.inicio)}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 justify-self-start">
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
         <Link href={voltar.href}>
           <ArrowLeft />
           {voltar.rotulo}

@@ -36,7 +36,8 @@ export function VoltarLista({
   rotulo,
   padrao = { href: base, rotulo },
   icone = <ArrowLeft />,
-  className = "-ml-2 mb-3",
+  // self-start: na coluna flex da página o botão não estica (nem centraliza o texto).
+  className = "-ml-2 mb-3 self-start",
 }: {
   chave: string
   base: string

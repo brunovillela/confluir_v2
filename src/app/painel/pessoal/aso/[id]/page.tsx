@@ -47,7 +47,7 @@ export default async function AsoDetalhePage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: `ASO de ${formatarData(a.data)}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 justify-self-start">
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
         <Link href={voltar.href}>
           <ArrowLeft />
           {voltar.rotulo}

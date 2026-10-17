@@ -20,16 +20,22 @@ CLT.
 
 <PassoAPasso>
   <Passo titulo="Abra Pessoal → Férias">
-    O **Painel** reúne os indicadores (em férias hoje, aguardando autorização,
-    prazos vencendo, períodos vencidos e dias a gozar), o gráfico de
-    **distribuição das férias por mês** (troque o ano nas setas), os gozos
-    **aguardando autorização** — que dá para autorizar ali mesmo — e a lista de
-    **funcionários com a situação atual**. A aba **Todos os períodos** mantém a
-    lista completa, com busca e filtro **Abertos / Finalizados**.
+    No topo ficam os indicadores (em férias hoje, aguardando autorização, prazo
+    vencendo, períodos vencidos e dias a gozar — clique para filtrar) e, quando
+    houver, a fila **Aguardando autorização**, onde dá para autorizar ali mesmo.
+    Abaixo, três abas:
+    **Funcionários** (a inicial) — a situação de cada um, com busca, situação
+    (ativos, desligados), departamento e **situação de férias**; clique no
+    cabeçalho para ordenar por saldo, próximas férias ou prazo;
+    **Distribuição por mês** — o gráfico dos dias de férias no ano (troque o ano
+    nas setas); e **Períodos** — a lista completa, com busca e filtro
+    **Abertos / Finalizados**.
   </Passo>
   <Passo titulo="Abra o funcionário">
-    Clique no nome para ver o **histórico de férias** dele: todos os períodos,
-    com os gozos, o saldo, o próximo prazo e as próximas férias.
+    Clique no nome para ver as **férias dele**: o saldo a gozar, o próximo prazo,
+    as próximas férias, os **dias autorizados** (com o que aguarda autorização à
+    parte) e o histórico de todos os períodos com os gozos. No topo, os atalhos
+    levam às outras áreas da mesma pessoa.
   </Passo>
   <Passo titulo="Novo período">
     Na página do funcionário, **Novo período** já vem com ele escolhido e o
@@ -47,7 +53,30 @@ CLT.
   </Passo>
 </PassoAPasso>
 
-<Print src="pessoal/ferias-periodos.png" alt="Lista de períodos de férias por funcionário, com busca por nome e filtro de situação (abertos/finalizados)." legenda="Períodos de férias, filtráveis por situação." />
+<Print src="pessoal/ferias-area.png" alt="Área de Férias com os indicadores no topo, a fila Aguardando autorização, as abas Funcionários, Distribuição por mês e Períodos e a lista de funcionários com a situação de férias, o saldo, as próximas férias e o prazo." legenda="Férias: indicadores, a fila de autorização e a aba Funcionários." />
+
+<Print src="pessoal/ferias-funcionario.png" alt="Férias de uma funcionária: atalhos para as outras áreas, os cartões de saldo a gozar, próximo prazo, próximas férias e dias autorizados com os dias aguardando autorização, e o histórico do período com o gozo aguardando." legenda="Férias do funcionário: os dias autorizados e, à parte, o que aguarda autorização." />
+
+<Aviso tipo="nota" titulo="Voltar de um período">
+  O botão de voltar do período leva à página do funcionário. Se você abriu o
+  período pela fila de autorização ou pela aba **Períodos**, ele volta para lá.
+  Quando a pessoa tem mais de um período, **anterior/próximo** passa de um para
+  outro sem voltar.
+</Aviso>
+
+## Saldo e dias autorizados
+
+Cada gozo conta de um jeito, conforme a situação:
+
+| Situação do gozo | Conta como gozado | Desconta do saldo |
+|---|---|---|
+| **Autorizado** | sim | sim |
+| **Aguardando autorização** | não — aparece à parte, como "aguardando" | sim, para os dias não serem pedidos de novo |
+| **Não autorizado** | não | não — os dias voltam ao saldo |
+
+O resumo de cada período mostra *direito · gozados · aguardando · saldo*. O
+gozo não autorizado também deixa de ocupar uma das **3 partes** permitidas ao
+fracionar as férias.
 
 ## Regras e travas
 
@@ -64,7 +93,8 @@ CLT.
 </Aviso>
 
 - O sistema aplica as regras da CLT ao fracionar e validar os gozos.
-- No autosserviço (**Meu perfil → Férias**), o funcionário escolhe o período
+- No autosserviço (**Meu perfil → Férias**), o funcionário vê os mesmos
+  números (saldo, prazo, próximas férias e dias autorizados) e escolhe o período
   aquisitivo, informa o início, a quantidade de dias e se quer **vender 1/3**
   (abono pecuniário). A data final aparece na hora, antes de enviar.
 - Gozos aguardando autorização aparecem como pendência na tela inicial do
@@ -86,8 +116,8 @@ CLT.
 
 ## Erros comuns
 
-- **“O gozo não conta como concedido.”** Ele ainda está aguardando
-  **autorização** — confirme-o.
+- **“O gozo não aparece nos dias autorizados.”** Ele ainda está aguardando
+  **autorização** — confirme-o. Enquanto isso, ele já reserva os dias no saldo.
 - **Não acho o período de alguém.** Ajuste o filtro de situação (um período já
   concluído aparece em **Finalizados**).
 
