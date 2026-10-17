@@ -24,7 +24,8 @@ function texto(fd: FormData, campo: string): string {
 }
 
 function revalidar() {
-  revalidatePath("/painel/pessoal/faltas")
+  // "layout": a área inteira — inclui as páginas do funcionário e da falta.
+  revalidatePath("/painel/pessoal/faltas", "layout")
   revalidatePath("/painel/perfil/faltas")
   revalidatePath("/painel/pessoal/atestados")
   revalidatePath("/painel/pessoal")

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +16,7 @@ import {
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import { requirePermissao } from "@/lib/auth"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
-import { buscarReembolso, listarTiposReembolso } from "@/lib/db/reembolsos"
+import { buscarReembolso, listarTiposReembolso, listarReembolsos } from "@/lib/db/reembolsos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { porcentagemTexto } from "@/lib/reembolsos-calculo"
 
@@ -55,12 +56,13 @@ export default async function ReembolsoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
+  searchParams: Promise<{ salvo?: string; de?: string }>
 }) {
   await requirePermissao("pessoal_gestao")
 
   const { id } = await params
-  const { salvo } = await searchParams
+  const { salvo, de } = await searchParams
   const reembolso = await buscarReembolso(id)
   if (!reembolso) notFound()
 
@@ -77,15 +79,32 @@ export default async function ReembolsoPage({
     .filter(Boolean)
     .join(", ")
   const comprovante = await urlArquivoPessoal(reembolso.comprovante_url)
+  const fid = reembolso.funcionario_id
+  const voltar =
+    de === "solicitacoes" || !fid
+      ? { href: "/painel/pessoal/reembolsos?aba=solicitacoes", rotulo: "Solicitações de reembolso" }
+      : { href: `/painel/pessoal/reembolsos/funcionario/${fid}`, rotulo: reembolso.funcionarioNome ?? "Funcionário" }
+  // Anterior/próximo: os pedidos do mesmo funcionário, do mais antigo ao mais recente.
+  const daPessoa = fid
+    ? (await listarReembolsos()).reembolsos.filter((x) => x.funcionario_id === fid).reverse()
+    : []
+  const iP = daPessoa.findIndex((x) => x.id === id)
+  const destino = (x: (typeof daPessoa)[number] | undefined) =>
+    x
+      ? {
+          href: `/painel/pessoal/reembolsos/${x.id}${de ? `?de=${de}` : ""}`,
+          rotulo: `${x.tipoNome ?? "Reembolso"} · ${formatarDataHora(x.created_at).slice(0, 10)}`,
+        }
+      : null
 
   return (
     <>
       <RotuloTrilha valores={{ [id]: "Solicitação de reembolso" }} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/reembolsos">
+          <Link href={voltar.href}>
             <ArrowLeft />
-            Reembolsos do ACT
+            {voltar.rotulo}
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-3">
@@ -99,6 +118,18 @@ export default async function ReembolsoPage({
           {formatarDataHora(reembolso.created_at)}
         </p>
       </div>
+
+      {daPessoa.length > 1 && (
+        <NavegacaoRegistro
+          eixos={[
+            {
+              titulo: `Pedidos do funcionário (${iP + 1} de ${daPessoa.length})`,
+              anterior: destino(daPessoa[iP - 1]),
+              proximo: destino(daPessoa[iP + 1]),
+            },
+          ]}
+        />
+      )}
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
@@ -117,7 +148,7 @@ export default async function ReembolsoPage({
             <Campo rotulo="Funcionário">
               {reembolso.funcionario_id ? (
                 <Link
-                  href={`/painel/pessoal/${reembolso.funcionario_id}`}
+                  href={`/painel/pessoal/reembolsos/funcionario/${reembolso.funcionario_id}`}
                   className="hover:underline"
                 >
                   {reembolso.funcionarioNome ?? "(sem nome)"}

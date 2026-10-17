@@ -109,7 +109,15 @@ export function ordenarPor<T extends FuncionarioBasico>(
 
 // ── Áreas que já seguem o padrão (os atalhos do cabeçalho do funcionário) ──
 
-export type AreaFuncionario = "contracheques" | "ponto" | "ferias" | "carreira" | "informes"
+export type AreaFuncionario =
+  | "contracheques"
+  | "ponto"
+  | "ferias"
+  | "carreira"
+  | "informes"
+  | "diarias"
+  | "reembolsos"
+  | "faltas"
 
 /** Ordem e permissão de cada área com página do funcionário (nível 2). */
 const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; href: (id: string) => string }[] = [
@@ -117,6 +125,9 @@ const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; hre
   { chave: "ponto", rotulo: "Ponto", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/ponto/funcionario/${id}` },
   { chave: "ferias", rotulo: "Férias", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/ferias/funcionario/${id}` },
   { chave: "carreira", rotulo: "Carreira", permissoes: ["pessoal_gestao", "pessoal_anuenios", "pessoal_niveis_salariais"], href: (id) => `/painel/pessoal/carreira/funcionario/${id}` },
+  { chave: "diarias", rotulo: "Diárias", permissoes: ["pessoal_gestao", "pessoal_diarias"], href: (id) => `/painel/pessoal/diarias/funcionario/${id}` },
+  { chave: "reembolsos", rotulo: "Reembolsos", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/reembolsos/funcionario/${id}` },
+  { chave: "faltas", rotulo: "Faltas", permissoes: ["pessoal_gestao", "pessoal_faltas_justificadas"], href: (id) => `/painel/pessoal/faltas/funcionario/${id}` },
   { chave: "informes", rotulo: "Informes", permissoes: ["pessoal_gestao", "pessoal_informes_rendimentos"], href: (id) => `/painel/pessoal/informes/funcionario/${id}` },
 ]
 

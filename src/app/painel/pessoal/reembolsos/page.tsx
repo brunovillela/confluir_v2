@@ -1,89 +1,52 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ReceiptText, Table2 } from "lucide-react"
+import { ArrowLeft, Table2 } from "lucide-react"
 
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
+import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Paginacao } from "@/components/paginacao"
-import { SituacaoReembolsoBadge } from "@/components/reembolsos"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SelectNativo } from "@/components/ui/select-nativo"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import {
-  listarReembolsos,
-  SITUACOES_REEMBOLSO,
-} from "@/lib/db/reembolsos"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { listarReembolsos, type ReembolsoAct } from "@/lib/db/reembolsos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
+
+import { ListaSolicitacoesReembolso } from "./solicitacoes-lista"
 
 export const metadata: Metadata = { title: "Reembolsos do ACT — Confluir" }
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const ORDENS = ["nome", "quantidade", "valor", "aguardando", "ultimo"] as const
+const anoDe = (r: ReembolsoAct) => (r.created_at ?? "").slice(0, 4)
+/** O que conta como reembolsado: aprovado (a pagar no contracheque) ou pago. */
+const reembolsado = (r: ReembolsoAct) => r.situacao === "aprovado" || r.situacao === "pago"
 
-const ROTULOS: Record<string, string> = {
-  aguardando: "Aguardando avaliação",
-  aprovado: "Aprovados (a pagar)",
-  reprovado: "Reprovados",
-  cancelado: "Cancelados",
-  pago: "Pagos",
-}
-
-type ParamsLista = {
-  busca?: string
-  situacao?: string
-  pagina?: string
-  porPagina?: string
-}
-
+/**
+ * Reembolsos do ACT — nível 1 do padrão das áreas do Pessoal: a fila de
+ * avaliação no topo, indicadores e as abas Funcionários (inicial) e Solicitações.
+ */
 export default async function ReembolsosPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao")
+  const sp = await searchParams
+  const aba = sp.aba === "solicitacoes" ? "solicitacoes" : "funcionarios"
+  const [{ disponivel, reembolsos }, funcionarios] = await Promise.all([listarReembolsos(), funcionariosDaArea()])
 
-  const brutos = await searchParams
-  const { disponivel, reembolsos } = await listarReembolsos()
-
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    situacao: (SITUACOES_REEMBOLSO as readonly string[]).includes(
-      brutos.situacao ?? ""
-    )
-      ? brutos.situacao!
-      : "todas",
-  }
-
-  const filtrados = reembolsos.filter((r) => {
-    if (
-      params.busca &&
-      !(r.funcionarioNome ?? "")
-        .toLocaleLowerCase("pt-BR")
-        .includes(params.busca.toLocaleLowerCase("pt-BR"))
-    ) {
-      return false
-    }
-    if (params.situacao !== "todas" && r.situacao !== params.situacao) {
-      return false
-    }
-    return true
-  })
-
-  const aguardando = reembolsos.filter(
-    (r) => r.situacao === "aguardando"
-  ).length
-  const aPagar = reembolsos.filter((r) => r.situacao === "aprovado").length
-
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(filtrados, paginacao)
+  const anoAtual = new Date().getFullYear().toString()
+  const aguardando = reembolsos.filter((r) => r.situacao === "aguardando")
+  const aPagar = reembolsos.filter((r) => r.situacao === "aprovado")
+  const pagosAno = reembolsos.filter((r) => r.situacao === "pago" && anoDe(r) === anoAtual)
 
   return (
     <>
@@ -96,13 +59,9 @@ export default async function ReembolsosPage({
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Reembolsos do ACT
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Reembolsos do ACT</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {aguardando} aguardando avaliação · {aPagar} aprovado
-              {aPagar === 1 ? "" : "s"} a pagar — o pagamento acontece no
-              contracheque
+              Benefícios do acordo coletivo — o pagamento acontece no contracheque
             </p>
           </div>
           <Button variant="outline" asChild>
@@ -117,127 +76,192 @@ export default async function ReembolsosPage({
       {!disponivel && (
         <Alert>
           <AlertDescription>
-            Os reembolsos ainda não estão configurados no banco — rode{" "}
-            <code>supabase/reembolsos-act.sql</code> no SQL Editor do Supabase.
+            Os reembolsos ainda não estão configurados no banco — rode <code>supabase/reembolsos-act.sql</code> no SQL
+            Editor do Supabase.
           </AlertDescription>
         </Alert>
       )}
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome do funcionário"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar por funcionário"
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Aguardando avaliação" valor={String(aguardando.length)} href="#fila" />
+        <TileIndicador
+          rotulo="Aprovados a pagar"
+          valor={String(aPagar.length)}
+          nota={aPagar.length ? formatarMoeda(aPagar.reduce((s, r) => s + (r.valor_aprovado ?? 0), 0)) : "nada a lançar no contracheque"}
+          href="/painel/pessoal/reembolsos?aba=solicitacoes&situacao=aprovado"
         />
-        <select
-          name="situacao"
-          defaultValue={params.situacao}
-          aria-label="Filtrar por situação"
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as situações</option>
-          {SITUACOES_REEMBOLSO.map((s) => (
-            <option key={s} value={s}>
-              {ROTULOS[s]}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+        <TileIndicador
+          rotulo={`Pagos em ${anoAtual}`}
+          valor={formatarMoeda(pagosAno.reduce((s, r) => s + (r.valor_aprovado ?? 0), 0))}
+          nota={`${pagosAno.length} reembolso(s)`}
+        />
+        <TileIndicador
+          rotulo={`Funcionários atendidos em ${anoAtual}`}
+          valor={String(new Set(reembolsos.filter((r) => reembolsado(r) && anoDe(r) === anoAtual).map((r) => r.funcionario_id)).size)}
+        />
+      </section>
 
-      <div className="overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Solicitado</TableHead>
-                <TableHead className="text-right">Aprovado</TableHead>
-                <TableHead className="hidden lg:table-cell">
-                  Contracheque
-                </TableHead>
-                <TableHead className="hidden md:table-cell">
-                  Solicitado em
-                </TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginaAtual.total === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-40">
-                    <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                      <ReceiptText className="size-6" />
-                      <p className="text-sm">
-                        Nenhuma solicitação de reembolso
-                        {params.busca && <> para “{params.busca}”</>}.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-              {paginaAtual.linhas.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="max-w-56 font-medium">
-                    {r.funcionario_id ? (
-                      <Link
-                        href={`/painel/pessoal/${r.funcionario_id}`}
-                        className="hover:underline"
-                      >
-                        <span className="block truncate">
-                          {r.funcionarioNome ?? "(sem nome)"}
-                        </span>
-                      </Link>
-                    ) : (
-                      "(sem funcionário)"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-40 truncate">
-                    {r.tipoNome ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(r.valor_solicitado)}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(r.valor_aprovado)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap lg:table-cell">
-                    {[r.pagamento_mes, r.pagamento_ano]
-                      .filter(Boolean)
-                      .join("/") || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
-                    {formatarData(r.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <SituacaoReembolsoBadge situacao={r.situacao} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/reembolsos/${r.id}`}>
-                        {r.situacao === "aguardando" ? "Avaliar" : "Ver"}
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
+      {aguardando.length > 0 && (
+        <Card id="fila" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Aguardando avaliação
+              <span className="text-muted-foreground ml-2 text-sm font-normal">{aguardando.length}</span>
+            </CardTitle>
+            <CardDescription>Do pedido mais antigo ao mais recente.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {[...aguardando].reverse().map((r) => (
+              <Link
+                key={r.id}
+                href={`/painel/pessoal/reembolsos/${r.id}`}
+                className="hover:bg-muted flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+              >
+                <span>
+                  <span className="font-medium">{r.funcionarioNome ?? "(sem nome)"}</span>
+                  <span className="text-muted-foreground"> · {r.tipoNome ?? "—"} · pedido em {formatarData(r.created_at)}</span>
+                </span>
+                <span className="tabular-nums">{formatarMoeda(r.valor_solicitado)}</span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <AbasLink
+        rotulo="Visões dos reembolsos"
+        abas={[
+          { href: "/painel/pessoal/reembolsos", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/reembolsos?aba=solicitacoes", rotulo: "Solicitações", ativo: aba === "solicitacoes", contador: reembolsos.length },
+        ]}
+      />
+
+      {aba === "solicitacoes" ? (
+        <ListaSolicitacoesReembolso brutos={sp} />
+      ) : (
+        <AbaFuncionarios sp={sp} reembolsos={reembolsos} funcionarios={funcionarios} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  reembolsos,
+  funcionarios,
+}: {
+  sp: Record<string, string | undefined>
+  reembolsos: ReembolsoAct[]
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+}) {
+  const anos = [...new Set(reembolsos.map(anoDe).filter(Boolean))].sort().reverse()
+  const anoAtual = new Date().getFullYear().toString()
+  const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anos.includes(anoAtual) ? anoAtual : anos[0]
+  type Resumo = { quantidade: number; valor: number; aguardando: number; ultimo: ReembolsoAct | null }
+  const resumo = new Map<string, Resumo>()
+  // Lista vem do mais recente ao mais antigo: o primeiro de cada um é o último pedido.
+  for (const r of reembolsos.filter((x) => anoDe(x) === ano)) {
+    if (!r.funcionario_id) continue
+    const s = resumo.get(r.funcionario_id) ?? { quantidade: 0, valor: 0, aguardando: 0, ultimo: null }
+    s.quantidade++
+    if (reembolsado(r)) s.valor += r.valor_aprovado ?? 0
+    if (r.situacao === "aguardando") s.aguardando++
+    s.ultimo ??= r
+    resumo.set(r.funcionario_id, s)
+  }
+
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const r = resumo.get(l.usuarioId)
+    switch (f.ordem) {
+      case "quantidade":
+        return r?.quantidade
+      case "valor":
+        return r?.valor
+      case "aguardando":
+        return r?.aguardando
+      case "ultimo":
+        return r?.ultimo?.created_at
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f, { ano: sp.ano })
+  const urlAtual = `/painel/pessoal/reembolsos?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="reembolsos-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios
+        filtros={f}
+        departamentos={departamentosDaLista(funcionarios)}
+        extras={
+          anos.length > 0 && (
+            <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
+              {anos.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+            </SelectNativo>
+          )
+        }
+      />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/reembolsos", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/reembolsos/funcionario/${l.usuarioId}${ano ? `?ano=${ano}` : ""}`}
+        colunas={[
+          {
+            chave: "quantidade",
+            rotulo: `Pedidos ${ano ?? ""}`.trim(),
+            className: "text-right tabular-nums",
+            valor: (l) => resumo.get(l.usuarioId)?.quantidade ?? "—",
+          },
+          {
+            chave: "valor",
+            rotulo: "Reembolsado",
+            className: "text-right tabular-nums",
+            valor: (l) => {
+              const v = resumo.get(l.usuarioId)?.valor
+              return v ? formatarMoeda(v) : "—"
+            },
+          },
+          {
+            chave: "aguardando",
+            rotulo: "Aguardando",
+            className: "hidden text-right md:table-cell",
+            valor: (l) => {
+              const n = resumo.get(l.usuarioId)?.aguardando ?? 0
+              return n ? <span className="text-warning-fg font-medium tabular-nums">{n}</span> : <span className="text-muted-foreground">—</span>
+            },
+          },
+          {
+            chave: "ultimo",
+            rotulo: "Último pedido",
+            className: "hidden lg:table-cell",
+            valor: (l) => {
+              const u = resumo.get(l.usuarioId)?.ultimo
+              if (!u) return <span className="text-muted-foreground">—</span>
+              return (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <Link href={`/painel/pessoal/reembolsos/${u.id}`} className="hover:underline">
+                    {u.tipoNome ?? "Reembolso"}
+                  </Link>
+                  <SituacaoReembolsoBadge situacao={u.situacao} />
+                </span>
+              )
+            },
+          },
+        ]}
       />
     </>
   )

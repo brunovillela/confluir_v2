@@ -1,96 +1,69 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, HandCoins, History, Landmark, Send, Table2 } from "lucide-react"
+import { ArrowLeft, History, Landmark, Send, Table2 } from "lucide-react"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Paginacao } from "@/components/paginacao"
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
 import { GrandesNumerosDiarias, SituacaoDiariaBadge } from "@/components/diarias"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SelectNativo } from "@/components/ui/select-nativo"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import {
-  listarSolicitacoesDiaria,
-  SITUACOES_DIARIA,
-} from "@/lib/db/diarias"
+import { listarSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { contarRemessasHistorico } from "@/lib/db/diarias-historico"
 import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
+
+import { ListaSolicitacoesDiaria } from "./solicitacoes-lista"
 
 export const metadata: Metadata = { title: "Diárias — Confluir" }
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const ORDENS = ["nome", "quantidade", "valor", "aguardando", "ultima"] as const
 
-const ROTULOS_SITUACAO: Record<string, string> = {
-  aguardando: "Aguardando avaliação",
-  aprovada: "Aprovadas",
-  reprovada: "Reprovadas",
-  cancelada: "Canceladas",
-}
+/** Ano de uma diária: o do início da atividade (senão, o da solicitação). */
+const anoDa = (s: SolicitacaoDiaria) => (s.data_inicio ?? s.created_at ?? "").slice(0, 4)
+/** Diária "de verdade" (o complemento de despesas conta junto da original). */
+const principal = (s: SolicitacaoDiaria) => !s.complementoDe
 
-type ParamsLista = {
-  busca?: string
-  situacao?: string
-  pagina?: string
-  porPagina?: string
-}
-
+/**
+ * Diárias — nível 1 do padrão das áreas do Pessoal: as remessas a avaliar
+ * (a fila) no topo, os grandes números e as abas Funcionários (inicial) e
+ * Solicitações.
+ */
 export default async function DiariasPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
+  const sp = await searchParams
+  const aba = sp.aba === "solicitacoes" ? "solicitacoes" : "funcionarios"
 
-  const brutos = await searchParams
   // Só as de funcionário: as da diretoria têm porta e permissão próprias.
-  const [{ disponivel, solicitacoes }, noHistorico, { remessas }] = await Promise.all([
+  const [{ disponivel, solicitacoes }, noHistorico, { remessas }, funcionarios] = await Promise.all([
     listarSolicitacoesDiaria({ quadro: "funcionario" }),
     contarRemessasHistorico(),
     listarRemessasNovas({ quadro: "funcionario" }),
+    funcionariosDaArea(),
   ])
-    // Remessas a avaliar (abertas ou reenviadas, com diária aguardando) — 08/10.
-  const prontas = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && r.situacao !== "preparacao" && r.contagem.aguardando + r.contagem.aprovada > 0).length
-
-  const params = {
-    busca: (brutos.busca ?? "").trim(),
-    situacao: (SITUACOES_DIARIA as readonly string[]).includes(
-      brutos.situacao ?? ""
-    )
-      ? brutos.situacao!
-      : "todas",
-  }
-
-  const filtradas = solicitacoes.filter((s) => {
-    if (
-      params.busca &&
-      !(s.funcionarioNome ?? "")
-        .toLocaleLowerCase("pt-BR")
-        .includes(params.busca.toLocaleLowerCase("pt-BR"))
-    ) {
-      return false
-    }
-    if (params.situacao !== "todas" && s.situacao !== params.situacao) {
-      return false
-    }
-    return true
-  })
-
-  const aguardando = solicitacoes.filter(
-    (s) => s.situacao === "aguardando"
-  ).length
-
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtual = paginar(filtradas, paginacao)
+  // Remessas a avaliar (abertas ou reenviadas, com diária) — 08/10.
+  const aAvaliar = remessas.filter(
+    (r) =>
+      !r.enviada &&
+      r.situacao !== "devolvida" &&
+      r.situacao !== "preparacao" &&
+      r.situacao !== "aprovada" &&
+      r.contagem.aguardando + r.contagem.aprovada > 0
+  )
+  const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando").length
 
   return (
     <>
@@ -105,10 +78,8 @@ export default async function DiariasPage({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Diárias</h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              {aguardando} aguardando avaliação ·{" "}
-              {solicitacoes.length.toLocaleString("pt-BR")} solicitaç
-              {solicitacoes.length === 1 ? "ão" : "ões"} no total — cada diária entra
-              na remessa do funcionário, avaliada inteira: aprovada, vira a ordem de pagamento rateada
+              {aguardando} aguardando avaliação · {solicitacoes.length.toLocaleString("pt-BR")} solicitação(ões) no total —
+              cada diária entra na remessa do funcionário, avaliada inteira
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -116,16 +87,14 @@ export default async function DiariasPage({
               <Link href="/painel/pessoal/diarias/remessas">
                 <Send />
                 Remessas
-                {prontas > 0 && <> ({prontas} a avaliar)</>}
+                {aAvaliar.length > 0 && <> ({aAvaliar.length} a avaliar)</>}
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/painel/pessoal/diarias/historico">
                 <History />
                 Histórico
-                {noHistorico > 0 && (
-                  <> ({noHistorico.toLocaleString("pt-BR")})</>
-                )}
+                {noHistorico > 0 && <> ({noHistorico.toLocaleString("pt-BR")})</>}
               </Link>
             </Button>
             <Button variant="outline" asChild>
@@ -147,152 +116,186 @@ export default async function DiariasPage({
       {!disponivel && (
         <Alert>
           <AlertDescription>
-            As solicitações de diária ainda não estão configuradas no banco —
-            rode <code>supabase/diarias.sql</code> no SQL Editor do Supabase.
+            As solicitações de diária ainda não estão configuradas no banco — rode <code>supabase/diarias.sql</code> no SQL
+            Editor do Supabase.
           </AlertDescription>
         </Alert>
       )}
 
       <GrandesNumerosDiarias solicitacoes={solicitacoes} />
 
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        <Input
-          name="busca"
-          defaultValue={params.busca}
-          placeholder="Nome do funcionário"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar por funcionário"
-        />
-        <select
-          name="situacao"
-          defaultValue={params.situacao}
-          aria-label="Filtrar por situação"
-          className={SELECT_FILTRO}
-        >
-          <option value="todas">Todas as situações</option>
-          {SITUACOES_DIARIA.map((s) => (
-            <option key={s} value={s}>
-              {ROTULOS_SITUACAO[s]}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
+      {aAvaliar.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Remessas a avaliar
+              <span className="text-muted-foreground ml-2 text-sm font-normal">{aAvaliar.length}</span>
+            </CardTitle>
+            <CardDescription>A avaliação é da remessa inteira: aprovada, vira uma ordem de pagamento.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {aAvaliar.map((r) => (
+              <Link
+                key={r.id}
+                href={`/painel/pessoal/diarias/remessas/${r.id}`}
+                className="hover:bg-muted flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+              >
+                <span className="font-medium">
+                  {r.beneficiarioNome ?? "(sem nome)"}{" "}
+                  <span className="text-muted-foreground font-normal">· remessa {r.codigo ?? ""}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  {r.situacao === "reenviada" && <Badge variant="info">Reenviada</Badge>}
+                  <span className="tabular-nums">{formatarMoeda(r.valorTotal)}</span>
+                </span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="overflow-hidden rounded-xl border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Qtd.</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="hidden md:table-cell">Período</TableHead>
-                <TableHead className="hidden lg:table-cell">
-                  Solicitada em
-                </TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginaAtual.total === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-40">
-                    <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                      <HandCoins className="size-6" />
-                      <p className="text-sm">
-                        Nenhuma solicitação de diária
-                        {params.busca && <> para “{params.busca}”</>}.
-                      </p>
-                      {noHistorico > 0 && (
-                        <p className="text-sm">
-                          As diárias lançadas no sistema anterior estão no{" "}
-                          <Link
-                            href="/painel/pessoal/diarias/historico"
-                            className="text-primary underline-offset-4 hover:underline"
-                          >
-                            histórico ({noHistorico.toLocaleString("pt-BR")}{" "}
-                            remessas)
-                          </Link>
-                          .
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-              {paginaAtual.linhas.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="max-w-56 font-medium">
-                    {s.funcionario_id ? (
-                      <Link
-                        href={`/painel/pessoal/${s.funcionario_id}`}
-                        className="hover:underline"
-                      >
-                        <span className="block truncate">
-                          {s.funcionarioNome ?? "(sem nome)"}
-                        </span>
-                      </Link>
-                    ) : (
-                      "(sem funcionário)"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-40 truncate">
-                    {s.tipoNome ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {s.quantidade ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {formatarMoeda(s.valor_total)}
-                    {s.valorDespesas > 0 && (
-                      <span className="text-muted-foreground block text-xs">
-                        + {formatarMoeda(s.valorDespesas)} em despesas
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
-                    {s.data_inicio ? (
-                      <>
-                        {formatarData(s.data_inicio)}
-                        {s.data_termino && s.data_termino !== s.data_inicio && (
-                          <> – {formatarData(s.data_termino)}</>
-                        )}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden whitespace-nowrap lg:table-cell">
-                    {formatarData(s.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <SituacaoDiariaBadge situacao={s.situacao} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/diarias/${s.id}`}>
-                        Ver
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
+      <AbasLink
+        rotulo="Visões das diárias"
+        abas={[
+          { href: "/painel/pessoal/diarias", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          {
+            href: "/painel/pessoal/diarias?aba=solicitacoes",
+            rotulo: "Solicitações",
+            ativo: aba === "solicitacoes",
+            contador: solicitacoes.length,
+          },
+        ]}
+      />
+
+      {aba === "solicitacoes" ? (
+        <ListaSolicitacoesDiaria solicitacoes={solicitacoes} brutos={sp} noHistorico={noHistorico} />
+      ) : (
+        <AbaFuncionarios sp={sp} solicitacoes={solicitacoes} funcionarios={funcionarios} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  solicitacoes,
+  funcionarios,
+}: {
+  sp: Record<string, string | undefined>
+  solicitacoes: SolicitacaoDiaria[]
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+}) {
+  const anos = [...new Set(solicitacoes.map(anoDa).filter(Boolean))].sort().reverse()
+  const anoAtual = new Date().getFullYear().toString()
+  const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anos.includes(anoAtual) ? anoAtual : anos[0]
+  const doAno = solicitacoes.filter((s) => anoDa(s) === ano)
+
+  type Resumo = { quantidade: number; valor: number; aguardando: number; ultima: SolicitacaoDiaria | null }
+  const resumo = new Map<string, Resumo>()
+  for (const s of doAno) {
+    if (!s.funcionario_id) continue
+    const r = resumo.get(s.funcionario_id) ?? { quantidade: 0, valor: 0, aguardando: 0, ultima: null }
+    if (s.situacao === "aprovada") {
+      if (principal(s)) r.quantidade += s.quantidade ?? 1
+      r.valor += (s.valor_total ?? 0) + s.valorDespesas
+    }
+    if (s.situacao === "aguardando") r.aguardando++
+    if (principal(s) && (!r.ultima || (s.data_inicio ?? "") > (r.ultima.data_inicio ?? ""))) r.ultima = s
+    resumo.set(s.funcionario_id, r)
+  }
+
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const r = resumo.get(l.usuarioId)
+    switch (f.ordem) {
+      case "quantidade":
+        return r?.quantidade
+      case "valor":
+        return r?.valor
+      case "aguardando":
+        return r?.aguardando
+      case "ultima":
+        return r?.ultima?.data_inicio
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f, { ano: sp.ano })
+  const urlAtual = `/painel/pessoal/diarias?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="diarias-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios
+        filtros={f}
+        departamentos={departamentosDaLista(funcionarios)}
+        extras={
+          anos.length > 0 && (
+            <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
+              {anos.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
               ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <Paginacao
-        total={paginaAtual.total}
-        pagina={paginaAtual.pagina}
-        totalPaginas={paginaAtual.totalPaginas}
+            </SelectNativo>
+          )
+        }
+      />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
         porPagina={paginacao.porPagina}
-        padrao={30}
+        linkOrdem={linkDeOrdem("/painel/pessoal/diarias", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/diarias/funcionario/${l.usuarioId}${ano ? `?ano=${ano}` : ""}`}
+        colunas={[
+          {
+            chave: "quantidade",
+            rotulo: `Diárias ${ano ?? ""}`.trim(),
+            className: "text-right tabular-nums",
+            valor: (l) => resumo.get(l.usuarioId)?.quantidade || "—",
+          },
+          {
+            chave: "valor",
+            rotulo: "Recebido",
+            className: "text-right tabular-nums",
+            valor: (l) => {
+              const v = resumo.get(l.usuarioId)?.valor
+              return v ? formatarMoeda(v) : "—"
+            },
+          },
+          {
+            chave: "aguardando",
+            rotulo: "Aguardando",
+            className: "hidden text-right md:table-cell",
+            valor: (l) => {
+              const n = resumo.get(l.usuarioId)?.aguardando ?? 0
+              return n ? <span className="text-warning-fg font-medium tabular-nums">{n}</span> : <span className="text-muted-foreground">—</span>
+            },
+          },
+          {
+            chave: "ultima",
+            rotulo: "Última",
+            className: "hidden lg:table-cell",
+            valor: (l) => {
+              const u = resumo.get(l.usuarioId)?.ultima
+              if (!u) return <span className="text-muted-foreground">—</span>
+              return (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <Link href={`/painel/pessoal/diarias/${u.id}`} className="hover:underline">
+                    {formatarData(u.data_inicio)} · {u.tipoNome ?? "Diária"}
+                  </Link>
+                  {u.situacao !== "aprovada" && <SituacaoDiariaBadge situacao={u.situacao} />}
+                </span>
+              )
+            },
+          },
+        ]}
       />
     </>
   )
