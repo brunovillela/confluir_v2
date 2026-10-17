@@ -52,7 +52,7 @@ export default async function RemessasDiariasPage() {
           <CardDescription>Abertas e reenviadas depois de corrigidas — aprove ou devolva cada remessa</CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={aAvaliar} base={base} />
+          <ListaRemessasDiarias pessoaBase="/painel/pessoal/diarias/funcionario" remessas={aAvaliar} base={base} />
         </CardContent>
       </Card>
       <Card>
@@ -64,7 +64,7 @@ export default async function RemessasDiariasPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={emPreparacao} base={base} />
+          <ListaRemessasDiarias pessoaBase="/painel/pessoal/diarias/funcionario" remessas={emPreparacao} base={base} />
         </CardContent>
       </Card>
       <Card>
@@ -73,7 +73,7 @@ export default async function RemessasDiariasPage() {
           <CardDescription>Aguardando a correção de quem lançou</CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={devolvidas} base={base} />
+          <ListaRemessasDiarias pessoaBase="/painel/pessoal/diarias/funcionario" remessas={devolvidas} base={base} />
         </CardContent>
       </Card>
       <Card>
@@ -82,7 +82,7 @@ export default async function RemessasDiariasPage() {
           <CardDescription>Com a ordem de pagamento gerada</CardDescription>
         </CardHeader>
         <CardContent>
-          <ListaRemessasDiarias remessas={aprovadas} base={base} />
+          <ListaRemessasDiarias pessoaBase="/painel/pessoal/diarias/funcionario" remessas={aprovadas} base={base} />
         </CardContent>
       </Card>
     </>

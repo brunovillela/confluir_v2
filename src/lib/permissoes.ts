@@ -176,6 +176,7 @@ export const MODULOS: Modulo[] = [
       "pessoal_faltas_justificadas",
       "pessoal_contabilidade",
       "pessoal_contabilidade_envio",
+      "pessoal_reembolsos",
     ],
   },
   {
@@ -202,6 +203,7 @@ export const MODULOS: Modulo[] = [
     icone: "BriefcaseBusiness",
     descricao: "Reembolsos do acordo coletivo pagos em contracheque",
     chave: "pessoal_gestao",
+    chavesAlternativas: ["pessoal_reembolsos"],
     oculto: true,
   },
   {

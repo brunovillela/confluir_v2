@@ -84,6 +84,7 @@ export default async function PessoalPage() {
     "pessoal_faltas_justificadas",
     "pessoal_contabilidade",
     "pessoal_contabilidade_envio",
+    "pessoal_reembolsos",
   ]);
   const veGestao = sessao.permissoes["pessoal_gestao"] === true;
   const ve = (chave: string) => veGestao || sessao.permissoes[chave] === true;
@@ -103,14 +104,14 @@ export default async function PessoalPage() {
       texto: `${plural(r.diariasAguardando!, "diária aguarda", "diárias aguardam")} avaliação.`,
     });
   }
-  if (veGestao && (r.reembolsosAguardando ?? 0) > 0) {
+  if (ve("pessoal_reembolsos") && (r.reembolsosAguardando ?? 0) > 0) {
     alertas.push({
       href: "/painel/pessoal/reembolsos",
       icone: ReceiptText,
       texto: `${plural(r.reembolsosAguardando!, "reembolso do ACT aguarda", "reembolsos do ACT aguardam")} avaliação.`,
     });
   }
-  if (veGestao && (r.reembolsosAPagar ?? 0) > 0) {
+  if (ve("pessoal_reembolsos") && (r.reembolsosAPagar ?? 0) > 0) {
     alertas.push({
       href: "/painel/pessoal/reembolsos",
       icone: ReceiptText,
@@ -273,7 +274,7 @@ export default async function PessoalPage() {
       icone: HandCoins,
     },
     {
-      mostrar: veGestao,
+      mostrar: ve("pessoal_reembolsos"),
       href: "/painel/pessoal/reembolsos",
       titulo: "Reembolsos do ACT",
       indicador:

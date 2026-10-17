@@ -44,7 +44,7 @@ export default async function TiposReembolsoPage({
 }: {
   searchParams: Promise<{ salvo?: string; editar?: string }>
 }) {
-  await requirePermissao("pessoal_gestao")
+  await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 
   const { salvo, editar } = await searchParams
   const { disponivel, tipos } = await listarTiposReembolso()

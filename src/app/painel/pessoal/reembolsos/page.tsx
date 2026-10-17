@@ -38,7 +38,7 @@ export default async function ReembolsosPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requirePermissao("pessoal_gestao")
+  await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
   const sp = await searchParams
   const aba = sp.aba === "solicitacoes" ? "solicitacoes" : "funcionarios"
   const [{ disponivel, reembolsos }, funcionarios] = await Promise.all([listarReembolsos(), funcionariosDaArea()])

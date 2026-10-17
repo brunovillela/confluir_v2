@@ -47,6 +47,15 @@ const SHOTS = process.env.SHOT_UNICO
       [`/assinar/${TOKEN_RPA}`, "compras/rpa-link-entregue.png", { anon: true, esperar: "Não é preciso assinar", altura: 640 }],
     ]
   : [
+  // Rodada de 17/10 (22): padrão de 3 níveis do Pessoal (área → funcionário → registro) e a ficha com o painel Áreas.
+  ["/painel/pessoal/ponto", "pessoal/padrao-area.png", { esperar: "Meses sem remessa", altura: 1000 }],
+  ["/painel/pessoal/carreira/funcionario/33333333-3333-4333-8333-000000000001", "pessoal/padrao-funcionario.png", { esperar: "Próxima progressão", altura: 1100 }],
+  ["/painel/pessoal/ponto/funcionario/33333333-3333-4333-8333-000000000002/e69d0926-6d0b-44b4-863b-ca6a610763be?de=remessa", "pessoal/padrao-registro.png", { esperar: "Marcações dia a dia", altura: 1100 }],
+  ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-ficha.png", { esperar: "Áreas", altura: 1300 }],
+  ]
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodada anterior
+const SHOTS_RODADA_21 = [
   // Rodada de 16/10 (21): indicadores e resenha do ponto. Remessa demo de
   // março/2026 com espelhos FICTÍCIOS (gerados por script, layout Secullum) e
   // resenhas já geradas da remessa e do Administrativo.

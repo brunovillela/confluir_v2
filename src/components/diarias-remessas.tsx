@@ -66,10 +66,13 @@ export function SituacaoRemessaBadge({ remessa }: { remessa: Pick<RemessaNova, "
 export function ListaRemessasDiarias({
   remessas,
   base,
+  pessoaBase,
 }: {
   remessas: RemessaNova[]
   /** Ex.: /painel/pessoal/diarias/remessas */
   base: string
+  /** Página da pessoa na área (padrão de 3 níveis), ex.: /painel/pessoal/diarias/funcionario. */
+  pessoaBase?: string
 }) {
   if (remessas.length === 0) {
     return (
@@ -101,7 +104,15 @@ export function ListaRemessasDiarias({
                     {r.codigo ?? "(sem código)"}
                   </Link>
                 </TableCell>
-                <TableCell className="max-w-56 truncate">{r.beneficiarioNome ?? "—"}</TableCell>
+                <TableCell className="max-w-56 truncate">
+                  {pessoaBase && r.beneficiarioId ? (
+                    <Link href={`${pessoaBase}/${r.beneficiarioId}`} className="hover:underline">
+                      {r.beneficiarioNome ?? "—"}
+                    </Link>
+                  ) : (
+                    (r.beneficiarioNome ?? "—")
+                  )}
+                </TableCell>
                 <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
                   {periodo(r.inicio, r.termino)}
                 </TableCell>

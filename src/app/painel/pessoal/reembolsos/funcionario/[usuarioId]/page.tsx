@@ -24,7 +24,7 @@ export default async function ReembolsosFuncionarioPage({
   params: Promise<{ usuarioId: string }>
   searchParams: Promise<{ ano?: string }>
 }) {
-  const sessao = await requirePermissao("pessoal_gestao")
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
   const { usuarioId } = await params
   const sp = await searchParams
   const [funcionario, { reembolsos }, { tipos }] = await Promise.all([

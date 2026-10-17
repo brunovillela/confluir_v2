@@ -140,6 +140,9 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) =>
         head(q).not("autorizado", "is", true).is("data_autorizacao", null).not("inicio", "is", null),
     })
+  }
+  // Reembolsos do ACT: Gestão de Pessoal ou a chave dedicada (17/10).
+  if (pode("pessoal_gestao", ["pessoal_reembolsos"])) {
     fontes.push({
       chave: "reembolsos_pessoal",
       titulo: "Reembolsos do ACT a avaliar",

@@ -245,7 +245,7 @@ export async function criarReembolso(
   // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
   const nomes = await nomesDosUsuarios([novo.funcionario_id])
   depoisDaResposta(() =>
-    avisarQuemPode("pessoal_gestao", [], {
+    avisarQuemPode("pessoal_gestao", ["pessoal_reembolsos"], {
       texto: `${nomes.get(novo.funcionario_id) ?? "Um funcionário"} pediu reembolso de ${formatarMoeda(novo.valor_solicitado)} (${tipo.nome}): ${novo.descricao}`.slice(0, 300),
       link: "/painel/pessoal/reembolsos",
       evento: "pendencia_pessoal",

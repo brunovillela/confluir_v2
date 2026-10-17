@@ -130,7 +130,7 @@ const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; hre
   { chave: "ferias", rotulo: "Férias", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/ferias/funcionario/${id}` },
   { chave: "carreira", rotulo: "Carreira", permissoes: ["pessoal_gestao", "pessoal_anuenios", "pessoal_niveis_salariais"], href: (id) => `/painel/pessoal/carreira/funcionario/${id}` },
   { chave: "diarias", rotulo: "Diárias", permissoes: ["pessoal_gestao", "pessoal_diarias"], href: (id) => `/painel/pessoal/diarias/funcionario/${id}` },
-  { chave: "reembolsos", rotulo: "Reembolsos", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/reembolsos/funcionario/${id}` },
+  { chave: "reembolsos", rotulo: "Reembolsos", permissoes: ["pessoal_gestao", "pessoal_reembolsos"], href: (id) => `/painel/pessoal/reembolsos/funcionario/${id}` },
   { chave: "faltas", rotulo: "Faltas", permissoes: ["pessoal_gestao", "pessoal_faltas_justificadas"], href: (id) => `/painel/pessoal/faltas/funcionario/${id}` },
   { chave: "atestados", rotulo: "Atestados", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/atestados/funcionario/${id}` },
   { chave: "aso", rotulo: "ASO", permissoes: ["pessoal_gestao", "pessoal_aso"], href: (id) => `/painel/pessoal/aso/funcionario/${id}` },

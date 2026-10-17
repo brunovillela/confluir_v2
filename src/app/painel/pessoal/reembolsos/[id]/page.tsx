@@ -59,7 +59,7 @@ export default async function ReembolsoPage({
   /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
   searchParams: Promise<{ salvo?: string; de?: string }>
 }) {
-  await requirePermissao("pessoal_gestao")
+  await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 
   const { id } = await params
   const { salvo, de } = await searchParams

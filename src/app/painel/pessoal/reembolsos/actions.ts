@@ -16,7 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
   // Sem chave dedicada no Bubble para reembolsos de ACT — só a gestão.
-  return requirePermissao("pessoal_gestao")
+  return requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 }
 
 function revalidar(id?: string) {

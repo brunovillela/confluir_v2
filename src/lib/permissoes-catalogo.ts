@@ -63,6 +63,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "pessoal_anuenios", rotulo: "Anuênios" },
       { chave: "pessoal_niveis_salariais", rotulo: "Níveis salariais" },
       { chave: "pessoal_diarias", rotulo: "Diárias" },
+      { chave: "pessoal_reembolsos", rotulo: "Reembolsos do ACT" },
       { chave: "pessoal_aso", rotulo: "ASO" },
       { chave: "pessoal_faltas_justificadas", rotulo: "Faltas justificadas" },
       { chave: "pessoal_registro_ponto", rotulo: "Registro de ponto" },

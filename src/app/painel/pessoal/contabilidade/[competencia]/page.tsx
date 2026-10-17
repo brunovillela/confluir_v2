@@ -19,6 +19,7 @@ import {
   rotuloCompetencia,
 } from "@/lib/db/folha-movimento"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { EnviarCompetenciaForm, ReceberCompetenciaBotao } from "../forms"
 
@@ -30,6 +31,8 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
   if (!competenciaValida(competencia)) notFound()
   const envia = sessao.permissoes["pessoal_contabilidade_envio"] === true
   const recebe = sessao.permissoes["pessoal_contabilidade"] === true
+  // O escritório externo em geral não abre a ficha; quem é do Pessoal, sim.
+  const veFicha = podeAcessar(sessao.permissoes, "pessoal_gestao", ["pessoal_contracheque"])
 
   const { disponivel, competencia: c, linhas } = await obterMovimento(competencia)
   // A contabilidade só enxerga o que foi enviado.
@@ -130,7 +133,13 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
                   {s.linhas.map((l) => (
                     <TableRow key={l.chave}>
                       <TableCell className="min-w-40 align-top">
-                        <span className="font-medium">{l.nome ?? (l.funcionarioId ? "—" : "Todos")}</span>
+                        {veFicha && l.funcionarioId ? (
+                          <Link href={`/painel/pessoal/${l.funcionarioId}`} className="font-medium hover:underline">
+                            {l.nome ?? "—"}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{l.nome ?? (l.funcionarioId ? "—" : "Todos")}</span>
+                        )}
                         {(l.cpf || l.matricula) && (
                           <span className="text-muted-foreground block text-xs">
                             {[l.cpf && `CPF ${l.cpf}`, l.matricula && `mat. ${l.matricula}`].filter(Boolean).join(" · ")}
