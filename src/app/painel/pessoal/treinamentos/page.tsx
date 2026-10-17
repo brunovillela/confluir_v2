@@ -1,48 +1,52 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, GraduationCap } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import { listarTreinamentos } from "@/lib/db/treinamentos"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { carregarBaseTreinamentos, type Matricula } from "@/lib/db/treinamentos-area"
+import { formatarData } from "@/lib/formato"
+import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
-import { TreinamentoForm } from "./treinamento-form"
+import { CatalogoTreinamentos } from "./catalogo"
 
 export const metadata: Metadata = { title: "Treinamentos — Confluir" }
 
-function horas(v: number | null): string {
-  if (v === null) return "—"
-  return `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`
-}
+const ORDENS = ["nome", "concluidos", "vencidos", "pendentes", "ultimo"] as const
 
+/**
+ * Treinamentos — nível 1 do padrão das áreas do Pessoal: indicadores e as
+ * abas Funcionários (inicial: trilha de cada um) e Catálogo.
+ */
 export default async function TreinamentosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; excluido?: string; editar?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao")
-
-  const { salvo, excluido, editar } = await searchParams
-  const treinamentos = await listarTreinamentos()
-  const emEdicao = editar
-    ? (treinamentos.find((t) => t.id === editar) ?? null)
-    : null
+  const sp = await searchParams
+  const aba = sp.aba === "catalogo" ? "catalogo" : "funcionarios"
+  const [{ treinamentos, matriculas, matrizDe, usaMatriz }, funcionarios] = await Promise.all([
+    carregarBaseTreinamentos(),
+    funcionariosDaArea(),
+  ])
+  const ativos = new Set(funcionarios.filter((f) => f.ativo).map((f) => f.usuarioId))
+  // Certificado vencido conta só se não houver outro válido do mesmo treinamento.
+  const vencidosDe = (id: string) => {
+    const daPessoa = matriculas.filter((m) => m.alunoId === id)
+    return daPessoa.filter((m) => m.vencido && !daPessoa.some((o) => o.treinamentoId === m.treinamentoId && !o.vencido)).length
+  }
+  const comVencido = [...ativos].filter((id) => vencidosDe(id) > 0).length
+  const pendentes = [...ativos].reduce((s, id) => s + (matrizDe.get(id)?.pendentes ?? 0), 0)
 
   return (
     <>
@@ -54,120 +58,146 @@ export default async function TreinamentosPage({
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Treinamentos</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {treinamentos.length} treinamento
-          {treinamentos.length === 1 ? "" : "s"} — abra um treinamento para
-          gerenciar os alunos e certificados
-        </p>
+        <p className="text-muted-foreground mt-1 text-xs">Catálogo, alunos, certificados e a trilha de cada funcionário</p>
       </div>
 
-      {salvo === "1" && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Treinamento salvo.</AlertDescription>
-        </Alert>
-      )}
-      {excluido === "1" && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Treinamento excluído.</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Catálogo</CardTitle>
-            <CardDescription>
-              Treinamentos com alunos não podem ser excluídos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Treinamento</TableHead>
-                    <TableHead className="text-right">Carga</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Validade
-                    </TableHead>
-                    <TableHead className="text-right">Alunos</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {treinamentos.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32">
-                        <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                          <GraduationCap className="size-6" />
-                          <p className="text-sm">
-                            Nenhum treinamento cadastrado.
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {treinamentos.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="max-w-56 font-medium">
-                        <Link
-                          href={`/painel/pessoal/treinamentos/${t.id}`}
-                          className="hover:underline"
-                        >
-                          <span className="block truncate">
-                            {t.treinamento ?? "(sem nome)"}
-                          </span>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {horas(t.carga_horaria)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden sm:table-cell">
-                        {t.vencimento_meses
-                          ? `${t.vencimento_meses} meses`
-                          : "Não expira"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {t.alunos}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-7 px-2"
-                        >
-                          <Link
-                            href={`/painel/pessoal/treinamentos?editar=${t.id}`}
-                          >
-                            Editar
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* key força remontagem ao alternar criar/editar (defaultValue). */}
-        <TreinamentoForm
-          key={emEdicao?.id ?? "novo"}
-          treinamento={
-            emEdicao
-              ? {
-                  id: emEdicao.id,
-                  treinamento: emEdicao.treinamento,
-                  carga_horaria: emEdicao.carga_horaria,
-                  vencimento_meses: emEdicao.vencimento_meses,
-                  alunos: emEdicao.alunos,
-                }
-              : undefined
-          }
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador rotulo="Treinamentos no catálogo" valor={String(treinamentos.length)} href="/painel/pessoal/treinamentos?aba=catalogo" />
+        <TileIndicador rotulo="Matrículas" valor={String(matriculas.length)} nota="em todo o histórico" />
+        <TileIndicador
+          rotulo="Ativos com certificado vencido"
+          valor={String(comVencido)}
+          href="/painel/pessoal/treinamentos?ordem=vencidos&dir=desc"
         />
-      </div>
+        <TileIndicador
+          rotulo="Exigidos pendentes"
+          valor={usaMatriz ? String(pendentes) : "—"}
+          nota={usaMatriz ? "pela matriz de Atribuições e SST" : "sem exigências na matriz de SST"}
+          href={usaMatriz ? "/painel/pessoal/treinamentos?ordem=pendentes&dir=desc" : undefined}
+        />
+      </section>
+
+      <AbasLink
+        rotulo="Visões dos treinamentos"
+        abas={[
+          { href: "/painel/pessoal/treinamentos", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/treinamentos?aba=catalogo", rotulo: "Catálogo", ativo: aba === "catalogo", contador: treinamentos.length },
+        ]}
+      />
+
+      {aba === "catalogo" ? (
+        <CatalogoTreinamentos brutos={sp} />
+      ) : (
+        <AbaFuncionarios
+          sp={sp}
+          funcionarios={funcionarios}
+          matriculas={matriculas}
+          vencidosDe={vencidosDe}
+          pendentesDe={(id) => matrizDe.get(id)?.pendentes ?? 0}
+          usaMatriz={usaMatriz}
+        />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  funcionarios,
+  matriculas,
+  vencidosDe,
+  pendentesDe,
+  usaMatriz,
+}: {
+  sp: Record<string, string | undefined>
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+  matriculas: Matricula[]
+  vencidosDe: (id: string) => number
+  pendentesDe: (id: string) => number
+  usaMatriz: boolean
+}) {
+  const porPessoa = new Map<string, Matricula[]>()
+  for (const m of matriculas) porPessoa.set(m.alunoId, [...(porPessoa.get(m.alunoId) ?? []), m])
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    switch (f.ordem) {
+      case "concluidos":
+        return porPessoa.get(l.usuarioId)?.length
+      case "vencidos":
+        return vencidosDe(l.usuarioId)
+      case "pendentes":
+        return pendentesDe(l.usuarioId)
+      case "ultimo":
+        return porPessoa.get(l.usuarioId)?.[0]?.inicio
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f)
+  const urlAtual = `/painel/pessoal/treinamentos?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="treinamentos-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios filtros={f} departamentos={departamentosDaLista(funcionarios)} />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
+        porPagina={paginacao.porPagina}
+        linkOrdem={linkDeOrdem("/painel/pessoal/treinamentos", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/treinamentos/funcionario/${l.usuarioId}`}
+        colunas={[
+          {
+            chave: "concluidos",
+            rotulo: "Matrículas",
+            className: "text-right tabular-nums",
+            valor: (l) => porPessoa.get(l.usuarioId)?.length ?? "—",
+          },
+          {
+            chave: "vencidos",
+            rotulo: "Vencidos",
+            className: "text-right",
+            valor: (l) => {
+              const n = vencidosDe(l.usuarioId)
+              return n ? <Badge variant="warning">{n}</Badge> : <span className="text-muted-foreground">—</span>
+            },
+          },
+          ...(usaMatriz
+            ? [
+                {
+                  chave: "pendentes",
+                  rotulo: "Exigidos pendentes",
+                  className: "hidden text-right md:table-cell",
+                  valor: (l: (typeof funcionarios)[number]) => {
+                    const n = pendentesDe(l.usuarioId)
+                    return n ? <Badge variant="destructive">{n}</Badge> : <span className="text-muted-foreground">—</span>
+                  },
+                },
+              ]
+            : []),
+          {
+            chave: "ultimo",
+            rotulo: "Último",
+            className: "hidden lg:table-cell",
+            valor: (l) => {
+              const u = porPessoa.get(l.usuarioId)?.[0]
+              return u ? (
+                <Link href={`/painel/pessoal/treinamentos/${u.treinamentoId}`} className="hover:underline">
+                  {u.treinamento} · {formatarData(u.inicio)}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+        ]}
+      />
     </>
   )
 }

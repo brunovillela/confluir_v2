@@ -11,8 +11,7 @@ import {
   ListChecks,
   ShieldAlert,
   TriangleAlert,
-  Users,
-} from "lucide-react"
+  Users, UserRound } from "lucide-react"
 
 import { CartaoArea } from "@/components/cartao-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -91,6 +90,14 @@ export default async function AtribuicoesPage() {
     descricao: string
     icone: Icone
   }[] = [
+    {
+      href: "/painel/pessoal/atribuicoes/funcionarios",
+      titulo: "Funcionários",
+      indicador: "Ficha SST de cada um",
+      descricao:
+        "Função, atividades, ocupação da jornada, riscos, treinamentos exigidos e a Ordem de Serviço — por funcionário",
+      icone: UserRound,
+    },
     {
       href: "/painel/pessoal/atribuicoes/atividades",
       titulo: "Atividades",

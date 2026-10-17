@@ -118,6 +118,10 @@ export type AreaFuncionario =
   | "diarias"
   | "reembolsos"
   | "faltas"
+  | "atestados"
+  | "aso"
+  | "treinamentos"
+  | "sst"
 
 /** Ordem e permissão de cada área com página do funcionário (nível 2). */
 const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; href: (id: string) => string }[] = [
@@ -128,6 +132,10 @@ const AREAS: { chave: AreaFuncionario; rotulo: string; permissoes: string[]; hre
   { chave: "diarias", rotulo: "Diárias", permissoes: ["pessoal_gestao", "pessoal_diarias"], href: (id) => `/painel/pessoal/diarias/funcionario/${id}` },
   { chave: "reembolsos", rotulo: "Reembolsos", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/reembolsos/funcionario/${id}` },
   { chave: "faltas", rotulo: "Faltas", permissoes: ["pessoal_gestao", "pessoal_faltas_justificadas"], href: (id) => `/painel/pessoal/faltas/funcionario/${id}` },
+  { chave: "atestados", rotulo: "Atestados", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/atestados/funcionario/${id}` },
+  { chave: "aso", rotulo: "ASO", permissoes: ["pessoal_gestao", "pessoal_aso"], href: (id) => `/painel/pessoal/aso/funcionario/${id}` },
+  { chave: "treinamentos", rotulo: "Treinamentos", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/treinamentos/funcionario/${id}` },
+  { chave: "sst", rotulo: "SST", permissoes: ["pessoal_gestao"], href: (id) => `/painel/pessoal/atribuicoes/funcionario/${id}` },
   { chave: "informes", rotulo: "Informes", permissoes: ["pessoal_gestao", "pessoal_informes_rendimentos"], href: (id) => `/painel/pessoal/informes/funcionario/${id}` },
 ]
 

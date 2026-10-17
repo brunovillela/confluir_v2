@@ -140,7 +140,7 @@ export default async function TreinamentoPage({
                     <TableCell className="max-w-56 font-medium">
                       {a.aluno_id ? (
                         <Link
-                          href={`/painel/pessoal/${a.aluno_id}`}
+                          href={`/painel/pessoal/treinamentos/funcionario/${a.aluno_id}`}
                           className="hover:underline"
                         >
                           <span className="block truncate">

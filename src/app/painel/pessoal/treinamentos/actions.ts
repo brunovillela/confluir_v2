@@ -19,7 +19,7 @@ async function exigirAcesso() {
 }
 
 function revalidar(treinamentoId?: string) {
-  revalidatePath("/painel/pessoal/treinamentos")
+  revalidatePath("/painel/pessoal/treinamentos", "layout")
   if (treinamentoId) {
     revalidatePath(`/painel/pessoal/treinamentos/${treinamentoId}`)
   }
@@ -130,7 +130,7 @@ export async function excluirTreinamento(
   if (excluidos === 0) return { erro: "Treinamento não encontrado." }
 
   revalidar()
-  redirect("/painel/pessoal/treinamentos?excluido=1")
+  redirect("/painel/pessoal/treinamentos?aba=catalogo&excluido=1")
 }
 
 // ── Alunos do treinamento ──────────────────────────────────────────────────

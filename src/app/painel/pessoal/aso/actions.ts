@@ -19,7 +19,7 @@ async function exigirAcesso() {
 }
 
 function revalidar(funcionarioId?: string | null) {
-  revalidatePath("/painel/pessoal/aso")
+  revalidatePath("/painel/pessoal/aso", "layout")
   revalidatePath("/painel/perfil/contracheques")
   if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
 }
@@ -95,7 +95,7 @@ export async function criarAsoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/aso?salvo=1")
+  redirect("/painel/pessoal/aso?aba=registros&salvo=1")
 }
 
 export async function atualizarAsoAction(
@@ -117,7 +117,7 @@ export async function atualizarAsoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/aso?salvo=1")
+  redirect("/painel/pessoal/aso?aba=registros&salvo=1")
 }
 
 export async function excluirAsoAction(

@@ -1,129 +1,54 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Stethoscope } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
+import { linkDeOrdem } from "@/components/coluna-ordenavel"
+import { TileIndicador } from "@/components/graficos/tile"
+import { AbasLink } from "@/components/pessoal/abas-link"
+import { FiltrosFuncionarios } from "@/components/pessoal/filtros-funcionarios"
+import { TabelaFuncionarios } from "@/components/pessoal/tabela-funcionarios"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Paginacao } from "@/components/paginacao"
+import { SelectNativo } from "@/components/ui/select-nativo"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
-import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
-import {
-  listarAtestados,
-  listarAusencias,
-} from "@/lib/db/pessoal-saude"
+import { hojeSP } from "@/lib/db/comum"
+import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { listarAtestados, listarAusencias, type Atestado, type Ausencia } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
-import {
-  AtestadoForm,
-  AusenciaForm,
-  ExcluirAtestadoBotao,
-  ExcluirAusenciaBotao,
-} from "./forms"
+import { RegistrosSaude } from "./registros-lista"
 
-export const metadata: Metadata = {
-  title: "Atestados e ausências — Confluir",
-}
+export const metadata: Metadata = { title: "Atestados e ausências — Confluir" }
 
-const SELECT_FILTRO =
-  "border-input bg-background text-foreground h-9 max-w-40 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const ORDENS = ["nome", "atestados", "dias", "ausencias", "ultimo"] as const
+const anoDo = (d: string | null) => (d ?? "").slice(0, 4)
 
-function LinkArquivo({ url }: { url: string | null }) {
-  if (!url) return <span className="text-muted-foreground text-xs">—</span>
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-foreground inline-flex items-center gap-1 text-xs underline-offset-4 hover:underline"
-    >
-      Abrir <ExternalLink className="size-3" />
-    </a>
-  )
-}
-
-type ParamsLista = {
-  aba?: string
-  salvo?: string
-  editar?: string
-  busca?: string
-  ano?: string
-  pagina?: string
-  porPagina?: string
-}
-
+/**
+ * Atestados e ausências — nível 1 do padrão das áreas do Pessoal: quem está
+ * fora hoje, indicadores do ano e as abas Funcionários (inicial), Atestados
+ * médicos e Ausências (estas com os formulários de lançar e editar).
+ */
 export default async function AtestadosPage({
   searchParams,
 }: {
-  searchParams: Promise<ParamsLista>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   await requirePermissao("pessoal_gestao")
+  const sp = await searchParams
+  const aba = sp.aba === "atestados" || sp.aba === "ausencias" ? sp.aba : "funcionarios"
+  const [atestados, ausencias, funcionarios] = await Promise.all([listarAtestados(), listarAusencias(), funcionariosDaArea()])
 
-  const brutos = await searchParams
-  const aba = brutos.aba === "ausencias" ? "ausencias" : "atestados"
-  const { salvo, editar } = brutos
-  const busca = (brutos.busca ?? "").trim()
-
-  const [atestados, ausencias, funcionarios] = await Promise.all([
-    listarAtestados(),
-    listarAusencias(),
-    funcionariosParaSelecao(),
-  ])
-
-  const anos = [
-    ...new Set(
-      atestados.map((a) => a.ano).filter((v): v is string => Boolean(v))
-    ),
-  ].sort((a, b) => b.localeCompare(a))
-  const ano = anos.includes(brutos.ano ?? "") ? brutos.ano! : "todos"
-
-  const filtrar = <T extends { funcionarioNome: string | null }>(itens: T[]) =>
-    busca
-      ? itens.filter((i) =>
-          (i.funcionarioNome ?? "")
-            .toLocaleLowerCase("pt-BR")
-            .includes(busca.toLocaleLowerCase("pt-BR"))
-        )
-      : itens
-
-  const atestadosFiltrados = filtrar(atestados).filter(
-    (a) => ano === "todos" || a.ano === ano
-  )
-  const ausenciasFiltradas = filtrar(ausencias)
-
-  const paginacao = lerPaginacao(brutos, 30)
-  const paginaAtestados = paginar(atestadosFiltrados, paginacao)
-  const paginaAusencias = paginar(ausenciasFiltradas, paginacao)
-
-  // Signed URLs só para a página visível de atestados.
-  const urls = new Map<string, string | null>()
-  if (aba === "atestados") {
-    for (const a of paginaAtestados.linhas) {
-      urls.set(a.id, await urlArquivoPessoal(a.atestado))
-    }
-  }
-
-  const atestadoEmEdicao =
-    aba === "atestados" && editar
-      ? (atestados.find((a) => a.id === editar) ?? null)
-      : null
-  const ausenciaEmEdicao =
-    aba === "ausencias" && editar
-      ? (ausencias.find((a) => a.id === editar) ?? null)
-      : null
-
-  const urlAba = (a: string) =>
-    `/painel/pessoal/atestados${a === "ausencias" ? "?aba=ausencias" : ""}`
+  const hoje = hojeSP()
+  const anoAtual = hoje.slice(0, 4)
+  const cobreHoje = (i: { inicio: string | null; termino: string | null }) =>
+    Boolean(i.inicio && i.inicio <= hoje && (i.termino ?? i.inicio) >= hoje)
+  const foraHoje = new Set([...atestados.filter(cobreHoje), ...ausencias.filter(cobreHoje)].map((i) => i.funcionario_id))
+  const atestadosAno = atestados.filter((a) => anoDo(a.inicio) === anoAtual)
+  const diasAno = atestadosAno.reduce((s, a) => s + (a.quantidade_dias ?? 0), 0)
+  const longos = atestadosAno.filter((a) => (a.quantidade_dias ?? 0) > 15)
 
   return (
     <>
@@ -134,316 +59,165 @@ export default async function AtestadosPage({
             Pessoal
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Atestados e ausências
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {atestados.length} atestado{atestados.length === 1 ? "" : "s"} ·{" "}
-          {ausencias.length} ausência{ausencias.length === 1 ? "" : "s"} —
-          registros de saúde e afastamentos dos funcionários
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Atestados e ausências</h1>
+        <p className="text-muted-foreground mt-1 text-xs">Registros de saúde e afastamentos dos funcionários</p>
       </div>
 
-      {salvo === "1" && (
+      {sp.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>
       )}
 
-      <div
-        className="flex items-center gap-1.5"
-        role="group"
-        aria-label="Escolher entre atestados e ausências"
-      >
-        <Button
-          variant={aba === "atestados" ? "default" : "outline"}
-          size="sm"
-          asChild
-        >
-          <Link href={urlAba("atestados")}>Atestados médicos</Link>
-        </Button>
-        <Button
-          variant={aba === "ausencias" ? "default" : "outline"}
-          size="sm"
-          asChild
-        >
-          <Link href={urlAba("ausencias")}>Ausências</Link>
-        </Button>
-      </div>
-
-      <form method="GET" className="flex flex-wrap items-center gap-2">
-        {aba === "ausencias" && (
-          <input type="hidden" name="aba" value="ausencias" />
-        )}
-        <Input
-          name="busca"
-          defaultValue={busca}
-          placeholder="Nome do funcionário"
-          className="h-9 w-full sm:max-w-56"
-          aria-label="Buscar por funcionário"
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TileIndicador
+          rotulo="Fora hoje"
+          valor={String(foraHoje.size)}
+          nota={
+            foraHoje.size
+              ? funcionarios.filter((f) => foraHoje.has(f.usuarioId)).map((f) => f.nome.split(" ")[0]).join(", ")
+              : "ninguém afastado"
+          }
         />
-        {aba === "atestados" && (
-          <select
-            name="ano"
-            defaultValue={ano}
-            aria-label="Filtrar por ano"
-            className={SELECT_FILTRO}
-          >
-            <option value="todos">Todos os anos</option>
-            {anos.map((a) => (
+        <TileIndicador rotulo={`Atestados em ${anoAtual}`} valor={String(atestadosAno.length)} nota={`${diasAno} dia(s) de afastamento`} />
+        <TileIndicador
+          rotulo="Acima de 15 dias"
+          valor={String(longos.length)}
+          nota="a partir do 16º dia o afastamento vai ao INSS"
+        />
+        <TileIndicador rotulo={`Ausências em ${anoAtual}`} valor={String(ausencias.filter((a) => anoDo(a.inicio) === anoAtual).length)} />
+      </section>
+
+      <AbasLink
+        rotulo="Visões de atestados e ausências"
+        abas={[
+          { href: "/painel/pessoal/atestados", rotulo: "Funcionários", ativo: aba === "funcionarios" },
+          { href: "/painel/pessoal/atestados?aba=atestados", rotulo: "Atestados médicos", ativo: aba === "atestados", contador: atestados.length },
+          { href: "/painel/pessoal/atestados?aba=ausencias", rotulo: "Ausências", ativo: aba === "ausencias", contador: ausencias.length },
+        ]}
+      />
+
+      {aba === "funcionarios" ? (
+        <AbaFuncionarios sp={sp} atestados={atestados} ausencias={ausencias} funcionarios={funcionarios} />
+      ) : (
+        <RegistrosSaude brutos={sp} />
+      )}
+    </>
+  )
+}
+
+function AbaFuncionarios({
+  sp,
+  atestados,
+  ausencias,
+  funcionarios,
+}: {
+  sp: Record<string, string | undefined>
+  atestados: Atestado[]
+  ausencias: Ausencia[]
+  funcionarios: Awaited<ReturnType<typeof funcionariosDaArea>>
+}) {
+  const anos = [...new Set([...atestados, ...ausencias].map((i) => anoDo(i.inicio)).filter(Boolean))].sort().reverse()
+  const anoAtual = new Date().getFullYear().toString()
+  const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anoAtual
+  type Resumo = { atestados: number; dias: number; ausencias: number; ultimo: { data: string; rotulo: string; href: string } | null }
+  const resumo = new Map<string, Resumo>()
+  const pega = (id: string) => resumo.get(id) ?? { atestados: 0, dias: 0, ausencias: 0, ultimo: null }
+  const marcaUltimo = (r: Resumo, data: string | null, rotulo: string, href: string) => {
+    if (data && (!r.ultimo || data > r.ultimo.data)) r.ultimo = { data, rotulo, href }
+  }
+  for (const a of atestados) {
+    if (!a.funcionario_id || anoDo(a.inicio) !== ano) continue
+    const r = pega(a.funcionario_id)
+    r.atestados++
+    r.dias += a.quantidade_dias ?? 0
+    marcaUltimo(r, a.inicio, "Atestado", `/painel/pessoal/atestados/${a.id}`)
+    resumo.set(a.funcionario_id, r)
+  }
+  for (const a of ausencias) {
+    if (!a.funcionario_id || anoDo(a.inicio) !== ano) continue
+    const r = pega(a.funcionario_id)
+    r.ausencias++
+    marcaUltimo(r, a.inicio, a.motivo ?? "Ausência", `/painel/pessoal/atestados/funcionario/${a.funcionario_id}?ano=${ano}`)
+    resumo.set(a.funcionario_id, r)
+  }
+
+  const f = lerFiltrosArea(sp, ORDENS, { ordem: "nome" })
+  const valor = (l: (typeof funcionarios)[number]) => {
+    const r = resumo.get(l.usuarioId)
+    switch (f.ordem) {
+      case "atestados":
+        return r?.atestados
+      case "dias":
+        return r?.dias
+      case "ausencias":
+        return r?.ausencias
+      case "ultimo":
+        return r?.ultimo?.data
+      default:
+        return l.nome
+    }
+  }
+  const linhas = ordenarPor(filtrarFuncionarios(funcionarios, f), f.dir, valor)
+  const paginacao = lerPaginacao(sp, 30)
+  const pagina = paginar(linhas, paginacao)
+  const params = paramsDosFiltros(f, { ano: sp.ano })
+  const urlAtual = `/painel/pessoal/atestados?${new URLSearchParams(
+    Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
+  )}`
+
+  return (
+    <>
+      <LembrarLista chave="atestados-funcionarios" url={urlAtual} />
+      <FiltrosFuncionarios
+        filtros={f}
+        departamentos={departamentosDaLista(funcionarios)}
+        extras={
+          <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
+            {[...new Set([anoAtual, ...anos])].sort().reverse().map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
             ))}
-          </select>
-        )}
-        <Button type="submit" variant="secondary" size="sm">
-          Filtrar
-        </Button>
-      </form>
-
-      {aba === "atestados" ? (
-        <>
-          <div className="overflow-hidden rounded-xl border">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Funcionário</TableHead>
-                    <TableHead>Período</TableHead>
-                    <TableHead className="text-right">Dias</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      CID-10
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Acompanhamento
-                    </TableHead>
-                    <TableHead>Arquivo</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginaAtestados.total === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-40">
-                        <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                          <Stethoscope className="size-6" />
-                          <p className="text-sm">
-                            Nenhum atestado registrado
-                            {busca && <> para “{busca}”</>}.
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {paginaAtestados.linhas.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="max-w-56 font-medium">
-                        {a.funcionario_id ? (
-                          <Link
-                            href={`/painel/pessoal/${a.funcionario_id}`}
-                            className="hover:underline"
-                          >
-                            <span className="block truncate">
-                              {a.funcionarioNome ?? "(sem nome)"}
-                            </span>
-                          </Link>
-                        ) : (
-                          "(sem funcionário)"
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatarData(a.inicio)}
-                        {a.termino && a.termino !== a.inicio && (
-                          <> – {formatarData(a.termino)}</>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {a.quantidade_dias ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden sm:table-cell">
-                        {a.cid10 ?? "—"}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {a.atestado_acompanhamento === true ? (
-                          <Badge
-                            variant="outline"
-                            className="border-info/40 text-info-fg"
-                          >
-                            {a.nome_acompanhado
-                              ? `Acomp. ${a.nome_acompanhado}`
-                              : "Acompanhamento"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <LinkArquivo url={urls.get(a.id) ?? null} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            asChild
-                            className="h-7 px-2"
-                          >
-                            <Link
-                              href={`/painel/pessoal/atestados?editar=${a.id}`}
-                            >
-                              Editar
-                            </Link>
-                          </Button>
-                          <ExcluirAtestadoBotao id={a.id} />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          <Paginacao
-            total={paginaAtestados.total}
-            pagina={paginaAtestados.pagina}
-            totalPaginas={paginaAtestados.totalPaginas}
-            porPagina={paginacao.porPagina}
-            padrao={30}
-          />
-
-          {/* key força remontagem ao alternar criar/editar (defaultValue). */}
-          <AtestadoForm
-            key={atestadoEmEdicao?.id ?? "novo"}
-            funcionarios={funcionarios}
-            atestado={
-              atestadoEmEdicao
-                ? {
-                    id: atestadoEmEdicao.id,
-                    funcionario_id: atestadoEmEdicao.funcionario_id,
-                    inicio: atestadoEmEdicao.inicio,
-                    termino: atestadoEmEdicao.termino,
-                    quantidade_dias: atestadoEmEdicao.quantidade_dias,
-                    cid10: atestadoEmEdicao.cid10,
-                    consideracao: atestadoEmEdicao.consideracao,
-                    atestado_acompanhamento:
-                      atestadoEmEdicao.atestado_acompanhamento,
-                    nome_acompanhado: atestadoEmEdicao.nome_acompanhado,
-                    filho_menor_6_anos: atestadoEmEdicao.filho_menor_6_anos,
-                    temArquivo: Boolean(atestadoEmEdicao.atestado),
-                  }
-                : undefined
-            }
-          />
-        </>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-xl border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead>Período</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginaAusencias.total === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-40">
-                      <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
-                        <Stethoscope className="size-6" />
-                        <p className="text-sm">
-                          Nenhuma ausência registrada
-                          {busca && <> para “{busca}”</>}.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {paginaAusencias.linhas.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="max-w-56 font-medium">
-                      {a.funcionario_id ? (
-                        <Link
-                          href={`/painel/pessoal/${a.funcionario_id}`}
-                          className="hover:underline"
-                        >
-                          <span className="block truncate">
-                            {a.funcionarioNome ?? "(sem nome)"}
-                          </span>
-                        </Link>
-                      ) : (
-                        "(sem funcionário)"
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatarData(a.inicio)}
-                      {a.termino && a.termino !== a.inicio && (
-                        <> – {formatarData(a.termino)}</>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-64">
-                      <span className="block truncate">{a.motivo ?? "—"}</span>
-                      {a.observacao && (
-                        <span className="text-muted-foreground block truncate text-xs">
-                          {a.observacao}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-7 px-2"
-                        >
-                          <Link
-                            href={`/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`}
-                          >
-                            Editar
-                          </Link>
-                        </Button>
-                        <ExcluirAusenciaBotao id={a.id} />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <Paginacao
-            total={paginaAusencias.total}
-            pagina={paginaAusencias.pagina}
-            totalPaginas={paginaAusencias.totalPaginas}
-            porPagina={paginacao.porPagina}
-            padrao={30}
-          />
-
-          <AusenciaForm
-            key={ausenciaEmEdicao?.id ?? "nova"}
-            funcionarios={funcionarios}
-            ausencia={
-              ausenciaEmEdicao
-                ? {
-                    id: ausenciaEmEdicao.id,
-                    funcionario_id: ausenciaEmEdicao.funcionario_id,
-                    inicio: ausenciaEmEdicao.inicio,
-                    termino: ausenciaEmEdicao.termino,
-                    motivo: ausenciaEmEdicao.motivo,
-                    observacao: ausenciaEmEdicao.observacao ?? null,
-                  }
-                : undefined
-            }
-          />
-        </>
-      )}
+          </SelectNativo>
+        }
+      />
+      <TabelaFuncionarios
+        pagina={pagina}
+        ordem={f.ordem}
+        dir={f.dir}
+        porPagina={paginacao.porPagina}
+        linkOrdem={linkDeOrdem("/painel/pessoal/atestados", params, f.ordem, f.dir)}
+        hrefFuncionario={(l) => `/painel/pessoal/atestados/funcionario/${l.usuarioId}?ano=${ano}`}
+        colunas={[
+          { chave: "atestados", rotulo: `Atestados ${ano}`, className: "text-right tabular-nums", valor: (l) => resumo.get(l.usuarioId)?.atestados || "—" },
+          {
+            chave: "dias",
+            rotulo: "Dias",
+            className: "text-right tabular-nums",
+            valor: (l) => {
+              const d = resumo.get(l.usuarioId)?.dias ?? 0
+              return d ? <span className={d > 15 ? "text-warning-fg font-medium" : ""}>{d}</span> : "—"
+            },
+          },
+          { chave: "ausencias", rotulo: "Ausências", className: "hidden text-right tabular-nums md:table-cell", valor: (l) => resumo.get(l.usuarioId)?.ausencias || "—" },
+          {
+            chave: "ultimo",
+            rotulo: "Último",
+            className: "hidden lg:table-cell",
+            valor: (l) => {
+              const u = resumo.get(l.usuarioId)?.ultimo
+              return u ? (
+                <Link href={u.href} className="hover:underline">
+                  {formatarData(u.data)} · {u.rotulo}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )
+            },
+          },
+        ]}
+      />
     </>
   )
 }

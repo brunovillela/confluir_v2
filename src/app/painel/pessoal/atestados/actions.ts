@@ -24,7 +24,7 @@ async function exigirAcesso() {
 }
 
 function revalidar(funcionarioId?: string | null) {
-  revalidatePath("/painel/pessoal/atestados")
+  revalidatePath("/painel/pessoal/atestados", "layout")
   if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
 }
 
@@ -106,7 +106,7 @@ export async function criarAtestadoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?salvo=1")
+  redirect("/painel/pessoal/atestados?aba=atestados&salvo=1")
 }
 
 export async function atualizarAtestadoAction(
@@ -131,7 +131,7 @@ export async function atualizarAtestadoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?salvo=1")
+  redirect("/painel/pessoal/atestados?aba=atestados&salvo=1")
 }
 
 export async function excluirAtestadoAction(
