@@ -28,7 +28,7 @@ const EV_DEMO = "e0e0e0e0-0000-4000-8000-000000000001"
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- usados nos blocos comentados
 const DIA_DEMO = "e0e0e0e0-0000-4000-8000-000000000011"
 
-const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Compras e aquisição direta"]'
+const SWITCH_DIRETA = 'css=button[aria-label="Alternar entre via Aquisição e aquisição direta"]'
 // Cupom fictício para a leitura pela IA (PAPELARIA ESTRELA DO NORTE, CNPJ de
 // exemplo). Passe o caminho em CUPOM_TESTE; sem ele, o print da leitura é pulado.
 const CUPOM = process.env.CUPOM_TESTE ?? ""
@@ -40,8 +40,14 @@ const TOKEN_RPA = process.env.TOKEN_RPA ?? ""
 
 // SHOT_UNICO='["/rota", "pasta/arquivo.png", {opções}]' refaz só um print, sem
 // mexer nas rodadas (ex.: um print antigo que ficou com defeito).
+// LOTE=<arquivo.json>: uma lista [rota, arquivo, opções] montada fora do
+// script (ex.: refazer todos os prints de um módulo). Com SEGUIR=1, um print
+// que falha é registrado e o lote continua; ESPERA_MS encurta a espera.
+const ESPERA_MS = Number(process.env.ESPERA_MS ?? 180000)
 const SHOTS = process.env.SHOT_UNICO
   ? [JSON.parse(process.env.SHOT_UNICO)]
+  : process.env.LOTE
+  ? JSON.parse(readFileSync(process.env.LOTE, "utf8"))
   : process.env.RPA_FASE === "2"
   ? [
       // Rodada 19, fase 2: o link depois que o recibo assinado foi anexado.
@@ -713,7 +719,9 @@ async function anonPage() {
   return pageAnon
 }
 
+const falhas = []
 for (const [route, file, opts] of SHOTS) {
+  try {
   const dir = `public/ajuda/${file.split("/").slice(0, -1).join("/")}`
   mkdirSync(dir, { recursive: true })
   const p = opts?.anon
@@ -728,7 +736,7 @@ for (const [route, file, opts] of SHOTS) {
   // opts.esperar: texto que só aparece quando o trecho em streaming (Suspense)
   // terminou — sem isso o print pega o esqueleto de carregamento.
   if (opts?.esperar) {
-    await p.getByText(opts.esperar, { exact: false }).first().waitFor({ timeout: 180000 })
+    await p.getByText(opts.esperar, { exact: false }).first().waitFor({ timeout: ESPERA_MS })
     await p.waitForTimeout(800)
   }
   // O aviso de "fora do horário de trabalho" depende da hora em que o print
@@ -835,7 +843,14 @@ for (const [route, file, opts] of SHOTS) {
   await p.screenshot({ path: `public/ajuda/${file}`, fullPage: opts?.fullPage ?? false })
   if (opts?.altura) await p.setViewportSize({ width: 1440, height: 1024 })
   console.log("salvo:", file)
+  } catch (e) {
+    if (!process.env.SEGUIR) throw e
+    falhas.push(file)
+    console.log("FALHOU:", file, "—", String(e.message ?? e).split(/\r?\n/)[0])
+    for (const pg of [page, pageMobile, pageAnon]) if (pg) await pg.setViewportSize({ width: 1440, height: 1024 }).catch(() => {})
+  }
 }
+if (falhas.length) console.log("Falharam " + falhas.length + ":", falhas.join(", "))
 
 await browser.close()
 console.log("Concluído.")
