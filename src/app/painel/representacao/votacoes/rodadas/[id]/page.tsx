@@ -3,7 +3,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Eye, UsersRound } from "lucide-react"
 
-import { ApuracaoBadge } from "@/components/assembleias"
 import { CopiarLinkBotao } from "@/components/copiar-link"
 import { Paginacao } from "@/components/paginacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -61,7 +60,8 @@ import { DuplicadosAptos } from "./duplicados-aptos"
 import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
 import { linkUnicoVotacao } from "../../actions"
-import { AbasVotacao, SetasIrmaos, VoltarNivel } from "../../navegacao"
+import { AbasVotacao, SetasIrmaos, SituacaoRodadaBadge, VoltarNivel } from "../../navegacao"
+import { situacaoDaRodada } from "@/lib/db/votacao-panorama"
 import { TrilhaVotacoes } from "../../trilha"
 import { caminhoVotacao } from "@/lib/db/votacao-caminho"
 import { hrefCampanha, hrefRodada } from "@/lib/votacao-navegacao"
@@ -205,7 +205,14 @@ export default async function RodadaPage({
               <h1 className="truncate text-2xl font-semibold tracking-tight">
                 {rodada.nome ?? "(sem nome)"}
               </h1>
-              <ApuracaoBadge encerrada={rodada.apuracao_encerrada} />
+              <SituacaoRodadaBadge
+                situacao={situacaoDaRodada(
+                  assembleias.linhas.map((a) => ({
+                    situacao: janelas[a.id]?.situacao ?? "antes",
+                    apuracaoEncerrada: a.apuracao_encerrada,
+                  }))
+                )}
+              />
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
               {[caminho.fonte?.nome, rodada.campanhaTema ?? "Sem campanha vinculada"].filter(Boolean).join(" · ")}

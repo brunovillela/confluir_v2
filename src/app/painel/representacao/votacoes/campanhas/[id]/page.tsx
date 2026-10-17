@@ -16,7 +16,6 @@ import {
   panoramaDaCampanha,
   participacao,
   resumoResultado,
-  ROTULO_SITUACAO_RODADA,
   type RodadaPanorama,
 } from "@/lib/db/votacao-panorama"
 import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
@@ -24,21 +23,13 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 import { hrefAssembleia, hrefCampanha, hrefFonte, hrefRodada, RAIZ_VOTACOES } from "@/lib/votacao-navegacao"
 
 import { ContagemRegressiva } from "../../contagem-regressiva"
-import { VoltarNivel } from "../../navegacao"
+import { SituacaoRodadaBadge, VoltarNivel } from "../../navegacao"
 import { SeloSemLink } from "../../selo-sem-link"
 import { TrilhaVotacoes } from "../../trilha"
 import { CampanhaForm, type FonteOpcao } from "../campanha-form"
 import { NovaRodadaForm } from "./nova-rodada-form"
 
 export const metadata: Metadata = { title: "Campanha — Confluir" }
-
-const COR_SITUACAO: Record<RodadaPanorama["situacao"], "secondary" | "success" | "warning" | "info" | "outline"> = {
-  sem_assembleia: "outline",
-  agendada: "info",
-  em_votacao: "success",
-  a_apurar: "warning",
-  apurada: "secondary",
-}
 
 /**
  * A CAMPANHA (reorganização de 17/10/2026): a linha do tempo das rodadas — com
@@ -212,7 +203,7 @@ function ItemRodada({
           <Link href={hrefRodada(r.id, fonte)} className="text-primary font-medium hover:underline">
             {r.nome ?? "(sem nome)"}
           </Link>
-          <Badge variant={COR_SITUACAO[r.situacao]}>{ROTULO_SITUACAO_RODADA[r.situacao]}</Badge>
+          <SituacaoRodadaBadge situacao={r.situacao} />
           <SeloSemLink itens={semLink} href={`${hrefRodada(r.id, fonte, "aptos")}&link=sem_link`} />
         </div>
         <span className="text-muted-foreground text-xs">

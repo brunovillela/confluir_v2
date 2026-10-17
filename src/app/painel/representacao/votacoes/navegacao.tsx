@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ROTULO_SITUACAO_RODADA, type SituacaoRodada } from "@/lib/db/votacao-panorama"
 import { cn } from "@/lib/utils"
 
 /**
@@ -98,6 +99,19 @@ export function SetasIrmaos({
       </Button>
     </div>
   )
+}
+
+const COR_SITUACAO_RODADA: Record<SituacaoRodada, "secondary" | "success" | "warning" | "info" | "outline"> = {
+  sem_assembleia: "outline",
+  agendada: "info",
+  em_votacao: "success",
+  a_apurar: "warning",
+  apurada: "secondary",
+}
+
+/** Selo da situação da rodada (o mesmo no painel, na fonte, na campanha e na rodada). */
+export function SituacaoRodadaBadge({ situacao }: { situacao: SituacaoRodada }) {
+  return <Badge variant={COR_SITUACAO_RODADA[situacao]}>{ROTULO_SITUACAO_RODADA[situacao]}</Badge>
 }
 
 /** Chips dos irmãos (assembleias da mesma rodada): troca sem voltar. */

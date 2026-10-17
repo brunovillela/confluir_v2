@@ -29,6 +29,21 @@ export const ROTULO_SITUACAO_RODADA: Record<SituacaoRodada, string> = {
   apurada: "Apurada",
 }
 
+/**
+ * Situação da rodada a partir das assembleias dela: sem assembleia; apurada
+ * (todas com a apuração encerrada); em votação (alguma aberta); a apurar
+ * (alguma encerrada sem apuração); senão agendada. A marca
+ * voto_rod_assembleias.apuracao_encerrada não serve: o encerramento é por
+ * assembleia e ela nunca é preenchida.
+ */
+export function situacaoDaRodada(assembleias: { situacao: SituacaoJanela; apuracaoEncerrada: boolean }[]): SituacaoRodada {
+  if (assembleias.length === 0) return "sem_assembleia"
+  if (assembleias.every((a) => a.apuracaoEncerrada)) return "apurada"
+  if (assembleias.some((a) => a.situacao === "aberta")) return "em_votacao"
+  if (assembleias.some((a) => a.situacao === "encerrada" && !a.apuracaoEncerrada)) return "a_apurar"
+  return "agendada"
+}
+
 export type ResultadoPergunta = {
   pergunta: string | null
   opcoes: { texto: string | null; votos: number }[]
@@ -178,16 +193,7 @@ export async function panoramaRodadas(rodadas: RodadaBruta[]): Promise<RodadaPan
 
   return rodadas.map((r) => {
     const ass = (assPorRodada.get(r.id) ?? []).sort((x, y) => (x.inicio ?? 0) - (y.inicio ?? 0))
-    const situacao: SituacaoRodada =
-      ass.length === 0
-        ? "sem_assembleia"
-        : ass.every((a) => a.apuracaoEncerrada)
-          ? "apurada"
-          : ass.some((a) => a.situacao === "aberta")
-            ? "em_votacao"
-            : ass.some((a) => a.situacao === "encerrada" && !a.apuracaoEncerrada)
-              ? "a_apurar"
-              : "agendada"
+    const situacao = situacaoDaRodada(ass)
     const porAbrir = ass.filter((a) => a.situacao === "antes" && a.inicio !== null).map((a) => a.inicio as number)
     const fins = ass.map((a) => a.fim).filter((f): f is number => f !== null)
     const res = resultadoPorRodada.get(r.id)
