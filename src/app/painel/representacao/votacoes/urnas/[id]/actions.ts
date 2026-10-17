@@ -24,7 +24,7 @@ import {
 } from "@/lib/db/votacao-apuracao"
 
 function rev(assembleiaId: string) {
-  revalidatePath(`/painel/representacao/votacoes/urnas/${assembleiaId}`)
+  revalidatePath(`/painel/representacao/votacoes/assembleias/${assembleiaId}`)
 }
 
 function dataHora(formData: FormData, campo: string): string | null {

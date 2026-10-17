@@ -1250,11 +1250,7 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("voto_assembleias")
-    .select(
-      "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata, apuracao_encerrada" +
-        (await colunasHorario()) +
-        (await colunasSala())
-    )
+    .select(await colunasAssembleia())
     .eq("rod_assembleia_id", rodadaId)
     .order("data_inicio", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
@@ -1266,25 +1262,67 @@ export async function listarAssembleiasDaRodada(rodadaId: string): Promise<{
   const linhasBrutas = (data ?? []) as unknown as Record<string, unknown>[]
   return {
     esquemaPronto: true,
-    linhas: linhasBrutas.map((a) => ({
-      id: String(a.id),
-      nome: (a.nome_assembleia as string | null) ?? null,
-      descricao: (a.descricao as string | null) ?? null,
-      modalidade: derivarModalidade(a),
-      data_inicio: (a.data_inicio as string | null) ?? null,
-      data_termino: (a.data_termino as string | null) ?? null,
-      hora_inicio: horaCurta(a.hora_inicio as string | null),
-      hora_termino: horaCurta(a.hora_termino as string | null),
-      voto_em_separado: a.voto_em_separado === true,
-      somente_filiados: a.somente_filiados === true,
-      edital: (a.edital as string | null) ?? null,
-      ata: (a.ata as string | null) ?? null,
-      sala_link: (a.sala_link as string | null) ?? null,
-      sala_data: (a.sala_data as string | null) ?? null,
-      sala_hora: horaCurta(a.sala_hora as string | null),
-      apuracao_encerrada: a.apuracao_encerrada === true,
-    })),
+    linhas: linhasBrutas.map(mapearAssembleia),
   }
+}
+
+/** Colunas da AssembleiaLinha (horários e sala só depois dos SQLs deles). */
+async function colunasAssembleia(): Promise<string> {
+  return (
+    "id, nome_assembleia, descricao, online, urnas_de_votacao, voto_em_separado, somente_filiados, data_inicio, data_termino, edital, ata, apuracao_encerrada" +
+    (await colunasHorario()) +
+    (await colunasSala())
+  )
+}
+
+function mapearAssembleia(a: Record<string, unknown>): AssembleiaLinha {
+  return {
+    id: String(a.id),
+    nome: (a.nome_assembleia as string | null) ?? null,
+    descricao: (a.descricao as string | null) ?? null,
+    modalidade: derivarModalidade(a),
+    data_inicio: (a.data_inicio as string | null) ?? null,
+    data_termino: (a.data_termino as string | null) ?? null,
+    hora_inicio: horaCurta(a.hora_inicio as string | null),
+    hora_termino: horaCurta(a.hora_termino as string | null),
+    voto_em_separado: a.voto_em_separado === true,
+    somente_filiados: a.somente_filiados === true,
+    edital: (a.edital as string | null) ?? null,
+    ata: (a.ata as string | null) ?? null,
+    sala_link: (a.sala_link as string | null) ?? null,
+    sala_data: (a.sala_data as string | null) ?? null,
+    sala_hora: horaCurta(a.sala_hora as string | null),
+    apuracao_encerrada: a.apuracao_encerrada === true,
+  }
+}
+
+/**
+ * Uma assembleia pelo id, com ou sem rodada — as do legado (Bubble) ficam
+ * ligadas direto à campanha (reorganização de 17/10/2026).
+ */
+export async function obterAssembleia(id: string): Promise<AssembleiaLinha | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_assembleias")
+    .select(await colunasAssembleia())
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return data ? mapearAssembleia(data as unknown as Record<string, unknown>) : null
+}
+
+/** Assembleias da campanha que não estão em rodada nenhuma (o legado do Bubble). */
+export async function listarAssembleiasSemRodada(campanhaId: string): Promise<AssembleiaLinha[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("voto_assembleias")
+    .select(await colunasAssembleia())
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("campanha_id", campanhaId)
+    .is("rod_assembleia_id", null)
+    .order("data_inicio", { ascending: false, nullsFirst: false })
+  if (error) return []
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapearAssembleia)
 }
 
 /**

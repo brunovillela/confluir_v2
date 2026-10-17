@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { HORAS_ALERTA_SEM_LINK, type RodadaSemLink } from "@/lib/db/votacao-sem-link"
 import { formatarDataHora } from "@/lib/formato"
+import { comFonte, hrefRodada } from "@/lib/votacao-navegacao"
 
 /** Prazo até a abertura, em linguagem de gente. */
 function prazo(horasAteAbrir: number): string {
@@ -21,7 +22,7 @@ function prazo(horasAteAbrir: number): string {
  * código por e-mail, que os firewalls de empresa barram. A cor sobe conforme a
  * abertura se aproxima: neutra, âmbar com 48 h, vermelha com 24 h ou aberta.
  */
-export function SemLinkAlerta({ rodadaId, r }: { rodadaId: string; r: RodadaSemLink }) {
+export function SemLinkAlerta({ rodadaId, fonte, r }: { rodadaId: string; fonte?: string | null; r: RodadaSemLink }) {
   const horas = r.horasParaAbrir
   const variante =
     r.aberta || (horas !== null && horas <= 24)
@@ -55,14 +56,14 @@ export function SemLinkAlerta({ rodadaId, r }: { rodadaId: string; r: RodadaSemL
         <div className="mt-2 flex flex-wrap gap-2">
           {(r.pendentes > 0 || r.falhas > 0) && (
             <Button size="sm" variant="outline" asChild>
-              <a href="#aviso-aptos">
+              <a href={hrefRodada(rodadaId, fonte, "divulgacao")}>
                 <Send />
                 Ir para o envio
               </a>
             </Button>
           )}
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/painel/representacao/votacoes/rodadas/${rodadaId}?link=sem_link#aptos`}>
+            <Link href={comFonte(hrefRodada(rodadaId, fonte, "aptos"), null, { link: "sem_link" })}>
               <ListFilter />
               Ver quem está sem link
             </Link>

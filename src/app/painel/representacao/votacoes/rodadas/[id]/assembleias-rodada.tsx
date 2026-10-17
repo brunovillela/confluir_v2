@@ -47,6 +47,7 @@ import {
 } from "@/lib/assembleias-constantes"
 import type { AssembleiaLinha } from "@/lib/db/assembleias"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { hrefAssembleia } from "@/lib/votacao-navegacao"
 
 import {
   anexarAtaAction,
@@ -77,6 +78,7 @@ export function AssembleiasDaRodada({
   janelas,
   atas,
   terminoDaRodada,
+  fonte,
 }: {
   rodadaId: string
   assembleias: AssembleiaLinha[]
@@ -88,6 +90,8 @@ export function AssembleiasDaRodada({
   /** Link assinado da ata de cada assembleia que tem ata. */
   atas: Record<string, string>
   terminoDaRodada: string | null
+  /** Contexto de fonte (`?fonte=`) que segue para a página da assembleia. */
+  fonte?: string | null
 }) {
   return (
     <Card>
@@ -124,6 +128,7 @@ export function AssembleiasDaRodada({
             janela={janelas[a.id] ?? { situacao: "antes", fim: null }}
             ataUrl={atas[a.id] ?? null}
             terminoDaRodada={terminoDaRodada}
+            fonte={fonte ?? null}
           />
         ))}
         {esquemaPronto && editavel && (
@@ -368,7 +373,7 @@ export type JanelaItem = {
 }
 
 /** Agendada → Em votação → Encerrada (aguarda ou com apuração). */
-function SituacaoBadge({
+export function SituacaoBadge({
   situacao,
   apuracaoEncerrada,
 }: {
@@ -392,6 +397,7 @@ function AssembleiaItem({
   janela,
   ataUrl,
   terminoDaRodada,
+  fonte,
 }: {
   rodadaId: string
   assembleia: AssembleiaLinha
@@ -399,6 +405,7 @@ function AssembleiaItem({
   janela: JanelaItem
   ataUrl: string | null
   terminoDaRodada: string | null
+  fonte: string | null
 }) {
   const [editando, setEditando] = useState(false)
   const [estadoSalvar, salvarAction, salvando] = useActionState(
@@ -472,7 +479,7 @@ function AssembleiaItem({
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border p-4">
+    <div id={`assembleia-${assembleia.id}`} className="grid scroll-mt-4 gap-3 rounded-lg border p-4">
       {erro && (
         <Alert variant="destructive">
           <AlertDescription>{erro}</AlertDescription>
@@ -481,9 +488,12 @@ function AssembleiaItem({
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="grid min-w-0 gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="mr-1 text-sm font-medium">
+            <Link
+              href={hrefAssembleia(assembleia.id, fonte)}
+              className="text-primary mr-1 text-sm font-medium hover:underline"
+            >
               {assembleia.nome ?? "(sem nome)"}
-            </p>
+            </Link>
             <SituacaoBadge
               situacao={janela.situacao}
               apuracaoEncerrada={assembleia.apuracao_encerrada}
@@ -551,25 +561,23 @@ function AssembleiaItem({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
+        <Button size="sm" asChild>
+          <Link href={hrefAssembleia(assembleia.id, fonte)}>
+            <Activity />
+            Abrir assembleia
+          </Link>
+        </Button>
         {temUrna(assembleia.modalidade) && (
-          <>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/painel/representacao/votacoes/urnas/${assembleia.id}`}>
-                <Vote />
-                Urnas e mesários
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/painel/representacao/votacoes/acompanhamento/${assembleia.id}`}>
-                <Activity />
-                Acompanhar
-              </Link>
-            </Button>
-          </>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={hrefAssembleia(assembleia.id, fonte, "urnas")}>
+              <Vote />
+              Urnas e mesários
+            </Link>
+          </Button>
         )}
         {podeApurar ? (
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/painel/representacao/votacoes/apuracao/${assembleia.id}`}>
+            <Link href={hrefAssembleia(assembleia.id, fonte, "apuracao")}>
               <Gavel />
               Apurar
             </Link>
@@ -616,7 +624,7 @@ function AssembleiaItem({
  * Ata da assembleia: ver a atual e anexar (ou trocar). Fica fora da edição
  * porque a ata chega depois da assembleia, quando a edição já travou.
  */
-function AtaBotao({
+export function AtaBotao({
   rodadaId,
   assembleia,
   ataUrl,
@@ -691,7 +699,7 @@ function AtaBotao({
 }
 
 /** Depois do início, só o término muda: data e hora. */
-function ProrrogarBotao({
+export function ProrrogarBotao({
   rodadaId,
   assembleia,
   fimAtual,

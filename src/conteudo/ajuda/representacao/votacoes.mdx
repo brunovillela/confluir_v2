@@ -1,7 +1,8 @@
 A área chama-se **Votações** porque a assembleia é **uma das modalidades** de
-votação — há também urna, reunião de base e o voto pela área do filiado. Cada
-votação é organizada em **três níveis**, o que permite uma mesma consulta
-acontecer em vários locais e momentos, sem perder a contagem única dos votos.
+votação — há também urna, reunião de base e o voto pela área do filiado. As
+votações se organizam por **fonte pagadora › campanha › rodada › assembleia**, o
+que permite uma mesma consulta acontecer em vários locais e momentos, sem perder
+a contagem única dos votos.
 
 <RequerPermissao>Votações e assembleias</RequerPermissao>
 
@@ -10,50 +11,55 @@ acontecer em vários locais e momentos, sem perder a contagem única dos votos.
   inclusive os que já foram enviados por e-mail.
 </Aviso>
 
-## A lista de campanhas
+## O painel de Votações
 
-A lista tem busca por tema, filtro de situação (abertas ou finalizadas) e
-**filtro por empresa** — útil quando várias empresas negociam ao mesmo tempo e
-você quer só as campanhas de uma delas. Os filtros ficam no endereço, então dá
-para guardar o link já filtrado.
+A página inicial de Votações é um **painel geral** (desde 17/10/2026):
 
-<PassoAPasso>
-  <Passo titulo="O que está acontecendo aparece primeiro">
-    A coluna **Votação** destaca as campanhas com assembleia **em votação
-    agora** (faixa verde) e as que **abrem nos próximos 7 dias** (faixa azul),
-    com o nome da assembleia e até quando dá para votar. Por padrão a lista já
-    vem nessa ordem, então nada em curso fica escondido na página 3.
-  </Passo>
-  <Passo titulo="Ordenar por qualquer coluna">
-    Clique no título de **Tema**, **Votação**, **Rodadas**, **Situação** ou
-    **Registro** para ordenar; clique de novo para inverter. A seta mostra a
-    coluna ativa, e a ordem escolhida fica no endereço.
-  </Passo>
-  <Passo titulo="Quantas por página">
-    **25, 50 ou 100** campanhas por página, na barra de filtros.
-  </Passo>
-</PassoAPasso>
-
-<Print src="representacao/votacoes-lista.png" alt="Lista de campanhas da área Votações, com a busca por tema, os filtros de situação e empresa, a escolha de quantas por página e a tabela com as colunas Tema, Fontes pagadoras, Votação, Rodadas, Situação e Registro, todas com seta de ordenação." legenda="A lista de campanhas: filtros, ordenação por coluna e a coluna Votação." />
+- **Indicadores** — em votação agora, abrem em 7 dias, rodadas em curso,
+  campanhas abertas, participação média das últimas 5 votações e aptos sem link
+  pessoal a 48 h da abertura.
+- **Alertas** — cada um com o atalho para resolver: aptos sem link, pessoas
+  repetidas na lista, rodada perto de abrir sem perguntas, aptos ou assembleia,
+  envio automático dos links desligado a 72 h da abertura, apuração não
+  encerrada e voto em separado sem decisão.
+- **Agora e a seguir** — as assembleias em votação e as dos próximos 7 dias,
+  com contagem regressiva e a participação ao vivo (nunca o resultado).
+- **Fontes pagadoras com campanhas** — busca por fonte, CNPJ ou tema de
+  campanha, filtros de grupo empresarial, situação, ano e "votação em 7 dias",
+  e ordem por próxima votação, última votação, nome ou nº de campanhas. A linha
+  **Sem fonte pagadora** reúne as campanhas sem fonte e as rodadas antigas sem
+  campanha. Ao voltar de uma fonte, a lista reabre com os filtros de antes.
 
 <Aviso tipo="nota" titulo="Assembleia sem data não entra no destaque">
-  O destaque olha a **data de início** da assembleia. Muitas assembleias antigas
-  vieram da migração sem data — elas não aparecem como "em votação", porque não
-  estão: só não têm data. Sem hora, vale o dia inteiro.
+  "Agora e a seguir" olha a **data de início** da assembleia. Muitas assembleias
+  antigas vieram da migração sem data — não aparecem como "em votação", porque
+  não estão: só não têm data. Sem hora, vale o dia inteiro.
 </Aviso>
 
 ## A hierarquia
 
 <PassoAPasso>
+  <Passo titulo="Fonte pagadora">
+    A empresa (ou as empresas) da negociação. A página da fonte mostra todas as
+    campanhas dela — inclusive as compartilhadas com outras fontes —, os
+    indicadores, a **participação rodada a rodada** e os atalhos para a ficha do
+    empregador e os acordos coletivos.
+  </Passo>
   <Passo titulo="Campanha">
-    O tema geral (ex.: uma pauta de negociação).
+    O tema geral (ex.: uma pauta de negociação). A página mostra a **linha do
+    tempo das rodadas** — situação, participação e resultado de cada uma — e o
+    que pede atenção agora.
   </Passo>
   <Passo titulo="Rodada">
     Um ciclo dentro da campanha. É na rodada que vivem as **perguntas** e a lista
     de **aptos** a votar.
   </Passo>
   <Passo titulo="Assembleias">
-    Os encontros da rodada — por local/data — onde o voto acontece.
+    Os encontros da rodada — por local/data — onde o voto acontece. Cada uma tem
+    página própria, em abas: **Visão geral** (contagem regressiva, informações,
+    votos ao longo do tempo, entrega), **Votantes** (quem votou, por onde e
+    quando; e quem falta, com o link pessoal), **Urnas e mesários** (presencial)
+    e **Apuração**.
   </Passo>
 </PassoAPasso>
 
@@ -308,17 +314,25 @@ rodada. A visualização dura 30 minutos e exige a permissão de assembleias.
 
 ## Como circular entre os níveis
 
-A trilha no alto da tela segue sempre a hierarquia, e cada degrau volta para o
-**registro** de cima — não para uma lista genérica:
+A trilha no alto da tela mostra o **nome** de cada nível, e cada degrau volta
+para o registro de cima:
 
 ```
-Painel › Representação Sindical › Votações › Campanhas › Rodadas de assembleias › Assembleia
+Votações › Baker Hughes › ACT 2026/2028 › 2ª rodada › Assembleia online
 ```
 
-Estando numa rodada, **Campanhas** volta para a campanha daquela rodada;
-estando numa assembleia (urnas, acompanhamento ou apuração), **Rodadas de
-assembleias** volta para a rodada daquela assembleia. A seta de voltar, ao lado
-do título, faz o mesmo caminho.
+- **O caminho de volta não se perde.** Uma campanha pode ter várias fontes: a
+  fonte de onde você veio acompanha a descida (fica no endereço, `?fonte=`), e
+  a trilha e o botão **←** sobem por ela. Na campanha, os botões das fontes trocam
+  esse contexto.
+- **Abas no endereço.** A rodada (Visão geral, Aptos, Perguntas, Divulgação) e a
+  assembleia guardam a aba aberta no endereço: o voltar do navegador e o link
+  copiado caem na aba certa.
+- **Para os lados.** Na rodada, **Anterior** e **Próxima** passam para as outras
+  rodadas da campanha; na assembleia, os botões **Assembleias da rodada** trocam
+  de assembleia sem voltar.
+- **Endereços antigos** (Apurar, Acompanhar, Urnas) continuam valendo e abrem a
+  aba certa da página da assembleia.
 
 ## Modalidades de votação
 
@@ -542,7 +556,7 @@ lado, para comparar uma com a outra.
 
 ## Acompanhamento e lacres
 
-- **Acompanhar** (botão na assembleia): veja **quem já votou**, os **votos por
+- **Acompanhar** (hoje, as abas **Votantes** e **Urnas e mesários** da assembleia): veja **quem já votou**, os **votos por
   urna**, os **lacres usados por dia** e a **lista** de votos em separado — sem
   nunca mostrar o conteúdo do voto.
 - **Lacres** (em cada urna, na página de Urnas e mesários): controle por
@@ -594,7 +608,7 @@ conferir um código em `/comprovante/<código>`, sem login.
 
 ## Apuração
 
-O botão **Apurar** de cada assembleia mostra a contagem **por opção** (as opções
+A aba **Apuração** da assembleia (botão **Apurar** na rodada) mostra a contagem **por opção** (as opções
 são as cadastradas na rodada — não há resposta fixa), somando os votos
 **digitais/online** e o que os **apuradores** lançaram nas urnas físicas, com
 **branco** e **nulo**. O botão só fica liberado **depois do término da

@@ -1,49 +1,46 @@
 "use client"
 
 import { TrilhaPropria } from "@/components/layout/trilha-rotulos"
+import type { CaminhoVotacao } from "@/lib/db/votacao-caminho"
+import { hrefAssembleia, hrefCampanha, hrefFonte, hrefRodada, RAIZ_VOTACOES } from "@/lib/votacao-navegacao"
 
-const RAIZ = "/painel/representacao/votacoes"
+/** Nome no degrau: curto o bastante para a trilha caber; o completo fica na página. */
+function curto(nome: string | null, reserva: string): string {
+  const n = (nome ?? "").trim() || reserva
+  return n.length > 34 ? `${n.slice(0, 32).trimEnd()}…` : n
+}
 
 /**
- * A trilha padrão das Votações:
+ * A trilha das Votações com os NOMES de cada nível (reorganização de
+ * 17/10/2026):
  *
- *   Painel › Representação Sindical › Votações › Campanhas › Rodadas de
- *   assembleias › Assembleia
+ *   Painel › Representação Sindical › Votações › <fonte> › <campanha> ›
+ *   <rodada> › <assembleia>
  *
- * As rotas são irmãs (`/campanhas/<id>`, `/rodadas/<id>`, `/urnas/<id>`), então
- * a trilha derivada da URL levava a `/campanhas` e `/rodadas`, que não existem
- * — dava "em desenvolvimento". Aqui cada degrau aponta para o registro PAI de
- * verdade: "Campanhas" volta para a campanha daquela rodada, e "Rodadas de
- * assembleias" para a rodada daquela assembleia.
+ * Cada degrau leva ao registro pai de verdade, com o contexto de fonte
+ * (`?fonte=`) — uma campanha de várias fontes volta pela fonte de onde a
+ * pessoa veio.
  */
 export function TrilhaVotacoes({
-  campanhaId,
-  rodadaId,
-  assembleia,
+  caminho,
   folha,
 }: {
-  campanhaId?: string | null
-  rodadaId?: string | null
-  /** Endereço da página da assembleia (urnas, acompanhamento, apuração). */
-  assembleia?: string | null
+  caminho?: CaminhoVotacao | null
   /** Último degrau avulso, para telas fora da hierarquia (ex.: "Nova campanha"). */
   folha?: { titulo: string; href: string } | null
 }) {
   const degraus = [
     { titulo: "Painel", href: "/painel" },
     { titulo: "Representação Sindical", href: "/painel/representacao" },
-    { titulo: "Votações", href: RAIZ },
+    { titulo: "Votações", href: RAIZ_VOTACOES },
   ]
-  if (campanhaId) {
-    degraus.push({ titulo: "Campanhas", href: `${RAIZ}/campanhas/${campanhaId}` })
+  const fonte = caminho?.fonte?.id ?? null
+  if (caminho?.fonte) degraus.push({ titulo: curto(caminho.fonte.nome, "Fonte pagadora"), href: hrefFonte(caminho.fonte.id) })
+  if (caminho?.campanha) degraus.push({ titulo: curto(caminho.campanha.nome, "Campanha"), href: hrefCampanha(caminho.campanha.id, fonte) })
+  if (caminho?.rodada) degraus.push({ titulo: curto(caminho.rodada.nome, "Rodada"), href: hrefRodada(caminho.rodada.id, fonte) })
+  if (caminho?.assembleia) {
+    degraus.push({ titulo: curto(caminho.assembleia.nome, "Assembleia"), href: hrefAssembleia(caminho.assembleia.id, fonte) })
   }
-  if (rodadaId) {
-    degraus.push({
-      titulo: "Rodadas de assembleias",
-      href: `${RAIZ}/rodadas/${rodadaId}`,
-    })
-  }
-  if (assembleia) degraus.push({ titulo: "Assembleia", href: assembleia })
   if (folha) degraus.push(folha)
   return <TrilhaPropria degraus={degraus} />
 }

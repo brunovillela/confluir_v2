@@ -49,6 +49,8 @@ function horaISO(valor: string): string | null {
 
 function revalidarRodada(rodadaId: string) {
   revalidatePath(`/painel/representacao/votacoes/rodadas/${rodadaId}`)
+  // A página da assembleia (17/10/2026) mostra prorrogação, ata e dados.
+  revalidatePath("/painel/representacao/votacoes/assembleias/[id]", "page")
 }
 
 // ── Dados da rodada ────────────────────────────────────────────────────────
@@ -420,7 +422,6 @@ export async function prorrogarAssembleiaAction(
   })
   if (r.erro) return { erro: r.erro }
   revalidarRodada(rodadaId)
-  revalidatePath(`/painel/representacao/votacoes/apuracao/${id}`)
   return {
     ok: r.rodadaEstendida
       ? "Assembleia prorrogada. O período da rodada foi estendido até a nova data."

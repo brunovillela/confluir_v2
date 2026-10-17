@@ -1,90 +1,21 @@
-import type { Metadata } from "next"
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, FileText } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { ModalidadeBadge } from "@/components/assembleias"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { paisDaAssembleia } from "@/lib/db/assembleias"
-import { dadosUrnasAssembleia } from "@/lib/db/votacao-mesarios"
+import { hrefAssembleia } from "@/lib/votacao-navegacao"
 
-import { TrilhaVotacoes } from "../../trilha"
-import { UrnasEMesarios } from "./urnas-mesarios"
-
-export const metadata: Metadata = { title: "Urnas e mesários — Confluir" }
-
-export default async function UrnasAssembleiaPage({
+/**
+ * "Urnas e mesários" virou a aba "urnas" da página da assembleia (reorganização de
+ * 17/10/2026). A rota antiga continua valendo: links salvos caem na aba certa.
+ */
+export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ fonte?: string }>
 }) {
   await requirePermissao("assembleias")
   const { id } = await params
-  const dados = await dadosUrnasAssembleia(id)
-  if (!dados) notFound()
-
-  const pais = await paisDaAssembleia(id)
-
-  return (
-    <>
-      <TrilhaVotacoes
-        campanhaId={pais.campanhaId}
-        rodadaId={pais.rodadaId}
-        assembleia={`/painel/representacao/votacoes/urnas/${id}`}
-      />
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link
-            href={
-              pais.rodadaId
-                ? `/painel/representacao/votacoes/rodadas/${pais.rodadaId}`
-                : "/painel/representacao/votacoes"
-            }
-          >
-            <ArrowLeft />
-            {pais.rodadaId ? "Rodada de assembleias" : "Votações"}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Urnas e mesários — {dados.nome ?? "assembleia"}
-          </h1>
-          <ModalidadeBadge modalidade={dados.modalidade} />
-          <Button variant="outline" size="sm" asChild className="ml-auto">
-            <a
-              href={`/painel/representacao/votacoes/cedula/${dados.assembleiaId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <FileText />
-              Baixar cédula (PDF)
-            </a>
-          </Button>
-        </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          O mesário registra a <strong>presença</strong> do eleitor — nunca o
-          voto. Na urna digital, a presença libera a cédula num terminal de
-          votação pareado, onde o próprio eleitor vota (secreto).
-        </p>
-      </div>
-
-      <Alert>
-        <AlertDescription>
-          O ambiente do mesário fica em <code>/mesario</code> e o terminal de
-          votação (urna digital) em <code>/urna</code>. O acesso à urna respeita
-          o horário definido em cada urna abaixo.
-        </AlertDescription>
-      </Alert>
-
-      <UrnasEMesarios
-        assembleiaId={dados.assembleiaId}
-        rodadaId={dados.rodadaId}
-        urnas={dados.urnas}
-        mesarios={dados.mesarios}
-        apuradores={dados.apuradores}
-      />
-    </>
-  )
+  const { fonte } = await searchParams
+  redirect(hrefAssembleia(id, fonte ?? null, "urnas"))
 }

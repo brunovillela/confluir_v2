@@ -436,7 +436,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
             : `${urgentes.length} rodadas com votação pela internet aberta ou abrindo em até 48 h`,
         href:
           urgentes.length === 1
-            ? `/painel/representacao/votacoes/rodadas/${urgentes[0].rodadaId}?link=sem_link#aptos`
+            ? `/painel/representacao/votacoes/rodadas/${urgentes[0].rodadaId}?aba=aptos&link=sem_link`
             : "/painel/representacao/votacoes",
         tabela: "voto_assembleias_aptos",
         montar: (q) => head(q),

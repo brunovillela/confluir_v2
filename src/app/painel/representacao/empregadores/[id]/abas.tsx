@@ -228,7 +228,7 @@ export async function AbaVotacoes({ ctx }: { ctx: Ctx }) {
             {pag.linhas.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="max-w-80">
-                  <Link href={`/painel/representacao/votacoes/campanhas/${c.id}`} className="text-primary line-clamp-2 font-medium hover:underline">
+                  <Link href={`/painel/representacao/votacoes/campanhas/${c.id}?fonte=${ctx.empresaId}`} className="text-primary line-clamp-2 font-medium hover:underline">
                     {c.tema ?? "(sem tema)"}
                   </Link>
                   {c.fontes.length > 1 && <span className="text-muted-foreground text-xs">com {c.fontes.length - 1} outra(s) empresa(s)</span>}

@@ -73,20 +73,31 @@ export function AppHeader({ acoes }: { acoes?: React.ReactNode }) {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4!" />
 
-      <Breadcrumb>
-        <BreadcrumbList>
+      {/* Trilha numa linha só, sempre: os primeiros níveis somem conforme falta
+          espaço (2 no celular, 4 em telas médias, todos nas largas) e cada nome
+          longo é cortado — com os nomes reais (desde 17/10/2026) ela quebrava
+          em várias linhas e invadia a página. */}
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap overflow-hidden">
           {trilha.map((item, i) => {
             const ultimo = i === trilha.length - 1
             const titulo = rotulos[item.segmento] ?? item.titulo
+            // Distância até o fim: 0 = página atual.
+            const d = trilha.length - 1 - i
+            const item_ = d <= 1 ? "min-w-0" : d <= 3 ? "hidden min-w-0 lg:inline-flex" : "hidden min-w-0 2xl:inline-flex"
+            // O separador antes do primeiro nível visível também some.
+            const sep = d <= 0 ? undefined : d <= 2 ? "hidden lg:block" : "hidden 2xl:block"
             return (
               <Fragment key={item.href}>
-                {i > 0 && <BreadcrumbSeparator />}
-                <BreadcrumbItem>
+                {i > 0 && <BreadcrumbSeparator className={sep} />}
+                <BreadcrumbItem className={item_}>
                   {ultimo ? (
-                    <BreadcrumbPage>{titulo}</BreadcrumbPage>
+                    <BreadcrumbPage className="max-w-56 truncate">{titulo}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink asChild>
-                      <Link href={item.href}>{titulo}</Link>
+                      <Link href={item.href} className="max-w-48 truncate">
+                        {titulo}
+                      </Link>
                     </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>

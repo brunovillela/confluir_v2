@@ -73,7 +73,7 @@ export default async function EntregaPage() {
                     <TableRow key={l.assembleiaId}>
                       <TableCell className="max-w-80 min-w-56">
                         <Link
-                          href={`/painel/representacao/votacoes/apuracao/${l.assembleiaId}`}
+                          href={`/painel/representacao/votacoes/assembleias/${l.assembleiaId}`}
                           className="text-primary line-clamp-1 font-medium hover:underline"
                         >
                           {l.nome ?? "(sem nome)"}
