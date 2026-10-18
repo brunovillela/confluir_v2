@@ -195,6 +195,14 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Seeds:** com `--seed`, as 21 seeds do demo rodam na ordem das dependências, inclusive repetidas. A `demo-seed-filiados.sql` estava quebrada: ainda gravava `filiacao_vinculos.filiacao_condicao`, coluna removida em setembro. Corrigida.
   - **Não feito:** subir o app contra o banco restaurado, o que exigiria as chaves de API e um usuário de auth no projeto descartável. O teste de app fica para o ensaio de DR (Onda E).
 
+- 18/10/2026 — **B1 CONCLUÍDA (rascunho técnico).** ROPA em `docs/lgpd/ropa.md`, gerado por `npm run lgpd:ropa` (`scripts/gerar-ropa.mjs`) a partir de `docs/lgpd/processos.mjs` (texto revisável) e de `docs/dados/dados-pessoais.csv` (banco).
+  - **Conteúdo:** 16 processos, com finalidade, titulares, categorias, base legal proposta, compartilhamento, suboperadores, transferência internacional, retenção proposta, medidas e observações. Duas seções transversais (IA e Bubble) e a tabela de suboperadores.
+  - **Cobertura:** 190/190 tabelas com dado pessoal. O gerador falha se uma tabela nova ficar sem processo, e o `db:aplicar` o roda junto.
+  - **Correções do diagnóstico:**
+    - Webhooks: o único destino ativo é `127.0.0.1` (teste), então hoje nada sai.
+    - A LGPD já tem anonimização, acervo de saúde retido com cifragem, histórico de aceites e a view `lgpd_retencoes_vencidas`. A B4 parte disso.
+  - **Pendente:** validação jurídica das bases legais e dos prazos.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**

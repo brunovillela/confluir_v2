@@ -134,5 +134,8 @@ if (argv[0] === "aplicar" && r.status === 0) {
   gravarImpressao(lerImpressao())
   // O dicionário (docs/dados/) também acompanha a migração no mesmo commit.
   spawnSync(process.execPath, ["scripts/gerar-dicionario.mjs"], { stdio: "inherit" })
+  // E o ROPA (docs/lgpd/ropa.md): falha se tabela nova com dado pessoal ficou sem processo.
+  const ropa = spawnSync(process.execPath, ["scripts/gerar-ropa.mjs"], { stdio: "inherit" })
+  if (ropa.status !== 0) console.error("ATENÇÃO: atualize docs/lgpd/processos.mjs e rode npm run lgpd:ropa.")
 }
 process.exit(r.status ?? 1)
