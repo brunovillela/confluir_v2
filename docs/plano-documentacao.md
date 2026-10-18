@@ -217,6 +217,23 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
     - Bubble: desligar e eliminar os dados, a começar pelos votos com eleitor.
     - Confirmar e arquivar os DPAs dos demais.
 
+- 18/10/2026 — **B3 CONCLUÍDA (rascunho técnico).** Três RIPDs no modelo da ANPD, cada risco com evidência `arquivo:linha`, medidas existentes, medidas recomendadas, risco residual e dono. Base: 3 levantamentos paralelos do código e conferências no banco.
+  - **`docs/lgpd/ripd-saude.md`:** 11 riscos, 4 altos.
+    - R1: CAT inteira à OpenAI.
+    - R2: pedido de "Saúde" do portal vira demanda com CPF e aviso por Telegram à equipe não clínica.
+    - R4: painel analítico sem k-anonimato.
+    - R10: caches e CDN pública do Bubble.
+  - **`docs/lgpd/ripd-votacao.md`:** 9 riscos, 3 altos.
+    - V1: o voto em separado nunca é desligado da pessoa.
+    - V3: personificação do eleitor.
+    - V4: contatos dos aptos sem prazo.
+  - **`docs/lgpd/ripd-base-multitenant.md`:** 12 riscos, 3 altos.
+    - M3: acesso do operador sem rastro.
+    - M5: exportações sem registro.
+    - M6: API pública com CPF em massa.
+  - **Corrigido durante a B3:** `voto_online.updated_at` guardava a hora exata (DEFAULT now()). Comparando com `hora_voto`, 1.050 dos 1.121 votos do sistema novo eram religáveis ao eleitor, e com a hora cheia ainda sobravam 25 eleitores expostos. A migração `20261018175736_voto_hora_secreta` (aplicada) trunca a data do voto para o mês em todos os votos e cria o trigger `voto_online_hora_secreta`. Resultados idênticos (commit 4831868).
+  - **Pendente:** aprovação das RIPDs pela entidade; implementar os planos de ação.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
