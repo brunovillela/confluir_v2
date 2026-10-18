@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Paginacao } from "@/components/paginacao"
+import { AbasLink } from "@/components/pessoal/abas-link"
 import { requirePermissao } from "@/lib/auth"
 import {
   listarAuditoria,
@@ -19,6 +20,8 @@ import {
 } from "@/lib/db/auditoria"
 import { formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
+
+import { AuditoriaApi, AuditoriaExportacoes } from "./saidas"
 
 export const metadata: Metadata = { title: "Auditoria — Confluir" }
 
@@ -38,6 +41,15 @@ export default async function AuditoriaPage({
 }) {
   await requirePermissao("institucional_auditoria", ["configuracoes", "permissoes"])
   const params = await searchParams
+  const aba = params.aba === "exportacoes" || params.aba === "api" ? params.aba : "alteracoes"
+  if (aba !== "alteracoes") {
+    return (
+      <>
+        <Cabecalho aba={aba} />
+        {aba === "exportacoes" ? <AuditoriaExportacoes params={params} /> : <AuditoriaApi params={params} />}
+      </>
+    )
+  }
   const filtros = {
     tabela: params.tabela || undefined,
     registro: params.registro || undefined,
@@ -54,22 +66,7 @@ export default async function AuditoriaPage({
 
   return (
     <>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/institucional">
-            <ArrowLeft />
-            Institucional
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-2">
-          <ScrollText className="text-muted-foreground size-5" />
-          <h1 className="text-2xl font-semibold tracking-tight">Auditoria</h1>
-        </div>
-        <p className="text-muted-foreground mt-1 text-xs">
-          Quem alterou o quê nas tabelas sensíveis: permissões, usuários, filiações, dados
-          bancários, fornecedores, ordens e contratos.
-        </p>
-      </div>
+      <Cabecalho aba={aba} />
 
       {!disponivel && (
         <Alert variant="warning">
@@ -170,6 +167,41 @@ export default async function AuditoriaPage({
         totalPaginas={totalPaginas}
         porPagina={paginacao.porPagina}
         padrao={30}
+      />
+    </>
+  )
+}
+
+const DESCRICAO_ABA = {
+  alteracoes: "Quem alterou o quê nas tabelas sensíveis: permissões, usuários, filiações, dados bancários, fornecedores, ordens e contratos.",
+  exportacoes: "Quem levou dado pessoal para fora em arquivo (planilha, PDF, CNAB): quando, de onde, com qual recorte e quantas linhas.",
+  api: "Cada chamada à API pública (/api/v1): qual chave, o que pediu, se foi aceita e quantas linhas levou.",
+} as const
+
+function Cabecalho({ aba }: { aba: keyof typeof DESCRICAO_ABA }) {
+  const base = "/painel/institucional/auditoria"
+  return (
+    <>
+      <div>
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
+          <Link href="/painel/institucional">
+            <ArrowLeft />
+            Institucional
+          </Link>
+        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ScrollText className="text-muted-foreground size-5" />
+          <h1 className="text-2xl font-semibold tracking-tight">Auditoria</h1>
+        </div>
+        <p className="text-muted-foreground mt-1 text-xs">{DESCRICAO_ABA[aba]}</p>
+      </div>
+      <AbasLink
+        rotulo="Trilhas de auditoria"
+        abas={[
+          { href: base, rotulo: "Alterações", ativo: aba === "alteracoes" },
+          { href: `${base}?aba=exportacoes`, rotulo: "Exportações", ativo: aba === "exportacoes" },
+          { href: `${base}?aba=api`, rotulo: "API", ativo: aba === "api" },
+        ]}
       />
     </>
   )

@@ -9,11 +9,11 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { EVENTOS_WEBHOOK } from "@/lib/api-publica-catalogo"
+import { ESCOPOS_API, EVENTOS_WEBHOOK } from "@/lib/api-publica-catalogo"
 import { type EstadoForm } from "@/lib/contas"
 import type { Webhook } from "@/lib/db/webhooks"
 
-import { criarChaveAction, excluirWebhookAction, reenviarEntregaAction, revogarChaveAction, salvarWebhookAction, testarWebhookAction, type EstadoChave, type EstadoWebhook } from "./actions"
+import { criarChaveAction, escoposChaveAction, excluirWebhookAction, reenviarEntregaAction, revogarChaveAction, salvarWebhookAction, testarWebhookAction, type EstadoChave, type EstadoWebhook } from "./actions"
 
 function Segredo({ valor, rotulo }: { valor: string; rotulo: string }) {
   const [copiado, setCopiado] = useState(false)
@@ -57,15 +57,18 @@ export function NovaChaveForm() {
           <Segredo valor={estado.token} rotulo="Chave de API" />
         </>
       ) : (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="grid gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="nome">Nome da chave</Label>
             <Input id="nome" name="nome" placeholder="Ex.: Contador, Power BI, Site" className="w-64" required maxLength={60} />
           </div>
-          <Button type="submit" disabled={pendente}>
-            {pendente ? <Loader2 className="animate-spin" /> : <KeyRound />}
-            Criar chave
-          </Button>
+          <CamposEscopos marcados={[]} />
+          <div>
+            <Button type="submit" disabled={pendente}>
+              {pendente ? <Loader2 className="animate-spin" /> : <KeyRound />}
+              Criar chave
+            </Button>
+          </div>
         </div>
       )}
       {estado.erro && !estado.campo && (
@@ -73,6 +76,45 @@ export function NovaChaveForm() {
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+    </form>
+  )
+}
+
+/** O que a chave pode ler (um escopo por endpoint; o CPF é à parte). */
+function CamposEscopos({ marcados, prefixo = "novo", umaColuna = false }: { marcados: string[]; prefixo?: string; umaColuna?: boolean }) {
+  return (
+    <fieldset className="grid gap-1.5">
+      <legend className="mb-1 text-sm font-medium">O que a chave pode ler</legend>
+      <div className={umaColuna ? "grid gap-1.5" : "grid gap-1.5 sm:grid-cols-2"}>
+        {ESCOPOS_API.map((e) => (
+          <label key={e.chave} htmlFor={`escopo-${prefixo}-${e.chave}`} className="flex items-start gap-2 text-sm">
+            <input id={`escopo-${prefixo}-${e.chave}`} type="checkbox" name="escopos" value={e.chave} defaultChecked={marcados.includes(e.chave)} className="mt-0.5" />
+            <span>
+              <span className={e.chave === "filiados_cpf" ? "font-medium" : undefined}>{e.rotulo}</span>
+              <span className="text-muted-foreground block text-xs">{e.descricao}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+/** Troca os escopos de uma chave ativa, sem reemitir o token. */
+export function EscoposChaveForm({ chaveId, escopos }: { chaveId: string; escopos: string[] }) {
+  const [estado, action, pendente] = useActionState<EstadoForm, FormData>(escoposChaveAction, {})
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="chave_id" value={chaveId} />
+      <CamposEscopos marcados={escopos} prefixo={chaveId.slice(0, 8)} umaColuna />
+      <div className="flex items-center gap-2">
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar escopos
+        </Button>
+        {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
+        {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      </div>
     </form>
   )
 }

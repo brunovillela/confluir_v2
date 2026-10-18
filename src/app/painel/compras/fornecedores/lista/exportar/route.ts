@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { panoramaFornecedores } from "@/lib/db/fornecedores-indicadores"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { podeVerFinanceiroFornecedores } from "@/lib/fornecedores-acesso"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     porPagina: 0,
   }
   const linhas = ordenar(filtrar(await panoramaFornecedores(), f), f)
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "fornecedores", formato: "xlsx", quantidade: linhas.length })
   const bytes = planilhaXlsx("Fornecedores", [
     { titulo: "Nome", valor: (l) => l.nome, largura: 36 },
     { titulo: "Razão social", valor: (l) => l.nome_razao, largura: 36 },

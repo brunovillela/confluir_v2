@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { filtroSituacaoOrdem, listarOrdens, type FiltrosOrdens, type OrdemLinha } from "@/lib/db/financeiro"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (pagina >= lote.totalPaginas || lote.linhas.length < LOTE) break
   }
 
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "ordens", formato: "xlsx", quantidade: linhas.length })
   const bytes = planilhaXlsx("Ordens", [
     { titulo: "Código", valor: (o) => o.codigo, largura: 22 },
     { titulo: "Tipo", valor: (o) => o.tipo },

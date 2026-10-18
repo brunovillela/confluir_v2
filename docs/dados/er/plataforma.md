@@ -12,6 +12,11 @@ erDiagram
   api_chaves {
     uuid id PK
   }
+  api_requisicoes {
+    bigint id PK
+    uuid emp_proprietaria_id FK
+    uuid chave_id FK
+  }
   auditoria {
     bigint id PK
   }
@@ -57,6 +62,11 @@ erDiagram
     uuid id PK
     uuid emp_ref_id FK
     uuid emp_proprietaria_id FK
+  }
+  lgpd_exportacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
   }
   lgpd_solicitacoes {
     uuid id PK
@@ -128,6 +138,7 @@ erDiagram
     uuid id PK
     uuid webhook_id FK
   }
+  api_requisicoes }o--o| api_chaves : "chave_id"
   auditoria_regras }o--o| usuarios : "atualizado_por"
   empresa }o--o| empresa : "mesclado_em_id"
   empresa }o--o| fonte_categorias : "fonte_categoria_id"
@@ -138,6 +149,7 @@ erDiagram
   empresa_departamentos_integrantes }o--|| empresa_departamentos : "departamento_id"
   empresa_departamentos_integrantes }o--|| usuarios : "usuario_id"
   empresa_sede }o--o| empresa : "emp_ref_id"
+  lgpd_exportacoes }o--o| usuarios : "usuario_id"
   lgpd_solicitacoes }o--o| eventos_inscricoes : "inscricao_id"
   lgpd_solicitacoes }o--o| filiacoes : "filiacao_id"
   lgpd_solicitacoes }o--o| usuarios : "acesso_removido_por"

@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/comunicacao-etiquetas"
 import { lerFiltrosEtiquetas, parametrosDaUrl } from "@/lib/etiquetas-pimaco"
 import { linhasDoEndereco } from "@/lib/etiquetas-texto"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 /**
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
     quantidade: selecao.comEndereco.length,
     recorte: descreverRecorte(filtros, selecao.base),
   })
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "etiquetas", formato: "csv", quantidade: selecao.comEndereco.length })
 
   const hoje = new Date().toISOString().slice(0, 10)
   return new Response("﻿" + csv, {

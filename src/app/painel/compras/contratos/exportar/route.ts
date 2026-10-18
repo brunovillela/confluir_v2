@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { getSessaoPainel } from "@/lib/auth"
 import { listarCategoriasContrato, listarContratos } from "@/lib/db/contratos"
 import { SITUACOES_CONTRATO, TIPOS_CONTRATO_MARCAVEIS, type SituacaoContrato } from "@/lib/contratos-constantes"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     apoioInstitucional: false,
   })
 
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "contratos", formato: "xlsx", quantidade: linhas.length })
   const bytes = planilhaXlsx("Contratos", [
     { titulo: "Código", valor: (c) => c.codigo, largura: 22 },
     { titulo: "Objeto", valor: (c) => c.objeto, largura: 60 },

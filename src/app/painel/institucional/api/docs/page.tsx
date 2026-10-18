@@ -37,7 +37,7 @@ export default async function ApiDocsPage() {
           </p>
           <pre className="bg-muted/40 overflow-x-auto rounded-md p-3 font-mono text-xs">{`curl -H "Authorization: Bearer cf_XXXXXXXX_…" "${origem}/api/v1/filiados?pagina=1"`}</pre>
           <p className="text-muted-foreground text-xs">
-            Respostas em JSON (UTF-8), sem cache. Limite de 120 chamadas por minuto por chave. A chave só funciona neste endereço (o da sua entidade). No Power BI, use &quot;Obter dados → Web&quot; com o cabeçalho Authorization.
+            Respostas em JSON (UTF-8), sem cache. Limite de 120 chamadas por minuto por chave. A chave só funciona neste endereço (o da sua entidade) e só no cabeçalho: na URL (<code className="font-mono">?chave=</code>) ela é recusada com 400. Cada chave lê só os recursos marcados para ela (escopos); fora deles, 403. Toda chamada fica registrada para a entidade (rota, parâmetros, status e quantidade de linhas). No Power BI, use &quot;Obter dados → Web&quot; com o cabeçalho Authorization.
           </p>
         </CardContent>
       </Card>
@@ -49,7 +49,10 @@ export default async function ApiDocsPage() {
         <CardContent className="grid gap-4">
           {ENDPOINTS_API.map((e) => (
             <div key={e.caminho} className="grid gap-1 border-b pb-3 text-sm last:border-0">
-              <p className="font-mono font-medium">GET {e.caminho}</p>
+              <p className="font-mono font-medium">
+                GET {e.caminho}
+                <span className="text-muted-foreground ml-2 font-sans text-xs font-normal">{e.escopo ? `escopo: ${e.escopo}` : "qualquer chave"}</span>
+              </p>
               <p>{e.descricao}</p>
               {e.parametros.length > 0 && (
                 <ul className="text-muted-foreground list-disc pl-5 text-xs">

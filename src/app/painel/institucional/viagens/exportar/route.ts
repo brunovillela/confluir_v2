@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { getSessaoPainel } from "@/lib/auth"
 import { filtrarViagens, listarViagens, nomeDoEvento } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import {
   lerFiltroViagens,
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
     "Valor (R$)",
     "Faturado",
   ]
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "viagens", formato: "csv", quantidade: linhas.length })
   const csv = [cabecalho, ...linhas].map((l) => l.map(escapar).join(";")).join("\r\n")
   const hoje = new Date().toISOString().slice(0, 10)
   return new Response(`﻿${csv}`, {

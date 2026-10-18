@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server"
 
 import { temVotoOnline } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
+import { registrarExportacao } from "@/lib/exportacoes"
 import {
   dadosRelatorioApuracao,
   SECOES_DO_TIPO,
@@ -29,7 +30,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { id } = await params
   const busca = request.nextUrl.searchParams
 
@@ -70,6 +71,10 @@ export async function GET(
     logoDataUri: logo,
   }) as Parameters<typeof renderToBuffer>[0]
   const pdf = await renderToBuffer(elemento)
+  // Só a relação de votantes (nome, CPF, horário) é dado pessoal; o resultado é agregado.
+  if (secoes.includes("votantes")) {
+    await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "apuracao_relatorio", formato: "pdf", quantidade: dados.votantes.length, filtros: { assembleia: id, secoes } })
+  }
 
   return new Response(new Uint8Array(pdf), {
     headers: {

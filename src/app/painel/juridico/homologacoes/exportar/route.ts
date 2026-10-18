@@ -13,6 +13,7 @@ import {
   lerOrdem,
   motivoValido,
 } from "@/lib/juridico-constantes"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 /**
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
     lerOrdem(sp.get("ordem") ?? undefined),
     lerDirecao(sp.get("dir") ?? undefined)
   )
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "juridico_homologacoes", formato: "csv", quantidade: linhas.length })
 
   const escapar = (v: string) =>
     /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v

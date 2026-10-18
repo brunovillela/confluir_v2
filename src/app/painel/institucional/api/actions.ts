@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { criarChaveApi, revogarChaveApi } from "@/lib/api-publica"
+import { atualizarEscoposChaveApi, criarChaveApi, revogarChaveApi } from "@/lib/api-publica"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { emitirEvento, excluirWebhook, reenviarEntrega, salvarWebhook } from "@/lib/db/webhooks"
@@ -18,10 +18,18 @@ export type EstadoWebhook = EstadoForm & { segredo?: string }
 
 export async function criarChaveAction(_prev: EstadoChave, fd: FormData): Promise<EstadoChave> {
   const sessao = await requirePermissao("configuracoes")
-  const r = await criarChaveApi(campo(fd, "nome"), sessao.usuario.id as string)
-  if (r.erro) return { erro: r.erro, campo: "nome" }
+  const r = await criarChaveApi(campo(fd, "nome"), sessao.usuario.id as string, fd.getAll("escopos").map(String))
+  if (r.erro) return { erro: r.erro, campo: r.campo }
   revalidatePath(ROTA)
   return { ok: "Chave criada. Copie agora: ela não será mostrada de novo.", token: r.token }
+}
+
+export async function escoposChaveAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  await requirePermissao("configuracoes")
+  const r = await atualizarEscoposChaveApi(campo(fd, "chave_id"), fd.getAll("escopos").map(String))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  return { ok: "Escopos salvos." }
 }
 
 export async function revogarChaveAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {

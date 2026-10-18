@@ -4,6 +4,7 @@ import { getSessaoPainel } from "@/lib/auth"
 import { listarProcessos, ORDENS_PROCESSOS, type OrdemProcessos, type ProcessoLinha } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { SITUACOES_PROCESSO, type SituacaoProcesso } from "@/lib/compras-constantes"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (pagina >= lote.totalPaginas || lote.linhas.length < LOTE) break
   }
 
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "compras", formato: "xlsx", quantidade: linhas.length })
   const bytes = planilhaXlsx("Aquisições", [
     { titulo: "Código", valor: (p) => p.codigo, largura: 22 },
     { titulo: "Produto / serviço", valor: (p) => p.produto, largura: 60 },
