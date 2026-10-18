@@ -368,3 +368,12 @@ export function horaDoVotoSecreto(iso: string): string {
   d.setUTCHours(0, 0, 0, 0)
   return d.toISOString()
 }
+
+/**
+ * Por quantos dias, depois do encerramento da apuração de todas as
+ * assembleias da rodada, os contatos dos aptos ficam guardados (prazo de
+ * impugnação) antes do expurgo automático — RIPD da votação, V4. O banco
+ * aceita de 7 a 3.650; a tela oferece estes.
+ */
+export const OPCOES_RETER_CONTATOS_DIAS = [30, 60, 90, 180, 365] as const
+export const RETER_CONTATOS_DIAS_PADRAO = 90

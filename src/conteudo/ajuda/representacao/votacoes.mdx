@@ -460,7 +460,7 @@ Na página da assembleia, o botão **Urnas e mesários** abre o cadastro:
   pessoa ao conteúdo do voto. Nem o mesário nem a administração conseguem ver em
   quem cada um votou. O votante pode conferir a urna em que votou na área do
   filiado, em **Minhas votações**. (Exceção: o **voto em separado** fica ligado
-  ao cadastro até ser validado — veja abaixo.)
+  ao cadastro até o encerramento da apuração — veja abaixo.)
 </Aviso>
 
 <Aviso tipo="nota" titulo="Voto único na modalidade híbrida">
@@ -523,22 +523,33 @@ as **orientações do procedimento** (anotações e envelope) e:
   </Passo>
   <Passo titulo="Urna física">
     O eleitor vota em **cédula de papel**, colocada num **envelope** com os dados
-    dele (procedimento manual, fora do sistema).
+    dele (procedimento manual, fora do sistema). O mesário anota no envelope o
+    **código** que aparece nas orientações.
   </Passo>
 </PassoAPasso>
 
 Na **apuração**, cada voto em separado é **deferido** (entra na contagem) ou
 **indeferido** (é descartado). Na urna digital, a contagem passa a incluir os
-deferidos automaticamente; na física, o apurador vê na tela da urna quais
-envelopes abrir e somar (os deferidos), quais esperar (sem decisão) e quais
-guardar sem abrir (indeferidos). Os números por opção da página da rodada
+deferidos automaticamente; na física, o apurador vê na tela da urna, pelo
+**código do envelope** (sem o nome do eleitor), quais envelopes abrir e somar
+(os deferidos), quais esperar (sem decisão) e quais guardar sem abrir
+(indeferidos). Os números por opção da página da rodada
 também só contam os votos válidos.
 
 <Aviso tipo="atencao" titulo="Decida todos antes de encerrar">
   A apuração **não se encerra** com voto em separado sem decisão — senão ele
-  ficaria fora do resultado oficial sem ninguém perceber. Depois de encerrada, os
-  botões **Deferir** e **Indeferir** travam: para mudar uma decisão, **reabra a
-  apuração** e encerre de novo.
+  ficaria fora do resultado oficial sem ninguém perceber. Ao encerrar, cada voto
+  em separado **deixa de estar ligado ao eleitor** e os contatos do cadastro
+  (telefone, e-mail, nascimento) são apagados: a decisão fica **definitiva**,
+  mesmo que a apuração seja reaberta.
+</Aviso>
+
+<Aviso tipo="nota" titulo="Guarda dos contatos dos aptos">
+  E-mail de contato, telefone, Telegram e nascimento que os eleitores informam
+  servem para entregar o link e o comprovante. Quando a apuração de **todas** as
+  assembleias da rodada estiver encerrada, eles são apagados sozinhos depois do
+  prazo escolhido na rodada, aba **Divulgação**, card **Guarda dos contatos dos
+  aptos** (padrão: 90 dias). Nome, CPF, participação e comprovante ficam.
 </Aviso>
 
 ## Entrega da votação pela internet

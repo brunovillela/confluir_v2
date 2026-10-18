@@ -24,7 +24,7 @@ export function EmSeparadoValidacao({
 }: {
   assembleiaId: string
   registros: EmSeparadoLinha[]
-  /** Apuração encerrada: decisões travadas (reabrir para mudar). */
+  /** Apuração encerrada: decisões travadas e definitivas. */
   encerrada: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
@@ -42,8 +42,9 @@ export function EmSeparadoValidacao({
       {encerrada && (
         <Alert variant="info">
           <AlertDescription>
-            A apuração está encerrada e o resultado oficial já foi gravado com estas decisões. Para mudar
-            alguma, reabra a apuração.
+            A apuração está encerrada e o resultado oficial já foi gravado com estas decisões. No
+            encerramento, os votos em separado deixaram de estar ligados aos eleitores: as decisões são
+            definitivas, mesmo que a apuração seja reaberta.
           </AlertDescription>
         </Alert>
       )}
@@ -55,10 +56,12 @@ export function EmSeparadoValidacao({
           <div className="min-w-0">
             <p className="font-medium">{s.nome ?? "(sem nome)"}</p>
             <p className="text-muted-foreground text-xs">
+              {`código ${s.codigo} · `}
               {s.cpf ? formatarCpf(s.cpf) : "sem CPF"}
               {s.dataNascimento ? ` · nasc. ${s.dataNascimento}` : ""}
               {s.urna ? ` · ${s.urna}` : ""}
               {!s.votou ? " · cadastrado, não chegou a votar" : ""}
+              {s.definitivo ? " · decisão definitiva" : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -83,7 +86,7 @@ export function EmSeparadoValidacao({
                 value="deferido"
                 size="sm"
                 variant="outline"
-                disabled={encerrada || pendente || s.status === "deferido"}
+                disabled={encerrada || s.definitivo || pendente || s.status === "deferido"}
                 className="border-success/40 text-success-fg"
               >
                 {pendente ? <Loader2 className="animate-spin" /> : <Check />}
@@ -95,7 +98,7 @@ export function EmSeparadoValidacao({
                 value="indeferido"
                 size="sm"
                 variant="outline"
-                disabled={encerrada || pendente || s.status === "indeferido"}
+                disabled={encerrada || s.definitivo || pendente || s.status === "indeferido"}
                 className="border-destructive/40"
               >
                 <X />

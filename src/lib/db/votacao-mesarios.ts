@@ -1540,6 +1540,15 @@ export async function dadosCedula(
 // (ligado ao cadastro) até a apuração; na FÍSICA o voto vai em papel+envelope
 // (manual). As orientações do procedimento aparecem na tela do mesário.
 
+/**
+ * Código do envelope do voto em separado (urna física): o mesário o anota no
+ * envelope e o apurador abre os deferidos por ele, sem ver o nome de quem
+ * votou (RIPD da votação, V1).
+ */
+export function codigoEnvelope(id: string): string {
+  return id.replace(/-/g, "").slice(0, 6).toUpperCase()
+}
+
 export type DadosEmSeparado = {
   nome: string
   cpf: string | null
@@ -1656,6 +1665,7 @@ export async function registrarVotoEmSeparado(
       ...INSTRUCOES_COMUNS,
       "Entregue uma cédula de papel ao eleitor.",
       "Coloque a cédula votada no ENVELOPE de voto em separado, com os dados do eleitor por fora.",
+      `Escreva no envelope o código ${codigoEnvelope(String(reg.id))}: é por ele que o apurador vai abrir o envelope, se o voto for deferido.`,
       "Deposite o envelope conforme o procedimento (NÃO na urna comum).",
       "O voto será validado na apuração — deferido conta, indeferido é descartado.",
     ],
@@ -1682,6 +1692,13 @@ export type EmSeparadoLinha = {
   status: "pendente" | "deferido" | "indeferido"
   votou: boolean
   quando: string | null
+  /** Código do envelope (urna física), ver codigoEnvelope. */
+  codigo: string
+  /**
+   * Desvinculado do voto no encerramento da apuração: a decisão é definitiva
+   * e os contatos já foram apagados (RIPD V1).
+   */
+  definitivo: boolean
 }
 
 export type Acompanhamento = {
@@ -1748,6 +1765,7 @@ export async function acompanhamentoAssembleia(
     status: string | null
     votou_em: string | null
     created_at: string | null
+    desvinculado_em: string | null
   }
   const [{ count: totalAptos }, votantes, separados] = await Promise.all([
     admin
@@ -1769,7 +1787,7 @@ export async function acompanhamentoAssembleia(
       admin
         .from("voto_em_separado")
         .select(
-          "id, nome_completo, cpf, data_nascimento, telefone, email, urna_id, status, votou_em, created_at"
+          "id, nome_completo, cpf, data_nascimento, telefone, email, urna_id, status, votou_em, created_at, desvinculado_em"
         )
         .eq("emp_proprietaria_id", emp)
         .eq("assembleia_id", assembleiaId)
@@ -1806,6 +1824,8 @@ export async function acompanhamentoAssembleia(
           : "pendente",
     votou: Boolean(s.votou_em),
     quando: txt(s.votou_em) ?? txt(s.created_at),
+    codigo: codigoEnvelope(String(s.id)),
+    definitivo: Boolean(s.desvinculado_em),
   }))
 
   const contagem = { total: emSeparado.length, pendente: 0, deferido: 0, indeferido: 0 }
@@ -1878,11 +1898,19 @@ export async function validarEmSeparado(
   const emp = await tenantAtual()
   const { data: reg } = await admin
     .from("voto_em_separado")
-    .select("assembleia_id")
+    .select("assembleia_id, desvinculado_em")
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (!reg) return { erro: "Registro não encontrado." }
+  // No encerramento da apuração o voto deixa de apontar para o cadastro
+  // (trigger voto_assembleias_apuracao_desvinculo): não há mais voto para
+  // revalidar, e o banco recusa a mudança.
+  if (reg.desvinculado_em) {
+    return {
+      erro: "A decisão ficou definitiva no encerramento da apuração: o voto já não está ligado ao eleitor.",
+    }
+  }
   const { data: a } = await admin
     .from("voto_assembleias")
     .select("apuracao_encerrada")
