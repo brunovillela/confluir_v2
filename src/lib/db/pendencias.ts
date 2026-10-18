@@ -8,7 +8,7 @@ import { alcadaDoUsuario } from "@/lib/db/compras"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
 import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
-import { ATENDIMENTO_AGUARDANDO_EQUIPE } from "@/lib/atendimento-constantes"
+import { ATENDIMENTO_AGUARDANDO_EQUIPE, EQUIPE_ATENDIMENTO_SAUDE, LEITURA_ATENDIMENTO_GERAL } from "@/lib/atendimento-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -309,14 +309,21 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   }
 
   // Atendimentos do portal esperando a equipe (novos ou com resposta nova).
-  if (pode("ferramentas_demandas", ["ferramentas_tarefas", "filiacao_filiados"])) {
+  // Saúde (RIPD de saúde, R2) conta só para a equipe de saúde, como na tela.
+  const lerGeral = pode(LEITURA_ATENDIMENTO_GERAL[0], [...LEITURA_ATENDIMENTO_GERAL.slice(1)])
+  const lerSaude = pode(EQUIPE_ATENDIMENTO_SAUDE.chave, [...EQUIPE_ATENDIMENTO_SAUDE.alternativas])
+  if (lerGeral || lerSaude) {
     fontes.push({
       chave: "atendimentos",
       titulo: "Atendimentos do portal",
-      descricao: "Solicitações de filiados esperando a equipe",
+      descricao: lerGeral ? "Solicitações de filiados esperando a equipe" : "Pedidos de saúde esperando a equipe",
       href: "/painel/filiados/atendimentos?situacao=aguardando",
       tabela: "portal_atendimentos",
-      montar: (q) => head(q).in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE),
+      montar: (q) => {
+        const base = head(q).in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE)
+        if (lerGeral && lerSaude) return base
+        return lerGeral ? base.neq("assunto", "saude") : base.eq("assunto", "saude")
+      },
     })
   }
 

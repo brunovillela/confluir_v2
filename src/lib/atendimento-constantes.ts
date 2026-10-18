@@ -83,6 +83,44 @@ export const ATENDIMENTO_AGUARDANDO_EQUIPE: SituacaoAtendimento[] = ["aberta", "
 /** Tipo da Demanda criada no painel para cada solicitação. */
 export const TIPO_DEMANDA_ATENDIMENTO = "Atendimento ao filiado"
 
+// ── Equipe de cada assunto (RIPD de saúde, R2) ───────────────────────────────
+
+/**
+ * Quem cuida das solicitações e é avisado delas. O pedido de SAÚDE é dado
+ * sensível (LGPD art. 11): não vira Demanda, não aparece para a equipe geral
+ * e só a equipe do módulo Saúde o vê e recebe aviso — genérico, sem nome,
+ * CPF nem título (docs/lgpd/ripd-saude.md, R2). Os demais assuntos seguem
+ * com quem cuida das demandas (e, para ler, também com Filiados).
+ */
+export const EQUIPE_ATENDIMENTO_GERAL = { chave: "ferramentas_demandas", alternativas: ["ferramentas_tarefas"] } as const
+export const EQUIPE_ATENDIMENTO_SAUDE = { chave: "saude_atendimento", alternativas: ["saude_gestao"] } as const
+/** Quem lê os atendimentos gerais no painel (a equipe e Filiados). */
+export const LEITURA_ATENDIMENTO_GERAL = ["ferramentas_demandas", "ferramentas_tarefas", "filiacao_filiados"] as const
+/** Quem entra em Filiados → Atendimentos: a leitura geral ou a equipe de saúde (cada um vê só o seu). */
+export const ENTRADA_ATENDIMENTOS = ["ferramentas_demandas", ["ferramentas_tarefas", "filiacao_filiados", "saude_atendimento", "saude_gestao"]] as const
+
+/** O assunto é sigiloso (só a equipe de saúde vê)? */
+export function assuntoSigiloso(assunto: string | null | undefined): boolean {
+  return assunto === "saude"
+}
+
+/**
+ * Pedidos de saúde que o portal oferece por link (página Saúde). O link leva
+ * só o CÓDIGO (?assunto=saude&pedido=…); o resumo é montado no servidor —
+ * título clínico não viaja na URL (histórico, logs, analytics).
+ */
+export const PEDIDOS_SAUDE = {
+  agendamento: "Agendamento de saúde: horário ou nova data",
+  copia_cat: "Cópia de CAT",
+  orientacao_cat: "Orientação sobre acidente de trabalho (CAT)",
+  relatorio: "Acesso ao relatório de atendimento",
+} as const
+export type PedidoSaude = keyof typeof PEDIDOS_SAUDE
+
+export function pedidoSaude(codigo: string | null | undefined): PedidoSaude | null {
+  return codigo && Object.hasOwn(PEDIDOS_SAUDE, codigo) ? (codigo as PedidoSaude) : null
+}
+
 /**
  * Estado dos formulários de atendimento: o `EstadoForm` de lib/contas mais os
  * valores enviados, devolvidos quando o servidor recusa — o React limpa os

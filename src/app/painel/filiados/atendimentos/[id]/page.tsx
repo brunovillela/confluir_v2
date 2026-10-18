@@ -4,17 +4,19 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { ENTRADA_ATENDIMENTOS } from "@/lib/atendimento-constantes"
 import { requirePermissao } from "@/lib/auth"
-import { obterAtendimento } from "@/lib/db/portal-atendimentos"
+import { obterAtendimentoPara } from "@/lib/db/portal-atendimentos"
 
 import { AtendimentoPainel } from "../atendimento-painel"
 
 export const metadata: Metadata = { title: "Solicitação do filiado — Confluir" }
 
 export default async function AtendimentoPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermissao("ferramentas_demandas", ["ferramentas_tarefas", "filiacao_filiados"])
+  const sessao = await requirePermissao(ENTRADA_ATENDIMENTOS[0], [...ENTRADA_ATENDIMENTOS[1]])
   const { id } = await params
-  const dados = await obterAtendimento(id)
+  // Pedido de saúde para quem não é da saúde (R2): como se não existisse.
+  const dados = await obterAtendimentoPara(sessao.permissoes, id)
   if (!dados) notFound()
 
   return (

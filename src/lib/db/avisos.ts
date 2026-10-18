@@ -35,6 +35,11 @@ import { origemAtual } from "@/lib/tenant-url"
  * desmarcadas e a pessoa escolhe em Meu perfil → Avisos, que só oferece os
  * avisos das áreas em que ela tem permissão.
  *
+ * Aviso `sensivel` (pedido de saúde do portal; RIPD de saúde, R2): o texto
+ * já é genérico por contrato e, ainda assim, e-mail, Telegram e celular levam
+ * só a frase fixa TEXTO_SENSIVEL e o link — nunca conteúdo (AGENTS.md: o
+ * Telegram não leva dado sensível).
+ *
  * Quem recebe é decidido pela permissão EFETIVA (perfis + linha `permissoes`)
  * no tenant, com cadastro ativo — nunca por lista fixa. Tudo aqui é melhor
  * esforço: um aviso que falha não derruba a ação que o gerou.
@@ -158,7 +163,15 @@ export type Aviso = {
    * preventiva). Com `umaVezPorDia`, a chave é o dia.
    */
   chaveEntrega?: string
+  /**
+   * Assunto sensível (saúde): fora do sino, nenhum canal leva o texto —
+   * e-mail, Telegram e celular dizem só TEXTO_SENSIVEL e o link. Sem botões.
+   */
+  sensivel?: boolean
 }
+
+/** O que os canais externos dizem de um aviso sensível: nada além de "abra o painel". */
+export const TEXTO_SENSIVEL = "Há um pedido novo esperando você no Confluir. Abra pelo link para ver."
 
 function hojeSP(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
@@ -236,6 +249,9 @@ export async function avisar(
   const origem = contexto?.origem ?? (await origemAtual().catch(() => ""))
   const url = origem ? `${origem}${aviso.link}` : null
 
+  // Sensível: fora do sino, só a frase fixa (nem o texto genérico do chamador).
+  const textoFora = aviso.sensivel ? TEXTO_SENSIVEL : aviso.texto
+
   let entregues = 0
   for (const d of alvos) {
     if (jaAvisados.has(d.id)) continue
@@ -263,10 +279,10 @@ export async function avisar(
         await enviarEmail({
           email: d.email,
           nome: d.nome,
-          assunto: aviso.assunto ?? aviso.texto.slice(0, 120),
+          assunto: aviso.sensivel ? "Pedido novo no Confluir" : (aviso.assunto ?? aviso.texto.slice(0, 120)),
           html:
-            aviso.html ??
-            paragrafo(escaparHtml(aviso.texto)) +
+            (aviso.sensivel ? undefined : aviso.html) ??
+            paragrafo(escaparHtml(textoFora)) +
               (url ? botaoEmail(url, "Abrir no Confluir") : "") +
               textoSuave("Você recebe este aviso porque escolheu recebê-lo por e-mail. Para mudar, abra Meu perfil → Avisos."),
           contexto,
@@ -276,11 +292,21 @@ export async function avisar(
       }
     }
 
-    await enviarPushTelegram(d.id, url ? `${aviso.texto}\n${url}` : aviso.texto, aviso.evento, amb.client, aviso.telegramBotoes)
+    await enviarPushTelegram(
+      d.id,
+      url ? `${textoFora}\n${url}` : textoFora,
+      aviso.evento,
+      amb.client,
+      aviso.sensivel ? undefined : aviso.telegramBotoes
+    )
     // Celular (Web Push): o aparelho autorizado recebe os tipos ligados na
     // coluna "Celular" de Meu perfil → Avisos.
     if (pushSemPreferencia || prefsPush.get(d.id)?.[aviso.evento]) {
-      await enviarPushWeb(d.id, { titulo: aviso.assunto ?? "Confluir", corpo: aviso.texto, url: aviso.link }, amb.client)
+      await enviarPushWeb(
+        d.id,
+        { titulo: aviso.sensivel ? "Confluir" : (aviso.assunto ?? "Confluir"), corpo: textoFora, url: aviso.link },
+        amb.client
+      )
     }
   }
   return entregues

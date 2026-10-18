@@ -15,7 +15,7 @@ import {
   obterDemanda,
   resumoExclusaoDemanda,
 } from "@/lib/db/nucleo"
-import { atendimentoDaDemanda } from "@/lib/db/portal-atendimentos"
+import { atendimentoDaDemanda, podeVerAtendimento } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -103,9 +103,10 @@ export default async function DemandaPage({
         )}
       </div>
 
-      {atendimento && (
+      {atendimento && podeVerAtendimento(sessao.permissoes, atendimento.atendimento.assunto) && (
         // Demanda que nasceu de uma solicitação do portal: responder aqui é
-        // responder ao filiado.
+        // responder ao filiado. Pedido de saúde (só Demandas antigas, R2):
+        // a conversa fica só para a equipe de saúde.
         <AtendimentoPainel atendimento={atendimento.atendimento} mensagens={atendimento.mensagens} mostrarCabecalho={false} />
       )}
 

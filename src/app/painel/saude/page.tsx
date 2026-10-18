@@ -7,6 +7,7 @@ import {
   ClipboardList,
   HeartPulse,
   MapPin,
+  MessagesSquare,
   ShieldCheck,
   Siren,
   Stethoscope,
@@ -19,18 +20,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { requirePermissao } from "@/lib/auth";
 import { contagensAtendimento } from "@/lib/db/atendimentos";
+import { pedidosSaudeAguardando } from "@/lib/db/portal-atendimentos";
 import { resumoSaude } from "@/lib/db/saude";
+import { podeAcessar } from "@/lib/permissoes";
 import { formatarData } from "@/lib/formato";
 
 export const metadata: Metadata = { title: "Saúde — Confluir" };
 
 export default async function SaudePage() {
-  await requirePermissao("saude_cat", ["saude_atendimento", "saude_gestao"]);
+  const sessao = await requirePermissao("saude_cat", ["saude_atendimento", "saude_gestao"]);
+  // Pedidos de saúde do portal (RIPD de saúde, R2): só a equipe de saúde os
+  // lê, em Filiados → Atendimentos, filtrados para ela.
+  const lePedidos = podeAcessar(sessao.permissoes, "saude_atendimento", ["saude_gestao"]);
 
   const [
     resumo,
     { atendimentos, assistidos, agendamentos, profissionais, cipa },
-  ] = await Promise.all([resumoSaude(), contagensAtendimento()]);
+    pedidosPortal,
+  ] = await Promise.all([
+    resumoSaude(),
+    contagensAtendimento(),
+    lePedidos ? pedidosSaudeAguardando() : Promise.resolve(null),
+  ]);
   const maiorAno = Math.max(1, ...resumo.porAno.map((a) => a.total));
 
   return (
@@ -80,6 +91,19 @@ export default async function SaudePage() {
             }
             href="/painel/saude/atendimentos"
           />
+          {lePedidos && (
+            <CardArea
+              icone={MessagesSquare}
+              titulo="Pedidos do portal"
+              descricao="Pedidos de saúde feitos pelos filiados no portal"
+              indicador={
+                pedidosPortal === null
+                  ? "Configurar"
+                  : `${pedidosPortal.toLocaleString("pt-BR")} esperando a equipe`
+              }
+              href="/painel/filiados/atendimentos?situacao=abertas&assunto=saude"
+            />
+          )}
           <CardArea
             icone={Users}
             titulo="Assistidos"
