@@ -239,6 +239,14 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Achado:** `retencao_foto_dias` dos eventos (padrão 30) é configurável na tela, mas **nenhuma rotina apaga as fotos** (RT30).
   - **Arquivos do Storage** não são apagados junto com o registro.
 
+- 18/10/2026 — **B5 CONCLUÍDA.** `docs/lgpd/direitos-titular.md`: prazos do art. 19, prova de identidade, livro de solicitações; cada direito do art. 18 (I a IX, oposição) e do art. 20 ligado a tela, função e registro; canais dos titulares que não são filiados; roteiro de atendimento para a entidade; 7 lacunas (D1–D7) com proposta; papel do Confluir como operador.
+  - **Já atende:** confirmação, acesso, portabilidade (exportação JSON no portal), correção, anonimização pela gestão e o fluxo completo de eventos em `/meus-dados`.
+  - **Principais lacunas:**
+    - D1: nenhum pedido de eliminação, oposição ou revogação pelo portal.
+    - D2: saúde fica fora da exportação.
+    - D3: prazo de 15 dias sem controle.
+    - D7: titulares não filiados sem canal.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
