@@ -68,8 +68,10 @@ export const MODULOS: Modulo[] = [
     href: "/painel/filiados/atendimentos",
     icone: "MessagesSquare",
     descricao: "Solicitações abertas pelos filiados no portal, com prazo de resposta",
+    // A equipe de saúde entra para ver só os pedidos de saúde (RIPD de saúde,
+    // R2); a página filtra por assunto conforme a permissão.
     chave: "ferramentas_demandas",
-    chavesAlternativas: ["ferramentas_tarefas", "filiacao_filiados"],
+    chavesAlternativas: ["ferramentas_tarefas", "filiacao_filiados", "saude_atendimento", "saude_gestao"],
     oculto: true,
   },
   {

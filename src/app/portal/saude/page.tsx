@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
+import type { PedidoSaude } from "@/lib/atendimento-constantes"
 import { meusAtendimentos } from "@/lib/db/atendimentos"
 import { hojeSP } from "@/lib/db/comum"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
@@ -39,10 +40,16 @@ export const metadata: Metadata = { title: "Saúde" }
 const CAMINHO_DOS_DADOS =
   "Os seus registros de saúde continuam guardados: para pedir uma cópia, fale com o sindicato."
 
-/** Atendimento com o assunto "Saúde" já escolhido (A76); o resumo, quando houver. */
-function linkServicoSaude(titulo?: string): string {
+/**
+ * Atendimento com o assunto "Saúde" já escolhido (A76). O resumo NÃO vai na
+ * URL (RIPD de saúde, R2: histórico, logs e analytics guardariam o pedido
+ * clínico): vai só o código do pedido — e, na cópia de CAT, o id dela — e o
+ * Atendimento monta o resumo no servidor (PEDIDOS_SAUDE).
+ */
+function linkServicoSaude(pedido?: PedidoSaude, catId?: string): string {
   const base = "/portal/atendimento?assunto=saude"
-  return titulo ? `${base}&titulo=${encodeURIComponent(titulo)}` : base
+  if (!pedido) return base
+  return `${base}&pedido=${pedido}${catId ? `&cat=${encodeURIComponent(catId)}` : ""}`
 }
 
 /**
@@ -66,11 +73,11 @@ function FalarComServico({ className, variant = "default" }: { className?: strin
  * quando o pedido pode ser feito; senão, a mesma frase sem link (a
  * orientação continua valendo fora do portal).
  */
-function LinkServico({ podePedir, titulo, children }: { podePedir: boolean; titulo: string; children: React.ReactNode }) {
+function LinkServico({ podePedir, pedido, children }: { podePedir: boolean; pedido: PedidoSaude; children: React.ReactNode }) {
   if (!podePedir) return <>{children}</>
   return (
     <Link
-      href={linkServicoSaude(titulo)}
+      href={linkServicoSaude(pedido)}
       className="text-primary inline-flex items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
     >
       {children}
@@ -232,7 +239,7 @@ export default async function PortalSaudePage({
             {/* A agenda guarda só o dia: o horário é a primeira dúvida. */}
             <p className="text-muted-foreground border-t pt-3 text-sm">
               Precisa confirmar o horário ou mudar a data?{" "}
-              <LinkServico podePedir={podePedir} titulo="Agendamento de saúde: horário ou nova data">
+              <LinkServico podePedir={podePedir} pedido="agendamento">
                 Fale com o serviço de saúde
               </LinkServico>
             </p>
@@ -282,13 +289,7 @@ export default async function PortalSaudePage({
                       <TableCell className="text-right">
                         <Button asChild variant="outline" size="sm" className="pointer-coarse:min-h-11">
                           <Link
-                            href={linkServicoSaude(
-                              c.numero
-                                ? `Cópia da CAT nº ${c.numero}`
-                                : c.dataAcidente
-                                  ? `Cópia da CAT do acidente de ${formatarData(c.dataAcidente)}`
-                                  : "Cópia de CAT"
-                            )}
+                            href={linkServicoSaude("copia_cat", c.id)}
                           >
                             Pedir cópia
                           </Link>
@@ -303,7 +304,7 @@ export default async function PortalSaudePage({
                 diz nada sobre o caso de ninguém (afastamento fica fora da lista). */}
             <p className="text-muted-foreground border-t pt-3 text-sm">
               Precisa de orientação sobre o acidente, o afastamento ou o INSS?{" "}
-              <LinkServico podePedir={podePedir} titulo="Orientação sobre acidente de trabalho (CAT)">
+              <LinkServico podePedir={podePedir} pedido="orientacao_cat">
                 Fale com o serviço de saúde
               </LinkServico>
             </p>
@@ -376,7 +377,7 @@ export default async function PortalSaudePage({
               profissional que o elaborou — para ter acesso a ele,{" "}
               {podePedir ? (
                 <Link
-                  href={linkServicoSaude("Acesso ao relatório de atendimento")}
+                  href={linkServicoSaude("relatorio")}
                   className="text-primary font-medium underline underline-offset-4"
                 >
                   peça ao serviço de saúde

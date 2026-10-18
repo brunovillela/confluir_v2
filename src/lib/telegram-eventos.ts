@@ -81,6 +81,9 @@ export const EVENTOS_TELEGRAM = [
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia", acesso: { permissoes: ["veiculos_gestao"] } },
   { chave: "feedback_sistema", rotulo: "Relato de problema ou sugestão sobre o sistema (quem cuida das demandas)", grupo: "pendencia", acesso: { permissoes: ["ferramentas_demandas", "ferramentas_tarefas"] } },
   { chave: "atendimento_filiado", rotulo: "Solicitação ou resposta de filiado pelo portal (quem cuida das demandas)", grupo: "pendencia", acesso: { permissoes: ["ferramentas_demandas", "ferramentas_tarefas"] } },
+  // Pedido de saúde do portal (RIPD de saúde, R2): só a equipe de saúde, e o
+  // texto é sempre genérico — sem nome, CPF nem título (avisos.ts, `sensivel`).
+  { chave: "atendimento_saude", rotulo: "Pedido de saúde pelo portal (equipe de saúde; aviso sem dados do filiado)", grupo: "pendencia", acesso: { permissoes: ["saude_atendimento", "saude_gestao"] } },
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você", grupo: "resumo" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida", grupo: "resumo", acesso: { permissoes: PERMISSOES_VENCIMENTOS } },
   { chave: "resumo_semanal", rotulo: "Resumo semanal de gestão (segunda-feira)", grupo: "resumo" },

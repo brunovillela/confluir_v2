@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache"
 
-import { type EstadoFormAtendimento } from "@/lib/atendimento-constantes"
+import { ENTRADA_ATENDIMENTOS, type EstadoFormAtendimento } from "@/lib/atendimento-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { obterAtendimento, reabrirAtendimento, responderAtendimento } from "@/lib/db/portal-atendimentos"
+import { obterAtendimento, obterAtendimentoPara, reabrirAtendimento, responderAtendimento } from "@/lib/db/portal-atendimentos"
 
-const PERMISSAO = "ferramentas_demandas"
-const ALTERNATIVAS = ["ferramentas_tarefas", "filiacao_filiados"]
+const PERMISSAO = ENTRADA_ATENDIMENTOS[0]
+const ALTERNATIVAS = [...ENTRADA_ATENDIMENTOS[1]]
+const NAO_ENCONTRADA = "Solicitação não encontrada."
 
 function campo(fd: FormData, nome: string): string {
   return String(fd.get(nome) ?? "").trim()
@@ -24,6 +25,8 @@ function revalidar(id: string, demandaId: string | null) {
 export async function responderAtendimentoAction(_prev: EstadoFormAtendimento, fd: FormData): Promise<EstadoFormAtendimento> {
   const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
   const id = campo(fd, "atendimento_id")
+  // Saúde só pela equipe de saúde; os demais, pela equipe geral (R2).
+  if (!(await obterAtendimentoPara(sessao.permissoes, id))) return { erro: NAO_ENCONTRADA }
   const anexo = fd.get("anexo")
   const r = await responderAtendimento({
     id,
@@ -41,8 +44,9 @@ export async function responderAtendimentoAction(_prev: EstadoFormAtendimento, f
 }
 
 export async function reabrirAtendimentoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao(PERMISSAO, ALTERNATIVAS)
+  const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
   const id = campo(fd, "atendimento_id")
+  if (!(await obterAtendimentoPara(sessao.permissoes, id))) return { erro: NAO_ENCONTRADA }
   const r = await reabrirAtendimento(id)
   if (r.erro) return { erro: r.erro }
   const atual = await obterAtendimento(id)

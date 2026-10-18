@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ASSUNTOS_ATENDIMENTO, ROTULO_SITUACAO_ATENDIMENTO, SITUACOES_ATENDIMENTO } from "@/lib/atendimento-constantes"
+import { ASSUNTOS_ATENDIMENTO, ENTRADA_ATENDIMENTOS, ROTULO_SITUACAO_ATENDIMENTO, SITUACOES_ATENDIMENTO } from "@/lib/atendimento-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { indicadoresAtendimento, listarAtendimentos } from "@/lib/db/portal-atendimentos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
@@ -30,12 +30,14 @@ export default async function AtendimentosPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requirePermissao("ferramentas_demandas", ["ferramentas_tarefas", "filiacao_filiados"])
+  // Saúde (R2): a equipe de saúde entra e vê só os pedidos de saúde; a
+  // equipe geral, todos os outros. Quem tem as duas, vê tudo.
+  const sessao = await requirePermissao(ENTRADA_ATENDIMENTOS[0], [...ENTRADA_ATENDIMENTOS[1]])
   const p = await searchParams
   const situacao = p.situacao ?? "abertas"
   const [{ lista, disponivel }, ind] = await Promise.all([
-    listarAtendimentos({ situacao, assunto: p.assunto, busca: p.busca }),
-    indicadoresAtendimento(),
+    listarAtendimentos(sessao.permissoes, { situacao, assunto: p.assunto, busca: p.busca }),
+    indicadoresAtendimento(sessao.permissoes),
   ])
   const pag = lerPaginacao(p, 25)
   const { linhas, ...info } = paginar(lista, pag)
@@ -45,7 +47,7 @@ export default async function AtendimentosPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Atendimentos</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Solicitações abertas pelos filiados no portal. Cada uma vira uma Demanda com prazo pelo assunto.
+          Solicitações abertas pelos filiados no portal. Cada uma vira uma Demanda com prazo pelo assunto — menos as de saúde, que ficam só com a equipe de saúde.
         </p>
       </div>
 

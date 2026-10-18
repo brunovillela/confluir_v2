@@ -11,15 +11,20 @@ import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  PEDIDOS_SAUDE,
   assuntoAtendimento,
+  assuntoSigiloso,
   assuntosPorExtenso,
+  pedidoSaude,
   prazoLegivel,
   type AssuntoAtendimento,
 } from "@/lib/atendimento-constantes"
 import { hojeSP } from "@/lib/db/comum"
+import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { meusAtendimentos, regrasDoAtendimento, type Atendimento } from "@/lib/db/portal-atendimentos"
 import { bloqueioDaParte, estadoDaParte } from "@/lib/db/portal-partes"
-import { formatarDataHora } from "@/lib/formato"
+import { minhasCats } from "@/lib/db/saude-portal"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -34,6 +39,10 @@ const RECOLHER_CONCLUIDAS_ACIMA = 5
 type Parametros = {
   assunto?: string | string[]
   titulo?: string | string[]
+  /** Saúde: o código do pedido (PEDIDOS_SAUDE) — o resumo clínico não vem na URL (R2). */
+  pedido?: string | string[]
+  /** Saúde, pedido "copia_cat": a CAT do próprio filiado. */
+  cat?: string | string[]
   nova?: string | string[]
   /** "desfiliacao": o pedido vem de Minha filiação e passa pelo primeiro acesso pendente. */
   motivo?: string | string[]
@@ -53,6 +62,24 @@ function assuntoOferecido(pedido: AssuntoAtendimento, oferecidos: readonly Assun
   if (oferecidos.includes(pedido)) return pedido
   if (oferecidos.includes("outro")) return "outro"
   return oferecidos[0] ?? null
+}
+
+/**
+ * O resumo de um pedido de saúde a partir do código (PEDIDOS_SAUDE). Na
+ * cópia de CAT, o número (ou a data) só entra se a CAT é do próprio filiado.
+ */
+async function tituloDoPedidoSaude(codigo: string | undefined, catId: string | undefined, cpf: string): Promise<string | null> {
+  const pedido = pedidoSaude(codigo)
+  if (!pedido) return null
+  if (pedido === "copia_cat" && catId) {
+    const cats = await registrosDoCpf(cpf)
+      .then(minhasCats)
+      .catch(() => [])
+    const c = cats.find((x) => x.id === catId)
+    if (c?.numero) return `Cópia da CAT nº ${c.numero}`
+    if (c?.dataAcidente) return `Cópia da CAT do acidente de ${formatarData(c.dataAcidente)}`
+  }
+  return PEDIDOS_SAUDE[pedido]
 }
 
 /**
@@ -88,7 +115,12 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
   // Só assunto da lista fechada (e oferecido pela entidade); o resumo, no tamanho do campo.
   const pedido = assuntoAtendimento(um(p.assunto))?.chave ?? null
   const assuntoInicial = pedido ? assuntoOferecido(pedido, regras.assuntos) : null
-  const tituloInicial = um(p.titulo)?.trim().replace(/\s+/g, " ").slice(0, 140) || null
+  // Saúde (RIPD de saúde, R2): `titulo` da URL é ignorado; o resumo sai do
+  // código do pedido, montado aqui no servidor.
+  const tituloInicial =
+    (assuntoSigiloso(pedido)
+      ? await tituloDoPedidoSaude(um(p.pedido), um(p.cat), filiado.cpf)
+      : um(p.titulo)?.trim().replace(/\s+/g, " ").slice(0, 140)) || null
   const abrirFormulario = lista.length === 0 || um(p.nova) === "1" || !!assuntoInicial || !!tituloInicial
   // Sem assunto a oferecer (ex.: só "Saúde" marcado e a Saúde suspensa), também não há o que abrir.
   const semEnvio =

@@ -8,8 +8,12 @@ import {
   ASSUNTOS_ATENDIMENTO,
   ATENDIMENTO_ABERTO,
   ATENDIMENTO_AGUARDANDO_EQUIPE,
+  EQUIPE_ATENDIMENTO_GERAL,
+  EQUIPE_ATENDIMENTO_SAUDE,
+  LEITURA_ATENDIMENTO_GERAL,
   TIPO_DEMANDA_ATENDIMENTO,
   assuntoAtendimento,
+  assuntoSigiloso,
   reabrirAte,
   rotuloDias,
   type AssuntoAtendimento,
@@ -22,8 +26,10 @@ import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
 import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { type ContextoEmail } from "@/lib/email"
+import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { opcoesPadrao, type EstadoParte } from "@/lib/portal-partes-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
+import type { EventoTelegram } from "@/lib/telegram-eventos"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -42,11 +48,59 @@ import { tenantAtual } from "@/lib/tenant"
  * coluna `email` da solicitação é só o registro da época da abertura.
  * O prazo estourado sem resposta é lembrado por `lembretesPrazoAtendimento`,
  * que o tick diário chama.
+ *
+ * SAÚDE é a exceção (RIPD de saúde, R2): o pedido não vira Demanda, só a
+ * equipe do módulo Saúde o lê no painel e o aviso a ela é genérico, sem
+ * nome, CPF nem título — ver equipeDo/avisarEquipe.
  */
 
-/** Quem cuida das solicitações no painel — os mesmos avisados quando uma chega. */
-const EQUIPE = "ferramentas_demandas"
-const EQUIPE_ALTERNATIVAS = ["ferramentas_tarefas"]
+/**
+ * Quem cuida das solicitações no painel — os mesmos avisados quando uma
+ * chega. Saúde (RIPD de saúde, R2) é da equipe de saúde, com aviso genérico
+ * e sem Demanda; os demais assuntos, de quem cuida das demandas.
+ */
+function equipeDo(assunto: string): { chave: string; alternativas: string[]; evento: EventoTelegram; sensivel: boolean } {
+  return assuntoSigiloso(assunto)
+    ? { chave: EQUIPE_ATENDIMENTO_SAUDE.chave, alternativas: [...EQUIPE_ATENDIMENTO_SAUDE.alternativas], evento: "atendimento_saude", sensivel: true }
+    : { chave: EQUIPE_ATENDIMENTO_GERAL.chave, alternativas: [...EQUIPE_ATENDIMENTO_GERAL.alternativas], evento: "atendimento_filiado", sensivel: false }
+}
+
+/** O texto que a equipe de saúde recebe: nunca nome, CPF nem título. */
+const AVISO_SAUDE = "Novo movimento em pedido de saúde no portal"
+
+/**
+ * Avisa a equipe do assunto. No sigiloso, troca texto e assunto pelos
+ * genéricos (`generico`) e marca o aviso como sensível (avisos.ts).
+ */
+function avisarEquipe(
+  a: { id: string; assunto: string },
+  aviso: { texto: string; assunto: string; generico?: string }
+): void {
+  const eq = equipeDo(a.assunto)
+  depoisDaResposta(() =>
+    avisarQuemPode(eq.chave, eq.alternativas, {
+      texto: eq.sensivel ? (aviso.generico ?? AVISO_SAUDE) : aviso.texto,
+      link: `/painel/filiados/atendimentos/${a.id}`,
+      evento: eq.evento,
+      assunto: eq.sensivel ? "Pedido de saúde no portal" : aviso.assunto,
+      sensivel: eq.sensivel,
+    })
+  )
+}
+
+/** O que a pessoa do painel lê: os assuntos gerais, os de saúde, ambos ou nenhum. */
+export function alcanceDosAtendimentos(permissoes: Permissoes | null): { geral: boolean; saude: boolean } {
+  return {
+    geral: podeAcessar(permissoes, LEITURA_ATENDIMENTO_GERAL[0], [...LEITURA_ATENDIMENTO_GERAL.slice(1)]),
+    saude: podeAcessar(permissoes, EQUIPE_ATENDIMENTO_SAUDE.chave, [...EQUIPE_ATENDIMENTO_SAUDE.alternativas]),
+  }
+}
+
+/** A pessoa do painel pode ler (e responder) uma solicitação deste assunto? */
+export function podeVerAtendimento(permissoes: Permissoes | null, assunto: string): boolean {
+  const alcance = alcanceDosAtendimentos(permissoes)
+  return assuntoSigiloso(assunto) ? alcance.saude : alcance.geral
+}
 
 /** DD/MM/AAAA de uma data pura (AAAA-MM-DD). */
 function diaDaData(iso: string): string {
@@ -311,34 +365,39 @@ export async function abrirAtendimento(p: {
     anexo_nome: anexo.nome,
   })
 
-  // A Demanda no painel: a equipe trabalha onde já trabalha.
-  const descricao = [
-    corpo,
-    "",
-    `— Solicitação de ${p.nome ?? "filiado"} (CPF ${cpf}) pelo portal, assunto ${assunto.rotulo}. Prazo de resposta: ${assunto.slaDias} dias.`,
-    `Responder ao filiado: /painel/filiados/atendimentos/${id}`,
-  ].join("\n")
-  const { data: demanda } = await admin
-    .from("demandas")
-    .insert({
-      emp_proprietaria_id: emp,
-      nome: `[${assunto.rotulo}] ${titulo.slice(0, 90)} — ${(p.nome ?? "filiado").split(" ")[0]}`,
-      descricao,
-      situacao: "A fazer",
-      prazo,
-      tipo: TIPO_DEMANDA_ATENDIMENTO,
-    })
-    .select("id")
-    .single()
-  if (demanda?.id) await admin.from("portal_atendimentos").update({ demanda_id: demanda.id }).eq("id", id)
+  // A Demanda no painel: a equipe trabalha onde já trabalha. Saúde (R2) não
+  // vira Demanda: Ferramentas → Demandas é da equipe geral, e a Demanda
+  // levaria título, nome e CPF a quem não é da saúde. A equipe de saúde
+  // trabalha em Filiados → Atendimentos, que só a ela mostra estes pedidos.
+  if (!assuntoSigiloso(assunto.chave)) {
+    const descricao = [
+      corpo,
+      "",
+      `— Solicitação de ${p.nome ?? "filiado"} (CPF ${cpf}) pelo portal, assunto ${assunto.rotulo}. Prazo de resposta: ${assunto.slaDias} dias.`,
+      `Responder ao filiado: /painel/filiados/atendimentos/${id}`,
+    ].join("\n")
+    const { data: demanda } = await admin
+      .from("demandas")
+      .insert({
+        emp_proprietaria_id: emp,
+        nome: `[${assunto.rotulo}] ${titulo.slice(0, 90)} — ${(p.nome ?? "filiado").split(" ")[0]}`,
+        descricao,
+        situacao: "A fazer",
+        prazo,
+        tipo: TIPO_DEMANDA_ATENDIMENTO,
+      })
+      .select("id")
+      .single()
+    if (demanda?.id) await admin.from("portal_atendimentos").update({ demanda_id: demanda.id }).eq("id", id)
+  }
 
-  depoisDaResposta(() =>
-    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
+  avisarEquipe(
+    { id, assunto: assunto.chave },
+    {
       texto: `${p.nome ?? "Um filiado"} abriu uma solicitação de ${assunto.rotulo.toLowerCase()} pelo portal: ${titulo}`,
-      link: `/painel/filiados/atendimentos/${id}`,
-      evento: "atendimento_filiado",
       assunto: `Nova solicitação de ${assunto.rotulo.toLowerCase()} pelo portal`,
-    })
+      generico: "Novo pedido de saúde no portal",
+    }
   )
   // Recibo para o associado (A121): o protocolo que ele guarda, com o prazo.
   // Sem nome e e-mail: o aviso busca o contato atual do cadastro (A152).
@@ -528,14 +587,10 @@ export async function responderComoFiliado(p: {
     await admin.from("demandas").update({ situacao: "Fazendo" }).eq("id", atual.atendimento.demandaId).neq("situacao", "Feito")
   }
 
-  depoisDaResposta(() =>
-    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
-      texto: `${p.nome ?? "O filiado"} respondeu na solicitação "${atual.atendimento.titulo}"`,
-      link: `/painel/filiados/atendimentos/${p.id}`,
-      evento: "atendimento_filiado",
-      assunto: "Resposta do filiado em uma solicitação",
-    })
-  )
+  avisarEquipe(atual.atendimento, {
+    texto: `${p.nome ?? "O filiado"} respondeu na solicitação "${atual.atendimento.titulo}"`,
+    assunto: "Resposta do filiado em uma solicitação",
+  })
   return {}
 }
 
@@ -576,14 +631,10 @@ export async function encerrarComoFiliado(p: { id: string; cpf: string; nome: st
   if (erroMsg) console.error("encerrar atendimento (mensagem):", erroMsg.message)
   if (a.demandaId) await admin.from("demandas").update({ situacao: "Feito" }).eq("emp_proprietaria_id", emp).eq("id", a.demandaId)
 
-  depoisDaResposta(() =>
-    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
-      texto: `${p.nome ?? "O filiado"} encerrou a solicitação "${a.titulo}": está resolvida`,
-      link: `/painel/filiados/atendimentos/${a.id}`,
-      evento: "atendimento_filiado",
-      assunto: "Solicitação encerrada pelo filiado",
-    })
-  )
+  avisarEquipe(a, {
+    texto: `${p.nome ?? "O filiado"} encerrou a solicitação "${a.titulo}": está resolvida`,
+    assunto: "Solicitação encerrada pelo filiado",
+  })
   return {}
 }
 
@@ -640,14 +691,10 @@ export async function reabrirComoFiliado(p: { id: string; cpf: string; nome: str
   })
   if (error) console.error("reabrir atendimento (mensagem):", error.message)
 
-  depoisDaResposta(() =>
-    avisarQuemPode(EQUIPE, EQUIPE_ALTERNATIVAS, {
-      texto: `${p.nome ?? "O filiado"} reabriu a solicitação "${a.titulo}": diz que não resolveu`,
-      link: `/painel/filiados/atendimentos/${a.id}`,
-      evento: "atendimento_filiado",
-      assunto: "Solicitação reaberta pelo filiado",
-    })
-  )
+  avisarEquipe(a, {
+    texto: `${p.nome ?? "O filiado"} reabriu a solicitação "${a.titulo}": diz que não resolveu`,
+    assunto: "Solicitação reaberta pelo filiado",
+  })
   return {}
 }
 
@@ -655,9 +702,18 @@ export async function reabrirComoFiliado(p: { id: string; cpf: string; nome: str
 
 export type FiltroAtendimentos = { situacao?: string; assunto?: string; busca?: string }
 
-export async function listarAtendimentos(filtro: FiltroAtendimentos = {}): Promise<{ lista: Atendimento[]; disponivel: boolean }> {
+/** A lista do painel, só com os assuntos que `permissoes` lê (saúde só para a equipe de saúde). */
+export async function listarAtendimentos(
+  permissoes: Permissoes | null,
+  filtro: FiltroAtendimentos = {}
+): Promise<{ lista: Atendimento[]; disponivel: boolean }> {
   const admin = await createAdminClient()
+  const alcance = alcanceDosAtendimentos(permissoes)
+  if (!alcance.geral && !alcance.saude) return { lista: [], disponivel: true }
   let q = admin.from("portal_atendimentos").select(COLS).eq("emp_proprietaria_id", await tenantAtual())
+  // Só os assuntos que a pessoa lê (R2): quem tem as duas leituras vê tudo.
+  if (!alcance.saude) q = q.neq("assunto", "saude")
+  else if (!alcance.geral) q = q.eq("assunto", "saude")
   if (filtro.situacao === "abertas") q = q.in("situacao", ATENDIMENTO_ABERTO)
   // Esperando a equipe: novas ou com resposta nova do filiado (= caixa de entrada).
   else if (filtro.situacao === "aguardando") q = q.in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE)
@@ -681,6 +737,40 @@ export async function obterAtendimento(id: string): Promise<{ atendimento: Atend
     .maybeSingle()
   if (!data) return null
   return { atendimento: montar(data as Record<string, unknown>), mensagens: await mensagensDe(id) }
+}
+
+/** A solicitação, só se `permissoes` lê o assunto dela (saúde: só a equipe de saúde — R2). */
+export async function obterAtendimentoPara(
+  permissoes: Permissoes | null,
+  id: string
+): Promise<{ atendimento: Atendimento; mensagens: MensagemAtendimento[] } | null> {
+  const dados = await obterAtendimento(id)
+  return dados && podeVerAtendimento(permissoes, dados.atendimento.assunto) ? dados : null
+}
+
+/** O assunto da solicitação (para conferir o acesso ao anexo); null se não existe. */
+export async function assuntoDoAtendimento(id: string): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("portal_atendimentos")
+    .select("assunto")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", id)
+    .maybeSingle()
+  return data ? String(data.assunto) : null
+}
+
+/** Pedidos de saúde do portal esperando a equipe (cartão do módulo Saúde); null sem a tabela. */
+export async function pedidosSaudeAguardando(): Promise<number | null> {
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("portal_atendimentos")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("assunto", "saude")
+    .in("situacao", ATENDIMENTO_AGUARDANDO_EQUIPE)
+  return error ? null : (count ?? 0)
 }
 
 /** A solicitação ligada a uma Demanda (para o painel responder de lá). */
@@ -885,8 +975,9 @@ export type ResultadoLembretesPrazo = {
  * do e-mail, como no tick das cobranças. Para cada solicitação aberta sem
  * primeira resposta cujo prazo venceu nos últimos
  * JANELA_LEMBRETE_PRAZO_DIAS dias:
- *  - a EQUIPE (quem é avisada quando a solicitação chega:
- *    ferramentas_demandas/ferramentas_tarefas) recebe "passou do prazo",
+ *  - a EQUIPE do assunto (quem é avisada quando a solicitação chega:
+ *    ferramentas_demandas/ferramentas_tarefas; na saúde, a equipe de saúde,
+ *    com texto genérico — R2) recebe "passou do prazo",
  *    pelos canais que cada um escolheu;
  *  - o associado recebe no SINO, sem e-mail, que o prazo passou e que a
  *    entidade ainda vai responder. Admitir o atraso gera mais confiança que
@@ -908,13 +999,13 @@ export async function lembretesPrazoAtendimento(amb: {
     return d.toISOString().slice(0, 10)
   })()
 
-  type Linha = { id: string; cpf: string; nome: string | null; titulo: string; prazo: string }
+  type Linha = { id: string; cpf: string; nome: string | null; assunto: string; titulo: string; prazo: string }
   let vencidas: Linha[]
   try {
     vencidas = await lerEmLotes<Linha>((de, ate) =>
       client
         .from("portal_atendimentos")
-        .select("id, cpf, nome, titulo, prazo")
+        .select("id, cpf, nome, assunto, titulo, prazo")
         .eq("emp_proprietaria_id", tenantId)
         .in("situacao", ATENDIMENTO_ABERTO)
         .is("primeira_resposta_em", null)
@@ -930,21 +1021,32 @@ export async function lembretesPrazoAtendimento(amb: {
   r.vencidas = vencidas.length
   if (vencidas.length === 0) return r
 
-  // A equipe é a mesma para todas as solicitações do tenant: resolve uma vez.
-  const equipe = await usuariosComPermissao(EQUIPE, EQUIPE_ALTERNATIVAS, amb).catch(() => [])
+  // Duas equipes por tenant (R2): a geral e a de saúde — resolve cada uma uma vez.
+  const geral = equipeDo("")
+  const saude = equipeDo("saude")
+  const [equipeGeral, equipeSaude] = await Promise.all([
+    usuariosComPermissao(geral.chave, geral.alternativas, amb).catch(() => []),
+    vencidas.some((s) => assuntoSigiloso(s.assunto)) ? usuariosComPermissao(saude.chave, saude.alternativas, amb).catch(() => []) : [],
+  ])
 
   for (const s of vencidas) {
     try {
       const prazo = diaDaData(String(s.prazo))
+      const sigiloso = assuntoSigiloso(s.assunto)
+      const equipe = sigiloso ? equipeSaude : equipeGeral
       if (equipe.length > 0) {
         const n = await avisar(
           equipe,
           {
-            texto: `Solicitação de ${s.nome ?? "filiado"} pelo portal passou do prazo (${prazo}) sem resposta: ${s.titulo}`,
+            // Saúde (R2): sem nome nem título; o prazo não identifica ninguém.
+            texto: sigiloso
+              ? `Pedido de saúde no portal passou do prazo (${prazo}) sem resposta`
+              : `Solicitação de ${s.nome ?? "filiado"} pelo portal passou do prazo (${prazo}) sem resposta: ${s.titulo}`,
             link: `/painel/filiados/atendimentos/${s.id}`,
-            evento: "atendimento_filiado",
-            assunto: "Solicitação do portal com prazo vencido",
+            evento: sigiloso ? saude.evento : geral.evento,
+            assunto: sigiloso ? "Pedido de saúde com prazo vencido" : "Solicitação do portal com prazo vencido",
             chaveEntrega: `atendimento-prazo:${s.id}`,
+            sensivel: sigiloso,
           },
           amb
         )
@@ -987,7 +1089,8 @@ export type IndicadoresAtendimento = {
   porAssunto: { assunto: string; rotulo: string; abertas: number }[]
 }
 
-export async function indicadoresAtendimento(): Promise<IndicadoresAtendimento> {
+/** Os números da lista, sobre os mesmos assuntos que `permissoes` lê (R2). */
+export async function indicadoresAtendimento(permissoes: Permissoes | null): Promise<IndicadoresAtendimento> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const vazio: IndicadoresAtendimento = { abertas: 0, atrasadas: 0, tempoMedioDias: null, noPrazoPct: null, respondidas90d: 0, porAssunto: [] }
@@ -1006,8 +1109,9 @@ export async function indicadoresAtendimento(): Promise<IndicadoresAtendimento> 
     .limit(5000)
   if (error) return vazio
 
+  const ve = (x: { assunto: unknown }) => podeVerAtendimento(permissoes, String(x.assunto))
   const hoje = hojeSP()
-  const abertas = abertasTodas ?? []
+  const abertas = (abertasTodas ?? []).filter(ve)
   const porAssunto = ASSUNTOS_ATENDIMENTO.map((a) => ({
     assunto: a.chave,
     rotulo: a.rotulo,
@@ -1018,7 +1122,7 @@ export async function indicadoresAtendimento(): Promise<IndicadoresAtendimento> 
   let n = 0
   let noPrazo = 0
   for (const r of data ?? []) {
-    if (!r.primeira_resposta_em) continue
+    if (!r.primeira_resposta_em || !ve(r)) continue
     const dias = (new Date(String(r.primeira_resposta_em)).getTime() - new Date(String(r.created_at)).getTime()) / 86_400_000
     soma += Math.max(0, dias)
     n++
