@@ -188,6 +188,13 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - 47 tabelas não têm `emp_proprietaria_id` e isolam pelo pai ou são de plataforma.
   - 3 buckets são públicos: `comunicacao`, `noticias`, `organizacao`.
 
+- 18/10/2026 — **A6 CONCLUÍDA. ONDA A CONCLUÍDA.** `scripts/restaurar.mjs` (`npm run db:restaurar`) reconstruiu o banco num projeto Supabase descartável (`SUPABASE_DB_URL_RESTAURO`), só a partir de `supabase/migrations/`. O script recusa produção e banco não vazio.
+  - **1ª rodada: 25 diferenças.** O banco restaurado saía **mais permissivo** que produção. As revogações feitas à mão na revisão de segurança (EXECUTE de funções `analitica_*`, `mesclar_*`, `unificar_*`, `registrar_auditoria`…, escrita em `auditoria`, `fato_*`…) não vêm no `pg_dump`, e um projeto novo concede tudo por padrão. Dois CHECKs diferiam só nos parênteses.
+  - **Correção:** a migração `20261018173409_privilegios_exatos` (aplicada) revoga e concede de novo exatamente o que produção tem nesses 23 objetos e recria os 2 CHECKs. `schema_impressao()` passou a ordenar as listas de privilégios.
+  - **2ª rodada: IDÊNTICO** nos 4.063 objetos.
+  - **Seeds:** com `--seed`, as 21 seeds do demo rodam na ordem das dependências, inclusive repetidas. A `demo-seed-filiados.sql` estava quebrada: ainda gravava `filiacao_vinculos.filiacao_condicao`, coluna removida em setembro. Corrigida.
+  - **Não feito:** subir o app contra o banco restaurado, o que exigiria as chaves de API e um usuário de auth no projeto descartável. O teste de app fica para o ensaio de DR (Onda E).
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**

@@ -13,7 +13,8 @@
     "db:status": "node scripts/db.mjs status",
     "db:aplicar": "node scripts/db.mjs aplicar",
     "db:deriva": "node scripts/db.mjs deriva",
-    "db:dicionario": "node scripts/gerar-dicionario.mjs"
+    "db:dicionario": "node scripts/gerar-dicionario.mjs",
+    "db:restaurar": "node scripts/restaurar.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

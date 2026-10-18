@@ -112,11 +112,13 @@ from (values
 -- ---------------------------------------------------------------------------
 insert into filiacao_vinculos (
   id, emp_proprietaria_id, filiado_id, fonte_pagadora_id, cargo, lotacao,
-  matricula, filiacao_condicao, data_filiacao, created_at
+  matricula, data_filiacao, created_at
 ) values (
+  -- Sem filiacao_condicao: a coluna saiu de filiacao_vinculos (a condição do
+  -- filiado é uma só, em filiacoes.filiacao_condicao; vinculos-remover-condicao).
   'b0b0b0b0-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111',
   '77777777-7777-4777-8777-000000000001', 'f0f0f0f0-0000-4000-8000-000000000001',
-  'Operador de Produção', 'Refinaria', '2001', 'Ativo',
+  'Operador de Produção', 'Refinaria', '2001',
   date '2015-04-01', now() - interval '200 days'
 );
 

@@ -192,7 +192,7 @@ Condições de uso da hospedagem por entidade (uma linha): restrição por fonte
 | `nao_comparecimento_periodo` | text | não | `'mes'::text` |  |  |  |
 | `nao_comparecimento_suspensao_dias` | integer | não | `30` |  |  |  |
 
-Checks: `ck_hospedagem_condicoes_nc` `CHECK ((((nao_comparecimento_quantidade >= 1) AND (nao_comparecimento_quantidade <= 50)) AND ((nao_comparecimento_janela_meses >= 1) AND (nao_comparecimento_janela_meses <= 60)) AND (nao_comparecimento_penalidade = ANY (ARRAY['consumir_periodo'::text, 'suspender'::text, 'desabilitar'::text])) AND (nao_comparecimento_periodo = ANY (ARRAY['mes'::text, 'ano'::text])) AND ((nao_comparecimento_suspensao_dias >= 1) AND (nao_comparecimento_suspensao_dias <= 730)))) NOT VALID`; `ck_hospedagem_condicoes_qtd` `CHECK ((((quantidade_maxima >= 1) AND (quantidade_maxima <= 365)) AND (quantidade_periodo = ANY (ARRAY['mes'::text, 'ano'::text])))) NOT VALID`
+Checks: `ck_hospedagem_condicoes_nc` `CHECK (((nao_comparecimento_quantidade >= 1) AND (nao_comparecimento_quantidade <= 50) AND ((nao_comparecimento_janela_meses >= 1) AND (nao_comparecimento_janela_meses <= 60)) AND (nao_comparecimento_penalidade = ANY (ARRAY['consumir_periodo'::text, 'suspender'::text, 'desabilitar'::text])) AND (nao_comparecimento_periodo = ANY (ARRAY['mes'::text, 'ano'::text])) AND ((nao_comparecimento_suspensao_dias >= 1) AND (nao_comparecimento_suspensao_dias <= 730)))) NOT VALID`; `ck_hospedagem_condicoes_qtd` `CHECK (((quantidade_maxima >= 1) AND (quantidade_maxima <= 365) AND (quantidade_periodo = ANY (ARRAY['mes'::text, 'ano'::text])))) NOT VALID`
 
 Índices: `hospedagem_condicoes_pkey`, `ux_hospedagem_condicoes_emp`
 

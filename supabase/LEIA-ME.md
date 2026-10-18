@@ -25,7 +25,14 @@ npm run db:status                       # local × produção
 npm run db:aplicar                      # aplica em produção as pendentes, em ordem; regrava impressão e dicionário
 npm run db:dicionario                   # regera docs/dados/ (dicionário, ER, RLS, dados pessoais)
 npm run db:deriva                       # o banco mudou fora das migrações?
+npm run db:restaurar -- --seed          # reconstrói num projeto VAZIO (SUPABASE_DB_URL_RESTAURO) e compara com produção
 ```
+
+**Restauração.** `db:restaurar` aplica `migrations/` num projeto Supabase
+descartável e compara a impressão do resultado com a de produção. Ele recusa
+rodar contra produção ou contra um banco que não esteja vazio. Com `--seed`,
+esvazia o destino e roda as seeds do demo na ordem das dependências.
+Ensaiado em 18/10/2026: schema **idêntico** (4.063 objetos) e 21/21 seeds.
 
 **Deriva.** `schema-impressao.json` guarda a impressão digital do schema
 (`public.schema_impressao()`: md5 de cada tabela, policy, índice, função, trigger…).
