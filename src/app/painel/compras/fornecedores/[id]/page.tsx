@@ -421,12 +421,15 @@ export default async function FornecedorPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="contatos" className="scroll-mt-20">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <div>
               <CardTitle className="text-base">Contatos</CardTitle>
-              <CardDescription>Quem atende no fornecedor — telefone e e-mail</CardDescription>
+              <CardDescription>
+                Quem atende no fornecedor — telefone e e-mail. A ordem de compra só vai a quem está marcado para
+                recebê-la.
+              </CardDescription>
             </div>
             {podeEditar && contatos !== null && contatoParam !== "novo" && (
               <Button variant="outline" size="sm" asChild>
@@ -465,6 +468,11 @@ export default async function FornecedorPage({
                         {c.principal && (
                           <Badge variant="info" className="ml-2 align-middle">
                             Principal
+                          </Badge>
+                        )}
+                        {c.recebeOrdemCompra && c.email && (
+                          <Badge variant="secondary" className="ml-2 align-middle">
+                            Recebe ordem de compra
                           </Badge>
                         )}
                       </p>

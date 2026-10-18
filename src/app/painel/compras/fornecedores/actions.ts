@@ -164,6 +164,7 @@ export async function salvarContatoAction(
       email: ouNull(texto(formData, "email").toLowerCase()),
       principal: texto(formData, "principal") === "on",
       observacao: ouNull(texto(formData, "observacao")),
+      recebeOrdemCompra: texto(formData, "recebe_ordem_compra") === "on",
     },
     contatoId
   )

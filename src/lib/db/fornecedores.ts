@@ -714,6 +714,8 @@ export type ContatoFornecedor = {
   email: string | null
   principal: boolean
   observacao: string | null
+  /** Recebe a ordem de compra por e-mail (supabase/fornecedores-contatos-ordem-compra.sql). */
+  recebeOrdemCompra: boolean
 }
 
 export type DadosContato = Omit<ContatoFornecedor, "id">
@@ -723,17 +725,21 @@ const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Contatos do fornecedor, o principal primeiro. null = SQL ainda não rodado. */
 export async function listarContatos(fornecedorId: string): Promise<ContatoFornecedor[] | null> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("empresa_contatos")
-    .select("id, nome, cargo, telefone, email, principal, observacao")
-    .eq("empresa_id", fornecedorId)
-    .order("principal", { ascending: false })
-    .order("nome", { ascending: true })
+  const consulta = (colunas: string) =>
+    admin
+      .from("empresa_contatos")
+      .select(colunas)
+      .eq("empresa_id", fornecedorId)
+      .order("principal", { ascending: false })
+      .order("nome", { ascending: true })
+  let { data, error } = await consulta("id, nome, cargo, telefone, email, principal, observacao, recebe_ordem_compra")
+  // Sem a coluna recebe_ordem_compra: lista igual, ninguém marcado.
+  if (error?.code === "42703") ({ data, error } = await consulta("id, nome, cargo, telefone, email, principal, observacao"))
   if (error) {
     if (esquemaAusente(error)) return null
     throw new Error(`Falha ao buscar contatos: ${error.message}`)
   }
-  return ((data ?? []) as Record<string, unknown>[]).map((c) => ({
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((c) => ({
     id: String(c.id),
     nome: String(c.nome ?? ""),
     cargo: (c.cargo as string | null) ?? null,
@@ -741,13 +747,8 @@ export async function listarContatos(fornecedorId: string): Promise<ContatoForne
     email: (c.email as string | null) ?? null,
     principal: c.principal === true,
     observacao: (c.observacao as string | null) ?? null,
+    recebeOrdemCompra: c.recebe_ordem_compra === true,
   }))
-}
-
-/** E-mail do contato principal (ou do primeiro com e-mail), para sugerir em envios. */
-export async function emailDoContatoPrincipal(fornecedorId: string): Promise<string | null> {
-  const contatos = await listarContatos(fornecedorId).catch(() => null)
-  return (contatos ?? []).find((c) => c.email)?.email ?? null
 }
 
 export async function salvarContato(
@@ -775,11 +776,18 @@ export async function salvarContato(
     if (contatoId) q = q.neq("id", contatoId)
     await q
   }
-  const linha = { ...dados, updated_at: new Date().toISOString() }
+  if (dados.recebeOrdemCompra && !dados.email?.trim()) {
+    return { erro: "Para receber a ordem de compra, o contato precisa de e-mail." }
+  }
+  const { recebeOrdemCompra, ...resto } = dados
+  const linha = { ...resto, recebe_ordem_compra: recebeOrdemCompra, updated_at: new Date().toISOString() }
   const { error } = contatoId
     ? await admin.from("empresa_contatos").update(linha).eq("id", contatoId).eq("empresa_id", fornecedorId)
     : await admin.from("empresa_contatos").insert({ ...linha, empresa_id: fornecedorId, emp_proprietaria_id: emp })
   if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") {
+      return { erro: "Rode supabase/fornecedores-contatos-ordem-compra.sql para marcar quem recebe a ordem de compra." }
+    }
     if (esquemaAusente(error)) return { erro: "Rode supabase/fornecedores-contatos.sql para habilitar os contatos." }
     return { erro: `Não foi possível salvar o contato: ${error.message}` }
   }

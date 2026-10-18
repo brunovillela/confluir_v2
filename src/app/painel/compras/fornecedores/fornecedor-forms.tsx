@@ -325,7 +325,16 @@ export function ContatoForm({
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="principal" defaultChecked={contato?.principal ?? false} className="size-4" />
-        Contato principal — o e-mail dele é o sugerido no envio da ordem de compra
+        Contato principal
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="recebe_ordem_compra"
+          defaultChecked={contato?.recebeOrdemCompra ?? false}
+          className="size-4"
+        />
+        Recebe as ordens de compra por e-mail (precisa de e-mail)
       </label>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" asChild>

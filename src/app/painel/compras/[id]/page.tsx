@@ -759,7 +759,8 @@ export default async function ProcessoCompraPage({
                   <OrdemCompraAcoes
                     processoId={processo.id}
                     fornecimentoId={f.id}
-                    emailFornecedor={situacaoOc.get(f.id)?.emailFornecedor ?? null}
+                    fornecedorId={f.fornecedor_id ?? null}
+                    destinatarios={situacaoOc.get(f.id)?.destinatarios ?? []}
                     enviada={
                       situacaoOc.get(f.id)?.enviadaEm
                         ? { em: situacaoOc.get(f.id)!.enviadaEm!, para: situacaoOc.get(f.id)!.enviadaPara }

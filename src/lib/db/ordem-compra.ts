@@ -182,6 +182,44 @@ export function nomeArquivoOrdemCompra(dados: DadosOrdemCompra): string {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+export type DestinatarioOrdemCompra = { nome: string; email: string }
+
+/**
+ * Quem recebe a ordem de compra, por fornecedor: os contatos com e-mail
+ * marcados "Recebe as ordens de compra" (o principal primeiro). Sem nenhum,
+ * a ordem não é enviada. Antes de supabase/fornecedores-contatos-ordem-compra.sql,
+ * vale qualquer contato com e-mail.
+ */
+async function destinatariosPorFornecedor(fornIds: string[]): Promise<Map<string, DestinatarioOrdemCompra[]>> {
+  const mapa = new Map<string, DestinatarioOrdemCompra[]>()
+  if (!fornIds.length) return mapa
+  const admin = await createAdminClient()
+  const consulta = (marcados: boolean) => {
+    let q = admin
+      .from("empresa_contatos")
+      .select("empresa_id, nome, email")
+      .in("empresa_id", fornIds)
+      .not("email", "is", null)
+    if (marcados) q = q.eq("recebe_ordem_compra", true)
+    return q.order("principal", { ascending: false }).order("nome", { ascending: true })
+  }
+  let { data, error } = await consulta(true)
+  if (error?.code === "42703") ({ data, error } = await consulta(false))
+  if (error) {
+    if (!esquemaAusente(error)) console.error("ordem de compra (contatos):", error.message)
+    return mapa
+  }
+  for (const c of (data ?? []) as Record<string, unknown>[]) {
+    const email = texto(c.email)?.trim().toLowerCase()
+    if (!email || !EMAIL.test(email)) continue
+    const id = String(c.empresa_id)
+    const lista = mapa.get(id) ?? []
+    if (!lista.some((d) => d.email === email)) lista.push({ nome: texto(c.nome) ?? "", email })
+    mapa.set(id, lista)
+  }
+  return mapa
+}
+
 /** Envia a ordem de compra (PDF anexo) ao fornecedor e registra o envio. */
 export async function enviarOrdemCompra(
   processoId: string,
@@ -190,7 +228,24 @@ export async function enviarOrdemCompra(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   const email = destino.email.trim().toLowerCase()
-  if (!EMAIL.test(email)) return { erro: "Informe um e-mail válido do fornecedor." }
+  const admin = await createAdminClient()
+  const { data: forn } = await admin
+    .from("compras_fornecimentos")
+    .select("fornecedor_id")
+    .eq("id", fornecimentoId)
+    .eq("processo_id", processoId)
+    .maybeSingle()
+  const fornecedorId = texto(forn?.fornecedor_id)
+  if (!fornecedorId) return { erro: "Fornecimento não encontrado neste processo." }
+  const destinatarios = (await destinatariosPorFornecedor([fornecedorId])).get(fornecedorId) ?? []
+  if (!destinatarios.length) {
+    return {
+      erro: "O fornecedor não tem contato com e-mail marcado para receber a ordem de compra — cadastre um na ficha dele.",
+    }
+  }
+  if (!destinatarios.some((d) => d.email === email)) {
+    return { erro: "Escolha um dos contatos que recebem a ordem de compra." }
+  }
   const dados = await dadosOrdemCompra(processoId, fornecimentoId)
   if (!dados) return { erro: "Fornecimento não encontrado neste processo." }
   const pdf = await renderizarPdfOrdemCompra(dados)
@@ -215,7 +270,6 @@ export async function enviarOrdemCompra(
   })
   if (!ok) return { erro: "O e-mail não saiu — confira o endereço e tente de novo." }
 
-  const admin = await createAdminClient()
   const { error } = await admin
     .from("compras_fornecimentos")
     .update({ oc_enviada_em: new Date().toISOString(), oc_enviada_para: email, oc_enviada_por_id: usuarioId })
@@ -227,11 +281,15 @@ export async function enviarOrdemCompra(
   return {}
 }
 
-/** Para a tela do processo: e-mail do fornecedor e o último envio, por fornecimento. */
-export async function situacaoOrdensCompra(
-  fornecimentoIds: string[]
-): Promise<Map<string, { emailFornecedor: string | null; enviadaEm: string | null; enviadaPara: string | null }>> {
-  const mapa = new Map<string, { emailFornecedor: string | null; enviadaEm: string | null; enviadaPara: string | null }>()
+type SituacaoOrdemCompra = {
+  destinatarios: DestinatarioOrdemCompra[]
+  enviadaEm: string | null
+  enviadaPara: string | null
+}
+
+/** Para a tela do processo: quem pode receber e o último envio, por fornecimento. */
+export async function situacaoOrdensCompra(fornecimentoIds: string[]): Promise<Map<string, SituacaoOrdemCompra>> {
+  const mapa = new Map<string, SituacaoOrdemCompra>()
   const ids = fornecimentoIds.filter((v) => /^[0-9a-f-]{36}$/i.test(v))
   if (!ids.length) return mapa
   const admin = await createAdminClient()
@@ -239,35 +297,18 @@ export async function situacaoOrdensCompra(
     .from("compras_fornecimentos")
     .select("id, fornecedor_id, oc_enviada_em, oc_enviada_para")
     .in("id", ids)
-  // Sem supabase/compras-ordem-compra.sql: só o e-mail do fornecedor.
+  // Sem supabase/compras-ordem-compra.sql: só os destinatários.
   const linhas = (
     completo.error
       ? (await admin.from("compras_fornecimentos").select("id, fornecedor_id").in("id", ids)).data
       : completo.data
   ) as Record<string, unknown>[] | null ?? []
   const fornIds = [...new Set(linhas.map((l) => texto(l.fornecedor_id)).filter((v): v is string => !!v))]
-  const { data: emps } = fornIds.length
-    ? await admin.from("empresa").select("id, email_contato").in("id", fornIds)
-    : { data: [] }
-  const emailDe = new Map((emps ?? []).map((e) => [String(e.id), texto(e.email_contato)]))
-  // Sem e-mail no cadastro: o do contato principal (ou o primeiro com e-mail).
-  // Sem supabase/fornecedores-contatos.sql, a consulta falha e nada muda.
-  const semEmail = fornIds.filter((id) => !emailDe.get(id))
-  if (semEmail.length) {
-    const { data: contatos } = await admin
-      .from("empresa_contatos")
-      .select("empresa_id, email, principal")
-      .in("empresa_id", semEmail)
-      .not("email", "is", null)
-      .order("principal", { ascending: false })
-    for (const c of (contatos ?? []) as Record<string, unknown>[]) {
-      const id = String(c.empresa_id)
-      if (!emailDe.get(id)) emailDe.set(id, texto(c.email))
-    }
-  }
+  const destinatarios = await destinatariosPorFornecedor(fornIds)
   for (const l of linhas) {
+    const fornecedorId = texto(l.fornecedor_id)
     mapa.set(String(l.id), {
-      emailFornecedor: texto(l.fornecedor_id) ? (emailDe.get(String(l.fornecedor_id)) ?? null) : null,
+      destinatarios: fornecedorId ? (destinatarios.get(fornecedorId) ?? []) : [],
       enviadaEm: texto(l.oc_enviada_em),
       enviadaPara: texto(l.oc_enviada_para),
     })

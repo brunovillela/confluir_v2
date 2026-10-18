@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -22,18 +21,22 @@ import { enviarOrdemCompraAction } from "./actions"
 
 /**
  * Ordem de compra do fornecimento: abre o PDF e envia por e-mail ao
- * fornecedor (com o PDF anexo). Mostra o último envio.
+ * fornecedor (com o PDF anexo). Mostra o último envio. O envio só vai a
+ * contatos do fornecedor com e-mail marcados para recebê-la — sem nenhum,
+ * o botão fica desabilitado.
  */
 export function OrdemCompraAcoes({
   processoId,
   fornecimentoId,
-  emailFornecedor,
+  fornecedorId,
+  destinatarios,
   enviada,
   podeEnviar,
 }: {
   processoId: string
   fornecimentoId: string
-  emailFornecedor: string | null
+  fornecedorId: string | null
+  destinatarios: { nome: string; email: string }[]
   enviada: { em: string; para: string | null } | null
   podeEnviar: boolean
 }) {
@@ -56,7 +59,34 @@ export function OrdemCompraAcoes({
           Ordem de compra (PDF)
         </a>
       </Button>
-      {podeEnviar && (
+      {podeEnviar && !destinatarios.length && (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7"
+            disabled
+            title="Nenhum contato do fornecedor com e-mail recebe a ordem de compra"
+          >
+            <Send />
+            Enviar ao fornecedor
+          </Button>
+          <span className="text-muted-foreground text-xs">
+            Sem contato com e-mail para receber a ordem de compra
+            {fornecedorId && (
+              <>
+                {" — "}
+                <a href={`/painel/compras/fornecedores/${fornecedorId}#contatos`} className="text-primary hover:underline">
+                  cadastrar na ficha do fornecedor
+                </a>
+              </>
+            )}
+            .
+          </span>
+        </>
+      )}
+      {podeEnviar && destinatarios.length > 0 && (
         <Dialog open={aberto} onOpenChange={setAberto}>
           <DialogTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="h-7">
@@ -76,20 +106,23 @@ export function OrdemCompraAcoes({
               <input type="hidden" name="processo_id" value={processoId} />
               <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
               <div className="grid gap-1.5">
-                <Label htmlFor={`oc-email-${fornecimentoId}`}>E-mail do fornecedor</Label>
-                <Input
+                <Label htmlFor={`oc-email-${fornecimentoId}`}>Enviar para</Label>
+                <select
                   id={`oc-email-${fornecimentoId}`}
                   name="email"
-                  type="email"
                   required
-                  defaultValue={emailFornecedor ?? ""}
-                  placeholder="compras@fornecedor.com.br"
-                />
-                {!emailFornecedor && (
-                  <p className="text-muted-foreground text-xs">
-                    O cadastro do fornecedor não tem e-mail de contato — informe aqui.
-                  </p>
-                )}
+                  defaultValue={destinatarios[0].email}
+                  className="border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                >
+                  {destinatarios.map((d) => (
+                    <option key={d.email} value={d.email}>
+                      {d.nome ? `${d.nome} — ${d.email}` : d.email}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-muted-foreground text-xs">
+                  Contatos do fornecedor marcados para receber a ordem de compra.
+                </p>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor={`oc-msg-${fornecimentoId}`}>Mensagem (opcional)</Label>
