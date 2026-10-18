@@ -127,10 +127,10 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/pessoal/diarias/tipos", "pessoal/diarias-tipos.png", { esperar: "Vale para", altura: 1000 }],
       ["/painel/pessoal/diarias/contas", "pessoal/diarias-contas.png", { esperar: "Tipos de despesa extra", fullPage: true }],
       ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-vinculo-edicao.png", { esperar: "Áreas", passos: [{ clicar: 'css=button[aria-label="Editar vínculo"]' }, { aguardar: "Salvar vínculo" }], scrollTo: "Salvar vínculo", altura: 1000 }],
-      ["/painel/saude/cat/duplicidades", "saude/cat-duplicidades.png", { esperar: "Duplicidades", altura: 1100 }],
       ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=aptos", "representacao/aptos-importar.png", { esperar: "Importar aptos", abrir: ["Importar aptos (CSV)"], scrollTo: "Importar aptos", altura: 1000 }],
       ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=divulgacao", "representacao/aviso-aptos.png", { esperar: "Aviso por e-mail", scrollTo: "Aviso por e-mail", altura: 900 }],
       // Pedem mais que o login do operador (fora da rodada; ver a nota):
+      // ["/painel/saude/cat/duplicidades", "saude/cat-duplicidades.png", { esperar: "Duplicidades", altura: 1100 }] — a demo não tem CATs duplicadas: criar duas cópias da 2026.0001 só para o print.
       // ["/painel/veiculos/agendamentos", "veiculos/reserva-terceiro.png"] — o print mostra o bloco Reservar para outra pessoa aberto e PREENCHIDO (pessoa, motivo, destino, datas, veículo): precisa dos passos de preenchimento.
       // ["/painel/pessoal/diarias/<id>", "pessoal/diarias-despesa-depois.png", { esperar: "Despesas depois da viagem" }] — diária aprovada ainda dentro do prazo de despesas posteriores.
       // ["/painel/institucional/diretoria/diarias/remessas/<id>", "pessoal/diarias-remessa-preparacao.png"] — remessa lançada e ainda não enviada (as abertas da demo já aparecem Em avaliação).
