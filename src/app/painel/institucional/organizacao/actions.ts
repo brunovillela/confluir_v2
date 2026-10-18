@@ -39,6 +39,11 @@ export async function salvarOrganizacaoAction(
     email_contato: texto(formData, "email_contato") || null,
     noticias_url: texto(formData, "noticias_url") || null,
     noticias_feed_url: texto(formData, "noticias_feed_url") || null,
+    lgpd_encarregado_nome: texto(formData, "lgpd_encarregado_nome") || null,
+    lgpd_encarregado_email: texto(formData, "lgpd_encarregado_email") || null,
+    lgpd_politica_atualizada_em: /^\d{4}-\d{2}-\d{2}$/.test(texto(formData, "lgpd_politica_atualizada_em"))
+      ? texto(formData, "lgpd_politica_atualizada_em")
+      : null,
   })
   if (erro) return { erro }
 

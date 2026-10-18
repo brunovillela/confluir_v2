@@ -22,6 +22,7 @@ import { formatarData } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 
 import { PedidoForm } from "./pedido-form"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Uso de espaço — Confluir",
@@ -180,6 +181,7 @@ export default async function EspacoPublicoPage({
           </>
         )}
       </div>
+      <AvisoPrivacidade />
     </main>
   )
 }

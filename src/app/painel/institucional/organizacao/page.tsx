@@ -99,6 +99,9 @@ export default async function OrganizacaoPage() {
                   emailContato: org.emailContato,
                   noticiasUrl: org.noticiasUrl,
                   noticiasFeedUrl: org.noticiasFeedUrl,
+                  encarregadoNome: org.encarregadoNome,
+                  encarregadoEmail: org.encarregadoEmail,
+                  politicaAtualizadaEm: org.politicaAtualizadaEm,
                 }}
                 logoUrl={org.logoUrl}
               />

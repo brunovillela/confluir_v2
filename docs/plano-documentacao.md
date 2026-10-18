@@ -247,6 +247,14 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
     - D3: prazo de 15 dias sem controle.
     - D7: titulares não filiados sem canal.
 
+- 18/10/2026 — **B6 CONCLUÍDA.**
+  - **Política de privacidade pública por entidade em `/privacidade`** (`src/app/privacidade/page.tsx`). Leva nome, CNPJ e endereço da sede da entidade do subdomínio, e o encarregado com o contato. Resume, em linguagem do titular, o ROPA, os suboperadores, a retenção, os direitos, a segurança, os cookies (só os necessários) e os menores.
+  - **Encarregado por entidade:** a migração `20261018215130_lgpd_encarregado` (aplicada) acrescentou `empresa.lgpd_encarregado_nome`, `lgpd_encarregado_email` e `lgpd_politica_atualizada_em`. Os campos ficam em Institucional › Organização, na caixa "Privacidade (LGPD)". Sem encarregado, a política mostra o e-mail de contato ou manda procurar a secretaria.
+  - **Aviso `AvisoPrivacidade`:** no `AuthShell` (todas as telas de acesso) e em /filiar, /votar, /inscricao, /evento, /meus-dados, /portal/oposicao, /ficha e /espaco.
+  - **Contrato de operação:** modelo em `docs/lgpd/contrato-operacao.md` (13 cláusulas e anexos que apontam para os documentos vivos).
+  - **Verificado no demo:** política com e sem encarregado, formulário salvando e link na ficha; tsc e lint limpos.
+  - **Pendente:** cada entidade preencher o encarregado; dados societários do Confluir e revisão jurídica do contrato.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**

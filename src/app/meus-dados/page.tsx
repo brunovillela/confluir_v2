@@ -4,6 +4,7 @@ import { Marca } from "@/components/marca"
 import { Card, CardContent } from "@/components/ui/card"
 
 import { PedirCodigo } from "./formularios"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Meus dados — Confluir",
@@ -34,6 +35,7 @@ export default function MeusDadosPage() {
         Direito garantido pela Lei Geral de Proteção de Dados (art. 18). Se
         preferir, procure a secretaria da entidade.
       </p>
+      <AvisoPrivacidade />
     </main>
   )
 }

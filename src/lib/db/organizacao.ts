@@ -90,12 +90,16 @@ export type Organizacao = {
   emailContato: string | null
   noticiasUrl: string | null
   noticiasFeedUrl: string | null
+  /** Encarregado (DPO) e data da política, divulgados em /privacidade (LGPD art. 41). */
+  encarregadoNome: string | null
+  encarregadoEmail: string | null
+  politicaAtualizadaEm: string | null
 }
 
 export async function obterOrganizacao(): Promise<Organizacao | null> {
   const admin = await createAdminClient()
   const COLS_CONTATO =
-    "id, nome_razao, nome_fantasia, cnpj_cpf, logomarca, site_url, email_contato, noticias_url, noticias_feed_url"
+    "id, nome_razao, nome_fantasia, cnpj_cpf, logomarca, site_url, email_contato, noticias_url, noticias_feed_url, lgpd_encarregado_nome, lgpd_encarregado_email, lgpd_politica_atualizada_em"
 
   const completa = await admin
     .from("empresa")
@@ -127,6 +131,9 @@ export async function obterOrganizacao(): Promise<Organizacao | null> {
     emailContato: texto(linha.email_contato),
     noticiasUrl: texto(linha.noticias_url),
     noticiasFeedUrl: texto(linha.noticias_feed_url),
+    encarregadoNome: texto(linha.lgpd_encarregado_nome),
+    encarregadoEmail: texto(linha.lgpd_encarregado_email),
+    politicaAtualizadaEm: texto(linha.lgpd_politica_atualizada_em),
   }
 }
 
@@ -138,6 +145,9 @@ export type DadosOrganizacao = {
   email_contato: string | null
   noticias_url: string | null
   noticias_feed_url: string | null
+  lgpd_encarregado_nome: string | null
+  lgpd_encarregado_email: string | null
+  lgpd_politica_atualizada_em: string | null
 }
 
 export async function atualizarOrganizacao(

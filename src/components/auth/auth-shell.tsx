@@ -1,3 +1,4 @@
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 import { Marca } from "@/components/marca"
 
 export function AuthShell({
@@ -16,6 +17,7 @@ export function AuthShell({
           {rodape}
         </div>
       )}
+      <AvisoPrivacidade className="mt-0" />
     </main>
   )
 }

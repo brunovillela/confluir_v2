@@ -34,6 +34,9 @@ export function OrganizacaoForm({
     emailContato: string | null
     noticiasUrl: string | null
     noticiasFeedUrl: string | null
+    encarregadoNome: string | null
+    encarregadoEmail: string | null
+    politicaAtualizadaEm: string | null
   }
   logoUrl: string | null
 }) {
@@ -128,6 +131,49 @@ export function OrganizacaoForm({
         Alimentam o widget de notícias do painel quando não há notícias
         internas cadastradas. Opcionais.
       </span>
+
+      <fieldset className="grid gap-3 rounded-md border p-4">
+        <legend className="px-1 text-sm font-medium">Privacidade (LGPD)</legend>
+        <p className="text-muted-foreground text-xs">
+          O encarregado é quem responde aos titulares e à ANPD pela entidade. Nome e
+          contato aparecem na{" "}
+          <a href="/privacidade" target="_blank" className="underline underline-offset-4">
+            política de privacidade
+          </a>
+          , como pede a LGPD (art. 41). Sem encarregado indicado, a política mostra o
+          e-mail de contato acima.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="lgpd_encarregado_nome">Encarregado (DPO)</Label>
+            <Input
+              id="lgpd_encarregado_nome"
+              name="lgpd_encarregado_nome"
+              placeholder="Nome completo"
+              defaultValue={dados.encarregadoNome ?? ""}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="lgpd_encarregado_email">E-mail do encarregado</Label>
+            <Input
+              id="lgpd_encarregado_email"
+              name="lgpd_encarregado_email"
+              type="email"
+              placeholder="privacidade@…"
+              defaultValue={dados.encarregadoEmail ?? ""}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="lgpd_politica_atualizada_em">Política revisada em</Label>
+            <Input
+              id="lgpd_politica_atualizada_em"
+              name="lgpd_politica_atualizada_em"
+              type="date"
+              defaultValue={dados.politicaAtualizadaEm ?? ""}
+            />
+          </div>
+        </div>
+      </fieldset>
 
       <div className="grid gap-1.5">
         <Label htmlFor="logo">Logo</Label>

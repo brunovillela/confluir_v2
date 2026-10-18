@@ -20,6 +20,7 @@ import {
 import { formatarData } from "@/lib/formato"
 
 import { UploadAssinadaForm as UploadAssinadaFormClient } from "./ficha-forms"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Sua ficha de filiação — Confluir",
@@ -65,6 +66,7 @@ export default async function FichaPublicaPage({
         <p className="text-muted-foreground mt-8 text-sm">
           Ficha não encontrada. Verifique o link enviado ao seu e-mail.
         </p>
+        <AvisoPrivacidade />
       </main>
     )
   }
@@ -218,6 +220,7 @@ export default async function FichaPublicaPage({
           </dl>
         </CardContent>
       </Card>
+      <AvisoPrivacidade />
     </main>
   )
 }

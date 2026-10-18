@@ -14,6 +14,7 @@ import { tenantAtual } from "@/lib/tenant"
 
 import { ContagemRegressiva } from "./contagem"
 import { InscricaoForm } from "./inscricao-form"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Evento — Confluir",
@@ -158,6 +159,7 @@ export default async function EventoPublicoPage({
         </Link>
         .
       </p>
+      <AvisoPrivacidade />
     </main>
   )
 }

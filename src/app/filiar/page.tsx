@@ -8,6 +8,7 @@ import {
 import { obterOrganizacao } from "@/lib/db/organizacao"
 
 import { FiliarForm } from "./filiar-form"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Ficha de filiação — Confluir",
@@ -45,6 +46,7 @@ export default async function FiliarPage() {
       <p className="text-muted-foreground mt-6 text-center text-xs">
         Já iniciou uma filiação? Use o link enviado ao seu e-mail para continuar.
       </p>
+      <AvisoPrivacidade />
     </main>
   )
 }

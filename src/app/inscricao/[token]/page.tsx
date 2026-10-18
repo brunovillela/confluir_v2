@@ -24,6 +24,7 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { ConfirmarEmail, RespostaRsvp } from "./inscricao-passos"
 import { CapturaSelfie } from "./selfie"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
   title: "Sua inscrição — Confluir",
@@ -96,6 +97,7 @@ export default async function InscricaoPage({
             Os dados desta inscrição foram anonimizados a pedido do titular.
           </AlertDescription>
         </Alert>
+        <AvisoPrivacidade />
       </main>
     )
   }
@@ -332,6 +334,7 @@ export default async function InscricaoPage({
           </p>
         )}
       </div>
+      <AvisoPrivacidade />
     </main>
   )
 }

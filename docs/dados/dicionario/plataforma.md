@@ -260,6 +260,9 @@ Cadastro único de organizações: tenants (sindicatos), empregadores e fontes p
 | `filiacao_saude_config` | jsonb | sim |  |  |  | Saúde dos cadastros: por categoria de fonte, o peso da falta de cada informação (pendencia, apontamento ou normal). null = padrão. |
 | `fonte_categoria_id` | uuid | sim |  | → fonte_categorias (set null) |  | Categoria da fonte pagadora criada pela entidade; null = Empregador ou Fundo de pensão pela marca fundo_pensao. |
 | `marketplace` | boolean | não | `false` |  |  |  |
+| `lgpd_encarregado_nome` | text | sim |  |  | identificação | Nome do encarregado pelo tratamento de dados pessoais (DPO) da entidade, divulgado na política de privacidade (LGPD art. 41). |
+| `lgpd_encarregado_email` | text | sim |  |  | identificação | Canal de contato do encarregado, divulgado na política de privacidade e usado pelos titulares para exercer direitos. |
+| `lgpd_politica_atualizada_em` | date | sim |  |  |  | Data da última revisão da política de privacidade da entidade, mostrada no topo de /privacidade. |
 
 Únicas: `UNIQUE (bubble_id)`
 

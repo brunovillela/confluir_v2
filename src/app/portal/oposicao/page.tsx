@@ -30,6 +30,7 @@ import { sairDaOposicao } from "./actions"
 import { AcessoNaoFiliado } from "./oposicao-portal-forms"
 import { PrazoOposicao } from "./prazo-oposicao"
 import { fraseResultado, VARIANTE_SITUACAO_PORTAL } from "./situacao-portal"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = { title: "Oposição à contribuição assistencial" }
 
@@ -157,6 +158,7 @@ export default async function OposicaoPortalPage({
       </header>
       <main id="conteudo" className="grid gap-6">
         {conteudo}
+        <AvisoPrivacidade />
       </main>
     </div>
   )

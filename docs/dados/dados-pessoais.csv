@@ -238,6 +238,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "plataforma","empresa","nome_razao","identificacao","fornecedores PF","Razão social ou nome da pessoa física."
 "plataforma","empresa","foto","identificacao","fornecedores PF",""
 "plataforma","empresa","email_contato","identificacao","fornecedores PF","E-mail de contato/encarregado (exibido na política de privacidade — LGPD)."
+"plataforma","empresa","lgpd_encarregado_nome","identificacao","fornecedores PF","Nome do encarregado pelo tratamento de dados pessoais (DPO) da entidade, divulgado na política de privacidade (LGPD art. 41)."
+"plataforma","empresa","lgpd_encarregado_email","identificacao","fornecedores PF","Canal de contato do encarregado, divulgado na política de privacidade e usado pelos titulares para exercer direitos."
 "plataforma","empresa_contatos","","identificacao;trabalhista","contatos de fornecedores e empregadores (público externo)","Pessoas de contato de fornecedores e empregadores (nome, cargo, telefone, e-mail), mantidas na ficha do fornecedor. A marca recebe_ordem_compra define quem recebe a ordem de compra por e-mail."
 "plataforma","empresa_contatos","nome","identificacao","contatos de fornecedores e empregadores (público externo)",""
 "plataforma","empresa_contatos","cargo","trabalhista","contatos de fornecedores e empregadores (público externo)",""

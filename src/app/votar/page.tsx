@@ -24,6 +24,7 @@ import { nomeDoBot, telegramConfigurado } from "@/lib/telegram"
 import { abrirCedulaLinkUnico, sairLinkUnico } from "./actions"
 import { CadastroForm } from "./cadastro-form"
 import { EntrarForm } from "./entrar-form"
+import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = { title: "Votações — Confluir" }
 
@@ -160,6 +161,7 @@ export default async function VotacoesPage({
         O voto é secreto: o sistema registra que você votou, nunca em quem votou. Ninguém do sindicato pede o seu
         código de acesso.
       </p>
+      <AvisoPrivacidade />
     </main>
   )
 }
