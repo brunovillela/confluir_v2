@@ -88,8 +88,8 @@ export default async function FontePage({
   const atencao = [
     ...todas.flatMap((r) =>
       r.assembleias
-        // Só as encerradas nos últimos 60 dias: o legado tem apurações que nunca foram fechadas no sistema.
-        .filter((a) => a.situacao === "encerrada" && !a.apuracaoEncerrada && (a.fim ?? 0) >= Date.now() - 60 * 86_400_000)
+        // Só o que nasceu no Confluir: o legado do Bubble tem apurações nunca fechadas aqui.
+        .filter((a) => !a.legado && a.situacao === "encerrada" && !a.apuracaoEncerrada)
         .map((a) => ({ texto: `${r.nome ?? "Rodada"}: apuração de "${a.nome ?? "assembleia"}" pendente.`, href: hrefAssembleia(a.id, semFonte ? null : id, "apuracao"), rotulo: "Apurar" }))
     ),
     ...semLink.map((s) => ({

@@ -285,8 +285,8 @@ function proximasAcoes(
   for (const r of rodadas) {
     const nome = r.nome ?? "Rodada"
     for (const a of r.assembleias) {
-      // Só as encerradas nos últimos 60 dias (o legado tem apurações nunca fechadas no sistema).
-      if (a.situacao === "encerrada" && !a.apuracaoEncerrada && (a.fim ?? 0) >= agora - 60 * 86_400_000) {
+      // Só o que nasceu no Confluir (o legado do Bubble tem apurações nunca fechadas aqui).
+      if (!a.legado && a.situacao === "encerrada" && !a.apuracaoEncerrada) {
         acoes.push({ texto: `${nome}: a apuração de "${a.nome ?? "assembleia"}" ainda não foi encerrada.`, rotulo: "Apurar", href: hrefAssembleia(a.id, fonte, "apuracao") })
       }
     }

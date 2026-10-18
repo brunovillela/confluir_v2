@@ -20,7 +20,14 @@ import { SEM_FONTE } from "@/lib/votacao-navegacao"
 
 const DIA = 86_400_000
 
-type RodadaBruta = { id: string; nome_assembleia: string | null; campanha_id: string | null; inicio: string | null; termino: string | null }
+type RodadaBruta = {
+  id: string
+  nome_assembleia: string | null
+  campanha_id: string | null
+  inicio: string | null
+  termino: string | null
+  bubble_id: string | null
+}
 
 export type ItemAgora = {
   assembleiaId: string
@@ -56,7 +63,7 @@ async function base() {
   const [{ data: campanhas }, { data: vinculos }, { data: rodadas }] = await Promise.all([
     admin.from("voto_campanha").select("id, tema, finalizado, created_at").eq("emp_proprietaria_id", emp),
     admin.from("voto_campanha_fontes").select("campanha_id, empresa_id, empresa:empresa_id (nome_fantasia, nome_razao, cnpj_cpf)"),
-    admin.from("voto_rod_assembleias").select("id, nome_assembleia, campanha_id, inicio, termino").eq("emp_proprietaria_id", emp),
+    admin.from("voto_rod_assembleias").select("id, nome_assembleia, campanha_id, inicio, termino, bubble_id").eq("emp_proprietaria_id", emp),
   ])
   const doTenant = new Set((campanhas ?? []).map((c) => String(c.id)))
   const fontesPorCampanha = new Map<string, { id: string; nome: string; cnpj: string | null }[]>()
@@ -82,7 +89,9 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
   const agoraMs = Date.now()
   const limitePassado = new Date(agoraMs - 60 * DIA).toISOString().slice(0, 10)
   // Rodadas recentes ou por vir (termino nos últimos 60 dias, futuro ou sem término).
-  const recentes = rodadas.filter((r) => !r.termino || r.termino >= limitePassado || (r.inicio ?? "") >= hoje)
+  // Recentes ou por vir — e TODAS as que nasceram aqui (o alerta delas não
+  // tem prazo; o legado do Bubble nunca alerta).
+  const recentes = rodadas.filter((r) => !r.bubble_id || !r.termino || r.termino >= limitePassado || (r.inicio ?? "") >= hoje)
   const panorama = await panoramaRodadas(recentes)
   const campanhaPorId = new Map(campanhas.map((c) => [c.id, c]))
 
@@ -138,7 +147,10 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
       href: `${rodadaHref({ id: s.rodadaId }, r ? fonteDe(r) : null, "aptos")}&link=sem_link`,
     })
   }
+  // Alertas só do que nasceu no Confluir (regra de 18/10/2026): o legado do
+  // Bubble tem 52 assembleias encerradas e nunca apuradas aqui, que não pedem ação.
   for (const r of panorama) {
+    if (r.legado) continue
     const fonte = fonteDe(r)
     const perto = r.abreEm !== null && r.abreEm - agoraMs <= 7 * DIA
     if (perto && r.assembleias.length === 0) {
@@ -149,7 +161,7 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
       alertas.push({ tom: "aviso", texto: `${r.nome ?? "Rodada"} abre em breve sem aptos.`, rotulo: "Importar", href: rodadaHref(r, fonte, "aptos") })
     }
     for (const a of r.assembleias) {
-      if (a.situacao === "encerrada" && !a.apuracaoEncerrada && (a.fim ?? 0) >= agoraMs - 60 * DIA) {
+      if (!a.legado && a.situacao === "encerrada" && !a.apuracaoEncerrada) {
         alertas.push({
           tom: "aviso",
           texto: `${r.nome ?? "Rodada"} · ${a.nome ?? "assembleia"}: encerrada e a apuração ainda não foi encerrada.`,
@@ -163,7 +175,7 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
   // rodada por vir ou em votação e sem fonte vinculada.
   const avisadas = new Set<string>()
   for (const r of panorama) {
-    if (!r.campanhaId || avisadas.has(r.campanhaId) || fontesPorCampanha.has(r.campanhaId)) continue
+    if (r.legado || !r.campanhaId || avisadas.has(r.campanhaId) || fontesPorCampanha.has(r.campanhaId)) continue
     if (r.situacao !== "agendada" && r.situacao !== "em_votacao") continue
     avisadas.add(r.campanhaId)
     alertas.push({
@@ -178,6 +190,7 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
   for (const j of janelas) {
     if (j.aberta || j.abreEm === null || j.abreEm - agoraMs > 3 * DIA || j.avisoAutoHoras !== null) continue
     const r = panorama.find((p) => p.id === j.rodadaId)
+    if (r?.legado) continue
     alertas.push({
       tom: "aviso",
       texto: `${j.rodadaNome ?? "Rodada"} abre em até 72 h com o envio automático dos links desligado.`,
@@ -186,7 +199,7 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
     })
   }
   // Repetidos nas listas das rodadas por vir ou abertas.
-  const ativas = panorama.filter((r) => r.situacao === "em_votacao" || r.situacao === "agendada")
+  const ativas = panorama.filter((r) => !r.legado && (r.situacao === "em_votacao" || r.situacao === "agendada"))
   const repetidos = await Promise.all(ativas.map(async (r) => [r, (await aptosDuplicados(r.id)).length] as const))
   for (const [r, n] of repetidos) {
     if (n > 0) {

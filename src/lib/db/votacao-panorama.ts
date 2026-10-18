@@ -54,6 +54,8 @@ export type ResultadoPergunta = {
 
 export type AssembleiaPanorama = {
   id: string
+  /** Veio do Bubble (bubble_id): não gera alerta (regra de 18/10/2026). */
+  legado: boolean
   nome: string | null
   modalidade: Modalidade
   situacao: SituacaoJanela
@@ -64,6 +66,8 @@ export type AssembleiaPanorama = {
 
 export type RodadaPanorama = {
   id: string
+  /** Veio do Bubble (bubble_id): não gera alerta (regra de 18/10/2026). */
+  legado: boolean
   nome: string | null
   campanhaId: string | null
   inicio: string | null
@@ -81,9 +85,16 @@ export type RodadaPanorama = {
   resultado: ResultadoPergunta[] | null
 }
 
-type RodadaBruta = { id: string; nome_assembleia: string | null; campanha_id: string | null; inicio: string | null; termino: string | null }
+type RodadaBruta = {
+  id: string
+  nome_assembleia: string | null
+  campanha_id: string | null
+  inicio: string | null
+  termino: string | null
+  bubble_id?: string | null
+}
 
-const COLUNAS_RODADA = "id, nome_assembleia, campanha_id, inicio, termino"
+const COLUNAS_RODADA = "id, nome_assembleia, campanha_id, inicio, termino, bubble_id"
 
 async function ambiente(): Promise<{ admin: SupabaseClient; emp: string }> {
   return { admin: await createAdminClient(), emp: await tenantAtual() }
@@ -100,7 +111,7 @@ export async function panoramaRodadas(rodadas: RodadaBruta[]): Promise<RodadaPan
     admin
       .from("voto_assembleias")
       .select(
-        "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, apuracao_encerrada, rod_assembleia_id" +
+        "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, apuracao_encerrada, rod_assembleia_id, bubble_id" +
           (await colunasHorario())
       )
       .eq("emp_proprietaria_id", emp)
@@ -135,6 +146,7 @@ export async function panoramaRodadas(rodadas: RodadaBruta[]): Promise<RodadaPan
       inicio: janela.inicio,
       fim: janela.termino,
       apuracaoEncerrada: a.apuracao_encerrada === true,
+      legado: Boolean(a.bubble_id),
     })
     assPorRodada.set(rid, lista)
   }
@@ -200,6 +212,7 @@ export async function panoramaRodadas(rodadas: RodadaBruta[]): Promise<RodadaPan
     const c = porContagem.get(r.id) ?? { aptos: 0, votaram: 0 }
     return {
       id: r.id,
+      legado: Boolean(r.bubble_id),
       nome: r.nome_assembleia,
       campanhaId: r.campanha_id,
       inicio: r.inicio,
