@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { bloqueioDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   confirmarVerificacaoEmail,
@@ -20,12 +21,28 @@ import {
   type EstadoEnvioCodigo,
 } from "./limite-envio-codigo"
 
+/**
+ * A trava do e-mail de votação (Filiados › Área do associado): a Votação
+ * suspensa ou desabilitada, o portal em modo de consulta, ou a opção de
+ * cadastrar o e-mail desligada. O e-mail já verificado continua valendo para
+ * achar as votações (assembleiasDoFiliado não muda): desligar a opção fecha a
+ * porta do cadastro, não desfaz o que já foi confirmado.
+ */
+async function bloqueioDoEmailDeVotacao(): Promise<string | null> {
+  const bloqueio = await bloqueioDaParte("votacao")
+  if (bloqueio) return bloqueio
+  const { email_votacao } = await opcoesDaParte("votacao")
+  return email_votacao ? null : "O cadastro do e-mail de votação não está disponível no portal."
+}
+
 /** Envia o código de verificação para o e-mail de votação informado. */
 export async function enviarCodigoEmailVotacao(
   _prev: EstadoEnvioCodigo,
   formData: FormData
 ): Promise<EstadoEnvioCodigo> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDoEmailDeVotacao()
+  if (bloqueio) return { erro: bloqueio }
   const email = String(formData.get("email") ?? "").trim()
   if (!email) return { erro: "Informe o e-mail." }
 
@@ -60,6 +77,8 @@ export async function confirmarCodigoEmailVotacao(
   formData: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDoEmailDeVotacao()
+  if (bloqueio) return { erro: bloqueio }
   const codigo = String(formData.get("codigo") ?? "").trim()
   const r = await confirmarVerificacaoEmail(filiado.cpf, codigo)
   if (r.erro) return { erro: r.erro }
@@ -70,12 +89,18 @@ export async function confirmarCodigoEmailVotacao(
 /**
  * Registra o voto do filiado (secreto). Uma escolha por pergunta. Devolve o
  * comprovante para a tela mostrar na hora (A46) — nunca o conteúdo do voto.
+ *
+ * A trava da Votação suspensa (e do portal em modo de consulta) fica AQUI, e
+ * não em registrarVotoFiliado: o /votar público usa a mesma função e não
+ * depende do estado do portal.
  */
 export async function votarNaAssembleia(
   _prev: EstadoVoto,
   formData: FormData
 ): Promise<EstadoVoto> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaParte("votacao")
+  if (bloqueio) return { erro: bloqueio }
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
   if (!assembleiaId) return { erro: "Assembleia inválida." }
 

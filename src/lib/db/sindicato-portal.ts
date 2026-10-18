@@ -8,6 +8,7 @@ import { empregadoresPorIntegrante, listarGrupos, listarMandatos } from "@/lib/d
 import { listarConvenios } from "@/lib/db/filiacao-convenios"
 import { hoteisDisponiveis, hoteisParaPedido } from "@/lib/db/filiado-portal"
 import { oposicaoRelevanteParaFiliado } from "@/lib/db/oposicao"
+import { opcoesDaParte, rotasDesabilitadas } from "@/lib/db/portal-partes"
 import { listarSedes, obterOrganizacao } from "@/lib/db/organizacao"
 import { empregadoresAtivos } from "@/lib/db/votacao-portal"
 import { formatarCep } from "@/lib/formato"
@@ -34,10 +35,13 @@ import { tenantAtual } from "@/lib/tenant"
  * pedido hoje (ativo e com convênio em vigor — a régua do seletor, A75) ou
  * convênio vigente (A57). A rota continua aberta: links de aviso e histórico
  * de cupons seguem valendo. Na dúvida (consulta que falhou), o item aparece.
- * Uma leitura por requisição, dividida entre quem pergunta.
+ * Somam-se as partes que a gestão desabilitou em Filiados › Área do associado
+ * (essas, sim, com a rota fechada — ver GuardaParte), e a Hospedagem pode
+ * ficar no menu mesmo sem hotel ("Manter no menu"). Uma leitura por
+ * requisição, dividida entre quem pergunta.
  */
 export const servicosOcultosDoPortal = cache(async (): Promise<string[]> => {
-  const [temHotel, temConvenio] = await Promise.all([
+  const [temHotel, temConvenio, desabilitadas, hospedagem] = await Promise.all([
     hoteisDisponiveis()
       .then(hoteisParaPedido)
       .then((l) => l.length > 0)
@@ -46,10 +50,15 @@ export const servicosOcultosDoPortal = cache(async (): Promise<string[]> => {
     listarConvenios({ somenteVigentes: true, arquivos: false })
       .then((l) => l.length > 0)
       .catch(() => true),
+    // Partes desabilitadas em Filiados › Área do associado (na dúvida, nenhuma).
+    rotasDesabilitadas().catch(() => [] as string[]),
+    opcoesDaParte("hospedagem").catch(() => ({ manter_no_menu: false })),
   ])
-  return [!temHotel && "/portal/hospedagem", !temConvenio && "/portal/convenios"].filter(
-    (h): h is string => typeof h === "string"
-  )
+  const automaticas = [
+    !temHotel && !hospedagem.manter_no_menu && "/portal/hospedagem",
+    !temConvenio && "/portal/convenios",
+  ].filter((h): h is string => typeof h === "string")
+  return [...new Set([...automaticas, ...desabilitadas])]
 })
 
 /**
@@ -61,7 +70,10 @@ export const servicosOcultosDoPortal = cache(async (): Promise<string[]> => {
 export const secoesOcultasDoPortal = cache(async (cpf: string): Promise<string[]> => {
   const [servicos, mostraOposicao] = await Promise.all([
     servicosOcultosDoPortal(),
-    oposicaoRelevanteParaFiliado(cpf).catch(() => true),
+    // "Mostrar no menu para todos" (Área do associado) dispensa a regra A125.
+    opcoesDaParte("oposicao")
+      .catch(() => ({ mostrar_sempre: false }))
+      .then((o) => o.mostrar_sempre || oposicaoRelevanteParaFiliado(cpf).catch(() => true)),
   ])
   return [...(mostraOposicao ? [] : ["/portal/oposicao"]), ...servicos]
 })
@@ -262,8 +274,15 @@ async function idsDaSuaBase(mandatoId: string, cpf: string): Promise<Set<string>
   }
 }
 
-/** null = nenhum mandato vigente cadastrado. */
-export async function diretoriaVigente(cpf: string): Promise<DiretoriaVigente | null> {
+/**
+ * null = nenhum mandato vigente cadastrado. `destacarBase: false` (Área do
+ * associado, "Destacar os diretores da base") pula o cruzamento de empresas:
+ * ninguém sai marcado como "da sua base".
+ */
+export async function diretoriaVigente(
+  cpf: string,
+  { destacarBase = true }: { destacarBase?: boolean } = {}
+): Promise<DiretoriaVigente | null> {
   // listarMandatos já sai do mais recente para o mais antigo: com dois
   // mandatos sobrepostos, vale o mais novo.
   const atual = (await listarMandatos()).find((m) => m.vigente)
@@ -272,7 +291,7 @@ export async function diretoriaVigente(cpf: string): Promise<DiretoriaVigente | 
   const [integrantes, grupos, daBase] = await Promise.all([
     integrantesEmExercicio(atual.id),
     listarGrupos(atual.id),
-    idsDaSuaBase(atual.id, cpf),
+    destacarBase ? idsDaSuaBase(atual.id, cpf) : Promise.resolve(new Set<string>()),
   ])
   const membro = (i: (typeof integrantes)[number]): MembroDaDiretoria => ({
     id: i.id,

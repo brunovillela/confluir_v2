@@ -8,17 +8,21 @@ import {
   ASSUNTOS_ATENDIMENTO,
   ATENDIMENTO_ABERTO,
   ATENDIMENTO_AGUARDANDO_EQUIPE,
-  PRAZO_REABRIR_DIAS,
   TIPO_DEMANDA_ATENDIMENTO,
   assuntoAtendimento,
   reabrirAte,
+  rotuloDias,
+  type AssuntoAtendimento,
   type SituacaoAtendimento,
 } from "@/lib/atendimento-constantes"
+import { ehPedidoDeDesfiliacao, MOTIVO_DESFILIACAO } from "@/app/portal/primeiro-acesso/regras"
 import { cpfConfiavel } from "@/lib/cpf"
 import { avisar, avisarQuemPode, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { type ContextoEmail } from "@/lib/email"
+import { opcoesPadrao, type EstadoParte } from "@/lib/portal-partes-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -159,6 +163,18 @@ async function gravarMarco(atendimentoId: string, textoDoMarco: string): Promise
   if (error) console.error("atendimento (marco):", error.message)
 }
 
+/**
+ * A solicitação no portal, para os avisos ao associado. O pedido de
+ * desfiliação leva a marca (?motivo=desfiliacao): abre mesmo com o primeiro
+ * acesso pendente — direito do associado (src/app/portal/primeiro-acesso/regras.ts).
+ * Fica de fora o lembrete de prazo: ele é diário com `umaVez` (texto e link),
+ * e trocar o link repetiria o aviso já mandado.
+ */
+function linkNoPortal(a: { id: string; titulo: string | null }): string {
+  const base = `/portal/atendimento/${a.id}`
+  return ehPedidoDeDesfiliacao(a.titulo) ? `${base}?motivo=${MOTIVO_DESFILIACAO}` : base
+}
+
 const COLS = "id, cpf, filiacao_id, nome, email, assunto, titulo, situacao, prazo, demanda_id, primeira_resposta_em, concluida_em, created_at, updated_at"
 
 /** false = falta rodar supabase/portal-atendimentos.sql. */
@@ -196,6 +212,40 @@ export async function urlAnexoAtendimento(caminho: string): Promise<string | nul
 
 // ── Portal ───────────────────────────────────────────────────────────────────
 
+export type RegrasAtendimento = {
+  /** Os assuntos que o associado pode escolher hoje, na ordem do catálogo. */
+  assuntos: AssuntoAtendimento[]
+  permitirAnexo: boolean
+  /** 0 = solicitação concluída não se reabre pelo portal. */
+  prazoReabrirDias: number
+}
+
+/**
+ * O que a entidade escolheu para o Atendimento em Filiados › Área do
+ * associado: os assuntos marcados — sem "Saúde" quando a parte Saúde não
+ * está habilitada (suspensa ou desabilitada) —, se aceita anexo do associado
+ * e o prazo para ele reabrir. Vale para a página e para as gravações do
+ * portal (a resposta da equipe no painel não muda). Na dúvida (leitura que
+ * falhou), o de sempre. Dentro de requisição (configDoPortal).
+ */
+export async function regrasDoAtendimento(): Promise<RegrasAtendimento> {
+  const [opcoes, saude] = await Promise.all([
+    opcoesDaParte("atendimento").catch(() => opcoesPadrao("atendimento")),
+    estadoDaParte("saude").catch((): EstadoParte => "habilitada"),
+  ])
+  const marcados = new Set<string>(opcoes.assuntos)
+  return {
+    assuntos: ASSUNTOS_ATENDIMENTO.map((a) => a.chave).filter(
+      (c) => marcados.has(c) && (c !== "saude" || saude === "habilitada")
+    ),
+    permitirAnexo: opcoes.permitir_anexo,
+    prazoReabrirDias: opcoes.prazo_reabrir_dias,
+  }
+}
+
+/** A recusa do anexo quando a entidade não recebe arquivo pelo portal (sem `campo`: o campo nem aparece). */
+const ERRO_SEM_ANEXO = "A entidade não recebe anexos pelo portal. Envie sem o arquivo."
+
 export async function abrirAtendimento(p: {
   cpf: string
   filiacaoId: string | null
@@ -210,10 +260,16 @@ export async function abrirAtendimento(p: {
   if (!cpf) return { erro: "Cadastro sem CPF válido — fale com a entidade." }
   const assunto = assuntoAtendimento(p.assunto)
   if (!assunto) return { erro: "Escolha o assunto.", campo: "assunto" }
+  const regras = await regrasDoAtendimento()
+  // O formulário só oferece os assuntos da entidade; aqui vale para o envio antigo ou forjado.
+  if (!regras.assuntos.includes(assunto.chave)) {
+    return { erro: "Este assunto não está disponível no momento. Escolha outro.", campo: "assunto" }
+  }
   const titulo = p.titulo.trim().replace(/\s+/g, " ")
   if (titulo.length < 5) return { erro: "Resuma o pedido em poucas palavras (pelo menos 5 letras).", campo: "titulo" }
   const corpo = p.texto.trim()
   if (corpo.length < 10) return { erro: "Conte um pouco mais sobre o que você precisa.", campo: "texto" }
+  if (p.anexo && p.anexo.size > 0 && !regras.permitirAnexo) return { erro: ERRO_SEM_ANEXO }
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -293,7 +349,7 @@ export async function abrirAtendimento(p: {
       umaVez: true,
       assunto: "Recebemos sua solicitação",
       texto: `Recebemos sua solicitação de ${assunto.rotulo.toLowerCase()} "${titulo.slice(0, 140)}". A entidade responde até ${diaDaData(prazo)}.`,
-      link: `/portal/atendimento/${id}`,
+      link: linkNoPortal({ id, titulo }),
     })
   )
   return { id }
@@ -432,17 +488,18 @@ export async function responderComoFiliado(p: {
   texto: string
   anexo: File | null
 }): Promise<{ erro?: string; campo?: string }> {
-  const atual = await atendimentoDoFiliado(p.id, p.cpf)
+  const [atual, regras] = await Promise.all([atendimentoDoFiliado(p.id, p.cpf), regrasDoAtendimento()])
   if (!atual) return { erro: "Solicitação não encontrada." }
   if (atual.atendimento.situacao === "concluida") {
     return {
-      erro: reabrirAte(atual.atendimento)
+      erro: reabrirAte(atual.atendimento, regras.prazoReabrirDias)
         ? "Esta solicitação foi concluída. Para continuar a conversa, reabra a solicitação nesta página."
         : "Esta solicitação foi concluída — abra uma nova se o assunto voltou.",
     }
   }
   const corpo = p.texto.trim()
   if (corpo.length < 2) return { erro: "Escreva a mensagem.", campo: "texto" }
+  if (p.anexo && p.anexo.size > 0 && !regras.permitirAnexo) return { erro: ERRO_SEM_ANEXO }
   const anexo = await guardarAnexo(p.id, p.anexo)
   if (anexo.erro) return { erro: anexo.erro, campo: "anexo" }
 
@@ -487,7 +544,7 @@ export async function responderComoFiliado(p: {
  * — o problema se resolveu por fora e a Demanda não deve seguir ocupando a
  * equipe. Fica na conversa como mensagem dele; a Demanda vai para "Feito" e
  * a equipe é avisada como quando ele responde. Reversível: dá para reabrir
- * por PRAZO_REABRIR_DIAS dias.
+ * dentro do prazo da entidade (regrasDoAtendimento; 0 = não reabre).
  */
 export async function encerrarComoFiliado(p: { id: string; cpf: string; nome: string | null }): Promise<{ erro?: string }> {
   const atual = await atendimentoDoFiliado(p.id, p.cpf)
@@ -553,16 +610,22 @@ async function reabrir(a: Atendimento): Promise<{ erro?: string }> {
 
 /**
  * "Não resolveu — reabrir" (A97): o associado retoma a solicitação concluída,
- * com a conversa inteira, em vez de recomeçar do zero — até
- * PRAZO_REABRIR_DIAS dias depois da conclusão. A equipe é avisada.
+ * com a conversa inteira, em vez de recomeçar do zero — dentro do prazo que
+ * a entidade escolheu (Área do associado; padrão PRAZO_REABRIR_DIAS, 0 = não
+ * reabre pelo portal) depois da conclusão. A equipe é avisada.
  */
 export async function reabrirComoFiliado(p: { id: string; cpf: string; nome: string | null }): Promise<{ erro?: string }> {
-  const atual = await atendimentoDoFiliado(p.id, p.cpf)
+  const [atual, { prazoReabrirDias }] = await Promise.all([atendimentoDoFiliado(p.id, p.cpf), regrasDoAtendimento()])
   if (!atual) return { erro: "Solicitação não encontrada." }
   const a = atual.atendimento
   if (a.situacao !== "concluida") return { erro: "Esta solicitação já está aberta." }
-  if (!reabrirAte(a)) {
-    return { erro: `Passaram-se mais de ${PRAZO_REABRIR_DIAS} dias da conclusão. Se o assunto voltou, abra uma nova solicitação.` }
+  if (!reabrirAte(a, prazoReabrirDias)) {
+    return {
+      erro:
+        prazoReabrirDias > 0
+          ? `Passaram-se mais de ${rotuloDias(prazoReabrirDias)} da conclusão. Se o assunto voltou, abra uma nova solicitação.`
+          : "Solicitação concluída não se reabre pelo portal. Se o assunto voltou, abra uma nova solicitação.",
+    }
   }
 
   const r = await reabrir(a)
@@ -699,7 +762,7 @@ export async function responderAtendimento(p: {
       texto: p.concluir
         ? `Sua solicitação "${a.titulo}" foi concluída. Leia no portal a resposta final da entidade.`
         : `A entidade respondeu à sua solicitação "${a.titulo}".`,
-      link: `/portal/atendimento/${a.id}`,
+      link: linkNoPortal(a),
     })
   )
   return {}
@@ -723,7 +786,7 @@ export async function reabrirAtendimento(id: string): Promise<{ erro?: string }>
       evento: "atendimento",
       soSino: true,
       texto: `A entidade reabriu sua solicitação "${a.titulo}" e voltou a cuidar dela.`,
-      link: `/portal/atendimento/${a.id}`,
+      link: linkNoPortal(a),
     })
   )
   return {}
@@ -795,7 +858,7 @@ export async function sincronizarAtendimentoDaDemanda(demandaId: string, nova: s
       soSino: true,
       umaVez: true,
       texto: `A entidade começou a cuidar da sua solicitação "${s.titulo}".`,
-      link: `/portal/atendimento/${s.id}`,
+      link: linkNoPortal(s),
     })
   )
 }

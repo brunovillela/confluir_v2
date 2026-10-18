@@ -1,9 +1,12 @@
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 import { Artigo } from "@/components/ajuda/artigo"
 import { EmProducao } from "@/components/ajuda/em-producao"
 import { artigoAjudaPortal } from "@/lib/ajuda/manifesto-portal"
+import { artigoForaDaAjuda } from "@/lib/ajuda/mapa-portal"
+import { partesDesabilitadas } from "@/lib/db/portal-partes"
+import type { ChaveParte } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 type Params = { params: Promise<{ area: string; topico: string }> }
@@ -24,6 +27,11 @@ export default async function TopicoPortalPage({ params }: Params) {
   const encontrado = artigoAjudaPortal(area, topico)
   if (!encontrado || !encontrado.area.disponivel) notFound()
   const { area: meta, artigo } = encontrado
+
+  // Artigo de parte desabilitada em Filiados › Área do associado (link
+  // cruzado, favorito): o índice da ajuda. Na dúvida, o artigo abre.
+  const desabilitadas = await partesDesabilitadas().catch(() => [] as ChaveParte[])
+  if (artigoForaDaAjuda(area, topico, desabilitadas)) redirect("/portal/ajuda")
 
   let Conteudo: React.ComponentType | null = null
   try {

@@ -7,7 +7,7 @@ import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizac
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { EVENTOS_PORTAL, type PreferenciasPortal } from "@/lib/portal-avisos-eventos"
+import { EVENTOS_PORTAL, type EventoPortal, type PreferenciasPortal } from "@/lib/portal-avisos-eventos"
 
 import { salvarPreferenciasPortalAction } from "./actions"
 
@@ -18,21 +18,33 @@ import { salvarPreferenciasPortalAction } from "./actions"
  * aparece com o celular disponível — sem ele, o interruptor não mudaria nada.
  * Na visualização pela gestão os interruptores mexem, mas só o botão de
  * salvar fica desligado (contrato do AcaoVisualizacao).
+ *
+ * `ocultos`: tipos de parte desabilitada na Área do associado. Saem da tela,
+ * mas a escolha de antes vai junto no envio (a ação grava ausente como
+ * desligado) e vale de novo quando a parte voltar.
  */
 export function PreferenciasForm({
   prefs,
   celular = false,
   preview = false,
+  ocultos = [],
 }: {
   prefs: PreferenciasPortal
   celular?: boolean
   preview?: boolean
+  ocultos?: readonly EventoPortal[]
 }) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasPortalAction, {})
-  const eventos = EVENTOS_PORTAL.filter((e) => celular || !("semEmail" in e && e.semEmail))
+  const eventos = EVENTOS_PORTAL.filter(
+    (e) => (celular || !("semEmail" in e && e.semEmail)) && !ocultos.includes(e.chave)
+  )
+  const guardados = EVENTOS_PORTAL.filter((e) => ocultos.includes(e.chave) && prefs[e.chave])
 
   return (
     <form {...formVisualizacao(preview, action)} className="grid gap-4">
+      {guardados.map((e) => (
+        <input key={e.chave} type="hidden" name={e.chave} value="on" />
+      ))}
       <ul className="divide-y">
         {eventos.map((e) => {
           // O nome lido pelo leitor de tela diz por onde o aviso sai.

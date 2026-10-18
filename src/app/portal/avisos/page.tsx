@@ -9,9 +9,10 @@ import { LembrarListaPortal } from "@/components/portal/voltar-portal"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { listaDeAvisos } from "@/lib/db/portal-avisos"
+import { partesDesabilitadas } from "@/lib/db/portal-partes"
 import { formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
-import { EVENTOS_PORTAL } from "@/lib/portal-avisos-eventos"
+import { EVENTOS_PORTAL, eventoDesabilitado } from "@/lib/portal-avisos-eventos"
 import { cn } from "@/lib/utils"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -28,7 +29,8 @@ const ROTULO = new Map<string, string>(EVENTOS_PORTAL.map((e) => [e.chave, e.rot
  * Sino do filiado (onda 4, F4). Abrir a lista não marca mais nada (A100):
  * quem marca é a própria lista, aviso a aviso, ou o "Marcar todos como
  * lidos" — ver lista-avisos.tsx. Filtro por tipo e paginação de 30, com os
- * não lidos no topo (A101).
+ * não lidos no topo (A101). Aviso que leva a parte desabilitada na Área do
+ * associado não aparece (listaDeAvisos), e o filtro do tipo dela some.
  */
 export default async function PortalAvisosPage({
   searchParams,
@@ -39,13 +41,16 @@ export default async function PortalAvisosPage({
   const bruto = await searchParams
   const params: Record<string, string | undefined> = {}
   for (const [chave, valor] of Object.entries(bruto)) params[chave] = Array.isArray(valor) ? valor[0] : valor
-  const tipo = EVENTOS_PORTAL.find((e) => e.chave === params.tipo)?.chave ?? null
+  // Na dúvida (leitura falhou), todos os tipos valem.
+  const desabilitadas = await partesDesabilitadas().catch(() => [])
+  const tiposDoPortal = EVENTOS_PORTAL.filter((e) => !eventoDesabilitado(e.chave, desabilitadas))
+  const tipo = tiposDoPortal.find((e) => e.chave === params.tipo)?.chave ?? null
   const paginacao = lerPaginacao(params, POR_PAGINA)
   const lista = await listaDeAvisos(filiado.cpf, { tipo, paginacao })
 
   const historico = [...lista.porTipo.values()].reduce((soma, t) => soma + t.total, 0)
   // Só os tipos que a pessoa tem no histórico; filtro de um tipo só não ajuda.
-  const tipos = EVENTOS_PORTAL.filter((e) => lista.porTipo.has(e.chave))
+  const tipos = tiposDoPortal.filter((e) => lista.porTipo.has(e.chave))
   const mostraFiltros = tipos.length > 1 || tipo !== null
   const rotuloDoFiltro = tipo ? (ROTULO.get(tipo) ?? tipo) : null
   // O recorte da lista (tipo e paginação), sem o resto da URL.

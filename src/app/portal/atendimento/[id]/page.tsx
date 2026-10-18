@@ -3,18 +3,27 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CheckCheck, Plus } from "lucide-react"
 
+import { ehPedidoDeDesfiliacao, MOTIVO_DESFILIACAO } from "@/app/portal/primeiro-acesso/regras"
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { EXPLICACAO_SITUACAO_ATENDIMENTO, prazoLegivel, reabrirAte } from "@/lib/atendimento-constantes"
+import { explicacaoSituacaoAtendimento, prazoLegivel, reabrirAte } from "@/lib/atendimento-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { atendimentoDoFiliado, concluidaPeloFiliado, conversaComMarcos } from "@/lib/db/portal-atendimentos"
+import {
+  atendimentoDoFiliado,
+  concluidaPeloFiliado,
+  conversaComMarcos,
+  regrasDoAtendimento,
+} from "@/lib/db/portal-atendimentos"
+import { bloqueioDaParte, estadoDaParte } from "@/lib/db/portal-partes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
+import { AvisoEnvioParado } from "../aviso-envio-parado"
 import { EncerrarSolicitacaoForm, ReabrirSolicitacaoForm, ResponderForm } from "../formularios"
 
 export const metadata: Metadata = { title: "Solicitação" }
@@ -24,18 +33,35 @@ export default async function PortalAtendimentoDetalhePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ aberta?: string; encerrada?: string; reaberta?: string }>
+  searchParams: Promise<{ aberta?: string; encerrada?: string; reaberta?: string; motivo?: string }>
 }) {
+  // Desabilitado: o "indisponível" antes de qualquer leitura — o layout
+  // renderiza junto com esta página e não a impede de rodar (nem o notFound).
+  const indisponivel = await paginaIndisponivel("atendimento")
+  if (indisponivel) return indisponivel
   const { filiado, preview } = await requireVisualizacaoPortal()
   const { id } = await params
-  const { aberta, encerrada, reaberta } = await searchParams
-  const dados = await atendimentoDoFiliado(id, filiado.cpf)
+  const { aberta, encerrada, reaberta, motivo } = await searchParams
+  const [dados, regras, sindicato] = await Promise.all([
+    atendimentoDoFiliado(id, filiado.cpf),
+    regrasDoAtendimento(),
+    estadoDaParte("sindicato").catch(() => "habilitada" as const),
+  ])
   if (!dados) notFound()
   const { atendimento: a, mensagens } = dados
+  // A marca da desfiliação (o portão deixa passar com ela) só dispensa o
+  // primeiro acesso no próprio pedido de desfiliação: a conversa dele segue
+  // com o primeiro acesso pendente. Nas outras, a marca não muda nada.
+  const desfiliacao = motivo === MOTIVO_DESFILIACAO && ehPedidoDeDesfiliacao(a.titulo)
+  const marca = desfiliacao ? MOTIVO_DESFILIACAO : null
+  // Atendimento suspenso ou portal em modo de consulta: a conversa fica, os envios saem.
+  const bloqueio = await bloqueioDaParte("atendimento", undefined, { ignorarPrimeiroAcesso: desfiliacao }).catch(
+    () => null
+  )
   const prazo = prazoLegivel(a, hojeSP())
   const concluida = a.situacao === "concluida"
-  // Concluída há pouco: o associado ainda pode reabrir (A97).
-  const ate = reabrirAte(a)
+  // Concluída há pouco: o associado ainda pode reabrir (A97), no prazo da entidade.
+  const ate = reabrirAte(a, regras.prazoReabrirDias)
   const porVoce = concluidaPeloFiliado(a, mensagens)
   // A palavra final da entidade fecha a conversa (concluir exige texto desde a onda 5).
   const finalDaEntidade = mensagens.filter((m) => m.tipo === "mensagem").at(-1)?.autor === "entidade"
@@ -52,7 +78,11 @@ export default async function PortalAtendimentoDetalhePage({
           : finalDaEntidade
             ? "A entidade concluiu esta solicitação. A resposta final está no fim da conversa, abaixo."
             : "A entidade concluiu esta solicitação."}{" "}
-        {ate ? `Não resolveu? Você pode reabri-la até ${ate}, no fim desta página.` : "Se o assunto voltou, abra uma nova solicitação."}
+        {!ate
+          ? "Se o assunto voltou, abra uma nova solicitação."
+          : bloqueio
+            ? `Não resolveu? O prazo para reabrir vai até ${ate}, mas o envio pelo portal está parado no momento.`
+            : `Não resolveu? Você pode reabri-la até ${ate}, no fim desta página.`}
       </AlertDescription>
     </Alert>
   ) : null
@@ -101,7 +131,7 @@ export default async function PortalAtendimentoDetalhePage({
       {concluida ? (
         encerrada !== "1" && avisoConcluida
       ) : (
-        <p className="text-muted-foreground text-sm">{EXPLICACAO_SITUACAO_ATENDIMENTO[a.situacao]}</p>
+        <p className="text-muted-foreground text-sm">{explicacaoSituacaoAtendimento(a.situacao, regras.prazoReabrirDias)}</p>
       )}
 
       <Card>
@@ -115,7 +145,15 @@ export default async function PortalAtendimentoDetalhePage({
         </CardContent>
       </Card>
 
-      {!concluida ? (
+      {bloqueio ? (
+        // A visualização da gestão vê o mesmo aviso que o associado.
+        <AvisoEnvioParado
+          titulo={concluida ? "Reabertura parada no momento" : "Respostas paradas no momento"}
+          mensagem={bloqueio}
+          detalhe="A conversa e os anexos continuam aqui para consulta."
+          canais={sindicato !== "desabilitada"}
+        />
+      ) : !concluida ? (
         <Card>
           <CardHeader>
             <CardTitle role="heading" aria-level={2}>
@@ -125,16 +163,21 @@ export default async function PortalAtendimentoDetalhePage({
           {/* Na visualização da gestão os formulários ficam à vista e só os
               envios são desligados (A167). */}
           <CardContent className="grid gap-6">
-            <ResponderForm atendimentoId={a.id} preview={preview} />
+            <ResponderForm atendimentoId={a.id} preview={preview} permitirAnexo={regras.permitirAnexo} motivo={marca} />
             <div className="border-t pt-4">
-              <EncerrarSolicitacaoForm atendimentoId={a.id} preview={preview} />
+              <EncerrarSolicitacaoForm
+                atendimentoId={a.id}
+                preview={preview}
+                prazoReabrirDias={regras.prazoReabrirDias}
+                motivo={marca}
+              />
             </div>
           </CardContent>
         </Card>
       ) : ate ? (
         <Card>
           <CardContent>
-            <ReabrirSolicitacaoForm atendimentoId={a.id} ate={ate} preview={preview} />
+            <ReabrirSolicitacaoForm atendimentoId={a.id} ate={ate} preview={preview} motivo={marca} />
           </CardContent>
         </Card>
       ) : (

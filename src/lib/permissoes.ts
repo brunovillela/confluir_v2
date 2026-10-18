@@ -47,6 +47,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Área do associado",
+    href: "/painel/filiados/area-do-associado",
+    icone: "Smartphone",
+    descricao: "Habilitar, suspender e configurar as partes do portal do associado",
+    chave: "filiacao_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Cobranças Pix",
     href: "/painel/filiados/cobrancas",
     icone: "QrCode",

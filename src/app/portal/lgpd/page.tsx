@@ -20,6 +20,7 @@ import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { tenantAtual } from "@/lib/tenant"
 import { historicoAceites } from "@/lib/db/lgpd"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
+import { bloqueioDaParte, configDoPortal } from "@/lib/db/portal-partes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { Download, Eye, MessageSquarePlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -51,13 +52,23 @@ const ATENDIMENTO_DESCONTO = `/portal/atendimento?${new URLSearchParams({
 const TERMO_PADRAO =
   "trata seus dados cadastrais (identificação, contato, endereço e vínculos de filiação) para as finalidades da atividade sindical: gestão da filiação e das contribuições, comunicação com o associado, prestação de serviços e benefícios e cumprimento de obrigações legais. Os dados não são vendidos e só são compartilhados com terceiros quando necessário à prestação de um serviço que você pediu ou por obrigação legal."
 
-const DIREITOS = [
-  "Confirmar a existência de tratamento dos seus dados e acessá-los.",
-  "Corrigir dados incompletos, inexatos ou desatualizados (use a página Meu cadastro para contato e endereço).",
-  "Solicitar anonimização, bloqueio ou eliminação de dados desnecessários.",
-  "Solicitar a portabilidade dos dados a outro fornecedor de serviço.",
-  "Revogar o consentimento, quando o tratamento se basear nele.",
-]
+/**
+ * Os direitos do titular. A correção aponta Meu cadastro só quando ele salva
+ * (sem pausa e com algo liberado na Área do associado); senão, a secretaria.
+ */
+function direitos(cadastroSalva: boolean): string[] {
+  return [
+    "Confirmar a existência de tratamento dos seus dados e acessá-los.",
+    cadastroSalva
+      ? "Corrigir dados incompletos, inexatos ou desatualizados (use a página Meu cadastro para contato e endereço)."
+      : "Corrigir dados incompletos, inexatos ou desatualizados (peça a correção à secretaria).",
+    "Solicitar anonimização, bloqueio ou eliminação de dados desnecessários.",
+    "Solicitar a portabilidade dos dados a outro fornecedor de serviço.",
+    "Revogar o consentimento, quando o tratamento se basear nele.",
+  ]
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default async function LgpdPage({
   searchParams,
@@ -67,7 +78,7 @@ export default async function LgpdPage({
   const { filiado, preview } = await requireVisualizacaoPortal()
   const { salvo, aviso } = await searchParams
   const cpf = cpfConfiavel(filiado.cpf)
-  const [cadastro, org, entidade, comunicados, aceites, consentimentos, versoes] = await Promise.all([
+  const [cadastro, org, entidade, comunicados, aceites, consentimentos, versoes, portal, pausaAceite] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
     obterOrganizacao(),
     nomeEntidade(),
@@ -75,8 +86,25 @@ export default async function LgpdPage({
     cpf ? historicoAceites(cpf) : Promise.resolve([]),
     consentimentosDoCadastro(filiado.cpf),
     versoesDosTermos(),
+    // Área do associado: na dúvida, o de sempre (sem encarregado, tudo ligado).
+    configDoPortal().catch(() => null),
+    // Só o portal inteiro (modo de consulta) pausa o aceite; a parte não se suspende.
+    bloqueioDaParte("lgpd").catch(() => null),
   ])
   const emailContato = org?.emailContato ?? null
+  // Com o portal fora do ar esta página continua aberta, mas o Atendimento
+  // levaria à página de manutenção.
+  const comAtendimento =
+    !portal ||
+    (portal.partes.portal.estado !== "desabilitada" && portal.partes.atendimento.estado !== "desabilitada")
+  const cadastroSalva =
+    !portal ||
+    (portal.partes.portal.estado === "habilitada" &&
+      portal.partes.cadastro.estado === "habilitada" &&
+      portal.partes.cadastro.opcoes.campos_editaveis.length > 0)
+  // Encarregado (LGPD, art. 41): nome e/ou e-mail; e-mail estranho vira texto, sem link.
+  const encarregadoNome = portal?.partes.lgpd.opcoes.encarregado_nome || null
+  const encarregadoEmail = portal?.partes.lgpd.opcoes.encarregado_email || null
 
   const aceiteLgpd = cadastro?.tl_lgpd_data ?? null
   const aceiteDesconto = cadastro?.tl_desconto_data ?? null
@@ -96,6 +124,22 @@ export default async function LgpdPage({
     : null
   const codigoDoTermo = new Map(
     [...versoes.lgpd, ...versoes.desconto].map((v) => [v.id, v.codigo] as const)
+  )
+
+  // O aceite da versão em vigor: o primeiro, o de uma versão nova ou o de
+  // um aceite antigo sem versão. Portal em modo de consulta: o aceite espera
+  // (a action recusa de qualquer jeito); o termo continua para leitura.
+  const aceiteDoVigente = !lgpdVigente ? null : pausaAceite ? (
+    <Alert variant="warning">
+      <AlertDescription>O aceite não pode ser registrado agora. {pausaAceite}</AlertDescription>
+    </Alert>
+  ) : (
+    <AceiteLgpdForm
+      preview={preview}
+      entidade={entidade}
+      termoId={lgpdVigente.id}
+      versao={rotuloVersao(lgpdVigente)}
+    />
   )
 
   // Desconto em folha (A35): sem data registrada, explica conforme a forma de
@@ -217,14 +261,19 @@ export default async function LgpdPage({
                     ficha de filiação assinada. É comum e não muda nada no seu
                     desconto.
                   </p>
-                  <div className="pt-1">
-                    <Button asChild variant="outline">
-                      <Link href={ATENDIMENTO_DESCONTO}>
-                        <MessageSquarePlus />
-                        Conferir ou registrar a autorização
-                      </Link>
-                    </Button>
-                  </div>
+                  {/* Sem o Atendimento, o caminho é a secretaria. */}
+                  {comAtendimento ? (
+                    <div className="pt-1">
+                      <Button asChild variant="outline">
+                        <Link href={ATENDIMENTO_DESCONTO}>
+                          <MessageSquarePlus />
+                          Conferir ou registrar a autorização
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <p>Para conferir ou registrar a autorização, fale com a secretaria.</p>
+                  )}
                 </>
               )}
             </CardContent>
@@ -315,12 +364,15 @@ export default async function LgpdPage({
               {lgpdAceito.texto && (
                 <TextoDoTermo texto={lgpdAceito.texto} resumo="Ler o termo que você aceitou" />
               )}
+              {/* Versão nova publicada depois do aceite: o texto dela e o
+                  aceite, como no primeiro (o primeiro acesso pede este aceite). */}
               {lgpdVigente && lgpdVigente.id !== lgpdAceito.id && (
-                <div className="grid gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    {`${entidade} publicou depois uma versão mais nova do termo (${rotuloVersao(lgpdVigente)}). O seu aceite continua registrado na versão acima.`}
+                <div className="grid gap-3 border-t pt-4">
+                  <p className="text-sm">
+                    {`${entidade} publicou depois uma versão mais nova do termo (${rotuloVersao(lgpdVigente)}). O seu aceite continua registrado na versão acima; para aceitar a versão em vigor, leia o texto abaixo e confirme.`}
                   </p>
-                  <TextoDoTermo texto={lgpdVigente.texto ?? ""} resumo="Ler a versão em vigor" />
+                  <div className="text-sm whitespace-pre-line">{lgpdVigente.texto}</div>
+                  {aceiteDoVigente}
                 </div>
               )}
             </>
@@ -330,10 +382,15 @@ export default async function LgpdPage({
                 O seu aceite, de {formatarData(aceiteLgpd)}, foi registrado sem
                 a indicação da versão do termo (cadastro anterior ao controle de
                 versões).
-                {lgpdVigente ? ` Este é o termo em vigor hoje (${rotuloVersao(lgpdVigente)}):` : ""}
+                {lgpdVigente
+                  ? ` Este é o termo em vigor hoje (${rotuloVersao(lgpdVigente)}); para registrar o aceite dele, leia o texto e confirme:`
+                  : ""}
               </p>
               {lgpdVigente?.texto ? (
-                <TextoDoTermo texto={lgpdVigente.texto} resumo="Ler o termo em vigor" />
+                <>
+                  <div className="text-sm whitespace-pre-line">{lgpdVigente.texto}</div>
+                  {aceiteDoVigente}
+                </>
               ) : (
                 <TermoPadrao entidade={entidade} />
               )}
@@ -344,12 +401,7 @@ export default async function LgpdPage({
                 Termo em vigor — {rotuloVersao(lgpdVigente)}.
               </p>
               <div className="text-sm whitespace-pre-line">{lgpdVigente.texto}</div>
-              <AceiteLgpdForm
-                preview={preview}
-                entidade={entidade}
-                termoId={lgpdVigente.id}
-                versao={rotuloVersao(lgpdVigente)}
-              />
+              {aceiteDoVigente}
             </>
           ) : (
             <>
@@ -403,7 +455,7 @@ export default async function LgpdPage({
         </CardHeader>
         <CardContent className="grid gap-3">
           <ul className="text-muted-foreground grid list-disc gap-1 pl-5 text-sm">
-            {DIREITOS.map((d) => (
+            {direitos(cadastroSalva).map((d) => (
               <li key={d}>{d}</li>
             ))}
           </ul>
@@ -423,6 +475,27 @@ export default async function LgpdPage({
             ) : null}
             .
           </p>
+          {/* LGPD, art. 41, §1º: identidade e contato do encarregado (Área do
+              associado › Privacidade e dados). Em branco, só o contato acima. */}
+          {(encarregadoNome || encarregadoEmail) && (
+            <p className="text-sm">
+              Encarregado pelo tratamento de dados:{" "}
+              {encarregadoNome && <strong className="font-medium">{encarregadoNome}</strong>}
+              {encarregadoNome && encarregadoEmail ? " — " : null}
+              {encarregadoEmail &&
+                (EMAIL.test(encarregadoEmail) ? (
+                  <a
+                    href={`mailto:${encarregadoEmail}`}
+                    className="font-medium break-all underline-offset-4 hover:underline"
+                  >
+                    {encarregadoEmail}
+                  </a>
+                ) : (
+                  <span className="break-all">{encarregadoEmail}</span>
+                ))}
+              .
+            </p>
+          )}
         </CardContent>
       </Card>
     </>

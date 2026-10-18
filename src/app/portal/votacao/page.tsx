@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, Clock, FileCheck2, ShieldCheck, Vote } from "lucide-react"
+import { CalendarClock, Clock, FileCheck2, PauseCircle, ShieldCheck, Vote } from "lucide-react"
 
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import {
@@ -9,6 +9,7 @@ import {
   EnquantoAberta,
 } from "@/components/portal/contagem-regressiva"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 import {
   Accordion,
   AccordionContent,
@@ -32,6 +33,7 @@ import {
   quandoCurto,
   ROTULOS_MODALIDADE,
 } from "@/lib/assembleias-constantes"
+import { bloqueioDaParte, configDaParte, estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   assembleiasDoFiliado,
@@ -39,6 +41,7 @@ import {
   obterEmailVotacao,
 } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { mensagemDaSituacao, opcoesPadrao } from "@/lib/portal-partes-constantes"
 
 import { EmailVotacaoForm } from "./email-form"
 import { SalaVirtualAviso } from "./sala-virtual"
@@ -58,12 +61,26 @@ const LINK_ATENDIMENTO = `/portal/atendimento?assunto=cadastro&titulo=${encodeUR
 
 export default async function VotacaoPortalPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
+  // O layout guarda a seção, mas não impede a página de rodar (nem de ir no
+  // RSC) e não se refaz ao navegar dentro dela: desabilitada, nada se consulta.
+  const parte = await configDaParte("votacao").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return <ParteIndisponivel parte="votacao" mensagem={mensagemDaSituacao("votacao", parte)} preview={preview} />
+  }
 
-  const [abertas, historico, emailVot] = await Promise.all([
+  // Filiados › Área do associado: com a Votação suspensa (ou o portal em modo
+  // de consulta), a lista e o histórico continuam, mas o "Votar agora" e o
+  // cadastro do e-mail saem — as actions recusariam. Na dúvida, vale.
+  const [abertas, historico, emailVot, bloqueio, opcoes, atendimento] = await Promise.all([
     filiado.ativo ? assembleiasDoFiliado(filiado.cpf) : Promise.resolve([]),
     minhasVotacoes(filiado.cpf),
     obterEmailVotacao(filiado.cpf),
+    bloqueioDaParte("votacao").catch(() => null),
+    opcoesDaParte("votacao").catch(() => opcoesPadrao("votacao")),
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
   ])
+  const comEmailVotacao = opcoes.email_votacao
+  const comAtendimento = atendimento !== "desabilitada"
 
   return (
     <>
@@ -101,17 +118,24 @@ export default async function VotacaoPortalPage() {
                 </span>
               </span>
             </p>
-            <p className="text-muted-foreground border-t pt-3">
-              Recebeu um aviso de votação e ela não aparece aqui?{" "}
-              <a href="#email-votacao" className="text-primary font-medium underline underline-offset-4">
-                Confira seu e-mail de votação
-              </a>{" "}
-              ou{" "}
-              <Link href={LINK_ATENDIMENTO} className="text-primary font-medium underline underline-offset-4">
-                fale com o Atendimento
-              </Link>
-              .
-            </p>
+            {/* Cada caminho só aparece se a seção/parte de destino existe. */}
+            {(comEmailVotacao || comAtendimento) && (
+              <p className="text-muted-foreground border-t pt-3">
+                Recebeu um aviso de votação e ela não aparece aqui?{" "}
+                {comEmailVotacao && (
+                  <a href="#email-votacao" className="text-primary font-medium underline underline-offset-4">
+                    Confira seu e-mail de votação
+                  </a>
+                )}
+                {comEmailVotacao && comAtendimento && " ou "}
+                {comAtendimento && (
+                  <Link href={LINK_ATENDIMENTO} className="text-primary font-medium underline underline-offset-4">
+                    {comEmailVotacao ? "fale com o Atendimento" : "Fale com o Atendimento"}
+                  </Link>
+                )}
+                .
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -174,7 +198,22 @@ export default async function VotacaoPortalPage() {
                     )}
                   </>
                 ) : null
-              const botaoVotar = (
+              const botaoVotar = bloqueio ? (
+                // Votação suspensa no portal: a cédula recusaria. Explicado no
+                // lugar do botão, como o "ainda não abriu" — o link pessoal
+                // (/votar) não depende do portal.
+                <div className="flex max-w-xs flex-col items-start gap-1 sm:items-end sm:text-right">
+                  <Badge variant="warning">
+                    <PauseCircle />
+                    Voto pelo portal pausado
+                  </Badge>
+                  <p className="text-muted-foreground text-xs">
+                    Veja o aviso no topo da página. Se você recebeu o link
+                    pessoal de votação por e-mail, ele continua valendo.
+                  </p>
+                  {estado.comUrna && verDatas}
+                </div>
+              ) : (
                 // gap-y-3: se "Ver datas" quebrar de linha, as áreas de toque não se sobrepõem.
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
                   <Button asChild>
@@ -356,7 +395,10 @@ export default async function VotacaoPortalPage() {
                     )}
                   </div>
                 )}
-                {v.apuracaoEncerrada && v.resultado ? (
+                {/* Entidade que só divulga o resultado em ata ou edital desliga
+                    o placar em Filiados › Área do associado: nem o placar nem
+                    a promessa de que ele vem. */}
+                {!opcoes.mostrar_resultado ? null : v.apuracaoEncerrada && v.resultado ? (
                   <div className="mt-2 grid gap-2">
                     {v.resultado.map((p) => (
                       <div key={p.perguntaId} className="text-xs">
@@ -389,8 +431,9 @@ export default async function VotacaoPortalPage() {
 
       {/* E-mail de votação: tarefa rara, que só serve a quem a empresa
           mandou sem CPF — vira seção secundária, recolhida, no fim (A91).
-          Abre sozinha só quando pode ser a explicação do "não aparece". */}
-      {filiado.ativo && (
+          Abre sozinha só quando pode ser a explicação do "não aparece".
+          Sai inteira quando a gestão desliga o e-mail de votação. */}
+      {filiado.ativo && comEmailVotacao && (
         <Card id="email-votacao" className="scroll-mt-20">
           <CardContent>
             <Accordion
@@ -420,6 +463,7 @@ export default async function VotacaoPortalPage() {
                     pendente={emailVot.pendente}
                     emailCadastro={filiado.email}
                     preview={preview}
+                    pausado={Boolean(bloqueio)}
                   />
                 </AccordionContent>
               </AccordionItem>

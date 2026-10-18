@@ -24,7 +24,8 @@ import { eventosDaPessoa, tentar } from "./cargas"
  *
  * Notícias e agenda aparecem sempre, com o estado vazio de uma linha e o
  * link para a seção (A145): o cartão nunca é beco sem saída. Inscrições
- * abertas e últimas votações só quando há o que mostrar.
+ * abertas e últimas votações só quando há o que mostrar. Quem decide se cada
+ * cartão entra é a página, pelas partes de Filiados › Área do associado.
  *
  * Os títulos são h3: o h2 é o da seção, na página.
  */
@@ -198,6 +199,11 @@ export async function CartaoVotacoes({ cpf }: { cpf: string }) {
   )
 }
 
+/**
+ * "Ver agenda completa" leva a /portal/agenda, que decide onde a agenda está:
+ * na página de Eventos (seção id="agenda") ou, com Eventos desabilitada em
+ * Filiados › Área do associado (e a Agenda não), sozinha ali mesmo.
+ */
 export async function CartaoAgenda() {
   const r = await tentar("agenda", () => eventosDoAplicativo(5))
   return (
@@ -226,8 +232,7 @@ export async function CartaoAgenda() {
             ))}
           </ul>
         )}
-        {/* A agenda mora em Eventos, na seção com id="agenda". */}
-        <Rodape href="/portal/eventos#agenda">Ver agenda completa</Rodape>
+        <Rodape href="/portal/agenda">Ver agenda completa</Rodape>
       </CardContent>
     </Card>
   )

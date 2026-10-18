@@ -11,7 +11,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { linkDaInscricaoNoPortal, periodoDoEvento } from "@/lib/db/eventos-portal"
 import { cuponsDoFiliado } from "@/lib/db/filiado-portal"
 import { reservasGarantidasDaPessoa } from "@/lib/db/hospedagem-garantida"
-import { registrosDaPessoa } from "@/lib/db/portal-inicio"
+import { aceitaAcao, aparece, registrosDaPessoa, type PartesDoInicio } from "@/lib/db/portal-inicio"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 
@@ -74,20 +74,39 @@ function meioDia(data: string): number {
  *
  * Só lê: no "Ver como filiado", a confirmação de presença vira texto (quem
  * responde é o associado), como nas avaliações pendentes.
+ *
+ * Filiados › Área do associado: Eventos, Hospedagem ou Votação desabilitada
+ * não é consultada; com Eventos suspensa (ou o portal em modo de consulta), a
+ * confirmação de presença também vira texto.
  */
-export async function Compromissos({ filiado, preview }: { filiado: Filiado; preview: boolean }) {
+export async function Compromissos({
+  filiado,
+  preview,
+  partes,
+}: {
+  filiado: Filiado
+  preview: boolean
+  partes: PartesDoInicio
+}) {
   const { hoje, ultimoDia, limite } = janela()
+  const comHospedagem = aparece(partes, "hospedagem")
+  // Parte desabilitada: nada a ler, e o bloco não diz que "não carregou".
+  const nada = Promise.resolve({ valor: [] as never[] })
 
   const [eventos, cupons, reservas, assembleias] = await Promise.all([
-    tentar("compromissos: eventos", () => eventosDaPessoa(filiado.cpf)),
-    tentar("compromissos: cupons de hospedagem", () => cuponsDoFiliado(filiado.cpf)),
-    tentar("compromissos: reservas de hospedagem", async () => {
-      // Sem processar a fila dos hotéis (A195): o Início só lê.
-      const [registros, hoteis] = await Promise.all([registrosDaPessoa(filiado.cpf), hoteisDaEntidade()])
-      return reservasGarantidasDaPessoa(registros, hoteis)
-    }),
-    assembleiasSeAtivo(filiado, "compromissos: votações"),
+    aparece(partes, "eventos") ? tentar("compromissos: eventos", () => eventosDaPessoa(filiado.cpf)) : nada,
+    comHospedagem ? tentar("compromissos: cupons de hospedagem", () => cuponsDoFiliado(filiado.cpf)) : nada,
+    comHospedagem
+      ? tentar("compromissos: reservas de hospedagem", async () => {
+          // Sem processar a fila dos hotéis (A195): o Início só lê.
+          const [registros, hoteis] = await Promise.all([registrosDaPessoa(filiado.cpf), hoteisDaEntidade()])
+          return reservasGarantidasDaPessoa(registros, hoteis)
+        })
+      : nada,
+    aparece(partes, "votacao") ? assembleiasSeAtivo(filiado, "compromissos: votações") : nada,
   ])
+  // Confirmar presença grava em Eventos: sem a parte aceitando ação, fica o texto.
+  const soLeitura = preview || !aceitaAcao(partes, "eventos")
   const falhou = !eventos || !cupons || !reservas || !assembleias
 
   const itens: Compromisso[] = []
@@ -247,7 +266,7 @@ export async function Compromissos({ filiado, preview }: { filiado: Filiado; pre
                 <span className="flex flex-wrap items-center gap-2">
                   {c.situacao && <Badge variant={c.situacao.variante}>{c.situacao.rotulo}</Badge>}
                   {c.confirmarPresenca &&
-                    (preview ? (
+                    (soLeitura ? (
                       <span className="text-muted-foreground text-xs">Presença ainda não confirmada</span>
                     ) : (
                       <Button asChild variant="outline">

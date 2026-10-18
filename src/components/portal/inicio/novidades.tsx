@@ -8,9 +8,11 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Filiado } from "@/lib/contas"
+import type { Atendimento } from "@/lib/db/portal-atendimentos"
 import { avisosNaoLidos, respostasAguardando } from "@/lib/db/portal-inicio"
 import { formatarDataHora } from "@/lib/formato"
 import { EVENTOS_PORTAL } from "@/lib/portal-avisos-eventos"
+import type { ChaveParte } from "@/lib/portal-partes-constantes"
 
 import { tentar } from "./cargas"
 
@@ -42,11 +44,26 @@ function caminho(link: string): string {
  * entidade vêm em destaque — a vez é da pessoa. Ler esta lista NÃO marca os
  * avisos como lidos: quem marca é a página de Avisos, para o sino e o Início
  * contarem a mesma coisa (no "Ver como filiado", então, nada muda).
+ *
+ * Filiados › Área do associado: com o Atendimento desabilitado, as respostas
+ * nem são consultadas; aviso que leva a uma parte desabilitada não aparece.
  */
-export async function Novidades({ filiado }: { filiado: Filiado }) {
+export async function Novidades({
+  filiado,
+  atendimento = true,
+  ocultar = [],
+}: {
+  filiado: Filiado
+  /** O Atendimento aparece no portal (não está desabilitado). */
+  atendimento?: boolean
+  /** Partes desabilitadas: os avisos delas saem. */
+  ocultar?: readonly ChaveParte[]
+}) {
   const [rRespostas, rNaoLidos] = await Promise.all([
-    tentar("atendimentos respondidos", () => respostasAguardando(filiado.cpf)),
-    tentar("avisos não lidos", () => avisosNaoLidos(filiado.cpf, MAX_AVISOS + MAX_RESPOSTAS)),
+    atendimento
+      ? tentar("atendimentos respondidos", () => respostasAguardando(filiado.cpf))
+      : Promise.resolve({ valor: [] as Atendimento[] }),
+    tentar("avisos não lidos", () => avisosNaoLidos(filiado.cpf, MAX_AVISOS + MAX_RESPOSTAS, ocultar)),
   ])
   // Falhou: "Nada novo por aqui" seria mentira — o cartão diz que não carregou (A187).
   const falhou = !rRespostas || !rNaoLidos

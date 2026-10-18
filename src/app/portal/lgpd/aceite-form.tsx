@@ -15,6 +15,7 @@ export function AceiteLgpdForm({
   entidade,
   termoId,
   versao,
+  voltar,
 }: {
   preview?: boolean
   /** Nome da entidade que trata os dados (a do tenant). */
@@ -23,6 +24,8 @@ export function AceiteLgpdForm({
   termoId: string
   /** "versão X, de dd/mm/aaaa", para o texto do aceite. */
   versao: string
+  /** Primeiro acesso: para onde voltar depois do aceite (a action valida). */
+  voltar?: string
 }) {
   const [estado, formAction, pendente] = useActionState(registrarAceiteLgpd, {})
 
@@ -34,6 +37,7 @@ export function AceiteLgpdForm({
         </Alert>
       )}
       <input type="hidden" name="termo_id" value={termoId} />
+      {voltar && <input type="hidden" name="voltar" value={voltar} />}
       <label className="flex items-start gap-2 text-sm">
         <Checkbox name="li_e_aceito" className="mt-0.5" />
         <span>

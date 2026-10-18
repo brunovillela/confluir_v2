@@ -4,8 +4,11 @@ import { cache } from "react"
 
 import { AvisoDoLinkLido } from "@/app/portal/avisos/aviso-do-link-lido"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 import { dataDaNoticia, linkDaNoticia, resumir } from "@/lib/db/noticias"
 import { buscarNoticia } from "@/lib/db/painel"
+import { configDaParte, estadoDaParte } from "@/lib/db/portal-partes"
+import { mensagemDaSituacao, opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { getVisualizacaoPortal, requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { CompartilharNoticia } from "./compartilhar"
@@ -21,8 +24,13 @@ const lerNoticia = cache((id: string) => buscarNoticia(id))
  * genérico — a página manda para o login de qualquer jeito.
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const [{ id }, vis] = await Promise.all([params, getVisualizacaoPortal()])
-  const noticia = vis ? await lerNoticia(id) : null
+  const [{ id }, vis, estado] = await Promise.all([
+    params,
+    getVisualizacaoPortal(),
+    estadoDaParte("noticias").catch(() => "habilitada" as const),
+  ])
+  // Notícias desabilitada: a página diz "indisponível" — a aba não entrega a manchete.
+  const noticia = vis && estado !== "desabilitada" ? await lerNoticia(id) : null
   // O sufixo vem do modelo do layout do portal (A183).
   return { title: noticia?.manchete ?? "Notícia" }
 }
@@ -32,8 +40,17 @@ export default async function PortalNoticiaPage({ params }: Props) {
   // notícia (com requireSessaoPortal, ele caía na tela de login — A29).
   const { preview } = await requireVisualizacaoPortal()
   const { id } = await params
+  // A guarda do layout não impede a página de rodar nem de ir no RSC:
+  // desabilitada, a notícia nem é lida (e o id inexistente não vira 404).
+  const parte = await configDaParte("noticias").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return <ParteIndisponivel parte="noticias" mensagem={mensagemDaSituacao("noticias", parte)} preview={preview} />
+  }
   const noticia = await lerNoticia(id)
   if (!noticia) notFound()
+  // Parte das notícias é interna à categoria: a gestão pode tirar o botão que
+  // leva manchete e resumo para fora (Filiados › Área do associado).
+  const compartilhar = (parte?.opcoes ?? opcoesPadrao("noticias")).permitir_compartilhar
 
   // Imagens migradas do Bubble vêm protocolo-relativas (//cdn…).
   const imagem = noticia.imagem?.startsWith("//")
@@ -56,11 +73,13 @@ export default async function PortalNoticiaPage({ params }: Props) {
         }
       />
 
-      <CompartilharNoticia
-        id={noticia.id}
-        manchete={manchete}
-        resumo={resumir(noticia.noticia, 240)}
-      />
+      {compartilhar && (
+        <CompartilharNoticia
+          id={noticia.id}
+          manchete={manchete}
+          resumo={resumir(noticia.noticia, 240)}
+        />
+      )}
 
       {imagem && (
         // eslint-disable-next-line @next/next/no-img-element

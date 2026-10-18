@@ -20,6 +20,7 @@ import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,8 +38,10 @@ import { anoDaLinha, minhaContribuicao, type MinhaContribuicao, type RemessaPend
 import { rotuloCompetencia, type Cobranca } from "@/lib/db/cobrancas"
 import { hojeSP } from "@/lib/db/comum"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
+import { bloqueioDaParte, opcoesDaParte, rotasDesabilitadas } from "@/lib/db/portal-partes"
 import type { FormaRecebimento } from "@/lib/filiacao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { CopiaECola } from "./cobranca-pix"
@@ -145,6 +148,27 @@ function situacaoDaCobranca(x: Cobranca): { rotulo: string; variante: "success" 
   return x.vencida ? { rotulo: "Vencida", variante: "error" } : { rotulo: "Em aberto", variante: "warning" }
 }
 
+/**
+ * O que a Área do associado ajusta nesta página (Filiados › Área do
+ * associado › Contribuição). Os padrões reproduzem a página de antes.
+ */
+type Ajustes = {
+  /** Botões "Avisar o sindicato": somem com o Atendimento desabilitado. */
+  avisar: boolean
+  /** Extrato anual em PDF oferecido pela entidade. */
+  extrato: boolean
+  /** Contribuição suspensa ou portal em modo de consulta: o extrato não sai. */
+  pausa: string | null
+  /** O que acontece com quem está em atraso (política da entidade). */
+  textoAtraso: string
+  /** Prazo para o pagamento Pix ser reconhecido. */
+  prazoPix: number
+}
+
+function diasUteis(n: number): string {
+  return n === 1 ? "1 dia útil" : `${n} dias úteis`
+}
+
 /** "Avisar o sindicato" (A23): leva ao Atendimento com o assunto e o resumo preenchidos. Na visualização, desligado. */
 function BotaoAvisar({ preview, titulo }: { preview: boolean; titulo: string }) {
   return (
@@ -176,6 +200,10 @@ function BotaoAvisar({ preview, titulo }: { preview: boolean; titulo: string }) 
  * e o histórico por ano com extrato em PDF (A61).
  */
 export default async function ContribuicaoPage({ searchParams }: { searchParams: Busca }) {
+  // Desabilitada: o "indisponível" antes de qualquer leitura — o layout
+  // renderiza junto com esta página e não a impede de rodar.
+  const indisponivel = await paginaIndisponivel("contribuicao")
+  if (indisponivel) return indisponivel
   const { filiado, preview } = await requireVisualizacaoPortal()
   const busca = await searchParams
   const aviso = primeiro(busca.aviso)
@@ -187,6 +215,19 @@ export default async function ContribuicaoPage({ searchParams }: { searchParams:
       })
     : null
   const ajuda = ajudaDaRotaPortal(mapaAjudaPortal(), "/portal/contribuicao")
+  // Área do associado: na dúvida, vale o de sempre (com extrato, sem pausa).
+  const [opcoes, pausa, desligadas] = await Promise.all([
+    opcoesDaParte("contribuicao").catch(() => opcoesPadrao("contribuicao")),
+    bloqueioDaParte("contribuicao").catch(() => null),
+    rotasDesabilitadas().catch(() => [] as string[]),
+  ])
+  const ajustes: Ajustes = {
+    avisar: !desligadas.includes("/portal/atendimento"),
+    extrato: opcoes.extrato_pdf,
+    pausa,
+    textoAtraso: opcoes.texto_atraso,
+    prazoPix: opcoes.prazo_pix_dias_uteis,
+  }
 
   return (
     <>
@@ -224,6 +265,21 @@ export default async function ContribuicaoPage({ searchParams }: { searchParams:
           </Alert>
         </AvisoDaUrl>
       )}
+      {/* ... ou quando o extrato não pode sair (Área do associado): o motivo de agora. */}
+      {aviso === "indisponivel" && (
+        <AvisoDaUrl parametros={["aviso"]}>
+          <Alert variant="warning">
+            <CircleAlert />
+            <AlertDescription>
+              {!ajustes.extrato
+                ? "O extrato em PDF não é emitido pelo portal. Se precisar de um, peça à secretaria."
+                : ajustes.pausa
+                  ? `O extrato não pode ser emitido agora. ${ajustes.pausa}`
+                  : "Não foi possível gerar o extrato agora. Tente de novo."}
+            </AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
+      )}
 
       {!c ? (
         <Alert variant="error">
@@ -231,13 +287,23 @@ export default async function ContribuicaoPage({ searchParams }: { searchParams:
           <AlertDescription>Não foi possível carregar suas contribuições — fale com o sindicato.</AlertDescription>
         </Alert>
       ) : (
-        <Conteudo c={c} preview={preview} anoPedido={primeiro(busca.ano)} />
+        <Conteudo c={c} preview={preview} anoPedido={primeiro(busca.ano)} ajustes={ajustes} />
       )}
     </>
   )
 }
 
-async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; preview: boolean; anoPedido: string | undefined }) {
+async function Conteudo({
+  c,
+  preview,
+  anoPedido,
+  ajustes,
+}: {
+  c: MinhaContribuicao
+  preview: boolean
+  anoPedido: string | undefined
+  ajustes: Ajustes
+}) {
   const sit = situacaoSemHistorico(c)
   const IconeSituacao = ICONE_SITUACAO[sit.variante]
   const atraso = c.inadimplente ? c.detalheAtraso : null
@@ -307,16 +373,19 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
               {fraseRegra(atraso.regra)}
             </p>
             <p>
-              Nada é suspenso automaticamente: a secretaria analisa cada caso e pode limitar serviços enquanto o atraso constar.{" "}
+              {/* A política da entidade (Área do associado › Contribuição). */}
+              {ajustes.textoAtraso && `${ajustes.textoAtraso} `}
               {c.porPix
                 ? "Se você já pagou, avise o sindicato e anexe o comprovante."
                 : "Se o desconto está sendo feito, avise o sindicato e anexe o contracheque desses meses."}
             </p>
           </AlertDescription>
           {/* Fora do AlertDescription: o `[&_a]:underline` dele sublinhava o botão e escurecia o texto no hover. */}
-          <div className="col-start-2 mt-2">
-            <BotaoAvisar preview={preview} titulo="Regularizar contribuição" />
-          </div>
+          {ajustes.avisar && (
+            <div className="col-start-2 mt-2">
+              <BotaoAvisar preview={preview} titulo="Regularizar contribuição" />
+            </div>
+          )}
         </Alert>
       ) : faltas ? (
         <Alert variant="warning">
@@ -332,9 +401,11 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
               {c.regra && ` ${fraseRegra(c.regra)}`}
             </p>
           </AlertDescription>
-          <div className="col-start-2 mt-2">
-            <BotaoAvisar preview={preview} titulo={tituloFalta(c.emFalta, c.porPix)} />
-          </div>
+          {ajustes.avisar && (
+            <div className="col-start-2 mt-2">
+              <BotaoAvisar preview={preview} titulo={tituloFalta(c.emFalta, c.porPix)} />
+            </div>
+          )}
         </Alert>
       ) : null}
 
@@ -370,7 +441,8 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
               </CardTitle>
             </div>
             <CardDescription className="text-sm">
-              Leia o QR Code no app do banco ou copie o código. O pagamento é reconhecido pelo extrato da entidade em até 2 dias úteis.
+              Leia o QR Code no app do banco ou copie o código. O pagamento é reconhecido pelo extrato da entidade em até{" "}
+              {diasUteis(ajustes.prazoPix)}.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -384,7 +456,7 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
                 <CircleAlert />
                 <AlertDescription>
                   Esta cobrança venceu em {formatarData(aberta.vencimento)} e ainda não consta como paga. Ainda dá para pagar pelo QR Code abaixo; se você
-                  já pagou, o reconhecimento leva até 2 dias úteis.
+                  já pagou, o reconhecimento leva até {diasUteis(ajustes.prazoPix)}.
                 </AlertDescription>
               </Alert>
             )}
@@ -580,7 +652,7 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
         </CardHeader>
         <CardContent className="grid gap-4">
           {c.linhas.length === 0 ? (
-            <SemHistorico c={c} sit={sit} preview={preview} />
+            <SemHistorico c={c} sit={sit} preview={preview} avisar={ajustes.avisar} />
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -600,23 +672,35 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
                 ) : (
                   <span />
                 )}
-                {typeof ano === "number" && (
-                  <AcaoVisualizacao preview={preview} nota="Só o próprio associado emite o extrato, pela conta dele.">
-                    {preview ? (
-                      <Button type="button" variant="outline" disabled className="disabled:opacity-100">
+                {/* Extrato desligado pela entidade: o botão sai. Em pausa,
+                    fica na tela, desligado, com o porquê embaixo. */}
+                {typeof ano === "number" &&
+                  ajustes.extrato &&
+                  (ajustes.pausa ? (
+                    <div className="grid gap-1.5">
+                      <Button type="button" variant="outline" disabled>
                         <FileText />
                         Extrato de {ano} (PDF)
                       </Button>
-                    ) : (
-                      <Button asChild variant="outline">
-                        <a href={`/portal/contribuicao/extrato?ano=${ano}`} target="_blank" rel="noreferrer">
+                      <p className="text-muted-foreground text-xs">O extrato está em pausa — veja o aviso no topo da página.</p>
+                    </div>
+                  ) : (
+                    <AcaoVisualizacao preview={preview} nota="Só o próprio associado emite o extrato, pela conta dele.">
+                      {preview ? (
+                        <Button type="button" variant="outline" disabled className="disabled:opacity-100">
                           <FileText />
                           Extrato de {ano} (PDF)
-                        </a>
-                      </Button>
-                    )}
-                  </AcaoVisualizacao>
-                )}
+                        </Button>
+                      ) : (
+                        <Button asChild variant="outline">
+                          <a href={`/portal/contribuicao/extrato?ano=${ano}`} target="_blank" rel="noreferrer">
+                            <FileText />
+                            Extrato de {ano} (PDF)
+                          </a>
+                        </Button>
+                      )}
+                    </AcaoVisualizacao>
+                  ))}
               </div>
               <Table className="tabela-cards">
                 <TableCaption className="sr-only">
@@ -661,7 +745,18 @@ async function Conteudo({ c, preview, anoPedido }: { c: MinhaContribuicao; previ
  * dele (sem prometer dia). Sem filiação recente: pode ser desconto que não
  * chega ao sindicato, então o caminho é avisar.
  */
-function SemHistorico({ c, sit, preview }: { c: MinhaContribuicao; sit: SituacaoSemHistorico; preview: boolean }) {
+function SemHistorico({
+  c,
+  sit,
+  preview,
+  avisar,
+}: {
+  c: MinhaContribuicao
+  sit: SituacaoSemHistorico
+  preview: boolean
+  /** Botão "Avisar o sindicato" (some com o Atendimento desabilitado). */
+  avisar: boolean
+}) {
   if (sit.chave === "aguardando" && c.inicio) {
     const { informadaEm, ativadaEm, primeiroMes } = c.inicio
     const fontes = c.comoContribui.fontes
@@ -690,9 +785,11 @@ function SemHistorico({ c, sit, preview }: { c: MinhaContribuicao; sit: Situacao
             ? "Ainda não há contribuições registradas para você. Se você já pagou por Pix, avise o sindicato e anexe o comprovante."
             : "Ainda não há contribuições registradas para você. Se o desconto já aparece no seu contracheque, avise o sindicato e anexe o contracheque."}
         </p>
-        <div>
-          <BotaoAvisar preview={preview} titulo="Contribuição não aparece no portal" />
-        </div>
+        {avisar && (
+          <div>
+            <BotaoAvisar preview={preview} titulo="Contribuição não aparece no portal" />
+          </div>
+        )}
       </div>
     )
   }

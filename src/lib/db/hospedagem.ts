@@ -724,6 +724,9 @@ async function avisarCupomReservado(p: {
       texto: `O ${p.hotelNome ?? "hotel"} reservou o seu cupom${datas}${codigo}.${parte}`,
       link: "/portal/hospedagem",
       umaVez: true,
+      // Hospedagem desabilitada no portal não desfaz a reserva: ela vale no
+      // hotel, e a pessoa precisa saber.
+      mesmoComParteDesabilitada: true,
     })
   } catch (e) {
     console.error("aviso do cupom reservado:", e)
@@ -1012,6 +1015,9 @@ export async function desvincularCupomDaReserva(
             ? `O ${nomeHotel} desfez a reserva do seu cupom${quando}. O cupom voltou a aguardar reserva do hotel.`
             : `A reserva do seu cupom no ${nomeHotel}${quando} foi desfeita. O cupom voltou a aguardar reserva do hotel.`,
           link: "/portal/hospedagem",
+          // A viagem da pessoa muda no hotel mesmo com a Hospedagem
+          // desabilitada no portal: ela precisa saber.
+          mesmoComParteDesabilitada: true,
         })
       }
     } catch (e) {

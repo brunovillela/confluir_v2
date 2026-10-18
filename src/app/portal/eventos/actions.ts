@@ -13,6 +13,7 @@ import {
   inscreverFiliado,
 } from "@/lib/db/eventos-portal"
 import { responderRsvp } from "@/lib/db/eventos-publico"
+import { bloqueioDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -21,6 +22,11 @@ import { tenantAtual } from "@/lib/tenant"
  * A sessão do portal é a identidade — nada aqui aceita CPF vindo do
  * formulário, senão bastaria trocar o campo escondido para se inscrever no
  * lugar de outra pessoa.
+ *
+ * Filiados › Área do associado: com Eventos suspensa (ou o portal em modo de
+ * consulta), inscrever e responder presença recusam aqui. Cancelar continua
+ * — solta a vaga e evita a falta — a não ser que a gestão tenha desligado o
+ * cancelamento pelo portal.
  */
 
 function txt(fd: FormData, campo: string): string {
@@ -32,6 +38,8 @@ export async function inscreverAction(
   fd: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaParte("eventos")
+  if (bloqueio) return { erro: bloqueio }
   if (!filiado.ativo) {
     return { erro: "Sua filiação precisa estar ativa para se inscrever." }
   }
@@ -96,6 +104,8 @@ export async function responderRsvpPortalAction(
   fd: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaParte("eventos")
+  if (bloqueio) return { erro: bloqueio }
   const token = txt(fd, "token")
   const vem = txt(fd, "vem") === "sim"
   if (!token) return { erro: "Inscrição inválida." }
@@ -120,6 +130,12 @@ export async function cancelarAction(
   fd: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  // Sem trava de estado (suspensa ou desabilitada): cancelar solta a vaga.
+  // Só a opção da gestão — eventos de lista fechada, desistência pela secretaria.
+  const { permitir_cancelar } = await opcoesDaParte("eventos")
+  if (!permitir_cancelar) {
+    return { erro: "O cancelamento pelo portal não está disponível. Para cancelar, fale com o sindicato." }
+  }
   const { erro, situacaoAnterior } = await cancelarInscricaoDoFiliado(
     txt(fd, "inscricaoId"),
     filiado.cpf,

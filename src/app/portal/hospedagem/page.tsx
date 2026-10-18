@@ -27,6 +27,7 @@ import { Paginacao } from "@/components/paginacao"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { LembrarListaPortal } from "@/components/portal/voltar-portal"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import {
@@ -39,6 +40,7 @@ import {
 } from "@/lib/db/filiado-portal"
 import { listarHoteis } from "@/lib/db/hospedagem"
 import { regrasDeUtilizacaoHospedagem } from "@/lib/db/hospedagem-condicoes"
+import { bloqueioDaParte, configDaParte, estadoDaParte } from "@/lib/db/portal-partes"
 import {
   ROTULO_SITUACAO_RESERVA,
   configDoHotel,
@@ -130,13 +132,31 @@ function Recolhido({ titulo, children }: { titulo: string; children: React.React
  * tick da Comunicação (lib/db/hospedagem-garantida.ts) — abrir a página não
  * reserva, não cancela nem manda e-mail. Uma oferta vencida que o tick ainda
  * não derrubou já aparece encerrada aqui (a situação é derivada do relógio).
+ *
+ * Área do associado: desabilitada, esta página mostra o "indisponível" e, logo
+ * abaixo, só o que ainda se cancela (SoOQueSeCancela) — sem gravar nada;
+ * suspensa — ou o portal em consulta ou fora do ar —, somem o pedido, a fila e
+ * o "Confirmar" das vagas, e ficam histórico, QR e os cancelamentos (cancelar
+ * evita a falta).
  */
 export default async function PortalHospedagemPage({
   searchParams,
 }: {
   searchParams: Promise<{ salvo?: string; hotel?: string; pagina?: string; porPagina?: string }>
 }) {
-  const { filiado, preview } = await requireVisualizacaoPortal()
+  // Desabilitada: o "indisponível" antes de montar a página (o layout
+  // renderiza junto e não impede esta página de rodar — pendenciasDaPessoa,
+  // abaixo, grava), com o que ainda se cancela.
+  const indisponivel = await paginaIndisponivel("hospedagem")
+  if (indisponivel) return <SoOQueSeCancela indisponivel={indisponivel} />
+  // Na dúvida, a parte vale: leitura que falha não tira nada da tela.
+  const [{ filiado, preview }, parte, suspensao, estadoAtendimento] = await Promise.all([
+    requireVisualizacaoPortal(),
+    configDaParte("hospedagem").catch(() => null),
+    bloqueioDaParte("hospedagem").catch(() => null),
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
+  ])
+  const mostrarPago = parte?.opcoes.mostrar_pago ?? true
   const params = await searchParams
   const { salvo } = params
   const agora = new Date()
@@ -296,9 +316,11 @@ export default async function PortalHospedagemPage({
               <strong>{e.ofertaExpiraEm ? formatarDataHora(e.ofertaExpiraEm) : "—"}</strong>
               ; sem confirmação, passa para a próxima pessoa da lista.
             </p>
+            {/* Suspensa: confirmar não dá; recusar, sim (libera a vaga para outra pessoa). */}
+            {suspensao && <p>Não é possível confirmar agora. {suspensao}</p>}
             <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">
               <div className="flex flex-wrap items-center gap-2">
-                <ConfirmarOfertaBotao token={e.token} />
+                {!suspensao && <ConfirmarOfertaBotao token={e.token} />}
                 <CancelarEsperaBotao
                   id={e.id}
                   rotulo="Não vou poder ir"
@@ -317,6 +339,8 @@ export default async function PortalHospedagemPage({
         hoje={hoje}
         agora={agora.toISOString()}
         preview={preview}
+        suspensao={suspensao}
+        atendimento={estadoAtendimento !== "desabilitada"}
         bloqueio={bloqueio}
         travaAvaliacao={travaAvaliacao}
         cota={direito.cota}
@@ -353,7 +377,7 @@ export default async function PortalHospedagemPage({
                   </TableHeader>
                   <TableBody>
                     {proximas.map((r) => (
-                      <LinhaDaReserva key={r.id} r={r} preview={preview} />
+                      <LinhaDaReserva key={r.id} r={r} preview={preview} podeConfirmar={!suspensao} />
                     ))}
                   </TableBody>
                 </Table>
@@ -427,7 +451,7 @@ export default async function PortalHospedagemPage({
                 </div>
                 <AcaoVisualizacao preview={preview} nota="">
                   <div className="flex flex-wrap items-center gap-1">
-                    {emDestaque.has(e.id) && <ConfirmarOfertaBotao token={e.token} />}
+                    {emDestaque.has(e.id) && !suspensao && <ConfirmarOfertaBotao token={e.token} />}
                     <CancelarEsperaBotao id={e.id} />
                   </div>
                 </AcaoVisualizacao>
@@ -461,7 +485,9 @@ export default async function PortalHospedagemPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {estadiasComValor.length > 0 && (
+          {/* "Mostrar quanto o sindicato pagou" (Área do associado): desligado,
+              somem o resumo, a coluna e a explicação dela. */}
+          {mostrarPago && estadiasComValor.length > 0 && (
             <div className="bg-muted/40 mb-4 flex items-start gap-3 rounded-lg border p-3 text-sm">
               <HandCoins aria-hidden className="text-primary mt-0.5 size-5 shrink-0" />
               <p>
@@ -495,7 +521,7 @@ export default async function PortalHospedagemPage({
                       <TableHead>Estadia</TableHead>
                       <TableHead>Quarto coletivo</TableHead>
                       <TableHead>Sua parte</TableHead>
-                      <TableHead>Pago pelo sindicato</TableHead>
+                      {mostrarPago && <TableHead>Pago pelo sindicato</TableHead>}
                       <TableHead>Situação</TableHead>
                       <TableHead className="w-24" />
                     </TableRow>
@@ -557,16 +583,18 @@ export default async function PortalHospedagemPage({
                           >
                             {formatarMoeda(c.tarifa_hospede)}
                           </TableCell>
-                          <TableCell
-                            data-rotulo="Pago pelo sindicato"
-                            className={
-                              pago == null
-                                ? "text-muted-foreground tabular-nums max-sm:hidden!"
-                                : "tabular-nums"
-                            }
-                          >
-                            {pago == null ? "—" : formatarMoeda(pago)}
-                          </TableCell>
+                          {mostrarPago && (
+                            <TableCell
+                              data-rotulo="Pago pelo sindicato"
+                              className={
+                                pago == null
+                                  ? "text-muted-foreground tabular-nums max-sm:hidden!"
+                                  : "tabular-nums"
+                              }
+                            >
+                              {pago == null ? "—" : formatarMoeda(pago)}
+                            </TableCell>
+                          )}
                           <TableCell data-rotulo="Situação">
                             <SituacaoCupomBadge
                               cancelado={c.cancelado}
@@ -598,10 +626,16 @@ export default async function PortalHospedagemPage({
               <p className="text-muted-foreground mt-3 text-xs">
                 O valor cobrado é o da ocupação que o hotel confirmar — quantas pessoas ficaram
                 no quarto —, conforme as tarifas do convênio. Os valores já incluem os impostos e
-                a sua parte é paga no hotel, na entrada. <strong className="font-medium">Pago pelo
-                sindicato</strong> é a sua fatia do que o sindicato paga ao hotel pelo quarto (o
-                valor do quarto dividido pelas pessoas nele); aparece quando a reserva tem esse
-                valor registrado e não aparece se o hotel registrou que você não compareceu.
+                a sua parte é paga no hotel, na entrada.
+                {mostrarPago && (
+                  <>
+                    {" "}
+                    <strong className="font-medium">Pago pelo sindicato</strong> é a sua fatia do
+                    que o sindicato paga ao hotel pelo quarto (o valor do quarto dividido pelas
+                    pessoas nele); aparece quando a reserva tem esse valor registrado e não
+                    aparece se o hotel registrou que você não compareceu.
+                  </>
+                )}
               </p>
             </>
           )}
@@ -624,8 +658,137 @@ export default async function PortalHospedagemPage({
   )
 }
 
-/** Linha de "Minhas reservas" (próximas): QR, confirmação da vaga e cancelamento. */
-function LinhaDaReserva({ r, preview }: { r: ReservaGarantida; preview: boolean }) {
+/**
+ * Hospedagem desabilitada no portal: o "indisponível" e, embaixo, só o que
+ * ainda se cancela — as reservas por vir (com o QR), os cupons aguardando
+ * reserva e os pedidos ativos da lista de espera. As reservas confirmadas
+ * continuam valendo no hotel, e cancelar evita a falta (nunca é bloqueado).
+ * Só lê: nada de pedido, fila, confirmação nem avaliações pendentes (que
+ * gravam). No "Ver como filiado", os botões ficam inertes.
+ */
+async function SoOQueSeCancela({ indisponivel }: { indisponivel: React.ReactElement }) {
+  const { filiado, preview } = await requireVisualizacaoPortal()
+  const hoje = hojeEmSP(new Date())
+  const [registros, hoteis, cupons] = await Promise.all([
+    registrosDoCpf(filiado.cpf),
+    listarHoteis(),
+    cuponsDoFiliado(filiado.cpf),
+  ])
+  const [reservas, esperas] = await Promise.all([
+    reservasGarantidasDaPessoa(registros, hoteis),
+    esperasDaPessoa(registros, hoteis),
+  ])
+  const proximas = reservas
+    .filter((r) => PROXIMAS.includes(r.situacao))
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
+  const vivos = cupons.filter((c) => c.situacao === "aguardando")
+  const reservaPorId = new Map(reservas.map((r) => [r.id, r]))
+  const oferecida = (e: EsperaDaPessoa) =>
+    e.situacao === "oferecida" &&
+    !!e.cupomId &&
+    reservaPorId.get(e.cupomId)?.situacao === "aguardando_confirmacao"
+  const ativas = esperas.filter((e) => (e.situacao === "aguardando" && e.checkIn >= hoje) || oferecida(e))
+
+  return (
+    <>
+      {indisponivel}
+      {(proximas.length > 0 || vivos.length > 0 || ativas.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle role="heading" aria-level={2}>
+              O que você ainda pode cancelar
+            </CardTitle>
+            <CardDescription className="text-xs">
+              As reservas já confirmadas continuam valendo no hotel. Se não puder ir, cancele dentro
+              do prazo, para não ficar registrado o não comparecimento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {proximas.length > 0 && (
+              <div className="overflow-x-auto">
+                <Table className="tabela-cards">
+                  <TableCaption className="sr-only">Minhas reservas</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hotel</TableHead>
+                      <TableHead>Estadia</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {proximas.map((r) => (
+                      <LinhaDaReserva key={r.id} r={r} preview={preview} podeConfirmar={false} />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {vivos.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">Cupom · {c.hotelNome ?? "Hotel parceiro"}</p>
+                  <p className="text-muted-foreground text-xs">
+                    Check-in previsto: {formatarData(c.check_in)} · aguardando reserva do hotel.
+                  </p>
+                </div>
+                <AcaoVisualizacao preview={preview} nota="">
+                  <CancelarMeuCupomBotao id={c.id} />
+                </AcaoVisualizacao>
+              </div>
+            ))}
+            {ativas.map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    Lista de espera · {e.hotelNome ?? "Hotel parceiro"} · {formatarData(e.checkIn)} a{" "}
+                    {formatarData(e.checkOut)}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {oferecida(e)
+                      ? "Abriu vaga, mas a confirmação pelo portal não está disponível agora."
+                      : textoDaEspera(e, false, hoje)}
+                  </p>
+                </div>
+                <AcaoVisualizacao preview={preview} nota="">
+                  {oferecida(e) ? (
+                    <CancelarEsperaBotao
+                      id={e.id}
+                      rotulo="Não vou poder ir"
+                      confirmacao="Recusar esta vaga? Ela passa para a próxima pessoa da lista."
+                    />
+                  ) : (
+                    <CancelarEsperaBotao id={e.id} />
+                  )}
+                </AcaoVisualizacao>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </>
+  )
+}
+
+/**
+ * Linha de "Minhas reservas" (próximas): QR, confirmação da vaga e
+ * cancelamento. Com a Hospedagem suspensa, sem "Confirmar"; cancelar fica.
+ */
+function LinhaDaReserva({
+  r,
+  preview,
+  podeConfirmar,
+}: {
+  r: ReservaGarantida
+  preview: boolean
+  podeConfirmar: boolean
+}) {
   return (
     <TableRow>
       <TableCell data-rotulo="Hotel" className="max-w-48 truncate font-medium">
@@ -656,7 +819,7 @@ function LinhaDaReserva({ r, preview }: { r: ReservaGarantida; preview: boolean 
               </Link>
             </Button>
           )}
-          {r.situacao === "aguardando_confirmacao" && r.esperaToken && (
+          {podeConfirmar && r.situacao === "aguardando_confirmacao" && r.esperaToken && (
             <AcaoVisualizacao preview={preview} nota="">
               <ConfirmarOfertaBotao token={r.esperaToken} />
             </AcaoVisualizacao>

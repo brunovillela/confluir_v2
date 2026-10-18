@@ -28,6 +28,36 @@ export const CAMPOS_TEXTO = [
 export type CampoCadastro = (typeof CAMPOS_TEXTO)[number]
 
 /**
+ * Os grupos que a entidade libera ou trava (Filiados › Área do associado ›
+ * Meu cadastro › "O que o associado pode alterar"; as chaves são os itens da
+ * opção `campos_editaveis`). O que fica travado aparece só para consulta, e a
+ * action não grava — mantém o valor do cadastro.
+ */
+export const GRUPOS_CADASTRO = {
+  email_pessoal: ["email_pessoal"],
+  email_corporativo: ["email_corporativo"],
+  telefones: ["telefone_1", "telefone_2"],
+  endereco: [
+    "endereco_cep",
+    "endereco_logradouro",
+    "endereco_numero",
+    "endereco_complemento",
+    "endereco_bairro",
+    "endereco_cidade",
+    "endereco_estado",
+  ],
+} as const satisfies Record<string, readonly CampoCadastro[]>
+
+/** Os campos liberados pelos grupos escolhidos (grupo desconhecido é ignorado). */
+export function camposEditaveis(grupos: readonly string[]): Set<CampoCadastro> {
+  const campos = new Set<CampoCadastro>()
+  for (const [grupo, lista] of Object.entries(GRUPOS_CADASTRO)) {
+    if (grupos.includes(grupo)) for (const c of lista) campos.add(c)
+  }
+  return campos
+}
+
+/**
  * Tamanho máximo de cada campo (o banco aceita mais; isto é só bom senso).
  * Folgado o bastante para o que veio do cadastro antigo (em 11/10/2026 o
  * maior complemento tinha 131 caracteres e o maior telefone, 30) — ninguém

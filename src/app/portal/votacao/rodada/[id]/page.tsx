@@ -3,6 +3,7 @@ import { CalendarClock, Info, Vote } from "lucide-react"
 
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,8 +15,10 @@ import {
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { quandoCurto, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { configDaParte } from "@/lib/db/portal-partes"
 import { datasDaRodada, type DatasDaRodada } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { mensagemDaSituacao } from "@/lib/portal-partes-constantes"
 
 import { SalaVirtualAviso } from "../../sala-virtual"
 
@@ -63,8 +66,14 @@ export default async function DatasRodadaPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { filiado } = await requireVisualizacaoPortal()
+  const { filiado, preview } = await requireVisualizacaoPortal()
   const { id } = await params
+  // A guarda do layout não impede a página de rodar: desabilitada, nada se
+  // consulta (ver ../../page.tsx). Suspensa, as datas seguem: é só leitura.
+  const parte = await configDaParte("votacao").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return <ParteIndisponivel parte="votacao" mensagem={mensagemDaSituacao("votacao", parte)} preview={preview} />
+  }
   const dados = filiado.ativo ? await datasDaRodada(filiado.cpf, id) : null
 
   return (

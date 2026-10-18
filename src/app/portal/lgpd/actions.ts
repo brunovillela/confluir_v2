@@ -2,14 +2,16 @@
 
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { redirect, RedirectType } from "next/navigation"
 
+import { ROTA_PRIMEIRO_ACESSO, voltarAoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { cpfConfiavel } from "@/lib/cpf"
 import { definirComunicados } from "@/lib/db/comunicacao-descadastro"
 import { atualizarRegistrosDoCpf } from "@/lib/db/filiado-portal"
 import { registrarAceiteTermo, termoEmVigor } from "@/lib/db/lgpd"
+import { bloqueioDaParte } from "@/lib/db/portal-partes"
 import { tenantAtual } from "@/lib/tenant"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -19,12 +21,29 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
  * não vem do cliente —, mas ela tem de ser a mesma que a página mostrou
  * (`termo_id`): se o termo mudou com a página aberta, a pessoa lê a versão
  * nova antes de aceitar (A71).
+ *
+ * Recusa na visualização pela gestão (a sessão é a de quem visualiza: o
+ * aceite iria para a conta DELE) e com o portal em modo de consulta ou fora
+ * do ar — a parte em si não se suspende (bloqueioDaParte("lgpd") só confere
+ * o portal inteiro). Os comunicados (abaixo) e a exportação dos dados nunca
+ * são bloqueados: são direitos do titular.
+ *
+ * Primeiro acesso: o mesmo formulário serve à página dele, com o campo
+ * `voltar` (validado em voltarAoPrimeiroAcesso) — aceito o termo, volta para
+ * lá, que segue para o próximo passo ou para o destino. Em qualquer caso a
+ * casca é revalidada, para o portão do primeiro acesso sumir na hora.
  */
 export async function registrarAceiteLgpd(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
+  if ((await getVisualizacaoPortal())?.preview) {
+    return { erro: "Na visualização pela gestão, só o próprio associado registra o aceite." }
+  }
+  const bloqueio = await bloqueioDaParte("lgpd")
+  if (bloqueio) return { erro: bloqueio }
   const { filiado } = await requireSessaoPortal()
+  const voltar = voltarAoPrimeiroAcesso(formData.get("voltar"))
 
   if (formData.get("li_e_aceito") !== "on") {
     return { erro: "Marque a caixa confirmando a leitura do termo." }
@@ -38,6 +57,7 @@ export async function registrarAceiteLgpd(
   }
   if (String(formData.get("termo_id") ?? "") !== termoId) {
     revalidatePath("/portal/lgpd")
+    if (voltar) revalidatePath(ROTA_PRIMEIRO_ACESSO)
     return {
       erro: "O termo foi atualizado enquanto a página estava aberta. Leia a versão em vigor, que já está na tela, e confirme de novo.",
     }
@@ -66,6 +86,9 @@ export async function registrarAceiteLgpd(
   })
 
   revalidatePath("/portal/lgpd")
+  // O portão do primeiro acesso mora na casca (layout), que não re-renderiza sozinha.
+  revalidatePath("/portal", "layout")
+  if (voltar) redirect(voltar, RedirectType.replace)
   redirect("/portal/lgpd?salvo=1")
 }
 

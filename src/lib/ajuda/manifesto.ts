@@ -231,6 +231,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
           "Carência por direito, regra de inadimplência e termos legais",
       },
       {
+        slug: "area-do-associado",
+        titulo: "Área do associado",
+        resumo: "Habilitar, suspender e configurar cada parte do portal do associado",
+      },
+      {
         slug: "cadastros-pendentes",
         titulo: "Cadastros pendentes",
         resumo: "Filiados ativos com dado, termo ou histórico de vínculos incompleto",

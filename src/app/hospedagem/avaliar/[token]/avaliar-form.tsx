@@ -19,11 +19,22 @@ import { cn } from "@/lib/utils"
 import { enviarAvaliacaoAction } from "./actions"
 
 /**
+ * A Hospedagem no portal (Filiados › Área do associado), lida pela página:
+ * - `liberada`: o de sempre;
+ * - `pausada`: Hospedagem suspensa ou portal em modo de consulta — a volta
+ *   fica, mas os pedidos não estão liberados agora;
+ * - `fora`: Hospedagem ou portal desabilitados — a volta cairia em
+ *   "indisponível" e some.
+ */
+export type HospedagemNoPortal = "liberada" | "pausada" | "fora"
+
+/**
  * Caminho de volta ao portal (achado A148): a avaliação abre fora dele, sem o
  * menu, e o pedido que estava travado agora pode ser feito. Quem veio pelo
  * e-mail sem sessão cai no login do portal — o destino certo de todo jeito.
  */
-export function VoltarAHospedagem() {
+export function VoltarAHospedagem({ hospedagem }: { hospedagem: HospedagemNoPortal }) {
+  if (hospedagem === "fora") return null
   return (
     <Button asChild variant="outline">
       <Link href="/portal/hospedagem">
@@ -38,7 +49,15 @@ export function VoltarAHospedagem() {
  * Como no Uber: primeiro as estrelas; com elas aparecem as etiquetas (elogios
  * com 5, "o que pode melhorar" com 1–4) e o comentário — obrigatório com 1–2.
  */
-export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial: number | null }) {
+export function AvaliarForm({
+  token,
+  notaInicial,
+  hospedagem,
+}: {
+  token: string
+  notaInicial: number | null
+  hospedagem: HospedagemNoPortal
+}) {
   const [estado, acao, pendente] = useActionState(enviarAvaliacaoAction, {})
   const [nota, setNota] = useState<number | null>(notaInicial)
   const [sobre, setSobre] = useState<number | null>(null)
@@ -50,10 +69,10 @@ export function AvaliarForm({ token, notaInicial }: { token: string; notaInicial
         <CheckCircle2 className="text-success-fg size-10" />
         <p className="text-base font-medium">Obrigado pela avaliação!</p>
         <p className="text-muted-foreground text-sm">
-          Ela ajuda o sindicato a cuidar dos convênios de hospedagem. Os novos pedidos no portal já
-          estão liberados.
+          Ela ajuda o sindicato a cuidar dos convênios de hospedagem.
+          {hospedagem === "liberada" && " Os novos pedidos no portal já estão liberados."}
         </p>
-        <VoltarAHospedagem />
+        <VoltarAHospedagem hospedagem={hospedagem} />
       </div>
     )
   }

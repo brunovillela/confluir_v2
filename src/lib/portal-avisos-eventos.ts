@@ -1,3 +1,5 @@
+import type { ChaveParte } from "@/lib/portal-partes-constantes"
+
 /**
  * Tipos de aviso que o portal do associado entrega (onda 4, F4). Cada um
  * pode ser desligado pelo próprio filiado — a mesma chave vale para o e-mail
@@ -63,4 +65,30 @@ export function normalizarPreferenciasPortal(bruto: unknown): PreferenciasPortal
     prefs[e.chave] = "padrao" in e && e.padrao === false ? obj[e.chave] === true : obj[e.chave] !== false
   }
   return prefs
+}
+
+/**
+ * De que partes do portal (Filiados › Área do associado) cada tipo de aviso
+ * fala. "noticias" junta Notícias e Convênios; "filiacao" (boas-vindas,
+ * desfiliação e oposição) não é de parte que se desliga. No aviso em si quem
+ * decide é o link; o tipo só vale quando o link não diz a parte, e só nos
+ * tipos de uma parte só (`parteDoAviso`, lib/db/portal-avisos.ts).
+ */
+export const PARTES_DO_EVENTO: Record<EventoPortal, readonly ChaveParte[]> = {
+  contribuicao: ["contribuicao"],
+  atendimento: ["atendimento"],
+  hospedagem: ["hospedagem"],
+  votacao: ["votacao"],
+  eventos: ["eventos"],
+  filiacao: [],
+  noticias: ["noticias", "convenios"],
+}
+
+/**
+ * O tipo sai das Preferências e dos filtros da lista de avisos: todas as
+ * partes dele estão desabilitadas (Notícias e convênios, só com as duas).
+ */
+export function eventoDesabilitado(evento: EventoPortal, desabilitadas: readonly string[]): boolean {
+  const partes = PARTES_DO_EVENTO[evento]
+  return partes.length > 0 && partes.every((p) => desabilitadas.includes(p))
 }

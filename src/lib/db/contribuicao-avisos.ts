@@ -6,6 +6,7 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { CONDICAO_ATIVO } from "@/lib/db/filiacao-ativos"
 import { avisarFiliado } from "@/lib/db/portal-avisos"
+import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { type ContextoEmail } from "@/lib/email"
 import { formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -20,8 +21,9 @@ import { tenantAtual } from "@/lib/tenant"
  *   num segundo passo, aviso no sino e por e-mail. Nada dispara sozinho na
  *   importação: as remessas não são fechadas no sistema, e uma relação
  *   importada pela metade avisaria gente em dia.
- * - **Pix vencendo** (A102): lembrete 3 dias antes do vencimento da cobrança
- *   aberta, para rodar num tick diário fora de requisição.
+ * - **Pix vencendo** (A102): lembrete alguns dias antes do vencimento da
+ *   cobrança aberta (3 por padrão; Filiados › Área do associado › Contribuição
+ *   muda ou desliga), para rodar num tick diário fora de requisição.
  *
  * Tudo recebe o ambiente (client, tenant, contexto do e-mail) como
  * `cobrancas.ts` e `avisarFiliado`: dentro da requisição, o padrão é o
@@ -466,6 +468,16 @@ export type ResultadoAvisoFaltas = {
  */
 export async function avisarFaltasDaRemessa(remessaId: string, amb: Ambiente = {}): Promise<ResultadoAvisoFaltas | { erro: string }> {
   const { client, tenantId, contexto } = await ambiente(amb)
+  // O aviso leva a "Minha contribuição": com a parte desabilitada no portal,
+  // avisarFiliado descartaria um a um e a tela contaria tudo como falha.
+  const parte = await estadoDaParte("contribuicao", amb.client || amb.tenantId ? { client, tenantId } : undefined).catch(
+    () => "habilitada"
+  )
+  if (parte === "desabilitada") {
+    return {
+      erro: "A Contribuição está desabilitada em Filiados › Área do associado: o aviso levaria a uma página que o associado não vê. Habilite a parte para avisar.",
+    }
+  }
   const conferencia = await conferirFaltasDaRemessa(remessaId, { client, tenantId })
   if ("erro" in conferencia) return conferencia
   if (conferencia.naoSeAplica) return { erro: conferencia.naoSeAplica }
@@ -510,7 +522,11 @@ export async function avisarFaltasDaRemessa(remessaId: string, amb: Ambiente = {
 
 // ── A102: lembrete do Pix perto do vencimento ────────────────────────────────
 
-/** Dias antes do vencimento em que sai o lembrete. */
+/**
+ * Dias antes do vencimento em que sai o lembrete, quando a entidade não
+ * escolheu outro (Área do associado › Contribuição › "Lembrete do Pix antes
+ * do vencimento"; 0 desliga).
+ */
 const DIAS_ANTES_DO_VENCIMENTO = 3
 
 function somarDias(iso: string, dias: number): string {
@@ -541,8 +557,10 @@ export type ResultadoLembretesPix = {
  * nomeia competência, valor e vencimento, e `umaVez` não o repete — rodar
  * duas vezes no dia (ou todo dia da janela) avisa uma vez por cobrança.
  *
- * A janela vai de hoje até 3 dias à frente: se o tick falhar num dia, o do
- * dia seguinte ainda lembra. Ficam de fora a cobrança gerada há menos de dois
+ * A janela vai de hoje até N dias à frente (`lembrete_pix_dias` da
+ * Contribuição na Área do associado, lido com o client e o tenant recebidos;
+ * 3 por padrão, 0 não lembra): se o tick falhar num dia, o do dia seguinte
+ * ainda lembra. Ficam de fora a cobrança gerada há menos de dois
  * dias (o aviso "disponível para pagamento" acabou de sair com a mesma data)
  * e a de quem já não está na régua da geração (Ativo, forma pix, não
  * excluído nem mesclado): para esses, quem resolve é a equipe.
@@ -550,6 +568,10 @@ export type ResultadoLembretesPix = {
 export async function lembretesPixVencendo(amb: { client: SupabaseClient; tenantId: string; contexto: ContextoEmail }): Promise<ResultadoLembretesPix> {
   const { client, tenantId, contexto } = amb
   const vazio: ResultadoLembretesPix = { vencendo: 0, avisados: 0, porEmail: 0, jaAvisados: 0, pulados: 0, falhas: 0 }
+  const diasAntes = await opcoesDaParte("contribuicao", { client, tenantId })
+    .then((o) => o.lembrete_pix_dias)
+    .catch(() => DIAS_ANTES_DO_VENCIMENTO)
+  if (diasAntes <= 0) return vazio
   const hoje = hojeSP()
   type Linha = {
     id: string
@@ -581,7 +603,7 @@ export async function lembretesPixVencendo(amb: { client: SupabaseClient; tenant
         .eq("emp_proprietaria_id", tenantId)
         .eq("situacao", "aberta")
         .gte("vencimento", hoje)
-        .lte("vencimento", somarDias(hoje, DIAS_ANTES_DO_VENCIMENTO))
+        .lte("vencimento", somarDias(hoje, diasAntes))
         .order("id")
         .range(de, ate)
     )
@@ -622,7 +644,7 @@ export async function lembretesPixVencendo(amb: { client: SupabaseClient; tenant
   // (o `umaVez` só enxerga o que já foi gravado) — o Set junta as duas.
   // Aqui a leitura é só atalho: o texto é único por cobrança, e o `umaVez`
   // barra a repetição mesmo sem ela.
-  const ja = await avisosJaDados(client, tenantId, "Sua contribuição de ", `${somarDias(hoje, -(DIAS_ANTES_DO_VENCIMENTO + 2))}T00:00:00Z`).catch(
+  const ja = await avisosJaDados(client, tenantId, "Sua contribuição de ", `${somarDias(hoje, -(diasAntes + 2))}T00:00:00Z`).catch(
     () => new Set<string>()
   )
   const vistos = new Set<string>()

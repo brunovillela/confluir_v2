@@ -20,9 +20,12 @@ export function assuntoAtendimento(chave: string | null | undefined) {
   return ASSUNTOS_ATENDIMENTO.find((a) => a.chave === chave) ?? null
 }
 
-/** "jurídico, saúde, …, reclamação ou outro assunto" — para os textos que citam a lista. */
-export function assuntosPorExtenso(): string {
-  const nomes = ASSUNTOS_ATENDIMENTO.map((a) => a.rotulo.toLowerCase())
+/**
+ * "jurídico, saúde, …, reclamação ou outro assunto" — para os textos que citam
+ * a lista. `chaves`: só os assuntos que a entidade oferece (Área do associado).
+ */
+export function assuntosPorExtenso(chaves?: readonly string[]): string {
+  const nomes = ASSUNTOS_ATENDIMENTO.filter((a) => !chaves || chaves.includes(a.chave)).map((a) => a.rotulo.toLowerCase())
   return nomes.length > 1 ? `${nomes.slice(0, -1).join(", ")} ou ${nomes.at(-1)}` : (nomes[0] ?? "")
 }
 
@@ -44,15 +47,33 @@ export const ROTULO_SITUACAO_ATENDIMENTO: Record<SituacaoAtendimento, string> = 
 /**
  * Por quantos dias depois de concluída o próprio associado pode reabrir a
  * solicitação (A97). Depois disso, o assunto que voltou vira um pedido novo.
+ * É o padrão: cada entidade escolhe o seu em Filiados › Área do associado
+ * (atendimento.prazo_reabrir_dias; 0 = não se reabre pelo portal).
  */
 export const PRAZO_REABRIR_DIAS = 15
 
-/** O que a situação significa para o filiado. */
-export const EXPLICACAO_SITUACAO_ATENDIMENTO: Record<SituacaoAtendimento, string> = {
-  aberta: "Recebida pela entidade; ainda sem resposta.",
-  em_andamento: "A entidade está cuidando da sua solicitação.",
-  respondida: "Há uma resposta da entidade para você ler. Se precisar, responda.",
-  concluida: `Encerrada. Se o assunto voltar, reabra por aqui em até ${PRAZO_REABRIR_DIAS} dias.`,
+/** "1 dia", "15 dias". */
+export function rotuloDias(n: number): string {
+  return `${n} ${n === 1 ? "dia" : "dias"}`
+}
+
+/** O que a situação significa para o filiado (`prazoReabrirDias`: o da entidade). */
+export function explicacaoSituacaoAtendimento(
+  situacao: SituacaoAtendimento,
+  prazoReabrirDias: number = PRAZO_REABRIR_DIAS
+): string {
+  switch (situacao) {
+    case "aberta":
+      return "Recebida pela entidade; ainda sem resposta."
+    case "em_andamento":
+      return "A entidade está cuidando da sua solicitação."
+    case "respondida":
+      return "Há uma resposta da entidade para você ler. Se precisar, responda."
+    case "concluida":
+      return prazoReabrirDias > 0
+        ? `Encerrada. Se o assunto voltar, reabra por aqui em até ${rotuloDias(prazoReabrirDias)}.`
+        : "Encerrada. Se o assunto voltar, abra uma nova solicitação."
+  }
 }
 
 export const ATENDIMENTO_ABERTO: SituacaoAtendimento[] = ["aberta", "em_andamento", "respondida"]
@@ -119,10 +140,17 @@ export function prazoLegivel(a: PrazoDe, hoje: string): string | null {
   return `resposta até ${diaDaData(a.prazo)} (${quando})`
 }
 
-/** Último dia (DD/MM/AAAA) em que o associado ainda pode reabrir; null = não pode mais. */
-export function reabrirAte(a: { situacao: SituacaoAtendimento; concluidaEm: string | null }, agora = Date.now()): string | null {
-  if (a.situacao !== "concluida" || !a.concluidaEm) return null
-  const limite = Date.parse(a.concluidaEm) + PRAZO_REABRIR_DIAS * 86_400_000
+/**
+ * Último dia (DD/MM/AAAA) em que o associado ainda pode reabrir; null = não
+ * pode mais. `prazoDias`: o da entidade (0 = não se reabre pelo portal).
+ */
+export function reabrirAte(
+  a: { situacao: SituacaoAtendimento; concluidaEm: string | null },
+  prazoDias: number = PRAZO_REABRIR_DIAS,
+  agora = Date.now()
+): string | null {
+  if (a.situacao !== "concluida" || !a.concluidaEm || prazoDias <= 0) return null
+  const limite = Date.parse(a.concluidaEm) + prazoDias * 86_400_000
   if (!Number.isFinite(limite) || limite < agora) return null
   return diaSP(new Date(limite).toISOString())
 }

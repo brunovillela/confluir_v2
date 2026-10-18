@@ -184,7 +184,9 @@ export async function cancelarCupom(
     revalidatePath("/painel/hospedagem")
     revalidatePath("/painel/hospedagem/mapa")
     revalidatePath("/hotel/hospedes")
-    return { ok: "Reserva cancelada. A vaga foi oferecida à lista de espera." }
+    // Sem promessa de oferta: com a Hospedagem fora do modo normal na Área do
+    // associado, a fila não oferta (processarFilaDeEspera).
+    return { ok: "Reserva cancelada." }
   }
 
   const { error, count } = await admin

@@ -1,4 +1,5 @@
-import { artigoAjudaPortal } from "@/lib/ajuda/manifesto-portal"
+import { AREAS_AJUDA_PORTAL, artigoAjudaPortal, type AreaAjuda } from "@/lib/ajuda/manifesto-portal"
+import { parteDoLink, type ChaveParte } from "@/lib/portal-partes-constantes"
 
 /**
  * AJUDA LIGADA À SEÇÃO DO PORTAL (A136): de que artigo da ajuda do associado
@@ -18,6 +19,9 @@ export const INDICE_AJUDA_PORTAL = "/portal/ajuda"
 /** Seção do portal → "<área>" ou "<área>/<artigo>" de manifesto-portal.ts. */
 const ARTIGO_DA_SECAO: Record<string, string> = {
   "/portal/inicio": "visao-geral",
+  // O artigo de boas-vindas tem a seção "Primeiro acesso" (#primeiro-acesso).
+  // Depois do Início: a parte do artigo (parteDoArtigoPortal) segue a dele.
+  "/portal/primeiro-acesso": "visao-geral",
   "/portal/cadastro": "cadastro",
   "/portal/carteirinha": "carteirinha",
   // A54: a contribuição ganhou área própria (antes caía na carteirinha).
@@ -43,11 +47,79 @@ export type EntradaAjudaPortal = {
 }
 
 /**
+ * A parte do portal de que um artigo fala (Filiados › Área do associado): a
+ * da seção que aponta para ele no mapa acima — a Desfiliação, artigo da área
+ * Contribuição, é de "Minha filiação" —; sem entrada no mapa, a da rota de
+ * mesmo nome. null = de nenhuma parte: nunca sai da ajuda.
+ */
+export function parteDoArtigoPortal(areaSlug: string, artigoSlug = "index"): ChaveParte | null {
+  const destino = artigoSlug === "index" ? areaSlug : `${areaSlug}/${artigoSlug}`
+  const secao = Object.entries(ARTIGO_DA_SECAO).find(([, d]) => d === destino)?.[0]
+  return parteDoLink(secao ?? `/portal/${areaSlug}`)
+}
+
+/** O artigo fala de uma parte desabilitada: sai do índice, da busca, da navegação e do "?". */
+export function artigoForaDaAjuda(
+  areaSlug: string,
+  artigoSlug: string,
+  desabilitadas: readonly ChaveParte[]
+): boolean {
+  const parte = parteDoArtigoPortal(areaSlug, artigoSlug)
+  return parte !== null && desabilitadas.includes(parte)
+}
+
+/**
+ * As áreas da ajuda sem os artigos das partes desabilitadas; área que fica sem
+ * artigo sai. Pode sobrar área sem o artigo de abertura (Contribuição
+ * desabilitada: fica a Desfiliação) — quem lista leva ao primeiro que restou.
+ */
+export function areasAjudaPortal(desabilitadas: readonly ChaveParte[] = []): AreaAjuda[] {
+  if (desabilitadas.length === 0) return AREAS_AJUDA_PORTAL
+  return AREAS_AJUDA_PORTAL.map((a) => ({
+    ...a,
+    artigos: a.artigos.filter((art) => !artigoForaDaAjuda(a.slug, art.slug, desabilitadas)),
+  })).filter((a) => a.artigos.length > 0)
+}
+
+/**
+ * Para onde vai quem não achou a resposta (A115): o Atendimento; com ele
+ * desabilitado, os canais de "O sindicato". Os dois nunca ficam desabilitados
+ * juntos (salvarParte recusa) — se ficassem, valeria o Atendimento.
+ */
+export function saidaDaAjudaPortal(desabilitadas: readonly ChaveParte[] = []): {
+  canal: "atendimento" | "sindicato"
+  href: string
+  /** Na lista da busca, quando nada casa. */
+  rotuloBusca: string
+  /** No fim do índice. */
+  texto: string
+  botao: string
+} {
+  if (desabilitadas.includes("atendimento") && !desabilitadas.includes("sindicato")) {
+    return {
+      canal: "sindicato",
+      href: "/portal/sindicato",
+      rotuloBusca: "Fale com o sindicato pelos canais oficiais",
+      texto: "Fale com o sindicato pelos canais oficiais: e-mail, telefones e endereço das sedes.",
+      botao: "Ver os canais",
+    }
+  }
+  return {
+    canal: "atendimento",
+    href: "/portal/atendimento?nova=1",
+    rotuloBusca: "Pergunte ao sindicato pelo Atendimento",
+    texto: "Pergunte ao sindicato: a resposta chega no Atendimento, com aviso no portal.",
+    botao: "Abrir uma solicitação",
+  }
+}
+
+/**
  * Pares (seção, artigo), do prefixo mais longo ao mais curto. Só entra o que
  * existe e está disponível no manifesto: slug renomeado lá vira índice aqui,
- * nunca link quebrado.
+ * nunca link quebrado. Artigo de parte desabilitada (Filiados › Área do
+ * associado) também fica de fora: o "?" daquela seção leva ao índice.
  */
-export function mapaAjudaPortal(): EntradaAjudaPortal[] {
+export function mapaAjudaPortal(desabilitadas: readonly ChaveParte[] = []): EntradaAjudaPortal[] {
   const pares: EntradaAjudaPortal[] = []
   for (const [prefixo, destino] of Object.entries(ARTIGO_DA_SECAO)) {
     const [areaSlug, artigoSlug = "index"] = destino.split("/")
@@ -58,6 +130,7 @@ export function mapaAjudaPortal(): EntradaAjudaPortal[] {
       console.warn(`[ajuda do portal] ${prefixo} aponta para "${destino}", que não está no manifesto-portal.ts.`)
     }
     if (!achado?.area.disponivel) continue
+    if (artigoForaDaAjuda(areaSlug, artigoSlug, desabilitadas)) continue
     const { area, artigo } = achado
     const abertura = artigo.slug === "index"
     pares.push({

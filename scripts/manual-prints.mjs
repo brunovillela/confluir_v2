@@ -207,6 +207,14 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/pessoal/ferias", "pessoal/ferias-area.png", { esperar: "Distribuição por mês", altura: 1100 }],
       ["/painel/pessoal/ferias/funcionario/33333333-3333-4333-8333-000000000001", "pessoal/ferias-funcionario.png", { esperar: "Dias autorizados", altura: 1000 }],
     ]
+  : process.env.RODADA === "associado"
+  ? [
+      // Rodada de 18/10 (30): Filiados › Área do associado. Fica representativo
+      // com uma parte suspensa e outra desabilitada no tenant demo (desfazer
+      // depois). Capturado, trocar no artigo filiados/area-do-associado.mdx o
+      // <Print alt=… /> sem src por <Print src="filiados/area-do-associado.png" …/>.
+      ["/painel/filiados/area-do-associado", "filiados/area-do-associado.png", { esperar: "Situação das partes", fullPage: true }],
+    ]
   : [
   // Rodada de 17/10 (22): padrão de 3 níveis do Pessoal (área → funcionário → registro) e a ficha com o painel Áreas.
   ["/painel/pessoal/ponto", "pessoal/padrao-area.png", { esperar: "Meses sem remessa", altura: 1000 }],

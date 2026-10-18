@@ -6,6 +6,7 @@ import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { avisarFiliado, type AvisoPortal } from "@/lib/db/portal-avisos"
+import { lerConfigPortal } from "@/lib/db/portal-partes"
 import { type ContextoEmail } from "@/lib/email"
 import { botaoEmail, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { ORDEM_DESFILIACAO, ORDEM_FILIACAO, ORDEM_FILIACAO_COLETIVA } from "@/lib/filiacao"
@@ -126,6 +127,20 @@ export async function avisarMudancasDeCondicao(
     }
   }
 
+  // Filiados › Área do associado: as boas-vindas só prometem o que o portal
+  // mostra (Carteirinha e Contribuição podem estar desabilitadas). Na dúvida, vale.
+  const partes = ativados.size > 0 ? await lerConfigPortal({ client, tenantId }).catch(() => null) : null
+  const comCarteirinha = partes?.partes.carteirinha.estado !== "desabilitada"
+  const comContribuicao = partes?.partes.contribuicao.estado !== "desabilitada"
+  const oQueFaz = [
+    comContribuicao ? "acompanha a sua contribuição" : null,
+    comCarteirinha ? "vê a carteirinha" : null,
+    "usa os serviços para associados",
+  ].filter((t): t is string => t !== null)
+  // "a, b e c"
+  const noPortal =
+    oQueFaz.length === 1 ? oQueFaz[0] : `${oQueFaz.slice(0, -1).join(", ")} e ${oQueFaz[oQueFaz.length - 1]}`
+
   const avisos: { tipo: keyof typeof resultado; aviso: AvisoPortal }[] = []
   const vistos = new Set<string>()
   for (const l of linhas) {
@@ -148,13 +163,15 @@ export async function avisarMudancasDeCondicao(
           umaVez: true,
           link: "/portal/inicio",
           assunto: "Boas-vindas: sua filiação está ativa",
-          texto: `Sua filiação está ativa desde ${desde}. Boas-vindas! No portal você encontra sua carteirinha e os serviços para associados.`,
+          texto: `Sua filiação está ativa desde ${desde}. Boas-vindas! ${
+            comCarteirinha
+              ? "No portal você encontra sua carteirinha e os serviços para associados."
+              : "No portal você encontra os serviços para associados."
+          }`,
           html:
             tituloEmail("Boas-vindas!") +
             paragrafo(`Sua filiação a {ENTIDADE} está ativa desde <strong>${desde}</strong>.`) +
-            paragrafo(
-              "No portal do associado você acompanha a sua contribuição, vê a carteirinha e usa os serviços para associados."
-            ) +
+            paragrafo(`No portal do associado você ${noPortal}.`) +
             (origem ? botaoEmail(`${origem}/portal/inicio`, "Entrar no portal") : "") +
             textoSuave(PREFERENCIAS),
         },

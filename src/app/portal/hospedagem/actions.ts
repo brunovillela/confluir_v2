@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/hospedagem-garantida"
 import { travaPorAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { conferirCondicoesHospedagem } from "@/lib/db/hospedagem-condicoes"
+import { bloqueioDaParte } from "@/lib/db/portal-partes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /** Data BR (DD/MM/AAAA) de um AAAA-MM-DD. */
@@ -52,6 +53,16 @@ export type EstadoPedidoHospedagem = EstadoForm & {
   espera?: { hotelId: string; checkIn: string; checkOut: string }
 }
 
+/**
+ * Hospedagem suspensa ou desabilitada (Filiados › Área do associado), ou o
+ * portal em modo de consulta: pedir, entrar na fila e confirmar vaga param.
+ * Os cancelamentos NÃO passam por aqui — barrá-los faria a reserva virar
+ * falta e punição (não comparecimento), mesmo com o portal suspenso.
+ */
+function bloqueioDaHospedagem(): Promise<string | null> {
+  return bloqueioDaParte("hospedagem")
+}
+
 function revalidarHospedagem(cupomId?: string) {
   revalidatePath("/portal/hospedagem")
   if (cupomId) revalidatePath(`/portal/hospedagem/reserva/${cupomId}`)
@@ -66,6 +77,8 @@ export async function solicitarCupom(
   formData: FormData
 ): Promise<EstadoPedidoHospedagem> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaHospedagem()
+  if (bloqueio) return { erro: bloqueio }
 
   const hotelId = String(formData.get("hotel_id") ?? "")
   const checkIn = String(formData.get("check_in") ?? "")
@@ -189,7 +202,10 @@ export async function solicitarCupom(
   redirect(`/portal/hospedagem?salvo=1&hotel=${encodeURIComponent(hotelId)}`)
 }
 
-/** Cancela um cupom PRÓPRIO que ainda está aguardando reserva. */
+/**
+ * Cancela um cupom PRÓPRIO que ainda está aguardando reserva. Sem
+ * bloqueioDaHospedagem de propósito, como os outros cancelamentos.
+ */
 export async function cancelarMeuCupom(
   _prev: EstadoForm,
   formData: FormData
@@ -227,6 +243,8 @@ export async function entrarNaEsperaPortal(
   formData: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaHospedagem()
+  if (bloqueio) return { erro: bloqueio }
   const hotelId = String(formData.get("hotel_id") ?? "")
   const checkIn = String(formData.get("check_in") ?? "")
   const checkOut = String(formData.get("check_out") ?? "")
@@ -261,6 +279,7 @@ export async function entrarNaEsperaPortal(
   }
 }
 
+/** Desistências (reserva, fila, vaga recusada): nunca bloqueadas — ver bloqueioDaHospedagem. */
 export async function cancelarReservaPortal(
   _prev: EstadoForm,
   formData: FormData
@@ -296,6 +315,8 @@ export async function confirmarOfertaPortal(
   formData: FormData
 ): Promise<EstadoForm> {
   const { filiado } = await requireSessaoPortal()
+  const bloqueio = await bloqueioDaHospedagem()
+  if (bloqueio) return { erro: bloqueio }
   const token = String(formData.get("token") ?? "")
   const registros = await registrosDoCpf(filiado.cpf)
   const r = await confirmarOferta(token, { registros })

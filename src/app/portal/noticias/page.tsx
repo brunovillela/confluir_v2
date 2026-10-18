@@ -5,6 +5,7 @@ import { ExternalLink, Newspaper, Search } from "lucide-react"
 import { Paginacao } from "@/components/paginacao"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 import { LembrarListaPortal } from "@/components/portal/voltar-portal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +13,9 @@ import { Input } from "@/components/ui/input"
 import { dataDaNoticia, listarNoticiasPortal } from "@/lib/db/noticias"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { ultimasNoticias } from "@/lib/db/painel"
+import { configDaParte } from "@/lib/db/portal-partes"
 import { lerPaginacao } from "@/lib/paginacao"
+import { mensagemDaSituacao } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { ContagemNovas, MarcaNova, NovasDesde } from "./novas-desde"
@@ -35,6 +38,13 @@ export default async function PortalNoticiasPage({
   searchParams: Promise<Record<string, string | undefined>>
 }) {
   const { preview } = await requireVisualizacaoPortal()
+  // O layout guarda a seção, mas não impede a página de rodar (nem de ir no
+  // RSC) e não se refaz ao navegar dentro dela: desabilitada, nada se consulta
+  // — nem o site da entidade.
+  const parte = await configDaParte("noticias").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return <ParteIndisponivel parte="noticias" mensagem={mensagemDaSituacao("noticias", parte)} preview={preview} />
+  }
   const p = await searchParams
   const busca = (typeof p.busca === "string" ? p.busca : "").trim().slice(0, 100)
   const paginacao = lerPaginacao(p, POR_PAGINA)

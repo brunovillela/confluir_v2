@@ -3,6 +3,7 @@ import {
   Bell,
   CalendarDays,
   CircleHelp,
+  ClipboardCheck,
   HandCoins,
   Handshake,
   HeartPulse,
@@ -18,6 +19,8 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react"
+
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 
 /**
  * Menu do portal do associado em grupos, na linguagem de quem paga (A116,
@@ -59,10 +62,46 @@ export const NAV_PORTAL: ItemNavPortal[] = [
 ]
 
 /**
- * Os quatro atalhos da barra inferior (A57): o que quem paga mais procura.
- * Avisos não entra — o sino com o selo fica no cabeçalho em toda largura.
+ * Os quatro atalhos padrão da barra inferior (A57): o que quem paga mais
+ * procura. Avisos não entra — o sino com o selo fica no cabeçalho em toda
+ * largura. A entidade troca a lista em Filiados › Área do associado (opção
+ * "atalhos" do Portal inteiro), cujo padrão é este.
  */
-export const FIXOS_INFERIOR = ["/portal/inicio", "/portal/contribuicao", "/portal/carteirinha", "/portal/atendimento"]
+export const FIXOS_INFERIOR: readonly string[] = opcoesPadrao("portal").atalhos
+
+/**
+ * Os atalhos que a barra mostra: os escolhidos, na ordem escolhida, sem os
+ * que saíram do menu (parte desabilitada, Hospedagem sem hotel, Oposição de
+ * quem não tem a ver com ela). Sobrando nenhum, fica o Início, que nunca sai.
+ */
+export function atalhosDaBarra(atalhos: readonly string[], ocultos: readonly string[]): ItemNavPortal[] {
+  const itens = atalhos
+    .filter((href) => !ocultos.includes(href))
+    .map((href) => NAV_PORTAL.find((i) => i.href === href))
+    .filter((i): i is ItemNavPortal => Boolean(i))
+  return itens.length > 0 ? itens : NAV_PORTAL.filter((i) => i.href === "/portal/inicio")
+}
+
+/**
+ * Portal inteiro fora do ar (Filiados › Área do associado): o que continua
+ * abrindo para quem já estava dentro — direito com prazo (contribuição
+ * assistencial, desistência da filiação coletiva), os direitos do titular
+ * (LGPD), o desligar dos avisos por e-mail e celular e o cancelamento do que
+ * já foi pedido (reservas de hospedagem, que viram falta, e inscrições em
+ * eventos, que prendem a vaga). Hospedagem e Eventos abrem em modo de
+ * consulta: o bloqueioDaParte devolve a mensagem do portal, e somem pedido,
+ * fila, confirmação, inscrição e resposta de presença — ficam os botões de
+ * cancelar. O resto mostra a página de manutenção.
+ */
+export const ABERTOS_COM_PORTAL_FORA_DO_AR: readonly { href: string; titulo: string }[] = [
+  { href: "/portal/oposicao", titulo: "Contribuição assistencial" },
+  { href: "/portal/desfiliacao", titulo: "Minha filiação" },
+  { href: "/portal/lgpd", titulo: "Privacidade e dados" },
+  { href: "/portal/avisos/preferencias", titulo: "Preferências de avisos" },
+  // O prefixo cobre também /portal/hospedagem/reserva/<id>.
+  { href: "/portal/hospedagem", titulo: "Minhas reservas de hospedagem" },
+  { href: "/portal/eventos", titulo: "Minhas inscrições em eventos" },
+]
 
 /**
  * Páginas fora do menu que ainda assim dão nome ao cabeçalho do celular e
@@ -71,6 +110,8 @@ export const FIXOS_INFERIOR = ["/portal/inicio", "/portal/contribuicao", "/porta
  */
 const TITULOS_FORA_DO_MENU: { href: string; titulo: string; icone: LucideIcon }[] = [
   { href: "/portal/desfiliacao", titulo: "Minha filiação", icone: UserRound },
+  // O mesmo ícone do portão do primeiro acesso (GuardaPrimeiroAcesso).
+  { href: "/portal/primeiro-acesso", titulo: "Primeiro acesso", icone: ClipboardCheck },
 ]
 
 /** A página atual é a do item (ou uma subpágina dele: cédula, reserva, solicitação…). */

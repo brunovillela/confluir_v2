@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/card"
 import { oQueAcontece, situacaoDoLink } from "@/lib/db/desistencia-coletiva"
 import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 
 import { desistirPeloLinkAction } from "./actions"
 
@@ -44,6 +46,11 @@ function decodificar(v: string): string {
  * e-mail e antivírus visitam links) — a pessoa confirma digitando CONFIRMO.
  * O link não abre nenhum outro dado do portal: só nome parcial, empresa e
  * prazo. Fora do prazo, explica e aponta o Atendimento.
+ *
+ * A desistência em si NUNCA depende da Área do associado (prazo legal). Só o
+ * botão do Atendimento segue a escolha da entidade (Minha filiação ›
+ * "Botão para pedir a desfiliação") e some com o Atendimento desabilitado ou
+ * o portal fora do ar — aí fica o contato da entidade.
  */
 export default async function DesistirPage({
   params,
@@ -54,11 +61,21 @@ export default async function DesistirPage({
 }) {
   const token = decodificar((await params).token)
   const { feito } = await searchParams
-  const [situacao, entidade, email] = await Promise.all([
+  const [situacao, entidade, email, portal] = await Promise.all([
     situacaoDoLink(token),
     nomeEntidade(),
     emailContatoEntidade(),
+    // Na dúvida, o botão aparece (como antes).
+    configDoPortal().catch(() => null),
   ])
+  const pedidoOnline =
+    !portal ||
+    (portal.partes.desfiliacao.opcoes.solicitacao_online &&
+      portal.partes.atendimento.estado !== "desabilitada" &&
+      portal.partes.portal.estado !== "desabilitada")
+  // O rito próprio da entidade (texto diferente do padrão, que fala do Atendimento).
+  const orientacao = portal?.partes.desfiliacao.opcoes.texto_orientacao ?? ""
+  const ritoProprio = orientacao && orientacao !== opcoesPadrao("desfiliacao").texto_orientacao ? orientacao : null
 
   const contato = (
     <>
@@ -75,7 +92,7 @@ export default async function DesistirPage({
     </>
   )
 
-  const pedirDesfiliacao = (
+  const pedirDesfiliacao = pedidoOnline ? (
     <div className="grid gap-3">
       <p className="text-muted-foreground text-sm">
         Você ainda pode pedir a desfiliação: abra uma solicitação no Atendimento
@@ -90,6 +107,13 @@ export default async function DesistirPage({
           </Link>
         </Button>
       </div>
+    </div>
+  ) : (
+    <div className="text-muted-foreground grid gap-2 text-sm">
+      {ritoProprio && <p className="whitespace-pre-line">{ritoProprio}</p>}
+      <p>
+        {ritoProprio ? "Para pedir ou tirar dúvidas" : "Você ainda pode pedir a desfiliação"}: fale com {contato}.
+      </p>
     </div>
   )
 

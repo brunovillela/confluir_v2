@@ -2,15 +2,17 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { unstable_rethrow } from "next/navigation"
 import * as Sentry from "@sentry/nextjs"
-import { ExternalLink, Globe, Mail, MapPin, MessagesSquare, Phone, Users } from "lucide-react"
+import { Clock, ExternalLink, Globe, Mail, MapPin, MessagesSquare, Phone, Users } from "lucide-react"
 
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Indisponivel } from "@/components/portal/inicio/indisponivel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { nomeEntidade } from "@/lib/db/organizacao"
+import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import {
   canaisDoSindicato,
   diretoriaVigente,
@@ -19,6 +21,7 @@ import {
   type MembroDaDiretoria,
 } from "@/lib/db/sindicato-portal"
 import { formatarData } from "@/lib/formato"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 export const metadata: Metadata = { title: "O sindicato" }
@@ -46,26 +49,47 @@ async function carregar<T>(bloco: string, fazer: () => Promise<T>): Promise<{ va
  *
  * Só o que existe no cadastro: e-mail, site, endereço e telefones de cada
  * sede. Não há campo de WhatsApp nem de horário de atendimento — a página
- * não inventa nenhum dos dois. Da diretoria, só nome e cargo; para falar com
+ * não inventa nenhum dos dois (a entidade os escreve no texto livre abaixo,
+ * se quiser). Da diretoria, só nome e cargo; para falar com
  * alguém dela, o caminho é o Atendimento (fica registrado e tem prazo), nunca
  * um contato pessoal. Sem dados, a página diz o que fazer.
  *
  * Nada aqui grava: no "Ver como filiado" a página é a mesma.
+ *
+ * Área do associado: a entidade escolhe mostrar ou não a diretoria (sem
+ * ela, nem a consulta roda) e o destaque "da sua base", e pode escrever um
+ * texto livre de horário e outros canais (WhatsApp, plantão), que aparece
+ * abaixo dos canais oficiais. Com o Atendimento desabilitado, os convites
+ * para abrir uma solicitação saem.
  */
 export default async function PortalSindicatoPage() {
+  // Desabilitado: o "indisponível" antes de qualquer leitura — o layout
+  // renderiza junto com esta página e não a impede de rodar.
+  const indisponivel = await paginaIndisponivel("sindicato")
+  if (indisponivel) return indisponivel
   const { filiado } = await requireVisualizacaoPortal()
-  const [entidade, canais, diretoria] = await Promise.all([
+  // Na dúvida, o de sempre: tudo à vista e o Atendimento no ar.
+  const opcoesP = opcoesDaParte("sindicato").catch(() => opcoesPadrao("sindicato"))
+  const [opcoes, atendimento, entidade, canais, diretoria] = await Promise.all([
+    opcoesP,
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
     nomeEntidade().catch(() => null),
     carregar("canais", () => canaisDoSindicato()),
-    carregar("diretoria", () => diretoriaVigente(filiado.cpf)),
+    opcoesP.then((o) =>
+      o.mostrar_diretoria
+        ? carregar("diretoria", () => diretoriaVigente(filiado.cpf, { destacarBase: o.destacar_base }))
+        : null
+    ),
   ])
+  const comAtendimento = atendimento !== "desabilitada"
+  const nosCanais = entidade ? `Os canais oficiais de ${entidade}` : "Os canais oficiais da entidade"
 
   return (
     <>
       <CabecalhoPagina
         secao="/portal/sindicato"
         titulo="O sindicato"
-        subtitulo={`${entidade ? `Os canais oficiais de ${entidade}` : "Os canais oficiais da entidade"} e quem compõe a diretoria.`}
+        subtitulo={opcoes.mostrar_diretoria ? `${nosCanais} e quem compõe a diretoria.` : `${nosCanais}.`}
       />
 
       <section aria-labelledby="titulo-canais" className="grid gap-3">
@@ -73,48 +97,67 @@ export default async function PortalSindicatoPage() {
           Fale com o sindicato
         </h2>
 
-        <Card>
-          <CardHeader>
-            <CardTitle role="heading" aria-level={3} className="flex items-center gap-2">
-              <MessagesSquare className="text-primary size-4" aria-hidden />
-              Pelo portal
-            </CardTitle>
-            <CardDescription>
-              Abra uma solicitação no Atendimento: ela fica registrada, tem prazo de resposta e a resposta chega
-              aqui no portal e por e-mail.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/portal/atendimento">Abrir uma solicitação</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {comAtendimento && (
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={3} className="flex items-center gap-2">
+                <MessagesSquare className="text-primary size-4" aria-hidden />
+                Pelo portal
+              </CardTitle>
+              <CardDescription>
+                Abra uma solicitação no Atendimento: ela fica registrada, tem prazo de resposta e a resposta chega
+                aqui no portal e por e-mail.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="w-full sm:w-auto">
+                <Link href="/portal/atendimento">Abrir uma solicitação</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-        <CartaoCanais canais={canais?.valor ?? null} />
+        <CartaoCanais canais={canais?.valor ?? null} comAtendimento={comAtendimento} />
+
+        {opcoes.texto_canais && (
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={3} className="flex items-center gap-2">
+                <Clock className="text-primary size-4" aria-hidden />
+                Horário e outros canais
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Texto livre da entidade: as quebras de linha que ela escreveu ficam. */}
+              <p className="text-sm break-words whitespace-pre-line">{opcoes.texto_canais}</p>
+            </CardContent>
+          </Card>
+        )}
       </section>
 
-      <section aria-labelledby="titulo-diretoria" className="grid gap-3">
-        <div>
-          <h2 id="titulo-diretoria" className="text-lg font-semibold">
-            Diretoria
-          </h2>
-          {diretoria?.valor && (
-            <p className="text-muted-foreground mt-1 text-xs">
-              {diretoria.valor.mandato ? `Mandato ${diretoria.valor.mandato}` : "Mandato vigente"}
-              {diretoria.valor.inicio && diretoria.valor.termino
-                ? ` · de ${formatarData(diretoria.valor.inicio)} a ${formatarData(diretoria.valor.termino)}`
-                : ""}
-            </p>
-          )}
-        </div>
-        <BlocoDiretoria diretoria={diretoria} />
-      </section>
+      {opcoes.mostrar_diretoria && (
+        <section aria-labelledby="titulo-diretoria" className="grid gap-3">
+          <div>
+            <h2 id="titulo-diretoria" className="text-lg font-semibold">
+              Diretoria
+            </h2>
+            {diretoria?.valor && (
+              <p className="text-muted-foreground mt-1 text-xs">
+                {diretoria.valor.mandato ? `Mandato ${diretoria.valor.mandato}` : "Mandato vigente"}
+                {diretoria.valor.inicio && diretoria.valor.termino
+                  ? ` · de ${formatarData(diretoria.valor.inicio)} a ${formatarData(diretoria.valor.termino)}`
+                  : ""}
+              </p>
+            )}
+          </div>
+          <BlocoDiretoria diretoria={diretoria} comAtendimento={comAtendimento} />
+        </section>
+      )}
     </>
   )
 }
 
-function CartaoCanais({ canais }: { canais: CanaisDoSindicato | null }) {
+function CartaoCanais({ canais, comAtendimento }: { canais: CanaisDoSindicato | null; comAtendimento: boolean }) {
   const vazio = canais !== null && !canais.email && !canais.site && canais.sedes.length === 0
   return (
     <Card>
@@ -127,14 +170,16 @@ function CartaoCanais({ canais }: { canais: CanaisDoSindicato | null }) {
       <CardContent className="grid gap-4">
         {canais === null ? (
           <Indisponivel>
-            Não foi possível carregar os canais agora. Use o Atendimento acima ou tente de novo daqui a pouco.
+            {comAtendimento
+              ? "Não foi possível carregar os canais agora. Use o Atendimento acima ou tente de novo daqui a pouco."
+              : "Não foi possível carregar os canais agora. Tente de novo daqui a pouco."}
           </Indisponivel>
         ) : vazio ? (
           <EstadoVazio
             compacto
             icone={Phone}
             titulo="A entidade ainda não publicou telefone, endereço ou e-mail por aqui."
-            descricao="Use o Atendimento acima: a resposta chega no portal."
+            descricao={comAtendimento ? "Use o Atendimento acima: a resposta chega no portal." : undefined}
           />
         ) : (
           <>
@@ -232,8 +277,15 @@ function ListaDeMembros({ membros }: { membros: MembroDaDiretoria[] }) {
   )
 }
 
-function BlocoDiretoria({ diretoria }: { diretoria: { valor: DiretoriaVigente | null } | null }) {
-  const comoFalar = (
+function BlocoDiretoria({
+  diretoria,
+  comAtendimento,
+}: {
+  diretoria: { valor: DiretoriaVigente | null } | null
+  /** Atendimento não desabilitado: o convite para falar com a diretoria por lá aparece. */
+  comAtendimento: boolean
+}) {
+  const comoFalar = comAtendimento ? (
     <p className="text-muted-foreground text-xs">
       Quer falar com alguém da diretoria?{" "}
       <Link href="/portal/atendimento" className={LINK}>
@@ -241,7 +293,7 @@ function BlocoDiretoria({ diretoria }: { diretoria: { valor: DiretoriaVigente | 
       </Link>{" "}
       e diga com quem quer falar.
     </p>
-  )
+  ) : null
 
   if (diretoria === null) {
     return (

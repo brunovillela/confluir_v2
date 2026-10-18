@@ -1,6 +1,7 @@
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { convidarParaAvaliar, tenantsComHotel } from "@/lib/db/hospedagem-avaliacoes"
 import { lembretesNaoComparecimento, lembretesOfertasDeVaga } from "@/lib/db/hospedagem-garantida"
+import { lerConfigPortal } from "@/lib/db/portal-partes"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -33,6 +34,12 @@ type Resultado = {
  * Os avisos rodam sem requisição: client de serviço, entidade e identidade
  * do e-mail vão explícitos. Uma etapa que falha não impede as outras.
  *
+ * Área do associado (Filiados), por entidade: com a Hospedagem desabilitada
+ * não há convite nem lembrete de avaliação; suspensa ou desabilitada — ou o
+ * portal fora do modo normal —, não há lembrete de oferta (a confirmação da
+ * vaga está bloqueada). O não comparecimento avisa sempre: é a falta
+ * registrada e o caminho do abono. Na dúvida (leitura falhou), como antes.
+ *
  * `?tenant=<uuid>` roda uma entidade só (disparo manual e testes na demo).
  */
 async function handler(req: Request): Promise<Response> {
@@ -52,22 +59,28 @@ async function handler(req: Request): Promise<Response> {
   for (const tenantId of tenants) {
     const r: Resultado = { tenant: tenantId, criadas: 0, convites: 0, lembretes: 0, faltas: 0, ofertas: 0 }
     const erros: string[] = []
-    try {
-      const a = await convidarParaAvaliar(tenantId)
-      r.criadas = a.criadas
-      r.convites = a.convites
-      r.lembretes = a.lembretes
-      if (a.erro) erros.push(`avaliação: ${a.erro}`)
-    } catch (e) {
-      erros.push(`avaliação: ${e instanceof Error ? e.message : String(e)}`)
+    const partes = await lerConfigPortal({ client: svc, tenantId }).catch(() => null)
+    const hospedagem = partes?.partes.hospedagem.estado ?? "habilitada"
+    const ofertasAbertas = hospedagem === "habilitada" && (partes?.partes.portal.estado ?? "habilitada") === "habilitada"
+    if (hospedagem !== "desabilitada") {
+      try {
+        const a = await convidarParaAvaliar(tenantId)
+        r.criadas = a.criadas
+        r.convites = a.convites
+        r.lembretes = a.lembretes
+        if (a.erro) erros.push(`avaliação: ${a.erro}`)
+      } catch (e) {
+        erros.push(`avaliação: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
     try {
       const contexto = await contextoDoTenant(tenantId, svc)
       const amb = { client: svc, tenantId, contexto }
+      const semOfertas: { avisados: number; erro?: string } = { avisados: 0 }
       // allSettled: uma etapa que lança não apaga a contagem da outra.
       const [faltas, ofertas] = await Promise.allSettled([
         lembretesNaoComparecimento(amb),
-        lembretesOfertasDeVaga(amb),
+        ofertasAbertas ? lembretesOfertasDeVaga(amb) : semOfertas,
       ])
       const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e))
       if (faltas.status === "fulfilled") {

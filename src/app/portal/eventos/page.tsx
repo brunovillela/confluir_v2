@@ -11,6 +11,7 @@ import {
   History,
   MapPin,
   Maximize2,
+  PauseCircle,
   QrCode,
   Sparkles,
   Users,
@@ -27,7 +28,15 @@ import {
   periodoDoEvento,
   type EventoDoFiliado,
 } from "@/lib/db/eventos-portal"
-import { formatarData, formatarDataHora } from "@/lib/formato"
+import {
+  bloqueioDaParte,
+  configDaParte,
+  estadoDaParte,
+  opcoesDaParte,
+  situacaoDoPortal,
+} from "@/lib/db/portal-partes"
+import { formatarDataHora } from "@/lib/formato"
+import { mensagemDaSituacao, opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -35,7 +44,9 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 
+import { AgendaDeAtividades } from "../agenda/agenda-de-atividades"
 import { itemDoEvento, linkGoogleAgenda } from "./calendario"
 import {
   AbrirAncoraRecolhida,
@@ -61,6 +72,16 @@ const LIMITE_ANTERIORES = 10
 /** Situações em que o próprio associado pode cancelar ou desistir (A81). */
 const PODE_DESISTIR = new Set(["confirmada", "pendente", "lista_espera"])
 
+/** A inscrição ainda se cancela: sem presença registrada e com o evento de pé. */
+function podeDesistirDe(e: EventoDoFiliado): boolean {
+  return (
+    e.presencas === 0 &&
+    Boolean(e.inscricaoId) &&
+    e.evento.situacao !== "cancelado" &&
+    PODE_DESISTIR.has(e.situacao ?? "")
+  )
+}
+
 const HORA = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   hour: "2-digit",
@@ -81,6 +102,19 @@ function textoPeriodo(p: { inicio: string; termino: string | null }): string {
   return DIA_SP.format(new Date(p.inicio)) === DIA_SP.format(new Date(p.termino))
     ? `${inicio} até ${HORA.format(new Date(p.termino))}`
     : `${inicio} até ${formatarDataHora(p.termino)}`
+}
+
+/**
+ * No lugar do botão que gravaria, com Eventos suspensa (ou o portal em modo
+ * de consulta): a action recusaria, então o associado não chega a tocar.
+ */
+function PausaNoPortal({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-muted-foreground flex items-start gap-1.5 text-sm">
+      <PauseCircle className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  )
 }
 
 /** Abre o aplicativo de mapas no celular; no computador, o Google Maps. */
@@ -121,14 +155,44 @@ async function codigosDeEntrada(lista: EventoDoFiliado[]): Promise<Map<string, s
  * Cada evento aparece numa seção só e leva `id="evento-<id>"`: é o destino do
  * aviso de "Inscrição feita", do item da agenda ligado a ele (A85) e do link
  * que vai no calendário.
+ *
+ * Filiados › Área do associado (na dúvida, vale): Eventos suspensa tira
+ * "Quero participar" e a resposta de presença (as actions recusariam), e
+ * cancelar continua; a opção de cancelar pelo portal desligada troca o botão
+ * pela orientação de falar com o sindicato; a Agenda desabilitada some daqui,
+ * sem nem ser consultada. Eventos desabilitada mostra o "indisponível" e, logo
+ * abaixo, só as inscrições que ainda se cancelam (InscricoesQueSeCancelam);
+ * o portal fora do ar deixa esta página aberta em modo de consulta, para
+ * cancelar (ABERTOS_COM_PORTAL_FORA_DO_AR).
  */
 export default async function PortalEventosPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
-  const [lista, agenda, origem] = await Promise.all([
+  // O layout guarda a seção, mas não impede a página de rodar (nem de ir no
+  // RSC) e não se refaz ao navegar dentro dela: desabilitada, só as
+  // inscrições que se cancelam (o layout deixa a página decidir).
+  const parte = await configDaParte("eventos").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return (
+      <InscricoesQueSeCancelam cpf={filiado.cpf} preview={preview}>
+        <ParteIndisponivel parte="eventos" mensagem={mensagemDaSituacao("eventos", parte)} preview={preview} />
+      </InscricoesQueSeCancelam>
+    )
+  }
+  const [lista, agenda, origem, bloqueio, opcoes, atendimento, portal] = await Promise.all([
     eventosParaFiliado(filiado.cpf, await tenantAtual()),
-    eventosDoAplicativo(50),
+    // null: Agenda desabilitada — a seção some.
+    estadoDaParte("agenda")
+      .catch(() => "habilitada" as const)
+      .then((estado) => (estado === "desabilitada" ? null : eventosDoAplicativo(50))),
     origemAtual().catch(() => ""),
+    bloqueioDaParte("eventos").catch(() => null),
+    opcoesDaParte("eventos").catch(() => opcoesPadrao("eventos")),
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
+    situacaoDoPortal().catch(() => null),
   ])
+  // Portal fora do ar: o Atendimento levaria à página de manutenção.
+  const foraDoAr = portal?.estado === "desabilitada"
+  const comAtendimento = atendimento !== "desabilitada" && !foraDoAr
 
   // A135: o que ainda vai acontecer fica à vista; do que já passou, só as
   // inscrições dele, recolhidas e das mais recentes para trás.
@@ -157,9 +221,24 @@ export default async function PortalEventosPage() {
     <>
       <CabecalhoPagina
         secao="/portal/eventos"
-        titulo="Eventos e agenda"
-        subtitulo="Inscreva-se nos eventos abertos, acompanhe suas inscrições e veja a agenda de atividades do sindicato."
+        titulo={agenda ? "Eventos e agenda" : "Eventos"}
+        subtitulo={
+          agenda
+            ? "Inscreva-se nos eventos abertos, acompanhe suas inscrições e veja a agenda de atividades do sindicato."
+            : "Inscreva-se nos eventos abertos e acompanhe suas inscrições."
+        }
       />
+
+      {/* Fora do ar não há a faixa da casca: o aviso a que as pausas abaixo se referem. */}
+      {foraDoAr && bloqueio && (
+        <Alert variant="warning">
+          <PauseCircle />
+          <AlertTitle>Portal em manutenção</AlertTitle>
+          <AlertDescription>
+            {bloqueio} Aqui você consulta e cancela as suas inscrições.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ── Inscrições abertas: o destaque da página ─────────────────── */}
       <section aria-label="Inscrições abertas" className="grid gap-3">
@@ -218,12 +297,19 @@ export default async function PortalEventosPage() {
                         é só se inscrever de novo.
                       </p>
                     )}
-                    <AcaoVisualizacao
-                      preview={preview}
-                      nota="Somente o próprio associado pode se inscrever."
-                    >
-                      <Inscrever eventoId={e.evento.id} />
-                    </AcaoVisualizacao>
+                    {bloqueio ? (
+                      <PausaNoPortal>
+                        As inscrições pelo portal estão pausadas no momento — veja
+                        o aviso no topo da página.
+                      </PausaNoPortal>
+                    ) : (
+                      <AcaoVisualizacao
+                        preview={preview}
+                        nota="Somente o próprio associado pode se inscrever."
+                      >
+                        <Inscrever eventoId={e.evento.id} />
+                      </AcaoVisualizacao>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -253,11 +339,7 @@ export default async function PortalEventosPage() {
                   ? itemDoEvento(e.evento, periodo, enderecoNoPortal(e.evento.id))
                   : null
               const google = calendario ? linkGoogleAgenda(calendario) : null
-              const podeDesistir =
-                e.presencas === 0 &&
-                Boolean(e.inscricaoId) &&
-                !eventoCancelado &&
-                PODE_DESISTIR.has(e.situacao ?? "")
+              const podeDesistir = podeDesistirDe(e)
               return (
                 <div key={e.evento.id} id={`evento-${e.evento.id}`} className="scroll-mt-20">
                   {/* id: recibo, RSVP e lembrete da véspera apontam para #inscricao-<id>. */}
@@ -363,7 +445,20 @@ export default async function PortalEventosPage() {
                           {confirmada &&
                             !eventoCancelado &&
                             e.evento.exige_rsvp &&
-                            (e.rsvpAberto ? (
+                            (e.rsvpAberto && bloqueio ? (
+                              // A resposta já dada continua à vista; mudar, não.
+                              <PausaNoPortal>
+                                {e.rsvpConfirmado !== null && (
+                                  <>
+                                    Você respondeu que{" "}
+                                    <strong>{e.rsvpConfirmado ? "vai" : "não vai"}</strong>{" "}
+                                    comparecer.{" "}
+                                  </>
+                                )}
+                                A confirmação de presença pelo portal está pausada no
+                                momento — veja o aviso no topo da página.
+                              </PausaNoPortal>
+                            ) : e.rsvpAberto ? (
                               <AcaoVisualizacao
                                 preview={preview}
                                 nota="A resposta é do associado — a gestão não responde por ele."
@@ -448,13 +543,16 @@ export default async function PortalEventosPage() {
                             </div>
                           )}
 
-                          {podeDesistir && e.inscricaoId && (
-                            <AcaoVisualizacao preview={preview} nota="">
-                              <CancelarInscricao
-                                inscricaoId={e.inscricaoId}
-                                situacao={e.situacao}
-                              />
-                            </AcaoVisualizacao>
+                          {/* Cancelar continua mesmo com Eventos suspensa (solta
+                              a vaga); some só quando a gestão desliga o
+                              cancelamento pelo portal. */}
+                          {podeDesistir && (
+                            <DesistirDaInscricao
+                              e={e}
+                              preview={preview}
+                              permitirCancelar={opcoes.permitir_cancelar}
+                              comAtendimento={comAtendimento}
+                            />
                           )}
                         </div>
                       )}
@@ -546,67 +644,123 @@ export default async function PortalEventosPage() {
       )}
 
       {/* ── Agenda de atividades ─────────────────────────────────────── */}
-      {/* id: /portal/agenda e o "Agenda de atividades" do Início caem aqui. */}
-      <section id="agenda" aria-label="Agenda" className="grid scroll-mt-20 gap-3">
-        <h2 className="text-lg font-semibold">Agenda de atividades</h2>
-        <Card>
-          <CardContent>
-            {agenda.length === 0 ? (
-              <EstadoVazio icone={CalendarDays} titulo="Nenhuma atividade programada no momento." />
-            ) : (
+      {/* id: /portal/agenda e o "Agenda de atividades" do Início caem aqui.
+          Agenda desabilitada (null): a seção não existe. */}
+      {agenda && (
+        <section id="agenda" aria-label="Agenda" className="grid scroll-mt-20 gap-3">
+          <h2 className="text-lg font-semibold">Agenda de atividades</h2>
+          <AgendaDeAtividades agenda={agenda} eventoDoItem={porAgenda} />
+        </section>
+      )}
+    </>
+  )
+}
+
+/**
+ * Cancelar ou desistir da inscrição (A81): o botão — nunca travado pelo
+ * estado da parte nem do portal, porque solta a vaga — ou, com o cancelamento
+ * pelo portal desligado, a orientação de falar com o sindicato (pelo
+ * Atendimento, quando ele está no ar).
+ */
+function DesistirDaInscricao({
+  e,
+  preview,
+  permitirCancelar,
+  comAtendimento,
+}: {
+  e: EventoDoFiliado
+  preview: boolean
+  permitirCancelar: boolean
+  comAtendimento: boolean
+}) {
+  if (!e.inscricaoId) return null
+  if (permitirCancelar) {
+    return (
+      <AcaoVisualizacao preview={preview} nota="">
+        <CancelarInscricao inscricaoId={e.inscricaoId} situacao={e.situacao} />
+      </AcaoVisualizacao>
+    )
+  }
+  return (
+    <p className="text-muted-foreground text-sm">
+      Para cancelar ou desistir da inscrição, fale com o sindicato
+      {comAtendimento && (
+        <>
+          {" "}pelo{" "}
+          <Link
+            href={`/portal/atendimento?assunto=outro&titulo=${encodeURIComponent(
+              `Cancelar inscrição: ${e.evento.titulo ?? "evento"}`
+            )}`}
+            className="text-primary font-medium underline underline-offset-4"
+          >
+            Atendimento
+          </Link>
+        </>
+      )}
+      .
+    </p>
+  )
+}
+
+/**
+ * Eventos desabilitada no portal: o "indisponível" (children) e, embaixo, só
+ * as inscrições em eventos por vir que ainda se cancelam — a vaga não fica
+ * presa. Só lê. No "Ver como filiado", os botões ficam inertes.
+ */
+async function InscricoesQueSeCancelam({
+  cpf,
+  preview,
+  children,
+}: {
+  cpf: string
+  preview: boolean
+  children: React.ReactNode
+}) {
+  const [lista, opcoes, atendimento, portal] = await Promise.all([
+    tenantAtual().then((t) => eventosParaFiliado(cpf, t)),
+    opcoesDaParte("eventos").catch(() => opcoesPadrao("eventos")),
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
+    situacaoDoPortal().catch(() => null),
+  ])
+  const comAtendimento = atendimento !== "desabilitada" && portal?.estado !== "desabilitada"
+  const minhas = lista.filter((e) => !e.passado && e.inscrito && podeDesistirDe(e))
+
+  return (
+    <>
+      {children}
+      {minhas.length > 0 && (
+        <section aria-label="Minhas inscrições" className="grid gap-3">
+          <h2 className="text-lg font-semibold">Minhas inscrições</h2>
+          <Card>
+            <CardContent>
               <ul className="divide-y">
-                {agenda.map((a) => {
-                  // A85: compromisso espelhado de um evento leva ao cartão dele.
-                  const ev = porAgenda.get(a.id)
-                  return (
-                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{a.atividade ?? "(sem título)"}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {a.dia_todo === true
-                            ? `${formatarData(a.inicio)} — dia todo`
-                            : `${formatarDataHora(a.inicio)}${a.termino ? ` até ${formatarDataHora(a.termino)}` : ""}`}
-                          {a.local ? ` · ${a.local}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {a.tipo && (
-                          <Badge variant="outline" className="text-muted-foreground shrink-0">
-                            {a.tipo}
-                          </Badge>
-                        )}
-                        {ev && (
-                          <Button asChild variant={ev.aberta && !ev.inscrito ? "default" : "outline"}>
-                            <a href={`#evento-${ev.evento.id}`}>
-                              {ev.inscrito
-                                ? "Ver minha inscrição"
-                                : ev.aberta
-                                  ? "Inscrever-se"
-                                  : "Ver evento"}
-                            </a>
-                          </Button>
-                        )}
-                        {a.inicio && (
-                          <Button asChild variant="outline">
-                            <a
-                              href={`/portal/eventos/agenda/${a.id}/calendario`}
-                              aria-label={`Adicionar ao calendário: ${a.atividade ?? "atividade"}`}
-                              title="Adicionar ao calendário"
-                            >
-                              <CalendarPlus />
-                              <span className="hidden sm:inline">Calendário</span>
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
+                {minhas.map((e) => (
+                  <li
+                    key={e.evento.id}
+                    id={e.inscricaoId ? `inscricao-${e.inscricaoId}` : undefined}
+                    className="grid scroll-mt-20 gap-3 py-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <CabecalhoEvento e={e} compacto />
+                      {e.situacao && (
+                        <Badge variant={e.situacao === "confirmada" ? "success" : "secondary"}>
+                          {ROTULO[e.situacao] ?? e.situacao}
+                        </Badge>
+                      )}
+                    </div>
+                    <DesistirDaInscricao
+                      e={e}
+                      preview={preview}
+                      permitirCancelar={opcoes.permitir_cancelar}
+                      comAtendimento={comAtendimento}
+                    />
+                  </li>
+                ))}
               </ul>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </>
   )
 }

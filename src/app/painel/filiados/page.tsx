@@ -13,6 +13,7 @@ import {
   Plus,
   Receipt,
   ShieldCheck,
+  Smartphone,
   UserRoundCheck,
   UserRoundMinus,
   UserRoundPlus,
@@ -38,8 +39,10 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { contarSolicitacoesPendentes } from "@/lib/db/filiacao-publica"
 import { resumoFiliados } from "@/lib/db/filiados"
+import { resumoDoPortal } from "@/lib/db/portal-partes"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { indicadorDoPortal } from "./area-do-associado/resumo"
 import { BuscaRapida } from "./busca-rapida"
 import { SaudeCadastros, SaudeCadastrosCarregando } from "./saude-cadastros"
 
@@ -367,9 +370,11 @@ export default async function FiliadosPage({
   const periodo =
     periodoBruto === "semana" || periodoBruto === "ano" ? periodoBruto : "mes"
 
-  const [resumo, pendentesFicha] = await Promise.all([
+  const [resumo, pendentesFicha, portal] = await Promise.all([
     resumoFiliados(periodo),
     podeRegistrar ? contarSolicitacoesPendentes() : Promise.resolve(0),
+    // Indicador da Área do associado: erro aqui só tira o indicador.
+    podeRegistrar ? resumoDoPortal().catch(() => null) : Promise.resolve(null),
   ])
 
   const condicao = (nome: string) =>
@@ -488,6 +493,15 @@ export default async function FiliadosPage({
           href="/painel/filiados/direitos"
           icone={ShieldCheck}
         />
+        {podeRegistrar && (
+          <CartaoArea
+            titulo="Área do associado"
+            descricao="Habilite, suspenda e configure cada parte do portal do associado"
+            href="/painel/filiados/area-do-associado"
+            icone={Smartphone}
+            indicador={portal ? indicadorDoPortal(portal) : undefined}
+          />
+        )}
         <CartaoArea
           titulo="Cobranças Pix"
           descricao="Contribuição de quem paga por Pix: QR Code por mês, baixa e vencidas"

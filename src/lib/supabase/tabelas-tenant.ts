@@ -49,6 +49,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "portal_atendimentos_mensagens",
   // supabase/portal-push.sql (11/10)
   "portal_push_assinaturas",
+  // Filiados › Área do associado (18/10; na linha de base das migrações)
+  "portal_partes",
   "push_assinaturas",
   "banco_extratos",
   "banco_lancamentos",

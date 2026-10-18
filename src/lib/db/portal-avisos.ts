@@ -1,10 +1,12 @@
 import "server-only"
 
+import { cache } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
+import { configDoPortal, lerConfigPortal, type ConfigPortal } from "@/lib/db/portal-partes"
 import { enviarPushPortal, temPushPortal } from "@/lib/db/push"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { botaoEmail, COR, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
@@ -12,8 +14,10 @@ import { paginar, type Paginacao } from "@/lib/paginacao"
 import {
   type EventoPortal,
   normalizarPreferenciasPortal,
+  PARTES_DO_EVENTO,
   type PreferenciasPortal,
 } from "@/lib/portal-avisos-eventos"
+import { parteDoLink, type ChaveParte } from "@/lib/portal-partes-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -50,6 +54,13 @@ export type AvisoPortal = {
   soSino?: boolean
   /** Não repete se já há aviso igual (mesmo texto e link) para a pessoa. */
   umaVez?: boolean
+  /**
+   * Sai mesmo com a parte do link desabilitada (Área do associado): o aviso
+   * é consequência de algo que a pessoa já fez (ex.: a falta numa reserva
+   * confirmada, que continua valendo no hotel). Pula só essa trava; o
+   * portal fora do ar segue gravando só no sino.
+   */
+  mesmoComParteDesabilitada?: boolean
   /** Nome e e-mail já conhecidos poupam a busca do cadastro. */
   nome?: string | null
   email?: string | null
@@ -71,6 +82,60 @@ async function ambiente(a: Ambiente) {
 
 function tabelaAusente(error: { code?: string; message?: string } | null): boolean {
   return !!error && (esquemaAusente(error) || error.code === "42P01")
+}
+
+// ── Área do associado (Filiados › Área do associado) ─────────────────────────
+
+/**
+ * A parte do portal de que o aviso fala: a do link ("/portal/eventos#…" →
+ * eventos) e, quando o link não diz (fora do portal, como a oferta da lista
+ * de espera), a do tipo de uma parte só. Mesma régua do Início
+ * (`avisosNaoLidos`, portal-inicio.ts): o sino, a lista e as Novidades contam
+ * igual.
+ */
+export function parteDoAviso(link: string | null | undefined, evento: string): ChaveParte | null {
+  const doLink = parteDoLink(link)
+  if (doLink) return doLink
+  const partes = PARTES_DO_EVENTO[evento as EventoPortal] as readonly ChaveParte[] | undefined
+  return partes?.length === 1 ? partes[0] : null
+}
+
+/**
+ * O que a entidade escolheu para as partes do portal, lido para o aviso:
+ * dentro da requisição, a leitura dividida com a página (`configDoPortal`);
+ * com o ambiente explícito (ticks, painel), pelo MESMO client e tenant do
+ * sino — fora de requisição `tenantAtual()` não é o da volta do laço (A19).
+ * Leitura que falha devolve null e o aviso segue como antes: na dúvida, a
+ * parte vale.
+ */
+async function configDasPartes(amb: { client: SupabaseClient; tenantId: string } | null): Promise<ConfigPortal | null> {
+  try {
+    return amb ? await lerConfigPortal(amb) : await configDoPortal()
+  } catch (e) {
+    console.error("avisos do portal (área do associado):", e)
+    return null
+  }
+}
+
+/** O aviso leva a uma parte desabilitada: o associado cairia na página "indisponível". */
+function deParteDesabilitada(cfg: ConfigPortal | null, link: string | null | undefined, evento: string): boolean {
+  const parte = parteDoAviso(link, evento)
+  return !!cfg && !!parte && cfg.partes[parte].estado === "desabilitada"
+}
+
+/** Alguma parte desabilitada hoje (sem nenhuma, os leitores nem olham o link). */
+function temParteDesabilitada(cfg: ConfigPortal | null): cfg is ConfigPortal {
+  return !!cfg && Object.entries(cfg.partes).some(([chave, p]) => chave !== "portal" && p.estado === "desabilitada")
+}
+
+/**
+ * Portal fora do ar (a parte "portal" desabilitada): o sino guarda o aviso
+ * para a volta, mas e-mail e celular levariam a uma porta fechada. A
+ * contribuição assistencial (oposição) segue aberta, com prazo legal, e
+ * continua avisando.
+ */
+function portalForaDoAr(cfg: ConfigPortal | null, link: string | null | undefined): boolean {
+  return !!cfg && cfg.partes.portal.estado === "desabilitada" && parteDoLink(link) !== "oposicao"
 }
 
 /** Onde o associado ajusta o que recebe fora do portal (A153/A176). */
@@ -136,10 +201,11 @@ export async function contatoDoFiliado(
 /**
  * O que `avisarFiliado` conseguiu fazer:
  * - `false`: nada gravado (CPF inválido, aviso repetido com `umaVez`, tabela
- *   ausente ou erro);
+ *   ausente, erro, ou o aviso leva a uma parte desabilitada na Área do
+ *   associado);
  * - `"sino"`: gravou no sino, mas nenhum e-mail saiu por este caminho
- *   (`soSino`, preferência desligada, cadastro sem e-mail ou o provedor
- *   recusou);
+ *   (`soSino`, preferência desligada, cadastro sem e-mail, portal fora do ar
+ *   ou o provedor recusou);
  * - `"email"`: gravou no sino e o provedor aceitou o e-mail.
  * Os dois valores verdadeiros mantêm o `if (ok)` de quem lia o antigo boolean.
  */
@@ -160,6 +226,10 @@ function semMarcadorEntidade(s: string, entidade: string | undefined): string {
  * Grava no sino do filiado e, conforme a preferência do tipo, avisa nos
  * aparelhos ligados e manda o e-mail. O push é melhor esforço e não muda o
  * retorno: quem chama continua sabendo só do sino e do e-mail.
+ *
+ * Área do associado: aviso de parte desabilitada não sai (nem no sino), a
+ * não ser com `mesmoComParteDesabilitada`; com o portal fora do ar, só o
+ * sino grava.
  */
 export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Promise<ResultadoAviso> {
   const cpf = cpfConfiavel(aviso.cpf)
@@ -167,6 +237,8 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
   let noSino = false
   try {
     const { client, tenantId, contexto } = await ambiente(amb)
+    const partes = await configDasPartes(amb.client || amb.tenantId ? { client, tenantId } : null)
+    if (!aviso.mesmoComParteDesabilitada && deParteDesabilitada(partes, aviso.link, aviso.evento)) return false
 
     if (aviso.umaVez) {
       const { data } = await client
@@ -192,6 +264,7 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
       return false
     }
     noSino = true
+    if (portalForaDoAr(partes, aviso.link)) return "sino"
 
     // Celular (A52): vale também com `soSino` — o e-mail dessas ações sai por
     // outro caminho, mas a notificação no aparelho só sai por aqui. Quem não
@@ -286,10 +359,12 @@ const LIDO_HA_POUCO_MS = 30 * 60_000
  * A lista de Avisos (A100, A101): os não lidos primeiro (com os lidos nos
  * últimos 30 minutos), depois os demais, cada grupo do mais novo para o mais
  * antigo; filtrada por tipo e paginada.
- * Lê primeiro só o índice do histórico inteiro (id, tipo, lido, data) — em
- * lotes, porque o PostgREST para em 1.000 linhas — e o texto só da página.
- * Sem a tabela, lista vazia; outro erro sobe para a tela de erro, em vez de
- * dizer "nenhum aviso" a quem tem avisos.
+ * Lê primeiro só o índice do histórico inteiro (id, tipo, link, lido, data)
+ * — em lotes, porque o PostgREST para em 1.000 linhas — e o texto só da
+ * página. Aviso que leva a uma parte desabilitada na Área do associado fica
+ * de fora (e das contagens): ele cairia na página "indisponível"; reabilitada
+ * a parte, volta. Sem a tabela, lista vazia; outro erro sobe para a tela de
+ * erro, em vez de dizer "nenhum aviso" a quem tem avisos.
  */
 export async function listaDeAvisos(
   cpf: string,
@@ -300,14 +375,16 @@ export async function listaDeAvisos(
   if (!chave) return vazia
   const admin = await createAdminClient()
   const tenantId = await tenantAtual()
+  // Nunca rejeita (falha = null, tudo vale): pode correr junto do índice.
+  const lendoPartes = configDasPartes(null)
 
-  type Indice = { id: string; evento: string; lida_em: string | null; created_at: string }
+  type Indice = { id: string; evento: string; link: string | null; lida_em: string | null; created_at: string }
   let indice: Indice[]
   try {
     indice = await lerEmLotes<Indice>((de, ate) =>
       admin
         .from("portal_avisos")
-        .select("id, evento, lida_em, created_at")
+        .select("id, evento, link, lida_em, created_at")
         .eq("emp_proprietaria_id", tenantId)
         .eq("cpf", chave)
         .order("created_at", { ascending: false })
@@ -318,6 +395,8 @@ export async function listaDeAvisos(
     if (tabelaAusente(e as { code?: string })) return vazia
     throw e
   }
+  const partes = await lendoPartes
+  if (temParteDesabilitada(partes)) indice = indice.filter((a) => !deParteDesabilitada(partes, a.link, a.evento))
 
   const porTipo = new Map<string, { total: number; naoLidos: number }>()
   let naoLidos = 0
@@ -373,18 +452,43 @@ export async function listaDeAvisos(
   }
 }
 
-export async function contarAvisosNaoLidos(cpf: string): Promise<number> {
+/**
+ * O número do sino. Com alguma parte desabilitada na Área do associado, conta
+ * como a lista (`listaDeAvisos`): lê os não lidos (tipo e link) e tira os que
+ * levam a ela; sem nenhuma, só a contagem do banco, como sempre. Uma conta
+ * por requisição (React cache): a casca e as Novidades do Início dividem.
+ */
+export const contarAvisosNaoLidos = cache(async (cpf: string): Promise<number> => {
   const chave = cpfConfiavel(cpf)
   if (!chave) return 0
   const admin = await createAdminClient()
+  const tenantId = await tenantAtual()
+  const partes = await configDasPartes(null)
+  if (temParteDesabilitada(partes)) {
+    try {
+      const naoLidos = await lerEmLotes<{ evento: string; link: string | null }>((de, ate) =>
+        admin
+          .from("portal_avisos")
+          .select("id, evento, link")
+          .eq("emp_proprietaria_id", tenantId)
+          .eq("cpf", chave)
+          .is("lida_em", null)
+          .order("id")
+          .range(de, ate)
+      )
+      return naoLidos.filter((a) => !deParteDesabilitada(partes, a.link, a.evento)).length
+    } catch {
+      return 0
+    }
+  }
   const { count, error } = await admin
     .from("portal_avisos")
     .select("id", { count: "exact", head: true })
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", tenantId)
     .eq("cpf", chave)
     .is("lida_em", null)
   return error ? 0 : (count ?? 0)
-}
+})
 
 /**
  * Marca como lidos os avisos da pessoa (A100): os indicados por `ids` (vistos
@@ -454,6 +558,9 @@ const TEMPO_MAX_EM_MASSA_MS = 45_000
  * entram em lotes de 500. Uma vez por pessoa e link: quem já tem no sino um
  * aviso com este link não recebe outro — rodar de novo só completa o que
  * faltou. Cada etapa abre um client novo: o JWT do tenant vale 60 s.
+ *
+ * Área do associado: o link de parte desabilitada não grava nada; com o
+ * portal fora do ar, grava no sino e não avisa no celular.
  */
 export async function avisarNoSinoEmMassa(cpfs: Iterable<string>, aviso: AvisoEmMassa): Promise<ResultadoEmMassa> {
   const r: ResultadoEmMassa = { gravados: 0, jaAvisados: 0, restantes: 0, celular: 0 }
@@ -461,6 +568,8 @@ export async function avisarNoSinoEmMassa(cpfs: Iterable<string>, aviso: AvisoEm
   const todos = [...new Set([...cpfs].map((c) => cpfConfiavel(c)).filter((c): c is string => Boolean(c)))]
   if (todos.length === 0) return r
   const tenantId = await tenantAtual()
+  const partes = await configDasPartes(null)
+  if (deParteDesabilitada(partes, aviso.link, aviso.evento)) return r
 
   let ja: Set<string>
   try {
@@ -512,7 +621,9 @@ export async function avisarNoSinoEmMassa(cpfs: Iterable<string>, aviso: AvisoEm
   try {
     const amb = { client: await createAdminClient(), tenantId }
     const comAparelho: string[] = []
-    for (const cpf of novos.slice(0, r.gravados)) if (await temPushPortal(cpf, amb)) comAparelho.push(cpf)
+    // Portal fora do ar: ninguém recebe no aparelho (o sino guarda para a volta).
+    const avisaveis = portalForaDoAr(partes, aviso.link) ? [] : novos.slice(0, r.gravados)
+    for (const cpf of avisaveis) if (await temPushPortal(cpf, amb)) comAparelho.push(cpf)
     for (let i = 0; i < comAparelho.length; i += 5) {
       if (Date.now() - inicio > TEMPO_MAX_EM_MASSA_MS) break
       const etapa = { client: await createAdminClient(), tenantId }

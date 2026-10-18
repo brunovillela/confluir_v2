@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CalendarClock, Clock, Info } from "lucide-react"
+import { CalendarClock, Clock, Info, PauseCircle } from "lucide-react"
 
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 import {
   AtualizarAo,
   ContagemRegressiva,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/card"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { estadoVotacao, quandoCurto } from "@/lib/assembleias-constantes"
+import { bloqueioDaParte, configDaParte } from "@/lib/db/portal-partes"
 import { ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import {
   elegibilidadeParaVotar,
@@ -28,6 +30,7 @@ import {
   type ParticipacaoNaAssembleia,
 } from "@/lib/db/votacao-portal"
 import { formatarDataHora } from "@/lib/formato"
+import { mensagemDaSituacao } from "@/lib/portal-partes-constantes"
 
 import { votarNaAssembleia } from "../actions"
 import { ComprovanteVoto, type ComprovanteNaTela } from "../comprovante-voto"
@@ -57,15 +60,26 @@ export default async function CedulaPage({
 }) {
   const { filiado, preview } = await requireVisualizacaoPortal()
   const { id } = await params
+  // A guarda do layout não impede a página de rodar: desabilitada, nada se
+  // consulta (ver ../page.tsx).
+  const parte = await configDaParte("votacao").catch(() => null)
+  if (parte?.estado === "desabilitada") {
+    return <ParteIndisponivel parte="votacao" mensagem={mensagemDaSituacao("votacao", parte)} preview={preview} />
+  }
 
-  const eleg = filiado.ativo ? await elegibilidadeParaVotar(filiado.cpf, id) : null
+  const [eleg, bloqueio] = await Promise.all([
+    filiado.ativo ? elegibilidadeParaVotar(filiado.cpf, id) : Promise.resolve(null),
+    // Votação suspensa (ou o portal em modo de consulta): a cédula dá lugar
+    // ao aviso, porque a action recusaria o voto. Na dúvida, vale.
+    bloqueioDaParte("votacao").catch(() => null),
+  ])
   // Mesma regra da lista e do banner do Início: a cédula só aparece quando dá
   // para votar AGORA. Antes ela abria antes da abertura e na carência, e o
   // bloqueio só chegava depois de a pessoa responder tudo (achado A89). As
   // travas do servidor (registrarVotoFiliado) continuam valendo.
   const estado = eleg ? estadoVotacao(eleg) : null
   const [perguntas, participacao, fim] = await Promise.all([
-    estado?.chave === "votar" ? perguntasDaAssembleia(id) : Promise.resolve([]),
+    estado?.chave === "votar" && !bloqueio ? perguntasDaAssembleia(id) : Promise.resolve([]),
     // O comprovante de quem já votou: logo depois do voto (a action revalida
     // e esta página é refeita no servidor, já no ramo "já votou") e para quem
     // volta depois, inclusive com a votação encerrada (A46).
@@ -98,7 +112,7 @@ export default async function CedulaPage({
             Cédula
           </CardTitle>
           {/* A instrução só vale quando as perguntas estão na tela. */}
-          {estado?.chave === "votar" && perguntas.length > 0 && (
+          {estado?.chave === "votar" && !bloqueio && perguntas.length > 0 && (
             <CardDescription>Escolha uma opção em cada pergunta.</CardDescription>
           )}
         </CardHeader>
@@ -188,6 +202,18 @@ export default async function CedulaPage({
             <Alert variant="warning">
               <AlertTitle>{estado.rotulo}</AlertTitle>
               <AlertDescription>{estado.detalhe}</AlertDescription>
+            </Alert>
+          ) : bloqueio ? (
+            // Fora do CedulaForm, que /votar e a urna também usam. Quem já
+            // votou continua vendo o comprovante (ramo "ja_votou" acima).
+            <Alert variant="warning">
+              <PauseCircle />
+              <AlertTitle>Voto pelo portal pausado</AlertTitle>
+              <AlertDescription>
+                A cédula não está disponível aqui por enquanto — veja o aviso no
+                topo da página. Se você recebeu o link pessoal de votação por
+                e-mail, ele continua valendo.
+              </AlertDescription>
             </Alert>
           ) : perguntas.length === 0 ? (
             <Alert variant="warning">

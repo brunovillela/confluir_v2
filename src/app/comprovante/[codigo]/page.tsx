@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { conferirComprovante, ROTULO_CANAL } from "@/lib/db/voto-comprovante"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -29,7 +30,7 @@ export default async function ComprovantePage({
   params: Promise<{ codigo: string }>
 }) {
   const { codigo } = await params
-  const [c, portal] = await Promise.all([
+  const [c, portal, partes] = await Promise.all([
     conferirComprovante(decodeURIComponent(codigo)),
     // Quem chegou pelo portal (o associado, ou a gestão em "Ver como
     // filiado") ganha o caminho de volta: fora da casca do portal, sem menu,
@@ -41,13 +42,25 @@ export default async function ComprovantePage({
       unstable_rethrow(e)
       return null
     }),
+    // Filiados › Área do associado: o que a Votação do portal mostra. Na
+    // dúvida (leitura falhou), tudo como antes.
+    configDoPortal().catch((e: unknown) => {
+      unstable_rethrow(e)
+      return null
+    }),
   ])
+  const portalNoAr = partes?.partes.portal.estado !== "desabilitada"
+  const votacaoNoPortal = portalNoAr && partes?.partes.votacao.estado !== "desabilitada"
+  const resultadoNoPortal = votacaoNoPortal && (partes?.partes.votacao.opcoes.mostrar_resultado ?? true)
+  // Votação desabilitada: a volta é ao Início (a Votação seria "indisponível");
+  // portal fora do ar: não há para onde voltar.
+  const voltar = !portal || !portalNoAr ? null : votacaoNoPortal ? "/portal/votacao" : "/portal/inicio"
 
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
-      {portal && (
+      {voltar && (
         <Button variant="ghost" asChild className="-ml-2 mb-4">
-          <Link href="/portal/votacao">
+          <Link href={voltar}>
             <ArrowLeft />
             Voltar ao portal
           </Link>
@@ -140,7 +153,7 @@ export default async function ComprovantePage({
               </p>
               <p>
                 <strong className="text-foreground">Resultado.</strong> A apuração só é publicada
-                depois do término da rodada, na área do filiado, em Votação.
+                depois do término da rodada{resultadoNoPortal ? ", na área do filiado, em Votação" : ""}.
               </p>
             </CardContent>
           </Card>

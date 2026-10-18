@@ -15,6 +15,7 @@ import {
   type VinculoDaSessao,
   type VotacaoAberta,
 } from "@/lib/db/votacao-link-unico"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { sessaoTelegram, telefoneMascarado } from "@/lib/sessao-votacao-telegram"
 import { createClient } from "@/lib/supabase/server"
@@ -56,6 +57,14 @@ export default async function VotacoesPage({
       : new Map<string, VinculoDaSessao>()
   const telegramDisponivel = telegramConfigurado() && Boolean(nomeDoBot())
   const faltaVinculo = votacoes.some((v) => !v.somenteFiliados && !vinculos.has(v.assembleiaId))
+  // As votações só de filiados mandam à Votação do portal — a menos que ela
+  // (ou o portal inteiro) esteja desabilitada em Filiados › Área do
+  // associado: aí o caminho é o link pessoal do e-mail. Na dúvida, o portal.
+  const votacaoNoPortal = votacoes.some((v) => v.somenteFiliados)
+    ? await configDoPortal()
+        .then((c) => c.partes.portal.estado !== "desabilitada" && c.partes.votacao.estado !== "desabilitada")
+        .catch(() => true)
+    : true
 
   return (
     <main className="bg-muted/40 flex min-h-svh flex-col items-center gap-6 px-4 py-8">
@@ -138,7 +147,13 @@ export default async function VotacoesPage({
           </p>
         )}
         {votacoes.map((v) => (
-          <CartaoVotacao key={v.assembleiaId} votacao={v} vinculo={vinculos.get(v.assembleiaId)} logado={logado} />
+          <CartaoVotacao
+            key={v.assembleiaId}
+            votacao={v}
+            vinculo={vinculos.get(v.assembleiaId)}
+            logado={logado}
+            votacaoNoPortal={votacaoNoPortal}
+          />
         ))}
       </div>
       <p className="text-muted-foreground max-w-xl text-center text-xs text-balance">
@@ -153,10 +168,12 @@ function CartaoVotacao({
   votacao: v,
   vinculo,
   logado,
+  votacaoNoPortal,
 }: {
   votacao: VotacaoAberta
   vinculo: VinculoDaSessao | undefined
   logado: boolean
+  votacaoNoPortal: boolean
 }) {
   return (
     <Card>
@@ -198,7 +215,7 @@ function CartaoVotacao({
             </a>
           </p>
         )}
-        <Situacao votacao={v} vinculo={vinculo} logado={logado} />
+        <Situacao votacao={v} vinculo={vinculo} logado={logado} votacaoNoPortal={votacaoNoPortal} />
       </CardContent>
     </Card>
   )
@@ -208,11 +225,20 @@ function Situacao({
   votacao: v,
   vinculo,
   logado,
+  votacaoNoPortal,
 }: {
   votacao: VotacaoAberta
   vinculo: VinculoDaSessao | undefined
   logado: boolean
+  votacaoNoPortal: boolean
 }) {
+  if (v.somenteFiliados && !votacaoNoPortal) {
+    return (
+      <p className="text-muted-foreground">
+        Votação só para filiados — vote pelo link pessoal enviado ao seu e-mail. Não recebeu? Fale com o sindicato.
+      </p>
+    )
+  }
   if (v.somenteFiliados) {
     return (
       <p className="text-muted-foreground">

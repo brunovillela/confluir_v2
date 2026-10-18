@@ -7,6 +7,7 @@ import { Clock, IdCard } from "lucide-react"
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +28,9 @@ import {
   ROTULO_SITUACAO_RESERVA,
   linkDaReserva,
   reservaDaPessoa,
+  type SituacaoReserva,
 } from "@/lib/db/hospedagem-garantida"
+import { bloqueioDaParte } from "@/lib/db/portal-partes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { noitesDaEstadia } from "@/lib/hospedagem-garantida-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -38,6 +41,9 @@ import { CompartilharReserva } from "./compartilhar-reserva"
 
 export const metadata: Metadata = { title: "Reserva de hospedagem" }
 
+/** A reserva que ainda vai acontecer (ou está acontecendo): a mesma régua de "Minhas reservas". */
+const POR_VIR: SituacaoReserva[] = ["confirmada", "aguardando_confirmacao", "hospedado"]
+
 export default async function ReservaHospedagemPage({
   params,
   searchParams,
@@ -45,11 +51,21 @@ export default async function ReservaHospedagemPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ salvo?: string; email?: string }>
 }) {
-  const { filiado, preview } = await requireVisualizacaoPortal()
+  // Hospedagem desabilitada: o "indisponível" — menos para a reserva que
+  // ainda vai acontecer, que continua valendo no hotel (QR e cancelamento,
+  // que evita a falta). O layout renderiza junto com esta página e não a
+  // impede de rodar (nem o notFound). Suspensa — ou o portal em consulta ou
+  // fora do ar —, a vaga da fila não se confirma; QR e cancelamento ficam.
+  const [indisponivel, { filiado, preview }, suspensao] = await Promise.all([
+    paginaIndisponivel("hospedagem"),
+    requireVisualizacaoPortal(),
+    bloqueioDaParte("hospedagem").catch(() => null),
+  ])
   const [{ id }, { salvo, email }] = await Promise.all([params, searchParams])
 
   const [registros, hoteis] = await Promise.all([registrosDoCpf(filiado.cpf), listarHoteis()])
   const reserva = await reservaDaPessoa(id, registros, hoteis)
+  if (indisponivel && (!reserva || !POR_VIR.includes(reserva.situacao))) return indisponivel
   if (!reserva) notFound()
 
   const hotel = hoteis.find((h) => h.id === reserva.hotelId) ?? null
@@ -76,6 +92,16 @@ export default async function ReservaHospedagemPage({
         titulo="Reserva de hospedagem"
         subtitulo={`${nomeHotel} · ${formatarData(reserva.checkIn)} a ${formatarData(reserva.checkOut)}`}
       />
+
+      {indisponivel && (
+        <Alert variant="warning">
+          <AlertTitle>A Hospedagem não está disponível no portal</AlertTitle>
+          <AlertDescription>
+            {suspensao} Esta reserva continua valendo no hotel: o QR Code e o cancelamento
+            continuam aqui.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {salvo === "1" && (
         <AvisoDaUrl parametros={["salvo", "email"]}>
@@ -108,7 +134,9 @@ export default async function ReservaHospedagemPage({
               </strong>
               . Sem confirmação, passa para a próxima pessoa da lista.
             </p>
-            {reserva.esperaToken ? (
+            {suspensao ? (
+              <p>Não é possível confirmar agora. {suspensao}</p>
+            ) : reserva.esperaToken ? (
               <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">
                 <ConfirmarOfertaBotao token={reserva.esperaToken} />
               </AcaoVisualizacao>

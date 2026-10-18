@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/nextjs"
 import { TriangleAlert } from "lucide-react"
 
 import { useDentroDaCasca } from "@/components/portal/contador-avisos"
+import { useRotaDesabilitada } from "@/components/portal/rotas-desabilitadas"
 import { Button } from "@/components/ui/button"
 
 /**
@@ -15,7 +16,9 @@ import { Button } from "@/components/ui/button"
  * tela (A67). O texto fala com o associado: o canal dele é o Atendimento, não
  * "a equipe do sistema". Fora da casca (tela de entrada, Oposição do
  * trabalhador não filiado) não há Atendimento nem Início para oferecer: nas
- * subpáginas da Oposição, o caminho de volta é a lista de campanhas.
+ * subpáginas da Oposição, o caminho de volta é a lista de campanhas. Com o
+ * Atendimento desabilitado em Filiados › Área do associado, "Falar com o
+ * sindicato" leva aos canais oficiais (O sindicato).
  */
 export default function ErroPortal({
   error,
@@ -25,6 +28,7 @@ export default function ErroPortal({
   retry: () => void
 }) {
   const dentro = useDentroDaCasca()
+  const semAtendimento = useRotaDesabilitada("/portal/atendimento")
   const naOposicao = usePathname().startsWith("/portal/oposicao/")
 
   useEffect(() => {
@@ -40,7 +44,7 @@ export default function ErroPortal({
         <h1 className="text-xl font-semibold tracking-tight">Não foi possível abrir esta página</h1>
         <p className="text-muted-foreground max-w-md text-sm text-balance">
           {dentro
-            ? "Tente de novo em instantes. Se o problema continuar, fale com o sindicato pelo Atendimento e informe o código abaixo."
+            ? `Tente de novo em instantes. Se o problema continuar, fale com o sindicato ${semAtendimento ? "pelos canais oficiais" : "pelo Atendimento"} e informe o código abaixo.`
             : "Tente de novo em instantes. Se o problema continuar, procure o sindicato e informe o código abaixo."}
         </p>
         {error.digest && <p className="text-muted-foreground font-mono text-xs">Código: {error.digest}</p>}
@@ -50,7 +54,7 @@ export default function ErroPortal({
         {dentro ? (
           <>
             <Button asChild variant="outline">
-              <Link href="/portal/atendimento">Falar com o sindicato</Link>
+              <Link href={semAtendimento ? "/portal/sindicato" : "/portal/atendimento"}>Falar com o sindicato</Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href="/portal/inicio">Voltar ao início</Link>

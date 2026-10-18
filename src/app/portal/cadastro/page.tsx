@@ -22,14 +22,17 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { formatarCpf } from "@/lib/cpf"
 import { vinculosDoFiliado, type VinculoDoPortal } from "@/lib/db/cadastro-portal"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
+import { bloqueioDaParte, opcoesDaParte, rotasDesabilitadas } from "@/lib/db/portal-partes"
 import { marcosDaTrilha, ROTULOS_FORMA_RECEBIMENTO } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 
 import { ContatosEmergencia } from "@/components/contatos-emergencia"
 import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 
 import { excluirMeuContatoEmergencia, salvarMeuContatoEmergencia } from "./actions"
 import { CadastroForm } from "./cadastro-form"
+import { GRUPOS_CADASTRO } from "./validacao"
 
 export const metadata: Metadata = { title: "Meu cadastro" }
 
@@ -39,6 +42,27 @@ function linkAtendimento(titulo: string): string {
 }
 const LINK_CORRECAO = linkAtendimento("Correção no meu cadastro")
 const LINK_VINCULO = linkAtendimento("Mudança no vínculo com a fonte pagadora")
+
+/** "a, b e c" */
+function juntar(itens: string[]): string {
+  return itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`
+}
+
+/**
+ * O que o associado atualiza por aqui, conforme a Área do associado: os
+ * grupos liberados e, se o cartão estiver ligado, os contatos de emergência.
+ */
+function oQueAtualiza(grupos: readonly string[], emergencia: boolean): string[] {
+  const tem = (g: keyof typeof GRUPOS_CADASTRO) => grupos.includes(g)
+  const itens: string[] = []
+  if (tem("telefones")) itens.push("telefones")
+  if (tem("email_pessoal") && tem("email_corporativo")) itens.push("e-mails")
+  else if (tem("email_pessoal")) itens.push("o e-mail pessoal")
+  else if (tem("email_corporativo")) itens.push("o e-mail corporativo")
+  if (tem("endereco")) itens.push("endereço")
+  if (emergencia) itens.push("contatos de emergência")
+  return itens
+}
 
 function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -65,7 +89,7 @@ export default async function CadastroPage({
 }) {
   const { filiado, preview } = await requireVisualizacaoPortal()
   const salvo = um((await searchParams).salvo)
-  const [cadastro, emergencia, vinculos, sessao] = await Promise.all([
+  const [cadastro, emergencia, vinculos, sessao, opcoes, pausa, desligadas] = await Promise.all([
     cadastroDoFiliado(filiado.cpf),
     listarContatosEmergencia({ cpf: filiado.cpf, filiadoId: filiado.filiacaoId }),
     // Falha na leitura dos vínculos não derruba a página: o card avisa.
@@ -73,7 +97,25 @@ export default async function CadastroPage({
     // E-mail da conta de acesso (A25) — só na sessão do próprio filiado; na
     // visualização a sessão é a da gestão.
     preview ? Promise.resolve(null) : getSessaoPortal(),
+    // Área do associado: na dúvida, vale o de sempre (tudo editável, sem pausa).
+    opcoesDaParte("cadastro").catch(() => opcoesPadrao("cadastro")),
+    // Meu cadastro suspenso ou o portal em modo de consulta: só consulta.
+    bloqueioDaParte("cadastro").catch(() => null),
+    rotasDesabilitadas().catch(() => [] as string[]),
   ])
+  const pausado = pausa !== null
+  // Links para partes desabilitadas somem (o pedido à secretaria vira texto).
+  const comAtendimento = !desligadas.includes("/portal/atendimento")
+  const comContribuicao = !desligadas.includes("/portal/contribuicao")
+  const mostrarEmergencia = emergencia.disponivel && opcoes.contatos_emergencia
+  const atualiza = oQueAtualiza(opcoes.campos_editaveis, mostrarEmergencia)
+  const pecaCorrecao = comAtendimento ? (
+    <Link href={LINK_CORRECAO} className="text-primary font-medium underline underline-offset-4">
+      peça a correção pelo Atendimento
+    </Link>
+  ) : (
+    "peça a correção à secretaria"
+  )
 
   // Trilha de etapas (só quando há filiação/desfiliação em andamento).
   const trilha = cadastro
@@ -94,15 +136,14 @@ export default async function CadastroPage({
         secao="/portal/cadastro"
         titulo="Meu cadastro"
         subtitulo={
-          <>
-            Você pode atualizar telefones, e-mails, endereço e contatos de
-            emergência. Os demais dados são alterados pela secretaria da
-            entidade —{" "}
-            <Link href={LINK_CORRECAO} className="text-primary font-medium underline underline-offset-4">
-              peça a correção pelo Atendimento
-            </Link>
-            .
-          </>
+          atualiza.length > 0 ? (
+            <>
+              Você pode atualizar {juntar(atualiza)}. Os demais dados são
+              alterados pela secretaria da entidade — {pecaCorrecao}.
+            </>
+          ) : (
+            <>Os seus dados são alterados pela secretaria da entidade — {pecaCorrecao}.</>
+          )
         }
       />
 
@@ -256,23 +297,32 @@ export default async function CadastroPage({
                   Avise a secretaria: é isso que garante o desconto no
                   contracheque certo.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline">
-                    <Link href={LINK_VINCULO}>Avisar que algo mudou</Link>
-                  </Button>
-                  <Button asChild variant="ghost">
-                    <Link href="/portal/contribuicao">Ver minhas contribuições</Link>
-                  </Button>
-                </div>
+                {(comAtendimento || comContribuicao) && (
+                  <div className="flex flex-wrap gap-2">
+                    {comAtendimento && (
+                      <Button asChild variant="outline">
+                        <Link href={LINK_VINCULO}>Avisar que algo mudou</Link>
+                      </Button>
+                    )}
+                    {comContribuicao && (
+                      <Button asChild variant="ghost">
+                        <Link href="/portal/contribuicao">Ver minhas contribuições</Link>
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
           <CadastroForm
             somenteLeitura={preview}
+            pausado={pausado}
+            gruposEditaveis={opcoes.campos_editaveis}
             emailAcesso={filiado.email}
             emailConta={sessao?.user.email ?? null}
-            linkTrocaEmail={linkAtendimento("Trocar o e-mail de acesso")}
+            linkTrocaEmail={comAtendimento ? linkAtendimento("Trocar o e-mail de acesso") : null}
+            linkCorrecao={comAtendimento ? LINK_CORRECAO : null}
             contato={{
               email_pessoal: cadastro.email_pessoal,
               email_corporativo: cadastro.email_corporativo,
@@ -290,7 +340,9 @@ export default async function CadastroPage({
             }}
           />
 
-          {emergencia.disponivel && (
+          {/* Some sem o SQL ou quando a entidade desliga o cartão (Área do
+              associado); em pausa, a lista fica só para consulta. */}
+          {mostrarEmergencia && (
             <Card>
               <CardHeader>
                 <CardTitle role="heading" aria-level={2}>Contatos de emergência</CardTitle>
@@ -304,7 +356,7 @@ export default async function CadastroPage({
                   contatos={emergencia.contatos}
                   salvar={salvarMeuContatoEmergencia}
                   excluir={excluirMeuContatoEmergencia}
-                  podeEditar
+                  podeEditar={!pausado}
                   preview={preview}
                 />
               </CardContent>

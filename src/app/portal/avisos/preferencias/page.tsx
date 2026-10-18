@@ -15,7 +15,9 @@ import { cpfConfiavel } from "@/lib/cpf"
 import { situacaoComunicados } from "@/lib/db/comunicacao-descadastro"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { preferenciasDoFiliado } from "@/lib/db/portal-avisos"
+import { partesDesabilitadas } from "@/lib/db/portal-partes"
 import { estadoPushPortal } from "@/lib/db/push"
+import { EVENTOS_PORTAL, eventoDesabilitado } from "@/lib/portal-avisos-eventos"
 import { tenantAtual } from "@/lib/tenant"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -43,16 +45,23 @@ const LINK_TEXTO = "text-foreground font-medium underline underline-offset-4"
  * Os comunicados da entidade (mala direta) também se escolhem aqui (A176):
  * o mesmo formulário e a mesma gravação do cartão da LGPD, que continua lá
  * por ser onde mora o direito do titular.
+ *
+ * Área do associado (Filiados): o tipo de aviso de parte desabilitada some
+ * (não chega aviso dele); a escolha que a pessoa tinha fica guardada para a
+ * volta da parte. A página e o salvar nunca se bloqueiam: é o opt-out.
  */
 export default async function PreferenciasAvisosPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
   const cpf = cpfConfiavel(filiado.cpf)
-  const [prefs, celular, comunicados, entidade] = await Promise.all([
+  const [prefs, celular, comunicados, entidade, desabilitadas] = await Promise.all([
     preferenciasDoFiliado(filiado.cpf),
     estadoPushPortal(filiado.cpf).catch(() => ({ disponivel: false, aparelhos: 0 })),
     cpf ? situacaoComunicados({ emp: await tenantAtual(), cpf }).catch(() => null) : null,
     nomeEntidade(),
+    // Na dúvida (leitura falhou), todos os tipos aparecem.
+    partesDesabilitadas().catch(() => []),
   ])
+  const ocultos = EVENTOS_PORTAL.filter((e) => eventoDesabilitado(e.chave, desabilitadas)).map((e) => e.chave)
 
   return (
     <>
@@ -131,7 +140,7 @@ export default async function PreferenciasAvisosPage() {
                 : " para receber avisos fora do portal."}
             </p>
           )}
-          <PreferenciasForm prefs={prefs} celular={celular.disponivel} preview={preview} />
+          <PreferenciasForm prefs={prefs} celular={celular.disponivel} preview={preview} ocultos={ocultos} />
         </CardContent>
       </Card>
 

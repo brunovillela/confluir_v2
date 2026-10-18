@@ -37,8 +37,23 @@ function diaMes(data: string): string {
  * minhaContribuicao faz várias consultas — por isso a faixa carrega no seu
  * próprio Suspense e, se falhar, diz que a situação está indisponível em vez
  * de "Em dia".
+ *
+ * Filiados › Área do associado: com a Contribuição desabilitada a página nem
+ * monta este bloco; com a Carteirinha desabilitada, o botão dela sai. O texto
+ * do atraso é o da entidade (opção da Contribuição). Contribuição suspensa
+ * mantém a faixa do Pix: o QR continua, para pagar.
  */
-export async function MinhaSituacao({ filiado }: { filiado: Filiado }) {
+export async function MinhaSituacao({
+  filiado,
+  carteirinha = true,
+  textoAtraso,
+}: {
+  filiado: Filiado
+  /** A Carteirinha aparece no portal (não está desabilitada). */
+  carteirinha?: boolean
+  /** O que acontece com quem está em atraso ("" = nada a dizer). */
+  textoAtraso: string
+}) {
   const [c, rCobrancas] = await Promise.all([
     seguro<MinhaContribuicao | null>("contribuição", () => minhaContribuicao(filiado.cpf, filiado.filiacaoId), null),
     tentar("cobranças Pix", async () => (await cobrancasDoFiliado(await registrosDaPessoa(filiado.cpf))).cobrancas),
@@ -60,7 +75,7 @@ export async function MinhaSituacao({ filiado }: { filiado: Filiado }) {
           <TriangleAlert />
           <AlertTitle>Sua contribuição consta como em atraso</AlertTitle>
           <AlertDescription>
-            Nada é suspenso automaticamente: a secretaria analisa cada caso e pode limitar serviços enquanto o atraso constar.{" "}
+            {textoAtraso && <>{textoAtraso} </>}
             {c.porPix
               ? "Se você já pagou, avise o sindicato com o comprovante."
               : "Se o desconto está sendo feito, avise o sindicato com o contracheque."}{" "}
@@ -118,9 +133,11 @@ export async function MinhaSituacao({ filiado }: { filiado: Filiado }) {
             <Button variant="outline" asChild>
               <Link href="/portal/contribuicao">Ver contribuição</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link href="/portal/carteirinha">Carteirinha</Link>
-            </Button>
+            {carteirinha && (
+              <Button variant="outline" asChild>
+                <Link href="/portal/carteirinha">Carteirinha</Link>
+              </Button>
+            )}
           </div>
         </CardContent>
         {aberta && (

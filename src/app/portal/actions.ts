@@ -16,7 +16,10 @@ import {
   vincularIdentidade,
 } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { situacaoDoPortal } from "@/lib/db/portal-partes"
+import { destinoAoEntrar } from "@/lib/db/portal-primeiro-acesso"
 import { destinoDoPortal } from "@/lib/portal-destino"
+import { mensagemDaSituacao } from "@/lib/portal-partes-constantes"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
@@ -52,6 +55,18 @@ const RESPOSTA_PEDIDO =
 const CODIGO_NAO_CONFERE = `Código incorreto, vencido ou já usado. Use o do e-mail mais recente — cada novo pedido anula o anterior, e o código vale por ${textoValidade()} e serve uma vez só. Se não der certo, peça um novo código.`
 
 /**
+ * Portal inteiro fora do ar (Filiados › Área do associado): a entrada recusa
+ * ANTES de olhar o CPF, com a mesma resposta para qualquer um (A68) — as três
+ * actions são chamáveis direto, não basta a tela esconder o formulário. O
+ * portal suspenso (modo de consulta) entra normalmente. Na dúvida (leitura
+ * que falhou), entra.
+ */
+async function portalForaDoAr(): Promise<string | null> {
+  const portal = await situacaoDoPortal().catch(() => null)
+  return portal?.estado === "desabilitada" ? mensagemDaSituacao("portal", portal) : null
+}
+
+/**
  * E-mail para onde o código vai, ou null quando nada deve ser enviado. Recebe
  * quem tem filiação ativa e também quem está na filiação coletiva em
  * andamento: esse não entra no portal, mas, depois de provar a identidade,
@@ -71,6 +86,8 @@ export async function loginFiliadoSenha(
   formData: FormData
 ): Promise<EstadoForm> {
   const inicio = Date.now()
+  const foraDoAr = await portalForaDoAr()
+  if (foraDoAr) return { erro: foraDoAr }
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
   const senha = String(formData.get("senha") ?? "")
 
@@ -129,8 +146,9 @@ export async function loginFiliadoSenha(
   }
 
   // Volta ao item que trouxe a pessoa (A30). O campo oculto vem do cliente:
-  // valida de novo aqui — só caminhos do portal, nunca outro endereço.
-  redirect(destinoDoPortal(formData.get("next")) ?? "/portal/inicio")
+  // valida de novo aqui — só caminhos do portal, nunca outro endereço. Com o
+  // primeiro acesso pendente, passa por ele antes, levando o destino junto.
+  redirect(await destinoAoEntrar(filiado, destinoDoPortal(formData.get("next")) ?? "/portal/inicio"))
 }
 
 /** `pedido`: a tela passa para o passo de digitar o código (sempre, A68). */
@@ -146,6 +164,9 @@ export async function pedirCodigoFiliado(
   _prev: EstadoPedidoCodigo,
   formData: FormData
 ): Promise<EstadoPedidoCodigo> {
+  // Antes do after(): fora do ar, nenhum código é preparado nem enviado.
+  const foraDoAr = await portalForaDoAr()
+  if (foraDoAr) return { erro: foraDoAr }
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
   const erroHumano = await exigirHumano(formData)
@@ -206,6 +227,8 @@ export async function confirmarCodigoFiliado(
   formData: FormData
 ): Promise<EstadoForm> {
   const inicio = Date.now()
+  const foraDoAr = await portalForaDoAr()
+  if (foraDoAr) return { erro: foraDoAr }
   const cpf = limparCpf(String(formData.get("cpf") ?? ""))
   // Colado com espaço, hífen ou "Código: …": só os números contam.
   const token = String(formData.get("codigo") ?? "").replace(/\D/g, "")
@@ -263,9 +286,13 @@ export async function confirmarCodigoFiliado(
   // "Esqueci minha senha / criar senha" (A66): entrou pelo código, segue para
   // a tela de senha que já existe (/definir-senha, que exige a sessão aberta).
   // destino explícito: a conta pode ter nascido em outro fluxo (votação,
-  // oposição) e o tipo dela levaria o "Continuar" ao painel.
-  if (formData.get("criar_senha") === "1") redirect("/definir-senha?destino=/portal/inicio")
+  // oposição) e o tipo dela levaria o "Continuar" ao painel. Com o primeiro
+  // acesso pendente, o "Continuar" vai direto a ele.
+  if (formData.get("criar_senha") === "1") {
+    redirect(`/definir-senha?destino=${encodeURIComponent(await destinoAoEntrar(quem, "/portal/inicio"))}`)
+  }
 
-  // Volta ao item que trouxe a pessoa (A30), validado de novo aqui.
-  redirect(destinoDoPortal(formData.get("next")) ?? "/portal/inicio")
+  // Volta ao item que trouxe a pessoa (A30), validado de novo aqui — pelo
+  // primeiro acesso, quando ele está pendente.
+  redirect(await destinoAoEntrar(quem, destinoDoPortal(formData.get("next")) ?? "/portal/inicio"))
 }

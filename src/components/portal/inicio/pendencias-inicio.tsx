@@ -9,9 +9,16 @@ import { buttonVariants } from "@/components/ui/button"
 import { estadoVotacao, ROTULOS_MODALIDADE } from "@/lib/assembleias-constantes"
 import type { Filiado } from "@/lib/contas"
 import { situacaoColetivaDoFiliado } from "@/lib/db/filiacao-coletiva"
-import { pendenciasDaPessoa } from "@/lib/db/hospedagem-avaliacoes"
+import { pendenciasDaPessoa, type PendenciaAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { oposicoesParaFiliado } from "@/lib/db/oposicao"
-import { avaliacoesPendentesSoLeitura, registrosDaPessoa } from "@/lib/db/portal-inicio"
+import {
+  aceitaAcao,
+  aparece,
+  avaliacoesPendentesSoLeitura,
+  registrosDaPessoa,
+  type PartesDoInicio,
+} from "@/lib/db/portal-inicio"
+import type { AssembleiaDoFiliado } from "@/lib/db/votacao-portal"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { assembleiasSeAtivo, tentar } from "./cargas"
@@ -46,16 +53,36 @@ const PEDEM_ACAO = new Set(["votar", "carencia"])
  *
  * A seção ganha o título "Para você resolver" (A146) e só aparece quando há
  * o que resolver (ou o aviso de que algo não carregou).
+ *
+ * Filiados › Área do associado: Votação ou Hospedagem desabilitada não é
+ * consultada. Votação suspensa (ou o portal em modo de consulta) mantém o
+ * aviso da votação aberta, sem "Votar" — o link pessoal do e-mail continua
+ * valendo. Hospedagem sem poder gravar tira a avaliação (as estrelas levam a
+ * gravar) e não gera as pendências que faltam. Oposição e filiação coletiva
+ * nunca saem: são direitos com prazo.
  */
-export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado; preview: boolean }) {
+export async function PendenciasInicio({
+  filiado,
+  preview,
+  partes,
+}: {
+  filiado: Filiado
+  preview: boolean
+  partes: PartesDoInicio
+}) {
+  const podeVotar = aceitaAcao(partes, "votacao")
   const [rAssembleias, rOposicoes, rAvaliacoes, rColetiva] = await Promise.all([
-    assembleiasSeAtivo(filiado, "assembleias"),
+    aparece(partes, "votacao")
+      ? assembleiasSeAtivo(filiado, "assembleias")
+      : Promise.resolve({ valor: [] as AssembleiaDoFiliado[] }),
     tentar("oposição", () => oposicoesParaFiliado(filiado.cpf)),
     // Como o Uber: a avaliação da última hospedagem aparece logo ao entrar.
-    tentar("avaliações de hospedagem", async () => {
-      const registros = await registrosDaPessoa(filiado.cpf)
-      return preview ? avaliacoesPendentesSoLeitura(registros) : pendenciasDaPessoa(registros)
-    }),
+    aceitaAcao(partes, "hospedagem")
+      ? tentar("avaliações de hospedagem", async () => {
+          const registros = await registrosDaPessoa(filiado.cpf)
+          return preview ? avaliacoesPendentesSoLeitura(registros) : pendenciasDaPessoa(registros)
+        })
+      : Promise.resolve({ valor: [] as PendenciaAvaliacao[] }),
     tentar("filiação coletiva", () => situacaoColetivaDoFiliado(filiado.filiacaoId)),
   ])
   const falhou = !rAssembleias || !rOposicoes || !rAvaliacoes || !rColetiva
@@ -75,12 +102,14 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
       {assembleias.map((a) => {
         // Mesma regra da lista /portal/votacao e da cédula (achado A3): só
         // quem pode votar AGORA vê "Votar" e a contagem "encerra em"; na
-        // carência o banner explica, sem botão.
+        // carência o banner explica, sem botão. Com o voto pelo portal
+        // pausado (Área do associado), o banner leva à Votação, que explica.
         const estado = estadoVotacao(a)
+        const votar = estado.chave === "votar" && podeVotar
         return (
           <Link
             key={a.assembleiaId}
-            href={estado.chave === "votar" ? `/portal/votacao/${a.assembleiaId}` : "/portal/votacao"}
+            href={votar ? `/portal/votacao/${a.assembleiaId}` : "/portal/votacao"}
             className={DESTAQUE}
           >
             <div className="flex min-w-0 items-start gap-3">
@@ -118,9 +147,14 @@ export async function PendenciasInicio({ filiado, preview }: { filiado: Filiado;
                   ) : null}
                 </p>
                 {estado.detalhe && <p className="text-muted-foreground mt-0.5 text-xs">{estado.detalhe}</p>}
+                {estado.chave === "votar" && !podeVotar && (
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    O voto pelo portal está pausado agora. Veja em Votação como participar.
+                  </p>
+                )}
               </div>
             </div>
-            {estado.chave === "votar" ? (
+            {votar ? (
               // Aparência de botão sem <button> dentro do <a>: o banner
               // inteiro já é o link.
               <span className={buttonVariants({ size: "sm" })}>

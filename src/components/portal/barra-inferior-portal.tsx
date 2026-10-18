@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { useNaoLidos } from "./contador-avisos"
-import { agruparNav, ativo, FIXOS_INFERIOR, NAV_PORTAL, seloNaoLidos, type ItemNavPortal } from "./navegacao-portal"
+import { agruparNav, atalhosDaBarra, ativo, FIXOS_INFERIOR, NAV_PORTAL, seloNaoLidos } from "./navegacao-portal"
 
 type Area = { titulo: string; href: string }
 
@@ -35,28 +35,35 @@ type Area = { titulo: string; href: string }
 const ITEM_BARRA =
   "flex min-h-14 flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] leading-tight tracking-tight min-[412px]:text-xs"
 
+/** Colunas da barra: os atalhos que sobraram mais o "Mais" (classes inteiras, para o Tailwind achar). */
+const COLUNAS: Record<number, string> = { 1: "grid-cols-2", 2: "grid-cols-3", 3: "grid-cols-4", 4: "grid-cols-5" }
+
 /**
  * Barra inferior do portal, a navegação de celular E tablet (até lg; de lg em
- * diante entra a lateral). Quatro atalhos — Início, Contribuição, Carteirinha,
- * Atendimento (A57) — e "Mais", uma folha com o resto do menu nos MESMOS
- * grupos da lateral (A118). Alvos de 56 px; respeita a área segura do aparelho.
+ * diante entra a lateral). Até quatro atalhos — por padrão Início,
+ * Contribuição, Carteirinha e Atendimento (A57); a entidade escolhe outros em
+ * Filiados › Área do associado — e "Mais", uma folha com o resto do menu nos
+ * MESMOS grupos da lateral (A118). Atalho de seção oculta (parte
+ * desabilitada, Hospedagem sem hotel…) sai e as colunas se ajustam — antes os
+ * atalhos ignoravam `ocultos`. Alvos de 56 px; respeita a área segura.
  */
 export function BarraInferiorPortal({
   ocultos,
+  atalhos = FIXOS_INFERIOR,
   outrasAreas,
   className,
 }: {
   ocultos: string[]
+  /** Rotas escolhidas para a barra (opção "atalhos" do Portal inteiro). */
+  atalhos?: readonly string[]
   outrasAreas: Area[]
   className?: string
 }) {
   const pathname = usePathname()
   const [aberto, setAberto] = useState(false)
 
-  const fixos = FIXOS_INFERIOR.map((href) => NAV_PORTAL.find((i) => i.href === href)).filter(
-    (i): i is ItemNavPortal => Boolean(i)
-  )
-  // "Mais" acende em qualquer página que não seja um dos quatro atalhos.
+  const fixos = atalhosDaBarra(atalhos, ocultos)
+  // "Mais" acende em qualquer página que não seja um dos atalhos.
   const maisAtivo = !fixos.some((i) => ativo(pathname, i.href))
 
   return (
@@ -68,7 +75,7 @@ export function BarraInferiorPortal({
       )}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-2xl grid-cols-5">
+      <ul className={cn("mx-auto grid max-w-2xl", COLUNAS[fixos.length] ?? "grid-cols-5")}>
         {fixos.map((item) => {
           const atual = ativo(pathname, item.href)
           return (
@@ -104,7 +111,12 @@ export function BarraInferiorPortal({
                   <X />
                 </Button>
               </SheetClose>
-              <FolhaMais ocultos={ocultos} outrasAreas={outrasAreas} aoEscolher={() => setAberto(false)} />
+              <FolhaMais
+                ocultos={ocultos}
+                naBarra={fixos.map((i) => i.href)}
+                outrasAreas={outrasAreas}
+                aoEscolher={() => setAberto(false)}
+              />
             </SheetContent>
           </Sheet>
         </li>
@@ -114,23 +126,26 @@ export function BarraInferiorPortal({
 }
 
 /**
- * Conteúdo da folha "Mais": o menu sem os quatro atalhos da barra, em grupos
- * com rótulo, rótulos inteiros (quebram em duas linhas em vez de cortar) e as
- * outras áreas da conta no fim. No tablet a folha ocupa a largura toda, então
- * o conteúdo fica numa coluna central.
+ * Conteúdo da folha "Mais": o menu sem os atalhos que já estão na barra, em
+ * grupos com rótulo, rótulos inteiros (quebram em duas linhas em vez de
+ * cortar) e as outras áreas da conta no fim. No tablet a folha ocupa a largura
+ * toda, então o conteúdo fica numa coluna central.
  */
 function FolhaMais({
   ocultos,
+  naBarra,
   outrasAreas,
   aoEscolher,
 }: {
   ocultos: string[]
+  /** Atalhos que a barra mostra (não se repetem aqui). */
+  naBarra: string[]
   outrasAreas: Area[]
   aoEscolher: () => void
 }) {
   const pathname = usePathname()
   const naoLidos = useNaoLidos()
-  const grupos = agruparNav(NAV_PORTAL.filter((i) => !ocultos.includes(i.href) && !FIXOS_INFERIOR.includes(i.href)))
+  const grupos = agruparNav(NAV_PORTAL.filter((i) => !ocultos.includes(i.href) && !naBarra.includes(i.href)))
 
   return (
     <div className="mx-auto w-full max-w-2xl">

@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { buscarFiliadoPorCpf } from "@/lib/contas"
+import { cpfConfiavel } from "@/lib/cpf"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { buscarHotel, contratoDoHotel, type Hotel } from "@/lib/db/hospedagem"
@@ -16,6 +17,7 @@ import {
   type AvisoPortal,
   type ResultadoAviso,
 } from "@/lib/db/portal-avisos"
+import { lerConfigPortal } from "@/lib/db/portal-partes"
 import {
   avaliarCondicoesHospedagem,
   contarCondicoesAtivas,
@@ -799,6 +801,11 @@ async function cpfDosCadastros(
  * "hospedagem") quando OUTRA pessoa mexe nele — hoje, a equipe cancelando a
  * reserva garantida ou o cupom comum (achado A21). Um aviso que falha nunca
  * derruba a ação que o gerou.
+ *
+ * Todo chamador é a equipe mudando uma viagem já marcada, que continua
+ * valendo no hotel mesmo com a Hospedagem desabilitada no portal: por isso o
+ * aviso sai assim mesmo (`mesmoComParteDesabilitada`). Com o portal fora do
+ * ar, continua só o sino.
  */
 export async function avisarDonoDoCupom(
   filiadoId: string | null | undefined,
@@ -809,7 +816,7 @@ export async function avisarDonoDoCupom(
   try {
     const cpf = (await cpfDosCadastros([filiadoId], amb)).get(filiadoId)
     if (!cpf) return false
-    return await avisarFiliado({ ...aviso, cpf, evento: "hospedagem" }, amb)
+    return await avisarFiliado({ ...aviso, cpf, evento: "hospedagem", mesmoComParteDesabilitada: true }, amb)
   } catch (e) {
     console.error("aviso do cupom de hospedagem:", e)
     return false
@@ -1327,6 +1334,10 @@ async function travarFila(
  *     botão de confirmação.
  * Sem `forcar`, roda no máximo a cada 5 minutos por hotel. `amb`: o tick, sem
  * requisição (client, entidade e identidade do e-mail explícitos).
+ * `semOfertar`: só o passo 1 — a vaga guardada vencida volta ao hotel, mas
+ * ninguém da fila recebe oferta (o tick já leu a Área do associado; ver
+ * `rodarFilasDeEspera`). Para os demais chamadores a função confere sozinha:
+ * com a Hospedagem ou o portal fora do modo normal, também só o passo 1.
  *
  * Concorrência: a passada é travada por hotel (`travarFila`), menos com
  * `forcar`, e a vez de cada pessoa é reivindicada com um update condicionado
@@ -1342,7 +1353,7 @@ async function travarFila(
  */
 export async function processarFilaDeEspera(
   hotel: Hotel,
-  opcoes: { forcar?: boolean } = {},
+  opcoes: { forcar?: boolean; semOfertar?: boolean } = {},
   amb?: AmbienteFila
 ): Promise<void> {
   if (!ehGarantida(hotel)) return
@@ -1405,6 +1416,12 @@ export async function processarFilaDeEspera(
         .eq("situacao", "oferecida")
     }
   }
+  if (opcoes.semOfertar) return
+  // A trava da Área do associado vale para todo chamador (tick, cancelamentos,
+  // páginas do hotel e do mapa): sem a Hospedagem e o portal no modo normal,
+  // a confirmação recusa, então ninguém recebe oferta. Leitura que falha: oferta.
+  const partes = await lerConfigPortal({ client: admin, tenantId }).catch(() => null)
+  if (partes && (partes.partes.hospedagem.estado !== "habilitada" || partes.partes.portal.estado !== "habilitada")) return
 
   // 2. Fila, por ordem de chegada.
   const { data: fila } = await admin
@@ -1559,6 +1576,11 @@ export type ResultadoFilasDeEspera = {
  * e cada passada leva a entidade e a identidade do e-mail explícitas. Um
  * hotel ou uma entidade que falha não impede os outros; passado o `limite`
  * (ms), não começa hotel novo — o resto fica para o próximo tick.
+ *
+ * Área do associado (Filiados), por entidade: com a Hospedagem suspensa ou
+ * desabilitada — ou o portal fora do modo normal —, a confirmação da vaga
+ * está bloqueada; a fila não oferta vaga nem lembra oferta, só devolve ao
+ * hotel a vaga guardada que venceu. Na dúvida (leitura falhou), como antes.
  */
 export async function rodarFilasDeEspera(p: {
   client: SupabaseClient
@@ -1596,15 +1618,19 @@ export async function rodarFilasDeEspera(p: {
       resultado.erros.push(`${tenantId}: ${motivo(e)}`)
       continue
     }
+    const partes = await lerConfigPortal({ client: p.client, tenantId }).catch(() => null)
+    const ofertaAberta =
+      !partes || (partes.partes.hospedagem.estado === "habilitada" && partes.partes.portal.estado === "habilitada")
     for (const h of hoteis) {
       if (Date.now() > p.limite) break
       try {
-        await processarFilaDeEspera(h, {}, amb)
+        await processarFilaDeEspera(h, { semOfertar: !ofertaAberta }, amb)
         resultado.hoteis++
       } catch (e) {
         resultado.erros.push(`${tenantId} · ${h.nome ?? h.id}: ${motivo(e)}`)
       }
     }
+    if (!ofertaAberta) continue
     try {
       const l = await lembretesOfertasDeVaga(amb)
       resultado.lembretes += l.avisados
@@ -2219,12 +2245,59 @@ function linkPedidoDeAbono(hotel: string, checkIn: string): string {
 }
 
 /**
+ * Como o associado pede o abono, pela Área do associado (Filiados):
+ * - `aberto`: pelo Atendimento, na hora (o de sempre);
+ * - `pausado`: Atendimento suspenso, ou o portal em consulta/fora do ar — o
+ *   pedido pelo portal está parado: o link continua (a página explica a
+ *   pausa e, quando ela acaba, o formulário já vem preenchido), mas o texto
+ *   não promete o pedido agora e manda falar com o sindicato;
+ * - `fechado`: Atendimento desabilitado — o link do Atendimento faria o
+ *   portão de `avisarFiliado` descartar o aviso inteiro (e a pessoa nem
+ *   saberia da falta): o aviso leva à reserva e orienta a falar com o
+ *   sindicato (O sindicato nunca fica desabilitado junto com o Atendimento).
+ */
+type PedidoDeAbono = "aberto" | "pausado" | "fechado"
+
+/** Texto do sino de cada caminho — também a trava de repetição entre eles. */
+function textoDaFalta(caminho: PedidoDeAbono, hotel: string, dia: string): string {
+  const fato = `Registramos não comparecimento na sua reserva no ${hotel} de ${dia}.`
+  if (caminho === "aberto") return `${fato} Se houve engano, peça o abono em Atendimento.`
+  if (caminho === "pausado")
+    return `${fato} Se houve engano, peça o abono ao sindicato — os pedidos pelo Atendimento estão pausados agora.`
+  return `${fato} Se houve engano, fale com o sindicato para pedir o abono.`
+}
+
+/**
+ * A falta deste cupom já foi avisada, por QUALQUER dos caminhos: o estado do
+ * Atendimento pode mudar entre um tick e outro, e o `umaVez` de
+ * `avisarFiliado` só reconhece o mesmo texto com o mesmo link.
+ */
+async function faltaJaAvisada(
+  amb: AmbienteLembreteHospedagem,
+  cpf: string,
+  textos: string[],
+  links: string[]
+): Promise<boolean> {
+  const chave = cpfConfiavel(cpf)
+  if (!chave) return false
+  const { data } = await amb.client
+    .from("portal_avisos")
+    .select("texto")
+    .eq("emp_proprietaria_id", amb.tenantId)
+    .eq("cpf", chave)
+    .eq("evento", "hospedagem")
+    .in("link", links)
+  return (data ?? []).some((a) => textos.includes(a.texto as string))
+}
+
+/**
  * NÃO COMPARECIMENTO (achado A21): reserva garantida com check-in já passado,
  * sem entrada registrada pelo hotel, não cancelada, que não era oferta da
  * lista de espera e sem abono — exatamente o que o painel lista como falta.
  * Sino + e-mail (pela preferência), com o caminho do abono; uma vez por
- * cupom (`umaVez`: texto e link levam hotel e data). Idempotente: pode rodar
- * todo dia, ou mais vezes.
+ * cupom (`umaVez`: texto e link levam hotel e data; `faltaJaAvisada` cobre a
+ * troca de caminho — ver `PedidoDeAbono`). Idempotente: pode rodar todo dia,
+ * ou mais vezes.
  */
 export async function lembretesNaoComparecimento(
   amb: AmbienteLembreteHospedagem
@@ -2250,13 +2323,25 @@ export async function lembretesNaoComparecimento(
   const faltas = data ?? []
   if (faltas.length === 0) return { avisados: 0 }
 
-  const [cpfs, regra, contexto] = await Promise.all([
+  const [cpfs, regra, contexto, partes] = await Promise.all([
     cpfDosCadastros(faltas.map((c) => txt(c.filiado_id)), amb),
     lerRegraNaoComparecimento(amb),
     amb.contexto ?? contextoDoTenant(tenantId, client),
+    // Mesmo client e tenant do laço (fora de requisição). Na dúvida, o de sempre.
+    lerConfigPortal({ client, tenantId }).catch(() => null),
   ])
   const regraTexto = descreverRegraNaoComparecimento(regra)
   const origem = contexto.origem
+  const atendimento = partes?.partes.atendimento.estado ?? "habilitada"
+  const caminho: PedidoDeAbono =
+    atendimento === "desabilitada"
+      ? "fechado"
+      : atendimento === "suspensa" || (partes && partes.partes.portal.estado !== "habilitada")
+        ? "pausado"
+        : "aberto"
+  const sindicatoNoPortal = partes?.partes.sindicato.estado !== "desabilitada"
+  const motivoDoAbono =
+    "Se houve engano — você foi ao hotel, ou não pôde ir por um motivo que o sindicato deva considerar —,"
 
   let avisados = 0
   for (const c of faltas) {
@@ -2265,25 +2350,42 @@ export async function lembretesNaoComparecimento(
     const hotel = hoteis.get(c.hotel_id as string) ?? "hotel"
     const dia = dataBR(c.check_in as string)
     const linkAbono = linkPedidoDeAbono(hotel, c.check_in as string)
-    const urlReserva = `${origem}${linkReservaNoPortal(c.id as string)}`
+    const linkReserva = linkReservaNoPortal(c.id as string)
+    const urlReserva = `${origem}${linkReserva}`
+    const textos = (["aberto", "pausado", "fechado"] as const).map((k) => textoDaFalta(k, hotel, dia))
+    if (await faltaJaAvisada(amb, cpf, textos, [linkAbono, linkReserva])) continue
+    const comoPedir =
+      caminho === "aberto"
+        ? paragrafo(`${motivoDoAbono} peça o abono contando o que aconteceu. Se tiver um comprovante, anexe.`) +
+          botaoEmail(`${origem}${linkAbono}`, "Pedir o abono")
+        : caminho === "pausado"
+          ? paragrafo(
+              `${motivoDoAbono} peça o abono ao sindicato contando o que aconteceu. Os pedidos pelo Atendimento do portal estão pausados no momento: fale com o sindicato pelos canais oficiais ou, quando o Atendimento voltar, abra o pedido por lá. Se tiver um comprovante, guarde-o.`
+            ) + botaoEmail(`${origem}${linkAbono}`, "Ver o Atendimento")
+          : paragrafo(
+              `${motivoDoAbono} fale com o sindicato para pedir o abono, contando o que aconteceu. Se tiver um comprovante, guarde-o para mostrar.`
+            ) +
+            (sindicatoNoPortal
+              ? botaoEmail(`${origem}/portal/sindicato`, "Falar com o sindicato")
+              : botaoEmail(urlReserva, "Ver a reserva"))
     const r = await avisarFiliado(
       {
         cpf,
         evento: "hospedagem",
         assunto: "Registramos não comparecimento na sua reserva de hospedagem",
-        texto: `Registramos não comparecimento na sua reserva no ${hotel} de ${dia}. Se houve engano, peça o abono em Atendimento.`,
-        link: linkAbono,
+        texto: textoDaFalta(caminho, hotel, dia),
+        link: caminho === "fechado" ? linkReserva : linkAbono,
         umaVez: true,
+        // Hospedagem desabilitada no portal não apaga a falta: a reserva
+        // confirmada valia no hotel e a regra conta. A pessoa precisa saber.
+        mesmoComParteDesabilitada: true,
         html:
           tituloEmail("Registramos não comparecimento") +
           paragrafo(
             `Na sua reserva no <strong>${escaparHtml(hotel)}</strong> com check-in em <strong>${dia}</strong>, o hotel não registrou a sua entrada e a reserva não foi cancelada.`
           ) +
           (regraTexto ? caixaAviso(`Regra do sindicato: ${escaparHtml(regraTexto)}`) : "") +
-          paragrafo(
-            "Se houve engano — você foi ao hotel, ou não pôde ir por um motivo que o sindicato deva considerar —, peça o abono contando o que aconteceu. Se tiver um comprovante, anexe."
-          ) +
-          botaoEmail(`${origem}${linkAbono}`, "Pedir o abono") +
+          comoPedir +
           textoSuave(
             `Se você chegou depois e a recepção ainda registrar a sua entrada, a falta deixa de contar. Ver a reserva no portal: <a href="${urlReserva}">${urlReserva}</a>`
           ) +

@@ -27,8 +27,9 @@ const SERVICOS: { href: string; descricao: string }[] = [
 ]
 
 /**
- * A grade. Sem `ocultos`, mostra todos — é o que aparece enquanto a consulta
- * do que a entidade oferece corre (na dúvida, o item aparece, como no menu).
+ * A grade. Enquanto a consulta do que a entidade oferece corre, o Início a
+ * mostra só sem as partes desabilitadas em Filiados › Área do associado (na
+ * dúvida, o item aparece, como no menu) — a parte desabilitada não pisca.
  */
 export function ServicosInicio({ ocultos = [] }: { ocultos?: string[] }) {
   // Item que saiu do menu sai da grade também: o menu é a fonte do nome e do ícone.

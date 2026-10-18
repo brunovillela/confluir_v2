@@ -9,7 +9,9 @@ import { esquemaAusente, texto } from "@/lib/db/comum"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import type { PendenciaAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { meusAtendimentos, type Atendimento } from "@/lib/db/portal-atendimentos"
-import type { AvisoDoFiliado } from "@/lib/db/portal-avisos"
+import { contarAvisosNaoLidos, parteDoAviso, type AvisoDoFiliado } from "@/lib/db/portal-avisos"
+import { configDoPortal } from "@/lib/db/portal-partes"
+import { CHAVES_PARTES, opcoesPadrao, type ChaveParte, type EstadoParte } from "@/lib/portal-partes-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -60,14 +62,77 @@ export function noPrazo<T>(bloco: string, promessa: Promise<T>, ms: number, rese
 /** Ids dos registros do CPF — uma consulta por abertura, dividida entre os blocos. */
 export const registrosDaPessoa = cache((cpf: string) => registrosDoCpf(cpf))
 
+// ── Área do associado (Filiados › Área do associado) ─────────────────────────
+
+/**
+ * O que o Início precisa saber das partes do portal: cada bloco segue a parte
+ * de onde vem — desabilitada, o bloco some (e nem é consultado); suspensa (ou
+ * o portal inteiro em modo de consulta), os botões que gravam saem. A mesma
+ * leitura da casca (configDoPortal, uma por requisição). Na dúvida (leitura
+ * que falhou), tudo habilitado com as opções padrão: o Início de sempre.
+ */
+export type PartesDoInicio = {
+  estados: Record<ChaveParte, EstadoParte>
+  /** Recado da entidade no topo ("" = nenhum). */
+  recado: string
+  /** O que acontece com quem está em atraso (Contribuição). */
+  textoAtraso: string
+  /** Agenda de atividades no Início (opção da Agenda). */
+  agendaNoInicio: boolean
+}
+
+export async function partesDoInicio(): Promise<PartesDoInicio> {
+  const cfg = await configDoPortal().catch(() => null)
+  const estados = Object.fromEntries(CHAVES_PARTES.map((c) => [c, cfg?.partes[c].estado ?? "habilitada"])) as Record<
+    ChaveParte,
+    EstadoParte
+  >
+  return {
+    estados,
+    recado: cfg?.partes.inicio.opcoes.recado ?? "",
+    textoAtraso: cfg?.partes.contribuicao.opcoes.texto_atraso ?? opcoesPadrao("contribuicao").texto_atraso,
+    agendaNoInicio: cfg?.partes.agenda.opcoes.mostrar_no_inicio ?? true,
+  }
+}
+
+/** A parte aparece no Início (não está desabilitada). */
+export function aparece(partes: PartesDoInicio, chave: ChaveParte): boolean {
+  return partes.estados[chave] !== "desabilitada"
+}
+
+/**
+ * Os botões que gravam na parte aparecem: o portal e a parte habilitados. Com
+ * a parte suspensa ou o portal em modo de consulta, a ação seria recusada no
+ * servidor (bloqueioDaParte) — o Início nem a oferece.
+ */
+export function aceitaAcao(partes: PartesDoInicio, chave: ChaveParte): boolean {
+  return partes.estados.portal === "habilitada" && partes.estados[chave] === "habilitada"
+}
+
+/** Partes desabilitadas (sem o portal inteiro, que nem deixa o Início abrir). */
+export function desabilitadasNoInicio(partes: PartesDoInicio): ChaveParte[] {
+  return CHAVES_PARTES.filter((c) => c !== "portal" && partes.estados[c] === "desabilitada")
+}
+
 // ── Novidades para você (A33 + A96) ──────────────────────────────────────────
 
 /**
  * Avisos NÃO lidos mais recentes e quantos são ao todo. `avisosDoFiliado`
  * corta pelo limite antes de olhar a leitura (poderia devolver só lidos);
  * aqui o filtro vem antes do corte. Sem a tabela, vazio.
+ *
+ * `ocultar`: partes desabilitadas em Filiados › Área do associado — o aviso
+ * que leva a uma delas sai (busca-se uma folga para o corte não esvaziar a
+ * lista). A parte do aviso é a mesma régua do sino e da lista de Avisos
+ * (`parteDoAviso`: a do link e, na falta, a do tipo de uma parte só). Com
+ * parte oculta, o total é o do sino (contarAvisosNaoLidos, a mesma régua
+ * sobre todos os não lidos, e a mesma leitura da casca nesta requisição).
  */
-export async function avisosNaoLidos(cpf: string, limite = 8): Promise<{ avisos: AvisoDoFiliado[]; total: number }> {
+export async function avisosNaoLidos(
+  cpf: string,
+  limite = 8,
+  ocultar: readonly ChaveParte[] = []
+): Promise<{ avisos: AvisoDoFiliado[]; total: number }> {
   const chave = cpfConfiavel(cpf)
   if (!chave) return { avisos: [], total: 0 }
   const admin = await createAdminClient()
@@ -78,12 +143,12 @@ export async function avisosNaoLidos(cpf: string, limite = 8): Promise<{ avisos:
     .eq("cpf", chave)
     .is("lida_em", null)
     .order("created_at", { ascending: false })
-    .limit(limite)
+    .limit(ocultar.length > 0 ? Math.min(limite * 3, 60) : limite)
   if (error) {
     if (esquemaAusente(error)) return { avisos: [], total: 0 }
     throw new Error(`avisos não lidos: ${error.message}`)
   }
-  const avisos = (data ?? []).map((a) => ({
+  const todos = (data ?? []).map((a) => ({
     id: String(a.id),
     evento: String(a.evento),
     texto: String(a.texto),
@@ -91,7 +156,16 @@ export async function avisosNaoLidos(cpf: string, limite = 8): Promise<{ avisos:
     lidaEm: null,
     criadoEm: String(a.created_at),
   }))
-  return { avisos, total: count ?? avisos.length }
+  const visiveis = todos.filter((a) => {
+    const parte = parteDoAviso(a.link, a.evento)
+    return !parte || !ocultar.includes(parte)
+  })
+  const avisos = visiveis.slice(0, limite)
+  const total =
+    ocultar.length > 0
+      ? await contarAvisosNaoLidos(cpf).catch(() => visiveis.length)
+      : (count ?? todos.length)
+  return { avisos, total: Math.max(total, avisos.length) }
 }
 
 /**

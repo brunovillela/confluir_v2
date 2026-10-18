@@ -14,6 +14,7 @@ import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { CONDICAO_ATIVO } from "@/lib/db/filiacao-ativos"
 import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
 import { avisarFiliado, type ResultadoAviso } from "@/lib/db/portal-avisos"
+import { bloqueioDaParte, estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import {
   assuntoAvisoAptos,
   montarEmailAvisoAptos,
@@ -189,6 +190,11 @@ export async function dadosDoAviso(
   const origem = amb?.contexto.origem ?? (await origemAtual())
   const campanha = rodada.campanha as { tema?: string | null } | { tema?: string | null }[] | null
   const tema = Array.isArray(campanha) ? campanha[0]?.tema : campanha?.tema
+  // Sem voto pela internet, o botão leva à Votação do portal; desabilitada na
+  // Área do associado (cairia em "indisponível"), à entrada do portal.
+  const votacaoNoPortal =
+    Boolean(online) ||
+    (await estadoDaParte("votacao", { client: admin, tenantId: emp }).catch(() => "habilitada")) !== "desabilitada"
   return {
     dados: {
       rodadaNome: (rodada.nome_assembleia as string | null) ?? "Rodada de assembleias",
@@ -204,7 +210,7 @@ export async function dadosDoAviso(
         sala_data,
         sala_hora,
       })),
-      link: online ? `${origem}/votar/${online.id}` : `${origem}/portal/votacao`,
+      link: online ? `${origem}/votar/${online.id}` : votacaoNoPortal ? `${origem}/portal/votacao` : `${origem}/portal`,
       assembleiaOnlineId: online?.id ?? null,
       temOnline: Boolean(online),
       temPresencial: lista.some((a) => a.modalidade !== "online"),
@@ -825,6 +831,14 @@ async function empregadoresDaAssembleia(db: Leitura, assembleiaId: string): Prom
  * cédula que responde "você não está apto". Assembleia sem empregador (nem
  * da assembleia, nem da rodada, nem fonte da campanha) não aparece no
  * portal: ninguém.
+ *
+ * Área do associado (Filiados): com a Votação suspensa ou desabilitada no
+ * portal — ou o portal em consulta/fora do ar —, a cédula do portal não
+ * recebe voto: ninguém. Aí tudo segue o caminho das assembleias fora do
+ * portal — o e-mail leva o link pessoal (/votar) mesmo a quem desligou o
+ * e-mail de Votações, o sino vai para a lista (e nem grava, com a parte
+ * desabilitada) e o lembrete do último dia não sai. Lida pelo client e
+ * tenant recebidos (vale no tick); falha sobe, e quem chama trata como hoje.
  */
 async function portalMostraACedula(
   db: Leitura,
@@ -832,6 +846,7 @@ async function portalMostraACedula(
   cpfs: string[]
 ): Promise<Map<string, Filiado>> {
   const saida = new Map<string, Filiado>()
+  if (await bloqueioDaParte("votacao", db)) return saida
   const empresas = await empregadoresDaAssembleia(db, assembleiaId)
   if (empresas.length === 0 || cpfs.length === 0) return saida
   const filiados = await filiadosDosCpfs(db, cpfs)
@@ -1209,6 +1224,8 @@ export type ResultadoAvisoDoResultado = {
   falhas: number
   /** Ficaram para a próxima volta (teto por chamada). */
   restantes: number
+  /** A entidade não mostra o resultado no portal (Filiados › Área do associado): ninguém é avisado. */
+  resultadoOculto?: boolean
   erro?: string
 }
 
@@ -1227,6 +1244,13 @@ const RESULTADO_POR_VEZ = 300
  * (a online primeiro). O voto em si nunca aparece. Sino sempre; e-mail pela
  * preferência "Votações". Só age com a apuração encerrada; idempotente (uma
  * vez por pessoa e assembleia) — reabrir e encerrar de novo não repete.
+ *
+ * Área do associado (Filiados): com "Mostrar o resultado apurado no
+ * histórico" desligada, Minhas votações não mostra o placar — nenhum aviso
+ * leva a ele (vale para o encerramento e para o tick). Lida pelo client e
+ * tenant da própria função; na dúvida (leitura falhou), avisa como antes.
+ * Votação desabilitada já cai no portão de `avisarFiliado` (link de parte
+ * desabilitada não sai).
  */
 export async function avisarResultadoPublicado(
   assembleiaId: string,
@@ -1244,6 +1268,11 @@ export async function avisarResultadoPublicado(
   }
   try {
     let db = await leitura(amb)
+    const opcoes = await opcoesDaParte("votacao", db).catch(() => null)
+    if (opcoes && !opcoes.mostrar_resultado) {
+      r.resultadoOculto = true
+      return r
+    }
     const { data: a } = await db.client
       .from("voto_assembleias")
       .select("id, nome_assembleia, apuracao_encerrada, rod_assembleia_id")

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 import { CheckCheck, ChevronDown, Loader2, RotateCcw, Send } from "lucide-react"
 
+import { MOTIVO_DESFILIACAO, TITULO_DESFILIACAO } from "@/app/portal/primeiro-acesso/regras"
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { CampoAnexo, useAnexo } from "@/components/atendimento/campo-anexo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -17,7 +18,7 @@ import {
   APOIO_ANEXO_ATENDIMENTO,
   ASSUNTOS_ATENDIMENTO,
   PRAZO_REABRIR_DIAS,
-  assuntoAtendimento,
+  rotuloDias,
   type EstadoFormAtendimento,
 } from "@/lib/atendimento-constantes"
 
@@ -65,26 +66,43 @@ function diaDoPrazo(hoje: string, dias: number): string {
  *
  * Na visualização da gestão (`preview`), os campos funcionam e só o envio
  * fica desligado (A167): o atendente abre o seletor junto com o filiado.
+ *
+ * Área do associado: só os assuntos que a entidade oferece (`assuntos`) e o
+ * anexo só quando ela recebe arquivo (`permitirAnexo`) — o servidor confere
+ * os dois de novo.
  */
 export function NovaSolicitacaoForm({
   assuntoInicial = null,
   tituloInicial = null,
   hoje,
   preview = false,
+  assuntos,
+  permitirAnexo = true,
+  motivo = null,
 }: {
   assuntoInicial?: string | null
   tituloInicial?: string | null
   /** AAAA-MM-DD em São Paulo, do servidor — o prazo mostrado é o que ele vai gravar. */
   hoje?: string
   preview?: boolean
+  /** Chaves dos assuntos oferecidos; sem a lista, todos. */
+  assuntos?: readonly string[]
+  permitirAnexo?: boolean
+  /** A marca do link (MOTIVO_DESFILIACAO), levada à action num campo oculto. */
+  motivo?: string | null
 }) {
   const [estado, action, enviando] = useActionState(abrirAtendimentoAction, INICIAL)
   const anexo = useAnexo()
-  const assuntoPadrao = estado.valores?.assunto ?? assuntoInicial ?? ""
+  const oferecidos = ASSUNTOS_ATENDIMENTO.filter((a) => !assuntos || assuntos.includes(a.chave))
+  // Assunto fora da lista (devolvido pelo servidor depois de a entidade tirá-lo) volta ao "Escolha o assunto".
+  const assuntoPadrao =
+    [estado.valores?.assunto, assuntoInicial].find((c) => c && oferecidos.some((a) => a.chave === c)) ?? ""
   const [assunto, setAssunto] = useState(assuntoPadrao)
-  const escolhido = assuntoAtendimento(assunto)
+  const escolhido = oferecidos.find((a) => a.chave === assunto) ?? null
   const apoio = escolhido ? APOIO_ANEXO_ATENDIMENTO[escolhido.chave] : undefined
   const dia = hoje ?? hojeEmSaoPaulo()
+  // Pedido de desfiliação: o servidor grava este resumo, e a pessoa vê qual é.
+  const resumoFixo = motivo === MOTIVO_DESFILIACAO ? TITULO_DESFILIACAO : null
 
   return (
     <form
@@ -94,6 +112,7 @@ export function NovaSolicitacaoForm({
       className="grid gap-4"
     >
       <ErroNoCampo estado={estado} />
+      {motivo && <input type="hidden" name="motivo" value={motivo} />}
       <div className="grid gap-1.5">
         <Label htmlFor="assunto">Assunto *</Label>
         {/* min-h-11 como o Resumo logo abaixo: neste formulário os campos têm 44 px também no mouse. */}
@@ -109,7 +128,7 @@ export function NovaSolicitacaoForm({
           <option value="" disabled>
             Escolha o assunto
           </option>
-          {ASSUNTOS_ATENDIMENTO.map((a) => (
+          {oferecidos.map((a) => (
             <option key={a.chave} value={a.chave}>
               {a.rotulo}
             </option>
@@ -135,7 +154,7 @@ export function NovaSolicitacaoForm({
             <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden />
           </summary>
           <dl className="mt-1 grid gap-x-4 gap-y-1.5 rounded-lg border p-3 text-xs sm:grid-cols-[auto_1fr]">
-            {ASSUNTOS_ATENDIMENTO.map((a) => (
+            {oferecidos.map((a) => (
               <div key={a.chave} className="contents">
                 <dt className="font-medium">
                   {a.rotulo} · <span className="tabular-nums">{a.slaDias} dias</span>
@@ -148,16 +167,32 @@ export function NovaSolicitacaoForm({
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="titulo">Resumo *</Label>
-        <Input
-          id="titulo"
-          name="titulo"
-          required
-          minLength={5}
-          maxLength={140}
-          defaultValue={estado.valores?.titulo ?? tituloInicial ?? undefined}
-          placeholder="Em poucas palavras, o que você precisa"
-          className="min-h-11"
-        />
+        {resumoFixo ? (
+          <>
+            <Input
+              id="titulo"
+              name="titulo"
+              readOnly
+              value={resumoFixo}
+              aria-describedby="titulo-fixo"
+              className="min-h-11"
+            />
+            <p id="titulo-fixo" className="text-muted-foreground text-xs">
+              Pedido de desfiliação: o resumo é fixo. Conte os detalhes no campo abaixo.
+            </p>
+          </>
+        ) : (
+          <Input
+            id="titulo"
+            name="titulo"
+            required
+            minLength={5}
+            maxLength={140}
+            defaultValue={estado.valores?.titulo ?? tituloInicial ?? undefined}
+            placeholder="Em poucas palavras, o que você precisa"
+            className="min-h-11"
+          />
+        )}
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="texto">Conte com detalhes *</Label>
@@ -171,7 +206,7 @@ export function NovaSolicitacaoForm({
           placeholder="O que aconteceu, desde quando, o que você espera da entidade"
         />
       </div>
-      <CampoAnexo anexo={anexo} apoio={apoio} />
+      {permitirAnexo && <CampoAnexo anexo={anexo} apoio={apoio} />}
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -189,7 +224,19 @@ export function NovaSolicitacaoForm({
   )
 }
 
-export function ResponderForm({ atendimentoId, preview = false }: { atendimentoId: string; preview?: boolean }) {
+export function ResponderForm({
+  atendimentoId,
+  preview = false,
+  permitirAnexo = true,
+  motivo = null,
+}: {
+  atendimentoId: string
+  preview?: boolean
+  /** A entidade recebe arquivo pelo portal (Área do associado). */
+  permitirAnexo?: boolean
+  /** A marca do pedido de desfiliação (MOTIVO_DESFILIACAO); a action confere a solicitação. */
+  motivo?: string | null
+}) {
   const [estado, action, enviando] = useActionState(responderAtendimentoPortalAction, INICIAL)
   const anexo = useAnexo()
   return (
@@ -201,6 +248,7 @@ export function ResponderForm({ atendimentoId, preview = false }: { atendimentoI
       key={estado.ok ? "ok" : "form"}
     >
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
+      {motivo && <input type="hidden" name="motivo" value={motivo} />}
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="texto">Sua mensagem</Label>
@@ -214,7 +262,7 @@ export function ResponderForm({ atendimentoId, preview = false }: { atendimentoI
           placeholder="Responda ou acrescente informações"
         />
       </div>
-      <CampoAnexo anexo={anexo} />
+      {permitirAnexo && <CampoAnexo anexo={anexo} />}
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -237,8 +285,22 @@ export function ResponderForm({ atendimentoId, preview = false }: { atendimentoI
   )
 }
 
-/** "Resolvido, pode encerrar" (A97) — com confirmação; dá para reabrir depois. */
-export function EncerrarSolicitacaoForm({ atendimentoId, preview = false }: { atendimentoId: string; preview?: boolean }) {
+/**
+ * "Resolvido, pode encerrar" (A97) — com confirmação; dá para reabrir depois,
+ * dentro do prazo da entidade (`prazoReabrirDias`; 0 = não reabre pelo portal).
+ */
+export function EncerrarSolicitacaoForm({
+  atendimentoId,
+  preview = false,
+  prazoReabrirDias = PRAZO_REABRIR_DIAS,
+  motivo = null,
+}: {
+  atendimentoId: string
+  preview?: boolean
+  prazoReabrirDias?: number
+  /** A marca do pedido de desfiliação (MOTIVO_DESFILIACAO); a action confere a solicitação. */
+  motivo?: string | null
+}) {
   const [estado, action, enviando] = useActionState(encerrarAtendimentoPortalAction, INICIAL)
   return (
     <form
@@ -248,7 +310,10 @@ export function EncerrarSolicitacaoForm({ atendimentoId, preview = false }: { at
           ? semEnvio(e)
           : confirmarEnvio(e, {
               titulo: "Marcar como resolvida?",
-              descricao: `A solicitação é concluída e a entidade é avisada. Se precisar, você pode reabri-la por até ${PRAZO_REABRIR_DIAS} dias.`,
+              descricao:
+                prazoReabrirDias > 0
+                  ? `A solicitação é concluída e a entidade é avisada. Se precisar, você pode reabri-la por até ${rotuloDias(prazoReabrirDias)}.`
+                  : "A solicitação é concluída e a entidade é avisada. Se o assunto voltar, abra uma nova solicitação.",
               confirmar: "Resolvido, pode encerrar",
               destrutivo: false,
             })
@@ -256,6 +321,7 @@ export function EncerrarSolicitacaoForm({ atendimentoId, preview = false }: { at
       className="grid gap-2"
     >
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
+      {motivo && <input type="hidden" name="motivo" value={motivo} />}
       <p className="text-muted-foreground text-sm">O assunto já se resolveu? Avise a entidade e encerre a solicitação.</p>
       {estado.erro && (
         <Alert variant="destructive">
@@ -279,10 +345,13 @@ export function ReabrirSolicitacaoForm({
   atendimentoId,
   ate,
   preview = false,
+  motivo = null,
 }: {
   atendimentoId: string
   ate: string
   preview?: boolean
+  /** A marca do pedido de desfiliação (MOTIVO_DESFILIACAO); a action confere a solicitação. */
+  motivo?: string | null
 }) {
   const [estado, action, enviando] = useActionState(reabrirAtendimentoPortalAction, INICIAL)
   return (
@@ -300,6 +369,7 @@ export function ReabrirSolicitacaoForm({
       className="grid gap-2"
     >
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
+      {motivo && <input type="hidden" name="motivo" value={motivo} />}
       <p className="text-muted-foreground text-sm">
         O assunto não se resolveu? Você pode reabrir esta solicitação até {ate}, com a conversa inteira.
       </p>

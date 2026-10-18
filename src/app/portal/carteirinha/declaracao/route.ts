@@ -7,6 +7,7 @@ import { dadosCarteirinha } from "@/lib/db/carteirinha"
 import { hojeSP } from "@/lib/db/comum"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { listarSedes, obterOrganizacao, urlLogo } from "@/lib/db/organizacao"
+import { bloqueioDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { DeclaracaoFiliacaoPDF } from "@/lib/pdf/declaracao-filiacao"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
@@ -29,14 +30,24 @@ export const maxDuration = 30
  * nunca a uma frase solta. A origem vem da requisição (origemAtual, pelo
  * cabeçalho host), para cair no subdomínio da entidade — `request.url`,
  * fora da Vercel, sai com o hostname do servidor.
+ *
+ * Área do associado: não emite com a Carteirinha suspensa ou desabilitada,
+ * com o portal em modo de consulta ou fora do ar (bloqueioDaParte), nem com a
+ * declaração desligada — volta à carteirinha com ?aviso=declaracao, que diz o
+ * motivo (a parte desabilitada mostra "indisponível" no lugar). O botão abre
+ * em aba nova e o link pode estar guardado: a trava tem de estar aqui. Sem o
+ * vínculo (mostrar_fontes desligado), a declaração sai sem as fontes.
  */
 export async function GET(): Promise<Response> {
   const [vis, origem] = await Promise.all([getVisualizacaoPortal(), origemAtual()])
   if (!vis) return NextResponse.redirect(`${origem}/portal`)
   if (vis.preview) return NextResponse.redirect(`${origem}/portal/carteirinha?aviso=visualizacao`)
-  const dados = await dadosCarteirinha(vis.filiado.cpf)
+  const [bloqueio, opcoes] = await Promise.all([bloqueioDaParte("carteirinha"), opcoesDaParte("carteirinha")])
+  if (bloqueio || !opcoes.declaracao_pdf) return NextResponse.redirect(`${origem}/portal/carteirinha?aviso=declaracao`)
+  const lidos = await dadosCarteirinha(vis.filiado.cpf)
   // A carteirinha explica a falha ("fale com o sindicato").
-  if (!dados) return NextResponse.redirect(`${origem}/portal/carteirinha`)
+  if (!lidos) return NextResponse.redirect(`${origem}/portal/carteirinha`)
+  const dados = opcoes.mostrar_fontes ? lidos : { ...lidos, fontes: [] }
   const [org, sedes] = await Promise.all([obterOrganizacao().catch(() => null), listarSedes().catch(() => ({ disponivel: false, sedes: [] }))])
   const cidade = sedes.sedes.find((x) => x.cidade)?.cidade ?? null
   const [logo, qr] = await Promise.all([

@@ -5,6 +5,7 @@ import { CalendarDays, HeartPulse, Info, MessageSquare } from "lucide-react"
 import { Paginacao } from "@/components/paginacao"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,12 +22,22 @@ import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import { meusAtendimentos } from "@/lib/db/atendimentos"
 import { hojeSP } from "@/lib/db/comum"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
+import { bloqueioDaParte, configDaParte, estadoDaParte } from "@/lib/db/portal-partes"
 import { meusAgendamentos, minhasCats, type MeuAgendamento, type MinhaCat } from "@/lib/db/saude-portal"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Saúde" }
+
+/**
+ * Saúde desabilitada: o titular perde o acesso direto aos registros, e a
+ * cópia dos dados do portal (LGPD) não cobre saúde — o "indisponível" diz
+ * por onde pedir (art. 18). A mesma frase do layout da seção (saude/layout.tsx).
+ */
+const CAMINHO_DOS_DADOS =
+  "Os seus registros de saúde continuam guardados: para pedir uma cópia, fale com o sindicato."
 
 /** Atendimento com o assunto "Saúde" já escolhido (A76); o resumo, quando houver. */
 function linkServicoSaude(titulo?: string): string {
@@ -47,6 +58,23 @@ function FalarComServico({ className, variant = "default" }: { className?: strin
         Falar com o serviço de saúde
       </Link>
     </Button>
+  )
+}
+
+/**
+ * "Fale com o serviço de saúde" no meio do texto: link para o Atendimento
+ * quando o pedido pode ser feito; senão, a mesma frase sem link (a
+ * orientação continua valendo fora do portal).
+ */
+function LinkServico({ podePedir, titulo, children }: { podePedir: boolean; titulo: string; children: React.ReactNode }) {
+  if (!podePedir) return <>{children}</>
+  return (
+    <Link
+      href={linkServicoSaude(titulo)}
+      className="text-primary inline-flex items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
+    >
+      {children}
+    </Link>
   )
 }
 
@@ -76,14 +104,32 @@ export default async function PortalSaudePage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const sessao = await requireVisualizacaoPortal()
+  // Desabilitada: o "indisponível" (com o caminho para pedir os dados, como o
+  // do layout) antes de qualquer leitura — o layout renderiza junto com esta
+  // página e não a impede de rodar; sem esta saída, as consultas de saúde
+  // rodariam do mesmo jeito.
+  const indisponivel = await paginaIndisponivel("saude", { complemento: CAMINHO_DOS_DADOS })
+  if (indisponivel) return indisponivel
+  // Só configuração aqui — nada de saúde é lido antes de saber o que mostrar.
+  // Na dúvida, a parte vale (tudo aparece, como antes).
+  const [sessao, parte, bloqueioSaude, estadoAtendimento] = await Promise.all([
+    requireVisualizacaoPortal(),
+    configDaParte("saude").catch(() => null),
+    bloqueioDaParte("saude").catch(() => null),
+    estadoDaParte("atendimento").catch(() => "habilitada" as const),
+  ])
+  const { mostrar_agendamentos, mostrar_cats } = parte?.opcoes ?? opcoesPadrao("saude")
+  // Os pedidos ao serviço de saúde abrem uma solicitação no Atendimento: com
+  // a Saúde suspensa (ou o portal em consulta) o Atendimento recusa o
+  // assunto, e com ele desabilitado não há para onde ir — os botões somem.
+  const podePedir = !bloqueioSaude && estadoAtendimento !== "desabilitada"
 
   const cabecalho = (
     <CabecalhoPagina
       secao="/portal/saude"
       titulo="Saúde"
       subtitulo="Seus atendimentos no serviço de saúde do sindicato"
-      acoes={<FalarComServico className="w-full sm:w-auto" />}
+      acoes={podePedir ? <FalarComServico className="w-full sm:w-auto" /> : undefined}
     />
   )
 
@@ -95,6 +141,13 @@ export default async function PortalSaudePage({
   // e para as CATs: as consultas nem rodam, para o sigilo não depender de
   // esconder coluna.
   if (sessao.preview) {
+    // O que ele vê segue as opções da Área do associado.
+    const blocos = [
+      mostrar_agendamentos && "os próximos agendamentos",
+      mostrar_cats && "as comunicações de acidente de trabalho ligadas a ele",
+      "o histórico de atendimentos (data, serviço, profissional e observações)",
+    ].filter((b): b is string => !!b)
+    const oQueVe = blocos.length > 1 ? `${blocos.slice(0, -1).join(", ")} e ${blocos.at(-1)}` : blocos[0]
     return (
       <>
         {cabecalho}
@@ -103,9 +156,7 @@ export default async function PortalSaudePage({
           <AlertDescription>
             Na visualização pela gestão, as informações de saúde não são
             exibidas: são do próprio associado. Quando ele entra no portal, vê
-            aqui os próximos agendamentos, as comunicações de acidente de
-            trabalho ligadas a ele e o histórico de atendimentos (data,
-            serviço, profissional e observações).
+            aqui {oQueVe}.
           </AlertDescription>
         </Alert>
       </>
@@ -116,12 +167,15 @@ export default async function PortalSaudePage({
   // assistido pode estar ligado a qualquer um deles.
   const filiadoIds = await registrosDoCpf(sessao.filiado.cpf)
   // Agenda e CATs são complemento: se falharem, a página segue com o histórico.
+  // Desligadas na Área do associado, nem são consultadas.
   const [{ linhas, disponivel }, agenda, cats] = await Promise.all([
     meusAtendimentos(filiadoIds),
-    meusAgendamentos(filiadoIds)
-      .then((r) => r.linhas)
-      .catch(() => [] as MeuAgendamento[]),
-    minhasCats(filiadoIds).catch(() => [] as MinhaCat[]),
+    mostrar_agendamentos
+      ? meusAgendamentos(filiadoIds)
+          .then((r) => r.linhas)
+          .catch(() => [] as MeuAgendamento[])
+      : ([] as MeuAgendamento[]),
+    mostrar_cats ? minhasCats(filiadoIds).catch(() => [] as MinhaCat[]) : ([] as MinhaCat[]),
   ])
 
   // 30: a lista é o conteúdo da página; o card de agenda e o de CAT só
@@ -178,12 +232,9 @@ export default async function PortalSaudePage({
             {/* A agenda guarda só o dia: o horário é a primeira dúvida. */}
             <p className="text-muted-foreground border-t pt-3 text-sm">
               Precisa confirmar o horário ou mudar a data?{" "}
-              <Link
-                href={linkServicoSaude("Agendamento de saúde: horário ou nova data")}
-                className="text-primary inline-flex items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
-              >
+              <LinkServico podePedir={podePedir} titulo="Agendamento de saúde: horário ou nova data">
                 Fale com o serviço de saúde
-              </Link>
+              </LinkServico>
             </p>
           </CardContent>
         </Card>
@@ -197,7 +248,10 @@ export default async function PortalSaudePage({
             </CardTitle>
             <CardDescription>
               Comunicações de acidente de trabalho que o serviço de saúde ligou ao
-              seu cadastro. Para pedir uma cópia, use o botão de cada uma.
+              seu cadastro.{" "}
+              {podePedir
+                ? "Para pedir uma cópia, use o botão de cada uma."
+                : "Para pedir uma cópia, fale com o serviço de saúde."}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
@@ -207,9 +261,11 @@ export default async function PortalSaudePage({
                   <TableHead>Data do acidente</TableHead>
                   <TableHead>Número da CAT</TableHead>
                   <TableHead>Empresa</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Ações</span>
-                  </TableHead>
+                  {podePedir && (
+                    <TableHead>
+                      <span className="sr-only">Ações</span>
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -222,21 +278,23 @@ export default async function PortalSaudePage({
                       {c.numero ?? "Sem número"}
                     </TableCell>
                     <TableCell data-rotulo="Empresa">{c.empresa ?? "—"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="outline" size="sm" className="pointer-coarse:min-h-11">
-                        <Link
-                          href={linkServicoSaude(
-                            c.numero
-                              ? `Cópia da CAT nº ${c.numero}`
-                              : c.dataAcidente
-                                ? `Cópia da CAT do acidente de ${formatarData(c.dataAcidente)}`
-                                : "Cópia de CAT"
-                          )}
-                        >
-                          Pedir cópia
-                        </Link>
-                      </Button>
-                    </TableCell>
+                    {podePedir && (
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm" className="pointer-coarse:min-h-11">
+                          <Link
+                            href={linkServicoSaude(
+                              c.numero
+                                ? `Cópia da CAT nº ${c.numero}`
+                                : c.dataAcidente
+                                  ? `Cópia da CAT do acidente de ${formatarData(c.dataAcidente)}`
+                                  : "Cópia de CAT"
+                            )}
+                          >
+                            Pedir cópia
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -245,12 +303,9 @@ export default async function PortalSaudePage({
                 diz nada sobre o caso de ninguém (afastamento fica fora da lista). */}
             <p className="text-muted-foreground border-t pt-3 text-sm">
               Precisa de orientação sobre o acidente, o afastamento ou o INSS?{" "}
-              <Link
-                href={linkServicoSaude("Orientação sobre acidente de trabalho (CAT)")}
-                className="text-primary inline-flex items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
-              >
+              <LinkServico podePedir={podePedir} titulo="Orientação sobre acidente de trabalho (CAT)">
                 Fale com o serviço de saúde
-              </Link>
+              </LinkServico>
             </p>
           </CardContent>
         </Card>
@@ -262,7 +317,7 @@ export default async function PortalSaudePage({
           icone={Info}
           titulo="O histórico de atendimentos ainda não está disponível."
           descricao="Para marcar um atendimento ou tirar uma dúvida, fale com o serviço de saúde."
-          acao={<FalarComServico variant="outline" />}
+          acao={podePedir ? <FalarComServico variant="outline" /> : undefined}
         />
       ) : linhas.length === 0 ? (
         // "Ainda… no histórico": quem tem agendamento no card acima não lê
@@ -272,7 +327,7 @@ export default async function PortalSaudePage({
           icone={HeartPulse}
           titulo="Você ainda não tem atendimentos no histórico."
           descricao="Para marcar um atendimento ou tirar uma dúvida, fale com o serviço de saúde."
-          acao={<FalarComServico variant="outline" />}
+          acao={podePedir ? <FalarComServico variant="outline" /> : undefined}
         />
       ) : (
         <>
@@ -319,12 +374,16 @@ export default async function PortalSaudePage({
               Esta página mostra o registro administrativo dos seus
               atendimentos. O relatório clínico fica sob guarda do
               profissional que o elaborou — para ter acesso a ele,{" "}
-              <Link
-                href={linkServicoSaude("Acesso ao relatório de atendimento")}
-                className="text-primary font-medium underline underline-offset-4"
-              >
-                peça ao serviço de saúde
-              </Link>
+              {podePedir ? (
+                <Link
+                  href={linkServicoSaude("Acesso ao relatório de atendimento")}
+                  className="text-primary font-medium underline underline-offset-4"
+                >
+                  peça ao serviço de saúde
+                </Link>
+              ) : (
+                "peça ao serviço de saúde"
+              )}
               .
             </AlertDescription>
           </Alert>

@@ -8,6 +8,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { listarSedes, obterOrganizacao, urlLogo } from "@/lib/db/organizacao"
+import { bloqueioDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { cpfConfiavel } from "@/lib/cpf"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { ExtratoContribuicaoPDF } from "@/lib/pdf/extrato-contribuicao"
@@ -32,6 +33,12 @@ function cpfMascarado(cpf: string | null): string {
  * visualização pela gestão ("Ver como filiado") não emite: volta à página com
  * o aviso. Os desvios voltam sempre a uma página do portal (o botão abre em
  * aba nova), pela origem da requisição, para cair no subdomínio da entidade.
+ *
+ * Área do associado: não emite com a Contribuição suspensa ou desabilitada,
+ * com o portal em modo de consulta ou fora do ar (bloqueioDaParte), nem com o
+ * extrato desligado — volta com ?aviso=indisponivel, que diz o motivo (a parte
+ * desabilitada mostra "indisponível" no lugar). A trava tem de estar aqui: o
+ * link pode estar guardado.
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const [vis, origem] = await Promise.all([getVisualizacaoPortal(), origemAtual()])
@@ -43,6 +50,8 @@ export async function GET(request: NextRequest): Promise<Response> {
   const pagina = `${origem}/portal/contribuicao?ano=${ano}`
 
   if (vis.preview) return NextResponse.redirect(`${pagina}&aviso=visualizacao`)
+  const [bloqueio, opcoes] = await Promise.all([bloqueioDaParte("contribuicao"), opcoesDaParte("contribuicao")])
+  if (bloqueio || !opcoes.extrato_pdf) return NextResponse.redirect(`${pagina}&aviso=indisponivel`)
   try {
     const cadastro = await cadastroDoFiliado(vis.filiado.cpf)
     // A página explica a falha ("não foi possível carregar…").

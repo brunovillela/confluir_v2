@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { CheckCircle2, Loader2, MailCheck } from "lucide-react"
+import { CheckCircle2, Loader2, MailCheck, PauseCircle } from "lucide-react"
 
 import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -26,12 +26,16 @@ import {
  * O envio do código tem limite (A142, app/portal/votacao/limite-envio-codigo):
  * a recusa volta presa ao campo do e-mail, dizendo quanto falta. Com um código
  * pendente, o botão vira "Enviar novo código" — o novo substitui o anterior.
+ *
+ * Votação suspensa (ou o portal em modo de consulta): fica só o e-mail já
+ * verificado, para consulta — as actions recusariam o envio e o código.
  */
 export function EmailVotacaoForm({
   emailAtual,
   pendente,
   emailCadastro,
   preview = false,
+  pausado = false,
 }: {
   emailAtual: string | null
   pendente: string | null
@@ -39,6 +43,8 @@ export function EmailVotacaoForm({
   emailCadastro: string | null
   /** "Ver como filiado": o e-mail é do associado — só ele verifica o dele. */
   preview?: boolean
+  /** Votação suspensa em Filiados › Área do associado: nada se envia daqui. */
+  pausado?: boolean
 }) {
   const [estEnvio, actEnvio, pendEnvio] = useActionState(
     enviarCodigoEmailVotacao,
@@ -53,14 +59,23 @@ export function EmailVotacaoForm({
   const [trocandoDe, setTrocandoDe] = useState<string | null>(null)
   const trocando = Boolean(emailAtual) && trocandoDe === emailAtual
 
-  const aguardandoCodigo = Boolean(pendente || estEnvio.ok?.includes("código"))
+  const aguardandoCodigo = !pausado && Boolean(pendente || estEnvio.ok?.includes("código"))
   // O atalho só faz sentido quando o e-mail do cadastro ainda não é o de votação.
   const atalhoCadastro =
     emailCadastro && emailCadastro.toLowerCase() !== emailAtual?.toLowerCase() ? emailCadastro : null
-  const mostrarFormulario = !emailAtual || trocando
+  const mostrarFormulario = !pausado && (!emailAtual || trocando)
 
   return (
     <div className="grid gap-4">
+      {pausado && (
+        <Alert variant="warning">
+          <PauseCircle />
+          <AlertDescription>
+            O cadastro do e-mail de votação está pausado no momento. Veja o aviso
+            no topo da página.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Erro preso ao campo (limite de envio, e-mail inválido) aparece
           junto dele, no formulário abaixo; aqui só o que não tem campo. */}
       {estEnvio.erro && !estEnvio.campo && (
@@ -84,8 +99,8 @@ export function EmailVotacaoForm({
             </span>
           </p>
           {/* Só abre/fecha o formulário — não grava nada, então fica ativo
-              também na visualização da gestão. */}
-          {trocando ? (
+              também na visualização da gestão. Na pausa, não há o que abrir. */}
+          {pausado ? null : trocando ? (
             <Button type="button" variant="ghost" onClick={() => setTrocandoDe(null)}>
               Cancelar
             </Button>

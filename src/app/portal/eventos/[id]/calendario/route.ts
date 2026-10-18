@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { eventoParaCalendario } from "@/lib/db/eventos-portal"
+import { estadoDaParte } from "@/lib/db/portal-partes"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -18,13 +19,23 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * como filiado". Os desvios voltam a uma página do portal, nunca a uma frase
  * solta; a origem vem da requisição (origemAtual), para cair no subdomínio
  * da entidade.
+ *
+ * Route handler não passa pelo layout da seção: com Eventos desabilitada em
+ * Filiados › Área do associado, o arquivo não sai e a volta cai na página
+ * "indisponível". Suspensa, sai — é leitura.
  */
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  const [{ id }, vis, origem] = await Promise.all([params, getVisualizacaoPortal(), origemAtual()])
+  const [{ id }, vis, origem, eventos] = await Promise.all([
+    params,
+    getVisualizacaoPortal(),
+    origemAtual(),
+    estadoDaParte("eventos").catch(() => "habilitada" as const),
+  ])
   if (!vis) return NextResponse.redirect(`${origem}/portal`)
+  if (eventos === "desabilitada") return NextResponse.redirect(`${origem}/portal/eventos`)
   const achado = UUID.test(id) ? await eventoParaCalendario(id, vis.filiado.cpf, await tenantAtual()) : null
   if (!achado) return NextResponse.redirect(`${origem}/portal/eventos`)
 

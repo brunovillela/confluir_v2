@@ -4,6 +4,9 @@ import { notFound, redirect } from "next/navigation"
 import { Artigo } from "@/components/ajuda/artigo"
 import { EmProducao } from "@/components/ajuda/em-producao"
 import { areaAjudaPortal } from "@/lib/ajuda/manifesto-portal"
+import { areasAjudaPortal } from "@/lib/ajuda/mapa-portal"
+import { partesDesabilitadas } from "@/lib/db/portal-partes"
+import type { ChaveParte } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 type Params = { params: Promise<{ area: string }> }
@@ -32,7 +35,20 @@ export default async function AreaPortalPage({ params }: Params) {
   if (destino) redirect(destino)
   const meta = areaAjudaPortal(area)
   if (!meta || !meta.disponivel) notFound()
-  const artigo = meta.artigos.find((a) => a.slug === "index") ?? meta.artigos[0]
+
+  // Parte desabilitada em Filiados › Área do associado: link cruzado de outro
+  // artigo, favorito ou e-mail antigo cai no índice da ajuda, nunca num 404.
+  // Na dúvida (leitura que falhou), a área abre.
+  const desabilitadas = await partesDesabilitadas().catch(() => [] as ChaveParte[])
+  const visivel = areasAjudaPortal(desabilitadas).find((a) => a.slug === area)
+  if (!visivel) redirect("/portal/ajuda")
+  const abertura = visivel.artigos.find((a) => a.slug === "index")
+  // Só o artigo de abertura saiu (ex.: Contribuição desabilitada, a
+  // Desfiliação fica): vai ao primeiro que restou.
+  if (!abertura && meta.artigos.some((a) => a.slug === "index")) {
+    redirect(`/portal/ajuda/${area}/${visivel.artigos[0].slug}`)
+  }
+  const artigo = abertura ?? visivel.artigos[0]
 
   let Conteudo: React.ComponentType | null = null
   try {

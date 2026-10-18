@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 
 import { nomeEntidade } from "@/lib/db/organizacao"
+import { rotasDesabilitadas } from "@/lib/db/portal-partes"
 
 /**
  * Manifest do PWA do portal do associado (A56). O de src/app/manifest.ts é o
@@ -41,20 +42,56 @@ const ICONES_ATALHO: MetadataRoute.Manifest["icons"] = [
   { src: "/icones/icone-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
 ]
 
+/** Atalhos do app instalado; o de parte desabilitada sai (ver GET). */
+const ATALHOS: NonNullable<MetadataRoute.Manifest["shortcuts"]> = [
+  {
+    name: "Carteirinha",
+    short_name: "Carteirinha",
+    url: "/portal/carteirinha",
+    description: "Sua carteirinha com o QR de verificação",
+    icons: ICONES_ATALHO,
+  },
+  {
+    name: "Contribuição",
+    short_name: "Contribuição",
+    url: "/portal/contribuicao",
+    description: "Cobranças e histórico das suas contribuições",
+    icons: ICONES_ATALHO,
+  },
+  {
+    name: "Avisos",
+    short_name: "Avisos",
+    url: "/portal/avisos",
+    description: "Mensagens da entidade para você",
+    icons: ICONES_ATALHO,
+  },
+]
+
 export async function GET() {
   // Multi-tenant: a entidade do subdomínio. nomeEntidade() cai em "Confluir"
   // quando a organização não tem nome — aí o app se apresenta só como portal,
   // para não se confundir com o do painel.
-  const entidade = await nomeEntidade()
+  // Atalho de parte desabilitada em Filiados › Área do associado sai (o já
+  // instalado cai na página "indisponível"); na dúvida, todos ficam.
+  const [entidade, desabilitadas] = await Promise.all([
+    nomeEntidade(),
+    rotasDesabilitadas().catch(() => [] as string[]),
+  ])
   const temNome = entidade !== "Confluir"
+  // A descrição também só cita o que o portal mostra.
+  const itens = [
+    desabilitadas.includes("/portal/carteirinha") ? null : "carteirinha",
+    desabilitadas.includes("/portal/contribuicao") ? null : "contribuição",
+    "avisos",
+  ].filter((t): t is string => t !== null)
+  const lista = `${itens.join(", ")} e serviços para associados`
+  const descricao = lista.charAt(0).toUpperCase() + lista.slice(1)
 
   const manifest: MetadataRoute.Manifest = {
     id: "/portal",
     name: temNome ? `Portal do Associado — ${entidade}` : "Portal do Associado",
     short_name: temNome && entidade.length <= LIMITE_NOME_CURTO ? entidade : "Portal",
-    description: temNome
-      ? `Carteirinha, contribuição, avisos e serviços para associados — ${entidade}.`
-      : "Carteirinha, contribuição, avisos e serviços para associados.",
+    description: temNome ? `${descricao} — ${entidade}.` : `${descricao}.`,
     start_url: "/portal/inicio",
     scope: "/portal",
     display: "standalone",
@@ -63,29 +100,7 @@ export async function GET() {
     theme_color: "#091747",
     lang: "pt-BR",
     icons: ICONES,
-    shortcuts: [
-      {
-        name: "Carteirinha",
-        short_name: "Carteirinha",
-        url: "/portal/carteirinha",
-        description: "Sua carteirinha com o QR de verificação",
-        icons: ICONES_ATALHO,
-      },
-      {
-        name: "Contribuição",
-        short_name: "Contribuição",
-        url: "/portal/contribuicao",
-        description: "Cobranças e histórico das suas contribuições",
-        icons: ICONES_ATALHO,
-      },
-      {
-        name: "Avisos",
-        short_name: "Avisos",
-        url: "/portal/avisos",
-        description: "Mensagens da entidade para você",
-        icons: ICONES_ATALHO,
-      },
-    ],
+    shortcuts: ATALHOS.filter((a) => !desabilitadas.includes(a.url)),
   }
 
   return new Response(JSON.stringify(manifest), {

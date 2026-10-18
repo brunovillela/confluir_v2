@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card"
 import { inscricaoEhDoFiliado } from "@/lib/db/eventos-portal"
 import { obterInscricaoPorToken } from "@/lib/db/eventos-publico"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -27,6 +28,16 @@ import { CapturaSelfie } from "./selfie"
 export const metadata: Metadata = {
   title: "Sua inscrição — Confluir",
   robots: { index: false },
+}
+
+/**
+ * Eventos ao alcance no portal (Filiados › Área do associado): nem a parte
+ * nem o portal inteiro desabilitados. Na dúvida (leitura falhou), está.
+ */
+async function eventosNoPortal(): Promise<boolean> {
+  return configDoPortal()
+    .then((c) => c.partes.portal.estado !== "desabilitada" && c.partes.eventos.estado !== "desabilitada")
+    .catch(() => true)
 }
 
 function Passo({
@@ -102,10 +113,12 @@ export default async function InscricaoPage({
     : ""
   // Volta ao cartão do evento, não ao topo da página de eventos — e só para o
   // dono da inscrição: no aparelho de outra pessoa, ou na gestão em "Ver como
-  // filiado", esta página continua sendo a do público.
+  // filiado", esta página continua sendo a do público. Com Eventos (ou o
+  // portal) desabilitado, a volta cairia em "indisponível": também a do público.
   const doPortal =
     portal !== null &&
-    (await inscricaoEhDoFiliado(insc.token, portal.filiado.cpf, tenantId).catch(() => false))
+    (await inscricaoEhDoFiliado(insc.token, portal.filiado.cpf, tenantId).catch(() => false)) &&
+    (await eventosNoPortal())
   const voltarAoPortal = doPortal ? `/portal/eventos#evento-${insc.eventoId}` : null
 
   return (

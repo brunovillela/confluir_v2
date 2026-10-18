@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { avisarAtivosNoSino, removerAvisosDoLink } from "@/lib/db/portal-avisos"
+import { opcoesDaParte } from "@/lib/db/portal-partes"
 import { paginar, type Paginacao } from "@/lib/paginacao"
 import { tenantAtual } from "@/lib/tenant"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -223,14 +224,18 @@ export async function criarNoticia(
   // A123: notícia nova vai para o sino dos filiados ativos, depois da
   // resposta — quem publica não espera milhares de linhas. Só sino (e celular
   // de quem ligou "Notícias e convênios"); e-mail é com a mala direta.
-  depoisDaResposta(() =>
-    avisarAtivosNoSino({
+  // Área do associado › Notícias: "Avisar no sino" desligado não avisa (na
+  // dúvida, avisa); com Notícias desabilitada o aviso em massa já descarta.
+  depoisDaResposta(async () => {
+    const opcoes = await opcoesDaParte("noticias").catch(() => null)
+    if (opcoes && !opcoes.avisar_no_sino) return
+    await avisarAtivosNoSino({
       evento: "noticias",
       texto: `Notícia nova: ${manchete.length > 200 ? `${manchete.slice(0, 199)}…` : manchete}`,
       link: linkDaNoticia(id),
       assunto: "Notícia nova",
     })
-  )
+  })
   return { id }
 }
 

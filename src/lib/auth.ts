@@ -291,7 +291,15 @@ export const areasDaConta = cache(async (): Promise<AreaDaConta[]> => {
       const identidade = await identidadeDaConta(user.id)
       if (!identidade || identidade.tipo !== "filiado") return false
       const filiado = await buscarFiliadoPorCpf(identidade.cpf)
-      return !!filiado?.ativo
+      if (!filiado?.ativo) return false
+      // Portal fora do ar (Filiados › Área do associado): a entrada levaria só
+      // à página de manutenção. Na dúvida (leitura que falha), ela fica.
+      // Import dinâmico: portal-partes não entra no grafo de quem importa
+      // este arquivo (e não fecha ciclo com o que ele vier a importar).
+      const portal = await import("@/lib/db/portal-partes")
+        .then((m) => m.situacaoDoPortal())
+        .catch(() => null)
+      return portal?.estado !== "desabilitada"
     })(),
   ])
 

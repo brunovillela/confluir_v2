@@ -2,19 +2,28 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ChevronDown, Inbox, Info, Reply } from "lucide-react"
 
+import { MOTIVO_DESFILIACAO } from "@/app/portal/primeiro-acesso/regras"
 import { SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { assuntoAtendimento, assuntosPorExtenso, prazoLegivel } from "@/lib/atendimento-constantes"
+import {
+  assuntoAtendimento,
+  assuntosPorExtenso,
+  prazoLegivel,
+  type AssuntoAtendimento,
+} from "@/lib/atendimento-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { meusAtendimentos, type Atendimento } from "@/lib/db/portal-atendimentos"
+import { meusAtendimentos, regrasDoAtendimento, type Atendimento } from "@/lib/db/portal-atendimentos"
+import { bloqueioDaParte, estadoDaParte } from "@/lib/db/portal-partes"
 import { formatarDataHora } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
+import { AvisoEnvioParado } from "./aviso-envio-parado"
 import { NovaSolicitacaoForm } from "./formularios"
 
 export const metadata: Metadata = { title: "Atendimento" }
@@ -22,10 +31,28 @@ export const metadata: Metadata = { title: "Atendimento" }
 /** Acima disso, as concluídas recolhem: com duas ou três solicitações, esconder uma atrapalha. */
 const RECOLHER_CONCLUIDAS_ACIMA = 5
 
-type Parametros = { assunto?: string | string[]; titulo?: string | string[]; nova?: string | string[] }
+type Parametros = {
+  assunto?: string | string[]
+  titulo?: string | string[]
+  nova?: string | string[]
+  /** "desfiliacao": o pedido vem de Minha filiação e passa pelo primeiro acesso pendente. */
+  motivo?: string | string[]
+}
 
 function um(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v
+}
+
+/**
+ * O assunto que o link pré-escolhe entre os que a entidade oferece (Área do
+ * associado): o próprio; fora da lista, "Outro assunto" ou, sem ele, o
+ * primeiro — quem chega de outra página encontra o formulário pronto e troca
+ * se quiser.
+ */
+function assuntoOferecido(pedido: AssuntoAtendimento, oferecidos: readonly AssuntoAtendimento[]): AssuntoAtendimento | null {
+  if (oferecidos.includes(pedido)) return pedido
+  if (oferecidos.includes("outro")) return "outro"
+  return oferecidos[0] ?? null
 }
 
 /**
@@ -35,17 +62,40 @@ function um(v: string | string[] | undefined): string | undefined {
  * solicitação" (A95/A96); quem não tem nenhuma, ou chega por um link com o
  * assunto já escolhido (?assunto=&titulo=, A23; ?nova=1), vê o formulário
  * aberto.
+ *
+ * Área do associado: o formulário oferece só os assuntos e o anexo que a
+ * entidade escolheu; com o Atendimento suspenso (ou o portal em modo de
+ * consulta), "Nova solicitação" dá lugar ao aviso e a lista segue.
  */
 export default async function PortalAtendimentoPage({ searchParams }: { searchParams: Promise<Parametros> }) {
+  // Desabilitado: o "indisponível" antes de qualquer leitura — o layout
+  // renderiza junto com esta página e não a impede de rodar.
+  const indisponivel = await paginaIndisponivel("atendimento")
+  if (indisponivel) return indisponivel
   const { filiado, preview } = await requireVisualizacaoPortal()
   const p = await searchParams
-  const { lista, disponivel } = await meusAtendimentos(filiado.cpf)
+  // Pedido de desfiliação (marca do botão de Minha filiação): só o primeiro
+  // acesso pendente deixa de parar o envio; o resto da régua continua.
+  const desfiliacao = um(p.motivo) === MOTIVO_DESFILIACAO
+  const [{ lista, disponivel }, regras, bloqueio, sindicato] = await Promise.all([
+    meusAtendimentos(filiado.cpf),
+    regrasDoAtendimento(),
+    bloqueioDaParte("atendimento", undefined, { ignorarPrimeiroAcesso: desfiliacao }).catch(() => null),
+    estadoDaParte("sindicato").catch(() => "habilitada" as const),
+  ])
   const hoje = hojeSP()
 
-  // Só assunto da lista fechada; o resumo, no tamanho do campo.
-  const assuntoInicial = assuntoAtendimento(um(p.assunto))?.chave ?? null
+  // Só assunto da lista fechada (e oferecido pela entidade); o resumo, no tamanho do campo.
+  const pedido = assuntoAtendimento(um(p.assunto))?.chave ?? null
+  const assuntoInicial = pedido ? assuntoOferecido(pedido, regras.assuntos) : null
   const tituloInicial = um(p.titulo)?.trim().replace(/\s+/g, " ").slice(0, 140) || null
   const abrirFormulario = lista.length === 0 || um(p.nova) === "1" || !!assuntoInicial || !!tituloInicial
+  // Sem assunto a oferecer (ex.: só "Saúde" marcado e a Saúde suspensa), também não há o que abrir.
+  const semEnvio =
+    bloqueio ?? (regras.assuntos.length === 0 ? "No momento não há assunto aberto para novas solicitações pelo portal." : null)
+  const avisoSemEnvio = semEnvio ? (
+    <AvisoEnvioParado titulo="Novas solicitações paradas" mensagem={semEnvio} canais={sindicato !== "desabilitada"} />
+  ) : null
 
   const abertas = lista.filter((a) => a.situacao !== "concluida")
   const concluidas = lista.filter((a) => a.situacao === "concluida")
@@ -63,6 +113,9 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
       tituloInicial={tituloInicial}
       hoje={hoje}
       preview={preview}
+      assuntos={regras.assuntos}
+      permitirAnexo={regras.permitirAnexo}
+      motivo={desfiliacao ? MOTIVO_DESFILIACAO : null}
     />
   )
 
@@ -71,7 +124,11 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
       <CabecalhoPagina
         secao="/portal/atendimento"
         titulo="Atendimento"
-        subtitulo={`Fale com a entidade por aqui: ${assuntosPorExtenso()}. Cada pedido tem prazo de resposta.`}
+        subtitulo={
+          regras.assuntos.length > 0
+            ? `Fale com a entidade por aqui: ${assuntosPorExtenso(regras.assuntos)}. Cada pedido tem prazo de resposta.`
+            : "Fale com a entidade por aqui. Cada pedido tem prazo de resposta."
+        }
       />
 
       {!disponivel ? (
@@ -79,6 +136,8 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
           <Info />
           <AlertDescription>O atendimento pelo portal ainda não está disponível nesta entidade.</AlertDescription>
         </Alert>
+      ) : lista.length === 0 && avisoSemEnvio ? (
+        avisoSemEnvio
       ) : lista.length === 0 ? (
         <Card>
           <CardHeader>
@@ -92,9 +151,11 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
       ) : (
         <>
           {/* Recolhido, é um botão de uma linha acima da lista (padrão da casa: GrupoColapsavel). */}
-          <GrupoColapsavel titulo="Nova solicitação" descricao="Abrir um pedido novo à entidade" aberto={abrirFormulario}>
-            {formulario}
-          </GrupoColapsavel>
+          {avisoSemEnvio ?? (
+            <GrupoColapsavel titulo="Nova solicitação" descricao="Abrir um pedido novo à entidade" aberto={abrirFormulario}>
+              {formulario}
+            </GrupoColapsavel>
+          )}
 
           <Card>
             <CardHeader>

@@ -3,9 +3,12 @@ import { Handshake } from "lucide-react"
 
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { hojeSP } from "@/lib/db/comum"
 import { listarConvenios, type Convenio, type UnidadeConvenio } from "@/lib/db/filiacao-convenios"
+import { configDaParte } from "@/lib/db/portal-partes"
 import { formatarData, formatarTelefone } from "@/lib/formato"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { semAcento } from "@/lib/texto"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -138,9 +141,21 @@ function ancora(categoria: string, usadas: Set<string>): string {
  * Os convênios que o sindicato negocia para o associado, por categoria, com
  * as unidades onde ele é atendido. Só os vigentes: convênio encerrado não
  * pode aparecer como promessa.
+ *
+ * Área do associado: desabilitada, o layout mostra "indisponível" e esta
+ * página (que renderiza junto) não lê nada; suspensa, só a faixa do layout
+ * (aqui não há o que gravar). A orientação do topo é configurável.
  */
 export default async function PortalConveniosPage() {
-  await requireVisualizacaoPortal()
+  // Desabilitada: o "indisponível" antes de qualquer leitura.
+  const indisponivel = await paginaIndisponivel("convenios")
+  if (indisponivel) return indisponivel
+  const [, parte] = await Promise.all([
+    requireVisualizacaoPortal(),
+    // Na dúvida, a parte vale, com a orientação padrão.
+    configDaParte("convenios").catch(() => null),
+  ])
+  const { texto_topo } = parte?.opcoes ?? opcoesPadrao("convenios")
   // Logos só aqui: a casca do portal também lista os convênios, mas só para
   // saber se há algum — não precisa assinar imagem.
   const convenios = await listarConvenios({ somenteVigentes: true, logos: true })
@@ -165,7 +180,8 @@ export default async function PortalConveniosPage() {
       <CabecalhoPagina
         secao="/portal/convenios"
         titulo="Convênios"
-        subtitulo="Descontos e serviços negociados pelo sindicato para você. Apresente sua carteira de associado no atendimento."
+        // Em branco no painel: sem orientação.
+        subtitulo={texto_topo || undefined}
       />
 
       {convenios.length === 0 ? (

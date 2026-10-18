@@ -13,6 +13,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-18",
+    titulo: "Área do associado",
+    itens: [
+      "Filiados → Área do associado: habilite, suspenda ou desabilite cada parte do portal do associado — carteirinha, contribuição, hospedagem, convênios, saúde, votação, eventos, agenda, notícias, atendimento, O sindicato —, com uma mensagem ao associado e, se quiser, a data em que a parte volta sozinha. Suspensa, a parte fica para consulta e nada é enviado por ela; desabilitada, sai do menu, do Início, da ajuda e dos avisos.",
+      "O portal inteiro também: em modo de consulta (o associado entra e vê tudo, mas nada é gravado) ou fora do ar (a entrada mostra a mensagem e os canais da entidade). A contribuição assistencial, a desistência da filiação coletiva, o link pessoal de voto e a verificação da carteirinha nunca param.",
+      "Configure cada parte: o que o associado pode alterar em Meu cadastro, a declaração e o extrato em PDF, o prazo do Pix, os assuntos, os anexos e o prazo para reabrir do Atendimento, o resultado no histórico da Votação, o cancelamento de inscrição em eventos, a diretoria em O sindicato, o aviso da tela de entrada e os atalhos da barra do celular, entre outras. Tudo começa no comportamento de antes.",
+      "Primeiro acesso: antes de usar o portal, o associado aceita o termo de privacidade em vigor e completa os dados que a entidade exige (e-mail, telefone, endereço, contato de emergência). Vale também para quem já usa o portal, no próximo acesso, e de novo quando um termo novo é publicado.",
+      "Conferir como o associado vê: abre o portal de um filiado em somente leitura, com cada parte do jeito que ele a vê.",
+    ],
+  },
+  {
     id: "2026-10-06",
     titulo: "Conciliação bancária",
     itens: [

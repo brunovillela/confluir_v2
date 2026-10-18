@@ -10,12 +10,24 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { PRAZO_REABRIR_DIAS } from "@/lib/atendimento-constantes"
+import { PRAZO_REABRIR_DIAS, rotuloDias } from "@/lib/atendimento-constantes"
 
 import { reabrirAtendimentoAction, responderAtendimentoAction } from "./actions"
 
-/** Resposta da entidade: envia e mantém aberta, ou envia e conclui. */
-export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendimentoId: string; concluida: boolean }) {
+/**
+ * Resposta da entidade: envia e mantém aberta, ou envia e conclui.
+ * `prazoReabrirDias`: o prazo do associado reabrir pelo portal, escolhido em
+ * Filiados › Área do associado (0 = não reabre); sem ele, o padrão.
+ */
+export function RespostaAtendimentoForm({
+  atendimentoId,
+  concluida,
+  prazoReabrirDias = PRAZO_REABRIR_DIAS,
+}: {
+  atendimentoId: string
+  concluida: boolean
+  prazoReabrirDias?: number
+}) {
   const [estado, action, enviando] = useActionState(responderAtendimentoAction, {})
   const [estadoReabrir, reabrir, reabrindo] = useActionState(reabrirAtendimentoAction, {})
   const anexo = useAnexo()
@@ -79,7 +91,9 @@ export function RespostaAtendimentoForm({ atendimentoId, concluida }: { atendime
           onClick={(e) =>
             confirmarEnvio(
               e,
-              `Concluir a solicitação? O filiado é avisado. Se não tiver resolvido, ele pode reabri-la pelo portal por até ${PRAZO_REABRIR_DIAS} dias.`
+              prazoReabrirDias > 0
+                ? `Concluir a solicitação? O filiado é avisado. Se não tiver resolvido, ele pode reabri-la pelo portal por até ${rotuloDias(prazoReabrirDias)}.`
+                : "Concluir a solicitação? O filiado é avisado. Pelo portal ele não reabre: se o assunto voltar, abre uma nova solicitação."
             )
           }
         >

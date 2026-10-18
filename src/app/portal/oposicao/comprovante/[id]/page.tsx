@@ -28,6 +28,7 @@ import { requireSessaoTrabalhador } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { minhaOposicao, obterComprovante, type Comprovante } from "@/lib/db/oposicao"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
@@ -84,15 +85,23 @@ export default async function ComprovantePage({
   const podeTrocar = c.situacao === "nao_avaliada" && c.temDocumento && prazo === "aberto"
   const filiado = sessao.perfil === "filiado"
 
-  const [org, origem] = desistente
-    ? [null, null]
-    : await Promise.all([obterOrganizacao().catch(() => null), origemAtual().catch(() => null)])
+  const [org, origem, cfg] = await Promise.all([
+    desistente ? null : obterOrganizacao().catch(() => null),
+    desistente ? null : origemAtual().catch(() => null),
+    // Filiados › Área do associado: esta página abre mesmo com o portal fora
+    // do ar, e o Atendimento pode estar desabilitado. Na dúvida, vale.
+    vis ? configDoPortal().catch(() => null) : null,
+  ])
   // Discordar, perguntar, o desconto que veio mesmo assim: o filiado tem o
-  // Atendimento do portal; o trabalhador não filiado, o e-mail da entidade.
+  // Atendimento do portal; o trabalhador não filiado — ou o filiado com o
+  // Atendimento fora de alcance —, o e-mail da entidade; sem e-mail e com o
+  // portal no ar, O sindicato (nunca desabilitado junto com o Atendimento).
+  const portalNoAr = Boolean(vis) && (!cfg || cfg.partes.portal.estado !== "desabilitada")
+  const atendimentoNoPortal = portalNoAr && (!cfg || cfg.partes.atendimento.estado !== "desabilitada")
   const contato =
-    vis || org?.emailContato ? (
+    portalNoAr || org?.emailContato ? (
       <FalarComEntidade
-        noPortal={Boolean(vis)}
+        noPortal={atendimentoNoPortal ? "atendimento" : portalNoAr ? "sindicato" : null}
         email={org?.emailContato ?? null}
         protocolo={c.protocolo}
       />
@@ -605,19 +614,22 @@ function BotaoPdfComprovante({ id, rotulo }: { id: string; rotulo: string }) {
 }
 
 /**
- * "Falar com a entidade": o Atendimento do portal para quem está nele; para
- * o trabalhador não filiado, o e-mail de contato da entidade, se houver.
+ * "Falar com a entidade": o Atendimento do portal para quem está nele (e com
+ * ele no ar); senão, o e-mail de contato da entidade, se houver; por último,
+ * a página O sindicato, para quem está no portal com o Atendimento
+ * desabilitado.
  */
 function FalarComEntidade({
   noPortal,
   email,
   protocolo,
 }: {
-  noPortal: boolean
+  /** O canal do portal ao alcance: o Atendimento, O sindicato ou nenhum. */
+  noPortal: "atendimento" | "sindicato" | null
   email: string | null
   protocolo: number | null
 }) {
-  if (noPortal) {
+  if (noPortal === "atendimento") {
     return (
       <Button variant="outline" asChild>
         <Link href="/portal/atendimento">
@@ -627,7 +639,17 @@ function FalarComEntidade({
       </Button>
     )
   }
-  if (!email) return null
+  if (!email) {
+    if (noPortal !== "sindicato") return null
+    return (
+      <Button variant="outline" asChild>
+        <Link href="/portal/sindicato">
+          <MessageSquare />
+          Falar com a entidade
+        </Link>
+      </Button>
+    )
+  }
   const assunto = encodeURIComponent(
     `Oposição à contribuição${protocolo != null ? ` — protocolo ${protocolo}` : ""}`
   )

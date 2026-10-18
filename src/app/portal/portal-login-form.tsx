@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 
 import { loginFiliadoSenha } from "./actions"
 import {
@@ -52,6 +53,9 @@ function lembrarAba(aba: Aba) {
 /** O localStorage não avisa mudanças desta própria aba; lê-se a cada render. */
 const semAssinatura = () => () => {}
 
+/** A orientação de antes, padrão da opção "orientacao_entrada". */
+const ORIENTACAO_PADRAO = opcoesPadrao("portal").orientacao_entrada
+
 /**
  * Entrada do portal: código por e-mail (padrão) ou CPF e senha.
  *
@@ -66,10 +70,17 @@ const semAssinatura = () => () => {}
 export function PortalLoginForm({
   next = null,
   preferirCodigo = false,
+  orientacao = ORIENTACAO_PADRAO,
 }: {
   next?: string | null
   /** Link do e-mail recusado: a tela manda pedir outro código, então abre nessa aba. */
   preferirCodigo?: boolean
+  /**
+   * Rodapé para quem não consegue entrar — o texto da entidade (Filiados ›
+   * Área do associado › Portal inteiro), que pode dar o telefone ou o horário
+   * da secretaria.
+   */
+  orientacao?: string
 }) {
   // Um CPF só para as duas abas (A158).
   const [cpf, setCpf] = useState("")
@@ -187,9 +198,8 @@ export function PortalLoginForm({
 
         {/* Orientação fixa, para todo mundo: as actions não dizem "seu
             cadastro não possui e-mail" (isso confirmava o CPF). */}
-        <p className="text-muted-foreground text-xs">
-          Sem e-mail no cadastro, ou sem acesso a ele? Procure o sindicato para
-          atualizar seus dados.
+        <p className="text-muted-foreground text-xs whitespace-pre-line">
+          {orientacao}
         </p>
       </CardContent>
     </Card>

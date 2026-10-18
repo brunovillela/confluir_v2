@@ -3,12 +3,23 @@ import type { Metadata } from "next"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { avaliacaoPorToken } from "@/lib/db/hospedagem-avaliacoes"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { ROTULO_NOTA } from "@/lib/hospedagem-avaliacoes-constantes"
 import { dataBR } from "@/lib/hospedagem-garantida-constantes"
 
-import { AvaliarForm, VoltarAHospedagem } from "./avaliar-form"
+import { AvaliarForm, VoltarAHospedagem, type HospedagemNoPortal } from "./avaliar-form"
 
 export const metadata: Metadata = { title: "Avalie sua hospedagem — Confluir" }
+
+/** Como está a Hospedagem no portal (ver HospedagemNoPortal). Na dúvida (leitura falhou), liberada. */
+async function hospedagemNoPortal(): Promise<HospedagemNoPortal> {
+  const c = await configDoPortal().catch(() => null)
+  if (!c) return "liberada"
+  const portal = c.partes.portal.estado
+  const hospedagem = c.partes.hospedagem.estado
+  if (portal === "desabilitada" || hospedagem === "desabilitada") return "fora"
+  return portal === "habilitada" && hospedagem === "habilitada" ? "liberada" : "pausada"
+}
 
 /**
  * Link do e-mail de avaliação (e do cartão do portal): abre sem senha — o
@@ -23,7 +34,7 @@ export default async function AvaliarHospedagemPage({
   searchParams: Promise<{ nota?: string }>
 }) {
   const [{ token }, { nota }] = await Promise.all([params, searchParams])
-  const a = await avaliacaoPorToken(token)
+  const [a, hospedagem] = await Promise.all([avaliacaoPorToken(token), hospedagemNoPortal()])
   const notaInicial = /^[1-5]$/.test(nota ?? "") ? Number(nota) : null
 
   return (
@@ -42,9 +53,11 @@ export default async function AvaliarHospedagemPage({
           {!a ? (
             <div className="grid justify-items-start gap-3">
               <p className="text-sm">
-                Link inválido. Abra a avaliação pelo portal do associado, em Hospedagem.
+                {hospedagem === "fora"
+                  ? "Link inválido. Confira o endereço no e-mail que você recebeu."
+                  : "Link inválido. Abra a avaliação pelo portal do associado, em Hospedagem."}
               </p>
-              <VoltarAHospedagem />
+              <VoltarAHospedagem hospedagem={hospedagem} />
             </div>
           ) : a.situacao === "respondida" ? (
             <div className="grid justify-items-start gap-3">
@@ -55,10 +68,10 @@ export default async function AvaliarHospedagemPage({
                   : ""}
                 . Obrigado!
               </p>
-              <VoltarAHospedagem />
+              <VoltarAHospedagem hospedagem={hospedagem} />
             </div>
           ) : (
-            <AvaliarForm token={a.token} notaInicial={notaInicial} />
+            <AvaliarForm token={a.token} notaInicial={notaInicial} hospedagem={hospedagem} />
           )}
         </CardContent>
       </Card>

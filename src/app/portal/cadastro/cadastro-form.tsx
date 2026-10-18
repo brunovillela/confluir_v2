@@ -4,6 +4,7 @@ import Link from "next/link"
 import { startTransition, useActionState, useEffect, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 
+import { camposQueFaltam, type ItemDoFormulario } from "@/app/portal/primeiro-acesso/regras"
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -20,10 +21,12 @@ import { cn } from "@/lib/utils"
 import { atualizarMeuCadastro } from "./actions"
 import {
   CAMPOS_TEXTO,
+  camposEditaveis,
   ERRO_SEM_EMAIL,
   erroCep,
   erroEmail,
   erroTelefone,
+  GRUPOS_CADASTRO,
   LIMITE_CAMPO,
   mensagemTrocaDeAcesso,
   normalizarEmail,
@@ -95,6 +98,7 @@ function CampoTexto({
   adorno,
   className,
   children,
+  exigido = false,
   "aria-invalid": invalido,
   ...props
 }: {
@@ -110,6 +114,8 @@ function CampoTexto({
   adorno?: React.ReactNode
   className?: string
   children?: React.ReactNode
+  /** Primeiro acesso: precisa ficar preenchido (marca * no rótulo). */
+  exigido?: boolean
 } & Omit<React.ComponentProps<"input">, "id" | "name" | "value" | "onChange" | "className" | "children">) {
   const idErro = `${campo}-erro`
   const idDica = `${campo}-dica`
@@ -123,16 +129,23 @@ function CampoTexto({
       value={valor}
       onChange={(e) => aoMudar(e.target.value)}
       maxLength={LIMITE_CAMPO[campo]}
+      // Campo só para consulta (travado pela entidade ou parte em pausa): o
+      // fundo diz que não se edita, e o texto continua legível e copiável.
+      className={props.readOnly ? "bg-muted/50" : undefined}
       {...props}
       // Inválido pelo erro do próprio campo ou pela marca de quem chama (o
       // aviso de troca do e-mail de acesso, que mora fora do campo).
       aria-invalid={erro || invalido ? true : undefined}
       aria-describedby={descricao || undefined}
+      aria-required={exigido || undefined}
     />
   )
   return (
     <div className={cn("grid content-start gap-1.5", className)}>
-      <Label htmlFor={campo}>{rotulo}</Label>
+      <Label htmlFor={campo}>
+        {rotulo}
+        {exigido && <span aria-hidden> *</span>}
+      </Label>
       {/* Com `adorno` (mesmo null) o input fica sempre dentro do mesmo
           invólucro: trocar de pai no meio da busca remontaria o campo. */}
       {adorno !== undefined ? (
@@ -170,22 +183,54 @@ function CampoTexto({
  * `action` do <form> fica só para antes da hidratação). A conferência
  * no navegador (as mesmas regras da action, em ./validacao) mostra o erro
  * junto do campo antes mesmo de enviar.
+ *
+ * Área do associado: os grupos que a entidade travou (`gruposEditaveis`)
+ * aparecem só para consulta, com o caminho da secretaria, e ficam fora da
+ * conferência — a action também os ignora. Com a parte em pausa (`pausado`),
+ * tudo fica só para consulta e o botão sai; a faixa do topo diz o motivo.
+ *
+ * Primeiro acesso (/portal/primeiro-acesso): o mesmo formulário, com o que
+ * falta marcado (`obrigatorios`, os itens pendentes: um e-mail, um telefone,
+ * o endereço completo) e conferido antes de enviar, pela mesma regra do
+ * cálculo das pendências (camposQueFaltam); `voltar` leva de volta para lá
+ * depois de salvar. Formato, troca do e-mail de acesso e o resto: as regras
+ * de sempre, aqui e na action.
  */
 export function CadastroForm({
   contato,
   somenteLeitura,
+  pausado = false,
+  gruposEditaveis = Object.keys(GRUPOS_CADASTRO),
   emailAcesso,
   emailConta,
   linkTrocaEmail,
+  linkCorrecao,
+  obrigatorios = [],
+  voltar,
+  rotuloSalvar = "Salvar alterações",
+  nivelTitulo = 2,
 }: {
   contato: ContatoFiliado
   somenteLeitura?: boolean
+  /** Meu cadastro suspenso (ou o portal em modo de consulta): nada se salva. */
+  pausado?: boolean
+  /** Os grupos de GRUPOS_CADASTRO que o associado pode alterar. */
+  gruposEditaveis?: readonly string[]
   /** O e-mail que o login usa hoje (filiado.email). */
   emailAcesso: string | null
   /** O e-mail da conta de acesso — null na visualização da gestão. */
   emailConta: string | null
-  /** Atendimento com o pedido de troca do e-mail de acesso já escolhido. */
-  linkTrocaEmail: string
+  /** Atendimento com o pedido de troca do e-mail de acesso já escolhido — null sem o Atendimento. */
+  linkTrocaEmail: string | null
+  /** Atendimento com o pedido de correção — null sem o Atendimento. */
+  linkCorrecao: string | null
+  /** Primeiro acesso: os itens que precisam ficar preenchidos para continuar. */
+  obrigatorios?: readonly ItemDoFormulario[]
+  /** Primeiro acesso: para onde a action volta depois de salvar (ela valida). */
+  voltar?: string
+  rotuloSalvar?: string
+  /** Nível dos títulos "Contato" e "Endereço". Primeiro acesso: 3, abaixo do título do passo. */
+  nivelTitulo?: 2 | 3
 }) {
   const [estado, dispatch, pendente] = useActionState<EstadoForm, FormData>(atualizarMeuCadastro, {})
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(contato))
@@ -206,6 +251,33 @@ export function CadastroForm({
   const cepConsultado = useRef(digitosDoCep(contato.endereco_cep ?? ""))
   const consulta = useRef<AbortController | null>(null)
 
+  // ── O que se altera (Área do associado) ───────────────────────────────────
+  // Travado pela entidade: só consulta, com o caminho da secretaria. Em pausa,
+  // tudo trava — e não há o que enviar.
+  const editavel = camposEditaveis(gruposEditaveis)
+  const livre = (campo: CampoCadastro) => !pausado && editavel.has(campo)
+  const todosTravados = editavel.size === 0
+  const semEnvio = pausado || todosTravados
+  // Dica do campo travado pela entidade (com tudo travado, o aviso é um só, no topo).
+  const travadoPelaEntidade = (campo: CampoCadastro) => !editavel.has(campo) && !todosTravados
+  const comSecretaria = linkCorrecao ? (
+    <Link href={linkCorrecao} className="text-primary font-medium underline underline-offset-4">
+      fale com a secretaria
+    </Link>
+  ) : (
+    "fale com a secretaria"
+  )
+  const notaTravado = <>Só para consulta — para mudar, {comSecretaria}.</>
+  const emailsLivres = (["email_pessoal", "email_corporativo"] as const).filter(livre)
+
+  // ── Primeiro acesso ───────────────────────────────────────────────────────
+  // Os campos marcados com * (um e-mail, o telefone 1, cada parte do
+  // endereço): os que faltariam com tudo em branco. Só os que se editam; o
+  // e-mail marcado é o pessoal, ou o corporativo quando só ele se edita.
+  const marcado = (c: string) => (c === "email_pessoal" ? (emailsLivres[0] ?? c) : c) as CampoCadastro
+  const exigidos = new Set(camposQueFaltam(obrigatorios, {}).map(marcado).filter(livre))
+  const exigido = (campo: CampoCadastro) => exigidos.has(campo)
+
   // ── E-mail de acesso (A25) ────────────────────────────────────────────────
   // Cadastro sem e-mail de quem está logado: vale o da conta (a mesma regra
   // de trocaDoEmailDeAcesso, em ./validacao).
@@ -221,8 +293,15 @@ export function CadastroForm({
         : null
   const conferirTroca = (pessoal: string, corporativo: string) =>
     trocaDoEmailDeAcesso({ atual: emailAcesso, emailConta, pessoal, corporativo, atualNoPessoal })
-  const troca = conferirTroca(valores.email_pessoal, valores.email_corporativo)
+  // Com os dois e-mails travados, nada muda neles: não há troca a conferir.
+  const troca = emailsLivres.length > 0 ? conferirTroca(valores.email_pessoal, valores.email_corporativo) : null
   const mensagemTroca = troca ? mensagemTrocaDeAcesso(troca) : null
+  // O campo que recebe o aviso: o da troca, ou o e-mail livre quando aquele está travado.
+  const campoTroca: "email_pessoal" | "email_corporativo" | null = troca
+    ? livre(troca.campo)
+      ? troca.campo
+      : (emailsLivres[0] ?? troca.campo)
+    : null
   const mostrarTroca =
     !!troca &&
     !!troca.novo &&
@@ -232,24 +311,43 @@ export function CadastroForm({
 
   function validar(v: Valores): Erros {
     const e: Erros = {}
-    const ep = erroEmail("O e-mail pessoal", v.email_pessoal)
-    if (ep) e.email_pessoal = ep
-    const ec = erroEmail("O e-mail corporativo", v.email_corporativo)
-    if (ec) e.email_corporativo = ec
-    if (!v.email_pessoal.trim() && !v.email_corporativo.trim()) {
-      e.email_pessoal = ERRO_SEM_EMAIL
-    } else if (!ep && !ec && troca && mensagemTroca) {
-      e[troca.campo] = mensagemTroca
+    // Campo travado fica fora: o valor é o do cadastro e a action não o grava
+    // (um telefone antigo sem DDD não impede salvar o endereço).
+    if (emailsLivres.length > 0) {
+      const ep = livre("email_pessoal") ? erroEmail("O e-mail pessoal", v.email_pessoal) : null
+      if (ep) e.email_pessoal = ep
+      const ec = livre("email_corporativo") ? erroEmail("O e-mail corporativo", v.email_corporativo) : null
+      if (ec) e.email_corporativo = ec
+      // O travado conta com o valor gravado — é o que fica no cadastro.
+      if (!v.email_pessoal.trim() && !v.email_corporativo.trim()) {
+        e[emailsLivres[0]] = ERRO_SEM_EMAIL
+      } else if (!ep && !ec && campoTroca && mensagemTroca) {
+        e[campoTroca] = mensagemTroca
+      }
     }
-    for (const [campo, rotulo] of [
-      ["telefone_1", "Telefone 1"],
-      ["telefone_2", "Telefone 2"],
-    ] as const) {
-      const erro = erroTelefone(rotulo, v[campo])
-      if (erro) e[campo] = erro
+    if (livre("telefone_1")) {
+      for (const [campo, rotulo] of [
+        ["telefone_1", "Telefone 1"],
+        ["telefone_2", "Telefone 2"],
+      ] as const) {
+        const erro = erroTelefone(rotulo, v[campo])
+        if (erro) e[campo] = erro
+      }
     }
-    const ce = erroCep(v.endereco_cep)
+    const ce = livre("endereco_cep") ? erroCep(v.endereco_cep) : null
     if (ce) e.endereco_cep = ce
+    // Primeiro acesso: o que ainda falta, pela mesma regra das pendências.
+    for (const campo of camposQueFaltam(obrigatorios, v).map(marcado)) {
+      if (!exigido(campo) || e[campo]) continue
+      e[campo] =
+        campo === "telefone_1"
+          ? "Informe ao menos um telefone para continuar."
+          : campo === "endereco_estado"
+            ? "Escolha a UF para continuar."
+            : campo === "email_pessoal" || campo === "email_corporativo"
+              ? ERRO_SEM_EMAIL
+              : "Preencha este campo para continuar."
+    }
     return e
   }
 
@@ -319,14 +417,16 @@ export function CadastroForm({
   function enviar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     // Visualização da gestão: os campos funcionam, o envio não (a action
-    // também recusa quando há visualização ativa).
-    if (somenteLeitura || pendente) return
+    // também recusa quando há visualização ativa). Em pausa ou com tudo
+    // travado, não há o que enviar.
+    if (somenteLeitura || semEnvio || pendente) return
     const erros = validar(valores)
     setErrosCliente(erros)
     setEmailsConferidos(true)
     const primeiro = CAMPOS_TEXTO.find((c) => erros[c])
     if (primeiro) {
-      setFoco({ campo: primeiro, vez: Date.now() })
+      // `vez` só precisa mudar a cada tentativa (o efeito do foco roda de novo).
+      setFoco((f) => ({ campo: primeiro, vez: (f?.vez ?? 0) + 1 }))
       return
     }
     const dados = new FormData(e.currentTarget)
@@ -387,23 +487,27 @@ export function CadastroForm({
 
   // Número antigo fora do padrão (sem DDD, dois números no campo): avisa já
   // na abertura, porque a pessoa vai precisar corrigir para salvar.
-  function dicaTelefone(campo: "telefone_1" | "telefone_2"): string | undefined {
+  function dicaTelefone(campo: "telefone_1" | "telefone_2"): React.ReactNode {
+    if (travadoPelaEntidade(campo)) return notaTravado
     const salvo = contato[campo]
-    if (!salvo || erroDe(campo)) return undefined
+    // Travado (pausa): não há o que corrigir agora.
+    if (!salvo || !livre(campo) || erroDe(campo)) return undefined
     if (valores[campo] !== telefoneInicial(salvo) || !erroTelefone("x", salvo)) return undefined
     return "O número salvo no cadastro está incompleto ou fora do padrão — corrija com DDD para poder salvar."
   }
 
   const ufLegada = siglaDaUf(contato.endereco_estado) ? null : (contato.endereco_estado ?? "").trim() || null
+  // "Escolha na lista" só para quem pode escolher.
+  const ufLegadaAviso = ufLegada && livre("endereco_estado")
   const erroUf = erroDe("endereco_estado")
 
   // O erro de troca do e-mail de acesso é o próprio aviso abaixo dos campos.
   const erroEmailCampo = (campo: "email_pessoal" | "email_corporativo") => {
     const erro = erroDe(campo)
-    return mostrarTroca && troca?.campo === campo && erro === mensagemTroca ? undefined : erro
+    return mostrarTroca && campoTroca === campo && erro === mensagemTroca ? undefined : erro
   }
   const invalidoPorTroca = (campo: CampoCadastro) =>
-    mostrarTroca && troca?.campo === campo && erroDe(campo) === mensagemTroca
+    mostrarTroca && campoTroca === campo && erroDe(campo) === mensagemTroca
 
   const rotuloEmail = (texto: string, campo: CampoCadastro) => (
     <>
@@ -425,26 +529,39 @@ export function CadastroForm({
       // telefone, e-mail e endereço no endereço da página. Depois de
       // hidratado, o `onSubmit` cancela o envio nativo e despacha ele mesmo —
       // assim o React não limpa os campos. Na visualização não há action e o
-      // botão fica desligado (nem o Enter envia).
-      action={somenteLeitura ? undefined : dispatch}
+      // botão fica desligado (nem o Enter envia); em pausa ou com tudo
+      // travado, também não.
+      action={somenteLeitura || semEnvio ? undefined : dispatch}
       onSubmit={enviar}
       noValidate
       className="grid gap-4"
     >
+      {voltar && <input type="hidden" name="voltar" value={voltar} />}
+      {todosTravados && !pausado && (
+        <Alert variant="info" role="note">
+          <AlertDescription>
+            <p>Os dados de contato e endereço ficam aqui para você conferir. Para mudar algum, {comSecretaria}.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle role="heading" aria-level={2}>Contato</CardTitle>
+          <CardTitle role="heading" aria-level={nivelTitulo}>Contato</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <CampoTexto
             campo="email_pessoal"
             rotulo={rotuloEmail("E-mail pessoal", "email_pessoal")}
+            exigido={exigido("email_pessoal")}
             valor={valores.email_pessoal}
             aoMudar={(v) => mudar("email_pessoal", v)}
             onBlur={() => setEmailsConferidos(true)}
             erro={erroEmailCampo("email_pessoal")}
+            dica={travadoPelaEntidade("email_pessoal") ? notaTravado : undefined}
+            readOnly={!livre("email_pessoal")}
             aria-invalid={invalidoPorTroca("email_pessoal") ? true : undefined}
-            descritoPor={["emails-dica", mostrarTroca && troca?.campo === "email_pessoal" ? "troca-acesso" : null]}
+            descritoPor={["emails-dica", mostrarTroca && campoTroca === "email_pessoal" ? "troca-acesso" : null]}
             type="email"
             inputMode="email"
             autoComplete="section-contato email"
@@ -454,12 +571,15 @@ export function CadastroForm({
           <CampoTexto
             campo="email_corporativo"
             rotulo={rotuloEmail("E-mail corporativo", "email_corporativo")}
+            exigido={exigido("email_corporativo")}
             valor={valores.email_corporativo}
             aoMudar={(v) => mudar("email_corporativo", v)}
             onBlur={() => setEmailsConferidos(true)}
             erro={erroEmailCampo("email_corporativo")}
+            dica={travadoPelaEntidade("email_corporativo") ? notaTravado : undefined}
+            readOnly={!livre("email_corporativo")}
             aria-invalid={invalidoPorTroca("email_corporativo") ? true : undefined}
-            descritoPor={["emails-dica", mostrarTroca && troca?.campo === "email_corporativo" ? "troca-acesso" : null]}
+            descritoPor={["emails-dica", mostrarTroca && campoTroca === "email_corporativo" ? "troca-acesso" : null]}
             type="email"
             inputMode="email"
             autoComplete="section-contato work email"
@@ -472,9 +592,13 @@ export function CadastroForm({
                 É no seu e-mail de acesso — hoje,{" "}
                 <span className="text-foreground font-medium break-all">{emailAcessoHoje}</span> — que
                 chegam o código de acesso, o link de votação e os avisos. Para trocá-lo,{" "}
-                <Link href={linkTrocaEmail} className="text-primary font-medium underline underline-offset-4">
-                  peça à secretaria
-                </Link>
+                {linkTrocaEmail ? (
+                  <Link href={linkTrocaEmail} className="text-primary font-medium underline underline-offset-4">
+                    peça à secretaria
+                  </Link>
+                ) : (
+                  "peça à secretaria"
+                )}
                 .
               </>
             ) : (
@@ -489,9 +613,11 @@ export function CadastroForm({
                   <Button type="button" variant="outline" onClick={manterEmailAtual}>
                     Manter o e-mail atual
                   </Button>
-                  <Button asChild variant="ghost">
-                    <Link href={linkTrocaEmail}>Pedir a troca à secretaria</Link>
-                  </Button>
+                  {linkTrocaEmail && (
+                    <Button asChild variant="ghost">
+                      <Link href={linkTrocaEmail}>Pedir a troca à secretaria</Link>
+                    </Button>
+                  )}
                 </span>
               </AlertDescription>
             </Alert>
@@ -500,10 +626,12 @@ export function CadastroForm({
           <CampoTexto
             campo="telefone_1"
             rotulo="Telefone 1"
+            exigido={exigido("telefone_1")}
             valor={valores.telefone_1}
             aoMudar={(v) => mudar("telefone_1", mascaraTelefone(v))}
             erro={erroDe("telefone_1")}
             dica={dicaTelefone("telefone_1")}
+            readOnly={!livre("telefone_1")}
             type="tel"
             inputMode="tel"
             autoComplete="section-contato tel"
@@ -514,6 +642,7 @@ export function CadastroForm({
                 name="telefone_1_whatsapp"
                 checked={whats1}
                 onCheckedChange={(v) => setWhats1(v === true)}
+                disabled={!livre("telefone_1")}
               />
               É WhatsApp
             </label>
@@ -525,6 +654,7 @@ export function CadastroForm({
             aoMudar={(v) => mudar("telefone_2", mascaraTelefone(v))}
             erro={erroDe("telefone_2")}
             dica={dicaTelefone("telefone_2")}
+            readOnly={!livre("telefone_2")}
             type="tel"
             inputMode="tel"
             // Seção própria: o preenchimento automático do navegador não
@@ -537,6 +667,7 @@ export function CadastroForm({
                 name="telefone_2_whatsapp"
                 checked={whats2}
                 onCheckedChange={(v) => setWhats2(v === true)}
+                disabled={!livre("telefone_2")}
               />
               É WhatsApp
             </label>
@@ -546,15 +677,23 @@ export function CadastroForm({
 
       <Card>
         <CardHeader>
-          <CardTitle role="heading" aria-level={2}>Endereço</CardTitle>
+          <CardTitle role="heading" aria-level={nivelTitulo}>Endereço</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
+          {travadoPelaEntidade("endereco_cep") && (
+            <p className="text-muted-foreground text-xs sm:col-span-3">
+              {notaTravado}
+            </p>
+          )}
           <CampoTexto
             campo="endereco_cep"
             rotulo="CEP"
+            exigido={exigido("endereco_cep")}
             valor={valores.endereco_cep}
             aoMudar={(v) => mudar("endereco_cep", mascaraCep(v))}
-            onBlur={buscarEndereco}
+            // Travado, não consulta o CEP: não há o que preencher.
+            onBlur={livre("endereco_cep") ? buscarEndereco : undefined}
+            readOnly={!livre("endereco_cep")}
             erro={erroDe("endereco_cep")}
             descritoPor={["endereco_cep-status"]}
             inputMode="numeric"
@@ -578,18 +717,22 @@ export function CadastroForm({
           <CampoTexto
             campo="endereco_logradouro"
             rotulo="Logradouro"
+            exigido={exigido("endereco_logradouro")}
             valor={valores.endereco_logradouro}
             aoMudar={(v) => mudar("endereco_logradouro", v)}
             erro={erroDe("endereco_logradouro")}
+            readOnly={!livre("endereco_logradouro")}
             autoComplete="section-endereco address-line1"
             className="sm:col-span-2"
           />
           <CampoTexto
             campo="endereco_numero"
             rotulo="Número"
+            exigido={exigido("endereco_numero")}
             valor={valores.endereco_numero}
             aoMudar={(v) => mudar("endereco_numero", v)}
             erro={erroDe("endereco_numero")}
+            readOnly={!livre("endereco_numero")}
           />
           <CampoTexto
             campo="endereco_complemento"
@@ -597,36 +740,48 @@ export function CadastroForm({
             valor={valores.endereco_complemento}
             aoMudar={(v) => mudar("endereco_complemento", v)}
             erro={erroDe("endereco_complemento")}
+            readOnly={!livre("endereco_complemento")}
             autoComplete="section-endereco address-line2"
           />
           <CampoTexto
             campo="endereco_bairro"
             rotulo="Bairro"
+            exigido={exigido("endereco_bairro")}
             valor={valores.endereco_bairro}
             aoMudar={(v) => mudar("endereco_bairro", v)}
             erro={erroDe("endereco_bairro")}
+            readOnly={!livre("endereco_bairro")}
             autoComplete="section-endereco address-level3"
           />
           <CampoTexto
             campo="endereco_cidade"
             rotulo="Cidade"
+            exigido={exigido("endereco_cidade")}
             valor={valores.endereco_cidade}
             aoMudar={(v) => mudar("endereco_cidade", v)}
             erro={erroDe("endereco_cidade")}
+            readOnly={!livre("endereco_cidade")}
             autoComplete="section-endereco address-level2"
             className="sm:col-span-2"
           />
           <div className="grid content-start gap-1.5">
-            <Label htmlFor="endereco_estado">UF</Label>
+            <Label htmlFor="endereco_estado">
+              UF
+              {exigido("endereco_estado") && <span aria-hidden> *</span>}
+            </Label>
             <SelectNativo
               id="endereco_estado"
               name="endereco_estado"
               value={valores.endereco_estado}
               onChange={(e) => mudar("endereco_estado", e.target.value)}
+              // Lista não tem "só leitura": travada, fica desligada (e a
+              // action ignora o campo de qualquer jeito).
+              disabled={!livre("endereco_estado")}
               autoComplete="section-endereco address-level1"
+              aria-required={exigido("endereco_estado") || undefined}
               aria-invalid={erroUf ? true : undefined}
               aria-describedby={
-                [erroUf ? "endereco_estado-erro" : null, ufLegada ? "endereco_estado-dica" : null]
+                [erroUf ? "endereco_estado-erro" : null, ufLegadaAviso ? "endereco_estado-dica" : null]
                   .filter(Boolean)
                   .join(" ") || undefined
               }
@@ -644,7 +799,7 @@ export function CadastroForm({
                 {erroUf}
               </p>
             )}
-            {ufLegada && (
+            {ufLegadaAviso && (
               <p id="endereco_estado-dica" className="text-muted-foreground text-xs">
                 A UF gravada no cadastro («{ufLegada}») não é uma das 27 — escolha na lista.
               </p>
@@ -661,17 +816,25 @@ export function CadastroForm({
         </Alert>
       )}
 
-      <div className="flex justify-end">
-        <AcaoVisualizacao
-          preview={somenteLeitura === true}
-          nota="Somente o próprio associado altera o cadastro."
-        >
-          <Button type="submit" disabled={pendente || somenteLeitura === true}>
-            {pendente && <Loader2 className="animate-spin" />}
-            Salvar alterações
-          </Button>
-        </AcaoVisualizacao>
-      </div>
+      {/* Em pausa, o botão sai (a faixa do topo diz o motivo); com tudo
+          travado, o aviso do topo do formulário já diz o caminho. */}
+      {pausado ? (
+        <p className="text-muted-foreground text-sm">
+          Alterações no cadastro estão em pausa no momento — veja o aviso no topo da página.
+        </p>
+      ) : todosTravados ? null : (
+        <div className="flex justify-end">
+          <AcaoVisualizacao
+            preview={somenteLeitura === true}
+            nota="Somente o próprio associado altera o cadastro."
+          >
+            <Button type="submit" disabled={pendente || somenteLeitura === true}>
+              {pendente && <Loader2 className="animate-spin" />}
+              {rotuloSalvar}
+            </Button>
+          </AcaoVisualizacao>
+        </div>
+      )}
     </form>
   )
 }

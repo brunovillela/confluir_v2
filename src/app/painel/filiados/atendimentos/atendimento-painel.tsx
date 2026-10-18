@@ -4,6 +4,7 @@ import { ExternalLink, UserRound } from "lucide-react"
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { conversaComMarcos, type Atendimento, type MensagemAtendimento } from "@/lib/db/portal-atendimentos"
+import { opcoesDaParte } from "@/lib/db/portal-partes"
 import { formatarCpf } from "@/lib/cpf"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
@@ -12,8 +13,10 @@ import { RespostaAtendimentoForm } from "./resposta-form"
 /**
  * O bloco de atendimento do painel — a conversa e o formulário de resposta.
  * Vive na página da solicitação e, igual, na página da Demanda que ela gerou.
+ * O prazo para o filiado reabrir, na confirmação de "Responder e concluir", é
+ * o da entidade (Filiados › Área do associado); na dúvida, o padrão.
  */
-export function AtendimentoPainel({
+export async function AtendimentoPainel({
   atendimento: a,
   mensagens,
   mostrarCabecalho = true,
@@ -22,6 +25,9 @@ export function AtendimentoPainel({
   mensagens: MensagemAtendimento[]
   mostrarCabecalho?: boolean
 }) {
+  const prazoReabrirDias = await opcoesDaParte("atendimento")
+    .then((o) => o.prazo_reabrir_dias)
+    .catch(() => undefined)
   return (
     <>
       {mostrarCabecalho && (
@@ -76,7 +82,11 @@ export function AtendimentoPainel({
             ladoDeCa="entidade"
             anexoBase="/painel/filiados/atendimentos/anexo"
           />
-          <RespostaAtendimentoForm atendimentoId={a.id} concluida={a.situacao === "concluida"} />
+          <RespostaAtendimentoForm
+            atendimentoId={a.id}
+            concluida={a.situacao === "concluida"}
+            prazoReabrirDias={prazoReabrirDias}
+          />
         </CardContent>
       </Card>
     </>

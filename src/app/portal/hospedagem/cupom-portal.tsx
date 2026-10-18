@@ -68,6 +68,15 @@ const MOTIVO_SEXO =
 const MOTIVO_SEXO_TODOS =
   "Os hotéis parceiros reservam o quarto na hora, pelo sexo do cadastro — e o seu está sem essa informação."
 
+/** Pedir a correção do sexo: em Atendimento, ou ao sindicato com o Atendimento fora do portal. */
+function CorrigirSexo({ atendimento, oQue = "a correção" }: { atendimento: boolean; oQue?: string }) {
+  return atendimento ? (
+    <Link href={LINK_CORRIGIR_SEXO}>Peça {oQue} em Atendimento</Link>
+  ) : (
+    <>Peça {oQue} ao sindicato</>
+  )
+}
+
 /** "Ver todas as regras": abre a seção recolhida no fim da página e rola até ela. */
 function abrirRegras() {
   const grupo = document.querySelector<HTMLDetailsElement>("#regras-hospedagem details")
@@ -80,12 +89,16 @@ function abrirRegras() {
  * escondem o formulário; cota do mês, falta que consome o período, sexo
  * ausente e avaliação pendente desligam o botão com o motivo ao lado dele.
  * A action continua conferindo tudo — isto é a mesma regra, dita antes.
+ * Hospedagem suspensa (ou o portal em consulta): nem o formulário nem a
+ * lista de espera aparecem, só o aviso.
  */
 export function SolicitarCupomForm({
   hoteis,
   hoje,
   agora,
   preview = false,
+  suspensao = null,
+  atendimento = true,
   bloqueio = null,
   travaAvaliacao = null,
   cota = null,
@@ -100,6 +113,10 @@ export function SolicitarCupomForm({
   agora: string
   /** "Ver como filiado": escolher hotel e datas funciona; enviar, não. */
   preview?: boolean
+  /** Pedidos parados (Área do associado): o texto da recusa, o mesmo da action. */
+  suspensao?: string | null
+  /** O Atendimento está no portal: os "peça em Atendimento" viram link. */
+  atendimento?: boolean
   /** Condição da entidade que vale para qualquer data (lista, fonte, regime). */
   bloqueio?: string | null
   /** Avaliação de hospedagem pendente: trava o pedido até ser feita. */
@@ -172,7 +189,18 @@ export function SolicitarCupomForm({
           </div>
         )}
 
-        {hoteis.length === 0 ? (
+        {suspensao ? (
+          <Alert variant="info">
+            <AlertTitle>Novos pedidos estão suspensos</AlertTitle>
+            <AlertDescription>
+              <p>{suspensao}</p>
+              <p>
+                Cancelar um cupom ou uma reserva e sair da lista de espera continuam
+                funcionando.
+              </p>
+            </AlertDescription>
+          </Alert>
+        ) : hoteis.length === 0 ? (
           <Alert variant="info">
             <AlertDescription>
               Nenhum hotel parceiro está com o convênio em vigor no momento. Quando houver,
@@ -186,10 +214,9 @@ export function SolicitarCupomForm({
               <p>{bloqueioTotal}</p>
               {bloqueioPorSexo ? (
                 <p>
-                  <Link href={LINK_CORRIGIR_SEXO}>Peça a correção do cadastro em Atendimento</Link>
-                  .
+                  <CorrigirSexo atendimento={atendimento} oQue="a correção do cadastro" />.
                 </p>
-              ) : (
+              ) : atendimento ? (
                 <p>
                   Se acha que há engano,{" "}
                   <Link
@@ -199,6 +226,8 @@ export function SolicitarCupomForm({
                   </Link>
                   .
                 </p>
+              ) : (
+                <p>Se acha que há engano, fale com o sindicato.</p>
               )}
             </AlertDescription>
           </Alert>
@@ -218,8 +247,7 @@ export function SolicitarCupomForm({
               <Alert variant="info">
                 <AlertDescription>
                   Os hotéis de reserva na hora pedem o sexo do cadastro, e o seu está sem
-                  essa informação.{" "}
-                  <Link href={LINK_CORRIGIR_SEXO}>Peça a correção em Atendimento</Link>.
+                  essa informação. <CorrigirSexo atendimento={atendimento} />.
                 </AlertDescription>
               </Alert>
             )}
@@ -354,7 +382,7 @@ export function SolicitarCupomForm({
                       {garantida && sexoAusente && !travaAvaliacao && (
                         <>
                           {" "}
-                          <Link href={LINK_CORRIGIR_SEXO}>Peça a correção em Atendimento</Link>.
+                          <CorrigirSexo atendimento={atendimento} />.
                         </>
                       )}
                     </AlertDescription>

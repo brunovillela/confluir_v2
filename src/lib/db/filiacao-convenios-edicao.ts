@@ -6,6 +6,7 @@ import { depoisDaResposta } from "@/lib/db/avisos"
 import { ehDoBubble } from "@/lib/db/filiacao-documentos"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { avisarAtivosNoSino, removerAvisosDoLink } from "@/lib/db/portal-avisos"
+import { opcoesDaParte } from "@/lib/db/portal-partes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -300,14 +301,19 @@ export async function salvarConvenio(dados: DadosConvenio, id?: string): Promise
     const resumo = dados.infoSumarias?.replace(/\s+/g, " ").trim() ?? ""
     const texto = `Novo convênio para associados: ${nome}${resumo ? ` — ${resumo}` : ""}`
     const link = linkDoConvenio(convenioId)
-    depoisDaResposta(() =>
-      avisarAtivosNoSino({
+    // Área do associado › Convênios: "Avisar os associados…" desligado não
+    // avisa (na dúvida, avisa); com Convênios desabilitada o aviso em massa
+    // já descarta pelo link.
+    depoisDaResposta(async () => {
+      const opcoes = await opcoesDaParte("convenios").catch(() => null)
+      if (opcoes && !opcoes.avisar_novo) return
+      await avisarAtivosNoSino({
         evento: "noticias",
         texto: texto.length > 240 ? `${texto.slice(0, 239)}…` : texto,
         link,
         assunto: "Novo convênio",
       })
-    )
+    })
   }
   return { ok: true, id: convenioId }
 }
