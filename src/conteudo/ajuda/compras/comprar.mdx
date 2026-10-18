@@ -296,17 +296,41 @@ pedido formal ao fornecedor. No quadro do fornecimento, na página do processo:
   CNPJ), o **item ou serviço** com quantidade e valor, o **pagamento** (forma e
   as parcelas já lançadas, com os vencimentos), a **entrega** (local e prazo) e
   a orientação de emitir a nota em nome da entidade citando o número da ordem.
-- **Enviar ao fornecedor** manda o e-mail com o PDF **anexo**. O destinatário
-  é escolhido entre os **contatos do fornecedor marcados para receber a ordem
-  de compra** (e com e-mail); sem nenhum, o botão fica desabilitado e o link
-  leva aos contatos da ficha. Aceita uma mensagem. As
-  respostas do fornecedor chegam ao e-mail de contato da entidade. Depois do
-  envio, o quadro mostra para quem e quando a ordem foi enviada.
+- **Enviar ao fornecedor** manda o e-mail com o PDF **anexo**. Em **Enviar
+  para**, escolha um dos **contatos do fornecedor marcados para receber a ordem
+  de compra** — não dá para digitar outro endereço. Aceita uma mensagem
+  opcional. As respostas do fornecedor chegam ao e-mail de contato da entidade.
+  Depois do envio, o quadro mostra para quem e quando a ordem foi enviada.
+
+<Aviso tipo="atencao" titulo="Sem contato marcado, o envio fica desabilitado">
+  A ordem de compra só vai a um **contato** do fornecedor que tenha **e-mail** e
+  esteja marcado em **Recebe as ordens de compra por e-mail**. Se o fornecedor
+  não tem nenhum, o botão **Enviar ao fornecedor** aparece desabilitado, com o
+  aviso *Sem contato com e-mail para receber a ordem de compra* e o link
+  **cadastrar na ficha do fornecedor**. O e-mail do cadastro do fornecedor não
+  vale para este envio. O PDF continua disponível para baixar e mandar por
+  outro meio.
+</Aviso>
+
+<PassoAPasso>
+  <Passo titulo="Abra os contatos do fornecedor">
+    Pelo link do aviso ou em **Aquisição → Fornecedores**, na ficha do
+    fornecedor, quadro **Contatos**.
+  </Passo>
+  <Passo titulo="Marque quem recebe">
+    Adicione um contato (ou edite um existente) com **e-mail** e marque
+    **Recebe as ordens de compra por e-mail**. Ele passa a exibir o selo
+    *Recebe ordem de compra*.
+  </Passo>
+  <Passo titulo="Envie">
+    Volte ao processo: o botão **Enviar ao fornecedor** fica habilitado e a
+    janela lista os contatos marcados.
+  </Passo>
+</PassoAPasso>
 
 <Aviso tipo="dica" titulo="Mantenha o cadastro do fornecedor completo">
-  CNPJ, endereço e e-mail de contato saem do cadastro em **Aquisição →
-  Fornecedores**. Sem e-mail no cadastro, a janela de envio pede que você o
-  informe.
+  CNPJ e endereço que saem no PDF vêm do cadastro em **Aquisição →
+  Fornecedores**.
 </Aviso>
 
 ## RPA de compra de serviço
