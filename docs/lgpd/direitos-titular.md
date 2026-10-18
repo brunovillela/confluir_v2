@@ -31,7 +31,7 @@
 |---|---|---|
 | Convidado ou inscrito em evento | `/meus-dados` (código por e-mail): ver, corrigir, excluir, recibo | — (fluxo mais completo do sistema) |
 | Eleitor não filiado (lista de aptos) | Nenhum | Atender pela secretaria; registrar no livro |
-| Funcionário da entidade | Meu perfil (`/perfil`) para ver os próprios dados e férias | Exportação e correção pela gestão de Pessoal |
+| Funcionário da entidade | Meu perfil (`/painel/perfil`) para ver os próprios dados e férias | Exportação e correção pela gestão de Pessoal |
 | Fornecedor ou prestador PF, hóspede, condutor, signatário externo | Nenhum | Secretaria + livro |
 | Dependente, contato de emergência | Pelo titular principal | Explicitar na política |
 
