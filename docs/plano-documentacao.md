@@ -170,7 +170,21 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
-1. **Sigilo do voto, legado.** 6.895 dos 8.018 registros de `voto_online` (a votação de 22–23/06/2026, migrada do Bubble) têm `eleitor_id` → `usuarios`, ou seja, o conteúdo do voto está ligado ao eleitor. Nenhum tem IP. Todos os votos do sistema novo (ago–out, 1.123) estão sem eleitor. Correção proposta: zerar `eleitor_id` desses 6.895 depois de confirmar que o resultado daquela votação está homologado e que nada mais depende do vínculo. `voto_votacao_respostas` (vazia) tem a mesma estrutura e pode ser removida.
+1. **Sigilo do voto, legado.** 6.895 dos 8.018 registros de `voto_online` (a votação de 22–23/06/2026, migrada do Bubble) têm `eleitor_id` → `usuarios`, ou seja, o conteúdo do voto está ligado ao eleitor. Nenhum tem IP. Todos os votos do sistema novo (ago–out, 1.123) estão sem eleitor. **RESOLVIDO em 18/10/2026** (migração `20261018171028_voto_sigilo_legado`, aplicada). Conferido antes:
+- **Não é uma votação só.** São 51 assembleias encerradas entre 05/06/2025 e 04/06/2026, mais 106 votos sem assembleia, de 3.626 eleitores. A data 22–23/06 era a da carga.
+- **Homologação.** No banco não há homologação, resultado gravado nem ata (o Bubble não trazia). A entidade confirmou que as votações estão homologadas e sem impugnação.
+- **Dependências.** Nenhum código nem objeto do banco lê `eleitor_id`.
+- **O vínculo era o único registro de participação.** Essas assembleias não têm linhas em `voto_assembleias_aptos`.
+
+O que a migração fez:
+- Copiou a participação (5.972 linhas: rodada, assembleia e eleitor, sem voto) para `voto_participacao_legado`, com RLS por tenant.
+- Zerou `eleitor_id`.
+- Criou a trava `CHECK voto_online_sem_eleitor`.
+- Removeu o índice (rodada, eleitor).
+
+Verificado: 0 votos ligados; resultado por pergunta e resposta idêntico ao de antes; a trava recusa um eleitor (`check_violation`); RLS (tenant vê, outro tenant e anon não); os 5 caminhos de gravação de voto já mandam `eleitor_id: null`.
+
+**Resta (usuário):** apagar no Bubble os votos com eleitor. Enquanto existirem lá, o `bubble_id` em `voto_online` permite religar voto e pessoa. `voto_votacao_respostas` (vazia) tem a mesma estrutura e pode ser removida.
 2. **Webhook leva filiação para fora.** No evento `filiacao.aprovada`, o payload leva nome e CPF do novo filiado para uma URL externa (`webhooks_entregas.payload`, origem em `filiacao-publica.ts`). É dado sensível transferido a terceiro: identificar quem recebe e registrar como compartilhamento (B1/B2). `webhooks.segredo` fica em claro.
 3. **A trilha `auditoria` copia segredos.** `antes`/`depois` só ocultam `senha`, `*_cifrado`, `codigo_hash` e `comprovante_hash`. Códigos e tokens com outros nomes (ex.: `usuarios.telegram_vinculo_codigo`) vão em claro. Ampliar a lista de colunas ocultas.
 
