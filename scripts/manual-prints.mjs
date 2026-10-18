@@ -139,6 +139,16 @@ const SHOTS = process.env.SHOT_UNICO
       //   node scripts/manual-prints-cenarios.mjs montar
       // e DEPOIS (sempre): node scripts/manual-prints-cenarios.mjs desfazer
       // A ata precisa de ATA_TESTE=<pdf de uma ata fictícia> e de crédito na IA.
+      // Cenários de 17/10 (a preventiva primeiro: o V-001 precisa estar na garagem).
+      ["/painel/veiculos/4e000000-0000-4000-8000-000000000001", "veiculos/veiculo-preventiva.png", { esperar: "Manutenção preventiva se aproximando" }],
+      ["/painel/veiculos/abastecimentos?veiculo=sem", "veiculos/abastecimento-editar.png", { esperar: "Incluir abastecimentos", passos: [{ clicar: "08/09/2026" }, { aguardar: "Dados do lançamento" }, { selecionar: ["#veiculo_id", "ABC1D23 — Fiat Cronos"] }, { pausa: 800 }], fullPage: true }],
+      ["/painel/veiculos/condutores/4d000000-0000-4000-8000-000000000001", "veiculos/condutor.png", { esperar: "Veículos mais usados", passos: [{ clicar: "css=details summary" }] }],
+      ["/painel/saude/cat/duplicidades", "saude/cat-duplicidades.png", { esperar: "Duplicidades", altura: 1100 }],
+      // Os três do estorno, NESTA ordem: o segundo registra o estorno de verdade.
+      ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-registrar.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }], scrollTo: "Detalhes do pagamento", altura: 1000 }],
+      ["/painel/financeiro/ordens/e5700000-0000-4000-8000-000000000001", "financeiro/estorno-ordem.png", { esperar: "Detalhes do pagamento", passos: [{ clicar: "Registrar estorno" }, { preencher: ["#motivo_estorno", "Chave Pix de destino inexistente — devolvido pelo banco"] }, { clicar: 'css=form button[type="submit"]:has-text("Registrar estorno")' }, { aguardar: "Estorno registrado" }], altura: 900 }],
+      ["/painel/estornos", "financeiro/estorno-corrigir.png", { esperar: "Meus estornos", passos: [{ clicar: "2026.0928.1015.7710" }, { aguardar: "Conferir e reencaminhar" }, { pausa: 2500 }], fullPage: true }],
+      // Cenários de 18/10.
       ["/assinar/9514fe89-13b7-4e77-9e7b-cf722d4473bf","espacos/assinatura.png",{"anon":true,"esperar":"assin","fullPage":true}],
       ["/comprovante/VT-7Q2M-K9XA","representacao/comprovante-publico.png",{"anon":true,"esperar":"VT-7Q2M-K9XA","fullPage":true}],
       ["/painel/saude/cat/nova","saude/cat-verificar-numero.png",{"esperar":"Cadastro individual","passos":[{"preencher":["#numero-cat","2019.000.111-1/03"]},{"clicar":"css=button:has-text(\"Verificar\") >> nth=0"},{"aguardar":"Atualização de uma CAT"},{"pausa":1000}],"scrollTo":"Cadastro individual","altura":1100}],
@@ -147,6 +157,11 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/veiculos/agendamentos","veiculos/reserva-terceiro.png",{"esperar":"Reservar para outra pessoa","passos":[{"clicar":"css=summary:has-text(\"Reservar para outra pessoa\")"},{"aguardar":"Para quem é a reserva"},{"selecionar":["#terceiro-condutor","Mariana Souza Ribeiro"]},{"preencher":["form:has(#terceiro-condutor) [name=\"motivo\"]","Reunião no Conselho Municipal de Saúde"]},{"preencher":["form:has(#terceiro-condutor) [name=\"destino\"]","Niterói"]},{"preencher":["form:has(#terceiro-condutor) [name=\"data_retirada\"]","2026-10-25"]},{"preencher":["form:has(#terceiro-condutor) [name=\"data_retorno\"]","2026-10-25"]},{"selecionar":["#terceiro-veiculo","ABC1D23 — Fiat Cronos (Sede)"]}],"scrollTo":"Reservar para outra pessoa","altura":1000}],
       ["/painel/institucional/atas/novo","institucional/ata-ia.png",{"esperar":"Ao escolher o arquivo","passos":[{"anexar":["#documento",ATA_TESTE]},{"aguardar":"A IA preencheu"},{"pausa":1000}],"fullPage":true}],
       ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=aptos&busca=Paulo","fluxos-publicos/votacao-primeiro-acesso.png",{"esperar":"Paulo Henrique Lima","passos":[{"clicar":"css=button[aria-label=\"Visualizar área do eleitor\"] >> nth=0"},{"aguardar":"nascimento"},{"pausa":1000}],"altura":900}],
+    ]
+  : process.env.RODADA === "cenarios-saida"
+  ? [
+      // Depois de "manual-prints-cenarios.mjs saida": V-001 fora há 2 h com 10.000 km.
+      ["/painel/veiculos/4e000000-0000-4000-8000-000000000001/movimentacao", "veiculos/devolucao-km-anormal.png", { esperar: "Registrar devolução", preencher: [["#hodometro", "10.500"]], altura: 760 }],
     ]
   : process.env.RODADA === "fiscal"
   ? [
