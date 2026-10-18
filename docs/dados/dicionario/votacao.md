@@ -450,7 +450,7 @@ Voto individual por pergunta (online, portal, urna digital ou com mesário). O v
 
 - **LGPD:** **sensível: sindical** · titulares: eleitores
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_online_hora_secreta` → `voto_online_hora_secreta`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -466,9 +466,9 @@ Voto individual por pergunta (online, portal, urna digital ou com mesário). O v
 | `pergunta_id` | uuid | sim |  | → voto_assembleias_perguntas |  |  |
 | `assembleia_id` | uuid | sim |  | → voto_assembleias |  |  |
 | `rod_assembleia_id` | uuid | sim |  | → voto_rod_assembleias |  |  |
-| `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
+| `created_at` | timestamp with time zone | sim | `now()` |  |  | Data do voto truncada para o início do mês (trigger voto_online_hora_secreta). A hora exata fica só na participação (voto_assembleias_aptos.hora_voto), nunca junto do voto. |
 | `emp_proprietaria_id` | uuid | sim | `'c763cb99-edfd-4840-8453-ed3fcb66d4a1'::uuid` | → empresa |  |  |
-| `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  | Sempre igual a created_at (início do mês), garantido pelo trigger voto_online_hora_secreta. Nunca a hora exata do voto. |
 | `em_separado_id` | uuid | sim |  | → voto_em_separado | **sensível: sindical** | Liga o voto ao cadastro de voto_em_separado até a apuração. |
 
 Únicas: `UNIQUE (bubble_id)`

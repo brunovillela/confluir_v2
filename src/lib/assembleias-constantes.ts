@@ -353,14 +353,18 @@ export function horaCurta(hora: string | null | undefined): string | null {
 }
 
 /**
- * Hora gravada junto do voto SECRETO (`voto_online.created_at`): truncada na
- * hora cheia. O horário exato fica só na participação do apto (`hora_voto`)
- * e no comprovante. Com o mesmo instante nos dois lados, quem lesse o banco
- * cruzava voto e eleitor pelo timestamp (achado S4 da avaliação de 03/10).
- * A hora cheia ainda serve para gráficos de "votos por período".
+ * Data gravada junto do voto SECRETO (`voto_online.created_at`): o primeiro
+ * instante do MÊS. O horário exato fica só na participação do apto
+ * (`hora_voto`) e no comprovante. Com o mesmo instante nos dois lados, quem
+ * lesse o banco cruzava voto e eleitor pelo timestamp (achado S4 de 03/10).
+ * A hora cheia não bastava: quem votou sozinho na sua hora ficava exposto
+ * (25 eleitores em 18/10/2026). O trigger `voto_online_hora_secreta` garante
+ * o mesmo no banco (migração 20261018175736); gráficos de "votos por
+ * período" usam `voto_assembleias_aptos.hora_voto`, nunca o voto.
  */
 export function horaDoVotoSecreto(iso: string): string {
   const d = new Date(iso)
-  d.setUTCMinutes(0, 0, 0)
+  d.setUTCDate(1)
+  d.setUTCHours(0, 0, 0, 0)
   return d.toISOString()
 }
