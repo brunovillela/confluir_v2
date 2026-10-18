@@ -36,6 +36,7 @@ const CUPOM = process.env.CUPOM_TESTE ?? ""
 const FATURA = process.env.FATURA_TESTE ?? ""
 
 // Token do link de assinatura do RPA nº 1 montado para os prints (rodada 19).
+const ATA_TESTE = process.env.ATA_TESTE ?? ""
 const TOKEN_RPA = process.env.TOKEN_RPA ?? ""
 
 // SHOT_UNICO='["/rota", "pasta/arquivo.png", {opções}]' refaz só um print, sem
@@ -129,19 +130,35 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-vinculo-edicao.png", { esperar: "Áreas", passos: [{ clicar: 'css=button[aria-label="Editar vínculo"]' }, { aguardar: "Salvar vínculo" }], scrollTo: "Salvar vínculo", altura: 1000 }],
       ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=aptos", "representacao/aptos-importar.png", { esperar: "Importar aptos", abrir: ["Importar aptos (CSV)"], scrollTo: "Importar aptos", altura: 1000 }],
       ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=divulgacao", "representacao/aviso-aptos.png", { esperar: "Aviso por e-mail", scrollTo: "Aviso por e-mail", altura: 900 }],
-      // Pedem mais que o login do operador (fora da rodada; ver a nota):
-      // ["/painel/saude/cat/duplicidades", "saude/cat-duplicidades.png", { esperar: "Duplicidades", altura: 1100 }] — a demo não tem CATs duplicadas: criar duas cópias da 2026.0001 só para o print.
-      // ["/painel/veiculos/agendamentos", "veiculos/reserva-terceiro.png"] — o print mostra o bloco Reservar para outra pessoa aberto e PREENCHIDO (pessoa, motivo, destino, datas, veículo): precisa dos passos de preenchimento.
-      // ["/painel/pessoal/diarias/<id>", "pessoal/diarias-despesa-depois.png", { esperar: "Despesas depois da viagem" }] — diária aprovada ainda dentro do prazo de despesas posteriores.
-      // ["/painel/institucional/diretoria/diarias/remessas/<id>", "pessoal/diarias-remessa-preparacao.png"] — remessa lançada e ainda não enviada (as abertas da demo já aparecem Em avaliação).
-      // ["/votar/...", "fluxos-publicos/votacao-primeiro-acesso.png", { anon: true }] — o /votar hoje começa pelo e-mail pessoal; o primeiro acesso (CPF, nome, nascimento) vem depois do código.
-      // ["/painel/espacos/pedidos/<id>", "espacos/assinatura.png"] — link de assinatura do termo (token) de um pedido com termo enviado.
-      // ["/comprovante/<codigo>", "representacao/comprovante-publico.png", { anon: true }] — código de um voto online da demo.
-      // ["/painel/saude/cat/nova", "saude/cat-verificar-numero.png"] — CATs 2019.000.111-1/01 e /02 na base + verificar o número /03.
-      // ["/painel/institucional/diretoria/atas/nova", "institucional/ata-ia.png"] — anexar ata-teste.pdf e créditos da IA.
-      // ["/painel", "institucional/conselho-fiscal-painel.png"] e uma ordem em "institucional/conselho-fiscal-ordem.png" — PRINT_EMAIL de um usuário com o perfil Conselho Fiscal.
-      // ["/painel/perfil", "introducao/meu-perfil-diretor.png"] — PRINT_EMAIL de uma diretora com login.
-      // fluxos-publicos/aviso-email.png, fluxos-publicos/comprovante-email.png, representacao/aviso-email.png — são e-mails: o print é do HTML do e-mail, não de uma rota.
+      // As que pediam cenário, outro login ou arquivo foram para as rodadas
+      // "cenarios", "fiscal" e "diretora"; os e-mails, para scripts/manual-prints-emails.mjs.
+    ]
+  : process.env.RODADA === "cenarios"
+  ? [
+      // Rodada de 18/10 (29): telas que pedem uma situação na demo. ANTES:
+      //   node scripts/manual-prints-cenarios.mjs montar
+      // e DEPOIS (sempre): node scripts/manual-prints-cenarios.mjs desfazer
+      // A ata precisa de ATA_TESTE=<pdf de uma ata fictícia> e de crédito na IA.
+      ["/assinar/9514fe89-13b7-4e77-9e7b-cf722d4473bf","espacos/assinatura.png",{"anon":true,"esperar":"assin","fullPage":true}],
+      ["/comprovante/VT-7Q2M-K9XA","representacao/comprovante-publico.png",{"anon":true,"esperar":"VT-7Q2M-K9XA","fullPage":true}],
+      ["/painel/saude/cat/nova","saude/cat-verificar-numero.png",{"esperar":"Cadastro individual","passos":[{"preencher":["#numero-cat","2019.000.111-1/03"]},{"clicar":"css=button:has-text(\"Verificar\") >> nth=0"},{"aguardar":"Atualização de uma CAT"},{"pausa":1000}],"scrollTo":"Cadastro individual","altura":1100}],
+      ["/painel/institucional/diretoria/diarias/remessas/06de932e-d050-4618-bc39-5c791a375566","pessoal/diarias-remessa-preparacao.png",{"esperar":"Em preparação","fullPage":true}],
+      ["/painel/pessoal/diarias/5b200000-0000-4000-8000-000000000002","pessoal/diarias-despesa-depois.png",{"esperar":"Despesas depois da viagem","scrollTo":"Despesas depois da viagem","altura":1000}],
+      ["/painel/veiculos/agendamentos","veiculos/reserva-terceiro.png",{"esperar":"Reservar para outra pessoa","passos":[{"clicar":"css=summary:has-text(\"Reservar para outra pessoa\")"},{"aguardar":"Para quem é a reserva"},{"selecionar":["#terceiro-condutor","Mariana Souza Ribeiro"]},{"preencher":["form:has(#terceiro-condutor) [name=\"motivo\"]","Reunião no Conselho Municipal de Saúde"]},{"preencher":["form:has(#terceiro-condutor) [name=\"destino\"]","Niterói"]},{"preencher":["form:has(#terceiro-condutor) [name=\"data_retirada\"]","2026-10-25"]},{"preencher":["form:has(#terceiro-condutor) [name=\"data_retorno\"]","2026-10-25"]},{"selecionar":["#terceiro-veiculo","ABC1D23 — Fiat Cronos (Sede)"]}],"scrollTo":"Reservar para outra pessoa","altura":1000}],
+      ["/painel/institucional/atas/novo","institucional/ata-ia.png",{"esperar":"Ao escolher o arquivo","passos":[{"anexar":["#documento",ATA_TESTE]},{"aguardar":"A IA preencheu"},{"pausa":1000}],"fullPage":true}],
+      ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=aptos&busca=Paulo","fluxos-publicos/votacao-primeiro-acesso.png",{"esperar":"Paulo Henrique Lima","passos":[{"clicar":"css=button[aria-label=\"Visualizar área do eleitor\"] >> nth=0"},{"aguardar":"nascimento"},{"pausa":1000}],"altura":900}],
+    ]
+  : process.env.RODADA === "fiscal"
+  ? [
+      // Com PRINT_EMAIL=fiscal@confluir.local (perfil Conselho Fiscal, só leitura).
+      ["/painel","institucional/conselho-fiscal-painel.png",{"esperar":"Conselho Fiscal","altura":900}],
+      ["/painel/financeiro/ordens/eec00000-0000-4000-8000-000000000002","institucional/conselho-fiscal-ordem.png",{"esperar":"Detalhes","fullPage":true}],
+      ["/painel/patrimonio/itens","institucional/conselho-fiscal-patrimonio.png",{"esperar":"Itens patrimoniais","altura":900}],
+    ]
+  : process.env.RODADA === "diretora"
+  ? [
+      // Com PRINT_EMAIL=mariana.demo@exemplo.com — o cenário liga o login dela.
+      ["/painel/perfil","introducao/meu-perfil-diretor.png",{"esperar":"Minha diretoria","fullPage":true}],
     ]
   : process.env.RODADA === "areas"
   ? [
