@@ -9,7 +9,9 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 const CM = 28.35
 
 const s = StyleSheet.create({
-  page: { paddingTop: CM, paddingHorizontal: CM * 1.2, paddingBottom: CM * 1.4, fontSize: 9, fontFamily: "Helvetica", color: "#111827", lineHeight: 1.4 },
+  // lineHeight fica aqui, não na page: na page, o @react-pdf quebra o contador de páginas (render) em documento longo.
+  conteudo: { lineHeight: 1.4 },
+  page: { paddingTop: CM, paddingHorizontal: CM * 1.2, paddingBottom: CM * 1.4, fontSize: 9, fontFamily: "Helvetica", color: "#111827" },
   logo: { width: 80, marginBottom: 6 },
   org: { fontSize: 9, fontFamily: "Helvetica-Bold" },
   titulo: { fontSize: 14, fontFamily: "Helvetica-Bold", marginTop: 10 },
@@ -61,47 +63,49 @@ export function ComparacaoAcordosPDF({
   return (
     <Document title={`Comparação: ${acordoA} × ${acordoB}`}>
       <Page size="A4" style={s.page}>
-        {/* eslint-disable-next-line jsx-a11y/alt-text -- Image do @react-pdf não aceita alt */}
-        {logo ? <Image src={logo} style={s.logo} /> : null}
-        {entidade ? <Text style={s.org}>{entidade}</Text> : null}
-        <Text style={s.titulo}>Comparação de acordos coletivos</Text>
-        <Text style={s.sub}>A (base): {acordoA}</Text>
-        <Text style={s.sub}>B (comparado): {acordoB}</Text>
+        <View style={s.conteudo}>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- Image do @react-pdf não aceita alt */}
+          {logo ? <Image src={logo} style={s.logo} /> : null}
+          {entidade ? <Text style={s.org}>{entidade}</Text> : null}
+          <Text style={s.titulo}>Comparação de acordos coletivos</Text>
+          <Text style={s.sub}>A (base): {acordoA}</Text>
+          <Text style={s.sub}>B (comparado): {acordoB}</Text>
 
-        <View style={s.grade}>
-          {numeros.slice(0, 4).map((n) => (
-            <View key={n.rotulo} style={s.cartao}>
-              <Text style={s.cartaoRotulo}>{n.rotulo}</Text>
-              <Text style={[s.cartaoValor, n.cor ? { color: n.cor } : {}]}>{n.valor}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={s.grade}>
-          {numeros.slice(4).map((n) => (
-            <View key={n.rotulo} style={s.cartao}>
-              <Text style={s.cartaoRotulo}>{n.rotulo}</Text>
-              <Text style={[s.cartaoValor, n.cor ? { color: n.cor } : {}]}>{n.valor}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={s.secao}>O que mudou</Text>
-        {itens.map((it, i) => (
-          <View key={i} style={s.item} wrap={false}>
-            <View style={s.selos}>
-              <Text style={[s.selo, { borderColor: "#9ca3af" }]}>{it.situacao}</Text>
-              {it.avaliacao ? (
-                <Text style={[s.selo, { borderColor: COR[it.avaliacaoChave ?? "neutra"], color: COR[it.avaliacaoChave ?? "neutra"] }]}>
-                  {it.avaliacao}
-                </Text>
-              ) : null}
-              {it.tema ? <Text style={[s.selo, { borderColor: "#d1d5db" }]}>{it.tema}</Text> : null}
-            </View>
-            <Text style={s.lados}>A: {it.a}   →   B: {it.b}</Text>
-            {it.resumo ? <Text style={s.resumo}>{it.resumo}</Text> : null}
-            {it.motivo ? <Text style={s.motivo}>{it.motivo}</Text> : null}
+          <View style={s.grade}>
+            {numeros.slice(0, 4).map((n) => (
+              <View key={n.rotulo} style={s.cartao}>
+                <Text style={s.cartaoRotulo}>{n.rotulo}</Text>
+                <Text style={[s.cartaoValor, n.cor ? { color: n.cor } : {}]}>{n.valor}</Text>
+              </View>
+            ))}
           </View>
-        ))}
+          <View style={s.grade}>
+            {numeros.slice(4).map((n) => (
+              <View key={n.rotulo} style={s.cartao}>
+                <Text style={s.cartaoRotulo}>{n.rotulo}</Text>
+                <Text style={[s.cartaoValor, n.cor ? { color: n.cor } : {}]}>{n.valor}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={s.secao}>O que mudou</Text>
+          {itens.map((it, i) => (
+            <View key={i} style={s.item} wrap={false}>
+              <View style={s.selos}>
+                <Text style={[s.selo, { borderColor: "#9ca3af" }]}>{it.situacao}</Text>
+                {it.avaliacao ? (
+                  <Text style={[s.selo, { borderColor: COR[it.avaliacaoChave ?? "neutra"], color: COR[it.avaliacaoChave ?? "neutra"] }]}>
+                    {it.avaliacao}
+                  </Text>
+                ) : null}
+                {it.tema ? <Text style={[s.selo, { borderColor: "#d1d5db" }]}>{it.tema}</Text> : null}
+              </View>
+              <Text style={s.lados}>A: {it.a}   →   B: {it.b}</Text>
+              {it.resumo ? <Text style={s.resumo}>{it.resumo}</Text> : null}
+              {it.motivo ? <Text style={s.motivo}>{it.motivo}</Text> : null}
+            </View>
+          ))}
+        </View>
 
         <View style={s.rodape} fixed>
           <Text>

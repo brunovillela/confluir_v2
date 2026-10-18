@@ -5,6 +5,7 @@ import type {
   SecaoRelatorio,
 } from "@/lib/db/assembleias-relatorio"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
+import { caber } from "@/lib/pdf/medida-texto"
 
 /**
  * Relatórios da apuração (votantes, resultado, completo). Renderizado em
@@ -12,6 +13,10 @@ import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
  */
 
 const CM = 28.35
+
+/** Relação de votantes: letra e larguras das colunas fixas (pt); o nome leva o resto. */
+const LETRA_VOTANTE = 9
+const COL = { num: 28, cpf: 78, mat: 80, canal: 64, quando: 78 }
 
 function n(v: number): string {
   return v.toLocaleString("pt-BR")
@@ -22,7 +27,9 @@ function pct(v: number, total: number): string {
 }
 
 const s = StyleSheet.create({
-  page: { padding: CM * 1.5, paddingBottom: CM * 1.8, fontSize: 10, fontFamily: "Helvetica", color: "#111827", lineHeight: 1.4 },
+  // lineHeight fica aqui, não na page: na page, o @react-pdf quebra o contador de páginas (render) em documento longo.
+  conteudo: { lineHeight: 1.4 },
+  page: { padding: CM * 1.5, paddingBottom: CM * 1.8, fontSize: 10, fontFamily: "Helvetica", color: "#111827" },
   logoBox: { alignItems: "center", marginBottom: 6 },
   logo: { width: 110, objectFit: "contain" },
   org: { textAlign: "center", fontFamily: "Helvetica-Bold", fontSize: 11 },
@@ -42,12 +49,18 @@ const s = StyleSheet.create({
   cel: { flex: 1 },
   celNum: { width: 70, textAlign: "right" },
   celPct: { width: 50, textAlign: "right", color: "#4b5563" },
-  vNum: { width: 26, color: "#6b7280" },
-  vNome: { flex: 1, paddingRight: 4 },
-  vCpf: { width: 86 },
-  vMat: { width: 62 },
-  vCanal: { width: 66 },
-  vQuando: { width: 88, textAlign: "right" },
+  // Relação de votantes (17/10/2026): letra 9 e larguras somando a área útil
+  // (510 pt) — a matrícula de 62 pt transbordava pela direita. Cada coluna
+  // fixa leva o próprio respiro (paddingRight); valor longo demais sem espaço
+  // é cortado com "…" (cortar), porque não há onde quebrar a linha.
+  linhaVotante: { flexDirection: "row", borderBottomWidth: 0.5, borderColor: "#e5e7eb", paddingVertical: 2.5, fontSize: LETRA_VOTANTE },
+  cabecalhoVotante: { flexDirection: "row", borderBottomWidth: 1, borderColor: "#111827", paddingVertical: 2.5, fontFamily: "Helvetica-Bold", fontSize: 8.5 },
+  vNum: { width: COL.num, paddingRight: 4, textAlign: "right", color: "#6b7280" },
+  vNome: { flex: 1, paddingLeft: 2, paddingRight: 6 },
+  vCpf: { width: COL.cpf, paddingRight: 4 },
+  vMat: { width: COL.mat, paddingRight: 4 },
+  vCanal: { width: COL.canal, paddingRight: 4 },
+  vQuando: { width: COL.quando, textAlign: "right" },
   nota: { fontSize: 8.5, color: "#4b5563", marginTop: 3 },
   vencedor: { fontFamily: "Helvetica-Bold" },
   rodape: { position: "absolute", bottom: CM, left: CM * 1.5, right: CM * 1.5, fontSize: 8, color: "#6b7280", flexDirection: "row", justifyContent: "space-between" },
@@ -99,210 +112,215 @@ export function RelatorioApuracaoPDF({
   return (
     <Document title={`${TITULO[tipo] ?? "Relatório"} — ${d.assembleia.nome ?? "assembleia"}`}>
       <Page size="A4" style={s.page}>
-        {logoDataUri ? (
-          <View style={s.logoBox}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image style={s.logo} src={logoDataUri} />
-          </View>
-        ) : null}
-        {entidade ? <Text style={s.org}>{entidade}</Text> : null}
-        <Text style={s.titulo}>{TITULO[tipo] ?? "Relatório"}</Text>
-        <Text style={s.subtitulo}>
-          {[d.assembleia.nome, d.rodada].filter(Boolean).join(" · ")}
-        </Text>
+        <View style={s.conteudo}>
+          {logoDataUri ? (
+            <View style={s.logoBox}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image style={s.logo} src={logoDataUri} />
+            </View>
+          ) : null}
+          {entidade ? <Text style={s.org}>{entidade}</Text> : null}
+          <Text style={s.titulo}>{TITULO[tipo] ?? "Relatório"}</Text>
+          <Text style={s.subtitulo}>
+            {[d.assembleia.nome, d.rodada].filter(Boolean).join(" · ")}
+          </Text>
 
-        {tem("informacoes") && (
-          <>
-            <Text style={s.secao}>Informações da assembleia</Text>
-            <View style={s.grade}>
-              <Campo rotulo="Campanha" valor={d.campanha ?? "—"} />
-              <Campo rotulo="Rodada" valor={d.rodada ?? "—"} />
-              <Campo rotulo="Assembleia" valor={d.assembleia.nome ?? "—"} />
-              <Campo rotulo="Modalidade" valor={d.assembleia.modalidade} />
-              <Campo rotulo="Abertura" valor={formatarDataHora(d.assembleia.inicio)} />
-              <Campo rotulo="Encerramento" valor={formatarDataHora(d.assembleia.termino)} />
-              <Campo
-                rotulo="Período da rodada"
-                valor={`${formatarData(d.rodadaPeriodo.inicio)} a ${formatarData(d.rodadaPeriodo.termino)}`}
-              />
-              <Campo rotulo="Fonte pagadora" valor={d.fontes.length ? d.fontes.join(", ") : "—"} />
-              <Campo rotulo="Público" valor={d.assembleia.somenteFiliados ? "Somente filiados" : "Toda a base apta"} />
-              <Campo rotulo="Voto em separado" valor={d.assembleia.votoEmSeparado ? "Permitido" : "Não"} />
-              {d.assembleia.sala && (
+          {tem("informacoes") && (
+            <>
+              <Text style={s.secao}>Informações da assembleia</Text>
+              <View style={s.grade}>
+                <Campo rotulo="Campanha" valor={d.campanha ?? "—"} />
+                <Campo rotulo="Rodada" valor={d.rodada ?? "—"} />
+                <Campo rotulo="Assembleia" valor={d.assembleia.nome ?? "—"} />
+                <Campo rotulo="Modalidade" valor={d.assembleia.modalidade} />
+                <Campo rotulo="Abertura" valor={formatarDataHora(d.assembleia.inicio)} />
+                <Campo rotulo="Encerramento" valor={formatarDataHora(d.assembleia.termino)} />
                 <Campo
-                  rotulo="Sala virtual"
-                  valor={`${formatarData(d.assembleia.sala.data)}${d.assembleia.sala.hora ? ` às ${d.assembleia.sala.hora}` : ""} — ${d.assembleia.sala.link}`}
+                  rotulo="Período da rodada"
+                  valor={`${formatarData(d.rodadaPeriodo.inicio)} a ${formatarData(d.rodadaPeriodo.termino)}`}
                 />
+                <Campo rotulo="Fonte pagadora" valor={d.fontes.length ? d.fontes.join(", ") : "—"} />
+                <Campo rotulo="Público" valor={d.assembleia.somenteFiliados ? "Somente filiados" : "Toda a base apta"} />
+                <Campo rotulo="Voto em separado" valor={d.assembleia.votoEmSeparado ? "Permitido" : "Não"} />
+                {d.assembleia.sala && (
+                  <Campo
+                    rotulo="Sala virtual"
+                    valor={`${formatarData(d.assembleia.sala.data)}${d.assembleia.sala.hora ? ` às ${d.assembleia.sala.hora}` : ""} — ${d.assembleia.sala.link}`}
+                  />
+                )}
+                <Campo rotulo="Apuração" valor={ap.apuracaoEncerrada ? "Encerrada (resultado oficial)" : "Em aberto (resultado provisório)"} />
+              </View>
+              {d.assembleia.descricao ? <Text style={s.nota}>{d.assembleia.descricao}</Text> : null}
+            </>
+          )}
+
+          {tem("comparecimento") && (
+            <>
+              <Text style={s.secao}>Comparecimento</Text>
+              <View style={s.grade}>
+                <Tile rotulo="Aptos a votar" valor={n(ap.aptos)} />
+                <Tile rotulo="Votaram" valor={n(ap.votantes)} />
+                <Tile rotulo="Não votaram" valor={n(ausentes)} />
+                <Tile rotulo="Participação" valor={pct(ap.votantes, ap.aptos)} />
+              </View>
+              {d.rodadaComVarias && (
+                <Text style={s.nota}>
+                  Aptos e votantes são da rodada inteira: o apto vota uma vez, em qualquer assembleia dela.
+                </Text>
               )}
-              <Campo rotulo="Apuração" valor={ap.apuracaoEncerrada ? "Encerrada (resultado oficial)" : "Em aberto (resultado provisório)"} />
-            </View>
-            {d.assembleia.descricao ? <Text style={s.nota}>{d.assembleia.descricao}</Text> : null}
-          </>
-        )}
+            </>
+          )}
 
-        {tem("comparecimento") && (
-          <>
-            <Text style={s.secao}>Comparecimento</Text>
-            <View style={s.grade}>
-              <Tile rotulo="Aptos a votar" valor={n(ap.aptos)} />
-              <Tile rotulo="Votaram" valor={n(ap.votantes)} />
-              <Tile rotulo="Não votaram" valor={n(ausentes)} />
-              <Tile rotulo="Participação" valor={pct(ap.votantes, ap.aptos)} />
-            </View>
-            {d.rodadaComVarias && (
-              <Text style={s.nota}>
-                Aptos e votantes são da rodada inteira: o apto vota uma vez, em qualquer assembleia dela.
-              </Text>
-            )}
-          </>
-        )}
+          {tem("resultado") && (
+            <>
+              <Text style={s.secao}>Resultado por pergunta</Text>
+              {ap.perguntas.length === 0 && <Text style={s.nota}>Nenhuma pergunta cadastrada.</Text>}
+              {ap.perguntas.map((p, i) => {
+                const maior = Math.max(0, ...p.opcoes.map((o) => o.votos))
+                return (
+                  <View key={p.id} style={s.pergunta} wrap={false}>
+                    <Text style={s.perguntaTitulo}>
+                      {i + 1}. {p.pergunta ?? "Pergunta"} ({n(p.totalVotos)} voto{p.totalVotos === 1 ? "" : "s"})
+                    </Text>
+                    {p.opcoes.map((o) => (
+                      <View key={o.id} style={s.linha}>
+                        <Text style={[s.cel, maior > 0 && o.votos === maior ? s.vencedor : {}]}>{o.texto ?? "(opção)"}</Text>
+                        <Text style={s.celNum}>{n(o.votos)}</Text>
+                        <Text style={s.celPct}>{pct(o.votos, p.totalVotos)}</Text>
+                      </View>
+                    ))}
+                    {(p.branco > 0 || p.nulo > 0) && (
+                      <>
+                        <View style={s.linha}>
+                          <Text style={s.cel}>Branco</Text>
+                          <Text style={s.celNum}>{n(p.branco)}</Text>
+                          <Text style={s.celPct}>{pct(p.branco, p.totalVotos)}</Text>
+                        </View>
+                        <View style={s.linha}>
+                          <Text style={s.cel}>Nulo</Text>
+                          <Text style={s.celNum}>{n(p.nulo)}</Text>
+                          <Text style={s.celPct}>{pct(p.nulo, p.totalVotos)}</Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                )
+              })}
+            </>
+          )}
 
-        {tem("resultado") && (
-          <>
-            <Text style={s.secao}>Resultado por pergunta</Text>
-            {ap.perguntas.length === 0 && <Text style={s.nota}>Nenhuma pergunta cadastrada.</Text>}
-            {ap.perguntas.map((p, i) => {
-              const maior = Math.max(0, ...p.opcoes.map((o) => o.votos))
-              return (
+          {tem("perguntas") && (
+            <>
+              <Text style={s.secao}>Perguntas e opções</Text>
+              {ap.perguntas.map((p, i) => (
                 <View key={p.id} style={s.pergunta} wrap={false}>
                   <Text style={s.perguntaTitulo}>
-                    {i + 1}. {p.pergunta ?? "Pergunta"} ({n(p.totalVotos)} voto{p.totalVotos === 1 ? "" : "s"})
+                    {i + 1}. {p.pergunta ?? "Pergunta"}
                   </Text>
                   {p.opcoes.map((o) => (
-                    <View key={o.id} style={s.linha}>
-                      <Text style={[s.cel, maior > 0 && o.votos === maior ? s.vencedor : {}]}>{o.texto ?? "(opção)"}</Text>
-                      <Text style={s.celNum}>{n(o.votos)}</Text>
-                      <Text style={s.celPct}>{pct(o.votos, p.totalVotos)}</Text>
-                    </View>
+                    <Text key={o.id}>• {o.texto ?? "(opção)"}</Text>
                   ))}
-                  {(p.branco > 0 || p.nulo > 0) && (
-                    <>
-                      <View style={s.linha}>
-                        <Text style={s.cel}>Branco</Text>
-                        <Text style={s.celNum}>{n(p.branco)}</Text>
-                        <Text style={s.celPct}>{pct(p.branco, p.totalVotos)}</Text>
-                      </View>
-                      <View style={s.linha}>
-                        <Text style={s.cel}>Nulo</Text>
-                        <Text style={s.celNum}>{n(p.nulo)}</Text>
-                        <Text style={s.celPct}>{pct(p.nulo, p.totalVotos)}</Text>
-                      </View>
-                    </>
-                  )}
                 </View>
-              )
-            })}
-          </>
-        )}
+              ))}
+            </>
+          )}
 
-        {tem("perguntas") && (
-          <>
-            <Text style={s.secao}>Perguntas e opções</Text>
-            {ap.perguntas.map((p, i) => (
-              <View key={p.id} style={s.pergunta} wrap={false}>
-                <Text style={s.perguntaTitulo}>
-                  {i + 1}. {p.pergunta ?? "Pergunta"}
+          {tem("entrega") && d.entrega && (
+            <>
+              <Text style={s.secao}>Entrega da votação pela internet</Text>
+              <View style={s.grade}>
+                <Tile rotulo="Receberam o link pessoal" valor={`${n(d.entrega.link.enviados)} de ${n(d.entrega.aptos)}`} />
+                <Tile
+                  rotulo="Link antes da abertura"
+                  valor={d.entrega.link.antesDaAbertura === null ? "—" : n(d.entrega.link.antesDaAbertura)}
+                />
+                <Tile rotulo="Códigos pedidos por aptos" valor={n(d.entrega.codigos.enviados)} />
+                <Tile rotulo="Pediram código e não votaram" valor={n(d.entrega.codigos.pediramENaoVotaram)} />
+              </View>
+              {d.entrega.porCanal.map((c) => (
+                <View key={c.canal} style={s.linha}>
+                  <Text style={s.cel}>{c.rotulo}</Text>
+                  <Text style={s.celNum}>{n(c.votos)}</Text>
+                  <Text style={s.celPct}>{pct(c.votos, d.entrega?.votaram ?? 0)}</Text>
+                </View>
+              ))}
+              {d.entrega.codigos.porDominio.length > 0 && (
+                <Text style={s.nota}>
+                  Códigos por domínio:{" "}
+                  {d.entrega.codigos.porDominio
+                    .slice(0, 6)
+                    .map((x) => `${x.dominio} (${n(x.codigos)})`)
+                    .join(", ")}
+                  .
                 </Text>
-                {p.opcoes.map((o) => (
-                  <Text key={o.id}>• {o.texto ?? "(opção)"}</Text>
-                ))}
-              </View>
-            ))}
-          </>
-        )}
+              )}
+              {d.entrega.semRegistro > 0 && (
+                <Text style={s.nota}>
+                  &quot;Não registrado&quot;: votos de antes de 17/10/2026, quando o canal de acesso ainda não era gravado.
+                </Text>
+              )}
+            </>
+          )}
 
-        {tem("entrega") && d.entrega && (
-          <>
-            <Text style={s.secao}>Entrega da votação pela internet</Text>
-            <View style={s.grade}>
-              <Tile rotulo="Receberam o link pessoal" valor={`${n(d.entrega.link.enviados)} de ${n(d.entrega.aptos)}`} />
-              <Tile
-                rotulo="Link antes da abertura"
-                valor={d.entrega.link.antesDaAbertura === null ? "—" : n(d.entrega.link.antesDaAbertura)}
-              />
-              <Tile rotulo="Códigos pedidos por aptos" valor={n(d.entrega.codigos.enviados)} />
-              <Tile rotulo="Pediram código e não votaram" valor={n(d.entrega.codigos.pediramENaoVotaram)} />
-            </View>
-            {d.entrega.porCanal.map((c) => (
-              <View key={c.canal} style={s.linha}>
-                <Text style={s.cel}>{c.rotulo}</Text>
-                <Text style={s.celNum}>{n(c.votos)}</Text>
-                <Text style={s.celPct}>{pct(c.votos, d.entrega?.votaram ?? 0)}</Text>
+          {tem("em_separado") && (
+            <>
+              <Text style={s.secao}>Votos em separado</Text>
+              <View style={s.grade}>
+                <Tile rotulo="Registrados" valor={n(d.emSeparado.total)} />
+                <Tile rotulo="Deferidos" valor={n(d.emSeparado.deferido)} />
+                <Tile rotulo="Indeferidos" valor={n(d.emSeparado.indeferido)} />
+                <Tile rotulo="Pendentes" valor={n(d.emSeparado.pendente)} />
               </View>
-            ))}
-            {d.entrega.codigos.porDominio.length > 0 && (
-              <Text style={s.nota}>
-                Códigos por domínio:{" "}
-                {d.entrega.codigos.porDominio
-                  .slice(0, 6)
-                  .map((x) => `${x.dominio} (${n(x.codigos)})`)
-                  .join(", ")}
-                .
+            </>
+          )}
+
+          {tem("urnas") && d.votosPorUrna.length > 0 && (
+            <>
+              <Text style={s.secao}>Comparecimento por urna</Text>
+              {d.votosPorUrna.map((u, i) => (
+                <View key={i} style={s.linha}>
+                  <Text style={s.cel}>{u.urna ?? "Urna"}</Text>
+                  <Text style={s.celNum}>{n(u.compareceram)}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
+          {tem("votantes") && (
+            <>
+              <Text style={s.secao}>
+                Relação dos votantes ({n(d.votantes.length)})
               </Text>
-            )}
-            {d.entrega.semRegistro > 0 && (
+              <View style={s.cabecalhoVotante}>
+                <Text style={s.vNum}>#</Text>
+                <Text style={s.vNome}>Nome</Text>
+                <Text style={s.vCpf}>CPF</Text>
+                <Text style={s.vMat}>Matrícula</Text>
+                <Text style={s.vCanal}>Canal</Text>
+                <Text style={s.vQuando}>Votou em</Text>
+              </View>
+              {d.votantes.map((v, i) => (
+                <View key={i} style={s.linhaVotante} wrap={false}>
+                  <Text style={s.vNum}>{i + 1}</Text>
+                  {/* Nome quebra entre palavras, sem hifenizar ("Albu-querque"). */}
+                  <Text style={s.vNome} hyphenationCallback={(palavra) => [palavra]}>
+                    {v.nome ?? "—"}
+                  </Text>
+                  <Text style={s.vCpf}>{v.cpf ? formatarCnpjCpf(v.cpf) : "—"}</Text>
+                  <Text style={s.vMat}>{caber(v.matricula, COL.mat - 4, LETRA_VOTANTE)}</Text>
+                  <Text style={s.vCanal}>{caber(v.canal, COL.canal - 4, LETRA_VOTANTE)}</Text>
+                  <Text style={s.vQuando}>{formatarDataHora(v.quando)}</Text>
+                </View>
+              ))}
               <Text style={s.nota}>
-                &quot;Não registrado&quot;: votos de antes de 17/10/2026, quando o canal de acesso ainda não era gravado.
+                A relação registra a participação, nunca o conteúdo do voto, que é secreto.
+                {d.rodadaComVarias
+                  ? " Como a rodada tem mais de uma assembleia, entram os votos pela urna desta assembleia ou, online, dentro da janela dela."
+                  : ""}
               </Text>
-            )}
-          </>
-        )}
-
-        {tem("em_separado") && (
-          <>
-            <Text style={s.secao}>Votos em separado</Text>
-            <View style={s.grade}>
-              <Tile rotulo="Registrados" valor={n(d.emSeparado.total)} />
-              <Tile rotulo="Deferidos" valor={n(d.emSeparado.deferido)} />
-              <Tile rotulo="Indeferidos" valor={n(d.emSeparado.indeferido)} />
-              <Tile rotulo="Pendentes" valor={n(d.emSeparado.pendente)} />
-            </View>
-          </>
-        )}
-
-        {tem("urnas") && d.votosPorUrna.length > 0 && (
-          <>
-            <Text style={s.secao}>Comparecimento por urna</Text>
-            {d.votosPorUrna.map((u, i) => (
-              <View key={i} style={s.linha}>
-                <Text style={s.cel}>{u.urna ?? "Urna"}</Text>
-                <Text style={s.celNum}>{n(u.compareceram)}</Text>
-              </View>
-            ))}
-          </>
-        )}
-
-        {tem("votantes") && (
-          <>
-            <Text style={s.secao}>
-              Relação dos votantes ({n(d.votantes.length)})
-            </Text>
-            <View style={s.cabecalho}>
-              <Text style={s.vNum}>#</Text>
-              <Text style={s.vNome}>Nome</Text>
-              <Text style={s.vCpf}>CPF</Text>
-              <Text style={s.vMat}>Matrícula</Text>
-              <Text style={s.vCanal}>Canal</Text>
-              <Text style={s.vQuando}>Votou em</Text>
-            </View>
-            {d.votantes.map((v, i) => (
-              <View key={i} style={s.linha} wrap={false}>
-                <Text style={s.vNum}>{i + 1}</Text>
-                <Text style={s.vNome}>{v.nome ?? "—"}</Text>
-                <Text style={s.vCpf}>{v.cpf ? formatarCnpjCpf(v.cpf) : "—"}</Text>
-                <Text style={s.vMat}>{v.matricula ?? "—"}</Text>
-                <Text style={s.vCanal}>{v.canal ?? "—"}</Text>
-                <Text style={s.vQuando}>{formatarDataHora(v.quando)}</Text>
-              </View>
-            ))}
-            <Text style={s.nota}>
-              A relação registra a participação, nunca o conteúdo do voto, que é secreto.
-              {d.rodadaComVarias
-                ? " Como a rodada tem mais de uma assembleia, entram os votos pela urna desta assembleia ou, online, dentro da janela dela."
-                : ""}
-            </Text>
-          </>
-        )}
+            </>
+          )}
+        </View>
 
         <View style={s.rodape} fixed>
           <Text>Gerado pelo Confluir em {gerado}.</Text>

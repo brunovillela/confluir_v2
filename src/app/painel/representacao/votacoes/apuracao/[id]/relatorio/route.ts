@@ -17,7 +17,9 @@ import { obterOrganizacao, urlLogo } from "@/lib/db/organizacao"
 import { RelatorioApuracaoPDF } from "@/lib/pdf/relatorio-apuracao"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
+// A relação de votantes de uma rodada grande (1.000+ nomes, 50+ páginas) leva
+// dezenas de segundos para montar — 60 s não bastava com folga.
+export const maxDuration = 300
 
 /**
  * Relatórios da apuração de assembleia online:
