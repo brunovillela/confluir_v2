@@ -103,6 +103,46 @@ const SHOTS = process.env.SHOT_UNICO
         [`${p}/atribuicoes/funcionario/${ANA}`, "pessoal/sst-funcionario.png", o],
       ]
     })()
+  : process.env.RODADA === "semrota"
+  ? [
+      // Rodada de 17/10 (28): prints que estavam nos artigos sem rota no
+      // script. Os que dependem de algo além do login do operador ficam
+      // marcados — rodar só com o que a nota pede (os demais saem direto).
+      ["/painel/ferramentas/oficios", "ferramentas/oficios-lista.png", { esperar: "Você vê os ofícios de todos os departamentos", altura: 1000 }],
+      ["/painel/institucional/linhas", "institucional/linhas.png", { esperar: "Adicionar linha", altura: 1000 }],
+      ["/painel/institucional/linhas/11e00000-0000-4000-8000-000000000001", "institucional/linha.png", { esperar: "Editar linha", altura: 800 }],
+      ["/painel/institucional/organizacao/departamentos/de100000-0000-4000-8000-000000000001", "institucional/departamento.png", { esperar: "Editar departamento", altura: 900 }],
+      ["/painel/institucional/diretoria/instancias", "institucional/diretoria-instancias.png", { esperar: "Nova instância", altura: 1000 }],
+      ["/painel/institucional/diretoria/diarias", "institucional/diretoria-diarias.png", { esperar: "Lançar diária", altura: 1100 }],
+      ["/painel/institucional/diretoria/diarias", "institucional/diretoria-lancar-diaria.png", { esperar: "Lançar diária", abrir: ["Lançar diária"], fullPage: true }],
+      ["/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/liberacoes", "institucional/liberacoes-lote.png", { esperar: "Registrar liberação", abrir: ["Registrar liberação", "Várias liberações"], fullPage: true }],
+      ["/painel/institucional/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao.png", { esperar: "Quem ocupa o posto", fullPage: true }],
+      ["/painel/institucional/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao-cadastrar-pessoa.png", { esperar: "Quem ocupa o posto", passos: [{ clicar: "css=button:has-text(\"Cadastrar pessoa\") >> nth=0" }, { aguardar: "Cadastrar quem vai ocupar o posto" }], scrollTo: "Registrar quem entra no posto", altura: 1000 }],
+      ["/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001", "hospedagem/hotel-ficha.png", { esperar: "Visualizar", fullPage: true }],
+      // Abre a visualização do hotel (cookie) e vai às contas; a visualização
+      // só lê — o botão Cadastrar conta fica cinza.
+      ["/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001", "hospedagem/ver-como-hotel-botao.png", { esperar: "Visualizar", passos: [{ clicar: "Visualizar área" }, { pausa: 2500 }, { ir: "/hotel/contas" }, { aguardar: "Cadastrar conta" }], fullPage: true }],
+      ["/painel/espacos/termo", "espacos/termo.png", { esperar: "marcadores", fullPage: true }],
+      ["/espaco/auditorio-plateia", "espacos/publico.png", { anon: true, esperar: "Auditório", fullPage: true }],
+      ["/painel/pessoal/diarias/tipos", "pessoal/diarias-tipos.png", { esperar: "Vale para", altura: 1000 }],
+      ["/painel/pessoal/diarias/contas", "pessoal/diarias-contas.png", { esperar: "Tipos de despesa extra", fullPage: true }],
+      ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-vinculo-edicao.png", { esperar: "Áreas", passos: [{ clicar: 'css=button[aria-label="Editar vínculo"]' }, { aguardar: "Salvar vínculo" }], scrollTo: "Salvar vínculo", altura: 1000 }],
+      ["/painel/saude/cat/duplicidades", "saude/cat-duplicidades.png", { esperar: "Duplicidades", altura: 1100 }],
+      ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=aptos", "representacao/aptos-importar.png", { esperar: "Importar aptos", abrir: ["Importar aptos (CSV)"], scrollTo: "Importar aptos", altura: 1000 }],
+      ["/painel/representacao/votacoes/rodadas/ea000000-0000-4000-8000-000000000003?aba=divulgacao", "representacao/aviso-aptos.png", { esperar: "Aviso por e-mail", scrollTo: "Aviso por e-mail", altura: 900 }],
+      // Pedem mais que o login do operador (fora da rodada; ver a nota):
+      // ["/painel/veiculos/agendamentos", "veiculos/reserva-terceiro.png"] — o print mostra o bloco Reservar para outra pessoa aberto e PREENCHIDO (pessoa, motivo, destino, datas, veículo): precisa dos passos de preenchimento.
+      // ["/painel/pessoal/diarias/<id>", "pessoal/diarias-despesa-depois.png", { esperar: "Despesas depois da viagem" }] — diária aprovada ainda dentro do prazo de despesas posteriores.
+      // ["/painel/institucional/diretoria/diarias/remessas/<id>", "pessoal/diarias-remessa-preparacao.png"] — remessa lançada e ainda não enviada (as abertas da demo já aparecem Em avaliação).
+      // ["/votar/...", "fluxos-publicos/votacao-primeiro-acesso.png", { anon: true }] — o /votar hoje começa pelo e-mail pessoal; o primeiro acesso (CPF, nome, nascimento) vem depois do código.
+      // ["/painel/espacos/pedidos/<id>", "espacos/assinatura.png"] — link de assinatura do termo (token) de um pedido com termo enviado.
+      // ["/comprovante/<codigo>", "representacao/comprovante-publico.png", { anon: true }] — código de um voto online da demo.
+      // ["/painel/saude/cat/nova", "saude/cat-verificar-numero.png"] — CATs 2019.000.111-1/01 e /02 na base + verificar o número /03.
+      // ["/painel/institucional/diretoria/atas/nova", "institucional/ata-ia.png"] — anexar ata-teste.pdf e créditos da IA.
+      // ["/painel", "institucional/conselho-fiscal-painel.png"] e uma ordem em "institucional/conselho-fiscal-ordem.png" — PRINT_EMAIL de um usuário com o perfil Conselho Fiscal.
+      // ["/painel/perfil", "introducao/meu-perfil-diretor.png"] — PRINT_EMAIL de uma diretora com login.
+      // fluxos-publicos/aviso-email.png, fluxos-publicos/comprovante-email.png, representacao/aviso-email.png — são e-mails: o print é do HTML do e-mail, não de uma rota.
+    ]
   : process.env.RODADA === "areas"
   ? [
       // Rodada de 17/10 (25): as outras áreas do Pessoal no padrão de 3 níveis
@@ -807,6 +847,11 @@ for (const [route, file, opts] of SHOTS) {
       await p.fill(passo.preencher[0], passo.preencher[1])
     } else if (passo.selecionar) {
       await p.selectOption(passo.selecionar[0], { label: passo.selecionar[1] })
+    } else if (passo.ir) {
+      // navega para outra rota no meio dos passos (ex.: depois de abrir uma
+      // visualização que grava cookie, ir à tela que se quer mostrar)
+      await p.goto(BASE + passo.ir, { waitUntil: "load", timeout: 60000 })
+      await p.waitForTimeout(1200)
     } else if (passo.pausa) {
       await p.waitForTimeout(passo.pausa)
     } else if (passo.aguardar) {
