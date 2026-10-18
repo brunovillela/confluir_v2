@@ -4,6 +4,7 @@ import {
   HandCoins,
   HeartHandshake,
   Landmark,
+  LockKeyhole,
   Mail,
   Plane,
   ScrollText,
@@ -119,6 +120,13 @@ const AREAS: Area[] = [
     icone: ShieldCheck,
     chave: "permissoes",
     chavesAlternativas: ["configuracoes"],
+  },
+  {
+    titulo: "LGPD: retenção e descarte",
+    descricao: "Prazos de guarda, simulação do descarte mensal e bloqueios por litígio",
+    href: "/painel/institucional/lgpd",
+    icone: LockKeyhole,
+    chave: "configuracoes",
   },
   {
     titulo: "Auditoria",
