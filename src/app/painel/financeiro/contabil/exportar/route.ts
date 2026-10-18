@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { lancamentosContabeis, type LancamentoDespesa, type LancamentoReceita } from "@/lib/db/contabil"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { type ColunaXlsx, dataXlsx, planilhaXlsxAbas, respostaXlsx } from "@/lib/xlsx"
 
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const sp = new URL(request.url).searchParams
   const { de, ate } = periodoContabil(sp.get("de"), sp.get("ate"))
   const l = await lancamentosContabeis(de, ate)
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "contabil", formato: "xlsx", quantidade: l.despesas.length + l.receitas.length, filtros: { de, ate } })
 
   const despesas: ColunaXlsx<LancamentoDespesa>[] = [
     { titulo: "Pagamento", valor: (d) => dataXlsx(d.dataPagamento), largura: 12 },

@@ -2,12 +2,13 @@
 
 # Plataforma, acesso e auditoria
 
-26 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+28 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
 | [analitica_atualizacoes](#analitica_atualizacoes) | — | Controle técnico da última atualização de cada visão materializada analítica (fato_filiacao_mensal, fato_frota_mensal etc.) e quanto tempo l… |
 | [api_chaves](#api_chaves) | **credencial (nunca exportar)** | Chave de acesso à API pública do tenant (lib/api-publica.ts): guarda só o prefixo e o hash, escopos permitidos, uso e revogação. |
+| [api_requisicoes](#api_requisicoes) | identificação | Log de cada requisição à API pública /api/v1 (achado M6 da RIPD da base multi-entidade): chave, rota, parâmetros, status HTTP e quantidade d… |
 | [auditoria](#auditoria) | **sensível: sindical**, financeiro, trabalhista, identificação, **credencial (nunca exportar)** | Trilha genérica gravada pelo trigger registrar_auditoria: cada linha é uma inclusão, alteração ou exclusão em tabela sensível (usuarios, fil… |
 | [auditoria_regras](#auditoria_regras) | — | Configuração por tenant das regras de auditoria automática das ordens de pagamento: para cada origem e código de regra, a severidade e os pa… |
 | [auth_codigos_envios](#auth_codigos_envios) | identificação | Registro de cada envio de código de acesso por e-mail (lib/codigo-acesso.ts), usado para limitar a frequência de envios por endereço. |
@@ -18,6 +19,7 @@
 | [empresa_departamentos](#empresa_departamentos) | — | Departamentos da entidade (secretarias, setores), com coordenador. Usados em compras, ofícios, agenda, contas e avisos. Departamento legado … |
 | [empresa_departamentos_integrantes](#empresa_departamentos_integrantes) | trabalhista | Usuários que integram cada departamento da entidade. Usado em avisos, permissões e diárias da diretoria. |
 | [empresa_sede](#empresa_sede) | — | Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos ofícios, na agenda, em cobranças e na cessão de espaços. |
+| [lgpd_exportacoes](#lgpd_exportacoes) | identificação | Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNA… |
 | [lgpd_solicitacoes](#lgpd_solicitacoes) | identificação, **sensível: sindical** | Livro de solicitações de titulares. NÃO armazenar aqui nome, CPF ou contato — o objetivo é provar o tratamento, não preservar o dado. |
 | [login_tentativas](#login_tentativas) | identificação | Contador de falhas de login e de envio de código por chave (lib/login-bloqueio.ts e portal/votacao), com bloqueio temporário após 5 ou 10 fa… |
 | [perfil_permissoes](#perfil_permissoes) | — | Chave de permissão concedida a um perfil de acesso (RBAC por cima da ACL plana). |
@@ -63,7 +65,7 @@ Chave de acesso à API pública do tenant (lib/api-publica.ts): guarda só o pre
 | `nome` | text | não |  |  |  |  |
 | `prefixo` | text | não |  |  | **credencial (nunca exportar)** | Início visível da chave, para identificá-la na lista. |
 | `hash` | text | não |  |  | **credencial (nunca exportar)** | Hash da chave de API; o segredo em claro não é guardado. |
-| `escopos` | text[] | não | `ARRAY['leitura'::text]` |  |  | Recursos da API que a chave pode acessar. |
+| `escopos` | text[] | não | `'{}'::text[]` |  |  | Endpoints que a chave pode ler: agenda, eventos, arrecadacao, despesas, filiados; filiados_cpf libera o CPF em /filiados (sem ele o campo volta nulo). /eu não exige escopo. |
 | `criada_por` | uuid | sim |  |  |  |  |
 | `ultimo_uso_em` | timestamp with time zone | sim |  |  |  |  |
 | `usos` | bigint | não | `0` |  |  |  |
@@ -72,7 +74,32 @@ Chave de acesso à API pública do tenant (lib/api-publica.ts): guarda só o pre
 
 Únicas: `UNIQUE (hash)`
 
+Checks: `api_chaves_escopos_validos` `CHECK ((escopos <@ ARRAY['agenda'::text, 'eventos'::text, 'arrecadacao'::text, 'despesas'::text, 'filiados'::text, 'filiados_cpf'::text]))`
+
 Índices: `api_chaves_emp_idx`, `api_chaves_hash_key`, `api_chaves_pkey`
+
+## api_requisicoes
+
+Log de cada requisição à API pública /api/v1 (achado M6 da RIPD da base multi-entidade): chave, rota, parâmetros, status HTTP e quantidade de linhas devolvidas, inclusive as recusadas (chave errada, sem escopo, limite). Gravado só pelo service_role (src/lib/api-publica.ts); a entidade lê em Institucional › Auditoria.
+
+- **LGPD:** identificação · titulares: sistemas e pessoas que usam a chave de API da entidade
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | bigint | não |  |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `chave_id` | uuid | sim |  | → api_chaves (set null) |  | Chave usada; nulo quando a chave apresentada não existe. |
+| `metodo` | text | não | `'GET'::text` |  |  |  |
+| `rota` | text | não |  |  |  | Caminho pedido (ex.: /api/v1/filiados). |
+| `parametros` | jsonb | não | `'{}'::jsonb` |  | identificação | Query string da requisição, sem a chave. A busca livre pode conter um nome. |
+| `status` | integer | não |  |  |  | Status HTTP devolvido. |
+| `quantidade` | integer | sim |  |  |  | Linhas devolvidas na resposta (nulo quando não há lista). |
+| `origem_ip` | text | sim |  |  | identificação | IP de origem (x-forwarded-for), para identificar uso da chave fora do lugar esperado. |
+| `duracao_ms` | integer | sim |  |  |  | Tempo de resposta em milissegundos. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Quando a requisição chegou. |
+
+Índices: `api_requisicoes_pkey`, `idx_api_requisicoes_chave`, `idx_api_requisicoes_emp`
 
 ## auditoria
 
@@ -330,6 +357,28 @@ Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos of
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `empresa_sede_bubble_id_key`, `empresa_sede_pkey`
+
+## lgpd_exportacoes
+
+Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNAB), com quem, quando, rota, filtros e quantidade de linhas. Gravado só pelo service_role (src/lib/exportacoes.ts); a entidade lê em Institucional › Auditoria.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Usuário do painel que gerou o arquivo. |
+| `recurso` | text | não |  |  |  | O que foi exportado, com chave estável (filiados, filiados_relatorio, cat, links_voto…); rótulos em src/lib/exportacoes.ts. |
+| `rota` | text | não |  |  |  | Caminho da rota que gerou o arquivo (sem a query string). |
+| `formato` | text | sim |  |  |  | csv, xlsx, pdf ou cnab. |
+| `filtros` | jsonb | não | `'{}'::jsonb` |  | identificação | Parâmetros da URL usados no recorte (busca, situação, fonte, período…). A busca livre pode conter um nome. |
+| `quantidade` | integer | sim |  |  |  | Linhas (pessoas ou registros) no arquivo; nulo quando a rota não sabe contar. |
+| `categorias` | text[] | não | `'{}'::text[]` |  |  | Categorias de dado pessoal presentes no arquivo (identificacao, cpf, sindical, saude, financeiro, trabalhista, voto). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Quando o arquivo foi gerado. |
+
+Índices: `idx_lgpd_exportacoes_emp`, `idx_lgpd_exportacoes_usuario`, `lgpd_exportacoes_pkey`
 
 ## lgpd_solicitacoes
 

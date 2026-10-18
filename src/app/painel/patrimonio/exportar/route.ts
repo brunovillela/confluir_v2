@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { listarItens, type FiltrosItens } from "@/lib/db/patrimonio"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 /**
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
   }
 
   const itens = await listarItens(filtros)
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "patrimonio", formato: "csv", quantidade: itens.length })
 
   const escapar = (v: string) =>
     /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v

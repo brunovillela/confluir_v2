@@ -19,6 +19,7 @@ import {
   porFolha,
 } from "@/lib/etiquetas-pimaco"
 import { blocosDoDestinatario, encaixarBlocos } from "@/lib/etiquetas-texto"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { EtiquetasPDF, type FolhaDeEtiquetas } from "@/lib/pdf/etiquetas"
 
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
       quantidade: lote.ate - lote.de + 1,
       recorte: descreverRecorte(filtros, selecao.base),
     })
+    await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "etiquetas", formato: "pdf", quantidade: lote.ate - lote.de + 1 })
   }
 
   const elemento = createElement(EtiquetasPDF, {

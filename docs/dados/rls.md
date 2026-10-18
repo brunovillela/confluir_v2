@@ -25,6 +25,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `agenda_representantes` | representacao | sim | — | | | | |
 | `analitica_atualizacoes` | plataforma | sim | — | | | | |
 | `api_chaves` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `api_requisicoes` | plataforma | sim | `tenant_isolation` | SELECT | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |  |
 | `aso` | pessoal | sim | `tenant_isolation_pai` | ALL | authenticated | `(EXISTS ( SELECT 1    FROM usuarios p   WHERE ((p.id = aso.funcionario_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` | `(EXISTS ( SELECT 1    FROM usuarios p   WHERE ((p.id = aso.funcionario_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` |
 | `assinaturas` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `ato_eventos` | representacao | sim | — | | | | |
@@ -195,6 +196,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `juridico_processos` | juridico | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `juridico_processos_filiados` | juridico | sim | `tenant_isolation_pai` | ALL | authenticated | `(EXISTS ( SELECT 1    FROM juridico_processos p   WHERE ((p.id = juridico_processos_filiados.processo_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` | `(EXISTS ( SELECT 1    FROM juridico_processos p   WHERE ((p.id = juridico_processos_filiados.processo_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` |
 | `juridico_reembolsos` | juridico | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `lgpd_exportacoes` | plataforma | sim | `tenant_isolation` | SELECT | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |  |
 | `lgpd_solicitacoes` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `linhas_institucionais` | institucional | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `login_tentativas` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

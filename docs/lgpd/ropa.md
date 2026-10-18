@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 12 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 18 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 20 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -719,7 +719,7 @@
 <a id="p16"></a>
 ## P16. Contas de acesso, segurança, auditoria e gestão interna
 
-**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, atender pedidos de titulares, integrar sistemas (API/webhooks) e organizar demandas internas.
+**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, integrar sistemas (API/webhooks) e organizar demandas internas.
 
 **Titulares.** Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma.
 
@@ -736,17 +736,18 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso: 6 meses (Marco Civil). Auditoria: 5 anos. Contas: enquanto ativas. Proposta (B4).
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Proposta (B4).
 
-**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas.
+**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (18) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (20) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [api_chaves](../dados/dicionario/plataforma.md#api_chaves) | credencial | `prefixo` (credencial), `hash` (credencial) |
+| [api_requisicoes](../dados/dicionario/plataforma.md#api_requisicoes) | identificacao | `parametros` (identificacao), `origem_ip` (identificacao) |
 | [assinaturas](../dados/dicionario/ferramentas.md#assinaturas) | identificacao | _pela existência do registro_ |
 | [auditoria](../dados/dicionario/plataforma.md#auditoria) | identificacao, sens. sindical, financeiro, trabalhista, credencial | `antes` (sens. sindical), `depois` (sens. sindical), `usuario_id` (identificacao) |
 | [auth_codigos_envios](../dados/dicionario/plataforma.md#auth_codigos_envios) | identificacao | `email` (identificacao) |
@@ -756,6 +757,7 @@
 | [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
+| [lgpd_exportacoes](../dados/dicionario/plataforma.md#lgpd_exportacoes) | identificacao | `usuario_id` (identificacao), `filtros` (identificacao) |
 | [lgpd_solicitacoes](../dados/dicionario/plataforma.md#lgpd_solicitacoes) | identificacao, sens. sindical | `filiacao_id` (sens. sindical), `observacao` (identificacao), `email_titular` (identificacao), `cpf_titular` (identificacao) |
 | [login_tentativas](../dados/dicionario/plataforma.md#login_tentativas) | identificacao | `chave` (identificacao) |
 | [plataforma_admins](../dados/dicionario/plataforma.md#plataforma_admins) | identificacao | `nome` (identificacao), `email` (identificacao) |
@@ -767,7 +769,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; diretores; eleitores; filiados; fornecedores pf; funcionários; público externo; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
+<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; diretores; eleitores; filiados; fornecedores pf; funcionários; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
 
 ## Fluxos transversais
 
@@ -796,4 +798,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 190 de 190 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 192 de 192 tabelas com dado pessoal atribuídas a 16 processos.

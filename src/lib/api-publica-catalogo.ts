@@ -21,8 +21,30 @@ export function eventoWebhookValido(v: string): v is EventoWebhook {
   return EVENTOS_WEBHOOK.some((e) => e.chave === v)
 }
 
+/**
+ * Escopos por endpoint (achado M6 da RIPD da base multi-entidade): cada chave
+ * lê só o que foi marcado. O CPF em /filiados exige "filiados_cpf"; sem ele o
+ * campo volta nulo. Mantenha em sintonia com o CHECK api_chaves_escopos_validos.
+ */
+export const ESCOPOS_API = [
+  { chave: "filiados", rotulo: "Filiados", descricao: "Nome, matrícula, lotação e condição (sem CPF)." },
+  { chave: "filiados_cpf", rotulo: "CPF dos filiados", descricao: "Inclui o CPF em /filiados. Só marque se o sistema de destino precisa dele." },
+  { chave: "arrecadacao", rotulo: "Arrecadação", descricao: "Totais mensais por tipo e fonte pagadora." },
+  { chave: "despesas", rotulo: "Despesas", descricao: "Ordens pagas, com favorecido e CNPJ/CPF." },
+  { chave: "agenda", rotulo: "Agenda", descricao: "Compromissos futuros." },
+  { chave: "eventos", rotulo: "Eventos", descricao: "Eventos e inscrições (sem os inscritos)." },
+] as const
+
+export type EscopoApi = (typeof ESCOPOS_API)[number]["chave"]
+
+export function escopoApiValido(v: string): v is EscopoApi {
+  return ESCOPOS_API.some((e) => e.chave === v)
+}
+
 export type EndpointApi = {
   caminho: string
+  /** Escopo exigido; null = qualquer chave válida. */
+  escopo: EscopoApi | null
   descricao: string
   parametros: { nome: string; descricao: string }[]
   campos: string
@@ -31,13 +53,15 @@ export type EndpointApi = {
 export const ENDPOINTS_API: EndpointApi[] = [
   {
     caminho: "/api/v1/eu",
+    escopo: null,
     descricao: "Identifica a chave: entidade, nome da chave e escopos.",
     parametros: [],
     campos: "entidade { id, nome }, chave { nome, prefixo, escopos }",
   },
   {
     caminho: "/api/v1/filiados",
-    descricao: "Cadastros de filiados, paginados.",
+    escopo: "filiados",
+    descricao: "Cadastros de filiados, paginados. O CPF só vem preenchido se a chave tiver o escopo \"CPF dos filiados\".",
     parametros: [
       { nome: "situacao", descricao: "ativas (padrão), todas ou excluidas" },
       { nome: "condicao", descricao: "Ex.: Ativo, Inativo; todas (padrão)" },
@@ -48,12 +72,14 @@ export const ENDPOINTS_API: EndpointApi[] = [
   },
   {
     caminho: "/api/v1/arrecadacao",
+    escopo: "arrecadacao",
     descricao: "Arrecadação mensal por tipo e fonte pagadora (camada analítica).",
     parametros: [{ nome: "meses", descricao: "Quantos meses para trás (padrão 12, máximo 60)" }],
     campos: "linhas[] { mes, tipo, fonteId, fonte, valor, lancamentos, pagantes }",
   },
   {
     caminho: "/api/v1/despesas",
+    escopo: "despesas",
     descricao: "Ordens pagas no período, com favorecido, CNPJ/CPF, centro de custo e departamento (o mesmo da exportação contábil).",
     parametros: [
       { nome: "de", descricao: "AAAA-MM-DD (padrão: início do mês anterior)" },
@@ -63,12 +89,14 @@ export const ENDPOINTS_API: EndpointApi[] = [
   },
   {
     caminho: "/api/v1/agenda",
+    escopo: "agenda",
     descricao: "Compromissos futuros da agenda.",
     parametros: [],
     campos: "linhas[] { id, atividade, tipo, inicio, termino, diaTodo, local, sede, departamento }",
   },
   {
     caminho: "/api/v1/eventos",
+    escopo: "eventos",
     descricao: "Eventos (inscrições, encontros, cursos).",
     parametros: [{ nome: "situacao", descricao: "Ex.: publicado, rascunho, cancelado; todos (padrão)" }],
     campos: "linhas[] { id, titulo, situacao, inicio, termino, local, inscricoesAbremEm, inscricoesFechamEm, limiteInscricoes }",

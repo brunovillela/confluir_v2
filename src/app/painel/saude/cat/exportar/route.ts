@@ -7,6 +7,7 @@ import {
   type FiltrosCat,
 } from "@/lib/db/saude"
 import { formatarData } from "@/lib/formato"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import {
   FILTROS_BOOLEANOS,
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
     lerOrdem(sp.get("ordem") ?? undefined),
     lerDirecao(sp.get("dir") ?? undefined)
   )
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "cat", formato: "csv", quantidade: linhas.length })
 
   const simNao = (v: boolean | null) => (v === true ? "Sim" : v === false ? "Não" : "")
   const escapar = (v: string) =>

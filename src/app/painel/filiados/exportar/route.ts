@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/filiados"
 import { FILIACAO_CONDICOES, GRUPOS_CONDICAO } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
@@ -56,6 +57,12 @@ export async function GET(request: NextRequest) {
   }
 
   const linhas = await listarFiliadosParaExportar(filtros)
+  await registrarExportacao(request, {
+    usuarioId: sessao.usuario.id,
+    recurso: "filiados",
+    formato: searchParams.get("formato") === "xlsx" ? "xlsx" : "csv",
+    quantidade: linhas.length,
+  })
 
   // XLSX (I8): mesma seleção, planilha de verdade (datas e filtros no Excel).
   if (searchParams.get("formato") === "xlsx") {

@@ -11,6 +11,7 @@ import {
   type FiltrosRelatorio,
 } from "@/lib/db/filiacao-relatorios"
 import { COLUNAS_RELATORIO } from "@/lib/filiacao-relatorios-constantes"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 /** Exporta um relatório de filiados (modelo + filtros da URL) em CSV. */
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
   const filtros: FiltrosRelatorio = { ...brutos, ...FILTROS_FIXOS[modelo] }
   const colunas = colunasDoPedido(modelo, filtros.colunas)
   const linhas = filtrarRelatorio(await baseRelatorios(), filtros)
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "filiados_relatorio", formato: "csv", quantidade: linhas.length })
 
   const escapar = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
   const cabecalho = colunas.map((c) => COLUNAS_RELATORIO.find((x) => x.chave === c)?.rotulo ?? c)

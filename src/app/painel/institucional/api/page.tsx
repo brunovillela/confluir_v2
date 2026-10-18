@@ -8,14 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { listarChavesApi } from "@/lib/api-publica"
+import { ESCOPOS_API } from "@/lib/api-publica-catalogo"
 import { requirePermissao } from "@/lib/auth"
 import { listarEntregas, listarWebhooks } from "@/lib/db/webhooks"
 import { formatarDataHora } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
 
-import { ExcluirWebhookBotao, NovaChaveForm, ReenviarEntregaBotao, RevogarChaveBotao, TestarWebhooksBotao, WebhookForm } from "./forms"
+import { EscoposChaveForm, ExcluirWebhookBotao, NovaChaveForm, ReenviarEntregaBotao, RevogarChaveBotao, TestarWebhooksBotao, WebhookForm } from "./forms"
 
 export const metadata: Metadata = { title: "API e webhooks — Confluir" }
+
+function rotulosEscopos(escopos: string[]): string {
+  const r = ESCOPOS_API.filter((e) => escopos.includes(e.chave)).map((e) => e.rotulo)
+  return r.length ? r.join(", ") : "nada (marque os escopos)"
+}
 
 /** Chaves de leitura, webhooks de saída e o log de entregas (onda 5, A9). */
 export default async function ApiPage({ searchParams }: { searchParams: Promise<{ editar?: string; novo?: string }> }) {
@@ -60,7 +66,13 @@ export default async function ApiPage({ searchParams }: { searchParams: Promise<
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Chaves de API</CardTitle>
-              <CardDescription className="text-xs">Só leitura. Cada chave vale para esta entidade e só funciona neste endereço. Revogue quando a pessoa ou o sistema não precisar mais.</CardDescription>
+              <CardDescription className="text-xs">
+                Só leitura, e só do que estiver marcado: o CPF dos filiados exige um escopo próprio. A chave vai no cabeçalho <code className="font-mono">Authorization: Bearer</code> (na URL é recusada), vale para esta entidade e só funciona neste endereço. Cada requisição fica registrada na{" "}
+                <Link href="/painel/institucional/auditoria?aba=api" className="underline underline-offset-4">
+                  Auditoria
+                </Link>
+                . Revogue quando a pessoa ou o sistema não precisar mais.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <NovaChaveForm />
@@ -70,6 +82,7 @@ export default async function ApiPage({ searchParams }: { searchParams: Promise<
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Prefixo</TableHead>
+                      <TableHead>Pode ler</TableHead>
                       <TableHead>Criada em</TableHead>
                       <TableHead>Último uso</TableHead>
                       <TableHead>Situação</TableHead>
@@ -81,6 +94,18 @@ export default async function ApiPage({ searchParams }: { searchParams: Promise<
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">{c.nome}</TableCell>
                         <TableCell className="font-mono text-xs">cf_{c.prefixo}_…</TableCell>
+                        <TableCell className="text-xs">
+                          {c.revogadaEm ? (
+                            <span className="text-muted-foreground">{rotulosEscopos(c.escopos)}</span>
+                          ) : (
+                            <details>
+                              <summary className="cursor-pointer">{rotulosEscopos(c.escopos)}</summary>
+                              <div className="mt-2 w-72">
+                                <EscoposChaveForm chaveId={c.id} escopos={c.escopos} />
+                              </div>
+                            </details>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{formatarDataHora(c.criadaEm)}</TableCell>
                         <TableCell className="text-muted-foreground">{c.ultimoUsoEm ? formatarDataHora(c.ultimoUsoEm) : "nunca"}</TableCell>
                         <TableCell>{c.revogadaEm ? <Badge variant="outline">revogada</Badge> : <Badge variant="success">ativa</Badge>}</TableCell>

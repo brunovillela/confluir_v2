@@ -7,6 +7,7 @@ import {
   type SituacaoCusteio,
 } from "@/lib/custeio-constantes"
 import { listarCusteios } from "@/lib/db/custeio"
+import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 
 /**
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
     situacao: (sp.get("situacao") ?? "").trim() || "todas",
     finalidadeId: (sp.get("finalidade") ?? "").trim() || undefined,
   })
+  await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "custeios", formato: "csv", quantidade: custeios.length })
 
   const escapar = (v: string) =>
     /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
