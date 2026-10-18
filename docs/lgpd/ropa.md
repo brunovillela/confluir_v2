@@ -53,7 +53,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Enquanto filiado. Após a desfiliação, 5 anos (prescrição de cobranças, CC art. 206 §5º, I); depois, anonimização com `anonimizar_filiacao` (já implementada). Proposta, a confirmar na B4.
+**Retenção.** Enquanto filiado. Após a desfiliação, 5 anos (prescrição de cobranças, CC art. 206 §5º, I); depois, anonimização com `anonimizar_filiacao` (já implementada). Códigos RT01–RT03 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; trilha `auditoria` em filiacoes, filiacao_vinculos e dados_bancarios; anonimização que corta o vínculo com o acervo de saúde; permissão própria `filiacao_lgpd`.
 
@@ -102,7 +102,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** 5 anos após o exercício (CTN arts. 173 e 174), ou enquanto houver cobrança ou discussão judicial. Proposta (B4).
+**Retenção.** 5 anos após o exercício (CTN arts. 173 e 174), ou enquanto houver cobrança ou discussão judicial. Códigos RT04 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; leitura da relação por IA em blocos, sem guardar o arquivo na IA (store: false).
 
@@ -140,7 +140,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Atendimentos: 5 anos após o encerramento. Assinaturas de push: até o cancelamento ou falha de entrega. Proposta (B4).
+**Retenção.** Atendimentos: 5 anos após o encerramento. Assinaturas de push: até o cancelamento ou falha de entrega. Códigos RT05, RT06 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; anexos em bucket privado; preferências de aviso por categoria.
 
@@ -178,7 +178,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Vigência do instrumento coletivo + 5 anos. Proposta (B4).
+**Retenção.** Vigência do instrumento coletivo + 5 anos. Códigos RT07 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** Confirmação por código no e-mail do cadastro; mensagens que não revelam se um CPF existe; RLS por tenant.
 
@@ -216,7 +216,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: apagados automaticamente 90 dias (ajustável por rodada) após a apuração de todas as assembleias da rodada (cron /api/votacao/tick, migração 20261018181729); contatos do voto em separado: no encerramento da apuração. Demais prazos: proposta (B4).
+**Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: apagados automaticamente 90 dias (ajustável por rodada) após a apuração de todas as assembleias da rodada (cron /api/votacao/tick, migração 20261018181729); contatos do voto em separado: no encerramento da apuração. Códigos RT08–RT11 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** **Sigilo do voto garantido no banco**: `voto_online` não guarda eleitor (CHECK `voto_online_sem_eleitor`), hora truncada; participação separada (`voto_assembleias_aptos`, `voto_participacao_legado`); reserva da participação antes do voto (uma por eleitor); comprovante sem o voto.
 
@@ -261,7 +261,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Atas: permanente. Listas de participantes: 5 anos. Proposta (B4).
+**Retenção.** Atas: permanente. Listas de participantes: 5 anos. Códigos RT12 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant.
 
@@ -301,7 +301,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Composição e atos da diretoria: permanente. Ficha do diretor (dados bancários, saúde): fim do mandato + 5 anos. Proposta (B4).
+**Retenção.** Composição e atos da diretoria: permanente. Ficha do diretor (dados bancários, saúde): fim do mandato + 5 anos. Códigos RT13, RT14 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; assinatura eletrônica de ofícios com trilha de eventos.
 
@@ -345,7 +345,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** 20 anos após o fim da exposição ou do vínculo (NR-07), controlado por `retencao_ate` e pela view `lgpd_retencoes_vencidas`. Já implementado.
+**Retenção.** 20 anos após o fim da exposição ou do vínculo (NR-07), controlado por `retencao_ate` e pela view `lgpd_retencoes_vencidas`. Parte já implementada. Códigos RT15, RT16 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** Relatório clínico cifrado (`saude_atendimentos_relatorio`); acesso registrado (`saude_atendimentos_acessos`); acervo retido separado do cadastro com identificadores cifrados; leitura de CAT por IA sem armazenamento (store: false).
 
@@ -390,7 +390,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Fim do processo + 5 anos. Proposta (B4).
+**Retenção.** Fim do processo + 5 anos. Códigos RT17 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant.
 
@@ -427,7 +427,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Proposta (B4).
+**Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Códigos RT18–RT21 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; acesso por permissão do módulo Pessoal; contracheque liberado individualmente ao funcionário.
 
@@ -494,7 +494,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** 10 anos para documentos contábeis (CC art. 1.194, prática de mercado) ou 5 anos após o exercício para fins tributários; o maior prevalece. Proposta (B4).
+**Retenção.** 10 anos para documentos contábeis (CC art. 1.194, prática de mercado) ou 5 anos após o exercício para fins tributários; o maior prevalece. Códigos RT22, RT23 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; alçadas e MFA para quem paga (com `MFA_OBRIGATORIO`); trilha `auditoria` em ordens e fornecedores; regras de auditoria das ordens.
 
@@ -557,7 +557,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Como P11 (documentos contábeis). Proposta (B4).
+**Retenção.** Como P11 (documentos contábeis). Códigos RT24 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant.
 
@@ -600,7 +600,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Reservas: 5 anos após a estada (faturamento). Lista de espera: até o atendimento. Proposta (B4).
+**Retenção.** Reservas: 5 anos após a estada (faturamento). Lista de espera: até o atendimento. Códigos RT25 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; acesso do hotel restrito às suas reservas; links por token.
 
@@ -645,7 +645,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Infrações: 5 anos. CNH: enquanto o condutor estiver habilitado no sistema. Proposta (B4).
+**Retenção.** Infrações: 5 anos. CNH: enquanto o condutor estiver habilitado no sistema. Códigos RT26, RT27 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant.
 
@@ -692,7 +692,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Envios: 2 anos. Inscrições de evento: 1 ano após o evento, com anonimização e expurgo da foto (já implementados). Proposta (B4).
+**Retenção.** Envios: 2 anos. Inscrições de evento: 1 ano após o evento, com anonimização e expurgo da foto (já implementados). Códigos RT28–RT30 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; anonimização e expurgo de foto dos inscritos já implementados.
 
@@ -736,7 +736,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Proposta (B4).
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Códigos RT31–RT35 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).
 

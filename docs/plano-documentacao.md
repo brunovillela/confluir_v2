@@ -234,6 +234,11 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Corrigido durante a B3:** `voto_online.updated_at` guardava a hora exata (DEFAULT now()). Comparando com `hora_voto`, 1.050 dos 1.121 votos do sistema novo eram religáveis ao eleitor, e com a hora cheia ainda sobravam 25 eleitores expostos. A migração `20261018175736_voto_hora_secreta` (aplicada) trunca a data do voto para o mês em todos os votos e cria o trigger `voto_online_hora_secreta`. Resultados idênticos (commit 4831868).
   - **Pendente:** aprovação das RIPDs pela entidade; implementar os planos de ação.
 
+- 18/10/2026 — **B4 CONCLUÍDA (proposta técnica).** `docs/lgpd/retencao.md`: 6 regras gerais; 35 prazos (RT01–RT35) por dado, com processo, fundamento, ação ao fim (eliminar/anonimizar) e situação atual; dados fora do banco (storage, backups, Sentry, Vercel, e-mail, Telegram, Bubble, cópias locais); plano de implementação (motor de retenção com regras por entidade, modo simulação e livro de execuções; ordem de ativação); decisões da entidade. O ROPA aponta para os códigos RT.
+  - **Inventário:** só 2 prazos são automáticos (RT10 contatos da votação, RT11 voto em separado, ambos de 18/10); 2 são manuais (anonimização do cadastro e do inscrito em evento, a pedido); a saúde só tem alerta.
+  - **Achado:** `retencao_foto_dias` dos eventos (padrão 30) é configurável na tela, mas **nenhuma rotina apaga as fotos** (RT30).
+  - **Arquivos do Storage** não são apagados junto com o registro.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
