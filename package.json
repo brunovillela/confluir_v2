@@ -50,6 +50,7 @@
     "eslint-config-next": "^16.3.8",
     "playwright": "^1.62.1",
     "shadcn": "^4.13.0",
+    "supabase": "^2.121.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

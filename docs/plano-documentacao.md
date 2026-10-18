@@ -1,0 +1,165 @@
+# Plano de documentação — em ondas
+
+Data: 18/10/2026. Caminhos relativos a `confluir/`. O ponto de partida é a comparação com as cinco camadas de documentação de um SaaS de classe mundial: produto, usuário, engenharia, operação e conformidade. A camada do usuário já está coberta pelo manual completo. Este plano cobre o resto, começando pelo que é **risco real** e não só lacuna de papel.
+
+Princípios:
+- **Documento gerado vence documento escrito.** O que pode ser extraído do banco ou do código (dicionário, RLS, inventário de dados pessoais) é gerado por script e regenerado a cada mudança. Texto à mão só onde há decisão humana.
+- **Cada item tem "como verificar".** Nada é dado como pronto sem a verificação executada.
+- **Conformidade é rascunho técnico, não parecer.** Os documentos da Onda B saem prontos para o jurídico/encarregado validar. Base legal e prazos de retenção são **propostas**.
+- **Tudo em `docs/`**, versionado com o código. Estrutura final:
+
+```
+docs/
+  dados/          dicionário, diagramas ER, RLS, classificação LGPD (gerados)
+  lgpd/           ROPA, RIPDs, suboperadores, retenção, incidentes, direitos do titular
+  votacao/        dossiê de auditoria da votação
+  arquitetura/    C4 + adr/NNNN-titulo.md
+  operacao/       runbooks, DR, monitoramento, integrações
+  produto/        glossário, regras de negócio, notas de versão
+```
+
+---
+
+## Diagnóstico (levantado em 18/10)
+
+**Schema**
+- `supabase/` tem **~240 arquivos `.sql` soltos** (107 deles criam tabelas, 20 são seeds do demo), executados à mão no SQL Editor, sem registro de quais rodaram em qual banco nem em que ordem.
+- O código usa **318 tabelas/views**. Delas, **114 não são criadas por nenhum arquivo do repositório**: o núcleo (`filiacao`, `compras`, `contratos`, `documentos`, `dados_bancarios`, `enderecos`, `diretoria`…) nasceu no dashboard durante a migração do Bubble. **Hoje não é possível reconstruir o banco a partir do repositório.** Isso afeta o DR, o ambiente de testes e a entrada de um segundo desenvolvedor.
+- Ponto positivo: os arquivos recentes são idempotentes (`if not exists` / `or replace`) e comentados com POR QUÊ/COMO. A convenção é boa, só falta ordem e registro.
+
+**Dados pessoais**
+- A base inteira é **dado sensível** pela LGPD: filiação a sindicato está no art. 5º, II. Além dela, há saúde (CAT, ASO, prontuário), voto, dados bancários, contracheque, ponto, CNH, foto, CPF e dependentes.
+- Papéis: cada **entidade (tenant) é controladora**, o **Confluir é operador**, e há suboperadores.
+- Já existe: trilha `auditoria` (escritas em tabelas sensíveis, `supabase/auditoria.sql`), `login_tentativas`, colunas cifradas, `store: false` nas chamadas de IA (`src/lib/ia.ts`), página de autosserviço `/meus-dados/[token]`, Sentry com CPF mascarado.
+- Não existe: política de privacidade pública, ROPA, RIPD, lista de suboperadores, política de retenção, plano de incidente, nem registro de **leitura** de dado sensível (a trilha só grava escritas).
+
+**Suboperadores identificados no código:** Supabase (banco/auth/storage, sa-east-1), Vercel (hospedagem), OpenAI (IA: lê PDFs de CAT, contracheques, notas e atas), Resend e Brevo (e-mail), Sentry (erros, ingestão na UE), Cloudflare Turnstile, Telegram (bot), Bubble (legado, ainda grava hotel/portal/anuênio), web-push (navegador do usuário). Consultas a dados públicos: BrasilAPI, minhareceita.org, ViaCEP, Open-Meteo, ITI/ICP-Brasil.
+
+---
+
+## Onda A — Schema reproduzível e dicionário de dados (≈ 6 dias)
+
+### A1. Linha de base do schema (1 dia)
+- Extrair o schema de produção **sem dados**: `supabase db dump --schema public` (CLI) ou `pg_dump --schema-only --no-owner`. Inclui tabelas, views, funções, triggers, RLS, grants e extensões.
+- Gravar em `supabase/migrations/20261018000000_linha_de_base.sql`.
+- Extrair à parte o que o dump de `public` não pega: buckets e policies de `storage`, configurações de auth e templates (já em `supabase/email-templates/`). Registrar em `docs/operacao/supabase-configuracao.md`.
+- **Precisa do usuário:** a connection string do banco (senha) só na máquina dele, ou rodar o comando ele mesmo.
+- **Verificar:** subir um Postgres vazio (Supabase local ou projeto descartável), aplicar a linha de base e conferir que a contagem de tabelas, funções e policies bate com produção.
+
+### A2. Nova convenção de migrações (1 dia)
+- Daqui em diante: `supabase/migrations/AAAAMMDDHHMMSS_nome.sql`, idempotente, com o cabeçalho POR QUÊ/COMO de hoje.
+- Os ~240 arquivos atuais vão para `supabase/historico/` (já estão aplicados e contidos na linha de base). Os seeds do demo vão para `supabase/seed/`.
+- Registro de aplicação: tabela `public.migracoes_aplicadas (arquivo, sha256, aplicado_em, aplicado_por)`, mais um script `scripts/migracoes.mjs` com `status` (lista pendentes e divergentes) e `aplicar` (roda as pendentes numa transação e registra). Alternativa: adotar o `supabase migration` da CLI. **Decisão a tomar**: a CLI é o padrão de mercado, o script próprio encaixa no fluxo atual do SQL Editor.
+- Atualizar `CLAUDE.md`/`AGENTS.md`: "SQL novo = arquivo em `migrations/`, nunca solto". A regra "SQL roda antes do commit" continua valendo.
+- **Verificar:** `migracoes.mjs status` em produção mostra 0 pendentes. Uma migração de teste no demo aparece como aplicada.
+
+### A3. Detecção de deriva (0,5 dia)
+- Script que compara o schema vivo com linha de base + migrações e acusa o que foi mudado direto no dashboard.
+- Rodar antes de cada deploy com SQL e semanalmente (cron já existe na Vercel, `CRON_SECRET`), avisando no Telegram se houver deriva.
+- **Verificar:** criar uma coluna de teste no demo pelo dashboard e ver o alerta.
+
+### A4. Comentários no banco (1,5 dia)
+- Uma migração com `comment on table/column` para as tabelas do núcleo (as 114 sem arquivo primeiro), escritos a partir do código e das memórias de módulo. Os arquivos recentes já comentam.
+- Junto, a **classificação LGPD por coluna**, num formato curto dentro do comentário ou numa tabela `dados_classificacao (tabela, coluna, categoria, finalidade)`:
+  - `identificacao`: nome, CPF, e-mail, telefone, endereço
+  - `sensivel_sindical`: filiação, voto, oposição
+  - `sensivel_saude`: CAT, ASO, prontuário, afastamentos
+  - `financeiro`: dados bancários, contracheque, contribuições
+  - `trabalhista`: ponto, férias, folha
+  - `credencial`: hashes, tokens (nunca exportar)
+  - `nenhum`
+- **Verificar:** consulta que lista colunas sem comentário em tabelas com dado pessoal → 0.
+
+### A5. Dicionário gerado (1 dia)
+- `scripts/gerar-dicionario.mjs` lê `information_schema` + `pg_description` + `pg_policies` e escreve:
+  - `docs/dados/dicionario/<modulo>.md`: tabela, finalidade, colunas (tipo, nulo, padrão, FK, classificação, comentário), índices, triggers de auditoria
+  - `docs/dados/er/<modulo>.md`: diagrama Mermaid `erDiagram` por módulo (o banco inteiro num diagrama só é ilegível)
+  - `docs/dados/rls.md`: policies por tabela, apontando tabelas com RLS sem policy (a armadilha do "deny-all" já conhecida) e tabelas sem `emp_proprietaria_id`
+  - `docs/dados/dados-pessoais.csv`: insumo direto da Onda B
+- O agrupamento por módulo segue os prefixos (`filiacao_*`, `compras_*`, `eventos_*`…) e um mapa manual para as exceções.
+- **Verificar:** o dicionário cobre as 318 tabelas usadas pelo código, e regenerar não produz diff sem mudança no banco.
+
+### A6. Restauração de verdade (1 dia, fecha a onda)
+- Montar um banco do zero = linha de base + migrações + seed do demo, e subir o app contra ele.
+- **Verificar:** login no demo, abrir filiados, financeiro e votação sem erro. Isso vira o ambiente de E2E e o primeiro teste de DR (Onda E).
+
+---
+
+## Onda B — LGPD (≈ 7 dias de trabalho técnico + validação jurídica)
+
+Ordem pensada para que cada documento alimente o próximo.
+
+### B1. Inventário e ROPA (1,5 dia)
+- `docs/lgpd/ropa.md`, um registro por **processo** (não por tabela): filiação e desfiliação, contribuições/receitas, votação e assembleias, oposição, saúde (CAT/ASO), pessoal/RH (ponto, folha, férias), diretoria e diárias, comunicação (mensagens, aniversariantes, TV), eventos e hospedagem, veículos/condutores, compras/fornecedores (PF), recursos de IA.
+- Cada registro informa: finalidade, categorias de titulares, categorias de dados (vindas de `dados-pessoais.csv`), base legal proposta, compartilhamentos, suboperadores, transferência internacional, retenção e medidas de segurança.
+- **Verificar:** toda coluna classificada ≠ `nenhum` aparece em ao menos um processo.
+
+### B2. Suboperadores e transferência internacional (1 dia)
+- `docs/lgpd/suboperadores.md`: fornecedor, o que recebe, região, DPA assinado (link), certificações, data de revisão.
+- Atenção à **OpenAI**: recebe PDFs de CAT (saúde) e contracheques, com transferência internacional (art. 33). Confirmar e documentar: `store: false` em todas as chamadas (hoje aparece em duas, varrer as demais), política de não treinamento da API, região. Avaliar se o envio de CAT exige consentimento ou outra base, ou se a CAT deve ser pseudonimizada antes do envio.
+- **Bubble**: ainda grava dados (hotel/portal/anuênio). Documentar até quando, e o plano de apagar os dados lá após o desligamento.
+- **Verificar:** cada host externo do código (`grep https://` em `src/`) aparece na lista ou está marcado como "consulta pública, sem dado pessoal".
+
+### B3. RIPD dos tratamentos de alto risco (2 dias)
+Três relatórios em `docs/lgpd/ripd-*.md`, no modelo da ANPD (descrição, necessidade/proporcionalidade, riscos, medidas, risco residual):
+1. **Saúde ocupacional + IA**: CAT, ASO, painel analítico, leitura de PDF por IA.
+2. **Votação online**: sigilo, identificação do eleitor, link pessoal, e-mail corporativo.
+3. **Base de filiados multi-tenant**: isolamento por RLS, acesso de admin da plataforma, "Ver como filiado".
+- **Verificar:** cada risco listado aponta para uma medida que existe no código (arquivo/linha) ou para um item pendente com dono.
+
+### B4. Retenção e descarte (1 dia)
+- `docs/lgpd/retencao.md`: prazo por categoria com o fundamento. Exemplos a validar: documentos trabalhistas e financeiros pelos prazos fiscais/trabalhistas; CAT e ASO pelas NRs; atas e votação pelo estatuto; logs de acesso por 6 meses (Marco Civil, art. 15); desfiliados: o que fica (histórico de contribuição) e o que é anonimizado.
+- Lista do que hoje **não tem descarte**: backups JSON locais em `supabase/*backup*.json` (fora do git, mas em disco), storage de documentos, dados no Bubble, eventos do Sentry.
+- A rotina automática de anonimização fica como item de implementação, fora deste plano.
+
+### B5. Direitos do titular (0,5 dia)
+- `docs/lgpd/direitos-titular.md`: como a entidade atende confirmação, acesso, correção, portabilidade, eliminação e revogação (art. 18), dentro do prazo, usando o que já existe (`/meus-dados`, ficha, exportação de relatórios). Apontar as lacunas: não há exportação "tudo sobre mim", e a eliminação esbarra em dados de guarda obrigatória.
+- Inclui o roteiro para o Confluir, como operador, apoiar a entidade num pedido.
+
+### B6. Política de privacidade e avisos (1 dia + jurídico)
+- Modelo de **política de privacidade por tenant** (encarregado, contato e nome da entidade vêm da configuração do tenant) publicado numa rota pública `/privacidade`, mais a **política do próprio Confluir** para o site.
+- Avisos curtos com link nos formulários públicos: `/filiar`, `/inscricao`, `/votar`, `/oposicao`, `/hospedagem`, `/evento`.
+- Modelo de **contrato de operação de dados (DPA)** entre Confluir e a entidade.
+- **Precisa do usuário:** quem é o encarregado do Confluir e o contato de cada entidade.
+
+### B7. Incidentes de segurança (0,5 dia)
+- `docs/lgpd/incidentes.md`: classificação, quem decide, modelo de comunicação à entidade (controladora) e o apoio dela à comunicação à ANPD e aos titulares, no prazo do regulamento da ANPD (3 dias úteis). Registro de incidentes mesmo quando não comunicados. Ligações com o Sentry e com os alertas da Onda E.
+
+### B8. Lacuna técnica a abrir como item de implementação
+- **Registro de leitura de dado sensível.** A `auditoria` grava só escritas. Para saúde e voto, a pergunta "quem viu a CAT de fulano?" não tem resposta hoje. Propor uma tabela de acessos alimentada pelas páginas/actions que exibem esses dados. Fica registrada aqui e é implementada fora do plano de documentação.
+
+---
+
+## Ondas seguintes (em resumo; detalhar quando a A e a B fecharem)
+
+**C — Dossiê de auditoria da votação (≈ 2 dias).** `docs/votacao/`: modelo de ameaça, como se garantem sigilo (separação voto × participação), unicidade (reserva antes do voto, testada com 10 reservas simultâneas na Onda 0), integridade e apuração. Inclui os relatórios emitidos e o roteiro para responder a uma impugnação. Reaproveita `plano-votacao-online-adequacao.md` e a análise de 16/10.
+
+**D — Arquitetura e decisões (≈ 3 dias).** `docs/arquitetura/`: C4 níveis 1–3 em Mermaid (contexto, containers, módulos) e **ADRs** migrando para o repositório as decisões que hoje vivem só nas memórias do Claude: multi-tenant por subdomínio, RLS + `createAdminClient`, região sa-east-1, IA via `lib/ia.ts`, padrão de 3 níveis do Pessoal, "duas portas, mesma tabela" das diárias, teto de 1.000 linhas do PostgREST, fuso/`deCampoDataHora`, migração do Bubble. Uma ADR curta por decisão (contexto, decisão, consequências).
+
+**E — Operação e continuidade (≈ 3 dias).** `docs/operacao/`: runbooks (deploy, rollback na Vercel, aplicar migração, criar tenant, suspender tenant, rotacionar chaves, incluindo a `ANTHROPIC_API_KEY` pendente), inventário de integrações (dono, credencial, o que fazer quando cai), monitoramento (Sentry, crons, deriva de schema), e **DR com RPO/RTO declarados e restauração testada**, usando o banco do zero da A6 mais um restore de backup do Supabase.
+
+**F — Produto (≈ 2 dias, contínuo).** `docs/produto/`: glossário do domínio (fonte pagadora, apto, rodada, custeio, RPA, remessa, competência…), catálogo de regras de negócio com ID (carência, estorno em 15 dias, corte no dia 15, prazos de aprovação…) apontando para o código, e notas de versão para os usuários a partir do `git log`.
+
+---
+
+## Ordem e dependências
+
+| Ordem | Onda | Depende de | Precisa do usuário |
+|---|---|---|---|
+| 1 | A1–A3 | — | connection string do banco / rodar o dump; escolher CLI × script próprio |
+| 2 | A4–A6 | A1 | — |
+| 3 | B1–B2 | A5 (`dados-pessoais.csv`) | revisar o DPA dos fornecedores (contas dele) |
+| 4 | B3–B7 | B1 | encarregado do Confluir; validação jurídica de bases legais e prazos |
+| 5 | C, D | — (podem correr em paralelo a B) | — |
+| 6 | E | A6 | acesso aos backups do Supabase |
+| 7 | F | — | — |
+
+Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 dias.
+
+## Andamento
+
+- 18/10/2026 — plano escrito.
+- 18/10/2026 — **A1 em andamento.** Decidido: CLI do Supabase (`supabase@2.121.0` em devDependencies, `supabase/config.toml` criado com `supabase init`). Sem Docker na máquina, então o `supabase db dump` não serve. A linha de base sai do pg_dump 17 local via `scripts/linha-de-base-schema.mjs`, e a CLI cuida de `migration new/list/repair/up` com `--db-url`. Aguardando `SUPABASE_DB_URL` no `.env.local` para extrair.
+- 18/10/2026 — **A1: linha de base extraída** em `supabase/migrations/20261018000000_linha_de_base.sql` (37 mil linhas, 1,2 MB). Contagens de produção em `docs/operacao/linha-de-base-contagens.md`: Postgres 17.6, 346 tabelas (todas com RLS), 318 policies, 28 funções, 322 triggers, 21 buckets, 0 policies de storage, 0 triggers em `auth.users`. As contagens do arquivo batem com o banco. Varredura de segredos no arquivo: nada (sem chaves, URLs, e-mails). Ajustes para rodar num Supabase novo: `CREATE SCHEMA IF NOT EXISTS public` e sem os `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin`. `npx supabase migration list --db-url` lê a migração local, e o remoto está sem registro.
+  - **Achado (isolamento entre tenants):** 65 colunas têm `DEFAULT 'c763cb99-…'` (o tenant principal, `NEXT_PUBLIC_EMP_PROPRIETARIA_ID`), e a função `analitica_filiacao` também cita esse UUID. Um insert que esqueça `emp_proprietaria_id` cai em silêncio no tenant principal. Correção sugerida: migração que remove esses defaults (o insert sem tenant passa a falhar por `NOT NULL`), depois de conferir que todo insert do código informa o tenant. Fica para depois da A2.
+  - **Falta na A1:** marcar a linha de base como aplicada em produção (`npx supabase migration repair --status applied 20261018000000 --db-url …`; cria o schema `supabase_migrations` no banco) e o commit. A restauração num banco vazio é a A6.
