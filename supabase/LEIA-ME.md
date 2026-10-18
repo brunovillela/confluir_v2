@@ -22,8 +22,16 @@ nomes não mudaram, e o `git log --follow` preserva o histórico.
 ```bash
 npm run db:nova -- nome_da_mudanca      # cria migrations/<timestamp>_nome_da_mudanca.sql
 npm run db:status                       # local × produção
-npm run db:aplicar                      # aplica em produção as pendentes, em ordem
+npm run db:aplicar                      # aplica em produção as pendentes, em ordem, e regrava a impressão
+npm run db:deriva                       # o banco mudou fora das migrações?
 ```
+
+**Deriva.** `schema-impressao.json` guarda a impressão digital do schema
+(`public.schema_impressao()`: md5 de cada tabela, policy, índice, função, trigger…).
+O `db:aplicar` regrava a impressão, e ela vai no mesmo commit da migração. O
+`db:deriva` compara a impressão com o banco, e o cron `/api/schema/deriva/tick`
+faz o mesmo toda segunda e avisa no Sentry. Uma diferença que não veio de
+migração significa mudança pelo dashboard: transforme-a em migração.
 
 Regras:
 - Uma migração por mudança, **idempotente** (`if not exists`, `or replace`, `drop … if exists`), com o cabeçalho POR QUÊ / COMO que os arquivos de `historico/` já usam.

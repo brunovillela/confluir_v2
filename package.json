@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "db:nova": "node scripts/db.mjs nova",
     "db:status": "node scripts/db.mjs status",
-    "db:aplicar": "node scripts/db.mjs aplicar"
+    "db:aplicar": "node scripts/db.mjs aplicar",
+    "db:deriva": "node scripts/db.mjs deriva"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
