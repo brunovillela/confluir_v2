@@ -11,8 +11,8 @@
  *   node scripts/db.mjs impressao          # regrava a impressão a partir do banco
  *   node scripts/db.mjs <subcomando da CLI> …   # qualquer outro, ex.: migration repair …
  *
- * `aplicar` regrava a impressão sozinho quando a CLI termina bem: commite o
- * JSON junto com a migração.
+ * `aplicar` regrava a impressão e o dicionário (docs/dados/) quando a CLI
+ * termina bem: commite os dois junto com a migração.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
 import { spawnSync } from "node:child_process"
@@ -130,5 +130,9 @@ if (argv[0] === "aplicar") {
 const r = supabase([...comando, ...(local ? [] : ["--db-url", URL_BANCO])])
 const saida = (r.stdout ?? "") + (r.stderr ?? "")
 process.stdout.write(URL_BANCO ? saida.replaceAll(URL_BANCO, "<url>") : saida)
-if (argv[0] === "aplicar" && r.status === 0) gravarImpressao(lerImpressao())
+if (argv[0] === "aplicar" && r.status === 0) {
+  gravarImpressao(lerImpressao())
+  // O dicionário (docs/dados/) também acompanha a migração no mesmo commit.
+  spawnSync(process.execPath, ["scripts/gerar-dicionario.mjs"], { stdio: "inherit" })
+}
 process.exit(r.status ?? 1)

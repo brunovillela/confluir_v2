@@ -12,7 +12,8 @@
     "db:nova": "node scripts/db.mjs nova",
     "db:status": "node scripts/db.mjs status",
     "db:aplicar": "node scripts/db.mjs aplicar",
-    "db:deriva": "node scripts/db.mjs deriva"
+    "db:deriva": "node scripts/db.mjs deriva",
+    "db:dicionario": "node scripts/gerar-dicionario.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

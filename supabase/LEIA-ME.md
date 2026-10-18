@@ -22,7 +22,8 @@ nomes não mudaram, e o `git log --follow` preserva o histórico.
 ```bash
 npm run db:nova -- nome_da_mudanca      # cria migrations/<timestamp>_nome_da_mudanca.sql
 npm run db:status                       # local × produção
-npm run db:aplicar                      # aplica em produção as pendentes, em ordem, e regrava a impressão
+npm run db:aplicar                      # aplica em produção as pendentes, em ordem; regrava impressão e dicionário
+npm run db:dicionario                   # regera docs/dados/ (dicionário, ER, RLS, dados pessoais)
 npm run db:deriva                       # o banco mudou fora das migrações?
 ```
 

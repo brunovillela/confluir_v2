@@ -167,6 +167,27 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
 - 18/10/2026 — **A3 CONCLUÍDA.** Primeira migração pelo fluxo novo: `20261018151458_schema_impressao.sql` cria `public.schema_impressao()`, que devolve o md5 de cada objeto nosso (tabelas/colunas/RLS, privilégios, views, restrições, índices, policies de public e storage, triggers, funções, enums, extensões e buckets): 4.049 objetos. É só leitura de catálogo, `security definer`, executável só por service_role (anon e authenticated conferidos sem acesso). A impressão registrada fica em `supabase/schema-impressao.json`. O `db:aplicar` a regrava, o `npm run db:deriva` compara (e avisa também sobre migração local não aplicada ou aplicada sem arquivo), e o cron `/api/schema/deriva/tick` (segundas, 10:00 UTC) compara e avisa no **Sentry**, não no Telegram, porque o bot é por usuário e não tem destinatário da plataforma. Verificado: aplicada com `echo sim | npm run db:aplicar`; `db:deriva` sem deriva; impressão adulterada (1 policy alterada, 1 tabela tirada, 1 índice fantasma) → acusou as 3; DDL real em transação desfeita (`create table`) → +2 objetos (tabela e privilégios); tick no servidor local: 401 sem segredo e `ok: true` com 4.049 objetos.
 - 18/10/2026 — **A4 CONCLUÍDA.** Migração `20261018153132_comentarios_lgpd.sql` (só `COMMENT ON`), aplicada. As 346 tabelas têm descrição e etiqueta `[lgpd:<categorias>|titulares:<quem>]` ou `[lgpd:nenhum]`, e 929 colunas têm `[lgpd:<categoria>]`. Descrições e classificação foram redigidas por domínio a partir do código, com 7 revisores em paralelo. Comentários que já existiam foram mantidos e ganharam a etiqueta. Resultado: **189 tabelas com dado pessoal** (identificação 144, sensível sindical 52, trabalhista 48, financeiro 44, credencial 19, saúde 17), 157 sem. Verificado no banco: 0 tabelas sem etiqueta. Há 8 tabelas com dado pessoal só "pela existência" (ligação a filiado) e sem coluna etiquetada, o que é esperado.
 
+- 18/10/2026 — **A5 CONCLUÍDA.** `scripts/gerar-dicionario.mjs` (`npm run db:dicionario`) gera `docs/dados/` direto do banco:
+  - `LEIA-ME.md`;
+  - `dicionario/<modulo>.md` (17 módulos, 347 tabelas: colunas, tipos, padrões, FKs, LGPD, índices, triggers, RLS);
+  - `er/<modulo>.md` (Mermaid, só chaves);
+  - `rls.md` (policies e alertas);
+  - `views-e-storage.md` (6 views, 21 buckets);
+  - `dados-pessoais.csv` (insumo do ROPA).
+
+  O `db:aplicar` passou a regerar o dicionário junto com a impressão.
+
+  Verificado:
+  - Regerar sem mudança no banco não dá diff.
+  - Todas as tabelas, views e buckets usados pelo código estão documentados.
+  - Nenhuma tabela está sem RLS.
+  - Nenhuma policy vale para anon sem exigir `tenant_id`. As 11 tabelas de votação com policy para `public` exigem a claim; um GET com a anon key devolveu 0 linhas.
+
+  Registrado no `rls.md`, para a limpeza do legado:
+  - 30 tabelas têm RLS sem policy (só o service_role lê). São quase todas legado vazio do Bubble, além de `tenants` e `plataforma_admins`, que são assim de propósito.
+  - 47 tabelas não têm `emp_proprietaria_id` e isolam pelo pai ou são de plataforma.
+  - 3 buckets são públicos: `comunicacao`, `noticias`, `organizacao`.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
