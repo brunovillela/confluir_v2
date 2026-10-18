@@ -9,6 +9,10 @@ erDiagram
   votacao_email_verificado {
     uuid id PK
   }
+  votacao_expurgo_contatos {
+    uuid id PK
+    uuid rod_assembleia_id FK
+  }
   votacao_telegram_confirmacoes {
     uuid id PK
   }
@@ -174,6 +178,7 @@ erDiagram
     uuid rod_assembleia_id FK
     uuid emp_proprietaria_id FK
   }
+  votacao_expurgo_contatos }o--|| voto_rod_assembleias : "rod_assembleia_id"
   voto_apuracao_contagem }o--o| voto_opcoes_resposta : "opcao_id"
   voto_apuracao_contagem }o--|| voto_apuracao_urna : "apuracao_urna_id"
   voto_apuracao_contagem }o--|| voto_assembleias_perguntas : "pergunta_id"

@@ -46,4 +46,5 @@ Regras:
 - **Nunca alterar o schema pelo dashboard ou pelo SQL Editor.** O que não passa por `migrations/` vira deriva e quebra a restauração.
 - Migração aplicada não se edita. Corrige-se com uma migração nova.
 - A migração roda em produção **antes** do commit do código que depende dela (regra da casa).
+- Migrações de branches paralelos podem chegar fora de ordem (timestamp anterior à última aplicada). A CLI recusa com `MigrationMissingRemoteError`; confira que a migração não depende das posteriores e aplique com `npm run db:aplicar -- --include-all`.
 - Os atalhos `db:*` leem `SUPABASE_DB_URL` do `.env.local` (URI do Session pooler) e nunca a imprimem.

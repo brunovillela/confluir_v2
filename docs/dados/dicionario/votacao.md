@@ -2,11 +2,12 @@
 
 # Votações e assembleias
 
-29 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
+30 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
 | [votacao_email_verificado](#votacao_email_verificado) | identificação, **credencial (nunca exportar)** | E-mail de votação verificado por pessoa (CPF) no tenant, usado para casar o filiado com aptos que só têm e-mail corporativo. Guarda também o… |
+| [votacao_expurgo_contatos](#votacao_expurgo_contatos) | — | Registro de cada execução do expurgo dos contatos dos aptos de uma rodada (votacao_expurgar_contatos, RIPD V4): quando, com que prazo e quan… |
 | [votacao_telegram_confirmacoes](#votacao_telegram_confirmacoes) | identificação, **credencial (nunca exportar)** | Confirmação de identidade pelo bot do Telegram no link único de votação (/votar). Token de uso único, 15 min. |
 | [voto_apuracao_contagem](#voto_apuracao_contagem) | — | Contagem agregada por urna física, pergunta e opção (ou branco/nulo) lançada pelo apurador. Não liga voto a pessoa. |
 | [voto_apuracao_urna](#voto_apuracao_urna) | — | Apuração de uma urna física pelo apurador: conferência dos lacres, status e horários. A contagem fica em voto_apuracao_contagem. |
@@ -60,6 +61,27 @@ E-mail de votação verificado por pessoa (CPF) no tenant, usado para casar o fi
 Únicas: `UNIQUE (emp_proprietaria_id, cpf)`
 
 Índices: `votacao_email_verificado_emp_proprietaria_id_cpf_key`, `votacao_email_verificado_pkey`
+
+## votacao_expurgo_contatos
+
+Registro de cada execução do expurgo dos contatos dos aptos de uma rodada (votacao_expurgar_contatos, RIPD V4): quando, com que prazo e quantas linhas. Só contagens, sem dado pessoal.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `votacao_expurgo_contatos_tenant`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  |  |  |  |
+| `rod_assembleia_id` | uuid | não |  | → voto_rod_assembleias (**cascade**) |  |  |
+| `executado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `reter_dias` | smallint | não |  |  |  |  |
+| `apuracao_encerrada_em` | timestamp with time zone | sim |  |  |  |  |
+| `aptos_limpos` | integer | não | `0` |  |  |  |
+| `emails_verificados_apagados` | integer | não | `0` |  |  |  |
+| `telegram_confirmacoes_apagadas` | integer | não | `0` |  |  |  |
+
+Índices: `votacao_expurgo_contatos_pkey`, `votacao_expurgo_contatos_rodada_idx`
 
 ## votacao_telegram_confirmacoes
 
@@ -181,7 +203,7 @@ Assembleia de votação dentro de uma rodada: online, urna ou reunião de trabal
 
 - **LGPD:** identificação
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_assembleias_apuracao_carimbo` → `voto_assembleias_apuracao_carimbo`, `voto_assembleias_apuracao_desvinculo` → `voto_assembleias_apuracao_desvinculo`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -223,6 +245,7 @@ Assembleia de votação dentro de uma rodada: online, urna ou reunião de trabal
 | `sala_link` | text | sim |  |  |  | Link da sala da assembleia virtual (https). Vai no e-mail de aviso aos aptos. |
 | `sala_data` | date | sim |  |  |  | Data da reunião na sala virtual. |
 | `sala_hora` | time without time zone | sim |  |  |  | Hora da reunião na sala virtual (horário de Brasília). |
+| `apuracao_encerrada_em` | timestamp with time zone | sim |  |  |  | Quando a apuração foi encerrada (carimbado pelo trigger voto_assembleias_apuracao_carimbo; nulo se reaberta). Conta o prazo do expurgo dos contatos dos aptos. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -375,6 +398,7 @@ Eleitor que alega direito a votar sem estar na lista de aptos, cadastrado pelo m
 
 - **LGPD:** identificação, **sensível: sindical** · titulares: eleitores
 - **RLS:** ligado · policies: `voto_em_separado_tenant`
+- **Triggers:** `voto_em_separado_decisao_definitiva` → `voto_em_separado_decisao_definitiva`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -395,6 +419,7 @@ Eleitor que alega direito a votar sem estar na lista de aptos, cadastrado pelo m
 | `observacao` | text | sim |  |  | **sensível: sindical** |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `desvinculado_em` | timestamp with time zone | sim |  |  |  | Quando o voto deixou de apontar para este cadastro (encerramento da apuração). Daí em diante a decisão é definitiva e não há contato guardado. |
 
 Checks: `voto_em_separado_status_check` `CHECK ((status = ANY (ARRAY['pendente'::text, 'deferido'::text, 'indeferido'::text])))`
 
@@ -450,7 +475,7 @@ Voto individual por pergunta (online, portal, urna digital ou com mesário). O v
 
 - **LGPD:** **sensível: sindical** · titulares: eleitores
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_online_hora_secreta` → `voto_online_hora_secreta`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_online_em_separado_aberto` → `voto_online_em_separado_aberto`, `voto_online_hora_secreta` → `voto_online_hora_secreta`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -469,7 +494,7 @@ Voto individual por pergunta (online, portal, urna digital ou com mesário). O v
 | `created_at` | timestamp with time zone | sim | `now()` |  |  | Data do voto truncada para o início do mês (trigger voto_online_hora_secreta). A hora exata fica só na participação (voto_assembleias_aptos.hora_voto), nunca junto do voto. |
 | `emp_proprietaria_id` | uuid | sim | `'c763cb99-edfd-4840-8453-ed3fcb66d4a1'::uuid` | → empresa |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  | Sempre igual a created_at (início do mês), garantido pelo trigger voto_online_hora_secreta. Nunca a hora exata do voto. |
-| `em_separado_id` | uuid | sim |  | → voto_em_separado | **sensível: sindical** | Liga o voto ao cadastro de voto_em_separado até a apuração. |
+| `em_separado_id` | uuid | sim |  | → voto_em_separado | **sensível: sindical** | Liga o voto ao cadastro de voto_em_separado só até o encerramento da apuração, quando o trigger voto_assembleias_apuracao_desvinculo o anula (indeferido vira valido = false). O trigger voto_online_em_separado_aberto recusa o vínculo em assembleia encerrada. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -608,10 +633,12 @@ Rodada de votação (período) dentro de uma campanha, dona das perguntas, da li
 | `clausula_filiacao_coletiva` | boolean | não | `false` |  |  | A rodada vota cláusula de filiação coletiva; gera filiações após o prazo. |
 | `filiacao_coletiva_dias` | integer | sim |  |  |  | Prazo em dias para desistência da filiação coletiva. |
 | `aviso_auto_horas` | smallint | sim |  |  |  | Antecedência em horas do aviso automático por e-mail aos aptos. |
+| `contatos_reter_dias` | smallint | não | `90` |  |  | Dias, contados do encerramento da apuração da última assembleia, que os contatos dos aptos ficam guardados (prazo de impugnação). Padrão 90. |
+| `contatos_expurgados_em` | timestamp with time zone | sim |  |  |  | Quando votacao_expurgar_contatos() limpou os contatos dos aptos desta rodada. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Checks: `voto_rod_assembleias_aviso_auto_horas_check` `CHECK (((aviso_auto_horas IS NULL) OR ((aviso_auto_horas >= 1) AND (aviso_auto_horas <= 720))))`
+Checks: `voto_rod_assembleias_aviso_auto_horas_check` `CHECK (((aviso_auto_horas IS NULL) OR ((aviso_auto_horas >= 1) AND (aviso_auto_horas <= 720))))`; `voto_rod_assembleias_contatos_reter_dias_check` `CHECK (((contatos_reter_dias >= 7) AND (contatos_reter_dias <= 3650)))`
 
 Índices: `idx_voto_rod_campanha`, `voto_rod_assembleias_aviso_auto_idx`, `voto_rod_assembleias_bubble_id_key`, `voto_rod_assembleias_pkey`
 

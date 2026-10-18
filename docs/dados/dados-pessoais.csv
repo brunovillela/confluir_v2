@@ -1101,7 +1101,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "votacao","voto_online","ip_codigo","identificacao","eleitores","IP do eleitor no legado do Bubble; o código atual não grava. Junto com resposta_id pode reidentificar o voto."
 "votacao","voto_online","ip_localidade","identificacao","eleitores","Localidade do IP no legado do Bubble."
 "votacao","voto_online","resposta_id","sensivel_sindical","eleitores","Conteúdo do voto (opção escolhida)."
-"votacao","voto_online","em_separado_id","sensivel_sindical","eleitores","Liga o voto ao cadastro de voto_em_separado até a apuração."
+"votacao","voto_online","em_separado_id","sensivel_sindical","eleitores","Liga o voto ao cadastro de voto_em_separado só até o encerramento da apuração, quando o trigger voto_assembleias_apuracao_desvinculo o anula (indeferido vira valido = false). O trigger voto_online_em_separado_aberto recusa o vínculo em assembleia encerrada."
 "votacao","voto_participacao_legado","","identificacao;sensivel_sindical","eleitores","Quem participou das votações migradas do Bubble (uma linha por rodada, assembleia e eleitor), separado do conteúdo do voto, que fica anônimo em voto_online. Criada em 18/10/2026 ao zerar voto_online.eleitor_id."
 "votacao","voto_participacao_legado","eleitor_id","sensivel_sindical","eleitores","Usuário que votou. Revela participação, nunca o voto."
 "votacao","voto_rod_assembleias","","identificacao","eleitores (ids legados)","Rodada de votação (período) dentro de uma campanha, dona das perguntas, da lista de aptos e das assembleias. Veio do Bubble; tela Representação > Votações > Rodadas."
