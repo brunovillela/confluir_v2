@@ -473,7 +473,7 @@ export default async function OrdemPage({
               <Campo rotulo="Reembolso">
                 {ordem.reembolso_pagamento === true ? "Sim" : "Não"}
               </Campo>
-              <Campo rotulo={ordem.tipo === TIPO_ORDEM_FOLHA ? "Contracheque (comprovante)" : "Nota fiscal"}>
+              <Campo rotulo={x.arquivos.rotuloNotaFiscal ?? (ordem.tipo === TIPO_ORDEM_FOLHA ? "Contracheque (comprovante)" : "Nota fiscal")}>
                 <LinkArquivo url={urlNotaFiscal} />
               </Campo>
               <Campo rotulo="Orçamento">

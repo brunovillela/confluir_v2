@@ -46,12 +46,12 @@ export type ExtratoCompleto = {
   codigoVerificacao: string
 }
 
-/** O bucket vem do prefixo do caminho: compras (notas/, boletos/, rpa-assinados/) ou comprovantes. */
+/** O bucket vem do prefixo do caminho: compras (notas/, boletos/, rpa-assinados/, formalizacoes/) ou comprovantes. */
 export async function urlArquivoOrdem(valor: unknown): Promise<string | null> {
   if (typeof valor !== "string" || !valor.trim()) return null
   if (/^https?:\/\//.test(valor)) return valor
   if (valor.startsWith("//")) return `https:${valor}`
-  const bucket = /^(notas|boletos|rpa-assinados)\//.test(valor) ? "compras" : "comprovantes"
+  const bucket = /^(notas|boletos|rpa-assinados|formalizacoes)\//.test(valor) ? "compras" : "comprovantes"
   const admin = await createAdminClient()
   const { data } = await admin.storage.from(bucket).createSignedUrl(valor, 3600)
   return data?.signedUrl ?? null
@@ -205,7 +205,11 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
       boleto,
       comprovante,
       orcamento,
-      ...(rpaAssinado && rpa ? { rotuloNotaFiscal: `RPA nº ${rpa.numero ?? "—"} assinado (documento fiscal)` } : {}),
+      ...(rpaAssinado && rpa
+        ? { rotuloNotaFiscal: `RPA nº ${rpa.numero ?? "—"} assinado (documento fiscal)` }
+        : o.custeio_id && String(o.arquivo_nota_fiscal ?? "").startsWith("formalizacoes/")
+          ? { rotuloNotaFiscal: "Formalização do custeio (documento fiscal)" }
+          : {}),
     },
     codigoVerificacao,
   }

@@ -11,8 +11,12 @@ import {
   type PixFornecedor,
 } from "@/lib/db/compras-pagamento"
 import {
+  camposAutorizacaoInicial,
   camposRecorrenteAutorizada,
   registrarEvento,
+  usuarioDaTrilha,
+  SITUACAO_A_PAGAR,
+  SITUACAO_AGUARDANDO_DOCUMENTO,
   SITUACAO_EM_AUTORIZACAO,
 } from "@/lib/db/ordens-ciclo"
 import { obterFichaDiretor } from "@/lib/db/diretoria-ficha"
@@ -960,9 +964,15 @@ async function gerarOrdensCusteio(
   // Regra de 05/10: parcela RECORRENTE nasce autorizada pela autorização do
   // custeio e espera só o documento fiscal; pagamento único passa pela
   // autorização pontual (alçada + permissão de autorizar custeio).
-  const motivoRecorrente = `Parcela recorrente do custeio ${texto(c.codigo) ?? ""}, autorizado em ${hojeSP().split("-").reverse().join("/")} — espera só o documento fiscal.`
+  // 18/10: a formalização do custeio É o documento fiscal das suas ordens —
+  // com ela, a parcela recorrente já nasce "A pagar".
+  const formalizacao = texto(c.arquivo_formalizacao)
+  const motivoRecorrente = `Parcela recorrente do custeio ${texto(c.codigo) ?? ""}, autorizado em ${hojeSP().split("-").reverse().join("/")} — ${formalizacao ? "a formalização do custeio é o documento fiscal." : "espera só o documento fiscal."}`
   const autorizacao = recorrente
-    ? camposRecorrenteAutorizada(motivoRecorrente, autorizadorId)
+    ? {
+        ...camposRecorrenteAutorizada(motivoRecorrente, autorizadorId),
+        ...(formalizacao ? { situacao: SITUACAO_A_PAGAR } : {}),
+      }
     : { situacao: SITUACAO_EM_AUTORIZACAO }
   const registros = novos.map((venc, i) => ({
     codigo:
@@ -979,6 +989,7 @@ async function gerarOrdensCusteio(
     pix_codigo: texto(c.pix_codigo),
     caixa_conta_id: texto(c.caixa_conta_id),
     arquivo_boleto: recorrente ? null : texto(c.arquivo_boleto),
+    arquivo_nota_fiscal: formalizacao,
     vencimento: venc,
     beneficiario_usuario_id: usuarioId,
     beneficiario_fornecedor_id: fornecedorId,
@@ -1001,7 +1012,7 @@ async function gerarOrdensCusteio(
     "criada",
     autorizadorId,
     recorrente
-      ? `Gerada na autorização do custeio ${texto(c.codigo) ?? ""}: nasceu autorizada e aguarda o documento fiscal.`
+      ? `Gerada na autorização do custeio ${texto(c.codigo) ?? ""}: nasceu autorizada e ${formalizacao ? "segue para pagamento (a formalização do custeio é o documento fiscal)" : "aguarda o documento fiscal"}.`
       : `Gerada na autorização do custeio ${texto(c.codigo) ?? ""}: pagamento único, passa pela autorização pontual.`
   )
   return { geradas: novos.length, puladas }
@@ -1066,6 +1077,12 @@ export async function salvarFormalizacaoCusteio(
   const up = await subirComprovanteCompras(`formalizacoes/custeios/${id}`, arquivo)
   if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir a formalização." }
   const admin = await createAdminClient()
+  const { data: antes } = await admin
+    .from("institucional_custeios")
+    .select("arquivo_formalizacao")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
   const { error } = await admin
     .from("institucional_custeios")
     .update({ arquivo_formalizacao: up.caminho, updated_at: new Date().toISOString() })
@@ -1078,7 +1095,63 @@ export async function salvarFormalizacaoCusteio(
     }
     return { erro: `Falha ao salvar a formalização: ${error.message}` }
   }
+  await formalizacaoNasOrdens(id, up.caminho, texto(antes?.arquivo_formalizacao))
   return { ok: true, id }
+}
+
+/**
+ * A formalização é o documento fiscal das ordens do custeio (18/10): vai para
+ * a nota das ordens em aberto que não têm nota própria (ou tinham a
+ * formalização anterior). Parcela que aguardava o documento segue — nasceu
+ * autorizada → "A pagar"; anterior à regra de 05/10 → autorização pontual.
+ */
+async function formalizacaoNasOrdens(custeioId: string, caminho: string, anterior: string | null) {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, arquivo_nota_fiscal, autorizacao_esta_autorizado")
+    .eq("custeio_id", custeioId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .not("situacao", "in", '("Paga","Cancelada","Estornado")')
+  const alvo = (ordens ?? []).filter((o) => {
+    const nota = texto(o.arquivo_nota_fiscal)
+    return !nota || nota === anterior
+  })
+  if (!alvo.length) return
+  const usuario = await usuarioDaTrilha()
+  for (const o of alvo) {
+    const aguardando = o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO
+    const campos: Record<string, unknown> = { arquivo_nota_fiscal: caminho }
+    if (aguardando) {
+      Object.assign(
+        campos,
+        o.autorizacao_esta_autorizado === true ? { situacao: SITUACAO_A_PAGAR } : camposAutorizacaoInicial(null)
+      )
+    }
+    const { error } = await admin.from("ordens_pagamento").update(campos).eq("id", o.id).eq("situacao", String(o.situacao))
+    if (error) {
+      console.error("formalizacaoNasOrdens:", error.message)
+      continue
+    }
+    const destino = aguardando ? String(campos.situacao) : null
+    await registrarEvento(
+      String(o.id),
+      "documento_fiscal",
+      usuario,
+      `Formalização do custeio ${texto(o.arquivo_nota_fiscal) ? "substituída" : "anexada"} — vale como documento fiscal da ordem${
+        destino === SITUACAO_A_PAGAR ? "; seguiu para pagamento" : destino ? "; seguiu para autorização" : ""
+      }.`,
+      { arquivo_nota_fiscal: caminho, nota_anterior: o.arquivo_nota_fiscal ?? null }
+    )
+  }
+  // O evento "documento_fiscal" já reavalia a auditoria de cada ordem.
+  const emAutorizacao = alvo.filter((o) => o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO && o.autorizacao_esta_autorizado !== true)
+  if (emAutorizacao.length) {
+    const { avisarOrdensEmAutorizacao, depoisDaResposta } = await import("@/lib/db/avisos")
+    depoisDaResposta(() => avisarOrdensEmAutorizacao(emAutorizacao.map((o) => String(o.id))))
+  }
 }
 
 /** URL assinada da formalização (1 h). */
@@ -1143,6 +1216,7 @@ export async function registrarExtraordinarioCusteio(
         pix_codigo: texto(c.pix_codigo),
         caixa_conta_id: texto(c.caixa_conta_id),
         arquivo_boleto: arquivoBoleto,
+        arquivo_nota_fiscal: texto(c.arquivo_formalizacao),
         vencimento: dados.vencimento,
         beneficiario_usuario_id: usuarioId,
         beneficiario_fornecedor_id: fornecedorId,
