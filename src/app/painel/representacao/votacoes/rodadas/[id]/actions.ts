@@ -752,3 +752,13 @@ export async function linkDeVotoDoApto(aptoId: string): Promise<{
   const { linkPessoalDoApto } = await import("@/lib/db/votacao-aviso")
   return await linkPessoalDoApto(aptoId)
 }
+
+/** Prazo de guarda dos contatos dos aptos depois da apuração (RIPD V4). */
+export async function configurarGuardaContatosAction(rodadaId: string, dias: number): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { configurarGuardaContatos } = await import("@/lib/db/votacao-expurgo")
+  const { erro } = await configurarGuardaContatos(rodadaId, dias)
+  if (erro) return { erro }
+  revalidarRodada(rodadaId)
+  return { ok: `Os contatos dos aptos serão apagados ${dias} dias depois do encerramento da apuração.` }
+}

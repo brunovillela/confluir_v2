@@ -1,4 +1,5 @@
 import { rodarAvisosAutomaticos } from "@/lib/db/votacao-aviso-auto"
+import { expurgarContatosVencidos } from "@/lib/db/votacao-expurgo"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -13,6 +14,10 @@ export const maxDuration = 300
  * `x-cron-secret` ou `Authorization: Bearer`). `?tenant=<uuid>` roda só um
  * tenant. O vercel.json chama esta rota a cada 15 minutos; o que não couber
  * numa volta segue na próxima.
+ *
+ * Na mesma volta, o expurgo dos contatos dos aptos das rodadas apuradas há
+ * mais que o prazo da rodada (RIPD da votação, V4; lib/db/votacao-expurgo.ts).
+ * Ele vale para todos os tenants, por isso não roda com `?tenant=`.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -26,13 +31,16 @@ async function handler(req: Request): Promise<Response> {
   const inicio = Date.now()
   const tenant = new URL(req.url).searchParams.get("tenant")
   // Folga de 60 s antes do maxDuration para gravar as marcas do último lote.
+  const client = createServiceClient()
   const resultado = await rodarAvisosAutomaticos({
-    client: createServiceClient(),
+    client,
     limite: inicio + 240_000,
     tenant,
   })
   if (resultado.erros.length) console.error("[votacao/tick]", resultado.erros.join(" · "))
-  return Response.json(resultado)
+  const expurgo = tenant ? null : await expurgarContatosVencidos(client)
+  if (expurgo?.erro) console.error("[votacao/tick]", expurgo.erro)
+  return Response.json({ ...resultado, expurgo })
 }
 
 export const GET = handler

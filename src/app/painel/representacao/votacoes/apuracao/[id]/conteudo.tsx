@@ -126,8 +126,11 @@ export function ConteudoApuracao({
                 Defira os que têm direito (o voto entra na contagem) ou indefira
                 (o voto é descartado). Nas urnas digitais, a contagem acima já
                 respeita a decisão; nas físicas, some à contagem da urna as
-                cédulas dos envelopes deferidos. A apuração só se encerra com
-                todos decididos.
+                cédulas dos envelopes deferidos (o apurador os identifica pelo
+                código do envelope, sem o nome). A apuração só se encerra com
+                todos decididos e, ao encerrar, cada voto deixa de estar ligado
+                ao eleitor: a decisão fica definitiva e os contatos do cadastro
+                são apagados.
               </CardDescription>
             </CardHeader>
             <CardContent>

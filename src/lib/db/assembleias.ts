@@ -2618,6 +2618,12 @@ export async function encerrarApuracao(
     if (erroSnap) return { erro: `Não foi possível gravar: ${erroSnap.message}` }
   }
 
+  // O banco faz o resto na mesma transação (migração
+  // 20261018181729_votacao_pos_apuracao, RIPD V1): carimba
+  // apuracao_encerrada_em (conta o prazo do expurgo dos contatos) e desliga os
+  // votos em separado dos cadastros — indeferido vira valido = false, os
+  // contatos do cadastro são apagados e a decisão fica definitiva. Por isso o
+  // snapshot acima é gravado antes.
   const { error } = await admin
     .from("voto_assembleias")
     .update({ apuracao_encerrada: true })

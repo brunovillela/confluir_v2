@@ -94,7 +94,7 @@ export const PROCESSOS = [
     baseLegal: ["Art. 11, II, a: obrigação legal e estatutária (CLT art. 612 e estatuto da entidade).", "Art. 11, II, d: exercício regular de direitos (prova da regularidade da votação)."],
     compartilhamento: "Resultado agregado é público (ata). Nenhum dado individual compartilhado.",
     suboperadores: [...BASE, "email", "telegram", "cloudflare"],
-    retencao: "Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: até a apuração + prazo de impugnação. Proposta (B4).",
+    retencao: "Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: apagados automaticamente 90 dias (ajustável por rodada) após a apuração de todas as assembleias da rodada (cron /api/votacao/tick, migração 20261018181729); contatos do voto em separado: no encerramento da apuração. Demais prazos: proposta (B4).",
     seguranca: "**Sigilo do voto garantido no banco**: `voto_online` não guarda eleitor (CHECK `voto_online_sem_eleitor`), hora truncada; participação separada (`voto_assembleias_aptos`, `voto_participacao_legado`); reserva da participação antes do voto (uma por eleitor); comprovante sem o voto.",
   },
   {

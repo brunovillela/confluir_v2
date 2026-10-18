@@ -216,7 +216,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: até a apuração + prazo de impugnação. Proposta (B4).
+**Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: apagados automaticamente 90 dias (ajustável por rodada) após a apuração de todas as assembleias da rodada (cron /api/votacao/tick, migração 20261018181729); contatos do voto em separado: no encerramento da apuração. Demais prazos: proposta (B4).
 
 **Medidas de segurança.** **Sigilo do voto garantido no banco**: `voto_online` não guarda eleitor (CHECK `voto_online_sem_eleitor`), hora truncada; participação separada (`voto_assembleias_aptos`, `voto_participacao_legado`); reserva da participação antes do voto (uma por eleitor); comprovante sem o voto.
 

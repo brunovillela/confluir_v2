@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
 
-import { listarLacres, type LacreLinha } from "./votacao-mesarios"
+import { codigoEnvelope, listarLacres, type LacreLinha } from "./votacao-mesarios"
 import { perguntasDaAssembleia, type PerguntaVoto } from "./votacao-portal"
 
 // Apurador: papel próprio (nome/CPF/e-mail), ambiente /apurador. O admin atribui
@@ -279,7 +279,9 @@ export type ApuracaoUrnaDados = {
   /**
    * Envelopes de voto em separado desta urna (física): os deferidos entram na
    * contagem, os pendentes esperam a decisão na apuração, os indeferidos são
-   * descartados sem abrir (16/10/2026).
+   * descartados sem abrir (16/10/2026). Os deferidos vêm pelo CÓDIGO do
+   * envelope, nunca pelo nome: o apurador não precisa saber quem votou em
+   * separado (RIPD da votação, V1).
    */
   emSeparado: { deferidos: string[]; pendentes: number; indeferidos: number }
 }
@@ -310,15 +312,15 @@ export async function dadosApuracaoUrna(
         .maybeSingle(),
       admin
         .from("voto_em_separado")
-        .select("nome_completo, status")
+        .select("id, status")
         .eq("emp_proprietaria_id", emp)
         .eq("urna_id", urnaId)
         .not("votou_em", "is", null)
-        .order("nome_completo"),
+        .order("id"),
     ])
   const emSeparado = { deferidos: [] as string[], pendentes: 0, indeferidos: 0 }
   for (const s of separados ?? []) {
-    if (s.status === "deferido") emSeparado.deferidos.push(txt(s.nome_completo) ?? "(sem nome)")
+    if (s.status === "deferido") emSeparado.deferidos.push(codigoEnvelope(String(s.id)))
     else if (s.status === "indeferido") emSeparado.indeferidos++
     else emSeparado.pendentes++
   }

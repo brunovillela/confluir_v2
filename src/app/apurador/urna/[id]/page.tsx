@@ -59,7 +59,8 @@ export default async function ApurarUrnaPage({
                     {dados.emSeparado.deferidos.length}{" "}
                     {dados.emSeparado.deferidos.length === 1 ? "deferido" : "deferidos"}
                   </strong>{" "}
-                  — abra e some à contagem abaixo as cédulas de: {dados.emSeparado.deferidos.join(", ")}.
+                  — abra e some à contagem abaixo as cédulas dos envelopes de código{" "}
+                  {dados.emSeparado.deferidos.join(", ")}.
                 </p>
               )}
               {dados.emSeparado.pendentes > 0 && (
