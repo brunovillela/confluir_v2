@@ -203,6 +203,20 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
     - A LGPD já tem anonimização, acervo de saúde retido com cifragem, histórico de aceites e a view `lgpd_retencoes_vencidas`. A B4 parte disso.
   - **Pendente:** validação jurídica das bases legais e dos prazos.
 
+- 18/10/2026 — **B2 CONCLUÍDA (técnico).** `docs/lgpd/suboperadores.md` descreve, para cada um dos 10 suboperadores, o que recebe, onde fica, o contrato e a configuração conferida no código, além das consultas públicas (que não são suboperadores) e do mecanismo do art. 33.
+  - **Conferido no código:**
+    - Toda IA passa por `src/lib/ia.ts`: duas chamadas, `store: false`, sem upload de arquivo.
+    - Funções da Vercel em `gru1`.
+    - Sentry filtrado e sem replay.
+    - Push cifrado de ponta a ponta.
+    - CNPJ validado antes das APIs públicas, então CPF nunca é enviado.
+    - Telegram com CPF só mascarado.
+  - **Novas regras no AGENTS.md:** integração nova entra na lista; IA só por `lib/ia.ts`; Telegram sem dado sensível.
+  - **Pendente (titular das contas):**
+    - OpenAI: DPA e **retenção zero**.
+    - Bubble: desligar e eliminar os dados, a começar pelos votos com eleitor.
+    - Confirmar e arquivar os DPAs dos demais.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**

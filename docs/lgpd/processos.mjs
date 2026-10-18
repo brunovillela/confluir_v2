@@ -6,10 +6,10 @@
 // (Onda B do docs/plano-documentacao.md): precisam de validação do jurídico e
 // do encarregado de cada entidade antes de valerem como registro oficial.
 
-/** Suboperadores (detalhados na B2: docs/lgpd/suboperadores.md). */
+/** Suboperadores (detalhados na B2: docs/lgpd/suboperadores.md; mantenha os dois em sintonia). */
 export const SUBOPERADORES = {
   supabase: { nome: "Supabase", papel: "Banco de dados, autenticação e arquivos", local: "Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA" },
-  vercel: { nome: "Vercel", papel: "Hospedagem da aplicação e execução das funções", local: "EUA (rede global)" },
+  vercel: { nome: "Vercel", papel: "Hospedagem da aplicação e execução das funções", local: "Funções em São Paulo (gru1); empresa e rede de borda nos EUA" },
   sentry: { nome: "Sentry", papel: "Registro de erros (CPF mascarado, sem corpo de requisição)", local: "União Europeia (Alemanha)" },
   openai: { nome: "OpenAI", papel: "Recursos de IA: leitura de PDF/imagem e redação (store: false)", local: "EUA" },
   email: { nome: "Brevo / Resend", papel: "Envio de e-mails transacionais", local: "Brevo: União Europeia (França); Resend: EUA" },

@@ -51,7 +51,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, gov.br / ITI (ICP-Brasil), OpenAI, Bubble (sistema legado).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Enquanto filiado. Após a desfiliação, 5 anos (prescrição de cobranças, CC art. 206 §5º, I); depois, anonimização com `anonimizar_filiacao` (já implementada). Proposta, a confirmar na B4.
 
@@ -100,7 +100,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** 5 anos após o exercício (CTN arts. 173 e 174), ou enquanto houver cobrança ou discussão judicial. Proposta (B4).
 
@@ -138,7 +138,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Serviços de push dos navegadores (Google, Apple, Mozilla).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Atendimentos: 5 anos após o encerramento. Assinaturas de push: até o cancelamento ou falha de entrega. Proposta (B4).
 
@@ -176,7 +176,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Cloudflare Turnstile.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Vigência do instrumento coletivo + 5 anos. Proposta (B4).
 
@@ -214,7 +214,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, Cloudflare Turnstile.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: até a apuração + prazo de impugnação. Proposta (B4).
 
@@ -259,7 +259,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Atas: permanente. Listas de participantes: 5 anos. Proposta (B4).
 
@@ -299,7 +299,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, OpenAI, gov.br / ITI (ICP-Brasil).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Composição e atos da diretoria: permanente. Ficha do diretor (dados bancários, saúde): fim do mandato + 5 anos. Proposta (B4).
 
@@ -343,7 +343,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** 20 anos após o fim da exposição ou do vínculo (NR-07), controlado por `retencao_ate` e pela view `lgpd_retencoes_vencidas`. Já implementado.
 
@@ -388,7 +388,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Fim do processo + 5 anos. Proposta (B4).
 
@@ -425,7 +425,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI, Bubble (sistema legado).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Proposta (B4).
 
@@ -492,7 +492,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, OpenAI, gov.br / ITI (ICP-Brasil).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** 10 anos para documentos contábeis (CC art. 1.194, prática de mercado) ou 5 anos após o exercício para fins tributários; o maior prevalece. Proposta (B4).
 
@@ -555,7 +555,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Como P11 (documentos contábeis). Proposta (B4).
 
@@ -598,7 +598,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI, Bubble (sistema legado).
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Reservas: 5 anos após a estada (faturamento). Lista de espera: até o atendimento. Proposta (B4).
 
@@ -643,7 +643,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Telegram, OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Telegram: Exterior; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Infrações: 5 anos. CNH: enquanto o condutor estiver habilitado no sistema. Proposta (B4).
 
@@ -690,7 +690,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Serviços de push dos navegadores (Google, Apple, Mozilla), OpenAI.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Envios: 2 anos. Inscrições de evento: 1 ano após o evento, com anonimização e expurgo da foto (já implementados). Proposta (B4).
 
@@ -734,7 +734,7 @@
 
 **Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, Cloudflare Turnstile.
 
-**Transferência internacional.** Vercel: EUA (rede global); Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Registros de acesso: 6 meses (Marco Civil). Auditoria: 5 anos. Contas: enquanto ativas. Proposta (B4).
 
@@ -784,7 +784,7 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 | Suboperador | Papel | Localização | Processos |
 |---|---|---|---|
 | Supabase | Banco de dados, autenticação e arquivos | Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
-| Vercel | Hospedagem da aplicação e execução das funções | EUA (rede global) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
+| Vercel | Hospedagem da aplicação e execução das funções | Funções em São Paulo (gru1); empresa e rede de borda nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
 | Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
 | OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15 |
 | Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16 |

@@ -14,3 +14,9 @@ O schema é versionado com a CLI do Supabase (ver `supabase/LEIA-ME.md`).
 - Nada de schema pelo dashboard ou SQL Editor: vira deriva e quebra a restauração.
 - `SUPABASE_DB_URL` (no `.env.local`) nunca é impressa nem colada em comandos visíveis; os scripts `db.mjs` e `linha-de-base-schema.mjs` a leem sozinhos.
 - Comentários antigos que citam `supabase/<nome>.sql` apontam para `supabase/historico/<nome>.sql` (seeds do demo: `supabase/seed/demo/`).
+
+# Dados pessoais e fornecedores
+
+- Integração nova que receba dado pessoal (API, SDK, webhook, IA, e-mail, analytics) entra em `docs/lgpd/suboperadores.md` e em `SUBOPERADORES` de `docs/lgpd/processos.mjs` antes de ir ao ar.
+- Toda chamada de IA passa por `src/lib/ia.ts` (com `store: false`); não chamar a OpenAI de outro lugar.
+- Mensagem de Telegram nunca leva dado sensível (saúde, voto) nem CPF completo: o detalhe fica atrás de um link.
