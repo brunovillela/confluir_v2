@@ -19,7 +19,7 @@
 | P02 | [Contribuições, receitas e cobranças](#p02) | 3 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 3 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
-| P05 | [Assembleias e votações](#p05) | 13 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P05 | [Assembleias e votações](#p05) | 14 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P06 | [Representação, reuniões e agenda](#p06) | 7 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
@@ -220,14 +220,15 @@
 
 **Medidas de segurança.** **Sigilo do voto garantido no banco**: `voto_online` não guarda eleitor (CHECK `voto_online_sem_eleitor`), hora truncada; participação separada (`voto_assembleias_aptos`, `voto_participacao_legado`); reserva da participação antes do voto (uma por eleitor); comprovante sem o voto.
 
-<details><summary>Tabelas (13) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (14) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [votacao_email_verificado](../dados/dicionario/votacao.md#votacao_email_verificado) | identificacao, credencial | `cpf` (identificacao), `email` (identificacao), `pend_email` (identificacao), `pend_codigo_hash` (credencial), `pend_codigo_token` (credencial) |
 | [votacao_telegram_confirmacoes](../dados/dicionario/votacao.md#votacao_telegram_confirmacoes) | identificacao, credencial | `token` (credencial), `chat_id` (identificacao), `telefone` (identificacao), `nome_telegram` (identificacao) |
+| [voto_apuracao_eventos](../dados/dicionario/votacao.md#voto_apuracao_eventos) | identificacao | `usuario_id` (identificacao) |
 | [voto_apuradores](../dados/dicionario/votacao.md#voto_apuradores) | identificacao | `nome_completo` (identificacao), `cpf` (identificacao), `email` (identificacao) |
-| [voto_assembleias](../dados/dicionario/votacao.md#voto_assembleias) | identificacao | `ata` (identificacao) |
+| [voto_assembleias](../dados/dicionario/votacao.md#voto_assembleias) | identificacao | `ata` (identificacao), `apuracao_por` (identificacao) |
 | [voto_assembleias_aptos](../dados/dicionario/votacao.md#voto_assembleias_aptos) | identificacao, sens. sindical, trabalhista, credencial | `cpf` (identificacao), `email_corporativo` (identificacao), `hora_voto` (sens. sindical), `matricula` (trabalhista), `nome_completo` (identificacao), `nome_completo_norm` (identificacao), `presenca_em` (sens. sindical), `presenca_mesario_id` (sens. sindical), `presenca_urna_id` (sens. sindical), `nome_informado` (identificacao), `nascimento_informado` (identificacao), `cpf_conflito` (identificacao), `conflito_motivo` (identificacao), `aviso_email_para` (identificacao), `comprovante_codigo` (sens. sindical), `comprovante_hash` (sens. sindical), `comprovante_canal` (sens. sindical), `telefone` (identificacao), `telegram_chat_id` (identificacao), `email_contato` (identificacao), `cadastro_canal` (sens. sindical), `acesso_canal` (sens. sindical) |
 | [voto_em_separado](../dados/dicionario/votacao.md#voto_em_separado) | identificacao, sens. sindical | `nome_completo` (identificacao), `cpf` (identificacao), `data_nascimento` (identificacao), `telefone` (identificacao), `email` (identificacao), `status` (sens. sindical), `votou_em` (sens. sindical), `observacao` (sens. sindical) |
 | [voto_mesarios](../dados/dicionario/votacao.md#voto_mesarios) | identificacao | `nome_completo` (identificacao), `cpf` (identificacao), `email` (identificacao) |
@@ -240,7 +241,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: apuradores (filiados ou diretores); eleitores; eleitores (ids legados); mesários; mesários (filiados ou diretores).</sub>
+<sub>Titulares registrados no banco para estas tabelas: apuradores (filiados ou diretores); eleitores; eleitores (ids legados); mesários; mesários (filiados ou diretores); usuários do sistema.</sub>
 
 <a id="p06"></a>
 ## P06. Representação, reuniões e agenda
@@ -801,4 +802,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 195 de 195 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 196 de 196 tabelas com dado pessoal atribuídas a 16 processos.

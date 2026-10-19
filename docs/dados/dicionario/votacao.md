@@ -2,7 +2,7 @@
 
 # Votações e assembleias
 
-30 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
+31 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -10,6 +10,7 @@
 | [votacao_expurgo_contatos](#votacao_expurgo_contatos) | — | Registro de cada execução do expurgo dos contatos dos aptos de uma rodada (votacao_expurgar_contatos, RIPD V4): quando, com que prazo e quan… |
 | [votacao_telegram_confirmacoes](#votacao_telegram_confirmacoes) | identificação, **credencial (nunca exportar)** | Confirmação de identidade pelo bot do Telegram no link único de votação (/votar). Token de uso único, 15 min. |
 | [voto_apuracao_contagem](#voto_apuracao_contagem) | — | Contagem agregada por urna física, pergunta e opção (ou branco/nulo) lançada pelo apurador. Não liga voto a pessoa. |
+| [voto_apuracao_eventos](#voto_apuracao_eventos) | identificação | Livro da apuração (dossiê de auditoria C-2): cada encerramento e reabertura, com quem, quando, motivo (obrigatório na reabertura), o resulta… |
 | [voto_apuracao_urna](#voto_apuracao_urna) | — | Apuração de uma urna física pelo apurador: conferência dos lacres, status e horários. A contagem fica em voto_apuracao_contagem. |
 | [voto_apuradores](#voto_apuradores) | identificação | Apuradores cadastrados por rodada de votação; entram no ambiente de apuração por OTP no e-mail. |
 | [voto_assembleia_resultados](#voto_assembleia_resultados) | — | Resultados de assembleia só com bubble_id. Sem uso encontrado no código (possível legado do Bubble), substituída por voto_resultado_final. |
@@ -132,6 +133,31 @@ Checks: `voto_apuracao_contagem_tipo_check` `CHECK ((tipo = ANY (ARRAY['opcao'::
 
 Índices: `voto_apuracao_contagem_apuracao_urna_id_pergunta_id_opcao_i_key`, `voto_apuracao_contagem_pkey`
 
+## voto_apuracao_eventos
+
+Livro da apuração (dossiê de auditoria C-2): cada encerramento e reabertura, com quem, quando, motivo (obrigatório na reabertura), o resultado congelado naquele momento e o SHA-256 dele; no encerramento, também a conferência automática (C-5). Só acrescenta: o banco recusa alterar ou apagar. Escrito só pelos triggers de voto_assembleias. Não guarda voto de ninguém.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `voto_apuracao_eventos_imutavel` → `voto_apuracao_eventos_imutavel`, `voto_apuracao_eventos_imutavel_truncate` → `voto_apuracao_eventos_imutavel`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `assembleia_id` | uuid | não |  | → voto_assembleias |  |  |
+| `tipo` | text | não |  |  |  | encerramento ou reabertura. |
+| `motivo` | text | sim |  |  |  | Por que a apuração foi reaberta (obrigatório, ao menos 5 caracteres). Nulo no encerramento. |
+| `usuario_id` | uuid | sim |  |  | identificação | Usuário do painel que encerrou ou reabriu (nulo em encerramento feito fora do painel). |
+| `resultado` | jsonb | não | `'[]'::jsonb` |  |  | Resultado congelado (voto_resultado_final) no momento do evento: [{pergunta_id, opcao_id, tipo, quantidade}]. Na reabertura, é o resultado que deixou de valer. |
+| `resultado_hash` | text | não |  |  |  | SHA-256 do texto canônico desse resultado (voto_resultado_texto). |
+| `conferencia` | jsonb | sim |  |  |  | Conferência automática no encerramento (votacao_conferencia, C1–C6): {ok, verificacoes: [{id, nome, ok, detalhe}]}. Preenchida uma única vez, no mesmo encerramento. |
+| `created_at` | timestamp with time zone | não | `clock_timestamp()` |  |  | Quando a apuração foi encerrada ou reaberta. |
+
+Checks: `voto_apuracao_eventos_motivo_check` `CHECK (((tipo <> 'reabertura'::text) OR (length(btrim(COALESCE(motivo, ''::text))) >= 5)))`; `voto_apuracao_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['encerramento'::text, 'reabertura'::text])))`
+
+Índices: `voto_apuracao_eventos_assembleia_idx`, `voto_apuracao_eventos_pkey`
+
 ## voto_apuracao_urna
 
 Apuração de uma urna física pelo apurador: conferência dos lacres, status e horários. A contagem fica em voto_apuracao_contagem.
@@ -203,7 +229,7 @@ Assembleia de votação dentro de uma rodada: online, urna ou reunião de trabal
 
 - **LGPD:** identificação
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_assembleias_apuracao_carimbo` → `voto_assembleias_apuracao_carimbo`, `voto_assembleias_apuracao_desvinculo` → `voto_assembleias_apuracao_desvinculo`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_assembleias_apuracao_carimbo` → `voto_assembleias_apuracao_carimbo`, `voto_assembleias_apuracao_desvinculo` → `voto_assembleias_apuracao_desvinculo`, `voto_assembleias_apuracao_livro` → `voto_assembleias_apuracao_livro`, `voto_assembleias_conferencia_encerramento` → `voto_assembleias_conferencia_encerramento`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -246,6 +272,9 @@ Assembleia de votação dentro de uma rodada: online, urna ou reunião de trabal
 | `sala_data` | date | sim |  |  |  | Data da reunião na sala virtual. |
 | `sala_hora` | time without time zone | sim |  |  |  | Hora da reunião na sala virtual (horário de Brasília). |
 | `apuracao_encerrada_em` | timestamp with time zone | sim |  |  |  | Quando a apuração foi encerrada (carimbado pelo trigger voto_assembleias_apuracao_carimbo; nulo se reaberta). Conta o prazo do expurgo dos contatos dos aptos. |
+| `resultado_hash` | text | sim |  |  |  | SHA-256 (hex) do texto canônico do resultado congelado (voto_resultado_texto), calculado pelo banco no encerramento da apuração e apagado na reabertura. Publicado na apuração, no relatório e no portal para conferência (dossiê C-3). |
+| `apuracao_motivo` | text | sim |  |  |  | Parâmetro do movimento da apuração: o motivo da reabertura, enviado junto com apuracao_encerrada = false. O trigger voto_assembleias_apuracao_livro o copia para voto_apuracao_eventos e o devolve a nulo. |
+| `apuracao_por` | uuid | sim |  |  | identificação | Parâmetro do movimento da apuração: o usuário que encerra ou reabre. O trigger voto_assembleias_apuracao_livro o copia para voto_apuracao_eventos e o devolve a nulo. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -305,7 +334,7 @@ Lista de eleitores aptos por rodada/assembleia, espelho de Assembleias - Aptos d
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `assembleias_aptos_bubble_id_key`, `assembleias_aptos_pkey`, `idx_voto_aptos_rodada_cpf`, `voto_aptos_comprovante_codigo_idx`, `voto_aptos_nome_norm_trgm`, `voto_aptos_telegram_chat_idx`, `voto_assembleias_aptos_assembleia_cpf_idx`, `voto_assembleias_aptos_aviso_pendente_idx`, `voto_assembleias_aptos_email_contato_idx`
+Índices: `assembleias_aptos_bubble_id_key`, `assembleias_aptos_pkey`, `idx_voto_aptos_rodada_cpf`, `voto_aptos_comprovante_codigo_idx`, `voto_aptos_nome_norm_trgm`, `voto_aptos_rodada_cpf_votou_idx`, `voto_aptos_telegram_chat_idx`, `voto_assembleias_aptos_assembleia_cpf_idx`, `voto_assembleias_aptos_aviso_pendente_idx`, `voto_assembleias_aptos_email_contato_idx`
 
 ## voto_assembleias_empresas
 
@@ -475,7 +504,7 @@ Voto individual por pergunta (online, portal, urna digital ou com mesário). O v
 
 - **LGPD:** **sensível: sindical** · titulares: eleitores
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_online_em_separado_aberto` → `voto_online_em_separado_aberto`, `voto_online_hora_secreta` → `voto_online_hora_secreta`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_online_em_separado_aberto` → `voto_online_em_separado_aberto`, `voto_online_hora_secreta` → `voto_online_hora_secreta`, `voto_online_imutavel` → `voto_online_imutavel`, `voto_online_imutavel_truncate` → `voto_online_imutavel`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -552,6 +581,7 @@ Resultado final agregado por assembleia, pergunta e opção (ou branco/nulo), co
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `voto_resultado_final_tenant`
+- **Triggers:** `voto_resultado_final_congelado` → `voto_resultado_final_congelado`, `voto_resultado_final_congelado_truncate` → `voto_resultado_final_congelado`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
