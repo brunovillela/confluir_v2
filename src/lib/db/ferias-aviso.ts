@@ -297,7 +297,14 @@ export async function situacaoDosAvisos(
   return mapa
 }
 
-async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias): Promise<void> {
+/**
+ * Na autorização, este é o ÚNICO e-mail ao funcionário: anuncia que as férias
+ * foram autorizadas e traz o aviso para assinar (o antigo "Férias autorizadas"
+ * só sai quando o aviso não pode ser enviado).
+ */
+type ContextoAutorizacao = { abonoConfirmado: boolean }
+
+async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias, autorizacao?: ContextoAutorizacao): Promise<void> {
   if (!a.email) return
   const link = `${await origemAtual()}/assinar/${a.token}`
   const entidade = await nomeEntidade()
@@ -305,12 +312,16 @@ async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias): Promise<void> 
   await enviarEmail({
     email: a.email,
     nome: a.nome,
-    assunto: `Aviso de férias para assinar — ${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}`,
+    assunto: autorizacao
+      ? `Férias autorizadas — aviso para assinar (${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)})`
+      : `Aviso de férias para assinar — ${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}`,
     html:
-      tituloEmail("Aviso de férias") +
+      tituloEmail(autorizacao ? "Férias autorizadas" : "Aviso de férias") +
       paragrafo(`Olá, ${escaparHtml(primeiro)}.`) +
       paragrafo(
-        `${escaparHtml(entidade)} comunica suas férias de <strong>${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}</strong> (${d.gozo.dias} dias corridos), com retorno ao trabalho em <strong>${formatarData(d.gozo.retorno)}</strong>. Leia o aviso e assine para confirmar que está ciente.`
+        autorizacao
+          ? `Suas férias de <strong>${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}</strong> (${d.gozo.dias} dias corridos) foram <strong>autorizadas</strong>, com retorno ao trabalho em <strong>${formatarData(d.gozo.retorno)}</strong>.${autorizacao.abonoConfirmado ? " O abono pecuniário (venda de 1/3) também foi confirmado." : ""} Leia o aviso de férias e assine para confirmar que está ciente.`
+          : `${escaparHtml(entidade)} comunica suas férias de <strong>${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}</strong> (${d.gozo.dias} dias corridos), com retorno ao trabalho em <strong>${formatarData(d.gozo.retorno)}</strong>. Leia o aviso e assine para confirmar que está ciente.`
       ) +
       botaoEmail(link, "Ler e assinar o aviso") +
       linkReserva(link) +
@@ -327,7 +338,8 @@ async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias): Promise<void> 
  */
 export async function enviarAvisoFerias(
   gozoId: string,
-  usuarioId: string | null
+  usuarioId: string | null,
+  autorizacao?: ContextoAutorizacao
 ): Promise<{ erro?: string; enviado?: boolean }> {
   const aviso = await carregarAviso(gozoId)
   if (!aviso) return { erro: "Gozo sem datas ou não encontrado." }
@@ -376,7 +388,7 @@ export async function enviarAvisoFerias(
   }
   const a = normalizar(nova as Record<string, unknown>)
   await evento(a.id, "enviado", null, undefined, emp)
-  await convidar(a, aviso.dados)
+  await convidar(a, aviso.dados, autorizacao)
   return { enviado: true }
 }
 
@@ -416,17 +428,23 @@ export async function cancelarAvisoFerias(
  * datas mudaram); não autorizado → cancela o link. Erro só vai para o log —
  * o gozo já foi gravado; o painel mostra a situação do aviso.
  */
-export async function sincronizarAvisoDoGozo(gozoId: string, usuarioId: string | null): Promise<void> {
+export async function sincronizarAvisoDoGozo(
+  gozoId: string,
+  usuarioId: string | null,
+  autorizacao?: ContextoAutorizacao
+): Promise<{ enviado: boolean }> {
   try {
     const aviso = await carregarAviso(gozoId)
     if (!aviso || !aviso.autorizado) {
       await cancelarAvisoFerias(gozoId, usuarioId, "Gozo sem autorização")
-      return
+      return { enviado: false }
     }
-    const r = await enviarAvisoFerias(gozoId, usuarioId)
+    const r = await enviarAvisoFerias(gozoId, usuarioId, autorizacao)
     if (r.erro) console.error("Aviso de férias:", r.erro)
+    return { enviado: r.enviado === true }
   } catch (e) {
     console.error("Falha ao sincronizar o aviso de férias:", e)
+    return { enviado: false }
   }
 }
 

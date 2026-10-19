@@ -771,8 +771,6 @@ export async function definirAutorizacaoGozo(
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if ((data ?? []).length === 0) return { erro: "Gozo não encontrado." }
   await sincronizarAusenciaDoGozo(gozoId)
-  // Autorizado: aviso de férias para o funcionário assinar; desfeito: cancela o link.
-  await sincronizarAvisoDoGozo(gozoId, autorizadorId)
 
   const g = data![0]
 
@@ -790,6 +788,14 @@ export async function definirAutorizacaoGozo(
     abonoConfirmado = true
   }
 
+  // Autorizado: aviso de férias para o funcionário assinar — e é ESSE o e-mail
+  // que anuncia a autorização. Desfeito: cancela o link.
+  const { enviado: avisoEnviado } = await sincronizarAvisoDoGozo(
+    gozoId,
+    autorizadorId,
+    autorizado ? { abonoConfirmado } : undefined
+  )
+
   if (autorizado && g.funcionario_id) {
     const mensagem = `Suas férias de ${g.dias ?? "?"} dias, de ${formatarData(g.inicio)} a ${formatarData(g.termino)} (retorno em ${formatarData(g.termino ? somarDias(g.termino, 1) : null)}), foram autorizadas.${abonoConfirmado ? " O abono pecuniário (venda de 1/3) também foi confirmado." : ""}`
     try {
@@ -803,14 +809,16 @@ export async function definirAutorizacaoGozo(
       .select("email, nome_completo, nome_guerra")
       .eq("id", g.funcionario_id)
       .maybeSingle()
-    // Preferência de e-mail (Meu perfil → Avisos) vale também aqui.
-    if (usuario?.email && (await querEmail(g.funcionario_id, "ferias"))) {
+    // Um e-mail só: com o aviso para assinar enviado, ele já anuncia a
+    // autorização. Este sai só quando o aviso não pôde ir (sem e-mail ou CPF
+    // no cadastro), e respeita a preferência (Meu perfil → Avisos).
+    if (!avisoEnviado && usuario?.email && (await querEmail(g.funcionario_id, "ferias"))) {
       const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
       await enviarEmail({
         email: usuario.email,
         nome,
         assunto: "Férias autorizadas — {ENTIDADE}",
-        html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
+        html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acompanhe em <a href="${SITE_URL}/painel/perfil/ferias">${SITE_URL}/painel/perfil/ferias</a>.</p><p>Confluir — {ENTIDADE}</p>`,
       })
     }
   }
