@@ -255,6 +255,18 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Verificado no demo:** política com e sem encarregado, formulário salvando e link na ficha; tsc e lint limpos.
   - **Pendente:** cada entidade preencher o encarregado; dados societários do Confluir e revisão jurídica do contrato.
 
+- 18/10/2026 — **Motor de retenção integrado** (merge 78835fc, docs 598c853, push). A migração `20261018191616_motor_retencao` (aplicada) criou `lgpd_regras_retencao`, `lgpd_retencao_execucoes` e `lgpd_bloqueios_litigio`.
+  - **Regras:** RT30, RT31 e RT02 entraram desligadas para as 2 entidades.
+  - **Funcionamento:** a tela Institucional › LGPD simula; o cron `/api/lgpd/retencao/tick` (dia 2, 08:00 UTC) só executa de verdade as regras ligadas.
+  - **Verificado:** tsc, lint e build; simulação no demo (0 registros; o livro registrou 3 simulações; nenhuma regra ativa); cron 401 sem segredo.
+- 18/10/2026 — **B7 CONCLUÍDA. ONDA B CONCLUÍDA (rascunho técnico).** `docs/lgpd/incidentes.md` traz:
+  - definição e exemplos de incidente no Confluir;
+  - prazos: operador → entidade em 24 h; entidade → ANPD e titulares em 3 dias úteis (Res. CD/ANPD 15/2024); registro guardado por 5 anos;
+  - papéis, fontes de detecção existentes e um procedimento em 7 passos;
+  - roteiros de contenção por segredo e cenário. Destaque: girar o `SUPABASE_JWT_SECRET` invalida os links pessoais de votação, as carteirinhas e o "ver como";
+  - modelos de comunicação à entidade e ao titular, campos do registro de incidentes e preparação contínua.
+  - **Pendente:** nomear coordenador e técnico; levar o registro de incidentes para o sistema.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
