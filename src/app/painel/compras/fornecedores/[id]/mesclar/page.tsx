@@ -71,7 +71,9 @@ export default async function MesclarFornecedorPage({
         </Alert>
       )}
 
-      <Card>
+      {/* overflow-visible: o Card corta o que passa da borda, e a lista da
+          busca abre para baixo, além do fim do cartão. */}
+      <Card className="overflow-visible">
         <CardHeader>
           <CardTitle className="text-base">Qual é o outro cadastro?</CardTitle>
           <CardDescription>

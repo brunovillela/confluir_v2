@@ -222,7 +222,7 @@ export function FichaDiretorForm({
           </CardContent>
         </Card>
       ) : (
-      <Card>
+      <Card className="overflow-visible">
         <CardHeader>
           <CardTitle className="text-base">Vínculo empregatício</CardTitle>
         </CardHeader>
