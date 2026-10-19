@@ -74,6 +74,14 @@ erDiagram
     uuid ordem_pagamento_id FK
     uuid transferencia_origem_id FK
   }
+  financeiro_cartao_faturas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid cartao_id FK
+    uuid fechada_por_usuario_id FK
+    uuid centro_diferenca_id FK
+    uuid ordem_pagamento_id FK
+  }
   financeiro_config {
     uuid emp_proprietaria_id PK
     uuid centro_custo_caixa_id FK
@@ -123,6 +131,7 @@ erDiagram
     uuid dados_bancarios_id FK
     uuid cancelado_por_id FK
     uuid fornecimento_id FK
+    uuid cartao_fatura_id FK
   }
   ordens_pagamento_estornos {
     uuid id PK
@@ -178,6 +187,10 @@ erDiagram
   financeiro_caixa }o--o| usuarios : "dono_conta_id"
   financeiro_caixa }o--o| usuarios : "transf_aportador_id"
   financeiro_caixa }o--o| usuarios : "transf_recebedor_id"
+  financeiro_cartao_faturas }o--o| centros_de_custo : "centro_diferenca_id"
+  financeiro_cartao_faturas }o--o| ordens_pagamento : "ordem_pagamento_id"
+  financeiro_cartao_faturas }o--o| usuarios : "fechada_por_usuario_id"
+  financeiro_cartao_faturas }o--|| cartoes : "cartao_id"
   financeiro_config }o--o| centros_de_custo : "centro_custo_caixa_id"
   financeiro_contas_bancarias }o--o| centros_de_custo : "centro_custo_id"
   financeiro_orcamentos }o--|| centros_de_custo : "centro_custo_id"
@@ -195,6 +208,7 @@ erDiagram
   ordens_pagamento }o--o| empresa : "beneficiario_fornecedor_id"
   ordens_pagamento }o--o| empresa : "fornecedor_id"
   ordens_pagamento }o--o| empresa_departamentos : "departamento_id"
+  ordens_pagamento }o--o| financeiro_cartao_faturas : "cartao_fatura_id"
   ordens_pagamento }o--o| institucional_custeios : "custeio_id"
   ordens_pagamento }o--o| projeto : "projeto_id"
   ordens_pagamento }o--o| usuarios : "autorizacao_autorizador_id"

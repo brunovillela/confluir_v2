@@ -23,7 +23,9 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { rotuloTipoCartao } from "@/lib/compras-constantes"
 import { pessoasAutorizaveis } from "@/lib/db/caixa"
+import { faturasAbertas } from "@/lib/db/cartao-faturas"
 import { AVISO_SQL_PAGAMENTO, listarCartoes } from "@/lib/db/compras-pagamento"
+import { formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { alternarCartaoAction } from "./actions"
@@ -40,9 +42,10 @@ export default async function CartoesPage() {
     "financeiro_caixa",
   ])
 
-  const [{ disponivel, cartoes }, pessoas] = await Promise.all([
+  const [{ disponivel, cartoes }, pessoas, abertas] = await Promise.all([
     listarCartoes(),
     podeEditar ? pessoasAutorizaveis() : Promise.resolve([]),
+    faturasAbertas(),
   ])
 
   return (
@@ -60,7 +63,9 @@ export default async function CartoesPage() {
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Cartões da entidade usados em compras. Na aquisição direta paga em
-          cartão, quem registra escolhe qual cartão foi usado.
+          cartão, quem registra escolhe qual cartão foi usado. No crédito, a
+          compra entra na fatura aberta do cartão, que o Financeiro fecha e paga
+          numa ordem só.
         </p>
       </div>
 
@@ -92,6 +97,7 @@ export default async function CartoesPage() {
                 <TableHead>Cartão</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="hidden md:table-cell">Titular</TableHead>
+                <TableHead>Fatura aberta</TableHead>
                 <TableHead>Situação</TableHead>
                 {podeEditar && <TableHead className="w-0" />}
               </TableRow>
@@ -99,7 +105,7 @@ export default async function CartoesPage() {
             <TableBody>
               {cartoes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24">
+                  <TableCell colSpan={6} className="h-24">
                     <p className="text-muted-foreground text-center text-sm">
                       Nenhum cartão cadastrado.
                     </p>
@@ -109,7 +115,9 @@ export default async function CartoesPage() {
               {cartoes.map((c) => (
                 <TableRow key={c.id} className={c.ativo ? "" : "opacity-60"}>
                   <TableCell>
-                    <span className="font-medium">{c.apelido}</span>
+                    <Link href={`/painel/financeiro/cartoes/${c.id}`} className="font-medium hover:underline">
+                      {c.apelido}
+                    </Link>
                     <span className="text-muted-foreground block text-xs">
                       {c.bandeira ? `${c.bandeira} · ` : ""}final {c.final}
                     </span>
@@ -117,6 +125,25 @@ export default async function CartoesPage() {
                   <TableCell>{rotuloTipoCartao(c.tipo)}</TableCell>
                   <TableCell className="hidden md:table-cell">
                     {c.titular ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    {c.tipo !== "credito" ? (
+                      <span className="text-muted-foreground text-xs">Sem fatura</span>
+                    ) : abertas.get(c.id) ? (
+                      <Link
+                        href={`/painel/financeiro/cartoes/faturas/${abertas.get(c.id)!.id}`}
+                        className="hover:underline"
+                      >
+                        <span className="tabular-nums">{formatarMoeda(abertas.get(c.id)!.soma)}</span>
+                        <span className="text-muted-foreground block text-xs">
+                          nº {abertas.get(c.id)!.numero} · {abertas.get(c.id)!.compras} compra(s)
+                        </span>
+                      </Link>
+                    ) : (
+                      <Link href={`/painel/financeiro/cartoes/${c.id}`} className="text-muted-foreground text-xs hover:underline">
+                        Faturas
+                      </Link>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={c.ativo ? "default" : "secondary"}>

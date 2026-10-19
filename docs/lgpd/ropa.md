@@ -25,7 +25,7 @@
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 32 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
-| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 28 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 29 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 12 | identificação, financeiro | sim |
@@ -501,7 +501,7 @@
 
 **Observações.** Pendência: `financeiro_remessas.conteudo` guarda o arquivo CNAB inteiro (nome, CPF e conta de cada favorecido).
 
-<details><summary>Tabelas (28) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (29) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -527,6 +527,7 @@
 | [empresa](../dados/dicionario/plataforma.md#empresa) | identificacao | `cnpj_cpf` (identificacao), `nome_fantasia` (identificacao), `nome_razao` (identificacao), `foto` (identificacao), `email_contato` (identificacao), `lgpd_encarregado_nome` (identificacao), `lgpd_encarregado_email` (identificacao) |
 | [empresa_contatos](../dados/dicionario/plataforma.md#empresa_contatos) | identificacao, trabalhista | `nome` (identificacao), `cargo` (trabalhista), `telefone` (identificacao), `email` (identificacao), `observacao` (identificacao) |
 | [financeiro_caixa](../dados/dicionario/financeiro.md#financeiro_caixa) | identificacao, financeiro | `dono_conta_id` (identificacao), `transf_aportador_id` (identificacao), `transf_recebedor_id` (identificacao) |
+| [financeiro_cartao_faturas](../dados/dicionario/financeiro.md#financeiro_cartao_faturas) | identificacao | `fechada_por_usuario_id` (identificacao) |
 | [financeiro_despesas](../dados/dicionario/financeiro.md#financeiro_despesas) | identificacao, financeiro | `favorecido` (identificacao), `comprovante_despesa` (financeiro), `comprovante_pagamento` (financeiro) |
 | [financeiro_remessa_itens](../dados/dicionario/financeiro.md#financeiro_remessa_itens) | identificacao, financeiro | `favorecido_nome` (identificacao), `favorecido_documento` (identificacao), `banco_codigo` (financeiro), `agencia` (financeiro), `conta` (financeiro), `pix_chave` (financeiro), `valor` (financeiro) |
 | [financeiro_remessas](../dados/dicionario/financeiro.md#financeiro_remessas) | identificacao, financeiro | `conteudo` (financeiro), `retorno_conteudo` (financeiro) |
@@ -802,4 +803,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 196 de 196 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 197 de 197 tabelas com dado pessoal atribuídas a 16 processos.

@@ -148,6 +148,11 @@ export async function receberDocumentoFiscal(
   )
   await analise.registrar(`no recebimento do documento fiscal ${dados.onde}`)
   if (dispensa) await registrarEvento(ordemId, "autorizacao_dispensada", usuario, dispensa)
+  if (situacao === SITUACAO_A_PAGAR) {
+    // Paga com cartão de crédito: autorizada, fica "Na fatura".
+    const { assentarNaFatura } = await import("@/lib/db/cartao-faturas")
+    await assentarNaFatura(ordemId).catch((e) => console.error("assentarNaFatura:", e))
+  }
   if (situacao === SITUACAO_EM_AUTORIZACAO) depoisDaResposta(() => avisarOrdensEmAutorizacao([ordemId]))
   return { situacao }
 }

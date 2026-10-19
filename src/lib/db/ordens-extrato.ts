@@ -11,6 +11,7 @@ import { procedenciaDaOrdem, type Procedencia } from "@/lib/db/ordens-procedenci
 import { rateioDaOrdem, type LinhaRateio } from "@/lib/db/ordens-rateio"
 import { verificacoesDaOrdem, type VerificacaoGravada } from "@/lib/db/ordens-verificacao"
 import { formatarCnpjCpf } from "@/lib/formato"
+import { TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -46,12 +47,12 @@ export type ExtratoCompleto = {
   codigoVerificacao: string
 }
 
-/** O bucket vem do prefixo do caminho: compras (notas/, boletos/, rpa-assinados/, formalizacoes/) ou comprovantes. */
+/** O bucket vem do prefixo do caminho: compras (notas/, boletos/, rpa-assinados/, formalizacoes/, faturas-cartao/) ou comprovantes. */
 export async function urlArquivoOrdem(valor: unknown): Promise<string | null> {
   if (typeof valor !== "string" || !valor.trim()) return null
   if (/^https?:\/\//.test(valor)) return valor
   if (valor.startsWith("//")) return `https:${valor}`
-  const bucket = /^(notas|boletos|rpa-assinados|formalizacoes)\//.test(valor) ? "compras" : "comprovantes"
+  const bucket = /^(notas|boletos|rpa-assinados|formalizacoes|faturas-cartao)\//.test(valor) ? "compras" : "comprovantes"
   const admin = await createAdminClient()
   const { data } = await admin.storage.from(bucket).createSignedUrl(valor, 3600)
   return data?.signedUrl ?? null
@@ -209,7 +210,9 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
         ? { rotuloNotaFiscal: `RPA nº ${rpa.numero ?? "—"} assinado (documento fiscal)` }
         : o.custeio_id && String(o.arquivo_nota_fiscal ?? "").startsWith("formalizacoes/")
           ? { rotuloNotaFiscal: "Formalização do custeio (documento fiscal)" }
-          : {}),
+          : o.tipo === TIPO_ORDEM_FATURA_CARTAO
+            ? { rotuloNotaFiscal: "Fatura do cartão" }
+            : {}),
     },
     codigoVerificacao,
   }

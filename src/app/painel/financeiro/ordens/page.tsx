@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/financeiro"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
+import { TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
@@ -93,6 +94,7 @@ const TIPOS_ORDEM = [
   "Hospedagem",
   "Multa de trânsito",
   "Locação de veículos - Mensalidade",
+  TIPO_ORDEM_FATURA_CARTAO,
 ] as const
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {

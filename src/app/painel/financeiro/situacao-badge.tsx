@@ -6,6 +6,8 @@ const ESTILOS: Record<string, string> = {
   Paga: "border-success/40 text-success-fg",
   "A pagar": "border-info/40 text-info-fg",
   Processando: "border-warning/40 text-warning-fg",
+  // Compra no cartão de crédito: quitada pela ordem da fatura.
+  "Na fatura": "border-success/40 text-success-fg",
   "Em autorização": "border-warning/40 text-warning-fg",
   "Aguardando documento fiscal": "border-muted-foreground/40 text-muted-foreground",
   "Aguardando informações":

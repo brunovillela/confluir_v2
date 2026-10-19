@@ -15,6 +15,14 @@ export type DestinoSituacao = {
 }
 
 export const SITUACAO_PROCESSANDO = "Processando"
+/**
+ * Compra paga com cartão de CRÉDITO, já autorizada (19/10/2026): não se paga
+ * sozinha — é quitada pela ordem da fatura do cartão, que é a despesa (com o
+ * rateio). Fica fora das filas e das somas de despesa.
+ */
+export const SITUACAO_NA_FATURA = "Na fatura"
+/** Tipo da ordem gerada no fechamento da fatura do cartão de crédito. */
+export const TIPO_ORDEM_FATURA_CARTAO = "Fatura de cartão"
 
 export const DESTINOS_SITUACAO: DestinoSituacao[] = [
   {

@@ -3,6 +3,7 @@ import "server-only"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
 
 /**
  * PROCEDÊNCIA de uma ordem de pagamento: de onde ela veio (compra, contrato,
@@ -149,6 +150,40 @@ function base(origem: string): Procedencia {
 }
 
 async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedencia> {
+  // 0. Fatura do cartão de crédito: as compras que a compõem.
+  if (tipo === TIPO_ORDEM_FATURA_CARTAO) {
+    const { faturaDaOrdemGerada } = await import("@/lib/db/cartao-faturas")
+    const d = await faturaDaOrdemGerada(id)
+    const p = base("Fatura de cartão de crédito")
+    if (!d) return p
+    const f = d.fatura
+    const contam = d.itens.filter((i) => i.conta)
+    p.titulo = `Fatura nº ${f.numero} — ${d.cartao.nome}`
+    p.href = `/painel/financeiro/cartoes/faturas/${f.id}`
+    p.linhas = linhas([
+      ["Cartão", d.cartao.nome],
+      ["Titular", d.cartao.titular],
+      ["Compras", `${contam.length} — ${formatarMoeda(f.soma)}`],
+      ["Valor da fatura", moeda(f.valorFatura)],
+      ["Diferença", f.valorFatura !== null && Math.abs(f.valorFatura - f.soma) >= 0.01 ? formatarMoeda(f.valorFatura - f.soma) : null],
+      ["Observação", f.observacao],
+      ["Fechada em", data(f.fechadaEm)],
+      ["Fechada por", f.fechadaPor],
+    ])
+    p.documentos = [{ rotulo: "Fatura do cartão", url: await assinar("compras", f.arquivoFatura) }]
+    p.detalhamento = {
+      titulo: "Compras da fatura",
+      itens: contam.map((i) => ({
+        descricao: `${i.codigo ?? "—"} — ${i.favorecido ?? "—"}`,
+        detalhe: [i.data ? formatarData(i.data) : null, i.centro, i.descricao].filter(Boolean).join(" · ") || null,
+        valor: formatarMoeda(i.valor),
+        subitens: [],
+      })),
+      total: formatarMoeda(f.soma),
+    }
+    return p
+  }
+
   // 1. RPA
   if (tipo === "RPA") {
     const r = await umaPor("compras_rpa", "ordem_pagamento_id", id)

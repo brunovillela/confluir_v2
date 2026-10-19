@@ -47,6 +47,8 @@ export const SITUACOES_ORDEM = [
   "Aguardando informações",
   "A pagar",
   "Processando",
+  // Compra no cartão de crédito autorizada: quitada pela ordem da fatura.
+  "Na fatura",
   "Paga",
   "Estornado",
   "Cancelada",

@@ -2,7 +2,8 @@ Os **cartões da entidade** — de crédito, de débito ou pré-pagos — ficam
 cadastrados no Financeiro. É deles que sai a lista que aparece quando alguém
 registra uma **aquisição direta paga em cartão**: quem registra escolhe qual
 cartão foi usado, e a ordem de pagamento guarda essa informação para a
-auditoria.
+auditoria. No **crédito**, as compras se juntam na **fatura** do cartão, paga
+numa ordem só.
 
 <RequerPermissao>Ordens de pagamento ou Caixa</RequerPermissao>
 
@@ -32,6 +33,48 @@ auditoria.
   nenhum campo do sistema.
 </Aviso>
 
+## Faturas do cartão de crédito
+
+O cartão de **crédito** funciona como o Caixa, mas separado em **faturas**: o
+dinheiro não sai a cada compra, e sim quando a fatura é paga.
+
+<PassoAPasso>
+  <Passo titulo="A compra entra na fatura aberta">
+    Toda compra paga com o cartão de crédito entra na **fatura aberta** dele (a
+    primeira abre sozinha na primeira compra). A ordem da compra passa pela
+    alçada normalmente; autorizada, ela fica **Na fatura**: não é paga sozinha
+    nem entra na fila *A pagar*.
+  </Passo>
+  <Passo titulo="Acompanhe a fatura">
+    Em **Financeiro → Cartões**, a coluna **Fatura aberta** mostra quanto já foi
+    gasto e quantas compras há. Clique para ver as compras, o centro de custo de
+    cada uma e o **rateio previsto**.
+  </Passo>
+  <Passo titulo="Feche a fatura">
+    Quando a fatura do banco chegar, quem tem a permissão de **ordens de
+    pagamento** abre a fatura, informa o **valor** e o **vencimento**, anexa o
+    **arquivo da fatura** e escolhe a forma (boleto ou Pix). Se o valor diferir
+    da soma das compras — juros, IOF, anuidade, estorno —, escolha o **centro de
+    custo da diferença**.
+  </Passo>
+  <Passo titulo="Uma ordem, rateada">
+    O fechamento gera **uma ordem de pagamento** do tipo *Fatura de cartão*,
+    **rateada pelos centros de custo das compras** (e a diferença numa linha
+    própria). Se todas as compras já foram autorizadas e o valor bate, ela já sai
+    *A pagar*; senão, vai para a alçada. A próxima fatura abre na mesma hora.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="A despesa é a ordem da fatura">
+  As compras *Na fatura* ficam fora das somas de despesa: quem conta é a ordem da
+  fatura, com o rateio. Assim nada entra em dobro nos relatórios. Débito e
+  pré-pago não têm fatura e seguem como ordens comuns.
+</Aviso>
+
+Compra de uma fatura **já fechada** não pode mais ser cancelada nem ter o valor
+corrigido: a ordem da fatura já a inclui. Enquanto a fatura está aberta, cancelar
+a compra a tira da soma.
+
 ## Desativar um cartão
 
 Quando um cartão é cancelado ou substituído, clique em **Desativar** na linha
@@ -46,8 +89,14 @@ volta.
 - **"Errei um dado do cartão (ou escrevi o número inteiro no nome)."** Não há
   edição: desative esse cartão e cadastre de novo, com só os 4 últimos dígitos
   no campo próprio.
-- **"Quero saber em quais compras um cartão foi usado."** Abra a ordem de
-  pagamento: o campo **Pago com** mostra o cartão.
+- **"Quero saber em quais compras um cartão foi usado."** No crédito, abra as
+  **faturas** do cartão; em qualquer tipo, a ordem de pagamento mostra o cartão
+  no campo **Pago com**.
+- **"A compra no cartão não aparece em A pagar."** No crédito é assim: autorizada,
+  ela fica **Na fatura** e é paga junto com a fatura.
+- **"Uma compra entrou na fatura errada."** A fatura que recebe é a aberta no
+  momento do registro. Compra lançada depois do fechamento vai para a fatura
+  seguinte.
 
 <VejaTambem
   links={[

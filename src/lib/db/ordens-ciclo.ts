@@ -3,7 +3,7 @@ import "server-only"
 import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
-import { DESTINOS_SITUACAO, SITUACAO_PROCESSANDO, motivoOpcional } from "@/lib/ordens-situacoes"
+import { DESTINOS_SITUACAO, SITUACAO_NA_FATURA, SITUACAO_PROCESSANDO, motivoOpcional } from "@/lib/ordens-situacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -337,7 +337,22 @@ export async function avaliarOrdem(
   if (aprovar && ordem.caixa_conta_id && (await caixaJaDebitado(ordemId))) {
     await pagarPeloCaixa(ordemId, valor as number, String(ordem.caixa_conta_id), ordem.processo_compra_id as string | null)
   }
+  // Compra no cartão de crédito: autorizada, fica "Na fatura".
+  if (aprovar) await assentarSeDeFatura(ordemId)
   return {}
+}
+
+async function assentarSeDeFatura(ordemId: string): Promise<void> {
+  const { assentarNaFatura } = await import("@/lib/db/cartao-faturas")
+  await assentarNaFatura(ordemId).catch((e) => console.error("assentarNaFatura:", e))
+}
+
+/** Compra de fatura de cartão já FECHADA: mexer nela desacerta a fatura gerada. */
+async function bloqueioDaFatura(ordemId: string): Promise<string | null> {
+  const { faturaDaOrdemFechada } = await import("@/lib/db/cartao-faturas")
+  return (await faturaDaOrdemFechada(ordemId).catch(() => false))
+    ? "Esta compra está numa fatura de cartão já fechada — a ordem da fatura já a inclui."
+    : null
 }
 
 /** A ordem já tem débito confirmado em alguma conta de caixa? */
@@ -466,6 +481,8 @@ export async function cancelarOrdem(
           : "A ordem já está encerrada.",
     }
   }
+  const travaFatura = await bloqueioDaFatura(ordemId)
+  if (travaFatura) return { erro: `${travaFatura} Não é possível cancelá-la.` }
   const { error } = await admin
     .from("ordens_pagamento")
     .update({
@@ -560,6 +577,10 @@ export async function corrigirOrdem(
   if (Object.keys(mudancas).length === 0) return { erro: "Nada foi alterado." }
 
   const mudouValor = "valor_inicial_cobranca" in mudancas
+  if (mudouValor) {
+    const travaFatura = await bloqueioDaFatura(ordemId)
+    if (travaFatura) return { erro: `${travaFatura} O valor não pode mudar.` }
+  }
   if (mudouValor && o.caixa_conta_id) {
     return {
       erro: "Compra paga em dinheiro: o valor saiu do caixa — corrija pelo cancelamento e novo lançamento.",
@@ -633,6 +654,10 @@ export async function alterarSituacaoOrdem(
           ? "A ordem está paga — remova o registro de pagamento para ela voltar à fila."
           : "A ordem está encerrada e não muda mais de situação.",
     }
+  }
+  if (atual === SITUACAO_NA_FATURA) {
+    const travaFatura = await bloqueioDaFatura(ordemId)
+    if (travaFatura) return { erro: travaFatura }
   }
   if (destino.exigeContrato && !o.contrato_id) {
     return { erro: "Só ordens geradas por contrato podem voltar a aguardar o documento fiscal." }
@@ -716,6 +741,7 @@ export async function alterarSituacaoOrdem(
     if (o.caixa_conta_id && valor !== null && (await caixaJaDebitado(ordemId))) {
       await pagarPeloCaixa(ordemId, valor, String(o.caixa_conta_id), (o.processo_compra_id as string | null) ?? null)
     }
+    await assentarSeDeFatura(ordemId)
   } else if (nova === SITUACAO_AGUARDANDO) {
     await registrarEvento(ordemId, "devolvida", usuarioId, `Pela troca manual de situação: ${motivo}`)
   }

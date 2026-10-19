@@ -30,6 +30,7 @@ import { requirePermissao } from "@/lib/auth"
 import { listarCentrosCusto, listarCentrosDeDebito, type CentroCusto } from "@/lib/db/financeiro"
 import { hojeSP } from "@/lib/db/comum"
 import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
+import { faturaDaCompra } from "@/lib/db/cartao-faturas"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
 import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
@@ -192,6 +193,7 @@ export default async function OrdemPage({
     !ordem.caixa_conta_id &&
     janelaEstorno.aberta
 
+  const faturaCartao = ordem.cartao_fatura_id ? await faturaDaCompra(String(ordem.cartao_fatura_id)) : null
   const urlComprovante = x.arquivos.comprovante
   const urlBoleto = x.arquivos.boleto
   const urlNotaFiscal = x.arquivos.notaFiscal
@@ -564,6 +566,13 @@ export default async function OrdemPage({
               </Campo>
               {pagoCom && (
                 <Campo rotulo="Pago com">{pagoCom}</Campo>
+              )}
+              {faturaCartao && (
+                <Campo rotulo="Fatura do cartão">
+                  <Link href={`/painel/financeiro/cartoes/faturas/${faturaCartao.id}`} className="text-primary hover:underline">
+                    Nº {faturaCartao.numero} ({faturaCartao.situacao === "aberta" ? "aberta" : "fechada"})
+                  </Link>
+                </Campo>
               )}
               <Campo rotulo="Código PIX">{texto(ordem.pix_codigo)}</Campo>
               <Campo rotulo="Pagador">{pagador ?? "—"}</Campo>

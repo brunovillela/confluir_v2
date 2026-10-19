@@ -200,6 +200,10 @@ export async function editarCompra(
       ...(c.pagamento && !ed.caixaDebitado
         ? { forma_pagamento: c.pagamento.forma, ...c.pagamento.detalhe, ...(c.pagamento.boleto ? { arquivo_boleto: "(novo boleto)" } : {}) }
         : {}),
+      // Trocou o cartão (ou saiu do cartão): sai da fatura; volta à do cartão novo ao gravar.
+      ...(c.pagamento && !ed.caixaDebitado && (c.pagamento.detalhe.cartao_id ?? null) !== ((ordemUnica.cartao_id as string | null) ?? null)
+        ? { cartao_fatura_id: null }
+        : {}),
       // A análise só confere se há nota; o arquivo sobe depois dela.
       ...(c.nota && notaDaOrdemEhDaCompra ? { arquivo_nota_fiscal: "(nova nota)" } : {}),
     })
@@ -315,6 +319,11 @@ export async function editarCompra(
     if (atual.situacao === SITUACAO_AGUARDANDO) {
       await reenviarParaAutorizacao(ordemId, usuarioId, "Compra editada por quem a registrou.")
     }
+  }
+  // Forma mudou para cartão de crédito: a ordem entra na fatura aberta dele.
+  if (ed.ordemId) {
+    const { vincularOrdensAoCartao } = await import("@/lib/db/cartao-faturas")
+    await vincularOrdensAoCartao([ed.ordemId]).catch((e) => console.error("vincularOrdensAoCartao:", e))
   }
   return {}
 }

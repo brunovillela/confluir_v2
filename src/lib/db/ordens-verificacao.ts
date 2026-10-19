@@ -567,6 +567,13 @@ export async function inserirOrdensVerificadas(
   }
   const ids = data.map((o) => String(o.id))
 
+  // Paga com cartão de crédito: entra na fatura aberta do cartão (19/10/2026).
+  const noCartao = ids.filter((_, i) => linhas[i]?.cartao_id)
+  if (noCartao.length) {
+    const { vincularOrdensAoCartao } = await import("@/lib/db/cartao-faturas")
+    await vincularOrdensAoCartao(noCartao).catch((e) => console.error("vincularOrdensAoCartao:", e))
+  }
+
   // Onda 2 (U2): quem tem alçada fica sabendo na hora que a ordem entrou na
   // fila — depois da resposta, para não atrasar quem registrou.
   const naFila = ids.filter((_, i) => linhas[i]?.situacao === SITUACAO_EM_AUTORIZACAO)

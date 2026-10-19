@@ -1,11 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { TIPOS_CARTAO } from "@/lib/compras-constantes"
 import { type EstadoForm } from "@/lib/contas"
+import { fecharFatura } from "@/lib/db/cartao-faturas"
 import { criarCartao, definirCartaoAtivo } from "@/lib/db/compras-pagamento"
+import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -34,6 +37,39 @@ export async function criarCartaoAction(
   if (erro) return { erro }
   revalidatePath("/painel/financeiro/cartoes")
   return { ok: "Cartão cadastrado." }
+}
+
+/**
+ * Fecha a fatura do cartão de crédito: valor, vencimento, arquivo, forma e o
+ * centro da diferença → ordem de pagamento rateada (lib/db/cartao-faturas).
+ */
+export async function fecharFaturaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_caixa"])
+  const id = texto(formData, "fatura_id")
+  const valor = parseValorBR(texto(formData, "valor"))
+  if (!id) return { erro: "Fatura não informada." }
+  if (valor === null || !(valor > 0)) return { erro: "Informe o valor da fatura." }
+  const arquivo = formData.get("arquivo")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Anexe a fatura (PDF ou foto)." }
+  const forma = texto(formData, "forma_pagamento") === "Pix (QR Code)" ? "Pix (QR Code)" : "Boleto"
+  const r = await fecharFatura(
+    id,
+    {
+      valor,
+      vencimento: texto(formData, "vencimento"),
+      arquivo,
+      formaPagamento: forma,
+      linhaDigitavel: texto(formData, "linha_digitavel").replace(/\D/g, "") || null,
+      pixCodigo: texto(formData, "pix_codigo") || null,
+      centroDiferencaId: texto(formData, "centro_diferenca_id") || null,
+      observacao: texto(formData, "observacao") || null,
+    },
+    sessao.usuario.id
+  )
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/financeiro/cartoes", "layout")
+  revalidatePath("/painel/financeiro/ordens")
+  redirect(`/painel/financeiro/cartoes/faturas/${id}?fechada=1`)
 }
 
 export async function alternarCartaoAction(formData: FormData): Promise<void> {

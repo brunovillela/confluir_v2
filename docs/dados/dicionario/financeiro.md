@@ -2,7 +2,7 @@
 
 # Financeiro
 
-24 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+25 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -18,6 +18,7 @@
 | [danfes_recibos](#danfes_recibos) | identificação | Recibos e DANFEs de fornecedores do Bubble ligados a compra ou contrato. Sem uso encontrado no código (possível legado do Bubble), vazia. |
 | [despesas](#despesas) | financeiro, identificação | Espelho vazio de Financeiro - Despesas do Bubble (migração inicial). Sem uso encontrado no código (possível legado do Bubble); as despesas v… |
 | [financeiro_caixa](#financeiro_caixa) | financeiro, identificação | Movimentações de caixa do modelo do Bubble (dono da conta, aportes, transferências). Sem uso encontrado no código (possível legado do Bubble… |
+| [financeiro_cartao_faturas](#financeiro_cartao_faturas) | identificação | Faturas dos cartões de crédito da entidade: as compras pagas com o cartão entram na fatura aberta; no fechamento o Financeiro informa o valo… |
 | [financeiro_config](#financeiro_config) | — | Configurações do Financeiro por tenant: centro de custo do caixa, prazo de estorno e regra de autorização das remessas de diárias. |
 | [financeiro_contas_bancarias](#financeiro_contas_bancarias) | — | Contas bancárias da própria entidade usadas para gerar remessas CNAB de pagamento, com convênio, layout e sequência de remessa. |
 | [financeiro_despesas](#financeiro_despesas) | financeiro, identificação | Despesas do modelo do Bubble (favorecido, comprovantes). Sem uso encontrado no código (possível legado do Bubble), vazia. |
@@ -343,6 +344,38 @@ Movimentações de caixa do modelo do Bubble (dono da conta, aportes, transferê
 
 Índices: `financeiro_caixa_bubble_id_key`, `financeiro_caixa_pkey`
 
+## financeiro_cartao_faturas
+
+Faturas dos cartões de crédito da entidade: as compras pagas com o cartão entram na fatura aberta; no fechamento o Financeiro informa o valor, anexa a fatura e gera uma ordem de pagamento rateada pelos centros de custo das compras (src/lib/db/cartao-faturas.ts).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `cartao_id` | uuid | não |  | → cartoes |  | Cartão de crédito da fatura. |
+| `numero` | integer | não |  |  |  | Sequência da fatura no cartão (1, 2, 3…). |
+| `situacao` | text | não | `'aberta'::text` |  |  | aberta (recebe compras; só uma por cartão) ou fechada (gerou a ordem de pagamento). |
+| `aberta_em` | timestamp with time zone | não | `now()` |  |  | Quando a fatura passou a receber compras. |
+| `fechada_em` | timestamp with time zone | sim |  |  |  | Quando o Financeiro fechou a fatura. |
+| `fechada_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem fechou a fatura. |
+| `valor_fatura` | numeric(12,2) | sim |  |  |  | Valor da fatura informado no fechamento (pode diferir da soma das compras: juros, IOF, anuidade, estornos). |
+| `vencimento` | date | sim |  |  |  | Vencimento da fatura (vira o vencimento da ordem). |
+| `arquivo_fatura` | text | sim |  |  |  | Caminho do PDF da fatura no bucket compras (faturas-cartao/...). |
+| `centro_diferenca_id` | uuid | sim |  | → centros_de_custo |  | Centro de custo da diferença entre o valor da fatura e a soma das compras. |
+| `ordem_pagamento_id` | uuid | sim |  | → ordens_pagamento (set null) |  | Ordem de pagamento gerada no fechamento. |
+| `observacao` | text | sim |  |  |  | Observação de quem fechou (ex.: o que explica a diferença). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+
+Únicas: `UNIQUE (cartao_id, numero)`
+
+Checks: `financeiro_cartao_faturas_situacao_check` `CHECK ((situacao = ANY (ARRAY['aberta'::text, 'fechada'::text])))`
+
+Índices: `financeiro_cartao_faturas_numero_unico`, `financeiro_cartao_faturas_pkey`, `financeiro_cartao_faturas_tenant_idx`, `financeiro_cartao_faturas_uma_aberta`
+
 ## financeiro_config
 
 Configurações do Financeiro por tenant: centro de custo do caixa, prazo de estorno e regra de autorização das remessas de diárias.
@@ -613,10 +646,11 @@ Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, 
 | `cancelado_por_id` | uuid | sim |  | → usuarios |  |  |
 | `boleto_linha_digitavel` | text | sim |  |  | financeiro |  |
 | `fornecimento_id` | uuid | sim |  | → compras_fornecimentos (set null) |  |  |
+| `cartao_fatura_id` | uuid | sim |  | → financeiro_cartao_faturas |  | Fatura do cartão de crédito a que pertence a ordem da compra; autorizada, a ordem fica "Na fatura" e é quitada pela ordem da fatura. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `idx_bub_ordens_pagamento`, `idx_ordens_beneficiario_fornecedor`, `idx_ordens_contrato`, `idx_ordens_contrato_aluguel`, `idx_ordens_custeio`, `idx_ordens_fornecedor`, `idx_ordens_processo_compra`, `idx_ordens_projeto`, `idx_ordens_tipo_situacao`, `ordens_pagamento_bubble_id_key`, `ordens_pagamento_emp_sit_pag_idx`, `ordens_pagamento_fornecimento_idx`, `ordens_pagamento_pkey`
+Índices: `idx_bub_ordens_pagamento`, `idx_ordens_beneficiario_fornecedor`, `idx_ordens_contrato`, `idx_ordens_contrato_aluguel`, `idx_ordens_custeio`, `idx_ordens_fornecedor`, `idx_ordens_processo_compra`, `idx_ordens_projeto`, `idx_ordens_tipo_situacao`, `ordens_pagamento_bubble_id_key`, `ordens_pagamento_cartao_fatura_idx`, `ordens_pagamento_emp_sit_pag_idx`, `ordens_pagamento_fornecimento_idx`, `ordens_pagamento_pkey`
 
 ## ordens_pagamento_estornos
 
