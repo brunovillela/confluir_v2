@@ -267,6 +267,17 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - modelos de comunicação à entidade e ao titular, campos do registro de incidentes e preparação contínua.
   - **Pendente:** nomear coordenador e técnico; levar o registro de incidentes para o sistema.
 
+- 18/10/2026 — **ONDA C CONCLUÍDA.**
+  - **`docs/votacao/dossie-auditoria.md`:**
+    - como a votação funciona e os 7 canais de voto, com a forma de identificação de cada um;
+    - garantias G1 (sigilo), G2 (unicidade), G3 (elegibilidade) e G4 (integridade e apuração), cada controle com evidência no código ou no banco e o modo de conferir;
+    - ameaças e risco residual, documentos produzidos, conferência independente e pontos a fortalecer (C-1 a C-5);
+    - roteiro de resposta a impugnação.
+  - **`scripts/auditar-votacao.mjs` (`npm run votacao:auditar`):** só leitura e só números. Verifica C1 (participação × votos), C2 (perguntas completas), C3 (sigilo), C4 (unicidade) e C5 (resultado congelado = votos atuais). Deixa o tenant demo de fora (`--incluir-demo` para incluir).
+  - **Produção, 18/10:** C1–C5 OK em 9 rodadas e 4 assembleias encerradas. No demo, C4 acusa um CPF duplo na "Rodada de teste" (dados fictícios de 29/08).
+  - **Achado C-1:** `voto_online` aceita UPDATE/DELETE antes do encerramento (sem trava no banco).
+  - **Achado C-2:** reabrir a apuração não deixa trilha.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
