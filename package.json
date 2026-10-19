@@ -16,7 +16,8 @@
     "db:dicionario": "node scripts/gerar-dicionario.mjs",
     "db:restaurar": "node scripts/restaurar.mjs",
     "lgpd:ropa": "node scripts/gerar-ropa.mjs",
-    "votacao:auditar": "node scripts/auditar-votacao.mjs"
+    "votacao:auditar": "node scripts/auditar-votacao.mjs",
+    "produto:notas": "node --no-warnings scripts/gerar-notas-versao.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

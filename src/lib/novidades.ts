@@ -13,6 +13,17 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-19",
+    titulo: "Privacidade e integridade das votações",
+    itens: [
+      "Política de privacidade da entidade em /privacidade, com o encarregado (DPO) e o contato preenchidos em Institucional → Organização. As telas de acesso, a ficha de filiação, a votação, as inscrições e a oposição passam a mostrar o link para ela.",
+      "Institucional → Auditoria ganhou as abas Exportações e API: quem baixou listas com dados pessoais (planilhas, PDFs, CNAB), quando e quantas linhas, e cada consulta feita pela API pública. A chave da API agora tem escopos por tipo de dado e não é aceita no endereço (?chave=).",
+      "Institucional → LGPD: prazos de guarda dos dados. Todo mês o sistema simula o que sairia em cada regra (fotos de inscrição em eventos, registros de tentativas de acesso, fichas de filiação não concluídas); só apaga de verdade a regra que a entidade ligar. Pessoas em processo podem ser bloqueadas contra qualquer descarte.",
+      "Pedidos de saúde feitos no portal chegam só à equipe de saúde, com aviso genérico, sem nome nem CPF.",
+      "Votações: no encerramento, o resultado é congelado, ganha um código de conferência (SHA-256) publicado na apuração, no relatório e no portal, e a votação é conferida automaticamente. Reabrir a apuração exige motivo e fica no livro da apuração. Os contatos que os eleitores deixam para receber o link são apagados 90 dias após a apuração (prazo ajustável na rodada), e o voto em separado é desligado da pessoa ao encerrar.",
+    ],
+  },
+  {
     id: "2026-10-18",
     titulo: "Área do associado",
     itens: [

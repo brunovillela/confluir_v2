@@ -297,6 +297,28 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Achado principal: os arquivos do Storage (21 buckets) não têm cópia**, porque o backup do banco do Supabase não os inclui (E-1).
   - **Pendentes:** confirmar plano, retenção e PITR do Supabase (E-2); `SAUDE_RELATORIO_CHAVE` sem cópia em cofre (E-4); ensaio com dados (E-3).
 
+- 19/10/2026 — **Travas de integridade da votação integradas** (C-1 a C-5 do dossiê; merges 400fcc27 e 2fcc81d5). A migração `20261019083424_votacao_integridade` foi aplicada pela sessão paralela com o OK do usuário.
+  - **Travas:** `voto_online` imutável; resultado congelado travado após o encerramento; livro `voto_apuracao_eventos` imutável; reabertura só com motivo; hash SHA-256 do resultado publicado; conferência C1–C6 gravada no encerramento; índice único (rodada, CPF).
+  - **Verificado:** as 5 travas recusam no banco (teste em transação); `votacao:auditar` C1–C6 OK com 9 assembleias com hash; build limpo.
+  - **Observação:** 5 assembleias da Sindipetro-NF foram encerradas pela tela em 19/10, às 09:59–10:00 de Brasília, antes de o livro existir. Não houve sessão envolvida; a autoria fica a confirmar com o usuário.
+- 19/10/2026 — **ONDA F CONCLUÍDA. PLANO DE DOCUMENTAÇÃO CONCLUÍDO (ondas A a F).**
+  - **`docs/produto/`:**
+    - `glossario.md`: 100 termos em 14 áreas;
+    - `regras-negocio.md`: 80 regras com ID (ACE, FIL, OPO, VOT, REP, FIN, CAI, COM, INS, PES, SAU, HOS, ESP, VEI, LGP), valor, configurabilidade e código;
+    - `notas-de-versao.md`: gerado de `src/lib/novidades.ts` por `npm run produto:notas`, que ganhou a entrada de 19/10 (privacidade, auditoria de saídas, retenção, saúde no portal, integridade das votações).
+  - **Achados R-1 a R-11:**
+    - carência configurável aplicada só na votação;
+    - código de votação sem limite de tentativas;
+    - alçada contornável em três caminhos;
+    - auditoria × custeio recorrente;
+    - prorrogação sem limite;
+    - urna física sem travas;
+    - UTC em duas funções da votação;
+    - corte do dia 15 sem efeito;
+    - férias com feriados só nacionais;
+    - RPA com tabelas de 2025;
+    - valores fixos.
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
