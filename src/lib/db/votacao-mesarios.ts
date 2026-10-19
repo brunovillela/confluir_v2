@@ -1095,7 +1095,9 @@ export async function registrarPresenca(
   }
 
   // Urna física: a presença encerra a participação (voto no papel).
-  const { error } = await admin
+  // Só vira se hora_voto ainda for nula: dois mesários registrando a mesma
+  // pessoa ao mesmo tempo não sobrescrevem a participação (RIPD V7).
+  const { data: registrado, error } = await admin
     .from("voto_assembleias_aptos")
     .update({
       presenca_em: agora,
@@ -1105,7 +1107,13 @@ export async function registrarPresenca(
     })
     .eq("id", aptoId)
     .eq("emp_proprietaria_id", emp)
+    .is("hora_voto", null)
+    .select("id")
+  // 23505 = índice único voto_aptos_rodada_cpf_votou_idx (dossiê C-4): o
+  // mesmo CPF já participou da rodada por outra linha da lista.
+  if (error?.code === "23505") return { erro: "Este CPF já votou nesta rodada." }
   if (error) return { erro: `Não foi possível registrar: ${error.message}` }
+  if (!registrado?.length) return { erro: "Este eleitor já votou." }
   await comprovarVotoUrna([aptoId], urna.assembleiaId, "urna_fisica", agora)
   await lancarProntuario(emp, apto.cpf ? String(apto.cpf) : null, urna.assembleiaId)
   return { ok: true, liberado: false }

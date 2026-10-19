@@ -2544,6 +2544,7 @@ export async function encerrarApuracao(
     }
   }
   if (!dados) return { erro: "Assembleia não encontrada." }
+  if (dados.apuracaoEncerrada) return { erro: "A apuração já está encerrada." }
 
   // Trava: não se encerra a apuração antes de a assembleia terminar.
   if (!dados.apuracaoDisponivel) {
@@ -2623,10 +2624,15 @@ export async function encerrarApuracao(
   // apuracao_encerrada_em (conta o prazo do expurgo dos contatos) e desliga os
   // votos em separado dos cadastros — indeferido vira valido = false, os
   // contatos do cadastro são apagados e a decisão fica definitiva. Por isso o
-  // snapshot acima é gravado antes.
+  // snapshot acima é gravado antes. Desde a migração
+  // 20261019083424_votacao_integridade (dossiê C-1/C-3/C-5) também: calcula o
+  // SHA-256 do resultado (resultado_hash), registra o encerramento no livro
+  // da apuração (voto_apuracao_eventos, com quem encerrou), roda a
+  // conferência C1–C6 e, daí em diante, recusa mexer no snapshot.
+  const { usuarioIdAtual } = await import("@/lib/sessao-atual")
   const { error } = await admin
     .from("voto_assembleias")
-    .update({ apuracao_encerrada: true })
+    .update({ apuracao_encerrada: true, apuracao_por: await usuarioIdAtual() })
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
@@ -2637,16 +2643,41 @@ export async function encerrarApuracao(
   return {}
 }
 
+/** Mínimo de caracteres do motivo da reabertura (o banco confere o mesmo). */
+export const MOTIVO_REABERTURA_MIN = 5
+
+/**
+ * Reabre a apuração (dossiê C-2). Motivo e usuário vão na MESMA instrução que
+ * desmarca a apuração: o trigger voto_assembleias_apuracao_livro recusa sem
+ * eles e grava no livro (voto_apuracao_eventos) quem, quando, por quê e o
+ * resultado congelado que deixa de valer, com o hash. O snapshot em
+ * voto_resultado_final fica até o novo encerramento regravá-lo.
+ */
 export async function reabrirApuracao(
-  assembleiaId: string
+  assembleiaId: string,
+  motivo: string
 ): Promise<{ erro?: string }> {
+  const texto = motivo.trim()
+  if (texto.length < MOTIVO_REABERTURA_MIN) {
+    return { erro: `Informe o motivo da reabertura (ao menos ${MOTIVO_REABERTURA_MIN} caracteres).` }
+  }
+  const { usuarioIdAtual } = await import("@/lib/sessao-atual")
+  const usuarioId = await usuarioIdAtual()
+  if (!usuarioId) return { erro: "Sessão sem usuário: entre de novo para reabrir." }
   const admin = await createAdminClient()
-  const { error } = await admin
+  const { data, error } = await admin
     .from("voto_assembleias")
-    .update({ apuracao_encerrada: false })
+    .update({
+      apuracao_encerrada: false,
+      apuracao_motivo: texto.slice(0, 2000),
+      apuracao_por: usuarioId,
+    })
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("apuracao_encerrada", true)
+    .select("id")
   if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
+  if (!data?.length) return { erro: "A apuração desta assembleia não está encerrada." }
   return {}
 }
 

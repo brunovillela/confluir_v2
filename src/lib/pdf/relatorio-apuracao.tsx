@@ -62,6 +62,7 @@ const s = StyleSheet.create({
   vCanal: { width: COL.canal, paddingRight: 4 },
   vQuando: { width: COL.quando, textAlign: "right" },
   nota: { fontSize: 8.5, color: "#4b5563", marginTop: 3 },
+  hash: { fontFamily: "Courier", fontSize: 9, marginTop: 2 },
   vencedor: { fontFamily: "Helvetica-Bold" },
   rodape: { position: "absolute", bottom: CM, left: CM * 1.5, right: CM * 1.5, fontSize: 8, color: "#6b7280", flexDirection: "row", justifyContent: "space-between" },
 })
@@ -207,6 +208,17 @@ export function RelatorioApuracaoPDF({
                 )
               })}
             </>
+          )}
+
+          {tem("resultado") && d.resultadoHash && (
+            <View wrap={false} style={{ marginTop: 4 }}>
+              <Text style={s.rotulo}>Hash do resultado (SHA-256), calculado pelo banco no encerramento da apuração</Text>
+              <Text style={s.hash}>{d.resultadoHash.match(/.{1,8}/g)?.join(" ") ?? d.resultadoHash}</Text>
+              <Text style={s.nota}>
+                Qualquer pessoa pode recalcular este hash a partir do resultado publicado (texto canônico na tela de
+                apuração e no dossiê de auditoria da votação) e conferir que o resultado não mudou depois do encerramento.
+              </Text>
+            </View>
           )}
 
           {tem("perguntas") && (

@@ -620,6 +620,50 @@ export type VotoRegistrado = {
  * na participação — nunca no voto. Melhor esforço: sem a coluna
  * (supabase/votacao-acesso-canal.sql) ou com erro, o voto já está gravado.
  */
+/**
+ * Reserva a participação ANTES de gravar o voto (achado S4): o update só pega
+ * linhas com hora_voto nula e o Postgres serializa dois envios simultâneos.
+ * Marca as linhas do eleitor no escopo, mas no máximo UMA por CPF: o índice
+ * único voto_aptos_rodada_cpf_votou_idx (dossiê de auditoria C-4) recusa a
+ * segunda participação do mesmo CPF na rodada, e marcar as duas derrubava o
+ * voto inteiro. Se alguma linha do eleitor já votou, não reserva nada (antes
+ * a outra linha, ainda nula, deixava votar de novo). Erro do banco (corrida
+ * com outro envio) também conta como "já votou". Devolve os ids reservados.
+ */
+async function reservarParticipacao(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  emp: string,
+  filtroOu: string,
+  agora: string
+): Promise<string[]> {
+  const { data: linhas, error } = await admin
+    .from("voto_assembleias_aptos")
+    .select("id, cpf, hora_voto")
+    .eq("emp_proprietaria_id", emp)
+    .or(filtroOu)
+  if (error || !linhas?.length) return []
+  if (linhas.some((l) => l.hora_voto)) return []
+  const cpfs = new Set<string>()
+  const ids: string[] = []
+  for (const l of linhas) {
+    const cpf = String(l.cpf ?? "").replace(/\D/g, "")
+    if (cpf.length === 11) {
+      if (cpfs.has(cpf)) continue
+      cpfs.add(cpf)
+    }
+    ids.push(String(l.id))
+  }
+  const { data: reservados, error: erroReserva } = await admin
+    .from("voto_assembleias_aptos")
+    .update({ hora_voto: agora })
+    .eq("emp_proprietaria_id", emp)
+    .in("id", ids)
+    .is("hora_voto", null)
+    .select("id")
+  if (erroReserva || !reservados) return []
+  return reservados.map((r) => String(r.id))
+}
+
 async function marcarCanal(
   admin: Awaited<ReturnType<typeof createAdminClient>>,
   emp: string,
@@ -693,14 +737,8 @@ export async function registrarVotoFiliado(
   const filtros = [`cpf.eq.${cpf}`]
   if (emailVot.email) filtros.push(`email_corporativo.eq.${emailVot.email}`)
   const filtroOu = filtroAptos(await escopoAptos(assembleiaId), filtros)
-  const { data: reservados } = await admin
-    .from("voto_assembleias_aptos")
-    .update({ hora_voto: agora })
-    .eq("emp_proprietaria_id", emp)
-    .or(filtroOu)
-    .is("hora_voto", null)
-    .select("id")
-  if (!reservados || reservados.length === 0) {
+  const reservados = await reservarParticipacao(admin, emp, filtroOu, agora)
+  if (reservados.length === 0) {
     return { erro: "Você já votou nesta assembleia." }
   }
 
@@ -723,11 +761,11 @@ export async function registrarVotoFiliado(
     await admin
       .from("voto_assembleias_aptos")
       .update({ hora_voto: null })
-      .in("id", reservados.map((r) => String(r.id)))
+      .in("id", reservados)
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
 
-  await marcarCanal(admin, emp, reservados.map((r) => String(r.id)), canal)
+  await marcarCanal(admin, emp, reservados, canal)
 
   // 2b) comprovante de participação + e-mail de confirmação (best-effort: o
   //     voto já está registrado, nada aqui pode derrubá-lo).
@@ -878,6 +916,11 @@ export type MinhaVotacao = {
         itens: { rotulo: string; quantidade: number }[]
       }[]
     | null
+  /**
+   * SHA-256 do resultado congelado, calculado pelo banco no encerramento
+   * (dossiê de auditoria C-3): o filiado pode guardar e conferir depois.
+   */
+  resultadoHash: string | null
 }
 
 /** Votações em que o filiado PARTICIPOU (apto com hora_voto), sem o voto. */
@@ -963,6 +1006,10 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
     .eq("emp_proprietaria_id", emp)
     .in("id", ids)
   if (!assembleias) return []
+  const { hashesDosResultados } = await import("@/lib/db/votacao-livro-apuracao")
+  const hashes = await hashesDosResultados(
+    assembleias.filter((a) => a.apuracao_encerrada === true).map((a) => String(a.id))
+  )
 
   // Resultado final por opção (snapshot) das assembleias já apuradas.
   const apuradas = assembleias
@@ -1101,6 +1148,7 @@ export async function minhasVotacoes(cpf: string): Promise<MinhaVotacao[]> {
         resultado: apurado
           ? resultadoPorAssembleia.get(String(a.id)) ?? []
           : null,
+        resultadoHash: apurado ? (hashes.get(String(a.id)) ?? null) : null,
       }
     })
     .sort((x, y) => (y.quando ?? "").localeCompare(x.quando ?? ""))
@@ -1263,14 +1311,8 @@ export async function registrarVotoEleitorEmail(
     .eq("email_corporativo", alvo)
   const cpfs = [...new Set((meus ?? []).map((m) => m.cpf).filter((c): c is string => Boolean(c)))]
   const filtros = [`email_corporativo.eq.${alvo}`, ...cpfs.map((c) => `cpf.eq.${c}`)]
-  const { data: reservados } = await admin
-    .from("voto_assembleias_aptos")
-    .update({ hora_voto: agora })
-    .eq("emp_proprietaria_id", emp)
-    .or(filtroAptos(escopo, filtros))
-    .is("hora_voto", null)
-    .select("id")
-  if (!reservados || reservados.length === 0) {
+  const reservados = await reservarParticipacao(admin, emp, filtroAptos(escopo, filtros), agora)
+  if (reservados.length === 0) {
     return { erro: "Você já votou nesta assembleia." }
   }
 
@@ -1290,11 +1332,11 @@ export async function registrarVotoEleitorEmail(
     await admin
       .from("voto_assembleias_aptos")
       .update({ hora_voto: null })
-      .in("id", reservados.map((r) => String(r.id)))
+      .in("id", reservados)
     return { erro: `Não foi possível registrar o voto: ${erroVoto.message}` }
   }
 
-  await marcarCanal(admin, emp, reservados.map((r) => String(r.id)), canal)
+  await marcarCanal(admin, emp, reservados, canal)
 
   const comprovante = await comprovarVoto({
     filtroOu: filtroAptos(escopo, filtros),

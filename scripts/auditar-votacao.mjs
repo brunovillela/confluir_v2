@@ -6,7 +6,9 @@
  *
  * Verificações (cada uma OK/FALHA):
  *   C1 Participação × votos: em cada rodada, quem votou (hora_voto) = soma,
- *      por assembleia, dos votos da pergunta mais votada.
+ *      por assembleia, dos votos da pergunta mais votada, menos os votos em
+ *      separado (quem votou em separado não está na lista; depois do
+ *      encerramento o voto dele perde em_separado_id e fica igual aos outros).
  *   C2 Perguntas completas: numa assembleia, toda pergunta tem o mesmo total.
  *   C3 Sigilo: nenhum voto com eleitor_id; nenhum voto com hora (só o início
  *      do mês); nenhum voto em separado ligado em assembleia encerrada.
@@ -16,6 +18,10 @@
  *      no encerramento (voto_resultado_final) = contagem atual dos votos
  *      válidos (digitais + urnas físicas apuradas). Diferença = voto alterado
  *      depois do encerramento.
+ *   C6 Hash publicado: o SHA-256 que o banco gravou no encerramento
+ *      (voto_assembleias.resultado_hash) = SHA-256 recalculado AQUI, em JS,
+ *      sobre o resultado congelado (texto canônico de voto_resultado_texto,
+ *      migração 20261019083424). Não usa a função do banco: confere de fora.
  *
  * Só agrega números: nenhum dado de eleitor sai no relatório.
  *
@@ -28,6 +34,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 
 const URL_BANCO = readFileSync(".env.local", "utf8")
   .split(/\r?\n/)
@@ -73,9 +80,12 @@ const filtroRodadaA = (rodada ? `and a.rod_assembleia_id = '${rodada}' ` : "") +
 const c1 = consulta(`
   with por_pergunta as (
     select v.rod_assembleia_id, v.assembleia_id, v.pergunta_id, count(*) n
-      from voto_online v where v.bubble_id is null and v.em_separado_id is null ${filtroRodada}
+      from voto_online v where v.bubble_id is null ${filtroRodada}
      group by 1, 2, 3),
-  por_assembleia as (select rod_assembleia_id, assembleia_id, max(n) mx from por_pergunta group by 1, 2),
+  separado as (select s.assembleia_id, count(*) n from voto_em_separado s where s.votou_em is not null group by 1),
+  por_assembleia as (
+    select p.rod_assembleia_id, p.assembleia_id, greatest(max(p.n) - coalesce(min(s.n), 0), 0) mx
+      from por_pergunta p left join separado s using (assembleia_id) group by 1, 2),
   por_rodada as (select rod_assembleia_id, sum(mx)::int votantes from por_assembleia group by 1),
   part as (select a.rod_assembleia_id, count(*) filter (where a.hora_voto is not null and a.presenca_em is null)::int participacoes
              from voto_assembleias_aptos a group by 1)
@@ -88,7 +98,7 @@ const c1 = consulta(`
 const c2 = consulta(`
   select v.assembleia_id, min(n)::int minimo, max(n)::int maximo from (
     select v.assembleia_id, v.pergunta_id, count(*) n from voto_online v
-     where v.bubble_id is null and v.em_separado_id is null ${filtroRodada} group by 1, 2) v
+     where v.bubble_id is null ${filtroRodada} group by 1, 2) v
    group by 1 having min(n) <> max(n)`)
 
 const [c3] = consulta(`
@@ -133,6 +143,31 @@ const c5 = consulta(`
 const [c5n] = consulta(`select count(*)::int encerradas from voto_assembleias a
   where a.apuracao_encerrada and exists (select 1 from voto_resultado_final r where r.assembleia_id = a.id) ${filtroRodadaA}`)
 
+// C6: hash publicado × hash recalculado aqui (texto canônico, ordem de bytes).
+const temHash = consulta(`select 1 from information_schema.columns
+  where table_schema = 'public' and table_name = 'voto_assembleias' and column_name = 'resultado_hash'`).length > 0
+const c6 = []
+let c6n = 0
+if (temHash) {
+  const publicados = consulta(`select a.id, a.resultado_hash from voto_assembleias a
+    where a.apuracao_encerrada and a.resultado_hash is not null ${filtroRodadaA}`)
+  c6n = publicados.length
+  const linhas = publicados.length
+    ? consulta(`select r.assembleia_id, r.pergunta_id, r.opcao_id, r.tipo, r.quantidade from voto_resultado_final r
+        where r.assembleia_id in (${publicados.map((p) => `'${p.id}'`).join(",")})`)
+    : []
+  const bytes = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+  for (const p of publicados) {
+    const texto = linhas
+      .filter((l) => l.assembleia_id === p.id)
+      .sort((x, y) => bytes(x.pergunta_id, y.pergunta_id) || bytes(x.tipo, y.tipo) || bytes(x.opcao_id ?? "", y.opcao_id ?? ""))
+      .map((l) => `${p.id};${l.pergunta_id};${l.opcao_id ?? l.tipo};${l.quantidade}`)
+      .join("\n")
+    const hash = createHash("sha256").update(texto, "utf8").digest("hex")
+    if (hash !== p.resultado_hash) c6.push({ assembleia_id: p.id, publicado: p.resultado_hash, recalculado: hash })
+  }
+}
+
 // ── Relatório ─────────────────────────────────────────────────────────────
 const falhasC1 = c1.filter((r) => r.votantes !== r.participacoes)
 const verificacoes = [
@@ -143,6 +178,7 @@ const verificacoes = [
   ["C4", "Unicidade: um voto por CPF e comprovantes únicos", c4.cpf_duplo + c4.comprovante_repetido === 0,
     `CPF com duas participações ${c4.cpf_duplo}; comprovante repetido ${c4.comprovante_repetido}`],
   ["C5", "Resultado congelado = votos atuais", c5.length === 0, `${c5n.encerradas} assembleia(s) encerrada(s) com resultado gravado; ${c5.length} opção(ões) divergente(s)`],
+  ["C6", "Hash publicado = hash recalculado", c6.length === 0, temHash ? `${c6n} assembleia(s) com hash publicado; ${c6.length} divergente(s)` : "banco sem a coluna resultado_hash (migração 20261019083424 não aplicada)"],
 ]
 
 const agora = new Date().toISOString().replace("T", " ").slice(0, 16)
@@ -163,6 +199,7 @@ const L = [
 ]
 if (c2.length) L.push("", "## C2 — assembleias com perguntas desiguais", "", ...c2.map((r) => `- ${r.assembleia_id}: mínimo ${r.minimo}, máximo ${r.maximo}`))
 if (c5.length) L.push("", "## C5 — divergências", "", "| Assembleia | Pergunta | Opção | Congelado | Atual |", "|---|---|---|---|---|", ...c5.map((r) => `| ${r.assembleia_id} | ${r.pergunta_id} | ${r.opcao_id} | ${r.congelado} | ${r.atual} |`))
+if (c6.length) L.push("", "## C6 — hashes divergentes", "", "| Assembleia | Publicado | Recalculado |", "|---|---|---|", ...c6.map((r) => `| ${r.assembleia_id} | ${r.publicado} | ${r.recalculado} |`))
 L.push("", "Votos em separado e votos da urna física entram em C5 (resultado), não em C1 (participação online). Votações migradas do Bubble ficam fora de C1/C2.")
 
 const texto = L.join("\n") + "\n"

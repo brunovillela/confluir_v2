@@ -12,6 +12,7 @@ import { lerEmLotes } from "@/lib/db/comum"
 import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { acompanhamentoAssembleia } from "@/lib/db/votacao-mesarios"
 import { entregaDaAssembleia, type EntregaAssembleia } from "@/lib/db/votacao-entrega"
+import { hashesDosResultados } from "@/lib/db/votacao-livro-apuracao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { ROTULOS_CANAL_CURTOS, type CanalAcesso } from "@/lib/votacao-canais"
@@ -65,6 +66,8 @@ export type DadosRelatorioApuracao = {
   votosPorUrna: { urna: string | null; compareceram: number }[]
   /** Entrega da votação pela internet (fase 4); null sem voto pela internet. */
   entrega: EntregaAssembleia | null
+  /** SHA-256 do resultado congelado, publicado no encerramento (dossiê C-3). */
+  resultadoHash: string | null
 }
 
 const CANAL: Record<string, string> = {
@@ -115,6 +118,9 @@ export async function dadosRelatorioApuracao(
     emSeparado: acomp?.emSeparadoContagem ?? { total: 0, pendente: 0, deferido: 0, indeferido: 0 },
     votosPorUrna: acomp?.votosPorUrna ?? [],
     entrega: temVotoOnline(apuracao.modalidade) ? await entregaDaAssembleia(assembleiaId).catch(() => null) : null,
+    resultadoHash: apuracao.apuracaoEncerrada
+      ? ((await hashesDosResultados([assembleiaId])).get(assembleiaId) ?? null)
+      : null,
   }
 }
 

@@ -1,6 +1,6 @@
 # Dossiê de auditoria da votação
 
-> **Onda C** (`docs/plano-documentacao.md`), 18/10/2026. Para a comissão eleitoral, a diretoria, o jurídico e quem precisar demonstrar, perante uma impugnação ou a Justiça, que uma votação feita no Confluir foi **secreta, única, íntegra e corretamente apurada**. Cada garantia aponta para onde está implementada e para como conferir. Complementa a RIPD da votação (`docs/lgpd/ripd-votacao.md`). Abreviações: VP = `src/lib/db/votacao-portal.ts`; VM = `src/lib/db/votacao-mesarios.ts`; LU = `src/lib/db/votacao-link-unico.ts`; PA = `src/lib/db/votacao-primeiro-acesso.ts`.
+> **Onda C** (`docs/plano-documentacao.md`), 18/10/2026; pontos C-1 a C-5 tratados em 19/10/2026 (migração `20261019083424_votacao_integridade`). Para a comissão eleitoral, a diretoria, o jurídico e quem precisar demonstrar, perante uma impugnação ou a Justiça, que uma votação feita no Confluir foi **secreta, única, íntegra e corretamente apurada**. Cada garantia aponta para onde está implementada e para como conferir. Complementa a RIPD da votação (`docs/lgpd/ripd-votacao.md`). Abreviações: VP = `src/lib/db/votacao-portal.ts`; VM = `src/lib/db/votacao-mesarios.ts`; LU = `src/lib/db/votacao-link-unico.ts`; PA = `src/lib/db/votacao-primeiro-acesso.ts`.
 
 ## 1. Como a votação funciona
 
@@ -42,6 +42,8 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 | Controle | Evidência | Como conferir |
 |---|---|---|
 | **Reserva da participação antes do voto**: `update … where hora_voto is null`; zero linhas = já votou; se o voto falhar, a reserva é desfeita | VP:688-728, VP:1252-1295; VM:1346-1429 | Teste da Onda 0: 10 reservas simultâneas, 1 vence |
+| **Um voto por CPF na rodada, no banco** | Índice único parcial `voto_aptos_rodada_cpf_votou_idx` em (rodada, CPF só com dígitos) com `hora_voto` preenchida (migração `20261019083424`) | C4 |
+| Reserva marca no máximo uma linha por CPF e recusa se outra linha do mesmo CPF já votou | `reservarParticipacao` (VP) | C4 |
 | Mesmo CPF em outro apto já votado: bloqueia e marca conflito | PA:255-283; LU:401-425 | C4 |
 | Presença na urna conta como voto da rodada (não vota online depois) | VP:383-389, VP:1144-1146 | — |
 | Comprovante com código único | Índice único `voto_aptos_comprovante_codigo_idx` | C4 |
@@ -60,11 +62,15 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 
 | Controle | Evidência | Como conferir |
 |---|---|---|
-| A contagem digital só acontece **depois do término** | `src/lib/db/assembleias.ts:2359-2391` | — |
-| **Resultado congelado** no encerramento (`voto_resultado_final`) antes de marcar a apuração como encerrada | `src/lib/db/assembleias.ts:2530-2632` | C5 compara o congelado com os votos atuais |
+| A contagem digital só acontece **depois do término** | `dadosApuracao` em `src/lib/db/assembleias.ts` | — |
+| **Voto imutável**: o banco recusa UPDATE, DELETE e TRUNCATE em `voto_online`, de qualquer papel; a única mudança aceita é o desvínculo do voto em separado feito pelo trigger de encerramento (`em_separado_id` → nulo e `valido`), reconhecido por vir de dentro de outro trigger (`pg_trigger_depth() > 1`) | Trigger `voto_online_imutavel` (migração `20261019083424`) | Tentar alterar um voto: erro "Voto registrado não pode ser alterado nem apagado" |
+| **Resultado congelado** no encerramento (`voto_resultado_final`) antes de marcar a apuração como encerrada; com a apuração encerrada o banco recusa mexer nele | `encerrarApuracao` em `src/lib/db/assembleias.ts`; trigger `voto_resultado_final_congelado` | C5 compara o congelado com os votos atuais |
+| **Hash publicado**: no encerramento o banco calcula o SHA-256 do texto canônico do resultado e grava em `voto_assembleias.resultado_hash`; aparece na apuração (com o texto), no relatório PDF e no portal | Trigger `voto_assembleias_apuracao_livro`; `voto_resultado_texto()`; `src/lib/votacao-integridade.ts` | C6 recalcula em JS, fora do banco |
+| **Livro da apuração**: cada encerramento e reabertura com quem, quando, motivo (obrigatório na reabertura), resultado congelado do momento e hash; só acrescenta | Tabela `voto_apuracao_eventos` (trigger `voto_apuracao_eventos_imutavel`) | Aba Apuração › Integridade do resultado |
+| **Conferência automática** no encerramento (C1–C6 da rodada), gravada no evento de encerramento; não impede o encerramento, registra FALHA | `votacao_conferencia()`; trigger `voto_assembleias_conferencia_encerramento` | Aba Apuração › Integridade do resultado |
 | Participação = votos (cada participante gerou exatamente um voto por pergunta) | Invariante do desenho | C1 e C2 |
 | Urna física: apurador só nas urnas atribuídas, atesto de lacres, contagem por opção, branco e nulo | `src/lib/db/votacao-apuracao.ts:231-460`; lacres e ata em VM:798-996 | Ata da urna |
-| Em separado só conta se deferido; decisão travada após encerrar | `src/lib/db/assembleias.ts:2421-2426, 2555-2575`; trigger `voto_em_separado_decisao_definitiva` | — |
+| Em separado só conta se deferido; decisão travada após encerrar | `dadosApuracao` e `encerrarApuracao` em `src/lib/db/assembleias.ts`; trigger `voto_em_separado_decisao_definitiva` | — |
 | Schema vigiado contra mudança fora das migrações | Cron `/api/schema/deriva/tick` (Onda A3) | `npm run db:deriva` |
 
 ## 3. Ameaças e respostas
@@ -73,18 +79,19 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 |---|---|---|
 | Empregador descobrir como o trabalhador votou | G1 inteira; barreira ao e-mail corporativo | Rodada com votante único |
 | Alguém votar no lugar de outro | Identificação por canal (G3); "não sou eu" derruba o link; trava de 5 falhas | Link pessoal sem expiração por tempo (V3 da RIPD) |
-| Voto duplo | Reserva antes do voto (G2) | Sem UNIQUE por (rodada, CPF) no banco (V7) |
+| Voto duplo | Reserva antes do voto e índice único por (rodada, CPF) (G2) | Apto sem CPF (só e-mail) ou da lista legada sem rodada fica fora do índice |
 | Robô ou ataque em massa | Turnstile, cadência, mensagens genéricas | Turnstile cai aberto se a Cloudflare falhar (V3) |
-| Gestor alterar votos | Resultado congelado + C5; deriva do schema | **Antes do encerramento** não há trava contra alteração de `voto_online` pelo servidor (ver seção 6) |
+| Gestor alterar votos | `voto_online` imutável no banco; resultado congelado travado; hash publicado + C5/C6; deriva do schema | Quem tem o papel dono do banco pode desligar um trigger: vira deriva de schema (`db:deriva`) e o hash publicado deixa de conferir |
 | Gestor ver quem votou em quê | Não existe dado que permita (G1) | — |
-| Reabrir a apuração para mudar o resultado | Reabrir só desmarca o encerramento; o novo encerramento grava outro resultado congelado | Reabrir não deixa trilha e o congelado anterior não é guardado (C-2) |
+| Reabrir a apuração para mudar o resultado | Reabertura exige motivo e usuário; o livro guarda o resultado anterior e o hash dele; o novo encerramento publica outro hash | A reabertura continua possível (por desenho): o livro a torna visível a quem conferir |
 
 ## 4. Documentos que a votação produz
 
 | Documento | Onde | Conteúdo |
 |---|---|---|
 | Relatório de votantes (PDF) | Apuração › Relatório (`src/app/painel/representacao/votacoes/apuracao/[id]/relatorio/route.ts`) | Nome, CPF, matrícula, hora e canal de quem participou, **sem o voto**. Exportação registrada no livro de exportações (M5) |
-| Resultado final | `voto_resultado_final` + tela de apuração | Totais por opção, branco e nulo |
+| Resultado final | `voto_resultado_final` + tela de apuração, relatório PDF e portal | Totais por opção, branco e nulo, com o **hash SHA-256** do resultado |
+| Livro da apuração | Aba Apuração › Integridade do resultado (`voto_apuracao_eventos`) | Encerramentos e reaberturas: quem, quando, motivo, resultado e hash; conferência C1–C6 no encerramento |
 | Ata da urna | Mesário › Urna › Ata | Abertura, lacres, primeiro eleitor, fechamento, anomalias |
 | Comprovante do eleitor | E-mail, Telegram e `/comprovante/[codigo]` | Código, hash e hora, sem o voto |
 | **Conferência independente** | `npm run votacao:auditar -- --rodada=<id> --saida=conferencia.md` | C1 a C5, só números (seção 5) |
@@ -100,20 +107,27 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 | C3 | Nenhum voto com pessoa, nenhum voto com hora, nenhum em separado ligado após o encerramento |
 | C4 | Nenhum CPF com duas participações na rodada; comprovantes únicos |
 | C5 | Resultado congelado no encerramento = contagem atual |
+| C6 | Hash publicado no encerramento = SHA-256 recalculado pelo script sobre o resultado congelado |
 
-O relatório não traz nome, CPF nem voto: pode ir para a comissão e para o processo. O tenant de demonstração fica de fora (`--incluir-demo` para incluir).
+O relatório não traz nome, CPF nem voto: pode ir para a comissão e para o processo. O tenant de demonstração fica de fora (`--incluir-demo` para incluir). Em C1, os votos em separado saem da conta (quem votou em separado não está na lista de aptos), antes e depois do desvínculo.
 
-**Execução de 18/10/2026 (produção, todas as rodadas do sistema novo):** C1–C5 **OK** em 9 rodadas e 4 assembleias encerradas com resultado gravado. Com o demo incluído, C4 acusa um CPF com duas participações na "Rodada de teste" (dados fictícios de 29/08, anteriores à regra de CPF único).
+**No encerramento, automaticamente:** a função `votacao_conferencia(assembleia)` roda as mesmas verificações (C1–C6) na rodada da assembleia e o resultado fica gravado no evento de encerramento do livro, visível na aba Apuração. O script continua sendo a conferência **independente**: lê as tabelas e recalcula o hash em JS, sem usar funções do banco.
+
+**Texto canônico do hash (C-3):** uma linha por registro de `voto_resultado_final`, `assembleia;pergunta;opção|branco|nulo;quantidade` (ids em minúsculas, quantidade em inteiro), em ordem de bytes por pergunta, tipo e opção, separadas por `\n`, sem `\n` no fim; hash = SHA-256 em hexadecimal do texto em UTF-8. A tela de apuração mostra o texto; `sha256sum` sobre ele (sem quebra final) devolve o hash publicado.
+
+**Execução de 18/10/2026 (produção, todas as rodadas do sistema novo):** C1–C5 **OK** em 9 rodadas e 4 assembleias encerradas com resultado gravado. Com o demo incluído, C4 acusava um CPF com duas participações na "Rodada de teste" (dados fictícios de 29/08, anteriores à regra de CPF único); a migração `20261019083424` passou essa participação a outra pessoa fictícia (votos e contagem iguais) antes de criar o índice único. As 4 assembleias já encerradas recebem o hash na aplicação da migração, sem evento no livro (o encerramento delas foi anterior a ele); em teste, o hash do banco conferiu com o recalculado em JS nas 4.
 
 ## 6. Pontos a fortalecer
 
-| # | Ponto | Proposta |
-|---|---|---|
-| C-1 | `voto_online` pode ser alterado ou apagado pelo servidor **antes** do encerramento (RLS por tenant permite ALL); C5 só pega alteração depois | Trigger que recusa UPDATE/DELETE em `voto_online`, exceto `valido` na decisão de em separado, e livro de apuração imutável |
-| C-2 | Reabrir apuração sem trilha (`src/lib/db/assembleias.ts:2640-2651`) | Registrar quem reabriu, quando e por quê; guardar o congelado anterior |
-| C-3 | Sem prova criptográfica externa do resultado | Publicar no encerramento o hash do resultado e da contagem (ex.: na ata e no portal), para qualquer pessoa conferir depois |
-| C-4 | Unicidade só na aplicação | UNIQUE parcial por (rodada, CPF) com `hora_voto` preenchida |
-| C-5 | Conferência só manual | Rodar `votacao:auditar` automaticamente ao encerrar a apuração e anexar o resultado à ata |
+Os cinco pontos abaixo foram tratados em 19/10/2026 pela migração `20261019083424_votacao_integridade` (testada em transação) e pelo código do mesmo commit. A coluna "Como ficou" diz onde.
+
+| # | Ponto | Proposta | Como ficou |
+|---|---|---|---|
+| C-1 | `voto_online` pode ser alterado ou apagado pelo servidor **antes** do encerramento (RLS por tenant permite ALL); C5 só pega alteração depois | Trigger que recusa UPDATE/DELETE em `voto_online`, exceto `valido` na decisão de em separado, e livro de apuração imutável | Triggers `voto_online_imutavel` (UPDATE/DELETE/TRUNCATE; só passa o desvínculo do em separado) e `voto_resultado_final_congelado`. A decisão do em separado não mexe em `voto_online` (a contagem lê o status); quem muda `valido` é o desvínculo no encerramento. Nenhum código do `src` alterava ou apagava voto |
+| C-2 | Reabrir apuração sem trilha | Registrar quem reabriu, quando e por quê; guardar o congelado anterior | `reabrirApuracao(id, motivo)` manda motivo e usuário na mesma instrução; o trigger `voto_assembleias_apuracao_livro` recusa sem eles e grava em `voto_apuracao_eventos` o resultado que deixa de valer e o hash dele |
+| C-3 | Sem prova criptográfica externa do resultado | Publicar no encerramento o hash do resultado e da contagem (ex.: na ata e no portal), para qualquer pessoa conferir depois | `voto_assembleias.resultado_hash`, calculado pelo banco; na aba Apuração (com o texto canônico), no relatório PDF (seção Resultado) e em Minhas votações no portal |
+| C-4 | Unicidade só na aplicação | UNIQUE parcial por (rodada, CPF) com `hora_voto` preenchida | `voto_aptos_rodada_cpf_votou_idx` com o CPF só em dígitos (a lista guarda CPF com e sem máscara) e de 11 dígitos; reserva do portal, presença na urna física e unificação de aptos repetidos ajustadas para não colidir |
+| C-5 | Conferência só manual | Rodar `votacao:auditar` automaticamente ao encerrar a apuração e anexar o resultado à ata | `votacao_conferencia()` roda no encerramento e fica no livro; a aba Apuração mostra C1–C6. Anexar à ata da urna fica para quando a ata for gerada pelo sistema |
 
 ## 7. Roteiro de resposta a impugnação
 
@@ -124,7 +138,7 @@ O relatório não traz nome, CPF nem voto: pode ir para a comissão e para o pro
 5. **Responder por alegação:**
    - "Votaram por mim": localizar a participação do CPF (hora, canal, comprovante) e o caminho de identificação usado (seção 1). O conteúdo do voto não existe ligado à pessoa e **não pode ser anulado individualmente**, só a participação pode ser discutida.
    - "Votei e não contou": conferir o comprovante (`/comprovante/[codigo]`) e C1 (participações = votos).
-   - "O resultado foi alterado": C5 (congelado = atual) e `db:deriva`.
+   - "O resultado foi alterado": C5 (congelado = atual), C6 (hash publicado = recalculado), o livro da apuração (houve reabertura? por quê? qual era o resultado antes?) e `db:deriva`.
    - "Quebraram o sigilo": C3 e a seção 2/G1 deste dossiê; as migrações de 18/10/2026 documentam as correções feitas.
 6. **Parecer** técnico do operador (Confluir) a pedido da entidade, com este dossiê, a conferência e o hash dos arquivos entregues.
 7. **Registrar o desfecho** e as melhorias que vierem dele (seção 6).

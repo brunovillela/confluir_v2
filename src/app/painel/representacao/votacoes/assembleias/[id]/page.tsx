@@ -22,6 +22,7 @@ import { janelaDaAssembleia, situacaoDaAssembleia } from "@/lib/db/assembleias-h
 import { votantesDaAssembleia, votosPorHora } from "@/lib/db/votacao-assembleia"
 import { caminhoVotacao } from "@/lib/db/votacao-caminho"
 import { entregaDaAssembleia } from "@/lib/db/votacao-entrega"
+import { integridadeDaApuracao } from "@/lib/db/votacao-livro-apuracao"
 import { acompanhamentoAssembleia, dadosUrnasAssembleia } from "@/lib/db/votacao-mesarios"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
@@ -444,8 +445,8 @@ async function AbaUrnas({ id, hrefApuracao }: { id: string; hrefApuracao: string
 }
 
 async function AbaApuracao({ id, apuracao }: { id: string; apuracao: NonNullable<Awaited<ReturnType<typeof dadosApuracao>>> }) {
-  const acomp = await acompanhamentoAssembleia(id)
-  return <ConteudoApuracao dados={apuracao} emSeparado={acomp?.emSeparado ?? []} />
+  const [acomp, integridade] = await Promise.all([acompanhamentoAssembleia(id), integridadeDaApuracao(id)])
+  return <ConteudoApuracao dados={apuracao} emSeparado={acomp?.emSeparado ?? []} integridade={integridade} />
 }
 
 // ── Miúdos ─────────────────────────────────────────────────────────────────

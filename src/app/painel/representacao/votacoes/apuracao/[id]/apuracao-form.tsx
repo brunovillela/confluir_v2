@@ -1,10 +1,12 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { CheckCircle2, Loader2, Lock, Unlock } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 import { encerrarApuracaoAction, reabrirApuracaoAction } from "./actions"
 
@@ -19,6 +21,8 @@ export function ApuracaoForm({
 }) {
   const [estEnc, actEnc, pendEnc] = useActionState(encerrarApuracaoAction, {})
   const [estReab, actReab, pendReab] = useActionState(reabrirApuracaoAction, {})
+  const [reabrindo, setReabrindo] = useState(false)
+  const [motivo, setMotivo] = useState("")
 
   if (encerrada) {
     return (
@@ -35,13 +39,47 @@ export function ApuracaoForm({
             <AlertDescription>{estReab.erro}</AlertDescription>
           </Alert>
         )}
-        <form action={actReab}>
-          <input type="hidden" name="assembleia_id" value={assembleiaId} />
-          <Button type="submit" variant="outline" size="sm" disabled={pendReab}>
-            {pendReab ? <Loader2 className="animate-spin" /> : <Unlock />}
-            Reabrir apuração
-          </Button>
-        </form>
+        {reabrindo ? (
+          <form action={actReab} className="grid gap-2">
+            <input type="hidden" name="assembleia_id" value={assembleiaId} />
+            <Label htmlFor="motivo-reabertura">Motivo da reabertura</Label>
+            <Textarea
+              id="motivo-reabertura"
+              name="motivo"
+              required
+              minLength={5}
+              maxLength={2000}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex.: a comissão eleitoral pediu recontagem da urna 2 (ata de 20/10)."
+            />
+            <p className="text-muted-foreground text-xs">
+              Fica no livro da apuração, com o seu nome, a hora e o resultado
+              que deixa de valer. Não se apaga.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={pendReab || motivo.trim().length < 5}
+              >
+                {pendReab ? <Loader2 className="animate-spin" /> : <Unlock />}
+                Confirmar reabertura
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setReabrindo(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setReabrindo(true)}>
+              <Unlock />
+              Reabrir apuração
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -57,7 +95,9 @@ export function ApuracaoForm({
       <p className="text-muted-foreground text-sm">
         A contagem acima soma os votos digitais/online e o que os apuradores
         lançaram nas urnas físicas (por opção, com branco e nulo). Ao encerrar,
-        esse resultado é congelado e liberado ao filiado.
+        esse resultado é congelado e liberado ao filiado, o banco calcula o
+        hash dele (para qualquer pessoa conferir depois) e roda a conferência
+        da votação.
       </p>
       {!disponivel && (
         <Alert variant="warning">

@@ -18,7 +18,7 @@ export async function encerrarApuracaoAction(
   const r = await encerrarApuracao(id)
   if (r.erro) return { erro: r.erro }
   revalidatePath(`/painel/representacao/votacoes/assembleias/${id}`)
-  return { ok: "Apuração encerrada. O resultado final ficou disponível." }
+  return { ok: "Apuração encerrada. O resultado final ficou disponível, com o hash e a conferência." }
 }
 
 export async function reabrirApuracaoAction(
@@ -28,10 +28,11 @@ export async function reabrirApuracaoAction(
   await requirePermissao("assembleias")
   const id = String(formData.get("assembleia_id") ?? "")
   if (!id) return { erro: "Assembleia inválida." }
-  const r = await reabrirApuracao(id)
+  const motivo = String(formData.get("motivo") ?? "")
+  const r = await reabrirApuracao(id, motivo)
   if (r.erro) return { erro: r.erro }
   revalidatePath(`/painel/representacao/votacoes/assembleias/${id}`)
-  return { ok: "Apuração reaberta." }
+  return { ok: "Apuração reaberta. O motivo e o resultado anterior ficaram no livro da apuração." }
 }
 
 export async function validarEmSeparadoAction(

@@ -228,14 +228,31 @@ export async function unificarDuplicados(
     }
     // Uma repetida que votou (sem comprovante) e a que fica não: leva a participação.
     const votou = saem.find((l) => l.hora_voto)
-    if (!manter.hora_voto && votou) completar.hora_voto = votou.hora_voto
+    const levaParticipacao = !manter.hora_voto && votou ? votou : null
+    if (levaParticipacao) completar.hora_voto = levaParticipacao.hora_voto
     if (Object.keys(completar).length) {
+      // A participação MUDA de linha: a repetida solta antes, senão o índice
+      // único por (rodada, CPF) com voto (dossiê C-4) recusa a que fica.
+      if (levaParticipacao) {
+        await admin
+          .from("voto_assembleias_aptos")
+          .update({ hora_voto: null })
+          .eq("id", levaParticipacao.id)
+          .eq("emp_proprietaria_id", emp)
+      }
       const { error } = await admin
         .from("voto_assembleias_aptos")
         .update(completar)
         .eq("id", manter.id)
         .eq("emp_proprietaria_id", emp)
       if (error) {
+        if (levaParticipacao) {
+          await admin
+            .from("voto_assembleias_aptos")
+            .update({ hora_voto: levaParticipacao.hora_voto })
+            .eq("id", levaParticipacao.id)
+            .eq("emp_proprietaria_id", emp)
+        }
         mantidos += saem.length
         continue
       }

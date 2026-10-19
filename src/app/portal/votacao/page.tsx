@@ -417,6 +417,20 @@ export default async function VotacaoPortalPage() {
                         </div>
                       </div>
                     ))}
+                    {v.resultadoHash && (
+                      <details className="text-muted-foreground text-xs">
+                        <summary className="cursor-pointer">
+                          Conferência do resultado (SHA-256{" "}
+                          <span className="font-mono">{v.resultadoHash.slice(0, 12)}…</span>)
+                        </summary>
+                        <p className="mt-1">
+                          Calculado no encerramento da apuração. É o mesmo hash
+                          do relatório oficial: se o resultado mudasse, o hash
+                          mudaria.
+                        </p>
+                        <p className="mt-1 font-mono break-all">{v.resultadoHash}</p>
+                      </details>
+                    )}
                   </div>
                 ) : (
                   <p className="text-muted-foreground mt-2 text-xs">
