@@ -1,10 +1,17 @@
 import "server-only"
 
+import { RESSALVA_LACRE_MIN } from "@/lib/assembleias-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
 
-import { codigoEnvelope, listarLacres, type LacreLinha } from "./votacao-mesarios"
+import { situacaoAssembleiaPorId } from "./assembleias"
+import {
+  codigoEnvelope,
+  estadoDiaUrna,
+  listarLacres,
+  type LacreLinha,
+} from "./votacao-mesarios"
 import { perguntasDaAssembleia, type PerguntaVoto } from "./votacao-portal"
 
 // Apurador: papel próprio (nome/CPF/e-mail), ambiente /apurador. O admin atribui
@@ -363,25 +370,46 @@ export async function dadosApuracaoUrna(
   }
 }
 
-/** O apurador abre a urna e atesta a integridade dos lacres recebidos. */
+/**
+ * O apurador abre a urna e atesta a integridade dos lacres recebidos (R-6):
+ * só depois que a votação na urna acabou (o mesário a encerrou ou a janela
+ * da assembleia terminou) e, sem o atestado, com ressalva por escrito.
+ */
 export async function iniciarApuracaoUrna(
   urnaId: string,
   dados: { lacresOk: boolean; lacresObservacao: string | null }
 ): Promise<{ erro?: string; ok?: boolean }> {
   const auth = await urnaDoApurador(urnaId)
   if (!auth) return { erro: "Urna não autorizada." }
-  const { emp } = auth
+  const { emp, urna } = auth
+  if (!dados.lacresOk && (dados.lacresObservacao ?? "").trim().length < RESSALVA_LACRE_MIN) {
+    return {
+      erro: `Sem atestar os lacres, descreva a ressalva (ao menos ${RESSALVA_LACRE_MIN} caracteres): ela fica registrada no livro da apuração.`,
+    }
+  }
+  const [estado, janela] = await Promise.all([
+    estadoDiaUrna(urnaId),
+    situacaoAssembleiaPorId(urna.assembleiaId),
+  ])
+  if (!estado.encerrada && janela?.situacao !== "encerrada") {
+    return {
+      erro: "A votação nesta urna ainda não terminou: a apuração começa depois que o mesário encerra a urna ou quando a votação da assembleia acaba.",
+    }
+  }
   const apuradores = await apuradoresDaSessao()
   const apuradorId = apuradores[0]?.id ?? null
   const admin = await createAdminClient()
 
   const { data: existente } = await admin
     .from("voto_apuracao_urna")
-    .select("id")
+    .select("id, status")
     .eq("emp_proprietaria_id", emp)
     .eq("urna_id", urnaId)
     .maybeSingle()
 
+  if (existente?.status === "concluida") {
+    return { erro: "A apuração desta urna já foi concluída." }
+  }
   if (existente?.id) {
     const { error } = await admin
       .from("voto_apuracao_urna")
@@ -423,6 +451,9 @@ export async function salvarContagemUrna(
     .eq("urna_id", urnaId)
     .maybeSingle()
   if (!sessao?.id) return { erro: "Inicie a apuração da urna primeiro." }
+  if (sessao.status === "concluida") {
+    return { erro: "A apuração desta urna já foi concluída: a contagem não muda mais." }
+  }
 
   const linhas = contagens
     .filter((c) => Number.isFinite(c.quantidade) && c.quantidade >= 0)
@@ -435,12 +466,14 @@ export async function salvarContagemUrna(
       quantidade: Math.floor(c.quantidade),
       updated_at: new Date().toISOString(),
     }))
-  // Regrava do zero (idempotente para a urna).
-  await admin
+  // Regrava do zero (idempotente para a urna). O banco recusa mexer na
+  // contagem de urna concluída ou com lacre sem atestado nem ressalva.
+  const { error: erroApagar } = await admin
     .from("voto_apuracao_contagem")
     .delete()
     .eq("emp_proprietaria_id", emp)
     .eq("apuracao_urna_id", sessao.id)
+  if (erroApagar) return { erro: `Não foi possível salvar: ${erroApagar.message}` }
   if (linhas.length) {
     const { error } = await admin.from("voto_apuracao_contagem").insert(linhas)
     if (error) return { erro: `Não foi possível salvar: ${error.message}` }
@@ -455,11 +488,15 @@ export async function concluirApuracaoUrna(
   if (!auth) return { erro: "Urna não autorizada." }
   const { emp } = auth
   const admin = await createAdminClient()
-  const { error } = await admin
+  // Concluída, a sessão e a contagem travam no banco (R-6).
+  const { data, error } = await admin
     .from("voto_apuracao_urna")
     .update({ status: "concluida", concluida_em: new Date().toISOString() })
     .eq("emp_proprietaria_id", emp)
     .eq("urna_id", urnaId)
+    .eq("status", "em_andamento")
+    .select("id")
   if (error) return { erro: `Não foi possível concluir: ${error.message}` }
+  if (!data?.length) return { erro: "A apuração desta urna não está em andamento." }
   return { ok: true }
 }

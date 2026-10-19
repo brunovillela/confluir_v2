@@ -60,7 +60,7 @@ Escala como na RIPD 1. **Já corrigidos em 18/10/2026**: o voto legado ligado ao
 
 1. ~~**V1**: desfazer o vínculo do em separado ao encerrar a apuração.~~ Feito (migração `20261018181729`, aplicada).
 2. ~~**V4**: limpeza dos contatos após a apuração.~~ Feito (mesma migração). A entidade deve encerrar a apuração das rodadas antigas para que o expurgo as alcance.
-3. **V3**: expiração do link, limite de tentativas e alerta do Turnstile.
+3. **V3**: expiração do link e alerta do Turnstile. O limite de tentativas na confirmação do código do e-mail de votação foi feito em 19/10/2026 (5 por código; R-2 de `docs/produto/regras-negocio.md`).
 4. **V5, V8**: separação de permissões, auditoria do deferimento e conferência de documento (a trilha do encerramento e da reabertura já existe desde 19/10/2026).
 5. **V2, V6, V9**: melhorias de baixo risco. ~~V7~~ feito (migração `20261019083424`).
 

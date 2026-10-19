@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RESSALVA_LACRE_MIN } from "@/lib/assembleias-constantes"
 import type { ApuracaoUrnaDados } from "@/lib/db/votacao-apuracao"
 
 import {
@@ -63,7 +64,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
           </p>
         ) : (
           <div className="grid gap-1">
-            {dados.lacres.map((l) => (
+            {dados.lacres.filter((l) => !l.anulado).map((l) => (
               <div key={l.id} className="flex items-center gap-2 text-xs">
                 <Badge variant="outline">
                   {l.tipo === "boca" ? "Boca" : "Principal"}
@@ -92,8 +93,13 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
               </span>
             </label>
             <div className="grid gap-1.5">
-              <Label htmlFor="lacres-obs">Observação (opcional)</Label>
-              <Input id="lacres-obs" name="lacres_observacao" />
+              <Label htmlFor="lacres-obs">Observação</Label>
+              <Input id="lacres-obs" name="lacres_observacao" maxLength={1000} />
+              <p className="text-muted-foreground text-xs">
+                Sem o atestado acima, descreva o que encontrou (ao menos{" "}
+                {RESSALVA_LACRE_MIN} caracteres): a ressalva fica no livro da
+                apuração. Depois de concluída, a contagem da urna não muda mais.
+              </p>
             </div>
             {estIniciar.erro && (
               <Alert variant="destructive">
@@ -205,7 +211,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
             variant="outline"
             disabled={pendConcluir}
             onClick={(e) => {
-              confirmarEnvio(e, "Concluir a apuração desta urna? Salve a contagem antes.")
+              confirmarEnvio(e, "Concluir a apuração desta urna? Salve a contagem antes: depois de concluída, ela não muda mais.")
             }}
           >
             {pendConcluir ? <Loader2 className="animate-spin" /> : <Lock />}

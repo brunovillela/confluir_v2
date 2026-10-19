@@ -160,10 +160,10 @@ Cada regra traz quatro campos:
 - Config.: fixo.
 - Código: `lib/db/assembleias.ts:~999,~1050,1575`.
 
-**VOT-05**: Só se prorroga uma assembleia já iniciada e com a apuração em aberto. Se o novo término passar do fim da rodada, a rodada é estendida automaticamente.
-- Valor: o novo término tem de ser depois do atual e no futuro. Não há limite de prorrogações.
-- Config.: fixo.
-- Código: `lib/db/assembleias.ts:1584` (`prorrogarAssembleia`).
+**VOT-05**: Só se prorroga uma assembleia já iniciada e com a apuração em aberto, com motivo. Se o novo término passar do fim da rodada, a rodada é estendida junto. Cada prorrogação, e a rodada estendida, fica no livro da apuração.
+- Valor: o novo término tem de ser depois do atual e no futuro, até 30 dias além do término atual; no máximo 3 prorrogações por assembleia; motivo de pelo menos 5 caracteres. Depois do início, o banco recusa mudar o término de outro jeito.
+- Config.: fixo (`PRORROGACOES_MAX`, `PRORROGACAO_MAX_DIAS`; o banco repete os números).
+- Código: `lib/db/assembleias.ts` (`prorrogarAssembleia`), `lib/assembleias-constantes.ts`; trigger `voto_assembleias_apuracao_janela` (migração `20261019180140`).
 
 **VOT-06**: O voto em separado só é aceito quando a assembleia permite e com a urna aberta.
 - Valor: na urna digital, o voto fica retido até ser deferido. Na urna física, vai num envelope com código de 6 caracteres.
@@ -175,10 +175,10 @@ Cada regra traz quatro campos:
 - Config.: por assembleia (`somente_filiados`); os dias ficam em `filiacao_carencias`.
 - Código: `lib/db/votacao-portal.ts:467,~709,~1211`.
 
-**VOT-08**: O código que confirma o e-mail de votação no portal vale por um tempo curto.
-- Valor: 6 dígitos, 15 minutos.
-- Config.: fixo, repetido em dois arquivos.
-- Código: `lib/db/votacao-portal.ts:44`, `app/portal/votacao/limite-envio-codigo.ts:37`.
+**VOT-08**: O código que confirma o e-mail de votação no portal vale por um tempo curto e por poucas tentativas.
+- Valor: 6 dígitos, 15 minutos, 5 tentativas por código (esgotadas, é preciso pedir outro).
+- Config.: fixo.
+- Código: `lib/votacao-codigo-email.ts` (constantes), `lib/db/votacao-portal.ts` (`confirmarVerificacaoEmail`); coluna `votacao_email_verificado.pend_tentativas`.
 
 **VOT-09**: O envio desse código tem intervalo mínimo e bloqueia em degraus, contados por filiado e por endereço de e-mail.
 - Valor: 60 s entre envios; 5 envios bloqueiam por 15 min; 10 envios, por 1 h.
@@ -199,6 +199,11 @@ Cada regra traz quatro campos:
 - Valor: reabrir exige motivo de pelo menos 5 caracteres. No encerramento, o banco grava o SHA-256 do resultado e roda as conferências C1 a C6.
 - Config.: fixo.
 - Código: `lib/db/assembleias.ts:2359,~2530,2647`.
+
+**VOT-14**: Na urna física, o apurador só abre a urna depois que a votação nela acabou e, sem atestar os lacres, só com uma ressalva escrita, que vai para o livro da apuração. Concluída, a contagem da urna não muda mais. Registro de lacre não se apaga: o lançamento errado se anula, com motivo.
+- Valor: a urna encerrada pelo mesário ou a janela da assembleia terminada; ressalva de pelo menos 10 caracteres; motivo da anulação de pelo menos 5.
+- Config.: fixo (`RESSALVA_LACRE_MIN`).
+- Código: `lib/db/votacao-apuracao.ts` (`iniciarApuracaoUrna`, `salvarContagemUrna`, `concluirApuracaoUrna`), `lib/db/votacao-mesarios.ts` (`anularLacre`); triggers `voto_apuracao_urna_travas`, `voto_apuracao_urna_livro`, `voto_apuracao_contagem_travas`, `voto_urna_lacres_imutavel` (migração `20261019180140`).
 
 **VOT-13**: O sistema avisa os aptos sozinho antes da abertura e lembra quem não votou perto do fim.
 - Valor:
@@ -528,12 +533,12 @@ Pontos em que o código e a regra esperada divergem, ou em que a regra tem brech
 | # | Achado | Proposta |
 |---|---|---|
 | R-1 | **Carência configurável para 5 benefícios** (hospedagem, saúde, jurídico, eventos, votação), mas o código só a aplica na **votação**. A inadimplência não suspende nada: só gera relatório e aviso no portal. | Aplicar a carência nos outros benefícios ou tirar a opção da tela |
-| R-2 | **Código de confirmação do e-mail de votação (15 min) sem limite de tentativas**: dá para chutar à vontade durante a validade. A constante está repetida em dois arquivos. | Limite de tentativas por código (ex.: 5) e constante única (V3 da RIPD da votação) |
+| R-2 | **Código de confirmação do e-mail de votação (15 min) sem limite de tentativas**: dá para chutar à vontade durante a validade. A constante está repetida em dois arquivos. | Limite de tentativas por código (ex.: 5) e constante única (V3 da RIPD da votação). **Corrigido em 19/10/2026** (VOT-08): 5 tentativas por código, constantes em `lib/votacao-codigo-email.ts` |
 | R-3 | **Alçada contornável:** quem tem `financeiro_pagamento` leva a ordem a "A pagar" sem alçada; diárias no modo "remessa" (padrão) nascem autorizadas; a parcela sob demanda de contrato nasce autorizada, embora o manual diga que passa pela alçada. | Decidir com a entidade; registrar a dispensa como evento auditável |
 | R-4 | **Auditoria × custeio recorrente:** a parcela recorrente grava dispensa de autorização, mas a auditoria só aceita dispensa de Folha, Contrato e Locação, então deve acusar falha. A janela de duplicidade é ±7 dias fixa na auditoria e configurável na criação. | Alinhar a lista de dispensas e usar a mesma janela nas duas pontas |
-| R-5 | **Prorrogação de votação sem limite**, que estende a rodada sozinha e contorna a regra da janela dentro da rodada. | Limite e registro no livro da apuração |
-| R-6 | **Urna física:** lacre não conferido não bloqueia; sem checagem de horário; contagem editável depois de concluída; lacre pode ser apagado de vez. | Travas como as de C-1 (dossiê da votação) para a contagem física |
-| R-7 | **Fuso:** duas funções da votação usam o relógio do servidor (UTC); depois das 21h a rodada pode contar como encerrada um dia antes. | Usar o dia de São Paulo (ADR 0014) |
+| R-5 | **Prorrogação de votação sem limite**, que estende a rodada sozinha e contorna a regra da janela dentro da rodada. | Limite e registro no livro da apuração. **Corrigido em 19/10/2026** (VOT-05): até 3 prorrogações de até 30 dias, com motivo, rodada estendida pelo banco na mesma transação, tudo no livro |
+| R-6 | **Urna física:** lacre não conferido não bloqueia; sem checagem de horário; contagem editável depois de concluída; lacre pode ser apagado de vez. | Travas como as de C-1 (dossiê da votação) para a contagem física. **Corrigido em 19/10/2026** (VOT-14): ressalva obrigatória e no livro, apuração só após o encerramento, contagem concluída travada no banco, lacre só se anula |
+| R-7 | **Fuso:** duas funções da votação usam o relógio do servidor (UTC); depois das 21h a rodada pode contar como encerrada um dia antes. | Usar o dia de São Paulo (ADR 0014). **Corrigido em 19/10/2026**: `periodoIniciado`, `periodoTerminado` e `hojeLocalISO` (`lib/assembleias-constantes.ts`) no dia de SP; também o dia da urna (`lib/db/votacao-mesarios.ts`) e o aviso da rodada (`lib/db/votacao-aviso.ts`) |
 | R-8 | **Corte do dia 15** do movimento da folha só aparece na tela; a montagem não o usa. | Aplicar na montagem ou tirar da tela |
 | R-9 | **Férias:** só feriados nacionais; aquisitivo e concessivo calculados se sobrepõem em um dia. | Feriados por sede; corrigir o limite |
 | R-10 | **RPA:** padrões de INSS e IRRF com tabelas de 2025. | Atualizar para 2026 e tornar a tabela configurável por ano |

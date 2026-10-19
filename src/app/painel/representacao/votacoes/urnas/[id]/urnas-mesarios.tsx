@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react"
 import {
+  Ban,
   Box,
   Loader2,
   Lock,
@@ -44,7 +45,7 @@ import {
   criarUrnaAction,
   registrarLacreAction,
   removerApuradorAction,
-  removerLacreAction,
+  anularLacreAction,
   removerMesarioAction,
   removerUrnaAction,
   salvarApuradorAction,
@@ -327,7 +328,7 @@ function LacresUrna({
   const [aberto, setAberto] = useState(false)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [estado, formAction, pendente] = useActionState(registrarLacreAction, {})
-  const [estRemover, removerAction] = useActionState(removerLacreAction, {})
+  const [estAnular, anularAction] = useActionState(anularLacreAction, {})
 
   return (
     <div className="rounded-md border border-dashed p-3">
@@ -347,10 +348,10 @@ function LacresUrna({
 
       {aberto && (
         <div className="mt-3 grid gap-3">
-          {(estado.erro || estRemover.erro) && (
+          {(estado.erro || estAnular.erro) && (
             <Alert variant="destructive">
               <AlertDescription>
-                {estado.erro ?? estRemover.erro}
+                {estado.erro ?? estAnular.erro}
               </AlertDescription>
             </Alert>
           )}
@@ -366,9 +367,13 @@ function LacresUrna({
                   key={l.id}
                   lacre={l}
                   assembleiaId={assembleiaId}
-                  removerAction={removerAction}
+                  anularAction={anularAction}
                 />
               ))}
+              <p className="text-muted-foreground text-xs">
+                Registro de lacre não se apaga. Lançou errado? Anule com o
+                motivo: ele continua no histórico, riscado.
+              </p>
             </div>
           )}
 
@@ -462,52 +467,102 @@ function LacresUrna({
 function LacreItem({
   lacre,
   assembleiaId,
-  removerAction,
+  anularAction,
 }: {
   lacre: LacreLinha
   assembleiaId: string
-  removerAction: (fd: FormData) => void
+  anularAction: (fd: FormData) => void
 }) {
+  const [anulando, setAnulando] = useState(false)
   const fmt = (iso: string | null) =>
     iso
       ? new Date(iso).toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
         })
       : "—"
+  if (lacre.anulado) {
+    return (
+      <div className="text-muted-foreground grid gap-0.5 rounded-md border border-dashed p-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <Ban className="size-3.5" />
+          <span className="line-through">
+            {ROTULO_TIPO_LACRE[lacre.tipo]} nº {lacre.numero ?? "—"} ·{" "}
+            {lacre.evento === "rompido" ? "rompido" : "instalado"} · {fmt(lacre.data)}
+          </span>
+          <Badge variant="outline">Anulado {fmt(lacre.anulado.em)}</Badge>
+        </div>
+        <p>Motivo: {lacre.anulado.motivo}</p>
+      </div>
+    )
+  }
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-xs">
-      <div className="flex items-center gap-2">
-        {lacre.evento === "rompido" ? (
-          <Unlock className="size-3.5 text-destructive" />
-        ) : (
-          <Lock className="text-success-fg size-3.5" />
-        )}
-        <span className="font-medium">{ROTULO_TIPO_LACRE[lacre.tipo]}</span>
-        <span className="font-mono">nº {lacre.numero ?? "—"}</span>
-        <Badge variant="outline">
-          {lacre.evento === "rompido" ? "Rompido" : "Instalado"}
-        </Badge>
-        <span className="text-muted-foreground">{fmt(lacre.data)}</span>
-        {lacre.guardadoNaUrna && (
-          <span className="text-muted-foreground">· guardado na urna</span>
+    <div className="grid gap-2 rounded-md border p-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {lacre.evento === "rompido" ? (
+            <Unlock className="size-3.5 text-destructive" />
+          ) : (
+            <Lock className="text-success-fg size-3.5" />
+          )}
+          <span className="font-medium">{ROTULO_TIPO_LACRE[lacre.tipo]}</span>
+          <span className="font-mono">nº {lacre.numero ?? "—"}</span>
+          <Badge variant="outline">
+            {lacre.evento === "rompido" ? "Rompido" : "Instalado"}
+          </Badge>
+          <span className="text-muted-foreground">{fmt(lacre.data)}</span>
+          {lacre.guardadoNaUrna && (
+            <span className="text-muted-foreground">· guardado na urna</span>
+          )}
+        </div>
+        {!anulando && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => setAnulando(true)}
+          >
+            <Ban className="size-3.5" />
+            Anular
+          </Button>
         )}
       </div>
-      <form action={removerAction}>
-        <input type="hidden" name="assembleia_id" value={assembleiaId} />
-        <input type="hidden" name="lacre_id" value={lacre.id} />
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          className="size-6"
-          aria-label="Remover lacre"
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </form>
+      {anulando && (
+        <form action={anularAction} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="assembleia_id" value={assembleiaId} />
+          <input type="hidden" name="lacre_id" value={lacre.id} />
+          <div className="grid min-w-48 flex-1 gap-1">
+            <Label htmlFor={`anular-${lacre.id}`} className="text-xs">
+              Motivo da anulação *
+            </Label>
+            <Input
+              id={`anular-${lacre.id}`}
+              name="motivo"
+              required
+              minLength={5}
+              maxLength={500}
+              placeholder="Ex.: número digitado errado"
+              className="h-8 text-xs"
+            />
+          </div>
+          <Button type="submit" size="sm" variant="destructive" className="h-8">
+            Anular registro
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-8"
+            onClick={() => setAnulando(false)}
+          >
+            Cancelar
+          </Button>
+        </form>
+      )}
     </div>
   )
 }

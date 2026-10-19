@@ -66,10 +66,12 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 | **Voto imutável**: o banco recusa UPDATE, DELETE e TRUNCATE em `voto_online`, de qualquer papel; a única mudança aceita é o desvínculo do voto em separado feito pelo trigger de encerramento (`em_separado_id` → nulo e `valido`), reconhecido por vir de dentro de outro trigger (`pg_trigger_depth() > 1`) | Trigger `voto_online_imutavel` (migração `20261019083424`) | Tentar alterar um voto: erro "Voto registrado não pode ser alterado nem apagado" |
 | **Resultado congelado** no encerramento (`voto_resultado_final`) antes de marcar a apuração como encerrada; com a apuração encerrada o banco recusa mexer nele | `encerrarApuracao` em `src/lib/db/assembleias.ts`; trigger `voto_resultado_final_congelado` | C5 compara o congelado com os votos atuais |
 | **Hash publicado**: no encerramento o banco calcula o SHA-256 do texto canônico do resultado e grava em `voto_assembleias.resultado_hash`; aparece na apuração (com o texto), no relatório PDF e no portal | Trigger `voto_assembleias_apuracao_livro`; `voto_resultado_texto()`; `src/lib/votacao-integridade.ts` | C6 recalcula em JS, fora do banco |
-| **Livro da apuração**: cada encerramento e reabertura com quem, quando, motivo (obrigatório na reabertura), resultado congelado do momento e hash; só acrescenta | Tabela `voto_apuracao_eventos` (trigger `voto_apuracao_eventos_imutavel`) | Aba Apuração › Integridade do resultado |
+| **Livro da apuração**: cada encerramento e reabertura com quem, quando, motivo (obrigatório na reabertura), resultado congelado do momento e hash; cada prorrogação e cada ressalva de lacre da urna física; só acrescenta | Tabela `voto_apuracao_eventos` (trigger `voto_apuracao_eventos_imutavel`) | Aba Apuração › Integridade do resultado |
+| **Prorrogação com limite e registro**: depois do início, o término só muda por prorrogação, com motivo e usuário na mesma instrução, apuração aberta, no máximo 3 vezes por assembleia e 30 dias além do término atual. Se passar do fim da rodada, o banco estende a rodada na mesma transação. Cada prorrogação vai para o livro (de/para do término e da rodada). Um UPDATE direto no término é recusado | Trigger `voto_assembleias_apuracao_janela` (migração `20261019180140`); `prorrogarAssembleia` em `src/lib/db/assembleias.ts` | Aba Apuração › Integridade do resultado |
 | **Conferência automática** no encerramento (C1–C6 da rodada), gravada no evento de encerramento; não impede o encerramento, registra FALHA | `votacao_conferencia()`; trigger `voto_assembleias_conferencia_encerramento` | Aba Apuração › Integridade do resultado |
 | Participação = votos (cada participante gerou exatamente um voto por pergunta) | Invariante do desenho | C1 e C2 |
-| Urna física: apurador só nas urnas atribuídas, atesto de lacres, contagem por opção, branco e nulo | `src/lib/db/votacao-apuracao.ts:231-460`; lacres e ata em VM:798-996 | Ata da urna |
+| Urna física: apurador só nas urnas atribuídas; apuração só depois que o mesário encerra a urna ou a janela da assembleia acaba; contagem por opção, branco e nulo | `iniciarApuracaoUrna` e seguintes em `src/lib/db/votacao-apuracao.ts`; lacres e ata em VM | Ata da urna |
+| **Urna física travada no banco**: sem atestar os lacres, a apuração só abre com ressalva escrita (10+ caracteres), que vai para o livro; a contagem de sessão concluída (ou com lacre sem atestado nem ressalva) não se grava, altera nem apaga; a sessão concluída não muda; registro de lacre não se apaga (o lançamento errado se anula, com motivo, e fica no histórico) | Triggers `voto_apuracao_urna_travas`, `voto_apuracao_urna_livro`, `voto_apuracao_contagem_travas` e `voto_urna_lacres_imutavel` (migração `20261019180140`) | Tentar alterar a contagem concluída: erro "A apuração desta urna foi concluída" |
 | Em separado só conta se deferido; decisão travada após encerrar | `dadosApuracao` e `encerrarApuracao` em `src/lib/db/assembleias.ts`; trigger `voto_em_separado_decisao_definitiva` | — |
 | Schema vigiado contra mudança fora das migrações | Cron `/api/schema/deriva/tick` (Onda A3) | `npm run db:deriva` |
 
@@ -84,6 +86,9 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 | Gestor alterar votos | `voto_online` imutável no banco; resultado congelado travado; hash publicado + C5/C6; deriva do schema | Quem tem o papel dono do banco pode desligar um trigger: vira deriva de schema (`db:deriva`) e o hash publicado deixa de conferir |
 | Gestor ver quem votou em quê | Não existe dado que permita (G1) | — |
 | Reabrir a apuração para mudar o resultado | Reabertura exige motivo e usuário; o livro guarda o resultado anterior e o hash dele; o novo encerramento publica outro hash | A reabertura continua possível (por desenho): o livro a torna visível a quem conferir |
+| Esticar a votação até virar o resultado | Prorrogação com motivo, até 3 vezes e 30 dias cada, só com a apuração aberta; cada uma (e a rodada estendida) no livro | Até 90 dias a mais por assembleia, à vista no livro |
+| Mexer na urna física ou na contagem dela | Lacre não se apaga; ressalva de lacre no livro; contagem e sessão concluídas travadas no banco | Contagem errada descoberta depois de concluída não tem correção pelo sistema (exige nova assembleia ou decisão registrada fora) |
+| Chutar o código do e-mail de votação no portal | 5 tentativas por código (`votacao_email_verificado.pend_tentativas`), depois é preciso pedir outro, que tem cadência e degraus próprios | — |
 
 ## 4. Documentos que a votação produz
 
@@ -91,7 +96,7 @@ Lista de aptos por rodada (nome, CPF, matrícula, e-mail corporativo)
 |---|---|---|
 | Relatório de votantes (PDF) | Apuração › Relatório (`src/app/painel/representacao/votacoes/apuracao/[id]/relatorio/route.ts`) | Nome, CPF, matrícula, hora e canal de quem participou, **sem o voto**. Exportação registrada no livro de exportações (M5) |
 | Resultado final | `voto_resultado_final` + tela de apuração, relatório PDF e portal | Totais por opção, branco e nulo, com o **hash SHA-256** do resultado |
-| Livro da apuração | Aba Apuração › Integridade do resultado (`voto_apuracao_eventos`) | Encerramentos e reaberturas: quem, quando, motivo, resultado e hash; conferência C1–C6 no encerramento |
+| Livro da apuração | Aba Apuração › Integridade do resultado (`voto_apuracao_eventos`) | Encerramentos e reaberturas: quem, quando, motivo, resultado e hash; conferência C1–C6 no encerramento; prorrogações (de/para, rodada) e ressalvas de lacre da urna física |
 | Ata da urna | Mesário › Urna › Ata | Abertura, lacres, primeiro eleitor, fechamento, anomalias |
 | Comprovante do eleitor | E-mail, Telegram e `/comprovante/[codigo]` | Código, hash e hora, sem o voto |
 | **Conferência independente** | `npm run votacao:auditar -- --rodada=<id> --saida=conferencia.md` | C1 a C5, só números (seção 5) |
@@ -119,6 +124,8 @@ O relatório não traz nome, CPF nem voto: pode ir para a comissão e para o pro
 
 **Execução de 19/10/2026, depois da migração (produção):** C1–C6 **OK** em 9 rodadas e 9 assembleias encerradas, todas com hash publicado igual ao recalculado em JS; com o demo incluído, também tudo OK (10 rodadas). No demo, a apuração da "Assembleia online de teste" foi reaberta (com motivo) e encerrada de novo pela tela: o livro registrou as duas coisas, o hash saiu na apuração e no PDF e a conferência gravou C1–C6 OK.
 
+**Execução de 19/10/2026, depois da migração `20261019180140` (R-2, R-5, R-6):** C1–C6 **OK** em produção (9 rodadas) e com o demo (10). No demo, na "Rodada de teste R-5/R-6 (prorrogação e urna)" (dados fictícios): uma prorrogação além de 30 dias foi recusada pela tela; uma válida estendeu a rodada e entrou no livro (de/para do término e da rodada, motivo e usuário); um lacre lançado errado foi anulado com motivo e continua no histórico. As travas da contagem e da sessão da urna física foram testadas em transação (o login do apurador é por código de e-mail, sem teste no navegador).
+
 ## 6. Pontos a fortalecer
 
 Os cinco pontos abaixo foram tratados em 19/10/2026 pela migração `20261019083424_votacao_integridade` (testada em transação) e pelo código do mesmo commit. A coluna "Como ficou" diz onde.
@@ -130,6 +137,15 @@ Os cinco pontos abaixo foram tratados em 19/10/2026 pela migração `20261019083
 | C-3 | Sem prova criptográfica externa do resultado | Publicar no encerramento o hash do resultado e da contagem (ex.: na ata e no portal), para qualquer pessoa conferir depois | `voto_assembleias.resultado_hash`, calculado pelo banco; na aba Apuração (com o texto canônico), no relatório PDF (seção Resultado) e em Minhas votações no portal |
 | C-4 | Unicidade só na aplicação | UNIQUE parcial por (rodada, CPF) com `hora_voto` preenchida | `voto_aptos_rodada_cpf_votou_idx` com o CPF só em dígitos (a lista guarda CPF com e sem máscara) e de 11 dígitos; reserva do portal, presença na urna física e unificação de aptos repetidos ajustadas para não colidir |
 | C-5 | Conferência só manual | Rodar `votacao:auditar` automaticamente ao encerrar a apuração e anexar o resultado à ata | `votacao_conferencia()` roda no encerramento e fica no livro; a aba Apuração mostra C1–C6. Anexar à ata da urna fica para quando a ata for gerada pelo sistema |
+
+Em 19/10/2026 a migração `20261019180140_votacao_prorrogacao_urna_fisica` (testada em transação) tratou mais quatro achados do catálogo de regras (`docs/produto/regras-negocio.md`, seção final):
+
+| # | Ponto | Como ficou |
+|---|---|---|
+| R-2 | Código do e-mail de votação (portal) sem limite de tentativas; validade repetida em dois arquivos | 5 tentativas por código (`pend_tentativas`, contadas sobre o valor lido para dois chutes simultâneos não valerem por um); constantes em `src/lib/votacao-codigo-email.ts` |
+| R-5 | Prorrogação sem limite, estendia a rodada sozinha e sem trilha | Trigger `voto_assembleias_apuracao_janela`: motivo e usuário, até 3 vezes, 30 dias cada, rodada estendida na mesma transação, tudo no livro |
+| R-6 | Urna física: lacre não conferido não bloqueava, sem horário, contagem editável, lacre apagável | Ressalva obrigatória (e no livro); apuração só após o encerramento da urna ou da janela; contagem e sessão concluídas travadas; lacre só se anula |
+| R-7 | Duas funções da votação com o dia do servidor (UTC) | `periodoIniciado`, `periodoTerminado` e `hojeLocalISO` (`src/lib/assembleias-constantes.ts`) no dia de São Paulo; o dia da urna (VM) e o aviso da rodada também |
 
 ## 7. Roteiro de resposta a impugnação
 

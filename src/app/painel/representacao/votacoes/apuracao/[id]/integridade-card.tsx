@@ -8,14 +8,28 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import type { IntegridadeApuracao } from "@/lib/db/votacao-livro-apuracao"
-import { formatarDataHora } from "@/lib/formato"
+import type { EventoApuracao, IntegridadeApuracao } from "@/lib/db/votacao-livro-apuracao"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 import { hashLegivel } from "@/lib/votacao-integridade"
+
+const ROTULO_EVENTO: Record<EventoApuracao["tipo"], string> = {
+  encerramento: "Encerrada",
+  reabertura: "Reaberta",
+  prorrogacao: "Prorrogada",
+  lacre: "Urna aberta com ressalva no lacre",
+}
+
+/** 'AAAA-MM-DD HH:MM' (já no horário de SP, gravado pelo banco) → '25/10/2026 18:00'. */
+function dataHoraDoLivro(v: string | null): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(v ?? "")
+  return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}` : "—"
+}
 
 /**
  * Integridade da apuração (dossiê de auditoria C-2, C-3 e C-5): o hash
  * publicado no encerramento, a conferência automática e o livro de
- * encerramentos e reaberturas. Tudo gravado pelo banco; aqui só se mostra.
+ * encerramentos, reaberturas, prorrogações (R-5) e ressalvas de lacre da
+ * urna física (R-6). Tudo gravado pelo banco; aqui só se mostra.
  */
 export function IntegridadeCard({
   integridade,
@@ -121,15 +135,35 @@ export function IntegridadeCard({
               {integridade.eventos.map((e) => (
                 <li key={e.id} className="border-l-2 pl-3">
                   <p>
-                    <strong>{e.tipo === "encerramento" ? "Encerrada" : "Reaberta"}</strong>{" "}
+                    <strong>{ROTULO_EVENTO[e.tipo]}</strong>{" "}
                     em {formatarDataHora(e.quando)}
                     {e.usuario ? <> por {e.usuario}</> : null}
+                    {e.tipo === "lacre" && e.urna ? <> na urna {e.urna}</> : null}
                   </p>
-                  {e.motivo && <p className="text-muted-foreground">Motivo: {e.motivo}</p>}
-                  <p className="text-muted-foreground font-mono text-xs">
-                    {e.tipo === "encerramento" ? "hash" : "hash do resultado anterior"}{" "}
-                    {e.resultadoHash.slice(0, 16)}…
-                  </p>
+                  {e.prorrogacao && (
+                    <p className="text-muted-foreground">
+                      {e.prorrogacao.numero ? `${e.prorrogacao.numero}ª prorrogação: ` : null}
+                      término de {dataHoraDoLivro(e.prorrogacao.terminoDe)} para{" "}
+                      {dataHoraDoLivro(e.prorrogacao.terminoPara)}
+                      {e.prorrogacao.rodadaPara ? (
+                        <>
+                          ; rodada estendida de {formatarData(e.prorrogacao.rodadaDe)} para{" "}
+                          {formatarData(e.prorrogacao.rodadaPara)}
+                        </>
+                      ) : null}
+                    </p>
+                  )}
+                  {e.motivo && (
+                    <p className="text-muted-foreground">
+                      {e.tipo === "lacre" ? "Ressalva do apurador" : "Motivo"}: {e.motivo}
+                    </p>
+                  )}
+                  {e.resultadoHash && (
+                    <p className="text-muted-foreground font-mono text-xs">
+                      {e.tipo === "encerramento" ? "hash" : "hash do resultado anterior"}{" "}
+                      {e.resultadoHash.slice(0, 16)}…
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

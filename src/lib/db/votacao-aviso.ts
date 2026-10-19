@@ -157,7 +157,7 @@ export async function dadosDoAviso(
     .maybeSingle()
   if (!rodada) return { erro: "Rodada não encontrada." }
   const termino = rodada.termino as string | null
-  if (termino && termino.slice(0, 10) < new Date().toISOString().slice(0, 10)) {
+  if (termino && termino.slice(0, 10) < hojeSP()) {
     return { erro: "O período desta rodada já terminou — não há mais o que avisar." }
   }
 

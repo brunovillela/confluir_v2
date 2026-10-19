@@ -419,6 +419,7 @@ export async function prorrogarAssembleiaAction(
   const r = await prorrogarAssembleia(id, {
     data_termino: data,
     hora_termino: horaISO(texto(formData, "hora_termino")),
+    motivo: texto(formData, "motivo"),
   })
   if (r.erro) return { erro: r.erro }
   revalidarRodada(rodadaId)

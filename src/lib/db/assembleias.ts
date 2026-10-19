@@ -18,8 +18,11 @@ import {
   janelaAssembleia,
   MOTIVO_ASSEMBLEIAS_BLOQUEADAS,
   MOTIVO_PERGUNTAS_BLOQUEADAS,
+  MOTIVO_PRORROGACAO_MIN,
   periodoTerminado,
   PRAZO_EM_BREVE_MS,
+  PRORROGACAO_MAX_DIAS,
+  PRORROGACOES_MAX,
   ROTULOS_MODALIDADE,
   temVotoOnline,
   type Modalidade,
@@ -1578,13 +1581,22 @@ export const MOTIVO_ASSEMBLEIA_INICIADA =
 /**
  * Prorroga o TÉRMINO da assembleia (data + hora) — a única mudança permitida
  * depois do início. O novo término precisa ser posterior ao atual e ao
- * momento presente. Se passar do término da rodada, a rodada é estendida
- * junto: a janela da assembleia tem de caber nela (regra de 23/09).
+ * momento presente, no máximo PRORROGACAO_MAX_DIAS além dele, e cada
+ * assembleia aceita até PRORROGACOES_MAX prorrogações, sempre com motivo (R-5).
+ * Se passar do término da rodada, a rodada é estendida junto: a janela da
+ * assembleia tem de caber nela (regra de 23/09). Quem estende a rodada e grava
+ * a prorrogação no livro da apuração é o banco (trigger
+ * voto_assembleias_apuracao_janela), na mesma instrução: aqui só se confere
+ * antes, para dar a mensagem certa.
  */
 export async function prorrogarAssembleia(
   id: string,
-  novo: { data_termino: string; hora_termino: string | null }
+  novo: { data_termino: string; hora_termino: string | null; motivo: string }
 ): Promise<{ erro?: string; rodadaEstendida?: boolean }> {
+  const motivo = novo.motivo.trim()
+  if (motivo.length < MOTIVO_PRORROGACAO_MIN) {
+    return { erro: `Informe o motivo da prorrogação (ao menos ${MOTIVO_PRORROGACAO_MIN} caracteres).` }
+  }
   const atual = await situacaoAssembleiaPorId(id)
   if (!atual) return { erro: "Assembleia não encontrada." }
   if (atual.situacao === "antes") {
@@ -1612,35 +1624,43 @@ export async function prorrogarAssembleia(
   if (fimNovo <= Date.now()) {
     return { erro: "O novo término precisa ser no futuro." }
   }
+  const DIA_MS = 24 * 60 * 60 * 1000
+  if (fimAtual !== null && fimNovo > Math.max(fimAtual, Date.now()) + PRORROGACAO_MAX_DIAS * DIA_MS) {
+    return { erro: `Cada prorrogação estende no máximo ${PRORROGACAO_MAX_DIAS} dias além do término atual.` }
+  }
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  let rodadaEstendida = false
-  if (
-    atual.rodadaId &&
-    atual.terminoDaRodada &&
-    novo.data_termino > atual.terminoDaRodada.slice(0, 10)
-  ) {
-    const { error } = await admin
-      .from("voto_rod_assembleias")
-      .update({ termino: novo.data_termino })
-      .eq("id", atual.rodadaId)
-      .eq("emp_proprietaria_id", emp)
-    if (error) {
-      return { erro: `Falha ao estender o período da rodada: ${error.message}` }
-    }
-    rodadaEstendida = true
+  const { count: feitas } = await admin
+    .from("voto_apuracao_eventos")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", emp)
+    .eq("assembleia_id", id)
+    .eq("tipo", "prorrogacao")
+  if ((feitas ?? 0) >= PRORROGACOES_MAX) {
+    return { erro: `Esta assembleia já foi prorrogada ${PRORROGACOES_MAX} vezes, o limite.` }
   }
+  const { usuarioIdAtual } = await import("@/lib/sessao-atual")
+  const usuarioId = await usuarioIdAtual()
+  if (!usuarioId) return { erro: "Sessão sem usuário: entre de novo para prorrogar." }
 
+  const rodadaEstendida = Boolean(
+    atual.rodadaId &&
+      atual.terminoDaRodada &&
+      novo.data_termino > atual.terminoDaRodada.slice(0, 10)
+  )
   const { error } = await admin
     .from("voto_assembleias")
     .update({
       data_termino: novo.data_termino,
       ...((await colunasHorario()) ? { hora_termino: novo.hora_termino } : {}),
+      apuracao_motivo: motivo.slice(0, 2000),
+      apuracao_por: usuarioId,
     })
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
-  if (error) return { erro: `Falha ao prorrogar a assembleia: ${error.message}` }
+  // As recusas do trigger já vêm em português (limite, término, apuração).
+  if (error) return { erro: error.code === "23514" ? error.message : `Falha ao prorrogar a assembleia: ${error.message}` }
   await sincronizarAgendaDaAssembleia(id)
   return { rodadaEstendida }
 }

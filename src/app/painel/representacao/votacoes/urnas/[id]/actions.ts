@@ -12,7 +12,7 @@ import {
   criarMesario,
   criarUrna,
   registrarLacre,
-  removerLacre,
+  anularLacre,
   removerMesario,
   removerUrna,
 } from "@/lib/db/votacao-mesarios"
@@ -196,7 +196,8 @@ export async function registrarLacreAction(
   return { ok: "Lacre registrado." }
 }
 
-export async function removerLacreAction(
+/** Lacre não se apaga (R-6): o lançamento errado é anulado, com motivo. */
+export async function anularLacreAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
@@ -204,10 +205,10 @@ export async function removerLacreAction(
   const assembleiaId = String(formData.get("assembleia_id") ?? "")
   const lacreId = String(formData.get("lacre_id") ?? "")
   if (!lacreId) return { erro: "Lacre inválido." }
-  const r = await removerLacre(lacreId)
+  const r = await anularLacre(lacreId, String(formData.get("motivo") ?? ""))
   if (r.erro) return { erro: r.erro }
   rev(assembleiaId)
-  return { ok: "Lacre removido." }
+  return { ok: "Registro do lacre anulado." }
 }
 
 // ── Apuradores ──────────────────────────────────────────────────────────────

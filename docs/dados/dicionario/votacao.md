@@ -10,7 +10,7 @@
 | [votacao_expurgo_contatos](#votacao_expurgo_contatos) | — | Registro de cada execução do expurgo dos contatos dos aptos de uma rodada (votacao_expurgar_contatos, RIPD V4): quando, com que prazo e quan… |
 | [votacao_telegram_confirmacoes](#votacao_telegram_confirmacoes) | identificação, **credencial (nunca exportar)** | Confirmação de identidade pelo bot do Telegram no link único de votação (/votar). Token de uso único, 15 min. |
 | [voto_apuracao_contagem](#voto_apuracao_contagem) | — | Contagem agregada por urna física, pergunta e opção (ou branco/nulo) lançada pelo apurador. Não liga voto a pessoa. |
-| [voto_apuracao_eventos](#voto_apuracao_eventos) | identificação | Livro da apuração (dossiê de auditoria C-2): cada encerramento e reabertura, com quem, quando, motivo (obrigatório na reabertura), o resulta… |
+| [voto_apuracao_eventos](#voto_apuracao_eventos) | identificação | Livro da apuração (dossiê de auditoria C-2, R-5, R-6): cada encerramento e reabertura (com o resultado congelado e o SHA-256 dele; no encerr… |
 | [voto_apuracao_urna](#voto_apuracao_urna) | — | Apuração de uma urna física pelo apurador: conferência dos lacres, status e horários. A contagem fica em voto_apuracao_contagem. |
 | [voto_apuradores](#voto_apuradores) | identificação | Apuradores cadastrados por rodada de votação; entram no ambiente de apuração por OTP no e-mail. |
 | [voto_assembleia_resultados](#voto_assembleia_resultados) | — | Resultados de assembleia só com bubble_id. Sem uso encontrado no código (possível legado do Bubble), substituída por voto_resultado_final. |
@@ -58,6 +58,7 @@ E-mail de votação verificado por pessoa (CPF) no tenant, usado para casar o fi
 | `pend_expira_em` | timestamp with time zone | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `pend_tentativas` | integer | não | `0` |  |  | Erros já cometidos com o código pendente (pend_codigo_hash). Zera a cada código novo; com 5, o código deixa de valer e é preciso pedir outro (R-2). |
 
 Únicas: `UNIQUE (emp_proprietaria_id, cpf)`
 
@@ -115,6 +116,7 @@ Contagem agregada por urna física, pergunta e opção (ou branco/nulo) lançada
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `voto_apuracao_contagem_tenant`
+- **Triggers:** `voto_apuracao_contagem_travas` → `voto_apuracao_contagem_travas`, `voto_apuracao_contagem_travas_truncate` → `voto_apuracao_contagem_travas`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -135,7 +137,7 @@ Checks: `voto_apuracao_contagem_tipo_check` `CHECK ((tipo = ANY (ARRAY['opcao'::
 
 ## voto_apuracao_eventos
 
-Livro da apuração (dossiê de auditoria C-2): cada encerramento e reabertura, com quem, quando, motivo (obrigatório na reabertura), o resultado congelado naquele momento e o SHA-256 dele; no encerramento, também a conferência automática (C-5). Só acrescenta: o banco recusa alterar ou apagar. Escrito só pelos triggers de voto_assembleias. Não guarda voto de ninguém.
+Livro da apuração (dossiê de auditoria C-2, R-5, R-6): cada encerramento e reabertura (com o resultado congelado e o SHA-256 dele; no encerramento, também a conferência C-5), cada prorrogação da assembleia (de/para do término e da rodada) e cada ressalva de lacre da urna física, com quem, quando e motivo. Só acrescenta: o banco recusa alterar ou apagar. Escrito só pelos triggers de voto_assembleias e voto_apuracao_urna. Não guarda voto de ninguém.
 
 - **LGPD:** identificação · titulares: usuários do sistema
 - **RLS:** ligado · policies: `tenant_isolation`
@@ -146,15 +148,16 @@ Livro da apuração (dossiê de auditoria C-2): cada encerramento e reabertura, 
 | 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
 | `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
 | `assembleia_id` | uuid | não |  | → voto_assembleias |  |  |
-| `tipo` | text | não |  |  |  | encerramento ou reabertura. |
-| `motivo` | text | sim |  |  |  | Por que a apuração foi reaberta (obrigatório, ao menos 5 caracteres). Nulo no encerramento. |
-| `usuario_id` | uuid | sim |  |  | identificação | Usuário do painel que encerrou ou reabriu (nulo em encerramento feito fora do painel). |
+| `tipo` | text | não |  |  |  | encerramento, reabertura, prorrogacao ou lacre. |
+| `motivo` | text | sim |  |  |  | Por que a apuração foi reaberta, por que a assembleia foi prorrogada, ou a justificativa do apurador para o lacre não atestado (obrigatório, ao menos 5 caracteres). Nulo no encerramento. |
+| `usuario_id` | uuid | sim |  |  | identificação | Usuário do painel que encerrou, reabriu ou prorrogou (nulo em encerramento feito fora do painel e no evento de lacre, que é do apurador: ver detalhe). |
 | `resultado` | jsonb | não | `'[]'::jsonb` |  |  | Resultado congelado (voto_resultado_final) no momento do evento: [{pergunta_id, opcao_id, tipo, quantidade}]. Na reabertura, é o resultado que deixou de valer. |
-| `resultado_hash` | text | não |  |  |  | SHA-256 do texto canônico desse resultado (voto_resultado_texto). |
+| `resultado_hash` | text | sim |  |  |  | SHA-256 do texto canônico desse resultado (voto_resultado_texto). Nulo nos eventos de prorrogação e de lacre, que não mexem no resultado. |
 | `conferencia` | jsonb | sim |  |  |  | Conferência automática no encerramento (votacao_conferencia, C1–C6): {ok, verificacoes: [{id, nome, ok, detalhe}]}. Preenchida uma única vez, no mesmo encerramento. |
 | `created_at` | timestamp with time zone | não | `clock_timestamp()` |  |  | Quando a apuração foi encerrada ou reaberta. |
+| `detalhe` | jsonb | sim |  |  |  | Dados do evento que não são resultado. Prorrogação: {numero, termino_de, termino_para, rodada_de, rodada_para} (rodada_* só quando a rodada foi estendida). Lacre: {urna_id, urna, apurador_id, lacres_ok}. |
 
-Checks: `voto_apuracao_eventos_motivo_check` `CHECK (((tipo <> 'reabertura'::text) OR (length(btrim(COALESCE(motivo, ''::text))) >= 5)))`; `voto_apuracao_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['encerramento'::text, 'reabertura'::text])))`
+Checks: `voto_apuracao_eventos_hash_check` `CHECK (((tipo = ANY (ARRAY['prorrogacao'::text, 'lacre'::text])) OR (resultado_hash IS NOT NULL)))`; `voto_apuracao_eventos_motivo_check` `CHECK (((tipo = 'encerramento'::text) OR (length(btrim(COALESCE(motivo, ''::text))) >= 5)))`; `voto_apuracao_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['encerramento'::text, 'reabertura'::text, 'prorrogacao'::text, 'lacre'::text])))`
 
 Índices: `voto_apuracao_eventos_assembleia_idx`, `voto_apuracao_eventos_pkey`
 
@@ -164,6 +167,7 @@ Apuração de uma urna física pelo apurador: conferência dos lacres, status e 
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `voto_apuracao_urna_tenant`
+- **Triggers:** `voto_apuracao_urna_livro` → `voto_apuracao_urna_livro`, `voto_apuracao_urna_travas` → `voto_apuracao_urna_travas`, `voto_apuracao_urna_travas_truncate` → `voto_apuracao_urna_travas`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -229,7 +233,7 @@ Assembleia de votação dentro de uma rodada: online, urna ou reunião de trabal
 
 - **LGPD:** identificação
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_assembleias_apuracao_carimbo` → `voto_assembleias_apuracao_carimbo`, `voto_assembleias_apuracao_desvinculo` → `voto_assembleias_apuracao_desvinculo`, `voto_assembleias_apuracao_livro` → `voto_assembleias_apuracao_livro`, `voto_assembleias_conferencia_encerramento` → `voto_assembleias_conferencia_encerramento`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `voto_assembleias_apuracao_carimbo` → `voto_assembleias_apuracao_carimbo`, `voto_assembleias_apuracao_desvinculo` → `voto_assembleias_apuracao_desvinculo`, `voto_assembleias_apuracao_janela` → `voto_assembleias_apuracao_janela`, `voto_assembleias_apuracao_livro` → `voto_assembleias_apuracao_livro`, `voto_assembleias_conferencia_encerramento` → `voto_assembleias_conferencia_encerramento`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -778,6 +782,7 @@ Controle dos lacres (boca e principal) de uma urna física: número de série, i
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `voto_urna_lacres_tenant`
+- **Triggers:** `voto_urna_lacres_imutavel` → `voto_urna_lacres_imutavel`, `voto_urna_lacres_imutavel_truncate` → `voto_urna_lacres_imutavel`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -791,6 +796,9 @@ Controle dos lacres (boca e principal) de uma urna física: número de série, i
 | `guardado_na_urna` | boolean | não | `false` |  |  |  |
 | `observacao` | text | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `anulado_em` | timestamp with time zone | sim |  |  |  | Quando o registro do lacre foi anulado (lançado errado). O lacre não se apaga: anulado, continua no histórico e sai das conferências (R-6). |
+| `anulado_motivo` | text | sim |  |  |  | Por que o registro do lacre foi anulado (ao menos 5 caracteres). |
+| `anulado_por` | uuid | sim |  |  | identificação | Usuário do painel que anulou o registro do lacre. |
 
 Checks: `voto_urna_lacres_evento_check` `CHECK ((evento = ANY (ARRAY['instalado'::text, 'rompido'::text])))`; `voto_urna_lacres_tipo_check` `CHECK ((tipo = ANY (ARRAY['boca'::text, 'principal'::text])))`
 
