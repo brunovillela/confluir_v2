@@ -300,7 +300,7 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
 - 19/10/2026 — **Travas de integridade da votação integradas** (C-1 a C-5 do dossiê; merges 400fcc27 e 2fcc81d5). A migração `20261019083424_votacao_integridade` foi aplicada pela sessão paralela com o OK do usuário.
   - **Travas:** `voto_online` imutável; resultado congelado travado após o encerramento; livro `voto_apuracao_eventos` imutável; reabertura só com motivo; hash SHA-256 do resultado publicado; conferência C1–C6 gravada no encerramento; índice único (rodada, CPF).
   - **Verificado:** as 5 travas recusam no banco (teste em transação); `votacao:auditar` C1–C6 OK com 9 assembleias com hash; build limpo.
-  - **Observação:** 5 assembleias da Sindipetro-NF foram encerradas pela tela em 19/10, às 09:59–10:00 de Brasília, antes de o livro existir. Não houve sessão envolvida; a autoria fica a confirmar com o usuário.
+  - **Observação:** 5 assembleias da Sindipetro-NF foram encerradas pela tela em 19/10, às 09:59–10:00 de Brasília, antes de o livro existir. Não houve sessão envolvida; o usuário confirmou em 19/10 que a própria entidade os fez.
 - 19/10/2026 — **ONDA F CONCLUÍDA. PLANO DE DOCUMENTAÇÃO CONCLUÍDO (ondas A a F).**
   - **`docs/produto/`:**
     - `glossario.md`: 100 termos em 14 áreas;
