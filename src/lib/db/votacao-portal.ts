@@ -28,6 +28,10 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import type { CanalAcesso } from "@/lib/votacao-canais"
+import {
+  CODIGO_EMAIL_VOTACAO_MAX_TENTATIVAS as MAX_TENTATIVAS,
+  CODIGO_EMAIL_VOTACAO_VALIDADE_MIN as CODIGO_VALIDADE_MIN,
+} from "@/lib/votacao-codigo-email"
 
 /**
  * Votação na ÁREA DO FILIADO (complemento ao ambiente público).
@@ -40,8 +44,6 @@ import type { CanalAcesso } from "@/lib/votacao-canais"
  * - O VOTO é secreto: nunca liga o filiado ao conteúdo. A participação vive no
  *   apto (`hora_voto`); é dela que saem "Minhas votações" e o prontuário.
  */
-
-const CODIGO_VALIDADE_MIN = 15
 
 function hashCodigo(codigo: string, token: string): string {
   return createHash("sha256").update(`${codigo}:${token}`).digest("hex")
@@ -103,6 +105,7 @@ export async function definirEmailVotacaoDireto(
       pend_codigo_hash: null,
       pend_codigo_token: null,
       pend_expira_em: null,
+      pend_tentativas: 0,
       updated_at: agora,
     },
     { onConflict: "emp_proprietaria_id,cpf" }
@@ -132,6 +135,7 @@ export async function solicitarVerificacaoEmail(
       pend_codigo_hash: hashCodigo(codigo, token),
       pend_codigo_token: token,
       pend_expira_em: expira.toISOString(),
+      pend_tentativas: 0,
       updated_at: agora.toISOString(),
     },
     { onConflict: "emp_proprietaria_id,cpf" }
@@ -167,7 +171,7 @@ export async function confirmarVerificacaoEmail(
   const emp = await tenantAtual()
   const { data } = await admin
     .from("votacao_email_verificado")
-    .select("pend_email, pend_codigo_hash, pend_codigo_token, pend_expira_em")
+    .select("pend_email, pend_codigo_hash, pend_codigo_token, pend_expira_em, pend_tentativas")
     .eq("emp_proprietaria_id", emp)
     .eq("cpf", cpf)
     .maybeSingle()
@@ -180,8 +184,29 @@ export async function confirmarVerificacaoEmail(
   ) {
     return { erro: "Código expirado. Reenvie." }
   }
+  const tentativas = typeof data.pend_tentativas === "number" ? data.pend_tentativas : 0
+  if (tentativas >= MAX_TENTATIVAS) {
+    return { erro: "Muitas tentativas com este código. Peça um novo código." }
+  }
   if (hashCodigo(codigo, data.pend_codigo_token) !== data.pend_codigo_hash) {
-    return { erro: "Código inválido." }
+    // Conta o erro só sobre o valor lido (faz o papel de um incremento
+    // atômico): dois chutes ao mesmo tempo não valem por um.
+    const { data: contado } = await admin
+      .from("votacao_email_verificado")
+      .update({ pend_tentativas: tentativas + 1 })
+      .eq("emp_proprietaria_id", emp)
+      .eq("cpf", cpf)
+      .eq("pend_codigo_token", data.pend_codigo_token)
+      .eq("pend_tentativas", tentativas)
+      .select("pend_tentativas")
+    if (!contado?.length) return { erro: "Código inválido. Tente de novo." }
+    const restam = MAX_TENTATIVAS - (tentativas + 1)
+    return {
+      erro:
+        restam > 0
+          ? `Código inválido. Resta${restam === 1 ? "" : "m"} ${restam} tentativa${restam === 1 ? "" : "s"}.`
+          : "Código inválido. As tentativas acabaram: peça um novo código.",
+    }
   }
   const agora = new Date().toISOString()
   await admin
@@ -193,6 +218,7 @@ export async function confirmarVerificacaoEmail(
       pend_codigo_hash: null,
       pend_codigo_token: null,
       pend_expira_em: null,
+      pend_tentativas: 0,
       updated_at: agora,
     })
     .eq("emp_proprietaria_id", emp)

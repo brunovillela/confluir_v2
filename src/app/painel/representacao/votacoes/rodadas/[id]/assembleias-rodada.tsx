@@ -38,8 +38,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import {
   MODALIDADES,
+  MOTIVO_PRORROGACAO_MIN,
+  PRORROGACAO_MAX_DIAS,
+  PRORROGACOES_MAX,
   ROTULOS_MODALIDADE,
   temUrna,
   type Modalidade,
@@ -716,12 +720,18 @@ export function ProrrogarBotao({
     {}
   )
   const [data, setData] = useState(assembleia.data_termino ?? "")
+  // Controlado: o React limpa o formulário ao fim da action, e o motivo
+  // sumiria depois de uma recusa (limite, término).
+  const [motivo, setMotivo] = useState("")
 
   // Fecha o diálogo quando a action confirma (ajuste de estado no render).
   const [estadoAnterior, setEstadoAnterior] = useState(estado)
   if (estado !== estadoAnterior) {
     setEstadoAnterior(estado)
-    if (estado.ok) setAberto(false)
+    if (estado.ok) {
+      setAberto(false)
+      setMotivo("")
+    }
   }
 
   const estendeRodada =
@@ -782,12 +792,33 @@ export function ProrrogarBotao({
                 </p>
               </div>
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`${assembleia.id}-prorroga-motivo`}>
+                Motivo *
+              </Label>
+              <Textarea
+                id={`${assembleia.id}-prorroga-motivo`}
+                name="motivo"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                required
+                minLength={MOTIVO_PRORROGACAO_MIN}
+                maxLength={2000}
+                rows={2}
+                placeholder="Ex.: pedido da comissão eleitoral por instabilidade no envio dos links"
+              />
+              <p className="text-muted-foreground text-xs">
+                Fica no livro da apuração, com o seu nome. Cada assembleia aceita
+                até {PRORROGACOES_MAX} prorrogações, de no máximo{" "}
+                {PRORROGACAO_MAX_DIAS} dias cada.
+              </p>
+            </div>
             {estendeRodada && (
               <Alert variant="info">
                 <AlertDescription>
                   A nova data passa do término da rodada (
                   {formatarData(terminoDaRodada)}). O período da rodada será
-                  estendido junto.
+                  estendido junto, e isso também fica no livro.
                 </AlertDescription>
               </Alert>
             )}

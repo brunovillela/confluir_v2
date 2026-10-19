@@ -4,6 +4,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { CODIGO_EMAIL_VOTACAO_VALIDADE_MIN as VALIDADE_CODIGO_MIN } from "@/lib/votacao-codigo-email"
 
 /**
  * Estado do envio do código: `email` devolve o endereço digitado quando o
@@ -33,8 +34,6 @@ export type EstadoEnvioCodigo = EstadoForm & { email?: string }
  * proteção, não pode impedir quem precisa verificar o e-mail.
  */
 
-/** Precisa ser a mesma validade de lib/db/votacao-portal.ts (CODIGO_VALIDADE_MIN). */
-const VALIDADE_CODIGO_MIN = 15
 const INTERVALO_S = 60
 
 function chaveDoFiliado(cpf: string): string {

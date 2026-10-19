@@ -10,6 +10,7 @@ import {
   type Modalidade,
 } from "@/lib/assembleias-constantes"
 import { lerEmLotes } from "@/lib/db/comum"
+import { diaEmSaoPaulo } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { tenantAtual } from "@/lib/tenant"
@@ -169,21 +170,13 @@ export async function dadosUrnasAssembleia(
   if (urnaIds.length) {
     const { data: lacres } = await admin
       .from("voto_urna_lacres")
-      .select("id, urna_id, tipo, numero, evento, data, guardado_na_urna, observacao")
+      .select(COLUNAS_LACRE)
       .eq("emp_proprietaria_id", emp)
       .in("urna_id", urnaIds)
       .order("data", { ascending: false })
     for (const l of lacres ?? []) {
       const arr = lacresPorUrna.get(String(l.urna_id)) ?? []
-      arr.push({
-        id: String(l.id),
-        tipo: l.tipo === "principal" ? "principal" : "boca",
-        numero: txt(l.numero),
-        evento: l.evento === "rompido" ? "rompido" : "instalado",
-        data: txt(l.data),
-        guardadoNaUrna: l.guardado_na_urna === true,
-        observacao: txt(l.observacao),
-      })
+      arr.push(lacreDaLinha(l as Record<string, unknown>))
       lacresPorUrna.set(String(l.urna_id), arr)
     }
   }
@@ -758,13 +751,9 @@ export type EstadoDiaUrna = {
   ultimoData: string | null
 }
 
-/** Data local (YYYY-MM-DD) de um timestamptz. */
+/** Dia (YYYY-MM-DD) em São Paulo de um timestamptz (ADR 0014). */
 function diaLocal(iso: string | null): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  const p = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  return iso ? diaEmSaoPaulo(iso) : null
 }
 
 export async function estadoDiaUrna(urnaId: string): Promise<EstadoDiaUrna> {
@@ -1863,6 +1852,7 @@ export async function acompanhamentoAssembleia(
       .select("urna_id, tipo, numero, evento, data")
       .eq("emp_proprietaria_id", emp)
       .in("urna_id", urnaIds)
+      .is("anulado_em", null)
       .order("data", { ascending: false })
     for (const l of lacres ?? []) {
       const dia = diaLocal(txt(l.data)) ?? "—"
@@ -1948,17 +1938,16 @@ export type LacreLinha = {
   data: string | null
   guardadoNaUrna: boolean
   observacao: string | null
+  /** Lançamento anulado (R-6): fica no histórico, fora das conferências. */
+  anulado: { em: string; motivo: string | null } | null
 }
 
-export async function listarLacres(urnaId: string): Promise<LacreLinha[]> {
-  const admin = await createAdminClient()
-  const { data } = await admin
-    .from("voto_urna_lacres")
-    .select("id, tipo, numero, evento, data, guardado_na_urna, observacao")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("urna_id", urnaId)
-    .order("data", { ascending: false })
-  return (data ?? []).map((l) => ({
+const COLUNAS_LACRE =
+  "id, urna_id, tipo, numero, evento, data, guardado_na_urna, observacao, anulado_em, anulado_motivo"
+
+function lacreDaLinha(l: Record<string, unknown>): LacreLinha {
+  const anuladoEm = txt(l.anulado_em)
+  return {
     id: String(l.id),
     tipo: l.tipo === "principal" ? "principal" : "boca",
     numero: txt(l.numero),
@@ -1966,7 +1955,19 @@ export async function listarLacres(urnaId: string): Promise<LacreLinha[]> {
     data: txt(l.data),
     guardadoNaUrna: l.guardado_na_urna === true,
     observacao: txt(l.observacao),
-  }))
+    anulado: anuladoEm ? { em: anuladoEm, motivo: txt(l.anulado_motivo) } : null,
+  }
+}
+
+export async function listarLacres(urnaId: string): Promise<LacreLinha[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("voto_urna_lacres")
+    .select(COLUNAS_LACRE)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("urna_id", urnaId)
+    .order("data", { ascending: false })
+  return (data ?? []).map((l) => lacreDaLinha(l as Record<string, unknown>))
 }
 
 export async function registrarLacre(
@@ -1996,15 +1997,33 @@ export async function registrarLacre(
   return { ok: true }
 }
 
-export async function removerLacre(
-  id: string
+/**
+ * O registro de lacre não se apaga (R-6; trigger voto_urna_lacres_imutavel,
+ * migração 20261019180140): um lançamento errado é ANULADO, uma vez, com
+ * motivo e quem anulou, e continua no histórico.
+ */
+export async function anularLacre(
+  id: string,
+  motivo: string
 ): Promise<{ erro?: string; ok?: boolean }> {
+  const texto = motivo.trim()
+  if (texto.length < 5) return { erro: "Informe o motivo da anulação (ao menos 5 caracteres)." }
+  const { usuarioIdAtual } = await import("@/lib/sessao-atual")
+  const usuarioId = await usuarioIdAtual()
+  if (!usuarioId) return { erro: "Sessão sem usuário: entre de novo para anular." }
   const admin = await createAdminClient()
-  const { error } = await admin
+  const { data, error } = await admin
     .from("voto_urna_lacres")
-    .delete()
+    .update({
+      anulado_em: new Date().toISOString(),
+      anulado_motivo: texto.slice(0, 500),
+      anulado_por: usuarioId,
+    })
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
-  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+    .is("anulado_em", null)
+    .select("id")
+  if (error) return { erro: `Não foi possível anular: ${error.message}` }
+  if (!data?.length) return { erro: "Este registro de lacre já foi anulado." }
   return { ok: true }
 }

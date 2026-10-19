@@ -20,12 +20,33 @@ import {
 
 export type EventoApuracao = {
   id: string
-  tipo: "encerramento" | "reabertura"
+  /**
+   * prorrogacao (R-5): a assembleia teve o término estendido; lacre (R-6):
+   * o apurador abriu uma urna física sem atestar os lacres, com ressalva.
+   * Os dois não mexem no resultado e não têm hash.
+   */
+  tipo: "encerramento" | "reabertura" | "prorrogacao" | "lacre"
   quando: string
   motivo: string | null
   usuario: string | null
-  resultadoHash: string
+  resultadoHash: string | null
   conferencia: Conferencia | null
+  /** Prorrogação: término de/para (horário de SP) e a rodada, se estendida. */
+  prorrogacao: {
+    numero: number | null
+    terminoDe: string | null
+    terminoPara: string | null
+    rodadaDe: string | null
+    rodadaPara: string | null
+  } | null
+  /** Lacre: nome da urna. */
+  urna: string | null
+}
+
+const TIPOS_EVENTO = ["encerramento", "reabertura", "prorrogacao", "lacre"] as const
+
+function textoOuNulo(v: unknown): string | null {
+  return typeof v === "string" && v ? v : null
 }
 
 export type IntegridadeApuracao = {
@@ -60,7 +81,7 @@ export async function integridadeDaApuracao(
       .eq("assembleia_id", assembleiaId),
     admin
       .from("voto_apuracao_eventos")
-      .select("id, tipo, created_at, motivo, usuario_id, resultado_hash, conferencia")
+      .select("id, tipo, created_at, motivo, usuario_id, resultado_hash, conferencia, detalhe")
       .eq("emp_proprietaria_id", emp)
       .eq("assembleia_id", assembleiaId)
       .order("created_at", { ascending: false }),
@@ -102,15 +123,30 @@ export async function integridadeDaApuracao(
     textoCanonico: texto,
     hashRecalculado: recalculado,
     confere: publicado ? publicado === recalculado : null,
-    eventos: (eventos.data ?? []).map((e) => ({
-      id: String(e.id),
-      tipo: e.tipo === "reabertura" ? "reabertura" : "encerramento",
-      quando: String(e.created_at),
-      motivo: (e.motivo as string | null) ?? null,
-      usuario: e.usuario_id ? (nomes.get(String(e.usuario_id)) ?? null) : null,
-      resultadoHash: String(e.resultado_hash),
-      conferencia: lerConferencia(e.conferencia),
-    })),
+    eventos: (eventos.data ?? []).map((e) => {
+      const tipo = TIPOS_EVENTO.find((t) => t === e.tipo) ?? "encerramento"
+      const d = (e.detalhe && typeof e.detalhe === "object" ? e.detalhe : {}) as Record<string, unknown>
+      return {
+        id: String(e.id),
+        tipo,
+        quando: String(e.created_at),
+        motivo: (e.motivo as string | null) ?? null,
+        usuario: e.usuario_id ? (nomes.get(String(e.usuario_id)) ?? null) : null,
+        resultadoHash: textoOuNulo(e.resultado_hash),
+        conferencia: lerConferencia(e.conferencia),
+        prorrogacao:
+          tipo === "prorrogacao"
+            ? {
+                numero: typeof d.numero === "number" ? d.numero : null,
+                terminoDe: textoOuNulo(d.termino_de),
+                terminoPara: textoOuNulo(d.termino_para),
+                rodadaDe: textoOuNulo(d.rodada_de),
+                rodadaPara: textoOuNulo(d.rodada_para),
+              }
+            : null,
+        urna: tipo === "lacre" ? textoOuNulo(d.urna) : null,
+      }
+    }),
   }
 }
 

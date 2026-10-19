@@ -100,6 +100,17 @@ function deslocamentoSaoPaulo(instante: Date): number {
   return comoUtc - instante.getTime()
 }
 
+/**
+ * Dia de calendário ('AAAA-MM-DD') em São Paulo do instante dado (agora, sem
+ * argumento). Não usar `getDate()` nem `toISOString().slice(0, 10)` para
+ * "hoje": no servidor (UTC), depois das 21h já é amanhã.
+ */
+export function diaEmSaoPaulo(instante: string | Date = new Date()): string | null {
+  const d = typeof instante === "string" ? new Date(instante) : instante
+  if (Number.isNaN(d.getTime())) return null
+  return new Intl.DateTimeFormat("en-CA", { timeZone: FUSO }).format(d)
+}
+
 /** ISO → "AAAA-MM-DDTHH:mm" para preencher o input, no horário de Macaé. */
 export function paraCampoDataHora(iso: string | null | undefined): string {
   if (!iso) return ""

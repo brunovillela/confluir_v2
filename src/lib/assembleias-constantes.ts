@@ -178,7 +178,8 @@ const FUSO_BRASILIA = "America/Sao_Paulo"
 
 /**
  * 'AAAA-MM-DD' de hoje no horário de Brasília. O servidor roda em UTC: depois
- * das 21h, o "hoje" dele já é amanhã (hojeLocalISO lê o relógio da máquina).
+ * das 21h, o "hoje" dele já é amanhã (mesma regra de `diaEmSaoPaulo` em
+ * lib/formato, ADR 0014).
  */
 export function hojeEmBrasilia(agora = new Date()): string {
   return agora.toLocaleDateString("sv-SE", { timeZone: FUSO_BRASILIA })
@@ -229,13 +230,32 @@ export type SalaVirtual = {
   hora: string | null
 }
 
+/**
+ * Prorrogação de assembleia já iniciada (VOT-05; R-5): no máximo estas vezes
+ * por assembleia, cada uma até estes dias além do término atual, sempre com
+ * motivo. O banco garante os mesmos números (trigger
+ * voto_assembleias_apuracao_janela, migração 20261019180140) e grava cada
+ * prorrogação no livro da apuração.
+ */
+export const PRORROGACOES_MAX = 3
+export const PRORROGACAO_MAX_DIAS = 30
+export const MOTIVO_PRORROGACAO_MIN = 5
+
+/**
+ * Urna física (R-6): sem atestar os lacres, o apurador só abre a urna com uma
+ * ressalva escrita deste tamanho, que o banco grava no livro da apuração
+ * (trigger voto_apuracao_urna_travas).
+ */
+export const RESSALVA_LACRE_MIN = 10
+
+/**
+ * Hoje ('AAAA-MM-DD') no dia de São Paulo (ADR 0014). Lia o relógio da
+ * máquina: no servidor (UTC), depois das 21h a rodada contava como encerrada
+ * um dia antes e a urna aberta à noite deixava de estar "aberta hoje" (R-7 de
+ * docs/produto/regras-negocio.md).
+ */
 export function hojeLocalISO(): string {
-  const d = new Date()
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
-  ].join("-")
+  return hojeEmBrasilia()
 }
 
 /**
@@ -250,15 +270,15 @@ export function periodoIniciado(
   inicio: string | null,
   termino: string | null
 ): boolean {
-  const hoje = hojeLocalISO()
+  const hoje = hojeEmBrasilia()
   return (
-    (inicio !== null && inicio <= hoje) ||
-    (termino !== null && termino <= hoje)
+    (inicio !== null && inicio.slice(0, 10) <= hoje) ||
+    (termino !== null && termino.slice(0, 10) <= hoje)
   )
 }
 
 export function periodoTerminado(termino: string | null): boolean {
-  return termino !== null && termino < hojeLocalISO()
+  return termino !== null && termino.slice(0, 10) < hojeEmBrasilia()
 }
 
 /**
