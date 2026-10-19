@@ -13,12 +13,12 @@
 
 ## 2. Tabela de prazos
 
-Coluna "Hoje": **Auto** = rotina automática no sistema; **Manual** = existe ação, mas alguém precisa disparar; **Não** = não há mecanismo.
+Coluna "Hoje": **Auto** = rotina automática no sistema; **Motor** = regra do motor de retenção (seção 4): o cron mensal simula e, quando a entidade liga a regra em Institucional › LGPD, elimina de fato; **Manual** = existe ação, mas alguém precisa disparar; **Não** = não há mecanismo.
 
 | # | Dado | Processo | Prazo proposto | Fundamento | Ao fim do prazo | Hoje |
 |---|---|---|---|---|---|---|
 | RT01 | Cadastro do filiado, vínculos, contatos, endereço, dados bancários | P01 | Enquanto filiado + **5 anos** após a desfiliação | CC art. 206 §5º, I (cobrança); CF art. 7º, XXIX (créditos trabalhistas) | Anonimizar (`anonimizar_filiacao`) | **Manual** (a pedido) |
-| RT02 | Interessado que não concluiu a filiação (ficha pública) | P01 | **1 ano** após a última interação | Finalidade esgotada | Eliminar | **Não** |
+| RT02 | Interessado que não concluiu a filiação (ficha pública) | P01 | **1 ano** após a última interação | Finalidade esgotada | Eliminar (com o histórico de etapas e o PDF) | **Motor** (simula; real quando ligada) |
 | RT03 | Termos e aceites (LGPD, desconto) com versão, IP e navegador | P01 | Enquanto o tratamento existir + 5 anos | Prova do consentimento (art. 8º §2º) | Eliminar | **Não** |
 | RT04 | Contribuições, relações das fontes pagadoras, cobranças | P02 | **5 anos** após o exercício | CTN arts. 173–174; CC art. 1.194 | Anonimizar o CPF e o nome; manter os valores agregados | **Não** |
 | RT05 | Atendimentos do portal e anexos | P03 | **5 anos** após o encerramento | Prova de atendimento e prescrição | Eliminar | **Não** |
@@ -46,8 +46,8 @@ Coluna "Hoje": **Auto** = rotina automática no sistema; **Manual** = existe aç
 | RT27 | Infrações de trânsito | P14 | **5 anos** | Lei 9.873/99 (prescrição administrativa) | Eliminar | **Não** |
 | RT28 | Envios de comunicação (`comunicacao_envios` copia nome, CPF, contato) | P15 | **2 anos** | Prova de envio; minimização | Eliminar | **Não** |
 | RT29 | Inscrições em eventos | P15 | **1 ano** após o evento | Finalidade | Anonimizar | **Manual** (a pedido do titular) |
-| RT30 | Foto do inscrito em evento | P15 | `retencao_foto_dias` do evento (padrão **30 dias**) | Consentimento | Eliminar | **Não** (configuração sem rotina) |
-| RT31 | Registros de acesso (login, tentativas, códigos enviados) | P16 | **6 meses** | Marco Civil, art. 15 | Eliminar | **Não** |
+| RT30 | Foto do inscrito em evento | P15 | `retencao_foto_dias` do evento (padrão **30 dias**) | Consentimento | Eliminar o arquivo e marcar `foto_expurgada_em` | **Motor** (simula; real quando ligada) |
+| RT31 | Registros de acesso (login, tentativas, códigos enviados) | P16 | **6 meses** | Marco Civil, art. 15 | Eliminar (`login_tentativas`, `auth_codigos_envios`) | **Motor** (simula; real quando ligada) |
 | RT32 | Trilha de auditoria (`auditoria`) | P16 | **5 anos** | Prestação de contas; prescrição | Eliminar | **Não** |
 | RT33 | Livro de exportações e log da API | P16 | **2 anos** | Prestação de contas | Eliminar | **Não** |
 | RT34 | Pedidos de titulares (`lgpd_solicitacoes`) | P16 | **5 anos** após o atendimento | Prova de cumprimento (art. 18) | Eliminar | **Não** |
@@ -68,25 +68,26 @@ Coluna "Hoje": **Auto** = rotina automática no sistema; **Manual** = existe aç
 
 ## 4. Como implementar
 
-Hoje, de 35 linhas, **2 são automáticas** (RT10 e RT11), **2 manuais** (RT01, RT29) e **1 só alerta** (RT15). O plano proposto:
+Em 18/10/2026, de 35 linhas, **2 são automáticas** (RT10 e RT11), **3 estão no motor** (RT02, RT30, RT31), **2 manuais** (RT01, RT29) e **1 só alerta** (RT15). O plano proposto, com o que já foi feito:
 
-1. **Motor de retenção único**, em vez de uma rotina por tabela:
+1. **Motor de retenção único**, em vez de uma rotina por tabela. **Feito** (migração `20261018191616_motor_retencao.sql`, `src/lib/lgpd/retencao-motor.ts`, tela Institucional › LGPD):
    - Tabela de regras (`lgpd_regras_retencao`: código RTxx, tabela, coluna-âncora da data, prazo padrão, ação `eliminar`/`anonimizar`, ativa).
    - Prazo ajustável por entidade, dentro de um mínimo legal travado.
    - Um cron mensal executa as regras ativas.
    - Livro de execuções: o que foi apagado, quantas linhas, quando.
    - Rodada em **modo simulação** primeiro: lista o que sairia, sem apagar.
+   - Como ficou: `lgpd_regras_retencao` (uma linha por entidade e código, `ativa` = execução real ligada; CHECK impede prazo abaixo do mínimo), `lgpd_retencao_execucoes` (livro só com contagens) e o cron `/api/lgpd/retencao/tick` no dia 2 de cada mês. Regra desligada só simula. Para ligar, a tela exige uma simulação sem erro dos últimos 45 dias. A tela sempre simula; quem apaga é só o cron. O catálogo dos códigos ligados ao motor está em `src/lib/lgpd/retencao-regras.ts`; código novo = definição lá, executor no motor e a coluna "Hoje" acima.
+   - Prazos iniciais: RT30 usa o `retencao_foto_dias` de Eventos › Configuração (padrão 30); RT31 = 183 dias (mínimo 183, Marco Civil); RT02 = 365 dias (mínimo 90), contados da última alteração da ficha ou do último registro no histórico de etapas.
+   - Teto de 20.000 registros por regra e rodada; o resto sai na seguinte.
 2. **Ordem de ativação** (do maior risco para o menor):
-   - RT30 (foto de evento: a regra já existe na tela).
-   - RT31 (logs de acesso).
-   - RT02 (interessados).
+   - ~~RT30 (foto de evento)~~, ~~RT31 (logs de acesso)~~, ~~RT02 (interessados)~~: no motor desde 18/10/2026. Em produção, nessa data, nenhuma das três tinha registro vencido em nenhuma entidade (os registros mais antigos são de agosto e outubro de 2026).
    - RT28 (envios de comunicação).
    - RT23 (CNAB).
    - RT15/RT16 (saúde: transformar o alerta em ação, com aprovação da equipe de saúde).
    - RT01 (anonimização automática de ex-filiados após 5 anos).
    - Demais.
-3. **Storage:** ao eliminar ou anonimizar um registro, apagar os arquivos ligados a ele; varredura mensal de órfãos.
-4. **Bloqueio por litígio:** marcar pessoa ou registro como "em processo", o que suspende qualquer regra.
+3. **Storage:** ao eliminar ou anonimizar um registro, apagar os arquivos ligados a ele; varredura mensal de órfãos. **Em parte:** as regras do motor apagam o arquivo antes do registro (foto do evento no bucket `eventos`, ficha assinada no bucket `filiacao`) e só mexem no registro cujo arquivo saiu. A varredura de órfãos continua pendente.
+4. **Bloqueio por litígio:** marcar pessoa ou registro como "em processo", o que suspende qualquer regra. **Feito:** `lgpd_bloqueios_litigio` (CPF, e-mail ou tabela + id). Enquanto o bloqueio estiver vigente, o motor poupa o registro e conta no livro quantos poupou. A tela cria bloqueios por CPF ou e-mail e os encerra. As regras automáticas da votação (RT10, RT11) ainda não consultam o bloqueio.
 5. **Transparência:** a política de privacidade (B6) publica a tabela resumida, e o portal mostra ao titular os prazos que se aplicam a ele.
 
 ## 5. Decisões da entidade

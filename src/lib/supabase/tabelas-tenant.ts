@@ -154,6 +154,10 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "juridico_processos",
   "juridico_reembolsos",
   "lgpd_solicitacoes",
+  // supabase/migrations/20261018191616_motor_retencao.sql (18/10)
+  "lgpd_regras_retencao",
+  "lgpd_retencao_execucoes",
+  "lgpd_bloqueios_litigio",
   "linhas_institucionais",
   "noticias",
   "oficios",

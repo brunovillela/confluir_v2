@@ -53,7 +53,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Enquanto filiado. Após a desfiliação, 5 anos (prescrição de cobranças, CC art. 206 §5º, I); depois, anonimização com `anonimizar_filiacao` (já implementada). Códigos RT01–RT03 em retencao.md (proposta a validar).
+**Retenção.** Enquanto filiado. Após a desfiliação, 5 anos (prescrição de cobranças, CC art. 206 §5º, I); depois, anonimização com `anonimizar_filiacao` (já implementada). Ficha pública não concluída: 1 ano após a última interação, pelo motor de retenção (RT02). Códigos RT01–RT03 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; trilha `auditoria` em filiacoes, filiacao_vinculos e dados_bancarios; anonimização que corta o vínculo com o acervo de saúde; permissão própria `filiacao_lgpd`.
 
@@ -692,7 +692,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Serviços de push dos navegadores (Google, Apple, Mozilla): EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Envios: 2 anos. Inscrições de evento: 1 ano após o evento, com anonimização e expurgo da foto (já implementados). Códigos RT28–RT30 em retencao.md (proposta a validar).
+**Retenção.** Envios: 2 anos. Inscrições de evento: 1 ano após o evento, com anonimização a pedido do titular; a foto sai pelo motor de retenção (RT30) após o prazo de Eventos › Configuração. Códigos RT28–RT30 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; anonimização e expurgo de foto dos inscritos já implementados.
 
@@ -719,7 +719,7 @@
 <a id="p16"></a>
 ## P16. Contas de acesso, segurança, auditoria e gestão interna
 
-**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, integrar sistemas (API/webhooks) e organizar demandas internas.
+**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks) e organizar demandas internas.
 
 **Titulares.** Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma.
 
@@ -736,7 +736,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Códigos RT31–RT35 em retencao.md (proposta a validar).
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
 
 **Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).
 
