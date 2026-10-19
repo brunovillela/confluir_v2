@@ -17,7 +17,11 @@ numa ordem só.
   <Passo titulo="Preencha os dados">
     **Nome do cartão** (como a equipe o reconhece, ex.: "Cartão da Sede"),
     **tipo** (crédito, débito ou pré-pago), **bandeira**, os **4 últimos
-    dígitos** e, se quiser, o **titular / responsável**.
+    dígitos** e o **uso**. **Corporativo (uso comum)** é o cartão
+    centralizado: a fatura fica só no Financeiro, e o titular é opcional.
+    **Com um responsável** é o cartão que fica na posse de uma pessoa
+    (obrigatória), que passa a acompanhar a fatura em **Meu perfil › Meu
+    cartão**.
   </Passo>
   <Passo titulo="Cadastrar">
     O cartão passa a aparecer na nova compra, na forma de pagamento **Cartão**,
@@ -71,6 +75,18 @@ dinheiro não sai a cada compra, e sim quando a fatura é paga.
   pré-pago não têm fatura e seguem como ordens comuns.
 </Aviso>
 
+### Meu cartão: a fatura para o responsável
+
+Cartão **com um responsável** aparece para essa pessoa no atalho **Meu cartão**
+da barra lateral (e em Meu perfil), como o Meu caixa: a fatura aberta com cada
+compra, as faturas fechadas com o valor, o vencimento, o arquivo e a situação
+do pagamento, e o extrato de cada compra em PDF. É só leitura — quem fecha e paga
+a fatura continua sendo o Financeiro. Cartão **corporativo** não aparece em Meu
+cartão.
+
+Para mudar o uso ou o responsável de um cartão já cadastrado, abra o cartão em
+**Financeiro → Cartões** e use o quadro **Uso do cartão**.
+
 Compra de uma fatura **já fechada** não pode mais ser cancelada nem ter o valor
 corrigido: a ordem da fatura já a inclui. Enquanto a fatura está aberta, cancelar
 a compra a tira da soma.
@@ -86,9 +102,11 @@ volta.
 
 - **"O cartão não aparece na nova compra."** Ele precisa estar **ativo**.
   Confira a situação na lista.
-- **"Errei um dado do cartão (ou escrevi o número inteiro no nome)."** Não há
-  edição: desative esse cartão e cadastre de novo, com só os 4 últimos dígitos
-  no campo próprio.
+- **"Errei um dado do cartão (ou escrevi o número inteiro no nome)."** Só o
+  uso e o responsável se editam; para o resto, desative esse cartão e cadastre
+  de novo, com só os 4 últimos dígitos no campo próprio.
+- **"O responsável não vê o Meu cartão."** O cartão precisa estar **ativo**, com
+  o uso **Com um responsável** e a pessoa escolhida como responsável.
 - **"Quero saber em quais compras um cartão foi usado."** No crédito, abra as
   **faturas** do cartão; em qualquer tipo, a ordem de pagamento mostra o cartão
   no campo **Pago com**.

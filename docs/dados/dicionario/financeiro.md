@@ -218,8 +218,9 @@ Cartões de pagamento da entidade (corporativos ou pré-pagos) usados como forma
 | `ativo` | boolean | não | `true` |  |  |  |
 | `criado_por_usuario_id` | uuid | sim |  | → usuarios |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `uso` | text | não | `'corporativo'::text` |  |  | corporativo (uso comum: a fatura fica no Financeiro) ou responsavel (na posse do titular_usuario_id, que vê as faturas em Meu perfil › Meu cartão). |
 
-Checks: `cartoes_final_check` `CHECK ((final ~ '^[0-9]{4}$'::text))`; `cartoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['credito'::text, 'debito'::text, 'pre_pago'::text])))`
+Checks: `cartoes_final_check` `CHECK ((final ~ '^[0-9]{4}$'::text))`; `cartoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['credito'::text, 'debito'::text, 'pre_pago'::text])))`; `cartoes_uso_check` `CHECK ((uso = ANY (ARRAY['corporativo'::text, 'responsavel'::text])))`
 
 Índices: `cartoes_pkey`, `cartoes_tenant_idx`
 

@@ -25,6 +25,9 @@ export type Cartao = {
   bandeira: string | null
   final: string
   titular: string | null
+  titularId: string | null
+  /** corporativo (fatura no Financeiro) ou responsavel (o titular vê em Meu cartão). */
+  uso: "corporativo" | "responsavel"
   ativo: boolean
 }
 
@@ -40,7 +43,7 @@ export async function listarCartoes(): Promise<{
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("cartoes")
-    .select("id, apelido, tipo, bandeira, final, ativo, titular:titular_usuario_id (nome_completo, nome_guerra)")
+    .select("id, apelido, tipo, bandeira, final, ativo, uso, titular_usuario_id, titular:titular_usuario_id (nome_completo, nome_guerra)")
     .eq("emp_proprietaria_id", await tenantAtual())
     .order("ativo", { ascending: false })
     .order("apelido")
@@ -59,6 +62,8 @@ export async function listarCartoes(): Promise<{
         bandeira: (c.bandeira as string | null) ?? null,
         final: String(c.final),
         titular: titular?.nome_completo ?? titular?.nome_guerra ?? null,
+        titularId: (c.titular_usuario_id as string | null) ?? null,
+        uso: c.uso === "responsavel" ? "responsavel" : "corporativo",
         ativo: c.ativo === true,
       }
     }),
@@ -71,6 +76,7 @@ export async function criarCartao(dados: {
   bandeira: string | null
   final: string
   titularId: string | null
+  uso: "corporativo" | "responsavel"
   criadoPor: string
 }): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
@@ -81,6 +87,7 @@ export async function criarCartao(dados: {
     bandeira: dados.bandeira,
     final: dados.final,
     titular_usuario_id: dados.titularId,
+    uso: dados.uso,
     criado_por_usuario_id: dados.criadoPor,
   })
   if (error) {
@@ -102,6 +109,44 @@ export async function definirCartaoAtivo(
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível atualizar o cartão: ${error.message}` }
   return {}
+}
+
+/** Uso e responsável do cartão (os demais dados não mudam: só os 4 dígitos ficam guardados). */
+export async function definirUsoCartao(
+  id: string,
+  uso: "corporativo" | "responsavel",
+  titularId: string | null
+): Promise<{ erro?: string }> {
+  if (uso === "responsavel" && !titularId) return { erro: "Escolha o responsável que fica com o cartão." }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("cartoes")
+    .update({ uso, titular_usuario_id: titularId })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível atualizar o cartão: ${error.message}` }
+  return {}
+}
+
+/** O usuário tem algum cartão ativo na posse dele? (atalho Meu cartão no menu) */
+export async function usuarioTemCartao(usuarioId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("cartoes")
+    .select("id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("titular_usuario_id", usuarioId)
+    .eq("uso", "responsavel")
+    .eq("ativo", true)
+    .limit(1)
+  if (error) return false // sem a coluna (migração) → sem atalho
+  return (data ?? []).length > 0
+}
+
+/** Cartões ativos na posse do usuário (uso "responsavel") — Meu cartão. */
+export async function cartoesDoResponsavel(usuarioId: string): Promise<Cartao[]> {
+  const { cartoes } = await listarCartoes().catch(() => ({ cartoes: [] as Cartao[] }))
+  return cartoes.filter((c) => c.ativo && c.uso === "responsavel" && c.titularId === usuarioId)
 }
 
 async function cartaoAtivoDoTenant(id: string): Promise<boolean> {

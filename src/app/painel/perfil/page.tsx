@@ -7,6 +7,7 @@ import {
   CalendarX2,
   Clock4,
   Coins,
+  CreditCard,
   FileBadge,
   GraduationCap,
   HandCoins,
@@ -32,6 +33,7 @@ import { CartaoEditavel } from "@/components/cartao-editavel"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
+import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
 import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
@@ -194,6 +196,13 @@ const MEU_CAIXA: AreaPerfil = {
   icone: Wallet,
 }
 
+const MEU_CARTAO: AreaPerfil = {
+  titulo: "Meu cartão",
+  descricao: "Compras e faturas do cartão da entidade que está com você",
+  href: "/painel/perfil/cartao",
+  icone: CreditCard,
+}
+
 const DESPESAS_CAIXA: AreaPerfil = {
   titulo: "Despesas em caixas",
   descricao: "Reconheça o que outras pessoas lançaram na sua conta; transfira o que não foi reconhecido",
@@ -208,11 +217,12 @@ export default async function PerfilPage({
 }) {
   const { usuario } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
-  const [perfil, telefones, enderecos, temCaixa, remessasAnteriores] = await Promise.all([
+  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
     usuarioTemCaixa(usuario.id).catch(() => false),
+    usuarioTemCartao(usuario.id).catch(() => false),
     contarRemessasDiaria(usuario.id).catch(() => 0),
   ])
   if (!perfil) return null
@@ -450,6 +460,9 @@ export default async function PerfilPage({
           )}
           {temCaixa && (
             <CartaoArea titulo={MEU_CAIXA.titulo} descricao={MEU_CAIXA.descricao} href={MEU_CAIXA.href} icone={MEU_CAIXA.icone} />
+          )}
+          {temCartao && (
+            <CartaoArea titulo={MEU_CARTAO.titulo} descricao={MEU_CARTAO.descricao} href={MEU_CARTAO.href} icone={MEU_CARTAO.icone} />
           )}
           {temCaixa && (
             <CartaoArea

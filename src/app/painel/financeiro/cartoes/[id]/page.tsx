@@ -6,24 +6,32 @@ import { ArrowLeft, CreditCard } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { rotuloTipoCartao } from "@/lib/compras-constantes"
+import { rotuloTipoCartao, rotuloUsoCartao } from "@/lib/compras-constantes"
+import { pessoasAutorizaveis } from "@/lib/db/caixa"
 import { listarFaturasDoCartao } from "@/lib/db/cartao-faturas"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { SituacaoBadge } from "../../situacao-badge"
+import { UsoCartaoForm } from "../cartao-form"
 
 export const metadata: Metadata = { title: "Faturas do cartão — Confluir" }
 
 export default async function CartaoPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermissao("financeiro_pagamento", ["financeiro_caixa", "financeiro_leitura"])
+  const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_caixa", "financeiro_leitura"])
+  const podeEditar = podeAcessar(sessao.permissoes, "financeiro_pagamento", ["financeiro_caixa"])
   const { id } = await params
   const { cartoes } = await listarCartoes()
   const cartao = cartoes.find((c) => c.id === id)
   if (!cartao) notFound()
-  const { disponivel, faturas } = await listarFaturasDoCartao(id)
+  const [{ disponivel, faturas }, pessoas] = await Promise.all([
+    listarFaturasDoCartao(id),
+    podeEditar ? pessoasAutorizaveis() : Promise.resolve([]),
+  ])
 
   return (
     <>
@@ -40,11 +48,28 @@ export default async function CartaoPage({ params }: { params: Promise<{ id: str
           {!cartao.ativo && <Badge variant="secondary">Desativado</Badge>}
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          {rotuloTipoCartao(cartao.tipo)}
-          {cartao.titular ? ` · titular ${cartao.titular}` : ""}. Cada compra paga com este cartão entra na fatura
-          aberta; no fechamento, o Financeiro gera uma ordem de pagamento com o rateio das compras.
+          {rotuloTipoCartao(cartao.tipo)} · {rotuloUsoCartao(cartao.uso)}
+          {cartao.titular ? ` · ${cartao.uso === "responsavel" ? "com" : "titular"} ${cartao.titular}` : ""}. Cada compra
+          paga com este cartão entra na fatura aberta; no fechamento, o Financeiro gera uma ordem de pagamento com o
+          rateio das compras.
+          {cartao.uso === "responsavel" ? " O responsável também vê as faturas em Meu perfil › Meu cartão." : ""}
         </p>
       </div>
+
+      {podeEditar && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Uso do cartão</CardTitle>
+            <CardDescription>
+              Corporativo: uso comum, a fatura fica só no Financeiro. Com um responsável: o cartão fica com a pessoa,
+              que acompanha a fatura em Meu cartão.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UsoCartaoForm cartaoId={cartao.id} uso={cartao.uso} titularId={cartao.titularId} pessoas={pessoas} />
+          </CardContent>
+        </Card>
+      )}
 
       {!disponivel && (
         <Alert variant="warning">

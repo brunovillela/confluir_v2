@@ -116,6 +116,20 @@ export function rotuloTipoCartao(valor: string | null): string {
   return TIPOS_CARTAO.find((t) => t.valor === valor)?.rotulo ?? valor ?? ""
 }
 
+/**
+ * Uso do cartão (19/10/2026): corporativo = uso comum, centralizado, fatura só
+ * no Financeiro; responsável = na posse do titular, que vê as faturas em Meu
+ * perfil › Meu cartão.
+ */
+export const USOS_CARTAO = [
+  { valor: "corporativo", rotulo: "Corporativo (uso comum)", descricao: "Centralizado: a fatura fica no Financeiro." },
+  { valor: "responsavel", rotulo: "Com um responsável", descricao: "Fica na posse do responsável, que também vê a fatura em Meu cartão." },
+] as const
+
+export function rotuloUsoCartao(valor: string | null): string {
+  return valor === "responsavel" ? "Com responsável" : "Corporativo"
+}
+
 /** Pix copia e cola (BR Code): payload EMV que sempre começa com "000201". */
 export function pixCodigoValido(codigo: string): boolean {
   const c = codigo.replace(/\s/g, "")

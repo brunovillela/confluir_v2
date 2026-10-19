@@ -13,7 +13,8 @@
 import { readFileSync } from "node:fs"
 
 const EMAIL = "demo@confluir.local"
-const SENHA = process.argv[2] || "ConfluirDemo123"
+// A política de senha do Auth exige minúscula, maiúscula, dígito e símbolo.
+const SENHA = process.argv[2] || "ConfluirDemo123!"
 
 const env = Object.fromEntries(
   readFileSync(".env.local", "utf8")

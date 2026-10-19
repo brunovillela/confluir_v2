@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   BookOpen,
   ChevronsUpDown,
+  CreditCard,
   LogOut,
   UserRound,
   Wallet,
@@ -52,6 +53,7 @@ export function AppSidebar({
   modulos,
   outrasAreas = [],
   temCaixa = false,
+  temCartao = false,
   tenantNome = null,
 }: {
   usuario: UsuarioSidebar;
@@ -60,6 +62,8 @@ export function AppSidebar({
   outrasAreas?: { titulo: string; href: string }[];
   /** O usuário é responsável por uma conta de caixa (acesso destacado). */
   temCaixa?: boolean;
+  /** O usuário está com um cartão da entidade (uso "responsavel"). */
+  temCartao?: boolean;
   /** Nome do tenant (organização) exibido no topo da sidebar. */
   tenantNome?: string | null;
 }) {
@@ -161,6 +165,21 @@ export function AppSidebar({
                 <Link href="/painel/perfil/caixa" onClick={fecharNoMobile}>
                   <Wallet />
                   <span>Meu caixa</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {temCartao && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={estaAtivo("/painel/perfil/cartao")}
+                tooltip="Meu cartão"
+                className="opacity-70"
+              >
+                <Link href="/painel/perfil/cartao" onClick={fecharNoMobile}>
+                  <CreditCard />
+                  <span>Meu cartão</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

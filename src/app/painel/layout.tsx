@@ -11,6 +11,7 @@ import { mapaAjuda } from "@/lib/ajuda/rota"
 import { areasDaConta, requireSessaoPainel } from "@/lib/auth"
 import { NOVIDADES } from "@/lib/novidades"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
+import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { contarNaoLidas } from "@/lib/db/notificacoes"
 import { pendenciasCarimbadas, SEM_PENDENCIAS } from "@/lib/db/pendencias-carimbadas"
@@ -38,10 +39,11 @@ export default async function PainelLayout({
   // Pendências: a conta mais cara do painel, NÃO esperada — vai como
   // promessa ao ContadoresProvider e o contador aparece quando resolve.
   const pendencias = pendenciasCarimbadas(sessao).catch(() => SEM_PENDENCIAS)
-  const [areas, naoLidas, temCaixa, organizacao, jornada, fotoUrl, ocupantes] = await Promise.all([
+  const [areas, naoLidas, temCaixa, temCartao, organizacao, jornada, fotoUrl, ocupantes] = await Promise.all([
     areasDaConta(),
     contarNaoLidas(sessao.usuario.id),
     usuarioTemCaixa(sessao.usuario.id),
+    usuarioTemCartao(sessao.usuario.id),
     obterOrganizacao(),
     jornadaDoUsuario(sessao.usuario.id),
     urlFoto(typeof sessao.usuario.foto === "string" ? sessao.usuario.foto : null),
@@ -80,6 +82,7 @@ export default async function PainelLayout({
           modulos={modulos}
           outrasAreas={outrasAreas}
           temCaixa={temCaixa}
+          temCartao={temCartao}
           tenantNome={tenantNome}
         />
         <SidebarInset>

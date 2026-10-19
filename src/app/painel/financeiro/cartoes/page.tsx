@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { rotuloTipoCartao } from "@/lib/compras-constantes"
+import { rotuloTipoCartao, rotuloUsoCartao } from "@/lib/compras-constantes"
 import { pessoasAutorizaveis } from "@/lib/db/caixa"
 import { faturasAbertas } from "@/lib/db/cartao-faturas"
 import { AVISO_SQL_PAGAMENTO, listarCartoes } from "@/lib/db/compras-pagamento"
@@ -96,7 +96,7 @@ export default async function CartoesPage() {
               <TableRow className="bg-muted/50">
                 <TableHead>Cartão</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead className="hidden md:table-cell">Titular</TableHead>
+                <TableHead className="hidden md:table-cell">Uso</TableHead>
                 <TableHead>Fatura aberta</TableHead>
                 <TableHead>Situação</TableHead>
                 {podeEditar && <TableHead className="w-0" />}
@@ -124,7 +124,10 @@ export default async function CartoesPage() {
                   </TableCell>
                   <TableCell>{rotuloTipoCartao(c.tipo)}</TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {c.titular ?? "—"}
+                    {rotuloUsoCartao(c.uso)}
+                    <span className="text-muted-foreground block text-xs">
+                      {c.uso === "responsavel" ? `com ${c.titular ?? "—"}` : c.titular ? `titular ${c.titular}` : "fatura no Financeiro"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {c.tipo !== "credito" ? (

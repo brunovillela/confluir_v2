@@ -618,6 +618,46 @@ export async function fecharFatura(
   return { ordemId: ordem.id, ordemCodigo: codigo, autorizada: autoriza }
 }
 
+// ── Meu cartão (responsável) ────────────────────────────────────────────────
+
+/** O usuário é o responsável (uso "responsavel") do cartão desta fatura? */
+export async function faturaDoResponsavel(faturaId: string, usuarioId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data: f } = await admin
+    .from("financeiro_cartao_faturas")
+    .select("cartao_id")
+    .eq("id", faturaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!f) return false
+  const { data: c } = await admin
+    .from("cartoes")
+    .select("uso, titular_usuario_id")
+    .eq("id", String(f.cartao_id))
+    .maybeSingle()
+  return c?.uso === "responsavel" && c.titular_usuario_id === usuarioId
+}
+
+/**
+ * A ordem é uma compra (ou a ordem gerada) de fatura de um cartão de que o
+ * usuário é o responsável? Libera o extrato da despesa em Meu cartão.
+ */
+export async function ordemNoCartaoDoUsuario(usuarioId: string, ordemId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("ordens_pagamento")
+    .select("cartao_fatura_id")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  let faturaId = o?.cartao_fatura_id ? String(o.cartao_fatura_id) : null
+  if (!faturaId) {
+    const { data: f } = await admin.from("financeiro_cartao_faturas").select("id").eq("ordem_pagamento_id", ordemId).maybeSingle()
+    faturaId = f ? String(f.id) : null
+  }
+  return faturaId ? faturaDoResponsavel(faturaId, usuarioId) : false
+}
+
 /** Fatura cuja ordem é esta (procedência da ordem da fatura). */
 export async function faturaDaOrdemGerada(ordemId: string): Promise<DetalheFatura | null> {
   const admin = await createAdminClient()
