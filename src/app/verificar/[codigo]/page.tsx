@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { verificarCertificadoMinuta } from "@/lib/db/minuta-assinatura"
 import { verificarCertificadoRpa } from "@/lib/db/rpa-assinatura"
+import { verificarCertificadoAviso } from "@/lib/db/ferias-aviso"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
 import { formatarData } from "@/lib/formato"
 
@@ -29,6 +30,8 @@ export default async function VerificarCertificadoPage({
   if (contrato) return <VerificacaoContrato v={contrato} />
   const recibo = await verificarCertificadoRpa(decodeURIComponent(codigo))
   if (recibo) return <VerificacaoContrato v={recibo} documento="recibo" />
+  const aviso = await verificarCertificadoAviso(decodeURIComponent(codigo))
+  if (aviso) return <VerificacaoContrato v={aviso} documento="aviso" />
   const v = await verificarCertificado(decodeURIComponent(codigo))
 
   return (
@@ -155,10 +158,10 @@ function VerificacaoContrato({
   documento = "contrato",
 }: {
   v: NonNullable<Awaited<ReturnType<typeof verificarCertificadoMinuta>>>
-  /** O mesmo certificado serve ao contrato e ao recibo (RPA). */
-  documento?: "contrato" | "recibo"
+  /** O mesmo certificado serve ao contrato, ao recibo (RPA) e ao aviso de férias. */
+  documento?: "contrato" | "recibo" | "aviso"
 }) {
-  const doc = documento === "recibo" ? "recibo" : "contrato"
+  const doc = documento === "recibo" ? "recibo" : documento === "aviso" ? "aviso de férias" : "contrato"
   const valida = v.situacao === "assinado" && v.conteudoIntegro
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
@@ -173,7 +176,7 @@ function VerificacaoContrato({
             <AlertDescription>
               Assinatura <strong>válida</strong>: corresponde a um {doc} assinado eletronicamente e o
               conteúdo não foi alterado desde então.
-              {documento === "recibo" ? "" : v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
+              {documento !== "contrato" ? "" : v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
             </AlertDescription>
           </Alert>
         ) : v.situacao === "assinado" ? (

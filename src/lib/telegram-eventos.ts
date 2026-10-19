@@ -68,6 +68,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "reembolso", rotulo: "Reembolso avaliado", grupo: "notificacao", acesso: { quadro: "funcionario" } },
   { chave: "treinamento", rotulo: "Matrícula em treinamento", grupo: "notificacao", acesso: { quadro: "funcionario" } },
   { chave: "pessoal_cancelamento", rotulo: "Férias ou falta cancelada depois de autorizada (quem cuida do Pessoal)", grupo: "notificacao", acesso: { permissoes: ["pessoal_gestao", "pessoal_faltas_justificadas"], coordenador: true } },
+  { chave: "pessoal_aviso_ferias", rotulo: "Aviso de férias assinado pelo funcionário (quem cuida do Pessoal)", grupo: "notificacao", acesso: { permissoes: ["pessoal_gestao"], coordenador: true } },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },

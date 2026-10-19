@@ -2,6 +2,7 @@ import "server-only"
 
 import { gozoRecusado } from "@/lib/ferias-painel"
 import { avisarQuemPodeOuCoordena, depoisDaResposta, querEmail } from "@/lib/db/avisos"
+import { cancelarAvisoFerias, sincronizarAvisoDoGozo } from "@/lib/db/ferias-aviso"
 import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -676,6 +677,7 @@ export async function cancelarMinhaSolicitacaoGozo(
   }
   const eraAutorizado = data.autorizado === true
   await removerAusenciasDoGozo(gozoId)
+  await cancelarAvisoFerias(gozoId, usuarioId, "Gozo cancelado pelo funcionário")
   const { error: erroDel, count } = await admin
     .from("pessoal_ferias_gozo")
     .delete({ count: "exact" })
@@ -726,11 +728,14 @@ export async function atualizarGozo(
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Gozo não encontrado." }
   await sincronizarAusenciaDoGozo(gozoId, { inicio: atual.inicio, termino: atual.termino })
+  // Datas novas mudam o aviso: o link antigo cai e sai um aviso novo.
+  await sincronizarAvisoDoGozo(gozoId, null)
   return {}
 }
 
 export async function excluirGozo(gozoId: string): Promise<{ erro?: string }> {
   await removerAusenciasDoGozo(gozoId)
+  await cancelarAvisoFerias(gozoId, null, "Gozo excluído")
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("pessoal_ferias_gozo")
@@ -766,6 +771,8 @@ export async function definirAutorizacaoGozo(
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if ((data ?? []).length === 0) return { erro: "Gozo não encontrado." }
   await sincronizarAusenciaDoGozo(gozoId)
+  // Autorizado: aviso de férias para o funcionário assinar; desfeito: cancela o link.
+  await sincronizarAvisoDoGozo(gozoId, autorizadorId)
 
   const g = data![0]
 

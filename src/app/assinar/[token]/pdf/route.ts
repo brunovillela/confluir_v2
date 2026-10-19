@@ -1,6 +1,7 @@
 import { dadosImpressao } from "@/lib/db/oficios"
 import { envelopeMinutaPorToken } from "@/lib/db/minuta-assinatura"
 import { certificacaoDoRpa, envelopeRpaPorToken, renderizarPdfRpa } from "@/lib/db/rpa-assinatura"
+import { certificacaoDoAviso, envelopeAvisoPorToken, renderizarPdfAviso } from "@/lib/db/ferias-aviso"
 import { renderizarPdfMinuta } from "@/lib/db/minuta-pdf"
 import { envelopePorToken, renderizarPdfOficio } from "@/lib/db/oficios-assinatura"
 
@@ -35,6 +36,26 @@ export async function GET(
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${baixarMinuta ? "attachment" : "inline"}; filename="rpa-${rpa.rpa.numero ?? "recibo"}${a.situacao === "assinado" ? "-assinado" : ""}.pdf"`,
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex",
+      },
+    })
+  }
+
+  // Aviso de férias: o funcionário vê o aviso; assinado, com o certificado.
+  const aviso = await envelopeAvisoPorToken(token)
+  if (aviso) {
+    const a = aviso.assinatura
+    if (a.situacao !== "pendente" && a.situacao !== "assinado") {
+      return new Response("Documento indisponível", { status: 404 })
+    }
+    const certificacao =
+      a.situacao === "assinado" && a.hashDocumento ? await certificacaoDoAviso(aviso.aviso.gozoId, a.hashDocumento) : null
+    const pdf = await renderizarPdfAviso(aviso.aviso.dados, { certificacao, dataDocumento: a.enviadoEm })
+    return new Response(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${baixarMinuta ? "attachment" : "inline"}; filename="aviso-de-ferias-${aviso.aviso.dados.gozo.inicio}${a.situacao === "assinado" ? "-assinado" : ""}.pdf"`,
         "Cache-Control": "no-store",
         "X-Robots-Tag": "noindex",
       },

@@ -24,10 +24,12 @@ import {
 
 import { envelopeMinutaPorToken, registrarAberturaMinuta } from "@/lib/db/minuta-assinatura"
 import { envelopeRpaPorToken, registrarAberturaRpa } from "@/lib/db/rpa-assinatura"
+import { envelopeAvisoPorToken, registrarAberturaAviso } from "@/lib/db/ferias-aviso"
 
 import { AssinarCessao } from "./cessao"
 import { AssinarMinuta } from "./minuta"
 import { AssinarRpa } from "./rpa"
+import { AssinarAvisoFerias } from "./ferias"
 import { AssinarForm, RecusarForm } from "./assinatura-forms"
 
 export const metadata: Metadata = {
@@ -65,6 +67,16 @@ export default async function AssinarOficioPage({
       userAgent: h.get("user-agent"),
     })
     return <AssinarRpa envelope={rpa} token={token} />
+  }
+
+  const aviso = await envelopeAvisoPorToken(token)
+  if (aviso) {
+    const h = await headers()
+    await registrarAberturaAviso(aviso, {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null,
+      userAgent: h.get("user-agent"),
+    })
+    return <AssinarAvisoFerias envelope={aviso} token={token} />
   }
 
   const minuta = await envelopeMinutaPorToken(token)

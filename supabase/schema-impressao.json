@@ -2214,7 +2214,7 @@
  "restricao:documento_assinatura_eventos.oficios_assinaturas_eventos_emp_proprietaria_id_fkey": "c7645b025223f161f10f53b42748d9b3",
  "restricao:documento_assinatura_eventos.oficios_assinaturas_eventos_pkey": "4c6419b3704337bbfe50f018842a9ad3",
  "restricao:documento_assinaturas.ck_doc_assinaturas_papel": "3b4ecf1c6fd73d132e4635063d3b1664",
- "restricao:documento_assinaturas.ck_doc_assinaturas_tipo": "b55d7801a2d469f89f0a697bf23ebc00",
+ "restricao:documento_assinaturas.ck_doc_assinaturas_tipo": "4b015609fcbae6a67b9e76282179cb87",
  "restricao:documento_assinaturas.oficios_assinaturas_canal_check": "cd6d806542df85237c6027f645018354",
  "restricao:documento_assinaturas.oficios_assinaturas_emp_proprietaria_id_fkey": "c7645b025223f161f10f53b42748d9b3",
  "restricao:documento_assinaturas.oficios_assinaturas_enviado_por_id_fkey": "1a9e58d42d64da4f4e093dba806a349a",

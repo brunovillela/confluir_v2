@@ -14,6 +14,7 @@ import {
   excluirGozo,
   excluirPeriodoFerias,
 } from "@/lib/db/ferias"
+import { enviarAvisoFerias, gozosSemAviso, reenviarAvisoFerias } from "@/lib/db/ferias-aviso"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -261,4 +262,34 @@ export async function alternarAutorizacaoGozo(
       ? "Gozo autorizado — o funcionário foi avisado."
       : "Autorização desfeita.",
   }
+}
+
+// ── Aviso de férias para assinatura (19/10) ─────────────────────────────────
+
+/** Envia (ou reenvia, se as datas mudaram) o aviso do gozo autorizado. */
+export async function enviarAvisoFeriasAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await exigirAcesso()
+  const gozoId = String(formData.get("gozo_id") ?? "")
+  const periodoId = String(formData.get("periodo_id") ?? "")
+  const pendente = formData.get("reenviar") === "1"
+  const r = pendente ? await reenviarAvisoFerias(gozoId) : await enviarAvisoFerias(gozoId, sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  revalidar(periodoId || undefined)
+  return { ok: pendente ? "Link reenviado ao funcionário." : "Aviso enviado ao funcionário para assinar." }
+}
+
+/** Gozos já autorizados que ainda vão começar e não têm aviso: envia todos. */
+export async function enviarAvisosPendentesAction(): Promise<EstadoForm> {
+  const sessao = await exigirAcesso()
+  const lista = await gozosSemAviso()
+  let enviados = 0
+  const erros: string[] = []
+  for (const g of lista) {
+    const r = await enviarAvisoFerias(g.gozoId, sessao.usuario.id)
+    if (r.erro) erros.push(r.erro)
+    else if (r.enviado) enviados++
+  }
+  revalidar()
+  if (erros.length) return { erro: `${enviados} aviso(s) enviado(s). Não enviados: ${erros.join(" ")}` }
+  return { ok: `${enviados} aviso(s) enviado(s) para assinatura.` }
 }

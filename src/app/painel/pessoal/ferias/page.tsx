@@ -31,6 +31,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { listarPeriodosFerias, resumoPeriodo, type PeriodoFerias } from "@/lib/db/ferias"
+import { gozosSemAviso } from "@/lib/db/ferias-aviso"
 import { departamentosDaLista, funcionariosDaArea, type FuncionarioArea } from "@/lib/db/pessoal-area"
 import {
   anosComGozo,
@@ -48,6 +49,7 @@ import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } fro
 import { cn } from "@/lib/utils"
 
 import { AutorizarGozoBotao } from "./[id]/gozo-itens"
+import { AvisosPendentes } from "./avisos-pendentes"
 import { DistribuicaoMensal } from "./distribuicao-mensal"
 import { ExcluirPeriodoBotao } from "./excluir-periodo"
 import { BadgeSituacao, DetalheSituacao } from "./situacao-ferias"
@@ -119,6 +121,7 @@ export default async function FeriasPage({
     .sort((a, b) => (a.inicio ?? "").localeCompare(b.inicio ?? ""))
   const pendentesAtrasados = pendentes.filter((g) => g.inicio && g.inicio <= hoje).length
   const urlEstado = (c: ChaveSituacao) => `/painel/pessoal/ferias?estado=${c}`
+  const semAviso = (await gozosSemAviso()).length
 
   return (
     <>
@@ -156,6 +159,8 @@ export default async function FeriasPage({
           <AlertDescription>Período excluído.</AlertDescription>
         </Alert>
       )}
+
+      <AvisosPendentes quantidade={semAviso} />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <TileIndicador

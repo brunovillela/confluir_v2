@@ -22,6 +22,7 @@ import {
   alternarAutorizacaoGozo,
   atualizarGozoAction,
   criarGozoAction,
+  enviarAvisoFeriasAction,
   excluirGozoAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
@@ -218,5 +219,55 @@ export function ExcluirGozoBotao({
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
       </Button>
     </form>
+  )
+}
+
+/**
+ * Situação do aviso de férias do gozo (assinatura do funcionário) e o botão
+ * de enviar/reenviar. Só para gozo autorizado — autorizar já envia sozinho.
+ */
+export function AvisoFeriasSituacao({
+  periodoId,
+  gozoId,
+  autorizado,
+  situacao,
+  quando,
+  motivoRecusa,
+}: {
+  periodoId: string
+  gozoId: string
+  autorizado: boolean
+  situacao: "pendente" | "assinado" | "recusado" | "cancelado" | null
+  quando: string | null
+  motivoRecusa: string | null
+}) {
+  const [estado, acao, pendente] = useActionState(enviarAvisoFeriasAction, {})
+  if (!autorizado) return null
+  const rotulo =
+    situacao === "assinado"
+      ? { texto: `Assinado${quando ? ` em ${quando}` : ""}`, classe: "text-success-fg" }
+      : situacao === "pendente"
+        ? { texto: "Aguardando assinatura", classe: "text-warning-fg" }
+        : situacao === "recusado"
+          ? { texto: `Não assinado${motivoRecusa ? `: ${motivoRecusa}` : ""}`, classe: "text-destructive" }
+          : { texto: "Aviso não enviado", classe: "text-muted-foreground" }
+  const botao = situacao === "pendente" ? "Reenviar link" : situacao === "assinado" ? null : "Enviar aviso"
+  return (
+    <div className="mt-1 grid gap-0.5">
+      <span className={`text-xs ${rotulo.classe}`}>{rotulo.texto}</span>
+      {botao && (
+        <form action={acao}>
+          <input type="hidden" name="gozo_id" value={gozoId} />
+          <input type="hidden" name="periodo_id" value={periodoId} />
+          {situacao === "pendente" && <input type="hidden" name="reenviar" value="1" />}
+          <Button type="submit" variant="link" size="sm" className="h-auto p-0 text-xs" disabled={pendente}>
+            {pendente && <Loader2 className="animate-spin" />}
+            {botao}
+          </Button>
+        </form>
+      )}
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
+    </div>
   )
 }

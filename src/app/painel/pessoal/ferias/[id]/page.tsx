@@ -29,12 +29,15 @@ import { requirePermissao } from "@/lib/auth"
 import { buscarPeriodoFerias, listarPeriodosFerias, resumoPeriodo } from "@/lib/db/ferias"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
+import { situacaoDosAvisos } from "@/lib/db/ferias-aviso"
+import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
 import { formatarData } from "@/lib/formato"
 
 import { ExcluirPeriodoBotao } from "../excluir-periodo"
 import { PeriodoFeriasForm } from "../periodo-form"
 import {
   AutorizarGozoBotao,
+  AvisoFeriasSituacao,
   ExcluirGozoBotao,
   GozoForm,
 } from "./gozo-itens"
@@ -92,6 +95,7 @@ export default async function PeriodoFeriasPage({
       ? (periodo.gozos.find((g) => g.id === editar) ?? null)
       : null
 
+  const avisos = await situacaoDosAvisos(periodo.gozos.map((g) => g.id))
   const urls = new Map<string, string | null>()
   for (const g of periodo.gozos) {
     urls.set(g.id, await urlArquivoPessoal(g.aviso_ferias_url))
@@ -315,6 +319,14 @@ export default async function PeriodoFeriasPage({
                               —
                             </span>
                           )}
+                          <AvisoFeriasSituacao
+                            periodoId={id}
+                            gozoId={g.id}
+                            autorizado={g.autorizado === true}
+                            situacao={avisos.get(g.id)?.situacao ?? null}
+                            quando={avisos.get(g.id)?.assinadoEm ? formatarMomentoAssinatura(avisos.get(g.id)!.assinadoEm).slice(0, 10) : null}
+                            motivoRecusa={avisos.get(g.id)?.motivoRecusa ?? null}
+                          />
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
