@@ -115,7 +115,9 @@ O relatório não traz nome, CPF nem voto: pode ir para a comissão e para o pro
 
 **Texto canônico do hash (C-3):** uma linha por registro de `voto_resultado_final`, `assembleia;pergunta;opção|branco|nulo;quantidade` (ids em minúsculas, quantidade em inteiro), em ordem de bytes por pergunta, tipo e opção, separadas por `\n`, sem `\n` no fim; hash = SHA-256 em hexadecimal do texto em UTF-8. A tela de apuração mostra o texto; `sha256sum` sobre ele (sem quebra final) devolve o hash publicado.
 
-**Execução de 18/10/2026 (produção, todas as rodadas do sistema novo):** C1–C5 **OK** em 9 rodadas e 4 assembleias encerradas com resultado gravado. Com o demo incluído, C4 acusava um CPF com duas participações na "Rodada de teste" (dados fictícios de 29/08, anteriores à regra de CPF único); a migração `20261019083424` passou essa participação a outra pessoa fictícia (votos e contagem iguais) antes de criar o índice único. As 4 assembleias já encerradas recebem o hash na aplicação da migração, sem evento no livro (o encerramento delas foi anterior a ele); em teste, o hash do banco conferiu com o recalculado em JS nas 4.
+**Execução de 18/10/2026 (produção, todas as rodadas do sistema novo):** C1–C5 **OK** em 9 rodadas e 4 assembleias encerradas com resultado gravado. Com o demo incluído, C4 acusava um CPF com duas participações na "Rodada de teste" (dados fictícios de 29/08, anteriores à regra de CPF único); a migração `20261019083424` passou essa participação a outra pessoa fictícia (votos e contagem iguais) antes de criar o índice único. As assembleias já encerradas receberam o hash na aplicação da migração, sem evento no livro (o encerramento delas foi anterior a ele).
+
+**Execução de 19/10/2026, depois da migração (produção):** C1–C6 **OK** em 9 rodadas e 9 assembleias encerradas, todas com hash publicado igual ao recalculado em JS; com o demo incluído, também tudo OK (10 rodadas). No demo, a apuração da "Assembleia online de teste" foi reaberta (com motivo) e encerrada de novo pela tela: o livro registrou as duas coisas, o hash saiu na apuração e no PDF e a conferência gravou C1–C6 OK.
 
 ## 6. Pontos a fortalecer
 

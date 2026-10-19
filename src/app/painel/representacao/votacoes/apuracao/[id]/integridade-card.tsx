@@ -26,7 +26,8 @@ export function IntegridadeCard({
 }) {
   const ultimoEncerramento = integridade.eventos.find((e) => e.tipo === "encerramento")
   const conferencia = encerrada ? (ultimoEncerramento?.conferencia ?? null) : null
-  if (!encerrada && integridade.eventos.length === 0) return null
+  const temHash = encerrada && Boolean(integridade.resultadoHash)
+  if (!temHash && !conferencia && integridade.eventos.length === 0) return null
 
   return (
     <Card>

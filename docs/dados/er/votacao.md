@@ -22,6 +22,11 @@ erDiagram
     uuid pergunta_id FK
     uuid opcao_id FK
   }
+  voto_apuracao_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid assembleia_id FK
+  }
   voto_apuracao_urna {
     uuid id PK
     uuid urna_id FK
@@ -182,6 +187,7 @@ erDiagram
   voto_apuracao_contagem }o--o| voto_opcoes_resposta : "opcao_id"
   voto_apuracao_contagem }o--|| voto_apuracao_urna : "apuracao_urna_id"
   voto_apuracao_contagem }o--|| voto_assembleias_perguntas : "pergunta_id"
+  voto_apuracao_eventos }o--|| voto_assembleias : "assembleia_id"
   voto_apuracao_urna }o--o| voto_apuradores : "apurador_id"
   voto_apuracao_urna }o--|| voto_urnas : "urna_id"
   voto_apuradores }o--|| voto_rod_assembleias : "rod_assembleia_id"
