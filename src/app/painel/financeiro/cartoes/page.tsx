@@ -6,13 +6,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,7 +22,7 @@ import { formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { alternarCartaoAction } from "./actions"
-import { CartaoForm } from "./cartao-form"
+import { NovoCartaoDialog } from "./cartao-form"
 
 export const metadata: Metadata = { title: "Cartões — Confluir" }
 
@@ -60,6 +53,11 @@ export default async function CartoesPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Cartões</h1>
           <CreditCard className="text-muted-foreground size-5" />
+          {disponivel && podeEditar && (
+            <div className="ml-auto">
+              <NovoCartaoDialog pessoas={pessoas} />
+            </div>
+          )}
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Cartões da entidade usados em compras. Na aquisição direta paga em
@@ -73,20 +71,6 @@ export default async function CartoesPage() {
         <Alert variant="warning">
           <AlertDescription>{AVISO_SQL_PAGAMENTO}</AlertDescription>
         </Alert>
-      )}
-
-      {disponivel && podeEditar && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Novo cartão</CardTitle>
-            <CardDescription>
-              Cadastre cada cartão uma vez; desative quando for cancelado.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CartaoForm pessoas={pessoas} />
-          </CardContent>
-        </Card>
       )}
 
       {disponivel && (

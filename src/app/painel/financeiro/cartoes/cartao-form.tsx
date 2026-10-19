@@ -1,10 +1,18 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { Loader2, Plus, Save } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TIPOS_CARTAO, USOS_CARTAO } from "@/lib/compras-constantes"
@@ -14,12 +22,41 @@ import { criarCartaoAction, definirUsoCartaoAction } from "./actions"
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
+/** Botão "Novo cartão" no topo da página: o formulário abre num diálogo. */
+export function NovoCartaoDialog({ pessoas }: { pessoas: { id: string; nome: string }[] }) {
+  const [aberto, setAberto] = useState(false)
+  return (
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <Plus />
+          Novo cartão
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Novo cartão</DialogTitle>
+          <DialogDescription>Cadastre cada cartão uma vez; desative quando for cancelado.</DialogDescription>
+        </DialogHeader>
+        {/* key: reabrir o diálogo traz o formulário limpo. */}
+        <CartaoForm key={String(aberto)} pessoas={pessoas} onSalvo={() => setAberto(false)} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function CartaoForm({
   pessoas,
+  onSalvo,
 }: {
   pessoas: { id: string; nome: string }[]
+  /** Chamado depois de cadastrar (o diálogo fecha). */
+  onSalvo?: () => void
 }) {
   const [estado, acao, pendente] = useActionState(criarCartaoAction, {})
+  useEffect(() => {
+    if (estado.ok) onSalvo?.()
+  }, [estado, onSalvo])
   return (
     <form action={acao} className="grid gap-4">
       {estado.erro && (
