@@ -16,9 +16,11 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * Client com SERVICE ROLE — IGNORA o RLS. Usar SOMENTE em operações de
  * PLATAFORMA / cross-tenant, onde não há um tenant único: proxy (resolução do
- * tenant pelo host), auth pré-tenant e o controlador /admin (lib/plataforma.ts
- * e lib/db/plataforma.ts). NUNCA para dados de um tenant — para isso é o
- * `createAdminClient()` abaixo. Ver [[confluir-multitenant]].
+ * tenant pelo host), auth pré-tenant, o controlador /admin (lib/plataforma.ts
+ * e lib/db/plataforma.ts), crons `/api/**\/tick`, Telegram, API pública e
+ * webhooks. A lista exata é a allowlist `PODEM_USAR_SERVICE_ROLE` do
+ * eslint.config.mjs. NUNCA para dados de um tenant sem filtro — para isso é o
+ * `createAdminClient()` abaixo. Ver docs/arquitetura/adr/0003.
  */
 export function createServiceClient(): SupabaseClient {
   return createSupabaseClient(

@@ -29,8 +29,10 @@ import { subdominioDoHost } from "@/lib/tenant-host"
  * As páginas repetem as checagens via requireSessaoPainel/requirePermissao
  * (defesa em profundidade) — o proxy é a primeira barreira, não a única.
  *
- * RLS está habilitado com deny-all para anon/authenticated, então as
- * consultas a `usuarios`/`permissoes` usam o service role (server-side).
+ * O RLS isola cada tenant pela claim `tenant_id` do JWT (policy
+ * `tenant_isolation`); o proxy roda antes de existir esse contexto, por isso
+ * as consultas a `tenants`/`usuarios`/`permissoes` aqui usam o service role
+ * (server-side). Ver docs/arquitetura/adr/0001 e 0003.
  */
 /** Cache em memória do slug→tenant (por instância; TTL curto). */
 type TenantCache = { empresa_id: string; status: string | null } | null

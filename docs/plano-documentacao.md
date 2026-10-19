@@ -278,6 +278,16 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
   - **Achado C-1:** `voto_online` aceita UPDATE/DELETE antes do encerramento (sem trava no banco).
   - **Achado C-2:** reabrir a apuração não deixa trilha.
 
+- 19/10/2026 — **ONDA D CONCLUÍDA.**
+  - **`docs/arquitetura/LEIA-ME.md`:**
+    - C4 em Mermaid: contexto, com pessoas e sistemas externos; containers, com Vercel/gru1, proxy, app, API, 14 crons e Supabase (Postgres, Auth, Storage);
+    - mapa de componentes do código e caminho de uma requisição e de um voto.
+  - **`docs/arquitetura/adr/`:** 24 ADRs com índice por tema (plataforma, dados, domínio, processo) e modelo. Levantadas das notas de trabalho e conferidas no código.
+  - **Correções no caminho:**
+    - comentários desatualizados em `src/proxy.ts` (RLS "deny-all"), `src/lib/tenant.ts` ("fase 2") e `createServiceClient` (allowlist incompleta);
+    - a ADR 0016 declara `esquemaAusente` como legado.
+  - **Achado:** a região `gru1` só existe no painel da Vercel, sem `regions` no `vercel.json` (ADR 0004; fica para a Onda E).
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**

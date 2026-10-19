@@ -10,11 +10,11 @@ import { conferirTenant } from "@/lib/tenant-assinatura"
  * Tenant (organização) da requisição atual.
  *
  * O proxy resolve o tenant a partir do host (subdomínio) e o injeta no header
- * `x-tenant-id`; aqui a gente lê esse header. Fallback: o tenant do `.env`
- * (EMP_PROPRIETARIA_ID) — enquanto existe UM único tenant, os dois coincidem,
- * então trocar `EMP_PROPRIETARIA_ID` por `await tenantAtual()` no código é
- * NEUTRO de comportamento. Quando o roteamento por subdomínio entrar (fase 2),
- * o header passa a variar por organização e o mesmo código já fica correto.
+ * `x-tenant-id`, assinado; aqui a gente lê esse header (só se a assinatura
+ * conferir). Fallback: o tenant do `.env` (EMP_PROPRIETARIA_ID), usado sem
+ * subdomínio (localhost, apex, *.vercel.app) e em scripts. Código de tenant
+ * usa sempre `await tenantAtual()`, nunca EMP_PROPRIETARIA_ID direto
+ * (docs/arquitetura/adr/0001).
  *
  * `cache` (React) memoiza por requisição — uma leitura de header por request.
  *
