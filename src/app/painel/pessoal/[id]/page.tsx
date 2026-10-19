@@ -31,8 +31,8 @@ import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
 import { ResumoAreas } from "@/components/pessoal/resumo-areas"
 
 import { DadosBancariosFuncionario } from "./dados-bancarios"
-import { DadosCadastrais, VinculoFuncionario } from "./cadastro-forms"
-import { obterDadosCadastrais } from "@/lib/db/pessoal-cadastro"
+import { DadosCadastrais, ExcluirFuncionario, VinculoFuncionario } from "./cadastro-forms"
+import { descreverLancamentos, lancamentosDoFuncionario, obterDadosCadastrais } from "@/lib/db/pessoal-cadastro"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -91,6 +91,8 @@ export default async function FuncionarioPage({
     : [{ anuenios: [], niveis: [] }, null]
 
   const { usuario, vinculos, dependentes } = perfil
+  // O que impede excluir o funcionário (lançamentos no Pessoal) — só a gestão vê.
+  const lancamentos = temGestao ? await lancamentosDoFuncionario(id) : []
 
   const vinculoAtual = vinculos.find((v) => !v.contrato_demissao) ?? vinculos[0]
   const ativo = Boolean(vinculoAtual && !vinculoAtual.contrato_demissao)
@@ -225,6 +227,13 @@ export default async function FuncionarioPage({
             </CardContent>
           </Card>
         </>
+      )}
+      {temGestao && (
+        <ExcluirFuncionario
+          usuarioId={id}
+          nome={usuario.nome_completo ?? usuario.nome_guerra ?? "este funcionário"}
+          impedimentos={lancamentos.length ? descreverLancamentos(lancamentos) : null}
+        />
       )}
     </>
   )

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import { formatarData } from "@/lib/formato"
 
-import { excluirVinculoAction, salvarDadosCadastraisAction, salvarVinculoAction } from "./actions"
+import { excluirFuncionarioAction, excluirVinculoAction, salvarDadosCadastraisAction, salvarVinculoAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 export type DadosCadastraisTela = {
@@ -250,11 +250,63 @@ export function VinculoFuncionario({
               </Button>
             </div>
             <span className="text-muted-foreground text-xs">
-              Recusado quando há contracheque, ponto ou férias — esses registros provam que a pessoa trabalhou aqui.
+              Recusado quando há lançamento no Pessoal (contracheque, férias, ponto, diária…) — esses registros provam que a pessoa trabalhou aqui.
             </span>
             {estadoExc.erro && <span className="text-destructive text-xs">{estadoExc.erro}</span>}
           </form>
         </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Excluir o funcionário do Pessoal (19/10). Com lançamento, o botão não
+ * aparece: a lista diz o que impede e o caminho é o desligamento.
+ */
+export function ExcluirFuncionario({
+  usuarioId,
+  nome,
+  impedimentos,
+}: {
+  usuarioId: string
+  nome: string
+  /** "3 contracheques, 1 período de férias" — vazio quando dá para excluir. */
+  impedimentos: string | null
+}) {
+  const [estado, acao, pendente] = useActionState(excluirFuncionarioAction, {})
+  return (
+    <div className="border-destructive/30 grid gap-2 rounded-xl border border-dashed p-4">
+      <p className="text-sm font-medium">Excluir funcionário</p>
+      {impedimentos ? (
+        <p className="text-muted-foreground text-xs">
+          Não dá para excluir: há lançamentos no Pessoal ({impedimentos}) — a pessoa trabalha ou trabalhou na
+          entidade. Para quem saiu, preencha a data de desligamento no vínculo.
+        </p>
+      ) : (
+        <form
+          action={acao}
+          onSubmit={(e) =>
+            confirmarEnvio(
+              e,
+              `Excluir ${nome} do Pessoal? Saem os vínculos com a entidade e a configuração do Pessoal (função, jornada, GHE, dependentes). O cadastro da pessoa continua — filiação, diretoria e login não mudam.`
+            )
+          }
+          className="grid gap-2"
+        >
+          <input type="hidden" name="usuario_id" value={usuarioId} />
+          <p className="text-muted-foreground text-xs">
+            Sem nenhum lançamento no Pessoal — dá para excluir (ex.: cadastrado por engano). O cadastro da pessoa
+            continua; só sai do quadro de funcionários.
+          </p>
+          <div>
+            <Button type="submit" size="sm" variant="outline" className="text-destructive" disabled={pendente}>
+              {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
+              Excluir funcionário
+            </Button>
+          </div>
+          {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+        </form>
       )}
     </div>
   )

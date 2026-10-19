@@ -35,6 +35,7 @@ type ParamsBusca = {
   ordem?: string
   dir?: string
   vinculo_excluido?: string
+  funcionario_excluido?: string
 }
 
 function normalizarFiltros(params: ParamsBusca): Required<FiltrosFuncionarios> {
@@ -134,6 +135,12 @@ export default async function FuncionariosPage({
           {lista.total.toLocaleString("pt-BR")} no total
         </p>
       </div>
+
+      {params.funcionario_excluido && (
+        <p className="border-success/40 bg-success/10 text-success-fg rounded-md border px-3 py-2 text-sm">
+          Funcionário excluído do Pessoal. O cadastro da pessoa continua (filiação, diretoria e login não mudam).
+        </p>
+      )}
 
       {params.vinculo_excluido && (
         <p className="border-success/40 bg-success/10 text-success-fg rounded-md border px-3 py-2 text-sm">

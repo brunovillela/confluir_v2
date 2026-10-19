@@ -434,6 +434,92 @@ async function registroGozo(
   }
 }
 
+// ── Gozo → ausência (19/10) ────────────────────────────────────────────────
+//
+// Gozo AUTORIZADO aparece nas ausências (coluna do dia, ponto, relatórios)
+// como "Férias", ligado por pessoal_ausencias.ferias_id. Cada ajuste no gozo
+// acompanha a ausência; desautorizar, excluir ou cancelar o gozo a tira. A
+// ausência é um espelho: erro nela só vai para o log, não desfaz o gozo.
+
+const MOTIVO_FERIAS = "Férias"
+
+/**
+ * Deixa as ausências do gozo de acordo com ele. `datasAntigas` (o gozo antes
+ * do ajuste) acha a ausência "Férias" migrada do Bubble que ainda não tinha o
+ * vínculo — assim ela é atualizada em vez de ganhar uma duplicata.
+ */
+async function sincronizarAusenciaDoGozo(
+  gozoId: string,
+  datasAntigas?: { inicio: string | null; termino: string | null }
+): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    const emp = await tenantAtual()
+    const { data: g } = await admin
+      .from("pessoal_ferias_gozo")
+      .select("id, funcionario_id, inicio, termino, autorizado")
+      .eq("id", gozoId)
+      .maybeSingle()
+    const { data: ligadas } = await admin
+      .from("pessoal_ausencias")
+      .select("id")
+      .eq("ferias_id", gozoId)
+      .eq("emp_proprietaria_id", emp)
+    const ids = (ligadas ?? []).map((a) => String(a.id))
+
+    if (!g || g.autorizado !== true || !g.inicio || !g.termino || !g.funcionario_id) {
+      if (ids.length) await admin.from("pessoal_ausencias").delete().in("id", ids)
+      return
+    }
+    const campos = {
+      funcionario_id: g.funcionario_id,
+      inicio: g.inicio,
+      termino: g.termino,
+      motivo: MOTIVO_FERIAS,
+      updated_at: new Date().toISOString(),
+    }
+    if (ids.length) {
+      await admin.from("pessoal_ausencias").update(campos).eq("id", ids[0])
+      if (ids.length > 1) await admin.from("pessoal_ausencias").delete().in("id", ids.slice(1))
+      return
+    }
+    // Ausência "Férias" sem vínculo (migrada) no mesmo intervalo: adota.
+    const ref = datasAntigas?.inicio && datasAntigas?.termino ? datasAntigas : { inicio: g.inicio, termino: g.termino }
+    const { data: legado } = await admin
+      .from("pessoal_ausencias")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("funcionario_id", g.funcionario_id)
+      .is("ferias_id", null)
+      .ilike("motivo", "f%rias%")
+      .lte("inicio", ref.termino)
+      .gte("termino", ref.inicio)
+      .order("inicio")
+      .limit(1)
+    if (legado?.length) {
+      await admin.from("pessoal_ausencias").update({ ...campos, ferias_id: gozoId }).eq("id", legado[0].id)
+      return
+    }
+    const { error } = await admin
+      .from("pessoal_ausencias")
+      .insert({ ...campos, ferias_id: gozoId, emp_proprietaria_id: emp })
+    if (error) console.error("Falha ao espelhar o gozo na ausência:", error.message)
+  } catch (e) {
+    console.error("Falha ao sincronizar a ausência do gozo:", e)
+  }
+}
+
+/** Antes de apagar o gozo: a FK da ausência não tem ON DELETE. */
+async function removerAusenciasDoGozo(gozoId: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("pessoal_ausencias")
+    .delete()
+    .eq("ferias_id", gozoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) console.error("Falha ao remover a ausência do gozo:", error.message)
+}
+
 export async function criarGozo(
   periodoId: string,
   dados: DadosGozo
@@ -589,6 +675,7 @@ export async function cancelarMinhaSolicitacaoGozo(
     return { erro: "Solicitação não encontrada." }
   }
   const eraAutorizado = data.autorizado === true
+  await removerAusenciasDoGozo(gozoId)
   const { error: erroDel, count } = await admin
     .from("pessoal_ferias_gozo")
     .delete({ count: "exact" })
@@ -638,10 +725,12 @@ export async function atualizarGozo(
     .eq("id", gozoId)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Gozo não encontrado." }
+  await sincronizarAusenciaDoGozo(gozoId, { inicio: atual.inicio, termino: atual.termino })
   return {}
 }
 
 export async function excluirGozo(gozoId: string): Promise<{ erro?: string }> {
+  await removerAusenciasDoGozo(gozoId)
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("pessoal_ferias_gozo")
@@ -676,6 +765,7 @@ export async function definirAutorizacaoGozo(
     )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if ((data ?? []).length === 0) return { erro: "Gozo não encontrado." }
+  await sincronizarAusenciaDoGozo(gozoId)
 
   const g = data![0]
 

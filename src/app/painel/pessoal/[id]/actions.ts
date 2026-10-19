@@ -11,6 +11,7 @@ import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import {
   atualizarDadosCadastrais,
   atualizarVinculoFuncionario,
+  excluirFuncionario,
   excluirVinculoFuncionario,
 } from "@/lib/db/pessoal-cadastro"
 
@@ -128,4 +129,19 @@ export async function excluirVinculoAction(
   if (r.restantes === 0) redirect("/painel/pessoal/funcionarios?vinculo_excluido=1")
   if (UUID.test(usuarioId)) revalidatePath(`/painel/pessoal/${usuarioId}`)
   return { ok: r.ok }
+}
+
+/** Exclui o funcionário do Pessoal — só sem lançamento nenhum (19/10). */
+export async function excluirFuncionarioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("pessoal_gestao")
+  const usuarioId = String(formData.get("usuario_id") ?? "")
+  if (!UUID.test(usuarioId)) return { erro: "Funcionário inválido." }
+  const r = await excluirFuncionario(usuarioId)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/pessoal", "layout")
+  revalidatePath("/painel/institucional/usuarios/quadro")
+  redirect("/painel/pessoal/funcionarios?funcionario_excluido=1")
 }

@@ -8,8 +8,9 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * Edição do cadastro do funcionário no Pessoal (pedido do Bruno, 18/09/2026):
  * dados cadastrais, cada vínculo com a entidade (inclusive o desligamento, pela
- * data de demissão) e a exclusão do vínculo de quem NUNCA fez parte da entidade
- * — recusada quando há contracheque, ponto ou férias (a mesma trava do Quadro).
+ * data de demissão) e a exclusão do vínculo — e, desde 19/10, do funcionário
+ * inteiro — de quem NUNCA fez parte da entidade: recusada quando há qualquer
+ * lançamento no Pessoal (ver LANCAMENTOS).
  */
 
 const RE_DATA = /^\d{4}-\d{2}-\d{2}$/
@@ -64,9 +65,69 @@ export async function atualizarVinculoFuncionario(
 }
 
 /**
- * Exclui o vínculo de quem nunca trabalhou na entidade. Com contracheque, ponto
- * ou férias no Pessoal, recusa: a pessoa trabalha ou trabalhou aqui — o caminho
- * é o desligamento. Sem vínculo restante, a classificação de trabalho sai do
+ * Lançamentos do funcionário no Pessoal — o que prova que a pessoa trabalha
+ * ou trabalhou na entidade. Com qualquer um deles, nem o vínculo nem o
+ * funcionário são excluídos: o caminho é o desligamento. Configuração (função,
+ * jornada, GHE, dependentes) não conta: sai junto na exclusão.
+ */
+// semTenant: tabela sem emp_proprietaria_id — o funcionário (já do tenant) isola.
+const LANCAMENTOS: { tabela: string; coluna: string; rotulo: string; plural: string; semTenant?: true }[] = [
+  { tabela: "pessoal_contracheques", coluna: "funcionario_id", rotulo: "contracheque", plural: "contracheques", semTenant: true },
+  { tabela: "pessoal_registro_ponto", coluna: "funcionario_id", rotulo: "registro de ponto", plural: "registros de ponto", semTenant: true },
+  { tabela: "pessoal_ferias", coluna: "trabalhador_id", rotulo: "período de férias", plural: "períodos de férias" },
+  { tabela: "pessoal_ferias_gozo", coluna: "funcionario_id", rotulo: "gozo de férias", plural: "gozos de férias" },
+  { tabela: "pessoal_informes_rendimentos", coluna: "funcionario_id", rotulo: "informe de rendimentos", plural: "informes de rendimentos" },
+  { tabela: "pessoal_diarias_solicitacoes", coluna: "funcionario_id", rotulo: "diária", plural: "diárias" },
+  { tabela: "pessoal_diarias_remessas", coluna: "beneficiario_id", rotulo: "remessa de diárias", plural: "remessas de diárias" },
+  { tabela: "pessoal_reembolsos_act", coluna: "funcionario_id", rotulo: "reembolso do ACT", plural: "reembolsos do ACT" },
+  { tabela: "pessoal_faltas_justificadas", coluna: "funcionario_id", rotulo: "falta justificada", plural: "faltas justificadas" },
+  { tabela: "pes_atestados_medicos", coluna: "funcionario_id", rotulo: "atestado médico", plural: "atestados médicos", semTenant: true },
+  { tabela: "pessoal_ausencias", coluna: "funcionario_id", rotulo: "ausência", plural: "ausências" },
+  { tabela: "aso", coluna: "funcionario_id", rotulo: "ASO", plural: "ASOs", semTenant: true },
+  { tabela: "pessoal_treinamentos_alunos", coluna: "aluno_id", rotulo: "treinamento", plural: "treinamentos" },
+  { tabela: "pessoal_nivel_salarial", coluna: "funcionario_id", rotulo: "lançamento de nível salarial", plural: "lançamentos de nível salarial" },
+  { tabela: "pessoal_anuenio", coluna: "funcionario_id", rotulo: "lançamento de anuênio", plural: "lançamentos de anuênio" },
+  { tabela: "pessoal_atividades_executores", coluna: "funcionario_id", rotulo: "atividade avaliada (SST)", plural: "atividades avaliadas (SST)" },
+  { tabela: "pessoal_plano_saude", coluna: "titular_id", rotulo: "plano de saúde", plural: "planos de saúde" },
+]
+
+/** Configuração do funcionário no Pessoal — sai junto quando ele é excluído. */
+const CONFIGURACAO: { tabela: string; coluna: string }[] = [
+  { tabela: "pessoal_funcionario_funcao", coluna: "funcionario_id" },
+  { tabela: "pessoal_funcionario_jornada", coluna: "funcionario_id" },
+  { tabela: "pessoal_ghe_membros", coluna: "funcionario_id" },
+  { tabela: "pessoal_dependentes", coluna: "funcionario_id" },
+]
+
+export type LancamentoFuncionario = { rotulo: string; quantidade: number }
+
+export async function lancamentosDoFuncionario(usuarioId: string): Promise<LancamentoFuncionario[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const contagens = await Promise.all(
+    LANCAMENTOS.map(async (l) => {
+      let q = admin.from(l.tabela).select("id", { count: "exact", head: true }).eq(l.coluna, usuarioId)
+      if (!l.semTenant) q = q.eq("emp_proprietaria_id", emp)
+      const { count, error } = await q
+      // Tabela ausente num tenant não trava; erro de verdade, sim (fail closed).
+      if (error && !/does not exist|schema cache/i.test(error.message)) {
+        throw new Error(`Falha ao conferir ${l.rotulo}: ${error.message}`)
+      }
+      return { rotulo: (count ?? 0) === 1 ? l.rotulo : l.plural, quantidade: count ?? 0 }
+    })
+  )
+  return contagens.filter((c) => c.quantidade > 0)
+}
+
+/** "3 contracheques, 1 período de férias" — para a mensagem de recusa. */
+export function descreverLancamentos(lista: LancamentoFuncionario[]): string {
+  return lista.map((l) => `${l.quantidade} ${l.rotulo}`).join(", ")
+}
+
+/**
+ * Exclui o vínculo de quem nunca trabalhou na entidade. Com lançamento no
+ * Pessoal, recusa: a pessoa trabalha ou trabalhou aqui — o caminho é o
+ * desligamento. Sem vínculo restante, a classificação de trabalho sai do
  * quadro (diretor continua diretor).
  */
 export async function excluirVinculoFuncionario(
@@ -75,15 +136,10 @@ export async function excluirVinculoFuncionario(
   const { admin, emp, v } = await vinculoDaEntidade(vinculoId)
   if (!v || !v.trabalhador_id) return { erro: "Vínculo não encontrado." }
   const pessoa = String(v.trabalhador_id)
-  const [c, p, f] = await Promise.all([
-    admin.from("pessoal_contracheques").select("id", { count: "exact", head: true }).eq("funcionario_id", pessoa),
-    admin.from("pessoal_registro_ponto").select("id", { count: "exact", head: true }).eq("funcionario_id", pessoa),
-    admin.from("pessoal_ferias").select("id", { count: "exact", head: true }).eq("trabalhador_id", pessoa),
-  ])
-  const registros = (c.count ?? 0) + (p.count ?? 0) + (f.count ?? 0)
-  if (registros > 0) {
+  const lancamentos = await lancamentosDoFuncionario(pessoa)
+  if (lancamentos.length > 0) {
     return {
-      erro: `Há ${registros} registro(s) de contracheque, ponto ou férias desta pessoa no Pessoal — ela trabalha ou trabalhou na entidade. O vínculo não foi excluído; para quem saiu, preencha a data de desligamento.`,
+      erro: `Esta pessoa tem lançamentos no Pessoal (${descreverLancamentos(lancamentos)}) — ela trabalha ou trabalhou na entidade. O vínculo não foi excluído; para quem saiu, preencha a data de desligamento.`,
     }
   }
   const { error } = await admin
@@ -113,6 +169,54 @@ export async function excluirVinculoFuncionario(
         : "Vínculo excluído.",
     restantes: restantes ?? 0,
   }
+}
+
+/**
+ * Exclui o FUNCIONÁRIO do Pessoal (pedido de 19/10): todos os vínculos dele
+ * com a entidade e a configuração do Pessoal (função, jornada, GHE,
+ * dependentes). Só quando não há nenhum lançamento — com contracheque, férias,
+ * ponto etc. a pessoa trabalhou aqui e o caminho é o desligamento.
+ *
+ * O cadastro da PESSOA (usuarios) fica: pode ser filiado, diretor ou ter
+ * login — só a classificação de trabalho sai (diretor continua diretor).
+ */
+export async function excluirFuncionario(usuarioId: string): Promise<{ erro?: string; ok?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: pessoa } = await admin
+    .from("usuarios")
+    .select("id, nome_completo")
+    .eq("id", usuarioId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!pessoa) return { erro: "Funcionário não encontrado." }
+
+  const lancamentos = await lancamentosDoFuncionario(usuarioId)
+  if (lancamentos.length > 0) {
+    return {
+      erro: `Não dá para excluir: há lançamentos no Pessoal (${descreverLancamentos(lancamentos)}). Para quem saiu da entidade, preencha a data de desligamento no vínculo.`,
+    }
+  }
+
+  for (const c of CONFIGURACAO) {
+    const { error } = await admin.from(c.tabela).delete().eq(c.coluna, usuarioId).eq("emp_proprietaria_id", emp)
+    if (error && !/does not exist|schema cache/i.test(error.message)) {
+      return { erro: `Não foi possível excluir (${c.tabela}): ${error.message}` }
+    }
+  }
+  const { error } = await admin
+    .from("vinculos_trabalhistas")
+    .delete()
+    .eq("trabalhador_id", usuarioId)
+    .eq("empregador_id", emp)
+  if (error) return { erro: `Não foi possível excluir os vínculos: ${error.message}` }
+  await admin
+    .from("usuarios")
+    .update({ vinculo_instituicao: null, updated_at: new Date().toISOString() })
+    .eq("id", usuarioId)
+    .eq("emp_proprietaria_id", emp)
+    .neq("vinculo_instituicao", "Diretor(a)")
+  return { ok: `${texto(pessoa.nome_completo) ?? "O funcionário"} foi excluído do Pessoal.` }
 }
 
 export type DadosCadastraisFuncionario = {
