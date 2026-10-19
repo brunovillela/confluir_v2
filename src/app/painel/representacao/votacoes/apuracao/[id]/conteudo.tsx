@@ -8,11 +8,13 @@ import {
 } from "@/components/ui/card"
 import { temVotoOnline } from "@/lib/assembleias-constantes"
 import type { ApuracaoAssembleia } from "@/lib/db/assembleias"
+import type { IntegridadeApuracao } from "@/lib/db/votacao-livro-apuracao"
 import type { EmSeparadoLinha } from "@/lib/db/votacao-mesarios"
 import { formatarDataHora } from "@/lib/formato"
 
 import { ApuracaoForm } from "./apuracao-form"
 import { EmSeparadoValidacao } from "./emseparado-validacao"
+import { IntegridadeCard } from "./integridade-card"
 import { RelatoriosApuracao } from "./relatorios"
 
 /**
@@ -23,9 +25,11 @@ import { RelatoriosApuracao } from "./relatorios"
 export function ConteudoApuracao({
   dados,
   emSeparado,
+  integridade = null,
 }: {
   dados: ApuracaoAssembleia
   emSeparado: EmSeparadoLinha[]
+  integridade?: IntegridadeApuracao | null
 }) {
   return (
     <>
@@ -162,6 +166,11 @@ export function ConteudoApuracao({
               />
             </CardContent>
           </Card>
+        )}
+
+        {/* Hash, conferência e livro da apuração (dossiê C-2, C-3, C-5) */}
+        {integridade && (
+          <IntegridadeCard integridade={integridade} encerrada={dados.apuracaoEncerrada} />
         )}
 
         {/* Resultado agregado + encerrar/reabrir */}
