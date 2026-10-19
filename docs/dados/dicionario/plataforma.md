@@ -2,7 +2,7 @@
 
 # Plataforma, acesso e auditoria
 
-28 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+31 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -19,7 +19,10 @@
 | [empresa_departamentos](#empresa_departamentos) | — | Departamentos da entidade (secretarias, setores), com coordenador. Usados em compras, ofícios, agenda, contas e avisos. Departamento legado … |
 | [empresa_departamentos_integrantes](#empresa_departamentos_integrantes) | trabalhista | Usuários que integram cada departamento da entidade. Usado em avisos, permissões e diárias da diretoria. |
 | [empresa_sede](#empresa_sede) | — | Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos ofícios, na agenda, em cobranças e na cessão de espaços. |
+| [lgpd_bloqueios_litigio](#lgpd_bloqueios_litigio) | identificação | Bloqueio por litígio (legal hold, item 4 da seção 4 de retencao.md): enquanto vigente, a pessoa (CPF ou e-mail) ou o registro (tabela + id) … |
 | [lgpd_exportacoes](#lgpd_exportacoes) | identificação | Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNA… |
+| [lgpd_regras_retencao](#lgpd_regras_retencao) | identificação | Regras do motor de retenção (seção 4 de docs/lgpd/retencao.md): uma linha por entidade e código RT, com prazo padrão, mínimo legal, prazo es… |
+| [lgpd_retencao_execucoes](#lgpd_retencao_execucoes) | identificação | Livro do motor de retenção: uma linha por regra executada (simulação ou real), com prazo, data de corte, linhas afetadas, arquivos removidos… |
 | [lgpd_solicitacoes](#lgpd_solicitacoes) | identificação, **sensível: sindical** | Livro de solicitações de titulares. NÃO armazenar aqui nome, CPF ou contato — o objetivo é provar o tratamento, não preservar o dado. |
 | [login_tentativas](#login_tentativas) | identificação | Contador de falhas de login e de envio de código por chave (lib/login-bloqueio.ts e portal/votacao), com bloqueio temporário após 5 ou 10 fa… |
 | [perfil_permissoes](#perfil_permissoes) | — | Chave de permissão concedida a um perfil de acesso (RBAC por cima da ACL plana). |
@@ -361,6 +364,32 @@ Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos of
 
 Índices: `empresa_sede_bubble_id_key`, `empresa_sede_pkey`
 
+## lgpd_bloqueios_litigio
+
+Bloqueio por litígio (legal hold, item 4 da seção 4 de retencao.md): enquanto vigente, a pessoa (CPF ou e-mail) ou o registro (tabela + id) fica fora de todas as regras do motor de retenção. Encerrar é carimbar encerrado_em; a linha fica como histórico.
+
+- **LGPD:** identificação · titulares: filiados, interessados, inscritos e demais pessoas envolvidas em processo
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `cpf` | text | sim |  |  | identificação | CPF bloqueado, só dígitos. |
+| `email` | text | sim |  |  | identificação | E-mail bloqueado, em minúsculas. |
+| `tabela` | text | sim |  |  |  | Tabela do registro bloqueado (com registro_id). |
+| `registro_id` | uuid | sim |  |  |  | Id do registro bloqueado na tabela indicada. |
+| `motivo` | text | não |  |  | identificação | Por que o descarte está suspenso. Pode citar a pessoa ou o caso. |
+| `processo` | text | sim |  |  | identificação | Número do processo ou procedimento, quando houver. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem criou o bloqueio. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `encerrado_em` | timestamp with time zone | sim |  |  |  | Fim do bloqueio; nulo = vigente. |
+| `encerrado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem encerrou o bloqueio. |
+
+Checks: `lgpd_bloqueios_litigio_alvo_check` `CHECK (((cpf IS NOT NULL) OR (email IS NOT NULL) OR ((tabela IS NOT NULL) AND (registro_id IS NOT NULL))))`; `lgpd_bloqueios_litigio_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `lgpd_bloqueios_litigio_email_check` `CHECK (((email IS NULL) OR (email = lower(email))))`
+
+Índices: `idx_lgpd_bloqueios_litigio_vigentes`, `lgpd_bloqueios_litigio_pkey`
+
 ## lgpd_exportacoes
 
 Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNAB), com quem, quando, rota, filtros e quantidade de linhas. Gravado só pelo service_role (src/lib/exportacoes.ts); a entidade lê em Institucional › Auditoria.
@@ -382,6 +411,66 @@ Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por
 | `created_at` | timestamp with time zone | não | `now()` |  |  | Quando o arquivo foi gerado. |
 
 Índices: `idx_lgpd_exportacoes_emp`, `idx_lgpd_exportacoes_usuario`, `lgpd_exportacoes_pkey`
+
+## lgpd_regras_retencao
+
+Regras do motor de retenção (seção 4 de docs/lgpd/retencao.md): uma linha por entidade e código RT, com prazo padrão, mínimo legal, prazo escolhido e ação. Desligada (ativa = false), o cron mensal só SIMULA; ligada, elimina ou anonimiza de fato. O comportamento de cada código está em src/lib/lgpd/retencao-motor.ts.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `codigo` | text | não |  |  |  | Código da tabela de prazos de retencao.md (RT01–RT35). |
+| `tabela` | text | não |  |  |  | Tabela principal que a regra varre (documentação; a regra pode tocar tabelas filhas e o Storage). |
+| `coluna_ancora` | text | não |  |  |  | Coluna com a data a partir da qual o prazo corre. |
+| `prazo_padrao_dias` | integer | não |  |  |  | Prazo proposto em retencao.md, em dias. |
+| `prazo_minimo_dias` | integer | não | `0` |  |  | Mínimo legal travado: a entidade não pode escolher prazo menor. |
+| `prazo_dias` | integer | sim |  |  |  | Prazo escolhido pela entidade, em dias; nulo = padrão. A RT30 ignora este campo e usa eventos_config.retencao_foto_dias. |
+| `acao` | text | não | `'eliminar'::text` |  |  | eliminar ou anonimizar. |
+| `ativa` | boolean | não | `false` |  |  | Execução real ligada pela entidade. Desligada, o cron só simula e registra no livro o que sairia. |
+| `ativada_em` | timestamp with time zone | sim |  |  |  | Quando a execução real foi ligada pela última vez. |
+| `ativada_por` | uuid | sim |  | → usuarios (set null) | identificação | Usuário que ligou a execução real. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Únicas: `UNIQUE (emp_proprietaria_id, codigo)`
+
+Checks: `lgpd_regras_retencao_acao_check` `CHECK ((acao = ANY (ARRAY['eliminar'::text, 'anonimizar'::text])))`; `lgpd_regras_retencao_codigo_check` `CHECK ((codigo ~ '^RT[0-9]{2}$'::text))`; `lgpd_regras_retencao_minimo_check` `CHECK (((prazo_minimo_dias >= 0) AND (prazo_padrao_dias >= prazo_minimo_dias)))`; `lgpd_regras_retencao_prazo_check` `CHECK (((prazo_dias IS NULL) OR (prazo_dias >= prazo_minimo_dias)))`
+
+Índices: `lgpd_regras_retencao_pkey`, `lgpd_regras_retencao_unica`
+
+## lgpd_retencao_execucoes
+
+Livro do motor de retenção: uma linha por regra executada (simulação ou real), com prazo, data de corte, linhas afetadas, arquivos removidos do Storage e registros poupados por bloqueio de litígio. Só contagens e nomes de tabela, nenhum dado do titular.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `regra_id` | uuid | sim |  | → lgpd_regras_retencao (set null) |  |  |
+| `codigo` | text | não |  |  |  | Código RT da regra (cópia, para o livro sobreviver à regra). |
+| `modo` | text | não |  |  |  | simulacao (lista o que sairia, sem apagar) ou real. |
+| `origem` | text | não | `'cron'::text` |  |  | cron (rodada mensal) ou painel (simulação pedida na tela). |
+| `prazo_dias` | integer | não |  |  |  | Prazo efetivo usado na rodada. |
+| `corte` | timestamp with time zone | não |  |  |  | Data de corte: registros com a âncora anterior a ela entram na regra. |
+| `linhas_afetadas` | integer | não | `0` |  |  | Registros eliminados ou anonimizados (na simulação: os que seriam). |
+| `arquivos_removidos` | integer | não | `0` |  |  | Arquivos apagados do Storage (na simulação: os que seriam). |
+| `bloqueadas` | integer | não | `0` |  |  | Registros que cairiam na regra, mas foram poupados por bloqueio de litígio. |
+| `detalhe` | jsonb | não | `'{}'::jsonb` |  |  | Contagem por tabela e observações (limite atingido, falhas de Storage). Sem dado pessoal. |
+| `erro` | text | sim |  |  |  | Mensagem de erro, quando a rodada falhou. |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem pediu a simulação no painel; nulo no cron. |
+| `iniciada_em` | timestamp with time zone | não | `now()` |  |  | Início da rodada. |
+| `concluida_em` | timestamp with time zone | sim |  |  |  | Fim da rodada; nulo se ela não terminou. |
+
+Checks: `lgpd_retencao_execucoes_modo_check` `CHECK ((modo = ANY (ARRAY['simulacao'::text, 'real'::text])))`; `lgpd_retencao_execucoes_origem_check` `CHECK ((origem = ANY (ARRAY['cron'::text, 'painel'::text])))`
+
+Índices: `idx_lgpd_retencao_execucoes_regra`, `lgpd_retencao_execucoes_pkey`
 
 ## lgpd_solicitacoes
 

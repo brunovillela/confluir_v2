@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 12 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 20 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 23 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -742,7 +742,7 @@
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (20) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (23) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -757,7 +757,10 @@
 | [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
+| [lgpd_bloqueios_litigio](../dados/dicionario/plataforma.md#lgpd_bloqueios_litigio) | identificacao | `cpf` (identificacao), `email` (identificacao), `motivo` (identificacao), `processo` (identificacao), `criado_por` (identificacao), `encerrado_por` (identificacao) |
 | [lgpd_exportacoes](../dados/dicionario/plataforma.md#lgpd_exportacoes) | identificacao | `usuario_id` (identificacao), `filtros` (identificacao) |
+| [lgpd_regras_retencao](../dados/dicionario/plataforma.md#lgpd_regras_retencao) | identificacao | `ativada_por` (identificacao) |
+| [lgpd_retencao_execucoes](../dados/dicionario/plataforma.md#lgpd_retencao_execucoes) | identificacao | `usuario_id` (identificacao) |
 | [lgpd_solicitacoes](../dados/dicionario/plataforma.md#lgpd_solicitacoes) | identificacao, sens. sindical | `filiacao_id` (sens. sindical), `observacao` (identificacao), `email_titular` (identificacao), `cpf_titular` (identificacao) |
 | [login_tentativas](../dados/dicionario/plataforma.md#login_tentativas) | identificacao | `chave` (identificacao) |
 | [plataforma_admins](../dados/dicionario/plataforma.md#plataforma_admins) | identificacao | `nome` (identificacao), `email` (identificacao) |
@@ -769,7 +772,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; diretores; eleitores; filiados; fornecedores pf; funcionários; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
+<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores pf; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
 
 ## Fluxos transversais
 
@@ -798,4 +801,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 192 de 192 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 195 de 195 tabelas com dado pessoal atribuídas a 16 processos.

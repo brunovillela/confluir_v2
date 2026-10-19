@@ -63,9 +63,26 @@ erDiagram
     uuid emp_ref_id FK
     uuid emp_proprietaria_id FK
   }
+  lgpd_bloqueios_litigio {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid criado_por FK
+    uuid encerrado_por FK
+  }
   lgpd_exportacoes {
     uuid id PK
     uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
+  lgpd_regras_retencao {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid ativada_por FK
+  }
+  lgpd_retencao_execucoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid regra_id FK
     uuid usuario_id FK
   }
   lgpd_solicitacoes {
@@ -149,7 +166,12 @@ erDiagram
   empresa_departamentos_integrantes }o--|| empresa_departamentos : "departamento_id"
   empresa_departamentos_integrantes }o--|| usuarios : "usuario_id"
   empresa_sede }o--o| empresa : "emp_ref_id"
+  lgpd_bloqueios_litigio }o--o| usuarios : "criado_por"
+  lgpd_bloqueios_litigio }o--o| usuarios : "encerrado_por"
   lgpd_exportacoes }o--o| usuarios : "usuario_id"
+  lgpd_regras_retencao }o--o| usuarios : "ativada_por"
+  lgpd_retencao_execucoes }o--o| lgpd_regras_retencao : "regra_id"
+  lgpd_retencao_execucoes }o--o| usuarios : "usuario_id"
   lgpd_solicitacoes }o--o| eventos_inscricoes : "inscricao_id"
   lgpd_solicitacoes }o--o| filiacoes : "filiacao_id"
   lgpd_solicitacoes }o--o| usuarios : "acesso_removido_por"
