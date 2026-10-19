@@ -136,7 +136,7 @@ export default async function FiliadoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; vinculos?: string; pendentes?: string }>
+  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; vinculos?: string; pendentes?: string; visualizar?: string }>
 }) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
@@ -148,7 +148,7 @@ export default async function FiliadoPage({
   const podeLgpd = podeAcessar(sessao.permissoes, "filiacao_lgpd", ["configuracoes"])
 
   const { id } = await params
-  const { salvo, etapa, mesclado, vinculos: vinculosUnificados, pendentes } = await searchParams
+  const { salvo, etapa, mesclado, vinculos: vinculosUnificados, pendentes, visualizar } = await searchParams
   const [perfil, prontuario] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
@@ -243,6 +243,15 @@ export default async function FiliadoPage({
             )}
           </div>
         </div>
+        {visualizar === "cpf" && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>
+              Não dá para visualizar a área deste filiado: o CPF do cadastro está
+              ausente ou inválido, e a área do associado é encontrada pelo CPF.
+              Corrija o CPF em Editar cadastro e tente de novo.
+            </AlertDescription>
+          </Alert>
+        )}
         {salvo === "1" && (
           <Alert className="mb-4 border-success/40 text-success-fg">
             <AlertDescription>Cadastro atualizado com sucesso.</AlertDescription>

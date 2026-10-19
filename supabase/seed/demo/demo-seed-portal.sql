@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- SEED DEMO — Portal do Associado (Roberto Alves Pereira)
 -- ---------------------------------------------------------------------------
--- Popula os dados que o filiado de demonstração (CPF 11122233301, filiação
+-- Popula os dados que o filiado de demonstração (CPF 98700125741, filiação
 -- 77777777-…001, condição Ativo) enxerga no /portal, para os prints do manual.
 --
 -- Pré-requisitos JÁ existentes:

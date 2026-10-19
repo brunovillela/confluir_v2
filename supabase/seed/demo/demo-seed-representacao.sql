@@ -108,7 +108,7 @@ insert into voto_assembleias_perguntas (
 insert into voto_assembleias_aptos (
   id, emp_proprietaria_id, rod_assembleia_id, cpf, nome_completo, matricula, hora_voto, created_at
 ) values
-  ('ae000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','ab000000-0000-4000-8000-000000000001','11122233301','Roberto Alves Pereira','2001', now() - interval '27 days', now() - interval '28 days'),
+  ('ae000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','ab000000-0000-4000-8000-000000000001','98700125741','Roberto Alves Pereira','2001', now() - interval '27 days', now() - interval '28 days'),
   ('ae000000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','ab000000-0000-4000-8000-000000000001','33344455503','José Carlos de Oliveira','2003', now() - interval '27 days', now() - interval '28 days'),
   ('ae000000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','ab000000-0000-4000-8000-000000000001','55566677705','Antônio Ferreira Nunes','2005', null, now() - interval '28 days'),
   ('ae000000-0000-4000-8000-000000000004','11111111-1111-4111-8111-111111111111','ab000000-0000-4000-8000-000000000001','44455566604','Patrícia Gomes Lima','2004', null, now() - interval '28 days'),

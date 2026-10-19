@@ -129,6 +129,10 @@ export const getVisualizacaoPortal = cache(async (): Promise<VisualizacaoPortal 
         }
       }
     }
+    // Gestão autorizada, mas o alvo não resolve (CPF ausente ou inválido):
+    // NUNCA cair na sessão real — mostraria a área de quem está logado como se
+    // fosse a do filiado visitado. Volta ao cadastro com o aviso.
+    if (autorizado) redirect(`/painel/filiados/${dados.f}?visualizar=cpf`)
     // Cookie presente mas inválido/sem permissão: ignora e segue o fluxo normal.
   }
 

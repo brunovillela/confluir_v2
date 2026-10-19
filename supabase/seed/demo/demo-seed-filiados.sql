@@ -97,7 +97,7 @@ select
   'a1a1a1a1-0000-4000-8000-000000000001', 'a2a2a2a2-0000-4000-8000-000000000001',
   now() - interval '200 days', now() - interval '200 days', now() - interval '200 days'
 from (values
-  ('77777777-7777-4777-8777-000000000001'::uuid,'Roberto Alves Pereira','11122233301','2001','Ativo','Refinaria','Masculino', date '1979-05-14','roberto.demo@exemplo.com','(21) 99900-0001','120','Rio de Janeiro'),
+  ('77777777-7777-4777-8777-000000000001'::uuid,'Roberto Alves Pereira','98700125741','2001','Ativo','Refinaria','Masculino', date '1979-05-14','roberto.demo@exemplo.com','(21) 99900-0001','120','Rio de Janeiro'),
   ('77777777-7777-4777-8777-000000000002'::uuid,'Mariana Souza Ribeiro','22233344402','2002','Ativo','Administrativo','Feminino', date '1985-09-02','mariana.demo@exemplo.com','(21) 99900-0002','58','Niterói'),
   ('77777777-7777-4777-8777-000000000003'::uuid,'José Carlos de Oliveira','33344455503','2003','Ativo','Operação','Masculino', date '1972-11-23','jose.demo@exemplo.com','(21) 99900-0003','305','Rio de Janeiro'),
   ('77777777-7777-4777-8777-000000000004'::uuid,'Patrícia Gomes Lima','44455566604','2004','Ativo','Laboratório','Feminino', date '1990-01-30','patricia.demo@exemplo.com','(21) 99900-0004','77','São Gonçalo'),

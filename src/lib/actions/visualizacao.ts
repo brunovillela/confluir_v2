@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { getSessaoPainel } from "@/lib/auth"
+import { buscarFiliadoPorCpf } from "@/lib/contas"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -37,11 +38,18 @@ export async function iniciarVisualizacaoFiliado(formData: FormData): Promise<vo
   const admin = await createAdminClient()
   const { data } = await admin
     .from("filiacoes")
-    .select("id")
+    .select("id, cpf")
     .eq("id", filiacaoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!data) redirect("/painel/filiados/lista")
+
+  // A área do associado é montada pelo CPF. Sem CPF válido, o portal não
+  // acharia o alvo e mostraria a conta de quem está logado: avisa já aqui.
+  const cpf = typeof data.cpf === "string" ? data.cpf.replace(/\D/g, "") : ""
+  if (cpf.length !== 11 || !(await buscarFiliadoPorCpf(cpf))) {
+    redirect(`/painel/filiados/${filiacaoId}?visualizar=cpf`)
+  }
 
   const jar = await cookies()
   jar.set(COOKIE_VISUALIZACAO, gerarTokenVisualizacao(filiacaoId, painel.usuario.id), {

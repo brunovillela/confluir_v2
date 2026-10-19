@@ -40,7 +40,7 @@ for (const [tabela, cols] of Object.entries(ALVOS)) {
 const { data: rob } = await admin
   .from("filiacoes")
   .select("id, nome_completo, filiacao_condicao")
-  .eq("cpf", "11122233301")
+  .eq("cpf", "98700125741")
   .eq("emp_proprietaria_id", "11111111-1111-4111-8111-111111111111")
-console.log("Roberto (11122233301):", JSON.stringify(rob))
+console.log("Roberto (98700125741):", JSON.stringify(rob))
 process.exit(falhou ? 1 : 0)

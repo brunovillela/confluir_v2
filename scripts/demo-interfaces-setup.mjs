@@ -13,7 +13,7 @@ const HOTEL = "40010000-0000-4000-8000-000000000001"
 const VINCULO = "40060000-0000-4000-8000-000000000001" // id fixo do vínculo demo
 // O CPF precisa passar no `cpfConfiavel` (dígitos verificadores): desde a
 // limpeza de duplicidades, getSessaoPortal recusa CPF inventado, e o antigo
-// "11122233301" (Roberto Alves Pereira) derrubava o login do portal na demo.
+// "98700125741" (Roberto Alves Pereira) derrubava o login do portal na demo.
 const CPF_FILIADO = "22233344405" // Mariana Souza Ribeiro (Ativa, com vínculo)
 
 const env = Object.fromEntries(

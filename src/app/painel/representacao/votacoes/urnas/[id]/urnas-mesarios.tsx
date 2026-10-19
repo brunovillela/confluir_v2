@@ -327,7 +327,16 @@ function LacresUrna({
 }) {
   const [aberto, setAberto] = useState(false)
   const [mostrarForm, setMostrarForm] = useState(false)
-  const [estado, formAction, pendente] = useActionState(registrarLacreAction, {})
+  // Registrado: fecha o formulário e confirma (antes ficava aberto e vazio,
+  // e parecia que nada tinha acontecido).
+  const [estado, formAction, pendente] = useActionState(
+    async (prev: Parameters<typeof registrarLacreAction>[0], fd: FormData) => {
+      const r = await registrarLacreAction(prev, fd)
+      if (r.ok) setMostrarForm(false)
+      return r
+    },
+    {}
+  )
   const [estAnular, anularAction] = useActionState(anularLacreAction, {})
 
   return (
@@ -353,6 +362,11 @@ function LacresUrna({
               <AlertDescription>
                 {estado.erro ?? estAnular.erro}
               </AlertDescription>
+            </Alert>
+          )}
+          {!mostrarForm && !estado.erro && !estAnular.erro && (estado.ok || estAnular.ok) && (
+            <Alert>
+              <AlertDescription>{estAnular.ok ?? estado.ok}</AlertDescription>
             </Alert>
           )}
           {urna.lacres.length === 0 ? (
