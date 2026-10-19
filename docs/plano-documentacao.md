@@ -288,6 +288,15 @@ Estimativa: **A ≈ 6 dias, B ≈ 7 dias** de trabalho técnico; C–F ≈ 10 di
     - a ADR 0016 declara `esquemaAusente` como legado.
   - **Achado:** a região `gru1` só existe no painel da Vercel, sem `regions` no `vercel.json` (ADR 0004; fica para a Onda E).
 
+- 19/10/2026 — **ONDA E CONCLUÍDA.** `docs/operacao/` ganhou cinco documentos:
+  - `LEIA-ME.md`: índice e pendências de quem administra as contas;
+  - `runbooks.md`: R1 deploy, R2 rollback (Vercel Instant Rollback; migrações aditivas), R3 migração, R4/R5 criar e suspender entidade, R6 cron manual, R7 credenciais, R8 recriar o projeto na Vercel (região gru1 antes do primeiro deploy), R9 demo;
+  - `integracoes.md`: cada variável de ambiente com o efeito de faltar, conferido no código, e cada serviço com o dono a preencher e o que fazer quando cai;
+  - `monitoramento.md`: sinais que já existem, conferências periódicas e lacunas M-1 a M-6 (cron parado sem alerta, sem uptime externo, regras do Sentry, falha de e-mail em massa, MFA/Turnstile desligados, logs curtos);
+  - `continuidade.md`: RPO/RTO propostos, inventário do que tem backup e restauração com dados (cenário A, erro de dados; cenário B, perda do projeto).
+  - **Achado principal: os arquivos do Storage (21 buckets) não têm cópia**, porque o backup do banco do Supabase não os inclui (E-1).
+  - **Pendentes:** confirmar plano, retenção e PITR do Supabase (E-2); `SAUDE_RELATORIO_CHAVE` sem cópia em cofre (E-4); ensaio com dados (E-3).
+
 ### Achados da A4 (insumo da Onda B e da C)
 
 **Graves (decisão do usuário):**
