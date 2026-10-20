@@ -110,6 +110,21 @@ erDiagram
     uuid id PK
     uuid conta_bancaria_id FK
   }
+  financeiro_tributos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid beneficiario_empresa_id FK
+    uuid centro_custo_despesa_id FK
+    uuid departamento_id FK
+    uuid criado_por_usuario_id FK
+  }
+  financeiro_tributos_lancamentos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tributo_id FK
+    uuid ordem_pagamento_id FK
+    uuid criado_por_usuario_id FK
+  }
   ordens_pagamento {
     uuid id PK
     uuid fornecedor_id FK
@@ -132,6 +147,7 @@ erDiagram
     uuid cancelado_por_id FK
     uuid fornecimento_id FK
     uuid cartao_fatura_id FK
+    uuid tributo_lancamento_id FK
   }
   ordens_pagamento_estornos {
     uuid id PK
@@ -197,6 +213,13 @@ erDiagram
   financeiro_remessa_itens }o--|| financeiro_remessas : "remessa_id"
   financeiro_remessa_itens }o--|| ordens_pagamento : "ordem_id"
   financeiro_remessas }o--|| financeiro_contas_bancarias : "conta_bancaria_id"
+  financeiro_tributos }o--o| centros_de_custo : "centro_custo_despesa_id"
+  financeiro_tributos }o--o| empresa : "beneficiario_empresa_id"
+  financeiro_tributos }o--o| empresa_departamentos : "departamento_id"
+  financeiro_tributos }o--o| usuarios : "criado_por_usuario_id"
+  financeiro_tributos_lancamentos }o--o| ordens_pagamento : "ordem_pagamento_id"
+  financeiro_tributos_lancamentos }o--o| usuarios : "criado_por_usuario_id"
+  financeiro_tributos_lancamentos }o--|| financeiro_tributos : "tributo_id"
   ordens_pagamento }o--o| caixa_contas : "caixa_conta_id"
   ordens_pagamento }o--o| cartoes : "cartao_id"
   ordens_pagamento }o--o| centros_de_custo : "centro_custo_despesa_id"
@@ -209,6 +232,7 @@ erDiagram
   ordens_pagamento }o--o| empresa : "fornecedor_id"
   ordens_pagamento }o--o| empresa_departamentos : "departamento_id"
   ordens_pagamento }o--o| financeiro_cartao_faturas : "cartao_fatura_id"
+  ordens_pagamento }o--o| financeiro_tributos_lancamentos : "tributo_lancamento_id"
   ordens_pagamento }o--o| institucional_custeios : "custeio_id"
   ordens_pagamento }o--o| projeto : "projeto_id"
   ordens_pagamento }o--o| usuarios : "autorizacao_autorizador_id"

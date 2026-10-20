@@ -2,7 +2,7 @@
 
 # Financeiro
 
-25 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+27 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -26,6 +26,8 @@
 | [financeiro_orcamentos](#financeiro_orcamentos) | — | Orçamento anual por centro de custo, informado na visão gerencial do Financeiro para comparar com o realizado. |
 | [financeiro_remessa_itens](#financeiro_remessa_itens) | financeiro, identificação | Cada pagamento incluído numa remessa CNAB: favorecido, dados bancários ou Pix, valor e o retorno do banco (ocorrência, valor e data pagos). |
 | [financeiro_remessas](#financeiro_remessas) | financeiro, identificação | Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do banco importado depois. |
+| [financeiro_tributos](#financeiro_tributos) | identificação | Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como o contrato — órgão beneficiário, centro de custo, periodicidad… |
+| [financeiro_tributos_lancamentos](#financeiro_tributos_lancamentos) | identificação | Guias dos tributos, uma por competência (como a parcela do contrato): prevista, lançada — com a ordem de pagamento — ou cancelada. Migrado d… |
 | [ordens_pagamento](#ordens_pagamento) | financeiro, identificação, trabalhista | Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, folha, custeios): beneficiário, valor, forma, autorização, pa… |
 | [ordens_pagamento_estornos](#ordens_pagamento_estornos) | financeiro, identificação | Estorno de um pagamento já feito (devolvido pelo banco ou pelo favorecido): comunicado, responsável e como foi resolvido. |
 | [ordens_pagamento_eventos](#ordens_pagamento_eventos) | financeiro, identificação | Linha do tempo de uma ordem de pagamento: criada, editada, autorizada, devolvida, paga, cancelada, com quem fez e detalhes. |
@@ -582,6 +584,69 @@ Checks: `financeiro_remessas_situacao_check` `CHECK ((situacao = ANY (ARRAY['ger
 
 Índices: `financeiro_remessas_conta_bancaria_id_numero_key`, `financeiro_remessas_emp_idx`, `financeiro_remessas_pkey`
 
+## financeiro_tributos
+
+Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como o contrato — órgão beneficiário, centro de custo, periodicidade e vencimento habitual. Cada competência é uma guia em financeiro_tributos_lancamentos. Migrado de tributos-configurações do Bubble.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `nome` | text | não |  |  |  | Nome do tributo (ex.: Fundo de Garantia do Tempo de Serviço). |
+| `abreviacao` | text | sim |  |  |  | Como a equipe chama o tributo (ex.: FGTS, DARF GERAL, DAM CAMPOS). |
+| `esfera` | text | não | `'federal'::text` |  |  | federal, estadual, municipal ou trabalhista (trabalhista e previdenciário). |
+| `beneficiario_empresa_id` | uuid | sim |  | → empresa |  | Órgão que recebe (empresa): Receita Federal, CEF (FGTS), INSS, prefeitura, Detran. Vira o favorecido da ordem. |
+| `centro_custo_despesa_id` | uuid | sim |  | → centros_de_custo |  | Centro de custo da despesa herdado pelas ordens. |
+| `departamento_id` | uuid | sim |  | → empresa_departamentos |  | Departamento herdado pelas ordens (opcional). |
+| `periodicidade` | text | não | `'mensal'::text` |  |  | mensal (gera as competências previstas), anual ou eventual. |
+| `dia_vencimento` | smallint | sim |  |  |  | Dia habitual de vencimento da guia (1–31), para as competências previstas. |
+| `valor_esperado` | numeric(12,2) | sim |  |  |  | Valor esperado da guia. Tributo recorrente com guia nesse valor tem a autorização dispensada; fora dele, passa pela alçada. |
+| `forma_pagamento` | text | sim |  |  |  | Forma padrão das ordens (Boleto para guias com código de barras; Pix). |
+| `ativo` | boolean | não | `true` |  |  | Desativado: sai das listas e não gera competências novas; o histórico fica. |
+| `observacoes` | text | sim |  |  |  | Observações livres do Financeiro. |
+| `criado_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem cadastrou. |
+| `bubble_id` | text | sim |  |  |  | Id do registro em tributos-configurações no Bubble (migração). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  | Última alteração. |
+
+Checks: `financeiro_tributos_dia_check` `CHECK (((dia_vencimento IS NULL) OR ((dia_vencimento >= 1) AND (dia_vencimento <= 31))))`; `financeiro_tributos_esfera_check` `CHECK ((esfera = ANY (ARRAY['federal'::text, 'estadual'::text, 'municipal'::text, 'trabalhista'::text])))`; `financeiro_tributos_periodicidade_check` `CHECK ((periodicidade = ANY (ARRAY['mensal'::text, 'anual'::text, 'eventual'::text])))`
+
+Índices: `financeiro_tributos_bubble_idx`, `financeiro_tributos_pkey`, `financeiro_tributos_tenant_idx`
+
+## financeiro_tributos_lancamentos
+
+Guias dos tributos, uma por competência (como a parcela do contrato): prevista, lançada — com a ordem de pagamento — ou cancelada. Migrado de tributos-lançamentos do Bubble.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `tributo_id` | uuid | não |  | → financeiro_tributos (**cascade**) |  | Tributo da guia. |
+| `competencia_inicio` | date | sim |  |  |  | Início do período a que a guia se refere (a "vigência início" do legado). |
+| `competencia_fim` | date | sim |  |  |  | Fim do período a que a guia se refere. |
+| `valor` | numeric(12,2) | sim |  |  |  | Valor da guia. |
+| `vencimento` | date | sim |  |  |  | Vencimento da guia (previsto pelo dia habitual até a guia chegar). |
+| `arquivo_guia` | text | sim |  |  |  | Caminho do PDF/foto da guia no bucket compras (guias-tributos/...). |
+| `linha_digitavel` | text | sim |  |  |  | Linha digitável / código de barras da guia (para remessa bancária). |
+| `situacao` | text | não | `'aguardando_guia'::text` |  |  | aguardando_guia (prevista), lancado (a guia gerou a ordem) ou cancelado. |
+| `ordem_pagamento_id` | uuid | sim |  | → ordens_pagamento (set null) |  | Ordem de pagamento da guia. |
+| `criado_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem lançou a guia. |
+| `bubble_id` | text | sim |  |  |  | Id do registro em tributos-lançamentos no Bubble (migração). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  | Última alteração. |
+
+Checks: `financeiro_tributos_lancamentos_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_guia'::text, 'lancado'::text, 'cancelado'::text])))`
+
+Índices: `financeiro_tributos_lancamentos_bubble_idx`, `financeiro_tributos_lancamentos_pkey`, `financeiro_tributos_lancamentos_tenant_idx`, `financeiro_tributos_lancamentos_tributo_idx`
+
 ## ordens_pagamento
 
 Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, folha, custeios): beneficiário, valor, forma, autorização, pagamento e anexos. Migradas do Bubble e geradas por vários módulos.
@@ -648,10 +713,11 @@ Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, 
 | `boleto_linha_digitavel` | text | sim |  |  | financeiro |  |
 | `fornecimento_id` | uuid | sim |  | → compras_fornecimentos (set null) |  |  |
 | `cartao_fatura_id` | uuid | sim |  | → financeiro_cartao_faturas |  | Fatura do cartão de crédito a que pertence a ordem da compra; autorizada, a ordem fica "Na fatura" e é quitada pela ordem da fatura. |
+| `tributo_lancamento_id` | uuid | sim |  | → financeiro_tributos_lancamentos (set null) |  | Guia de tributo que a ordem paga (financeiro_tributos_lancamentos), como contrato_id na parcela de contrato. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `idx_bub_ordens_pagamento`, `idx_ordens_beneficiario_fornecedor`, `idx_ordens_contrato`, `idx_ordens_contrato_aluguel`, `idx_ordens_custeio`, `idx_ordens_fornecedor`, `idx_ordens_processo_compra`, `idx_ordens_projeto`, `idx_ordens_tipo_situacao`, `ordens_pagamento_bubble_id_key`, `ordens_pagamento_cartao_fatura_idx`, `ordens_pagamento_emp_sit_pag_idx`, `ordens_pagamento_fornecimento_idx`, `ordens_pagamento_pkey`
+Índices: `idx_bub_ordens_pagamento`, `idx_ordens_beneficiario_fornecedor`, `idx_ordens_contrato`, `idx_ordens_contrato_aluguel`, `idx_ordens_custeio`, `idx_ordens_fornecedor`, `idx_ordens_processo_compra`, `idx_ordens_projeto`, `idx_ordens_tipo_situacao`, `ordens_pagamento_bubble_id_key`, `ordens_pagamento_cartao_fatura_idx`, `ordens_pagamento_emp_sit_pag_idx`, `ordens_pagamento_fornecimento_idx`, `ordens_pagamento_pkey`, `ordens_pagamento_tributo_lancamento_idx`
 
 ## ordens_pagamento_estornos
 
