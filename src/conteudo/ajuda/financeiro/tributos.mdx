@@ -5,6 +5,8 @@ pagamento**, que segue o rito normal até ser paga.
 
 <RequerPermissao>Tributos</RequerPermissao>
 
+<Print src="financeiro/tributos.png" alt="Lista de Tributos com FGTS, DARF IRRF, IPTU e Alvará: o órgão de cada um, a próxima guia com vencimento e competência, a última lançada com valor e situação, e o total pago no ano; o botão Novo tributo ao lado do título." legenda="Os tributos da entidade: próxima guia, última lançada e o pago no ano." />
+
 ## O cadastro do tributo
 
 <PassoAPasso>
@@ -30,6 +32,8 @@ pagamento**, que segue o rito normal até ser paga.
 A página do tributo lista as guias, uma por **competência** (o mês a que a
 guia se refere):
 
+<Print src="financeiro/tributo-detalhe.png" alt="Página do FGTS: cartões com o órgão (Caixa), o calendário mensal com vencimento todo dia 20, o valor esperado variável e o pago em 2026; abaixo, as guias — 09/2026 e 10/2026 aguardando guia, com os botões Lançar guia e cancelar, e as de 06 a 08/2026 pagas, com o código da ordem." legenda="As guias do tributo: as previstas no topo, com Lançar guia, e o histórico pago." />
+
 - **Previstas** — nos tributos mensais, as guias dos próximos vencimentos já
   aparecem como **Aguardando guia**, pelo dia habitual (a competência é o mês
   anterior ao do vencimento). Vencida e não lançada, ela fica em vermelho, e a
@@ -41,6 +45,9 @@ guia se refere):
   Federal · código 0561*) e os avisos do que ficou ilegível. Confira os campos
   e clique em **Lançar e gerar a ordem**: o sistema gera a ordem de pagamento
   do tipo **Tributo**, com a própria guia como boleto e como documento.
+
+<Print src="financeiro/tributo-lancar-guia.png" alt="Diálogo Lançar a guia de 10/2026 com um DARF anexado: a IA leu a guia e preencheu competência outubro de 2026, valor 5.287,45, vencimento 20/11/2026 e a linha digitável, com a mensagem Lido pela IA: DARF — Secretaria da Receita Federal do Brasil, código 0561." legenda="A IA lê a guia anexada e preenche os campos para conferir." />
+
 - **Guia avulsa** — para tributo anual ou eventual (ou uma guia fora do
   calendário), o botão **Guia avulsa** no topo: escolha a competência e lance.
 - **Cancelar** — prevista que não se aplica (um mês sem o tributo) sai com o
