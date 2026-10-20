@@ -48,6 +48,7 @@ const EXTRAS: Record<string, string> = {
   "/painel/financeiro/caixas": "/painel/ajuda/financeiro/caixa",
   "/painel/financeiro/centros-custo": "/painel/ajuda/financeiro/centros-custo",
   "/painel/financeiro/cartoes": "/painel/ajuda/financeiro/cartoes",
+  "/painel/financeiro/tributos": "/painel/ajuda/financeiro/tributos",
   "/painel/saude/indicadores": "/painel/ajuda/saude/indicadores",
   "/painel/compras/nova": "/painel/ajuda/compras/comprar",
   "/painel/compras/contratos": "/painel/ajuda/compras/contratos",

@@ -4,6 +4,7 @@ import { nomesDosUsuarios } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
+import { rotuloEsfera, rotuloPeriodicidade, TIPO_ORDEM_TRIBUTO } from "@/lib/tributos-constantes"
 
 /**
  * PROCEDÊNCIA de uma ordem de pagamento: de onde ela veio (compra, contrato,
@@ -181,6 +182,29 @@ async function montar(id: string, tipo: string, ordem: Linha): Promise<Procedenc
       })),
       total: formatarMoeda(f.soma),
     }
+    return p
+  }
+
+  // 0b. Tributo: a guia de uma competência (Financeiro › Tributos).
+  if (tipo === TIPO_ORDEM_TRIBUTO) {
+    const { guiaDaOrdem } = await import("@/lib/db/tributos")
+    const r = await guiaDaOrdem(id)
+    const p = base("Tributo")
+    if (!r) return p
+    const { guia: g, tributo: tr } = r
+    p.titulo = `${tr.abreviacao ?? tr.nome} — competência ${g.competencia}`
+    p.href = `/painel/financeiro/tributos/${tr.id}`
+    p.linhas = linhas([
+      ["Tributo", tr.abreviacao && tr.abreviacao !== tr.nome ? `${tr.abreviacao} — ${tr.nome}` : tr.nome],
+      ["Órgão", tr.beneficiario],
+      ["Esfera", rotuloEsfera(tr.esfera)],
+      ["Periodicidade", rotuloPeriodicidade(tr.periodicidade)],
+      ["Competência", g.competencia],
+      ["Vencimento da guia", data(g.vencimento)],
+      ["Valor da guia", moeda(g.valor)],
+      ["Valor esperado", tr.valorEsperado != null ? moeda(tr.valorEsperado) : null],
+    ])
+    p.documentos = [{ rotulo: "Guia do tributo", url: await assinar("compras", g.arquivoGuia) }]
     return p
   }
 

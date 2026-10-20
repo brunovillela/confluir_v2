@@ -123,7 +123,16 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "Ordens de pagamento, caixa, receitas e despesas",
     chave: "financeiro_caixa",
-    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura", "financeiro_auditoria", "financeiro_estorno"],
+    chavesAlternativas: ["financeiro_pagamento", "financeiro_leitura", "financeiro_auditoria", "financeiro_estorno", "financeiro_tributos"],
+  },
+  {
+    titulo: "Tributos",
+    href: "/painel/financeiro/tributos",
+    icone: "Landmark",
+    descricao: "DARF, FGTS, GPS, IPTU, alvarás e as guias de cada competência",
+    chave: "financeiro_tributos",
+    chavesAlternativas: ["financeiro_leitura"],
+    oculto: true,
   },
   {
     titulo: "Estornos de pagamento",

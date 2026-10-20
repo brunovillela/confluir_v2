@@ -1,0 +1,94 @@
+Os **tributos** da entidade — DARF, FGTS, GPS, IPTU, alvarás, DUDA — ficam em
+**Financeiro → Tributos**. Funciona como os Contratos: o **tributo** é o
+cadastro, e cada **guia** (uma por competência) gera a sua **ordem de
+pagamento**, que segue o rito normal até ser paga.
+
+<RequerPermissao>Tributos</RequerPermissao>
+
+## O cadastro do tributo
+
+<PassoAPasso>
+  <Passo titulo="Novo tributo">
+    O botão **Novo tributo**, ao lado do título, abre o cadastro: **nome**,
+    **abreviação** (como a equipe chama — FGTS, DARF, DAM), **esfera** e o
+    **órgão que recebe** (Receita Federal, Caixa, INSS, prefeitura, Detran),
+    que vira o favorecido das ordens.
+  </Passo>
+  <Passo titulo="Classificação">
+    **Centro de custo** e **departamento** são herdados por todas as ordens do
+    tributo.
+  </Passo>
+  <Passo titulo="Calendário e valor">
+    **Periodicidade**: *mensal* (com o **dia do vencimento**), *anual* ou
+    *eventual*. O **valor esperado** é opcional — preencha só quando a guia vem
+    sempre no mesmo valor.
+  </Passo>
+</PassoAPasso>
+
+## As guias
+
+A página do tributo lista as guias, uma por **competência** (o mês a que a
+guia se refere):
+
+- **Previstas** — nos tributos mensais, as guias dos próximos vencimentos já
+  aparecem como **Aguardando guia**, pelo dia habitual (a competência é o mês
+  anterior ao do vencimento). Vencida e não lançada, ela fica em vermelho, e a
+  lista de tributos avisa.
+- **Lançar guia** — quando a guia chega, clique em **Lançar guia** na linha da
+  competência: confira o valor e o vencimento, anexe a guia (PDF ou foto) e,
+  se quiser pagar por remessa bancária, o **código de barras**. O sistema gera
+  a ordem de pagamento do tipo **Tributo**, com a própria guia como boleto e
+  como documento.
+- **Guia avulsa** — para tributo anual ou eventual (ou uma guia fora do
+  calendário), o botão **Guia avulsa** no topo: escolha a competência e lance.
+- **Cancelar** — prevista que não se aplica (um mês sem o tributo) sai com o
+  **x** da linha e não volta a ser prevista.
+
+<Aviso tipo="dica" titulo="Quando a autorização é dispensada">
+  Tributo **recorrente** (mensal ou anual) com **valor esperado** cadastrado: a
+  guia **nesse valor** gera a ordem já **A pagar**, com a dispensa registrada.
+  Guia em outro valor — ou tributo sem valor esperado, ou eventual — passa pela
+  **autorização por alçada**, como qualquer despesa.
+</Aviso>
+
+## Na ordem de pagamento
+
+A ordem mostra, em **Procedência**, o tributo, o órgão, a competência e a guia,
+com o link para o tributo. Na lista de ordens, o filtro **Tipo → Tributo** traz
+só essas ordens.
+
+## Histórico
+
+Os tributos e as guias do sistema anterior (desde 2023) foram trazidos com as
+ordens que já tinham sido pagas — a página de cada tributo mostra o histórico
+completo e o total pago no ano.
+
+## Erros comuns
+
+- **"Não consigo lançar a guia: o tributo não tem órgão."** O órgão é o
+  favorecido da ordem — informe-o em **Editar**.
+- **"A guia do mês não apareceu como prevista."** Só tributos **mensais**,
+  **ativos** e com **dia de vencimento** têm previstas. Confira o cadastro, ou
+  use **Guia avulsa**.
+- **"A ordem foi para a alçada mesmo no valor de sempre."** Cadastre o **valor
+  esperado** no tributo; sem ele, toda guia passa pela alçada.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O rito da ordem: autorização e pagamento",
+    },
+    {
+      titulo: "Contratos",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "O mesmo modelo: cadastro e parcelas",
+    },
+    {
+      titulo: "Remessas bancárias",
+      href: "/painel/ajuda/financeiro/remessas",
+      descricao: "Pagar as guias pelo código de barras",
+    },
+  ]}
+/>

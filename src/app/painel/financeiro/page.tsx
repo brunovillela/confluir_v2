@@ -33,7 +33,9 @@ export default async function FinanceiroPage() {
     "financeiro_leitura",
     "financeiro_auditoria",
     "financeiro_estorno",
+    "financeiro_tributos",
   ]);
+  const veTributos = podeAcessar(sessao.permissoes, "financeiro_tributos", ["financeiro_leitura"]);
 
   const veOrdens = podeAcessar(sessao.permissoes, "financeiro_pagamento", [
     "financeiro_leitura",
@@ -133,6 +135,12 @@ export default async function FinanceiroPage() {
       descricao: "Cartões da entidade usados para pagar compras",
       href: "/painel/financeiro/cartoes",
       icone: CreditCard,
+    },
+    veTributos && {
+      titulo: "Tributos",
+      descricao: "DARF, FGTS, GPS, IPTU e alvarás: as guias de cada competência e as ordens",
+      href: "/painel/financeiro/tributos",
+      icone: Landmark,
     },
     veOrdens && {
       titulo: "Remessas bancárias",

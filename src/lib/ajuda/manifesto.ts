@@ -359,6 +359,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Os cartões da entidade usados para pagar compras",
       },
       {
+        slug: "tributos",
+        titulo: "Tributos",
+        resumo: "DARF, FGTS, GPS, IPTU e alvarás: guias por competência e as ordens",
+      },
+      {
         slug: "auditoria",
         titulo: "Auditoria das ordens",
         resumo: "Regras que o sistema confere antes de criar cada ordem",

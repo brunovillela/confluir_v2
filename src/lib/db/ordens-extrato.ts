@@ -52,7 +52,7 @@ export async function urlArquivoOrdem(valor: unknown): Promise<string | null> {
   if (typeof valor !== "string" || !valor.trim()) return null
   if (/^https?:\/\//.test(valor)) return valor
   if (valor.startsWith("//")) return `https:${valor}`
-  const bucket = /^(notas|boletos|rpa-assinados|formalizacoes|faturas-cartao)\//.test(valor) ? "compras" : "comprovantes"
+  const bucket = /^(notas|boletos|rpa-assinados|formalizacoes|faturas-cartao|guias-tributos)\//.test(valor) ? "compras" : "comprovantes"
   const admin = await createAdminClient()
   const { data } = await admin.storage.from(bucket).createSignedUrl(valor, 3600)
   return data?.signedUrl ?? null
