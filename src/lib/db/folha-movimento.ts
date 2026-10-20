@@ -66,6 +66,8 @@ export type LinhaMovimento = {
 export type Competencia = {
   competencia: string
   enviada: boolean
+  /** Enviada antes do marco inicial: só para consulta, não conta no cálculo. */
+  desconsiderada: boolean
   enviadaEm: string | null
   enviadaPor: string | null
   recebidaEm: string | null
@@ -106,66 +108,133 @@ const ultimoDia = (c: string) => {
   return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10)
 }
 
+// ── Marco inicial ────────────────────────────────────────────────────────────
+
+export type MarcoInicial = { momento: string; observacao: string | null }
+
+/**
+ * Marco inicial do movimento (20/10/2026): o que foi registrado até ele conta
+ * como enviado à contabilidade e pago (foi passado à mão), e as competências
+ * enviadas antes dele são desconsideradas. Sem marco, vale tudo.
+ */
+export async function marcoInicial(): Promise<MarcoInicial | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_folha_config")
+    .select("marco_inicial, marco_observacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) {
+    if (esquemaAusente(error)) return null
+    throw new Error(`Falha ao ler o marco do movimento: ${error.message}`)
+  }
+  const momento = texto(data?.marco_inicial)
+  return momento ? { momento, observacao: texto(data?.marco_observacao) } : null
+}
+
+/** O mais recente de dois momentos (data ou data e hora). */
+function maisRecente(a: unknown, b: unknown): string | null {
+  const [x, y] = [texto(a), texto(b)]
+  if (!x || !y) return x ?? y
+  return new Date(x) >= new Date(y) ? x : y
+}
+
 // ── Competências enviadas ────────────────────────────────────────────────────
 
 type LinhaCompetencia = Record<string, unknown>
 
-async function competenciasEnviadas(): Promise<{ disponivel: boolean; linhas: LinhaCompetencia[] }> {
+/** As enviadas que valem: as anteriores ao marco ficam de fora. */
+async function competenciasEnviadas(
+  marco?: MarcoInicial | null
+): Promise<{ disponivel: boolean; linhas: LinhaCompetencia[]; desconsideradas: LinhaCompetencia[] }> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("pessoal_folha_competencias")
-    .select("*")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("competencia", { ascending: false })
+  const [{ data, error }, m] = await Promise.all([
+    admin
+      .from("pessoal_folha_competencias")
+      .select("*")
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .order("competencia", { ascending: false }),
+    marco === undefined ? marcoInicial() : Promise.resolve(marco),
+  ])
   if (error) {
-    if (esquemaAusente(error)) return { disponivel: false, linhas: [] }
+    if (esquemaAusente(error)) return { disponivel: false, linhas: [], desconsideradas: [] }
     throw new Error(`Falha ao ler as competências: ${error.message}`)
   }
-  return { disponivel: true, linhas: (data ?? []) as LinhaCompetencia[] }
+  const todas = (data ?? []) as LinhaCompetencia[]
+  const antes = (l: LinhaCompetencia) => Boolean(m && new Date(String(l.enviada_em)) <= new Date(m.momento))
+  return { disponivel: true, linhas: todas.filter((l) => !antes(l)), desconsideradas: todas.filter(antes) }
 }
 
-export async function listarCompetencias(): Promise<{ disponivel: boolean; competencias: Competencia[] }> {
-  const { disponivel, linhas } = await competenciasEnviadas()
+function paraCompetencia(l: LinhaCompetencia, nomes: Map<string, string>, desconsiderada: boolean): Competencia {
+  return {
+    competencia: String(l.competencia),
+    enviada: true,
+    desconsiderada,
+    enviadaEm: texto(l.enviada_em),
+    enviadaPor: texto(l.enviada_por) ? (nomes.get(String(l.enviada_por)) ?? null) : null,
+    recebidaEm: texto(l.recebida_em),
+    recebidaPor: texto(l.recebida_por) ? (nomes.get(String(l.recebida_por)) ?? null) : null,
+    observacao: texto(l.observacao),
+    totalItens: Number(l.total_itens ?? 0),
+  }
+}
+
+export async function listarCompetencias(): Promise<{
+  disponivel: boolean
+  marco: MarcoInicial | null
+  competencias: Competencia[]
+  /** Enviadas antes do marco: ficam só para consulta. */
+  desconsideradas: Competencia[]
+}> {
+  const marco = await marcoInicial()
+  const { disponivel, linhas, desconsideradas } = await competenciasEnviadas(marco)
   const nomes = await nomesDosUsuarios(
-    linhas.flatMap((l) => [texto(l.enviada_por), texto(l.recebida_por)]).filter((v): v is string => Boolean(v))
+    [...linhas, ...desconsideradas]
+      .flatMap((l) => [texto(l.enviada_por), texto(l.recebida_por)])
+      .filter((v): v is string => Boolean(v))
   )
   return {
     disponivel,
-    competencias: linhas.map((l) => ({
-      competencia: String(l.competencia),
-      enviada: true,
-      enviadaEm: texto(l.enviada_em),
-      enviadaPor: texto(l.enviada_por) ? (nomes.get(String(l.enviada_por)) ?? null) : null,
-      recebidaEm: texto(l.recebida_em),
-      recebidaPor: texto(l.recebida_por) ? (nomes.get(String(l.recebida_por)) ?? null) : null,
-      observacao: texto(l.observacao),
-      totalItens: Number(l.total_itens ?? 0),
-    })),
+    marco,
+    competencias: linhas.map((l) => paraCompetencia(l, nomes, false)),
+    desconsideradas: desconsideradas.map((l) => paraCompetencia(l, nomes, true)),
   }
+}
+
+/** Competência do marco (AAAA-MM, no horário de Brasília): antes dela nada abre. */
+export function competenciaDoMarco(marco: MarcoInicial | null): string | null {
+  if (!marco) return null
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(marco.momento)).slice(0, 7)
 }
 
 /** A competência: enviada (com a fotografia) ou aberta (calculada agora). */
 export async function obterMovimento(competencia: string): Promise<{
   disponivel: boolean
+  marco: MarcoInicial | null
   competencia: Competencia
   linhas: LinhaMovimento[]
 }> {
-  const { disponivel, competencias } = await listarCompetencias()
-  const enviada = competencias.find((c) => c.competencia === competencia)
-  if (enviada) {
-    const { linhas } = await competenciasEnviadas()
-    const bruta = linhas.find((l) => String(l.competencia) === competencia)
+  const marco = await marcoInicial()
+  const { disponivel, linhas: validas, desconsideradas } = await competenciasEnviadas(marco)
+  const bruta = [...validas, ...desconsideradas].find((l) => String(l.competencia) === competencia)
+  if (bruta) {
+    const nomes = await nomesDosUsuarios(
+      [texto(bruta.enviada_por), texto(bruta.recebida_por)].filter((v): v is string => Boolean(v))
+    )
     return {
       disponivel,
-      competencia: enviada,
-      linhas: (Array.isArray(bruta?.snapshot) ? bruta.snapshot : []) as LinhaMovimento[],
+      marco,
+      competencia: paraCompetencia(bruta, nomes, desconsideradas.includes(bruta)),
+      linhas: (Array.isArray(bruta.snapshot) ? bruta.snapshot : []) as LinhaMovimento[],
     }
   }
   return {
     disponivel,
+    marco,
     competencia: {
       competencia,
       enviada: false,
+      desconsiderada: false,
       enviadaEm: null,
       enviadaPor: null,
       recebidaEm: null,
@@ -173,7 +242,7 @@ export async function obterMovimento(competencia: string): Promise<{
       observacao: null,
       totalItens: 0,
     },
-    linhas: await calcularMovimento(competencia),
+    linhas: await calcularMovimento(competencia, marco),
   }
 }
 
@@ -211,10 +280,15 @@ function valorTexto(v: unknown): string {
  * entregue entra como retroativo); as alterações do cadastro desde o envio
  * anterior (ou o início do mês).
  */
-export async function calcularMovimento(competencia: string): Promise<LinhaMovimento[]> {
+export async function calcularMovimento(
+  competencia: string,
+  marcoInformado?: MarcoInicial | null
+): Promise<LinhaMovimento[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const { linhas: enviadas } = await competenciasEnviadas()
+  const marco = marcoInformado === undefined ? await marcoInicial() : marcoInformado
+  const momentoMarco = marco ? new Date(marco.momento) : null
+  const { linhas: enviadas } = await competenciasEnviadas(marco)
   const anteriores = enviadas.filter((l) => String(l.competencia) < competencia)
   const ultimaAnterior = anteriores[0]
   const jaEntregues = new Set(
@@ -223,21 +297,22 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
 
   const inicioMes = primeiroDia(competencia)
   const fimMes = ultimoDia(competencia)
-  const desde = ultimaAnterior ? primeiroDia(deslocarCompetencia(competencia, -2)) : inicioMes
+  // Com o marco, a janela também recua dois meses: o retroativo lançado depois
+  // dele entra; o que foi registrado antes fica de fora pelo momento.
+  const desde = ultimaAnterior || marco ? primeiroDia(deslocarCompetencia(competencia, -2)) : inicioMes
   // Desde o envio anterior OU o início do mês — o que vier antes: a anterior
   // enviada com atraso não engole o que mudou no começo deste mês (o que ela
   // já levou não se repete, pela chave).
   const inicioMesUtc = `${inicioMes}T03:00:00Z`
+  const referencia = ultimaAnterior ? new Date(String(ultimaAnterior.enviada_em)) : momentoMarco
   const auditoriaDesde =
-    ultimaAnterior && new Date(String(ultimaAnterior.enviada_em)) < new Date(inicioMesUtc)
-      ? new Date(String(ultimaAnterior.enviada_em)).toISOString()
-      : inicioMesUtc
+    referencia && referencia < new Date(inicioMesUtc) ? referencia.toISOString() : inicioMesUtc
   const auditoriaAte = `${deslocarCompetencia(competencia, 1)}-01T03:00:00Z`
 
   // Funcionários: vínculos com a entidade (um por pessoa, o mais recente).
   const { data: vincs } = await admin
     .from("vinculos_trabalhistas")
-    .select("id, trabalhador_id, cargo, lotacao, matricula, contrato_admissao, contrato_demissao, created_at")
+    .select("id, trabalhador_id, cargo, lotacao, matricula, contrato_admissao, contrato_demissao, created_at, updated_at")
     .eq("empregador_id", emp)
   const vinculos = (vincs ?? []) as Record<string, unknown>[]
   const ids = [...new Set(vinculos.map((v) => texto(v.trabalhador_id)).filter((v): v is string => Boolean(v)))]
@@ -264,10 +339,19 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
   const vinculoDe = new Map(vinculos.map((v) => [String(v.id), texto(v.trabalhador_id)]))
 
   const linhas: LinhaMovimento[] = []
-  const add = (
-    l: Omit<LinhaMovimento, "nome" | "cpf" | "matricula" | "retroativo"> & { retroativo?: boolean }
-  ) => {
+  const add = ({
+    registradoEm,
+    ...l
+  }: Omit<LinhaMovimento, "nome" | "cpf" | "matricula" | "retroativo"> & {
+    retroativo?: boolean
+    /** Quando o lançamento entrou no sistema: até o marco, já foi enviado e pago. */
+    registradoEm: unknown
+  }) => {
     if (jaEntregues.has(l.chave)) return
+    if (momentoMarco) {
+      const r = texto(registradoEm)
+      if (!r || new Date(r) <= momentoMarco) return
+    }
     const p = l.funcionarioId ? pessoa.get(l.funcionarioId) : null
     linhas.push({
       ...l,
@@ -289,6 +373,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     if (naJanela(v.contrato_admissao)) {
       add({
         chave: `admissao:${v.id}`,
+        registradoEm: v.created_at,
         secao: "admissao",
         funcionarioId: f,
         descricao: `Admissão — ${[texto(v.cargo), texto(v.lotacao)].filter(Boolean).join(" · ") || "cargo não informado"}`,
@@ -302,6 +387,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     if (naJanela(v.contrato_demissao)) {
       add({
         chave: `desligamento:${v.id}`,
+        registradoEm: v.updated_at,
         secao: "desligamento",
         funcionarioId: f,
         descricao: "Desligamento (último dia do contrato)",
@@ -341,7 +427,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const quando = texto(a.momento)?.slice(0, 10) ?? null
     const campos = (Array.isArray(a.campos) ? a.campos : []) as string[]
     const op = String(a.operacao)
-    const base = { chave: `aud:${a.id}`, inicio: quando, fim: null, quantidade: null, valor: null, retroativo: Boolean(quando && quando < inicioMes) }
+    const base = { chave: `aud:${a.id}`, registradoEm: a.momento, inicio: quando, fim: null, quantidade: null, valor: null, retroativo: Boolean(quando && quando < inicioMes) }
 
     if (tabela === "vinculos_trabalhistas") {
       const f = vinculoDe.get(String(a.registro_id)) ?? texto(linha.trabalhador_id)
@@ -409,21 +495,21 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
   // Leituras por data de vigência (em paralelo).
   const proximoMes = deslocarCompetencia(competencia, 1)
   const [gozos, atestados, ausencias, faltas, anuenios, niveis, reembolsos, infracoes, ponto] = await Promise.all([
-    admin.from("pessoal_ferias_gozo").select("id, funcionario_id, inicio, termino, dias, autorizado, abono_solicitado")
+    admin.from("pessoal_ferias_gozo").select("id, funcionario_id, inicio, termino, dias, autorizado, abono_solicitado, data_autorizacao, created_at")
       .gte("inicio", desde).lte("inicio", `${proximoMes}-02`).eq("autorizado", true),
-    admin.from("pes_atestados_medicos").select("id, funcionario_id, inicio, termino, quantidade_dias, cid10")
+    admin.from("pes_atestados_medicos").select("id, funcionario_id, inicio, termino, quantidade_dias, cid10, created_at")
       .lte("inicio", fimMes).gte("termino", desde),
-    admin.from("pessoal_ausencias").select("id, funcionario_id, inicio, termino, motivo, observacao")
+    admin.from("pessoal_ausencias").select("id, funcionario_id, inicio, termino, motivo, observacao, created_at")
       .in("motivo", ["Falta injustificada", "Licença"]).lte("inicio", fimMes).gte("termino", desde),
-    admin.from("pessoal_faltas_justificadas").select("id, funcionario_id, data_falta, justificativa_tipo, autorizado")
+    admin.from("pessoal_faltas_justificadas").select("id, funcionario_id, data_falta, justificativa_tipo, autorizado, data_autorizacao, created_at")
       .eq("autorizado", true).gte("data_falta", desde).lte("data_falta", fimMes),
-    admin.from("pessoal_anuenio").select("id, funcionario_id, nivel_atual_id, nivel_atual_data")
+    admin.from("pessoal_anuenio").select("id, funcionario_id, nivel_atual_id, nivel_atual_data, created_at")
       .eq("emp_proprietaria_id", emp).gte("nivel_atual_data", desde).lte("nivel_atual_data", fimMes),
-    admin.from("pessoal_nivel_salarial").select("id, funcionario_id, nivel_atual_id, nivel_atual_data, tipo_avanco")
+    admin.from("pessoal_nivel_salarial").select("id, funcionario_id, nivel_atual_id, nivel_atual_data, tipo_avanco, created_at")
       .eq("emp_proprietaria_id", emp).gte("nivel_atual_data", desde).lte("nivel_atual_data", fimMes),
-    admin.from("pessoal_reembolsos_act").select("id, funcionario_id, tipo_id, valor_aprovado, pagamento_mes, pagamento_ano, situacao")
+    admin.from("pessoal_reembolsos_act").select("id, funcionario_id, tipo_id, valor_aprovado, pagamento_mes, pagamento_ano, situacao, created_at")
       .eq("emp_proprietaria_id", emp).in("situacao", ["aprovado", "pago"]),
-    admin.from("veiculos_infracoes").select("id, codigo, condutor_infrator_id, cobranca_valor, infracao_data, infracao_descricao")
+    admin.from("veiculos_infracoes").select("id, codigo, condutor_infrator_id, cobranca_valor, infracao_data, infracao_descricao, created_at")
       .eq("cobranca_forma", "contracheque").eq("cobranca_situacao", "pendente"),
     admin.from("pessoal_registro_ponto_remessas").select("id, nome_remessa, mes_referencia_os, ano_referencia_os")
       .eq("emp_proprietaria_id", emp),
@@ -438,6 +524,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const antecipada = Boolean(inicio && inicio > fimMes)
     add({
       chave: `ferias:${g.id}`,
+      registradoEm: maisRecente(g.created_at, g.data_autorizacao),
       secao: "ferias",
       funcionarioId: f,
       descricao: [
@@ -462,6 +549,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const dias = Number(a.quantidade_dias ?? 0) || null
     add({
       chave: `atestado:${a.id}`,
+      registradoEm: a.created_at,
       secao: "afastamento",
       funcionarioId: f,
       descricao: [
@@ -484,6 +572,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const injustificada = a.motivo === "Falta injustificada"
     add({
       chave: `ausencia:${a.id}`,
+      registradoEm: a.created_at,
       secao: injustificada ? "faltas" : "afastamento",
       funcionarioId: f,
       descricao: `${String(a.motivo)}${injustificada ? " — descontar" : ""}${texto(a.observacao) ? ` · ${a.observacao}` : ""}`,
@@ -501,6 +590,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     if (!f || !funcionarios.has(f)) continue
     add({
       chave: `falta:${fj.id}`,
+      registradoEm: maisRecente(fj.created_at, fj.data_autorizacao),
       secao: "faltas",
       funcionarioId: f,
       descricao: `Falta justificada (abonada)${texto(fj.justificativa_tipo) ? ` — ${fj.justificativa_tipo}` : ""}`,
@@ -534,6 +624,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const aliquota = b ? Number(b.aliquota ?? 0) : null
     add({
       chave: `anuenio:${a.id}`,
+      registradoEm: a.created_at,
       secao: "variaveis",
       funcionarioId: f,
       descricao: `Anuênio — passa ao nível ${b?.nivel ?? "?"}${aliquota !== null ? ` (${(aliquota * 100).toLocaleString("pt-BR")}%)` : ""}`,
@@ -550,6 +641,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     const b = nivBase.get(String(n.nivel_atual_id))
     add({
       chave: `nivel:${n.id}`,
+      registradoEm: n.created_at,
       secao: "contrato",
       funcionarioId: f,
       descricao: `Progressão salarial${texto(n.tipo_avanco) ? ` (${n.tipo_avanco})` : ""} — nível ${[b?.nivel_vertical, b?.nivel_horizontal, b?.nivel_carreira].filter(Boolean).join(" ")}`,
@@ -568,6 +660,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     if (texto(r.pagamento_mes) !== mesNome || texto(r.pagamento_ano) !== anoC) continue
     add({
       chave: `reembolso:${r.id}`,
+      registradoEm: r.created_at,
       secao: "variaveis",
       funcionarioId: f,
       descricao: `Reembolso do ACT — ${tipoNome.get(String(r.tipo_id)) ?? "tipo não informado"}`,
@@ -585,7 +678,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
   if (remessaPonto) {
     const { data: regs } = await admin
       .from("pessoal_registro_ponto")
-      .select("id, funcionario_id, horas_pagas_70, horas_pagas_100, horas_realizadas_70, horas_realizadas_100")
+      .select("id, funcionario_id, horas_pagas_70, horas_pagas_100, horas_realizadas_70, horas_realizadas_100, created_at")
       .eq("remessa_id", String(remessaPonto.id))
     for (const r of (regs ?? []) as Record<string, unknown>[]) {
       const f = texto(r.funcionario_id)
@@ -595,6 +688,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
         if (!pagas) continue
         add({
           chave: `he${pct}:${r.id}`,
+          registradoEm: r.created_at,
           secao: "variaveis",
           funcionarioId: f,
           descricao: `Horas extras a ${pct}% (pagas) — realizadas ${Number(r[`horas_realizadas_${pct}`] ?? 0)} h`,
@@ -615,6 +709,7 @@ export async function calcularMovimento(competencia: string): Promise<LinhaMovim
     if (!f || !funcionarios.has(f)) continue
     add({
       chave: `infracao:${i.id}`,
+      registradoEm: i.created_at,
       secao: "descontos",
       funcionarioId: f,
       descricao: `Infração de trânsito ${texto(i.codigo) ?? ""} a descontar${texto(i.infracao_descricao) ? ` — ${i.infracao_descricao}` : ""}`.trim(),
@@ -674,13 +769,19 @@ export async function enviarCompetencia(
   observacao: string | null
 ): Promise<{ erro?: string; total?: number }> {
   if (!competenciaValida(competencia)) return { erro: "Competência inválida." }
-  const { disponivel, linhas: enviadas } = await competenciasEnviadas()
+  const marco = await marcoInicial()
+  const { disponivel, linhas: enviadas, desconsideradas } = await competenciasEnviadas(marco)
   if (!disponivel) return { erro: "Rode supabase/folha-movimento-contabilidade.sql no SQL Editor antes de enviar." }
   if (enviadas.some((l) => String(l.competencia) === competencia)) return { erro: "Esta competência já foi enviada." }
+  const inicial = competenciaDoMarco(marco)
+  if (inicial && competencia < inicial) return { erro: "Competência anterior ao marco inicial do movimento." }
+  if (desconsideradas.some((l) => String(l.competencia) === competencia)) {
+    return { erro: "Esta competência foi enviada antes do marco inicial — o que veio depois dele entra na seguinte." }
+  }
   if (enviadas.some((l) => String(l.competencia) > competencia)) {
     return { erro: "Já existe competência posterior enviada — lance o que faltou na competência aberta (entra como retroativo)." }
   }
-  const linhas = await calcularMovimento(competencia)
+  const linhas = await calcularMovimento(competencia, marco)
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_folha_competencias").insert({
     emp_proprietaria_id: await tenantAtual(),

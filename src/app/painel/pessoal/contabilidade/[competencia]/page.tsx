@@ -14,6 +14,7 @@ import {
   DIA_CORTE,
   SECOES,
   competenciaAtual,
+  competenciaDoMarco,
   competenciaValida,
   obterMovimento,
   rotuloCompetencia,
@@ -34,7 +35,9 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
   // O escritório externo em geral não abre a ficha; quem é do Pessoal, sim.
   const veFicha = podeAcessar(sessao.permissoes, "pessoal_gestao", ["pessoal_contracheque"])
 
-  const { disponivel, competencia: c, linhas } = await obterMovimento(competencia)
+  const { disponivel, marco, competencia: c, linhas } = await obterMovimento(competencia)
+  const inicial = competenciaDoMarco(marco)
+  const antesDoMarco = Boolean(!c.enviada && inicial && competencia < inicial)
   // A contabilidade só enxerga o que foi enviado.
   if (!c.enviada && !envia) notFound()
 
@@ -54,7 +57,9 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">Movimento da folha — {rotulo}</h1>
-            {c.enviada ? (
+            {c.desconsiderada ? (
+              <Badge variant="outline">Desconsiderada</Badge>
+            ) : c.enviada ? (
               c.recebidaEm ? (
                 <Badge variant="success">Recebida</Badge>
               ) : (
@@ -80,6 +85,25 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
           </a>
         </Button>
       </div>
+
+      {c.desconsiderada && marco && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Enviada antes do marco inicial do movimento ({formatarDataHora(marco.momento)}) e desconsiderada: fica só
+            para consulta. O que foi registrado até o marco conta como enviado e pago; o que veio depois entra nas
+            competências seguintes.
+          </AlertDescription>
+        </Alert>
+      )}
+      {!c.enviada && marco && (
+        <Alert>
+          <AlertDescription>
+            {antesDoMarco
+              ? `Competência anterior ao marco inicial (${formatarDataHora(marco.momento)}): não é mais enviada.`
+              : `Só entra o que foi registrado depois do marco inicial (${formatarDataHora(marco.momento)}); o que veio antes conta como enviado e pago.`}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {c.observacao && (
         <Alert>
@@ -179,7 +203,7 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
         </Card>
       ))}
 
-      {!c.enviada && envia && disponivel && !futura && (
+      {!c.enviada && envia && disponivel && !futura && !antesDoMarco && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Enviar à contabilidade</CardTitle>
@@ -199,7 +223,7 @@ export default async function CompetenciaPage({ params }: { params: Promise<{ co
         </Card>
       )}
 
-      {c.enviada && !c.recebidaEm && recebe && (
+      {c.enviada && !c.desconsiderada && !c.recebidaEm && recebe && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Recebimento</CardTitle>

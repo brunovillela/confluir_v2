@@ -198,6 +198,10 @@ erDiagram
     uuid enviada_por FK
     uuid recebida_por FK
   }
+  pessoal_folha_config {
+    uuid emp_proprietaria_id PK,FK
+    uuid marco_definido_por FK
+  }
   pessoal_funcionario_funcao {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -368,6 +372,7 @@ erDiagram
   pessoal_ferias_gozo }o--o| usuarios : "funcionario_id"
   pessoal_folha_competencias }o--o| usuarios : "enviada_por"
   pessoal_folha_competencias }o--o| usuarios : "recebida_por"
+  pessoal_folha_config }o--o| usuarios : "marco_definido_por"
   pessoal_funcionario_funcao }o--o| pessoal_funcoes : "funcao_id"
   pessoal_funcionario_funcao }o--o| usuarios : "funcionario_id"
   pessoal_funcionario_jornada }o--o| usuarios : "funcionario_id"

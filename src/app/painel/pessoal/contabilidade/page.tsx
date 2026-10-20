@@ -9,6 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import {
   DIA_CORTE,
   competenciaAtual,
+  competenciaDoMarco,
   deslocarCompetencia,
   listarCompetencias,
   rotuloCompetencia,
@@ -24,17 +25,21 @@ export const metadata: Metadata = { title: "Movimento da folha — Confluir" }
 export default async function MovimentoFolhaPage() {
   const sessao = await requirePermissao("pessoal_contabilidade_envio", ["pessoal_contabilidade"])
   const envia = sessao.permissoes["pessoal_contabilidade_envio"] === true
-  const { disponivel, competencias } = await listarCompetencias()
+  const { disponivel, marco, competencias, desconsideradas } = await listarCompetencias()
+  const inicial = competenciaDoMarco(marco)
 
   // Abertas: a atual e, se a anterior não foi enviada, ela também. Enviada a
   // atual, a seguinte já aparece — é nela que caem os retroativos.
   const atual = competenciaAtual()
-  const enviadas = new Set(competencias.map((c) => c.competencia))
+  // A desconsiderada (enviada antes do marco) não reabre: o que veio depois
+  // do marco cai na seguinte.
+  const enviadas = new Set([...competencias, ...desconsideradas].map((c) => c.competencia))
   const proxima = deslocarCompetencia(atual, 1)
   const abertas = envia
     ? [deslocarCompetencia(atual, -1), atual, proxima].filter(
         (c) =>
           !enviadas.has(c) &&
+          !(inicial && c < inicial) &&
           (c === proxima ? enviadas.has(atual) : c === atual || competencias.length === 0 || competencias[0].competencia < c)
       )
     : []
@@ -55,6 +60,19 @@ export default async function MovimentoFolhaPage() {
         <Alert>
           <AlertDescription>
             Rode <code>supabase/folha-movimento-contabilidade.sql</code> no SQL Editor para ativar o envio.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {marco && (
+        <Alert>
+          <AlertDescription>
+            <span>
+              <strong>Marco inicial: {formatarDataHora(marco.momento)}.</strong> O que foi registrado até esse momento
+              conta como enviado à contabilidade e pago, e não entra nas competências.
+              {desconsideradas.length > 0 ? " As competências enviadas antes dele foram desconsideradas." : ""}
+            </span>
+            {marco.observacao && <span className="text-muted-foreground block text-xs">{marco.observacao}</span>}
           </AlertDescription>
         </Alert>
       )}
@@ -121,6 +139,31 @@ export default async function MovimentoFolhaPage() {
           </CardContent>
         )}
       </Card>
+
+      {desconsideradas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Anteriores ao marco (desconsideradas)</CardTitle>
+            <CardDescription>Ficam só para consulta: não contam no cálculo das competências.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {desconsideradas.map((c) => (
+              <Link
+                key={c.competencia}
+                href={`/painel/pessoal/contabilidade/${c.competencia}`}
+                className="hover:bg-muted text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm"
+              >
+                <span className="font-medium">{rotuloCompetencia(c.competencia)}</span>
+                <span className="text-xs">
+                  {c.totalItens} item(ns) · enviada {c.enviadaEm ? formatarDataHora(c.enviadaEm) : ""}
+                  {c.enviadaPor ? ` por ${c.enviadaPor}` : ""}
+                </span>
+                <Badge variant="outline">Desconsiderada</Badge>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

@@ -758,6 +758,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "pessoal","pessoal_folha_competencias","","identificacao;financeiro;trabalhista","funcionários; dependentes","Competências do movimento da folha ENVIADAS à contabilidade, com a fotografia (snapshot) das linhas entregues. Competência sem linha aqui está aberta."
 "pessoal","pessoal_folha_competencias","observacao","trabalhista","funcionários; dependentes",""
 "pessoal","pessoal_folha_competencias","snapshot","financeiro","funcionários; dependentes","Linhas do movimento enviadas à contabilidade, com nome, CPF, matrícula, descrição e valor por funcionário."
+"pessoal","pessoal_folha_config","","identificacao","usuários do sistema","Configuração do movimento da folha para a contabilidade, uma linha por entidade (src/lib/db/folha-movimento.ts)."
+"pessoal","pessoal_folha_config","marco_definido_por","identificacao","usuários do sistema","Quem definiu o marco."
 "pessoal","pessoal_funcionario_funcao","","trabalhista","funcionários","Função (atribuição) exercida por um funcionário. Gravada em Pessoal > Atribuições; alterações entram no movimento da folha."
 "pessoal","pessoal_funcionario_jornada","","trabalhista","funcionários","Jornada de trabalho de um funcionário por dia da semana (hora de início e fim). Gravada em Pessoal > Atribuições; alterações entram no movimento da folha."
 "pessoal","pessoal_funcionario_jornada","dia_semana","trabalhista","funcionários",""

@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 32 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 33 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 31 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -434,7 +434,7 @@
 
 **Observações.** Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (32) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -458,6 +458,7 @@
 | [pessoal_ferias](../dados/dicionario/pessoal.md#pessoal_ferias) | trabalhista | `concessivo_inicio` (trabalhista), `concessivo_termino` (trabalhista), `aquisitivo_inicio` (trabalhista), `aquisitivo_termino` (trabalhista), `dias_disponiveis` (trabalhista), `abono_pecuniario` (trabalhista) |
 | [pessoal_ferias_gozo](../dados/dicionario/pessoal.md#pessoal_ferias_gozo) | trabalhista | `dias` (trabalhista), `inicio` (trabalhista), `termino` (trabalhista), `aviso_ferias_url` (trabalhista), `autorizador_observacoes` (trabalhista), `abono_solicitado` (trabalhista) |
 | [pessoal_folha_competencias](../dados/dicionario/pessoal.md#pessoal_folha_competencias) | identificacao, financeiro, trabalhista | `observacao` (trabalhista), `snapshot` (financeiro) |
+| [pessoal_folha_config](../dados/dicionario/pessoal.md#pessoal_folha_config) | identificacao | `marco_definido_por` (identificacao) |
 | [pessoal_funcionario_funcao](../dados/dicionario/pessoal.md#pessoal_funcionario_funcao) | trabalhista | _pela existência do registro_ |
 | [pessoal_funcionario_jornada](../dados/dicionario/pessoal.md#pessoal_funcionario_jornada) | trabalhista | `dia_semana` (trabalhista), `hora_inicio` (trabalhista), `hora_fim` (trabalhista) |
 | [pessoal_ghe_membros](../dados/dicionario/pessoal.md#pessoal_ghe_membros) | trabalhista | _pela existência do registro_ |
@@ -473,7 +474,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: dependentes; dependentes (menores!); dependentes (menores!) de funcionários; diretores; familiares acompanhados (inclusive filhos menores de 6 anos); fornecedores pf; funcionários.</sub>
+<sub>Titulares registrados no banco para estas tabelas: dependentes; dependentes (menores!); dependentes (menores!) de funcionários; diretores; familiares acompanhados (inclusive filhos menores de 6 anos); fornecedores pf; funcionários; usuários do sistema.</sub>
 
 <a id="p11"></a>
 ## P11. Financeiro, compras, fornecedores e contratos
@@ -805,4 +806,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 199 de 199 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 200 de 200 tabelas com dado pessoal atribuídas a 16 processos.

@@ -193,6 +193,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "pessoal_diarias_lancamentos",
   "pessoal_diarias_remessas",
   "pessoal_folha_competencias",
+  "pessoal_folha_config",
   "pessoal_ponto_resenhas",
   "pessoal_diarias_solicitacoes",
   "pessoal_faltas_justificadas",

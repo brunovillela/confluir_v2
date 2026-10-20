@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-50 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+51 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -37,6 +37,7 @@
 | [pessoal_ferias](#pessoal_ferias) | trabalhista | Período aquisitivo/concessivo de férias de um funcionário, com dias disponíveis e abono. Espelho do Bubble; lido em Pessoal > Férias (lib/db… |
 | [pessoal_ferias_gozo](#pessoal_ferias_gozo) | trabalhista | Gozo de férias solicitado por um funcionário dentro de um período (datas, dias, abono, autorização, aviso). Espelho do Bubble; pedido em Meu… |
 | [pessoal_folha_competencias](#pessoal_folha_competencias) | identificação, financeiro, trabalhista | Competências do movimento da folha ENVIADAS à contabilidade, com a fotografia (snapshot) das linhas entregues. Competência sem linha aqui es… |
+| [pessoal_folha_config](#pessoal_folha_config) | identificação | Configuração do movimento da folha para a contabilidade, uma linha por entidade (src/lib/db/folha-movimento.ts). |
 | [pessoal_funcionario_funcao](#pessoal_funcionario_funcao) | trabalhista | Função (atribuição) exercida por um funcionário. Gravada em Pessoal > Atribuições; alterações entram no movimento da folha. |
 | [pessoal_funcionario_jornada](#pessoal_funcionario_jornada) | trabalhista | Jornada de trabalho de um funcionário por dia da semana (hora de início e fim). Gravada em Pessoal > Atribuições; alterações entram no movim… |
 | [pessoal_funcoes](#pessoal_funcoes) | — | Catálogo de funções da entidade (nome, descrição) atribuíveis aos funcionários. Gravado em Pessoal > Atribuições. |
@@ -921,6 +922,25 @@ Competências do movimento da folha ENVIADAS à contabilidade, com a fotografia 
 Checks: `pessoal_folha_competencias_competencia_check` `CHECK ((competencia ~ '^\d{4}-(0[1-9]|1[0-2])$'::text))`; `pessoal_folha_competencias_situacao_check` `CHECK ((situacao = 'enviada'::text))`
 
 Índices: `pessoal_folha_competencias_emp_proprietaria_id_competencia_key`, `pessoal_folha_competencias_pkey`
+
+## pessoal_folha_config
+
+Configuração do movimento da folha para a contabilidade, uma linha por entidade (src/lib/db/folha-movimento.ts).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `marco_inicial` | timestamp with time zone | sim |  |  |  | Marco inicial do movimento: o que foi registrado até este momento conta como enviado à contabilidade e pago; competências enviadas antes dele são desconsideradas. |
+| `marco_observacao` | text | sim |  |  |  | Por que o marco foi definido. |
+| `marco_definido_por` | uuid | sim |  | → usuarios | identificação | Quem definiu o marco. |
+| `marco_definido_em` | timestamp with time zone | sim |  |  |  | Quando o marco foi definido. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+
+Índices: `pessoal_folha_config_pkey`
 
 ## pessoal_funcionario_funcao
 
