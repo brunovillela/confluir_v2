@@ -164,7 +164,7 @@ export async function dadosDoAviso(
   const { data: assembleias } = await admin
     .from("voto_assembleias")
     .select(
-      "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, created_at" +
+      "id, nome_assembleia, online, urnas_de_votacao, data_inicio, data_termino, hora_inicio, hora_termino, created_at" +
         (amb ? await colunasSalaDe(amb.client) : await colunasSala())
     )
     .eq("rod_assembleia_id", rodadaId)
@@ -178,6 +178,8 @@ export async function dadosDoAviso(
     modalidade: derivarModalidade(a),
     data_inicio: (a.data_inicio as string | null) ?? null,
     data_termino: (a.data_termino as string | null) ?? null,
+    hora_inicio: horaCurta((a.hora_inicio as string | null) ?? null),
+    hora_termino: horaCurta((a.hora_termino as string | null) ?? null),
     sala_link: (a.sala_link as string | null) ?? null,
     sala_data: (a.sala_data as string | null) ?? null,
     sala_hora: horaCurta((a.sala_hora as string | null) ?? null),
@@ -201,11 +203,13 @@ export async function dadosDoAviso(
       campanhaTema: tema ?? null,
       inicio: (rodada.inicio as string | null) ?? null,
       termino,
-      assembleias: lista.map(({ nome, modalidade, data_inicio, data_termino, sala_link, sala_data, sala_hora }) => ({
+      assembleias: lista.map(({ nome, modalidade, data_inicio, data_termino, hora_inicio, hora_termino, sala_link, sala_data, sala_hora }) => ({
         nome,
         modalidade,
         data_inicio,
         data_termino,
+        hora_inicio,
+        hora_termino,
         sala_link,
         sala_data,
         sala_hora,
@@ -625,7 +629,7 @@ export async function linkPessoalDoApto(aptoId: string): Promise<{
       .filter((a) => a.sala_link)
       .map(
         (a) =>
-          `\n\nAssembleia virtual${a.sala_data ? ` em ${formatarData(a.sala_data)}` : ""}${a.sala_hora ? ` às ${a.sala_hora}` : ""}: ${a.sala_link}`
+          `\n\nReunião por vídeo (não é onde se vota)${a.sala_data ? ` em ${formatarData(a.sala_data)}` : ""}${a.sala_hora ? ` às ${a.sala_hora}` : ""}: ${a.sala_link}`
       )
       .join("")
   return { link, mensagem, nome }
