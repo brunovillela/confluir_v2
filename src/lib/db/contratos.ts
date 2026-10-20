@@ -109,6 +109,8 @@ export type Contrato = {
   autorizado: boolean
   autorizadoEm: string | null
   autorizadorId: string | null
+  /** Migrado do Bubble (tem bubble_id): sem o alerta de autorização. */
+  legado: boolean
 }
 
 /** Categoria de contrato (`contratos_categorias`). `sigiloso` restringe a leitura. */
@@ -644,6 +646,7 @@ export async function buscarContrato(
     autorizado: linha.autorizacao_esta_autorizado === true,
     autorizadoEm: texto(linha.autorizacao_data),
     autorizadorId: texto(linha.autorizacao_autorizador_id),
+    legado: Boolean(texto(linha.bubble_id)),
   }
 
   // Resumo financeiro das ordens do contrato.

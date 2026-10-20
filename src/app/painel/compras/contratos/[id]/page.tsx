@@ -234,7 +234,12 @@ export default async function ContratoPage({
       )}
 
       {!detalhe.contrato.apoio_institucional && (
-        <Alert variant={c.autorizado ? "default" : "warning"} className={c.autorizado ? "border-success/40" : undefined}>
+        // Legado do Bubble sem autorização registrada: aviso neutro, sem o
+        // alerta (os de vigência continuam).
+        <Alert
+          variant={c.autorizado || c.legado ? "default" : "warning"}
+          className={c.autorizado ? "border-success/40" : undefined}
+        >
           <AlertDescription>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span>
@@ -245,6 +250,11 @@ export default async function ContratoPage({
                     {c.autorizadoEm ? ` em ${formatarData(c.autorizadoEm)}` : ""} — as parcelas recorrentes nascem
                     autorizadas e esperam só o documento fiscal. Pagamento extraordinário passa pela autorização pontual.
                   </>
+                ) : c.legado ? (
+                  <span className="text-muted-foreground">
+                    Contrato do sistema anterior, sem autorização registrada. Para gerar parcelas recorrentes por
+                    aqui, autorize-o; pagamento extraordinário passa pela autorização pontual.
+                  </span>
                 ) : (
                   <>
                     <span className="font-medium">Contrato ainda não autorizado.</span> Parcelas recorrentes só são
