@@ -33,6 +33,7 @@ import {
 } from "@/lib/db/custeio"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { SITUACOES_ENCERRADAS } from "@/lib/db/ordens-ciclo"
 import {
   CADENCIAS,
   ROTULO_TIPO_BENEFICIARIO,
@@ -136,6 +137,13 @@ export default async function CusteioPage({
       }
     : undefined
 
+  const ordensAbertas = detalhe.ordens.filter(
+    (o) => !SITUACOES_ENCERRADAS.includes(String(o.situacao))
+  ).length
+  const ordensCanceladas = detalhe.ordens.filter(
+    (o) => o.situacao === "Cancelada"
+  ).length
+
   const cadenciaRotulo =
     CADENCIAS.find((x) => x.chave === c.cadencia)?.rotulo ?? String(c.cadencia)
 
@@ -213,6 +221,25 @@ export default async function CusteioPage({
       {brutos.extraordinario === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Pagamento extraordinário registrado — a ordem passa pela autorização pontual no Financeiro.</AlertDescription>
+        </Alert>
+      )}
+      {situacao === "cancelado" && str(c.cancelamento_motivo) && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Cancelado
+            {detalhe.canceladoPor && <> por {detalhe.canceladoPor}</>}
+            {str(c.cancelado_em) && <> em {formatarDataHora(str(c.cancelado_em))}</>}
+            : {str(c.cancelamento_motivo)}
+          </AlertDescription>
+        </Alert>
+      )}
+      {situacao === "autorizado" && ordensCanceladas > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            {ordensCanceladas} de {detalhe.ordens.length} ordem(ns) deste custeio
+            {ordensCanceladas === 1 ? " foi cancelada" : " foram canceladas"} no
+            Financeiro. Veja o motivo na lista de ordens abaixo.
+          </AlertDescription>
         </Alert>
       )}
       {situacao === "reprovado" && str(c.motivo_reprovacao) && (
@@ -358,6 +385,11 @@ export default async function CusteioPage({
                   Pagamento extraordinário passa pela autorização pontual.
                 </p>
                 {podeEditar && <ExtraordinarioForm custeioId={id} boleto={str(c.forma_pagamento) === "Boleto"} />}
+                {podeEditar && (
+                  <div>
+                    <BotaoCancelar custeioId={id} ordensAbertas={ordensAbertas} />
+                  </div>
+                )}
               </div>
             )}
             {(situacao === "reprovado" || situacao === "cancelado") && (
@@ -438,6 +470,11 @@ export default async function CusteioPage({
                     </TableCell>
                     <TableCell>
                       <SituacaoBadge situacao={o.situacao} />
+                      {o.situacao === "Cancelada" && o.cancelamento_motivo && (
+                        <p className="text-muted-foreground mt-1 max-w-64 text-xs">
+                          {o.cancelamento_motivo}
+                        </p>
+                      )}
                       {podeEditar && o.situacao === "Aguardando documento fiscal" && (
                         <div className="mt-2">
                           <ReceberDocumentoCusteioForm custeioId={id} ordemId={o.id} valor={o.valor_inicial_cobranca} />

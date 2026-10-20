@@ -144,6 +144,9 @@ Custeio institucional pago a diretor, filiado, convidado ou fornecedor: finalida
 | `conta_favorecido` | text | sim |  |  | financeiro |  |
 | `arquivo_formalizacao` | text | sim |  |  |  | Documento que formaliza o custeio (convite, ata, ofício, termo) — bucket compras. |
 | `fornecedor_id` | uuid | sim |  | → empresa |  |  |
+| `cancelamento_motivo` | text | sim |  |  |  | Motivo do cancelamento do custeio (pelo Custeio ou, quando todas as ordens foram canceladas, pelo Financeiro). |
+| `cancelado_em` | timestamp with time zone | sim |  |  |  | Quando o custeio foi cancelado. |
+| `cancelado_por_id` | uuid | sim |  | → usuarios |  | Quem cancelou o custeio (ou a última ordem dele no Financeiro). |
 
 Índices: `idx_custeios_emp`, `idx_custeios_finalidade`, `idx_custeios_fornecedor`, `idx_custeios_situacao`, `institucional_custeios_pkey`
 

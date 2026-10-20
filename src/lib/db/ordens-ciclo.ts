@@ -457,12 +457,15 @@ export async function reenviarParaAutorizacao(
 
 /**
  * Cancela uma ordem ainda não paga. Compra em dinheiro: o débito do caixa é
- * cancelado junto (o saldo volta).
+ * cancelado junto (o saldo volta). Ordem de custeio: o custeio reflete o
+ * cancelamento (ver refletirOrdemNoCusteio) — exceto quando é o próprio
+ * custeio que está cancelando as suas ordens.
  */
 export async function cancelarOrdem(
   ordemId: string,
   usuarioId: string,
-  motivo: string
+  motivo: string,
+  opcoes: { semRefletirNoCusteio?: boolean } = {}
 ): Promise<{ erro?: string }> {
   if (!motivo.trim()) return { erro: "Informe o motivo do cancelamento." }
   const admin = await createAdminClient()
@@ -522,6 +525,11 @@ export async function cancelarOrdem(
     situacao_anterior: ordem.situacao,
     ...(caixaEstornado ? { debito_do_caixa: "cancelado" } : {}),
   })
+  if (!opcoes.semRefletirNoCusteio) {
+    // Import dinâmico: custeio.ts importa deste módulo.
+    const { refletirOrdemNoCusteio } = await import("@/lib/db/custeio")
+    await refletirOrdemNoCusteio(ordemId, usuarioId, motivo)
+  }
   return {}
 }
 
@@ -731,6 +739,11 @@ export async function alterarSituacaoOrdem(
     motivo.trim() || null,
     { de: atual, para: nova }
   )
+  if (reabrindo) {
+    // Custeio cancelado junto com as ordens volta a autorizado.
+    const { refletirOrdemNoCusteio } = await import("@/lib/db/custeio")
+    await refletirOrdemNoCusteio(ordemId, usuarioId, null)
+  }
   // Autorizada ou devolvida à mão: os mesmos marcos (e webhooks) da avaliação.
   if (soSituacao) {
     // sem novo marco de autorização

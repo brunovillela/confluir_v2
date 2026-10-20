@@ -13,6 +13,8 @@ import {
 import {
   camposAutorizacaoInicial,
   camposRecorrenteAutorizada,
+  cancelarOrdem,
+  SITUACOES_ENCERRADAS,
   registrarEvento,
   usuarioDaTrilha,
   SITUACAO_A_PAGAR,
@@ -101,6 +103,7 @@ export type DetalheCusteio = {
   centroCusto: { id: string; nome_da_conta: string | null } | null
   autorizador: string | null
   criadoPor: string | null
+  canceladoPor: string | null
   ordens: {
     id: string
     codigo: string | null
@@ -109,6 +112,7 @@ export type DetalheCusteio = {
     valor_inicial_cobranca: number | null
     valor_pago: number | null
     vencimento: string | null
+    cancelamento_motivo: string | null
   }[]
 }
 
@@ -565,7 +569,7 @@ export async function detalheCusteio(
     .maybeSingle()
   if (!custeio) return null
 
-  const usuarioIds = [custeio.criado_por_id, custeio.autorizador_id].filter(
+  const usuarioIds = [custeio.criado_por_id, custeio.autorizador_id, custeio.cancelado_por_id].filter(
     (v): v is string => Boolean(v)
   )
 
@@ -589,7 +593,7 @@ export async function detalheCusteio(
     admin
       .from("ordens_pagamento")
       .select(
-        "id, codigo, descricao, situacao, valor_inicial_cobranca, valor_pago, vencimento"
+        "id, codigo, descricao, situacao, valor_inicial_cobranca, valor_pago, vencimento, cancelamento_motivo"
       )
       .eq("custeio_id", id)
       .eq("emp_proprietaria_id", empId)
@@ -614,6 +618,9 @@ export async function detalheCusteio(
       : null,
     criadoPor: custeio.criado_por_id
       ? (nomes.get(String(custeio.criado_por_id)) ?? null)
+      : null,
+    canceladoPor: custeio.cancelado_por_id
+      ? (nomes.get(String(custeio.cancelado_por_id)) ?? null)
       : null,
     ordens: (ordensRes.data ?? []) as DetalheCusteio["ordens"],
   }
@@ -877,16 +884,150 @@ export async function reprovarCusteio(
   return { ok: true, id }
 }
 
-export async function cancelarCusteio(id: string): Promise<ResultadoAcao> {
+const SITUACOES_CANCELAVEIS = ["rascunho", "aguardando_autorizacao", "autorizado"]
+
+/**
+ * Cancela o custeio, com motivo. Autorizado: as ordens ainda não pagas são
+ * canceladas junto (pelo mesmo caminho do Financeiro); as pagas ficam. Se
+ * alguma ordem não puder ser cancelada, o custeio continua autorizado.
+ */
+export async function cancelarCusteio(
+  id: string,
+  atorId: string,
+  motivo: string
+): Promise<ResultadoAcao> {
+  const m = motivo.trim()
+  if (!m) return { erro: "Informe o motivo do cancelamento." }
   const admin = await createAdminClient()
   const empId = await tenantAtual()
-  const { error } = await admin
+  const { data: atual } = await admin
     .from("institucional_custeios")
-    .update({ situacao: "cancelado", updated_at: new Date().toISOString() })
+    .select("situacao")
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .maybeSingle()
+  if (!atual) return { erro: "Custeio não encontrado." }
+  const situacao = String(atual.situacao)
+  if (!SITUACOES_CANCELAVEIS.includes(situacao)) {
+    return { erro: "Este custeio já está encerrado (reprovado ou cancelado)." }
+  }
+
+  if (situacao === "autorizado") {
+    const { data: ordens } = await admin
+      .from("ordens_pagamento")
+      .select("id, codigo, situacao")
+      .eq("custeio_id", id)
+      .eq("emp_proprietaria_id", empId)
+      .not("excluido", "is", true)
+    const abertas = (ordens ?? []).filter(
+      (o) => !SITUACOES_ENCERRADAS.includes(String(o.situacao))
+    )
+    const falhas: string[] = []
+    for (const o of abertas) {
+      const r = await cancelarOrdem(String(o.id), atorId, `Custeio cancelado: ${m}`, {
+        semRefletirNoCusteio: true,
+      })
+      if (r.erro) falhas.push(`${texto(o.codigo) ?? o.id}: ${r.erro}`)
+    }
+    if (falhas.length > 0) {
+      return {
+        erro: `Não foi possível cancelar ${falhas.length} ordem(ns), e o custeio continua autorizado. ${falhas.join(" · ")}`,
+      }
+    }
+  }
+
+  const agora = new Date().toISOString()
+  // A situação no filtro evita sobrescrever uma mudança feita por outra pessoa.
+  const { data, error } = await admin
+    .from("institucional_custeios")
+    .update({
+      situacao: "cancelado",
+      cancelamento_motivo: m,
+      cancelado_em: agora,
+      cancelado_por_id: atorId,
+      updated_at: agora,
+    })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .eq("situacao", situacao)
+    .select("id")
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
+  if ((data ?? []).length === 0) {
+    return { erro: "O custeio mudou de situação enquanto você cancelava. Recarregue a página." }
+  }
   return { ok: true, id }
+}
+
+/**
+ * Reflete no custeio o cancelamento (ou a reabertura) de uma ordem dele pelo
+ * Financeiro: todas as ordens canceladas → custeio cancelado; uma ordem
+ * reaberta num custeio cancelado depois de autorizado → volta a autorizado.
+ * Custeio com ordem paga e as demais canceladas segue autorizado.
+ */
+export async function refletirOrdemNoCusteio(
+  ordemId: string,
+  atorId: string,
+  motivo: string | null
+): Promise<void> {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const { data: ordem } = await admin
+    .from("ordens_pagamento")
+    .select("custeio_id")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  const custeioId = texto(ordem?.custeio_id)
+  if (!custeioId) return
+
+  const [{ data: c }, { data: ordens }] = await Promise.all([
+    admin
+      .from("institucional_custeios")
+      .select("situacao, autorizado_em")
+      .eq("id", custeioId)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle(),
+    admin
+      .from("ordens_pagamento")
+      .select("situacao")
+      .eq("custeio_id", custeioId)
+      .eq("emp_proprietaria_id", empId)
+      .not("excluido", "is", true),
+  ])
+  if (!c) return
+  const lista = ordens ?? []
+  const canceladas = lista.filter((o) => o.situacao === "Cancelada").length
+  const abertas = lista.filter((o) => !SITUACOES_ENCERRADAS.includes(String(o.situacao))).length
+  const agora = new Date().toISOString()
+
+  if (c.situacao === "autorizado" && lista.length > 0 && canceladas === lista.length) {
+    const { error } = await admin
+      .from("institucional_custeios")
+      .update({
+        situacao: "cancelado",
+        cancelamento_motivo: `Todas as ordens foram canceladas no Financeiro${motivo?.trim() ? ` (${motivo.trim()})` : ""}.`,
+        cancelado_em: agora,
+        cancelado_por_id: atorId,
+        updated_at: agora,
+      })
+      .eq("id", custeioId)
+      .eq("situacao", "autorizado")
+    if (error) console.error("refletirOrdemNoCusteio:", error.message)
+  } else if (c.situacao === "cancelado" && c.autorizado_em && abertas > 0) {
+    const { error } = await admin
+      .from("institucional_custeios")
+      .update({
+        situacao: "autorizado",
+        cancelamento_motivo: null,
+        cancelado_em: null,
+        cancelado_por_id: null,
+        updated_at: agora,
+      })
+      .eq("id", custeioId)
+      .eq("situacao", "cancelado")
+    if (error) console.error("refletirOrdemNoCusteio:", error.message)
+  }
 }
 
 /**

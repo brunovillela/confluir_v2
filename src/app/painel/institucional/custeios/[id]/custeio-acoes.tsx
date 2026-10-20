@@ -100,31 +100,71 @@ export function FormReprovar({ custeioId }: { custeioId: string }) {
   )
 }
 
-export function BotaoCancelar({ custeioId }: { custeioId: string }) {
+/**
+ * Cancela o custeio com motivo. `ordensAbertas` > 0 (custeio autorizado): as
+ * ordens ainda não pagas são canceladas junto no Financeiro.
+ */
+export function BotaoCancelar({
+  custeioId,
+  ordensAbertas = 0,
+}: {
+  custeioId: string
+  ordensAbertas?: number
+}) {
   const [estado, formAction, pendente] = useActionState(
     cancelarCusteioAction,
     {}
   )
+  const [aberto, setAberto] = useState(false)
+
+  if (!aberto) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => setAberto(true)}>
+        <Ban className="text-destructive size-4" />
+        Cancelar custeio
+      </Button>
+    )
+  }
   return (
     <form
       action={formAction}
       onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar este custeio?")}}
+        if (ordensAbertas > 0) {
+          confirmarEnvio(
+            e,
+            `Cancelar este custeio? ${ordensAbertas} ordem(ns) ainda não paga(s) será(ão) cancelada(s) no Financeiro.`
+          )
+        }
+      }}
+      className="grid max-w-md gap-2"
     >
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (
-        <Alert variant="destructive" className="mb-2">
+        <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" variant="outline" size="sm" disabled={pendente}>
-        {pendente ? (
-          <Loader2 className="animate-spin" />
-        ) : (
-          <Ban className="text-destructive size-4" />
-        )}
-        Cancelar
-      </Button>
+      {ordensAbertas > 0 && (
+        <p className="text-muted-foreground text-xs">
+          As {ordensAbertas} ordem(ns) ainda não paga(s) serão canceladas junto.
+          As já pagas continuam como estão.
+        </p>
+      )}
+      <Textarea
+        name="motivo"
+        rows={2}
+        required
+        placeholder="Motivo do cancelamento"
+      />
+      <div className="flex gap-2">
+        <Button type="submit" variant="destructive" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          Confirmar cancelamento
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+          Voltar
+        </Button>
+      </div>
     </form>
   )
 }

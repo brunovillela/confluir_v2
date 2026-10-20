@@ -281,10 +281,10 @@ export async function cancelarCusteioAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("custeio_institucional_edicao")
+  const sessao = await requirePermissao("custeio_institucional_edicao")
   const id = texto(formData, "custeio_id")
   if (!id) return { erro: "Custeio inválido." }
-  const res = await cancelarCusteio(id)
+  const res = await cancelarCusteio(id, sessao.usuario.id, texto(formData, "motivo"))
   if ("erro" in res) return { erro: res.erro }
   revalidar(id)
   redirect(`${BASE}/${id}?cancelado=1`)

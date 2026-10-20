@@ -31,6 +31,7 @@ erDiagram
     uuid autorizador_id FK
     uuid caixa_conta_id FK
     uuid fornecedor_id FK
+    uuid cancelado_por_id FK
   }
   linhas_institucionais {
     uuid id PK
@@ -107,6 +108,7 @@ erDiagram
   institucional_custeios }o--o| institucional_custeio_convidados : "convidado_id"
   institucional_custeios }o--o| institucional_custeio_finalidades : "finalidade_id"
   institucional_custeios }o--o| usuarios : "autorizador_id"
+  institucional_custeios }o--o| usuarios : "cancelado_por_id"
   institucional_custeios }o--o| usuarios : "criado_por_id"
   linhas_institucionais }o--o| usuarios : "usuario_id"
   patrimonio_item }o--o| patrimonio_nota_fiscal : "nota_fiscal_entrada_id"
