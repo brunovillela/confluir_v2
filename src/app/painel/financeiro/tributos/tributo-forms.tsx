@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
-import { FilePlus2, Loader2, Pencil, Plus, Save } from "lucide-react"
+import { useActionState, useEffect, useRef, useState } from "react"
+import { FilePlus2, Loader2, Pencil, Plus, Save, Sparkles } from "lucide-react"
 
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -21,6 +21,7 @@ import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { ESFERAS_TRIBUTO, PERIODICIDADES_TRIBUTO } from "@/lib/tributos-constantes"
 
 import { lancarGuiaAction, salvarTributoAction } from "./actions"
+import { lerGuiaTributo, type LeituraGuia } from "./ia-actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -249,7 +250,37 @@ export function LancarGuiaDialog({
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(lancarGuiaAction, {})
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  const [lendo, setLendo] = useState(false)
+  const [leitura, setLeitura] = useState<LeituraGuia | null>(null)
+  const refCompetencia = useRef<HTMLInputElement>(null)
+  const refValor = useRef<HTMLInputElement>(null)
+  const refVencimento = useRef<HTMLInputElement>(null)
+  const refLinha = useRef<HTMLInputElement>(null)
   const valor = guia?.valor ?? valorEsperado
+
+  /** A IA lê a guia escolhida e preenche o que achou (a pessoa confere). */
+  async function lerGuia(arquivo: File) {
+    setLendo(true)
+    setLeitura(null)
+    try {
+      const fd = new FormData()
+      fd.set("arquivo", arquivo)
+      const r = await lerGuiaTributo(fd)
+      setLeitura(r)
+      if (r.erro) return
+      const preencher = (el: HTMLInputElement | null, v: string | undefined) => {
+        if (el && v) el.value = v
+      }
+      preencher(refCompetencia.current, r.competencia)
+      preencher(refValor.current, r.valor)
+      preencher(refVencimento.current, r.vencimento)
+      preencher(refLinha.current, r.linhaDigitavel)
+    } catch {
+      setLeitura({ erro: "Não foi possível ler a guia agora — preencha à mão." })
+    } finally {
+      setLendo(false)
+    }
+  }
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
@@ -283,11 +314,12 @@ export function LancarGuiaDialog({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-1.5">
               <Label htmlFor="guia_comp">Competência *</Label>
-              <Input id="guia_comp" name="competencia" type="month" required defaultValue={guia?.competenciaMes ?? ""} />
+              <Input ref={refCompetencia} id="guia_comp" name="competencia" type="month" required defaultValue={guia?.competenciaMes ?? ""} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="guia_valor">Valor *</Label>
               <Input
+                ref={refValor}
                 id="guia_valor"
                 name="valor"
                 inputMode="decimal"
@@ -297,7 +329,7 @@ export function LancarGuiaDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="guia_venc">Vencimento *</Label>
-              <Input id="guia_venc" name="vencimento" type="date" required defaultValue={guia?.vencimento ?? ""} />
+              <Input ref={refVencimento} id="guia_venc" name="vencimento" type="date" required defaultValue={guia?.vencimento ?? ""} />
             </div>
           </div>
           <div className="grid gap-1.5">
@@ -308,15 +340,41 @@ export function LancarGuiaDialog({
               required
               accept={ACEITA_NOTA}
               onChange={async (e) => {
-                const { erro } = await prepararArquivo(e.currentTarget)
+                const input = e.currentTarget
+                const { erro } = await prepararArquivo(input)
                 setErroArquivo(erro ?? null)
+                const arquivo = input.files?.[0]
+                if (!erro && arquivo) await lerGuia(arquivo)
               }}
             />
             {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
+            {lendo && (
+              <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                <Loader2 className="size-3.5 animate-spin" />
+                Lendo a guia com IA…
+              </p>
+            )}
+            {leitura && !lendo && (
+              <div className="grid gap-1 text-xs">
+                {leitura.erro ? (
+                  <p className="text-warning-fg">{leitura.erro}</p>
+                ) : (
+                  <p className="text-success-fg inline-flex items-center gap-1.5">
+                    <Sparkles className="size-3.5" />
+                    Lido pela IA{leitura.resumo ? `: ${leitura.resumo}` : ""} — confira os campos antes de lançar.
+                  </p>
+                )}
+                {leitura.avisos?.map((a) => (
+                  <p key={a} className="text-warning-fg">
+                    • {a}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="guia_linha">Código de barras / linha digitável</Label>
-            <Input id="guia_linha" name="linha_digitavel" inputMode="numeric" placeholder="Para pagar por remessa bancária" />
+            <Input ref={refLinha} id="guia_linha" name="linha_digitavel" inputMode="numeric" placeholder="Para pagar por remessa bancária" />
           </div>
           {valorEsperado != null && (
             <p className="text-muted-foreground text-xs">

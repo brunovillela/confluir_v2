@@ -35,10 +35,12 @@ guia se refere):
   anterior ao do vencimento). Vencida e não lançada, ela fica em vermelho, e a
   lista de tributos avisa.
 - **Lançar guia** — quando a guia chega, clique em **Lançar guia** na linha da
-  competência: confira o valor e o vencimento, anexe a guia (PDF ou foto) e,
-  se quiser pagar por remessa bancária, o **código de barras**. O sistema gera
-  a ordem de pagamento do tipo **Tributo**, com a própria guia como boleto e
-  como documento.
+  competência e anexe a guia (PDF ou foto). A **IA lê a guia** e preenche o
+  **valor**, o **vencimento**, a **competência** (o período de apuração) e o
+  **código de barras**, mostrando o que identificou (ex.: *DARF — Receita
+  Federal · código 0561*) e os avisos do que ficou ilegível. Confira os campos
+  e clique em **Lançar e gerar a ordem**: o sistema gera a ordem de pagamento
+  do tipo **Tributo**, com a própria guia como boleto e como documento.
 - **Guia avulsa** — para tributo anual ou eventual (ou uma guia fora do
   calendário), o botão **Guia avulsa** no topo: escolha a competência e lance.
 - **Cancelar** — prevista que não se aplica (um mês sem o tributo) sai com o
@@ -85,6 +87,9 @@ completo e o total pago no ano.
   use **Guia avulsa**.
 - **"A ordem foi para a alçada mesmo no valor de sempre."** Cadastre o **valor
   esperado** no tributo; sem ele, toda guia passa pela alçada.
+- **"A IA preencheu errado (ou não preencheu)."** Guia fotografada torta, com
+  sombra ou cortada é lida pior — prefira o PDF. A leitura só sugere: os campos
+  ficam editáveis e o que vale é o que você confere antes de lançar.
 
 <VejaTambem
   links={[
