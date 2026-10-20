@@ -52,8 +52,13 @@ export type ContextoVerificacao = {
   condutorId?: string | null
   /** Reembolso: comprovante da despesa (presente = regra se aplica). */
   comprovante?: string | null
-  /** Hospedagem: a nota fica na fatura, não na ordem. */
+  /** Hospedagem: a nota fica na fatura, não na ordem. Tributo: a guia. */
   notaFiscal?: string | null
+  /**
+   * Tributo: a guia ainda não está ligada à ordem quando ela é criada. Sem o
+   * contexto (reavaliação), as regras leem a guia de tributo_lancamento_id.
+   */
+  tributo?: { tributoId: string; competenciaInicio: string; valorEsperado: number | null; guiaId: string | null }
   /**
    * Fluxo com tela de confirmação: os alertas que quem registra já viu e
    * aceitou. Presente (mesmo vazio) = alerta não confirmado impede a gravação.
@@ -499,11 +504,57 @@ async function verificarLinha(
         else r(t(ctx.comprovante) ? "ok" : "falha", t(ctx.comprovante) ? "Comprovante anexado." : "Sem comprovante da despesa.")
         break
       }
+      case "tributo_valor_esperado": {
+        const trib = await tributoDaLinha(linha, ctx, buscar)
+        if (!trib || trib.valorEsperado === null) r("na", "Tributo sem valor esperado cadastrado.")
+        else if (valor === null) r("na", "Ordem sem valor.")
+        else if (Math.abs(valor - trib.valorEsperado) >= 0.01) {
+          r("falha", `Guia de ${formatarMoeda(valor)} × esperado ${formatarMoeda(trib.valorEsperado)} (diferença ${formatarMoeda(valor - trib.valorEsperado)}).`)
+        } else r("ok", `No valor esperado (${formatarMoeda(trib.valorEsperado)}).`)
+        break
+      }
+      case "tributo_competencia_repetida": {
+        const trib = await tributoDaLinha(linha, ctx, buscar)
+        if (!trib) {
+          r("na", "A ordem não está ligada a uma guia de tributo.")
+          break
+        }
+        const { data: guias } = await admin
+          .from("financeiro_tributos_lancamentos")
+          .select("id, ordem_pagamento_id, ordem:ordem_pagamento_id (codigo, situacao)")
+          .eq("tributo_id", trib.tributoId)
+          .eq("competencia_inicio", trib.competenciaInicio)
+          .eq("situacao", "lancado")
+        const outras = (guias ?? []).filter((g) => {
+          const o = g.ordem as { codigo?: string; situacao?: string } | null
+          return g.id !== trib.guiaId && g.ordem_pagamento_id !== t(linha.id) && o?.situacao !== "Cancelada" && o?.situacao !== "Estornado"
+        })
+        const comp = `${trib.competenciaInicio.slice(5, 7)}/${trib.competenciaInicio.slice(0, 4)}`
+        if (outras.length) {
+          const codigos = outras.map((g) => (g.ordem as { codigo?: string } | null)?.codigo ?? "—").join(", ")
+          r("falha", `Já há guia lançada deste tributo para a competência ${comp} (ordem ${codigos}).`)
+        } else r("ok", `Primeira guia da competência ${comp}.`)
+        break
+      }
       default:
         r("na", "Regra sem verificação implementada.")
     }
   }
   return saida
+}
+
+/** Tributo e competência da ordem: do contexto (criação) ou da guia ligada (reavaliação). */
+async function tributoDaLinha(
+  linha: Linha,
+  ctx: ContextoVerificacao,
+  buscar: ReturnType<typeof cache>
+): Promise<{ tributoId: string; competenciaInicio: string; valorEsperado: number | null; guiaId: string | null } | null> {
+  if (ctx.tributo) return ctx.tributo
+  const guia = await buscar("financeiro_tributos_lancamentos", linha.tributo_lancamento_id)
+  if (!guia || !t(guia.competencia_inicio)) return null
+  const trib = await buscar("financeiro_tributos", guia.tributo_id)
+  if (!trib) return null
+  return { tributoId: String(trib.id), competenciaInicio: String(guia.competencia_inicio), valorEsperado: n(trib.valor_esperado), guiaId: String(guia.id) }
 }
 
 /** Confere as regras de uma ordem (ou lote) sem gravar nada. */

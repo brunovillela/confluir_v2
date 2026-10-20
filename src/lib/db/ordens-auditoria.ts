@@ -44,9 +44,17 @@ const n = (v: unknown) => {
 }
 
 /** Tipos cuja autorização pode ser dispensada (aprovados em outra instância). */
-const TIPOS_COM_DISPENSA = ["Folha de pagamento", "Contrato", "Locação de veículos - Mensalidade"]
-/** Tipos que exigem documento de suporte anexado (NF, contracheque, fatura, RPA). */
-const TIPOS_COM_DOCUMENTO = ["Compras", "Folha de pagamento", "Hospedagem", "RPA"]
+const TIPOS_COM_DISPENSA = [
+  "Folha de pagamento",
+  "Contrato",
+  "Locação de veículos - Mensalidade",
+  // Recorrente no valor esperado (decisão D1 dos tributos) e fatura de cartão
+  // com as compras já autorizadas uma a uma.
+  "Tributo",
+  "Fatura de cartão",
+]
+/** Tipos que exigem documento de suporte anexado (NF, contracheque, fatura, RPA, guia). */
+const TIPOS_COM_DOCUMENTO = ["Compras", "Folha de pagamento", "Hospedagem", "RPA", "Tributo", "Fatura de cartão"]
 const ENCERRADAS = ["Cancelada", "Estornado"]
 
 function docValido(doc: string | null): boolean | null {

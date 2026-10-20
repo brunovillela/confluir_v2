@@ -17,6 +17,7 @@ export type OrigemOrdem =
   | "hospedagem"
   | "multa"
   | "locacao"
+  | "tributo"
 
 export const ORIGENS_ORDEM: {
   chave: OrigemOrdem
@@ -35,6 +36,7 @@ export const ORIGENS_ORDEM: {
   { chave: "hospedagem", rotulo: "Hospedagem", descricao: "Faturas emitidas pelos hotéis conveniados", tipos: ["Hospedagem"] },
   { chave: "multa", rotulo: "Multas de trânsito", descricao: "Pagamento de infrações dos veículos da entidade", tipos: ["Multa de trânsito"] },
   { chave: "locacao", rotulo: "Locação de veículos", descricao: "Mensalidades dos contratos de locação", tipos: ["Locação de veículos - Mensalidade"] },
+  { chave: "tributo", rotulo: "Tributos", descricao: "Guias de DARF, FGTS, GPS, IPTU, alvarás (Financeiro › Tributos)", tipos: ["Tributo"] },
 ]
 
 export function origemDoTipo(tipo: string | null | undefined): OrigemOrdem | null {
@@ -184,8 +186,8 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     codigo: "sem_documento_fiscal",
     titulo: "Sem nota fiscal",
     pergunta: "Aceita ordem sem nota fiscal ou documento equivalente anexado?",
-    explicacao: "O documento fiscal comprova a despesa perante a contabilidade e a auditoria.",
-    origens: ["compras", "hospedagem"],
+    explicacao: "O documento fiscal comprova a despesa perante a contabilidade e a auditoria. No tributo, é a própria guia.",
+    origens: ["compras", "hospedagem", "tributo"],
     padrao: { "*": "alertar" },
   },
   // ── Contratos ──
@@ -256,6 +258,22 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     explicacao: "Vale para os reembolsos que têm comprovante (escritório jurídico).",
     origens: ["reembolso"],
     padrao: { reembolso: "alertar" },
+  },
+  {
+    codigo: "tributo_valor_esperado",
+    titulo: "Guia fora do valor esperado",
+    pergunta: "Aceita guia de tributo em valor diferente do valor esperado no cadastro?",
+    explicacao: "Só vale para tributos com valor esperado. Guia no valor esperado de tributo recorrente nem passa pela alçada; fora dele, vai para a alçada com este alerta.",
+    origens: ["tributo"],
+    padrao: { tributo: "alertar" },
+  },
+  {
+    codigo: "tributo_competencia_repetida",
+    titulo: "Guia repetida na competência",
+    pergunta: "Aceita uma segunda guia do mesmo tributo para a mesma competência?",
+    explicacao: "Duas guias do mesmo tributo e do mesmo mês costumam ser pagamento em dobro — às vezes é complemento ou guia reemitida.",
+    origens: ["tributo"],
+    padrao: { tributo: "alertar" },
   },
 ]
 

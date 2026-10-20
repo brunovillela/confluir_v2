@@ -359,6 +359,32 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Tributos: guias previstas que vencem em até 7 dias (ou já venceram) sem a
+  // guia lançada — o mesmo vermelho da tela. As previstas se completam antes
+  // de contar (também no lembrete diário, sem requisição).
+  if (pode("financeiro_tributos")) {
+    const ate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(Date.now() + 7 * 86400000))
+    const guiasAVencer: Montar = (q) =>
+      head(q).eq("situacao", "aguardando_guia").not("vencimento", "is", null).lte("vencimento", ate)
+    fontes.push({
+      chave: "tributos_guias",
+      titulo: "Guias de tributos a vencer",
+      descricao: "Vencem em até 7 dias (ou venceram) e a guia não foi lançada",
+      href: "/painel/financeiro/tributos",
+      tabela: "financeiro_tributos_lancamentos",
+      montar: guiasAVencer,
+      contarCom: async () => {
+        try {
+          const { garantirGuiasPrevistas } = await import("@/lib/db/tributos")
+          await garantirGuiasPrevistas(undefined, { admin: client, emp })
+        } catch {
+          // sem a migração ou fora do ar: conta o que houver
+        }
+        return contar(client, "financeiro_tributos_lancamentos", guiasAVencer)
+      },
+    })
+  }
+
   // Coordenação: os pedidos dos funcionários dos departamentos que a pessoa
   // coordena (mesmo critério de lib/db/coordenador.ts). Só entra o que a
   // permissão de Pessoal ainda não traz — senão o mesmo pedido contaria duas vezes.

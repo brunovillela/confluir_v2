@@ -1,5 +1,7 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
 import { camposAutorizacaoInicial, registrarEvento } from "@/lib/db/ordens-ciclo"
@@ -289,9 +291,13 @@ function somarDias(iso: string, dias: number): string {
  * para trás). A competência é o mês anterior ao do vencimento. Idempotente:
  * roda ao abrir a área e ao salvar o tributo.
  */
-export async function garantirGuiasPrevistas(tributoId?: string): Promise<number> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+export async function garantirGuiasPrevistas(
+  tributoId?: string,
+  /** Fora de uma requisição (lembrete diário): cliente e tenant explícitos. */
+  ambiente?: { admin: SupabaseClient; emp: string }
+): Promise<number> {
+  const admin = ambiente?.admin ?? (await createAdminClient())
+  const emp = ambiente?.emp ?? (await tenantAtual())
   let q = admin
     .from("financeiro_tributos")
     .select("id, dia_vencimento, valor_esperado")
@@ -398,7 +404,17 @@ export async function lancarGuia(d: DadosGuia, usuarioId: string): Promise<{ err
   const descartar = () => admin.storage.from("compras").remove([up.caminho!])
 
   const recorrente = t.periodicidade !== "eventual"
-  const noValor = t.valorEsperado !== null && Math.abs(d.valor - t.valorEsperado) < 0.005
+  // Segunda guia da mesma competência (complemento, reemissão… ou pagamento
+  // em dobro) não pula a alçada, mesmo no valor esperado.
+  const repetida = det.guias.some(
+    (g) =>
+      g.id !== prevista?.id &&
+      g.situacao === "lancado" &&
+      g.competenciaInicio === competencia.competencia_inicio &&
+      g.ordemSituacao !== "Cancelada" &&
+      g.ordemSituacao !== "Estornado"
+  )
+  const noValor = !repetida && t.valorEsperado !== null && Math.abs(d.valor - t.valorEsperado) < 0.005
   const nome = t.abreviacao ?? t.nome
   const rotulo = rotuloCompetencia(competencia.competencia_inicio, competencia.competencia_fim)
   const motivo = recorrente && noValor
@@ -421,6 +437,11 @@ export async function lancarGuia(d: DadosGuia, usuarioId: string): Promise<{ err
     departamento_id: t.departamentoId,
     excluido: false,
     emp_proprietaria_id: emp,
+  }, {
+    // Auditoria (origem "tributo"): a guia é o documento; o tributo e a
+    // competência ainda não estão ligados à ordem neste momento.
+    notaFiscal: up.caminho,
+    tributo: { tributoId: t.id, competenciaInicio: competencia.competencia_inicio, valorEsperado: t.valorEsperado, guiaId: prevista?.id ?? null },
   })
   if (erroOrdem || !ordem) {
     await descartar()
