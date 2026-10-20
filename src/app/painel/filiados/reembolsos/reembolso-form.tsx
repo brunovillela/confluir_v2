@@ -36,6 +36,7 @@ export function ReembolsoForm({
   valorPadrao,
   filiadoInicial,
   reembolso,
+  comprovanteUrl,
   voltarPara,
 }: {
   projetos: OpcaoProjeto[]
@@ -43,6 +44,8 @@ export function ReembolsoForm({
   /** Pré-seleção vinda do perfil do filiado. */
   filiadoInicial?: SugestaoFiliado | null
   reembolso?: ReembolsoLinha
+  /** Link assinado do comprovante já anexado (a nota fiscal da ordem). */
+  comprovanteUrl?: string | null
   voltarPara: string
 }) {
   const [estado, formAction, pendente] = useActionState(
@@ -167,6 +170,30 @@ export function ReembolsoForm({
             </Select>
             <p className="text-muted-foreground text-xs">
               Liga o gasto ao projeto (campanha, ato, congresso) para o Financeiro apurar por projeto.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="comprovante">
+              {comprovanteUrl ? "Trocar o comprovante" : "Comprovante"}
+            </Label>
+            <Input
+              id="comprovante"
+              name="comprovante"
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp"
+            />
+            <p className="text-muted-foreground text-xs">
+              Nota fiscal, recibo ou outro comprovante da despesa (PDF ou imagem). Vai como a nota
+              fiscal da ordem de pagamento.
+              {comprovanteUrl && (
+                <>
+                  {" "}
+                  <a href={comprovanteUrl} target="_blank" rel="noreferrer" className="underline">
+                    Ver o comprovante atual
+                  </a>
+                </>
+              )}
             </p>
           </div>
         </CardContent>

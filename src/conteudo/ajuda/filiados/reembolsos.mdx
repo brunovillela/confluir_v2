@@ -31,11 +31,16 @@ Financeiro: Em autorização, A pagar, Paga.
   <Passo titulo="Confira o valor">
     Vem preenchido da configuração; pode ser alterado caso a caso.
   </Passo>
+  <Passo titulo="Anexe o comprovante (opcional)">
+    Nota fiscal, recibo ou outro comprovante da despesa, em PDF ou imagem (até
+    4 MB). Ele vai como a **nota fiscal da ordem de pagamento**: o Financeiro o
+    vê na ordem e a auditoria o reconhece como anexado.
+  </Passo>
   <Passo titulo="Lançar">
     No mesmo ato nascem a **ordem de pagamento** (tipo Reembolso, Em
     autorização, com o filiado como favorecido, o centro de custo da
-    configuração e a chave Pix, se a entidade a tem) e um apontamento no
-    **prontuário** do filiado.
+    configuração, a chave Pix, se a entidade a tem, e o comprovante, se
+    anexado) e um apontamento no **prontuário** do filiado.
   </Passo>
 </PassoAPasso>
 
@@ -52,6 +57,12 @@ Financeiro: Em autorização, A pagar, Paga.
 Clique no lançamento para abrir. Enquanto a ordem não foi paga, tudo se
 edita — e a ordem acompanha (valor e descrição). Com a ordem **paga**, só
 justificativa e projeto mudam: o dinheiro saiu, valor e data ficam.
+
+O **comprovante** pode ser anexado ou trocado a qualquer momento, mesmo com a
+ordem paga: o botão **Comprovante**, ao lado da ordem, abre o arquivo atual, e
+o campo **Trocar o comprovante** do formulário substitui a nota fiscal da
+ordem. A troca fica na trilha da ordem e a auditoria a reavalia. Salvar sem
+escolher arquivo mantém o comprovante que já estava.
 
 **Desfazer** apaga o lançamento, o apontamento do prontuário e marca a ordem
 como excluída no Financeiro. Ordem paga não se desfaz — um pagamento

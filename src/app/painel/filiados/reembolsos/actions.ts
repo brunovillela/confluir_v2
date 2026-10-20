@@ -50,11 +50,14 @@ function lerCampos(formData: FormData) {
   if (projetoId && projetoId !== "sem_projeto" && !UUID.test(projetoId)) return { erro: "Projeto inválido." }
   const valor = dinheiro(formData, "valor")
   if (valor == null || !(valor > 0)) return { erro: "Informe o valor do reembolso." }
+  // Comprovante opcional: o campo vazio chega como arquivo de tamanho zero.
+  const arquivo = formData.get("comprovante")
   return {
     data,
     justificativa,
     projetoId: projetoId && projetoId !== "sem_projeto" ? projetoId : null,
     valor,
+    comprovante: arquivo instanceof File && arquivo.size > 0 ? arquivo : null,
   }
 }
 

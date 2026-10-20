@@ -3,7 +3,7 @@ import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { cpfConfiavel } from "@/lib/cpf"
 
-import { gerarCodigoProcesso } from "@/lib/db/compras"
+import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
 import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
 import { formatarMoeda } from "@/lib/formato"
@@ -19,6 +19,10 @@ import { tenantAtual } from "@/lib/tenant"
  * alçada) e um apontamento no prontuário do filiado. O valor vem da
  * configuração; o centro de custo também. Quando a entidade liga o teto
  * mensal, o lançamento que estoura o teto é recusado.
+ *
+ * O COMPROVANTE (opcional, 20/10/2026) é a nota fiscal da ordem: fica em
+ * `ordens_pagamento.arquivo_nota_fiscal` (bucket compras, notas/…), sem coluna
+ * própria no reembolso — o Financeiro e a auditoria já o enxergam ali.
  *
  * Leitura no perfil do filiado: `filiacao-reembolsos.ts`.
  */
@@ -41,6 +45,8 @@ export type ReembolsoLinha = {
     valor_pago: number | null
     data_pagamento: string | null
     excluido: boolean | null
+    /** Comprovante do reembolso — é a nota fiscal da ordem. */
+    arquivo_nota_fiscal: string | null
   } | null
 }
 
@@ -66,6 +72,8 @@ export type DadosReembolso = {
   justificativa: string
   projetoId: string | null
   valor: number
+  /** Comprovante da despesa (opcional): vira a nota fiscal da ordem. */
+  comprovante?: File | null
 }
 
 type Resultado = { ok: true; id: string } | { erro: string }
@@ -73,7 +81,7 @@ type Resultado = { ok: true; id: string } | { erro: string }
 export const POR_PAGINA = 50
 
 const SELECT_LINHA =
-  "id, data, justificativa, valor, filiado_id, projeto_id, prontuario_id, filiado:filiado_id(nome_completo, cpf), projeto:projeto_id(descricao_sumaria, descricao), ordem:ordem_pagamento_id(id, codigo, situacao, valor_pago, data_pagamento, excluido)"
+  "id, data, justificativa, valor, filiado_id, projeto_id, prontuario_id, filiado:filiado_id(nome_completo, cpf), projeto:projeto_id(descricao_sumaria, descricao), ordem:ordem_pagamento_id(id, codigo, situacao, valor_pago, data_pagamento, excluido, arquivo_nota_fiscal)"
 
 const um = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
 
@@ -259,6 +267,14 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
   if (erroBancos) console.error("Falha ao ler o Pix do filiado para o reembolso:", erroBancos.message)
   const pix = texto(bancos?.[0]?.pix)
 
+  // O comprovante sobe antes de tudo: falhou, nada é gravado.
+  let comprovante: string | null = null
+  if (dados.comprovante) {
+    const up = await subirComprovanteCompras(`notas/reembolsos-filiados/${filiado.id}`, dados.comprovante)
+    if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o comprovante." }
+    comprovante = up.caminho
+  }
+
   const descricaoOrdem = `Reembolso de participação — ${nome} — ${dados.justificativa}`
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
@@ -274,9 +290,10 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       beneficiario_doc_avulso: usuarioId ? null : cpf,
       centro_custo_despesa_id: config.centroCustoId,
       projeto_id: dados.projetoId,
+      arquivo_nota_fiscal: comprovante,
       excluido: false,
       emp_proprietaria_id: emp,
-    }, {})
+    }, comprovante ? { comprovante } : {})
   if (erroOrdem || !ordem) {
     return { erro: `Não foi possível gerar a ordem de pagamento: ${erroOrdem?.message}` }
   }
@@ -327,6 +344,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
 /**
  * Edita data, justificativa, projeto e valor. Com a ordem já paga, só
  * justificativa e projeto mudam — o dinheiro saiu, o valor e a data ficam.
+ * O comprovante pode ser anexado ou trocado mesmo com a ordem paga.
  */
 export async function atualizarReembolso(
   id: string,
@@ -337,6 +355,20 @@ export async function atualizarReembolso(
   const atual = await obterReembolso(id)
   if (!atual) return { erro: "Reembolso não encontrado." }
   const paga = atual.ordem?.situacao === "Paga"
+  const ordemViva = atual.ordem && !atual.ordem.excluido ? atual.ordem : null
+
+  let comprovante: string | null = null
+  if (dados.comprovante) {
+    if (!ordemViva) {
+      return { erro: "Este reembolso não tem ordem de pagamento ativa para receber o comprovante." }
+    }
+    const up = await subirComprovanteCompras(
+      `notas/reembolsos-filiados/${atual.filiadoId ?? id}`,
+      dados.comprovante
+    )
+    if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o comprovante." }
+    comprovante = up.caminho
+  }
 
   const registro: Record<string, unknown> = {
     justificativa: dados.justificativa,
@@ -354,15 +386,26 @@ export async function atualizarReembolso(
     .eq("id", id)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
 
-  if (atual.ordem && !atual.ordem.excluido) {
+  if (ordemViva) {
     const ordem: Record<string, unknown> = {
       descricao: `Reembolso de participação — ${atual.filiadoNome ?? "Filiado"} — ${dados.justificativa}`,
       projeto_id: dados.projetoId,
     }
     if (!paga) ordem.valor_inicial_cobranca = dados.valor
-    await admin.from("ordens_pagamento").update(ordem).eq("emp_proprietaria_id", emp).eq("id", atual.ordem.id)
+    if (comprovante) ordem.arquivo_nota_fiscal = comprovante
+    await admin.from("ordens_pagamento").update(ordem).eq("emp_proprietaria_id", emp).eq("id", ordemViva.id)
     // Na trilha da ordem — e a auditoria reavalia a ordem como ficou.
-    await registrarEvento(atual.ordem.id, "corrigida", await usuarioDaTrilha(), "Reembolso de participação editado.", ordem)
+    await registrarEvento(
+      ordemViva.id,
+      "corrigida",
+      await usuarioDaTrilha(),
+      comprovante
+        ? ordemViva.arquivo_nota_fiscal
+          ? "Reembolso de participação editado; comprovante trocado."
+          : "Reembolso de participação editado; comprovante anexado."
+        : "Reembolso de participação editado.",
+      ordem
+    )
   }
   if (atual.prontuarioId) {
     await admin

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink, FileText } from "lucide-react"
 
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterReembolso } from "@/lib/db/filiacao-reembolsos-edicao"
+import { urlArquivoOrdem } from "@/lib/db/ordens-extrato"
 import { listarProjetos } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
@@ -34,6 +35,8 @@ export default async function ReembolsoPage({
   if (!reembolso) notFound()
   const ordem = reembolso.ordem
   const paga = ordem?.situacao === "Paga"
+  const comprovanteUrl =
+    ordem && !ordem.excluido ? await urlArquivoOrdem(ordem.arquivo_nota_fiscal) : null
 
   return (
     <>
@@ -81,6 +84,16 @@ export default async function ReembolsoPage({
                   Abrir no Financeiro
                 </Link>
               </Button>
+              {comprovanteUrl ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={comprovanteUrl} target="_blank" rel="noreferrer">
+                    <FileText />
+                    Comprovante
+                  </a>
+                </Button>
+              ) : (
+                <span className="text-muted-foreground text-xs">Sem comprovante anexado</span>
+              )}
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -98,6 +111,7 @@ export default async function ReembolsoPage({
           .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"))}
         valorPadrao={null}
         reembolso={reembolso}
+        comprovanteUrl={comprovanteUrl}
         voltarPara="/painel/filiados/reembolsos"
       />
 
