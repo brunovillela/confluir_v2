@@ -383,10 +383,17 @@ export async function avaliarReembolso(
   return {}
 }
 
-/** Marca reembolso APROVADO como pago (entrou no contracheque) e avisa. */
-export async function marcarReembolsoPago(
-  id: string
-): Promise<{ erro?: string }> {
+type ReembolsoPago = {
+  funcionario_id: string | null
+  valor_aprovado: number | null
+  pagamento_mes: string | null
+  pagamento_ano: string | null
+  tipo_id: string | null
+}
+
+/** Passa de APROVADO a pago, com a data de hoje; devolve só os que mudaram. */
+async function passarAPago(ids: string[]): Promise<{ erro?: string; pagos: ReembolsoPago[] }> {
+  if (ids.length === 0) return { pagos: [] }
   const admin = await createAdminClient()
   const hoje = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -398,17 +405,19 @@ export async function marcarReembolsoPago(
       pago_em: hoje,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id)
+    .in("id", ids)
     .eq("situacao", "aprovado")
     .select("funcionario_id, valor_aprovado, pagamento_mes, pagamento_ano, tipo_id")
-  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-  if ((data ?? []).length === 0) {
-    return { erro: "Só reembolsos aprovados podem ser marcados como pagos." }
-  }
+  if (error) return { erro: `Não foi possível salvar: ${error.message}`, pagos: [] }
+  return { pagos: (data ?? []) as ReembolsoPago[] }
+}
 
-  const r = data![0]
-  if (r.funcionario_id) {
-    const { tipos } = await listarTiposReembolso()
+/** Avisa cada funcionário de que o reembolso entrou no contracheque. */
+export async function avisarReembolsosPagos(pagos: ReembolsoPago[]): Promise<void> {
+  if (pagos.length === 0) return
+  const { tipos } = await listarTiposReembolso()
+  for (const r of pagos) {
+    if (!r.funcionario_id) continue
     const tipo = tipos.find((t) => t.id === r.tipo_id)
     const referencia =
       r.pagamento_mes && r.pagamento_ano
@@ -420,7 +429,30 @@ export async function marcarReembolsoPago(
       `Seu reembolso (${tipo?.nome ?? "ACT"}) de ${formatarMoeda(r.valor_aprovado)} foi pago no contracheque${referencia}.`
     )
   }
+}
+
+/** Marca reembolso APROVADO como pago (entrou no contracheque) e avisa. */
+export async function marcarReembolsoPago(
+  id: string
+): Promise<{ erro?: string }> {
+  const { erro, pagos } = await passarAPago([id])
+  if (erro) return { erro }
+  if (pagos.length === 0) {
+    return { erro: "Só reembolsos aprovados podem ser marcados como pagos." }
+  }
+  await avisarReembolsosPagos(pagos)
   return {}
+}
+
+/**
+ * Reembolsos que foram à contabilidade no movimento da folha: os aprovados
+ * passam a pagos (entram no contracheque da competência). O aviso aos
+ * funcionários fica com quem chama (avisarReembolsosPagos).
+ */
+export async function marcarReembolsosPagosPeloMovimento(
+  ids: string[]
+): Promise<{ erro?: string; pagos: ReembolsoPago[] }> {
+  return passarAPago(ids)
 }
 
 export async function tipoReembolsoEmUso(tipoId: string): Promise<number> {

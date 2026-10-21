@@ -11,8 +11,10 @@ import {
   receberCompetencia,
   rotuloCompetencia,
 } from "@/lib/db/folha-movimento"
+import { avisarReembolsosPagos, marcarReembolsosPagosPeloMovimento } from "@/lib/db/reembolsos"
 
 function revalidar(competencia: string) {
+  revalidatePath("/painel/pessoal/reembolsos")
   revalidatePath("/painel/pessoal/contabilidade")
   revalidatePath(`/painel/pessoal/contabilidade/${competencia}`)
 }
@@ -26,6 +28,9 @@ export async function enviarCompetenciaAction(_prev: EstadoForm, formData: FormD
   const r = await enviarCompetencia(competencia, sessao.usuario.id as string, observacao)
   if (r.erro) return { erro: r.erro }
   const rotulo = rotuloCompetencia(competencia)
+  // Reembolso do ACT que foi no movimento: de aprovado passa a pago.
+  const { erro: erroReembolsos, pagos } = await marcarReembolsosPagosPeloMovimento(r.reembolsos ?? [])
+  if (pagos.length) depoisDaResposta(() => avisarReembolsosPagos(pagos))
   depoisDaResposta(() =>
     avisarQuemPode("pessoal_contabilidade", [], {
       evento: "pendencia_contabilidade",
@@ -36,7 +41,12 @@ export async function enviarCompetenciaAction(_prev: EstadoForm, formData: FormD
     })
   )
   revalidar(competencia)
-  return { ok: `Competência ${rotulo} enviada à contabilidade com ${r.total} item(ns).` }
+  const reembolsosTexto = erroReembolsos
+    ? ` Os reembolsos do ACT não foram marcados como pagos: ${erroReembolsos}`
+    : pagos.length
+      ? ` ${pagos.length} reembolso(s) do ACT marcado(s) como pago(s).`
+      : ""
+  return { ok: `Competência ${rotulo} enviada à contabilidade com ${r.total} item(ns).${reembolsosTexto}` }
 }
 
 /** A contabilidade confirma o recebimento; quem enviou é avisado. */

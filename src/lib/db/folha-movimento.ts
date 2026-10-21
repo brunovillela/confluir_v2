@@ -767,7 +767,7 @@ export async function enviarCompetencia(
   competencia: string,
   usuarioId: string,
   observacao: string | null
-): Promise<{ erro?: string; total?: number }> {
+): Promise<{ erro?: string; total?: number; reembolsos?: string[] }> {
   if (!competenciaValida(competencia)) return { erro: "Competência inválida." }
   const marco = await marcoInicial()
   const { disponivel, linhas: enviadas, desconsideradas } = await competenciasEnviadas(marco)
@@ -795,7 +795,11 @@ export async function enviarCompetencia(
     if (error.code === "23505") return { erro: "Esta competência já foi enviada por outra pessoa." }
     return { erro: `Não foi possível enviar: ${error.message}` }
   }
-  return { total: linhas.length }
+  return {
+    total: linhas.length,
+    // Os reembolsos do ACT que foram nesta competência (para passarem a pagos).
+    reembolsos: linhas.filter((l) => l.chave.startsWith("reembolso:")).map((l) => l.chave.slice("reembolso:".length)),
+  }
 }
 
 /** A contabilidade confirma que recebeu (uma vez). */
