@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarCusteio,
   autorizarCusteio,
   cancelarCusteio,
   criarCusteio,
+  reabrirCusteioReprovado,
   meiosDoBeneficiario,
   registrarExtraordinarioCusteio,
   reprovarCusteio,
@@ -284,10 +286,28 @@ export async function cancelarCusteioAction(
   const sessao = await requirePermissao("custeio_institucional_edicao")
   const id = texto(formData, "custeio_id")
   if (!id) return { erro: "Custeio inválido." }
-  const res = await cancelarCusteio(id, sessao.usuario.id, texto(formData, "motivo"))
+  const res = await cancelarCusteio(
+    id,
+    sessao.usuario.id,
+    texto(formData, "motivo"),
+    podeAcessar(sessao.permissoes, "custeio_institucional_autorizacao")
+  )
   if ("erro" in res) return { erro: res.erro }
   revalidar(id)
   redirect(`${BASE}/${id}?cancelado=1`)
+}
+
+export async function reabrirCusteioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("custeio_institucional_edicao")
+  const id = texto(formData, "custeio_id")
+  if (!id) return { erro: "Custeio inválido." }
+  const res = await reabrirCusteioReprovado(id)
+  if ("erro" in res) return { erro: res.erro }
+  revalidar(id)
+  redirect(`${BASE}/${id}?editar=1&reaberto=1`)
 }
 
 // ── Finalidades ──────────────────────────────────────────────────────────────

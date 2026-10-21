@@ -46,6 +46,7 @@ import { CusteioForm, type CusteioInicial } from "../custeio-form"
 import {
   BotaoAutorizar,
   BotaoCancelar,
+  BotaoReabrir,
   BotaoSubmeter,
   FormReprovar,
 } from "./custeio-acoes"
@@ -242,6 +243,13 @@ export default async function CusteioPage({
           </AlertDescription>
         </Alert>
       )}
+      {situacao === "rascunho" && str(c.motivo_reprovacao) && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Reaberto depois de reprovado. Motivo da reprovação: {str(c.motivo_reprovacao)}
+          </AlertDescription>
+        </Alert>
+      )}
       {situacao === "reprovado" && str(c.motivo_reprovacao) && (
         <Alert variant="warning">
           <AlertDescription>
@@ -385,16 +393,28 @@ export default async function CusteioPage({
                   Pagamento extraordinário passa pela autorização pontual.
                 </p>
                 {podeEditar && <ExtraordinarioForm custeioId={id} boleto={str(c.forma_pagamento) === "Boleto"} />}
-                {podeEditar && (
+                {podeEditar && podeAutorizar && (
                   <div>
                     <BotaoCancelar custeioId={id} ordensAbertas={ordensAbertas} />
                   </div>
                 )}
               </div>
             )}
-            {(situacao === "reprovado" || situacao === "cancelado") && (
+            {situacao === "reprovado" && (
+              <div className="grid gap-3">
+                <p className="text-muted-foreground text-sm">
+                  Custeio reprovado. Reabra para corrigir e submeter de novo.
+                </p>
+                {podeEditar && (
+                  <div>
+                    <BotaoReabrir custeioId={id} />
+                  </div>
+                )}
+              </div>
+            )}
+            {situacao === "cancelado" && (
               <p className="text-muted-foreground text-sm">
-                Custeio {situacao}. Crie um novo se necessário.
+                Custeio cancelado. Crie um novo se necessário.
               </p>
             )}
           </CardContent>

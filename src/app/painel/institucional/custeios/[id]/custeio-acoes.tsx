@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useActionState } from "react"
-import { Ban, Check, Loader2, Send, X } from "lucide-react"
+import { Ban, Check, Loader2, RotateCcw, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   autorizarCusteioAction,
   cancelarCusteioAction,
+  reabrirCusteioAction,
   reprovarCusteioAction,
   submeterCusteioAction,
 } from "../actions"
@@ -96,6 +97,28 @@ export function FormReprovar({ custeioId }: { custeioId: string }) {
           Cancelar
         </Button>
       </div>
+    </form>
+  )
+}
+
+/** Reprovado → rascunho, para corrigir e submeter de novo. */
+export function BotaoReabrir({ custeioId }: { custeioId: string }) {
+  const [estado, formAction, pendente] = useActionState(
+    reabrirCusteioAction,
+    {}
+  )
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="custeio_id" value={custeioId} />
+      {estado.erro && (
+        <Alert variant="destructive" className="mb-2">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <Button type="submit" variant="outline" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+        Reabrir para correção
+      </Button>
     </form>
   )
 }

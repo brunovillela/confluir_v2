@@ -73,12 +73,16 @@ pagamento já nasce classificada.
 
 ## Editar e cancelar
 
-- **Editar** só em **rascunho**. Depois de submetido, o custeio não muda mais —
-  se algo estiver errado, cancele e crie outro.
+- **Editar** só em **rascunho**. Depois de submetido, o custeio não muda mais.
+- **Reprovado** pode ser **reaberto para correção**: volta a rascunho (o motivo
+  da reprovação continua visível), é corrigido e submetido de novo.
 - **Cancelar** pede um **motivo** e vale em rascunho, aguardando autorização ou
-  autorizado. No autorizado, as ordens **ainda não pagas** são canceladas junto
-  no Financeiro; as pagas continuam como estão. O custeio guarda quem cancelou,
-  quando e por quê.
+  autorizado. O custeio guarda quem cancelou, quando e por quê.
+- **Cancelar um custeio autorizado** exige a permissão **Custeio institucional —
+  autorizar**. As ordens **ainda não pagas** são canceladas junto no
+  Financeiro; as pagas continuam como estão. Se alguma ordem já estiver **em
+  pagamento** (*Processando* ou numa remessa enviada ao banco), o cancelamento
+  é recusado até o Financeiro resolvê-la.
 - **Não há exclusão**: o custeio cancelado ou reprovado fica no histórico.
 - **Cancelamento pelo Financeiro**: se o Financeiro cancelar **todas** as ordens
   de um custeio, ele passa a **cancelado** sozinho, com o motivo da última

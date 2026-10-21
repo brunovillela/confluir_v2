@@ -21,6 +21,7 @@ import {
   SITUACAO_AGUARDANDO_DOCUMENTO,
   SITUACAO_EM_AUTORIZACAO,
 } from "@/lib/db/ordens-ciclo"
+import { SITUACAO_PROCESSANDO } from "@/lib/ordens-situacoes"
 import { obterFichaDiretor } from "@/lib/db/diretoria-ficha"
 import {
   vencimentoParcela,
@@ -884,17 +885,44 @@ export async function reprovarCusteio(
   return { ok: true, id }
 }
 
-const SITUACOES_CANCELAVEIS = ["rascunho", "aguardando_autorizacao", "autorizado"]
+/**
+ * Reprovado → rascunho, para corrigir e submeter de novo. O motivo da
+ * reprovação fica guardado (a tela o mostra no rascunho) até a próxima
+ * avaliação; autorizador e data saem.
+ */
+export async function reabrirCusteioReprovado(id: string): Promise<ResultadoAcao> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("institucional_custeios")
+    .update({
+      situacao: "rascunho",
+      autorizador_id: null,
+      autorizado_em: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("situacao", "reprovado")
+    .select("id")
+  if (error) return { erro: `Falha ao reabrir: ${error.message}` }
+  if ((data ?? []).length === 0) return { erro: "Só custeio reprovado pode ser reaberto para correção." }
+  return { ok: true, id }
+}
+
+const SITUACOES_CANCELAVEIS =["rascunho", "aguardando_autorizacao", "autorizado"]
 
 /**
- * Cancela o custeio, com motivo. Autorizado: as ordens ainda não pagas são
- * canceladas junto (pelo mesmo caminho do Financeiro); as pagas ficam. Se
+ * Cancela o custeio, com motivo. Autorizado: exige a permissão de autorizar
+ * (`podeCancelarAutorizado`) e as ordens ainda não pagas são canceladas junto
+ * (pelo mesmo caminho do Financeiro); as pagas ficam. Ordem já em pagamento
+ * (Processando ou numa remessa enviada ao banco) bloqueia o cancelamento. Se
  * alguma ordem não puder ser cancelada, o custeio continua autorizado.
  */
 export async function cancelarCusteio(
   id: string,
   atorId: string,
-  motivo: string
+  motivo: string,
+  podeCancelarAutorizado: boolean
 ): Promise<ResultadoAcao> {
   const m = motivo.trim()
   if (!m) return { erro: "Informe o motivo do cancelamento." }
@@ -914,6 +942,9 @@ export async function cancelarCusteio(
   }
 
   if (situacao === "autorizado") {
+    if (!podeCancelarAutorizado) {
+      return { erro: "Cancelar um custeio já autorizado exige a permissão de autorizar custeios." }
+    }
     const { data: ordens } = await admin
       .from("ordens_pagamento")
       .select("id, codigo, situacao")
@@ -923,6 +954,29 @@ export async function cancelarCusteio(
     const abertas = (ordens ?? []).filter(
       (o) => !SITUACOES_ENCERRADAS.includes(String(o.situacao))
     )
+    // Já em pagamento: o dinheiro pode estar saindo — o Financeiro resolve antes.
+    const { data: itensRemessa } = abertas.length
+      ? await admin
+          .from("financeiro_remessa_itens")
+          .select("ordem_id, situacao, remessa:remessa_id (situacao)")
+          .in("ordem_id", abertas.map((o) => String(o.id)))
+      : { data: [] }
+    const emRemessa = new Set(
+      (itensRemessa ?? [])
+        .filter((i) => {
+          const r = (Array.isArray(i.remessa) ? i.remessa[0] : i.remessa) as { situacao?: string } | null
+          return i.situacao === "enviado" && r?.situacao !== "cancelada"
+        })
+        .map((i) => String(i.ordem_id))
+    )
+    const emPagamento = abertas.filter(
+      (o) => o.situacao === SITUACAO_PROCESSANDO || emRemessa.has(String(o.id))
+    )
+    if (emPagamento.length > 0) {
+      return {
+        erro: `Há ordem(ns) já em pagamento (${emPagamento.map((o) => texto(o.codigo) ?? o.id).join(", ")}): em "Processando" ou numa remessa enviada ao banco. Peça ao Financeiro para resolvê-la(s) antes de cancelar o custeio.`,
+      }
+    }
     const falhas: string[] = []
     for (const o of abertas) {
       const r = await cancelarOrdem(String(o.id), atorId, `Custeio cancelado: ${m}`, {
