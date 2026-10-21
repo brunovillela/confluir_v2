@@ -27,9 +27,8 @@ export type Notificacao = {
 /** Destino ao abrir a notificação, derivado da origem do aviso. */
 export function destinoDaNotificacao(n: Notificacao): string {
   if (n.link?.startsWith("/painel/")) return n.link
-  if (n.contracheque_id_fk || n.registro_ponto_id_fk) {
-    return "/painel/perfil/contracheques"
-  }
+  if (n.registro_ponto_id_fk) return "/painel/perfil/ponto"
+  if (n.contracheque_id_fk) return "/painel/perfil/contracheques"
   return "/painel/notificacoes"
 }
 

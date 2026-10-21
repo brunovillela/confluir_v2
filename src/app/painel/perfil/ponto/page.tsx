@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { TileIndicador } from "@/components/graficos/tile"
 import { hojeSP } from "@/lib/db/comum"
+import { hhmm } from "@/lib/horas"
 import { Clock4 } from "lucide-react"
 
 import {
@@ -38,7 +39,7 @@ export default async function MeuPontoPage({
   const doAno = pontos.filter((p) => anoDe(p.remessaNome, p.created_at) === anoAtual)
   const heAno = doAno.reduce((s, p) => s + (p.horas?.he70 ?? 0) + (p.horas?.he100 ?? 0), 0)
   const he100Ano = doAno.reduce((s, p) => s + (p.horas?.he100 ?? 0), 0)
-  const h = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h`
+  const h = (v: number) => hhmm(v)
   return (
     <>
       <VoltarPerfil />
@@ -57,7 +58,15 @@ export default async function MeuPontoPage({
           rotulo="Meses com horas extras"
           valor={`${doAno.filter((p) => (p.horas?.he70 ?? 0) + (p.horas?.he100 ?? 0) > 0).length} de ${doAno.length}`}
         />
-        <TileIndicador rotulo="Banco de horas" valor={h(pontos[0]?.horas?.saldo ?? 0)} nota={pontos[0]?.remessaNome ? `ao fim de ${pontos[0].remessaNome}` : undefined} />
+        <TileIndicador
+          rotulo="Saldo de horas extras"
+          valor={h(pontos[0]?.horas?.saldo ?? 0)}
+          nota={
+            pontos[0]?.horas
+              ? `${h(pontos[0].horas.saldo70)} a 70% · ${h(pontos[0].horas.saldo100)} a 100% · ${pontos[0].remessaNome ?? ""}`
+              : undefined
+          }
+        />
       </section>
 
       <Card>

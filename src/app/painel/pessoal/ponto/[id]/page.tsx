@@ -31,7 +31,8 @@ import {
   urlArquivoPessoal,
 } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
-import { carregarBasePonto, indicadoresDe } from "@/lib/db/ponto-analise"
+import { carregarBasePonto, indicadoresDe, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
+import { decimalHoras, hhmm } from "@/lib/horas"
 import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
 import { obterResenha } from "@/lib/db/ponto-resenha"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -47,11 +48,7 @@ export const metadata: Metadata = {
 // Leitura dos espelhos e resenha da IA podem levar alguns minutos.
 export const maxDuration = 300
 
-function horas(v: number | null): string {
-  return v === null
-    ? "—"
-    : v.toLocaleString("pt-BR", { maximumFractionDigits: 2 })
-}
+const horas = (v: number | null) => hhmm(v)
 
 export default async function RemessaPontoPage({
   params,
@@ -72,10 +69,11 @@ export default async function RemessaPontoPage({
   const paramsBusca = await searchParams
   const { salvo, editar } = paramsBusca
   const naAnalise = paramsBusca.aba === "indicadores"
-  const [remessa, itens, funcionarios] = await Promise.all([
+  const [remessa, itens, funcionarios, saldosAnteriores] = await Promise.all([
     buscarRemessaPonto(id),
     registrosDaRemessaPonto(id),
     funcionariosParaSelecao(),
+    saldosAnterioresPonto(id),
   ])
   if (!remessa) notFound()
 
@@ -177,8 +175,9 @@ export default async function RemessaPontoPage({
             <CardHeader>
               <CardTitle className="text-base">Registros de ponto</CardTitle>
               <CardDescription>
-                Horas em 70% e 100% por funcionário; registros liberados ficam
-                visíveis ao funcionário.
+                Horas em 70% e 100% por funcionário, em horas e minutos (as pagas
+                também em decimal, que vai à contabilidade); registros liberados
+                ficam visíveis ao funcionário.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -228,6 +227,9 @@ export default async function RemessaPontoPage({
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {horas(i.horas_pagas_70)}
+                          {i.horas_pagas_70 !== null && (
+                            <span className="text-muted-foreground block text-xs">{decimalHoras(i.horas_pagas_70)}</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {horas(i.saldo_remanescente_70)}
@@ -237,6 +239,9 @@ export default async function RemessaPontoPage({
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {horas(i.horas_pagas_100)}
+                          {i.horas_pagas_100 !== null && (
+                            <span className="text-muted-foreground block text-xs">{decimalHoras(i.horas_pagas_100)}</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {horas(i.saldo_remanescente_100)}
@@ -320,6 +325,8 @@ export default async function RemessaPontoPage({
             </Alert>
           ) : (
             <RegistroPontoForm
+              key={registroEmEdicao?.id ?? "novo"}
+              saldosAnteriores={saldosAnteriores}
               remessaId={id}
               funcionarios={disponiveis}
               registro={registroEmEdicao ?? undefined}

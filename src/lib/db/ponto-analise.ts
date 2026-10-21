@@ -2,6 +2,7 @@ import "server-only"
 
 import { esquemaAusente, lerEmLotesPorIds, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { avaliarJornada, type MarcacoesEspelho, type OcorrenciasJornada } from "@/lib/db/ponto-marcacoes"
+import { hhmm } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -58,6 +59,8 @@ export type RegistroAnalise = {
   he: number
   pagas: number
   saldo: number
+  saldo70: number
+  saldo100: number
   temEspelho: boolean
   lido: boolean
   espelhoErro: string | null
@@ -126,7 +129,8 @@ const n = (v: unknown) => {
   const x = Number(v ?? 0)
   return Number.isFinite(x) ? x : 0
 }
-const r1 = (v: number) => Math.round(v * 10) / 10
+// Duas casas: mostradas em HH:MM, uma casa só daria saltos de 6 minutos.
+const r2 = (v: number) => Math.round(v * 100) / 100
 
 export function rotuloCompetenciaPonto(c: string): string {
   const [a, m] = c.split("-")
@@ -143,6 +147,60 @@ function competenciaDaRemessa(r: Record<string, unknown>): string | null {
   if (!m) return null
   const i = MESES.findIndex((x) => x.toLowerCase() === m[1].toLowerCase())
   return `${m[2]}-${String(i + 1).padStart(2, "0")}`
+}
+
+// ── Saldos da remessa anterior ───────────────────────────────────────────────
+
+export type SaldoAnteriorPonto = { saldo70: number | null; saldo100: number | null; remessa: string }
+
+/**
+ * Para lançar uma remessa: o saldo remanescente de cada funcionário na remessa
+ * ANTERIOR em que ele aparece (pela competência — mês e ano de referência —,
+ * não pela ordem de criação: remessas antigas são lançadas fora de ordem).
+ */
+export async function saldosAnterioresPonto(remessaId: string): Promise<Record<string, SaldoAnteriorPonto>> {
+  const admin = await createAdminClient()
+  const { data: rems } = await admin
+    .from("pessoal_registro_ponto_remessas")
+    .select("id, nome_remessa, mes_referencia_os, ano_referencia_os")
+    .eq("emp_proprietaria_id", await tenantAtual())
+  const remessas = ((rems ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    competencia: competenciaDaRemessa(r),
+    nome: texto(r.nome_remessa) ?? "(sem nome)",
+  }))
+  const atual = remessas.find((r) => r.id === remessaId)?.competencia
+  if (!atual) return {}
+  const anteriores = remessas.filter((r) => r.competencia && r.competencia < atual)
+  if (anteriores.length === 0) return {}
+  const info = new Map(anteriores.map((r) => [r.id, r]))
+  const regs = await lerEmLotesPorIds<Record<string, unknown>>([...info.keys()], (fatia, de, ate) =>
+    admin
+      .from("pessoal_registro_ponto")
+      .select("id, remessa_id, funcionario_id, saldo_remanescente_70, saldo_remanescente_100")
+      .in("remessa_id", fatia)
+      .order("id")
+      .range(de, ate)
+  )
+  const melhor = new Map<string, { competencia: string; reg: Record<string, unknown> }>()
+  for (const r of regs) {
+    const f = texto(r.funcionario_id)
+    const comp = info.get(String(r.remessa_id))?.competencia
+    if (!f || !comp) continue
+    const atualF = melhor.get(f)
+    if (!atualF || comp > atualF.competencia) melhor.set(f, { competencia: comp, reg: r })
+  }
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+  return Object.fromEntries(
+    [...melhor].map(([f, { reg }]) => [
+      f,
+      {
+        saldo70: num(reg.saldo_remanescente_70),
+        saldo100: num(reg.saldo_remanescente_100),
+        remessa: info.get(String(reg.remessa_id))?.nome ?? "",
+      },
+    ])
+  )
 }
 
 // ── Base ─────────────────────────────────────────────────────────────────────
@@ -251,6 +309,8 @@ export async function carregarBasePonto(): Promise<BasePonto> {
       he: he70 + he100,
       pagas: n(b.horas_pagas_70) + n(b.horas_pagas_100),
       saldo: n(b.saldo_remanescente_70) + n(b.saldo_remanescente_100),
+      saldo70: n(b.saldo_remanescente_70),
+      saldo100: n(b.saldo_remanescente_100),
       temEspelho: Boolean(texto(b.arquivo)),
       lido: Boolean(marc?.dias?.length),
       espelhoErro: texto(b.marcacoes_erro),
@@ -380,7 +440,7 @@ export function indicadoresDe(
     if (mesesAcima > 0) {
       alertas.push(
         filtro.escopo === "remessa"
-          ? `${r1(maiorHEMes)} h extras no mês — média acima de 2 h por dia útil (art. 59)`
+          ? `${hhmm(maiorHEMes)} de horas extras no mês — média acima de 2 h por dia útil (art. 59)`
           : `${mesesAcima} mês(es) com média acima de 2 h extras por dia útil (art. 59)`
       )
       pontuacao += 3 * mesesAcima
@@ -394,7 +454,7 @@ export function indicadoresDe(
       pontuacao += 2
     }
     if (ultimo.saldo >= LIMITE_SALDO) {
-      alertas.push(`Banco de horas com ${r1(ultimo.saldo)} h — conferir o prazo de compensação (art. 59, §§ 2º e 5º)`)
+      alertas.push(`Banco de horas com ${hhmm(ultimo.saldo)} — conferir o prazo de compensação (art. 59, §§ 2º e 5º)`)
       pontuacao += 2
     }
     const ult3 = hist.slice(-3)
@@ -407,8 +467,8 @@ export function indicadoresDe(
     if (mesesCom100 > 0) {
       alertas.push(
         filtro.escopo === "remessa"
-          ? `${r1(he100)} h a 100% no mês (domingos, feriados ou folgas trabalhadas)`
-          : `${r1(he100)} h a 100% no período, ${mesesCom100} mês(es) com 8 h ou mais (domingos, feriados ou folgas)`
+          ? `${hhmm(he100)} a 100% no mês (domingos, feriados ou folgas trabalhadas)`
+          : `${hhmm(he100)} a 100% no período, ${mesesCom100} mês(es) com 8 h ou mais (domingos, feriados ou folgas)`
       )
       pontuacao += mesesCom100
     }
@@ -437,12 +497,12 @@ export function indicadoresDe(
       id: f,
       nome: ultimo.nome,
       departamento: ultimo.departamento.nome,
-      he: r1(he),
-      he100: r1(he100),
+      he: r2(he),
+      he100: r2(he100),
       mesesComHE,
       meses: lista.length,
-      maiorHEMes: r1(maiorHEMes),
-      saldo: r1(ultimo.saldo),
+      maiorHEMes: r2(maiorHEMes),
+      saldo: r2(ultimo.saldo),
       atestados: aus.atestados,
       diasAtestado: aus.diasAtestado,
       faltasJustificadas: aus.justificadas,
@@ -485,21 +545,21 @@ export function indicadoresDe(
     departamentos.set(d.chave, d)
   }
   for (const d of departamentos.values()) {
-    d.he = r1(d.he)
-    d.he100 = r1(d.he100)
-    d.saldo = r1(d.saldo)
-    d.heMedia = r1(d.he / Math.max(1, d.funcionarios))
+    d.he = r2(d.he)
+    d.he100 = r2(d.he100)
+    d.saldo = r2(d.saldo)
+    d.heMedia = r2(d.he / Math.max(1, d.funcionarios))
   }
 
   const serie = competencias.map((c) => {
     const doMes = regs.filter((r) => r.competencia === c)
     return {
       competencia: c,
-      he70: r1(doMes.reduce((s, r) => s + r.he70, 0)),
-      he100: r1(doMes.reduce((s, r) => s + r.he100, 0)),
+      he70: r2(doMes.reduce((s, r) => s + r.he70, 0)),
+      he100: r2(doMes.reduce((s, r) => s + r.he100, 0)),
       comHE: doMes.filter((r) => r.he > 0).length,
       funcionarios: doMes.length,
-      saldo: r1(doMes.reduce((s, r) => s + r.saldo, 0)),
+      saldo: r2(doMes.reduce((s, r) => s + r.saldo, 0)),
     }
   })
 
@@ -518,12 +578,12 @@ export function indicadoresDe(
     mesesSemRemessa,
     funcionarios: pessoas.length,
     comHE: pessoas.filter((p) => p.he > 0).length,
-    he: r1(he),
-    he70: r1(regs.reduce((s, r) => s + r.he70, 0)),
-    he100: r1(regs.reduce((s, r) => s + r.he100, 0)),
-    pagas: r1(regs.reduce((s, r) => s + r.pagas, 0)),
-    heMediaPorFuncionario: r1(he / Math.max(1, pessoas.length)),
-    saldo: r1(pessoas.reduce((s, p) => s + p.saldo, 0)),
+    he: r2(he),
+    he70: r2(regs.reduce((s, r) => s + r.he70, 0)),
+    he100: r2(regs.reduce((s, r) => s + r.he100, 0)),
+    pagas: r2(regs.reduce((s, r) => s + r.pagas, 0)),
+    heMediaPorFuncionario: r2(he / Math.max(1, pessoas.length)),
+    saldo: r2(pessoas.reduce((s, p) => s + p.saldo, 0)),
     espelhos: regs.filter((r) => r.temEspelho).length,
     espelhosLidos: regs.filter((r) => r.lido).length,
     espelhosEscaneados: regs.filter((r) => !r.lido && /escaneado/i.test(r.espelhoErro ?? "")).length,

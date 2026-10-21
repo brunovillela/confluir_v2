@@ -1,6 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { hhmm } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -691,7 +692,8 @@ export async function calcularMovimento(
           registradoEm: r.created_at,
           secao: "variaveis",
           funcionarioId: f,
-          descricao: `Horas extras a ${pct}% (pagas) — realizadas ${Number(r[`horas_realizadas_${pct}`] ?? 0)} h`,
+          // Quantidade em decimal (o que a contabilidade lança); o texto traz HH:MM.
+          descricao: `Horas extras a ${pct}% (pagas: ${hhmm(pagas)}) — realizadas ${hhmm(Number(r[`horas_realizadas_${pct}`] ?? 0))}`,
           inicio: inicioMes,
           fim: fimMes,
           quantidade: pagas,

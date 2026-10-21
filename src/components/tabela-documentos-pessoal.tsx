@@ -13,6 +13,7 @@ import {
   urlArquivoPessoal,
   type MeuDocumentoPessoal,
 } from "@/lib/db/pessoal"
+import { hhmm } from "@/lib/horas"
 import { paginar, type Paginacao as Pag } from "@/lib/paginacao"
 
 /**
@@ -33,6 +34,14 @@ export async function TabelaDocumentosPessoal({
   prefixo: string
 }) {
   const paginaAtual = paginar(documentos, paginacao)
+  // Espelhos de ponto: horas extras realizadas e saldo do mês, em HH:MM.
+  const comHoras = documentos.some((d) => d.horas)
+  const COLUNAS_HORAS = [
+    ["he70", "HE 70%"],
+    ["he100", "HE 100%"],
+    ["saldo70", "Saldo HE 70%"],
+    ["saldo100", "Saldo HE 100%"],
+  ] as const
   const urls = new Map<string, string | null>()
   for (const d of paginaAtual.linhas) {
     urls.set(d.id, await urlArquivoPessoal(d.arquivo))
@@ -43,6 +52,12 @@ export async function TabelaDocumentosPessoal({
         <TableHeader>
           <TableRow>
             <TableHead>Remessa</TableHead>
+            {comHoras &&
+              COLUNAS_HORAS.map(([chave, rotulo]) => (
+                <TableHead key={chave} className="text-right whitespace-nowrap">
+                  {rotulo}
+                </TableHead>
+              ))}
             <TableHead className="w-28">Arquivo</TableHead>
           </TableRow>
         </TableHeader>
@@ -50,7 +65,7 @@ export async function TabelaDocumentosPessoal({
           {paginaAtual.total === 0 && (
             <TableRow>
               <TableCell
-                colSpan={2}
+                colSpan={comHoras ? 6 : 2}
                 className="text-muted-foreground h-20 text-center text-sm"
               >
                 {vazio}
@@ -62,6 +77,12 @@ export async function TabelaDocumentosPessoal({
               <TableCell className="font-medium">
                 {d.remessaNome ?? "(sem remessa)"}
               </TableCell>
+              {comHoras &&
+                COLUNAS_HORAS.map(([chave]) => (
+                  <TableCell key={chave} className="text-right tabular-nums">
+                    {d.horas ? hhmm(d.horas[chave]) : "—"}
+                  </TableCell>
+                ))}
               <TableCell>
                 {urls.get(d.id) ? (
                   <a

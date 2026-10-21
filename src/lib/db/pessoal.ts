@@ -749,11 +749,12 @@ export async function notificarLiberacaoPessoal(
   if (!(await querEmail(funcionarioId, tipo === "contracheque" ? "contracheque" : "ponto"))) return
 
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
+  const pagina = `${SITE_URL}/painel/perfil/${tipo === "contracheque" ? "contracheques" : "ponto"}`
   await enviarEmail({
     email: usuario.email,
     nome,
     assunto: `${titulo} — {ENTIDADE}`,
-    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse o sistema em <a href="${SITE_URL}/painel/perfil/contracheques">${SITE_URL}/painel/perfil/contracheques</a>.</p><p>Confluir — {ENTIDADE}</p>`,
+    html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse o sistema em <a href="${pagina}">${pagina}</a>.</p><p>Confluir — {ENTIDADE}</p>`,
   })
 }
 
@@ -763,8 +764,8 @@ export type MeuDocumentoPessoal = {
   remessaNome: string | null
   arquivo: string | null
   created_at: string | null
-  /** Só no ponto: horas extras realizadas e o banco ao fim do mês (horas decimais). */
-  horas?: { he70: number; he100: number; saldo: number }
+  /** Só no ponto: horas extras realizadas e o saldo ao fim do mês (horas decimais). */
+  horas?: { he70: number; he100: number; saldo70: number; saldo100: number; saldo: number }
 }
 
 /** Contracheques e espelhos de ponto LIBERADOS do próprio funcionário. */
@@ -822,6 +823,8 @@ export async function meusDocumentosPessoal(
       horas: {
         he70: Number(i.horas_realizadas_70 ?? 0),
         he100: Number(i.horas_realizadas_100 ?? 0),
+        saldo70: Number(i.saldo_remanescente_70 ?? 0),
+        saldo100: Number(i.saldo_remanescente_100 ?? 0),
         saldo: Number(i.saldo_remanescente_70 ?? 0) + Number(i.saldo_remanescente_100 ?? 0),
       },
     })),

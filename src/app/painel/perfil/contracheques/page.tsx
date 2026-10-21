@@ -51,7 +51,12 @@ export default async function MeusContrachequesPage({
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TileIndicador rotulo={`Contracheques em ${anoAtual}`} valor={String(noAno)} />
-        <TileIndicador rotulo="Último liberado" valor={contracheques[0]?.remessaNome ?? "—"} />
+        {/* "Outubro/2026 - Adiantamento": o mês no número, o tipo na nota (cabe no cartão). */}
+        <TileIndicador
+          rotulo="Último liberado"
+          valor={contracheques[0]?.remessaNome?.split(/\s+[-–—]\s+/)[0] ?? "—"}
+          nota={contracheques[0]?.remessaNome?.split(/\s+[-–—]\s+/).slice(1).join(" - ") || undefined}
+        />
         <TileIndicador rotulo="Disponíveis" valor={String(contracheques.length)} nota="em todo o histórico" />
       </section>
 

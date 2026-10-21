@@ -11,7 +11,7 @@ import { depoisDaResposta } from "@/lib/db/avisos"
 import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { parseValorBR } from "@/lib/valores"
+import { duasCasas, lerHoras } from "@/lib/horas"
 
 const MESES = [
   "Janeiro",
@@ -165,29 +165,33 @@ export async function excluirRemessaPonto(
 // ── Registros de ponto da remessa ──────────────────────────────────────────
 
 const CAMPOS_HORAS = [
-  "horas_realizadas_70",
-  "horas_pagas_70",
-  "saldo_remanescente_70",
-  "saldo_remessa_anterior_70",
-  "horas_realizadas_100",
-  "horas_pagas_100",
-  "saldo_remanescente_100",
-  "saldo_remessa_anterior_100",
+  ["horas_realizadas_70", "Realizadas 70%"],
+  ["horas_pagas_70", "Pagas 70%"],
+  ["saldo_remessa_anterior_70", "Saldo da remessa anterior 70%"],
+  ["horas_realizadas_100", "Realizadas 100%"],
+  ["horas_pagas_100", "Pagas 100%"],
+  ["saldo_remessa_anterior_100", "Saldo da remessa anterior 100%"],
 ] as const
 
-function lerHoras(formData: FormData): Record<string, number | null> | { erro: string } {
+/**
+ * Horas digitadas em HH:MM (ou decimal) → decimais com duas casas. O saldo
+ * remanescente não vem do formulário: é a conta saldo anterior + realizadas −
+ * pagas, para cada percentual.
+ */
+function lerCamposHoras(formData: FormData): Record<string, number | null> | { erro: string } {
   const horas: Record<string, number | null> = {}
-  for (const campo of CAMPOS_HORAS) {
-    const bruto = String(formData.get(campo) ?? "").trim()
-    if (bruto === "") {
-      horas[campo] = null
-      continue
+  for (const [campo, rotulo] of CAMPOS_HORAS) {
+    const valor = lerHoras(String(formData.get(campo) ?? ""))
+    if (valor !== null && Number.isNaN(valor)) {
+      return { erro: `Valor inválido em "${rotulo}" — use horas e minutos (ex.: 10:30).` }
     }
-    const valor = parseValorBR(bruto)
-    if (valor === null) {
-      return { erro: `Valor inválido em "${campo.replaceAll("_", " ")}".` }
-    }
-    horas[campo] = valor
+    horas[campo] = valor === null ? null : duasCasas(valor)
+  }
+  for (const pct of ["70", "100"] as const) {
+    const partes = [horas[`saldo_remessa_anterior_${pct}`], horas[`horas_realizadas_${pct}`], horas[`horas_pagas_${pct}`]]
+    horas[`saldo_remanescente_${pct}`] = partes.every((v) => v === null)
+      ? null
+      : duasCasas((partes[0] ?? 0) + (partes[1] ?? 0) - (partes[2] ?? 0))
   }
   return horas
 }
@@ -225,7 +229,7 @@ export async function criarRegistroPonto(
   if (!remessaId) return { erro: "Remessa inválida." }
   if (!funcionarioId) return { erro: "Escolha o funcionário." }
 
-  const horas = lerHoras(formData)
+  const horas = lerCamposHoras(formData)
   if ("erro" in horas) return horas
 
   const remessa = await remessaAberta(remessaId)
@@ -283,7 +287,7 @@ export async function atualizarRegistroPonto(
   const remessaId = String(formData.get("remessa_id") ?? "")
   if (!id || !remessaId) return { erro: "Registro inválido." }
 
-  const horas = lerHoras(formData)
+  const horas = lerCamposHoras(formData)
   if ("erro" in horas) return horas
 
   const remessa = await remessaAberta(remessaId)

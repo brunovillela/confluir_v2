@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { OCORRENCIAS, rotuloCompetenciaPonto, type Indicadores } from "@/lib/db/ponto-analise"
 import type { ResenhaGuardada } from "@/lib/db/ponto-resenha"
 import { formatarDataHora } from "@/lib/formato"
+import { hhmm } from "@/lib/horas"
 
 import { GerarResenhaBotao } from "./botoes"
 
-export const horas = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h`
+/** Horas em HH:MM (o banco guarda decimal). */
+export const horas = (v: number) => hhmm(v)
 
 /** Indicadores do recorte: números, ocorrências, evolução, departamentos e pessoas. */
 export function PainelIndicadores({

@@ -37,7 +37,9 @@ export function TileIndicador({
     <CardContent className="flex items-end justify-between gap-3 py-4">
       <div className="min-w-0">
         <p className="text-muted-foreground text-xs">{rotulo}</p>
-        <p className="mt-1 text-2xl leading-none font-semibold whitespace-nowrap">{valor}</p>
+        <p className="mt-1 truncate text-2xl leading-none font-semibold whitespace-nowrap" title={valor}>
+          {valor}
+        </p>
         {delta && Seta && (
           <p
             className={cn(

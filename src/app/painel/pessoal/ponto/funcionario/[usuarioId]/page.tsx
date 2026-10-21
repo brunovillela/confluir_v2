@@ -115,7 +115,10 @@ export default async function PontoFuncionarioPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Registros de {ano}</CardTitle>
-              <CardDescription>Clique no mês para ver as horas, o espelho e as marcações dia a dia.</CardDescription>
+              <CardDescription>
+                Horas extras realizadas e o saldo ao fim do mês, em horas e minutos. Clique no mês para ver as horas, o
+                espelho e as marcações dia a dia.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -123,10 +126,11 @@ export default async function PontoFuncionarioPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      <TableHead className="text-right">A 70%</TableHead>
-                      <TableHead className="text-right">A 100%</TableHead>
+                      <TableHead className="text-right">HE 70%</TableHead>
+                      <TableHead className="text-right">HE 100%</TableHead>
                       <TableHead className="hidden text-right md:table-cell">Pagas</TableHead>
-                      <TableHead className="text-right">Banco</TableHead>
+                      <TableHead className="text-right">Saldo HE 70%</TableHead>
+                      <TableHead className="text-right">Saldo HE 100%</TableHead>
                       <TableHead>Marcações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -143,7 +147,8 @@ export default async function PontoFuncionarioPage({
                           <TableCell className="text-right tabular-nums">{horas(r.he70)}</TableCell>
                           <TableCell className="text-right tabular-nums">{horas(r.he100)}</TableCell>
                           <TableCell className="hidden text-right tabular-nums md:table-cell">{horas(r.pagas)}</TableCell>
-                          <TableCell className="text-right tabular-nums">{horas(r.saldo)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{horas(r.saldo70)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{horas(r.saldo100)}</TableCell>
                           <TableCell>
                             {r.lido ? (
                               ocorr > 0 ? (
