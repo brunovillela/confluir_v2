@@ -331,6 +331,11 @@ export async function avaliarReembolso(
     if (!avaliacao.valor_aprovado || avaliacao.valor_aprovado <= 0) {
       return { erro: "Informe o valor aprovado." }
     }
+    // Sem o mês do contracheque, o reembolso não entra no movimento da folha
+    // (e não passa a pago quando ele é enviado à contabilidade).
+    if (!avaliacao.pagamento_mes || !avaliacao.pagamento_ano || !/^\d{4}$/.test(avaliacao.pagamento_ano)) {
+      return { erro: "Informe o mês e o ano do contracheque em que o reembolso será pago." }
+    }
     const { tipos } = await listarTiposReembolso()
     const tipo = tipos.find((t) => t.id === reembolso.tipo_id)
     // O avaliador aprova o valor reembolsável (porcentagem do tipo sobre a

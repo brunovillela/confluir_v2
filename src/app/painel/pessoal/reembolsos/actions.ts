@@ -48,8 +48,9 @@ export async function avaliarReembolsoAction(
 
   const mes = String(formData.get("pagamento_mes") ?? "").trim() || null
   const ano = String(formData.get("pagamento_ano") ?? "").trim() || null
-  if (decisao === "aprovar" && ano && !/^\d{4}$/.test(ano)) {
-    return { erro: "Ano da referência inválido (ex.: 2026)." }
+  if (decisao === "aprovar") {
+    if (!mes || !ano) return { erro: "Informe o mês e o ano do contracheque em que o reembolso será pago." }
+    if (!/^\d{4}$/.test(ano)) return { erro: "Ano da referência inválido (ex.: 2026)." }
   }
 
   const { erro } = await avaliarReembolso(id, sessao.usuario.id as string, {

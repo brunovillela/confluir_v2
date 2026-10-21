@@ -36,6 +36,21 @@ const MESES = [
   "Dezembro",
 ]
 
+/**
+ * Contracheque sugerido: o do mês até o dia 15 (corte do movimento da folha);
+ * depois dele, o do mês seguinte.
+ */
+function contrachequeSugerido(): { mes: string; ano: string } {
+  const [a, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })
+    .format(new Date())
+    .split("-")
+    .map(Number)
+  const seguinte = d > 15
+  const mes = seguinte ? (m % 12) + 1 : m
+  const ano = seguinte && m === 12 ? a + 1 : a
+  return { mes: MESES[mes - 1], ano: String(ano) }
+}
+
 export function AvaliacaoReembolsoForm({
   reembolsoId,
   valorReembolsavelTexto,
@@ -51,14 +66,16 @@ export function AvaliacaoReembolsoForm({
     avaliarReembolsoAction,
     {}
   )
+  const sugerido = contrachequeSugerido()
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Avaliar solicitação</CardTitle>
         <CardDescription>
-          Aprovar define o valor e a referência do contracheque em que o
-          reembolso será pago. O valor vem calculado pelo ACT ({calculoTexto})
+          Aprovar define o valor e o contracheque (mês e ano, obrigatórios) em
+          que o reembolso será pago — é por ele que o reembolso entra no
+          movimento da folha. O valor vem calculado pelo ACT ({calculoTexto})
           e pode ser reduzido — nunca aumentado. Reprovar exige o motivo.
         </CardDescription>
       </CardHeader>
@@ -99,10 +116,9 @@ export function AvaliacaoReembolsoForm({
               <select
                 id="pagamento_mes"
                 name="pagamento_mes"
-                defaultValue=""
+                defaultValue={sugerido.mes}
                 className={SELECT}
               >
-                <option value="">A definir</option>
                 {MESES.map((m) => (
                   <option key={m} value={m}>
                     {m}
@@ -117,6 +133,7 @@ export function AvaliacaoReembolsoForm({
                 name="pagamento_ano"
                 inputMode="numeric"
                 placeholder="Ex.: 2026"
+                defaultValue={sugerido.ano}
               />
             </div>
             <div className="grid gap-1.5 sm:col-span-3">
