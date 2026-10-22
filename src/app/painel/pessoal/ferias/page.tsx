@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus, TreePalm } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,6 +33,7 @@ import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { listarPeriodosFerias, resumoPeriodo, type PeriodoFerias } from "@/lib/db/ferias"
 import { gozosSemAviso } from "@/lib/db/ferias-aviso"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { departamentosDaLista, funcionariosDaArea, type FuncionarioArea } from "@/lib/db/pessoal-area"
 import {
   anosComGozo,
@@ -120,6 +122,7 @@ export default async function FeriasPage({
     )
     .sort((a, b) => (a.inicio ?? "").localeCompare(b.inicio ?? ""))
   const pendentesAtrasados = pendentes.filter((g) => g.inicio && g.inicio <= hoje).length
+  const fotosPendentes = await fotosDosUsuarios(pendentes.map((g) => g.trabalhadorId))
   const urlEstado = (c: ChaveSituacao) => `/painel/pessoal/ferias?estado=${c}`
   const semAviso = (await gozosSemAviso()).length
 
@@ -223,16 +226,19 @@ export default async function FeriasPage({
                   {pendentes.map((g) => (
                     <TableRow key={g.id}>
                       <TableCell className="max-w-56 font-medium">
-                        {g.trabalhadorId ? (
-                          <Link
-                            href={`/painel/pessoal/ferias/funcionario/${g.trabalhadorId}`}
-                            className="block truncate hover:underline"
-                          >
-                            {g.nome}
-                          </Link>
-                        ) : (
-                          g.nome
-                        )}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <AvatarPessoa nome={g.nome} fotoUrl={g.trabalhadorId ? fotosPendentes.get(g.trabalhadorId) : null} />
+                          {g.trabalhadorId ? (
+                            <Link
+                              href={`/painel/pessoal/ferias/funcionario/${g.trabalhadorId}`}
+                              className="block min-w-0 truncate hover:underline"
+                            >
+                              {g.nome}
+                            </Link>
+                          ) : (
+                            <span className="truncate">{g.nome}</span>
+                          )}
+                        </div>
                         {g.abono_solicitado === true && (
                           <Badge variant="outline" className="border-info/40 text-info-fg mt-0.5">
                             Venda de 1/3

@@ -2,10 +2,12 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CheckCheck, ExternalLink, FileSignature, HandCoins, Receipt } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSessaoPainel } from "@/lib/auth"
 import { DecisaoRemessaCompacta } from "@/components/remessa-avaliacao-form"
 import { agruparPorRemessa } from "@/lib/db/diarias"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { paraAprovar } from "@/lib/db/diretor-home"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ApontamentosAuditoria } from "@/app/painel/compras/avaliacoes/apontamentos-auditoria"
@@ -24,6 +26,8 @@ export default async function AprovarPage() {
   const a = await paraAprovar(sessao)
   // 08/10: diária em remessa é decidida com a remessa inteira.
   const diarias = agruparPorRemessa(a.diarias)
+  // Avatar de quem recebe: diretores entram também (têm usuário no sistema).
+  const fotos = await fotosDosUsuarios(a.diarias.map((d) => d.funcionario_id))
   const total = a.ordens.length + a.assinaturas.length + diarias.remessas.length + diarias.avulsas.length
 
   return (
@@ -121,7 +125,9 @@ export default async function AprovarPage() {
             <Card key={r.id}>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {r.beneficiarioNome ?? "—"} · {formatarMoeda(r.total)}
+                  <PessoaNome nome={r.beneficiarioNome} fotoUrl={r.diarias[0]?.funcionario_id ? fotos.get(r.diarias[0].funcionario_id) : null} size="default">
+                    {r.beneficiarioNome ?? "—"} · {formatarMoeda(r.total)}
+                  </PessoaNome>
                 </CardTitle>
                 <CardDescription className="text-xs">
                   Remessa {r.codigo ?? ""} · {r.diarias.length} diária(s)
@@ -172,8 +178,10 @@ export default async function AprovarPage() {
             <Card key={d.id}>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {d.funcionarioNome ?? "—"}
-                  {d.valor_total !== null ? ` · ${formatarMoeda(d.valor_total + d.valorDespesas)}` : ""}
+                  <PessoaNome nome={d.funcionarioNome} fotoUrl={d.funcionario_id ? fotos.get(d.funcionario_id) : null} size="default">
+                    {d.funcionarioNome ?? "—"}
+                    {d.valor_total !== null ? ` · ${formatarMoeda(d.valor_total + d.valorDespesas)}` : ""}
+                  </PessoaNome>
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {[d.tipoNome, d.quantidade ? `${d.quantidade} diária${d.quantidade === 1 ? "" : "s"}` : null, d.departamentoNome].filter(Boolean).join(" · ")}

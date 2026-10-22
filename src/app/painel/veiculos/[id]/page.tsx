@@ -26,12 +26,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { PessoaNome } from "@/components/pessoa-nome"
 import { EmUsoBadge } from "@/components/veiculos"
 import { AlertaChecklist } from "@/components/veiculos-checklist"
 import { AlertaManutencao } from "@/components/veiculos-manutencao"
 
 import { requirePermissao } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { nomesDasSedes } from "@/lib/db/organizacao"
 import {
   obterConfig as obterConfigChecklist,
@@ -122,6 +124,7 @@ export default async function VeiculoPage({
     obterConfigChecklist(),
     situacaoDosPlanos(id),
   ])
+  const fotos = await fotosDosUsuarios(movimentacoes.map((m) => m.condutor_id))
 
   const [crlvUrls, apoliceUrl, crvUrl] = await Promise.all([
     Promise.all(veiculo.crlv_urls.map((c) => urlArquivoVeiculos(c))),
@@ -555,7 +558,13 @@ export default async function VeiculoPage({
                       `${momentoBR(m.data_devolucao, m.devolucao_em)}${m.sede_devolucao ? ` · ${m.sede_devolucao}` : ""}`
                     )}
                   </TableCell>
-                  <TableCell>{m.condutorNome ?? "—"}</TableCell>
+                  <TableCell>
+                    {m.condutorNome ? (
+                      <PessoaNome nome={m.condutorNome} fotoUrl={m.condutor_id ? fotos.get(m.condutor_id) : null} />
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   <TableCell className="max-w-52">
                     <span className="line-clamp-1">{m.destino ?? "—"}</span>
                   </TableCell>

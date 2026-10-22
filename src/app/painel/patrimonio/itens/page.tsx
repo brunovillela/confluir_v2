@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, Download, Package, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarItens, resumoPatrimonio } from "@/lib/db/patrimonio"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -46,6 +48,7 @@ export default async function ItensPage({
     resumoPatrimonio(),
     listarItens({ busca, situacao }),
   ])
+  const fotos = await fotosDosUsuarios(itens.map((i) => i.responsavelId))
 
   return (
     <>
@@ -167,12 +170,20 @@ export default async function ItensPage({
                     </TableCell>
                     <TableCell>
                       {i.emCautela ? (
-                        <Badge
-                          variant="outline"
-                          className="border-warning/40 text-warning-fg"
-                        >
-                          {i.responsavelNome ?? "Em cautela"}
-                        </Badge>
+                        <span className="inline-flex items-center gap-2">
+                          {i.responsavelNome && (
+                            <AvatarPessoa
+                              nome={i.responsavelNome}
+                              fotoUrl={i.responsavelId ? fotos.get(i.responsavelId) : null}
+                            />
+                          )}
+                          <Badge
+                            variant="outline"
+                            className="border-warning/40 text-warning-fg"
+                          >
+                            {i.responsavelNome ?? "Em cautela"}
+                          </Badge>
+                        </span>
                       ) : (
                         "—"
                       )}

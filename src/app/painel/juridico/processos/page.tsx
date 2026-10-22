@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarFornecedores } from "@/lib/db/compras"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarProcessos, type FiltrosProcesso } from "@/lib/db/juridico"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { formatarData } from "@/lib/formato"
@@ -100,6 +102,7 @@ export default async function ProcessosPage({
   }))
 
   const { linhas, total, totalPaginas } = paginar(todos, { pagina, porPagina })
+  const fotos = await fotosDosUsuarios(linhas.map((pr) => pr.responsavel_id))
 
   const temFiltro =
     Boolean(filtros.busca || filtros.tipo || filtros.status || filtros.filiadoId) ||
@@ -314,9 +317,15 @@ export default async function ProcessosPage({
                           )}
                         </TableCell>
                         <TableCell className="max-w-40">
-                          <span className="line-clamp-1 text-sm">
-                            {pr.responsavel ?? "—"}
-                          </span>
+                          {pr.responsavel ? (
+                            <PessoaNome
+                              nome={pr.responsavel}
+                              fotoUrl={pr.responsavel_id ? fotos.get(pr.responsavel_id) : null}
+                              className="text-sm"
+                            />
+                          ) : (
+                            <span className="text-sm">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge

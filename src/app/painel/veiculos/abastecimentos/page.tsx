@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowDown, ArrowLeft, ArrowUp, Fuel, Plus } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
   ORDENS_ABASTECIMENTO,
   type OrdemAbastecimento,
 } from "@/lib/db/veiculos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
@@ -127,6 +129,7 @@ export default async function AbastecimentosPage({ searchParams }: { searchParam
     listarVeiculos({ situacao: "todos" }),
     listarCondutores(),
   ])
+  const fotos = await fotosDosUsuarios(lista.linhas.map((a) => a.usuario_id))
   const veiculos = frota.map((v) => ({
     id: v.id,
     rotulo: `${v.placa ?? "s/ placa"} — ${v.marca_modelo ?? ""}${v.inativo ? " (inativo)" : ""}`,
@@ -280,7 +283,9 @@ export default async function AbastecimentosPage({ searchParams }: { searchParam
                       {a.hodometro?.toLocaleString("pt-BR") ?? "—"}
                     </TableCell>
                     <TableCell className="max-w-48">
-                      {a.usuarioNome ?? (
+                      {a.usuarioNome ? (
+                        <PessoaNome nome={a.usuarioNome} fotoUrl={a.usuario_id ? fotos.get(a.usuario_id) : null} />
+                      ) : (
                         <span className="text-muted-foreground line-clamp-1 italic">
                           {a.condutorInformado ? `${a.condutorInformado} (não identificado)` : "—"}
                         </span>

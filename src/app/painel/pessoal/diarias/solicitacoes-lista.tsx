@@ -3,11 +3,13 @@ import { HandCoins } from "lucide-react"
 
 import { SituacaoDiariaBadge } from "@/components/diarias"
 import { Paginacao } from "@/components/paginacao"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SITUACOES_DIARIA, type SolicitacaoDiaria } from "@/lib/db/diarias"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
@@ -20,7 +22,7 @@ const ROTULOS_SITUACAO: Record<string, string> = {
 }
 
 /** Aba "Solicitações" das Diárias (a lista de antes do padrão de 3 níveis). */
-export function ListaSolicitacoesDiaria({
+export async function ListaSolicitacoesDiaria({
   solicitacoes,
   brutos,
   noHistorico,
@@ -41,6 +43,7 @@ export function ListaSolicitacoesDiaria({
   })
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtradas, paginacao)
+  const fotos = await fotosDosUsuarios(paginaAtual.linhas.map((s) => s.funcionario_id))
 
   return (
     <>
@@ -109,9 +112,12 @@ export function ListaSolicitacoesDiaria({
                 <TableRow key={s.id}>
                   <TableCell className="max-w-56 font-medium">
                     {s.funcionario_id ? (
-                      <Link href={`/painel/pessoal/diarias/funcionario/${s.funcionario_id}`} className="hover:underline">
-                        <span className="block truncate">{s.funcionarioNome ?? "(sem nome)"}</span>
-                      </Link>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <AvatarPessoa nome={s.funcionarioNome} fotoUrl={fotos.get(s.funcionario_id)} />
+                        <Link href={`/painel/pessoal/diarias/funcionario/${s.funcionario_id}`} className="min-w-0 hover:underline">
+                          <span className="block truncate">{s.funcionarioNome ?? "(sem nome)"}</span>
+                        </Link>
+                      </div>
                     ) : (
                       "(sem funcionário)"
                     )}

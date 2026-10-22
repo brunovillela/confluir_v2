@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AvatarPessoa, PessoaNome } from "@/components/pessoa-nome"
 import { SituacaoAgendamentoBadge } from "@/components/veiculos"
 import { requirePermissao } from "@/lib/auth"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { nomesDasSedes } from "@/lib/db/organizacao"
 import {
   listarAgendamentos,
@@ -74,6 +76,12 @@ export default async function AgendamentosPage({
   const solicitadas = fila.agendamentos.filter((a) => a.situacao === "solicitada")
   const atendidas = fila.agendamentos.filter((a) => a.situacao === "atendida")
   const naRua = movimentacoesAbertas.filter((m) => m.aberta)
+  const fotos = await fotosDosUsuarios([
+    ...fila.agendamentos.map((a) => a.condutor_id),
+    ...encerradas.agendamentos.map((a) => a.condutor_id),
+    ...naRua.map((m) => m.condutor_id),
+  ])
+  const foto = (id: string | null) => (id ? (fotos.get(id) ?? null) : null)
   const historico = [...encerradas.agendamentos].sort((a, b) =>
     (b.created_at ?? "").localeCompare(a.created_at ?? "")
   )
@@ -143,7 +151,8 @@ export default async function AgendamentosPage({
               <Card key={a.id}>
                 <CardContent className="grid gap-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                    <span className="font-medium">
+                    <span className="flex items-center gap-2 font-medium">
+                      <AvatarPessoa nome={a.condutorNome} fotoUrl={foto(a.condutor_id)} />
                       {a.condutorNome ?? "(condutor)"} —{" "}
                       {formatarData(a.data_retirada)}
                       {a.data_retorno ? ` a ${formatarData(a.data_retorno)}` : ""}
@@ -196,7 +205,8 @@ export default async function AgendamentosPage({
             {atendidas.map((a) => (
               <Card key={a.id}>
                 <CardContent className="grid gap-3">
-                  <p className="text-sm font-medium">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    <AvatarPessoa nome={a.condutorNome} fotoUrl={foto(a.condutor_id)} />
                     {a.condutorNome ?? "(condutor)"} —{" "}
                     {a.veiculoPlaca ?? "?"} {a.veiculoModelo ?? ""} ·{" "}
                     {formatarData(a.data_retirada)}
@@ -266,7 +276,7 @@ export default async function AgendamentosPage({
                   <TableCell className="whitespace-nowrap">
                     {m.veiculoPlaca ?? "?"} {m.veiculoModelo ?? ""}
                   </TableCell>
-                  <TableCell>{m.condutorNome ?? "—"}</TableCell>
+                  <TableCell>{m.condutorNome ? <PessoaNome nome={m.condutorNome} fotoUrl={foto(m.condutor_id)} /> : "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {momentoBR(m.data_retirada, m.retirada_em)}
                     {m.sede_retirada ? ` · ${m.sede_retirada}` : ""}
@@ -322,7 +332,7 @@ export default async function AgendamentosPage({
                   <TableCell className="whitespace-nowrap">
                     {formatarData(a.data_retirada)}
                   </TableCell>
-                  <TableCell>{a.condutorNome ?? "—"}</TableCell>
+                  <TableCell>{a.condutorNome ? <PessoaNome nome={a.condutorNome} fotoUrl={foto(a.condutor_id)} /> : "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     {a.veiculoPlaca ?? "—"}
                   </TableCell>

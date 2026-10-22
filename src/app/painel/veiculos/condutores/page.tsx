@@ -15,12 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { requirePermissao } from "@/lib/auth"
 import {
   listarCondutores,
   listarUsuariosAtivos,
   urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { condutoresRepetidos } from "@/lib/db/veiculos-condutores-cnh"
 import { formatarData } from "@/lib/formato"
 
@@ -43,6 +45,7 @@ export default async function CondutoresPage({
     condutoresRepetidos(),
   ])
 
+  const fotos = await fotosDosUsuarios(condutores.map((c) => c.usuario_id))
   const cnhUrls = new Map(
     await Promise.all(
       condutores
@@ -134,12 +137,15 @@ export default async function CondutoresPage({
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">
-                        <Link
-                          href={`/painel/veiculos/condutores/${c.usuario_id}`}
-                          className="text-primary hover:underline"
-                        >
-                          {c.usuarioNome ?? "(sem nome)"}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <AvatarPessoa nome={c.usuarioNome} fotoUrl={c.usuario_id ? fotos.get(c.usuario_id) : null} />
+                          <Link
+                            href={`/painel/veiculos/condutores/${c.usuario_id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {c.usuarioNome ?? "(sem nome)"}
+                          </Link>
+                        </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap tabular-nums">
                         {c.cnh_numero ?? "—"}

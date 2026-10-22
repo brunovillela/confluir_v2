@@ -121,6 +121,7 @@ export type VeiculoLinha = {
   /** Movimentação aberta (veículo na rua) — null = SQL não rodado. */
   emUso: boolean | null
   condutorEmUsoNome: string | null
+  condutorEmUsoId: string | null
   /** Desde quando a situação atual vale (saída, devolução, manutenção, inativação). */
   desde: { data: string | null; em: string | null } | null
   /**
@@ -205,6 +206,7 @@ function montarLinhaVeiculo(
     manutencao,
     emUso: ultimas === null ? null : Boolean(aberta),
     condutorEmUsoNome: aberta?.condutorNome ?? null,
+    condutorEmUsoId: aberta?.condutor_id ?? null,
     desde,
     onde,
     saiuDe: aberta?.sedeRetirada ?? null,

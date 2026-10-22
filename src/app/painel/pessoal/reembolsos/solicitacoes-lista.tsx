@@ -12,11 +12,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import {
   listarReembolsos,
   SITUACOES_REEMBOLSO,
 } from "@/lib/db/reembolsos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -70,6 +72,7 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
 
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtrados, paginacao)
+  const fotos = await fotosDosUsuarios(paginaAtual.linhas.map((r) => r.funcionario_id))
 
   return (
     <>
@@ -137,14 +140,17 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
                 <TableRow key={r.id}>
                   <TableCell className="max-w-56 font-medium">
                     {r.funcionario_id ? (
-                      <Link
-                        href={`/painel/pessoal/reembolsos/funcionario/${r.funcionario_id}`}
-                        className="hover:underline"
-                      >
-                        <span className="block truncate">
-                          {r.funcionarioNome ?? "(sem nome)"}
-                        </span>
-                      </Link>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <AvatarPessoa nome={r.funcionarioNome} fotoUrl={fotos.get(r.funcionario_id)} />
+                        <Link
+                          href={`/painel/pessoal/reembolsos/funcionario/${r.funcionario_id}`}
+                          className="min-w-0 hover:underline"
+                        >
+                          <span className="block truncate">
+                            {r.funcionarioNome ?? "(sem nome)"}
+                          </span>
+                        </Link>
+                      </div>
                     ) : (
                       "(sem funcionário)"
                     )}

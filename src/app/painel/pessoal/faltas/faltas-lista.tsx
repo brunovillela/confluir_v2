@@ -1,10 +1,12 @@
 import Link from "next/link"
 import { CalendarCheck } from "lucide-react"
 
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Button } from "@/components/ui/button"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { FaltaJustificada } from "@/lib/db/faltas"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import type { SituacaoFalta } from "@/lib/faltas-constantes"
 import { formatarData } from "@/lib/formato"
 
@@ -12,7 +14,7 @@ import { ExcluirFaltaBotao } from "./faltas-forms"
 import { BadgeFalta, LinkComprovacao } from "./faltas-ui"
 
 /** Aba "Faltas do ano" (a lista de antes do padrão de 3 níveis). */
-export function ListaFaltasAno({
+export async function ListaFaltasAno({
   doAno,
   ano,
   anos,
@@ -32,6 +34,7 @@ export function ListaFaltasAno({
     (f) => (!brutos.funcionario || f.funcionarioId === brutos.funcionario) && (!situacao || f.situacao === situacao)
   )
 
+  const fotos = await fotosDosUsuarios(lista.map((f) => f.funcionarioId))
   return (
     <>
       <form method="GET" className="flex flex-wrap items-center gap-2">
@@ -89,13 +92,16 @@ export function ListaFaltasAno({
                     </Link>
                   </TableCell>
                   <TableCell className="max-w-48">
-                    {f.funcionarioId ? (
-                      <Link href={`/painel/pessoal/faltas/funcionario/${f.funcionarioId}`} className="line-clamp-1 hover:underline">
-                        {f.funcionarioNome ?? "—"}
-                      </Link>
-                    ) : (
-                      <span className="line-clamp-1">{f.funcionarioNome ?? "—"}</span>
-                    )}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <AvatarPessoa nome={f.funcionarioNome} fotoUrl={f.funcionarioId ? fotos.get(f.funcionarioId) : null} />
+                      {f.funcionarioId ? (
+                        <Link href={`/painel/pessoal/faltas/funcionario/${f.funcionarioId}`} className="line-clamp-1 hover:underline">
+                          {f.funcionarioNome ?? "—"}
+                        </Link>
+                      ) : (
+                        <span className="line-clamp-1">{f.funcionarioNome ?? "—"}</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="max-w-72">
                     <span className="line-clamp-2 text-sm">{f.tipo ?? "—"}</span>

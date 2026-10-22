@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { SituacaoContaBadge } from "@/components/caixa"
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarContasCaixa, listarOcorrencias } from "@/lib/db/caixa"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { obterConfigFinanceiro } from "@/lib/db/ordens-ciclo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
@@ -74,6 +76,7 @@ export default async function CaixasPage({
     ? [centroCaixa.acesso, centroCaixa.nome_da_conta].filter(Boolean).join(" — ")
     : null
 
+  const fotos = await fotosDosUsuarios(contas.map((c) => c.responsavelId))
   const ativas = contas.filter((c) => c.ativa)
   const abertas = ativas.filter((c) => c.situacao === "aberta")
   const totalAberto = abertas.reduce((s, c) => s + c.saldo, 0)
@@ -249,8 +252,8 @@ export default async function CaixasPage({
                         <span className="block truncate">{c.nome}</span>
                       </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-48 truncate">
-                      {c.responsavel ?? "—"}
+                    <TableCell className="text-muted-foreground max-w-48">
+                      {c.responsavel ? <PessoaNome nome={c.responsavel} fotoUrl={fotos.get(c.responsavelId)} /> : "—"}
                     </TableCell>
                     <TableCell>
                       <SituacaoContaBadge

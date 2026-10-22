@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
+import { PessoaNome } from "@/components/pessoa-nome";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ import {
   resumoVeiculos,
   type VeiculoLinha,
 } from "@/lib/db/veiculos";
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios";
 import { totalVencidos } from "@/lib/db/veiculos-checklist";
 import { preventivasEmAlerta, vencimentoDoPlano } from "@/lib/db/veiculos-manutencoes";
 import { formatarData } from "@/lib/formato";
@@ -74,6 +76,7 @@ export default async function VeiculosPage({
       totalVencidos(),
       preventivasEmAlerta(),
     ]);
+  const fotos = await fotosDosUsuarios(veiculos.map((v) => v.condutorEmUsoId));
   const preventivasVencidas = preventivas.filter((p) => p.vencido).length;
   const preventivasProximas = preventivas.length - preventivasVencidas;
 
@@ -351,7 +354,16 @@ export default async function VeiculosPage({
                     <TableCell className="max-w-56">
                       <OndeEsta veiculo={v} />
                     </TableCell>
-                    <TableCell>{v.condutorEmUsoNome ?? "—"}</TableCell>
+                    <TableCell>
+                      {v.condutorEmUsoNome ? (
+                        <PessoaNome
+                          nome={v.condutorEmUsoNome}
+                          fotoUrl={v.condutorEmUsoId ? fotos.get(v.condutorEmUsoId) : null}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

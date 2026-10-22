@@ -133,6 +133,8 @@ export type ItemLinha = {
   recintoNome: string | null
   emCautela: boolean
   responsavelNome: string | null
+  /** Quem está com o bem em cautela (usuário). */
+  responsavelId: string | null
 }
 
 export type FiltrosItens = {
@@ -214,6 +216,7 @@ export async function listarItens(
       ? (recintos.get(String(i.recinto_id)) ?? null)
       : null,
     emCautela: Boolean(texto(i.responsavel_cautela_id)),
+    responsavelId: texto(i.responsavel_cautela_id),
     responsavelNome: i.responsavel_cautela_id
       ? (nomes.get(String(i.responsavel_cautela_id)) ?? null)
       : null,
@@ -259,6 +262,7 @@ export async function buscarItem(id: string): Promise<ItemDetalhe | null> {
       ? (recintos.get(String(i.recinto_id)) ?? null)
       : null,
     emCautela: Boolean(texto(i.responsavel_cautela_id)),
+    responsavelId: texto(i.responsavel_cautela_id),
     responsavelNome: i.responsavel_cautela_id
       ? (nomes.get(String(i.responsavel_cautela_id)) ?? null)
       : null,
