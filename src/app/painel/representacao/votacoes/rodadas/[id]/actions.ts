@@ -669,9 +669,15 @@ export async function salvarEleitor(
 export async function enviarLoteAvisoAptos(
   rodadaId: string
 ): Promise<{ resultado?: import("@/lib/db/votacao-aviso").ResultadoLoteAviso; erro?: string }> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { enviarLoteAviso } = await import("@/lib/db/votacao-aviso")
   const r = await enviarLoteAviso(rodadaId)
+  const enviados = (r.resultado?.enviados ?? 0) + (r.resultado?.contatos ?? 0)
+  if (enviados > 0) {
+    // Lotes seguidos do mesmo clique somam numa linha só do rastro.
+    const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+    await registrarAcaoAviso({ rodadaId, acao: "enviar_aviso", quantidade: enviados, usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null }, acumular: true })
+  }
   if (r.resultado && r.resultado.restantes === 0) revalidarRodada(rodadaId)
   return r
 }
@@ -693,10 +699,12 @@ export async function unificarDuplicadosAction(rodadaId: string): Promise<Estado
 
 /** Liga (horas antes da abertura) ou desliga o envio automático dos links (fase 2). */
 export async function configurarAvisoAutoAction(rodadaId: string, horas: number | null): Promise<EstadoForm> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { configurarAvisoAuto } = await import("@/lib/db/votacao-aviso-auto")
   const { erro } = await configurarAvisoAuto(rodadaId, horas)
   if (erro) return { erro }
+  const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+  await registrarAcaoAviso({ rodadaId, acao: "aviso_auto", detalhe: horas === null ? "desligado" : `${horas} h antes da abertura`, usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null } })
   revalidarRodada(rodadaId)
   return {
     ok:
@@ -724,10 +732,12 @@ export async function enviarAvisoAptosTeste(rodadaId: string): Promise<EstadoFor
  * 21/10/2026). O próximo "Avisar pendentes" (ou o tick) manda.
  */
 export async function reabrirAvisosContatoAction(rodadaId: string): Promise<EstadoForm> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { reabrirAvisosContato } = await import("@/lib/db/votacao-aviso-contato")
-  const { erro } = await reabrirAvisosContato(rodadaId, "nao_votaram")
+  const { erro, quantidade } = await reabrirAvisosContato(rodadaId, "nao_votaram")
   if (erro) return { erro }
+  const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+  await registrarAcaoAviso({ rodadaId, acao: "reabrir_contato", quantidade: quantidade ?? 0, usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null } })
   revalidarRodada(rodadaId)
   return { ok: "Quem não votou e tem e-mail pessoal ou Telegram voltou para a fila — clique em Avisar pendentes." }
 }
@@ -736,18 +746,27 @@ export async function reabrirAvisosAptos(
   rodadaId: string,
   quais: "falhas" | "todos" | "nao_votaram"
 ): Promise<EstadoForm> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { reabrirAvisos } = await import("@/lib/db/votacao-aviso")
-  const { erro } = await reabrirAvisos(rodadaId, quais)
+  const { erro, quantidade, contatos } = await reabrirAvisos(rodadaId, quais)
   if (erro) return { erro }
+  // Rastro: quem devolveu quantos aptos para a fila (Halliburton, 21/10/2026).
+  const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+  await registrarAcaoAviso({
+    rodadaId,
+    acao: quais === "falhas" ? "reabrir_falhas" : quais === "nao_votaram" ? "reabrir_nao_votaram" : "reabrir_todos",
+    quantidade: quantidade ?? 0,
+    detalhe: contatos ? `${contatos} também pelo e-mail pessoal/Telegram` : null,
+    usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null },
+  })
   revalidarRodada(rodadaId)
   return {
     ok:
       quais === "falhas"
-        ? "As falhas voltaram para a fila de envio."
+        ? `${(quantidade ?? 0).toLocaleString("pt-BR")} falha(s) voltaram para a fila de envio.`
         : quais === "nao_votaram"
-          ? "Quem ainda não votou voltou para a fila — o próximo envio avisa só essas pessoas."
-          : "Todos os aptos voltaram para a fila — o próximo envio avisa a lista inteira de novo.",
+          ? `${(quantidade ?? 0).toLocaleString("pt-BR")} apto(s) que ainda não votaram voltaram para a fila — o envio só acontece quando você clicar em Avisar pendentes.`
+          : `${(quantidade ?? 0).toLocaleString("pt-BR")} apto(s) voltaram para a fila — o envio só acontece quando você clicar em Avisar pendentes.`,
   }
 }
 
@@ -783,19 +802,25 @@ export async function configurarGuardaContatosAction(rodadaId: string, dias: num
 export async function enviarLoteAvisoPrevioAction(
   rodadaId: string
 ): Promise<{ resultado?: import("@/lib/db/votacao-teste-entrega").ResultadoLotePrevio; erro?: string }> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { enviarLoteAvisoPrevio } = await import("@/lib/db/votacao-teste-entrega")
   const r = await enviarLoteAvisoPrevio(rodadaId)
+  if (r.resultado?.enviados) {
+    const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+    await registrarAcaoAviso({ rodadaId, acao: "enviar_aviso_previo", quantidade: r.resultado.enviados, usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null }, acumular: true })
+  }
   if (r.resultado && r.resultado.restantes === 0) revalidarRodada(rodadaId)
   return r
 }
 
 /** Liga (dias antes da abertura) ou desliga o aviso prévio automático. */
 export async function configurarAvisoPrevioAction(rodadaId: string, dias: number | null): Promise<EstadoForm> {
-  await requirePermissao("assembleias")
+  const sessao = await requirePermissao("assembleias")
   const { configurarAvisoPrevio } = await import("@/lib/db/votacao-teste-entrega")
   const { erro } = await configurarAvisoPrevio(rodadaId, dias)
   if (erro) return { erro }
+  const { registrarAcaoAviso } = await import("@/lib/db/votacao-aviso-acoes")
+  await registrarAcaoAviso({ rodadaId, acao: "aviso_previo_auto", detalhe: dias === null ? "desligado" : `${dias} dias antes da abertura`, usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? null } })
   revalidarRodada(rodadaId)
   return {
     ok: dias === null ? "Aviso prévio automático desligado." : `Aviso prévio automático ligado: sai ${dias} dias antes da abertura.`,

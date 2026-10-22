@@ -231,17 +231,17 @@ export async function resumoAvisoContato(rodadaId: string): Promise<ResumoAvisoC
 export async function reabrirAvisosContato(
   rodadaId: string,
   quais: "nao_votaram" | "falhas"
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; quantidade?: number }> {
   const client = await createAdminClient()
   let q = client
     .from("voto_assembleias_aptos")
-    .update({ aviso_contato_em: null, aviso_contato_canais: null, aviso_contato_erro: null })
+    .update({ aviso_contato_em: null, aviso_contato_canais: null, aviso_contato_erro: null }, { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("rod_assembleia_id", rodadaId)
     .not("aviso_contato_em", "is", null)
     .is("hora_voto", null)
   if (quais === "falhas") q = q.eq("aviso_contato_erro", "falha")
-  const { error } = await q
+  const { error, count } = await q
   if (error && error.code !== "42703") return { erro: `Não foi possível reabrir: ${error.message}` }
-  return {}
+  return { quantidade: count ?? 0 }
 }

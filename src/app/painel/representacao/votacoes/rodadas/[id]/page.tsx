@@ -45,6 +45,7 @@ import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
 import { resumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import { kitDivulgacao } from "@/lib/db/votacao-divulgacao"
 import { resumoEntregaBrevo } from "@/lib/db/votacao-eventos-email"
+import { acoesAvisoDaRodada } from "@/lib/db/votacao-aviso-acoes"
 import { entregaRuimDasRodadas, testeEntregaDaRodada } from "@/lib/db/votacao-teste-entrega"
 import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { guardaContatosDaRodada } from "@/lib/db/votacao-expurgo"
@@ -131,7 +132,7 @@ export default async function RodadaPage({
       ? "aptos"
       : "geral"
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit, teste, entregaRuim, entregaBrevo] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit, teste, entregaRuim, entregaBrevo, acoesAviso] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -150,6 +151,7 @@ export default async function RodadaPage({
       aba === "divulgacao" ? testeEntregaDaRodada(id) : Promise.resolve(null),
       entregaRuimDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
       aba === "divulgacao" ? resumoEntregaBrevo(id) : Promise.resolve(null),
+      aba === "divulgacao" ? acoesAvisoDaRodada(id) : Promise.resolve([]),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
   // O link pessoal só importa enquanto a rodada não terminou.
@@ -603,6 +605,7 @@ export default async function RodadaPage({
           resumo={aviso}
           contato={temOnline ? avisoContato : null}
           entrega={entregaBrevo}
+          acoes={acoesAviso}
           auto={temOnline ? avisoAuto : null}
           bloqueio={
             periodoTerminado(rodada.termino)

@@ -537,11 +537,11 @@ export async function enviarLoteAviso(
 export async function reabrirAvisos(
   rodadaId: string,
   quais: "falhas" | "todos" | "nao_votaram"
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; quantidade?: number; contatos?: number }> {
   const admin = await createAdminClient()
   let q = admin
     .from("voto_assembleias_aptos")
-    .update({ aviso_email_em: null, aviso_email_para: null, aviso_email_erro: null })
+    .update({ aviso_email_em: null, aviso_email_para: null, aviso_email_erro: null }, { count: "exact" })
     .eq("rod_assembleia_id", rodadaId)
     .eq("emp_proprietaria_id", await tenantAtual())
   q =
@@ -550,14 +550,15 @@ export async function reabrirAvisos(
       : quais === "nao_votaram"
         ? q.not("aviso_email_em", "is", null).is("hora_voto", null)
         : q.not("aviso_email_em", "is", null)
-  const { error } = await q
+  const { error, count } = await q
   if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
   // O reenvio vale também para o contato escolhido no link geral (fase 1, 21/10/2026).
   if (quais !== "falhas") {
     const { reabrirAvisosContato } = await import("@/lib/db/votacao-aviso-contato")
-    return reabrirAvisosContato(rodadaId, "nao_votaram")
+    const c = await reabrirAvisosContato(rodadaId, "nao_votaram")
+    return { erro: c.erro, quantidade: count ?? 0, contatos: c.quantidade ?? 0 }
   }
-  return {}
+  return { quantidade: count ?? 0 }
 }
 
 /**

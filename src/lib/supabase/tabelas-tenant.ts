@@ -262,6 +262,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "voto_assembleias_perguntas",
   "voto_campanha",
   "voto_entrega_dominios",
+  "voto_aviso_acoes",
   "voto_mesario",
   "voto_online",
   "voto_opcoes_resposta",

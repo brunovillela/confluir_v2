@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import type { ResumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import type { ResumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import type { ResumoEntregaBrevo } from "@/lib/db/votacao-eventos-email"
+import type { AcaoAvisoRegistrada } from "@/lib/db/votacao-aviso-acoes"
 import type { AvisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { formatarDataHora } from "@/lib/formato"
 
@@ -35,6 +36,7 @@ export function AvisoAptos({
   resumo,
   contato = null,
   entrega = null,
+  acoes = [],
   auto,
   bloqueio,
 }: {
@@ -46,6 +48,8 @@ export function AvisoAptos({
   contato?: ResumoAvisoContato | null
   /** Eventos da Brevo pelo webhook (fase 4, 22/10/2026); null = sem eventos ainda. */
   entrega?: ResumoEntregaBrevo | null
+  /** Rastro de quem reenviou/enviou/mudou o automático (22/10/2026). */
+  acoes?: AcaoAvisoRegistrada[]
   /** Envio automático dos links (fase 2); null = rodada sem voto pela internet. */
   auto: AvisoAutoDaRodada | null
   /** Motivo para não enviar (sem assembleia, período encerrado…). */
@@ -270,7 +274,7 @@ export function AvisoAptos({
               onClick={() =>
                 executar(
                   () => reabrirAvisosAptos(rodadaId, "nao_votaram"),
-                  "Reenviar o aviso a quem ainda não votou? Quem já votou não recebe de novo."
+                  "Devolver para a fila do aviso todos os aptos que ainda não votaram? Eles só recebem de novo quando alguém clicar em Avisar pendentes. Fica registrado quem fez."
                 )
               }
             >
@@ -286,7 +290,7 @@ export function AvisoAptos({
               onClick={() =>
                 executar(
                   () => reabrirAvisosContatoAction(rodadaId),
-                  "Reenviar o link só pelo e-mail pessoal e pelo Telegram, a quem ainda não votou? O e-mail da empresa não recebe de novo."
+                  "Reenviar o link só pelo e-mail pessoal e pelo Telegram, a quem ainda não votou? O e-mail da empresa não recebe de novo. Fica registrado quem fez."
                 )
               }
             >
@@ -302,7 +306,7 @@ export function AvisoAptos({
               onClick={() =>
                 executar(
                   () => reabrirAvisosAptos(rodadaId, "todos"),
-                  "Voltar TODOS os aptos para a fila? O próximo envio manda o aviso de novo para a lista inteira (use para um lembrete)."
+                  "Voltar TODOS os aptos para a fila? O próximo envio manda o aviso de novo para a lista inteira (use para um lembrete). Fica registrado quem fez."
                 )
               }
             >
@@ -311,6 +315,23 @@ export function AvisoAptos({
             </Button>
           )}
         </div>
+
+        {acoes.length > 0 && (
+          <div className="grid gap-1 border-t pt-3">
+            <p className="text-sm font-medium">Quem mexeu nos avisos</p>
+            <ul className="text-muted-foreground grid gap-1 text-xs">
+              {acoes.map((a) => (
+                <li key={`${a.criadoEm}-${a.acao}`}>
+                  {formatarDataHora(a.criadoEm)} · <span className="text-foreground">{a.usuarioNome ?? "—"}</span> ·{" "}
+                  {a.rotulo}
+                  {a.quantidade !== null &&
+                    ` · ${a.quantidade.toLocaleString("pt-BR")} ${a.acao.startsWith("reabrir") ? "apto(s) de volta à fila" : "enviado(s)"}`}
+                  {a.detalhe && ` (${a.detalhe})`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

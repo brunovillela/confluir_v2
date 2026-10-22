@@ -65,6 +65,11 @@ erDiagram
     uuid rod_assembleia_id FK
     uuid emp_proprietaria_id FK
   }
+  voto_aviso_acoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid rodada_id FK
+  }
   voto_campanha {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -208,6 +213,7 @@ erDiagram
   voto_assembleias_empresas }o--|| voto_assembleias : "assembleia_id"
   voto_assembleias_perguntas }o--o| voto_assembleias : "assembleia_id"
   voto_assembleias_perguntas }o--o| voto_rod_assembleias : "rod_assembleia_id"
+  voto_aviso_acoes }o--|| voto_rod_assembleias : "rodada_id"
   voto_campanha }o--o| empresa : "empresa_id"
   voto_campanha_fontes }o--|| empresa : "empresa_id"
   voto_campanha_fontes }o--|| voto_campanha : "campanha_id"

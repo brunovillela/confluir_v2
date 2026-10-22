@@ -2,7 +2,7 @@
 
 # Votações e assembleias
 
-32 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
+33 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -18,6 +18,7 @@
 | [voto_assembleias_aptos](#voto_assembleias_aptos) | identificação, **sensível: sindical**, trabalhista, **credencial (nunca exportar)** | Lista de eleitores aptos por rodada/assembleia, espelho de Assembleias - Aptos do Bubble. Registra a PARTICIPAÇÃO (quem votou, quando, canal… |
 | [voto_assembleias_empresas](#voto_assembleias_empresas) | — | Junção assembleia x empresa. Sem uso encontrado no código (possível legado do Bubble), vazia; o vínculo atual é voto_assembleias.empresa_id. |
 | [voto_assembleias_perguntas](#voto_assembleias_perguntas) | — | Pergunta submetida a votação numa rodada/assembleia, com contadores agregados de aprovo, reprovo, abstenção e branco. Veio do Bubble. |
+| [voto_aviso_acoes](#voto_aviso_acoes) | identificação | Rastro das ações sobre os avisos de uma rodada de votação (reenvio, envio manual em lotes, aviso prévio, envio automático): quem, quando, qu… |
 | [voto_campanha](#voto_campanha) | — | Campanha de votação (tema) que agrupa rodadas e assembleias, espelho de VOTO Campanha do Bubble; fontes pagadoras em voto_campanha_fontes. |
 | [voto_campanha_fontes](#voto_campanha_fontes) | — | Junção campanha de votação x fonte pagadora (empresa) abrangida. |
 | [voto_em_separado](#voto_em_separado) | identificação, **sensível: sindical** | Eleitor que alega direito a votar sem estar na lista de aptos, cadastrado pelo mesário. LIGA VOTO A PESSOA de propósito: voto_online.em_sepa… |
@@ -392,6 +393,28 @@ Pergunta submetida a votação numa rodada/assembleia, com contadores agregados 
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `assembleias_perguntas_bubble_id_key`, `assembleias_perguntas_pkey`, `idx_voto_perguntas_rodada`
+
+## voto_aviso_acoes
+
+Rastro das ações sobre os avisos de uma rodada de votação (reenvio, envio manual em lotes, aviso prévio, envio automático): quem, quando, qual ação e quantos aptos atingiu. Mostrado no card do aviso da rodada (22/10/2026).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `rodada_id` | uuid | não |  | → voto_rod_assembleias (**cascade**) |  |  |
+| `acao` | text | não |  |  |  | reabrir_nao_votaram, reabrir_todos, reabrir_falhas, reabrir_contato, enviar_aviso, enviar_aviso_previo, aviso_auto, aviso_previo_auto. |
+| `quantidade` | integer | sim |  |  |  | Aptos atingidos (voltaram para a fila, ou avisos enviados no lote). |
+| `detalhe` | text | sim |  |  |  |  |
+| `usuario_id` | uuid | sim |  |  | identificação | Quem fez. |
+| `usuario_nome` | text | sim |  |  | identificação | Nome de quem fez, no momento da ação. |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `voto_aviso_acoes_pkey`, `voto_aviso_acoes_rodada_idx`
 
 ## voto_campanha
 
