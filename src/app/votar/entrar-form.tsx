@@ -172,7 +172,14 @@ function ConfirmarTelegram({ destaque = false }: { destaque?: boolean }) {
  * mandar o código, barra o e-mail da empresa (o filtro dela retém o código) e
  * confere erro de digitação no domínio.
  */
-export function EntrarForm({ telegramDisponivel = false }: { telegramDisponivel?: boolean }) {
+export function EntrarForm({
+  telegramDisponivel = false,
+  telegramPrimeiro = false,
+}: {
+  telegramDisponivel?: boolean
+  /** Pré-cadastro (fase 2, 21/10/2026): o Telegram vem antes do e-mail, em destaque. */
+  telegramPrimeiro?: boolean
+}) {
   const [email, setEmail] = useState("")
   const [pedido, pedir, pedindo] = useActionState(
     async (prev: EstadoEntrar, formData: FormData) => {
@@ -246,8 +253,15 @@ export function EntrarForm({ telegramDisponivel = false }: { telegramDisponivel?
   const corporativo = pedido.corporativo ?? link.corporativo
   const sugestao = pedido.sugestao
 
+  const primeiroTelegram = telegramDisponivel && telegramPrimeiro
   return (
     <div className="grid gap-4">
+      {primeiroTelegram && (
+        <div className="grid gap-2 border-b pb-4">
+          <ConfirmarTelegram destaque />
+          <p className="text-muted-foreground text-center text-xs">ou, com um e-mail pessoal:</p>
+        </div>
+      )}
       {corporativo && (
         <Alert variant="warning">
           <AlertDescription className="grid gap-1">
@@ -317,7 +331,7 @@ export function EntrarForm({ telegramDisponivel = false }: { telegramDisponivel?
         </Button>
       </form>
 
-      {telegramDisponivel && (
+      {telegramDisponivel && !primeiroTelegram && (
         <div className="grid gap-2 border-t pt-4">
           <p className="text-muted-foreground text-center text-xs">ou</p>
           <ConfirmarTelegram destaque={Boolean(corporativo)} />

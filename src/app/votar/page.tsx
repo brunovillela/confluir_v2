@@ -57,6 +57,11 @@ export default async function VotacoesPage({
       ? await vinculosDaSessao({ email: null, cpf: null, telegramChatId: tg.chatId }, votacoes)
       : new Map<string, VinculoDaSessao>()
   const telegramDisponivel = telegramConfigurado() && Boolean(nomeDoBot())
+  // Só votações por abrir: a página vira o PRÉ-CADASTRO (fase 2 do plano de
+  // 21/10/2026) — a pessoa escolhe onde receber o link pessoal, com o
+  // Telegram primeiro, e na abertura o link chega lá (votacao-aviso-contato).
+  const preCadastro = votacoes.length > 0 && votacoes.every((v) => v.situacao === "antes")
+  const canalAviso = user ? `no e-mail ${mascararEmail(user.email ?? "")}` : tg ? "no Telegram" : null
   const faltaVinculo = votacoes.some((v) => !v.somenteFiliados && !vinculos.has(v.assembleiaId))
   // As votações só de filiados mandam à Votação do portal — a menos que ela
   // (ou o portal inteiro) esteja desabilitada em Filiados › Área do
@@ -74,14 +79,18 @@ export default async function VotacoesPage({
         <div className="grid gap-1 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Votações online</h1>
           <p className="text-muted-foreground text-sm text-balance">
-            As votações abertas e as próximas. Para votar, confirme o seu e-mail e identifique-se uma vez.
+            {preCadastro
+              ? "Cadastre-se antes da abertura: escolha onde quer receber o seu link pessoal de voto. No dia, é só tocar e votar — sem código."
+              : "As votações abertas e as próximas. Para votar, confirme o seu e-mail e identifique-se uma vez."}
           </p>
         </div>
 
         {busca.cadastro === "1" && (
           <Alert variant="success">
             <AlertDescription>
-              Pronto! Encontramos você na lista de aptos. Escolha abaixo a votação e clique em Votar.
+              {preCadastro
+                ? `Pronto! Você está na lista de aptos. Na abertura, o seu link pessoal de voto chega ${canalAviso ?? "por aqui"} — ou volte a esta página e toque em Votar.`
+                : "Pronto! Encontramos você na lista de aptos. Escolha abaixo a votação e clique em Votar."}
             </AlertDescription>
           </Alert>
         )}
@@ -89,13 +98,15 @@ export default async function VotacoesPage({
         {!logado ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Para votar</CardTitle>
+              <CardTitle className="text-base">{preCadastro ? "Onde receber o seu link de voto" : "Para votar"}</CardTitle>
               <CardDescription>
-                Primeiro, confirme um e-mail que você recebe{telegramDisponivel ? " — ou use o Telegram" : ""}.
+                {preCadastro && telegramDisponivel
+                  ? "Pelo Telegram é mais fácil: não precisa de e-mail nem de código. Ou use um e-mail pessoal."
+                  : `Primeiro, confirme um e-mail que você recebe${telegramDisponivel ? " — ou use o Telegram" : ""}.`}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EntrarForm telegramDisponivel={telegramDisponivel} />
+              <EntrarForm telegramDisponivel={telegramDisponivel} telegramPrimeiro={preCadastro} />
             </CardContent>
           </Card>
         ) : (
@@ -154,6 +165,7 @@ export default async function VotacoesPage({
             vinculo={vinculos.get(v.assembleiaId)}
             logado={logado}
             votacaoNoPortal={votacaoNoPortal}
+            canalAviso={canalAviso}
           />
         ))}
       </div>
@@ -171,11 +183,13 @@ function CartaoVotacao({
   vinculo,
   logado,
   votacaoNoPortal,
+  canalAviso,
 }: {
   votacao: VotacaoAberta
   vinculo: VinculoDaSessao | undefined
   logado: boolean
   votacaoNoPortal: boolean
+  canalAviso: string | null
 }) {
   return (
     <Card>
@@ -217,7 +231,7 @@ function CartaoVotacao({
             </a>
           </p>
         )}
-        <Situacao votacao={v} vinculo={vinculo} logado={logado} votacaoNoPortal={votacaoNoPortal} />
+        <Situacao votacao={v} vinculo={vinculo} logado={logado} votacaoNoPortal={votacaoNoPortal} canalAviso={canalAviso} />
       </CardContent>
     </Card>
   )
@@ -228,11 +242,13 @@ function Situacao({
   vinculo,
   logado,
   votacaoNoPortal,
+  canalAviso,
 }: {
   votacao: VotacaoAberta
   vinculo: VinculoDaSessao | undefined
   logado: boolean
   votacaoNoPortal: boolean
+  canalAviso: string | null
 }) {
   if (v.somenteFiliados && !votacaoNoPortal) {
     return (
@@ -252,7 +268,15 @@ function Situacao({
       </p>
     )
   }
-  if (!logado) return <p className="text-muted-foreground">Confirme o seu e-mail (ou o Telegram) acima para votar.</p>
+  if (!logado) {
+    return (
+      <p className="text-muted-foreground">
+        {v.situacao === "antes"
+          ? "Cadastre-se acima para receber o seu link pessoal de voto na abertura."
+          : "Confirme o seu e-mail (ou o Telegram) acima para votar."}
+      </p>
+    )
+  }
   if (!vinculo) return <p className="text-muted-foreground">Seu nome ainda não foi encontrado na lista desta votação.</p>
   if (vinculo.jaVotou) {
     return (
@@ -263,7 +287,14 @@ function Situacao({
     )
   }
   if (!vinculo.elegivel) return <p className="text-muted-foreground">Você não está habilitado a votar nesta votação.</p>
-  if (v.situacao === "antes") return <p className="text-muted-foreground">Você está na lista. Volte quando a votação abrir.</p>
+  if (v.situacao === "antes") {
+    return (
+      <p className="text-success-fg flex items-center gap-2 font-medium">
+        <CheckCircle2 className="size-4 shrink-0" />
+        Você está na lista. Na abertura, o seu link pessoal chega {canalAviso ?? "por aqui"} — ou volte aqui e toque em Votar.
+      </p>
+    )
+  }
   return (
     <form action={abrirCedulaLinkUnico}>
       <input type="hidden" name="assembleia_id" value={v.assembleiaId} />
