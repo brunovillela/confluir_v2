@@ -42,6 +42,7 @@ import {
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
+import { resumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { guardaContatosDaRodada } from "@/lib/db/votacao-expurgo"
 import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
@@ -124,7 +125,7 @@ export default async function RodadaPage({
       ? "aptos"
       : "geral"
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -138,6 +139,7 @@ export default async function RodadaPage({
       aptosDuplicados(id),
       guardaContatosDaRodada(id),
       linkNaoUsadoDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
+      resumoAvisoContato(id),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
   // O link pessoal só importa enquanto a rodada não terminou.
@@ -586,6 +588,7 @@ export default async function RodadaPage({
           id="aviso-aptos"
           rodadaId={rodada.id}
           resumo={aviso}
+          contato={temOnline ? avisoContato : null}
           auto={temOnline ? avisoAuto : null}
           bloqueio={
             periodoTerminado(rodada.termino)

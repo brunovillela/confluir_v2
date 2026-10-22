@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { ResumoAvisoAptos } from "@/lib/db/votacao-aviso"
+import type { ResumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import type { AvisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { formatarDataHora } from "@/lib/formato"
 
@@ -17,6 +18,7 @@ import {
   enviarAvisoAptosTeste,
   enviarLoteAvisoAptos,
   reabrirAvisosAptos,
+  reabrirAvisosContatoAction,
 } from "./actions"
 
 type Mensagem = { tipo: "ok" | "erro"; texto: string } | null
@@ -30,6 +32,7 @@ export function AvisoAptos({
   id,
   rodadaId,
   resumo,
+  contato = null,
   auto,
   bloqueio,
 }: {
@@ -37,6 +40,8 @@ export function AvisoAptos({
   id?: string
   rodadaId: string
   resumo: ResumoAvisoAptos
+  /** Aviso pelo e-mail pessoal/Telegram do link geral (fase 1, 21/10/2026); null = sem voto online ou sem a migração. */
+  contato?: ResumoAvisoContato | null
   /** Envio automático dos links (fase 2); null = rodada sem voto pela internet. */
   auto: AvisoAutoDaRodada | null
   /** Motivo para não enviar (sem assembleia, período encerrado…). */
@@ -60,18 +65,17 @@ export function AvisoAptos({
   }
 
   async function enviarTudo() {
-    if (
-      !window.confirm(
-        `Enviar o aviso "você está habilitado a votar" para ${resumo.pendentes.toLocaleString("pt-BR")} apto(s) ainda não avisado(s)?`
-      )
-    )
-      return
+    const partes = [
+      resumo.pendentes > 0 && `${resumo.pendentes.toLocaleString("pt-BR")} apto(s) pelo e-mail da lista`,
+      contatoPendentes > 0 && `${contatoPendentes.toLocaleString("pt-BR")} pelo e-mail pessoal ou Telegram que cadastraram`,
+    ].filter(Boolean)
+    if (!window.confirm(`Enviar o aviso "você está habilitado a votar": ${partes.join(" e ")}?`)) return
     parar.current = false
     setEnviando(true)
     setMensagem(null)
     let feitos = 0
     let enviados = 0
-    setProgresso({ feitos: 0, total: resumo.pendentes, enviados: 0 })
+    setProgresso({ feitos: 0, total: totalPendentes, enviados: 0 })
     try {
       while (!parar.current) {
         const r = await enviarLoteAvisoAptos(rodadaId)
@@ -80,7 +84,7 @@ export function AvisoAptos({
           break
         }
         feitos += r.resultado.processados
-        enviados += r.resultado.enviados
+        enviados += r.resultado.enviados + (r.resultado.contatos ?? 0)
         setProgresso({ feitos, total: feitos + r.resultado.restantes, enviados })
         if (r.resultado.restantes === 0 || r.resultado.processados === 0) {
           setMensagem({
@@ -115,6 +119,8 @@ export function AvisoAptos({
     }
   }
 
+  const contatoPendentes = contato?.pendentes ?? 0
+  const totalPendentes = resumo.pendentes + contatoPendentes
   const pct = progresso.total > 0 ? Math.round((progresso.feitos / progresso.total) * 100) : 0
   const travado = enviando || ocupado
 
@@ -127,7 +133,8 @@ export function AvisoAptos({
         </CardTitle>
         <CardDescription>
           Avisa cada apto de que está habilitado a votar, com o botão para a votação. Vai ao
-          e-mail corporativo da lista ou, sem ele, ao do filiado. Ninguém recebe duas vezes.
+          e-mail corporativo da lista ou, sem ele, ao do filiado — e também ao e-mail pessoal ou ao Telegram que a
+          pessoa cadastrou no link geral. Ninguém recebe duas vezes pelo mesmo canal.
         </CardDescription>
       </CardHeader>
       <CardContent className="@container grid gap-4">
@@ -138,6 +145,22 @@ export function AvisoAptos({
           <Numero rotulo="E-mail repetido" valor={resumo.duplicados} dica="O mesmo e-mail já recebeu por outro apto." />
           <Numero rotulo="Falhas" valor={resumo.falhas} dica="O provedor recusou; dá para tentar de novo." />
         </div>
+        {contato && contato.comContato > 0 && (
+          <div className="grid gap-1 rounded-md border p-2.5 text-sm">
+            <p>
+              <span className="font-medium">Pelo canal que a pessoa escolheu:</span>{" "}
+              {contato.comContato.toLocaleString("pt-BR")} apto(s) cadastraram no link geral um e-mail pessoal (
+              {contato.porEmail.toLocaleString("pt-BR")}) ou o Telegram ({contato.porTelegram.toLocaleString("pt-BR")}).
+              O link pessoal vai também para lá.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Avisados por esse canal: {contato.avisados.toLocaleString("pt-BR")}
+              {contato.pendentes > 0 && <> · aguardando: {contato.pendentes.toLocaleString("pt-BR")}</>}
+              {contato.falhas > 0 && <> · falhas: {contato.falhas.toLocaleString("pt-BR")}</>}. Depois do primeiro envio,
+              quem se cadastrar recebe sozinho em até 15 minutos.
+            </p>
+          </div>
+        )}
         {resumo.ultimoEnvio && (
           <p className="text-muted-foreground text-xs">
             Último envio em {formatarDataHora(resumo.ultimoEnvio)}.
@@ -189,15 +212,15 @@ export function AvisoAptos({
           ) : (
             <Button
               size="sm"
-              disabled={travado || Boolean(bloqueio) || resumo.pendentes === 0}
+              disabled={travado || Boolean(bloqueio) || totalPendentes === 0}
               onClick={enviarTudo}
             >
               <Send />
-              {resumo.pendentes === 0
+              {totalPendentes === 0
                 ? "Todos avisados"
                 : resumo.enviados > 0
-                  ? `Avisar ${resumo.pendentes.toLocaleString("pt-BR")} pendente(s)`
-                  : `Avisar ${resumo.pendentes.toLocaleString("pt-BR")} apto(s)`}
+                  ? `Avisar ${totalPendentes.toLocaleString("pt-BR")} pendente(s)`
+                  : `Avisar ${totalPendentes.toLocaleString("pt-BR")} apto(s)`}
             </Button>
           )}
           <Button
@@ -234,6 +257,22 @@ export function AvisoAptos({
             >
               <RotateCcw />
               Reenviar a quem não votou
+            </Button>
+          )}
+          {contato && contato.avisados > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={travado}
+              onClick={() =>
+                executar(
+                  () => reabrirAvisosContatoAction(rodadaId),
+                  "Reenviar o link só pelo e-mail pessoal e pelo Telegram, a quem ainda não votou? O e-mail da empresa não recebe de novo."
+                )
+              }
+            >
+              <RotateCcw />
+              Reenviar só pelo e-mail pessoal e Telegram
             </Button>
           )}
           {resumo.enviados + resumo.semEmail + resumo.duplicados > 0 && (

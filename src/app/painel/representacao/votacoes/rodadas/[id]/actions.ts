@@ -718,6 +718,20 @@ export async function enviarAvisoAptosTeste(rodadaId: string): Promise<EstadoFor
   return erro ? { erro } : { ok: `E-mail de teste enviado para ${email}.` }
 }
 
+/**
+ * Reenvio só pelo contato escolhido no link geral (e-mail pessoal/Telegram) a
+ * quem não votou — sem repetir o e-mail corporativo que não chega (fase 1,
+ * 21/10/2026). O próximo "Avisar pendentes" (ou o tick) manda.
+ */
+export async function reabrirAvisosContatoAction(rodadaId: string): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { reabrirAvisosContato } = await import("@/lib/db/votacao-aviso-contato")
+  const { erro } = await reabrirAvisosContato(rodadaId, "nao_votaram")
+  if (erro) return { erro }
+  revalidarRodada(rodadaId)
+  return { ok: "Quem não votou e tem e-mail pessoal ou Telegram voltou para a fila — clique em Avisar pendentes." }
+}
+
 export async function reabrirAvisosAptos(
   rodadaId: string,
   quais: "falhas" | "todos" | "nao_votaram"

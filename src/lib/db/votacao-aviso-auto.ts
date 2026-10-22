@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { hojeSP } from "@/lib/db/comum"
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { enviarLoteAviso } from "@/lib/db/votacao-aviso"
+import { enviarLoteAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import { janelasOnline } from "@/lib/db/votacao-sem-link"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -80,6 +81,8 @@ export async function configurarAvisoAuto(rodadaId: string, horas: number | null
 export type ResultadoAvisoAuto = {
   rodadas: number
   enviados: number
+  /** Avisados pelo contato escolhido no link geral (e-mail pessoal/Telegram). */
+  contatos: number
   novasTentativas: number
   /** Rodadas que pararam no limite de tempo (seguem no próximo tick). */
   interrompidas: number
@@ -103,6 +106,34 @@ async function reenfileirarFalhas(client: SupabaseClient, emp: string, rodadaId:
 }
 
 /**
+ * Rodadas (fora do envio automático) que já tiveram o primeiro envio e têm
+ * apto com contato do link geral ainda não avisado por ele — quem se cadastrou
+ * depois do envio recebe o link no próximo tick. Rodada que nunca enviou fica
+ * de fora: o contato sai junto do primeiro envio, quando o sindicato o fizer.
+ */
+async function rodadasComContatoPendente(client: SupabaseClient, emp: string, rodadaIds: string[]): Promise<string[]> {
+  const comPendente: string[] = []
+  for (const rodadaId of rodadaIds) {
+    const base = () =>
+      client
+        .from("voto_assembleias_aptos")
+        .select("id", { count: "exact", head: true })
+        .eq("emp_proprietaria_id", emp)
+        .eq("rod_assembleia_id", rodadaId)
+    const pendentes = await base()
+      .is("aviso_contato_em", null)
+      .is("hora_voto", null)
+      .is("presenca_em", null)
+      .or("email_contato.not.is.null,telegram_chat_id.not.is.null")
+    // Sem a coluna (migração não aplicada): nada a fazer.
+    if (pendentes.error || !pendentes.count) continue
+    const enviou = await base().not("aviso_primeiro_em", "is", null)
+    if (!enviou.error && enviou.count) comPendente.push(rodadaId)
+  }
+  return comPendente
+}
+
+/**
  * Tick: para cada rodada com envio automático ligado e já na janela, devolve
  * as falhas antigas à fila e envia aos pendentes em lotes, até `limite` (ms).
  */
@@ -112,31 +143,60 @@ export async function rodarAvisosAutomaticos(opcoes: {
   limite: number
   tenant?: string | null
 }): Promise<ResultadoAvisoAuto> {
-  const r: ResultadoAvisoAuto = { rodadas: 0, enviados: 0, novasTentativas: 0, interrompidas: 0, erros: [] }
+  const r: ResultadoAvisoAuto = { rodadas: 0, enviados: 0, contatos: 0, novasTentativas: 0, interrompidas: 0, erros: [] }
   const client = opcoes.client
+  // Todas as rodadas vivas: as de envio automático e, para o aviso ao contato
+  // escolhido no link geral, as que já tiveram o primeiro envio (fase 1, 21/10).
   let q = client
     .from("voto_rod_assembleias")
     .select("emp_proprietaria_id")
-    .not("aviso_auto_horas", "is", null)
     .not("apuracao_encerrada", "is", true)
     .or(`termino.gte.${hojeSP()},termino.is.null`)
   if (opcoes.tenant) q = q.eq("emp_proprietaria_id", opcoes.tenant)
   const { data, error } = await q
   if (error) {
-    // Sem a coluna (SQL da fase 2 não rodado), não há o que fazer.
-    if (error.code !== "42703") r.erros.push(`rodadas: ${error.message}`)
+    r.erros.push(`rodadas: ${error.message}`)
     return r
   }
   const tenants = [...new Set((data ?? []).map((x) => String(x.emp_proprietaria_id)))]
 
   for (const emp of tenants) {
-    const janelas = await janelasOnline({ client, emp }, { soComEnvioAutomatico: true })
+    const janelas = await janelasOnline({ client, emp })
     const agora = Date.now()
     const naJanela = janelas.filter(
       (j) => j.avisoAutoHoras !== null && (j.aberta || (j.abreEm !== null && j.abreEm - j.avisoAutoHoras * 3600_000 <= agora))
     )
-    if (naJanela.length === 0) continue
+    const contatosPendentes = await rodadasComContatoPendente(
+      client,
+      emp,
+      janelas.filter((j) => !naJanela.includes(j)).map((j) => j.rodadaId)
+    )
+    if (naJanela.length === 0 && contatosPendentes.length === 0) continue
     const contexto = await contextoDoTenant(emp, client)
+    for (const rodadaId of contatosPendentes) {
+      if (Date.now() > opcoes.limite) {
+        r.interrompidas++
+        break
+      }
+      const nome = janelas.find((j) => j.rodadaId === rodadaId)?.rodadaNome ?? rodadaId
+      try {
+        for (;;) {
+          if (Date.now() > opcoes.limite) {
+            r.interrompidas++
+            break
+          }
+          const lote = await enviarLoteAvisoContato(rodadaId, 60, { client, tenantId: emp, contexto })
+          if (lote.erro || !lote.resultado) {
+            r.erros.push(`${nome} (contato): ${lote.erro ?? "falha no envio"}`)
+            break
+          }
+          r.contatos += lote.resultado.enviados
+          if (lote.resultado.restantes === 0 || lote.resultado.processados === 0) break
+        }
+      } catch (e) {
+        r.erros.push(`${nome} (contato): ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
     for (const j of naJanela) {
       if (Date.now() > opcoes.limite) {
         r.interrompidas++
@@ -156,6 +216,7 @@ export async function rodarAvisosAutomaticos(opcoes: {
             break
           }
           r.enviados += lote.resultado.enviados
+          r.contatos += lote.resultado.contatos ?? 0
           if (lote.resultado.restantes === 0 || lote.resultado.processados === 0) break
         }
       } catch (e) {

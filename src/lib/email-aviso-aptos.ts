@@ -91,7 +91,7 @@ function diaPorExtenso(data: string): string {
 }
 
 /** "quarta, 21/10/2026 às 10:40" (hora opcional). */
-function diaHora(data: string | null, hora: string | null | undefined): string | null {
+export function diaHora(data: string | null, hora: string | null | undefined): string | null {
   if (!data) return null
   return `${diaPorExtenso(data)}${hora ? ` às ${hora}` : ""}`
 }

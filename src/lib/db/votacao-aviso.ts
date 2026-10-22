@@ -76,6 +76,8 @@ export type ResultadoLoteAviso = {
   /** E-mail não enviado porque o filiado desligou "Votações" nas preferências. */
   desligados: number
   falhas: number
+  /** Avisados pelo contato escolhido no link geral (e-mail pessoal/Telegram). */
+  contatos?: number
   restantes: number
 }
 
@@ -514,6 +516,17 @@ export async function enviarLoteAviso(
   }
 
   resultado.restantes = await contar(rodadaId, (q) => q.eq("emp_proprietaria_id", emp).is("aviso_email_em", null), gravar)
+
+  // Também pelo canal que o apto escolheu no link geral — e-mail pessoal ou
+  // Telegram (fase 1 do plano de 21/10/2026). Falha aqui não derruba o lote
+  // do corporativo; o tick tenta de novo.
+  const { enviarLoteAvisoContato } = await import("@/lib/db/votacao-aviso-contato")
+  const contato = await enviarLoteAvisoContato(rodadaId, limite, amb).catch(() => ({ resultado: undefined }))
+  if (contato.resultado) {
+    resultado.processados += contato.resultado.processados
+    resultado.contatos = contato.resultado.enviados
+    resultado.restantes += contato.resultado.restantes
+  }
   return { resultado }
 }
 
@@ -535,7 +548,13 @@ export async function reabrirAvisos(
         ? q.not("aviso_email_em", "is", null).is("hora_voto", null)
         : q.not("aviso_email_em", "is", null)
   const { error } = await q
-  return error ? { erro: `Não foi possível reabrir: ${error.message}` } : {}
+  if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
+  // O reenvio vale também para o contato escolhido no link geral (fase 1, 21/10/2026).
+  if (quais !== "falhas") {
+    const { reabrirAvisosContato } = await import("@/lib/db/votacao-aviso-contato")
+    return reabrirAvisosContato(rodadaId, "nao_votaram")
+  }
+  return {}
 }
 
 /**

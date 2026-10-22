@@ -335,10 +335,13 @@ Lista de eleitores aptos por rodada/assembleia, espelho de Assembleias - Aptos d
 | `aviso_primeiro_em` | timestamp with time zone | sim |  |  |  |  |
 | `aviso_tentativas` | smallint | não | `0` |  |  | Tentativas do aviso automático por e-mail. |
 | `acesso_canal` | text | sim |  |  | **sensível: sindical** | Por onde a pessoa entrou para votar: link pessoal, link único por e-mail ou Telegram, código, portal. |
+| `aviso_contato_em` | timestamp with time zone | sim |  |  | identificação | Quando o link pessoal saiu para o contato confirmado no link geral (e-mail pessoal e/ou Telegram); null = pendente. |
+| `aviso_contato_canais` | text | sim |  |  | identificação | Canais do aviso ao contato que deram certo: "email", "telegram" ou "email,telegram". |
+| `aviso_contato_erro` | text | sim |  |  | identificação | Falha do aviso ao contato: "falha" quando nenhum canal aceitou o envio. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `assembleias_aptos_bubble_id_key`, `assembleias_aptos_pkey`, `idx_voto_aptos_rodada_cpf`, `voto_aptos_comprovante_codigo_idx`, `voto_aptos_nome_norm_trgm`, `voto_aptos_rodada_cpf_votou_idx`, `voto_aptos_telegram_chat_idx`, `voto_assembleias_aptos_assembleia_cpf_idx`, `voto_assembleias_aptos_aviso_pendente_idx`, `voto_assembleias_aptos_email_contato_idx`
+Índices: `assembleias_aptos_bubble_id_key`, `assembleias_aptos_pkey`, `idx_voto_aptos_rodada_cpf`, `voto_aptos_comprovante_codigo_idx`, `voto_aptos_nome_norm_trgm`, `voto_aptos_rodada_cpf_votou_idx`, `voto_aptos_telegram_chat_idx`, `voto_assembleias_aptos_assembleia_cpf_idx`, `voto_assembleias_aptos_aviso_contato_idx`, `voto_assembleias_aptos_aviso_pendente_idx`, `voto_assembleias_aptos_email_contato_idx`
 
 ## voto_assembleias_empresas
 

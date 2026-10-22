@@ -10,7 +10,9 @@ export const maxDuration = 300
  * Tick da votação (fase 2 do plano de 16/10/2026): envio automático dos links
  * pessoais nas rodadas que o ligaram — N horas antes da abertura e, depois,
  * a quem entrar na lista — e a nova tentativa das falhas do provedor
- * (lib/db/votacao-aviso-auto.ts). Protegido por `CRON_SECRET` (header
+ * (lib/db/votacao-aviso-auto.ts). Também o link a quem cadastrou e-mail
+ * pessoal ou Telegram no link geral depois do primeiro envio
+ * (lib/db/votacao-aviso-contato.ts, 21/10/2026). Protegido por `CRON_SECRET` (header
  * `x-cron-secret` ou `Authorization: Bearer`). `?tenant=<uuid>` roda só um
  * tenant. O vercel.json chama esta rota a cada 15 minutos; o que não couber
  * numa volta segue na próxima.
