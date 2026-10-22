@@ -1,8 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, BarChart3, ExternalLink, Pencil } from "lucide-react"
+import { ArrowLeft, BarChart3, Download, ExternalLink, Pencil, Plus } from "lucide-react"
 
+import { TileIndicador } from "@/components/graficos/tile"
+import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -61,6 +63,7 @@ export default async function RemessaPontoPage({
     pagina?: string
     porPagina?: string
     aba?: string
+    novo?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
@@ -96,6 +99,22 @@ export default async function RemessaPontoPage({
 
   // Remessa finalizada: sem inclusão, edição ou exclusão de registros.
   const bloqueada = remessa.finalizada === true
+  // Formulário fechado por padrão: abre pelo botão "Novo registro" no topo
+  // (?novo=1) ou pelo "Editar" da linha (?editar=<id>).
+  const formAberto = !bloqueada && (paramsBusca.novo === "1" || registroEmEdicao !== null)
+
+  // Indicadores da remessa (sobre todos os registros, não só a página).
+  const soma = (campo: keyof (typeof itens)[number]) =>
+    itens.reduce((s, i) => s + (typeof i[campo] === "number" ? (i[campo] as number) : 0), 0)
+  const real70 = soma("horas_realizadas_70")
+  const real100 = soma("horas_realizadas_100")
+  const pag70 = soma("horas_pagas_70")
+  const pag100 = soma("horas_pagas_100")
+  const sal70 = soma("saldo_remanescente_70")
+  const sal100 = soma("saldo_remanescente_100")
+  const liberados = itens.filter((i) => i.liberado === true).length
+  const semEspelho = itens.filter((i) => !i.arquivo).length
+  const comPagas = itens.filter((i) => (i.horas_pagas_70 ?? 0) + (i.horas_pagas_100 ?? 0) > 0).length
 
   return (
     <>
@@ -132,12 +151,28 @@ export default async function RemessaPontoPage({
             </p>
           </div>
           {!editandoRemessa && (
-            <Button variant="outline" asChild>
-              <Link href={`/painel/pessoal/ponto/${id}?editar=remessa`}>
-                <Pencil />
-                Editar remessa
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {!bloqueada && !naAnalise && (
+                <Button asChild>
+                  <Link href={`/painel/pessoal/ponto/${id}?novo=1`}>
+                    <Plus />
+                    Novo registro
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" asChild>
+                <a href={`/painel/pessoal/ponto/${id}/csv`}>
+                  <Download />
+                  Exportar planilha
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/painel/pessoal/ponto/${id}?editar=remessa`}>
+                  <Pencil />
+                  Editar remessa
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -171,6 +206,61 @@ export default async function RemessaPontoPage({
         <AnaliseDaRemessa remessaId={id} />
       ) : (
         <>
+          {formAberto && (
+            <RegistroPontoForm
+              key={registroEmEdicao?.id ?? "novo"}
+              saldosAnteriores={saldosAnteriores}
+              remessaId={id}
+              funcionarios={disponiveis}
+              registro={registroEmEdicao ?? undefined}
+            />
+          )}
+
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <TileIndicador
+              rotulo="Registros"
+              valor={`${itens.length}`}
+              nota={
+                disponiveis.length > 0
+                  ? `${disponiveis.length} funcionário(s) ativo(s) sem registro`
+                  : "todos os funcionários ativos lançados"
+              }
+            />
+            <TileIndicador
+              rotulo="Liberados ao funcionário"
+              valor={`${liberados} de ${itens.length}`}
+              nota={semEspelho > 0 ? `${semEspelho} sem espelho anexado` : "todos com espelho"}
+            />
+            <TileIndicador
+              rotulo="Horas extras realizadas"
+              valor={hhmm(real70 + real100)}
+              nota={`${hhmm(real70)} a 70% · ${hhmm(real100)} a 100%`}
+            />
+            <TileIndicador
+              rotulo="Horas pagas no mês"
+              valor={hhmm(pag70 + pag100)}
+              nota={`decimal: ${decimalHoras(pag70)} a 70% · ${decimalHoras(pag100)} a 100% · ${comPagas} funcionário(s)`}
+            />
+            <TileIndicador
+              rotulo="Saldo remanescente"
+              valor={hhmm(sal70 + sal100)}
+              nota={`${hhmm(sal70)} a 70% · ${hhmm(sal100)} a 100%`}
+            />
+          </section>
+
+          {!bloqueada && disponiveis.length > 0 && (
+            <GrupoColapsavel
+              titulo="Funcionários ativos sem registro nesta remessa"
+              resumo={<Badge variant="warning">{disponiveis.length}</Badge>}
+            >
+              <ul className="text-muted-foreground grid gap-1 px-6 pb-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                {disponiveis.map((f) => (
+                  <li key={f.usuarioId}>{f.nome}</li>
+                ))}
+              </ul>
+            </GrupoColapsavel>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Registros de ponto</CardTitle>
@@ -315,22 +405,14 @@ export default async function RemessaPontoPage({
             </CardContent>
           </Card>
 
-          {bloqueada ? (
+          {bloqueada && (
             <Alert>
               <AlertDescription>
-                Remessa finalizada — inclusão, edição e exclusão de registros
+                Remessa finalizada: inclusão, edição e exclusão de registros
                 estão bloqueadas. Para mexer nos itens, reabra a remessa em
-                “Editar remessa”.
+                Editar remessa.
               </AlertDescription>
             </Alert>
-          ) : (
-            <RegistroPontoForm
-              key={registroEmEdicao?.id ?? "novo"}
-              saldosAnteriores={saldosAnteriores}
-              remessaId={id}
-              funcionarios={disponiveis}
-              registro={registroEmEdicao ?? undefined}
-            />
           )}
         </>
       )}

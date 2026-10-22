@@ -22,6 +22,7 @@ export const RECURSOS_EXPORTACAO = {
   apuracao_relatorio: { rotulo: "Relação de votantes (apuração)", categorias: ["identificacao", "cpf", "voto"] },
   cat: { rotulo: "CATs", categorias: ["identificacao", "saude", "trabalhista"] },
   folha_movimento: { rotulo: "Movimento da folha (contabilidade)", categorias: ["identificacao", "cpf", "trabalhista", "financeiro"] },
+  ponto_remessa: { rotulo: "Remessa de controle de ponto", categorias: ["identificacao", "cpf", "trabalhista"] },
   remessa_cnab: { rotulo: "Remessa/retorno bancário (CNAB)", categorias: ["identificacao", "cpf", "financeiro"] },
   ordens: { rotulo: "Ordens de pagamento", categorias: ["identificacao", "financeiro"] },
   contabil: { rotulo: "Lançamentos contábeis", categorias: ["identificacao", "cpf", "financeiro"] },

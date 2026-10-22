@@ -237,11 +237,9 @@ export function RegistroPontoForm({
           })}
 
           <div className="flex items-center justify-end gap-2">
-            {registro && (
-              <Button variant="ghost" asChild>
-                <Link href={`/painel/pessoal/ponto/${remessaId}`}>Cancelar</Link>
-              </Button>
-            )}
+            <Button variant="ghost" asChild>
+              <Link href={`/painel/pessoal/ponto/${remessaId}`}>Cancelar</Link>
+            </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}
               {registro ? "Salvar registro" : "Adicionar registro"}
