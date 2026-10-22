@@ -66,6 +66,8 @@ export type ResumoAvisoAptos = {
   /** Filiados que desligaram o e-mail de "Votações" no portal (ficam só com o sino). */
   desligados: number
   falhas: number
+  /** Pendentes que já receberam o link antes (voltaram à fila num reenvio): o próximo envio é lembrete. */
+  reenvio: number
   ultimoEnvio: string | null
 }
 
@@ -119,11 +121,11 @@ export async function resumoAvisoAptos(rodadaId: string): Promise<ResumoAvisoApt
     .limit(1)
   if (sonda.error) {
     if (esquemaAusente(sonda.error) || sonda.error.code === "42703") {
-      return { esquemaPronto: false, total: 0, enviados: 0, pendentes: 0, semEmail: 0, duplicados: 0, desligados: 0, falhas: 0, ultimoEnvio: null }
+      return { esquemaPronto: false, total: 0, enviados: 0, pendentes: 0, semEmail: 0, duplicados: 0, desligados: 0, falhas: 0, reenvio: 0, ultimoEnvio: null }
     }
     throw new Error(`Falha ao ler os avisos: ${sonda.error.message}`)
   }
-  const [total, pendentes, enviados, semEmail, duplicados, desligados, falhas] = await Promise.all([
+  const [total, pendentes, enviados, semEmail, duplicados, desligados, falhas, reenvio] = await Promise.all([
     contar(rodadaId, (q) => q),
     contar(rodadaId, (q) => q.is("aviso_email_em", null)),
     contar(rodadaId, (q) => q.not("aviso_email_em", "is", null).is("aviso_email_erro", null)),
@@ -131,6 +133,8 @@ export async function resumoAvisoAptos(rodadaId: string): Promise<ResumoAvisoApt
     contar(rodadaId, (q) => q.eq("aviso_email_erro", "duplicado")),
     contar(rodadaId, (q) => q.eq("aviso_email_erro", ERRO_PREFERENCIA)),
     contar(rodadaId, (q) => q.eq("aviso_email_erro", "falha")),
+    // Sem a coluna (antes da fase 2), a contagem falha e vale 0.
+    contar(rodadaId, (q) => q.is("aviso_email_em", null).not("aviso_primeiro_em", "is", null)).catch(() => 0),
   ])
   return {
     esquemaPronto: true,
@@ -141,6 +145,7 @@ export async function resumoAvisoAptos(rodadaId: string): Promise<ResumoAvisoApt
     duplicados,
     desligados,
     falhas,
+    reenvio,
     ultimoEnvio: (sonda.data?.[0]?.aviso_email_em as string | undefined) ?? null,
   }
 }

@@ -179,6 +179,8 @@ export type AptoLinha = {
   /** Situação do link pessoal (aviso por e-mail): ver votacao-sem-link.ts. */
   aviso_email_em?: string | null
   aviso_email_erro?: string | null
+  /** Primeiro envio do link (não zera no reenvio). */
+  aviso_primeiro_em?: string | null
 }
 
 /** Filtro da lista de aptos pela situação do link pessoal de voto. */
@@ -1910,7 +1912,9 @@ export async function listarAptos(
     q = q
       .is("hora_voto", null)
       .is("presenca_em", null)
-      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha,rejeitado)")
+      // Quem já recebeu o link uma vez e só voltou para a fila num reenvio
+      // continua com um link que vale — não é "sem link" (22/10/2026).
+      .or("and(aviso_email_em.is.null,aviso_primeiro_em.is.null),aviso_email_erro.in.(sem_email,falha,rejeitado)")
   } else if (filtros.link === "falha") {
     // Falha do provedor ou rejeição definitiva do endereço (webhook da Brevo, 22/10/2026).
     q = q.in("aviso_email_erro", ["falha", "rejeitado"])
@@ -1939,6 +1943,7 @@ export async function listarAptos(
       email_contato: (a.email_contato as string | null) ?? null,
       aviso_email_em: (a.aviso_email_em as string | null) ?? null,
       aviso_email_erro: (a.aviso_email_erro as string | null) ?? null,
+      aviso_primeiro_em: (a.aviso_primeiro_em as string | null) ?? null,
     })),
     total: count ?? 0,
     pagina,

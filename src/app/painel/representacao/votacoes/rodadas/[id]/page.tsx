@@ -682,7 +682,7 @@ function FiltroVotou({
 function SituacaoLink({
   apto,
 }: {
-  apto: { aviso_email_em?: string | null; aviso_email_erro?: string | null }
+  apto: { aviso_email_em?: string | null; aviso_email_erro?: string | null; aviso_primeiro_em?: string | null }
 }) {
   const rotulo =
     apto.aviso_email_erro === "sem_email"
@@ -691,7 +691,7 @@ function SituacaoLink({
         ? "Falha no envio"
         : apto.aviso_email_erro === "rejeitado"
           ? "Endereço rejeitado"
-          : !apto.aviso_email_em
+          : !apto.aviso_email_em && !apto.aviso_primeiro_em
           ? "Link não enviado"
           : null
   if (!rotulo) return null

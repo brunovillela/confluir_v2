@@ -184,6 +184,12 @@ export function AvisoAptos({
             </p>
           </div>
         )}
+        {resumo.reenvio > 0 && (
+          <p className="text-muted-foreground text-xs">
+            Dos {resumo.pendentes.toLocaleString("pt-BR")} pendentes, {resumo.reenvio.toLocaleString("pt-BR")} já receberam o
+            link antes e voltaram para a fila num reenvio — o link deles continua valendo; o próximo envio é só um lembrete.
+          </p>
+        )}
         {resumo.ultimoEnvio && (
           <p className="text-muted-foreground text-xs">
             Último envio em {formatarDataHora(resumo.ultimoEnvio)}.

@@ -19,7 +19,9 @@ import { origemAtual } from "@/lib/tenant-url"
  * conta, por rodada com voto pela internet ainda por abrir ou aberta, quem
  * ainda não votou e está sem o link:
  *
- *  - pendente: o aviso ainda não saiu (ou voltou à fila para reenvio);
+ *  - pendente: o aviso nunca saiu. Quem já recebeu o link e só voltou à fila
+ *    num reenvio NÃO entra: o link continua valendo (22/10/2026 — o reenvio na
+ *    Halliburton e no GRUPO RCS acendeu o alerta para 1.500 que tinham o link);
  *  - sem e-mail: nem e-mail da lista nem filiado com e-mail;
  *  - falha: o provedor recusou o envio.
  *
@@ -172,7 +174,7 @@ export async function rodadasComAptosSemLink(
           return count ?? 0
         }
         const [pendentes, semEmail, falhas] = await Promise.all([
-          contar("aviso_email_em.is.null"),
+          contar("and(aviso_email_em.is.null,aviso_primeiro_em.is.null)"),
           contar("aviso_email_erro.eq.sem_email"),
           contar("aviso_email_erro.in.(falha,rejeitado)"),
         ])
@@ -246,12 +248,12 @@ export async function linksDosAptosSemLink(
   const aptos = await lerEmLotes<Linha>((de, ate) =>
     admin
       .from("voto_assembleias_aptos")
-      .select("id, nome_completo, cpf, matricula, telefone, assembleia_id, aviso_email_em, aviso_email_erro")
+      .select("id, nome_completo, cpf, matricula, telefone, assembleia_id, aviso_email_em, aviso_email_erro, aviso_primeiro_em")
       .eq("emp_proprietaria_id", emp)
       .eq("rod_assembleia_id", rodadaId)
       .is("hora_voto", null)
       .is("presenca_em", null)
-      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha,rejeitado)")
+      .or("and(aviso_email_em.is.null,aviso_primeiro_em.is.null),aviso_email_erro.in.(sem_email,falha,rejeitado)")
       .order("nome_completo", { ascending: true, nullsFirst: false })
       .order("id")
       .range(de, ate)
