@@ -9,6 +9,7 @@ import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
 import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
 import { rodadasComLinkNaoUsado } from "@/lib/db/votacao-link-nao-usado"
+import { rodadasComEntregaRuim } from "@/lib/db/votacao-teste-entrega"
 import { ATENDIMENTO_AGUARDANDO_EQUIPE, EQUIPE_ATENDIMENTO_SAUDE, LEITURA_ATENDIMENTO_GERAL } from "@/lib/atendimento-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -495,6 +496,26 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         tabela: "voto_assembleias_aptos",
         montar: (q) => head(q),
         contarCom: async () => naoUsado.length,
+      })
+    }
+    // E-mail corporativo que não chega a quem vota, medido antes da votação
+    // (aviso prévio) ou numa votação anterior da mesma empresa (22/10/2026).
+    const entregaRuim = await rodadasComEntregaRuim({ client, emp })
+    if (entregaRuim.length > 0) {
+      fontes.push({
+        chave: "votacao_entrega_ruim",
+        titulo: "E-mail da empresa não chega a quem vota",
+        descricao:
+          entregaRuim.length === 1
+            ? `${entregaRuim[0].rodadaNome ?? "Rodada"}: @${entregaRuim[0].dominio} — divulgue o pré-cadastro`
+            : `${entregaRuim.length} rodadas com o e-mail da empresa sem chegar`,
+        href:
+          entregaRuim.length === 1
+            ? `/painel/representacao/votacoes/rodadas/${entregaRuim[0].rodadaId}?aba=divulgacao`
+            : "/painel/representacao/votacoes",
+        tabela: "voto_assembleias_aptos",
+        montar: (q) => head(q),
+        contarCom: async () => entregaRuim.length,
       })
     }
   }

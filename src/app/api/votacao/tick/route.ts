@@ -1,5 +1,6 @@
 import { rodarAvisosAutomaticos } from "@/lib/db/votacao-aviso-auto"
 import { expurgarContatosVencidos } from "@/lib/db/votacao-expurgo"
+import { rodarTesteEntrega } from "@/lib/db/votacao-teste-entrega"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -12,7 +13,9 @@ export const maxDuration = 300
  * a quem entrar na lista — e a nova tentativa das falhas do provedor
  * (lib/db/votacao-aviso-auto.ts). Também o link a quem cadastrou e-mail
  * pessoal ou Telegram no link geral depois do primeiro envio
- * (lib/db/votacao-aviso-contato.ts, 21/10/2026). Protegido por `CRON_SECRET` (header
+ * (lib/db/votacao-aviso-contato.ts, 21/10/2026). E o teste de entrega: o
+ * aviso prévio automático e as medições por domínio
+ * (lib/db/votacao-teste-entrega.ts, 22/10/2026). Protegido por `CRON_SECRET` (header
  * `x-cron-secret` ou `Authorization: Bearer`). `?tenant=<uuid>` roda só um
  * tenant. O vercel.json chama esta rota a cada 15 minutos; o que não couber
  * numa volta segue na próxima.
@@ -40,9 +43,11 @@ async function handler(req: Request): Promise<Response> {
     tenant,
   })
   if (resultado.erros.length) console.error("[votacao/tick]", resultado.erros.join(" · "))
+  const teste = await rodarTesteEntrega({ client, limite: inicio + 240_000, tenant })
+  if (teste.erros.length) console.error("[votacao/tick] teste de entrega:", teste.erros.join(" · "))
   const expurgo = tenant ? null : await expurgarContatosVencidos(client)
   if (expurgo?.erro) console.error("[votacao/tick]", expurgo.erro)
-  return Response.json({ ...resultado, expurgo })
+  return Response.json({ ...resultado, teste, expurgo })
 }
 
 export const GET = handler

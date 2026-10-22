@@ -8,6 +8,7 @@ import { gruposPorFonte } from "@/lib/db/grupos-empresariais"
 import { panoramaRodadas, participacao, temParticipacao, type RodadaPanorama } from "@/lib/db/votacao-panorama"
 import { janelasOnline, semLinkDasRodadas, semLinkUrgente, type RodadaSemLink } from "@/lib/db/votacao-sem-link"
 import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
+import { entregaRuimDasRodadas } from "@/lib/db/votacao-teste-entrega"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -156,6 +157,16 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
       texto: `${l.rodadaNome ?? "Rodada"}: ${l.peloCodigo.toLocaleString("pt-BR")} de ${l.votantes.toLocaleString("pt-BR")} votos entraram pelo código por e-mail — o link pessoal${l.dominio ? ` (@${l.dominio})` : ""} não está chegando a quem vota.`,
       rotulo: "Ver rodada",
       href: rodadaHref({ id: l.rodadaId }, r ? fonteDe(r) : null),
+    })
+  }
+  // E-mail corporativo que não chega a quem vota (teste de entrega, 22/10/2026).
+  for (const e of await entregaRuimDasRodadas()) {
+    const r = panorama.find((p) => p.id === e.rodadaId)
+    alertas.push({
+      tom: "aviso",
+      texto: `${e.rodadaNome ?? "Rodada"}: o e-mail de @${e.dominio} não está chegando a quem vota (${e.motivo === "aviso_previo" ? "aviso prévio desta rodada" : "votação anterior"}) — divulgue o pré-cadastro.`,
+      rotulo: "Divulgação",
+      href: rodadaHref({ id: e.rodadaId }, r ? fonteDe(r) : null, "divulgacao"),
     })
   }
   // Alertas só do que nasceu no Confluir (regra de 18/10/2026): o legado do

@@ -44,6 +44,7 @@ import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
 import { resumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import { kitDivulgacao } from "@/lib/db/votacao-divulgacao"
+import { entregaRuimDasRodadas, testeEntregaDaRodada } from "@/lib/db/votacao-teste-entrega"
 import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { guardaContatosDaRodada } from "@/lib/db/votacao-expurgo"
 import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
@@ -74,6 +75,8 @@ import { RodadaForm } from "./rodada-form"
 import { SemLinkAlerta } from "./sem-link-alerta"
 import { LinkNaoUsadoAlerta } from "./link-nao-usado-alerta"
 import { KitDivulgacaoCard } from "./kit-divulgacao"
+import { TesteEntregaCard } from "./teste-entrega"
+import { EntregaRuimAlerta } from "./entrega-ruim-alerta"
 
 export const metadata: Metadata = { title: "Rodada de assembleias — Confluir" }
 
@@ -127,7 +130,7 @@ export default async function RodadaPage({
       ? "aptos"
       : "geral"
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit, teste, entregaRuim] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -143,6 +146,8 @@ export default async function RodadaPage({
       linkNaoUsadoDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
       resumoAvisoContato(id),
       aba === "divulgacao" ? kitDivulgacao(id) : Promise.resolve(null),
+      aba === "divulgacao" ? testeEntregaDaRodada(id) : Promise.resolve(null),
+      entregaRuimDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
   // O link pessoal só importa enquanto a rodada não terminou.
@@ -260,6 +265,7 @@ export default async function RodadaPage({
         </Alert>
       )}
 
+      {entregaRuim && <EntregaRuimAlerta rodadaId={rodada.id} fonte={fonte} r={entregaRuim} />}
       {linkNaoUsado && <LinkNaoUsadoAlerta rodadaId={rodada.id} fonte={fonte} r={linkNaoUsado} />}
       {semLink && <SemLinkAlerta rodadaId={rodada.id} fonte={fonte} r={semLink} />}
 
@@ -588,6 +594,7 @@ export default async function RodadaPage({
       {aba === "divulgacao" && (
         <div className="grid items-start gap-4 xl:grid-cols-2">
         {kit && <KitDivulgacaoCard rodadaId={rodada.id} kit={kit} />}
+        {teste && <TesteEntregaCard rodadaId={rodada.id} teste={teste} />}
         <AvisoAptos
           id="aviso-aptos"
           rodadaId={rodada.id}

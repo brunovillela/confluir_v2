@@ -712,7 +712,7 @@ const RODAPE_PREFERENCIAS =
  * CPFs que desligaram o e-mail de "Votações" nas preferências do portal
  * (A120). Sem a tabela (supabase/portal-avisos.sql), ninguém desligou.
  */
-async function desligaramEmailDeVotacao(db: Leitura, cpfs: string[]): Promise<Set<string>> {
+export async function desligaramEmailDeVotacao(db: { client: SupabaseClient; tenantId: string }, cpfs: string[]): Promise<Set<string>> {
   const saida = new Set<string>()
   for (let i = 0; i < cpfs.length; i += 200) {
     const { data, error } = await db.client

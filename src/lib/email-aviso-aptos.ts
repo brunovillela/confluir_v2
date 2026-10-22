@@ -139,7 +139,7 @@ ${tabela ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0
 <tr><td style="padding:12px 16px 0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${linhas}</table>
 </td></tr>
-<tr><td style="padding:8px 16px 0;">${botao}</td></tr>
+${botao ? `<tr><td style="padding:8px 16px 0;">${botao}</td></tr>` : `<tr><td style="padding:0 0 12px;"></td></tr>`}
 </table>`
 }
 
@@ -289,6 +289,57 @@ export function montarEmailAvisoAptos(
   partes.push(linkReserva(alvo))
   partes.push(
     textoSuave("Não reconhece esta votação ou recebeu por engano? Responda a este e-mail.")
+  )
+  return partes.join("\n")
+}
+
+// ── Aviso prévio: o teste de entrega (fase 3 do plano de 21/10/2026) ───────
+
+export function assuntoAvisoPrevio(dados: Pick<DadosAvisoAptos, "rodadaNome">): string {
+  return `Você vai poder votar — ${dados.rodadaNome}`
+}
+
+/**
+ * Aviso prévio, dias antes da votação, ao e-mail corporativo: anuncia a
+ * votação e pede o clique em "Recebi". O botão leva a uma página com um
+ * FORMULÁRIO de confirmação — o robô de segurança da empresa abre o link, mas
+ * não envia o formulário, então só a confirmação humana conta. Não leva link
+ * de voto: quem o encaminhar não entrega o voto de ninguém.
+ */
+export function montarEmailAvisoPrevio(
+  dados: DadosAvisoAptos,
+  destino: { nome: string | null; linkRecebi: string; linkCadastro: string }
+): string {
+  const nome = primeiroNome(destino.nome)
+  const partes: string[] = []
+  partes.push(tituloEmail("Você vai poder votar"))
+  partes.push(paragrafo(nome ? `Olá, ${escaparHtml(nome)}.` : "Olá."))
+  partes.push(
+    paragrafo(
+      `Seu nome está na lista de aptos a votar da <strong>${escaparHtml(dados.rodadaNome)}</strong>` +
+        (dados.campanhaTema ? ` (${escaparHtml(dados.campanhaTema)})` : "") +
+        ", promovida por {ENTIDADE}. Quando a votação abrir, o seu link pessoal de voto chega por e-mail."
+    )
+  )
+  if (dados.assembleias.length > 0) partes.push(quadroVotacao(dados.assembleias, ""))
+  partes.push(
+    `<h2 style="margin:0 0 8px;font-size:17px;line-height:1.4;font-weight:600;color:${COR.navy};">Este e-mail chegou até você?</h2>`
+  )
+  partes.push(
+    paragrafo(
+      "Confirme com um clique. Assim o sindicato sabe se o e-mail da empresa está chegando — e, se não estiver, manda o seu link por outro caminho."
+    )
+  )
+  partes.push(botaoEmail(destino.linkRecebi, "Recebi este e-mail"))
+  partes.push(
+    caixaAviso(
+      `<strong>Prefere receber o link de voto no celular?</strong> Cadastre-se pelo <strong>Telegram</strong> (sem código) ou com um <strong>e-mail pessoal</strong>: <a href="${escaparHtml(destino.linkCadastro)}" style="color:${COR.laranjaAcao};font-weight:600;">${escaparHtml(destino.linkCadastro.replace(/^https?:\/\//, ""))}</a>. Na abertura, o link chega por lá.`
+    )
+  )
+  partes.push(
+    textoSuave(
+      "Este e-mail não traz link de voto e não pede nenhum dado. Não reconhece esta votação ou recebeu por engano? Responda a este e-mail."
+    )
   )
   return partes.join("\n")
 }

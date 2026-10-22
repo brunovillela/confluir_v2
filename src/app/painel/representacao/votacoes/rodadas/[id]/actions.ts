@@ -777,3 +777,27 @@ export async function configurarGuardaContatosAction(rodadaId: string, dias: num
   revalidarRodada(rodadaId)
   return { ok: `Os contatos dos aptos serão apagados ${dias} dias depois do encerramento da apuração.` }
 }
+
+// ── Teste de entrega: aviso prévio (fase 3 do plano de 21/10/2026) ──────────
+
+export async function enviarLoteAvisoPrevioAction(
+  rodadaId: string
+): Promise<{ resultado?: import("@/lib/db/votacao-teste-entrega").ResultadoLotePrevio; erro?: string }> {
+  await requirePermissao("assembleias")
+  const { enviarLoteAvisoPrevio } = await import("@/lib/db/votacao-teste-entrega")
+  const r = await enviarLoteAvisoPrevio(rodadaId)
+  if (r.resultado && r.resultado.restantes === 0) revalidarRodada(rodadaId)
+  return r
+}
+
+/** Liga (dias antes da abertura) ou desliga o aviso prévio automático. */
+export async function configurarAvisoPrevioAction(rodadaId: string, dias: number | null): Promise<EstadoForm> {
+  await requirePermissao("assembleias")
+  const { configurarAvisoPrevio } = await import("@/lib/db/votacao-teste-entrega")
+  const { erro } = await configurarAvisoPrevio(rodadaId, dias)
+  if (erro) return { erro }
+  revalidarRodada(rodadaId)
+  return {
+    ok: dias === null ? "Aviso prévio automático desligado." : `Aviso prévio automático ligado: sai ${dias} dias antes da abertura.`,
+  }
+}

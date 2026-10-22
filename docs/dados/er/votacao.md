@@ -82,6 +82,11 @@ erDiagram
     uuid urna_id FK
     uuid mesario_id FK
   }
+  voto_entrega_dominios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid rodada_id FK
+  }
   voto_mesario {
     uuid id PK
     uuid mesario_id FK
@@ -210,6 +215,7 @@ erDiagram
   voto_em_separado }o--o| voto_rod_assembleias : "rod_assembleia_id"
   voto_em_separado }o--o| voto_urnas : "urna_id"
   voto_em_separado }o--|| voto_assembleias : "assembleia_id"
+  voto_entrega_dominios }o--o| voto_rod_assembleias : "rodada_id"
   voto_mesario }o--o| usuarios : "mesario_id"
   voto_mesario }o--o| voto_urna : "urna_id"
   voto_mesarios }o--|| voto_rod_assembleias : "rod_assembleia_id"

@@ -2,7 +2,7 @@
 
 # Votações e assembleias
 
-31 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
+32 tabelas. Diagrama: [er/votacao.md](../er/votacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -21,6 +21,7 @@
 | [voto_campanha](#voto_campanha) | — | Campanha de votação (tema) que agrupa rodadas e assembleias, espelho de VOTO Campanha do Bubble; fontes pagadoras em voto_campanha_fontes. |
 | [voto_campanha_fontes](#voto_campanha_fontes) | — | Junção campanha de votação x fonte pagadora (empresa) abrangida. |
 | [voto_em_separado](#voto_em_separado) | identificação, **sensível: sindical** | Eleitor que alega direito a votar sem estar na lista de aptos, cadastrado pelo mesário. LIGA VOTO A PESSOA de propósito: voto_online.em_sepa… |
+| [voto_entrega_dominios](#voto_entrega_dominios) | — | Histórico da entrega do e-mail corporativo por domínio de empresa (teste de entrega da fase 3, 22/10/2026): uma medição por rodada — pelo av… |
 | [voto_mesario](#voto_mesario) | — | Junção mesário x urna do Bubble. Sem uso encontrado no código além da lista de tabelas do tenant (possível legado do Bubble), vazia. |
 | [voto_mesarios](#voto_mesarios) | identificação | Mesários cadastrados por rodada de votação; entram no ambiente /mesario por OTP no e-mail e registram presença dos eleitores, nunca o voto. |
 | [voto_online](#voto_online) | **sensível: sindical** | Voto individual por pergunta (online, portal, urna digital ou com mesário). O voto NÃO é ligado à pessoa: eleitor_id é sempre nulo (CHECK vo… |
@@ -338,6 +339,9 @@ Lista de eleitores aptos por rodada/assembleia, espelho de Assembleias - Aptos d
 | `aviso_contato_em` | timestamp with time zone | sim |  |  | identificação | Quando o link pessoal saiu para o contato confirmado no link geral (e-mail pessoal e/ou Telegram); null = pendente. |
 | `aviso_contato_canais` | text | sim |  |  | identificação | Canais do aviso ao contato que deram certo: "email", "telegram" ou "email,telegram". |
 | `aviso_contato_erro` | text | sim |  |  | identificação | Falha do aviso ao contato: "falha" quando nenhum canal aceitou o envio. |
+| `aviso_previo_em` | timestamp with time zone | sim |  |  | identificação | Quando saiu o aviso prévio (teste de entrega) ao e-mail corporativo, dias antes da votação; null = pendente. |
+| `aviso_previo_erro` | text | sim |  |  | identificação | Aviso prévio não enviado: "sem_email", "duplicado", "preferencia" ou "falha". |
+| `recebido_em` | timestamp with time zone | sim |  |  | identificação | Quando a pessoa confirmou, pelo botão "Recebi" do aviso prévio, que o e-mail corporativo chegou (formulário: o robô de segurança da empresa não confirma). |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -460,6 +464,33 @@ Eleitor que alega direito a votar sem estar na lista de aptos, cadastrado pelo m
 Checks: `voto_em_separado_status_check` `CHECK ((status = ANY (ARRAY['pendente'::text, 'deferido'::text, 'indeferido'::text])))`
 
 Índices: `idx_voto_em_separado_assembleia`, `idx_voto_em_separado_urna`, `voto_em_separado_pkey`
+
+## voto_entrega_dominios
+
+Histórico da entrega do e-mail corporativo por domínio de empresa (teste de entrega da fase 3, 22/10/2026): uma medição por rodada — pelo aviso prévio ("Recebi") ou pela votação (votos pelo link pessoal). A próxima rodada da mesma empresa já nasce avisada. Só números agregados e o domínio.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `dominio` | text | não |  |  |  | Domínio do e-mail corporativo predominante na lista de aptos (ex.: halliburton.com). |
+| `rodada_id` | uuid | sim |  | → voto_rod_assembleias (set null) |  |  |
+| `rodada_nome` | text | sim |  |  |  |  |
+| `medida` | text | não |  |  |  | "aviso_previo" = confirmaram o Recebi / avisados; "votacao" = votos pelo link pessoal / votantes com canal registrado. |
+| `medido_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `base` | integer | não |  |  |  | Denominador da medição (avisados, ou votantes com canal registrado). |
+| `sucesso` | integer | não |  |  |  | Numerador (confirmaram o Recebi, ou votaram pelo link pessoal). |
+| `situacao` | text | não |  |  |  | "chega", "nao_chega" ou "incerto", pela taxa sucesso/base. |
+| `observacao` | text | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `voto_entrega_dominios_base_check` `CHECK ((base >= 0))`; `voto_entrega_dominios_medida_check` `CHECK ((medida = ANY (ARRAY['aviso_previo'::text, 'votacao'::text])))`; `voto_entrega_dominios_situacao_check` `CHECK ((situacao = ANY (ARRAY['chega'::text, 'nao_chega'::text, 'incerto'::text])))`; `voto_entrega_dominios_sucesso_check` `CHECK ((sucesso >= 0))`
+
+Índices: `voto_entrega_dominios_dominio_idx`, `voto_entrega_dominios_medicao_key`, `voto_entrega_dominios_pkey`
 
 ## voto_mesario
 
@@ -672,6 +703,7 @@ Rodada de votação (período) dentro de uma campanha, dona das perguntas, da li
 | `aviso_auto_horas` | smallint | sim |  |  |  | Antecedência em horas do aviso automático por e-mail aos aptos. |
 | `contatos_reter_dias` | smallint | não | `90` |  |  | Dias, contados do encerramento da apuração da última assembleia, que os contatos dos aptos ficam guardados (prazo de impugnação). Padrão 90. |
 | `contatos_expurgados_em` | timestamp with time zone | sim |  |  |  | Quando votacao_expurgar_contatos() limpou os contatos dos aptos desta rodada. |
+| `aviso_previo_dias` | smallint | sim |  |  |  | Envio automático do aviso prévio (teste de entrega) N dias antes da abertura da votação pela internet; null = desligado. |
 
 Únicas: `UNIQUE (bubble_id)`
 
