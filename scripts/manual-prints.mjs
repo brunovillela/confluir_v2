@@ -230,11 +230,10 @@ const SHOTS_RODADA_21 = [
   // resenhas já geradas da remessa e do Administrativo.
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-indicadores.png", { esperar: "Funcionários em atenção", altura: 1300 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-resenha.png", { esperar: "Riscos trabalhistas", scrollTo: "Resenha da IA", altura: 1200 }],
-  // Rodada de 21/10: remessa com indicadores e o registro em HH:MM. Precisa de
-  // uma remessa de fevereiro com saldos e março com saldo anterior (cenário
-  // montado à parte e desfeito depois).
+  // Rodada de 21/10: remessa com indicadores e o registro em HH:MM (dados da
+  // demo como estão: março sem remessa anterior, saldos zerados).
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
-  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo anterior trazido", altura: 900 }],
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", altura: 900 }],
   ["/painel/pessoal/ponto", "pessoal/ponto-faixas.png", { esperar: "Percentuais de hora extra", passos: [{ clicar: 'css=summary:has-text("Percentuais de hora extra")' }, { aguardar: "Salvar percentuais" }], scrollTo: "Percentuais de hora extra", altura: 700 }],
   ]
 
