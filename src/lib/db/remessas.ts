@@ -3,6 +3,7 @@ import "server-only"
 import { bancoPorCodigo, codigoPorNome } from "@/lib/cnab/bancos"
 import { codigoDeBarrasDe, gerarRemessa240, lerRetorno240, type ContaRemessa, type ItemRemessa } from "@/lib/cnab/febraban240"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
+import { travaDoMesFechado } from "@/lib/db/meses-fechados"
 import { registrarEvento, SITUACAO_A_PAGAR } from "@/lib/db/ordens-ciclo"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { emitirEvento } from "@/lib/db/webhooks"
@@ -574,6 +575,13 @@ export async function processarRetorno(p: { remessaId: string; arquivo: File; us
     if (oc.pago) {
       const valorPago = oc.valorReal ?? item.valor
       const dataPagamento = oc.dataReal ?? item.dataPagamento
+      // Mês fechado: o item fica sem baixa (reimportar o retorno depois de
+      // reabrir o mês dá a baixa — item não pago não é pulado).
+      const travaMes = await travaDoMesFechado([dataPagamento], "dar a baixa")
+      if (travaMes) {
+        avisos.push(`${oc.seuNumero}: ${travaMes}`)
+        continue
+      }
       const { error } = await admin
         .from("ordens_pagamento")
         .update({ situacao: "Paga", valor_pago: valorPago, data_pagamento: dataPagamento, pagador_id: p.usuarioId, ...(conta?.centroCustoId ? { centro_custo_receita_id: conta.centroCustoId } : {}) })

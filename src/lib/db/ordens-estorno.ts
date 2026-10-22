@@ -1,6 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
+import { travaDoMesFechado } from "@/lib/db/meses-fechados"
 import { descreverPagoCom, type DetalhePagamento } from "@/lib/db/compras-pagamento"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
@@ -164,6 +165,9 @@ export async function registrarEstorno(
     return { erro: "O estorno não pode ser anterior ao pagamento." }
   }
   if (dados.dataEstorno > hojeSP()) return { erro: "A data do estorno não pode ser futura." }
+  // O estorno tira o pagamento do mês em que ele foi lançado.
+  const travaMes = await travaDoMesFechado([dataPagamento], "registrar o estorno")
+  if (travaMes) return { erro: travaMes }
 
   const responsavelId = await lancadorDaOrdem(ordem)
   const pagamento = {

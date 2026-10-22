@@ -22,6 +22,7 @@ import {
   SITUACOES_PAGAVEIS,
 } from "@/lib/db/ordens-ciclo"
 import { listarCentrosDeDebito } from "@/lib/db/financeiro"
+import { travaDoMesFechado } from "@/lib/db/meses-fechados"
 import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
 import { reclassificarOrdem, type LinhaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { registrarEstorno } from "@/lib/db/ordens-estorno"
@@ -86,6 +87,21 @@ export async function salvarPagamento(
           ? "A ordem ainda não foi autorizada — só ordem \"A pagar\" pode ser paga."
           : `Ordem "${ordem.situacao}" não pode ser paga.`,
     }
+  }
+
+  // Mês fechado para a contabilidade: não entra pagamento nele, e o pagamento
+  // que já está nele não muda de valor nem de data (o comprovante e a conta
+  // de débito, que não vão para a planilha, podem mudar).
+  const mudaLancamento =
+    !editando ||
+    String(ordem.data_pagamento ?? "").slice(0, 10) !== dataPagamento ||
+    Math.round(Number(ordem.valor_pago ?? 0) * 100) !== Math.round(valor * 100)
+  if (mudaLancamento) {
+    const trava = await travaDoMesFechado(
+      [dataPagamento, editando ? (ordem.data_pagamento as string | null) : null],
+      editando ? "mudar o valor ou a data do pagamento" : "registrar um pagamento nele"
+    )
+    if (trava) return { erro: trava }
   }
 
   // O débito é uma conta de pagamento (caixa, banco) — ver listarCentrosDeDebito.
@@ -209,6 +225,8 @@ export async function removerPagamento(
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!ordem) return { erro: "Ordem não encontrada." }
+  const trava = await travaDoMesFechado([ordem.data_pagamento as string | null], "remover o pagamento")
+  if (trava) return { erro: trava }
 
   const { error } = await admin
     .from("ordens_pagamento")

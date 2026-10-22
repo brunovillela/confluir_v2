@@ -7,7 +7,9 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * Fechamento do mês contábil (financeiro_meses_fechados): depois que a
  * contabilidade recebe o mês, a classificação das ordens pagas nele (centro de
- * custo, departamento, rateio) não muda mais. A régua é a da exportação — a
+ * custo, departamento, rateio) não muda mais, e nenhum pagamento entra, sai ou
+ * muda de valor ou de data nele (pagamento manual, retorno de remessa, caixa,
+ * estorno). A régua é a da exportação — a
  * data do pagamento. Reabrir grava quem e por quê; o histórico fica.
  */
 
@@ -68,6 +70,21 @@ export async function mesEstaFechado(data: string | null | undefined): Promise<b
     throw new Error(`Falha ao ler o fechamento do mês: ${error.message}`)
   }
   return Boolean(linha)
+}
+
+/**
+ * Trava do mês fechado para quem grava, tira ou muda a data de um pagamento:
+ * a mensagem (com o mês) se alguma das datas cai num mês fechado; senão null.
+ * `acao` completa a frase — "registrar o pagamento", "remover o pagamento"…
+ */
+export async function travaDoMesFechado(datas: (string | null | undefined)[], acao: string): Promise<string | null> {
+  const meses = [...new Set(datas.filter((d): d is string => Boolean(d)).map((d) => d.slice(0, 7)))]
+  for (const mes of meses) {
+    if (await mesEstaFechado(mes)) {
+      return `O mês ${mes.slice(5, 7)}/${mes.slice(0, 4)} está fechado para a contabilidade — reabra-o na Exportação contábil para ${acao}.`
+    }
+  }
+  return null
 }
 
 export async function fecharMes(mes: string, usuarioId: string, observacao: string | null): Promise<{ erro?: string }> {

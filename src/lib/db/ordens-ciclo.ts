@@ -393,6 +393,19 @@ async function pagarPeloCaixa(
   ])
   const p = processo.data as { compra_data?: string | null; comprado_por_id?: string | null } | null
   const dataPagamento = p?.compra_data ?? hojeSP()
+  // Compra de um mês já fechado para a contabilidade: o dinheiro já saiu do
+  // caixa, mas a ordem não entra paga no mês fechado — fica "A pagar" e o
+  // Financeiro registra o pagamento depois de reabrir o mês (o caixa não é
+  // debitado de novo).
+  const { travaDoMesFechado } = await import("@/lib/db/meses-fechados")
+  const travaMes = await travaDoMesFechado([dataPagamento], "registrar o pagamento")
+  if (travaMes) {
+    await registrarEvento(ordemId, "situacao_alterada", null, `Não foi dada como paga pelo caixa "${caixa.data?.nome ?? "—"}": ${travaMes}`, {
+      caixa_conta_id: caixaId,
+      data_pagamento: dataPagamento,
+    })
+    return
+  }
   const { error } = await admin
     .from("ordens_pagamento")
     .update({

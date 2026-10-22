@@ -32,6 +32,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
 import { faturaDaCompra } from "@/lib/db/cartao-faturas"
 import { listarDepartamentos } from "@/lib/db/compras"
+import { mesEstaFechado } from "@/lib/db/meses-fechados"
 import { nomeDoDepartamento, travaDaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
@@ -210,13 +211,14 @@ export default async function OrdemPage({
   // Contrato/minuta/termo do custeio: aparecem no cartão da origem.
   const formalizacao = pr.documentos.filter((d) => d.formalizacao)
 
-  const [centros, departamentos, departamentoNome, travaReclassificacao] = await Promise.all([
+  const [centros, departamentos, departamentoNome, travaReclassificacao, mesPagamentoFechado] = await Promise.all([
     podeEditar ? listarCentrosCusto() : Promise.resolve([] as CentroCusto[]),
     podeEditar ? listarDepartamentos() : Promise.resolve([]),
     nomeDoDepartamento((ordem.departamento_id as string | null) ?? null),
     podeEditar
       ? travaDaReclassificacao({ id, situacao, data_pagamento: (ordem.data_pagamento as string | null) ?? null })
       : Promise.resolve(null),
+    situacao === "Paga" ? mesEstaFechado((ordem.data_pagamento as string | null) ?? null) : Promise.resolve(false),
   ])
   const opcoesCentro = centros
     .filter((c) => c.usavel !== false)
@@ -605,6 +607,13 @@ export default async function OrdemPage({
                   </div>
                 )}
             </dl>
+            {mesPagamentoFechado && (
+              <p className="text-muted-foreground mt-3 text-xs">
+                O mês {String(ordem.data_pagamento).slice(5, 7)}/{String(ordem.data_pagamento).slice(0, 4)} está
+                fechado para a contabilidade: o pagamento não pode ser removido, estornado nem mudar de valor ou de
+                data. Para isso, reabra o mês na Exportação contábil.
+              </p>
+            )}
             {podeEditar && (aberta || situacao === "Cancelada" || (situacao === "Paga" && !estornoPendente)) && !editandoPagamento && (
               <SituacaoForm
                 key={situacao}

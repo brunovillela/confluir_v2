@@ -2,6 +2,7 @@ import "server-only"
 
 import { beneficiariosDasOrdens, saldoDaConta } from "@/lib/db/caixa"
 import { hojeSP } from "@/lib/db/comum"
+import { travaDoMesFechado } from "@/lib/db/meses-fechados"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -166,6 +167,11 @@ export async function vincularOrdemAoCaixa(
   }
   const agora = new Date().toISOString()
   const descricao = `Ordem ${o.codigo ?? ""} — ${produto ?? benef ?? txt(o.descricao) ?? "pagamento"}`.slice(0, 200)
+
+  if (situacao !== "Paga") {
+    const travaMes = await travaDoMesFechado([hojeSP()], "pagar pelo caixa")
+    if (travaMes) return { erro: travaMes }
+  }
 
   const { error: erroMov } = await admin.from("caixa_movimentacoes").insert({
     conta_id: conta.id,
