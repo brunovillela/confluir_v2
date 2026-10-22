@@ -83,7 +83,7 @@ const SHOTS = process.env.SHOT_UNICO
       return [
         [`${p}/contracheques/funcionario/${ANA}`, "pessoal/contracheques-funcionario.png", o],
         [`${p}/contracheques/funcionario/${ANA}/899dfe88-fbaf-4ce3-8a84-9bca1c2d0a9b`, "pessoal/contracheques-registro.png", o],
-        [`${p}/ponto/funcionario/${ANA}`, "pessoal/ponto-funcionario.png", { esperar: "Saldo HE 70%", fullPage: true }],
+        [`${p}/ponto/funcionario/${ANA}`, "pessoal/ponto-funcionario.png", { esperar: "Saldo HE", fullPage: true }],
         [`${p}/ferias/66666666-6666-4666-8666-000000000001`, "pessoal/ferias-registro.png", o],
         [`${p}/niveis/5a300000-0000-4000-8000-000000000001?de=carreira`, "pessoal/niveis-registro.png", o],
         [`${p}/anuenios/5a500000-0000-4000-8000-000000000001?de=carreira`, "pessoal/anuenios-registro.png", o],
@@ -235,6 +235,7 @@ const SHOTS_RODADA_21 = [
   // montado à parte e desfeito depois).
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo anterior trazido", altura: 900 }],
+  ["/painel/pessoal/ponto", "pessoal/ponto-faixas.png", { esperar: "Percentuais de hora extra", passos: [{ clicar: 'css=summary:has-text("Percentuais de hora extra")' }, { aguardar: "Salvar percentuais" }], scrollTo: "Percentuais de hora extra", altura: 700 }],
   ]
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodada anterior
