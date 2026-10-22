@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import {
@@ -58,11 +58,12 @@ export function ContratoForm({
   beneficiarioRotulo = "Fornecedor",
   mostrarCategoria = true,
   rotuloSubmit,
+  centroPorDepartamento = false,
 }: {
   contrato?: Contrato
   fornecedores: EmpresaOpcao[]
   departamentos: Opcao[]
-  centrosCusto: Opcao[]
+  centrosCusto: (Opcao & { departamentoId?: string | null })[]
   usuarios: Opcao[]
   categorias: OpcaoCategoria[]
   contratoPrincipalId?: string
@@ -77,11 +78,26 @@ export function ContratoForm({
   mostrarCategoria?: boolean
   /** Sobrescreve o texto do botão (padrão deriva de "contrato"). */
   rotuloSubmit?: string
+  /** Ajudas: centro de custo filtrado pelo departamento (exige departamentoId nas opções). */
+  centroPorDepartamento?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     contrato ? acaoAtualizar : acaoCriar,
     {}
   )
+  // Ajuda: o centro de custo é filtrado pelo departamento e só se habilita
+  // depois dele. Trocar o departamento descarta um centro que não é dele.
+  const [depto, setDepto] = useState(contrato?.departamento_id ?? "")
+  const [centro, setCentro] = useState(contrato?.centro_custo_id ?? "")
+  const centrosVisiveis = centroPorDepartamento
+    ? depto
+      ? centrosCusto.filter((c) => c.departamentoId === depto)
+      : []
+    : centrosCusto
+  const centroBloqueado = centroPorDepartamento && !depto
+  const centroSelecionado = centrosVisiveis.some((c) => c.id === centro)
+    ? centro
+    : ""
   const tipoAtivo = (chave: (typeof TIPOS_CONTRATO_MARCAVEIS)[number]["chave"]) =>
     chave === "aditivo"
       ? (contrato?.aditivo ?? Boolean(contratoPrincipalId))
@@ -163,7 +179,8 @@ export function ContratoForm({
             id="departamento_id"
             name="departamento_id"
             className={SELECT}
-            defaultValue={contrato?.departamento_id ?? ""}
+            value={depto}
+            onChange={(e) => setDepto(e.target.value)}
           >
             <option value="">Não informado</option>
             {departamentos.map((d) => (
@@ -179,10 +196,18 @@ export function ContratoForm({
             id="centro_custo_id"
             name="centro_custo_id"
             className={SELECT}
-            defaultValue={contrato?.centro_custo_id ?? ""}
+            value={centroSelecionado}
+            onChange={(e) => setCentro(e.target.value)}
+            disabled={centroBloqueado}
           >
-            <option value="">Não informado</option>
-            {centrosCusto.map((c) => (
+            <option value="">
+              {centroBloqueado
+                ? "Escolha o departamento primeiro"
+                : centroPorDepartamento && centrosVisiveis.length === 0
+                  ? "Nenhum centro neste departamento"
+                  : "Não informado"}
+            </option>
+            {centrosVisiveis.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nome}
               </option>

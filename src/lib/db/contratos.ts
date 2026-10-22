@@ -24,6 +24,7 @@ import {
   gerarCodigoProcesso,
   hojeSP,
   listarDepartamentos,
+  listarCentrosCustoParaCompra,
   listarFornecedores,
   subirComprovanteCompras,
   urlArquivoCompras,
@@ -1058,7 +1059,8 @@ export type OpcoesContrato = {
     etiqueta?: string | null
   }[]
   departamentos: { id: string; nome: string }[]
-  centrosCusto: { id: string; nome: string }[]
+  /** departamentoId: só nas opções de ajuda (o centro é filtrado pelo departamento). */
+  centrosCusto: { id: string; nome: string; departamentoId?: string | null }[]
   usuarios: { id: string; nome: string }[]
   categorias: { id: string; nome: string; sigiloso: boolean }[]
 }
@@ -1099,8 +1101,10 @@ export async function carregarOpcoesContrato(): Promise<OpcoesContrato> {
  * Opções do formulário de AJUDA institucional. O favorecido é, de preferência,
  * uma entidade apoiada — elas vêm primeiro —, mas os fornecedores comuns
  * também entram, etiquetados: ao salvar a ajuda, o escolhido ganha a marca
- * `entidade_apoiada` (ver marcarEntidadeApoiada). Não há categoria; as
- * categorias vêm vazias para satisfazer o mesmo tipo do formulário.
+ * `entidade_apoiada` (ver marcarEntidadeApoiada). Os centros de custo levam o
+ * departamento: o formulário só mostra os do departamento escolhido. Não há
+ * categoria; as categorias vêm vazias para satisfazer o mesmo tipo do
+ * formulário.
  */
 export async function carregarOpcoesAjuda(): Promise<OpcoesContrato> {
   const [entidades, fornecedores, departamentos, centrosCusto, usuarios] =
@@ -1108,7 +1112,7 @@ export async function carregarOpcoesAjuda(): Promise<OpcoesContrato> {
       listarEntidadesApoiadas(),
       listarFornecedores(),
       listarDepartamentos(),
-      listarCentrosCusto(),
+      listarCentrosCustoParaCompra(),
       listarUsuariosAtivos(),
     ])
   const apoiadas = new Set(entidades.map((e) => e.id))
@@ -1133,13 +1137,32 @@ export async function carregarOpcoesAjuda(): Promise<OpcoesContrato> {
         })),
     ],
     departamentos,
-    centrosCusto: centrosCusto.map((c) => ({
-      id: String(c.id),
-      nome: String(c.nome_da_conta ?? "(sem nome)"),
-    })),
+    centrosCusto,
     usuarios,
     categorias: [],
   }
+}
+
+/**
+ * Ajuda: o centro de custo precisa ser de um departamento escolhido e ser
+ * desse departamento. Devolve a mensagem de erro, ou null quando está ok.
+ */
+export async function validarCentroDoDepartamento(
+  centroCustoId: string | null | undefined,
+  departamentoId: string | null | undefined
+): Promise<string | null> {
+  if (!centroCustoId) return null
+  if (!departamentoId) return "Escolha o departamento antes do centro de custo."
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("centros_de_custo")
+    .select("departamento_id")
+    .eq("id", centroCustoId)
+    .maybeSingle()
+  if (!data || texto(data.departamento_id) !== departamentoId) {
+    return "O centro de custo escolhido não é do departamento informado."
+  }
+  return null
 }
 
 export async function excluirContrato(id: string): Promise<{ erro?: string }> {

@@ -10,6 +10,7 @@ import {
   criarContrato,
   excluirContrato,
   gerarOrdensContrato,
+  validarCentroDoDepartamento,
 } from "@/lib/db/contratos"
 import { subirPdfCompras } from "@/lib/db/compras"
 import { marcarEntidadeApoiada } from "@/lib/db/fornecedores"
@@ -58,6 +59,8 @@ export async function criarAjudaAction(
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
   const dados = lerDadosContrato(formData)
+  const erroCentro = await validarCentroDoDepartamento(dados.centro_custo_id, dados.departamento_id)
+  if (erroCentro) return { erro: erroCentro }
   const { id, erro } = await criarContrato({
     ...dados,
     apoio_institucional: true,
@@ -80,6 +83,8 @@ export async function atualizarAjudaAction(
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
   const dados = lerDadosContrato(formData)
+  const erroCentro = await validarCentroDoDepartamento(dados.centro_custo_id, dados.departamento_id)
+  if (erroCentro) return { erro: erroCentro }
   const { erro } = await atualizarContrato(id, {
     ...dados,
     apoio_institucional: true,

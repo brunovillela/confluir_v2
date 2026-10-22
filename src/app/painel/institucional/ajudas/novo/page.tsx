@@ -85,6 +85,7 @@ export default async function NovaAjudaPage({
             beneficiarioRotulo="Entidade apoiada"
             mostrarCategoria={false}
             rotuloSubmit="Cadastrar ajuda"
+            centroPorDepartamento
           />
         </CardContent>
       </Card>
