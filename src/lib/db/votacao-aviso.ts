@@ -22,6 +22,7 @@ import {
   type DestinatarioAviso,
 } from "@/lib/email-aviso-aptos"
 import { enviarEmail, type ContextoEmail } from "@/lib/email"
+import { marcaEmailVoto } from "@/lib/db/votacao-eventos-email"
 import { botaoEmail, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { formatarData } from "@/lib/formato"
 import { normalizarPreferenciasPortal } from "@/lib/portal-avisos-eventos"
@@ -449,6 +450,8 @@ export async function enviarLoteAviso(
           assunto,
           html: montarEmailAvisoAptos(dados, e.destino),
           contexto: amb?.contexto,
+          // Entrega, clique (gente × robô) e rejeição voltam pelo webhook da Brevo (fase 4, 22/10/2026).
+          cabecalhos: marcaEmailVoto(emp, "a", e.id),
         })
       )
     )
@@ -599,6 +602,7 @@ export async function enviarLinkDeVoto(
       linkPessoal: `${base}/entrar?t=${t}`,
       linkNaoSouEu: `${base}/nao-sou-eu?t=${t}`,
     }),
+    cabecalhos: marcaEmailVoto(await tenantAtual(), "a", apto.id),
   })
   return ok ? {} : { erro: "Não foi possível enviar o e-mail. Tente de novo." }
 }

@@ -174,7 +174,7 @@ export async function rodadasComAptosSemLink(
         const [pendentes, semEmail, falhas] = await Promise.all([
           contar("aviso_email_em.is.null"),
           contar("aviso_email_erro.eq.sem_email"),
-          contar("aviso_email_erro.eq.falha"),
+          contar("aviso_email_erro.in.(falha,rejeitado)"),
         ])
         return {
           rodadaId,
@@ -215,7 +215,7 @@ export type LinkDeApto = {
   cpf: string | null
   matricula: string | null
   telefone: string | null
-  situacao: "Pendente de envio" | "Sem e-mail" | "Falha no envio"
+  situacao: "Pendente de envio" | "Sem e-mail" | "Falha no envio" | "Endereço rejeitado"
   link: string
 }
 
@@ -251,7 +251,7 @@ export async function linksDosAptosSemLink(
       .eq("rod_assembleia_id", rodadaId)
       .is("hora_voto", null)
       .is("presenca_em", null)
-      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha)")
+      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha,rejeitado)")
       .order("nome_completo", { ascending: true, nullsFirst: false })
       .order("id")
       .range(de, ate)
@@ -273,7 +273,9 @@ export async function linksDosAptosSemLink(
             ? "Sem e-mail"
             : a.aviso_email_erro === "falha"
               ? "Falha no envio"
-              : "Pendente de envio",
+              : a.aviso_email_erro === "rejeitado"
+                ? "Endereço rejeitado"
+                : "Pendente de envio",
         link: `${origem}/votar/${assembleiaId}/entrar?t=${encodeURIComponent(gerarTokenAcesso(String(a.id), assembleiaId))}`,
       }
     }),

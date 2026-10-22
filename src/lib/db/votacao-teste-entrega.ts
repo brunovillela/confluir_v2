@@ -10,6 +10,7 @@ import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { dadosDoAviso, desligaramEmailDeVotacao, type AmbienteEnvio } from "@/lib/db/votacao-aviso"
 import { janelasOnline, type Ambiente } from "@/lib/db/votacao-sem-link"
 import { enviarEmail } from "@/lib/email"
+import { marcaEmailVoto } from "@/lib/db/votacao-eventos-email"
 import { assuntoAvisoPrevio, montarEmailAvisoPrevio } from "@/lib/email-aviso-aptos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -366,6 +367,7 @@ export async function enviarLoteAvisoPrevio(
             linkCadastro: `${origem}/votar`,
           }),
           contexto: amb?.contexto,
+          cabecalhos: marcaEmailVoto(emp, "p", e.id),
         })
       )
     )

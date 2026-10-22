@@ -44,6 +44,7 @@ import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
 import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
 import { resumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
 import { kitDivulgacao } from "@/lib/db/votacao-divulgacao"
+import { resumoEntregaBrevo } from "@/lib/db/votacao-eventos-email"
 import { entregaRuimDasRodadas, testeEntregaDaRodada } from "@/lib/db/votacao-teste-entrega"
 import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { guardaContatosDaRodada } from "@/lib/db/votacao-expurgo"
@@ -130,7 +131,7 @@ export default async function RodadaPage({
       ? "aptos"
       : "geral"
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit, teste, entregaRuim] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado, avisoContato, kit, teste, entregaRuim, entregaBrevo] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -148,6 +149,7 @@ export default async function RodadaPage({
       aba === "divulgacao" ? kitDivulgacao(id) : Promise.resolve(null),
       aba === "divulgacao" ? testeEntregaDaRodada(id) : Promise.resolve(null),
       entregaRuimDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
+      aba === "divulgacao" ? resumoEntregaBrevo(id) : Promise.resolve(null),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
   // O link pessoal só importa enquanto a rodada não terminou.
@@ -600,6 +602,7 @@ export default async function RodadaPage({
           rodadaId={rodada.id}
           resumo={aviso}
           contato={temOnline ? avisoContato : null}
+          entrega={entregaBrevo}
           auto={temOnline ? avisoAuto : null}
           bloqueio={
             periodoTerminado(rodada.termino)
@@ -683,7 +686,9 @@ function SituacaoLink({
       ? "Sem e-mail"
       : apto.aviso_email_erro === "falha"
         ? "Falha no envio"
-        : !apto.aviso_email_em
+        : apto.aviso_email_erro === "rejeitado"
+          ? "Endereço rejeitado"
+          : !apto.aviso_email_em
           ? "Link não enviado"
           : null
   if (!rotulo) return null

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import type { ResumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import type { ResumoAvisoContato } from "@/lib/db/votacao-aviso-contato"
+import type { ResumoEntregaBrevo } from "@/lib/db/votacao-eventos-email"
 import type { AvisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { formatarDataHora } from "@/lib/formato"
 
@@ -33,6 +34,7 @@ export function AvisoAptos({
   rodadaId,
   resumo,
   contato = null,
+  entrega = null,
   auto,
   bloqueio,
 }: {
@@ -42,6 +44,8 @@ export function AvisoAptos({
   resumo: ResumoAvisoAptos
   /** Aviso pelo e-mail pessoal/Telegram do link geral (fase 1, 21/10/2026); null = sem voto online ou sem a migração. */
   contato?: ResumoAvisoContato | null
+  /** Eventos da Brevo pelo webhook (fase 4, 22/10/2026); null = sem eventos ainda. */
+  entrega?: ResumoEntregaBrevo | null
   /** Envio automático dos links (fase 2); null = rodada sem voto pela internet. */
   auto: AvisoAutoDaRodada | null
   /** Motivo para não enviar (sem assembleia, período encerrado…). */
@@ -158,6 +162,21 @@ export function AvisoAptos({
               {contato.pendentes > 0 && <> · aguardando: {contato.pendentes.toLocaleString("pt-BR")}</>}
               {contato.falhas > 0 && <> · falhas: {contato.falhas.toLocaleString("pt-BR")}</>}. Depois do primeiro envio,
               quem se cadastrar recebe sozinho em até 15 minutos.
+            </p>
+          </div>
+        )}
+        {entrega && (
+          <div className="grid gap-1 rounded-md border p-2.5 text-sm">
+            <p>
+              <span className="font-medium">Na Brevo:</span> {entrega.entregues.toLocaleString("pt-BR")} entregue(s) ·{" "}
+              {entrega.cliqueGente.toLocaleString("pt-BR")} aberto(s) por gente
+              {entrega.soRobo > 0 && <> · {entrega.soRobo.toLocaleString("pt-BR")} só pelo robô de segurança</>}
+              {entrega.rejeitados > 0 && <> · {entrega.rejeitados.toLocaleString("pt-BR")} endereço(s) rejeitado(s)</>}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Clique até 2 minutos depois da entrega é do robô de segurança da empresa, que abre todos os links. Muita
+              entrega com clique só do robô = o e-mail chega ao servidor, mas não a quem vota. Endereço rejeitado conta
+              como sem link.
             </p>
           </div>
         )}

@@ -54,6 +54,8 @@ para o canal que ele escolheu.
 
 ## Fase 1 — O link vai para o canal que a pessoa escolheu
 
+> **Feita em 22/10/2026** (9b026efd, migração `20261022002851_votacao_aviso_contato`), junto com a dica do lixo eletrônico na tela do código (item 4.3).
+
 Objetivo: quem se identificou pelo link geral (e-mail pessoal ou Telegram) passa a
 receber o link pessoal **por esse canal**, e não só no e-mail corporativo.
 
@@ -84,6 +86,8 @@ entra pelo link e não pede código.
 ---
 
 ## Fase 2 — Pré-cadastro antes da abertura
+
+> **Feita em 22/10/2026** (9ed2831f): `/votar` em modo pré-cadastro com o Telegram primeiro; kit de divulgação (texto de WhatsApp, QR, cartaz A4) e contador na aba Divulgação.
 
 Objetivo: o cadastro do e-mail pessoal ou do Telegram acontece **dias antes**, com
 calma, e não no meio da votação.
@@ -116,6 +120,8 @@ chegar ao canal cadastrado.
 
 ## Fase 3 — Teste de entrega antecipado
 
+> **Feita em 22/10/2026** (b2ca7175, migração `20261022021015_votacao_teste_entrega`): aviso prévio com "Recebi" (POST), alerta "o e-mail de @domínio não chega", histórico em `voto_entrega_dominios` (carga: SLB e Wellbore chegam, Halliburton não).
+
 Objetivo: saber, **dias antes**, se o e-mail corporativo daquela fonte chega a gente.
 Assim a rodada é preparada pelo caminho certo.
 
@@ -142,6 +148,10 @@ apto é.
 ---
 
 ## Fase 4 — Diagnóstico técnico do envio
+
+> **Feita em 22/10/2026** (código): webhook `/api/webhooks/brevo` + migração `20261022022724_votacao_eventos_brevo`; `scripts/conferir-dns-envio.mjs`. Falta do lado do usuário: criar o webhook no painel da Brevo, pôr `BREVO_WEBHOOK_SECRET` na Vercel e corrigir o DNS.
+>
+> **DNS de confluir.online em 22/10/2026** (`node scripts/conferir-dns-envio.mjs`): verificação da Brevo e DKIM (`mail._domainkey`) OK; **sem SPF**; DMARC com `p=none` (só monitora, relatórios para a Brevo); **sem MX**.
 
 Objetivo: reduzir a quarentena por reputação e ver a entrega sem consulta manual.
 

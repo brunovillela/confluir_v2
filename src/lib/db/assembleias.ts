@@ -1910,7 +1910,10 @@ export async function listarAptos(
     q = q
       .is("hora_voto", null)
       .is("presenca_em", null)
-      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha)")
+      .or("aviso_email_em.is.null,aviso_email_erro.in.(sem_email,falha,rejeitado)")
+  } else if (filtros.link === "falha") {
+    // Falha do provedor ou rejeição definitiva do endereço (webhook da Brevo, 22/10/2026).
+    q = q.in("aviso_email_erro", ["falha", "rejeitado"])
   } else if (filtros.link) {
     q = q.eq("aviso_email_erro", filtros.link)
   }

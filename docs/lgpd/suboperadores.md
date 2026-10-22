@@ -51,6 +51,7 @@ O Confluir é **operador** dos dados de cada entidade (controladora). Os serviç
 - **Onde:** Brevo (padrão, `EMAIL_PROVEDOR` vazio) na UE, França; Resend (`EMAIL_PROVEDOR=resend`) nos EUA.
 - **Contrato:** DPA de cada provedor, nas páginas legais deles. A Resend publica o seu em <https://resend.com/legal/dpa>.
 - **No Confluir:** códigos de acesso com cadência (1/min, 5/h); mensagens que não revelam se um CPF existe.
+- **Volta da Brevo (webhook, 22/10/2026):** os e-mails de votação levam o cabeçalho `X-Mailin-custom` com a entidade, o tipo e o id do apto (sem nome, CPF ou e-mail). A Brevo devolve por `/api/webhooks/brevo` a entrega, o clique e a rejeição; o Confluir guarda só a data e o motivo curto no próprio apto (`email_entregue_em`, `email_clique_*`, `email_rejeicao`), com o prazo de guarda da rodada.
 
 ### Sentry
 - **Recebe:** eventos de erro **filtrados** por `lib/sentry-filtro.ts`: sem cookies, sem corpo de requisição, tokens de URL removidos, CPF mascarado. Amostragem de 10% de *traces*. Sem gravação de sessão (*replay*).

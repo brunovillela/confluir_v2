@@ -342,6 +342,10 @@ Lista de eleitores aptos por rodada/assembleia, espelho de Assembleias - Aptos d
 | `aviso_previo_em` | timestamp with time zone | sim |  |  | identificação | Quando saiu o aviso prévio (teste de entrega) ao e-mail corporativo, dias antes da votação; null = pendente. |
 | `aviso_previo_erro` | text | sim |  |  | identificação | Aviso prévio não enviado: "sem_email", "duplicado", "preferencia" ou "falha". |
 | `recebido_em` | timestamp with time zone | sim |  |  | identificação | Quando a pessoa confirmou, pelo botão "Recebi" do aviso prévio, que o e-mail corporativo chegou (formulário: o robô de segurança da empresa não confirma). |
+| `email_entregue_em` | timestamp with time zone | sim |  |  | identificação | Brevo: quando o aviso com o link pessoal foi entregue ao servidor do destinatário (último envio). |
+| `email_clique_humano_em` | timestamp with time zone | sim |  |  | identificação | Brevo: primeiro clique no aviso com o link pessoal mais de 2 min depois da entrega — gente, não o robô de segurança. |
+| `email_clique_robo_em` | timestamp with time zone | sim |  |  | identificação | Brevo: clique no aviso até 2 min depois da entrega — típico do robô de segurança da empresa, que abre todos os links. |
+| `email_rejeicao` | text | sim |  |  | identificação | Brevo: rejeição definitiva do aviso (hard_bounce, invalid_email, blocked, spam) com o motivo curto; o apto passa a contar como sem link. |
 
 Únicas: `UNIQUE (bubble_id)`
 

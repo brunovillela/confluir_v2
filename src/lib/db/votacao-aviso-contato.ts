@@ -4,6 +4,7 @@ import { temVotoOnline } from "@/lib/assembleias-constantes"
 import { dadosDoAviso, type AmbienteEnvio } from "@/lib/db/votacao-aviso"
 import { MARCA_NAO_RECONHECE } from "@/lib/db/votacao-primeiro-acesso"
 import { enviarEmail } from "@/lib/email"
+import { marcaEmailVoto } from "@/lib/db/votacao-eventos-email"
 import { assuntoAvisoAptos, diaHora, montarEmailAvisoAptos, type DadosAvisoAptos } from "@/lib/email-aviso-aptos"
 import { escaparHtml } from "@/lib/email-layout"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -143,6 +144,7 @@ export async function enviarLoteAvisoContato(
               linkNaoSouEu: `${base}/nao-sou-eu?t=${t}`,
             }),
             contexto: amb?.contexto,
+            cabecalhos: marcaEmailVoto(emp, "c", a.id),
           })
           if (ok) canais.push("email")
         }
