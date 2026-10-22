@@ -13,6 +13,7 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
 import { listarAtas } from "@/lib/db/atas"
 import { departamentosPorUsuario } from "@/lib/db/departamentos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import {
   assentosDoMandato,
   listarLiberacoes,
@@ -48,13 +49,13 @@ export default async function MandatoPage({
   const mandato = await obterMandato(id)
   if (!mandato) notFound()
 
-  const [{ liberacoes }, atas, assentos, departamentos] = await Promise.all([
+  const idsUsuarios = mandato.integrantes.map((i) => i.usuarioId).filter((u): u is string => Boolean(u))
+  const [{ liberacoes }, atas, assentos, departamentos, fotos] = await Promise.all([
     listarLiberacoes(id),
     listarAtas({ mandatoId: id }),
     assentosDoMandato(id),
-    departamentosPorUsuario(
-      mandato.integrantes.map((i) => i.usuarioId).filter((u): u is string => Boolean(u))
-    ),
+    departamentosPorUsuario(idsUsuarios),
+    fotosDosUsuarios(idsUsuarios),
   ])
   const hoje = new Date().toISOString().slice(0, 10)
   const assentosVigentes = assentos.filter((a) => !a.mandatoFim || a.mandatoFim >= hoje).length
@@ -223,6 +224,7 @@ export default async function MandatoPage({
                     mandatoId={mandato.id}
                     grupos={mandato.grupos}
                     departamentos={departamentos}
+                    fotos={fotos}
                   />
                 ))
             )}
@@ -239,12 +241,14 @@ function GrupoMembros({
   mandatoId,
   grupos,
   departamentos,
+  fotos,
 }: {
   titulo: string
   membros: Integrante[]
   mandatoId: string
   grupos: { id: string; nome: string }[]
   departamentos: Map<string, string[]>
+  fotos: Map<string, string>
 }) {
   const afastados = membros.filter((m) => m.situacao !== "exercicio").length
   return (
@@ -265,6 +269,7 @@ function GrupoMembros({
               mandatoId={mandatoId}
               grupos={grupos}
               departamentos={i.usuarioId ? (departamentos.get(i.usuarioId) ?? []) : []}
+              fotoUrl={i.usuarioId ? (fotos.get(i.usuarioId) ?? null) : null}
             />
           ))}
         </div>

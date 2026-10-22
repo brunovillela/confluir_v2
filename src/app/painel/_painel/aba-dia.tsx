@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Award, Cake, CalendarDays, ClipboardList, ExternalLink, HandCoins, Newspaper, Plane, UserRoundX, Wallet } from "lucide-react"
 
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Carrossel } from "@/components/painel/carrossel"
 import { CartaoHud, ListaHud } from "@/components/painel/hud"
 import { Badge } from "@/components/ui/badge"
@@ -149,9 +150,12 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
             <ListaHud vazio="">
               {resumo.ausencias.map((a) => (
                 <li key={a.id} className="flex items-center justify-between gap-2 py-2 text-sm first:pt-0 last:pb-0">
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{a.nome ?? "(sem nome)"}</span>
-                    <span className="text-muted-foreground block truncate text-xs">{a.tipo}</span>
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <AvatarPessoa nome={a.nome} fotoUrl={a.fotoUrl} size="default" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{a.nome ?? "(sem nome)"}</span>
+                      <span className="text-muted-foreground block truncate text-xs">{a.tipo}</span>
+                    </span>
                   </span>
                   <span className="text-muted-foreground shrink-0 text-right text-xs">
                     {a.retorno ? <>volta em {formatarData(a.retorno)}</> : a.termino ? <>até {formatarData(a.termino)}</> : "sem retorno previsto"}
@@ -168,8 +172,8 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
               {[
                 ...resumo.aniversariantes.map((a) => (
                   <li key={`a-${a.id}`} className="flex items-center justify-between gap-2 py-2 text-sm first:pt-0 last:pb-0">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Cake className="text-primary size-3.5 shrink-0" />
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <AvatarPessoa nome={a.nome} fotoUrl={a.fotoUrl} size="default" selo={<Cake />} />
                       <span className="truncate font-medium">{a.nome ?? "(sem nome)"}</span>
                     </span>
                     <Badge variant="outline" className="text-muted-foreground shrink-0">
@@ -179,8 +183,8 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
                 )),
                 ...resumo.aniversariosEmprego.map((a) => (
                   <li key={`e-${a.usuarioId}`} className="flex items-center justify-between gap-2 py-2 text-sm first:pt-0 last:pb-0">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Award className="text-primary size-3.5 shrink-0" />
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <AvatarPessoa nome={a.nome} fotoUrl={a.fotoUrl} size="default" selo={<Award />} />
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{a.nome ?? "(sem nome)"}</span>
                         {a.cargo && <span className="text-muted-foreground block truncate text-xs">{a.cargo}</span>}

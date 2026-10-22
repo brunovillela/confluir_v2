@@ -8,6 +8,7 @@ import {
   FiliadoPicker,
   type SugestaoFiliado,
 } from "@/components/filiado-picker"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,12 +54,15 @@ export function IntegranteLinha({
   mandatoId,
   grupos,
   departamentos,
+  fotoUrl,
 }: {
   integrante: Integrante
   mandatoId: string
   grupos: { id: string; nome: string }[]
   /** Departamentos da pessoa em Organização (integrante ou coordenadora). */
   departamentos: string[]
+  /** Foto de quem tem usuário no sistema; sem ela, as iniciais. */
+  fotoUrl: string | null
 }) {
   const [editando, setEditando] = useState(false)
   const [situacao, setSituacao] = useState(integrante.situacao)
@@ -81,7 +85,9 @@ export function IntegranteLinha({
   return (
     <div className="border-b py-3 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <AvatarPessoa nome={integrante.nome} fotoUrl={fotoUrl} size="default" className="mt-0.5" />
+          <div className="min-w-0">
           <p className={`flex items-center gap-2 font-medium ${integrante.situacao === "excluido" ? "text-muted-foreground line-through" : ""}`}>
             {integrante.nome ?? "—"}
             {integrante.liberado && (
@@ -119,6 +125,7 @@ export function IntegranteLinha({
                 {nome}
               </Badge>
             ))}
+          </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">

@@ -8,6 +8,7 @@ import {
   decidirFaltaCoordenadorAction,
 } from "@/app/painel/coordenador/actions"
 import { DecisaoPedido } from "@/app/painel/coordenador/decisao-pedido"
+import { AvatarPessoa, PessoaNome } from "@/components/pessoa-nome"
 import { compacto } from "@/components/graficos/base"
 import { BarraHud, CartaoHud, KpiHud, ListaHud } from "@/components/painel/hud"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -53,6 +54,7 @@ export async function AbaCoordenacao({
   }
   // 08/10: diária em remessa é decidida com a remessa inteira.
   const diariasDaEquipe = agruparPorRemessa(a.pedidos.diarias)
+  const foto = (usuarioId: string | null | undefined) => (usuarioId ? (a.fotos[usuarioId] ?? null) : null)
   const pedidos =
     a.pedidos.ferias.length + a.pedidos.faltas.length + diariasDaEquipe.remessas.length + diariasDaEquipe.avulsas.length
   const emAutorizacao = a.ordens.abertas.filter((o) => o.situacao === "Em autorização")
@@ -116,6 +118,7 @@ export async function AbaCoordenacao({
                 icone={TreePalm}
                 tipo="Férias"
                 titulo={g.nome}
+                pessoa={{ nome: g.nome, fotoUrl: foto(g.funcionarioId) }}
                 detalhe={`${formatarData(g.inicio)} a ${formatarData(g.termino)}${g.dias ? ` · ${g.dias} dias` : ""}${g.abono ? " · venda de 1/3" : ""}${g.pedidoEm ? ` · pedido em ${formatarData(g.pedidoEm)}` : ""}`}
               >
                 <DecisaoPedido
@@ -132,6 +135,7 @@ export async function AbaCoordenacao({
                 icone={FileText}
                 tipo="Falta justificada"
                 titulo={f.funcionarioNome ?? "(sem nome)"}
+                pessoa={{ nome: f.funcionarioNome, fotoUrl: foto(f.funcionarioId) }}
                 detalhe={[formatarData(f.data), f.tipo, f.observacao].filter(Boolean).join(" · ")}
               >
                 <DecisaoPedido
@@ -149,6 +153,7 @@ export async function AbaCoordenacao({
                 icone={HandCoins}
                 tipo={r.situacao === "reenviada" ? "Remessa de diárias (reenviada)" : "Remessa de diárias"}
                 titulo={`${r.beneficiarioNome ?? "(sem nome)"} — ${formatarMoeda(r.total)}`}
+                pessoa={{ nome: r.beneficiarioNome, fotoUrl: foto(r.diarias[0]?.funcionario_id) }}
                 detalhe={r.diarias
                   .map(
                     (d) =>
@@ -168,6 +173,7 @@ export async function AbaCoordenacao({
                 icone={HandCoins}
                 tipo="Diária"
                 titulo={`${d.funcionarioNome ?? "(sem nome)"} — ${formatarMoeda((d.valor_total ?? 0) + d.valorDespesas)}`}
+                pessoa={{ nome: d.funcionarioNome, fotoUrl: foto(d.funcionario_id) }}
                 detalhe={[
                   `${d.tipoNome ?? "Diária"}${d.quantidade ? ` × ${d.quantidade}` : ""}`,
                   d.data_inicio ? `${formatarData(d.data_inicio)}${d.data_termino ? ` a ${formatarData(d.data_termino)}` : ""}` : null,
@@ -316,12 +322,15 @@ export async function AbaCoordenacao({
           <ListaHud vazio="">
             {a.equipe.map((m) => (
               <li key={m.usuarioId} className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{m.nome}</span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {[m.coordenador ? "Coordenação" : null, m.origem === "diretor" ? "Diretor" : m.origem === "funcionario" ? "Funcionário" : null, m.cargo]
-                      .filter(Boolean)
-                      .join(" · ")}
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <AvatarPessoa nome={m.nome} fotoUrl={foto(m.usuarioId)} size="default" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{m.nome}</span>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {[m.coordenador ? "Coordenação" : null, m.origem === "diretor" ? "Diretor" : m.origem === "funcionario" ? "Funcionário" : null, m.cargo]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                   </span>
                 </span>
                 {m.emFeriasAte && (
@@ -337,8 +346,8 @@ export async function AbaCoordenacao({
               <p className="hud-rotulo mb-1.5">Férias nos próximos 60 dias</p>
               <ul className="grid gap-1 text-xs">
                 {a.feriasProximas.map((f, i) => (
-                  <li key={`${f.nome}-${f.inicio}-${i}`} className="flex justify-between gap-2">
-                    <span className="truncate">{f.nome}</span>
+                  <li key={`${f.nome}-${f.inicio}-${i}`} className="flex items-center justify-between gap-2">
+                    <PessoaNome nome={f.nome} fotoUrl={foto(f.funcionarioId)} />
                     <span className="hud-numero text-muted-foreground shrink-0">
                       {formatarData(f.inicio)} a {formatarData(f.termino)}
                     </span>
@@ -353,23 +362,30 @@ export async function AbaCoordenacao({
   )
 }
 
+/** Com `pessoa`, o avatar de quem pediu, com o ícone do tipo como selo. */
 function Pedido({
   icone: Icone,
   tipo,
   titulo,
   detalhe,
+  pessoa,
   children,
 }: {
   icone: React.ComponentType<{ className?: string }>
   tipo: string
   titulo: string
   detalhe: string
+  pessoa?: { nome: string | null; fotoUrl: string | null }
   children: React.ReactNode
 }) {
   return (
     <div className="bg-muted/40 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg p-3">
       <div className="flex min-w-0 flex-1 basis-56 items-start gap-2.5">
-        <Icone className="text-primary mt-0.5 size-4 shrink-0" />
+        {pessoa ? (
+          <AvatarPessoa nome={pessoa.nome} fotoUrl={pessoa.fotoUrl} size="default" selo={<Icone />} className="mt-0.5" />
+        ) : (
+          <Icone className="text-primary mt-0.5 size-4 shrink-0" />
+        )}
         <div className="min-w-0">
           <p className="hud-rotulo">{tipo}</p>
           <p className="truncate text-sm font-medium">{titulo}</p>

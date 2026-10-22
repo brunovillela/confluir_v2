@@ -1,6 +1,7 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { VINCULOS_DO_QUADRO } from "@/lib/vinculos-instituicao"
@@ -14,6 +15,7 @@ import { VINCULOS_DO_QUADRO } from "@/lib/vinculos-instituicao"
 export type AniversarianteEquipe = {
   id: string
   nome: string | null
+  fotoUrl: string | null
   /** "Funcionário(a)" | "Diretor(a)" */
   vinculo: string
 }
@@ -21,6 +23,7 @@ export type AniversarianteEquipe = {
 export type AniversarioEmprego = {
   usuarioId: string
   nome: string | null
+  fotoUrl: string | null
   cargo: string | null
   admissao: string
   /** Tempo de casa completado hoje, em anos. */
@@ -40,6 +43,7 @@ export type EventoDoDia = {
 export type AusenciaDoDia = {
   id: string
   nome: string | null
+  fotoUrl: string | null
   /** Tipo da ausência: o motivo registrado (lista) ou, sem ele, o vínculo. */
   tipo: string
   motivo: string | null
@@ -176,6 +180,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
   ).map((u) => ({
     id: u.id,
     nome: u.nome_completo ?? u.nome_guerra,
+    fotoUrl: null,
     vinculo: u.vinculo_instituicao as string,
   }))
 
@@ -205,6 +210,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
         return {
           usuarioId,
           nome: u?.nome_completo ?? u?.nome_guerra ?? null,
+          fotoUrl: null,
           cargo: v.cargo,
           admissao: v.admissao,
           anos: hoje.ano - Number(v.admissao.slice(0, 4)),
@@ -234,6 +240,15 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
     }
   }
 
+  // Avatares de aniversariantes, tempo de casa e ausentes: um lote só.
+  const fotos = await fotosDosUsuarios([
+    ...aniversariantes.map((a) => a.id),
+    ...aniversariosEmprego.map((a) => a.usuarioId),
+    ...(ausenciasRes.data ?? []).map((a) => a.funcionario_id as string | null),
+  ])
+  for (const a of aniversariantes) a.fotoUrl = fotos.get(a.id) ?? null
+  for (const a of aniversariosEmprego) a.fotoUrl = fotos.get(a.usuarioId) ?? null
+
   return {
     hoje: hoje.rotulo,
     aniversariantes,
@@ -252,6 +267,7 @@ export async function resumoPainel(usuarioId: string): Promise<ResumoPainel> {
       nome: a.funcionario_id
         ? (nomesUsuarios.get(a.funcionario_id) ?? null)
         : null,
+      fotoUrl: a.funcionario_id ? (fotos.get(a.funcionario_id) ?? null) : null,
       // O motivo É o tipo (lista do Bubble: falta justificada, afastamento
       // médico, férias, compensação…). Só quando ele vem vazio é que o
       // vínculo com atestado ou férias diz o que foi.

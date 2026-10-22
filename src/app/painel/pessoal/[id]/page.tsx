@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +27,7 @@ import {
   dadosBancariosDoFuncionario,
   type DadosBancarios,
 } from "@/lib/db/contracheques-ordens"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
 
 import { ResumoAreas } from "@/components/pessoal/resumo-areas"
@@ -82,7 +84,7 @@ export default async function FuncionarioPage({
   const temGestao = podeAcessar(sessao.permissoes, "pessoal_gestao")
 
   const { id } = await params
-  const [perfil, cadastro] = await Promise.all([buscarPerfilFuncionario(id), obterDadosCadastrais(id)])
+  const [perfil, cadastro, fotos] = await Promise.all([buscarPerfilFuncionario(id), obterDadosCadastrais(id), fotosDosUsuarios([id])])
   if (!perfil) notFound()
 
   // Anuênios, níveis salariais e conta bancária são remuneração — só a gestão vê.
@@ -110,6 +112,12 @@ export default async function FuncionarioPage({
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <AvatarPessoa
+            nome={usuario.nome_completo ?? usuario.nome_guerra ?? null}
+            fotoUrl={fotos.get(id)}
+            size="lg"
+            className="size-12"
+          />
           <h1 className="text-2xl font-semibold tracking-tight">
             {usuario.nome_completo ?? usuario.nome_guerra ?? "(sem nome)"}
           </h1>

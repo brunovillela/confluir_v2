@@ -4,11 +4,13 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Building2, Crown } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import {
   listarDepartamentosCompletos,
   pessoasParaDepartamento,
@@ -38,6 +40,7 @@ export default async function DepartamentoPage({
   const membros = [...d.integrantes].sort((a, b) =>
     a.usuarioId === d.coordenadorId ? -1 : b.usuarioId === d.coordenadorId ? 1 : a.nome.localeCompare(b.nome, "pt-BR")
   )
+  const fotos = await fotosDosUsuarios(membros.map((m) => m.usuarioId))
 
   return (
     <>
@@ -91,18 +94,21 @@ export default async function DepartamentoPage({
                       {membros.map((m) => {
                         const p = detalhe.get(m.usuarioId)
                         return (
-                          <li key={m.usuarioId} className="rounded-md border p-3 text-sm">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              {m.nome}
-                              {m.usuarioId === d.coordenadorId && (
-                                <Badge variant="outline" className="border-primary/40 text-primary gap-1 font-normal">
-                                  <Crown className="size-3" />
-                                  coordenação
-                                </Badge>
-                              )}
-                            </span>
-                            <span className="text-muted-foreground block text-xs">
-                              {p ? `${p.origem === "diretor" ? "Diretor(a)" : "Funcionário(a)"}${p.cargo ? ` · ${p.cargo}` : ""}` : "fora do quadro atual"}
+                          <li key={m.usuarioId} className="flex items-center gap-2.5 rounded-md border p-3 text-sm">
+                            <AvatarPessoa nome={m.nome} fotoUrl={fotos.get(m.usuarioId)} size="default" />
+                            <span className="min-w-0">
+                              <span className="flex flex-wrap items-center gap-1.5 font-medium">
+                                {m.nome}
+                                {m.usuarioId === d.coordenadorId && (
+                                  <Badge variant="outline" className="border-primary/40 text-primary gap-1 font-normal">
+                                    <Crown className="size-3" />
+                                    coordenação
+                                  </Badge>
+                                )}
+                              </span>
+                              <span className="text-muted-foreground block text-xs">
+                                {p ? `${p.origem === "diretor" ? "Diretor(a)" : "Funcionário(a)"}${p.cargo ? ` · ${p.cargo}` : ""}` : "fora do quadro atual"}
+                              </span>
                             </span>
                           </li>
                         )

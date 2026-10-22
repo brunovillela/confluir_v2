@@ -2,9 +2,11 @@ import Link from "next/link"
 import { Users } from "lucide-react"
 
 import { ColunaOrdenavel } from "@/components/coluna-ordenavel"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Paginacao } from "@/components/paginacao"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import type { FuncionarioBasico } from "@/lib/pessoal-area"
 
 export type ColunaFuncionario<T> = {
@@ -21,8 +23,9 @@ export type ColunaFuncionario<T> = {
  * Lista de funcionários de uma área do Pessoal: a primeira coluna é sempre o
  * funcionário (nome → página dele na área, matrícula e departamento); as
  * demais vêm da área. Ordenação por clique no cabeçalho e paginação na URL.
+ * O avatar (foto ou iniciais) é buscado só para as linhas da página.
  */
-export function TabelaFuncionarios<T extends FuncionarioBasico>({
+export async function TabelaFuncionarios<T extends FuncionarioBasico>({
   pagina,
   colunas,
   hrefFuncionario,
@@ -43,6 +46,7 @@ export function TabelaFuncionarios<T extends FuncionarioBasico>({
   padrao?: number
   vazio?: string
 }) {
+  const fotos = await fotosDosUsuarios(pagina.linhas.map((l) => l.usuarioId))
   return (
     <>
       <div className="overflow-x-auto rounded-xl border">
@@ -83,17 +87,22 @@ export function TabelaFuncionarios<T extends FuncionarioBasico>({
             {pagina.linhas.map((l) => (
               <TableRow key={l.usuarioId}>
                 <TableCell className="min-w-48">
-                  <Link href={hrefFuncionario(l)} className="font-medium hover:underline">
-                    {l.nome}
-                  </Link>
-                  {!l.ativo && (
-                    <Badge variant="outline" className="text-muted-foreground ml-2">
-                      Desligado
-                    </Badge>
-                  )}
-                  <span className="text-muted-foreground block text-xs">
-                    {[l.matricula && `mat. ${l.matricula}`, l.departamento].filter(Boolean).join(" · ") || "—"}
-                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <AvatarPessoa nome={l.nome} fotoUrl={fotos.get(l.usuarioId)} size="default" />
+                    <div className="min-w-0">
+                      <Link href={hrefFuncionario(l)} className="font-medium hover:underline">
+                        {l.nome}
+                      </Link>
+                      {!l.ativo && (
+                        <Badge variant="outline" className="text-muted-foreground ml-2">
+                          Desligado
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground block text-xs">
+                        {[l.matricula && `mat. ${l.matricula}`, l.departamento].filter(Boolean).join(" · ") || "—"}
+                      </span>
+                    </div>
+                  </div>
                 </TableCell>
                 {colunas.map((c) => (
                   <TableCell key={c.chave} className={c.className}>

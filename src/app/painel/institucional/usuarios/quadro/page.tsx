@@ -2,12 +2,14 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, Search, TriangleAlert, Users, X } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { requirePermissao } from "@/lib/auth"
 import { formatarData } from "@/lib/formato"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarQuadro, type PessoaQuadro } from "@/lib/db/quadro"
 import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
@@ -52,6 +54,7 @@ export default async function QuadroPage({
             : p.classificacao === filtro
     )
     .filter((p) => !termo || semAcento(`${p.nome ?? ""} ${p.email ?? ""}`).includes(termo))
+  const fotos = await fotosDosUsuarios(lista.map((p) => p.usuarioId))
 
   const url = (f: string) =>
     `/painel/institucional/usuarios/quadro?filtro=${encodeURIComponent(f)}${busca ? `&busca=${encodeURIComponent(busca)}` : ""}`
@@ -121,7 +124,7 @@ export default async function QuadroPage({
       ) : (
         <div className="grid gap-3">
           {lista.map((p) => (
-            <LinhaPessoa key={p.usuarioId} pessoa={p} />
+            <LinhaPessoa key={p.usuarioId} pessoa={p} fotoUrl={fotos.get(p.usuarioId) ?? null} />
           ))}
         </div>
       )}
@@ -135,13 +138,13 @@ export default async function QuadroPage({
   )
 }
 
-function LinhaPessoa({ pessoa: p }: { pessoa: PessoaQuadro }) {
+function LinhaPessoa({ pessoa: p, fotoUrl }: { pessoa: PessoaQuadro; fotoUrl: string | null }) {
   return (
     <Card className={p.alertas.length > 0 ? "border-warning/50" : undefined}>
       <CardContent className="grid gap-4 md:grid-cols-[1fr_18rem]">
         <div className="grid min-w-0 gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{p.nome ?? "(sem nome)"}</span>
+            <PessoaNome nome={p.nome} fotoUrl={fotoUrl} size="default" className="font-medium" />
             {p.filiado && <Badge variant="outline">Filiado</Badge>}
             {p.temLogin && <Badge variant="outline">Login</Badge>}
             {p.temAcesso && <Badge variant="outline">Acesso ao painel</Badge>}

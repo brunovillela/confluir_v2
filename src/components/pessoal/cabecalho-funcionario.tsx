@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { IdCard } from "lucide-react"
 
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { usoCarreira } from "@/lib/db/carreira-area"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData } from "@/lib/formato"
 import { areasDoFuncionario, type AreaFuncionario } from "@/lib/pessoal-area"
 import type { Permissoes } from "@/lib/permissoes"
@@ -37,10 +39,13 @@ export async function CabecalhoFuncionario({
   // Multitenant: a Carreira só aparece para quem usa anuênio ou níveis salariais.
   const uso = await usoCarreira()
   const areas = areasDoFuncionario(permissoes).filter((a) => a.chave !== "carreira" || uso.anuenios || uso.niveis)
+  const foto = (await fotosDosUsuarios([f.usuarioId])).get(f.usuarioId) ?? null
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <AvatarPessoa nome={f.nome} fotoUrl={foto} size="lg" className="size-12" />
+          <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{titulo ?? f.nome}</h1>
             {!f.ativo && (
@@ -59,6 +64,7 @@ export async function CabecalhoFuncionario({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          </div>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href={`/painel/pessoal/${f.usuarioId}`}>

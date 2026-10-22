@@ -8,6 +8,7 @@ import {
   Search,
 } from "lucide-react"
 
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +25,7 @@ import {
   listarFuncionarios,
   type FiltrosFuncionarios,
 } from "@/lib/db/pessoal"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
@@ -117,6 +119,7 @@ export default async function FuncionariosPage({
   const params = await searchParams
   const filtros = normalizarFiltros(params)
   const lista = await listarFuncionarios(filtros)
+  const fotos = await fotosDosUsuarios(lista.linhas.map((f) => f.usuarioId))
 
   return (
     <>
@@ -227,14 +230,17 @@ export default async function FuncionariosPage({
             {lista.linhas.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="max-w-64 font-medium">
-                  <Link
-                    href={`/painel/pessoal/${f.usuarioId}`}
-                    className="hover:underline"
-                  >
-                    <span className="block truncate">
-                      {f.nome ?? "(sem nome)"}
-                    </span>
-                  </Link>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <AvatarPessoa nome={f.nome} fotoUrl={f.usuarioId ? fotos.get(f.usuarioId) : null} />
+                    <Link
+                      href={`/painel/pessoal/${f.usuarioId}`}
+                      className="min-w-0 hover:underline"
+                    >
+                      <span className="block truncate">
+                        {f.nome ?? "(sem nome)"}
+                      </span>
+                    </Link>
+                  </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground max-w-48 truncate">
                   {f.cargo ?? "—"}

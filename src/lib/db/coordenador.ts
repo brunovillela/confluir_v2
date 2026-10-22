@@ -7,6 +7,7 @@ import { listarContratos, type ContratoLista } from "@/lib/db/contratos"
 import { listarDepartamentosCompletos, pessoasParaDepartamento } from "@/lib/db/departamentos"
 import { listarSolicitacoesDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { listarFaltas, type FaltaJustificada } from "@/lib/db/faltas"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarPeriodosFerias, somarDias } from "@/lib/db/ferias"
 import { orcadoRealizado, type OrcadoRealizado } from "@/lib/db/financeiro-gerencial"
 import { gozoAguardandoAutorizacao } from "@/lib/ferias-painel"
@@ -63,7 +64,7 @@ export type GozoPendente = {
   pedidoEm: string | null
 }
 
-export type FeriasProxima = { nome: string; inicio: string; termino: string | null; dias: number | null }
+export type FeriasProxima = { funcionarioId: string; nome: string; inicio: string; termino: string | null; dias: number | null }
 
 export type CompraDepartamento = {
   id: string
@@ -89,6 +90,8 @@ export type AreaCoordenador = {
     diarias: SolicitacaoDiaria[]
   }
   feriasProximas: FeriasProxima[]
+  /** Foto (URL) de cada integrante da equipe, por usuário — o avatar das listas. */
+  fotos: Record<string, string>
   compras: CompraDepartamento[]
   ordens: OrdensDepartamento
   orcamento: {
@@ -225,7 +228,7 @@ export async function areaDoCoordenador(sessao: SessaoPainel, deptoId?: string):
       const termino = g.termino ?? g.inicio
       if (g.inicio <= hoje && termino >= hoje) emFerias.set(fid, termino)
       else if (g.inicio > hoje && g.inicio <= limite) {
-        feriasProximas.push({ nome: p.funcionarioNome ?? nomes.get(fid) ?? "(sem nome)", inicio: g.inicio, termino: g.termino, dias: g.dias })
+        feriasProximas.push({ funcionarioId: fid, nome: p.funcionarioNome ?? nomes.get(fid) ?? "(sem nome)", inicio: g.inicio, termino: g.termino, dias: g.dias })
       }
     }
   }
@@ -298,6 +301,7 @@ export async function areaDoCoordenador(sessao: SessaoPainel, deptoId?: string):
     equipe,
     pedidos: { ferias: pendentesFerias, faltas: faltasPendentes, diarias: diariasPendentes },
     feriasProximas,
+    fotos: Object.fromEntries(await fotosDosUsuarios([...membros])),
     compras,
     ordens: { abertas, pagasNoAno, ultimasPagas },
     orcamento: {

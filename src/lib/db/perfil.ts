@@ -3,6 +3,7 @@ import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { minhasFerias, resumoPeriodo, somarDias } from "@/lib/db/ferias"
+import { ehUrlExterna, esquecerUrlFoto, urlFoto } from "@/lib/db/fotos-usuarios"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
 import { meusAsos } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
@@ -21,33 +22,9 @@ const TIPOS_IMG: Record<string, string> = {
   "image/webp": "webp",
 }
 
-const ehUrlExterna = (caminho: string) => /^(https?:)?\/\//.test(caminho)
-
-// A foto aparece na sidebar de TODA página do painel: a URL assinada é
-// guardada e reaproveitada, em vez de uma ida ao Storage por navegação. O
-// caminho muda a cada troca de foto, então o cache nunca serve foto velha.
-const VALIDADE_URL_S = 24 * 60 * 60
-const urlsAssinadas = new Map<string, { url: string; expira: number }>()
-
-export async function urlFoto(caminho: string | null): Promise<string | null> {
-  if (!caminho) return null
-  if (ehUrlExterna(caminho)) {
-    return caminho.startsWith("//") ? `https:${caminho}` : caminho
-  }
-  const guardada = urlsAssinadas.get(caminho)
-  if (guardada && guardada.expira > Date.now()) return guardada.url
-  const admin = await createAdminClient()
-  const { data } = await admin.storage
-    .from("usuarios")
-    .createSignedUrl(caminho, VALIDADE_URL_S)
-  if (!data?.signedUrl) return null
-  // Renova com uma hora de folga antes de a URL expirar.
-  urlsAssinadas.set(caminho, {
-    url: data.signedUrl,
-    expira: Date.now() + (VALIDADE_URL_S - 3600) * 1000,
-  })
-  return data.signedUrl
-}
+// URL assinada e cache das fotos: lib/db/fotos-usuarios.ts (compartilhado
+// com as listas que mostram avatar). Reexportado para os chamadores de antes.
+export { urlFoto }
 
 // ── Perfil ──────────────────────────────────────────────────────────────────
 
@@ -180,7 +157,7 @@ async function apagarArquivoDeFoto(caminho: string | null) {
   if (!caminho || ehUrlExterna(caminho)) return
   const admin = await createAdminClient()
   await admin.storage.from("usuarios").remove([caminho])
-  urlsAssinadas.delete(caminho)
+  esquecerUrlFoto(caminho)
 }
 
 export async function atualizarFoto(
