@@ -1,5 +1,6 @@
 import { getSessaoPainel } from "@/lib/auth"
 import { buscarRemessaPonto, registrosDaRemessaPonto } from "@/lib/db/pessoal"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { decimalHoras, hhmm } from "@/lib/horas"
 import { podeAcessar } from "@/lib/permissoes"
@@ -17,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return new Response("Sem acesso", { status: 403 })
   }
   const { id } = await params
-  const [remessa, itens] = await Promise.all([buscarRemessaPonto(id), registrosDaRemessaPonto(id)])
+  const [remessa, itens, faixas] = await Promise.all([buscarRemessaPonto(id), registrosDaRemessaPonto(id), faixasHoraExtra()])
   if (!remessa) return new Response("Remessa não encontrada", { status: 404 })
 
   // CPF e matrícula (vínculo com a entidade) de quem está na remessa.
@@ -46,9 +47,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
   const par = (v: number | null) => (v === null ? ["", ""] : [hhmm(v), decimalHoras(v)])
   const cab = ["Remessa", "Funcionário", "CPF", "Matrícula"]
-  for (const pct of ["70", "100"]) {
+  for (const pct of ["70", "100"] as const) {
     for (const rotulo of ["Saldo anterior", "Realizadas", "Pagas", "Saldo remanescente"]) {
-      cab.push(`${rotulo} ${pct}% (HH:MM)`, `${rotulo} ${pct}% (decimal)`)
+      cab.push(`${rotulo} ${faixas[pct]} (HH:MM)`, `${rotulo} ${faixas[pct]} (decimal)`)
     }
   }
   cab.push("Liberado", "Espelho anexado")

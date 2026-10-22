@@ -220,7 +220,7 @@ export default async function PessoalPage() {
         "remessa aberta",
         "remessas abertas",
       ),
-      descricao: "Espelhos de ponto e horas 70%/100%",
+      descricao: "Espelhos de ponto e horas extras",
       icone: Clock4,
     },
     {

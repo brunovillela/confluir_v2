@@ -939,6 +939,8 @@ Configuração do movimento da folha para a contabilidade, uma linha por entidad
 | `marco_definido_por` | uuid | sim |  | → usuarios | identificação | Quem definiu o marco. |
 | `marco_definido_em` | timestamp with time zone | sim |  |  |  | Quando o marco foi definido. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+| `he_faixa1_percentual` | numeric(5,2) | não | `50` |  |  | Percentual da faixa 1 de hora extra (colunas *_70 de pessoal_registro_ponto); padrão 50%, o mínimo da CLT. |
+| `he_faixa2_percentual` | numeric(5,2) | não | `100` |  |  | Percentual da faixa 2 de hora extra (colunas *_100 de pessoal_registro_ponto: domingos, feriados e folgas); padrão 100%. |
 
 Índices: `pessoal_folha_config_pkey`
 

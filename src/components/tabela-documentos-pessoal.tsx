@@ -13,6 +13,7 @@ import {
   urlArquivoPessoal,
   type MeuDocumentoPessoal,
 } from "@/lib/db/pessoal"
+import type { FaixasHE } from "@/lib/faixas-he"
 import { hhmm } from "@/lib/horas"
 import { paginar, type Paginacao as Pag } from "@/lib/paginacao"
 
@@ -27,20 +28,23 @@ export async function TabelaDocumentosPessoal({
   vazio,
   paginacao,
   prefixo,
+  faixas,
 }: {
   documentos: MeuDocumentoPessoal[]
   vazio: string
   paginacao: Pag
   prefixo: string
+  /** Só no ponto: o percentual de cada faixa de hora extra na entidade. */
+  faixas?: FaixasHE
 }) {
   const paginaAtual = paginar(documentos, paginacao)
   // Espelhos de ponto: horas extras realizadas e saldo do mês, em HH:MM.
   const comHoras = documentos.some((d) => d.horas)
   const COLUNAS_HORAS = [
-    ["he70", "HE 70%"],
-    ["he100", "HE 100%"],
-    ["saldo70", "Saldo HE 70%"],
-    ["saldo100", "Saldo HE 100%"],
+    ["he70", `HE ${faixas?.["70"] ?? "faixa 1"}`],
+    ["he100", `HE ${faixas?.["100"] ?? "faixa 2"}`],
+    ["saldo70", `Saldo HE ${faixas?.["70"] ?? "faixa 1"}`],
+    ["saldo100", `Saldo HE ${faixas?.["100"] ?? "faixa 2"}`],
   ] as const
   const urls = new Map<string, string | null>()
   for (const d of paginaAtual.linhas) {

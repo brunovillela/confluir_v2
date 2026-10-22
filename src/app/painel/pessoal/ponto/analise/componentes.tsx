@@ -41,7 +41,7 @@ export function PainelIndicadores({
       )}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <TileIndicador rotulo="Horas extras realizadas" valor={horas(ind.he)} nota={`${horas(ind.he70)} a 70% · ${horas(ind.he100)} a 100%`} />
+        <TileIndicador rotulo="Horas extras realizadas" valor={horas(ind.he)} nota={`${horas(ind.he70)} a ${ind.faixas["70"]} · ${horas(ind.he100)} a ${ind.faixas["100"]}`} />
         <TileIndicador rotulo="Funcionários com horas extras" valor={`${ind.comHE} de ${ind.funcionarios}`} />
         <TileIndicador rotulo="Média por funcionário" valor={horas(ind.heMediaPorFuncionario)} nota={ind.escopo === "remessa" ? "no mês" : "no período"} />
         <TileIndicador rotulo="Banco de horas (saldo)" valor={horas(ind.saldo)} nota="na última remessa de cada um" />
@@ -99,8 +99,8 @@ export function PainelIndicadores({
               titulo="Horas extras por mês"
               categorias={ind.serie.map((s) => rotuloCompetenciaPonto(s.competencia).replace(/^(\w{3})\w*\//, "$1/"))}
               series={[
-                { nome: "70%", valores: ind.serie.map((s) => s.he70) },
-                { nome: "100%", valores: ind.serie.map((s) => s.he100) },
+                { nome: ind.faixas["70"], valores: ind.serie.map((s) => s.he70) },
+                { nome: ind.faixas["100"], valores: ind.serie.map((s) => s.he100) },
               ]}
               empilhado
             />
@@ -123,7 +123,7 @@ export function PainelIndicadores({
                     <TableHead className="text-right">Funcionários</TableHead>
                     <TableHead className="text-right">Horas extras</TableHead>
                     <TableHead className="text-right">Média</TableHead>
-                    <TableHead className="text-right">A 100%</TableHead>
+                    <TableHead className="text-right">A {ind.faixas["100"]}</TableHead>
                     <TableHead className="text-right">Banco</TableHead>
                     <TableHead className="text-right">Ocorrências</TableHead>
                     <TableHead className="text-right">Em atenção</TableHead>

@@ -9,6 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
+import { salvarPercentuaisHoraExtra } from "@/lib/db/ponto-config"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { duasCasas, lerHoras } from "@/lib/horas"
@@ -165,12 +166,12 @@ export async function excluirRemessaPonto(
 // ── Registros de ponto da remessa ──────────────────────────────────────────
 
 const CAMPOS_HORAS = [
-  ["horas_realizadas_70", "Realizadas 70%"],
-  ["horas_pagas_70", "Pagas 70%"],
-  ["saldo_remessa_anterior_70", "Saldo da remessa anterior 70%"],
-  ["horas_realizadas_100", "Realizadas 100%"],
-  ["horas_pagas_100", "Pagas 100%"],
-  ["saldo_remessa_anterior_100", "Saldo da remessa anterior 100%"],
+  ["horas_realizadas_70", "Realizadas (faixa 1)"],
+  ["horas_pagas_70", "Pagas (faixa 1)"],
+  ["saldo_remessa_anterior_70", "Saldo da remessa anterior (faixa 1)"],
+  ["horas_realizadas_100", "Realizadas (faixa 2)"],
+  ["horas_pagas_100", "Pagas (faixa 2)"],
+  ["saldo_remessa_anterior_100", "Saldo da remessa anterior (faixa 2)"],
 ] as const
 
 /**
@@ -361,4 +362,24 @@ export async function excluirRegistroPonto(
 
   revalidar(remessaId)
   return { ok: "Registro excluído." }
+}
+
+// ── Percentuais das faixas de hora extra da entidade ───────────────────────
+
+export async function salvarFaixasHoraExtraAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirGestao()
+  const ler = (campo: string) => Number(String(formData.get(campo) ?? "").trim().replace(",", "."))
+  const faixa1 = ler("faixa1")
+  const faixa2 = ler("faixa2")
+  if (![faixa1, faixa2].every((p) => Number.isFinite(p) && p > 0 && p <= 300)) {
+    return { erro: "Informe os dois percentuais entre 1 e 300 (ex.: 50 e 100)." }
+  }
+  const { erro } = await salvarPercentuaisHoraExtra(faixa1, faixa2)
+  if (erro) return { erro }
+  revalidatePath("/painel/pessoal", "layout")
+  revalidatePath("/painel/perfil/ponto")
+  return { ok: "Percentuais salvos." }
 }

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { hhmm } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -495,6 +496,7 @@ export async function calcularMovimento(
 
   // Leituras por data de vigência (em paralelo).
   const proximoMes = deslocarCompetencia(competencia, 1)
+  const faixas = await faixasHoraExtra()
   const [gozos, atestados, ausencias, faltas, anuenios, niveis, reembolsos, infracoes, ponto] = await Promise.all([
     admin.from("pessoal_ferias_gozo").select("id, funcionario_id, inicio, termino, dias, autorizado, abono_solicitado, data_autorizacao, created_at")
       .gte("inicio", desde).lte("inicio", `${proximoMes}-02`).eq("autorizado", true),
@@ -693,7 +695,7 @@ export async function calcularMovimento(
           secao: "variaveis",
           funcionarioId: f,
           // Quantidade em decimal (o que a contabilidade lança); o texto traz HH:MM.
-          descricao: `Horas extras a ${pct}% (pagas: ${hhmm(pagas)}) — realizadas ${hhmm(Number(r[`horas_realizadas_${pct}`] ?? 0))}`,
+          descricao: `Horas extras a ${faixas[pct]} (pagas: ${hhmm(pagas)}) — realizadas ${hhmm(Number(r[`horas_realizadas_${pct}`] ?? 0))}`,
           inicio: inicioMes,
           fim: fimMes,
           quantidade: pagas,

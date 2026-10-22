@@ -216,7 +216,7 @@ Para quem chega ao sistema: desenvolvedor, auditor ou nova entidade. Cada termo 
 
 **Movimento da folha** (`pessoal_folha_competencias`) — Alterações do mês (dependentes, jornada, função, ausências etc.) enviadas à contabilidade por competência, com fotografia do que foi entregue.
 
-**Ponto** (espelho de ponto; `pessoal_registro_ponto`, `pessoal_registro_ponto_remessas`) — Espelho mensal em PDF com saldos de horas extras (70% e 100%) e marcações diárias lidas por IA.
+**Ponto** (espelho de ponto; `pessoal_registro_ponto`, `pessoal_registro_ponto_remessas`) — Espelho mensal em PDF com saldos de horas extras em duas faixas (colunas `_70` e `_100`; o percentual de cada uma é da entidade, em `pessoal_folha_config`) e marcações diárias lidas por IA.
 
 **Período aquisitivo / concessivo** (`pessoal_ferias`) — Ciclo que dá direito a férias e prazo em que devem ser concedidas, com dias disponíveis e abono. O gozo (`pessoal_ferias_gozo`) é pedido pelo funcionário em Meu perfil e autorizado em Pessoal.
 

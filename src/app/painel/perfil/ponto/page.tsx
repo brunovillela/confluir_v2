@@ -16,6 +16,7 @@ import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { lerPaginacao } from "@/lib/paginacao"
 
 export const metadata: Metadata = { title: "Meu controle de ponto — Confluir" }
@@ -29,7 +30,7 @@ export default async function MeuPontoPage({
   const sessao = await requireSessaoPainel()
   // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
   await exigirFuncionario(sessao.usuario.id as string)
-  const { pontos } = await meusDocumentosPessoal(sessao.usuario.id)
+  const [{ pontos }, faixas] = await Promise.all([meusDocumentosPessoal(sessao.usuario.id), faixasHoraExtra()])
   const params = await searchParams
   const paginacao = lerPaginacao(params, 10)
 
@@ -53,7 +54,7 @@ export default async function MeuPontoPage({
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <TileIndicador rotulo={`Horas extras em ${anoAtual}`} valor={h(heAno)} nota={`${h(he100Ano)} a 100%`} />
+        <TileIndicador rotulo={`Horas extras em ${anoAtual}`} valor={h(heAno)} nota={`${h(he100Ano)} a ${faixas["100"]}`} />
         <TileIndicador
           rotulo="Meses com horas extras"
           valor={`${doAno.filter((p) => (p.horas?.he70 ?? 0) + (p.horas?.he100 ?? 0) > 0).length} de ${doAno.length}`}
@@ -63,7 +64,7 @@ export default async function MeuPontoPage({
           valor={h(pontos[0]?.horas?.saldo ?? 0)}
           nota={
             pontos[0]?.horas
-              ? `${h(pontos[0].horas.saldo70)} a 70% · ${h(pontos[0].horas.saldo100)} a 100% · ${pontos[0].remessaNome ?? ""}`
+              ? `${h(pontos[0].horas.saldo70)} a ${faixas["70"]} · ${h(pontos[0].horas.saldo100)} a ${faixas["100"]} · ${pontos[0].remessaNome ?? ""}`
               : undefined
           }
         />
@@ -85,6 +86,7 @@ export default async function MeuPontoPage({
             vazio="Nenhum espelho de ponto liberado para você ainda."
             paginacao={paginacao}
             prefixo=""
+            faixas={faixas}
           />
         </CardContent>
       </Card>

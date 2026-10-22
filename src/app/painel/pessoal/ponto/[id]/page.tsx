@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
 import { carregarBasePonto, indicadoresDe, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { decimalHoras, hhmm } from "@/lib/horas"
 import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
 import { obterResenha } from "@/lib/db/ponto-resenha"
@@ -72,11 +73,12 @@ export default async function RemessaPontoPage({
   const paramsBusca = await searchParams
   const { salvo, editar } = paramsBusca
   const naAnalise = paramsBusca.aba === "indicadores"
-  const [remessa, itens, funcionarios, saldosAnteriores] = await Promise.all([
+  const [remessa, itens, funcionarios, saldosAnteriores, faixas] = await Promise.all([
     buscarRemessaPonto(id),
     registrosDaRemessaPonto(id),
     funcionariosParaSelecao(),
     saldosAnterioresPonto(id),
+    faixasHoraExtra(),
   ])
   if (!remessa) notFound()
 
@@ -210,6 +212,7 @@ export default async function RemessaPontoPage({
             <RegistroPontoForm
               key={registroEmEdicao?.id ?? "novo"}
               saldosAnteriores={saldosAnteriores}
+              faixas={faixas}
               remessaId={id}
               funcionarios={disponiveis}
               registro={registroEmEdicao ?? undefined}
@@ -234,17 +237,17 @@ export default async function RemessaPontoPage({
             <TileIndicador
               rotulo="Horas extras realizadas"
               valor={hhmm(real70 + real100)}
-              nota={`${hhmm(real70)} a 70% · ${hhmm(real100)} a 100%`}
+              nota={`${hhmm(real70)} a ${faixas["70"]} · ${hhmm(real100)} a ${faixas["100"]}`}
             />
             <TileIndicador
               rotulo="Horas pagas no mês"
               valor={hhmm(pag70 + pag100)}
-              nota={`decimal: ${decimalHoras(pag70)} a 70% · ${decimalHoras(pag100)} a 100% · ${comPagas} funcionário(s)`}
+              nota={`decimal: ${decimalHoras(pag70)} a ${faixas["70"]} · ${decimalHoras(pag100)} a ${faixas["100"]} · ${comPagas} funcionário(s)`}
             />
             <TileIndicador
               rotulo="Saldo remanescente"
               valor={hhmm(sal70 + sal100)}
-              nota={`${hhmm(sal70)} a 70% · ${hhmm(sal100)} a 100%`}
+              nota={`${hhmm(sal70)} a ${faixas["70"]} · ${hhmm(sal100)} a ${faixas["100"]}`}
             />
           </section>
 
@@ -265,7 +268,7 @@ export default async function RemessaPontoPage({
             <CardHeader>
               <CardTitle className="text-base">Registros de ponto</CardTitle>
               <CardDescription>
-                Horas em 70% e 100% por funcionário, em horas e minutos (as pagas
+                Horas extras a {faixas["70"]} e a {faixas["100"]} por funcionário, em horas e minutos (as pagas
                 também em decimal, que vai à contabilidade); registros liberados
                 ficam visíveis ao funcionário.
               </CardDescription>
@@ -276,12 +279,12 @@ export default async function RemessaPontoPage({
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead>Funcionário</TableHead>
-                      <TableHead className="text-right">Realiz. 70%</TableHead>
-                      <TableHead className="text-right">Pagas 70%</TableHead>
-                      <TableHead className="text-right">Saldo 70%</TableHead>
-                      <TableHead className="text-right">Realiz. 100%</TableHead>
-                      <TableHead className="text-right">Pagas 100%</TableHead>
-                      <TableHead className="text-right">Saldo 100%</TableHead>
+                      <TableHead className="text-right">Realiz. {faixas["70"]}</TableHead>
+                      <TableHead className="text-right">Pagas {faixas["70"]}</TableHead>
+                      <TableHead className="text-right">Saldo {faixas["70"]}</TableHead>
+                      <TableHead className="text-right">Realiz. {faixas["100"]}</TableHead>
+                      <TableHead className="text-right">Pagas {faixas["100"]}</TableHead>
+                      <TableHead className="text-right">Saldo {faixas["100"]}</TableHead>
                       <TableHead>Espelho</TableHead>
                       <TableHead>Situação</TableHead>
                       <TableHead className="text-right">Ações</TableHead>

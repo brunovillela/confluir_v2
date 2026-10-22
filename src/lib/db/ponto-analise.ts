@@ -2,6 +2,8 @@ import "server-only"
 
 import { esquemaAusente, lerEmLotesPorIds, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { avaliarJornada, type MarcacoesEspelho, type OcorrenciasJornada } from "@/lib/db/ponto-marcacoes"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
+import type { FaixasHE } from "@/lib/faixas-he"
 import { hhmm } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -9,7 +11,9 @@ import { tenantAtual } from "@/lib/tenant"
 /**
  * INDICADORES DO CONTROLE DE PONTO (16/10/2026) — por remessa (mês), por ano
  * e por departamento no ano. Base: as horas lançadas em cada registro
- * (realizadas a 70% e 100%, pagas e saldo do banco — em horas DECIMAIS), as
+ * (realizadas nas duas faixas de hora extra — colunas _70 e _100, com o
+ * percentual da entidade em pessoal_folha_config —, pagas e saldo do banco,
+ * em horas DECIMAIS), as
  * marcações diárias lidas do espelho quando houver (lib/db/ponto-marcacoes)
  * e as ausências do mesmo período (atestados, faltas justificadas e
  * injustificadas). Os alertas por funcionário são regras fixas, conferíveis;
@@ -100,6 +104,8 @@ export type DepartamentoAnalise = {
 }
 
 export type Indicadores = {
+  /** Percentual de cada faixa de hora extra na entidade. */
+  faixas: FaixasHE
   escopo: "remessa" | "ano" | "departamento"
   rotulo: string
   competencias: string[]
@@ -211,6 +217,7 @@ export type BasePonto = {
   ausencias: Map<string, { atestados: number; diasAtestado: number; justificadas: number; injustificadas: number }>
   departamentos: { chave: string; nome: string }[]
   marcacoesDisponiveis: boolean
+  faixas: FaixasHE
 }
 
 /** Tudo de uma vez (são poucas centenas de registros por ano). */
@@ -356,7 +363,7 @@ export async function carregarBasePonto(): Promise<BasePonto> {
     ...new Map(registros.map((r) => [r.departamento.chave, r.departamento])).values(),
   ].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 
-  return { remessas, registros, ausencias, departamentos, marcacoesDisponiveis }
+  return { remessas, registros, ausencias, departamentos, marcacoesDisponiveis, faixas: await faixasHoraExtra() }
 }
 
 // ── Indicadores ──────────────────────────────────────────────────────────────
@@ -462,13 +469,13 @@ export function indicadoresDe(
       alertas.push("Banco de horas crescendo há 3 remessas seguidas")
       pontuacao += 1
     }
-    // A 100% = domingo, feriado ou folga trabalhada; alerta a partir de um dia (8 h) no mês.
+    // Faixa 2 = domingo, feriado ou folga trabalhada; alerta a partir de um dia (8 h) no mês.
     const mesesCom100 = lista.filter((r) => r.he100 >= 8).length
     if (mesesCom100 > 0) {
       alertas.push(
         filtro.escopo === "remessa"
-          ? `${hhmm(he100)} a 100% no mês (domingos, feriados ou folgas trabalhadas)`
-          : `${hhmm(he100)} a 100% no período, ${mesesCom100} mês(es) com 8 h ou mais (domingos, feriados ou folgas)`
+          ? `${hhmm(he100)} a ${base.faixas["100"]} no mês (domingos, feriados ou folgas trabalhadas)`
+          : `${hhmm(he100)} a ${base.faixas["100"]} no período, ${mesesCom100} mês(es) com 8 h ou mais (domingos, feriados ou folgas)`
       )
       pontuacao += mesesCom100
     }
@@ -572,6 +579,7 @@ export function indicadoresDe(
         : `${base.departamentos.find((d) => d.chave === filtro.departamento)?.nome ?? "Departamento"} — ${filtro.ano}`
 
   return {
+    faixas: base.faixas,
     escopo: filtro.escopo,
     rotulo,
     competencias,

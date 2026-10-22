@@ -16,7 +16,7 @@ a partir de cada remessa.
 ## O que é
 
 Cada remessa de ponto reúne os espelhos de ponto de um período de referência,
-com as horas apuradas (inclusive horas extras de 70% e 100%). Como nos
+com as horas apuradas (inclusive as horas extras, em duas faixas). Como nos
 contracheques, cada item fica **Bloqueado** até ser **Liberado** para o
 funcionário.
 
@@ -31,7 +31,7 @@ funcionário.
     Abra a remessa e clique em **Novo registro**, no topo (o formulário fica
     fechado até lá; o **Editar** de cada linha também o abre). Inclua o espelho
     de ponto de cada funcionário, com as horas
-    de 70% e 100% em **horas e minutos** (ex.: 10:30). Ao escolher o
+    das duas faixas em **horas e minutos** (ex.: 10:30). Ao escolher o
     funcionário, o **saldo da remessa anterior** vem preenchido (o saldo do mês
     anterior dele); informe as **realizadas** e as **pagas** no mês, e o
     **saldo remanescente** é calculado: anterior + realizadas − pagas.
@@ -52,14 +52,26 @@ funcionário.
 Na aba **Registros**, acima da lista, a remessa mostra quantos registros já
 foram lançados (e quantos funcionários ativos ainda faltam, com a lista dos
 nomes), quantos estão liberados e sem espelho, e os totais de horas
-realizadas, pagas (também em decimal) e do saldo remanescente, a 70% e a 100%.
+realizadas, pagas (também em decimal) e do saldo remanescente, em cada faixa.
 
 **Exportar planilha**, no topo, baixa um CSV para o Excel com uma linha por
 funcionário: CPF, matrícula, saldo anterior, realizadas, pagas e saldo
-remanescente a 70% e a 100%, cada um em horas e minutos e em decimal, além de
+remanescente de cada faixa, cada um em horas e minutos e em decimal, além de
 liberado e espelho anexado.
 
 <Print src="pessoal/ponto-remessa.png" alt="Remessa de março com os botões Novo registro, Exportar planilha e Editar remessa, os indicadores de registros, liberados, horas realizadas, horas pagas e saldo remanescente, e a tabela dos registros em horas e minutos." legenda="A remessa: indicadores no alto, formulário fechado até clicar em Novo registro." />
+
+## Faixas de hora extra
+
+O ponto separa as horas extras em duas faixas: a **faixa 1**, dos dias úteis,
+e a **faixa 2**, de domingos, feriados e folgas trabalhadas. O percentual de
+cada uma é da entidade — a CLT garante no mínimo 50%, e o acordo coletivo pode
+pagar mais. Ajuste em **Percentuais de hora extra**, no fim da área do Controle
+de ponto (padrão: 50% e 100%). Telas, planilha, movimento da folha e resenha da
+IA passam a mostrar o percentual da entidade; as horas lançadas não mudam.
+
+Nos prints deste manual aparecem 70% e 100%, os percentuais de uma entidade de
+exemplo.
 
 <Aviso tipo="nota" titulo="Horas e minutos na tela, decimal na contabilidade">
   O sistema mostra as horas em horas e minutos, mas guarda em decimal (10:30 =
@@ -82,7 +94,7 @@ problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
 
 <PassoAPasso>
   <Passo titulo="Os números">
-    Horas extras realizadas a 70% e a 100%, quantos funcionários fizeram horas
+    Horas extras realizadas em cada faixa, quantos funcionários fizeram horas
     extras, média por funcionário, saldo do banco de horas, atestados e faltas
     injustificadas. No ano, a evolução mês a mês e os **meses sem remessa** (a
     falta do registro também é um risco).
@@ -98,7 +110,7 @@ problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
   <Passo titulo="Funcionários em atenção">
     Cada funcionário com alerta aparece com o motivo e o artigo da CLT ou a
     súmula do TST: mês acima de 44 h extras (mais de 2 h por dia útil), horas
-    extras habituais, banco de horas alto ou crescendo, dias a 100%, as
+    extras habituais, banco de horas alto ou crescendo, dias na faixa 2 (domingos e feriados), as
     ocorrências das marcações e atestados junto com muitas horas extras
     (possível sobrecarga).
   </Passo>

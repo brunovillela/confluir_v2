@@ -19,7 +19,11 @@ import { anosDaBase, carregarBasePonto, indicadoresDe, rotuloCompetenciaPonto } 
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
+import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { percentuaisHoraExtra } from "@/lib/db/ponto-config"
+
 import { horas } from "./analise/componentes"
+import { FaixasHoraExtraForm } from "./faixas-form"
 import { ListaRemessasPonto } from "./remessas-lista"
 
 export const metadata: Metadata = { title: "Controle de ponto — Confluir" }
@@ -39,7 +43,13 @@ export default async function PontoPage({
   const sp = await searchParams
   const aba = sp.aba === "remessas" ? "remessas" : "funcionarios"
 
-  const [base, remessas, funcionarios] = await Promise.all([carregarBasePonto(), listarRemessasPonto(), funcionariosDaArea()])
+  const [base, remessas, funcionarios, percentuais] = await Promise.all([
+    carregarBasePonto(),
+    listarRemessasPonto(),
+    funcionariosDaArea(),
+    percentuaisHoraExtra(),
+  ])
+  const { faixas } = base
   const anos = anosDaBase(base)
   const ano = sp.ano && anos.includes(sp.ano) ? sp.ano : anos[0]
   const ind = ano ? indicadoresDe(base, { escopo: "ano", ano }) : null
@@ -92,7 +102,7 @@ export default async function PontoPage({
 
       {ind && (
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <TileIndicador rotulo={`Horas extras em ${ano}`} valor={horas(ind.he)} nota={`${horas(ind.he100)} a 100%`} />
+          <TileIndicador rotulo={`Horas extras em ${ano}`} valor={horas(ind.he)} nota={`${horas(ind.he100)} a ${faixas["100"]}`} />
           <TileIndicador rotulo="Funcionários com horas extras" valor={`${ind.comHE} de ${ind.funcionarios}`} />
           <TileIndicador rotulo="Banco de horas" valor={horas(ind.saldo)} nota="saldo na última remessa de cada um" />
           <TileIndicador
@@ -140,6 +150,14 @@ export default async function PontoPage({
       ) : (
         <AbaFuncionarios sp={sp} ano={ano} anos={anos} ind={ind} funcionarios={funcionarios} />
       )}
+
+      <GrupoColapsavel
+        titulo="Percentuais de hora extra"
+        descricao="O percentual de cada faixa na entidade, usado nas telas, na planilha, no movimento da folha e na resenha da IA."
+        resumo={<span className="text-muted-foreground text-sm">{faixas["70"]} e {faixas["100"]}</span>}
+      >
+        <FaixasHoraExtraForm faixa1={percentuais.faixa1} faixa2={percentuais.faixa2} />
+      </GrupoColapsavel>
     </>
   )
 }
@@ -219,7 +237,7 @@ function AbaFuncionarios({
           },
           {
             chave: "he100",
-            rotulo: "A 100%",
+            rotulo: `A ${ind?.faixas["100"] ?? "faixa 2"}`,
             className: "hidden text-right tabular-nums md:table-cell",
             valor: (l) => (pessoa.has(l.usuarioId) ? horas(pessoa.get(l.usuarioId)!.he100) : "—"),
           },

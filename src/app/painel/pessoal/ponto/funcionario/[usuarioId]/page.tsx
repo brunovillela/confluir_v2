@@ -13,6 +13,7 @@ import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, indicadoresDe, OCORRENCIAS, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
 
 import { horas } from "../../analise/componentes"
 
@@ -29,7 +30,11 @@ export default async function PontoFuncionarioPage({
   const sessao = await requirePermissao("pessoal_gestao")
   const { usuarioId } = await params
   const sp = await searchParams
-  const [funcionario, base] = await Promise.all([funcionarioDaArea(usuarioId), carregarBasePonto()])
+  const [funcionario, base, faixas] = await Promise.all([
+    funcionarioDaArea(usuarioId),
+    carregarBasePonto(),
+    faixasHoraExtra(),
+  ])
   if (!funcionario) notFound()
 
   const registros = base.registros
@@ -65,7 +70,7 @@ export default async function PontoFuncionarioPage({
 
           {pessoa && (
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <TileIndicador rotulo={`Horas extras em ${ano}`} valor={horas(pessoa.he)} nota={`${horas(pessoa.he100)} a 100%`} />
+              <TileIndicador rotulo={`Horas extras em ${ano}`} valor={horas(pessoa.he)} nota={`${horas(pessoa.he100)} a ${faixas["100"]}`} />
               <TileIndicador rotulo="Meses com horas extras" valor={`${pessoa.mesesComHE} de ${pessoa.meses}`} />
               <TileIndicador rotulo="Maior mês" valor={horas(pessoa.maiorHEMes)} />
               <TileIndicador rotulo="Banco de horas" valor={horas(pessoa.saldo)} nota="na última remessa do ano" />
@@ -103,8 +108,8 @@ export default async function PontoFuncionarioPage({
                   titulo="Horas extras por mês"
                   categorias={serie.map((r) => rotuloCompetenciaPonto(r.competencia).replace(/^(\w{3})\w*\//, "$1/"))}
                   series={[
-                    { nome: "70%", valores: serie.map((r) => r.he70) },
-                    { nome: "100%", valores: serie.map((r) => r.he100) },
+                    { nome: faixas["70"], valores: serie.map((r) => r.he70) },
+                    { nome: faixas["100"], valores: serie.map((r) => r.he100) },
                   ]}
                   empilhado
                 />
@@ -126,11 +131,11 @@ export default async function PontoFuncionarioPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      <TableHead className="text-right">HE 70%</TableHead>
-                      <TableHead className="text-right">HE 100%</TableHead>
+                      <TableHead className="text-right">HE {faixas["70"]}</TableHead>
+                      <TableHead className="text-right">HE {faixas["100"]}</TableHead>
                       <TableHead className="hidden text-right md:table-cell">Pagas</TableHead>
-                      <TableHead className="text-right">Saldo HE 70%</TableHead>
-                      <TableHead className="text-right">Saldo HE 100%</TableHead>
+                      <TableHead className="text-right">Saldo HE {faixas["70"]}</TableHead>
+                      <TableHead className="text-right">Saldo HE {faixas["100"]}</TableHead>
                       <TableHead>Marcações</TableHead>
                     </TableRow>
                   </TableHeader>

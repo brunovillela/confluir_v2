@@ -171,11 +171,11 @@ export default async function RegistroPontoPage({
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ["Realizadas a 70%", reg.horas_realizadas_70],
-            ["Pagas a 70%", reg.horas_pagas_70],
-            ["Realizadas a 100%", reg.horas_realizadas_100],
-            ["Pagas a 100%", reg.horas_pagas_100],
-            ["Banco anterior (70% + 100%)", Number(reg.saldo_remessa_anterior_70 ?? 0) + Number(reg.saldo_remessa_anterior_100 ?? 0)],
+            [`Realizadas a ${base.faixas["70"]}`, reg.horas_realizadas_70],
+            [`Pagas a ${base.faixas["70"]}`, reg.horas_pagas_70],
+            [`Realizadas a ${base.faixas["100"]}`, reg.horas_realizadas_100],
+            [`Pagas a ${base.faixas["100"]}`, reg.horas_pagas_100],
+            [`Banco anterior (${base.faixas["70"]} + ${base.faixas["100"]})`, Number(reg.saldo_remessa_anterior_70 ?? 0) + Number(reg.saldo_remessa_anterior_100 ?? 0)],
             ["Banco ao fim do mês", analise.saldo],
           ].map(([rotulo, v]) => (
             <div key={String(rotulo)} className="rounded-md border px-3 py-2">

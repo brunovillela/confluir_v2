@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { SaldoAnteriorPonto } from "@/lib/db/ponto-analise"
+import type { FaixasHE } from "@/lib/faixas-he"
 import { decimalHoras, duasCasas, hhmm, lerHoras } from "@/lib/horas"
 
 import {
@@ -59,11 +60,14 @@ export function RegistroPontoForm({
   funcionarios,
   registro,
   saldosAnteriores,
+  faixas,
 }: {
   remessaId: string
   funcionarios: { usuarioId: string; nome: string }[]
   registro?: RegistroPontoFormDados
   saldosAnteriores: Record<string, SaldoAnteriorPonto>
+  /** Percentual de cada faixa na entidade (as colunas são _70 e _100). */
+  faixas: FaixasHE
 }) {
   const [estado, formAction, pendente] = useActionState(
     registro ? atualizarRegistroPonto : criarRegistroPonto,
@@ -198,7 +202,7 @@ export function RegistroPontoForm({
             ] as const
             return (
               <div key={pct} className="grid gap-2">
-                <p className="text-sm font-medium">Horas {pct}%</p>
+                <p className="text-sm font-medium">Horas extras a {faixas[pct]}</p>
                 <div className="grid gap-3 sm:grid-cols-4">
                   {entradas.map(([chave, nome, rotulo]) => (
                     <div key={nome} className="grid content-start gap-1.5">
