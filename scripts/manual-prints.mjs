@@ -59,7 +59,7 @@ const SHOTS = process.env.SHOT_UNICO
       // Rodada de 17/10 (23): Meu perfil com os indicadores — rodar com
       // PRINT_EMAIL=ana.demo@confluir.local (a Ana precisa estar vinculada ao
       // login e ter linha em permissoes; na demo isso é ligado só para o print).
-      ["/painel/perfil/ponto", "pessoal/perfil-ponto.png", { esperar: "Banco de horas", altura: 760 }],
+      ["/painel/perfil/ponto", "pessoal/perfil-ponto.png", { esperar: "Saldo de horas extras", altura: 760 }],
       ["/painel/perfil/ferias", "pessoal/perfil-ferias.png", { esperar: "Saldo a gozar", altura: 900 }],
       ["/painel/perfil/carreira", "pessoal/perfil-carreira.png", { esperar: "Anuênio atual", altura: 900 }],
       // Rodada de 17/10 (27): o Meu perfil das outras áreas do Pessoal.
@@ -83,7 +83,7 @@ const SHOTS = process.env.SHOT_UNICO
       return [
         [`${p}/contracheques/funcionario/${ANA}`, "pessoal/contracheques-funcionario.png", o],
         [`${p}/contracheques/funcionario/${ANA}/899dfe88-fbaf-4ce3-8a84-9bca1c2d0a9b`, "pessoal/contracheques-registro.png", o],
-        [`${p}/ponto/funcionario/${ANA}`, "pessoal/ponto-funcionario.png", o],
+        [`${p}/ponto/funcionario/${ANA}`, "pessoal/ponto-funcionario.png", { esperar: "Saldo HE 70%", fullPage: true }],
         [`${p}/ferias/66666666-6666-4666-8666-000000000001`, "pessoal/ferias-registro.png", o],
         [`${p}/niveis/5a300000-0000-4000-8000-000000000001?de=carreira`, "pessoal/niveis-registro.png", o],
         [`${p}/anuenios/5a500000-0000-4000-8000-000000000001?de=carreira`, "pessoal/anuenios-registro.png", o],
@@ -230,6 +230,11 @@ const SHOTS_RODADA_21 = [
   // resenhas já geradas da remessa e do Administrativo.
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-indicadores.png", { esperar: "Funcionários em atenção", altura: 1300 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-resenha.png", { esperar: "Riscos trabalhistas", scrollTo: "Resenha da IA", altura: 1200 }],
+  // Rodada de 21/10: remessa com indicadores e o registro em HH:MM. Precisa de
+  // uma remessa de fevereiro com saldos e março com saldo anterior (cenário
+  // montado à parte e desfeito depois).
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo anterior trazido", altura: 900 }],
   ]
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodada anterior
