@@ -7,6 +7,7 @@ import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
 import { gruposPorFonte } from "@/lib/db/grupos-empresariais"
 import { panoramaRodadas, participacao, temParticipacao, type RodadaPanorama } from "@/lib/db/votacao-panorama"
 import { janelasOnline, semLinkDasRodadas, semLinkUrgente, type RodadaSemLink } from "@/lib/db/votacao-sem-link"
+import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -145,6 +146,16 @@ export async function painelVotacoes(): Promise<PainelVotacoes> {
       texto: `${s.rodadaNome ?? "Rodada"}: ${s.semLink.toLocaleString("pt-BR")} apto(s) sem link pessoal de voto ${s.aberta ? "com a votação aberta" : "a menos de 48 h da abertura"}.`,
       rotulo: "Ver aptos",
       href: `${rodadaHref({ id: s.rodadaId }, r ? fonteDe(r) : null, "aptos")}&link=sem_link`,
+    })
+  }
+  // Link pessoal entregue e não usado: os votos entram pelo código (21/10/2026).
+  for (const l of await linkNaoUsadoDasRodadas()) {
+    const r = panorama.find((p) => p.id === l.rodadaId)
+    alertas.push({
+      tom: "erro",
+      texto: `${l.rodadaNome ?? "Rodada"}: ${l.peloCodigo.toLocaleString("pt-BR")} de ${l.votantes.toLocaleString("pt-BR")} votos entraram pelo código por e-mail — o link pessoal${l.dominio ? ` (@${l.dominio})` : ""} não está chegando a quem vota.`,
+      rotulo: "Ver rodada",
+      href: rodadaHref({ id: l.rodadaId }, r ? fonteDe(r) : null),
     })
   }
   // Alertas só do que nasceu no Confluir (regra de 18/10/2026): o legado do

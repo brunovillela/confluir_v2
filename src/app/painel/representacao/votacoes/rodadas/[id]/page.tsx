@@ -41,6 +41,7 @@ import {
 } from "@/lib/db/assembleias-horarios"
 import { resumoAvisoAptos } from "@/lib/db/votacao-aviso"
 import { semLinkDasRodadas } from "@/lib/db/votacao-sem-link"
+import { linkNaoUsadoDasRodadas } from "@/lib/db/votacao-link-nao-usado"
 import { avisoAutoDaRodada } from "@/lib/db/votacao-aviso-auto"
 import { guardaContatosDaRodada } from "@/lib/db/votacao-expurgo"
 import { aptosDuplicados } from "@/lib/db/aptos-duplicados"
@@ -69,6 +70,7 @@ import { caminhoVotacao } from "@/lib/db/votacao-caminho"
 import { hrefCampanha, hrefRodada } from "@/lib/votacao-navegacao"
 import { RodadaForm } from "./rodada-form"
 import { SemLinkAlerta } from "./sem-link-alerta"
+import { LinkNaoUsadoAlerta } from "./link-nao-usado-alerta"
 
 export const metadata: Metadata = { title: "Rodada de assembleias — Confluir" }
 
@@ -122,7 +124,7 @@ export default async function RodadaPage({
       ? "aptos"
       : "geral"
 
-  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda] =
+  const [perguntas, assembleias, aptos, contagemAptos, editalUrl, cardUrl, aviso, semLink, avisoAuto, duplicados, guarda, linkNaoUsado] =
     await Promise.all([
       listarPerguntas(id),
       listarAssembleiasDaRodada(id),
@@ -135,6 +137,7 @@ export default async function RodadaPage({
       avisoAutoDaRodada(id),
       aptosDuplicados(id),
       guardaContatosDaRodada(id),
+      linkNaoUsadoDasRodadas({ rodadaIds: [id] }).then((l) => l[0] ?? null),
     ])
   const temOnline = assembleias.linhas.some((a) => temVotoOnline(a.modalidade))
   // O link pessoal só importa enquanto a rodada não terminou.
@@ -252,6 +255,7 @@ export default async function RodadaPage({
         </Alert>
       )}
 
+      {linkNaoUsado && <LinkNaoUsadoAlerta rodadaId={rodada.id} fonte={fonte} r={linkNaoUsado} />}
       {semLink && <SemLinkAlerta rodadaId={rodada.id} fonte={fonte} r={semLink} />}
 
       {/* Faixa de resumo: tudo o que situa a rodada numa linha só. */}

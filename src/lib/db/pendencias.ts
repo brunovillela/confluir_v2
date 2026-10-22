@@ -8,6 +8,7 @@ import { alcadaDoUsuario } from "@/lib/db/compras"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
 import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
+import { rodadasComLinkNaoUsado } from "@/lib/db/votacao-link-nao-usado"
 import { ATENDIMENTO_AGUARDANDO_EQUIPE, EQUIPE_ATENDIMENTO_SAUDE, LEITURA_ATENDIMENTO_GERAL } from "@/lib/atendimento-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -474,6 +475,26 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         tabela: "voto_assembleias_aptos",
         montar: (q) => head(q),
         contarCom: async () => urgentes.reduce((s, r) => s + r.semLink, 0),
+      })
+    }
+    // Votação aberta em que o link pessoal saiu e os votos entram pelo código
+    // (caso Halliburton, 21/10/2026): o e-mail corporativo não chega a quem vota.
+    const naoUsado = await rodadasComLinkNaoUsado({ client, emp })
+    if (naoUsado.length > 0) {
+      fontes.push({
+        chave: "votacao_link_nao_usado",
+        titulo: "Link pessoal de voto não está sendo usado",
+        descricao:
+          naoUsado.length === 1
+            ? `${naoUsado[0].rodadaNome ?? "Rodada"}: ${naoUsado[0].peloCodigo.toLocaleString("pt-BR")} de ${naoUsado[0].votantes.toLocaleString("pt-BR")} votos pelo código por e-mail`
+            : `${naoUsado.length} rodadas com os votos entrando pelo código por e-mail`,
+        href:
+          naoUsado.length === 1
+            ? `/painel/representacao/votacoes/rodadas/${naoUsado[0].rodadaId}`
+            : "/painel/representacao/votacoes",
+        tabela: "voto_assembleias_aptos",
+        montar: (q) => head(q),
+        contarCom: async () => naoUsado.length,
       })
     }
   }
