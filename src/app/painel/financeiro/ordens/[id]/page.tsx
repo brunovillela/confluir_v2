@@ -31,6 +31,8 @@ import { listarCentrosCusto, listarCentrosDeDebito, type CentroCusto } from "@/l
 import { hojeSP } from "@/lib/db/comum"
 import { SITUACOES_ENCERRADAS, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
 import { faturaDaCompra } from "@/lib/db/cartao-faturas"
+import { listarDepartamentos } from "@/lib/db/compras"
+import { nomeDoDepartamento, travaDaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
 import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
@@ -44,6 +46,7 @@ import { AcoesOrdem } from "./acoes-ordem"
 import { DocumentosForm } from "./documentos-form"
 import { EstornoForm } from "./estorno-form"
 import { PagamentoForm } from "./pagamento-form"
+import { ReclassificarOrdem } from "./reclassificar-form"
 import { SituacaoForm } from "./situacao-form"
 
 const ESTILO_STATUS: Record<StatusAuditoria, { rotulo: string; classe: string }> = {
@@ -141,6 +144,7 @@ export default async function OrdemPage({
     removido?: string
     cancelada?: string
     corrigida?: string
+    reclassificada?: string
     reenviada?: string
     estornada?: string
     documentos?: string
@@ -159,6 +163,7 @@ export default async function OrdemPage({
     removido,
     cancelada,
     corrigida,
+    reclassificada,
     reenviada,
     estornada,
     documentos: documentosSalvos,
@@ -205,7 +210,14 @@ export default async function OrdemPage({
   // Contrato/minuta/termo do custeio: aparecem no cartão da origem.
   const formalizacao = pr.documentos.filter((d) => d.formalizacao)
 
-  const centros = podeEditar ? await listarCentrosCusto() : []
+  const [centros, departamentos, departamentoNome, travaReclassificacao] = await Promise.all([
+    podeEditar ? listarCentrosCusto() : Promise.resolve([] as CentroCusto[]),
+    podeEditar ? listarDepartamentos() : Promise.resolve([]),
+    nomeDoDepartamento((ordem.departamento_id as string | null) ?? null),
+    podeEditar
+      ? travaDaReclassificacao({ id, situacao, data_pagamento: (ordem.data_pagamento as string | null) ?? null })
+      : Promise.resolve(null),
+  ])
   const opcoesCentro = centros
     .filter((c) => c.usavel !== false)
     .map((c) => ({
@@ -282,6 +294,11 @@ export default async function OrdemPage({
               ? "Ordem corrigida. Como o valor mudou, ela voltou para autorização."
               : "Ordem corrigida — o antes e o depois ficaram no histórico."}
           </AlertDescription>
+        </Alert>
+      )}
+      {reclassificada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem reclassificada — o antes e o depois ficaram no histórico.</AlertDescription>
         </Alert>
       )}
       {estornada === "1" && (
@@ -430,11 +447,8 @@ export default async function OrdemPage({
                     ? ""
                     : Number(ordem.valor_inicial_cobranca).toFixed(2).replace(".", ","),
                 vencimento: typeof ordem.vencimento === "string" ? ordem.vencimento : "",
-                centroCustoDespesaId:
-                  typeof ordem.centro_custo_despesa_id === "string" ? ordem.centro_custo_despesa_id : "",
                 formaPagamento: typeof ordem.forma_pagamento === "string" ? ordem.forma_pagamento : "",
               }}
-              centros={opcoesCentro}
             />
           )}
         </CardContent>
@@ -630,14 +644,37 @@ export default async function OrdemPage({
                 dinheiro saiu (débito)
               </CardDescription>
             </div>
-            <Tags className="text-muted-foreground size-4" />
+            {podeEditar ? (
+              <ReclassificarOrdem
+                ordemId={id}
+                valorOrdem={Number(ordem.valor_inicial_cobranca ?? ordem.valor_pago ?? 0)}
+                atual={{
+                  centroId: typeof ordem.centro_custo_despesa_id === "string" ? ordem.centro_custo_despesa_id : "",
+                  departamentoId: typeof ordem.departamento_id === "string" ? ordem.departamento_id : "",
+                  rateio: rateio.map((l) => ({
+                    centroId: l.centroCustoId ?? "",
+                    departamentoId: l.departamentoId ?? "",
+                    descricao: l.descricao ?? "",
+                    valor: l.valor.toFixed(2).replace(".", ","),
+                  })),
+                }}
+                centros={opcoesCentro}
+                departamentos={departamentos.map((d) => ({ id: d.id, rotulo: d.nome }))}
+                trava={travaReclassificacao}
+              />
+            ) : (
+              <Tags className="text-muted-foreground size-4" />
+            )}
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
-          <CartaoCentroCusto
-            titulo="Centro de custo da despesa (crédito)"
-            centro={detalhe.centroCustoDespesa}
-          />
+          <div className="grid gap-2">
+            <CartaoCentroCusto
+              titulo="Centro de custo da despesa (crédito)"
+              centro={detalhe.centroCustoDespesa}
+            />
+            <p className="text-muted-foreground px-1 text-xs">Departamento: {departamentoNome ?? "—"}</p>
+          </div>
           <CartaoCentroCusto
             titulo="Centro de custo do débito (de onde saiu)"
             centro={detalhe.centroCustoReceita}

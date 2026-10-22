@@ -15,6 +15,7 @@ export type LinhaRateio = {
   id: string
   centroCustoId: string | null
   centroCustoNome: string | null
+  departamentoId: string | null
   departamentoNome: string | null
   descricao: string | null
   valor: number
@@ -67,6 +68,7 @@ export async function rateioDaOrdem(ordemId: string): Promise<LinhaRateio[]> {
     centroCustoNome: l.centro_custo_despesa_id
       ? (nomeCentro.get(String(l.centro_custo_despesa_id)) ?? null)
       : null,
+    departamentoId: texto(l.departamento_id),
     departamentoNome: l.departamento_id
       ? (nomeDepto.get(String(l.departamento_id)) ?? null)
       : null,

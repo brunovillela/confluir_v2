@@ -166,6 +166,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `financeiro_contas_bancarias` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `financeiro_despesas` | financeiro | sim | — | | | | |
 | `financeiro_diarias` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `financeiro_meses_fechados` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `financeiro_orcamentos` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `financeiro_remessa_itens` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `financeiro_remessas` | financeiro | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

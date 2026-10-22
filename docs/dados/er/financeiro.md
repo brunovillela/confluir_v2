@@ -97,6 +97,12 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  financeiro_meses_fechados {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid fechado_por_usuario_id FK
+    uuid reaberto_por_usuario_id FK
+  }
   financeiro_orcamentos {
     uuid id PK
     uuid centro_custo_id FK
@@ -209,6 +215,8 @@ erDiagram
   financeiro_cartao_faturas }o--|| cartoes : "cartao_id"
   financeiro_config }o--o| centros_de_custo : "centro_custo_caixa_id"
   financeiro_contas_bancarias }o--o| centros_de_custo : "centro_custo_id"
+  financeiro_meses_fechados }o--o| usuarios : "fechado_por_usuario_id"
+  financeiro_meses_fechados }o--o| usuarios : "reaberto_por_usuario_id"
   financeiro_orcamentos }o--|| centros_de_custo : "centro_custo_id"
   financeiro_remessa_itens }o--|| financeiro_remessas : "remessa_id"
   financeiro_remessa_itens }o--|| ordens_pagamento : "ordem_id"

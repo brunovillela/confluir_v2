@@ -111,6 +111,7 @@ export type TipoEvento =
   | "excluida"
   | "caixa_reconhecimento"
   | "caixa_transferida"
+  | "reclassificada"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
@@ -135,6 +136,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   excluida: "Excluída",
   caixa_reconhecimento: "Despesa no caixa avaliada pelo responsável da conta",
   caixa_transferida: "Despesa transferida para outra conta de caixa",
+  reclassificada: "Centro de custo reclassificado pelo Financeiro",
 }
 
 /**
@@ -142,7 +144,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
  * sem o SQL rodado, o sistema segue funcionando sem histórico.
  */
 /** Eventos de ordem que mudam o conteúdo dela — a auditoria reavalia. */
-const EVENTOS_QUE_REAVALIAM: TipoEvento[] = ["corrigida", "documento_fiscal", "estorno_corrigido"]
+const EVENTOS_QUE_REAVALIAM: TipoEvento[] = ["corrigida", "documento_fiscal", "estorno_corrigido", "reclassificada"]
 
 export async function registrarEvento(
   ordemIds: string | string[],
@@ -348,7 +350,7 @@ async function assentarSeDeFatura(ordemId: string): Promise<void> {
 }
 
 /** Compra de fatura de cartão já FECHADA: mexer nela desacerta a fatura gerada. */
-async function bloqueioDaFatura(ordemId: string): Promise<string | null> {
+export async function bloqueioDaFatura(ordemId: string): Promise<string | null> {
   const { faturaDaOrdemFechada } = await import("@/lib/db/cartao-faturas")
   return (await faturaDaOrdemFechada(ordemId).catch(() => false))
     ? "Esta compra está numa fatura de cartão já fechada — a ordem da fatura já a inclui."
@@ -537,7 +539,8 @@ export type CorrecaoOrdem = {
   descricao: string | null
   valor: number | null
   vencimento: string | null
-  centroCustoDespesaId: string | null
+  /** Ausente = não mexe; a troca do centro é pela reclassificação (ordens-reclassificacao.ts). */
+  centroCustoDespesaId?: string | null
   formaPagamento: string | null
 }
 
@@ -580,7 +583,9 @@ export async function corrigirOrdem(
   campo("descricao", o.descricao, nova.descricao)
   campo("valor_inicial_cobranca", o.valor_inicial_cobranca === null ? null : Number(o.valor_inicial_cobranca), nova.valor)
   campo("vencimento", o.vencimento, nova.vencimento)
-  campo("centro_custo_despesa_id", o.centro_custo_despesa_id, nova.centroCustoDespesaId)
+  if (nova.centroCustoDespesaId !== undefined) {
+    campo("centro_custo_despesa_id", o.centro_custo_despesa_id, nova.centroCustoDespesaId)
+  }
   campo("forma_pagamento", o.forma_pagamento, nova.formaPagamento)
   if (Object.keys(mudancas).length === 0) return { erro: "Nada foi alterado." }
 

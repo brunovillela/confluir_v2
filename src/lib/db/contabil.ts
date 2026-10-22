@@ -10,7 +10,8 @@ import { tenantAtual } from "@/lib/tenant"
  * contabilidade — despesas (ordens PAGAS, pela data do pagamento, com centro
  * de custo, departamento, favorecido e CNPJ/CPF) e receitas (arrecadação por
  * mês, tipo e fonte pagadora, da camada analítica). Vai em XLSX com duas
- * abas; a contabilidade importa ou confere.
+ * abas; a contabilidade importa ou confere. Ordem com rateio sai numa linha
+ * por conta (o valor pago dividido na proporção do rateio).
  */
 
 export type LancamentoDespesa = {
@@ -89,17 +90,26 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
   const ids = (campo: string) => [...new Set(brutas.map((o) => texto(o[campo])).filter((v): v is string => !!v))]
   const empresaIds = [...new Set([...ids("fornecedor_id"), ...ids("beneficiario_fornecedor_id")])]
   const usuarioIds = ids("beneficiario_usuario_id")
-  const centroIds = ids("centro_custo_despesa_id")
-  const deptoIds = ids("departamento_id")
-
-  const lote = async <T,>(tabela: string, colunas: string, lista: string[]): Promise<T[]> => {
+  const lote = async <T,>(tabela: string, colunas: string, lista: string[], chave = "id"): Promise<T[]> => {
     const saida: T[] = []
     for (let i = 0; i < lista.length; i += 200) {
-      const { data } = await admin.from(tabela).select(colunas).in("id", lista.slice(i, i + 200))
+      const { data } = await admin.from(tabela).select(colunas).in(chave, lista.slice(i, i + 200))
       saida.push(...((data ?? []) as T[]))
     }
     return saida
   }
+  type LinhaRateio = { ordem_id: string; centro_custo_despesa_id: string | null; departamento_id: string | null; descricao: string | null; valor: number; ordem: number }
+  const rateios = await lote<LinhaRateio>(
+    "ordens_pagamento_rateio",
+    "ordem_id, centro_custo_despesa_id, departamento_id, descricao, valor, ordem",
+    brutas.map((o) => String(o.id)),
+    "ordem_id"
+  )
+  const rateioPorOrdem = new Map<string, LinhaRateio[]>()
+  for (const r of rateios) rateioPorOrdem.set(r.ordem_id, [...(rateioPorOrdem.get(r.ordem_id) ?? []), r])
+  for (const linhas of rateioPorOrdem.values()) linhas.sort((a, b) => a.ordem - b.ordem)
+  const centroIds = [...new Set([...ids("centro_custo_despesa_id"), ...rateios.map((r) => r.centro_custo_despesa_id).filter((v): v is string => !!v)])]
+  const deptoIds = [...new Set([...ids("departamento_id"), ...rateios.map((r) => r.departamento_id).filter((v): v is string => !!v)])]
   const [empresas, usuarios, centros, departamentos] = await Promise.all([
     lote<{ id: string; empresa: string | null; nome_fantasia: string | null; nome_razao: string | null; cnpj_cpf: string | null }>("empresa", "id, empresa, nome_fantasia, nome_razao, cnpj_cpf", empresaIds),
     lote<{ id: string; nome_completo: string | null; nome_guerra: string | null; cpf: string | null }>("usuarios", "id, nome_completo, nome_guerra, cpf", usuarioIds),
@@ -111,11 +121,11 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
   const centroPorId = new Map(centros.map((c) => [c.id, c]))
   const deptoPorId = new Map(departamentos.map((d) => [d.id, d]))
 
-  const despesas: LancamentoDespesa[] = brutas.map((o) => {
+  const despesas: LancamentoDespesa[] = brutas.flatMap((o) => {
     const empresa = empresaPorId.get(texto(o.beneficiario_fornecedor_id) ?? "") ?? empresaPorId.get(texto(o.fornecedor_id) ?? "")
     const usuario = usuarioPorId.get(texto(o.beneficiario_usuario_id) ?? "")
     const centro = centroPorId.get(texto(o.centro_custo_despesa_id) ?? "")
-    return {
+    const base = {
       id: String(o.id),
       dataPagamento: texto(o.data_pagamento),
       vencimento: texto(o.vencimento),
@@ -135,6 +145,30 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
       valorCobrado: o.valor_inicial_cobranca === null || o.valor_inicial_cobranca === undefined ? null : Number(o.valor_inicial_cobranca),
       notaFiscal: Boolean(texto(o.nota_fiscal)),
     }
+    const rateio = rateioPorOrdem.get(String(o.id)) ?? []
+    if (rateio.length < 2) return [base]
+    // Uma linha por conta; o valor pago (que pode ter juros/desconto) segue a
+    // proporção do rateio, e a última linha absorve o arredondamento.
+    const totalRateio = rateio.reduce((s, r) => s + Number(r.valor), 0) || 1
+    let distribuido = 0
+    return rateio.map((r, i) => {
+      const c = centroPorId.get(r.centro_custo_despesa_id ?? "")
+      const pago =
+        i === rateio.length - 1
+          ? Math.round((base.valorPago - distribuido) * 100) / 100
+          : Math.round(((base.valorPago * Number(r.valor)) / totalRateio) * 100) / 100
+      distribuido += pago
+      return {
+        ...base,
+        id: `${base.id}:${i + 1}`,
+        descricao: [base.descricao, `rateio ${i + 1}/${rateio.length}${r.descricao ? ` — ${r.descricao}` : ""}`].filter(Boolean).join(" · "),
+        centroCusto: texto(c?.nome_da_conta),
+        classificador: texto(c?.classificador),
+        departamento: texto(deptoPorId.get(r.departamento_id ?? "")?.departamento),
+        valorPago: pago,
+        valorCobrado: Number(r.valor),
+      }
+    })
   })
 
   // Receitas: a arrecadação mensal (fato_arrecadacao_mensal) recortada no período.

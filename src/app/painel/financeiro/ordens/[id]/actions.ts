@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/ordens-ciclo"
 import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
+import { reclassificarOrdem, type LinhaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { registrarEstorno } from "@/lib/db/ordens-estorno"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
@@ -278,7 +279,6 @@ export async function corrigirOrdemAction(
       descricao: texto(formData, "descricao") || null,
       valor,
       vencimento: vencimento || null,
-      centroCustoDespesaId: texto(formData, "centro_custo_despesa_id") || null,
       formaPagamento: texto(formData, "forma_pagamento") || null,
     },
     texto(formData, "motivo")
@@ -470,4 +470,43 @@ async function jaAutorizadaEmProcessamento(id: string): Promise<boolean> {
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   return data?.situacao === "Processando" && data.autorizacao_esta_autorizado === true
+}
+
+/**
+ * Reclassificação (centro de custo, departamento, rateio) pelo Financeiro —
+ * também na ordem paga, até o mês do pagamento ser fechado. O rateio chega em
+ * JSON (linhas com centro, departamento, descrição e valor "1.234,56").
+ */
+export async function reclassificarOrdemAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const id = texto(formData, "id")
+  if (!id) return { erro: "Ordem inválida." }
+  let linhas: LinhaReclassificacao[] = []
+  try {
+    const brutas = JSON.parse(texto(formData, "rateio") || "[]") as Record<string, unknown>[]
+    linhas = brutas.map((l) => ({
+      centroId: String(l.centroId ?? "").trim() || null,
+      departamentoId: String(l.departamentoId ?? "").trim() || null,
+      descricao: String(l.descricao ?? "").trim() || null,
+      valor: parseValorBR(String(l.valor ?? "")) ?? 0,
+    }))
+  } catch {
+    return { erro: "Rateio inválido." }
+  }
+  const { erro } = await reclassificarOrdem(
+    id,
+    sessao.usuario.id,
+    {
+      centroId: texto(formData, "centro_custo_despesa_id") || null,
+      departamentoId: texto(formData, "departamento_id") || null,
+      rateio: linhas,
+    },
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidarOrdem(id)
+  redirect(`/painel/financeiro/ordens/${id}?reclassificada=1`)
 }

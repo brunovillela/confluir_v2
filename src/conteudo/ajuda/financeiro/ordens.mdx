@@ -180,8 +180,8 @@ bancárias de remessa e ao caixa. Contas de despesa e de receita não aparecem.
 
 No cartão **Procedência** de uma ordem ainda não paga:
 
-- **Corrigir ordem** — descrição, valor, vencimento, forma de pagamento e
-  centro de custo da despesa, com o **motivo**. O histórico guarda o antes e o
+- **Corrigir ordem** — descrição, valor, vencimento e forma de pagamento,
+  com o **motivo**. O histórico guarda o antes e o
   depois. **Mudar o valor de uma ordem já autorizada a devolve para
   autorização** — o que foi aprovado era outro valor.
 - **Cancelar ordem** — com o **motivo**; a ordem sai da fila. Numa compra em
@@ -194,6 +194,28 @@ No cartão **Procedência** de uma ordem ainda não paga:
   dinheiro, o pagamento debita o caixa de novo.
 - **Reenviar para autorização** — para uma ordem **devolvida**, dizendo o que
   foi complementado.
+
+## Reclassificar o centro de custo
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+Classificar a despesa é decisão técnica do Financeiro: o botão
+**Reclassificar**, no cartão **Centro de custo** da ordem, troca o **centro de
+custo da despesa**, o **departamento** e o **rateio** sem passar pela
+autorização (o valor e o favorecido não mudam), com o **motivo**.
+
+- **Ratear entre mais de um centro** — marque a opção e divida o valor em
+  linhas (centro, departamento, descrição e valor); a soma tem de fechar o valor
+  da ordem, e a primeira linha é a da ordem. Desmarcar tira o rateio.
+- **Até quando** — enquanto a ordem não é cancelada, inclusive **depois de
+  paga**, até o mês do pagamento ser **fechado** em *Financeiro → Exportação
+  contábil*. Mês fechado: a página da ordem diz que a classificação travou;
+  reabra o mês para reclassificar.
+- **Compra numa fatura de cartão fechada** — reclassifique pelo rateio da
+  **ordem da fatura**, que é a que vai para a contabilidade.
+
+O histórico guarda o de → para (centro, departamento, rateio), e as regras de
+auditoria reavaliam a ordem.
 
 ## Estorno do banco
 

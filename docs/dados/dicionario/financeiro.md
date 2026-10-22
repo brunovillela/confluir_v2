@@ -2,7 +2,7 @@
 
 # Financeiro
 
-27 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+28 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -23,6 +23,7 @@
 | [financeiro_contas_bancarias](#financeiro_contas_bancarias) | — | Contas bancárias da própria entidade usadas para gerar remessas CNAB de pagamento, com convênio, layout e sequência de remessa. |
 | [financeiro_despesas](#financeiro_despesas) | financeiro, identificação | Despesas do modelo do Bubble (favorecido, comprovantes). Sem uso encontrado no código (possível legado do Bubble), vazia. |
 | [financeiro_diarias](#financeiro_diarias) | — | Tipos de diária ou reembolso (alimentação, hospedagem, deslocamento) com valor de referência e quem pode lançar. Migrados do Bubble. |
+| [financeiro_meses_fechados](#financeiro_meses_fechados) | identificação | Meses fechados para a contabilidade (pela data do pagamento das ordens). Mês fechado trava a reclassificação do centro de custo, do departam… |
 | [financeiro_orcamentos](#financeiro_orcamentos) | — | Orçamento anual por centro de custo, informado na visão gerencial do Financeiro para comparar com o realizado. |
 | [financeiro_remessa_itens](#financeiro_remessa_itens) | financeiro, identificação | Cada pagamento incluído numa remessa CNAB: favorecido, dados bancários ou Pix, valor e o retorno do banco (ocorrência, valor e data pagos). |
 | [financeiro_remessas](#financeiro_remessas) | financeiro, identificação | Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do banco importado depois. |
@@ -484,6 +485,31 @@ Tipos de diária ou reembolso (alimentação, hospedagem, deslocamento) com valo
 Checks: `financeiro_diarias_quadro_check` `CHECK ((quadro = ANY (ARRAY['funcionario'::text, 'diretor'::text, 'ambos'::text])))`
 
 Índices: `financeiro_diarias_bubble_id_key`, `financeiro_diarias_pkey`
+
+## financeiro_meses_fechados
+
+Meses fechados para a contabilidade (pela data do pagamento das ordens). Mês fechado trava a reclassificação do centro de custo, do departamento e do rateio das ordens pagas nele. Reabrir grava quem e por quê; fechar de novo cria outro registro.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `mes` | date | não |  |  |  | Primeiro dia do mês fechado. |
+| `fechado_em` | timestamp with time zone | não | `now()` |  |  | Quando o mês foi fechado. |
+| `fechado_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem fechou o mês. |
+| `observacao` | text | sim |  |  |  | Observação do fechamento (ex.: enviado à contabilidade em 05/11). |
+| `reaberto_em` | timestamp with time zone | sim |  |  |  | Quando o fechamento foi desfeito; nulo = fechamento vigente. |
+| `reaberto_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem reabriu o mês. |
+| `motivo_reabertura` | text | sim |  |  |  | Por que o mês foi reaberto. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+
+Checks: `financeiro_meses_fechados_mes_check` `CHECK ((EXTRACT(day FROM mes) = (1)::numeric))`
+
+Índices: `financeiro_meses_fechados_pkey`, `financeiro_meses_fechados_vigente_idx`
 
 ## financeiro_orcamentos
 

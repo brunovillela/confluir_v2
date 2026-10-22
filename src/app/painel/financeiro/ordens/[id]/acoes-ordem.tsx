@@ -20,7 +20,8 @@ type Painel = "cancelar" | "corrigir" | "reenviar" | null
 
 /**
  * Ações do Financeiro sobre uma ordem ainda não paga: corrigir (com motivo —
- * mudar o valor devolve para autorização), cancelar (com motivo) e reenviar
+ * mudar o valor devolve para autorização; o centro de custo é pela
+ * reclassificação, no cartão "Centro de custo"), cancelar (com motivo) e reenviar
  * para autorização uma ordem devolvida. Tudo entra na trilha da ordem.
  */
 export function AcoesOrdem({
@@ -30,7 +31,6 @@ export function AcoesOrdem({
   podeCancelar,
   podeReenviar,
   atual,
-  centros,
 }: {
   ordemId: string
   situacao: string
@@ -41,10 +41,8 @@ export function AcoesOrdem({
     descricao: string
     valor: string
     vencimento: string
-    centroCustoDespesaId: string
     formaPagamento: string
   }
-  centros: { id: string; rotulo: string }[]
 }) {
   const [aberto, setAberto] = useState<Painel>(null)
   const [estCancelar, acaoCancelar, pendCancelar] = useActionState(cancelarOrdemAction, {})
@@ -113,7 +111,7 @@ export function AcoesOrdem({
             <Label htmlFor="corr_descricao">Descrição</Label>
             <Input id="corr_descricao" name="descricao" defaultValue={atual.descricao} />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1.5">
               <Label htmlFor="corr_valor">Valor da cobrança</Label>
               <Input id="corr_valor" name="valor" inputMode="decimal" defaultValue={atual.valor} />
@@ -132,17 +130,6 @@ export function AcoesOrdem({
                 {formas.map((f) => (
                   <option key={f} value={f}>
                     {f}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="corr_centro">Centro de custo da despesa</Label>
-              <select id="corr_centro" name="centro_custo_despesa_id" defaultValue={atual.centroCustoDespesaId} className={SELECT}>
-                <option value="">Não informado</option>
-                {centros.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.rotulo}
                   </option>
                 ))}
               </select>

@@ -49,6 +49,19 @@ anterior vem preenchido), confere os totais por centro de custo e baixa um
 XLSX com duas abas: **Despesas**, com cada ordem paga pela data do pagamento
 (código, tipo, favorecido, CNPJ/CPF, descrição, classificador e centro de
 custo, departamento, forma, valor pago e se há nota fiscal), e **Receitas**,
-com a arrecadação por competência, tipo e fonte pagadora. Ordens sem centro de
-custo aparecem em vermelho na conferência: corrija-as antes de mandar para a
-contabilidade.
+com a arrecadação por competência, tipo e fonte pagadora. Ordem com **rateio**
+sai numa linha por conta, com o valor pago dividido na proporção do rateio.
+Ordens sem centro de custo aparecem em vermelho na conferência: reclassifique-as
+antes de mandar para a contabilidade.
+
+### Fechamento do mês
+
+No fim da página, o cartão **Fechamento do mês** lista os últimos doze meses.
+Quando a contabilidade receber a planilha, clique em **Fechar** no mês (com uma
+observação, se quiser — *enviado em 05/11*). Mês fechado **trava a
+reclassificação** das ordens pagas nele, pela data do pagamento: o que o
+sistema mostra continua igual ao que foi escriturado.
+
+Precisou corrigir depois? **Reabrir**, com o motivo, libera o mês de novo; o
+fechamento anterior e a reabertura ficam registrados. Feche outra vez depois de
+reenviar à contabilidade.
