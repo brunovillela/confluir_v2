@@ -48,6 +48,7 @@ export function DetalhePagamento({
   futuro = false,
   boletosEsperados,
   favorecido = "fornecedor",
+  padrao,
 }: {
   forma: string
   fornecedorId: string
@@ -66,6 +67,11 @@ export function DetalhePagamento({
   ) => Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }>
   /** Quem recebe: "fornecedor" (padrão) ou "beneficiário" (custeio). */
   favorecido?: "fornecedor" | "beneficiário"
+  /**
+   * Valores já validados para pré-preencher (custeio: a forma do custeio):
+   * a opção de chave/conta, a conta de caixa e o código Pix.
+   */
+  padrao?: { escolha?: string; caixaContaId?: string; pixCodigo?: string }
 }) {
   const doFav = favorecido === "fornecedor" ? "do fornecedor" : "do beneficiário"
   const oFav = favorecido === "fornecedor" ? "o fornecedor" : "o beneficiário"
@@ -77,7 +83,7 @@ export function DetalhePagamento({
     pix: PixFornecedor[]
     contas: ContaFornecedor[]
   } | null>(null)
-  const [escolha, setEscolha] = useState("")
+  const [escolha, setEscolha] = useState(padrao?.escolha ?? "")
   const [boletoErro, setBoletoErro] = useState<string | null>(null)
 
   useEffect(() => {
@@ -133,7 +139,7 @@ export function DetalhePagamento({
               id="caixa_conta_id"
               name="caixa_conta_id"
               required
-              defaultValue=""
+              defaultValue={padrao?.caixaContaId && caixas.some((c) => c.id === padrao.caixaContaId) ? padrao.caixaContaId : ""}
               className={SELECT}
             >
               <option value="" disabled>
@@ -170,6 +176,7 @@ export function DetalhePagamento({
           name="pix_codigo"
           required
           rows={3}
+          defaultValue={padrao?.pixCodigo ?? ""}
           placeholder="00020126…"
           className={TEXTAREA}
         />

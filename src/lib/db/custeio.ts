@@ -1,5 +1,6 @@
 import "server-only"
-import { inserirOrdensVerificadasCompat } from "@/lib/db/ordens-verificacao"
+import type { Apontamento } from "@/lib/auditoria-confirmacao"
+import { inserirOrdensVerificadasCompat, type Confirmacao } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -15,6 +16,7 @@ import {
   camposRecorrenteAutorizada,
   cancelarOrdem,
   SITUACOES_ENCERRADAS,
+  SITUACOES_NAO_AUTORIZADAS,
   registrarEvento,
   usuarioDaTrilha,
   SITUACAO_A_PAGAR,
@@ -1357,16 +1359,135 @@ export async function urlFormalizacaoCusteio(caminho: string | null): Promise<st
   return data?.signedUrl ?? null
 }
 
+// ── Novas ordens a partir do custeio autorizado (22/10/2026) ─────────────────
+
+/** Id do beneficiário no cadastro de origem, conforme o tipo do custeio. */
+function beneficiarioIdDoCusteio(c: Record<string, unknown>): string | null {
+  switch (c.tipo_beneficiario) {
+    case "diretor":
+      return texto(c.diretoria_integrante_id)
+    case "filiado":
+      return texto(c.filiacao_id)
+    case "convidado":
+      return texto(c.convidado_id)
+    case "assessoria":
+      return texto(c.fornecedor_id)
+    default:
+      return null
+  }
+}
+
+/** Ids das opções que são a chave/conta gravadas no próprio custeio. */
+export const MEIO_PIX_DO_CUSTEIO = "custeio-pix"
+export const MEIO_CONTA_DO_CUSTEIO = "custeio-conta"
+
 /**
- * Pagamento EXTRAORDINÁRIO de um custeio autorizado (fora das parcelas): uma
- * ordem "Em autorização", que passa pela autorização pontual — alçada e a
- * permissão de autorizar custeio.
+ * Chaves Pix e contas para as novas ordens do custeio: primeiro as gravadas
+ * no custeio (a forma já validada), depois as do cadastro do beneficiário.
  */
-export async function registrarExtraordinarioCusteio(
+export async function meiosDoCusteio(
+  custeioId: string
+): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {
+  const admin = await createAdminClient()
+  const { data: c } = await admin
+    .from("institucional_custeios")
+    .select("*")
+    .eq("id", custeioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!c) return { pix: [], contas: [] }
+  const beneficiarioId = beneficiarioIdDoCusteio(c)
+  const doCadastro = beneficiarioId
+    ? await meiosDoBeneficiario(String(c.tipo_beneficiario), beneficiarioId)
+    : { pix: [], contas: [] }
+  const pix: PixFornecedor[] = []
+  const contas: ContaFornecedor[] = []
+  const chave = texto(c.pix)
+  if (chave) pix.push({ id: MEIO_PIX_DO_CUSTEIO, chave, tipo: texto(c.tipo_chave_pix) })
+  const conta = texto(c.conta)
+  if (conta && texto(c.banco)) {
+    contas.push({
+      id: MEIO_CONTA_DO_CUSTEIO,
+      banco: String(c.banco),
+      agencia: texto(c.agencia),
+      conta,
+      tipo_conta: texto(c.tipo_conta),
+      favorecido: texto(c.conta_favorecido) ?? texto(c.beneficiario_nome),
+    })
+  }
+  pix.push(...doCadastro.pix.filter((p) => p.chave !== chave))
+  contas.push(...doCadastro.contas.filter((x) => !(x.conta === conta && x.banco === texto(c.banco))))
+  return { pix, contas }
+}
+
+/**
+ * Texto do "para onde" de uma ordem de custeio (chave Pix ou conta). Fica na
+ * ordem (forma_detalhe) quando ela é gerada depois da autorização — a forma
+ * pode ter mudado em relação à do custeio.
+ */
+function destinoDoPagamento(p: PagamentoCusteio, nome: string | null): string | null {
+  if (p.forma === "Pix" && p.pix) {
+    return `Chave Pix do beneficiário — ${p.tipoChavePix ? `${p.tipoChavePix}: ` : ""}${p.pix}`
+  }
+  if (p.forma === "Depósito bancário (TED)" && p.conta) {
+    return `Conta do beneficiário — ${p.banco ?? "—"}, ag. ${p.agencia ?? "—"}, conta ${p.conta} (${p.favorecido ?? nome ?? "—"})`
+  }
+  return null
+}
+
+/** Favorecido das ordens: assessoria → fornecedor; pessoa → usuário pelo CPF; senão avulso. */
+async function favorecidoDoCusteio(c: Record<string, unknown>, empId: string) {
+  const admin = await createAdminClient()
+  const fornecedorId = c.tipo_beneficiario === "assessoria" ? texto(c.fornecedor_id) : null
+  const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
+  let usuarioId: string | null = null
+  if (cpf) {
+    const { data: u } = await admin
+      .from("usuarios")
+      .select("id")
+      .eq("cpf", cpf)
+      .eq("emp_proprietaria_id", empId)
+      .limit(1)
+      .maybeSingle()
+    usuarioId = u ? String(u.id) : null
+  }
+  const nome = texto(c.beneficiario_nome) ?? "Beneficiário"
+  return {
+    beneficiario_usuario_id: usuarioId,
+    beneficiario_fornecedor_id: fornecedorId,
+    beneficiario_nome_avulso: usuarioId || fornecedorId ? null : nome,
+    beneficiario_doc_avulso: usuarioId || fornecedorId ? null : texto(c.beneficiario_cpf),
+  }
+}
+
+export type NovasOrdensCusteio = {
+  periodicidade: Periodicidade
+  quantidade: number
+  valorParcela: number
+  primeiroVencimento: string
+  /** Por que o custeio precisa de mais ordens — vai para a descrição e a trilha. */
+  motivo: string
+  pagamento: PagamentoCusteio
+  /** Forma Boleto: um arquivo por parcela, na ordem dos vencimentos. */
+  boletos: File[]
+  confirmacao?: Confirmacao
+}
+
+/**
+ * Gera NOVAS ordens de um custeio autorizado, como o "Gerar ordens" do
+ * contrato. Estendem o que foi autorizado, então nascem "Em autorização" —
+ * salvo parcela recorrente gerada por quem tem a permissão de autorizar
+ * custeio: essa nasce autorizada, como as originais, e espera só o documento
+ * fiscal (com a formalização anexada, já "A pagar"). Vencimentos que já têm
+ * ordem viva do custeio são pulados; os de ordens canceladas podem ser
+ * gerados de novo.
+ */
+export async function gerarNovasOrdensCusteio(
   custeioId: string,
-  dados: { valor: number; vencimento: string | null; descricao: string; boleto: File | null },
-  atorId: string
-): Promise<{ erro?: string; ordemId?: string }> {
+  p: NovasOrdensCusteio,
+  atorId: string,
+  podeAutorizar: boolean
+): Promise<{ geradas?: number; puladas?: number; erro?: string; apontamentos?: Apontamento[] }> {
   const admin = await createAdminClient()
   const empId = await tenantAtual()
   const { data: c } = await admin
@@ -1377,65 +1498,145 @@ export async function registrarExtraordinarioCusteio(
     .not("excluido", "is", true)
     .maybeSingle()
   if (!c) return { erro: "Custeio não encontrado." }
-  if (c.situacao !== "autorizado") return { erro: "Pagamento extraordinário só em custeio autorizado." }
-  if (!(dados.valor > 0)) return { erro: "Informe o valor do pagamento." }
-  if (!dados.descricao.trim()) return { erro: "Diga o motivo do pagamento extraordinário." }
-  if (dados.vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(dados.vencimento)) return { erro: "Vencimento inválido." }
-  const forma = texto(c.forma_pagamento)
-  let arquivoBoleto: string | null = null
-  if (forma === "Boleto") {
-    if (!dados.boleto) return { erro: "A forma do custeio é boleto — anexe o boleto deste pagamento." }
-    const up = await subirComprovanteCompras(`boletos/custeios/${custeioId}`, dados.boleto)
-    if (up.erro || !up.caminho) return { erro: up.erro ?? "Falha ao subir o boleto." }
-    arquivoBoleto = up.caminho
+  if (c.situacao !== "autorizado") return { erro: "Só custeio autorizado gera novas ordens." }
+  if (!(p.valorParcela > 0)) return { erro: "Informe um valor de parcela maior que zero." }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(p.primeiroVencimento)) return { erro: "Informe a data do primeiro vencimento." }
+  const motivo = p.motivo.trim()
+  if (!motivo) return { erro: "Diga por que o custeio precisa de novas ordens." }
+
+  const recorrente = p.periodicidade !== "unica"
+  const qtd = recorrente ? Math.min(Math.max(Math.trunc(p.quantidade), 1), MAX_PARCELAS) : 1
+  const alvos = Array.from({ length: qtd }, (_, i) => vencimentoParcela(p.primeiroVencimento, p.periodicidade, i))
+
+  const { data: existentes, error: erroExist } = await admin
+    .from("ordens_pagamento")
+    .select("vencimento, situacao, excluido")
+    .eq("custeio_id", custeioId)
+    .eq("emp_proprietaria_id", empId)
+  if (erroExist) return { erro: `Falha ao checar ordens: ${erroExist.message}` }
+  const jaTem = new Set(
+    (existentes ?? [])
+      .filter((o) => o.excluido !== true && o.situacao !== "Cancelada")
+      .map((o) => texto(o.vencimento)?.slice(0, 10))
+      .filter((v): v is string => Boolean(v))
+  )
+  const novos = alvos.filter((v) => !jaTem.has(v))
+  const puladas = alvos.length - novos.length
+  if (novos.length === 0) return { geradas: 0, puladas }
+
+  if (p.pagamento.forma === "Boleto" && p.boletos.length !== novos.length) {
+    return {
+      erro: `Serão geradas ${novos.length} ordem(ns)${puladas ? ` (${puladas} vencimento(s) já tinham ordem)` : ""}: anexe ${novos.length} boleto(s), um por ordem — vieram ${p.boletos.length}.`,
+    }
+  }
+  const caminhosBoletos: string[] = []
+  if (p.pagamento.forma === "Boleto") {
+    for (let i = 0; i < novos.length; i++) {
+      const r = await subirComprovanteCompras(`boletos/custeios/${custeioId}/${novos[i]}`, p.boletos[i])
+      if (r.erro || !r.caminho) {
+        if (caminhosBoletos.length) await admin.storage.from("compras").remove(caminhosBoletos)
+        return { erro: r.erro ?? "Falha ao subir o boleto." }
+      }
+      caminhosBoletos.push(r.caminho)
+    }
   }
 
-  const fornecedorId =
-    c.tipo_beneficiario === "assessoria" ? texto(c.fornecedor_id) : null
-  const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
-  let usuarioId: string | null = null
-  if (cpf) {
-    const { data: u } = await admin.from("usuarios").select("id").eq("cpf", cpf).eq("emp_proprietaria_id", empId).limit(1).maybeSingle()
-    usuarioId = u ? String(u.id) : null
-  }
-  const nome = texto(c.beneficiario_nome) ?? "Beneficiário"
-  const { data: criadas, error } = await inserirOrdensVerificadasCompat(
-    [
-      {
-        codigo: `${texto(c.codigo) ?? gerarCodigoProcesso()}-EX${String(Math.floor(Math.random() * 100)).padStart(2, "0")}`,
-        tipo: "Custeio",
-        descricao: `Pagamento extraordinário — ${dados.descricao.trim()} (${texto(c.descricao) ?? nome})`,
-        situacao: SITUACAO_EM_AUTORIZACAO,
-        valor_inicial_cobranca: dados.valor,
-        forma_pagamento: forma,
-        pix_codigo: texto(c.pix_codigo),
-        caixa_conta_id: texto(c.caixa_conta_id),
-        arquivo_boleto: arquivoBoleto,
-        arquivo_nota_fiscal: texto(c.arquivo_formalizacao),
-        vencimento: dados.vencimento,
-        beneficiario_usuario_id: usuarioId,
-        beneficiario_fornecedor_id: fornecedorId,
-        beneficiario_nome_avulso: usuarioId || fornecedorId ? null : nome,
-        beneficiario_doc_avulso: usuarioId || fornecedorId ? null : texto(c.beneficiario_cpf),
-        centro_custo_despesa_id: texto(c.centro_custo_despesa_id),
-        custeio_id: custeioId,
-        excluido: false,
-        emp_proprietaria_id: empId,
-      },
-    ],
-    {}
+  const codigo = texto(c.codigo) ?? gerarCodigoProcesso()
+  const nome = texto(c.beneficiario_nome)
+  const descBase = texto(c.descricao) ?? nome ?? "Custeio"
+  const formalizacao = texto(c.arquivo_formalizacao)
+  const autorizada = recorrente && podeAutorizar
+  const hoje = hojeSP().split("-").reverse().join("/")
+  const autorizacao = autorizada
+    ? {
+        ...camposRecorrenteAutorizada(
+          `Parcela adicional do custeio ${codigo}, gerada em ${hoje} por quem pode autorizar custeio — ${formalizacao ? "a formalização do custeio é o documento fiscal." : "espera só o documento fiscal."}`,
+          atorId
+        ),
+        ...(formalizacao ? { situacao: SITUACAO_A_PAGAR } : {}),
+      }
+    : { situacao: SITUACAO_EM_AUTORIZACAO }
+  const favorecido = await favorecidoDoCusteio(c, empId)
+  const destino = destinoDoPagamento(p.pagamento, nome)
+  // Código continua a numeração do custeio (conta também as excluídas).
+  const base = (existentes ?? []).length
+  const registros = novos.map((venc, i) => ({
+    codigo: `${codigo}-${base + i + 1}`,
+    tipo: "Custeio",
+    descricao: `${descBase} — ${recorrente ? `parcela adicional ${i + 1}/${novos.length}` : "pagamento adicional"} (venc. ${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)}): ${motivo}`,
+    ...autorizacao,
+    valor_inicial_cobranca: p.valorParcela,
+    forma_pagamento: p.pagamento.forma,
+    forma_detalhe: destino,
+    pix_codigo: p.pagamento.pixCodigo,
+    caixa_conta_id: p.pagamento.caixaContaId,
+    arquivo_boleto: caminhosBoletos[i] ?? null,
+    arquivo_nota_fiscal: formalizacao,
+    vencimento: venc,
+    ...favorecido,
+    centro_custo_despesa_id: texto(c.centro_custo_despesa_id),
+    custeio_id: custeioId,
+    excluido: false,
+    emp_proprietaria_id: empId,
+  }))
+
+  const { data: criadas, error: erroIns } = await inserirOrdensVerificadasCompat(
+    registros,
+    p.confirmacao ? { confirmacao: p.confirmacao } : {}
   )
-  if (error || !criadas?.[0]) {
-    if (arquivoBoleto) await admin.storage.from("compras").remove([arquivoBoleto])
-    return { erro: `Falha ao registrar o pagamento: ${error?.message}` }
+  if (erroIns) {
+    if (caminhosBoletos.length) await admin.storage.from("compras").remove(caminhosBoletos)
+    if (erroIns.apontamentos) return { apontamentos: erroIns.apontamentos }
+    if (esquemaAusente(erroIns)) return { erro: AVISO_SCHEMA }
+    return { erro: `Falha ao gerar as ordens: ${erroIns.message}` }
   }
   await registrarEvento(
-    criadas[0].id,
+    (criadas ?? []).map((o) => o.id),
     "criada",
     atorId,
-    `Pagamento extraordinário do custeio ${texto(c.codigo) ?? ""}: passa pela autorização pontual.`
+    autorizada
+      ? `Nova ordem do custeio ${codigo} (${motivo}): nasceu autorizada por quem pode autorizar custeio e ${formalizacao ? "segue para pagamento" : "aguarda o documento fiscal"}.`
+      : `Nova ordem do custeio ${codigo} (${motivo}): estende o autorizado e passa pela autorização pontual.`
   )
-  return { ordemId: criadas[0].id }
+  return { geradas: novos.length, puladas }
+}
+
+/**
+ * Exclui, de uma vez, ordens do custeio ainda NÃO autorizadas (aguardando
+ * documento fiscal, em autorização ou aguardando informações), como no
+ * contrato. As autorizadas se cancelam no Financeiro.
+ */
+export async function excluirOrdensCusteio(
+  custeioId: string,
+  ordemIds: string[]
+): Promise<{ erro?: string; excluidas?: number; recusadas?: number }> {
+  const ids = [...new Set(ordemIds.filter(Boolean))]
+  if (ids.length === 0) return { erro: "Marque as ordens a excluir." }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, data_pagamento")
+    .eq("custeio_id", custeioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("excluido", "is", true)
+    .in("id", ids)
+  if (error) return { erro: `Falha ao carregar as ordens: ${error.message}` }
+  const podem = (data ?? [])
+    .filter((o) => SITUACOES_NAO_AUTORIZADAS.includes(String(o.situacao)) && !o.data_pagamento)
+    .map((o) => String(o.id))
+  if (podem.length === 0) {
+    return { erro: "Nenhuma das ordens marcadas pode ser excluída — só as ainda não autorizadas." }
+  }
+  const { data: feitas, error: erroUpd } = await admin
+    .from("ordens_pagamento")
+    .update({ excluido: true })
+    .in("id", podem)
+    .in("situacao", SITUACOES_NAO_AUTORIZADAS)
+    .select("id")
+  if (erroUpd) return { erro: `Não foi possível excluir: ${erroUpd.message}` }
+  const excluidasIds = (feitas ?? []).map((o) => String(o.id))
+  await registrarEvento(excluidasIds, "excluida", await usuarioDaTrilha(), "Excluída pelo custeio (não autorizada).")
+  return { excluidas: excluidasIds.length, recusadas: ids.length - excluidasIds.length }
 }
 
 /** "Pago com" das ordens de custeio: a chave/conta escolhida no custeio. */

@@ -133,11 +133,19 @@ export function MarcarTodasOrdens({ formId }: { formId: string }) {
 export function ExclusaoOrdensBarra({
   formId,
   contratoId,
+  acaoExcluir = excluirOrdensContratoAction,
+  campoOrigem = "contrato_id",
+  origemRotulo = "contrato",
 }: {
   formId: string
+  /** Id da origem (contrato ou custeio), enviado em `campoOrigem`. */
   contratoId: string
+  /** Ação da exclusão — Contratos por padrão; o Custeio passa a sua. */
+  acaoExcluir?: (prev: { erro?: string; ok?: string }, fd: FormData) => Promise<{ erro?: string; ok?: string }>
+  campoOrigem?: string
+  origemRotulo?: string
 }) {
-  const [estado, acao, pendente] = useActionState(excluirOrdensContratoAction, {})
+  const [estado, acao, pendente] = useActionState(acaoExcluir, {})
   const [quantas, setQuantas] = useState(0)
 
   useEffect(() => {
@@ -152,11 +160,11 @@ export function ExclusaoOrdensBarra({
       id={formId}
       action={acao}
       onSubmit={(e) => {
-        confirmarEnvio(e, `Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do contrato e do Financeiro.`)
+        confirmarEnvio(e, `Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do ${origemRotulo} e do Financeiro.`)
       }}
       className="grid gap-2"
     >
-      <input type="hidden" name="contrato_id" value={contratoId} />
+      <input type="hidden" name={campoOrigem} value={contratoId} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

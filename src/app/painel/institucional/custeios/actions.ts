@@ -13,7 +13,9 @@ import {
   criarCusteio,
   reabrirCusteioReprovado,
   meiosDoBeneficiario,
-  registrarExtraordinarioCusteio,
+  excluirOrdensCusteio,
+  gerarNovasOrdensCusteio,
+  meiosDoCusteio,
   reprovarCusteio,
   salvarConvidado,
   salvarFinalidade,
@@ -26,7 +28,7 @@ import type { EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
 import { DETALHE_DA_FORMA, FORMAS_ORDEM_CONTRATO, pixCodigoValido, type FormaPagamentoCompras } from "@/lib/compras-constantes"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 import { subirComprovanteCompras } from "@/lib/db/compras"
-import { saldoCaixaAberta } from "@/lib/db/compras-pagamento"
+import { saldoCaixaAberta, type ContaFornecedor, type PixFornecedor } from "@/lib/db/compras-pagamento"
 import { receberDocumentoFiscal } from "@/lib/db/ordens-documento"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -55,8 +57,7 @@ function revalidar(id?: string) {
  */
 async function lerPagamentoCusteio(
   formData: FormData,
-  tipo: string,
-  beneficiarioId: string,
+  carregarMeios: () => Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }>,
   pontual: boolean,
   boletoAtual = false
 ): Promise<{ pagamento?: PagamentoCusteio; boleto?: File; erro?: string }> {
@@ -79,7 +80,7 @@ async function lerPagamentoCusteio(
   }
   let boleto: File | undefined
   const escolha = texto(formData, "dados_bancarios_id")
-  const meios = escolha && escolha !== "nova" ? await meiosDoBeneficiario(tipo, beneficiarioId) : null
+  const meios = escolha && escolha !== "nova" ? await carregarMeios() : null
   switch (DETALHE_DA_FORMA[forma as FormaPagamentoCompras]) {
     case "pix_fornecedor": {
       if (!escolha) return { erro: "Informe a chave Pix do beneficiário." }
@@ -184,7 +185,7 @@ export async function criarCusteioAction(
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("custeio_institucional_edicao")
   const dados = lerDadosCusteio(formData)
-  const pag = await lerPagamentoCusteio(formData, dados.tipoBeneficiario, dados.beneficiarioId, dados.cadencia !== "recorrente")
+  const pag = await lerPagamentoCusteio(formData, () => meiosDoBeneficiario(dados.tipoBeneficiario, dados.beneficiarioId), dados.cadencia !== "recorrente")
   if (pag.erro) return { erro: pag.erro }
   if (pag.boleto) {
     const up = await subirComprovanteCompras(`boletos/custeios/${await tenantAtual()}`, pag.boleto)
@@ -214,7 +215,7 @@ export async function atualizarCusteioAction(
   if (!id) return { erro: "Custeio inválido." }
   const dados = lerDadosCusteio(formData)
   // Boleto já anexado: editar sem trocar o arquivo mantém o atual.
-  const pag = await lerPagamentoCusteio(formData, dados.tipoBeneficiario, dados.beneficiarioId, dados.cadencia !== "recorrente", texto(formData, "boleto_atual") === "1")
+  const pag = await lerPagamentoCusteio(formData, () => meiosDoBeneficiario(dados.tipoBeneficiario, dados.beneficiarioId), dados.cadencia !== "recorrente", texto(formData, "boleto_atual") === "1")
   if (pag.erro) return { erro: pag.erro }
   if (pag.boleto) {
     const up = await subirComprovanteCompras(`boletos/custeios/${id}`, pag.boleto)
@@ -382,31 +383,79 @@ export async function salvarFormalizacaoAction(
   redirect(`${BASE}/${id}?formalizacao=1`)
 }
 
-/** Pagamento extraordinário de custeio autorizado (vai para autorização pontual). */
-export async function registrarExtraordinarioAction(
-  _prev: EstadoForm,
+/**
+ * Novas ordens de um custeio autorizado (como o "Gerar ordens" do contrato).
+ * A forma vem preenchida com a do custeio, mas pode mudar só nestas ordens.
+ */
+export async function gerarOrdensCusteioAction(
+  _prev: EstadoComApontamentos,
   formData: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoComApontamentos> {
   const sessao = await requirePermissao("custeio_institucional_edicao")
   const id = texto(formData, "custeio_id")
   if (!id) return { erro: "Custeio inválido." }
-  const valorBruto = texto(formData, "valor")
-  const boleto = formData.get("boleto_arquivo")
-  const { erro } = await registrarExtraordinarioCusteio(
+  const per = texto(formData, "periodicidade")
+  const periodicidade: Periodicidade = ["mensal", "anual", "unica"].includes(per)
+    ? (per as Periodicidade)
+    : "mensal"
+  const pag = await lerPagamentoCusteio(formData, () => meiosDoCusteio(id), false)
+  if (pag.erro || !pag.pagamento) return { erro: pag.erro ?? "Escolha a forma de pagamento." }
+  const boletos = formData
+    .getAll("boleto_arquivo")
+    .filter((a): a is File => a instanceof File && a.size > 0)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { numeric: true }))
+  if (pag.pagamento.forma === "Boleto" && boletos.length === 0) {
+    return { erro: "Anexe os boletos, um por ordem." }
+  }
+  const valorBruto = texto(formData, "valor_parcela")
+  const { geradas, puladas, erro, apontamentos } = await gerarNovasOrdensCusteio(
     id,
     {
-      valor: (valorBruto ? parseValorBR(valorBruto) : 0) ?? 0,
-      vencimento: texto(formData, "vencimento") || null,
-      descricao: texto(formData, "descricao"),
-      boleto: boleto instanceof File && boleto.size > 0 ? boleto : null,
+      periodicidade,
+      quantidade: Number(texto(formData, "quantidade")) || 1,
+      valorParcela: (valorBruto ? parseValorBR(valorBruto) : 0) ?? 0,
+      primeiroVencimento: texto(formData, "primeiro_vencimento"),
+      motivo: texto(formData, "motivo"),
+      pagamento: pag.pagamento,
+      boletos,
+      confirmacao: lerConfirmacao(formData),
     },
-    sessao.usuario.id
+    sessao.usuario.id,
+    podeAcessar(sessao.permissoes, "custeio_institucional_autorizacao")
+  )
+  if (apontamentos) return { apontamentos }
+  if (erro) return { erro }
+  revalidar(id)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  redirect(`${BASE}/${id}?novas=${geradas ?? 0}&puladas=${puladas ?? 0}`)
+}
+
+/** Chaves e contas para as novas ordens: as do custeio primeiro, depois as do cadastro. */
+export async function meiosDoCusteioAction(custeioId: string) {
+  await requirePermissao("custeio_institucional_edicao")
+  return meiosDoCusteio(custeioId)
+}
+
+/** Exclui de uma vez ordens do custeio ainda não autorizadas. */
+export async function excluirOrdensCusteioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("custeio_institucional_edicao")
+  const id = texto(formData, "custeio_id")
+  if (!id) return { erro: "Custeio inválido." }
+  const { erro, excluidas, recusadas } = await excluirOrdensCusteio(
+    id,
+    formData.getAll("ordem_ids").map(String)
   )
   if (erro) return { erro }
   revalidar(id)
   revalidatePath("/painel/financeiro/ordens")
   revalidatePath("/painel/compras/avaliacoes")
-  redirect(`${BASE}/${id}?extraordinario=1`)
+  return {
+    ok: `${excluidas} ordem(ns) excluída(s)${recusadas ? `; ${recusadas} não puderam (já autorizadas ou mudaram de situação)` : ""}.`,
+  }
 }
 
 /** Documento fiscal de uma parcela do custeio que aguarda a nota. */

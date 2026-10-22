@@ -71,6 +71,34 @@ pagamento já nasce classificada.
   **não** entra na lista de fornecedores nem na esteira de Aquisição.
 </Aviso>
 
+## Gerar novas ordens
+
+Depois de autorizado, o custeio pode ganhar **novas ordens de pagamento**, como
+um contrato: abra **Gerar ordens de pagamento** na página do custeio.
+
+- **Periodicidade** mensal, anual ou **única** (um pagamento avulso), com o
+  **valor**, o **primeiro vencimento** (sugerido no mês seguinte à última
+  ordem) e a **quantidade**.
+- **Motivo** obrigatório: ele entra na descrição e na trilha de cada ordem.
+- **Forma de pagamento**: vem preenchida com a do custeio (a chave Pix ou a
+  conta já validadas aparecem selecionadas). Dá para trocar — a troca vale só
+  para as novas ordens; as anteriores seguem com a forma do custeio. Em
+  **boleto**, anexe um arquivo por ordem.
+- **Autorização**: as novas ordens estendem o que foi autorizado, então nascem
+  **Em autorização** e passam pela alçada. Exceção: parcela **recorrente**
+  gerada por quem tem a permissão **Custeio institucional — autorizar** nasce
+  autorizada, como as originais, e espera só o documento fiscal (com a
+  formalização anexada, já *A pagar*).
+- Antes de gravar, a **auditoria** analisa; havendo apontamento, abre a tela de
+  confirmação.
+- Vencimentos que já têm ordem do custeio são pulados — rodar de novo não
+  duplica. O vencimento de uma ordem **cancelada** pode ser gerado de novo.
+
+Na lista **Ordens de pagamento** do custeio ficam o **previsto**, o **pago** e o
+**em aberto** (sem as canceladas). As ordens ainda **não autorizadas** ganham
+uma caixa de seleção: marque e clique em **Excluir marcadas**. As autorizadas se
+cancelam no Financeiro.
+
 ## Editar e cancelar
 
 - **Editar** só em **rascunho**. Depois de submetido, o custeio não muda mais.

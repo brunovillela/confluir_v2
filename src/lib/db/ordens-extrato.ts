@@ -91,9 +91,13 @@ export async function extratoDaOrdem(id: string): Promise<ExtratoCompleto | null
     ])
 
   // Custeio: a chave/conta do beneficiário fica no custeio, não em dados_bancarios.
+  // Ordem gerada depois da autorização leva a sua própria (forma_detalhe).
   const pagoCom =
     pagoComDetalhe ??
-    (o.custeio_id ? await pagoComDoCusteio(String(o.custeio_id), (o.forma_pagamento as string | null) ?? null) : null)
+    (o.custeio_id
+      ? ((typeof o.forma_detalhe === "string" && o.forma_detalhe.trim() ? o.forma_detalhe.trim() : null) ??
+        (await pagoComDoCusteio(String(o.custeio_id), (o.forma_pagamento as string | null) ?? null)))
+      : null)
 
   // Favorecido com documento e natureza (PF/PJ).
   let favorecido: ExtratoCompleto["favorecido"] = { nome: detalhe.favorecido, documento: null, tipo: null }

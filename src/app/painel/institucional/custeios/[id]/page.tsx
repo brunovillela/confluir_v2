@@ -28,16 +28,25 @@ import {
   listarConvidados,
   listarDiretoresParaCusteio,
   listarFinalidades,
+  MEIO_CONTA_DO_CUSTEIO,
+  MEIO_PIX_DO_CUSTEIO,
   pagoComDoCusteio,
   urlFormalizacaoCusteio,
 } from "@/lib/db/custeio"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
-import { SITUACOES_ENCERRADAS } from "@/lib/db/ordens-ciclo"
+import { SITUACOES_ENCERRADAS, SITUACOES_NAO_AUTORIZADAS } from "@/lib/db/ordens-ciclo"
+import { hojeLocalISO } from "@/lib/compras-constantes"
 import {
   CADENCIAS,
   ROTULO_TIPO_BENEFICIARIO,
+  vencimentoParcela,
 } from "@/lib/custeio-constantes"
+import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import {
+  ExclusaoOrdensBarra,
+  MarcarTodasOrdens,
+} from "@/app/painel/compras/contratos/[id]/ordens-contrato"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -50,7 +59,13 @@ import {
   BotaoSubmeter,
   FormReprovar,
 } from "./custeio-acoes"
-import { ExtraordinarioForm, FormalizacaoForm, ReceberDocumentoCusteioForm } from "./custeio-pagamentos"
+import { excluirOrdensCusteioAction } from "../actions"
+import {
+  FormalizacaoForm,
+  GerarOrdensCusteioForm,
+  ReceberDocumentoCusteioForm,
+  type PadraoPagamentoCusteio,
+} from "./custeio-pagamentos"
 
 export const metadata: Metadata = { title: "Custeio — Confluir" }
 
@@ -72,7 +87,7 @@ export default async function CusteioPage({
     geradas?: string
     puladas?: string
     formalizacao?: string
-    extraordinario?: string
+    novas?: string
   }>
 }) {
   const sessao = await requirePermissao("custeio_institucional", [
@@ -144,6 +159,39 @@ export default async function CusteioPage({
   const ordensCanceladas = detalhe.ordens.filter(
     (o) => o.situacao === "Cancelada"
   ).length
+
+  // Novas ordens (custeio autorizado): forma do custeio já preenchida, 1º
+  // vencimento sugerido no período seguinte à última ordem.
+  const gerar = !editando && podeEditar && situacao === "autorizado"
+  const caixas = gerar ? await contasAbertasParaCompras() : []
+  const ultimoVenc = detalhe.ordens
+    .map((o) => (o.vencimento ?? "").slice(0, 10))
+    .filter((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))
+    .sort()
+    .at(-1)
+  const primeiroSugerido = ultimoVenc
+    ? vencimentoParcela(ultimoVenc, "mensal", 1)
+    : hojeLocalISO()
+  const padraoPagamento: PadraoPagamentoCusteio = {
+    forma: str(c.forma_pagamento),
+    escolha:
+      c.forma_pagamento === "Pix" && str(c.pix)
+        ? MEIO_PIX_DO_CUSTEIO
+        : c.forma_pagamento === "Depósito bancário (TED)" && str(c.conta)
+          ? MEIO_CONTA_DO_CUSTEIO
+          : undefined,
+    caixaContaId: str(c.caixa_conta_id) ?? undefined,
+    pixCodigo: str(c.pix_codigo) ?? undefined,
+  }
+  // Resumo e exclusão em massa, como no contrato.
+  const vivas = detalhe.ordens.filter((o) => o.situacao !== "Cancelada")
+  const previsto = vivas.reduce((s, o) => s + (o.valor_inicial_cobranca ?? o.valor_pago ?? 0), 0)
+  const pago = vivas.reduce((s, o) => s + (o.valor_pago ?? 0), 0)
+  const resumo = { previsto, pago, aberto: Math.max(0, previsto - pago) }
+  const FORM_EXCLUSAO = "excluir-ordens-custeio"
+  const excluivel = (o: (typeof detalhe.ordens)[number]) =>
+    podeEditar && SITUACOES_NAO_AUTORIZADAS.includes(o.situacao ?? "")
+  const temExcluivel = detalhe.ordens.some(excluivel)
 
   const cadenciaRotulo =
     CADENCIAS.find((x) => x.chave === c.cadencia)?.rotulo ?? String(c.cadencia)
@@ -219,9 +267,15 @@ export default async function CusteioPage({
           <AlertDescription>O custeio foi salvo, mas a formalização não subiu — anexe de novo no cartão abaixo.</AlertDescription>
         </Alert>
       )}
-      {brutos.extraordinario === "1" && (
+      {brutos.novas !== undefined && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Pagamento extraordinário registrado — a ordem passa pela autorização pontual no Financeiro.</AlertDescription>
+          <AlertDescription>
+            {Number(brutos.novas) > 0
+              ? `${brutos.novas} nova(s) ordem(ns) gerada(s) — veja a situação de cada uma na lista abaixo.`
+              : "Nenhuma ordem nova gerada."}
+            {Number(brutos.puladas) > 0 &&
+              ` ${brutos.puladas} vencimento(s) já tinham ordem e foram pulados.`}
+          </AlertDescription>
         </Alert>
       )}
       {situacao === "cancelado" && str(c.cancelamento_motivo) && (
@@ -390,9 +444,8 @@ export default async function CusteioPage({
                   {c.cadencia === "recorrente"
                     ? "as parcelas nasceram autorizadas e esperam só o documento fiscal."
                     : "a ordem está no Financeiro."}{" "}
-                  Pagamento extraordinário passa pela autorização pontual.
+                  Precisa de mais pagamentos? Use “Gerar ordens de pagamento”, abaixo.
                 </p>
-                {podeEditar && <ExtraordinarioForm custeioId={id} boleto={str(c.forma_pagamento) === "Boleto"} />}
                 {podeEditar && podeAutorizar && (
                   <div>
                     <BotaoCancelar custeioId={id} ordensAbertas={ordensAbertas} />
@@ -443,6 +496,22 @@ export default async function CusteioPage({
         </Card>
       )}
 
+      {gerar && (
+        <GrupoColapsavel
+          titulo="Gerar ordens de pagamento"
+          descricao="Novas ordens do custeio autorizado (mensal, anual ou única)"
+        >
+          <GerarOrdensCusteioForm
+            custeioId={id}
+            valorPadrao={typeof c.valor_parcela === "number" ? c.valor_parcela : null}
+            primeiroSugerido={primeiroSugerido}
+            caixas={caixas}
+            padrao={padraoPagamento}
+            podeAutorizar={podeAutorizar}
+          />
+        </GrupoColapsavel>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Ordens de pagamento</CardTitle>
@@ -458,9 +527,31 @@ export default async function CusteioPage({
               Nenhuma ordem gerada ainda.
             </p>
           ) : (
+            <>
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              <ResumoOrdens rotulo="Previsto" valor={resumo.previsto} />
+              <ResumoOrdens rotulo="Pago" valor={resumo.pago} className="text-success-fg" />
+              <ResumoOrdens rotulo="Em aberto" valor={resumo.aberto} className="text-warning-fg" />
+            </div>
+            {temExcluivel && (
+              <div className="mb-3">
+                <ExclusaoOrdensBarra
+                  formId={FORM_EXCLUSAO}
+                  contratoId={id}
+                  acaoExcluir={excluirOrdensCusteioAction}
+                  campoOrigem="custeio_id"
+                  origemRotulo="custeio"
+                />
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
+                  {temExcluivel && (
+                    <TableHead className="w-8">
+                      <MarcarTodasOrdens formId={FORM_EXCLUSAO} />
+                    </TableHead>
+                  )}
                   <TableHead>Código</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -471,6 +562,20 @@ export default async function CusteioPage({
               <TableBody>
                 {detalhe.ordens.map((o) => (
                   <TableRow key={o.id}>
+                    {temExcluivel && (
+                      <TableCell>
+                        {excluivel(o) && (
+                          <input
+                            type="checkbox"
+                            name="ordem_ids"
+                            value={o.id}
+                            form={FORM_EXCLUSAO}
+                            aria-label={`Marcar a ordem ${o.codigo ?? ""} para excluir`}
+                            className="size-4 align-middle"
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Link
                         href={`/painel/financeiro/ordens/${o.id}`}
@@ -505,10 +610,30 @@ export default async function CusteioPage({
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>
     </>
+  )
+}
+
+function ResumoOrdens({
+  rotulo,
+  valor,
+  className,
+}: {
+  rotulo: string
+  valor: number
+  className?: string
+}) {
+  return (
+    <div className="border-border rounded-md border p-3">
+      <p className="text-muted-foreground text-xs">{rotulo}</p>
+      <p className={`mt-0.5 text-lg font-semibold tabular-nums ${className ?? ""}`}>
+        {formatarMoeda(valor)}
+      </p>
+    </div>
   )
 }
 
