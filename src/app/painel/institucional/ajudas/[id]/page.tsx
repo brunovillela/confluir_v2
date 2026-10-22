@@ -229,7 +229,6 @@ export default async function AjudaPage({
               acaoAtualizar={atualizarAjudaAction}
               beneficiarioRotulo="Entidade apoiada"
               mostrarCategoria={false}
-              centroPorDepartamento
             />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

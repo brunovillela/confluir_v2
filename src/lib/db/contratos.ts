@@ -30,7 +30,6 @@ import {
   urlArquivoCompras,
 } from "@/lib/db/compras"
 import type { DetalhePagamento } from "@/lib/db/compras-pagamento"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { listarEntidadesApoiadas } from "@/lib/db/fornecedores"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
 import {
@@ -1059,8 +1058,8 @@ export type OpcoesContrato = {
     etiqueta?: string | null
   }[]
   departamentos: { id: string; nome: string }[]
-  /** departamentoId: só nas opções de ajuda (o centro é filtrado pelo departamento). */
-  centrosCusto: { id: string; nome: string; departamentoId?: string | null }[]
+  /** departamentoId: o formulário filtra os centros pelo departamento escolhido. */
+  centrosCusto: { id: string; nome: string; departamentoId: string | null }[]
   usuarios: { id: string; nome: string }[]
   categorias: { id: string; nome: string; sigiloso: boolean }[]
 }
@@ -1071,7 +1070,7 @@ export async function carregarOpcoesContrato(): Promise<OpcoesContrato> {
     await Promise.all([
       listarFornecedores(),
       listarDepartamentos(),
-      listarCentrosCusto(),
+      listarCentrosCustoParaCompra(),
       listarUsuariosAtivos(),
       listarCategoriasContrato(),
     ])
@@ -1084,10 +1083,7 @@ export async function carregarOpcoesContrato(): Promise<OpcoesContrato> {
       bloqueado: f.bloqueado,
     })),
     departamentos,
-    centrosCusto: centrosCusto.map((c) => ({
-      id: String(c.id),
-      nome: String(c.nome_da_conta ?? "(sem nome)"),
-    })),
+    centrosCusto,
     usuarios,
     categorias: categorias.map((c) => ({
       id: c.id,
@@ -1144,7 +1140,7 @@ export async function carregarOpcoesAjuda(): Promise<OpcoesContrato> {
 }
 
 /**
- * Ajuda: o centro de custo precisa ser de um departamento escolhido e ser
+ * Contrato ou ajuda: o centro de custo precisa de um departamento escolhido e ser
  * desse departamento. Devolve a mensagem de erro, ou null quando está ok.
  */
 export async function validarCentroDoDepartamento(

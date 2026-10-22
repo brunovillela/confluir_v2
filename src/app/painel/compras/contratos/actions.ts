@@ -20,6 +20,7 @@ import {
   excluirOrdensContrato,
   gerarOrdensContrato,
   receberDocumentoOrdemContrato,
+  validarCentroDoDepartamento,
 } from "@/lib/db/contratos"
 import { subirPdfCompras } from "@/lib/db/compras"
 import {
@@ -71,8 +72,11 @@ export async function criarContratoAction(
   await requireEdicaoContratos()
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
+  const dados = lerDados(formData)
+  const erroCentro = await validarCentroDoDepartamento(dados.centro_custo_id, dados.departamento_id)
+  if (erroCentro) return { erro: erroCentro }
   const { id, erro } = await criarContrato({
-    ...lerDados(formData),
+    ...dados,
     apoio_institucional: false,
     arquivo_contrato: caminho ?? null,
   })
@@ -90,8 +94,11 @@ export async function atualizarContratoAction(
   if (!id) return { erro: "Contrato inválido." }
   const { caminho, erro: erroArquivo } = await lerArquivo(formData)
   if (erroArquivo) return { erro: erroArquivo }
+  const dados = lerDados(formData)
+  const erroCentro = await validarCentroDoDepartamento(dados.centro_custo_id, dados.departamento_id)
+  if (erroCentro) return { erro: erroCentro }
   const { erro } = await atualizarContrato(id, {
-    ...lerDados(formData),
+    ...dados,
     apoio_institucional: false,
     arquivo_contrato: caminho,
   })

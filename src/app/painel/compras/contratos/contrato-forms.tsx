@@ -58,12 +58,11 @@ export function ContratoForm({
   beneficiarioRotulo = "Fornecedor",
   mostrarCategoria = true,
   rotuloSubmit,
-  centroPorDepartamento = false,
 }: {
   contrato?: Contrato
   fornecedores: EmpresaOpcao[]
   departamentos: Opcao[]
-  centrosCusto: (Opcao & { departamentoId?: string | null })[]
+  centrosCusto: (Opcao & { departamentoId: string | null })[]
   usuarios: Opcao[]
   categorias: OpcaoCategoria[]
   contratoPrincipalId?: string
@@ -78,23 +77,19 @@ export function ContratoForm({
   mostrarCategoria?: boolean
   /** Sobrescreve o texto do botão (padrão deriva de "contrato"). */
   rotuloSubmit?: string
-  /** Ajudas: centro de custo filtrado pelo departamento (exige departamentoId nas opções). */
-  centroPorDepartamento?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     contrato ? acaoAtualizar : acaoCriar,
     {}
   )
-  // Ajuda: o centro de custo é filtrado pelo departamento e só se habilita
-  // depois dele. Trocar o departamento descarta um centro que não é dele.
+  // O centro de custo é filtrado pelo departamento e só se habilita depois
+  // dele. Trocar o departamento descarta um centro que não é dele.
   const [depto, setDepto] = useState(contrato?.departamento_id ?? "")
   const [centro, setCentro] = useState(contrato?.centro_custo_id ?? "")
-  const centrosVisiveis = centroPorDepartamento
-    ? depto
-      ? centrosCusto.filter((c) => c.departamentoId === depto)
-      : []
-    : centrosCusto
-  const centroBloqueado = centroPorDepartamento && !depto
+  const centrosVisiveis = depto
+    ? centrosCusto.filter((c) => c.departamentoId === depto)
+    : []
+  const centroBloqueado = !depto
   const centroSelecionado = centrosVisiveis.some((c) => c.id === centro)
     ? centro
     : ""
@@ -203,7 +198,7 @@ export function ContratoForm({
             <option value="">
               {centroBloqueado
                 ? "Escolha o departamento primeiro"
-                : centroPorDepartamento && centrosVisiveis.length === 0
+                : centrosVisiveis.length === 0
                   ? "Nenhum centro neste departamento"
                   : "Não informado"}
             </option>
