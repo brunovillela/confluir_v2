@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { requirePermissao } from "@/lib/auth"
 import { listarAcessos, previaOnboarding } from "@/lib/db/acessos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 
 import { ConcederAcesso, OnboardingLote } from "./usuarios-forms"
 
@@ -27,6 +29,7 @@ export default async function UsuariosPage() {
     listarAcessos(),
     previaOnboarding(),
   ])
+  const fotos = await fotosDosUsuarios(acessos.map((a) => a.id))
 
   return (
     <>
@@ -101,6 +104,9 @@ export default async function UsuariosPage() {
                 {acessos.map((a) => (
                   <TableRow key={a.id}>
                     <TableCell className="font-medium">
+                      <div className="flex items-start gap-2.5">
+                      <AvatarPessoa nome={a.nome} fotoUrl={fotos.get(a.id)} className="mt-0.5" />
+                      <div className="min-w-0">
                       <Link
                         href={`/painel/institucional/usuarios/${a.id}`}
                         className="text-primary hover:underline"
@@ -124,6 +130,8 @@ export default async function UsuariosPage() {
                           </span>
                         </>
                       )}
+                      </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm">{a.email ?? "—"}</TableCell>
                     <TableCell className="tabular-nums text-sm">

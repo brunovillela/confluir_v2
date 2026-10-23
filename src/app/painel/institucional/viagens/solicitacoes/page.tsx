@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, Plane, ReceiptText } from "lucide-react"
 
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import {
   filtrarViagens,
@@ -62,6 +64,7 @@ export default async function ViagensPage({
   ])
 
   const viagens = filtrarViagens(todas, filtro)
+  const fotos = await fotosDosUsuarios(viagens.map((v) => v.beneficiarioUsuarioId))
   const aFaturar = todas
     .filter((v) => v.situacao !== "recusada")
     .flatMap((v) => v.itens)
@@ -173,12 +176,24 @@ export default async function ViagensPage({
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/painel/institucional/viagens/${v.id}`} className="hover:text-primary font-medium">
-                          {v.beneficiarioNome}
-                        </Link>
-                        <span className="text-muted-foreground block text-xs">
-                          {ROTULO_BENEFICIARIO[v.beneficiarioTipo]}
-                        </span>
+                        <div className="flex items-center gap-2.5">
+                          {/* Convidado externo não tem acesso ao sistema: sem avatar. */}
+                          {v.beneficiarioUsuarioId && (
+                            <AvatarPessoa
+                              nome={v.beneficiarioNome}
+                              fotoUrl={fotos.get(v.beneficiarioUsuarioId)}
+                              size="default"
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <Link href={`/painel/institucional/viagens/${v.id}`} className="hover:text-primary font-medium">
+                              {v.beneficiarioNome}
+                            </Link>
+                            <span className="text-muted-foreground block text-xs">
+                              {ROTULO_BENEFICIARIO[v.beneficiarioTipo]}
+                            </span>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="min-w-60 text-sm whitespace-normal">
                         <ResumoItensViagem itens={v.itens} />

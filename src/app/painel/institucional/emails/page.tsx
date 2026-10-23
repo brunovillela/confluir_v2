@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, Mail, User } from "lucide-react"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,6 +12,7 @@ import {
   listarEmailsInstitucionais,
   opcoesResponsaveis,
 } from "@/lib/db/emails-institucionais"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData } from "@/lib/formato"
 
 import {
@@ -38,6 +40,7 @@ export default async function EmailsInstitucionaisPage({
     listarEmailsInstitucionais(termo),
     opcoesResponsaveis(),
   ])
+  const fotos = await fotosDosUsuarios(emails.map((e) => e.usuarioId))
 
   return (
     <>
@@ -100,7 +103,11 @@ export default async function EmailsInstitucionaisPage({
               resumo={
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                    <User className="size-3.5" />
+                    {e.usuarioId ? (
+                      <AvatarPessoa nome={e.responsavelNome} fotoUrl={fotos.get(e.usuarioId)} />
+                    ) : (
+                      <User className="size-3.5" />
+                    )}
                     {e.responsavelNome ?? "Sem responsável"}
                     {e.created_at && (
                       <span className="text-xs">

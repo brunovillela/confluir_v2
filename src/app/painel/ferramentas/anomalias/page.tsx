@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ListChecks, Plus, TriangleAlert } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -142,7 +143,7 @@ export default async function AnomaliasPage({
                         {a.dataOcorrencia ? formatarData(a.dataOcorrencia) : "—"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
-                        {a.responsavelNome ?? "—"}
+                        {a.responsavelNome ? <PessoaNome nome={a.responsavelNome} fotoUrl={a.responsavelFotoUrl} /> : "—"}
                       </TableCell>
                       <TableCell className="tabular-nums text-sm">
                         {a.providencias > 0 ? a.providencias : "—"}

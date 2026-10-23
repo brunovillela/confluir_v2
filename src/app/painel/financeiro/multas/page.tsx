@@ -14,8 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AvatarPessoa, PessoaNome } from "@/components/pessoa-nome"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarCobrancasPendentes, listarInfracoes } from "@/lib/db/veiculos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ROTULOS_FORMA_COBRANCA } from "@/lib/veiculos-constantes"
@@ -39,6 +41,8 @@ export default async function MultasPage({
     listarCobrancasPendentes(),
     listarInfracoes({ cobranca: "baixada", limite: 100 }),
   ])
+  const fotos = await fotosDosUsuarios([...cobrancas, ...baixadas].map((c) => c.condutor_id))
+  const foto = (id: string | null) => (id ? (fotos.get(id) ?? null) : null)
 
   const totalPendente = cobrancas.reduce(
     (s, c) => s + (c.cobranca_valor ?? c.custo ?? 0),
@@ -109,7 +113,8 @@ export default async function MultasPage({
               {cobrancas.map((c) => (
                 <div key={c.id} className="rounded-lg border p-4">
                   <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                    <span className="font-medium">
+                    <span className="flex items-center gap-2 font-medium">
+                      <AvatarPessoa nome={c.condutorNome} fotoUrl={foto(c.condutor_id)} />
                       {c.condutorNome ?? "(condutor)"} —{" "}
                       {formatarMoeda(c.cobranca_valor ?? c.custo)} via{" "}
                       {c.cobranca_forma
@@ -173,7 +178,7 @@ export default async function MultasPage({
                       {c.veiculoPlaca ? ` · ${c.veiculoPlaca}` : ""}
                     </Link>
                   </TableCell>
-                  <TableCell>{c.condutorNome ?? "—"}</TableCell>
+                  <TableCell>{c.condutorNome ? <PessoaNome nome={c.condutorNome} fotoUrl={foto(c.condutor_id)} /> : "—"}</TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {formatarMoeda(c.cobranca_valor ?? c.custo)}
                   </TableCell>

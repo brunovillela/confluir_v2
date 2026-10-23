@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CircleCheck, Info, Stethoscope, Tags, TriangleAlert } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import {
   buscarProfissional,
   listarProfissionais,
@@ -52,6 +54,7 @@ export default async function ProfissionaisPage({
       usuariosParaProfissional(),
     ])
 
+  const fotos = await fotosDosUsuarios(profissionais.map((p) => p.usuario_id))
   const emEdicao = editar ? await buscarProfissional(editar) : undefined
   const tipoEmEdicao = tipos.find((t) => t.id === editarTipo)
 
@@ -200,7 +203,9 @@ export default async function ProfissionaisPage({
                 {profissionais.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
-                      {p.usuarioNome ?? "—"}
+                      <PessoaNome nome={p.usuarioNome} fotoUrl={p.usuario_id ? fotos.get(p.usuario_id) : null}>
+                        {p.usuarioNome ?? "—"}
+                      </PessoaNome>
                       {p.inativo && (
                         <Badge
                           variant="outline"

@@ -20,11 +20,18 @@ export function escaparLike(s: string): string {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`)
 }
 
-/** Iniciais do avatar de quem não tem foto: primeira e última palavra do nome. */
+/**
+ * Iniciais do avatar de quem não tem foto: primeira e última palavra do nome.
+ * Conta a primeira LETRA de cada palavra — "Conta (Recepção)" dá "CR", não "C(".
+ */
 export function iniciais(nome: string | null): string {
-  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean)
-  const primeira = partes[0]?.[0] ?? "?"
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ""
+  const partes = (nome ?? "")
+    .trim()
+    .split(/\s+/)
+    .map((p) => p.match(/\p{L}|\p{N}/u)?.[0])
+    .filter((c): c is string => Boolean(c))
+  const primeira = partes[0] ?? "?"
+  const ultima = partes.length > 1 ? partes[partes.length - 1] : ""
   return (primeira + ultima).toUpperCase()
 }
 

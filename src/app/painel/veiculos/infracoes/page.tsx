@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { PessoaNome } from "@/components/pessoa-nome"
 import { CobrancaBadge } from "@/components/veiculos"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -22,6 +23,7 @@ import {
   listarVeiculos,
   obterEmailsCopiaInfracoes,
 } from "@/lib/db/veiculos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -41,6 +43,8 @@ export default async function InfracoesPage() {
     gestor ? listarUsuariosAtivos() : Promise.resolve([]),
     gestor ? obterEmailsCopiaInfracoes() : Promise.resolve({ disponivel: false, emails: [] }),
   ])
+  // Só a gestão vê a coluna do condutor.
+  const fotos = gestor ? await fotosDosUsuarios(infracoes.map((i) => i.condutor_id)) : new Map<string, string>()
 
   return (
     <>
@@ -137,7 +141,15 @@ export default async function InfracoesPage() {
                     <TableCell className="whitespace-nowrap">
                       {i.veiculoPlaca ?? "—"}
                     </TableCell>
-                    {gestor && <TableCell>{i.condutorNome ?? "—"}</TableCell>}
+                    {gestor && (
+                      <TableCell>
+                        {i.condutorNome ? (
+                          <PessoaNome nome={i.condutorNome} fotoUrl={i.condutor_id ? fotos.get(i.condutor_id) : null} />
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>{i.infracao_tipo ?? "—"}</TableCell>
                     <TableCell className="max-w-72">
                       <span className="line-clamp-1">{i.descricao ?? "—"}</span>

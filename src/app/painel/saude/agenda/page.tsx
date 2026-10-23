@@ -8,6 +8,7 @@ import {
   Video,
 } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,7 +154,7 @@ export default async function AgendaSaudePage({
                     <TableCell className="font-medium">
                       {a.assistidoNome ?? "—"}
                     </TableCell>
-                    <TableCell>{a.profissionalNome ?? "—"}</TableCell>
+                    <TableCell>{a.profissionalNome ? <PessoaNome nome={a.profissionalNome} fotoUrl={a.profissionalFotoUrl} /> : "—"}</TableCell>
                     <TableCell>
                       {a.online ? (
                         <Badge variant="outline">

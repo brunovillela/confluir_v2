@@ -1,6 +1,7 @@
 import "server-only"
 import { esquemaAusente, lerEmLotes } from "@/lib/db/comum"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -87,6 +88,7 @@ export type AtendimentoLinha = {
   assistidoFiliadoId: string | null
   tipoNome: string | null
   profissionalNome: string | null
+  profissionalFotoUrl: string | null
   /** Existe relatório? É metadado — não revela conteúdo. */
   temRelatorio: boolean
 }
@@ -132,7 +134,7 @@ export async function listarAtendimentos(filtros: {
 
   type Bruto = Omit<
     AtendimentoLinha,
-    "assistidoNome" | "assistidoFiliadoId" | "tipoNome" | "profissionalNome" | "temRelatorio"
+    "assistidoNome" | "assistidoFiliadoId" | "tipoNome" | "profissionalNome" | "profissionalFotoUrl" | "temRelatorio"
   >
   const brutos = data as Bruto[]
   if (brutos.length === 0) return { linhas: [], disponivel: true }
@@ -151,8 +153,9 @@ export async function listarAtendimentos(filtros: {
       assistidoNome: assistido?.nome ?? null,
       assistidoFiliadoId: assistido?.filiadoId ?? null,
       tipoNome: a.tipo_id ? (tipos.get(a.tipo_id) ?? null) : null,
+      profissionalFotoUrl: a.profissional_id ? (profissionais.get(a.profissional_id)?.fotoUrl ?? null) : null,
       profissionalNome: a.profissional_id
-        ? (profissionais.get(a.profissional_id) ?? null)
+        ? (profissionais.get(a.profissional_id)?.nome ?? null)
         : null,
       temRelatorio: comRelatorio.has(a.id),
     }
@@ -541,8 +544,9 @@ async function mapaTipos(): Promise<Map<string, string>> {
   return mapa
 }
 
-async function mapaProfissionais(): Promise<Map<string, string>> {
-  const mapa = new Map<string, string>()
+/** Nome e foto (avatar) de cada profissional, por id do profissional. */
+async function mapaProfissionais(): Promise<Map<string, { nome: string; fotoUrl: string | null }>> {
+  const mapa = new Map<string, { nome: string; fotoUrl: string | null }>()
   const admin = await createAdminClient()
   const { data } = await admin
     .from("saude_profissionais")
@@ -564,9 +568,13 @@ async function mapaProfissionais(): Promise<Map<string, string>> {
       if (u.nome_completo) nomes.set(u.id, u.nome_completo)
     }
   }
+  const fotos = await fotosDosUsuarios(ids)
   for (const p of brutos) {
     const nome = p.usuario_id ? nomes.get(p.usuario_id) : null
-    mapa.set(p.id, nome ?? p.profissao ?? "Profissional")
+    mapa.set(p.id, {
+      nome: nome ?? p.profissao ?? "Profissional",
+      fotoUrl: p.usuario_id ? (fotos.get(p.usuario_id) ?? null) : null,
+    })
   }
   return mapa
 }
@@ -623,6 +631,7 @@ export type AgendamentoSaude = {
   profissional_id: string | null
   assistidoNome: string | null
   profissionalNome: string | null
+  profissionalFotoUrl: string | null
   /** Já existe atendimento registrado para este assistido nesta data? */
   atendido: boolean
 }
@@ -648,7 +657,7 @@ export async function listarAgenda(filtros: {
 
   type Bruto = Omit<
     AgendamentoSaude,
-    "assistidoNome" | "profissionalNome" | "atendido"
+    "assistidoNome" | "profissionalNome" | "profissionalFotoUrl" | "atendido"
   >
   const brutos = (data ?? []) as unknown as Bruto[]
   if (brutos.length === 0) return { linhas: [], disponivel: true }
@@ -690,8 +699,9 @@ export async function listarAgenda(filtros: {
       assistidoNome: a.assistido_id
         ? (assistidos.get(a.assistido_id)?.nome ?? null)
         : null,
+      profissionalFotoUrl: a.profissional_id ? (profissionais.get(a.profissional_id)?.fotoUrl ?? null) : null,
       profissionalNome: a.profissional_id
-        ? (profissionais.get(a.profissional_id) ?? null)
+        ? (profissionais.get(a.profissional_id)?.nome ?? null)
         : null,
       atendido:
         !!a.assistido_id && !!a.inicio && feitos.has(`${a.assistido_id}|${a.inicio}`),
@@ -765,6 +775,7 @@ export type MeuAtendimento = {
   observacao_aberta: string | null
   tipoNome: string | null
   profissionalNome: string | null
+  profissionalFotoUrl: string | null
 }
 
 /**
@@ -830,8 +841,9 @@ export async function meusAtendimentos(
       data_atendimento: a.data_atendimento,
       observacao_aberta: a.observacao_aberta,
       tipoNome: a.tipo_id ? (tipos.get(a.tipo_id) ?? null) : null,
+      profissionalFotoUrl: a.profissional_id ? (profissionais.get(a.profissional_id)?.fotoUrl ?? null) : null,
       profissionalNome: a.profissional_id
-        ? (profissionais.get(a.profissional_id) ?? null)
+        ? (profissionais.get(a.profissional_id)?.nome ?? null)
         : null,
     })),
     disponivel: true,

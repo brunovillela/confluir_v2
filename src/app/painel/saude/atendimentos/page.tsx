@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ClipboardList, Lock, Plus, TriangleAlert } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -157,7 +158,7 @@ export default async function AtendimentosPage({
                         )}
                       </TableCell>
                       <TableCell>{a.tipoNome ?? "—"}</TableCell>
-                      <TableCell>{a.profissionalNome ?? "—"}</TableCell>
+                      <TableCell>{a.profissionalNome ? <PessoaNome nome={a.profissionalNome} fotoUrl={a.profissionalFotoUrl} /> : "—"}</TableCell>
                       <TableCell className="max-w-md">
                         <span className="line-clamp-1">
                           {a.observacao_aberta ?? "—"}

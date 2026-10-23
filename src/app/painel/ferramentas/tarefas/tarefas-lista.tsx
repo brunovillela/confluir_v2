@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -97,7 +98,7 @@ export function TarefasLista({
               </TableCell>
             )}
             <TableCell className="whitespace-nowrap text-sm">
-              {t.demandadoNome ?? "—"}
+              {t.demandadoNome ? <PessoaNome nome={t.demandadoNome} fotoUrl={t.demandadoFotoUrl} /> : "—"}
             </TableCell>
             <TableCell className="whitespace-nowrap text-sm">
               {t.prazo ? formatarData(t.prazo) : "—"}

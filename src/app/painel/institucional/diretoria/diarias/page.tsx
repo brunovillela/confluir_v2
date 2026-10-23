@@ -15,12 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
+import { AvatarPessoa } from "@/components/pessoa-nome"
 import { GrandesNumerosDiarias, SituacaoDiariaBadge } from "@/components/diarias"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { listarSolicitacoesDiaria, listarTiposDiaria, SITUACOES_DIARIA } from "@/lib/db/diarias"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { listarRemessasNovas } from "@/lib/db/diarias-remessas"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
@@ -114,6 +116,7 @@ export default async function DiariasDiretoriaPage({
 
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtradas, paginacao)
+  const fotos = await fotosDosUsuarios(paginaAtual.linhas.map((s) => s.funcionario_id))
   const aguardando = solicitacoes.filter((s) => s.situacao === "aguardando").length
 
   return (
@@ -262,8 +265,11 @@ export default async function DiariasDiretoriaPage({
               {paginaAtual.linhas.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="max-w-56 font-medium">
-                    <span className="block truncate">
-                      {s.funcionarioNome ?? "(sem nome)"}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <AvatarPessoa nome={s.funcionarioNome} fotoUrl={s.funcionario_id ? fotos.get(s.funcionario_id) : null} />
+                      <span className="truncate">
+                        {s.funcionarioNome ?? "(sem nome)"}
+                      </span>
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden max-w-40 truncate md:table-cell">

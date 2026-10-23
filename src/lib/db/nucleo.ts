@@ -1,5 +1,6 @@
 import "server-only"
 import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -73,6 +74,7 @@ export type DemandaLinha = {
   prazo: string | null
   orcamento: number | null
   responsavelNome: string | null
+  responsavelFotoUrl: string | null
   tarefasTotal: number
   tarefasConcluidas: number
 }
@@ -110,9 +112,11 @@ export async function listarDemandas(filtro: {
     throw new Error(`Falha ao listar demandas: ${(error as Error).message}`)
   }
 
-  const responsaveis = await nomesDosUsuarios(
-    linhas.map((d) => d.membro_responsavel_id as string).filter(Boolean)
-  )
+  const idsResponsaveis = linhas.map((d) => d.membro_responsavel_id as string).filter(Boolean)
+  const [responsaveis, fotos] = await Promise.all([
+    nomesDosUsuarios(idsResponsaveis),
+    fotosDosUsuarios(idsResponsaveis),
+  ])
   const contagem = await contarTarefasPorPai(
     "demanda_id",
     linhas.map((d) => d.id)
@@ -128,6 +132,9 @@ export async function listarDemandas(filtro: {
       orcamento: numero(d.orcamento),
       responsavelNome: d.membro_responsavel_id
         ? (responsaveis.get(d.membro_responsavel_id as string) ?? null)
+        : null,
+      responsavelFotoUrl: d.membro_responsavel_id
+        ? (fotos.get(d.membro_responsavel_id as string) ?? null)
         : null,
       tarefasTotal: c.total,
       tarefasConcluidas: c.concluidas,
@@ -447,6 +454,7 @@ export type TarefaLinha = {
   prazo: string | null
   demandanteNome: string | null
   demandadoNome: string | null
+  demandadoFotoUrl: string | null
   paiTipo: "demanda" | "projeto" | "anomalia" | null
   paiId: string | null
   paiNome: string | null
@@ -491,9 +499,12 @@ export async function listarTarefas(
   }
 
   const linhas = data ?? []
-  const nomes = await nomesDosUsuarios(
-    linhas.flatMap((t) => [t.demandante_id, t.demandado_id]).filter(Boolean) as string[]
-  )
+  const [nomes, fotos] = await Promise.all([
+    nomesDosUsuarios(
+      linhas.flatMap((t) => [t.demandante_id, t.demandado_id]).filter(Boolean) as string[]
+    ),
+    fotosDosUsuarios(linhas.map((t) => t.demandado_id as string | null)),
+  ])
   const paiNomes = await resolverNomesDosPais(linhas)
 
   return {
@@ -515,6 +526,9 @@ export async function listarTarefas(
           : null,
         demandadoNome: t.demandado_id
           ? (nomes.get(t.demandado_id as string) ?? null)
+          : null,
+        demandadoFotoUrl: t.demandado_id
+          ? (fotos.get(t.demandado_id as string) ?? null)
           : null,
         paiTipo: tipo,
         paiId: id,
@@ -662,6 +676,7 @@ export type AnomaliaLinha = {
   fato: string | null
   dataOcorrencia: string | null
   responsavelNome: string | null
+  responsavelFotoUrl: string | null
   investigada: boolean
   tratada: boolean
   eficaciaVerificada: boolean
@@ -699,9 +714,11 @@ export async function listarAnomalias(filtro: {
     throw new Error(`Falha ao listar anomalias: ${(error as Error).message}`)
   }
 
-  const responsaveis = await nomesDosUsuarios(
-    linhas.map((a) => a.responsavel_id as string).filter(Boolean)
-  )
+  const idsResponsaveis = linhas.map((a) => a.responsavel_id as string).filter(Boolean)
+  const [responsaveis, fotos] = await Promise.all([
+    nomesDosUsuarios(idsResponsaveis),
+    fotosDosUsuarios(idsResponsaveis),
+  ])
   const contagem = await contarTarefasPorPai(
     "anomalia_id",
     linhas.map((a) => a.id)
@@ -713,6 +730,9 @@ export async function listarAnomalias(filtro: {
     dataOcorrencia: texto(a.data_ocorrencia),
     responsavelNome: a.responsavel_id
       ? (responsaveis.get(a.responsavel_id as string) ?? null)
+      : null,
+    responsavelFotoUrl: a.responsavel_id
+      ? (fotos.get(a.responsavel_id as string) ?? null)
       : null,
     investigada: a.anomalia_investigada === true,
     tratada: a.anomalia_tratada === true,

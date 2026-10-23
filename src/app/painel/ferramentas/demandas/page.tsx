@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ListChecks, Plus, TriangleAlert } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -170,7 +171,7 @@ export default async function DemandasPage({
                       </Link>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {d.responsavelNome ?? "—"}
+                      {d.responsavelNome ? <PessoaNome nome={d.responsavelNome} fotoUrl={d.responsavelFotoUrl} /> : "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {d.prazo ? formatarData(d.prazo) : "—"}

@@ -10,6 +10,7 @@ import {
   TriangleAlert,
 } from "lucide-react"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -169,7 +170,7 @@ export default async function AtendimentoPage({
           <CardContent>
             <p className="text-muted-foreground text-xs">Profissional</p>
             <p className="mt-1 text-sm font-medium">
-              {atendimento.profissionalNome ?? "—"}
+              {atendimento.profissionalNome ? <PessoaNome nome={atendimento.profissionalNome} fotoUrl={atendimento.profissionalFotoUrl} /> : "—"}
             </p>
           </CardContent>
         </Card>
