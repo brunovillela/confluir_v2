@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react"
 import Link from "next/link"
 
+import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -17,7 +18,9 @@ export const GRADE_AREAS =
  * Card de navegação para um hub de módulo/área. Padrão único do sistema: ícone
  * laranja (`text-primary`) no topo, título, descrição menor e, opcionalmente,
  * um indicador (ex.: "128 registros"), um selo próprio (`selo`, ex.: "Disponível")
- * ou o selo "Em breve". Substitui os
+ * ou o selo "Em breve". `pessoa`: quem responde pela área (avatar + nome,
+ * com um rótulo opcional acima, ex.: "Coordenação") — no lugar da descrição em
+ * texto quando a pessoa tem acesso ao sistema. Substitui os
  * `CardArea`/`AreaCard` que eram duplicados em cada hub.
  */
 export function CartaoArea({
@@ -28,6 +31,7 @@ export function CartaoArea({
   indicador,
   emBreve,
   selo,
+  pessoa,
 }: {
   titulo: string
   descricao: string
@@ -36,6 +40,7 @@ export function CartaoArea({
   indicador?: string | null
   emBreve?: boolean
   selo?: ReactNode
+  pessoa?: { nome: string | null; fotoUrl: string | null; rotulo?: string } | null
 }) {
   const clicavel = Boolean(href) && !emBreve
 
@@ -53,7 +58,13 @@ export function CartaoArea({
           {emBreve ? <Badge variant="secondary">Em breve</Badge> : selo}
         </div>
         <p className="mt-3 font-medium">{titulo}</p>
-        <p className="text-muted-foreground mt-1 text-xs">{descricao}</p>
+        {pessoa && (
+          <div className="mt-1.5">
+            {pessoa.rotulo && <p className="text-muted-foreground mb-1 text-xs">{pessoa.rotulo}</p>}
+            <PessoaNome nome={pessoa.nome} fotoUrl={pessoa.fotoUrl} className="flex text-xs" />
+          </div>
+        )}
+        {descricao && <p className="text-muted-foreground mt-1 text-xs">{descricao}</p>}
         {indicador && (
           <p className="text-muted-foreground mt-2 text-xs tabular-nums">
             {indicador}

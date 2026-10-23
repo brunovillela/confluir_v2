@@ -12,6 +12,7 @@ import {
   listarLinhasInstitucionais,
   opcoesResponsaveisLinha,
 } from "@/lib/db/linhas-institucionais"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarTelefone } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
@@ -56,6 +57,7 @@ export default async function LinhasInstitucionaisPage({
   const linhas = buscadas.filter((l) =>
     situacao === "disponiveis" ? !l.usuarioId : situacao === "em_uso" ? Boolean(l.usuarioId) : true
   )
+  const fotos = await fotosDosUsuarios(linhas.map((l) => l.usuarioId))
   const hrefSituacao = (s: Situacao) => {
     const q = new URLSearchParams()
     if (termo) q.set("busca", termo)
@@ -140,7 +142,8 @@ export default async function LinhasInstitucionaisPage({
             <CartaoArea
               key={l.id}
               titulo={formatarTelefone(l.numero)}
-              descricao={l.responsavelNome ?? (l.usuarioId ? "(sem nome)" : "Na entidade")}
+              descricao={l.usuarioId ? "" : "Na entidade"}
+              pessoa={l.usuarioId ? { nome: l.responsavelNome, fotoUrl: fotos.get(l.usuarioId) ?? null } : null}
               href={`/painel/institucional/linhas/${l.id}`}
               icone={Smartphone}
               indicador={[l.operadora, l.observacao].filter(Boolean).join(" · ") || null}

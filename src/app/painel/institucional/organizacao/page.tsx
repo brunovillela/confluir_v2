@@ -18,6 +18,7 @@ import {
   regrasFiliacao,
 } from "@/lib/db/organizacao"
 import { OPCOES_EXIGE_FONTE } from "@/lib/filiacao"
+import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarCnpjCpf } from "@/lib/formato"
 
 import { AbrirFormulario } from "./abrir-formulario"
@@ -44,6 +45,7 @@ export default async function OrganizacaoPage() {
   ])
   const regraAtual = OPCOES_EXIGE_FONTE.find((o) => (o.valor === "sim") === regras.exigeFonte)!
   const ativos = departamentos.filter((d) => !d.legado)
+  const fotos = await fotosDosUsuarios(ativos.map((d) => d.coordenadorId))
   const legados = departamentos.filter((d) => d.legado)
 
   return (
@@ -211,7 +213,12 @@ export default async function OrganizacaoPage() {
                 <CartaoArea
                   key={d.id}
                   titulo={d.nome}
-                  descricao={d.coordenadorNome ? `Coordenação: ${d.coordenadorNome}` : "Sem coordenador"}
+                  descricao={d.coordenadorId ? "" : "Sem coordenador"}
+                  pessoa={
+                    d.coordenadorId
+                      ? { nome: d.coordenadorNome, fotoUrl: fotos.get(d.coordenadorId) ?? null, rotulo: "Coordenação" }
+                      : null
+                  }
                   href={`/painel/institucional/organizacao/departamentos/${d.id}`}
                   icone={Building2}
                   indicador={`${d.integrantes.length} ${d.integrantes.length === 1 ? "pessoa" : "pessoas"}`}
