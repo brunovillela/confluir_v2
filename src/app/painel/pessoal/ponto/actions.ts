@@ -383,3 +383,109 @@ export async function salvarFaixasHoraExtraAction(
   revalidatePath("/painel/perfil/ponto")
   return { ok: "Percentuais salvos." }
 }
+
+// ── Isenção de registro de ponto ────────────────────────────────────────────
+
+const DATA = /^\d{4}-\d{2}-\d{2}$/
+
+function revalidarIsencoes(funcionarioId?: string) {
+  revalidatePath("/painel/pessoal/ponto", "layout")
+  if (funcionarioId) revalidatePath(`/painel/pessoal/ponto/funcionario/${funcionarioId}`)
+}
+
+export async function criarIsencaoPonto(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("pessoal_gestao")
+  const funcionarioId = String(formData.get("funcionario_id") ?? "")
+  const inicio = String(formData.get("inicio") ?? "")
+  const fim = String(formData.get("fim") ?? "").trim()
+  const justificativa = String(formData.get("justificativa") ?? "").trim()
+  if (!funcionarioId) return { erro: "Escolha o funcionário.", campo: "funcionario_id" }
+  if (!DATA.test(inicio)) return { erro: "Informe o início da isenção.", campo: "inicio" }
+  if (fim && !DATA.test(fim)) return { erro: "Data de fim inválida.", campo: "fim" }
+  if (fim && fim < inicio) return { erro: "O fim não pode ser antes do início.", campo: "fim" }
+  if (justificativa.length < 5) return { erro: "Escreva a justificativa.", campo: "justificativa" }
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  // Sobreposição com outra isenção do mesmo funcionário confunde o histórico.
+  const { data: outras } = await admin
+    .from("pessoal_ponto_isencoes")
+    .select("inicio, fim")
+    .eq("emp_proprietaria_id", emp)
+    .eq("funcionario_id", funcionarioId)
+  const fimNovo = fim || "9999-12-31"
+  const choca = (outras ?? []).find((o) => o.inicio <= fimNovo && (o.fim ?? "9999-12-31") >= inicio)
+  if (choca) {
+    return {
+      erro: "Este funcionário já tem uma isenção que cobre parte desse período. Encerre ou exclua a anterior antes.",
+      campo: "inicio",
+    }
+  }
+
+  const { error } = await admin.from("pessoal_ponto_isencoes").insert({
+    emp_proprietaria_id: emp,
+    funcionario_id: funcionarioId,
+    inicio,
+    fim: fim || null,
+    justificativa,
+    registrado_por: sessao.usuario.id,
+  })
+  if (error) return { erro: `Não foi possível registrar: ${error.message}` }
+  revalidarIsencoes(funcionarioId)
+  // Volta para onde a isenção foi aberta (a aba Isenções ou a página do funcionário).
+  const voltar = String(formData.get("voltar") ?? "")
+  const destino = voltar.startsWith("/painel/pessoal/ponto") ? voltar : "/painel/pessoal/ponto?aba=isencoes"
+  redirect(`${destino}${destino.includes("?") ? "&" : "?"}salvo=1`)
+}
+
+/** Encerra uma isenção sem prazo (ou antecipa o fim): o histórico fica. */
+export async function encerrarIsencaoPonto(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("pessoal_gestao")
+  const id = String(formData.get("id") ?? "")
+  const fim = String(formData.get("fim") ?? "")
+  if (!id || !DATA.test(fim)) return { erro: "Informe o último dia da isenção." }
+  const admin = await createAdminClient()
+  const { data: atual } = await admin
+    .from("pessoal_ponto_isencoes")
+    .select("funcionario_id, inicio, fim")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", id)
+    .maybeSingle()
+  if (!atual) return { erro: "Isenção não encontrada." }
+  if (fim < atual.inicio) return { erro: "O fim não pode ser antes do início." }
+  if (atual.fim && fim > atual.fim) return { erro: "Para estender, registre uma nova isenção." }
+  const { error } = await admin
+    .from("pessoal_ponto_isencoes")
+    .update({ fim, encerrado_por: sessao.usuario.id, encerrado_em: new Date().toISOString() })
+    .eq("id", id)
+  if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  revalidarIsencoes(atual.funcionario_id)
+  return { ok: "Isenção encerrada." }
+}
+
+/** Exclui uma isenção lançada por engano. */
+export async function excluirIsencaoPonto(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirGestao()
+  const id = String(formData.get("id") ?? "")
+  if (!id) return { erro: "Isenção inválida." }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_ponto_isencoes")
+    .delete()
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", id)
+    .select("funcionario_id")
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  if (!data?.length) return { erro: "Isenção não encontrada." }
+  revalidarIsencoes(data[0].funcionario_id)
+  return { ok: "Isenção excluída." }
+}

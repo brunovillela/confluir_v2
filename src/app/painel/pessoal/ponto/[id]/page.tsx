@@ -33,8 +33,9 @@ import {
   urlArquivoPessoal,
 } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
-import { carregarBasePonto, indicadoresDe, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
+import { carregarBasePonto, competenciaDaRemessa, indicadoresDe, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
+import { isentosNaCompetencia, periodoIsencao } from "@/lib/db/ponto-isencoes"
 import { decimalHoras, hhmm } from "@/lib/horas"
 import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
 import { obterResenha } from "@/lib/db/ponto-resenha"
@@ -81,6 +82,7 @@ export default async function RemessaPontoPage({
     faixasHoraExtra(),
   ])
   if (!remessa) notFound()
+  const isencoes = await isentosNaCompetencia(competenciaDaRemessa(remessa))
 
   // Página concorrida (cabeçalho + formulário): 10 registros por página.
   const paginacao = lerPaginacao(paramsBusca, 10)
@@ -98,6 +100,9 @@ export default async function RemessaPontoPage({
 
   const jaTem = new Set(itens.map((i) => i.funcionario_id))
   const disponiveis = funcionarios.filter((f) => !jaTem.has(f.usuarioId))
+  // Pendência = ativo sem registro e sem isenção no mês inteiro da remessa.
+  const pendentes = disponiveis.filter((f) => !isencoes.inteiro.has(f.usuarioId))
+  const isentos = disponiveis.filter((f) => isencoes.inteiro.has(f.usuarioId))
 
   // Remessa finalizada: sem inclusão, edição ou exclusão de registros.
   const bloqueada = remessa.finalizada === true
@@ -224,9 +229,10 @@ export default async function RemessaPontoPage({
               rotulo="Registros"
               valor={`${itens.length}`}
               nota={
-                disponiveis.length > 0
-                  ? `${disponiveis.length} funcionário(s) ativo(s) sem registro`
-                  : "todos os funcionários ativos lançados"
+                (pendentes.length > 0
+                  ? `${pendentes.length} funcionário(s) ativo(s) sem registro`
+                  : "todos os funcionários ativos lançados") +
+                (isentos.length > 0 ? ` · ${isentos.length} isento(s) de registro` : "")
               }
             />
             <TileIndicador
@@ -251,15 +257,45 @@ export default async function RemessaPontoPage({
             />
           </section>
 
-          {!bloqueada && disponiveis.length > 0 && (
+          {!bloqueada && pendentes.length > 0 && (
             <GrupoColapsavel
               titulo="Funcionários ativos sem registro nesta remessa"
-              resumo={<Badge variant="warning">{disponiveis.length}</Badge>}
+              resumo={<Badge variant="warning">{pendentes.length}</Badge>}
             >
               <ul className="text-muted-foreground grid gap-1 px-6 pb-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                {disponiveis.map((f) => (
-                  <li key={f.usuarioId}>{f.nome}</li>
-                ))}
+                {pendentes.map((f) => {
+                  const parcial = isencoes.parcial.get(f.usuarioId)
+                  return (
+                    <li key={f.usuarioId}>
+                      {f.nome}
+                      {parcial && (
+                        <span className="block text-xs">isento em parte do mês: {periodoIsencao(parcial)}</span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </GrupoColapsavel>
+          )}
+
+          {isentos.length > 0 && (
+            <GrupoColapsavel
+              titulo="Isentos de registro de ponto nesta competência"
+              descricao="Não contam como pendência. As isenções ficam na aba Isenções do Controle de ponto."
+              resumo={<Badge variant="outline">{isentos.length}</Badge>}
+            >
+              <ul className="grid gap-2 px-6 pb-4 text-sm">
+                {isentos.map((f) => {
+                  const i = isencoes.inteiro.get(f.usuarioId)!
+                  return (
+                    <li key={f.usuarioId}>
+                      <Link href={`/painel/pessoal/ponto/funcionario/${f.usuarioId}`} className="font-medium hover:underline">
+                        {f.nome}
+                      </Link>
+                      <span className="text-muted-foreground"> · {periodoIsencao(i)} · {i.justificativa}</span>
+                    </li>
+                  )
+                })}
               </ul>
             </GrupoColapsavel>
           )}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, BarChart3, Plus } from "lucide-react"
+import { ArrowLeft, ArrowRight, BarChart3, Plus, UserX } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { AbasLink } from "@/components/pessoal/abas-link"
@@ -13,7 +13,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { LembrarLista } from "@/components/voltar-lista"
 import { linkDeOrdem } from "@/components/coluna-ordenavel"
 import { requirePermissao } from "@/lib/auth"
-import { listarRemessasPonto } from "@/lib/db/pessoal"
+import { funcionariosParaSelecao, listarRemessasPonto } from "@/lib/db/pessoal"
 import { departamentosDaLista, funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { anosDaBase, carregarBasePonto, indicadoresDe, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -21,9 +21,12 @@ import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } fro
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { percentuaisHoraExtra } from "@/lib/db/ponto-config"
+import { isentosNaCompetencia, listarIsencoesPonto, situacaoIsencao } from "@/lib/db/ponto-isencoes"
 
 import { horas } from "./analise/componentes"
 import { FaixasHoraExtraForm } from "./faixas-form"
+import { IsencaoPontoForm } from "./isencoes-form"
+import { TabelaIsencoes } from "./isencoes-tabela"
 import { ListaRemessasPonto } from "./remessas-lista"
 
 export const metadata: Metadata = { title: "Controle de ponto — Confluir" }
@@ -32,7 +35,7 @@ const ORDENS = ["nome", "he", "he100", "meses", "saldo", "alertas"] as const
 
 /**
  * Controle de ponto — nível 1 do padrão das áreas do Pessoal: indicadores do
- * ano, a remessa aberta e as abas Funcionários (inicial) e Remessas.
+ * ano, a remessa aberta e as abas Funcionários (inicial), Remessas e Isenções.
  */
 export default async function PontoPage({
   searchParams,
@@ -41,13 +44,14 @@ export default async function PontoPage({
 }) {
   await requirePermissao("pessoal_gestao")
   const sp = await searchParams
-  const aba = sp.aba === "remessas" ? "remessas" : "funcionarios"
+  const aba = sp.aba === "remessas" || sp.aba === "isencoes" ? sp.aba : "funcionarios"
 
-  const [base, remessas, funcionarios, percentuais] = await Promise.all([
+  const [base, remessas, funcionarios, percentuais, isencoes] = await Promise.all([
     carregarBasePonto(),
     listarRemessasPonto(),
     funcionariosDaArea(),
     percentuaisHoraExtra(),
+    listarIsencoesPonto(),
   ])
   const { faixas } = base
   const anos = anosDaBase(base)
@@ -59,7 +63,11 @@ export default async function PontoPage({
     .filter((r) => r.finalizada !== true)
     .map((r) => ({ ...r, comp: base.remessas.find((b) => b.id === r.id)?.competencia ?? "" }))
     .sort((a, b) => b.comp.localeCompare(a.comp))[0]
+  // Isentos de registro no mês inteiro da remessa aberta: só a nota (alguns
+  // podem ter registro mesmo assim; a lista de pendentes fica na remessa).
+  const isentosAberta = (await isentosNaCompetencia(aberta?.comp || null)).inteiro
   const ativos = funcionarios.filter((f) => f.ativo).length
+  const vigentes = isencoes.filter((i) => situacaoIsencao(i) === "vigente").length
 
   return (
     <>
@@ -127,6 +135,7 @@ export default async function PontoPage({
                 <p className="text-sm font-medium">{aberta.nome_remessa ?? "Remessa"} — aberta</p>
                 <p className="text-muted-foreground text-xs">
                   {aberta.itens} de {ativos} funcionário(s) ativo(s) lançado(s)
+                  {isentosAberta.size > 0 && ` · ${isentosAberta.size} isento(s) de registro`}
                 </p>
               </div>
               <span className="text-primary inline-flex items-center gap-1 text-sm">
@@ -142,11 +151,14 @@ export default async function PontoPage({
         abas={[
           { href: "/painel/pessoal/ponto", rotulo: "Funcionários", ativo: aba === "funcionarios" },
           { href: "/painel/pessoal/ponto?aba=remessas", rotulo: "Remessas", ativo: aba === "remessas", contador: remessas.length },
+          { href: "/painel/pessoal/ponto?aba=isencoes", rotulo: "Isenções", ativo: aba === "isencoes", contador: vigentes },
         ]}
       />
 
       {aba === "remessas" ? (
         <ListaRemessasPonto brutos={sp} />
+      ) : aba === "isencoes" ? (
+        <AbaIsencoes sp={sp} isencoes={isencoes} />
       ) : (
         <AbaFuncionarios sp={sp} ano={ano} anos={anos} ind={ind} funcionarios={funcionarios} />
       )}
@@ -158,6 +170,46 @@ export default async function PontoPage({
       >
         <FaixasHoraExtraForm faixa1={percentuais.faixa1} faixa2={percentuais.faixa2} />
       </GrupoColapsavel>
+    </>
+  )
+}
+
+/**
+ * Isenções de registro de ponto: quem não registra ponto num período, com a
+ * justificativa. Formulário fechado até "Nova isenção" (?nova=1).
+ */
+async function AbaIsencoes({
+  sp,
+  isencoes,
+}: {
+  sp: Record<string, string | undefined>
+  isencoes: Awaited<ReturnType<typeof listarIsencoesPonto>>
+}) {
+  const aberto = sp.nova === "1"
+  const funcionarios = aberto ? await funcionariosParaSelecao() : []
+  return (
+    <>
+      {sp.salvo === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Isenção registrada.</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted-foreground max-w-2xl text-sm">
+          Quem está isento no mês inteiro de uma remessa não aparece entre os funcionários sem registro. Encerrar
+          uma isenção mantém o histórico.
+        </p>
+        {!aberto && (
+          <Button variant="outline" asChild>
+            <Link href="/painel/pessoal/ponto?aba=isencoes&nova=1">
+              <UserX />
+              Nova isenção
+            </Link>
+          </Button>
+        )}
+      </div>
+      {aberto && <IsencaoPontoForm funcionarios={funcionarios} voltar="/painel/pessoal/ponto?aba=isencoes" />}
+      <TabelaIsencoes isencoes={isencoes} />
     </>
   )
 }

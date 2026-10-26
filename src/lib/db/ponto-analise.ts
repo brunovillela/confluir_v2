@@ -143,7 +143,7 @@ export function rotuloCompetenciaPonto(c: string): string {
   return `${MESES[Number(m) - 1]}/${a}`
 }
 
-function competenciaDaRemessa(r: Record<string, unknown>): string | null {
+export function competenciaDaRemessa(r: Record<string, unknown>): string | null {
   const ano = texto(r.ano_referencia_os)
   const mes = MESES.indexOf(String(r.mes_referencia_os ?? ""))
   if (ano && /^\d{4}$/.test(ano) && mes >= 0) return `${ano}-${String(mes + 1).padStart(2, "0")}`

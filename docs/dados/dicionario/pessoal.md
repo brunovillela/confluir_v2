@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-51 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+52 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -48,6 +48,7 @@
 | [pessoal_nivel_salarial](#pessoal_nivel_salarial) | financeiro, trabalhista | Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubb… |
 | [pessoal_nivel_salarial_base](#pessoal_nivel_salarial_base) | — | Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário base. Espelho do Bubble; cadastrada em Pessoal > Níveis. |
 | [pessoal_plano_saude](#pessoal_plano_saude) | **sensível: saúde**, identificação, trabalhista | Beneficiário do plano de saúde vinculado a um funcionário titular (dependente, aposentado). Espelho do Bubble. Sem uso encontrado no código … |
+| [pessoal_ponto_isencoes](#pessoal_ponto_isencoes) | identificação, trabalhista | Isenções de registro de ponto: funcionário, período e justificativa; quem está isento no mês da remessa não aparece como pendente (src/lib/d… |
 | [pessoal_ponto_resenhas](#pessoal_ponto_resenhas) | trabalhista, identificação | Resenhas redigidas por IA sobre o controle de ponto (riscos trabalhistas, quem acompanhar), por remessa, ano ou departamento. |
 | [pessoal_reembolsos_act](#pessoal_reembolsos_act) | financeiro, **sensível: saúde** | Pedido de reembolso previsto no ACT feito por um funcionário (tipo, valores, comprovante, avaliação, pagamento). Parte migrada do Bubble; gr… |
 | [pessoal_reembolsos_act_tipos](#pessoal_reembolsos_act_tipos) | — | Tipos de reembolso previstos no ACT dos funcionários, com teto e proporção reembolsável. Cadastrados em Pessoal > Reembolsos. |
@@ -1171,6 +1172,31 @@ Beneficiário do plano de saúde vinculado a um funcionário titular (dependente
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_plano_saude_bubble_id_key`, `pessoal_plano_saude_pkey`
+
+## pessoal_ponto_isencoes
+
+Isenções de registro de ponto: funcionário, período e justificativa; quem está isento no mês da remessa não aparece como pendente (src/lib/db/ponto-isencoes.ts).
+
+- **LGPD:** identificação, trabalhista · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador da isenção. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `funcionario_id` | uuid | não |  | → usuarios | identificação | Funcionário isento (usuarios.id). |
+| `inicio` | date | não |  |  |  | Primeiro dia da isenção. |
+| `fim` | date | sim |  |  |  | Último dia da isenção; vazio = sem prazo definido. |
+| `justificativa` | text | não |  |  | trabalhista | Por que o funcionário não registra ponto no período. |
+| `registrado_por` | uuid | sim |  | → usuarios | identificação | Quem registrou a isenção. |
+| `encerrado_por` | uuid | sim |  | → usuarios | identificação | Quem encerrou a isenção (preencheu o fim). |
+| `encerrado_em` | timestamp with time zone | sim |  |  |  | Quando a isenção foi encerrada. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+
+Checks: `pessoal_ponto_isencoes_justificativa` `CHECK ((length(btrim(justificativa)) > 0))`; `pessoal_ponto_isencoes_periodo` `CHECK (((fim IS NULL) OR (fim >= inicio)))`
+
+Índices: `pessoal_ponto_isencoes_funcionario_idx`, `pessoal_ponto_isencoes_pkey`
 
 ## pessoal_ponto_resenhas
 

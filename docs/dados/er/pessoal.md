@@ -256,6 +256,13 @@ erDiagram
     uuid titular_id FK
     uuid dependente_id FK
   }
+  pessoal_ponto_isencoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid funcionario_id FK
+    uuid registrado_por FK
+    uuid encerrado_por FK
+  }
   pessoal_ponto_resenhas {
     uuid id PK
     uuid gerada_por FK
@@ -387,6 +394,9 @@ erDiagram
   pessoal_nivel_salarial_base }o--o| pessoal_cargo : "cargo_id"
   pessoal_plano_saude }o--o| pessoal_dependentes : "dependente_id"
   pessoal_plano_saude }o--|| usuarios : "titular_id"
+  pessoal_ponto_isencoes }o--o| usuarios : "encerrado_por"
+  pessoal_ponto_isencoes }o--o| usuarios : "registrado_por"
+  pessoal_ponto_isencoes }o--|| usuarios : "funcionario_id"
   pessoal_ponto_resenhas }o--o| usuarios : "gerada_por"
   pessoal_reembolsos_act }o--o| usuarios : "avaliador_id"
   pessoal_reembolsos_act }o--|| pessoal_reembolsos_act_tipos : "tipo_id"

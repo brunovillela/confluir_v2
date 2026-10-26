@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 33 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 34 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 32 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -435,7 +435,7 @@
 
 **Observações.** Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (34) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -466,6 +466,7 @@
 | [pessoal_informes_rendimentos](../dados/dicionario/pessoal.md#pessoal_informes_rendimentos) | financeiro | `arquivo_url` (financeiro) |
 | [pessoal_nivel_salarial](../dados/dicionario/pessoal.md#pessoal_nivel_salarial) | financeiro, trabalhista | `proximo_nivel_texto` (trabalhista), `tipo_avanco` (trabalhista), `proximo_nivel_data` (trabalhista), `nivel_atual_data` (trabalhista), `nivel_atual_id` (financeiro) |
 | [pessoal_plano_saude](../dados/dicionario/pessoal.md#pessoal_plano_saude) | identificacao, sens. saude, trabalhista | `aposentado` (trabalhista), `nome_beneficiario` (identificacao), `situacao_dependente` (sens. saude) |
+| [pessoal_ponto_isencoes](../dados/dicionario/pessoal.md#pessoal_ponto_isencoes) | identificacao, trabalhista | `funcionario_id` (identificacao), `justificativa` (trabalhista), `registrado_por` (identificacao), `encerrado_por` (identificacao) |
 | [pessoal_ponto_resenhas](../dados/dicionario/pessoal.md#pessoal_ponto_resenhas) | identificacao, trabalhista | `conteudo` (trabalhista), `indicadores` (trabalhista) |
 | [pessoal_reembolsos_act](../dados/dicionario/pessoal.md#pessoal_reembolsos_act) | sens. saude, financeiro | `valor_solicitado` (financeiro), `valor_aprovado` (financeiro), `descricao` (sens. saude), `comprovante_url` (sens. saude), `avaliacao_observacao` (financeiro) |
 | [pessoal_registro_ponto](../dados/dicionario/pessoal.md#pessoal_registro_ponto) | financeiro, trabalhista | `horas_realizadas_70` (trabalhista), `horas_pagas_70` (financeiro), `saldo_remanescente_70` (trabalhista), `saldo_remessa_anterior_70` (trabalhista), `horas_realizadas_100` (trabalhista), `horas_pagas_100` (financeiro), `saldo_remanescente_100` (trabalhista), `saldo_remessa_anterior_100` (trabalhista), `arquivo` (trabalhista), `marcacoes` (trabalhista) |
@@ -808,4 +809,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 202 de 202 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 203 de 203 tabelas com dado pessoal atribuídas a 16 processos.

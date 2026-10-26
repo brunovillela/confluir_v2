@@ -1,12 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { UserX } from "lucide-react"
 
 import { GraficoColunas } from "@/components/graficos/colunas"
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { VoltarLista } from "@/components/voltar-lista"
@@ -14,8 +16,11 @@ import { requirePermissao } from "@/lib/auth"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, indicadoresDe, OCORRENCIAS, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
+import { listarIsencoesPonto } from "@/lib/db/ponto-isencoes"
 
 import { horas } from "../../analise/componentes"
+import { IsencaoPontoForm } from "../../isencoes-form"
+import { TabelaIsencoes } from "../../isencoes-tabela"
 
 export const metadata: Metadata = { title: "Ponto do funcionário — Confluir" }
 
@@ -25,15 +30,16 @@ export default async function PontoFuncionarioPage({
   searchParams,
 }: {
   params: Promise<{ usuarioId: string }>
-  searchParams: Promise<{ ano?: string }>
+  searchParams: Promise<{ ano?: string; nova?: string }>
 }) {
   const sessao = await requirePermissao("pessoal_gestao")
   const { usuarioId } = await params
   const sp = await searchParams
-  const [funcionario, base, faixas] = await Promise.all([
+  const [funcionario, base, faixas, isencoes] = await Promise.all([
     funcionarioDaArea(usuarioId),
     carregarBasePonto(),
     faixasHoraExtra(),
+    listarIsencoesPonto(usuarioId),
   ])
   if (!funcionario) notFound()
 
@@ -183,6 +189,36 @@ export default async function PontoFuncionarioPage({
           </Card>
         </>
       )}
+
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Isenções de registro de ponto</CardTitle>
+            <CardDescription>
+              Períodos em que {funcionario.nome} não registra ponto, com a justificativa. No mês inteiro isento, não
+              aparece como pendente na remessa.
+            </CardDescription>
+          </div>
+          {sp.nova !== "1" && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/pessoal/ponto/funcionario/${usuarioId}?${ano ? `ano=${ano}&` : ""}nova=1#isencoes`}>
+                <UserX />
+                Nova isenção
+              </Link>
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent id="isencoes" className="grid gap-4">
+          {sp.nova === "1" && (
+            <IsencaoPontoForm
+              funcionarios={[{ usuarioId, nome: funcionario.nome }]}
+              funcionarioId={usuarioId}
+              voltar={`/painel/pessoal/ponto/funcionario/${usuarioId}${ano ? `?ano=${ano}` : ""}`}
+            />
+          )}
+          <TabelaIsencoes isencoes={isencoes} comFuncionario={false} />
+        </CardContent>
+      </Card>
     </>
   )
 }
