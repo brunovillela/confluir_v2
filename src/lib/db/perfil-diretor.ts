@@ -1,5 +1,6 @@
 import "server-only"
 
+import { situacaoExibidaCusteio } from "@/lib/custeio-constantes"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { obterFichaDiretor, type FichaDiretor } from "@/lib/db/diretoria"
 import { origemDaFicha } from "@/lib/db/diretoria-ficha"
@@ -208,7 +209,8 @@ export async function areaDoDiretor(integranteId: string): Promise<AreaDoDiretor
         id: String(c.id),
         codigo: texto(c.codigo),
         descricao: texto(c.descricao),
-        situacao: String(c.situacao),
+        // Mesma situação exibida da tela do custeio ("concluido" vem das ordens).
+        situacao: situacaoExibidaCusteio(String(c.situacao), minhas.map((o) => (o.situacao as string | null) ?? null)),
         cadencia: String(c.cadencia),
         valorParcela: typeof c.valor_parcela === "number" ? c.valor_parcela : null,
         numParcelas: typeof c.num_parcelas === "number" ? c.num_parcelas : 1,
