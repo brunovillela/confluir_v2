@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { lerDocumentoTitular } from "@/lib/cpf"
 import { type EstadoForm } from "@/lib/contas"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 import { salvarDadosBancariosFuncionario } from "@/lib/db/contracheques-ordens"
@@ -47,8 +48,10 @@ export async function salvarDadosBancariosAction(
     pix: txt("pix"),
     pixTipo: (TIPOS_CHAVE_PIX as readonly string[]).includes(pixTipo ?? "") ? pixTipo : null,
     favorecido: txt("favorecido"),
+    titularDocumento: lerDocumentoTitular(txt("titular_documento")).documento,
     preferePix: formData.get("prefere_pix") === "on",
   }
+  if (lerDocumentoTitular(txt("titular_documento")).erro) return { erro: "CPF/CNPJ do titular da conta inválido." }
   if (dados.conta && !dados.agencia) return { erro: "Informe a agência da conta." }
   if (dados.agencia && !dados.conta) return { erro: "Informe o número da conta." }
   if (dados.conta && !dados.banco && !dados.bancoCodigo) return { erro: "Informe o banco da conta." }

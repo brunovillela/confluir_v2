@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { mascaraTelefone } from "@/lib/mascaras"
+import { lerDocumentoTitular } from "@/lib/cpf"
 import type {
   ContaBancaria,
   ContatoFornecedor,
@@ -492,9 +493,12 @@ export function ContaForm({
   conta,
   aoCancelarHref,
   acao = salvarContaAction,
+  documentoPadrao,
 }: {
   fornecedorId: string
   conta?: ContaBancaria
+  /** CNPJ/CPF do fornecedor: sugestão para o titular de uma conta nova. */
+  documentoPadrao?: string | null
   aoCancelarHref: string
   acao?: AcaoServidor
 }) {
@@ -559,6 +563,16 @@ export function ContaForm({
             name="favorecido"
             defaultValue={conta?.favorecido ?? ""}
             placeholder="Titular da conta, se diferente"
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="cb-titular-doc">CPF/CNPJ do titular</Label>
+          <Input
+            id="cb-titular-doc"
+            name="titular_documento"
+            inputMode="numeric"
+            defaultValue={conta ? (conta.titular_documento ?? "") : (lerDocumentoTitular(documentoPadrao).documento ?? "")}
+            placeholder="Confere se a conta é do fornecedor"
           />
         </div>
       </div>

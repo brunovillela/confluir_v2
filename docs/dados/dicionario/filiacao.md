@@ -82,8 +82,11 @@ Dados bancários e chaves Pix de usuários, filiados e fornecedores (migrado do 
 | `prefere_pix` | boolean | não | `false` |  |  |  |
 | `favorito` | boolean | não | `false` |  |  |  |
 | `tipo_dados` | text | sim |  |  |  | Campo trazido do Bubble que diferencia o tipo do registro (conta ou Pix). |
+| `titular_documento` | text | sim |  |  | identificação | CPF (11 dígitos) ou CNPJ (14) do titular da conta, só dígitos. Comparado com o favorecido da ordem na regra "Conta de outro titular". |
 
 Únicas: `UNIQUE (bubble_id)`
+
+Checks: `dados_bancarios_titular_documento_check` `CHECK (((titular_documento IS NULL) OR (titular_documento ~ '^([0-9]{11}|[0-9]{14})$'::text)))`
 
 Índices: `dados_bancarios_bubble_id_key`, `dados_bancarios_pkey`, `idx_dados_bancarios_filiado`, `idx_dados_bancarios_fornecedor`, `ix_dados_bancarios_filiado`, `ux_dados_bancarios_bubble`
 

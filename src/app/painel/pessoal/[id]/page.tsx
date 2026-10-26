@@ -180,7 +180,7 @@ export default async function FuncionarioPage({
         </CardContent>
       </Card>
 
-      {temGestao && <DadosBancariosFuncionario usuarioId={id} dados={dadosBancarios} />}
+      {temGestao && <DadosBancariosFuncionario usuarioId={id} dados={dadosBancarios} cpfFuncionario={cadastro?.cpf ?? null} />}
 
       {/* 17/10: a ficha é o ponto de entrada — cada área tem a página da pessoa (padrão de 3 níveis). */}
       <ResumoAreas usuarioId={id} perfil={perfil} carreira={carreira} permissoes={sessao.permissoes} />

@@ -225,6 +225,7 @@ export async function inserirMeioFornecedor(
         conta: string
         tipo_conta: string
         favorecido: string
+        titular_documento?: string | null
       }
 ): Promise<{ id?: string; erro?: string }> {
   if (!(await fornecedorDoTenant(fornecedorId))) {

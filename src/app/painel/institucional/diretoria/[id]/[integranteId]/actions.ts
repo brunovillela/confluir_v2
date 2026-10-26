@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
+import { lerDocumentoTitular } from "@/lib/cpf"
 import { type EstadoForm } from "@/lib/contas"
 import { salvarFichaDiretor, type FichaDiretor } from "@/lib/db/diretoria"
 
@@ -44,12 +45,14 @@ export async function salvarFichaAction(
     conta_corrente: txt(formData, "conta_corrente"),
     pix: txt(formData, "pix"),
     tipo_chave_pix: txt(formData, "tipo_chave_pix"),
+    titular_documento: lerDocumentoTitular(txt(formData, "titular_documento")).documento,
     tem_restricao: formData.get("tem_restricao") === "on",
     restricao_descricao: txt(formData, "restricao_descricao"),
     contato_emergencia: txt(formData, "contato_emergencia"),
     telefone_emergencia: txt(formData, "telefone_emergencia"),
   }
 
+  if (lerDocumentoTitular(txt(formData, "titular_documento")).erro) return { erro: "CPF/CNPJ do titular da conta inválido." }
   const { erro, filiacaoAtualizada } = await salvarFichaDiretor(integranteId, dados, sessao.usuario.id as string)
   if (erro) return { erro }
   if (mandatoId) {

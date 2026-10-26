@@ -84,3 +84,16 @@ export function validarCnpj(cnpj: string): boolean {
     digito(limpo.slice(0, 13)) === Number(limpo[13])
   )
 }
+
+/**
+ * CPF/CNPJ do titular de uma conta bancária, como vem do formulário: vazio →
+ * null; senão os dígitos, conferidos (11 = CPF, 14 = CNPJ). Seguro para o client.
+ */
+export function lerDocumentoTitular(valor: string | null | undefined): { documento: string | null; erro?: string } {
+  const limpo = limparCpf(valor ?? "")
+  if (!limpo) return { documento: null }
+  if (limpo.length === 11 ? validarCpf(limpo) : limpo.length === 14 ? validarCnpj(limpo) : false) {
+    return { documento: limpo }
+  }
+  return { documento: null, erro: "CPF/CNPJ do titular da conta inválido." }
+}

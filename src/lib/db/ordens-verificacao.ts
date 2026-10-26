@@ -520,7 +520,7 @@ async function verificarLinha(
           if (dono) {
             const { data } = await admin
               .from("dados_bancarios")
-              .select("conta, favorecido, favorito")
+              .select("conta, favorecido, titular_documento, favorito")
               .eq(dono[0], dono[1])
               .not("conta", "is", null)
               .order("favorito", { ascending: false, nullsFirst: false })
@@ -529,6 +529,13 @@ async function verificarLinha(
           }
         }
         const titular = t(conta?.favorecido)
+        const docTitular = digitos(t(conta?.titular_documento))
+        // Com o CPF/CNPJ do titular no cadastro da conta, a comparação é exata.
+        if (conta && docTitular && docFavorecido) {
+          if (docTitular === docFavorecido) r("ok", `Titular da conta: ${titular ?? docTitular} (mesmo CPF/CNPJ do favorecido).`)
+          else r("falha", `A conta é de ${titular ? `${titular} — ` : ""}${docTitular}, mas o favorecido é ${docFavorecido}.`)
+          break
+        }
         if (!conta || !titular) {
           r("na", "A conta não informa o titular.")
           break

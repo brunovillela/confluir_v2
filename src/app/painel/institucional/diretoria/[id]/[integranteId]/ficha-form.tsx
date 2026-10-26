@@ -265,6 +265,11 @@ export function FichaDiretorForm({
           <Campo id="conta_corrente" rotulo="Conta corrente">
             <Input id="conta_corrente" name="conta_corrente" defaultValue={v("conta_corrente")} />
           </Campo>
+          {daFiliacao && (
+            <Campo id="titular_documento" rotulo="CPF/CNPJ do titular da conta">
+              <Input id="titular_documento" name="titular_documento" inputMode="numeric" defaultValue={v("titular_documento")} />
+            </Campo>
+          )}
           <Campo id="pix" rotulo="Pix">
             <Input id="pix" name="pix" defaultValue={v("pix")} />
           </Campo>

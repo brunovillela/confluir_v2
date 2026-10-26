@@ -142,6 +142,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "filiacao","dados_bancarios","banco_codigo","financeiro","filiados, funcionários, diretores, fornecedores PF, usuários do sistema",""
 "filiacao","dados_bancarios","pix_tipo","financeiro","filiados, funcionários, diretores, fornecedores PF, usuários do sistema",""
 "filiacao","dados_bancarios","pix_beneficiario","identificacao","filiados, funcionários, diretores, fornecedores PF, usuários do sistema","Nome do titular da chave Pix."
+"filiacao","dados_bancarios","titular_documento","identificacao","filiados, funcionários, diretores, fornecedores PF, usuários do sistema","CPF (11 dígitos) ou CNPJ (14) do titular da conta, só dígitos. Comparado com o favorecido da ordem na regra ""Conta de outro titular""."
 "financeiro","danfes_recibos","","identificacao","fornecedores PF","Recibos e DANFEs de fornecedores do Bubble ligados a compra ou contrato. Sem uso encontrado no código (possível legado do Bubble), vazia."
 "financeiro","danfes_recibos","arquivo","identificacao","fornecedores PF","Recibo pode trazer nome e CPF de fornecedor PF."
 "ferramentas","demandas","","identificacao","funcionários, diretores","Demanda (iniciativa ou pedido interno com responsável, prazo e orçamento) da tela Ferramentas > Demandas. Colunas *_raw guardam listas do Bubble ainda não normalizadas."

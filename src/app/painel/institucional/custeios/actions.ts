@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { lerDocumentoTitular } from "@/lib/cpf"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
@@ -112,6 +113,10 @@ async function lerPagamentoCusteio(
         if (!p.banco || !p.agencia || !p.conta || !p.favorecido) {
           return { erro: "Preencha banco, agência, conta e favorecido." }
         }
+        const titular = lerDocumentoTitular(texto(formData, "conta_documento"))
+        if (titular.erro) return { erro: titular.erro }
+        if (!titular.documento) return { erro: "Informe o CPF/CNPJ do titular da conta." }
+        p.titularDocumento = titular.documento
         if (!TIPOS_CONTA.some((t) => t.valor === p.tipoConta)) return { erro: "Escolha o tipo da conta." }
       } else {
         const m = meios?.contas.find((x) => x.id === escolha)

@@ -122,6 +122,8 @@ export type DadosBancarios = {
   pix: string | null
   pixTipo: string | null
   favorecido: string | null
+  /** CPF/CNPJ do titular da conta (só dígitos). */
+  titularDocumento: string | null
   preferePix: boolean
 }
 
@@ -136,12 +138,13 @@ function mapearDadosBancarios(d: Record<string, unknown>): DadosBancarios {
     pix: texto(d.pix),
     pixTipo: texto(d.pix_tipo),
     favorecido: texto(d.favorecido),
+    titularDocumento: texto(d.titular_documento),
     preferePix: d.prefere_pix === true,
   }
 }
 
 const COLS_BANCO =
-  "id, usuario_id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, prefere_pix, favorito, created_at"
+  "id, usuario_id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, prefere_pix, favorito, created_at"
 
 /** A conta do funcionário (a favorita; senão a mais recente). */
 export async function dadosBancariosDoFuncionario(usuarioId: string): Promise<DadosBancarios | null> {
@@ -180,6 +183,8 @@ export type EntradaDadosBancarios = {
   pix: string | null
   pixTipo: string | null
   favorecido: string | null
+  /** CPF/CNPJ do titular da conta (só dígitos). */
+  titularDocumento: string | null
   preferePix: boolean
 }
 
@@ -199,6 +204,7 @@ export async function salvarDadosBancariosFuncionario(
     pix: dados.pix,
     pix_tipo: dados.pixTipo,
     favorecido: dados.favorecido,
+    titular_documento: dados.titularDocumento,
     prefere_pix: dados.preferePix,
     favorito: true,
   }

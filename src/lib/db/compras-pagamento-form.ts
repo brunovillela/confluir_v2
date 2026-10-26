@@ -6,6 +6,7 @@ import {
   type FormaPagamentoCompras,
 } from "@/lib/compras-constantes"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
+import { lerDocumentoTitular } from "@/lib/cpf"
 import { TIPOS_COMPROVANTE_COMPRAS } from "@/lib/db/compras"
 import {
   inserirMeioFornecedor,
@@ -79,14 +80,17 @@ export async function lerDetalhePagamento(
           conta: texto(formData, "conta_numero"),
           tipo_conta: texto(formData, "conta_tipo"),
           favorecido: texto(formData, "conta_favorecido"),
+          titular_documento: lerDocumentoTitular(texto(formData, "conta_documento")),
         }
         if (!conta.banco || !conta.agencia || !conta.conta || !conta.favorecido) {
           return { erro: "Preencha banco, agência, conta e favorecido da conta do fornecedor." }
         }
+        if (conta.titular_documento.erro) return { erro: conta.titular_documento.erro }
+        if (!conta.titular_documento.documento) return { erro: "Informe o CPF/CNPJ do titular da conta." }
         if (!TIPOS_CONTA.some((t) => t.valor === conta.tipo_conta)) {
           return { erro: "Escolha o tipo da conta do fornecedor." }
         }
-        novoMeio = conta
+        novoMeio = { ...conta, titular_documento: conta.titular_documento.documento }
       } else {
         detalhe.dados_bancarios_id = escolha
       }
@@ -130,6 +134,16 @@ export async function lerDetalhePagamento(
           )
     if (existente) {
       detalhe.dados_bancarios_id = existente.id
+      // A conta já cadastrada ganha o documento do titular, se ainda não tinha.
+      if ("titular_documento" in novoMeio && novoMeio.titular_documento) {
+        const { createAdminClient } = await import("@/lib/supabase/admin")
+        const admin = await createAdminClient()
+        await admin
+          .from("dados_bancarios")
+          .update({ titular_documento: novoMeio.titular_documento })
+          .eq("id", existente.id)
+          .is("titular_documento", null)
+      }
     } else {
       const { id, erro } = await inserirMeioFornecedor(fornecedorId, novoMeio)
       if (erro || !id) return { erro: erro ?? "Falha ao gravar o dado bancário." }

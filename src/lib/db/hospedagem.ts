@@ -1,4 +1,6 @@
 import "server-only"
+
+import { lerDocumentoTitular } from "@/lib/cpf"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { lerPermissoesHotel, type PermissoesHotel } from "@/lib/hotel-permissoes"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
@@ -1303,11 +1305,18 @@ export type NovaFatura = {
 async function dadoBancarioDoHotel(empresaId: string | null, c: ContaHotel): Promise<string | null> {
   if (!empresaId) return null
   const admin = await createAdminClient()
-  const { data } = await admin.from("dados_bancarios").select("id, pix, banco, conta").eq("fornecedor_id", empresaId)
+  // O documento do titular informado no cadastro da conta do hotel.
+  const documento = lerDocumentoTitular(c.documento).documento
+  const { data } = await admin.from("dados_bancarios").select("id, pix, banco, conta, titular_documento").eq("fornecedor_id", empresaId)
   const igual = ((data ?? []) as Record<string, unknown>[]).find((d) =>
     c.tipo === "pix" ? d.pix === c.chave_pix : d.conta === c.conta && d.banco === c.banco
   )
-  if (igual) return String(igual.id)
+  if (igual) {
+    if (documento && !igual.titular_documento) {
+      await admin.from("dados_bancarios").update({ titular_documento: documento }).eq("id", String(igual.id))
+    }
+    return String(igual.id)
+  }
   const { data: novo, error } = await admin
     .from("dados_bancarios")
     .insert({
@@ -1316,6 +1325,7 @@ async function dadoBancarioDoHotel(empresaId: string | null, c: ContaHotel): Pro
       ...(c.tipo === "pix"
         ? { pix: c.chave_pix, prefere_pix: true }
         : { banco: c.banco, agencia: c.agencia, conta: c.conta }),
+      titular_documento: documento,
     })
     .select("id")
     .single()

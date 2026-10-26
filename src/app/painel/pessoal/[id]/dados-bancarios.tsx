@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
+import { lerDocumentoTitular } from "@/lib/cpf"
 import { rotuloTipoConta, TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 
 import { salvarDadosBancariosAction } from "./actions"
@@ -26,6 +27,7 @@ export type DadosBancariosTela = {
   pix: string | null
   pixTipo: string | null
   favorecido: string | null
+  titularDocumento: string | null
   preferePix: boolean
 }
 
@@ -42,9 +44,12 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
 export function DadosBancariosFuncionario({
   usuarioId,
   dados,
+  cpfFuncionario,
 }: {
   usuarioId: string
   dados: DadosBancariosTela | null
+  /** Sugestão para o titular quando a conta ainda não tem o documento. */
+  cpfFuncionario?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     salvarDadosBancariosAction,
@@ -128,6 +133,15 @@ export function DadosBancariosFuncionario({
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="db-favorecido">Favorecido (se não for o próprio)</Label>
               <Input id="db-favorecido" name="favorecido" defaultValue={dados?.favorecido ?? ""} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="db-titular-doc">CPF/CNPJ do titular</Label>
+              <Input
+                id="db-titular-doc"
+                name="titular_documento"
+                inputMode="numeric"
+                defaultValue={dados?.titularDocumento ?? lerDocumentoTitular(cpfFuncionario).documento ?? ""}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="db-pix-tipo">Tipo da chave Pix</Label>

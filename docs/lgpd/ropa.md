@@ -61,7 +61,7 @@
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
-| [dados_bancarios](../dados/dicionario/filiacao.md#dados_bancarios) | identificacao, financeiro | `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `favorecido` (identificacao), `banco_codigo` (financeiro), `pix_tipo` (financeiro), `pix_beneficiario` (identificacao) |
+| [dados_bancarios](../dados/dicionario/filiacao.md#dados_bancarios) | identificacao, financeiro | `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `favorecido` (identificacao), `banco_codigo` (financeiro), `pix_tipo` (financeiro), `pix_beneficiario` (identificacao), `titular_documento` (identificacao) |
 | [emails](../dados/dicionario/filiacao.md#emails) | identificacao | `email` (identificacao), `pessoa_contato` (identificacao) |
 | [enderecos](../dados/dicionario/filiacao.md#enderecos) | identificacao | `cep` (identificacao), `logradouro` (identificacao), `numero` (identificacao), `complemento` (identificacao), `complemento_correios` (identificacao), `bairro` (identificacao), `cidade` (identificacao), `estado` (identificacao) |
 | [filiacao_coletiva_itens](../dados/dicionario/filiacao.md#filiacao_coletiva_itens) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `matricula` (trabalhista), `email` (identificacao), `resultado` (sens. sindical), `condicao_anterior` (sens. sindical), `observacao` (sens. sindical), `desistencia_em` (sens. sindical) |

@@ -708,6 +708,8 @@ export type PagamentoCusteio = {
   conta: string | null
   tipoConta: string | null
   favorecido: string | null
+  /** CPF/CNPJ do titular da conta nova (só dígitos). */
+  titularDocumento?: string | null
   pixCodigo: string | null
   caixaContaId: string | null
   arquivoBoleto: string | null
@@ -1512,7 +1514,7 @@ function destinoDoPagamento(p: PagamentoCusteio, nome: string | null): string | 
  * e a TED fica sem destino (a trava pede Pix ou boleto).
  */
 async function dadoBancarioDoCusteio(
-  pag: Pick<PagamentoCusteio, "forma" | "pix" | "tipoChavePix" | "banco" | "agencia" | "conta" | "tipoConta" | "favorecido">,
+  pag: Pick<PagamentoCusteio, "forma" | "pix" | "tipoChavePix" | "banco" | "agencia" | "conta" | "tipoConta" | "favorecido" | "titularDocumento">,
   dono: { beneficiario_usuario_id: string | null; beneficiario_fornecedor_id: string | null },
   nome: string | null,
   /** Filiado sem usuário: o dado bancário fica na filiação dele. */
@@ -1550,7 +1552,13 @@ async function dadoBancarioDoCusteio(
       favorecido: pag.favorecido ?? nome,
       ...(ehPix
         ? { pix: pag.pix, pix_tipo: pag.tipoChavePix, prefere_pix: true }
-        : { banco: pag.banco, agencia: pag.agencia, conta: pag.conta, tipo_conta: pag.tipoConta }),
+        : {
+            banco: pag.banco,
+            agencia: pag.agencia,
+            conta: pag.conta,
+            tipo_conta: pag.tipoConta,
+            titular_documento: pag.titularDocumento ?? null,
+          }),
     })
     .select("id")
     .single()

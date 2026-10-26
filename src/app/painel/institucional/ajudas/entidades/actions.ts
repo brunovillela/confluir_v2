@@ -154,6 +154,7 @@ export async function salvarContaEntidadeAction(
       tipo_conta: ouNull(texto(formData, "tipo_conta")),
       pix: ouNull(texto(formData, "pix")),
       favorecido: ouNull(texto(formData, "favorecido")),
+      titular_documento: texto(formData, "titular_documento"),
     },
     contaId
   )

@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **362 tabelas** no schema `public`, **203** com dado pessoal (970 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **362 tabelas** no schema `public`, **203** com dado pessoal (971 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.

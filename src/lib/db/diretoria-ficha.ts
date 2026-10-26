@@ -51,6 +51,8 @@ export type FichaDiretor = {
   conta_corrente: string | null
   pix: string | null
   tipo_chave_pix: string | null
+  /** CPF/CNPJ do titular da conta (só dígitos) — mora no dado bancário da filiação. */
+  titular_documento?: string | null
   tem_restricao: boolean
   restricao_descricao: string | null
   contato_emergencia: string | null
@@ -199,7 +201,7 @@ async function bancoDaFiliacao(filiacaoId: string): Promise<Record<string, unkno
   const admin = await createAdminClient()
   const { data } = await admin
     .from("dados_bancarios")
-    .select("id, banco, agencia, conta, pix, pix_tipo, favorito, created_at")
+    .select("id, banco, agencia, conta, pix, pix_tipo, titular_documento, favorito, created_at")
     .eq("filiado_id", filiacaoId)
     .order("favorito", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -275,6 +277,7 @@ export async function obterFichaDiretor(integranteId: string): Promise<FichaDire
     ficha.banco = texto(banco.banco) ?? ficha.banco
     ficha.agencia = texto(banco.agencia) ?? ficha.agencia
     ficha.conta_corrente = texto(banco.conta) ?? ficha.conta_corrente
+    ficha.titular_documento = texto(banco.titular_documento)
     ficha.pix = texto(banco.pix) ?? ficha.pix
     ficha.tipo_chave_pix = pixDaFiliacao(texto(banco.pix_tipo), texto(banco.pix)) ?? ficha.tipo_chave_pix
   }
@@ -375,6 +378,7 @@ export async function salvarFichaDiretor(
       conta: dados.conta_corrente,
       pix: dados.pix,
       pix_tipo: pixParaFiliacao(dados.tipo_chave_pix),
+      titular_documento: dados.titular_documento ?? null,
     }
     const bancoAtual = {
       banco: texto(banco?.banco),
@@ -382,6 +386,7 @@ export async function salvarFichaDiretor(
       conta: texto(banco?.conta),
       pix: texto(banco?.pix),
       pix_tipo: texto(banco?.pix_tipo),
+      titular_documento: texto(banco?.titular_documento),
     }
     const bancoMudou = (Object.keys(bancoNovo) as (keyof typeof bancoNovo)[]).some((k) => bancoNovo[k] !== bancoAtual[k])
     const bancoVazio = Object.values(bancoNovo).every((v) => !v)

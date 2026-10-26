@@ -359,6 +359,10 @@ export function DetalhePagamento({
               <Label htmlFor="conta_favorecido">Favorecido *</Label>
               <Input id="conta_favorecido" name="conta_favorecido" required />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="conta_documento">CPF/CNPJ do titular *</Label>
+              <Input id="conta_documento" name="conta_documento" inputMode="numeric" required />
+            </div>
           </div>
         ))}
     </div>

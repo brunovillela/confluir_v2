@@ -361,6 +361,7 @@ export default async function EntidadeApoiadaPage({
                 <ContaForm
                   key={c.id}
                   fornecedorId={e.id}
+                  documentoPadrao={e.cnpj_cpf}
                   conta={c}
                   aoCancelarHref={aqui}
                   acao={salvarContaEntidadeAction}
@@ -413,6 +414,7 @@ export default async function EntidadeApoiadaPage({
             {podeEditar && contaParam === "novo" && (
               <ContaForm
                 fornecedorId={e.id}
+                documentoPadrao={e.cnpj_cpf}
                 aoCancelarHref={aqui}
                 acao={salvarContaEntidadeAction}
               />

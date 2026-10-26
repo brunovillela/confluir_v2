@@ -1,6 +1,6 @@
 import "server-only"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
-import { validarCnpj, validarCpf } from "@/lib/cpf"
+import { validarCnpj, validarCpf, lerDocumentoTitular } from "@/lib/cpf"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -62,6 +62,7 @@ export type ContaBancaria = {
   tipo_conta: string | null
   pix: string | null
   favorecido: string | null
+  titular_documento?: string | null
 }
 
 export type ContratoFornecedor = {
@@ -824,6 +825,8 @@ export type DadosConta = {
   tipo_conta: string | null
   pix: string | null
   favorecido: string | null
+  /** CPF/CNPJ do titular como digitado; vazio = não informado. */
+  titular_documento?: string | null
 }
 
 export async function salvarConta(
@@ -834,6 +837,9 @@ export async function salvarConta(
   if (!dados.pix?.trim() && !(dados.banco?.trim() && dados.conta?.trim())) {
     return { erro: "Informe uma chave Pix ou banco + conta." }
   }
+  const titular = lerDocumentoTitular(dados.titular_documento)
+  if (titular.erro) return { erro: titular.erro }
+  dados = { ...dados, titular_documento: titular.documento }
   const admin = await createAdminClient()
   const { error } = contaId
     ? await admin

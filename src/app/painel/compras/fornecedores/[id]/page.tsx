@@ -622,6 +622,7 @@ export default async function FornecedorPage({
                 <ContaForm
                   key={c.id}
                   fornecedorId={f.id}
+                  documentoPadrao={f.cnpj_cpf}
                   conta={c}
                   aoCancelarHref={aqui}
                 />
@@ -670,7 +671,7 @@ export default async function FornecedorPage({
               )
             )}
             {contaParam === "novo" && (
-              <ContaForm fornecedorId={f.id} aoCancelarHref={aqui} />
+              <ContaForm fornecedorId={f.id} documentoPadrao={f.cnpj_cpf} aoCancelarHref={aqui} />
             )}
           </CardContent>
         </Card>
