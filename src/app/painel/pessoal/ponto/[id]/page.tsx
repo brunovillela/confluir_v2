@@ -422,7 +422,7 @@ export default async function RemessaPontoPage({
                                   Editar
                                 </Link>
                               </Button>
-                              <ExcluirRegistroBotao id={i.id} remessaId={id} />
+                              <ExcluirRegistroBotao id={i.id} remessaId={id} liberado={i.liberado === true} funcionario={i.funcionarioNome} />
                             </div>
                           )}
                         </TableCell>

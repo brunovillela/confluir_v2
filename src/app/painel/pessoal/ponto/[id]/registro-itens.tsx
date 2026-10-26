@@ -258,9 +258,14 @@ export function RegistroPontoForm({
 export function ExcluirRegistroBotao({
   id,
   remessaId,
+  liberado = false,
+  funcionario,
 }: {
   id: string
   remessaId: string
+  /** Já liberado: o funcionário pode ter visto o espelho — confirmação mais forte. */
+  liberado?: boolean
+  funcionario?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(excluirRegistroPonto, {})
 
@@ -268,7 +273,18 @@ export function ExcluirRegistroBotao({
     <form
       action={formAction}
       onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este registro de ponto?")}}
+        confirmarEnvio(
+          e,
+          liberado
+            ? {
+                titulo: "Excluir um registro já liberado?",
+                descricao: `${funcionario ?? "O funcionário"} já recebeu este espelho e pode tê-lo visto em Meu perfil. Ele some de lá; o aviso de liberação fica no histórico, sem link. O PDF do espelho também é apagado.`,
+                confirmar: "Excluir mesmo assim",
+                destrutivo: true,
+              }
+            : "Excluir este registro de ponto? O PDF do espelho também é apagado."
+        )
+      }}
       className="inline-flex"
     >
       <input type="hidden" name="id" value={id} />

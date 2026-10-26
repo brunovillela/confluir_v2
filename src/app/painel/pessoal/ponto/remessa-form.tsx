@@ -132,19 +132,30 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
         <form
           action={excluirAction}
           onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir esta remessa? Só é possível excluir remessas sem registros de ponto.")
+            confirmarEnvio(
+              e,
+              remessa.itens > 0
+                ? {
+                    titulo: "Excluir a remessa inteira?",
+                    descricao: `Saem junto: ${remessa.itens} registro(s) de ponto, os PDFs dos espelhos e a resenha da IA desta remessa. Os registros liberados somem do Meu perfil dos funcionários. Não dá para desfazer.`,
+                    confirmar: "Excluir remessa e registros",
+                    destrutivo: true,
+                  }
+                : "Excluir esta remessa?"
+            )
           }}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={remessa.id} />
+          {remessa.itens > 0 && <input type="hidden" name="com_registros" value="1" />}
           <Button
             type="submit"
             variant="ghost"
-            disabled={excluindo || remessa.itens > 0}
+            disabled={excluindo}
             className="text-destructive hover:text-destructive"
           >
             {excluindo ? <Loader2 className="animate-spin" /> : <Trash2 />}
-            Excluir remessa
+            {remessa.itens > 0 ? `Excluir remessa e ${remessa.itens} registro(s)` : "Excluir remessa"}
           </Button>
         </form>
       )}

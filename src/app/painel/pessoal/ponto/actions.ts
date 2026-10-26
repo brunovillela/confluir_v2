@@ -123,6 +123,30 @@ export async function atualizarRemessaPonto(
 }
 
 /** Exclusão só de remessa VAZIA. */
+/**
+ * Apaga registros de ponto por inteiro: desliga deles os avisos de liberação
+ * (o aviso continua no histórico do funcionário, sem link), apaga as linhas e
+ * os PDFs dos espelhos guardados no Storage (os do Bubble são links externos).
+ */
+async function apagarRegistrosPonto(ids: string[]): Promise<{ erro?: string }> {
+  if (!ids.length) return {}
+  const admin = await createAdminClient()
+  const { data: registros } = await admin.from("pessoal_registro_ponto").select("id, arquivo").in("id", ids)
+  const { error: erroAvisos } = await admin
+    .from("notificacoes")
+    .update({ registro_ponto_id_fk: null })
+    .in("registro_ponto_id_fk", ids)
+  if (erroAvisos) return { erro: `Não foi possível desligar os avisos: ${erroAvisos.message}` }
+  const { error } = await admin.from("pessoal_registro_ponto").delete().in("id", ids)
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  const arquivos = (registros ?? [])
+    .map((r) => r.arquivo as string | null)
+    .filter((a): a is string => !!a && !/^(https?:)?\/\//.test(a))
+  // Falha ao apagar o PDF não desfaz a exclusão: no máximo sobra o arquivo.
+  if (arquivos.length) await admin.storage.from("pessoal").remove(arquivos)
+  return {}
+}
+
 export async function excluirRemessaPonto(
   _prev: EstadoForm,
   formData: FormData
@@ -143,21 +167,29 @@ export async function excluirRemessaPonto(
     return { erro: "Remessa finalizada não pode ser excluída — reabra antes." }
   }
 
-  const { count } = await admin
-    .from("pessoal_registro_ponto")
-    .select("id", { count: "exact", head: true })
-    .eq("remessa_id", id)
-  if ((count ?? 0) > 0) {
+  // Com registros, só com a confirmação explícita ("excluir a remessa inteira").
+  const { data: registros } = await admin.from("pessoal_registro_ponto").select("id").eq("remessa_id", id)
+  const ids = (registros ?? []).map((r) => r.id as string)
+  if (ids.length > 0 && formData.get("com_registros") !== "1") {
     return {
-      erro: `A remessa tem ${count} registro${count === 1 ? "" : "s"} de ponto — exclua os registros antes.`,
+      erro: `A remessa tem ${ids.length} registro${ids.length === 1 ? "" : "s"} de ponto — confirme a exclusão da remessa inteira.`,
     }
   }
+  const apagados = await apagarRegistrosPonto(ids)
+  if (apagados.erro) return apagados
 
   const { error } = await admin
     .from("pessoal_registro_ponto_remessas")
     .delete()
     .eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  // A resenha da IA da remessa perde o objeto.
+  await admin
+    .from("pessoal_ponto_resenhas")
+    .delete()
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("escopo", "remessa")
+    .eq("chave", id)
 
   revalidar()
   redirect("/painel/pessoal/ponto?excluida=1")
@@ -352,13 +384,15 @@ export async function excluirRegistroPonto(
   if ("erro" in remessa) return remessa
 
   const admin = await createAdminClient()
-  const { error, count } = await admin
+  const { data: registro } = await admin
     .from("pessoal_registro_ponto")
-    .delete({ count: "exact" })
+    .select("id")
     .eq("id", id)
     .eq("remessa_id", remessaId)
-  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (count === 0) return { erro: "Registro não encontrado." }
+    .maybeSingle()
+  if (!registro) return { erro: "Registro não encontrado." }
+  const apagado = await apagarRegistrosPonto([id])
+  if (apagado.erro) return apagado
 
   revalidar(remessaId)
   return { ok: "Registro excluído." }
