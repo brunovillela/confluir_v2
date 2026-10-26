@@ -13,7 +13,7 @@ import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-re
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { FORMA_PAGA_NO_ATO } from "@/lib/db/financeiro"
-import { faltaDestinoBancario } from "@/lib/db/ordens-destino"
+import { completarFormaPadrao, destinoDaForma, faltaDestinoBancario } from "@/lib/db/ordens-destino"
 import {
   registrarEvento,
   SITUACAO_AGUARDANDO_DOCUMENTO,
@@ -241,6 +241,37 @@ function chaveDaDescricao(descricao: string): string {
     .replace(/parcela \d+\/\d+.*$/i, "")
     .replace(/\s*\(pagamento \d+\)\s*$/i, "")
     .trim()
+}
+
+const PALAVRAS_VAZIAS = new Set(["ltda", "me", "epp", "eireli", "sa", "s", "a", "de", "da", "do", "das", "dos", "e", "cia", "mei", "slu"])
+
+function palavras(nome: string): string[] {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((p) => p.length > 1 && !PALAVRAS_VAZIAS.has(p) && !/^\d+$/.test(p))
+}
+
+/**
+ * O titular da conta é o favorecido? CPF/CNPJ no texto do titular decide;
+ * senão, os nomes: ao menos 60% das palavras de um contidas no outro (cobre
+ * "MARIA SILVA" × "Maria da Silva Souza" e razão social × fantasia).
+ * null = sem como comparar.
+ */
+function titularConfere(titular: string, nomes: string[], docFavorecido: string | null): boolean | null {
+  const doc = (titular.match(/\d[\d./-]{9,}\d/)?.[0] ?? "").replace(/\D/g, "")
+  if ((doc.length === 11 || doc.length === 14) && docFavorecido) return doc === docFavorecido
+  const dele = palavras(titular)
+  if (dele.length === 0 || nomes.length === 0) return null
+  return nomes.some((nome) => {
+    const fav = palavras(nome)
+    if (fav.length === 0) return false
+    const emComum = dele.filter((p) => fav.includes(p)).length
+    return emComum / Math.min(dele.length, fav.length) >= 0.6
+  })
 }
 
 async function verificarLinha(
@@ -477,6 +508,45 @@ async function verificarLinha(
         r(soma > teto ? "falha" : "ok", `${formatarMoeda(soma)} no mês ${ref.slice(5, 7)}/${ref.slice(0, 4)} com esta ordem — teto ${formatarMoeda(teto)}.`)
         break
       }
+      case "conta_outro_titular": {
+        if (destinoDaForma(linha.forma_pagamento) !== "ted") {
+          r("na", "A ordem não é por TED.")
+          break
+        }
+        // A conta da ordem; sem ela, a do cadastro que a remessa usaria.
+        let conta = await buscar("dados_bancarios", linha.dados_bancarios_id)
+        if (!t(conta?.conta)) {
+          const dono = fornId ? ["fornecedor_id", fornId] : usuarioId ? ["usuario_id", usuarioId] : null
+          if (dono) {
+            const { data } = await admin
+              .from("dados_bancarios")
+              .select("conta, favorecido, favorito")
+              .eq(dono[0], dono[1])
+              .not("conta", "is", null)
+              .order("favorito", { ascending: false, nullsFirst: false })
+              .limit(1)
+            conta = (data?.[0] as Linha | undefined) ?? null
+          }
+        }
+        const titular = t(conta?.favorecido)
+        if (!conta || !titular) {
+          r("na", "A conta não informa o titular.")
+          break
+        }
+        const nomes = [
+          t(fornecedor?.empresa),
+          t(fornecedor?.nome_fantasia),
+          t(fornecedor?.nome_razao),
+          t(usuario?.nome_completo),
+          t(usuario?.nome_guerra),
+          t(linha.beneficiario_nome_avulso),
+        ].filter((v): v is string => Boolean(v))
+        const veredito = titularConfere(titular, nomes, docFavorecido)
+        if (veredito === null) r("na", "Favorecido sem nome para comparar.")
+        else if (veredito) r("ok", `Titular da conta: ${titular}.`)
+        else r("falha", `A conta é de ${titular}, mas o favorecido é ${nomes[0] ?? docFavorecido ?? "outro"}.`)
+        break
+      }
       case "folha_sem_conta": {
         if (!usuarioId) {
           r("na", "Sem funcionário.")
@@ -588,7 +658,10 @@ export async function inserirOrdensVerificadas(
   ctx: ContextoVerificacao = {}
 ): Promise<{ ids?: string[]; alertas?: number; erro?: string; apontamentos?: Apontamento[] }> {
   if (linhas.length === 0) return { ids: [] }
-  // Pix/TED sem a conta do favorecido registrada não vira ordem (ordens-destino.ts).
+  // Sem forma, vem a do cadastro do favorecido; Pix/TED sem a conta do
+  // favorecido registrada não vira ordem (ordens-destino.ts).
+  const semForma = await completarFormaPadrao(linhas)
+  if (semForma) return { erro: semForma }
   const semDestino = await faltaDestinoBancario(linhas)
   if (semDestino) return { erro: semDestino }
   const { origem, resultados } = await verificarOrdens(linhas, ctx)

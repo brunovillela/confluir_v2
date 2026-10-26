@@ -2789,6 +2789,8 @@ export async function gerarOrdemMulta(
       situacao: "Em autorização",
       valor_inicial_cobranca: infracao.custo,
       vencimento: dados.vencimento,
+      // Multa se paga pelo boleto/guia do órgão (forma obrigatória, 26/10/2026).
+      forma_pagamento: "Boleto",
       excluido: false,
       emp_proprietaria_id: await tenantAtual(),
     }, { condutorId: infracao.condutor_id })

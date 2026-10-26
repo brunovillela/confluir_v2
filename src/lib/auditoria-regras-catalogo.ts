@@ -125,6 +125,14 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     ],
   },
   {
+    codigo: "conta_outro_titular",
+    titulo: "Conta de outro titular",
+    pergunta: "Aceita pagar por TED numa conta cujo titular não é o favorecido?",
+    explicacao: "Compara o titular da conta (nome ou CPF/CNPJ informado no cadastro da conta) com o favorecido da ordem. Trocar a conta do fornecedor por outra é o golpe mais comum em pagamentos.",
+    origens: TODAS,
+    padrao: { "*": "alertar" },
+  },
+  {
     codigo: "sem_centro_custo",
     titulo: "Despesa sem centro de custo",
     pergunta: "Aceita criar a ordem sem centro de custo da despesa?",

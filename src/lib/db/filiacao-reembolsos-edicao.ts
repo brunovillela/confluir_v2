@@ -256,16 +256,16 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       ]),
     ]
   }
+  // Sem chave Pix, a conta (TED): toda ordem nasce com forma (26/10/2026).
   const { data: bancos, error: erroBancos } = await admin
     .from("dados_bancarios")
-    .select("pix, favorito, prefere_pix, created_at")
+    .select("id, pix, banco, agencia, conta, favorito, prefere_pix, created_at")
     .in("filiado_id", registrosDaPessoa)
-    .not("pix", "is", null)
     .order("favorito", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(1)
   if (erroBancos) console.error("Falha ao ler o Pix do filiado para o reembolso:", erroBancos.message)
-  const pix = texto(bancos?.[0]?.pix)
+  const pix = texto((bancos ?? []).find((b) => texto(b.pix))?.pix)
+  const conta = pix ? undefined : (bancos ?? []).find((b) => texto(b.conta) && texto(b.agencia) && texto(b.banco))
 
   // O comprovante sobe antes de tudo: falhou, nada é gravado.
   let comprovante: string | null = null
@@ -283,8 +283,9 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       situacao: "Em autorização",
       valor_inicial_cobranca: dados.valor,
       vencimento: hojeSP(),
-      forma_pagamento: pix ? "Pix" : null,
+      forma_pagamento: pix ? "Pix" : conta ? "Depósito bancário (TED)" : null,
       pix_codigo: pix,
+      ...(conta ? { dados_bancarios_id: String(conta.id) } : {}),
       beneficiario_usuario_id: usuarioId,
       beneficiario_nome_avulso: usuarioId ? null : nome,
       beneficiario_doc_avulso: usuarioId ? null : cpf,

@@ -123,7 +123,7 @@ export function AcoesOrdem({
             <div className="grid gap-1.5">
               <Label htmlFor="corr_forma">Forma de pagamento</Label>
               <select id="corr_forma" name="forma_pagamento" defaultValue={atual.formaPagamento} className={SELECT}>
-                <option value="">Não informada</option>
+                <option value="" disabled>Escolha…</option>
                 {!formas.includes(atual.formaPagamento) && atual.formaPagamento && (
                   <option value={atual.formaPagamento}>{atual.formaPagamento}</option>
                 )}

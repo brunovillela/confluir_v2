@@ -602,6 +602,9 @@ export async function corrigirOrdem(
   campo("forma_pagamento", o.forma_pagamento, nova.formaPagamento)
   if (Object.keys(mudancas).length === 0) return { erro: "Nada foi alterado." }
 
+  if ("forma_pagamento" in mudancas && !nova.formaPagamento) {
+    return { erro: "Toda ordem precisa de forma de pagamento — escolha uma." }
+  }
   if ("forma_pagamento" in mudancas) {
     // Trocar para Pix/TED exige a conta do favorecido registrada (ordens-destino.ts).
     const { faltaDestinoBancario } = await import("@/lib/db/ordens-destino")
