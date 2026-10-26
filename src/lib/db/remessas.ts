@@ -93,6 +93,8 @@ export type OrdemParaRemessa = {
   /** Em remessa ativa (não entra de novo). */
   emRemessa: { remessaId: string; numero: number } | null
   pendencias: string[]
+  /** Avisos que NÃO tiram a ordem da remessa (ex.: conta de outro titular). */
+  avisos: string[]
   item: ItemRemessa | null
 }
 
@@ -251,7 +253,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   const [empresas, usuarios, dados] = await Promise.all([
     empIds.length ? admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao, cnpj_cpf").in("id", empIds) : Promise.resolve({ data: [] }),
     usuIds.length ? admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", usuIds) : Promise.resolve({ data: [] }),
-    dbIds.length ? admin.from("dados_bancarios").select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, fornecedor_id, usuario_id").in("id", dbIds) : Promise.resolve({ data: [] }),
+    dbIds.length ? admin.from("dados_bancarios").select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, fornecedor_id, usuario_id").in("id", dbIds) : Promise.resolve({ data: [] }),
   ])
   const empresaPorId = new Map((empresas.data ?? []).map((e) => [String(e.id), e]))
   const usuarioPorId = new Map((usuarios.data ?? []).map((u) => [String(u.id), u]))
@@ -259,7 +261,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   // Meios cadastrados do fornecedor/usuário, para sugerir quando a ordem não escolheu um.
   const { data: meiosTodos } = await admin
     .from("dados_bancarios")
-    .select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, fornecedor_id, usuario_id, favorito, prefere_pix")
+    .select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, fornecedor_id, usuario_id, favorito, prefere_pix")
     .or([empIds.length ? `fornecedor_id.in.(${empIds.join(",")})` : null, usuIds.length ? `usuario_id.in.(${usuIds.join(",")})` : null].filter(Boolean).join(","))
     .limit(2000)
     .then((r) => r, () => ({ data: [] as Record<string, unknown>[] }))
@@ -275,6 +277,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
     const codigo = texto(o.codigo)
     const valor = Number(o.valor_inicial_cobranca ?? 0)
     const pendencias: string[] = []
+    const avisos: string[] = []
     const empresa = empresaPorId.get(texto(o.beneficiario_fornecedor_id) ?? "") ?? empresaPorId.get(texto(o.fornecedor_id) ?? "")
     const usuario = usuarioPorId.get(texto(o.beneficiario_usuario_id) ?? "")
     const favorecidoNome = (empresa && (texto(empresa.empresa) ?? texto(empresa.nome_fantasia) ?? texto(empresa.nome_razao))) ?? (usuario && (texto(usuario.nome_completo) ?? texto(usuario.nome_guerra))) ?? texto(o.beneficiario_nome_avulso)
@@ -332,6 +335,20 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
         if (!bancoCodigo) pendencias.push(`banco "${texto(usar.banco) ?? "?"}" sem código conhecido`)
         else {
           destino = `${bancoPorCodigo(bancoCodigo)?.nome ?? `Banco ${bancoCodigo}`} ag. ${ag.numero}${ag.dv ? `-${ag.dv}` : ""} c/c ${ct.numero}${ct.dv ? `-${ct.dv}` : ""}`
+          // Na TED, o banco confere o documento com o da conta: vai o do
+          // TITULAR, quando o cadastro da conta o tem. Conta de outro titular
+          // NÃO trava — aparece como aviso (a auditoria já alertou na ordem).
+          const docTitular = documentoLimpo(texto(usar.titular_documento))
+          const nomeTitular = texto(usar.favorecido)
+          if (docTitular) {
+            base.favorecidoDocumento = docTitular
+            if (nomeTitular) base.favorecidoNome = nomeTitular
+            const i = pendencias.indexOf("favorecido sem CPF/CNPJ")
+            if (i >= 0) pendencias.splice(i, 1)
+            if (favorecidoDocumento && docTitular !== favorecidoDocumento) {
+              avisos.push(`conta de outro titular: ${nomeTitular ?? "titular"} (${docTitular})`)
+            }
+          }
           item = { ...base, tipo: "conta", bancoCodigo, agencia: ag.numero, agenciaDv: ag.dv, conta: ct.numero, contaDv: ct.dv, tipoConta: String(usar.tipo_conta ?? "corrente").toLowerCase().includes("poup") ? "poupanca" : "corrente" }
         }
       }
@@ -351,6 +368,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
       destino,
       emRemessa: emRemessa.get(id) ?? null,
       pendencias,
+      avisos,
       item,
     }
   })

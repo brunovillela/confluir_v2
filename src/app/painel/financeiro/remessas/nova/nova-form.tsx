@@ -103,6 +103,12 @@ export function NovaRemessaForm({ contas, ordens }: { contas: ContaBancaria[]; o
                     {o.pendencias.join(" · ")}
                   </p>
                 )}
+                {!o.emRemessa && o.avisos.length > 0 && (
+                  <p className="text-warning-fg mt-1 flex items-start gap-1 text-xs">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                    {o.avisos.join(" · ")}
+                  </p>
+                )}
                 {!o.emRemessa && o.meio === "boleto" && o.pendencias.some((p) => /linha digitável/.test(p)) && <LinhaDigitavelForm ordemId={o.id} />}
               </div>
               <p className="text-right font-semibold tabular-nums">{formatarMoeda(o.valor)}</p>
