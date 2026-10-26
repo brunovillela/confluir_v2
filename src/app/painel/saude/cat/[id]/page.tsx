@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CircleCheck, Copy, Link2, Pencil, TriangleAlert, UserRound } from "lucide-react"
+import { CircleCheck, Copy, FileText, Link2, Pencil, TriangleAlert, UserRound } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -13,12 +13,13 @@ import {
   filiadosAtivosPorCpf,
 } from "@/lib/db/filiados"
 import { relacoesDaCat } from "@/lib/db/cat-duplicidades"
-import { buscarCat } from "@/lib/db/saude"
+import { buscarCat, urlPdfCat } from "@/lib/db/saude"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { valoresDoRegistro } from "@/lib/saude-campos"
 import { rotuloTipoAcidente } from "@/lib/saude-constantes"
 
+import { AvisoSemConferencia } from "../aviso-sem-conferencia"
 import { CatForm } from "../cat-forms"
 import { RestaurarCopia } from "../restaurar-copia"
 import { VincularFiliado } from "../vincular-filiado"
@@ -31,7 +32,7 @@ export default async function CatPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ editar?: string; salvo?: string }>
+  searchParams: Promise<{ editar?: string; salvo?: string; sem_pdf?: string }>
 }) {
   const sessao = await requirePermissao("saude_cat", [
     "saude_atendimento",
@@ -42,9 +43,13 @@ export default async function CatPage({
   ])
 
   const { id } = await params
-  const { editar, salvo } = await searchParams
+  const { editar, salvo, sem_pdf: semPdf } = await searchParams
   const cat = (await buscarCat(id)) as Record<string, unknown> | null
   if (!cat) notFound()
+
+  const urlPdf = await urlPdfCat((cat.arquivo_url as string | null) ?? null)
+  const semConferencia = cat.sem_conferencia === true
+  const avisosLeitura = Array.isArray(cat.leitura_avisos) ? (cat.leitura_avisos as string[]) : []
 
   // Edição reusa o mesmo formulário do cadastro, preenchido.
   if (editar === "1" && podeEditar) {
@@ -64,6 +69,9 @@ export default async function CatPage({
             <Link href={`/painel/saude/cat/${id}`}>Cancelar</Link>
           </Button>
         </div>
+        {semConferencia && (
+          <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} naEdicao />
+        )}
         <CatForm id={id} valores={valores} />
       </>
     )
@@ -121,6 +129,14 @@ export default async function CatPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {urlPdf && (
+            <Button variant="outline" asChild>
+              <a href={urlPdf} target="_blank" rel="noreferrer">
+                <FileText />
+                PDF da CAT
+              </a>
+            </Button>
+          )}
           {podeEditar && (
             <Button variant="outline" asChild>
               <Link href={`/painel/saude/cat/${id}?editar=1`}>
@@ -135,10 +151,16 @@ export default async function CatPage({
         </div>
       </div>
 
+      {semConferencia && (
+        <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} />
+      )}
+
       {salvo === "1" && (
         <Alert variant="success">
           <CircleCheck />
-          <AlertDescription>CAT salva.</AlertDescription>
+          <AlertDescription>
+            CAT salva.{semPdf === "1" ? " O PDF não pôde ser guardado — anexe-o de novo se precisar." : ""}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -216,9 +238,18 @@ export default async function CatPage({
         <Alert variant="warning">
           <TriangleAlert />
           <AlertDescription>
-            Registro da geração antiga da base: as descrições dos campos 31, 32,
-            34 e 45 chegaram truncadas e sem o código oficial. O texto abaixo é o
-            que existia na origem — nada foi completado por inferência.
+            {t("bubble_id") ? (
+              <>
+                Registro da geração antiga da base: as descrições dos campos 31, 32,
+                34 e 45 chegaram truncadas e sem o código oficial. O texto abaixo é o
+                que existia na origem — nada foi completado por inferência.
+              </>
+            ) : (
+              <>
+                Os campos 31, 32, 34 ou 45 estão sem o código oficial de 9 dígitos —
+                a CAT fica na fila de revisão até o código ser informado.
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}

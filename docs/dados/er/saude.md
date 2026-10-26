@@ -54,6 +54,7 @@ erDiagram
     uuid cat_origem_id FK
     uuid duplicada_de_id FK
     uuid descartada_por FK
+    uuid conferida_por FK
   }
   saude_cat_duplicidades_ignoradas {
     uuid id PK
@@ -100,6 +101,7 @@ erDiagram
   saude_cat }o--o| filiacoes : "filiado_id"
   saude_cat }o--o| saude_cat : "cat_origem_id"
   saude_cat }o--o| saude_cat : "duplicada_de_id"
+  saude_cat }o--o| usuarios : "conferida_por"
   saude_cat }o--o| usuarios : "descartada_por"
   saude_cat_duplicidades_ignoradas }o--o| usuarios : "criado_por"
   saude_cipa_agenda }o--o| empresa : "empresa_id"

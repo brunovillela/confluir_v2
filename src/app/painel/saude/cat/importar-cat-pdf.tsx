@@ -11,10 +11,19 @@ import { Input } from "@/components/ui/input"
 import { CatForm } from "./cat-forms"
 import { ClassificacaoCatAviso } from "./classificacao-cat"
 import { extrairCatDePdf } from "./importar-pdf-actions"
+import { LoteCatPdf, MAXIMO_LOTE } from "./lote-cat-pdf"
 
 export function ImportarCatPdf() {
   const [estado, formAction, pendente] = useActionState(extrairCatDePdf, {})
   const [atualizandoExistente, setAtualizandoExistente] = useState(false)
+  // Guardados fora do form: a action reinicia o input, e o PDF ainda vai
+  // junto com a CAT quando ela for salva.
+  const [arquivos, setArquivos] = useState<File[]>([])
+  const [registrar, setRegistrar] = useState(false)
+  const [lote, setLote] = useState<{ arquivos: File[]; registrar: boolean } | null>(null)
+  const [erroLote, setErroLote] = useState<string | null>(null)
+
+  if (lote) return <LoteCatPdf arquivos={lote.arquivos} registrar={lote.registrar} />
 
   if (estado.valores) {
     const c = estado.classificacao
@@ -114,6 +123,7 @@ export function ImportarCatPdf() {
             valores={estado.valores}
             origemId={c?.classe === "atualizacao" ? c.origemId : null}
             pedirConfirmacao={c?.classe === "possivel_duplicada"}
+            arquivo={arquivos[0]}
           />
         )}
       </div>
@@ -121,29 +131,72 @@ export function ImportarCatPdf() {
   }
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form
+      action={(fd) => {
+        if (arquivos.length > MAXIMO_LOTE) {
+          setErroLote(`No máximo ${MAXIMO_LOTE} PDFs por vez.`)
+          return
+        }
+        // Vários PDFs, ou o registro sem conferência: a lista do lote.
+        if (arquivos.length > 1 || registrar) {
+          setLote({ arquivos, registrar })
+          return
+        }
+        formAction(fd)
+      }}
+      className="grid gap-3"
+    >
       <Input
         type="file"
         name="arquivo"
         accept="application/pdf"
+        multiple
         required
+        onChange={(e) => {
+          setArquivos(Array.from(e.target.files ?? []))
+          setErroLote(null)
+        }}
       />
       <p className="text-muted-foreground text-xs">
-        Um PDF de CAT por vez. A IA lê o documento e pré-preenche os 50 campos
-        para você conferir, e compara com a base: avisa se a CAT já foi lançada,
-        se é uma atualização de outra (reabertura, óbito) ou se pode ser
-        duplicidade. Funciona com PDF digital e também escaneado (imagem) — o
-        escaneado usa a leitura por visão e pode demorar um pouco mais.
+        Um ou vários PDFs de CAT (até {MAXIMO_LOTE} por vez). A IA lê cada
+        documento e pré-preenche os 50 campos, e compara com a base: avisa se a
+        CAT já foi lançada, se é uma atualização de outra (reabertura, óbito) ou
+        se pode ser duplicidade. Funciona com PDF digital e também escaneado
+        (imagem) — o escaneado usa a leitura por visão e demora um pouco mais.
+        Com vários PDFs, eles aparecem numa lista e você confere um a um, sem
+        sair da tela.
       </p>
-      {estado.erro && (
+      <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={registrar}
+          onChange={(e) => setRegistrar(e.target.checked)}
+          className="accent-primary mt-1"
+        />
+        <span>
+          <strong>Registrar sem conferência</strong>
+          <span className="text-muted-foreground block text-xs">
+            Grava direto o que a IA leu, sem você revisar campo a campo. Cada CAT
+            fica marcada &quot;sem conferência&quot;, com um alerta no topo da
+            página dela, até alguém conferir com o PDF (que fica guardado na
+            CAT). CATs já lançadas não entram; possível duplicidade e leitura sem
+            nome ou data ficam na lista para você conferir.
+          </span>
+        </span>
+      </label>
+      {(estado.erro || erroLote) && (
         <Alert variant="destructive">
-          <AlertDescription>{estado.erro}</AlertDescription>
+          <AlertDescription>{erroLote ?? estado.erro}</AlertDescription>
         </Alert>
       )}
       <div>
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {pendente ? "Lendo o PDF…" : "Ler PDF com IA"}
+          {pendente
+            ? "Lendo o PDF…"
+            : arquivos.length > 1
+              ? `Ler ${arquivos.length} PDFs com IA`
+              : "Ler PDF com IA"}
         </Button>
       </div>
     </form>

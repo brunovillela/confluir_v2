@@ -400,6 +400,15 @@ export default async function CatsPage({
                             {c.houve_internacao === true && (
                               <Badge variant="outline">Internação</Badge>
                             )}
+                            {c.sem_conferencia === true && (
+                              <Badge
+                                variant="outline"
+                                className="border-warning/40 text-warning-fg whitespace-nowrap"
+                                title="Gravada a partir do PDF sem conferência"
+                              >
+                                Sem conferência
+                              </Badge>
+                            )}
                             {c.descricao_truncada === true && (
                               <Badge
                                 variant="outline"

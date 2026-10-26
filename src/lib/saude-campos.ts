@@ -229,3 +229,29 @@ export function valorParaColunas(
 
 /** Campos 31/32/34/45: sem código, o registro entra na fila de revisão. */
 export const CAMPOS_COM_CODIGO_OFICIAL = [31, 32, 34, 45]
+
+/**
+ * Marca a fila de revisão: registro cujos campos 31/32/34/45 vieram com
+ * descrição mas sem o código oficial de 9 dígitos. Mesma regra da carga
+ * inicial (supabase/historico/saude-cat-carga.sql), para o indicador do painel
+ * continuar significando a mesma coisa.
+ */
+export function marcarTruncada<R extends Record<string, unknown>>(registro: R): R & { descricao_truncada: boolean } {
+  const truncada = CAMPOS_COM_CODIGO_OFICIAL.some((numero) => {
+    const campo = CAMPOS_CAT.find((c) => c.n === numero)
+    if (!campo?.colunaCodigo) return false
+    return registro[campo.coluna] != null && registro[campo.colunaCodigo] == null
+  })
+  return { ...registro, descricao_truncada: truncada }
+}
+
+/** Valores do formulário (`campo_<n>`) → colunas da saude_cat, normalizadas. */
+export function registroDosValores(
+  valores: Record<string, string>
+): Record<string, string | number | boolean | null> {
+  let registro: Record<string, string | number | boolean | null> = {}
+  for (const campo of CAMPOS_CAT) {
+    registro = { ...registro, ...valorParaColunas(campo, valores[nomeCampo(campo)] ?? "") }
+  }
+  return marcarTruncada(registro)
+}

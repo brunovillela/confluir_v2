@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect, useRef } from "react"
 import { Loader2, Save, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -56,6 +56,8 @@ export function CatForm({
   id,
   origemId,
   pedirConfirmacao,
+  arquivo,
+  aoSalvar,
 }: {
   /** Valores atuais por nome de campo (`campo_<n>`), na edição. */
   valores?: Record<string, string>
@@ -64,11 +66,33 @@ export function CatForm({
   origemId?: string | null
   /** Já se sabe que é possível duplicidade: mostra a confirmação desde o início. */
   pedirConfirmacao?: boolean
+  /** O PDF lido pela IA: vai junto e fica guardado na CAT. */
+  arquivo?: File
+  /** Fica na tela depois de salvar (lote): avisa quem chamou em vez de navegar. */
+  aoSalvar?: (id: string, mensagem: string) => void
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoCat, FormData>(
     id ? atualizarCatAction : criarCatAction,
     {}
   )
+
+  // O File não tem atributo: entra no input pelo DataTransfer, a cada montagem
+  // (a key do form muda depois de um erro e remonta o input vazio).
+  const pdf = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!arquivo || !pdf.current) return
+    const dt = new DataTransfer()
+    dt.items.add(arquivo)
+    pdf.current.files = dt.files
+  }, [arquivo, estado.tentativa])
+
+  const avisado = useRef<string | null>(null)
+  useEffect(() => {
+    if (estado.salvoId && avisado.current !== estado.salvoId) {
+      avisado.current = estado.salvoId
+      aoSalvar?.(estado.salvoId, estado.ok ?? "CAT salva.")
+    }
+  }, [estado.salvoId, estado.ok, aoSalvar])
 
   // Depois de um erro, o formulário reabre com o que foi digitado (a key o remonta).
   const atuais = estado.valores ?? valores
@@ -76,6 +100,8 @@ export function CatForm({
     <form key={estado.tentativa ?? 0} action={formAction} className="grid gap-4">
       {id && <input type="hidden" name="id" value={id} />}
       {origemId && <input type="hidden" name="cat_origem_id" value={origemId} />}
+      {arquivo && <input ref={pdf} type="file" name="arquivo_pdf" accept="application/pdf" hidden />}
+      {aoSalvar && <input type="hidden" name="permanecer" value="1" />}
 
       {BLOCOS.map((bloco) => (
         <Card key={bloco}>

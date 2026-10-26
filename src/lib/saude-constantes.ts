@@ -77,4 +77,5 @@ export const OPCOES_REVISAO = [
   { valor: "todas", rotulo: "Todas as descrições" },
   { valor: "completas", rotulo: "Com código oficial" },
   { valor: "truncadas", rotulo: "Sem código (revisar)" },
+  { valor: "sem_conferencia", rotulo: "Registradas sem conferência" },
 ] as const

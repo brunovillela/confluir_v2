@@ -10,7 +10,9 @@ import { classificarCat, type EntradaCat } from "@/lib/db/cat-duplicidades"
 import {
   atualizarCat,
   criarCat,
+  gravarPdfCat,
   importarCats,
+  marcarCatConferida,
   numerosCatExistentes,
   vincularFiliadoCat,
   type RegistroCat,
@@ -18,7 +20,7 @@ import {
 import {
   acharCampo,
   CAMPOS_CAT,
-  CAMPOS_COM_CODIGO_OFICIAL,
+  marcarTruncada,
   nomeCampo,
   valorParaColunas,
   type CampoCat,
@@ -36,6 +38,8 @@ export type EstadoCat = EstadoForm & {
   confirmar?: boolean
   valores?: Record<string, string>
   tentativa?: number
+  /** CAT gravada sem sair da tela (modo "permanecer", usado no lote). */
+  salvoId?: string
 }
 
 function comDigitado(formData: FormData, estado: EstadoCat): EstadoCat {
@@ -46,23 +50,6 @@ function comDigitado(formData: FormData, estado: EstadoCat): EstadoCat {
 
 const PERMISSAO = "saude_cat"
 const ALTERNATIVAS = ["saude_gestao"]
-
-/**
- * Marca a fila de revisão: registro cujos campos 31/32/34/45 vieram com
- * descrição mas sem o código oficial de 9 dígitos. Mesma regra da carga
- * inicial (supabase/saude-cat-carga.sql), para o indicador do painel
- * continuar significando a mesma coisa.
- */
-function marcarTruncada(registro: RegistroCat): RegistroCat {
-  const truncada = CAMPOS_COM_CODIGO_OFICIAL.some((numero) => {
-    const campo = CAMPOS_CAT.find((c) => c.n === numero)
-    if (!campo?.colunaCodigo) return false
-    return (
-      registro[campo.coluna] != null && registro[campo.colunaCodigo] == null
-    )
-  })
-  return { ...registro, descricao_truncada: truncada }
-}
 
 /** Lê os 50 campos do FormData do formulário individual. */
 function registroDoFormulario(formData: FormData): RegistroCat {
@@ -119,9 +106,18 @@ export async function criarCatAction(
   const { id, erro } = await criarCat(registro)
   if (erro || !id) return comDigitado(formData, { erro: erro ?? "Não foi possível gravar a CAT." })
 
+  // O PDF lido pela IA, quando veio da leitura: fica guardado na CAT. Falha
+  // aqui não desfaz a CAT — ela já está gravada; o aviso vai na página.
+  const pdf = formData.get("arquivo_pdf")
+  const semPdf =
+    pdf instanceof File && pdf.size > 0 ? (await gravarPdfCat(id, pdf)).erro : undefined
+
   revalidatePath("/painel/saude/cat")
   revalidatePath("/painel/saude")
-  redirect(`/painel/saude/cat/${id}?salvo=1`)
+  if (formData.get("permanecer") === "1") {
+    return { ok: semPdf ? `CAT salva, mas o PDF não foi guardado: ${semPdf}` : "CAT salva.", salvoId: id }
+  }
+  redirect(`/painel/saude/cat/${id}?salvo=1${semPdf ? "&sem_pdf=1" : ""}`)
 }
 
 export async function atualizarCatAction(
@@ -145,6 +141,21 @@ export async function atualizarCatAction(
   revalidatePath(`/painel/saude/cat/${id}`)
   revalidatePath("/painel/saude")
   redirect(`/painel/saude/cat/${id}?salvo=1`)
+}
+
+/** Tira a marca de "registrada sem conferência" da CAT. */
+export async function marcarCatConferidaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
+  const id = String(formData.get("id") ?? "")
+  if (!UUID.test(id)) return { erro: "Registro não identificado." }
+  const { erro } = await marcarCatConferida(id, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/saude/cat/${id}`)
+  revalidatePath("/painel/saude/cat")
+  return { ok: "CAT marcada como conferida." }
 }
 
 /** Liga/desliga o vínculo da CAT com um filiado (campo vazio = desvincular). */

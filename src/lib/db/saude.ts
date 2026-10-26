@@ -116,7 +116,7 @@ const COLUNAS_LISTA =
   "id,numero_cat,data_acidente,trabalhador_nome,empregador_razao_social," +
   "tipo_acidente,local_municipio,local_uf,parte_atingida,parte_atingida_codigo," +
   "cid10,afastamento_durante_tratamento,houve_internacao,houve_morte," +
-  "descricao_truncada,filiado_id"
+  "descricao_truncada,filiado_id,sem_conferencia"
 
 export type CatLinha = {
   id: string
@@ -135,6 +135,7 @@ export type CatLinha = {
   houve_morte: boolean | null
   descricao_truncada: boolean | null
   filiado_id: string | null
+  sem_conferencia: boolean | null
 }
 
 export type FiltrosCat = {
@@ -227,6 +228,7 @@ function aplicarFiltros<T>(consulta: T, f: FiltrosCat): T {
 
   if (f.revisao === "truncadas") q = q.is("descricao_truncada", true)
   else if (f.revisao === "completas") q = q.is("descricao_truncada", false)
+  else if (f.revisao === "sem_conferencia") q = q.is("sem_conferencia", true)
 
   if (f.vinculo === "vinculados") q = q.not("filiado_id", "is", null)
   else if (f.vinculo === "sem_vinculo") q = q.is("filiado_id", null)
@@ -412,7 +414,7 @@ export async function facetasCat(): Promise<Facetas> {
 }
 
 /** Registro pronto para gravar — chaves são colunas de saude_cat. */
-export type RegistroCat = Record<string, string | number | boolean | null>
+export type RegistroCat = Record<string, string | number | boolean | string[] | null>
 
 /**
  * Números de CAT já existentes, entre os informados. A importação usa isto
@@ -479,6 +481,59 @@ export async function atualizarCat(
   }
   invalidarCacheFacetas()
   invalidarCacheCatDuplicidades()
+  return {}
+}
+
+/**
+ * Guarda o PDF da CAT no bucket privado `saude` e aponta `arquivo_url` para
+ * ele. É o PDF que a IA leu: quem for conferir uma CAT registrada sem
+ * conferência precisa dele ao lado.
+ */
+export async function gravarPdfCat(
+  catId: string,
+  arquivo: File
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const caminho = `cat/${catId}/${Date.now()}-${arquivo.name.replace(/[^\w.-]/g, "_")}`
+  const { error: erroUpload } = await admin.storage
+    .from("saude")
+    .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
+  if (erroUpload) return { erro: `Falha ao guardar o PDF: ${erroUpload.message}` }
+  const { error } = await admin
+    .from("saude_cat")
+    .update({ arquivo_url: caminho })
+    .eq("id", catId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL : error.message }
+  return {}
+}
+
+/** URL assinada (1h) do PDF da CAT. */
+export async function urlPdfCat(caminho: string | null): Promise<string | null> {
+  if (!caminho) return null
+  if (/^https?:\/\//.test(caminho)) return caminho
+  const admin = await createAdminClient()
+  const { data } = await admin.storage.from("saude").createSignedUrl(caminho, 3600)
+  return data?.signedUrl ?? null
+}
+
+/** Tira a marca de "registrada sem conferência", com quem e quando. */
+export async function marcarCatConferida(
+  catId: string,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("saude_cat")
+    .update({
+      sem_conferencia: false,
+      conferida_em: new Date().toISOString(),
+      conferida_por: usuarioId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", catId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL : error.message }
   return {}
 }
 

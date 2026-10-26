@@ -257,19 +257,23 @@ Comunicações de Acidente de Trabalho. Os comentários por coluna indicam o nú
 | `local_e_data` | text | sim |  |  | **sensível: saúde** | CAT campo 48 |
 | `medico_nome_crm_uf` | text | sim |  |  | identificação | CAT campo 49 |
 | `observacoes_atestado` | text | sim |  |  | **sensível: saúde** | CAT campo 50 |
-| `arquivo_url` | text | sim |  |  | **sensível: saúde** | PDF da CAT. |
+| `arquivo_url` | text | sim |  |  | **sensível: saúde** | PDF da CAT: caminho no bucket privado `saude` (cat/<id>/…); a exibição gera signed URL de 1h. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `cat_origem_id` | uuid | sim |  | → saude_cat (set null) |  | CAT de origem (inicial) desta CAT de reabertura ou comunicação de óbito. |
 | `duplicada_de_id` | uuid | sim |  | → saude_cat (set null) |  | Esta CAT é cópia descartada da CAT indicada; fica fora das listas. Nada é apagado. |
 | `descartada_em` | timestamp with time zone | sim |  |  |  |  |
 | `descartada_por` | uuid | sim |  | → usuarios |  |  |
+| `sem_conferencia` | boolean | não | `false` |  |  | Gravada a partir da leitura do PDF por IA sem conferência humana; fica marcada até alguém conferir (alerta no topo da CAT). |
+| `leitura_avisos` | text[] | sim |  |  | **sensível: saúde** | Avisos da leitura por IA no momento da gravação sem conferência (data não reconhecida, opção desconhecida…). |
+| `conferida_em` | timestamp with time zone | sim |  |  |  | Quando a CAT registrada sem conferência foi conferida. |
+| `conferida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem conferiu a CAT registrada sem conferência (usuarios.id). |
 
 Únicas: `UNIQUE (bubble_id)`
 
 Checks: `saude_cat_cpf_digitos` `CHECK (((trabalhador_cpf IS NULL) OR (trabalhador_cpf ~ '^[0-9]{11}$'::text)))`
 
-Índices: `idx_saude_cat_duplicada`, `idx_saude_cat_origem`, `saude_cat_agente_causador_idx`, `saude_cat_bubble_id_key`, `saude_cat_cid10_idx`, `saude_cat_cpf_idx`, `saude_cat_data_acidente_idx`, `saude_cat_empregador_idx`, `saude_cat_filiado_idx`, `saude_cat_numero_idx`, `saude_cat_parte_atingida_idx`, `saude_cat_pkey`, `saude_cat_trabalhador_idx`, `saude_cat_truncada_idx`
+Índices: `idx_saude_cat_duplicada`, `idx_saude_cat_origem`, `saude_cat_agente_causador_idx`, `saude_cat_bubble_id_key`, `saude_cat_cid10_idx`, `saude_cat_cpf_idx`, `saude_cat_data_acidente_idx`, `saude_cat_empregador_idx`, `saude_cat_filiado_idx`, `saude_cat_numero_idx`, `saude_cat_parte_atingida_idx`, `saude_cat_pkey`, `saude_cat_sem_conferencia_idx`, `saude_cat_trabalhador_idx`, `saude_cat_truncada_idx`
 
 ## saude_cat_duplicidades_ignoradas
 
