@@ -197,8 +197,18 @@ export function ExclusaoOrdensBarra({
 export function AcoesLinhaOrdem({
   contratoId,
   ordem,
+  acaoEditarOrdem = editarOrdemContratoAction,
+  acaoExcluirOrdem = excluirOrdemContratoAction,
+  campoOrigem = "contrato_id",
+  origemRotulo = "contrato",
 }: {
+  /** Id da origem (contrato ou custeio), enviado em `campoOrigem`. */
   contratoId: string
+  /** Ações — Contratos por padrão; o Custeio passa as suas. */
+  acaoEditarOrdem?: (prev: { erro?: string; ok?: string }, fd: FormData) => Promise<{ erro?: string; ok?: string }>
+  acaoExcluirOrdem?: (prev: { erro?: string; ok?: string }, fd: FormData) => Promise<{ erro?: string; ok?: string }>
+  campoOrigem?: string
+  origemRotulo?: string
   ordem: {
     id: string
     codigo: string | null
@@ -212,13 +222,13 @@ export function AcoesLinhaOrdem({
   // Salvou: o diálogo fecha e a confirmação aparece na linha.
   const [estEditar, acaoEditar, pendEditar] = useActionState(
     async (prev: { erro?: string; ok?: string }, dados: FormData) => {
-      const r = await editarOrdemContratoAction(prev, dados)
+      const r = await acaoEditarOrdem(prev, dados)
       if (r.ok) setAberto(false)
       return r
     },
     {}
   )
-  const [estExcluir, acaoExcluir, pendExcluir] = useActionState(excluirOrdemContratoAction, {})
+  const [estExcluir, acaoExcluir, pendExcluir] = useActionState(acaoExcluirOrdem, {})
   const autorizada = ordem.situacao === "A pagar"
 
   return (
@@ -239,7 +249,7 @@ export function AcoesLinhaOrdem({
             </DialogDescription>
           </DialogHeader>
           <form action={acaoEditar} className="grid gap-3">
-            <input type="hidden" name="contrato_id" value={contratoId} />
+            <input type="hidden" name={campoOrigem} value={contratoId} />
             <input type="hidden" name="ordem_id" value={ordem.id} />
             {estEditar.erro && (
               <Alert variant="destructive">
@@ -287,11 +297,11 @@ export function AcoesLinhaOrdem({
         onSubmit={(e) =>
           confirmarEnvio(
             e,
-            `Excluir a ordem ${ordem.codigo ?? ""}? Ela sai do contrato e do Financeiro${autorizada ? " — e a autorização já dada é desfeita" : ""}. A exclusão fica no histórico.`
+            `Excluir a ordem ${ordem.codigo ?? ""}? Ela sai do ${origemRotulo} e do Financeiro${autorizada ? " — e a autorização já dada é desfeita" : ""}. A exclusão fica no histórico.`
           )
         }
       >
-        <input type="hidden" name="contrato_id" value={contratoId} />
+        <input type="hidden" name={campoOrigem} value={contratoId} />
         <input type="hidden" name="ordem_id" value={ordem.id} />
         <Button
           type="submit"

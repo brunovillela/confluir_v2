@@ -29,6 +29,7 @@ import {
   listarDiretoresParaCusteio,
   listarFinalidades,
   MEIO_CONTA_DO_CUSTEIO,
+  ordemMexivelPeloCusteio,
   MEIO_PIX_DO_CUSTEIO,
   pagoComDoCusteio,
   urlFormalizacaoCusteio,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/custeio-constantes"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import {
+  AcoesLinhaOrdem,
   ExclusaoOrdensBarra,
   MarcarTodasOrdens,
 } from "@/app/painel/compras/contratos/[id]/ordens-contrato"
@@ -59,7 +61,11 @@ import {
   BotaoSubmeter,
   FormReprovar,
 } from "./custeio-acoes"
-import { excluirOrdensCusteioAction } from "../actions"
+import {
+  editarOrdemCusteioAction,
+  excluirOrdemCusteioAction,
+  excluirOrdensCusteioAction,
+} from "../actions"
 import {
   FormalizacaoForm,
   GerarOrdensCusteioForm,
@@ -88,6 +94,7 @@ export default async function CusteioPage({
     puladas?: string
     formalizacao?: string
     novas?: string
+    ordemExcluida?: string
   }>
 }) {
   const sessao = await requirePermissao("custeio_institucional", [
@@ -192,6 +199,9 @@ export default async function CusteioPage({
   const excluivel = (o: (typeof detalhe.ordens)[number]) =>
     podeEditar && SITUACOES_NAO_AUTORIZADAS.includes(o.situacao ?? "")
   const temExcluivel = detalhe.ordens.some(excluivel)
+  // Editar/excluir UMA ordem: qualquer uma ainda não paga nem em processamento.
+  const mexivel = (o: (typeof detalhe.ordens)[number]) => podeEditar && ordemMexivelPeloCusteio(o)
+  const temMexivel = detalhe.ordens.some(mexivel)
 
   const cadenciaRotulo =
     CADENCIAS.find((x) => x.chave === c.cadencia)?.rotulo ?? String(c.cadencia)
@@ -265,6 +275,11 @@ export default async function CusteioPage({
       {brutos.formalizacao === "erro" && (
         <Alert variant="warning">
           <AlertDescription>O custeio foi salvo, mas a formalização não subiu — anexe de novo no cartão abaixo.</AlertDescription>
+        </Alert>
+      )}
+      {brutos.ordemExcluida === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem excluída — ela saiu do custeio e do Financeiro, e a exclusão ficou no histórico.</AlertDescription>
         </Alert>
       )}
       {brutos.novas !== undefined && (
@@ -557,6 +572,7 @@ export default async function CusteioPage({
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Situação</TableHead>
+                  {temMexivel && <TableHead className="w-24 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -606,6 +622,27 @@ export default async function CusteioPage({
                         </div>
                       )}
                     </TableCell>
+                    {temMexivel && (
+                      <TableCell>
+                        {mexivel(o) && (
+                          <AcoesLinhaOrdem
+                            contratoId={id}
+                            ordem={{
+                              id: o.id,
+                              codigo: o.codigo,
+                              descricao: o.descricao,
+                              valor: o.valor_inicial_cobranca,
+                              vencimento: o.vencimento,
+                              situacao: o.situacao,
+                            }}
+                            acaoEditarOrdem={editarOrdemCusteioAction}
+                            acaoExcluirOrdem={excluirOrdemCusteioAction}
+                            campoOrigem="custeio_id"
+                            origemRotulo="custeio"
+                          />
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

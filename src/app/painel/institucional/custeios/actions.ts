@@ -13,6 +13,8 @@ import {
   criarCusteio,
   reabrirCusteioReprovado,
   meiosDoBeneficiario,
+  editarOrdemCusteio,
+  excluirOrdemCusteio,
   excluirOrdensCusteio,
   gerarNovasOrdensCusteio,
   meiosDoCusteio,
@@ -435,6 +437,55 @@ export async function gerarOrdensCusteioAction(
 export async function meiosDoCusteioAction(custeioId: string) {
   await requirePermissao("custeio_institucional_edicao")
   return meiosDoCusteio(custeioId)
+}
+
+/** Edita UMA ordem do custeio (descrição, valor, vencimento), com motivo. */
+export async function editarOrdemCusteioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("custeio_institucional_edicao")
+  const custeioId = texto(formData, "custeio_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!custeioId || !ordemId) return { erro: "Ordem inválida." }
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor inválido." }
+  const vencimento = texto(formData, "vencimento")
+  if (vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(vencimento)) return { erro: "Vencimento inválido." }
+  const { erro, voltouParaAutorizacao } = await editarOrdemCusteio(
+    custeioId,
+    ordemId,
+    { descricao: texto(formData, "descricao") || null, valor, vencimento: vencimento || null },
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidar(custeioId)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  return {
+    ok: voltouParaAutorizacao
+      ? "Ordem alterada. Como o valor mudou, ela voltou para autorização."
+      : "Ordem alterada.",
+  }
+}
+
+/** Exclui UMA ordem do custeio ainda não paga nem em processamento. */
+export async function excluirOrdemCusteioAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("custeio_institucional_edicao")
+  const custeioId = texto(formData, "custeio_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!custeioId || !ordemId) return { erro: "Ordem inválida." }
+  const { erro } = await excluirOrdemCusteio(custeioId, ordemId)
+  if (erro) return { erro }
+  revalidar(custeioId)
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/compras/avaliacoes")
+  redirect(`${BASE}/${custeioId}?ordemExcluida=1`)
 }
 
 /** Exclui de uma vez ordens do custeio ainda não autorizadas. */
