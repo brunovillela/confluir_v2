@@ -30,6 +30,10 @@ export const DIMENSOES = [
   "situacao",
   "cid",
   "municipio",
+  "local",
+  "uf",
+  "duracao",
+  "prazo",
 ] as const
 export type Dimensao = (typeof DIMENSOES)[number]
 
@@ -37,13 +41,20 @@ export type BaseSaude = {
   total: number
   /** Primeiro ano da série; a coluna `ano` guarda ano - anoBase (-1 = sem data). */
   anoBase: number
-  /** Colunas codificadas (ver `codificarColuna`). */
-  colunas: Record<Dimensao | "ano" | "mes" | "dia" | "afastamento" | "internacao" | "obito", string>
+  /**
+   * Colunas codificadas (ver `codificarColuna`). As de Sim/Não (FLAGS)
+   * guardam 0 = sim, 1 = não, -1 = não informado.
+   */
+  colunas: Record<Dimensao | "ano" | "mes" | "dia" | Flag, string>
   /** Dias de tratamento (-1 = não informado). */
   dias: number[]
   rotulos: Record<Dimensao, string[]>
   atualizadoEm: string
 }
+
+/** Perguntas de Sim/Não da CAT que o painel filtra. */
+export const FLAGS = ["afastamento", "internacao", "obito", "policial"] as const
+export type Flag = (typeof FLAGS)[number]
 
 /** Quantas categorias cada dimensão mostra; o resto vira "Outros". */
 const LIMITE: Record<Dimensao, number> = {
@@ -58,6 +69,10 @@ const LIMITE: Record<Dimensao, number> = {
   situacao: 30,
   cid: 25,
   municipio: 30,
+  local: 12,
+  uf: 27,
+  duracao: 10,
+  prazo: 10,
 }
 
 const OUTROS = "Outros"
@@ -168,6 +183,69 @@ function municipio(nome: string | null, uf: string | null): { chave: string; rot
   return { chave: `${k}|${u}`, rotulo: `${(nome ?? "").trim()}${u ? `/${u}` : ""}` }
 }
 
+/**
+ * Local do acidente: a base junta as listas do eSocial, do CatWeb e do
+ * Bubble, cada uma com sua grafia, e muita CAT da Petrobras traz a própria
+ * unidade no lugar da categoria ("P-35", "SS-84", "TERRA - IMBETIBA").
+ */
+function localAcidente(v: string | null): string | null {
+  const k = chave(v ?? "")
+  if (!k || k === "nao especificado" || k === "nao informado") return null
+  if (/embarca|navio|plataforma|sonda|fpso/.test(k) || /^[a-z]{1,4} ?\d{1,3}$/.test(k)) return "Plataforma ou embarcação"
+  if (/terceir|presta/.test(k)) return "Empresa onde a empregadora presta serviço"
+  if (/estabelecimento/.test(k)) return "Estabelecimento da empregadora"
+  if (/via publica/.test(k)) return "Via pública"
+  if (/area publica/.test(k)) return "Área pública"
+  if (/^terra\b/.test(k)) return "Instalação em terra"
+  if (/rural/.test(k)) return "Área rural"
+  return "Outros"
+}
+const ORDEM_LOCAL = [
+  "Estabelecimento da empregadora",
+  "Empresa onde a empregadora presta serviço",
+  "Plataforma ou embarcação",
+  "Instalação em terra",
+  "Via pública",
+  "Área pública",
+  "Área rural",
+  "Outros",
+]
+
+/** Duração provável do tratamento. Acima de 15 dias o afastamento passa ao INSS. */
+function faixaDuracao(dias: number): string | null {
+  if (dias < 0) return null
+  if (dias === 0) return "Nenhum dia"
+  if (dias <= 3) return "1 a 3 dias"
+  if (dias <= 15) return "4 a 15 dias"
+  if (dias <= 30) return "16 a 30 dias"
+  if (dias <= 90) return "31 a 90 dias"
+  return "Mais de 90 dias"
+}
+const ORDEM_DURACAO = ["Nenhum dia", "1 a 3 dias", "4 a 15 dias", "16 a 30 dias", "31 a 90 dias", "Mais de 90 dias"]
+
+/**
+ * Prazo legal da CAT (Lei 8.213/91, art. 22): até o 1º dia útil seguinte ao
+ * acidente. Medido pela data de recebimento; pula sábado e domingo, mas não
+ * os feriados — um acidente na véspera de feriado pode aparecer com atraso
+ * que não houve.
+ */
+function faixaPrazo(acidente: string | null, recebimento: string | null): string | null {
+  if (!acidente || !recebimento) return null
+  const a = new Date(`${acidente}T12:00:00Z`)
+  const r = new Date(`${recebimento}T12:00:00Z`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(r.getTime()) || r < a) return null
+  const limite = new Date(a)
+  do limite.setUTCDate(limite.getUTCDate() + 1)
+  while (limite.getUTCDay() === 0 || limite.getUTCDay() === 6)
+  const atraso = Math.round((r.getTime() - limite.getTime()) / 864e5)
+  if (atraso <= 0) return "No prazo"
+  if (atraso <= 7) return "Até 7 dias de atraso"
+  if (atraso <= 30) return "8 a 30 dias de atraso"
+  if (atraso <= 365) return "31 dias a 1 ano de atraso"
+  return "Mais de 1 ano de atraso"
+}
+const ORDEM_PRAZO = ["No prazo", "Até 7 dias de atraso", "8 a 30 dias de atraso", "31 dias a 1 ano de atraso", "Mais de 1 ano de atraso"]
+
 // ── Montagem ────────────────────────────────────────────────────────────────
 
 type Valor = { chave: string; rotulo: string } | null
@@ -201,6 +279,11 @@ function codificar(valores: Valor[], limite: number, ordemFixa?: string[]): { ro
 
 const simples = (v: string | null): Valor => (v ? { chave: v, rotulo: v } : null)
 
+const uf = (v: string | null) => {
+  const t = (v ?? "").trim().toUpperCase()
+  return /^[A-Z]{2}$/.test(t) ? t : null
+}
+
 export async function baseSaude(): Promise<BaseSaude | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -210,7 +293,7 @@ export async function baseSaude(): Promise<BaseSaude | null> {
       admin
         .from("saude_cat")
         .select(
-          "data_acidente,tipo_acidente,empregador_razao_social,empregador_inscricao,trabalhador_sexo,trabalhador_nascimento,trabalhador_cbo,local_uf,local_municipio,parte_atingida,agente_causador,situacao_geradora,natureza_lesao,cid10,afastamento_durante_tratamento,houve_afastamento,houve_internacao,houve_morte,duracao_tratamento_dias"
+          "data_acidente,tipo_acidente,empregador_razao_social,empregador_inscricao,trabalhador_sexo,trabalhador_nascimento,trabalhador_cbo,local_uf,local_municipio,parte_atingida,agente_causador,situacao_geradora,natureza_lesao,cid10,afastamento_durante_tratamento,houve_afastamento,houve_internacao,houve_morte,data_obito,houve_registro_policial,local_acidente,data_recebimento,duracao_tratamento_dias"
         )
         .eq("emp_proprietaria_id", emp)
         .is("duplicada_de_id", null)
@@ -225,6 +308,16 @@ export async function baseSaude(): Promise<BaseSaude | null> {
   const dim = (f: (l: Record<string, unknown>) => Valor, d: Dimensao, ordem?: string[]) =>
     codificar(linhas.map(f), LIMITE[d], ordem)
 
+  const iso = (v: unknown) => {
+    const d = s(v)
+    return d && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null
+  }
+  const datas = linhas.map((l) => iso(l.data_acidente))
+  const dias = linhas.map((l) => {
+    const n = Number(l.duracao_tratamento_dias)
+    return l.duracao_tratamento_dias === null || l.duracao_tratamento_dias === undefined || !Number.isFinite(n) || n < 0 ? -1 : Math.min(n, 999)
+  })
+
   const cod = {
     empresa: dim((l) => empresa(s(l.empregador_razao_social), s(l.empregador_inscricao)), "empresa"),
     tipo: dim((l) => simples(tipoAcidente(s(l.tipo_acidente))), "tipo"),
@@ -237,12 +330,16 @@ export async function baseSaude(): Promise<BaseSaude | null> {
     situacao: dim((l) => descricao(s(l.situacao_geradora), false), "situacao"),
     cid: dim((l) => simples(capituloCid(s(l.cid10))), "cid"),
     municipio: dim((l) => municipio(s(l.local_municipio), s(l.local_uf)), "municipio"),
+    local: dim((l) => simples(localAcidente(s(l.local_acidente))), "local", ORDEM_LOCAL),
+    uf: dim((l) => simples(uf(s(l.local_uf))), "uf"),
+    duracao: codificar(dias.map((d) => simples(faixaDuracao(d))), LIMITE.duracao, ORDEM_DURACAO),
+    prazo: codificar(
+      linhas.map((l, i) => simples(faixaPrazo(datas[i], iso(l.data_recebimento)))),
+      LIMITE.prazo,
+      ORDEM_PRAZO
+    ),
   } satisfies Record<Dimensao, { rotulos: string[]; indices: number[] }>
 
-  const datas = linhas.map((l) => {
-    const d = s(l.data_acidente)
-    return d && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null
-  })
   const anos = datas.filter((d): d is string => !!d).map((d) => Number(d.slice(0, 4)))
   // Datas absurdas (digitação) ficam de fora da série.
   const anoAtual = new Date().getFullYear()
@@ -254,8 +351,14 @@ export async function baseSaude(): Promise<BaseSaude | null> {
   })
   const mes = datas.map((d, i) => (ano[i] >= 0 && d ? Number(d.slice(5, 7)) - 1 : -1))
   const dia = datas.map((d, i) => (ano[i] >= 0 && d ? new Date(`${d}T12:00:00Z`).getUTCDay() : -1))
-  // Flags: categoria 0 = "sim" (o filtro do painel seleciona a 0); não = sem categoria.
-  const flag = (f: (l: Record<string, unknown>) => boolean) => linhas.map((l) => (f(l) ? 0 : -1))
+  // Sim/Não: 0 = sim, 1 = não, -1 = não informado. Qualquer "sim" vence.
+  const flag = (...campos: ((l: Record<string, unknown>) => unknown)[]) =>
+    linhas.map((l) => {
+      const v = campos.map((f) => f(l))
+      return v.includes(true) ? 0 : v.includes(false) ? 1 : -1
+    })
+  // Óbito: a data só conta se for real (o Bubble usava 1900-01-01 como vazio).
+  const obitoComData = (l: Record<string, unknown>) => ((iso(l.data_obito) ?? "") >= "1990" ? true : null)
 
   return {
     total: linhas.length,
@@ -265,14 +368,12 @@ export async function baseSaude(): Promise<BaseSaude | null> {
       ano: codificarColuna(ano),
       mes: codificarColuna(mes),
       dia: codificarColuna(dia),
-      afastamento: codificarColuna(flag((l) => l.afastamento_durante_tratamento === true || l.houve_afastamento === true)),
-      internacao: codificarColuna(flag((l) => l.houve_internacao === true)),
-      obito: codificarColuna(flag((l) => l.houve_morte === true)),
+      afastamento: codificarColuna(flag((l) => l.afastamento_durante_tratamento, (l) => l.houve_afastamento)),
+      internacao: codificarColuna(flag((l) => l.houve_internacao)),
+      obito: codificarColuna(flag((l) => l.houve_morte, obitoComData)),
+      policial: codificarColuna(flag((l) => l.houve_registro_policial)),
     },
-    dias: linhas.map((l) => {
-      const n = Number(l.duracao_tratamento_dias)
-      return l.duracao_tratamento_dias === null || l.duracao_tratamento_dias === undefined || !Number.isFinite(n) || n < 0 ? -1 : Math.min(n, 999)
-    }),
+    dias,
     rotulos: Object.fromEntries(DIMENSOES.map((d) => [d, cod[d].rotulos])) as Record<Dimensao, string[]>,
     atualizadoEm: new Date().toISOString(),
   }

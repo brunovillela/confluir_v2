@@ -9,13 +9,16 @@ os gráficos se ajustam juntos**. Ele fica na página da Saúde, no botão
 
 <PassoAPasso>
   <Passo titulo="Pelas segmentações do topo">
-    Período (ano de/até), empresa, tipo de acidente e sexo. Os filtros ativos
-    aparecem logo abaixo, cada um com um × para tirar; **Limpar filtros** zera
-    tudo.
+    Na primeira linha: período (ano de/até), empresa, tipo de acidente e sexo.
+    Na segunda: **afastamento**, **internação**, **óbito** e **registro
+    policial** (Sim ou Não), **duração do tratamento**, **prazo da CAT**,
+    **local do acidente** e **UF**. Os filtros ativos aparecem logo abaixo,
+    cada um com um × para tirar; **Limpar filtros** zera tudo.
   </Passo>
   <Passo titulo="Clicando nos gráficos (filtro cruzado)">
     Clique numa barra, numa fatia da legenda, numa célula do mapa de calor ou
-    num dos indicadores (afastamento, internação, óbitos): o painel inteiro
+    num dos indicadores (afastamento, internação, óbitos, tratamento acima de
+    15 dias, CAT fora do prazo): o painel inteiro
     passa a mostrar só aquele recorte. O gráfico clicado continua mostrando o
     todo, com a seleção em destaque, para você comparar. Clique de novo para
     tirar; clicar em outras categorias do mesmo gráfico soma à seleção.
@@ -31,15 +34,29 @@ os gráficos se ajustam juntos**. Ele fica na página da Saúde, no botão
 ## O que o painel mostra
 
 - **Indicadores:** total de CATs, com afastamento, com internação, óbitos,
-  tempo médio de tratamento e doenças ocupacionais — com o percentual sobre o
-  recorte.
+  tempo médio de tratamento, tratamento acima de 15 dias (quando o afastamento
+  passa ao INSS), CATs fora do prazo e doenças ocupacionais — com o percentual
+  sobre o recorte.
+- **Gravidade:** para afastamento, internação, óbito e registro policial, quantas
+  CATs dizem Sim, quantas dizem Não e quantas **não informam**. O óbito e o
+  registro policial só passaram a ser preenchidos nas CATs mais recentes: o
+  "sem informação" não quer dizer "não".
+- **Duração do tratamento** por faixa (nenhum dia, 1 a 3, 4 a 15, 16 a 30,
+  31 a 90 e mais de 90 dias).
+- **Prazo da CAT:** a lei manda emitir a CAT até o 1º dia útil depois do
+  acidente (Lei 8.213/91, art. 22). O painel compara a data de recebimento com
+  esse prazo e mostra quantas chegaram no prazo e quanto atrasaram as outras.
+  Feriados não são descontados: um acidente na véspera de feriado pode
+  aparecer com um atraso que não houve.
 - **Linha do tempo** por ano (ou por mês, no detalhamento).
 - **Perfil:** tipo de acidente, sexo, faixa etária (idade na data do acidente)
   e ocupação (CBO).
 - **Sazonalidade:** mapa de calor de mês × dia da semana.
 - **Lesão e causa:** parte do corpo, natureza da lesão, agente causador,
   situação geradora e capítulo do CID-10.
-- **Onde:** empresas e município do acidente.
+- **Onde:** empresas, local do acidente (estabelecimento da empregadora,
+  empresa onde presta serviço, plataforma ou embarcação, via pública…), UF e
+  município.
 
 Cada lista mostra os 10 maiores; **Mostrar todos** abre o resto. O botão
 **Imprimir** gera a página para PDF ou papel.
@@ -57,6 +74,8 @@ gráficos fazerem sentido, o painel **normaliza** antes de contar:
 - **Ocupação** sem o código CBO grudado no nome.
 - **Descrições** truncadas das CATs antigas juntadas à versão completa.
 - **CID-10** pelo capítulo (lesões, osteomuscular, infecciosas…).
+- **Local do acidente** pelas categorias do formulário; as unidades citadas no
+  lugar da categoria (P-35, SS-84…) somam em plataforma ou embarcação.
 
 Categorias com pouca ocorrência somam em **Outros**; as CATs marcadas como
 cópia descartada ficam de fora.

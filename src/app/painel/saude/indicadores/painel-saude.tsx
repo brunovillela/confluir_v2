@@ -7,7 +7,7 @@ import { Donut } from "@/components/grafico-donut"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { BaseSaude, Dimensao } from "@/lib/db/saude-painel"
+import type { BaseSaude, Dimensao, Flag } from "@/lib/db/saude-painel"
 import { decodificarColuna } from "@/lib/saude-painel-formato"
 import { cn } from "@/lib/utils"
 
@@ -19,11 +19,20 @@ import { cn } from "@/lib/utils"
  * Tudo roda no navegador sobre a base agregada (sem dado pessoal).
  */
 
-type Chave = Dimensao | "ano" | "mes" | "dia" | "afastamento" | "internacao" | "obito"
+type Chave = Dimensao | "ano" | "mes" | "dia" | Flag
 const CHAVES: Chave[] = [
   "empresa", "tipo", "sexo", "faixa", "ocupacao", "parte", "natureza", "agente", "situacao", "cid", "municipio",
-  "ano", "mes", "dia", "afastamento", "internacao", "obito",
+  "local", "uf", "duracao", "prazo",
+  "ano", "mes", "dia", "afastamento", "internacao", "obito", "policial",
 ]
+/** Perguntas de Sim/Não: 0 = sim, 1 = não (ver FLAGS em lib/db/saude-painel). */
+const SIM_NAO: Record<Flag, [string, string]> = {
+  afastamento: ["Com afastamento", "Sem afastamento"],
+  internacao: ["Com internação", "Sem internação"],
+  obito: ["Com óbito", "Sem óbito"],
+  policial: ["Com registro policial", "Sem registro policial"],
+}
+const eFlag = (c: Chave): c is Flag => c in SIM_NAO
 type Selecao = Partial<Record<Chave, number[]>>
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -35,7 +44,9 @@ const CORES = ["var(--chart-marca-1)", "var(--chart-marca-2)", "var(--chart-marc
 const NOME_CHAVE: Record<Chave, string> = {
   empresa: "Empresa", tipo: "Tipo", sexo: "Sexo", faixa: "Faixa etária", ocupacao: "Ocupação", parte: "Parte do corpo",
   natureza: "Natureza da lesão", agente: "Agente causador", situacao: "Situação geradora", cid: "CID", municipio: "Município",
+  local: "Local do acidente", uf: "UF", duracao: "Duração do tratamento", prazo: "Prazo da CAT",
   ano: "Ano", mes: "Mês", dia: "Dia da semana", afastamento: "Afastamento", internacao: "Internação", obito: "Óbito",
+  policial: "Registro policial",
 }
 
 const n = (v: number) => v.toLocaleString("pt-BR")
@@ -58,9 +69,7 @@ export function PainelSaude({ base }: { base: BaseSaude }) {
     if (c === "ano") return String(base.anoBase + i)
     if (c === "mes") return MESES_LONGOS[i] ?? "?"
     if (c === "dia") return DIAS_LONGOS[i] ?? "?"
-    if (c === "afastamento") return "Com afastamento"
-    if (c === "internacao") return "Com internação"
-    if (c === "obito") return "Óbito"
+    if (eFlag(c)) return SIM_NAO[c][i] ?? "?"
     return base.rotulos[c][i] ?? "?"
   }
 
@@ -128,23 +137,51 @@ export function PainelSaude({ base }: { base: BaseSaude }) {
   }
 
   // Indicadores: sobre o conjunto totalmente filtrado.
+  const longos = useMemo(
+    () => base.rotulos.duracao.map((r, i) => (["16 a 30 dias", "31 a 90 dias", "Mais de 90 dias"].includes(r) ? i : -1)).filter((i) => i >= 0),
+    [base]
+  )
+  const atrasados = useMemo(
+    () => base.rotulos.prazo.map((r, i) => (r !== "No prazo" ? i : -1)).filter((i) => i >= 0),
+    [base]
+  )
   const kpi = useMemo(() => {
-    let total = 0, afast = 0, intern = 0, obitos = 0, somaDias = 0, comDias = 0, doenca = 0
+    let total = 0, afast = 0, intern = 0, obitos = 0, obitoSemInfo = 0, somaDias = 0, comDias = 0, doenca = 0
+    let longo = 0, comPrazo = 0, atrasada = 0
     const doencaIdx = base.rotulos.tipo.indexOf("Doença ocupacional")
+    const ehLongo = new Uint8Array(64)
+    for (const i of longos) ehLongo[i] = 1
+    const ehAtrasada = new Uint8Array(64)
+    for (const i of atrasados) ehAtrasada[i] = 1
     for (let i = 0; i < base.total; i++) {
       if (!passa[i]) continue
       total++
       if (colunas.afastamento[i] === 0) afast++
       if (colunas.internacao[i] === 0) intern++
       if (colunas.obito[i] === 0) obitos++
+      else if (colunas.obito[i] < 0) obitoSemInfo++
+      if (colunas.duracao[i] >= 0 && ehLongo[colunas.duracao[i]]) longo++
+      if (colunas.prazo[i] >= 0) {
+        comPrazo++
+        if (ehAtrasada[colunas.prazo[i]]) atrasada++
+      }
       if (base.dias[i] >= 0) {
         somaDias += base.dias[i]
         comDias++
       }
       if (doencaIdx >= 0 && colunas.tipo[i] === doencaIdx) doenca++
     }
-    return { total, afast, intern, obitos, mediaDias: comDias ? somaDias / comDias : null, comDias, doenca }
-  }, [passa, colunas, base])
+    return { total, afast, intern, obitos, obitoSemInfo, mediaDias: comDias ? somaDias / comDias : null, comDias, doenca, longo, comPrazo, atrasada }
+  }, [passa, colunas, base, longos, atrasados])
+
+  /** Liga/desliga um conjunto de categorias de uma vez (KPIs de faixa). */
+  function alternarConjunto(c: Chave, valores: number[]) {
+    const atual = sel[c] ?? []
+    const igual = atual.length === valores.length && valores.every((v) => atual.includes(v))
+    definir(c, igual ? [] : valores)
+  }
+  const mesmoConjunto = (c: Chave, valores: number[]) =>
+    !!sel[c] && sel[c]!.length === valores.length && valores.every((v) => sel[c]!.includes(v))
 
   const filtrosAtivos = (Object.entries(sel) as [Chave, number[]][]).filter(([, v]) => v.length > 0)
   const umAno = sel.ano?.length === 1 ? sel.ano[0] : null
@@ -227,6 +264,29 @@ export function PainelSaude({ base }: { base: BaseSaude }) {
               </Button>
             </div>
           </div>
+          <div className="flex flex-wrap items-end gap-3">
+            {(["afastamento", "internacao", "obito", "policial"] as Flag[]).map((f) => (
+              <Segmentacao
+                key={f}
+                rotulo={NOME_CHAVE[f]}
+                valor={sel[f]?.length === 1 ? String(sel[f]![0]) : ""}
+                opcoes={[{ valor: "0", rotulo: "Sim" }, { valor: "1", rotulo: "Não" }]}
+                aoMudar={(v) => definir(f, v === "" ? [] : [Number(v)])}
+                vazio="Todos"
+              />
+            ))}
+            {(["duracao", "prazo", "local", "uf"] as Dimensao[]).map((d) => (
+              <Segmentacao
+                key={d}
+                rotulo={NOME_CHAVE[d]}
+                largo={d === "local" || d === "prazo"}
+                valor={sel[d]?.length === 1 ? String(sel[d]![0]) : ""}
+                opcoes={base.rotulos[d].map((r, i) => ({ valor: String(i), rotulo: r }))}
+                aoMudar={(v) => definir(d, v === "" ? [] : [Number(v)])}
+                vazio="Todos"
+              />
+            ))}
+          </div>
           {filtrosAtivos.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground text-xs">Filtros:</span>
@@ -249,12 +309,34 @@ export function PainelSaude({ base }: { base: BaseSaude }) {
       </Card>
 
       {/* Indicadores */}
-      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi titulo="CATs" valor={n(kpi.total)} detalhe={filtrosAtivos.length ? `de ${n(base.total)} no total` : "no total"} />
-        <Kpi titulo="Com afastamento" valor={n(kpi.afast)} detalhe={`${pct(kpi.afast, kpi.total)} das CATs`} ativo={!!sel.afastamento} aoClicar={() => alternar("afastamento", 0)} />
-        <Kpi titulo="Com internação" valor={n(kpi.intern)} detalhe={`${pct(kpi.intern, kpi.total)} das CATs`} ativo={!!sel.internacao} aoClicar={() => alternar("internacao", 0)} />
-        <Kpi titulo="Óbitos" valor={n(kpi.obitos)} detalhe={kpi.obitos ? pct(kpi.obitos, kpi.total) : "nenhum no filtro"} alerta={kpi.obitos > 0} ativo={!!sel.obito} aoClicar={() => alternar("obito", 0)} />
+        <Kpi titulo="Com afastamento" valor={n(kpi.afast)} detalhe={`${pct(kpi.afast, kpi.total)} das CATs`} ativo={sel.afastamento?.length === 1 && sel.afastamento[0] === 0} aoClicar={() => alternar("afastamento", 0)} />
+        <Kpi titulo="Com internação" valor={n(kpi.intern)} detalhe={`${pct(kpi.intern, kpi.total)} das CATs`} ativo={sel.internacao?.length === 1 && sel.internacao[0] === 0} aoClicar={() => alternar("internacao", 0)} />
+        <Kpi
+          titulo="Óbitos"
+          valor={n(kpi.obitos)}
+          detalhe={[kpi.obitos ? pct(kpi.obitos, kpi.total) : "nenhum no filtro", kpi.obitoSemInfo ? `${n(kpi.obitoSemInfo)} CATs sem a informação` : null].filter(Boolean).join(" · ")}
+          alerta={kpi.obitos > 0}
+          ativo={sel.obito?.length === 1 && sel.obito[0] === 0}
+          aoClicar={() => alternar("obito", 0)}
+        />
         <Kpi titulo="Tratamento médio" valor={kpi.mediaDias === null ? "—" : `${kpi.mediaDias.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias`} detalhe={`em ${n(kpi.comDias)} CATs com a duração informada`} />
+        <Kpi
+          titulo="Tratamento acima de 15 dias"
+          valor={n(kpi.longo)}
+          detalhe={`${pct(kpi.longo, kpi.comDias)} das CATs com a duração · o afastamento passa ao INSS`}
+          ativo={mesmoConjunto("duracao", longos)}
+          aoClicar={() => alternarConjunto("duracao", longos)}
+        />
+        <Kpi
+          titulo="CAT fora do prazo"
+          valor={n(kpi.atrasada)}
+          detalhe={`${pct(kpi.atrasada, kpi.comPrazo)} das CATs com data de recebimento`}
+          alerta={kpi.atrasada > 0}
+          ativo={mesmoConjunto("prazo", atrasados)}
+          aoClicar={() => alternarConjunto("prazo", atrasados)}
+        />
         <Kpi titulo="Doença ocupacional" valor={n(kpi.doenca)} detalhe={`${pct(kpi.doenca, kpi.total)} das CATs`} />
       </div>
 
@@ -298,7 +380,25 @@ export function PainelSaude({ base }: { base: BaseSaude }) {
         </Visual>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Visual titulo="Gravidade" descricao="Clique em Sim ou Não para filtrar">
+          <div className="grid gap-3">
+            {(["afastamento", "internacao", "obito", "policial"] as Flag[]).map((f) => (
+              <SimNao key={f} titulo={NOME_CHAVE[f]} contagem={contar(f, 2)} sel={sel[f]} aoClicar={(i) => alternar(f, i)} />
+            ))}
+          </div>
+        </Visual>
+        <Visual titulo="Duração do tratamento" descricao="Acima de 15 dias, o afastamento passa ao INSS">
+          <Colunas rotulos={base.rotulos.duracao} valores={contar("duracao", base.rotulos.duracao.length).valores} selecionados={sel.duracao} aoClicar={(i) => alternar("duracao", i)} compacto />
+        </Visual>
+        <Visual titulo="Prazo da CAT" descricao="Recebimento × 1º dia útil após o acidente (sem contar feriados)">
+          <Colunas rotulos={base.rotulos.prazo.map((r) => r.replace(" de atraso", ""))} valores={contar("prazo", base.rotulos.prazo.length).valores} selecionados={sel.prazo} aoClicar={(i) => alternar("prazo", i)} compacto />
+        </Visual>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
+        <VisualBarras titulo="Local do acidente" descricao="Unidades (P-35, SS-84…) somam em plataforma ou embarcação" c="local" base={base} contagem={contar("local", base.rotulos.local.length)} sel={sel.local} aoClicar={(i) => alternar("local", i)} />
+        <VisualBarras titulo="UF do acidente" c="uf" base={base} contagem={contar("uf", base.rotulos.uf.length)} sel={sel.uf} aoClicar={(i) => alternar("uf", i)} />
         <VisualBarras titulo="Empresas" descricao="CNPJ raiz: filiais e grafias juntas" c="empresa" base={base} contagem={contar("empresa", base.rotulos.empresa.length)} sel={sel.empresa} aoClicar={(i) => alternar("empresa", i)} />
         <VisualBarras titulo="Ocupação (CBO)" c="ocupacao" base={base} contagem={contar("ocupacao", base.rotulos.ocupacao.length)} sel={sel.ocupacao} aoClicar={(i) => alternar("ocupacao", i)} />
         <VisualBarras titulo="Parte do corpo atingida" c="parte" base={base} contagem={contar("parte", base.rotulos.parte.length)} sel={sel.parte} aoClicar={(i) => alternar("parte", i)} />
@@ -554,6 +654,54 @@ function VisualDonut({
         </ul>
       </div>
     </Visual>
+  )
+}
+
+/** Uma pergunta de Sim/Não: barra empilhada Sim | Não | sem informação. */
+function SimNao({
+  titulo, contagem, sel, aoClicar,
+}: {
+  titulo: string
+  contagem: { valores: number[]; naoInformado: number }
+  sel?: number[]
+  aoClicar: (i: number) => void
+}) {
+  const [sim, nao] = contagem.valores
+  const total = sim + nao + contagem.naoInformado
+  const algum = !!sel?.length
+  const parte = (v: number) => (total ? `${(v / total) * 100}%` : "0%")
+  const opcao = (i: 0 | 1, rotulo: string, v: number, cor: string) => {
+    const ativo = sel?.includes(i)
+    return (
+      <button
+        type="button"
+        onClick={() => aoClicar(i)}
+        aria-pressed={ativo}
+        className={cn("hover:bg-muted/60 flex items-center gap-1.5 rounded px-1 py-0.5 text-xs", algum && !ativo && "opacity-45", ativo && "ring-primary/40 ring-1")}
+      >
+        <span className="size-2.5 rounded-sm" style={{ background: cor }} />
+        {rotulo} <span className="text-muted-foreground tabular-nums">{n(v)}</span>
+      </button>
+    )
+  }
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="font-medium">{titulo}</span>
+        <span className="text-muted-foreground tabular-nums">{pct(sim, sim + nao)} sim, entre os informados</span>
+      </div>
+      <div className="bg-muted flex h-3 overflow-hidden rounded-sm">
+        <span style={{ width: parte(sim), background: "var(--chart-marca-2)" }} />
+        <span style={{ width: parte(nao), background: "var(--chart-marca-1)" }} />
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        {opcao(0, "Sim", sim, "var(--chart-marca-2)")}
+        {opcao(1, "Não", nao, "var(--chart-marca-1)")}
+        {contagem.naoInformado > 0 && (
+          <span className="text-muted-foreground px-1 text-xs">Sem informação {n(contagem.naoInformado)}</span>
+        )}
+      </div>
+    </div>
   )
 }
 
