@@ -40,11 +40,14 @@ export type Cadencia = (typeof CADENCIAS)[number]["chave"]
  * Fluxo interno do custeio, ANTES da alçada do Financeiro.
  * rascunho → aguardando_autorizacao → autorizado (gera ordens) | reprovado.
  * cancelado encerra a qualquer momento.
+ * "concluido" NÃO é gravada: é o autorizado cujas ordens estão todas pagas
+ * ou canceladas (ao menos uma paga) — ver situacaoExibidaCusteio.
  */
 export const SITUACOES_CUSTEIO = [
   "rascunho",
   "aguardando_autorizacao",
   "autorizado",
+  "concluido",
   "reprovado",
   "cancelado",
 ] as const
@@ -55,6 +58,7 @@ export const ROTULOS_SITUACAO_CUSTEIO: Record<SituacaoCusteio, string> = {
   rascunho: "Rascunho",
   aguardando_autorizacao: "Aguardando autorização",
   autorizado: "Autorizado",
+  concluido: "Concluído",
   reprovado: "Reprovado",
   cancelado: "Cancelado",
 }
@@ -64,6 +68,7 @@ export const COR_SITUACAO_CUSTEIO: Record<SituacaoCusteio, string> = {
   rascunho: "neutro",
   aguardando_autorizacao: "atencao",
   autorizado: "sucesso",
+  concluido: "info",
   reprovado: "perigo",
   cancelado: "neutro",
 }
@@ -73,3 +78,17 @@ export const TIPOS_BENEFICIARIO_SUGERIDO = [
   ...TIPOS_BENEFICIARIO,
   { chave: "livre", rotulo: "Livre (o usuário escolhe)" },
 ] as const
+
+/**
+ * Situação que a tela mostra: o custeio autorizado vira "concluido" quando
+ * todas as ordens estão pagas ou canceladas e ao menos uma foi paga. Nada é
+ * gravado — uma ordem nova (ou reaberta) o devolve a "autorizado".
+ */
+export function situacaoExibidaCusteio(
+  situacao: string,
+  situacoesDasOrdens: (string | null)[]
+): string {
+  if (situacao !== "autorizado" || situacoesDasOrdens.length === 0) return situacao
+  const encerradas = situacoesDasOrdens.every((s) => s === "Paga" || s === "Cancelada")
+  return encerradas && situacoesDasOrdens.includes("Paga") ? "concluido" : situacao
+}

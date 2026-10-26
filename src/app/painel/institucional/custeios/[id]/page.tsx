@@ -40,6 +40,7 @@ import { SITUACOES_ENCERRADAS, SITUACOES_NAO_AUTORIZADAS } from "@/lib/db/ordens
 import { hojeLocalISO } from "@/lib/compras-constantes"
 import {
   CADENCIAS,
+  situacaoExibidaCusteio,
   ROTULO_TIPO_BENEFICIARIO,
   vencimentoParcela,
 } from "@/lib/custeio-constantes"
@@ -163,6 +164,12 @@ export default async function CusteioPage({
   const ordensAbertas = detalhe.ordens.filter(
     (o) => !SITUACOES_ENCERRADAS.includes(String(o.situacao))
   ).length
+  // "Concluído" é só exibição: autorizado com todas as ordens pagas ou canceladas.
+  const situacaoExibida = situacaoExibidaCusteio(
+    situacao,
+    detalhe.ordens.map((o) => o.situacao)
+  )
+  const concluido = situacaoExibida === "concluido"
   const ordensCanceladas = detalhe.ordens.filter(
     (o) => o.situacao === "Cancelada"
   ).length
@@ -220,7 +227,7 @@ export default async function CusteioPage({
             <h1 className="text-2xl font-semibold tracking-tight tabular-nums">
               {str(c.codigo) ?? "(sem código)"}
             </h1>
-            <SituacaoCusteioBadge situacao={situacao} />
+            <SituacaoCusteioBadge situacao={situacaoExibida} />
           </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -454,14 +461,22 @@ export default async function CusteioPage({
             )}
             {situacao === "autorizado" && (
               <div className="grid gap-3">
-                <p className="text-success-fg text-sm">
-                  Autorizado —{" "}
-                  {c.cadencia === "recorrente"
-                    ? "as parcelas nasceram autorizadas e esperam só o documento fiscal."
-                    : "a ordem está no Financeiro."}{" "}
-                  Precisa de mais pagamentos? Use “Gerar ordens de pagamento”, abaixo.
-                </p>
-                {podeEditar && podeAutorizar && (
+                {concluido ? (
+                  <p className="text-info-fg text-sm">
+                    Concluído — todas as ordens foram pagas ou canceladas. Precisa de mais
+                    pagamentos? Use “Gerar ordens de pagamento”, abaixo: o custeio volta a
+                    autorizado.
+                  </p>
+                ) : (
+                  <p className="text-success-fg text-sm">
+                    Autorizado —{" "}
+                    {c.cadencia === "recorrente"
+                      ? "as parcelas nasceram autorizadas e esperam só o documento fiscal."
+                      : "a ordem está no Financeiro."}{" "}
+                    Precisa de mais pagamentos? Use “Gerar ordens de pagamento”, abaixo.
+                  </p>
+                )}
+                {podeEditar && podeAutorizar && !concluido && (
                   <div>
                     <BotaoCancelar custeioId={id} ordensAbertas={ordensAbertas} />
                   </div>

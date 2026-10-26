@@ -2,7 +2,7 @@ import "server-only"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import { inserirOrdensVerificadasCompat, type Confirmacao } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
-import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso, listarFornecedores, subirComprovanteCompras } from "@/lib/db/compras"
@@ -29,6 +29,7 @@ import { obterFichaDiretor } from "@/lib/db/diretoria-ficha"
 import {
   vencimentoParcela,
   MAX_PARCELAS,
+  situacaoExibidaCusteio,
   type Periodicidade,
 } from "@/lib/custeio-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -482,8 +483,9 @@ export async function listarCusteios(
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("excluido", "is", true)
 
+  // "concluido" não é gravada: é o autorizado com as ordens todas encerradas.
   if (filtros.situacao && filtros.situacao !== "todas") {
-    q = q.eq("situacao", filtros.situacao)
+    q = q.eq("situacao", filtros.situacao === "concluido" ? "autorizado" : filtros.situacao)
   }
   if (filtros.finalidadeId) q = q.eq("finalidade_id", filtros.finalidadeId)
   const termo = (filtros.busca ?? "").trim()
@@ -502,9 +504,20 @@ export async function listarCusteios(
     throw new Error(`Falha ao listar custeios: ${error.message}`)
   }
 
+  const concluidos = await custeiosConcluidos(
+    (data ?? []).filter((c) => c.situacao === "autorizado").map((c) => String(c.id))
+  )
+  const exibida = (c: { id: unknown; situacao: unknown }) =>
+    concluidos.has(String(c.id)) ? "concluido" : String(c.situacao)
+  const linhas = (data ?? []).filter(
+    (c) =>
+      filtros.situacao !== "concluido" && filtros.situacao !== "autorizado"
+        ? true
+        : exibida(c) === filtros.situacao
+  )
   const finalidades = await listarFinalidades(true)
   const nomeFinalidade = new Map(finalidades.map((f) => [f.id, f.nome]))
-  return (data ?? []).map((c) => ({
+  return linhas.map((c) => ({
     id: String(c.id),
     codigo: texto(c.codigo),
     finalidade_id: texto(c.finalidade_id),
@@ -517,15 +530,45 @@ export async function listarCusteios(
     cadencia: String(c.cadencia),
     valor_parcela: typeof c.valor_parcela === "number" ? c.valor_parcela : null,
     num_parcelas: typeof c.num_parcelas === "number" ? c.num_parcelas : 1,
-    situacao: String(c.situacao),
+    situacao: exibida(c),
     primeiro_vencimento: texto(c.primeiro_vencimento),
     created_at: texto(c.created_at),
   }))
 }
 
+/**
+ * Custeios autorizados cujas ordens estão todas pagas ou canceladas (ao
+ * menos uma paga) — a situação exibida "concluido" (situacaoExibidaCusteio).
+ */
+export async function custeiosConcluidos(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set()
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const ordens = await lerEmLotesPorIds<{ custeio_id: string; situacao: string | null }>(ids, (fatia, de, ate) =>
+    admin
+      .from("ordens_pagamento")
+      .select("custeio_id, situacao")
+      .in("custeio_id", fatia)
+      .eq("emp_proprietaria_id", empId)
+      .not("excluido", "is", true)
+      .order("id")
+      .range(de, ate)
+  )
+  const porCusteio = new Map<string, (string | null)[]>()
+  for (const o of ordens) {
+    const lista = porCusteio.get(String(o.custeio_id)) ?? []
+    lista.push(o.situacao)
+    porCusteio.set(String(o.custeio_id), lista)
+  }
+  return new Set(
+    [...porCusteio].filter(([, s]) => situacaoExibidaCusteio("autorizado", s) === "concluido").map(([id]) => id)
+  )
+}
+
 export type ResumoCusteios = {
   aguardando: number
   autorizados: number
+  concluidos: number
   total: number
 }
 
@@ -539,21 +582,27 @@ export async function resumoCusteios(): Promise<ResumoCusteios> {
       .eq("emp_proprietaria_id", empId)
       .not("excluido", "is", true)
       .eq("situacao", "aguardando_autorizacao"),
-    admin
-      .from("institucional_custeios")
-      .select("id", { count: "exact", head: true })
-      .eq("emp_proprietaria_id", empId)
-      .not("excluido", "is", true)
-      .eq("situacao", "autorizado"),
+    lerEmLotes<{ id: string }>((de, ate) =>
+      admin
+        .from("institucional_custeios")
+        .select("id")
+        .eq("emp_proprietaria_id", empId)
+        .not("excluido", "is", true)
+        .eq("situacao", "autorizado")
+        .order("id")
+        .range(de, ate)
+    ),
     admin
       .from("institucional_custeios")
       .select("id", { count: "exact", head: true })
       .eq("emp_proprietaria_id", empId)
       .not("excluido", "is", true),
   ])
+  const concluidos = (await custeiosConcluidos(autorizados.map((c) => String(c.id)))).size
   return {
     aguardando: aguardando.count ?? 0,
-    autorizados: autorizados.count ?? 0,
+    autorizados: autorizados.length - concluidos,
+    concluidos,
     total: total.count ?? 0,
   }
 }

@@ -126,9 +126,10 @@ export default async function CusteiosPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <CardResumo rotulo="Aguardando autorização" valor={resumo.aguardando} />
         <CardResumo rotulo="Autorizados" valor={resumo.autorizados} />
+        <CardResumo rotulo="Concluídos" valor={resumo.concluidos} />
         <CardResumo rotulo="Total" valor={resumo.total} />
       </div>
 

@@ -8,6 +8,7 @@ const CLASSE: Record<string, string> = {
   rascunho: "",
   aguardando_autorizacao: "border-warning/40 text-warning-fg",
   autorizado: "border-success/40 text-success-fg",
+  concluido: "border-info/40 text-info-fg",
   reprovado: "border-destructive/40 text-destructive",
   cancelado: "opacity-70",
 }
