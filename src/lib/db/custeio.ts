@@ -1220,7 +1220,7 @@ async function gerarOrdensCusteio(
     },
     { beneficiario_usuario_id: usuarioId, beneficiario_fornecedor_id: fornecedorId },
     nome,
-    c.tipo_beneficiario === "filiado" ? texto(c.filiacao_id) : null
+    await filiacaoDoBeneficiario(c)
   )
 
   // Regra de 05/10: parcela RECORRENTE nasce autorizada pela autorização do
@@ -1506,7 +1506,7 @@ function destinoDoPagamento(p: PagamentoCusteio, nome: string | null): string | 
  * para ligar à ordem (26/10/2026): a ordem Pix/TED precisa do destino
  * registrado (ordens-destino.ts) e a remessa lê de lá — o custeio guardava a
  * chave/conta só no próprio registro. Reaproveita o dado igual do favorecido
- * (usuário, fornecedor ou a filiação do filiado); senão cadastra em nome dele.
+ * (usuário, fornecedor ou a filiação do filiado/diretor); senão cadastra em nome dele.
  * Favorecido avulso (convidado sem cadastro) não tem onde guardar dado bancário — o RLS de
  * dados_bancarios exige o dono: a chave Pix vai na própria ordem (pix_codigo)
  * e a TED fica sem destino (a trava pede Pix ou boleto).
@@ -1559,6 +1559,23 @@ async function dadoBancarioDoCusteio(
     return {}
   }
   return { dados_bancarios_id: String(novo.id) }
+}
+
+/**
+ * A filiação do beneficiário pessoa (filiado, ou o diretor que é filiado): é
+ * onde fica o dado bancário dele quando não há usuário — o RLS de
+ * dados_bancarios exige um dono.
+ */
+async function filiacaoDoBeneficiario(c: Record<string, unknown>): Promise<string | null> {
+  if (c.tipo_beneficiario === "filiado") return texto(c.filiacao_id)
+  if (c.tipo_beneficiario !== "diretor" || !texto(c.diretoria_integrante_id)) return null
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("diretoria_integrantes")
+    .select("filiacao_id")
+    .eq("id", String(c.diretoria_integrante_id))
+    .maybeSingle()
+  return texto(data?.filiacao_id)
 }
 
 /** Favorecido das ordens: assessoria → fornecedor; pessoa → usuário pelo CPF; senão avulso. */
@@ -1688,7 +1705,7 @@ export async function gerarNovasOrdensCusteio(
     p.pagamento,
     favorecido,
     nome,
-    c.tipo_beneficiario === "filiado" ? texto(c.filiacao_id) : null
+    await filiacaoDoBeneficiario(c)
   )
   // Código continua a numeração do custeio (conta também as excluídas).
   const base = (existentes ?? []).length
