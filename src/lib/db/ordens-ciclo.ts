@@ -573,7 +573,7 @@ export async function corrigirOrdem(
   const { data: o } = await admin
     .from("ordens_pagamento")
     .select(
-      "id, situacao, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id"
+      "id, situacao, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso"
     )
     .eq("id", ordemId)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -601,6 +601,13 @@ export async function corrigirOrdem(
   }
   campo("forma_pagamento", o.forma_pagamento, nova.formaPagamento)
   if (Object.keys(mudancas).length === 0) return { erro: "Nada foi alterado." }
+
+  if ("forma_pagamento" in mudancas) {
+    // Trocar para Pix/TED exige a conta do favorecido registrada (ordens-destino.ts).
+    const { faltaDestinoBancario } = await import("@/lib/db/ordens-destino")
+    const semDestino = await faltaDestinoBancario([{ ...o, forma_pagamento: nova.formaPagamento }])
+    if (semDestino) return { erro: semDestino }
+  }
 
   const mudouValor = "valor_inicial_cobranca" in mudancas
   if (mudouValor) {

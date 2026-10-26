@@ -2,6 +2,7 @@ import "server-only"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { criarCompraDireta, subirPdfCompras } from "@/lib/db/compras"
+import type { DetalhePagamento } from "@/lib/db/compras-pagamento"
 import {
   contaDoGasto,
   listarContasDiaria,
@@ -106,6 +107,8 @@ export async function itensFaturaveis(): Promise<{
 
 export type NovaFatura = {
   fornecedorId: string
+  /** Pix/TED/QR Code: para onde pagar (lerDetalhePagamento). */
+  detalhe?: DetalhePagamento
   numero: string
   emissao: string
   vencimento: string | null
@@ -284,6 +287,7 @@ export async function registrarFatura(
     fornecedor_id: nova.fornecedorId,
     valor: totalC / 100,
     forma_pagamento: nova.formaPagamento,
+    ...(nova.detalhe ? { detalhe: nova.detalhe } : {}),
     data_compra: nova.emissao,
     vencimento: nova.vencimento,
     comprador_id: usuarioId,

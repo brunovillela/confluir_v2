@@ -51,6 +51,7 @@ export async function criarFaturaHotel(
   let pixCodigo: string | null = null
   let boletoCaminho: string | null = null
   let recebimento: string | null = null
+  let contaEscolhida: Awaited<ReturnType<typeof contasDoHotel>>["contas"][number] | null = null
   if (forma === "Boleto") {
     const boleto = formData.get("boleto")
     if (!(boleto instanceof File) || boleto.size === 0) {
@@ -92,6 +93,7 @@ export async function criarFaturaHotel(
       return { erro: "Conta de recebimento inválida para a forma escolhida." }
     }
     recebimento = descreverConta(conta)
+    contaEscolhida = conta
     if (forma === "Pix") pixCodigo = conta.chave_pix
   }
 
@@ -124,6 +126,7 @@ export async function criarFaturaHotel(
     pixCodigo,
     boletoCaminho,
     recebimento,
+    conta: contaEscolhida,
   })
   if ("erro" in resultado) return resultado
 

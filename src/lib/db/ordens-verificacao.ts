@@ -13,6 +13,7 @@ import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-re
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { FORMA_PAGA_NO_ATO } from "@/lib/db/financeiro"
+import { faltaDestinoBancario } from "@/lib/db/ordens-destino"
 import {
   registrarEvento,
   SITUACAO_AGUARDANDO_DOCUMENTO,
@@ -587,6 +588,9 @@ export async function inserirOrdensVerificadas(
   ctx: ContextoVerificacao = {}
 ): Promise<{ ids?: string[]; alertas?: number; erro?: string; apontamentos?: Apontamento[] }> {
   if (linhas.length === 0) return { ids: [] }
+  // Pix/TED sem a conta do favorecido registrada não vira ordem (ordens-destino.ts).
+  const semDestino = await faltaDestinoBancario(linhas)
+  if (semDestino) return { erro: semDestino }
   const { origem, resultados } = await verificarOrdens(linhas, ctx)
 
   // Fluxo com confirmação: nada se grava enquanto houver o que mostrar.

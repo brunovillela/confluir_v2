@@ -1290,6 +1290,40 @@ export type NovaFatura = {
   boletoCaminho: string | null
   /** Descrição da conta de recebimento (Pix/TED) para a ordem. */
   recebimento: string | null
+  /** Conta de recebimento escolhida (Pix/TED): vira o dado bancário da ordem. */
+  conta?: ContaHotel | null
+}
+
+/**
+ * O dado bancário (dados_bancarios) da empresa do hotel para a conta de
+ * recebimento escolhida (26/10/2026): a ordem Pix/TED precisa do destino
+ * registrado (ordens-destino.ts) e a remessa lê de lá — as contas do hotel
+ * ficam em hospedagem_hotel_contas. Reaproveita o dado igual; senão cadastra.
+ */
+async function dadoBancarioDoHotel(empresaId: string | null, c: ContaHotel): Promise<string | null> {
+  if (!empresaId) return null
+  const admin = await createAdminClient()
+  const { data } = await admin.from("dados_bancarios").select("id, pix, banco, conta").eq("fornecedor_id", empresaId)
+  const igual = ((data ?? []) as Record<string, unknown>[]).find((d) =>
+    c.tipo === "pix" ? d.pix === c.chave_pix : d.conta === c.conta && d.banco === c.banco
+  )
+  if (igual) return String(igual.id)
+  const { data: novo, error } = await admin
+    .from("dados_bancarios")
+    .insert({
+      fornecedor_id: empresaId,
+      favorecido: c.titular,
+      ...(c.tipo === "pix"
+        ? { pix: c.chave_pix, prefere_pix: true }
+        : { banco: c.banco, agencia: c.agencia, conta: c.conta }),
+    })
+    .select("id")
+    .single()
+  if (error || !novo) {
+    console.error("dadoBancarioDoHotel:", error?.message)
+    return null
+  }
+  return String(novo.id)
 }
 
 /**
@@ -1355,6 +1389,7 @@ export async function faturarServicos(
     .join(" ")
 
   const admin = await createAdminClient()
+  const dadosBancariosId = nova.conta ? await dadoBancarioDoHotel(hotel.empresa_id, nova.conta) : null
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo,
       tipo: "Hospedagem",
@@ -1366,6 +1401,7 @@ export async function faturarServicos(
       vencimento: nova.vencimento,
       forma_pagamento: nova.forma,
       pix_codigo: nova.pixCodigo,
+      dados_bancarios_id: dadosBancariosId,
       arquivo_boleto: nova.boletoCaminho,
       beneficiario_fornecedor_id: hotel.empresa_id,
       contrato_id: contrato.id,

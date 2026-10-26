@@ -1158,6 +1158,21 @@ async function gerarOrdensCusteio(
   const centroCusto = texto(c.centro_custo_despesa_id)
   const formaPagamento = texto(c.forma_pagamento)
   const descBase = texto(c.descricao) ?? nome
+  const destinoBancario = await dadoBancarioDoCusteio(
+    {
+      forma: formaPagamento ?? "",
+      pix: texto(c.pix),
+      tipoChavePix: texto(c.tipo_chave_pix),
+      banco: texto(c.banco),
+      agencia: texto(c.agencia),
+      conta: texto(c.conta),
+      tipoConta: texto(c.tipo_conta),
+      favorecido: texto(c.conta_favorecido),
+    },
+    { beneficiario_usuario_id: usuarioId, beneficiario_fornecedor_id: fornecedorId },
+    nome,
+    c.tipo_beneficiario === "filiado" ? texto(c.filiacao_id) : null
+  )
 
   // Regra de 05/10: parcela RECORRENTE nasce autorizada pela autorização do
   // custeio e espera só o documento fiscal; pagamento único passa pela
@@ -1185,6 +1200,7 @@ async function gerarOrdensCusteio(
     valor_inicial_cobranca: valor,
     forma_pagamento: formaPagamento,
     pix_codigo: texto(c.pix_codigo),
+    ...destinoBancario,
     caixa_conta_id: texto(c.caixa_conta_id),
     arquivo_boleto: recorrente ? null : texto(c.arquivo_boleto),
     arquivo_nota_fiscal: formalizacao,
@@ -1436,6 +1452,66 @@ function destinoDoPagamento(p: PagamentoCusteio, nome: string | null): string | 
   return null
 }
 
+/**
+ * O dado bancário (dados_bancarios) da chave Pix ou conta escolhida no custeio,
+ * para ligar à ordem (26/10/2026): a ordem Pix/TED precisa do destino
+ * registrado (ordens-destino.ts) e a remessa lê de lá — o custeio guardava a
+ * chave/conta só no próprio registro. Reaproveita o dado igual do favorecido
+ * (usuário, fornecedor ou a filiação do filiado); senão cadastra em nome dele.
+ * Favorecido avulso (convidado sem cadastro) não tem onde guardar dado bancário — o RLS de
+ * dados_bancarios exige o dono: a chave Pix vai na própria ordem (pix_codigo)
+ * e a TED fica sem destino (a trava pede Pix ou boleto).
+ */
+async function dadoBancarioDoCusteio(
+  pag: Pick<PagamentoCusteio, "forma" | "pix" | "tipoChavePix" | "banco" | "agencia" | "conta" | "tipoConta" | "favorecido">,
+  dono: { beneficiario_usuario_id: string | null; beneficiario_fornecedor_id: string | null },
+  nome: string | null,
+  /** Filiado sem usuário: o dado bancário fica na filiação dele. */
+  filiacaoId: string | null = null
+): Promise<{ dados_bancarios_id?: string; pix_codigo?: string }> {
+  const ehPix = pag.forma === "Pix" && Boolean(pag.pix)
+  const ehConta = pag.forma === "Depósito bancário (TED)" && Boolean(pag.conta)
+  if (!ehPix && !ehConta) return {}
+  const admin = await createAdminClient()
+  const chaveDono = dono.beneficiario_fornecedor_id
+    ? { fornecedor_id: dono.beneficiario_fornecedor_id }
+    : dono.beneficiario_usuario_id
+      ? { usuario_id: dono.beneficiario_usuario_id }
+      : filiacaoId
+        ? { filiado_id: filiacaoId }
+        : null
+  if (!chaveDono) return ehPix && pag.pix ? { pix_codigo: pag.pix } : {}
+  {
+    const [coluna, valor] = Object.entries(chaveDono)[0]
+    const { data } = await admin
+      .from("dados_bancarios")
+      .select("id, pix, banco, conta")
+      .eq(coluna, valor)
+    const igual = ((data ?? []) as Record<string, unknown>[]).find((d) =>
+      ehPix
+        ? texto(d.pix) === pag.pix
+        : texto(d.conta) === pag.conta && texto(d.banco) === pag.banco
+    )
+    if (igual) return { dados_bancarios_id: String(igual.id) }
+  }
+  const { data: novo, error } = await admin
+    .from("dados_bancarios")
+    .insert({
+      ...chaveDono,
+      favorecido: pag.favorecido ?? nome,
+      ...(ehPix
+        ? { pix: pag.pix, pix_tipo: pag.tipoChavePix, prefere_pix: true }
+        : { banco: pag.banco, agencia: pag.agencia, conta: pag.conta, tipo_conta: pag.tipoConta }),
+    })
+    .select("id")
+    .single()
+  if (error || !novo) {
+    console.error("dadoBancarioDoCusteio:", error?.message)
+    return {}
+  }
+  return { dados_bancarios_id: String(novo.id) }
+}
+
 /** Favorecido das ordens: assessoria → fornecedor; pessoa → usuário pelo CPF; senão avulso. */
 async function favorecidoDoCusteio(c: Record<string, unknown>, empId: string) {
   const admin = await createAdminClient()
@@ -1559,6 +1635,12 @@ export async function gerarNovasOrdensCusteio(
     : { situacao: SITUACAO_EM_AUTORIZACAO }
   const favorecido = await favorecidoDoCusteio(c, empId)
   const destino = destinoDoPagamento(p.pagamento, nome)
+  const destinoBancario = await dadoBancarioDoCusteio(
+    p.pagamento,
+    favorecido,
+    nome,
+    c.tipo_beneficiario === "filiado" ? texto(c.filiacao_id) : null
+  )
   // Código continua a numeração do custeio (conta também as excluídas).
   const base = (existentes ?? []).length
   const registros = novos.map((venc, i) => ({
@@ -1570,6 +1652,7 @@ export async function gerarNovasOrdensCusteio(
     forma_pagamento: p.pagamento.forma,
     forma_detalhe: destino,
     pix_codigo: p.pagamento.pixCodigo,
+    ...destinoBancario,
     caixa_conta_id: p.pagamento.caixaContaId,
     arquivo_boleto: caminhosBoletos[i] ?? null,
     arquivo_nota_fiscal: formalizacao,

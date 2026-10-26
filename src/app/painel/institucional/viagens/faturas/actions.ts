@@ -5,6 +5,9 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { DETALHE_DA_FORMA, type FormaPagamentoCompras } from "@/lib/compras-constantes"
+import { meiosPagamentoFornecedor, type DetalhePagamento } from "@/lib/db/compras-pagamento"
+import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import { desfazerFatura, registrarFatura } from "@/lib/db/viagens-faturas"
 
 const CHAVE = "viagens_gestao"
@@ -48,9 +51,22 @@ export async function registrarFaturaAction(
       }
     })
 
+  // Pix/TED: a chave ou conta da agência (cadastrada ou nova); Pix por QR
+  // Code: o código. Sem o destino, a ordem não nasce (ordens-destino.ts).
+  const fornecedorId = String(formData.get("fornecedor_id") ?? "").trim()
+  const forma = String(formData.get("forma_pagamento") ?? "").trim()
+  let detalhe: DetalhePagamento | undefined
+  const tipo = DETALHE_DA_FORMA[forma as FormaPagamentoCompras]
+  if (fornecedorId && (tipo === "pix_fornecedor" || tipo === "conta_fornecedor" || tipo === "pix_codigo")) {
+    const lido = await lerDetalhePagamento(formData, forma as FormaPagamentoCompras, fornecedorId, 0)
+    if (lido.erro || !lido.detalhe) return { erro: lido.erro ?? "Informe para onde pagar." }
+    detalhe = lido.detalhe
+  }
+
   const { erro, id } = await registrarFatura(
     {
-      fornecedorId: String(formData.get("fornecedor_id") ?? "").trim(),
+      fornecedorId,
+      detalhe,
       numero: String(formData.get("numero") ?? ""),
       emissao: String(formData.get("emissao") ?? ""),
       vencimento: String(formData.get("vencimento") ?? "").trim() || null,
@@ -78,4 +94,11 @@ export async function desfazerFaturaAction(
   if (erro) return { erro }
   revalidar()
   redirect("/painel/institucional/viagens/faturas?desfeita=1")
+}
+
+/** Chaves Pix e contas da agência, para o seletor do "para onde pagar". */
+export async function meiosDaAgencia(fornecedorId: string) {
+  await requirePermissao(CHAVE)
+  if (!fornecedorId) return { pix: [], contas: [] }
+  return meiosPagamentoFornecedor(fornecedorId)
 }

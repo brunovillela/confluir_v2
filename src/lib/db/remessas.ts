@@ -310,7 +310,10 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
         item = { ...base, tipo: "boleto", codigoBarras: cb, vencimento: texto(o.vencimento)?.slice(0, 10) ?? null, beneficiarioNome: favorecidoNome }
       }
     } else {
-      const candidatos = [escolhido, ...meiosDoDono.filter((m) => m !== escolhido)].filter((m): m is Record<string, unknown> => !!m)
+      // Chave Pix gravada na própria ordem (folha, reembolso, hotel, custeio
+      // de convidado) — não o copia-e-cola do QR Code — vem antes do cadastro.
+      const chaveDaOrdem = forma === "Pix" && texto(o.pix_codigo) && !String(o.pix_codigo).replace(/\s/g, "").startsWith("000201") ? { pix: texto(o.pix_codigo) } : undefined
+      const candidatos = [escolhido, chaveDaOrdem, ...meiosDoDono.filter((m) => m !== escolhido)].filter((m): m is Record<string, unknown> => !!m)
       const comPix = candidatos.find((m) => texto(m.pix))
       const comConta = candidatos.find((m) => texto(m.conta) && (texto(m.banco_codigo) || codigoPorNome(texto(m.banco))))
       const prefereConta = forma === "Depósito bancário (TED)"

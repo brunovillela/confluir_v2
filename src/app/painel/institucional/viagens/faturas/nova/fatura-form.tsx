@@ -10,9 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { IconePassagem } from "@/components/viagens"
+import { DETALHE_DA_FORMA, type FormaPagamentoCompras } from "@/lib/compras-constantes"
 import { formatarMoeda } from "@/lib/formato"
 
-import { registrarFaturaAction } from "../actions"
+import { DetalhePagamento } from "../../../../compras/nova/detalhe-pagamento"
+
+import { meiosDaAgencia, registrarFaturaAction } from "../actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -67,6 +70,12 @@ export function FaturaForm({
     Object.fromEntries(itens.map((i) => [i.itemId, paraCampo(i.valor)]))
   )
   const [taxas, setTaxas] = useState("")
+  const [forma, setForma] = useState("Boleto")
+  // Pix e TED pagam na chave/conta da agência (cadastrada ou nova, que vai
+  // para o cadastro dela); Pix por QR Code, no código. As demais formas
+  // seguem como antes.
+  const detalhe = DETALHE_DA_FORMA[forma as FormaPagamentoCompras]
+  const pedeDestino = detalhe === "pix_fornecedor" || detalhe === "conta_fornecedor" || detalhe === "pix_codigo"
 
   const visiveis = useMemo(
     () => itens.filter((i) => fornecedorId && (i.fornecedorId === fornecedorId || !i.fornecedorId)),
@@ -136,7 +145,13 @@ export function FaturaForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="forma_pagamento">Forma de pagamento</Label>
-          <select id="forma_pagamento" name="forma_pagamento" defaultValue="Boleto" className={SELECT}>
+          <select
+            id="forma_pagamento"
+            name="forma_pagamento"
+            value={forma}
+            onChange={(e) => setForma(e.target.value)}
+            className={SELECT}
+          >
             {formas.map((f) => (
               <option key={f} value={f}>
                 {f}
@@ -156,6 +171,15 @@ export function FaturaForm({
           </select>
         </div>
       </div>
+
+      {pedeDestino &&
+        (fornecedorId ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DetalhePagamento key={`${fornecedorId}-${forma}`} forma={forma} fornecedorId={fornecedorId} cartoes={[]} caixas={[]} buscarMeios={meiosDaAgencia} futuro />
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-xs">Escolha a agência para informar a chave Pix ou a conta dela.</p>
+        ))}
 
       <div className="grid gap-2">
         <p className="text-sm font-semibold">Itens que a fatura cobra</p>
