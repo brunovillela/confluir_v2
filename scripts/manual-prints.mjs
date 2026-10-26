@@ -237,6 +237,8 @@ const SHOTS_RODADA_21 = [
   ["/painel/pessoal/ponto", "pessoal/ponto-faixas.png", { esperar: "Percentuais de hora extra", passos: [{ clicar: 'css=summary:has-text("Percentuais de hora extra")' }, { aguardar: "Salvar percentuais" }], scrollTo: "Percentuais de hora extra", altura: 700 }],
   // Pede duas isenções temporárias na demo (uma vigente, uma encerrada), apagadas depois.
   ["/painel/pessoal/ponto?aba=isencoes&nova=1", "pessoal/ponto-isencoes.png", { esperar: "Nova isenção de registro de ponto", scrollTo: "Quem está isento no mês inteiro", altura: 950 }],
+  // Pede uma remessa temporária de abril sem registros, Igor isento no mês inteiro e Helena de 01 a 15/04.
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-0000000000a4", "pessoal/ponto-remessa-isentos.png", { esperar: "Isentos de registro de ponto nesta competência", passos: [{ clicar: 'css=summary:has-text("Funcionários ativos sem registro")' }, { clicar: 'css=summary:has-text("Isentos de registro de ponto")' }, { pausa: 800 }], scrollTo: "Liberados ao funcionário", altura: 1000 }],
   ]
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- rodada anterior
