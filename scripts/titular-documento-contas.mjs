@@ -9,6 +9,8 @@
 //
 //   node scripts/titular-documento-contas.mjs            → simula
 //   node scripts/titular-documento-contas.mjs --apply    → grava
+//   … --listar → também lista (produção) as contas de outro titular e as de
+//   nome diferente, com o CPF mascarado
 //
 // Só contas com banco/conta (é na TED que a regra compara). Idempotente: só
 // pega conta com titular_documento vazio.
@@ -25,6 +27,11 @@ const env = Object.fromEntries(
 )
 const s = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 const aplicar = process.argv.includes("--apply")
+const listar = process.argv.includes("--listar")
+const outroTitular = []
+const nomeDiferente = []
+const mascarar = (d) => (d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5"))
+const tipoDono = (c) => (c.fornecedor_id ? "fornecedor" : c.usuario_id ? "usuário" : "filiado")
 const DEMO = "11111111-1111-4111-8111-111111111111"
 const t = (v) => (typeof v === "string" && v.trim() ? v.trim() : null)
 const digitos = (v) => String(v ?? "").replace(/\D/g, "")
@@ -124,12 +131,16 @@ for (const c of contas) {
   if (valido(docNoTitular)) {
     conta.preencher.push({ id: c.id, doc: docNoTitular })
     porBase[base].preencher++
-    if (docNoTitular !== doc) porBase[base].outroDono = (porBase[base].outroDono ?? 0) + 1
+    if (docNoTitular !== doc) {
+      porBase[base].outroDono = (porBase[base].outroDono ?? 0) + 1
+      if (base === "prod") outroTitular.push(`${tipoDono(c)} ${nomes[0] ?? "?"} (${doc ? mascarar(doc) : "sem doc"}) — conta no documento ${mascarar(docNoTitular)}`)
+    }
     continue
   }
   if (titular && !nomeBate(titular, nomes)) {
     conta.nomeDiferente++
     porBase[base].nomeDiferente++
+    if (base === "prod") nomeDiferente.push(`${tipoDono(c)} ${nomes[0] ?? "?"} — titular "${titular}"`)
     continue
   }
   if (!valido(doc)) {
@@ -145,6 +156,11 @@ console.log(`${contas.length} conta(s) com banco/conta e sem o documento do titu
 console.log(`- produção: ${porBase.prod.preencher} a preencher (${porBase.prod.outroDono ?? 0} com documento de outro titular, que a regra vai alertar); ${porBase.prod.nomeDiferente} com titular de outro nome; ${porBase.prod.docInvalido} com o CPF/CNPJ do dono inválido ou vazio`)
 console.log(`- demo:     ${porBase.demo.preencher} a preencher; ${porBase.demo.nomeDiferente} com titular de outro nome; ${porBase.demo.docInvalido} com o CPF/CNPJ do dono inválido ou vazio`)
 if (conta.semDono) console.log(`- ${conta.semDono} sem dono visível (ignoradas)`)
+
+if (listar) {
+  console.log(`\nOutro titular (${outroTitular.length}):\n- ${outroTitular.sort().join("\n- ")}`)
+  console.log(`\nNome diferente (${nomeDiferente.length}):\n- ${nomeDiferente.sort().join("\n- ")}`)
+}
 
 if (aplicar) {
   let feitas = 0
