@@ -1,7 +1,8 @@
 /**
  * Motivos de desfiliação em lista fechada (onda 4, I6). Sem lista não há
  * churn que se analise: "outros" em texto livre vira 200 motivos diferentes.
- * Gravado em `filiacoes.desfiliacao_motivo` (supabase/filiacao-motivo-desfiliacao.sql).
+ * Gravado por vínculo em `filiacao_vinculos.desfiliacao_motivo` (migração
+ * vinculo_motivo_desfiliacao, 27/10/2026); o churn usa o do vínculo da última saída.
  */
 export const MOTIVOS_DESFILIACAO = [
   { chave: "aposentadoria", rotulo: "Aposentadoria" },

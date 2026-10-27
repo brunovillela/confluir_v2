@@ -25,7 +25,8 @@ export type ChurnFonte = {
   taxaAnual: number | null
 }
 export type ChurnMotivo = { chave: string | null; rotulo: string; quantidade: number }
-export type SemMotivo = { id: string; nome: string | null; saidaEm: string | null; condicao: string | null }
+/** `vinculoId`: o vínculo da última saída, onde o motivo é registrado (nulo quando a saída não está em vínculo nenhum). */
+export type SemMotivo = { id: string; vinculoId: string | null; nome: string | null; saidaEm: string | null; condicao: string | null }
 
 export type Churn = {
   meses: ChurnMes[]
@@ -77,67 +78,65 @@ export async function churn(): Promise<Churn> {
   const inicioJanela = `${meses[0]}-01`
   const hoje = hojeSP()
 
-  type Vinculo = { filiado_id: string; fonte_pagadora_id: string | null; entrada: string | null; saida: string | null }
-  const vinculos = (
-    await lerEmLotes<Record<string, unknown>>((de, ate) =>
+  type Vinculo = { id: string; filiado_id: string; fonte_pagadora_id: string | null; entrada: string | null; saida: string | null; motivo: string | null }
+  // O motivo da desfiliação mora no vínculo (27/10/2026); a coluna pode não existir.
+  const COLS_VINC = "id, filiado_id, fonte_pagadora_id, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida"
+  const lerVinculos = (colunas: string) =>
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
       admin
         .from("filiacao_vinculos")
-        .select("filiado_id, fonte_pagadora_id, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida")
+        .select(colunas)
         .eq("emp_proprietaria_id", emp)
         .order("id", { ascending: true })
         .range(de, ate)
     )
-  ).map(
+  let motivoDisponivel = true
+  const brutos = await lerVinculos(`${COLS_VINC}, desfiliacao_motivo`).catch(() => null)
+  if (!brutos) motivoDisponivel = false
+  const vinculos = (brutos ?? (await lerVinculos(COLS_VINC))).map(
     (v): Vinculo => ({
+      id: String(v.id),
       filiado_id: String(v.filiado_id),
       fonte_pagadora_id: texto(v.fonte_pagadora_id),
       entrada: (texto(v.data_filiacao) ?? texto(v.filiacao_data_adesao))?.slice(0, 10) ?? null,
       saida: (texto(v.data_desfiliacao) ?? texto(v.filiacao_data_saida))?.slice(0, 10) ?? null,
+      motivo: texto(v.desfiliacao_motivo),
     })
   )
 
-  // Cadastros: condição, data de saída e motivo (colunas do motivo podem não existir).
-  let motivoDisponivel = true
-  let cadastros: Record<string, unknown>[] = []
-  const comMotivo = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+  // Cadastros: condição e data de saída.
+  const cadastros = await lerEmLotes<Record<string, unknown>>((de, ate) =>
     admin
       .from("filiacoes")
-      .select("id, nome_completo, filiacao_condicao, ativo_em, inativo_em, condicao_desde, desfiliacao_motivo")
+      .select("id, nome_completo, filiacao_condicao, ativo_em, inativo_em, condicao_desde")
       .eq("emp_proprietaria_id", emp)
       .not("filiacao_excluida", "is", true)
       .is("mesclado_em", null)
       .order("id", { ascending: true })
       .range(de, ate)
-  ).catch(() => null)
-  if (comMotivo) cadastros = comMotivo
-  else {
-    motivoDisponivel = false
-    cadastros = await lerEmLotes<Record<string, unknown>>((de, ate) =>
-      admin
-        .from("filiacoes")
-        .select("id, nome_completo, filiacao_condicao, ativo_em, inativo_em, condicao_desde")
-        .eq("emp_proprietaria_id", emp)
-        .not("filiacao_excluida", "is", true)
-        .is("mesclado_em", null)
-        .order("id", { ascending: true })
-        .range(de, ate)
-    ).catch(() => [])
-  }
+  ).catch(() => [])
 
   // Por pessoa: primeira entrada e última saída (mesma régua da camada analítica).
   const primeiraEntrada = new Map<string, string>()
   const ultimaSaida = new Map<string, string>()
+  // O vínculo da última saída dá o motivo da pessoa no churn.
+  const vinculoDaSaida = new Map<string, Vinculo>()
   for (const v of vinculos) {
     if (v.entrada && (!primeiraEntrada.has(v.filiado_id) || v.entrada < primeiraEntrada.get(v.filiado_id)!)) primeiraEntrada.set(v.filiado_id, v.entrada)
     if (v.saida && (!ultimaSaida.has(v.filiado_id) || v.saida > ultimaSaida.get(v.filiado_id)!)) ultimaSaida.set(v.filiado_id, v.saida)
+    const atual = vinculoDaSaida.get(v.filiado_id)
+    if (v.saida && (!atual || v.saida > atual.saida! || (v.saida === atual.saida && !atual.motivo && v.motivo))) {
+      vinculoDaSaida.set(v.filiado_id, v)
+    }
   }
-  type Pessoa = { id: string; nome: string | null; ativo: boolean; condicao: string | null; entrada: string | null; saida: string | null; motivo: string | null }
+  type Pessoa = { id: string; vinculoId: string | null; nome: string | null; ativo: boolean; condicao: string | null; entrada: string | null; saida: string | null; motivo: string | null }
   const pessoas: Pessoa[] = cadastros.map((c) => {
     const id = String(c.id)
     const ativo = c.filiacao_condicao === "Ativo"
     const entrada = texto(c.ativo_em)?.slice(0, 10) ?? primeiraEntrada.get(id) ?? null
     const saida = ativo ? null : (texto(c.inativo_em)?.slice(0, 10) ?? ultimaSaida.get(id) ?? null)
-    return { id, nome: texto(c.nome_completo), ativo, condicao: texto(c.filiacao_condicao), entrada, saida, motivo: texto(c.desfiliacao_motivo) }
+    const vSaida = ativo ? undefined : vinculoDaSaida.get(id)
+    return { id, vinculoId: vSaida?.id ?? null, nome: texto(c.nome_completo), ativo, condicao: texto(c.filiacao_condicao), entrada, saida, motivo: vSaida?.motivo ?? null }
   })
 
   // ── Série mensal (pessoas) ─────────────────────────────────────────────────
@@ -220,7 +219,7 @@ export async function churn(): Promise<Churn> {
     .filter((p) => !p.motivo)
     .sort((a, b) => (b.saida ?? "").localeCompare(a.saida ?? ""))
     .slice(0, 50)
-    .map((p) => ({ id: p.id, nome: p.nome, saidaEm: p.saida, condicao: p.condicao }))
+    .map((p) => ({ id: p.id, vinculoId: p.vinculoId, nome: p.nome, saidaEm: p.saida, condicao: p.condicao }))
 
   const taxas = serie.map((m) => m.taxa).filter((t): t is number => t !== null)
   const dados: Churn = {
@@ -241,22 +240,25 @@ export async function churn(): Promise<Churn> {
   return dados
 }
 
-/** Grava o motivo de desfiliação de um cadastro (ficha ou tela de churn). */
+/** Grava o motivo da desfiliação de um vínculo (ficha do vínculo ou tela de churn). */
 export async function definirMotivoDesfiliacao(
-  filiacaoId: string,
+  vinculoId: string,
   motivo: string | null,
   detalhe: string | null
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; filiadoId?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin
-    .from("filiacoes")
-    .update({ desfiliacao_motivo: motivo, desfiliacao_motivo_detalhe: detalhe, updated_at: new Date().toISOString() })
-    .eq("id", filiacaoId)
+  const { data, error } = await admin
+    .from("filiacao_vinculos")
+    .update({ desfiliacao_motivo: motivo, desfiliacao_motivo_detalhe: detalhe })
+    .eq("id", vinculoId)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .select("filiado_id")
+    .maybeSingle()
   if (error) {
-    if (["PGRST204", "42703"].includes(error.code ?? "")) return { erro: "Falta rodar o SQL supabase/filiacao-motivo-desfiliacao.sql." }
+    if (["PGRST204", "42703"].includes(error.code ?? "")) return { erro: "Falta aplicar a migração vinculo_motivo_desfiliacao." }
     return { erro: error.message }
   }
+  if (!data) return { erro: "Vínculo não encontrado." }
   invalidarCacheChurn()
-  return {}
+  return { filiadoId: String(data.filiado_id) }
 }

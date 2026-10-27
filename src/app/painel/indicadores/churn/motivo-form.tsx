@@ -12,12 +12,12 @@ import { definirMotivoDesfiliacaoAction } from "./actions"
 const SELECT =
   "border-input bg-background text-foreground h-9 rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-/** Select + salvar numa linha: usado na lista "sem motivo" e na ficha do filiado. */
-export function MotivoDesfiliacaoForm({ filiacaoId, motivo, compacto = false }: { filiacaoId: string; motivo: string | null; compacto?: boolean }) {
+/** Select + salvar numa linha: a lista "sem motivo" do churn (o motivo é do vínculo da última saída). */
+export function MotivoDesfiliacaoForm({ vinculoId, motivo, compacto = false }: { vinculoId: string; motivo: string | null; compacto?: boolean }) {
   const [estado, action, salvando] = useActionState<EstadoForm, FormData>(definirMotivoDesfiliacaoAction, {})
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <input type="hidden" name="filiacao_id" value={filiacaoId} />
+      <input type="hidden" name="vinculo_id" value={vinculoId} />
       <select name="motivo" defaultValue={motivo ?? ""} className={SELECT} aria-label="Motivo da desfiliação">
         <option value="">{compacto ? "Motivo…" : "Motivo da desfiliação…"}</option>
         {MOTIVOS_DESFILIACAO.map((m) => (

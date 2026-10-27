@@ -15,6 +15,8 @@ import {
 } from "@/lib/db/filiacao-documentos"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
+import { MOTIVOS_DESFILIACAO } from "@/lib/churn-constantes"
+import { invalidarCacheChurn } from "@/lib/db/churn"
 import { CONDICOES_NA_FONTE, REGIMES_TRABALHO } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -47,6 +49,10 @@ function lerCampos(formData: FormData) {
     data_desfiliacao: data("data_desfiliacao"),
     condicao_na_fonte: opcao("condicao_na_fonte", CONDICOES_NA_FONTE),
     regime_trabalho: opcao("regime_trabalho", REGIMES_TRABALHO),
+    desfiliacao_motivo: opcao(
+      "desfiliacao_motivo",
+      MOTIVOS_DESFILIACAO.map((m) => m.chave)
+    ),
   }
 }
 
@@ -100,6 +106,10 @@ export async function criarVinculo(
     .maybeSingle()
   if (!filiado) return { erro: "Filiado não encontrado." }
 
+  if (dados.desfiliacao_motivo && !dados.data_desfiliacao) {
+    return { erro: "Informe a data de desfiliação para registrar o motivo." }
+  }
+
   const { error } = await admin.from("filiacao_vinculos").insert({
     ...dados,
     filiado_id: filiadoId,
@@ -107,6 +117,7 @@ export async function criarVinculo(
   })
   if (error) return { erro: mensagemErro("criar", error) }
 
+  if (dados.desfiliacao_motivo) invalidarCacheChurn()
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
 }
@@ -128,6 +139,19 @@ export async function atualizarVinculo(
   if (erro) return { erro }
 
   const admin = await createAdminClient()
+  // Motivo só em vínculo encerrado — pela data do formulário ou pela de
+  // saída do sistema antigo, que o formulário não edita.
+  if (dados.desfiliacao_motivo && !dados.data_desfiliacao) {
+    const { data: atual } = await admin
+      .from("filiacao_vinculos")
+      .select("filiacao_data_saida")
+      .eq("id", vinculoId)
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .maybeSingle()
+    if (!atual?.filiacao_data_saida) {
+      return { erro: "Informe a data de desfiliação para registrar o motivo." }
+    }
+  }
   const { error, count } = await admin
     .from("filiacao_vinculos")
     .update(dados, { count: "exact" })
@@ -136,6 +160,7 @@ export async function atualizarVinculo(
   if (error) return { erro: mensagemErro("salvar", error) }
   if (count === 0) return { erro: "Vínculo não encontrado." }
 
+  invalidarCacheChurn()
   revalidatePath(`/painel/filiados/${filiadoId}`)
   redirect(`/painel/filiados/${filiadoId}?salvo=1`)
 }

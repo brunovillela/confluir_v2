@@ -63,7 +63,6 @@ import { alterarComunicadosFichaAction } from "./comunicados-actions"
 import { DadosBancariosFiliado } from "./dados-bancarios"
 
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
-import { MotivoDesfiliacaoForm } from "@/app/painel/indicadores/churn/motivo-form"
 import { rotuloMotivoDesfiliacao } from "@/lib/churn-constantes"
 
 import { CondicaoBadge } from "../condicao-badge"
@@ -320,13 +319,6 @@ export default async function FiliadoPage({
             <Badge variant="outline" className="text-muted-foreground">
               Desfiliado
             </Badge>
-          )}
-          {condicaoAtual && condicaoAtual !== "Ativo" && !/em processo de filia/i.test(condicaoAtual) && (
-            // Motivo da desfiliação (onda 4, I6): alimenta o churn.
-            <span className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Motivo: {rotuloMotivoDesfiliacao(typeof f.desfiliacao_motivo === "string" ? f.desfiliacao_motivo : null)}</span>
-              <MotivoDesfiliacaoForm filiacaoId={id} motivo={typeof f.desfiliacao_motivo === "string" ? f.desfiliacao_motivo : null} compacto />
-            </span>
           )}
           {typeof f.nome_social === "string" && f.nome_social.trim() && (
             <span className="text-muted-foreground text-sm">
@@ -709,6 +701,21 @@ export default async function FiliadoPage({
                       <TableCell>
                         {formatarData(
                           v.data_desfiliacao ?? v.filiacao_data_saida
+                        )}
+                        {/* Motivo da desfiliação (alimenta o churn): é de
+                            cada vínculo, editado no lápis da linha. */}
+                        {(v.data_desfiliacao || v.filiacao_data_saida) && (
+                          <span
+                            className={
+                              v.desfiliacao_motivo
+                                ? "text-muted-foreground block text-xs"
+                                : "text-warning-fg block text-xs"
+                            }
+                          >
+                            {v.desfiliacao_motivo
+                              ? rotuloMotivoDesfiliacao(v.desfiliacao_motivo)
+                              : "Motivo não informado"}
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>

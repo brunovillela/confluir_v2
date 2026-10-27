@@ -530,6 +530,8 @@ export type Vinculo = {
   fundoPensao: boolean
   condicao_na_fonte: string | null
   regime_trabalho: string | null
+  /** Motivo da desfiliação neste vínculo (lib/churn-constantes.ts). */
+  desfiliacao_motivo: string | null
   /** Campos obrigatórios que faltam (ver pendenciasDoVinculo). */
   pendencias: string[]
   /**
@@ -748,7 +750,7 @@ export async function buscarPerfilFiliado(
       admin
         .from("filiacao_vinculos")
         .select(
-          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de, condicao_na_fonte, regime_trabalho"
+          "id, cargo, lotacao, matricula, data_filiacao, data_desfiliacao, filiacao_data_adesao, filiacao_data_saida, data_entrada_admissao, data_saida_demissao, fonte_pg_cargo, fonte_pg_admissao, fonte_pagadora_id, ficha_filiacao, carta_desfiliacao, reconstruido_de, condicao_na_fonte, regime_trabalho, desfiliacao_motivo"
         )
         .in("filiado_id", idsDaPessoa)
         .order("created_at", { ascending: false }),

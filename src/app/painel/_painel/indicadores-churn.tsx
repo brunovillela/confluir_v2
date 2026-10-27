@@ -145,7 +145,7 @@ export async function IndicadoresChurn() {
           <CardHeader>
             <CardTitle className="text-base">Saíram sem motivo registrado</CardTitle>
             <CardDescription className="text-xs">
-              Os {c.semMotivo.length} mais recentes. Registre aqui ou na ficha do filiado — sem motivo, o churn não explica nada.
+              Os {c.semMotivo.length} mais recentes. Registre aqui (vale para o vínculo da última saída) ou em cada vínculo, na ficha do filiado — sem motivo, o churn não explica nada.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -161,7 +161,7 @@ export async function IndicadoresChurn() {
                       {p.saidaEm ? ` · saiu em ${formatarData(p.saidaEm)}` : ""}
                     </span>
                   </span>
-                  {c.motivoDisponivel && <MotivoDesfiliacaoForm filiacaoId={p.id} motivo={null} compacto />}
+                  {c.motivoDisponivel && p.vinculoId && <MotivoDesfiliacaoForm vinculoId={p.vinculoId} motivo={null} compacto />}
                 </li>
               ))}
             </ul>

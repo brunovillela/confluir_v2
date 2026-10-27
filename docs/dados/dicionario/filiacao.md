@@ -881,10 +881,12 @@ Vínculos do filiado com cada fonte pagadora (empregador ou fundo de pensão): m
 | `reconstruido_de` | text | sim |  |  |  | Id do cadastro no Bubble de onde este vínculo foi derivado. Nulo = vínculo registrado normalmente. |
 | `lotacao_offshore` | boolean | sim |  |  | trabalhista |  |
 | `condicao_na_fonte` | text | sim |  |  | trabalhista | Condição do filiado nesta fonte pagadora: Trabalhador(a) da ativa \| Beneficiário(a) aposentado(a) \| Beneficiário(a) pensionista. |
+| `desfiliacao_motivo` | text | sim |  |  | **sensível: sindical** | Motivo da desfiliação neste vínculo, em lista fechada (lib/churn-constantes.ts). |
+| `desfiliacao_motivo_detalhe` | text | sim |  |  | **sensível: sindical** | Complemento livre do motivo da desfiliação neste vínculo. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `filiacao_vinculos_bubble_id_key`, `filiacao_vinculos_filiado_idx`, `filiacao_vinculos_fonte_idx`, `filiacao_vinculos_fonte_pg_matricula_busca_idx`, `filiacao_vinculos_matricula_busca_idx`, `filiacao_vinculos_pkey`, `filiacao_vinculos_reconstruido_idx`, `idx_filiacao_vinculos_condicao_fonte`
+Índices: `filiacao_vinculos_bubble_id_key`, `filiacao_vinculos_desfiliacao_motivo_idx`, `filiacao_vinculos_filiado_idx`, `filiacao_vinculos_fonte_idx`, `filiacao_vinculos_fonte_pg_matricula_busca_idx`, `filiacao_vinculos_matricula_busca_idx`, `filiacao_vinculos_pkey`, `filiacao_vinculos_reconstruido_idx`, `idx_filiacao_vinculos_condicao_fonte`
 
 ## filiacoes
 
@@ -963,8 +965,8 @@ Cadastro do filiado (ou ex-filiado/não filiado) na entidade: identificação, c
 | `forma_recebimento_ordem` | integer | sim |  |  | financeiro | Competência (ano*100+mês) da remessa que definiu forma_recebimento. Importações mais antigas não sobrescrevem. |
 | `comunicados_optout_em` | timestamp with time zone | sim |  |  |  |  |
 | `comunicados_optout_origem` | text | sim |  |  |  | Por onde o filiado pediu para não receber comunicados. |
-| `desfiliacao_motivo` | text | sim |  |  | **sensível: sindical** | Motivo da desfiliação em lista fechada (lib/churn-constantes.ts). |
-| `desfiliacao_motivo_detalhe` | text | sim |  |  | **sensível: sindical** |  |
+| `desfiliacao_motivo` | text | sim |  |  | **sensível: sindical** | OBSOLETO desde 27/10/2026: o motivo mora em filiacao_vinculos.desfiliacao_motivo. |
+| `desfiliacao_motivo_detalhe` | text | sim |  |  | **sensível: sindical** | OBSOLETO desde 27/10/2026: ver filiacao_vinculos.desfiliacao_motivo_detalhe. |
 | `contribuicao_valor` | numeric(12,2) | sim |  |  | financeiro | Valor da contribuição do filiado. |
 
 Únicas: `UNIQUE (bubble_id)`

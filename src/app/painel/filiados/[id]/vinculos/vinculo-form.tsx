@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { MOTIVOS_DESFILIACAO } from "@/lib/churn-constantes"
 import {
   CONDICOES_NA_FONTE,
   REGIMES_TRABALHO,
@@ -42,6 +44,9 @@ export type VinculoFormDados = {
   data_saida_demissao: string | null
   data_filiacao: string | null
   data_desfiliacao: string | null
+  /** Data de saída do sistema antigo (não editável aqui): também encerra o vínculo. */
+  filiacao_data_saida?: string | null
+  desfiliacao_motivo?: string | null
   condicao_na_fonte: string | null
   regime_trabalho: string | null
 }
@@ -50,10 +55,12 @@ function CampoData({
   nome,
   rotulo,
   valor,
+  aoMudar,
 }: {
   nome: string
   rotulo: string
   valor: string | null
+  aoMudar?: (valor: string) => void
 }) {
   return (
     <div className="grid gap-1.5">
@@ -63,6 +70,7 @@ function CampoData({
         name={nome}
         type="date"
         defaultValue={(valor ?? "").slice(0, 10)}
+        onChange={aoMudar ? (e) => aoMudar(e.target.value) : undefined}
       />
     </div>
   )
@@ -90,6 +98,10 @@ export function VinculoForm({
   const [condicaoEscolhida, setCondicaoEscolhida] = useState(
     Boolean(vinculo?.condicao_na_fonte)
   )
+  // O motivo só vale para vínculo encerrado: sem data de desfiliação (nem a
+  // de saída do sistema antigo), o campo fica desligado e não vai no envio.
+  const [dataDesfiliacao, setDataDesfiliacao] = useState(vinculo?.data_desfiliacao ?? "")
+  const encerrado = Boolean(dataDesfiliacao || vinculo?.filiacao_data_saida)
   const fonteEhFundo = (id: string) =>
     fontes.find((f) => f.id === id)?.fundoPensao ?? false
   const condicaoEfetiva =
@@ -219,7 +231,29 @@ export function VinculoForm({
               nome="data_desfiliacao"
               rotulo="Desfiliação"
               valor={vinculo?.data_desfiliacao ?? null}
+              aoMudar={setDataDesfiliacao}
             />
+            <div className="grid gap-1.5">
+              <Label htmlFor="desfiliacao_motivo">Motivo da desfiliação</Label>
+              <SelectNativo
+                id="desfiliacao_motivo"
+                name="desfiliacao_motivo"
+                defaultValue={vinculo?.desfiliacao_motivo ?? ""}
+                disabled={!encerrado}
+              >
+                <option value="">Não informado</option>
+                {MOTIVOS_DESFILIACAO.map((m) => (
+                  <option key={m.chave} value={m.chave}>
+                    {m.rotulo}
+                  </option>
+                ))}
+              </SelectNativo>
+              <p className="text-muted-foreground text-xs">
+                {encerrado
+                  ? "Por que este vínculo foi encerrado — alimenta o churn."
+                  : "Informe a data de desfiliação para registrar o motivo."}
+              </p>
+            </div>
           </CardContent>
         </Card>
 

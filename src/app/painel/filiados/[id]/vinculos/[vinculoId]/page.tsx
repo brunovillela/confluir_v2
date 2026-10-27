@@ -28,7 +28,7 @@ import { VinculoForm, type VinculoFormDados } from "../vinculo-form"
 export const metadata: Metadata = { title: "Vínculo de filiação — Confluir" }
 
 const COLS_VINCULO =
-  "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_saida_demissao, data_filiacao, data_desfiliacao, regime_trabalho"
+  "id, filiado_id, fonte_pagadora_id, cargo, lotacao, matricula, data_entrada_admissao, data_saida_demissao, data_filiacao, data_desfiliacao, filiacao_data_saida, desfiliacao_motivo, regime_trabalho"
 
 /**
  * `condicao_na_fonte` nasce em supabase/vinculos-condicao-fonte-regime.sql;
