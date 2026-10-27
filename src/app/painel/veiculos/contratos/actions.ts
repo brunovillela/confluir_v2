@@ -11,6 +11,7 @@ import {
   gerarOrdemAluguel,
   subirArquivoVeiculos,
 } from "@/lib/db/veiculos"
+import { editarOrdemAluguel, excluirOrdemAluguel } from "@/lib/db/veiculos-locacao-ordens"
 import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
@@ -103,4 +104,62 @@ export async function gerarOrdemAluguelAction(
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)
   redirect(`/painel/veiculos/contratos/${id}?salvo=1`)
+}
+
+function revalidarOrdemAluguel(contratoId: string, ordemId: string) {
+  revalidatePath(`/painel/veiculos/contratos/${contratoId}`)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  revalidatePath("/painel/financeiro/ordens")
+}
+
+/**
+ * Edita uma cobrança da locação (descrição, valor, vencimento) ainda não paga
+ * nem em processamento — mesmas travas do contrato de Compras. Mudar o valor
+ * de ordem autorizada a devolve para autorização.
+ */
+export async function editarOrdemAluguelAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor inválido." }
+  const vencimento = texto(formData, "vencimento")
+  if (vencimento && !dataISO(vencimento)) return { erro: "Vencimento inválido." }
+  const { erro, voltouParaAutorizacao } = await editarOrdemAluguel(
+    contratoId,
+    ordemId,
+    {
+      descricao: texto(formData, "descricao") || null,
+      valor,
+      vencimento: vencimento || null,
+    },
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidarOrdemAluguel(contratoId, ordemId)
+  return {
+    ok: voltouParaAutorizacao
+      ? "Ordem alterada. Como o valor mudou, ela voltou para autorização."
+      : "Ordem alterada — o antes e o depois ficaram no histórico.",
+  }
+}
+
+/** Exclui UMA cobrança da locação que ainda não foi paga nem está em processamento. */
+export async function excluirOrdemAluguelAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const { erro, codigo } = await excluirOrdemAluguel(contratoId, ordemId)
+  if (erro) return { erro }
+  revalidarOrdemAluguel(contratoId, ordemId)
+  return { ok: `Ordem ${codigo ?? ""} excluída.` }
 }

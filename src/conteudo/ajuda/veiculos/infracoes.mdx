@@ -57,8 +57,21 @@ Cada fatura da locadora vira uma cobrança: informe o **período cobrado**
 (de/até), o valor, o vencimento e anexe a fatura e, se houver, o boleto. O
 período não precisa ser o mês — uma locação de alguns dias e a prorrogação no
 mesmo mês saem em cobranças separadas. O vencimento pode cair depois do
-término do contrato; para mudá-lo depois, abra a ordem pelo código e use
-**Corrigir** no Financeiro.
+término do contrato.
+
+Para corrigir uma cobrança já lançada, use o **lápis** na linha da ordem, na
+própria tela do contrato: muda descrição, valor e vencimento, com motivo (o
+antes e o depois ficam no histórico). As travas são as mesmas dos contratos de
+Compras:
+
+- ordem **paga** ou **em processamento** bancário não muda — ajuste só pelo
+  Financeiro;
+- ordem já **autorizada** ("A pagar") pode mudar, mas trocar o valor a devolve
+  para autorização;
+- a lixeira exclui a cobrança enquanto ela não foi paga nem entrou em
+  processamento.
+
+O código da ordem abre a ordem no Financeiro.
 
 ## Erros comuns
 

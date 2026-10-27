@@ -3079,6 +3079,10 @@ export type ContratoDetalhe = ContratoLinha & {
     situacao: string | null
     valor: number | null
     vencimento: string | null
+    /** Para a trava de edição (ordemMexivelPeloContrato). */
+    tipo: string | null
+    processo_compra_id: string | null
+    data_pagamento: string | null
   }[]
 }
 
@@ -3103,7 +3107,7 @@ export async function buscarContrato(
       .order("placa", { ascending: true }),
     admin
       .from("ordens_pagamento")
-      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento")
+      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento")
       .eq("contrato_aluguel_id", id)
       .eq("excluido", false)
       .order("vencimento", { ascending: false }),
@@ -3129,6 +3133,9 @@ export async function buscarContrato(
           situacao: texto(o.situacao),
           valor: numero(o.valor_inicial_cobranca),
           vencimento: texto(o.vencimento),
+          tipo: texto(o.tipo),
+          processo_compra_id: texto(o.processo_compra_id),
+          data_pagamento: texto(o.data_pagamento),
         })),
   }
 }

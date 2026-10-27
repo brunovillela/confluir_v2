@@ -16,10 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { AcoesLinhaOrdem } from "@/app/painel/compras/contratos/[id]/ordens-contrato"
 import { requirePermissao } from "@/lib/auth"
+import { ordemMexivelPeloContrato } from "@/lib/db/contratos"
 import { buscarContrato, urlArquivoVeiculos } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
+import { editarOrdemAluguelAction, excluirOrdemAluguelAction } from "../actions"
 import { FinalizarContratoForm, GerarOrdemAluguelForm } from "../contrato-forms"
 
 export const metadata: Metadata = { title: "Contrato de aluguel — Confluir" }
@@ -37,6 +40,8 @@ export default async function ContratoPage({
 
   const contrato = await buscarContrato(id)
   if (!contrato) notFound()
+  // Paga, em processamento ou encerrada: sem lápis (o servidor confere de novo).
+  const temMexivel = contrato.ordens.some(ordemMexivelPeloContrato)
 
   const arquivoUrl = await urlArquivoVeiculos(contrato.arquivo_contrato_url)
 
@@ -148,7 +153,7 @@ export default async function ContratoPage({
 
       <GrupoColapsavel
         titulo="Ordens de pagamento do contrato"
-        descricao="Cobranças geradas aqui e ordens legadas vinculadas pelo backfill — o código abre a ordem no Financeiro (corrigir vencimento, valor, forma)"
+        descricao="Cobranças geradas aqui e ordens legadas vinculadas pelo backfill — o lápis edita a ordem enquanto não estiver paga nem em processamento; o código abre a ordem no Financeiro"
         resumo={
           <span className="text-muted-foreground text-sm tabular-nums">
             {contrato.ordens.length}
@@ -169,6 +174,7 @@ export default async function ContratoPage({
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Situação</TableHead>
+                {temMexivel && <TableHead className="w-24" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,6 +200,26 @@ export default async function ContratoPage({
                   <TableCell className="whitespace-nowrap">
                     {o.situacao ?? "—"}
                   </TableCell>
+                  {temMexivel && (
+                    <TableCell>
+                      {ordemMexivelPeloContrato(o) && (
+                        <AcoesLinhaOrdem
+                          contratoId={contrato.id}
+                          ordem={{
+                            id: o.id,
+                            codigo: o.codigo,
+                            descricao: o.descricao,
+                            valor: o.valor,
+                            vencimento: o.vencimento,
+                            situacao: o.situacao,
+                          }}
+                          acaoEditarOrdem={editarOrdemAluguelAction}
+                          acaoExcluirOrdem={excluirOrdemAluguelAction}
+                          origemRotulo="contrato de locação"
+                        />
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
