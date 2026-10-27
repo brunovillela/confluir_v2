@@ -73,7 +73,7 @@ Virada da meia-noite no último dia (quem clica 23:59:59 pode receber "fora do p
 
 ## Plano em ondas
 
-**Onda 0 — integridade (antes de abrir a campanha)**
+**Onda 0 — integridade (antes de abrir a campanha)** — FEITA em 27/10/2026 (4999cf28, migração 20261027083817_oposicao_integridade); de brinde, a concorrência entre avaliadores (item 16).
 1. Protocolo atômico por campanha + `unique (campanha_id, protocolo)`.
 2. `unique (campanha_id, cpf)` parcial para as linhas novas (legado fora) + insert com conflito; normalizar CPF (só dígitos) nas linhas novas.
 3. Guardar no opositor a declaração aceita (com hash), o modo e o prazo vigentes no ato; travar a edição desses campos com a campanha aberta e com opositores.
