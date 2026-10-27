@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getSessaoTrabalhador } from "@/lib/auth"
+import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
 import { hojeSP } from "@/lib/db/comum"
 import { campanhasAbertas, minhaOposicao, type MinhaOposicao } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
@@ -37,9 +38,9 @@ export const metadata: Metadata = { title: "Oposição à contribuição assiste
 export default async function OposicaoPortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desistiu?: string }>
+  searchParams: Promise<{ desistiu?: string; erro?: string }>
 }) {
-  const [sessao, { desistiu }, vis] = await Promise.all([
+  const [sessao, { desistiu, erro }, vis] = await Promise.all([
     getSessaoTrabalhador(),
     searchParams,
     // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
@@ -48,6 +49,8 @@ export default async function OposicaoPortalPage({
     getVisualizacaoPortal(),
   ])
   const preview = vis?.preview ? vis : null
+  // Link de e-mail antigo recusado em /auth/confirm volta para cá (A3).
+  const erroLink = sessao ? undefined : mensagemLinkRecusado(erro, "portal")
 
   const conteudo = (
     <>
@@ -67,6 +70,14 @@ export default async function OposicaoPortalPage({
           )
         }
       />
+
+      {erroLink && (
+        <AvisoDaUrl parametros={["erro"]}>
+          <Alert variant="destructive">
+            <AlertDescription>{erroLink}</AlertDescription>
+          </Alert>
+        </AvisoDaUrl>
+      )}
 
       {desistiu === "1" && (
         <AvisoDaUrl parametros={["desistiu"]}>

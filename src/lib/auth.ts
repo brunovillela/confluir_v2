@@ -184,27 +184,33 @@ export const getSessaoTrabalhador = cache(
     if (!identidade) return null
     const cpf = identidade.cpf
 
-    if (identidade.tipo === "nao_filiado") {
-      const admin = await createAdminClient()
-      const { data } = await admin
-        .from("portal_nao_filiado")
-        .select("id, nome, email")
-        .eq("cpf", cpf)
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .maybeSingle()
-      if (!data) return null
+    const comoNaoFiliado = async (padrao: { nome: string | null; email: string | null }) => {
+      const cadastro = await garantirCadastroNaoFiliado({ cpf, ...padrao })
+      if (!cadastro) return null
       return {
         userId: user.id,
         cpf,
-        nome: (data.nome as string | null) ?? null,
-        email: (data.email as string | null) ?? null,
-        perfil: "nao_filiado",
-        refId: String(data.id),
+        nome: cadastro.nome,
+        email: cadastro.email,
+        perfil: "nao_filiado" as const,
+        refId: cadastro.id,
       }
     }
 
+    if (identidade.tipo === "nao_filiado") {
+      return await comoNaoFiliado({ nome: identidade.nome, email: user.email ?? null })
+    }
+
     const filiado = await buscarFiliadoPorCpf(cpf)
-    if (!filiado || !filiado.ativo) return null
+    // Quem se desfiliou (ou teve a filiação encerrada) continua podendo se
+    // opor, agora como trabalhador — antes voltava à tela de entrada sem
+    // mensagem nenhuma (achado A4 da avaliação da oposição).
+    if (!filiado || !filiado.ativo) {
+      return await comoNaoFiliado({
+        nome: filiado?.nome_completo ?? identidade.nome,
+        email: user.email ?? null,
+      })
+    }
     return {
       userId: user.id,
       cpf,
@@ -215,6 +221,47 @@ export const getSessaoTrabalhador = cache(
     }
   }
 )
+
+/**
+ * Cadastro do trabalhador não filiado (`portal_nao_filiado`) pelo CPF da
+ * identidade. Existindo, devolve como está e só completa o que faltar
+ * (o nome e o e-mail que a pessoa informou ao pedir o código prevalecem
+ * quando `atualizar`); não existindo, cria. Serve aos dois caminhos de
+ * entrada — código e link — e ao desfiliado (A3, A4).
+ */
+export async function garantirCadastroNaoFiliado(dados: {
+  cpf: string
+  nome: string | null
+  email: string | null
+  atualizar?: boolean
+}): Promise<{ id: string; nome: string | null; email: string | null } | null> {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const { data: existente } = await admin
+    .from("portal_nao_filiado")
+    .select("id, nome, email")
+    .eq("cpf", dados.cpf)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (existente) {
+    const nome = (dados.atualizar && dados.nome) || (existente.nome as string | null) || dados.nome
+    const email = (dados.atualizar && dados.email) || (existente.email as string | null) || dados.email
+    if (nome !== existente.nome || email !== existente.email) {
+      await admin.from("portal_nao_filiado").update({ nome, email }).eq("id", existente.id)
+    }
+    return { id: String(existente.id), nome: nome ?? null, email: email ?? null }
+  }
+  const { data: criado, error } = await admin
+    .from("portal_nao_filiado")
+    .insert({ cpf: dados.cpf, nome: dados.nome, email: dados.email, emp_proprietaria_id: empId })
+    .select("id")
+    .single()
+  if (error || !criado) {
+    console.error("[oposicao] cadastro do não filiado falhou:", error?.message)
+    return null
+  }
+  return { id: String(criado.id), nome: dados.nome, email: dados.email }
+}
 
 export async function requireSessaoTrabalhador(): Promise<SessaoTrabalhador> {
   const sessao = await getSessaoTrabalhador()

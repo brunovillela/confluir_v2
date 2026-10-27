@@ -84,6 +84,21 @@ function hashDoCodigo(email: string, codigo: string): string {
   return createHash("sha224").update(email + codigo).digest("hex")
 }
 
+/**
+ * Código mandado a mais de um e-mail (Oposição: todos os e-mails do cadastro
+ * do filiado): em qual deles está o código digitado. Uma consulta por e-mail,
+ * sem gastar tentativa do `verifyOtp`. Null = nenhum confere ou o
+ * diagnóstico está indisponível — aí quem chama tenta um a um.
+ */
+export async function emailDoCodigo(emails: string[], codigo: string): Promise<string | null> {
+  for (const e of emails) {
+    const email = e.trim().toLowerCase()
+    const consulta = await consultarToken(hashDoCodigo(email, codigo), email)
+    if (consulta?.token_encontrado) return email
+  }
+  return null
+}
+
 /** Link aceito — só log, para cruzar com recusas posteriores. */
 export function registrarLinkAceito(tipo: string, userAgent: string | null) {
   console.info(

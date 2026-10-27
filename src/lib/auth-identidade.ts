@@ -123,9 +123,14 @@ export async function vincularIdentidade(dados: {
     if (!cadastro.emails.has(email)) return { ok: false, erro: ERRO_EMAIL_NAO_E_DO_CADASTRO }
   } else if (cadastro.ativo) {
     // Filiado ativo tentando entrar como "trabalhador": a porta é a do filiado,
-    // e a prova é a do filiado (e-mail do cadastro).
+    // e a prova é a do filiado (e-mail do cadastro). A mensagem não afirma a
+    // filiação (dado sensível): quem digitou o CPF de outra pessoa não fica
+    // sabendo se ela é filiada (A7 da avaliação da oposição).
     if (!cadastro.emails.has(email)) {
-      return { ok: false, erro: "Este CPF é de um filiado — use o acesso do filiado (por CPF)." }
+      return {
+        ok: false,
+        erro: "Não foi possível concluir o acesso com este CPF e este e-mail. Tente pela aba “Sou filiado” (o código vai ao e-mail cadastrado no sindicato) ou procure o sindicato.",
+      }
     }
     tipo = "filiado"
   }

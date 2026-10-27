@@ -1,8 +1,9 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState } from "react"
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
 import { KeyRound, Loader2, Mail, RotateCw } from "lucide-react"
 
+import { DicaDaCaixa } from "@/components/auth/dica-da-caixa"
 import { Turnstile } from "@/components/auth/turnstile"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -19,9 +20,10 @@ import {
   confirmarCodigoTrabalhador,
   enviarCodigoFiliado,
   enviarCodigoTrabalhador,
+  type EstadoAcessoOposicao,
 } from "./actions"
 
-type Estado = { erro?: string; ok?: string }
+type Estado = EstadoAcessoOposicao
 type Aba = "trabalhador" | "filiado"
 
 /** Espera para reenviar: a cadência de lib/codigo-acesso.ts (1 código por minuto). */
@@ -148,11 +150,17 @@ function PassoCodigo({
   aviso,
   confirmar,
   ocultos,
+  email,
+  ajuda,
 }: {
   idPrefixo: string
   aviso: string | undefined
   confirmar: (prev: Estado, fd: FormData) => Promise<Estado>
   ocultos: Record<string, string>
+  /** Para onde o código foi, quando a tela pode saber (a dica da caixa). */
+  email?: string
+  /** Itens a mais do "Não chegou?", próprios de cada aba. */
+  ajuda?: ReactNode
 }) {
   // Cada pedido aceito monta um passo novo (key): o erro do código anterior
   // não vale para o que acabou de ser pedido.
@@ -179,6 +187,7 @@ function PassoCodigo({
           <AlertDescription>{aviso}</AlertDescription>
         </Alert>
       )}
+      {email && <DicaDaCaixa email={email} />}
       <Mensagens id={`${idCampo}-erro`} estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor={idCampo}>Código recebido por e-mail</Label>
@@ -213,11 +222,12 @@ function PassoCodigo({
             Procure no <strong>Spam</strong> ou no <strong>Lixo eletrônico</strong>;
             no Gmail, também em <strong>Promoções</strong> e <strong>Atualizações</strong>.
           </li>
-          <li>O assunto é “Confluir | Seu código de acesso”.</li>
+          <li>O assunto é “Confluir | Seu código de acesso”. O e-mail traz só o código, sem link.</li>
           <li>
             Dá para pedir outro no botão <strong>Reenviar código</strong>, uma vez
             por minuto. Vale sempre o do e-mail mais recente.
           </li>
+          {ajuda}
         </ul>
       </div>
     </form>
@@ -269,6 +279,57 @@ function BotaoPedido({ enviado, pendente, espera }: { enviado: boolean; pendente
   )
 }
 
+/**
+ * Conferência do e-mail antes do código (A9): "você quis dizer…?" e o aviso
+ * do domínio de empresa que costuma barrar as nossas mensagens. Os botões
+ * enviam o formulário de novo: o da sugestão leva o e-mail corrigido (vem
+ * antes do campo, então é o valor que o servidor lê); o "seguir" leva forcar=1.
+ */
+function ConferenciaEmail({
+  estado,
+  pendente,
+  aoAceitar,
+}: {
+  estado: Estado
+  pendente: boolean
+  aoAceitar: (email: string) => void
+}) {
+  const { sugestao, alerta } = estado
+  if (!sugestao && !alerta) return null
+  return (
+    <Alert variant="warning">
+      <AlertDescription className="grid gap-2">
+        {sugestao ? (
+          <span>
+            Você quis dizer <strong>{sugestao.email}</strong>?
+          </span>
+        ) : (
+          <span>{alerta?.texto}</span>
+        )}
+        <span className="flex flex-wrap gap-2">
+          {sugestao && (
+            <Button
+              type="submit"
+              size="sm"
+              name="email"
+              value={sugestao.email}
+              disabled={pendente}
+              onClick={() => aoAceitar(sugestao.email)}
+            >
+              Sim, usar {sugestao.email.split("@")[1]}
+            </Button>
+          )}
+          {!estado.erro && (
+            <Button type="submit" size="sm" variant="outline" name="forcar" value="1" disabled={pendente}>
+              {sugestao ? "Não, está certo" : "Seguir com este e-mail"}
+            </Button>
+          )}
+        </span>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 function FormTrabalhador() {
   const [nome, setNome] = useState("")
   const [cpf, setCpf] = useState("")
@@ -282,7 +343,7 @@ function FormTrabalhador() {
     setPedido((p) => ({
       nome: String(fd.get("nome") ?? ""),
       cpf: String(fd.get("cpf") ?? ""),
-      email: String(fd.get("email") ?? ""),
+      email: r.email ?? String(fd.get("email") ?? ""),
       aviso: r.ok,
       serie: (p?.serie ?? 0) + 1,
     }))
@@ -304,6 +365,11 @@ function FormTrabalhador() {
         }}
         className="grid gap-3"
       >
+        <ConferenciaEmail
+          estado={pedidoCodigo.estado}
+          pendente={pedidoCodigo.pendente}
+          aoAceitar={(v) => setEmail(v)}
+        />
         <div className="grid gap-1.5">
           <Label htmlFor="t-nome">Nome completo</Label>
           <Input
@@ -340,7 +406,8 @@ function FormTrabalhador() {
               aria-describedby="t-email-dica"
             />
             <p id="t-email-dica" className="text-muted-foreground text-xs">
-              O código de acesso chega neste e-mail.
+              O código de acesso chega neste e-mail. Prefira o pessoal (Gmail, por exemplo): e-mails de
+              empresa costumam barrar as nossas mensagens.
             </p>
           </div>
         </div>
@@ -356,6 +423,7 @@ function FormTrabalhador() {
           aviso={pedido.aviso}
           confirmar={confirmarCodigoTrabalhador}
           ocultos={{ nome: pedido.nome, cpf: pedido.cpf, email: pedido.email }}
+          email={pedido.email}
         />
       )}
     </div>
@@ -397,7 +465,7 @@ function FormFiliado() {
           }}
           aoSair={() => setCpfTocado(true)}
           erro={erroCpf}
-          dica="Enviaremos o código para o e-mail do seu cadastro."
+          dica="Enviaremos o código para os e-mails do seu cadastro no sindicato."
         />
         <Mensagens estado={pedidoCodigo.estado} />
         <Turnstile acao="codigo_oposicao" />
@@ -411,6 +479,16 @@ function FormFiliado() {
           aviso={pedido.aviso}
           confirmar={confirmarCodigoFiliado}
           ocultos={{ cpf: pedido.cpf }}
+          ajuda={
+            <>
+              <li>Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu cadastro.</li>
+              <li>
+                Não é mais filiado, o cadastro não tem e-mail ou você não usa mais esses e-mails? Use a aba{" "}
+                <strong>Sou trabalhador</strong> com um e-mail seu — ou procure o sindicato para atualizar o
+                cadastro.
+              </li>
+            </>
+          }
         />
       )}
     </div>

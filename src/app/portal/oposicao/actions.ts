@@ -3,9 +3,9 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
-import { tenantAtual } from "@/lib/tenant"
+import type { User } from "@supabase/supabase-js"
 
-import { requireSessaoTrabalhador } from "@/lib/auth"
+import { garantirCadastroNaoFiliado, requireSessaoTrabalhador } from "@/lib/auth"
 import { consumirVinculoPendente, registrarVinculoPendente } from "@/lib/auth-identidade"
 import {
   buscarFiliadoPorCpf,
@@ -24,8 +24,8 @@ import {
   vinculosAtivos,
 } from "@/lib/db/oposicao"
 import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
+import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
+import { textoValidade } from "@/lib/auth-email-constantes"
 import { createClient } from "@/lib/supabase/server"
 import { exigirHumano } from "@/lib/turnstile"
 
@@ -54,11 +54,40 @@ async function rastro(): Promise<{ ip: string | null; ua: string | null }> {
 }
 
 // ── Acesso por CÓDIGO no e-mail (OTP), espelhando o /votar ───────────────────
-// Filiado: identifica-se pelo CPF (o código vai ao e-mail cadastrado).
+// Filiado: identifica-se pelo CPF (o código vai aos e-mails do cadastro).
 // Trabalhador não-filiado: informa nome, CPF e e-mail (o código vai a esse
 // e-mail). O e-mail é verificado pelo OTP; o CPF é a autodeclaração do opositor.
+//
+// Onda 1 da avaliação da oposição (27/10/2026):
+//  - o e-mail leva SÓ o código (semLink): o robô do filtro da empresa não
+//    gasta mais o acesso abrindo o link antes da pessoa (A2);
+//  - as respostas não dizem se um CPF é de filiado (A7) — filiação sindical é
+//    dado sensível. A aba do filiado responde igual para qualquer CPF válido;
+//    a do trabalhador não recusa filiado antes do código;
+//  - o código vai a TODOS os e-mails do cadastro do filiado, não só ao
+//    primeiro (A5);
+//  - o desfiliado também recebe pela aba do filiado e entra como trabalhador
+//    (A4, ver getSessaoTrabalhador);
+//  - o e-mail do trabalhador é conferido como na votação (A9).
 
-/** Filiado pede o código: CPF → e-mail do cadastro. */
+/** Até quantos e-mails do cadastro recebem o código do filiado. */
+const MAX_EMAILS_FILIADO = 3
+
+const CONTEXTO_CODIGO = "Use o código abaixo para registrar a sua oposição à contribuição."
+
+/**
+ * Estado da aba do trabalhador: além de erro/ok, a conferência do e-mail.
+ * `sugestao` = parece erro de digitação; `alerta` = domínio que costuma
+ * barrar as nossas mensagens (empresa), com a opção de seguir mesmo assim.
+ */
+export type EstadoAcessoOposicao = EstadoForm & {
+  sugestao?: { email: string; digitado: string }
+  alerta?: { email: string; texto: string }
+  /** O e-mail para o qual o código foi (a tela mostra a dica da caixa). */
+  email?: string
+}
+
+/** Filiado pede o código: CPF → e-mails do cadastro. Resposta igual para qualquer CPF. */
 export async function enviarCodigoFiliado(
   _prev: EstadoForm,
   fd: FormData
@@ -67,24 +96,29 @@ export async function enviarCodigoFiliado(
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
   const erroHumano = await exigirHumano(fd)
   if (erroHumano) return { erro: erroHumano }
-  const filiado = await buscarFiliadoPorCpf(cpf)
-  if (!filiado || !filiado.email) {
-    return {
-      erro: "CPF não localizado ou sem e-mail no cadastro. Use a aba “Sou trabalhador”.",
-    }
+  const neutra = {
+    ok: "Se este CPF tiver cadastro de filiado com e-mail, o código foi enviado para o e-mail do cadastro (o pessoal e, se houver, o da empresa).",
   }
-  // O CPF fica como vínculo PENDENTE (e-mail do cadastro ↔ CPF) e vira a
-  // identidade da conta só depois de o código ser conferido.
-  await registrarVinculoPendente({ email: filiado.email, tipo: "filiado", cpf })
+  const filiado = await buscarFiliadoPorCpf(cpf)
+  // Ativo ou não: o desfiliado entra e segue como trabalhador. Sem cadastro
+  // ou sem e-mail, nada é enviado — e a tela não diz isso.
+  const emails = (filiado?.emails ?? []).slice(0, MAX_EMAILS_FILIADO)
+  if (emails.length === 0) return neutra
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
-  const { erro } = await enviarCodigoAcesso({
-    email: filiado.email,
-    metadata: { tipo: "filiado" },
-    next: "/portal/oposicao",
-    contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
-  })
-  if (erro) return { erro }
-  return { ok: `Código enviado para ${mascararEmail(filiado.email)}.` }
+  for (const email of emails) {
+    // Cada e-mail é uma conta; o vínculo pendente (e-mail ↔ CPF) vira a
+    // identidade só depois de o código daquele e-mail ser conferido.
+    await registrarVinculoPendente({ email, tipo: "filiado", cpf })
+    const { erro } = await enviarCodigoAcesso({
+      email,
+      metadata: { tipo: "filiado" },
+      next: "/portal/oposicao",
+      contexto: CONTEXTO_CODIGO,
+      semLink: true,
+    })
+    if (erro) console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
+  }
+  return neutra
 }
 
 export async function confirmarCodigoFiliado(
@@ -94,18 +128,39 @@ export async function confirmarCodigoFiliado(
   const cpf = limparCpf(texto(fd, "cpf"))
   const token = texto(fd, "token")
   if (!/^\d{6,10}$/.test(token)) return { erro: "Código inválido." }
-  const filiado = await buscarFiliadoPorCpf(cpf)
-  if (!filiado?.email) return { erro: "CPF não localizado." }
+  const filiado = validarCpf(cpf) ? await buscarFiliadoPorCpf(cpf) : null
+  const emails = (filiado?.emails ?? []).slice(0, MAX_EMAILS_FILIADO)
+  // CPF sem cadastro: a mesma mensagem de código errado (A7).
+  if (emails.length === 0) {
+    return { erro: `Código inválido ou expirado. Os códigos valem ${textoValidade()}; se precisar, peça um novo.` }
+  }
   const supabase = await createClient()
-  const { data: verificado, error } = await supabase.auth.verifyOtp({
-    email: filiado.email,
-    token,
-    type: "email",
-  })
-  if (error || !verificado.user) return { erro: await diagnosticarCodigoRecusado({ erro: error, email: filiado.email, token, fluxo: "oposicao_filiado" }) }
+  // Em qual dos e-mails está este código? Sem o diagnóstico, tenta um a um.
+  const certo = await emailDoCodigo(emails, token)
+  const tentativas = certo ? [certo] : emails
+  let usuario: User | null = null
+  let ultimoErro: Parameters<typeof diagnosticarCodigoRecusado>[0]["erro"] = null
+  for (const email of tentativas) {
+    const r = await supabase.auth.verifyOtp({ email, token, type: "email" })
+    if (!r.error && r.data.user) {
+      usuario = r.data.user
+      break
+    }
+    ultimoErro = r.error
+  }
+  if (!usuario) {
+    return {
+      erro: await diagnosticarCodigoRecusado({
+        erro: ultimoErro,
+        email: tentativas[0],
+        token,
+        fluxo: "oposicao_filiado",
+      }),
+    }
+  }
   const vinculo = await consumirVinculoPendente({
-    userId: verificado.user.id,
-    emailVerificado: verificado.user.email,
+    userId: usuario.id,
+    emailVerificado: usuario.email,
   })
   if (vinculo.erro) {
     await supabase.auth.signOut()
@@ -114,11 +169,49 @@ export async function confirmarCodigoFiliado(
   redirect("/portal/oposicao")
 }
 
+/**
+ * Conferência do e-mail digitado, antes do "sou humano" (que vale uma vez
+ * só): domínio que não recebe e-mail, erro de digitação e domínio de empresa
+ * que costuma barrar as nossas mensagens. Null = pode mandar.
+ */
+async function conferirEmail(email: string, forcar: boolean): Promise<EstadoAcessoOposicao | null> {
+  const [{ dominioRecebeEmail, dominiosCorporativosAbertos, PROVEDORES_PESSOAIS, sugerirDominio }, { situacaoDoDominio }] =
+    await Promise.all([import("@/lib/db/votacao-link-unico"), import("@/lib/db/votacao-teste-entrega")])
+  const [usuario, dominio] = email.split("@")
+  const corporativos = await dominiosCorporativosAbertos()
+  const sugerido = sugerirDominio(dominio, [...PROVEDORES_PESSOAIS, ...corporativos])
+  if (!(await dominioRecebeEmail(dominio))) {
+    return sugerido
+      ? { erro: `O endereço “${dominio}” não recebe e-mails.`, sugestao: { email: `${usuario}@${sugerido}`, digitado: email } }
+      : { erro: `O endereço “${dominio}” não recebe e-mails. Confira o que foi digitado depois do @.` }
+  }
+  if (forcar) return null
+  if (sugerido) return { sugestao: { email: `${usuario}@${sugerido}`, digitado: email } }
+  if (PROVEDORES_PESSOAIS.includes(dominio)) return null
+  if ((await situacaoDoDominio(dominio)) === "nao_chega") {
+    return {
+      alerta: {
+        email,
+        texto: `As nossas mensagens costumam ser barradas pelo filtro de “${dominio}”. Use um e-mail pessoal (Gmail, por exemplo) — ou siga com este, sabendo que o código pode não chegar.`,
+      },
+    }
+  }
+  if (corporativos.has(dominio)) {
+    return {
+      alerta: {
+        email,
+        texto: `“${dominio}” parece ser e-mail de empresa, e filtros de empresa costumam reter o código. Prefira um e-mail pessoal — ou siga com este.`,
+      },
+    }
+  }
+  return null
+}
+
 /** Trabalhador não-filiado pede o código: nome + CPF + e-mail. */
 export async function enviarCodigoTrabalhador(
-  _prev: EstadoForm,
+  _prev: EstadoAcessoOposicao,
   fd: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoAcessoOposicao> {
   const cpf = limparCpf(texto(fd, "cpf"))
   const nome = texto(fd, "nome")
   const email = texto(fd, "email").toLowerCase()
@@ -127,14 +220,13 @@ export async function enviarCodigoTrabalhador(
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { erro: "Informe um e-mail válido." }
   }
+  const conferencia = await conferirEmail(email, texto(fd, "forcar") === "1")
+  if (conferencia) return conferencia
   const erroHumano = await exigirHumano(fd)
   if (erroHumano) return { erro: erroHumano }
-  const filiado = await buscarFiliadoPorCpf(cpf)
-  if (filiado?.ativo) {
-    return {
-      erro: "Este CPF é de um filiado — use a aba “Sou filiado”.",
-    }
-  }
+  // Nada aqui diz se o CPF é de filiado (A7). Filiado que usa um e-mail do
+  // cadastro entra como filiado; com outro e-mail, a recusa vem só depois do
+  // código, sem afirmar a filiação (lib/auth-identidade.ts).
   // CPF e nome (autodeclarados, como sempre) ficam como vínculo PENDENTE do
   // e-mail e só viram identidade da conta depois de o código ser conferido.
   // Conta existente não tem nada mexido neste ponto (achado S2).
@@ -144,10 +236,11 @@ export async function enviarCodigoTrabalhador(
     email,
     metadata: { tipo: "nao_filiado" },
     next: "/portal/oposicao",
-    contexto: "Use o código abaixo para registrar a sua oposição à contribuição.",
+    contexto: CONTEXTO_CODIGO,
+    semLink: true,
   })
   if (erro) return { erro }
-  return { ok: `Código enviado para ${mascararEmail(email)}.` }
+  return { ok: `Código enviado para ${mascararEmail(email)}.`, email }
 }
 
 export async function confirmarCodigoTrabalhador(
@@ -182,31 +275,16 @@ export async function confirmarCodigoTrabalhador(
     return { erro: "O pedido do código expirou. Peça um novo código." }
   }
   if (vinculo.identidade.tipo === "filiado") redirect("/portal/oposicao")
-  const cpf = vinculo.identidade.cpf
-  const nome = vinculo.identidade.nome ?? texto(fd, "nome")
 
-  // Cadastro do trabalhador — pelo CPF da IDENTIDADE da conta.
-  const admin = await createAdminClient()
-  const empId = await tenantAtual()
-  const { data: existente } = await admin
-    .from("portal_nao_filiado")
-    .select("id")
-    .eq("cpf", cpf)
-    .eq("emp_proprietaria_id", empId)
-    .maybeSingle()
-  if (existente) {
-    await admin
-      .from("portal_nao_filiado")
-      .update({ nome, email })
-      .eq("id", existente.id)
-  } else {
-    await admin.from("portal_nao_filiado").insert({
-      cpf,
-      nome,
-      email,
-      emp_proprietaria_id: empId,
-    })
-  }
+  // Cadastro do trabalhador — pelo CPF da IDENTIDADE da conta; o nome e o
+  // e-mail informados agora prevalecem.
+  const cadastro = await garantirCadastroNaoFiliado({
+    cpf: vinculo.identidade.cpf,
+    nome: vinculo.identidade.nome ?? texto(fd, "nome"),
+    email,
+    atualizar: true,
+  })
+  if (!cadastro) return { erro: "Não foi possível concluir o seu acesso. Tente de novo." }
   redirect("/portal/oposicao")
 }
 

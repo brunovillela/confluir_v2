@@ -44,6 +44,11 @@ export type Filiado = {
   cpf: string
   nome_completo: string | null
   email: string | null
+  /**
+   * Todos os e-mails do cadastro (pessoais primeiro, sem repetição, em
+   * minúsculas). A identidade aceita qualquer um deles como prova.
+   */
+  emails: string[]
   /** Registro de filiação mais recente (para telas de detalhe). */
   filiacaoId: string
   /** Quantidade de registros de filiação agregados. */
@@ -78,11 +83,19 @@ export async function buscarFiliadoPorCpf(
     data.map((f) => f.email_pessoal ?? f.email_corporativo).find(Boolean) ??
     null
   const nome = data.map((f) => f.nome_completo).find(Boolean) ?? null
+  const emails = [
+    ...new Set(
+      [...data.map((f) => f.email_pessoal), ...data.map((f) => f.email_corporativo)]
+        .filter((e): e is string => typeof e === "string" && e.trim() !== "")
+        .map((e) => e.trim().toLowerCase())
+    ),
+  ]
 
   return {
     cpf: cpfLimpo,
     nome_completo: nome,
     email,
+    emails,
     filiacaoId: data[0].id,
     registros: data.length,
     ativo: data.some((f) => f.filiacao_condicao === "Ativo"),

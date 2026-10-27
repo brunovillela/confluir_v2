@@ -80,7 +80,7 @@ Virada da meia-noite no último dia (quem clica 23:59:59 pode receber "fora do p
 4. Trilha: `usuario_id` nos eventos; append-only (trigger recusando update/delete; FK sem cascade); auditoria em `oposicao_opositor`, `oposicao_campanha`, `_fontes`, `_perguntas`; `gravarFontes` atômico; erros de gravação do evento logados.
 5. Checklist real na avaliação (prazo, duplicidade, fonte) + carta fora do prazo marcada.
 
-**Onda 1 — acesso (o que gera reclamação em massa)**
+**Onda 1 — acesso (o que gera reclamação em massa)** — FEITA em 27/10/2026, menos o item 11 (conferência no painel do Supabase, sem acesso pela máquina). Sem migração. Como ficou: o e-mail leva só o código; a aba do filiado responde igual para qualquer CPF e manda o código a todos os e-mails do cadastro (até 3), achando depois em qual deles está o código digitado; a aba do trabalhador não recusa filiado antes do código e a recusa depois dele não afirma a filiação; o desfiliado entra pela aba do filiado e segue como trabalhador (sessão cai para `portal_nao_filiado`, criado na hora); o link antigo recusado volta a `/portal/oposicao` com o motivo; o e-mail do trabalhador passa pela conferência da votação (MX, "você quis dizer", domínio de empresa ou com histórico "não chega" pede confirmação) e a tela do código traz a dica da caixa. Filiado sem acesso a nenhum e-mail do cadastro: a tela orienta a usar "Sou trabalhador" (se desfiliado) ou procurar o sindicato.
 6. E-mail do código **sem link** na oposição (ou confirmação por POST) — robô não gasta mais o código.
 7. `portal_nao_filiado` criado também no caminho do link; erro volta para `/portal/oposicao`.
 8. Desfiliado/inativo orientado para "Sou trabalhador"; respostas neutras que não revelam filiação.

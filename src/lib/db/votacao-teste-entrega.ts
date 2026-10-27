@@ -155,6 +155,16 @@ async function historico(client: SupabaseClient, emp: string, dominio: string, e
     }))
 }
 
+/**
+ * A medição mais recente do domínio, para outras portas que mandam código por
+ * e-mail (a Oposição avisa antes de mandar para um domínio que "não chega").
+ */
+export async function situacaoDoDominio(dominio: string): Promise<Situacao | null> {
+  const client = await createAdminClient()
+  const [ultima] = await historico(client, await tenantAtual(), dominio.trim().toLowerCase())
+  return ultima?.situacao ?? null
+}
+
 // ── Leitura da rodada ──────────────────────────────────────────────────────
 
 type LinhaApto = {

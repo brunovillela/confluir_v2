@@ -60,6 +60,13 @@ export async function enviarCodigoAcesso(destino: {
    * discreto, como alternativa ("Se preferir…").
    */
   botao?: string
+  /**
+   * Só o código, sem link nenhum. Filtros de segurança das empresas abrem os
+   * links do e-mail antes da pessoa e gastam o acesso de uso único — na
+   * Halliburton, 29 de 30 cliques foram de robô. O código digitado não passa
+   * por eles. Usado na Oposição (onda 1, item 6).
+   */
+  semLink?: boolean
 }): Promise<ResultadoCodigo> {
   const email = destino.email.trim().toLowerCase()
   const admin = await createAdminClient()
@@ -90,7 +97,9 @@ export async function enviarCodigoAcesso(destino: {
 
   // 3. Manda pelo canal do app.
   const origem = await origemAtual()
-  const link = linkConfirmacaoEmail(origem, data?.properties, destino.next ?? "/portal")
+  const link = destino.semLink
+    ? undefined
+    : linkConfirmacaoEmail(origem, data?.properties, destino.next ?? "/portal")
   // Código e botão são o MESMO acesso de uso único: o que for usado primeiro
   // vale, e o outro deixa de funcionar — o aviso diz isso quando há botão.
   const botao = destino.botao ? escaparHtml(destino.botao) : null

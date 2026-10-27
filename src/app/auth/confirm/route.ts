@@ -31,8 +31,13 @@ export async function GET(request: NextRequest) {
   // barra. `//evil.com` e `/\evil.com` começam com barra, mas `new URL()` os
   // resolve como outro host (open redirect — achado S8 da avaliação de 03/10).
   const destino = /^\/(?![/\\])/.test(next) ? next : "/painel"
-  // Filiado volta ao portal; os demais, à tela de login do painel.
-  const telaDeErro = destino.startsWith("/portal") ? "/portal" : "/login"
+  // Oposição volta à entrada dela (o trabalhador não filiado não tem portal);
+  // filiado volta ao portal; os demais, à tela de login do painel (A3).
+  const telaDeErro = destino.startsWith("/portal/oposicao")
+    ? "/portal/oposicao"
+    : destino.startsWith("/portal")
+      ? "/portal"
+      : "/login"
 
   const supabase = await createClient()
   let motivo: MotivoRecusaLink
