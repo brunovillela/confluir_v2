@@ -33,14 +33,12 @@ const ENDPOINT = "/painel/filiados/reembolsos/busca-filiado"
  */
 export function ReembolsoForm({
   projetos,
-  valorPadrao,
   filiadoInicial,
   reembolso,
   comprovanteUrl,
   voltarPara,
 }: {
   projetos: OpcaoProjeto[]
-  valorPadrao: number | null
   /** Pré-seleção vinda do perfil do filiado. */
   filiadoInicial?: SugestaoFiliado | null
   reembolso?: ReembolsoLinha
@@ -109,7 +107,7 @@ export function ReembolsoForm({
           )}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="data">Data da participação *</Label>
+            <Label htmlFor="data">Data de referência *</Label>
             <Input
               id="data"
               name="data"
@@ -127,27 +125,13 @@ export function ReembolsoForm({
               id="valor"
               name="valor"
               inputMode="decimal"
-              defaultValue={
-                reembolso?.valor != null
-                  ? reembolso.valor.toFixed(2).replace(".", ",")
-                  : valorPadrao != null
-                    ? valorPadrao.toFixed(2).replace(".", ",")
-                    : ""
-              }
-              placeholder="35,00"
+              defaultValue={reembolso?.valor != null ? reembolso.valor.toFixed(2).replace(".", ",") : ""}
+              placeholder="0,00"
               required
               disabled={paga}
             />
             {paga && reembolso?.valor != null && (
               <input type="hidden" name="valor" value={reembolso.valor.toFixed(2)} />
-            )}
-            {!reembolso && valorPadrao == null && (
-              <p className="text-warning-fg text-xs">
-                Sem valor padrão configurado.{" "}
-                <Link href="/painel/filiados/reembolsos/configuracao" className="underline">
-                  Configurar
-                </Link>
-              </p>
             )}
           </div>
 
@@ -158,7 +142,7 @@ export function ReembolsoForm({
               name="justificativa"
               rows={2}
               defaultValue={reembolso?.justificativa ?? ""}
-              placeholder="Participação na assembleia geral de 12/06"
+              placeholder="Ex.: 25% do desconto salarial da greve de março"
               required
             />
           </div>

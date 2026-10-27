@@ -529,7 +529,7 @@ export default async function FiliadosPage({
         {podeAcessar(sessao.permissoes, "filiacao_reembolsos", ["filiacao_gestao"]) && (
           <CartaoArea
             titulo="Reembolsos"
-            descricao="Reembolso por participação em reunião, ato ou assembleia, com a ordem de pagamento"
+            descricao="Valores devolvidos ao filiado (desconto de greve, cobrança indevida, despesas), com a ordem de pagamento"
             href="/painel/filiados/reembolsos"
             icone={Wallet}
           />

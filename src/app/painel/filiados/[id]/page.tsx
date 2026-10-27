@@ -868,8 +868,8 @@ export default async function FiliadoPage({
               )}
             </div>
             <CardDescription>
-              O que a entidade reembolsou a esta pessoa por participação — reunião,
-              ato, assembleia — com a justificativa de cada um.
+              O que a entidade devolveu a esta pessoa — desconto de greve, cobrança
+              indevida, despesas — com a justificativa de cada um.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -28,7 +27,6 @@ export function ConfigForm({
   centros: OpcaoCentroCusto[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConfigAction, {})
-  const moeda = (v: number | null) => (v != null ? v.toFixed(2).replace(".", ",") : "")
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -44,21 +42,6 @@ export function ConfigForm({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="valor_reembolso">Valor de cada reembolso *</Label>
-          <Input
-            id="valor_reembolso"
-            name="valor_reembolso"
-            inputMode="decimal"
-            defaultValue={moeda(config.valorReembolso)}
-            placeholder="35,00"
-            required
-          />
-          <p className="text-muted-foreground text-xs">
-            Vem preenchido em cada lançamento; pode ser alterado caso a caso.
-          </p>
-        </div>
-
         <div className="grid gap-1.5">
           <Label htmlFor="centro_custo_id">Centro de custo</Label>
           <Select name="centro_custo_id" defaultValue={config.centroCustoId ?? "sem_centro"}>

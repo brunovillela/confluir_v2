@@ -14,7 +14,6 @@ import { formatarCpf } from "@/lib/cpf"
 import { hojeSP } from "@/lib/db/comum"
 import {
   POR_PAGINA,
-  configReembolsoCompleta,
   lancadoNoMes,
   listarReembolsos,
   type FiltroReembolsos,
@@ -56,10 +55,9 @@ export default async function ReembolsosPage({
   }
 
   const hoje = hojeSP()
-  const [{ linhas, total }, mes, config] = await Promise.all([
+  const [{ linhas, total }, mes] = await Promise.all([
     listarReembolsos(filtro),
     lancadoNoMes(hoje),
-    configReembolsoCompleta(),
   ])
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const pagina = filtro.pagina ?? 1
@@ -92,7 +90,7 @@ export default async function ReembolsosPage({
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">Reembolsos a filiados</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Reembolso por participação em reunião, ato ou assembleia. Cada lançamento gera a
+            Valores que a entidade devolve ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical. Cada lançamento gera a
             ordem de pagamento.
           </p>
         </div>
@@ -119,14 +117,6 @@ export default async function ReembolsosPage({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardDescription>Valor de cada reembolso</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {config.valorReembolso != null ? formatarMoeda(config.valorReembolso) : "—"}
-            </CardTitle>
-          </CardHeader>
-        </Card>
         <Card>
           <CardHeader>
             <CardDescription>Lançado neste mês</CardDescription>

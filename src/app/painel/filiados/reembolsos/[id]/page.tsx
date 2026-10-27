@@ -109,7 +109,6 @@ export default async function ReembolsoPage({
         projetos={projetos
           .map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))
           .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"))}
-        valorPadrao={null}
         reembolso={reembolso}
         comprovanteUrl={comprovanteUrl}
         voltarPara="/painel/filiados/reembolsos"

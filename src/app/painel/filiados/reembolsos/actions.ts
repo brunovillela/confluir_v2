@@ -43,7 +43,7 @@ function revalidar(filiadoId?: string | null, id?: string) {
 
 function lerCampos(formData: FormData) {
   const data = texto(formData, "data")
-  if (!data || !DATA.test(data)) return { erro: "Informe a data da participação." }
+  if (!data || !DATA.test(data)) return { erro: "Informe a data de referência." }
   const justificativa = texto(formData, "justificativa")
   if (!justificativa) return { erro: "Diga o motivo do reembolso (reunião, ato, assembleia…)." }
   const projetoId = texto(formData, "projeto_id")
@@ -115,11 +115,8 @@ export async function salvarConfigAction(
   if (centroCustoId && centroCustoId !== "sem_centro" && !UUID.test(centroCustoId)) {
     return { erro: "Centro de custo inválido." }
   }
-  const valor = dinheiro(formData, "valor_reembolso")
-  if (valor == null || !(valor > 0)) return { erro: "Informe o valor de cada reembolso." }
   const r = await salvarConfigReembolso(
     {
-      valorReembolso: valor,
       centroCustoId: centroCustoId && centroCustoId !== "sem_centro" ? centroCustoId : null,
     },
     sessao.usuario.id

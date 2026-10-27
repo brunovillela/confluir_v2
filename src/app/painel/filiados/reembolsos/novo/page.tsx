@@ -5,7 +5,6 @@ import { ArrowLeft } from "lucide-react"
 import type { SugestaoFiliado } from "@/components/filiado-picker"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { configReembolsoCompleta } from "@/lib/db/filiacao-reembolsos-edicao"
 import { listarProjetos } from "@/lib/db/projetos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -24,8 +23,7 @@ export default async function NovoReembolsoPage({
   await requirePermissao("filiacao_reembolsos", ["filiacao_gestao"])
   const { filiado } = await searchParams
 
-  const [config, projetos, inicial] = await Promise.all([
-    configReembolsoCompleta(),
+  const [projetos, inicial] = await Promise.all([
     listarProjetos({ situacao: "andamento" }),
     filiadoInicial(filiado),
   ])
@@ -43,15 +41,14 @@ export default async function NovoReembolsoPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Lançar reembolso</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Reembolso por participação em reunião, ato ou assembleia. A ordem de pagamento nasce
-          em autorização.
+          Valores que a entidade devolve ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical. A ordem de
+          pagamento nasce em autorização.
         </p>
       </div>
       <ReembolsoForm
         projetos={projetos
           .map((p) => ({ id: p.id, titulo: p.titulo ?? "(sem título)" }))
           .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"))}
-        valorPadrao={config.valorReembolso}
         filiadoInicial={inicial}
         voltarPara={voltar}
       />

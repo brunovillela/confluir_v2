@@ -60,7 +60,6 @@ export type FiltroReembolsos = {
 }
 
 export type ConfigReembolsoCompleta = {
-  valorReembolso: number | null
   centroCustoId: string | null
 }
 
@@ -159,11 +158,10 @@ export async function configReembolsoCompleta(): Promise<ConfigReembolsoCompleta
   const emp = await tenantAtual()
   const { data } = await admin
     .from("filiacao_reembolsos_config")
-    .select("valor_reembolso, centro_custo_id")
+    .select("centro_custo_id")
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   return {
-    valorReembolso: data?.valor_reembolso != null ? Number(data.valor_reembolso) : null,
     centroCustoId: (data?.centro_custo_id as string | null) ?? null,
   }
 }
@@ -261,7 +259,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
     comprovante = up.caminho
   }
 
-  const descricaoOrdem = `Reembolso de participação — ${nome} — ${dados.justificativa}`
+  const descricaoOrdem = `Reembolso a filiado — ${nome} — ${dados.justificativa}`
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Reembolso",
@@ -292,7 +290,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       filiacao_id: filiado.id,
       data: `${dados.data}T12:00:00-03:00`,
       tipo: "Reembolso",
-      descricao: `Reembolso de participação de ${formatarMoeda(dados.valor)} — ${dados.justificativa}`,
+      descricao: `Reembolso a filiado de ${formatarMoeda(dados.valor)} — ${dados.justificativa}`,
       diretor_funcionario_id: atorId,
       emp_proprietaria_id: emp,
       created_at: agora,
@@ -375,7 +373,7 @@ export async function atualizarReembolso(
 
   if (ordemViva) {
     const ordem: Record<string, unknown> = {
-      descricao: `Reembolso de participação — ${atual.filiadoNome ?? "Filiado"} — ${dados.justificativa}`,
+      descricao: `Reembolso a filiado — ${atual.filiadoNome ?? "Filiado"} — ${dados.justificativa}`,
       projeto_id: dados.projetoId,
     }
     if (!paga) ordem.valor_inicial_cobranca = dados.valor
@@ -388,9 +386,9 @@ export async function atualizarReembolso(
       await usuarioDaTrilha(),
       comprovante
         ? ordemViva.arquivo_nota_fiscal
-          ? "Reembolso de participação editado; comprovante trocado."
-          : "Reembolso de participação editado; comprovante anexado."
-        : "Reembolso de participação editado.",
+          ? "Reembolso a filiado editado; comprovante trocado."
+          : "Reembolso a filiado editado; comprovante anexado."
+        : "Reembolso a filiado editado.",
       ordem
     )
   }
@@ -398,7 +396,7 @@ export async function atualizarReembolso(
     await admin
       .from("filiacao_prontuario")
       .update({
-        descricao: `Reembolso de participação de ${formatarMoeda(paga ? (atual.valor ?? dados.valor) : dados.valor)} — ${dados.justificativa}`,
+        descricao: `Reembolso a filiado de ${formatarMoeda(paga ? (atual.valor ?? dados.valor) : dados.valor)} — ${dados.justificativa}`,
         modified_at: new Date().toISOString(),
       })
       .eq("emp_proprietaria_id", emp)
@@ -457,7 +455,6 @@ export async function salvarConfigReembolso(
   const { error } = await admin.from("filiacao_reembolsos_config").upsert(
     {
       emp_proprietaria_id: emp,
-      valor_reembolso: dados.valorReembolso,
       centro_custo_id: dados.centroCustoId,
       atualizada_por: atorId,
       updated_at: new Date().toISOString(),
