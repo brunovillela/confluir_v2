@@ -28,7 +28,7 @@ export default async function ConfiguracaoReembolsosPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Configuração de reembolsos</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          A regra da entidade: quanto vale cada reembolso, de onde sai o dinheiro e o teto do mês.
+          A regra da entidade: quanto vale cada reembolso e de onde sai o dinheiro.
         </p>
       </div>
 

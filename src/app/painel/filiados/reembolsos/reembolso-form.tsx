@@ -60,7 +60,7 @@ export function ReembolsoForm({
       className="grid gap-4"
       onSubmit={(e) => {
         // Envio sem `action=`: o React 19 reinicia o formulário depois de uma
-        // action de <form>, e uma recusa (ex.: teto mensal) apagaria o que foi
+        // action de <form>, e uma recusa do servidor apagaria o que foi
         // digitado — a data voltava para hoje e a justificativa sumia.
         e.preventDefault()
         const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter)

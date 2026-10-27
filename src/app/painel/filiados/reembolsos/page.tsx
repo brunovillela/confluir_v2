@@ -118,7 +118,7 @@ export default async function ReembolsosPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
             <CardDescription>Valor de cada reembolso</CardDescription>
@@ -132,21 +132,6 @@ export default async function ReembolsosPage({
             <CardDescription>Lançado neste mês</CardDescription>
             <CardTitle className="text-2xl tabular-nums">{formatarMoeda(mes.total)}</CardTitle>
             <p className="text-muted-foreground text-xs">{mes.quantidade} reembolso(s)</p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Teto mensal</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {config.orcamentoLimite && config.orcamentoMensal != null
-                ? formatarMoeda(config.orcamentoMensal)
-                : "sem teto"}
-            </CardTitle>
-            {config.orcamentoLimite && config.orcamentoMensal != null && (
-              <p className="text-muted-foreground text-xs">
-                restam {formatarMoeda(Math.max(0, config.orcamentoMensal - mes.total))}
-              </p>
-            )}
           </CardHeader>
         </Card>
       </div>

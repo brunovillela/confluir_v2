@@ -62,8 +62,6 @@ export type FiltroReembolsos = {
 export type ConfigReembolsoCompleta = {
   valorReembolso: number | null
   centroCustoId: string | null
-  orcamentoLimite: boolean
-  orcamentoMensal: number | null
 }
 
 export type DadosReembolso = {
@@ -161,18 +159,16 @@ export async function configReembolsoCompleta(): Promise<ConfigReembolsoCompleta
   const emp = await tenantAtual()
   const { data } = await admin
     .from("filiacao_reembolsos_config")
-    .select("valor_reembolso, centro_custo_id, orcamento_limite, orcamento_mensal")
+    .select("valor_reembolso, centro_custo_id")
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   return {
     valorReembolso: data?.valor_reembolso != null ? Number(data.valor_reembolso) : null,
     centroCustoId: (data?.centro_custo_id as string | null) ?? null,
-    orcamentoLimite: data?.orcamento_limite === true,
-    orcamentoMensal: data?.orcamento_mensal != null ? Number(data.orcamento_mensal) : null,
   }
 }
 
-/** Quanto já foi lançado no mês da data (para o teto mensal e para o resumo da tela). */
+/** Quanto já foi lançado no mês da data (para o resumo da tela). */
 export async function lancadoNoMes(dataRef: string): Promise<{ total: number; quantidade: number }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -180,8 +176,7 @@ export async function lancadoNoMes(dataRef: string): Promise<{ total: number; qu
   const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`
   const fimDate = new Date(Date.UTC(ano, mes, 0))
   const fim = fimDate.toISOString().slice(0, 10)
-  // Todos os lançamentos do mês (paginado): a soma decide o teto mensal, e o
-  // PostgREST corta em 1.000 linhas.
+  // Todos os lançamentos do mês (paginado): o PostgREST corta em 1.000 linhas.
   const data = await lerEmLotes<{ valor: number | null }>((de, ate) =>
     admin
       .from("filiacao_reembolsos")
@@ -212,16 +207,7 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
   if (!filiado) return { erro: "Filiado não encontrado." }
   const nome = texto(filiado.nome_completo) ?? "Filiado"
   const cpf = cpfConfiavel(texto(filiado.cpf))
-
   const config = await configReembolsoCompleta()
-  if (config.orcamentoLimite && config.orcamentoMensal != null) {
-    const { total } = await lancadoNoMes(dados.data)
-    if (total + dados.valor > config.orcamentoMensal) {
-      return {
-        erro: `O teto mensal de ${formatarMoeda(config.orcamentoMensal)} seria ultrapassado: já há ${formatarMoeda(total)} lançados neste mês.`,
-      }
-    }
-  }
 
   // Favorecido: quem tem login entra pela conta; senão, avulso por nome e CPF.
   let usuarioId: string | null = null
@@ -473,8 +459,6 @@ export async function salvarConfigReembolso(
       emp_proprietaria_id: emp,
       valor_reembolso: dados.valorReembolso,
       centro_custo_id: dados.centroCustoId,
-      orcamento_limite: dados.orcamentoLimite,
-      orcamento_mensal: dados.orcamentoMensal,
       atualizada_por: atorId,
       updated_at: new Date().toISOString(),
     },

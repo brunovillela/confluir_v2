@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import type { ConfigReembolsoCompleta } from "@/lib/db/filiacao-reembolsos-edicao"
 
 import { salvarConfigAction } from "../actions"
@@ -77,25 +76,6 @@ export function ConfigForm({
           </Select>
           <p className="text-muted-foreground text-xs">
             A ordem de pagamento nasce com este centro de custo de despesa.
-          </p>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm sm:col-span-2">
-          <Switch name="orcamento_limite" defaultChecked={config.orcamentoLimite} />
-          Recusar lançamentos que ultrapassem o teto mensal
-        </label>
-
-        <div className="grid gap-1.5">
-          <Label htmlFor="orcamento_mensal">Orçamento mensal</Label>
-          <Input
-            id="orcamento_mensal"
-            name="orcamento_mensal"
-            inputMode="decimal"
-            defaultValue={moeda(config.orcamentoMensal)}
-            placeholder="25.000,00"
-          />
-          <p className="text-muted-foreground text-xs">
-            Soma dos reembolsos lançados no mês. Só vale com o teto ligado.
           </p>
         </div>
       </div>

@@ -117,17 +117,10 @@ export async function salvarConfigAction(
   }
   const valor = dinheiro(formData, "valor_reembolso")
   if (valor == null || !(valor > 0)) return { erro: "Informe o valor de cada reembolso." }
-  const limite = formData.get("orcamento_limite") === "on"
-  const orcamento = dinheiro(formData, "orcamento_mensal")
-  if (limite && (orcamento == null || !(orcamento > 0))) {
-    return { erro: "Com o teto ligado, informe o orçamento mensal." }
-  }
   const r = await salvarConfigReembolso(
     {
       valorReembolso: valor,
       centroCustoId: centroCustoId && centroCustoId !== "sem_centro" ? centroCustoId : null,
-      orcamentoLimite: limite,
-      orcamentoMensal: orcamento,
     },
     sessao.usuario.id
   )

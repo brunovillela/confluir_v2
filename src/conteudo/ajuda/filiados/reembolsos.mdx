@@ -7,13 +7,13 @@ gera a **ordem de pagamento** no Financeiro.
 
 ## O que a tela mostra
 
-**Filiados → Reembolsos** abre com três números: o valor de cada reembolso,
-quanto já foi lançado no mês e o teto mensal (quando a entidade liga um).
+**Filiados → Reembolsos** abre com dois números: o valor de cada reembolso e
+quanto já foi lançado no mês.
 Abaixo, a lista de lançamentos com filiado, justificativa, projeto, valor,
 o código da ordem e a **situação** — que é a situação da ordem no
 Financeiro: Em autorização, A pagar, Paga.
 
-<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: três cartões com valor unitário, lançado no mês e teto mensal; abaixo, a tabela de lançamentos com filiado, justificativa, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
+<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: dois cartões com valor unitário e lançado no mês; abaixo, a tabela de lançamentos com filiado, justificativa, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
 
 ## Lançar um reembolso
 
@@ -74,8 +74,6 @@ Em **Reembolsos → Configuração** a entidade define:
 
 - **Valor de cada reembolso** — o que vem preenchido em cada lançamento.
 - **Centro de custo** — a ordem nasce com ele como centro de custo de despesa.
-- **Teto mensal** — com o teto ligado, o lançamento que ultrapassar a soma do
-  mês é recusado, com a mensagem dizendo quanto já foi.
 
 ## De onde vieram
 
@@ -86,8 +84,6 @@ guardava — e aparecem com **sem ordem** na situação.
 
 ## Erros comuns
 
-- **"O teto mensal seria ultrapassado."** A entidade ligou o teto e o mês já
-  chegou nele. Confira a configuração ou espere o mês virar.
 - **"Não vejo o botão Lançar reembolso no perfil."** Exige a permissão
   **Reembolsos** ou **Gestão da filiação**.
 - **"A situação não muda para Paga."** O pagamento é registrado no

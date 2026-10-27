@@ -29,12 +29,6 @@ export type ReembolsoFiliado = {
   } | null
 }
 
-export type ConfigReembolso = {
-  valorReembolso: number | null
-  orcamentoMensal: number | null
-  orcamentoLimite: boolean
-}
-
 /**
  * Os reembolsos de uma pessoa. Recebe todos os ids de cadastro da pessoa
  * (ela costuma ter um por vínculo) e devolve os mais recentes primeiro.
@@ -92,21 +86,4 @@ export async function reembolsosDoFiliado(
   }
 
   return { total: count ?? ultimos.length, ultimos, totalPago }
-}
-
-/** A regra da entidade — quanto vale cada reembolso e o teto mensal. */
-export async function configReembolso(): Promise<ConfigReembolso | null> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data, error } = await admin
-    .from("filiacao_reembolsos_config")
-    .select("valor_reembolso, orcamento_mensal, orcamento_limite")
-    .eq("emp_proprietaria_id", emp)
-    .maybeSingle()
-  if (error || !data) return null
-  return {
-    valorReembolso: (data.valor_reembolso as number | null) ?? null,
-    orcamentoMensal: (data.orcamento_mensal as number | null) ?? null,
-    orcamentoLimite: data.orcamento_limite === true,
-  }
 }
