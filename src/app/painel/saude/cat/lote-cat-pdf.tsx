@@ -14,15 +14,24 @@ import { cn } from "@/lib/utils"
 
 import { CatForm } from "./cat-forms"
 import { ClassificacaoCatAviso } from "./classificacao-cat"
-import {
-  lerCatDoLoteAction,
-  registrarSemConferenciaAction,
-  type ResultadoLoteCat,
-} from "./importar-pdf-actions"
+import type { GravacaoSemConferencia, ResultadoLoteCat } from "@/lib/cat-pdf-lote"
 
 /** Quantos PDFs a IA lê ao mesmo tempo (cada leitura leva de 10 a 30 s). */
 const SIMULTANEOS = 2
 export const MAXIMO_LOTE = 30
+
+/**
+ * Uma chamada à rota do lote. Não é server action: o Next despacha as
+ * actions de um cliente uma de cada vez, e o lote virava uma fila que
+ * travava depois da primeira leitura.
+ */
+async function chamarRota<T>(fd: FormData): Promise<T & { erro?: string }> {
+  const resp = await fetch("/api/painel/saude/cat-pdf", { method: "POST", body: fd })
+  if (resp.status === 413) return { erro: "PDF grande demais (máximo de 4 MB)." } as T & { erro?: string }
+  const corpo = (await resp.json().catch(() => null)) as (T & { erro?: string }) | null
+  if (!corpo) throw new Error(`HTTP ${resp.status}`)
+  return corpo
+}
 
 type Situacao = "fila" | "lendo" | "lida" | "gravando" | "gravada" | "salva" | "nao_gravada" | "erro"
 
@@ -82,23 +91,29 @@ export function LoteCatPdf({ arquivos, registrar }: { arquivos: File[]; registra
     const trabalhador = async () => {
       while (proximo < arquivos.length) {
         const i = proximo++
-        atualizar(i, { situacao: "lendo" })
-        const fd = new FormData()
-        fd.set("arquivo", arquivos[i])
-        if (registrar) fd.set("registrar", "1")
-        try {
-          const r = await lerCatDoLoteAction(fd)
-          if (r.erro) atualizar(i, { situacao: "erro", mensagem: r.erro })
-          else if (r.gravadaId) atualizar(i, { situacao: "gravada", r, id: r.gravadaId, mensagem: r.avisoPdf })
-          else if (r.naoGravada) atualizar(i, { situacao: "nao_gravada", r, mensagem: r.naoGravada })
-          else atualizar(i, { situacao: "lida", r })
-        } catch {
-          atualizar(i, { situacao: "erro", mensagem: "Falha de comunicação — tente este PDF de novo." })
-        }
+        await ler(i)
       }
     }
     void Promise.all(Array.from({ length: Math.min(SIMULTANEOS, arquivos.length) }, trabalhador))
-  }, [arquivos, registrar, atualizar])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a fila parte uma vez, com os arquivos do envio
+  }, [])
+
+  async function ler(i: number) {
+    atualizar(i, { situacao: "lendo", mensagem: undefined })
+    const fd = new FormData()
+    fd.set("acao", "ler")
+    fd.set("arquivo", arquivos[i])
+    if (registrar) fd.set("registrar", "1")
+    try {
+      const r = await chamarRota<ResultadoLoteCat>(fd)
+      if (r.erro) atualizar(i, { situacao: "erro", mensagem: r.erro })
+      else if (r.gravadaId) atualizar(i, { situacao: "gravada", r, id: r.gravadaId, mensagem: r.avisoPdf })
+      else if (r.naoGravada) atualizar(i, { situacao: "nao_gravada", r, mensagem: r.naoGravada })
+      else atualizar(i, { situacao: "lida", r })
+    } catch {
+      atualizar(i, { situacao: "erro", mensagem: "Falha de comunicação — tente este PDF de novo." })
+    }
+  }
 
   const emAndamento = itens.some((it) => it.situacao === "fila" || it.situacao === "lendo" || it.situacao === "gravando")
   useEffect(() => {
@@ -113,11 +128,12 @@ export function LoteCatPdf({ arquivos, registrar }: { arquivos: File[]; registra
     if (!it.r?.valores) return
     atualizar(i, { situacao: "gravando", mensagem: undefined })
     const fd = new FormData()
+    fd.set("acao", "gravar")
     fd.set("arquivo", it.arquivo)
     fd.set("valores", JSON.stringify(it.r.valores))
     fd.set("avisos", JSON.stringify(it.r.avisos ?? []))
     try {
-      const g = await registrarSemConferenciaAction(fd)
+      const g = await chamarRota<GravacaoSemConferencia>(fd)
       if (g.gravadaId) atualizar(i, { situacao: "gravada", id: g.gravadaId, mensagem: g.avisoPdf })
       else atualizar(i, { situacao: "nao_gravada", mensagem: g.erro ?? g.naoGravada })
     } catch {
@@ -299,6 +315,12 @@ export function LoteCatPdf({ arquivos, registrar }: { arquivos: File[]; registra
                       {aConferir(it) && (
                         <Button size="sm" variant={aberto === i ? "default" : "outline"} onClick={() => conferir(i)}>
                           Conferir
+                        </Button>
+                      )}
+                      {it.situacao === "erro" && (
+                        <Button size="sm" variant="outline" onClick={() => ler(i)}>
+                          <RotateCcw />
+                          Ler de novo
                         </Button>
                       )}
                       {gravavel(it) && (
