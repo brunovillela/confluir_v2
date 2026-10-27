@@ -1,5 +1,5 @@
 // Lista para REVISÃO (27/10/2026) as contas bancárias (dados_bancarios) de
-// produção que pedem limpeza — não grava nada:
+// produção que pedem limpeza (só lê, salvo com --juntar):
 //   A. repetidas no mesmo dono: mesma agência+conta (ou a mesma chave Pix,
 //      quando não há conta). Sugere qual manter: a favorita, senão a mais
 //      usada pelas ordens, senão a que tem o documento do titular;
@@ -13,6 +13,7 @@
 // CPF sai mascarado. Só contas com dono (sem dono a RLS esconde do app).
 //
 //   node scripts/revisar-contas-bancarias.mjs > lista.md
+//   … --juntar --backup=<arquivo.json> → junta as repetidas do item A (ver no fim)
 
 import { createClient } from "@supabase/supabase-js"
 import fs from "node:fs"
@@ -81,7 +82,7 @@ async function porIds(tabela, colunas, ids) {
 
 const contas = await todas(
   "dados_bancarios",
-  "id, favorecido, banco, banco_codigo, agencia, conta, pix, fornecedor_id, usuario_id, filiado_id, favorito, titular_documento, created_at"
+  "id, favorecido, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, prefere_pix, fornecedor_id, usuario_id, filiado_id, favorito, titular_documento, created_at, bubble_id, tipo_dados, pix_beneficiario"
 )
 const ids = (c) => [...new Set(contas.map((x) => x[c]).filter(Boolean))]
 const [empresas, usuarios, filiacoes, usos] = await Promise.all([
@@ -196,3 +197,45 @@ for (const l of semDocNomeDiferente.sort((a, b) => a.donoNome.localeCompare(b.do
   out.push(`- ${dono(l)} → titular "${titularMascarado(l.favorecido)}"${igual} · ${descreve(l)}`)
 }
 console.log(out.join("\n"))
+
+// --juntar (27/10, autorizado pelo usuário): em cada grupo de A, a conta ✅
+// herda o que só as cópias tinham (Pix, documento, favorita…), recebe as
+// ordens das cópias e as cópias são removidas. --backup=<arquivo.json> guarda
+// as cópias e as ordens repassadas antes, para desfazer se preciso.
+if (process.argv.includes("--juntar")) {
+  const COMPLETAR = ["banco", "banco_codigo", "tipo_conta", "pix", "pix_tipo", "titular_documento", "favorecido", "pix_beneficiario"]
+  const backup = []
+  const arq = process.argv.find((a) => a.startsWith("--backup="))?.slice(9)
+  if (!arq) throw new Error("--juntar pede --backup=<arquivo.json>")
+  let ordensMovidas = 0
+  let removidas = 0
+  for (const g of repetidas) {
+    const [fica, ...copias] = [...g].sort(melhor)
+    const idsCopias = copias.map((c) => c.id)
+    const { data: ordens, error: e1 } = await s.from("ordens_pagamento").select("id, dados_bancarios_id").in("dados_bancarios_id", idsCopias)
+    if (e1) throw e1
+    backup.push({ fica: fica.id, copias: copias.map(({ tipo, donoId, donoNome, nomes, donoDoc, chaveConta, chavePix, ordens: _o, ...c }) => c), ordens })
+    fs.writeFileSync(arq, JSON.stringify(backup, null, 1)) // antes de mexer no grupo
+    const patch = {}
+    for (const campo of COMPLETAR) {
+      if (t(fica[campo])) continue
+      const de = copias.find((c) => t(c[campo]))
+      if (de) patch[campo] = de[campo]
+    }
+    if (!fica.favorito && copias.some((c) => c.favorito)) patch.favorito = true
+    if (!fica.prefere_pix && copias.some((c) => c.prefere_pix) && (patch.pix ?? fica.pix)) patch.prefere_pix = true
+    if (ordens.length) {
+      const { error } = await s.from("ordens_pagamento").update({ dados_bancarios_id: fica.id }).in("dados_bancarios_id", idsCopias)
+      if (error) throw error
+      ordensMovidas += ordens.length
+    }
+    const { error: e2 } = await s.from("dados_bancarios").delete().in("id", idsCopias)
+    if (e2) throw e2
+    removidas += idsCopias.length
+    if (Object.keys(patch).length) {
+      const { error } = await s.from("dados_bancarios").update(patch).eq("id", fica.id)
+      if (error) throw error
+    }
+  }
+  console.error(`\nJuntadas: ${repetidas.length} grupos, ${removidas} cópias removidas, ${ordensMovidas} ordens repassadas.`)
+}
