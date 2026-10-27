@@ -1,0 +1,198 @@
+// Lista para REVISÃO (27/10/2026) as contas bancárias (dados_bancarios) de
+// produção que pedem limpeza — não grava nada:
+//   A. repetidas no mesmo dono: mesma agência+conta (ou a mesma chave Pix,
+//      quando não há conta). Sugere qual manter: a favorita, senão a mais
+//      usada pelas ordens, senão a que tem o documento do titular;
+//   B. a mesma agência+conta em donos diferentes (cadastro duplicado do
+//      fornecedor/pessoa, ou conta de terceiro);
+//   C. documento do titular suspeito:
+//      - de outro titular (nem igual nem mesma raiz de CNPJ do dono), marcando
+//        "parece digitação" quando difere do dono em até 2 dígitos;
+//      - sem documento e com titular de outro nome (o script do titular não
+//        conseguiu preencher).
+// CPF sai mascarado. Só contas com dono (sem dono a RLS esconde do app).
+//
+//   node scripts/revisar-contas-bancarias.mjs > lista.md
+
+import { createClient } from "@supabase/supabase-js"
+import fs from "node:fs"
+
+const env = Object.fromEntries(
+  fs
+    .readFileSync(new URL("../.env.local", import.meta.url), "utf8")
+    .split(/\r?\n/)
+    .filter((l) => l.includes("=") && !l.startsWith("#"))
+    .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).replace(/^"|"$/g, "")])
+)
+const s = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const DEMO = "11111111-1111-4111-8111-111111111111"
+const t = (v) => (typeof v === "string" && v.trim() ? v.trim() : null)
+const digitos = (v) => String(v ?? "").replace(/\D/g, "")
+const semZeros = (v) => digitos(v).replace(/^0+/, "")
+const mascarar = (d) =>
+  !d ? "sem doc" : d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+// Texto livre do titular: CNPJ fica; qualquer outra sequência de 9+ dígitos
+// (CPF, válido ou digitado errado) sai só com os dígitos do meio.
+const titularMascarado = (v) =>
+  t(v)?.replace(/\d[\d./-]{7,}\d/g, (m) => {
+    const d = digitos(m)
+    return d.length === 14 ? mascarar(d) : d.length >= 9 ? d.replace(/^(\d{3})(\d+)(\d{2})$/, (_, a, meio) => "***" + meio + "**") : m
+  }) ?? null
+const mesmoTitular = (a, b) => a === b || (a.length === 14 && b.length === 14 && a.slice(0, 8) === b.slice(0, 8))
+const distancia = (a, b) => (a.length !== b.length ? 99 : [...a].filter((c, i) => c !== b[i]).length)
+
+const VAZIAS = new Set(["ltda", "me", "epp", "eireli", "sa", "s", "a", "de", "da", "do", "das", "dos", "e", "cia", "mei", "slu"])
+const palavras = (n) =>
+  n
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((p) => p.length > 1 && !VAZIAS.has(p) && !/^\d+$/.test(p))
+function nomeBate(titular, nomes) {
+  const dele = palavras(titular)
+  if (!dele.length) return true
+  return nomes.some((n) => {
+    const fav = palavras(n)
+    return fav.length > 0 && dele.filter((p) => fav.includes(p)).length / Math.min(dele.length, fav.length) >= 0.6
+  })
+}
+
+async function todas(tabela, colunas, filtro = (q) => q) {
+  const saida = []
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await filtro(s.from(tabela).select(colunas)).order("id").range(i, i + 999)
+    if (error) throw error
+    saida.push(...data)
+    if (data.length < 1000) break
+  }
+  return saida
+}
+async function porIds(tabela, colunas, ids) {
+  const saida = new Map()
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await s.from(tabela).select(colunas).in("id", ids.slice(i, i + 200))
+    if (error) throw error
+    for (const d of data) saida.set(d.id, d)
+  }
+  return saida
+}
+
+const contas = await todas(
+  "dados_bancarios",
+  "id, favorecido, banco, banco_codigo, agencia, conta, pix, fornecedor_id, usuario_id, filiado_id, favorito, titular_documento, created_at"
+)
+const ids = (c) => [...new Set(contas.map((x) => x[c]).filter(Boolean))]
+const [empresas, usuarios, filiacoes, usos] = await Promise.all([
+  porIds("empresa", "id, emp_proprietaria_id, empresa, nome_fantasia, nome_razao, cnpj_cpf", ids("fornecedor_id")),
+  porIds("usuarios", "id, emp_proprietaria_id, nome_completo, nome_guerra, cpf", ids("usuario_id")),
+  porIds("filiacoes", "id, emp_proprietaria_id, nome_completo, cpf", ids("filiado_id")),
+  todas("ordens_pagamento", "id, dados_bancarios_id", (q) => q.not("dados_bancarios_id", "is", null)),
+])
+const ordensPorConta = new Map()
+for (const o of usos) ordensPorConta.set(o.dados_bancarios_id, (ordensPorConta.get(o.dados_bancarios_id) ?? 0) + 1)
+
+// Monta cada conta com o dono (só produção).
+const linhas = []
+for (const c of contas) {
+  const tipo = c.fornecedor_id ? "fornecedor" : c.usuario_id ? "usuário" : c.filiado_id ? "filiado" : null
+  const dono = c.fornecedor_id ? empresas.get(c.fornecedor_id) : c.usuario_id ? usuarios.get(c.usuario_id) : filiacoes.get(c.filiado_id)
+  if (!tipo || !dono || dono.emp_proprietaria_id === DEMO || dono.id === DEMO) continue
+  const nomes = [dono.empresa, dono.nome_fantasia, dono.nome_razao, dono.nome_completo, dono.nome_guerra].map(t).filter(Boolean)
+  linhas.push({
+    ...c,
+    tipo,
+    donoId: c.fornecedor_id ?? c.usuario_id ?? c.filiado_id,
+    donoNome: titularMascarado(nomes[0]) ?? "?",
+    nomes,
+    donoDoc: digitos(dono.cnpj_cpf ?? dono.cpf),
+    chaveConta: semZeros(c.conta) ? `${semZeros(c.agencia)}|${semZeros(c.conta)}` : null,
+    chavePix: !semZeros(c.conta) && t(c.pix) ? t(c.pix).toLowerCase().replace(/[\s.()/-]/g, "") : null,
+    ordens: ordensPorConta.get(c.id) ?? 0,
+  })
+}
+
+const descreve = (l) =>
+  [
+    l.chaveConta ? `${t(l.banco) ?? t(l.banco_codigo) ?? "banco ?"} ag ${t(l.agencia) ?? "?"} cc ${t(l.conta)}` : `Pix ${titularMascarado(l.pix)}`,
+    l.titular_documento ? `titular ${mascarar(l.titular_documento)}` : null,
+    l.favorito ? "favorita" : null,
+    `${l.ordens} ordem(ns)`,
+    `id ${l.id.slice(0, 8)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+const melhor = (a, b) =>
+  Number(b.favorito) - Number(a.favorito) || b.ordens - a.ordens || Number(!!b.titular_documento) - Number(!!a.titular_documento) || String(a.created_at).localeCompare(String(b.created_at))
+
+// A. repetidas no mesmo dono
+const grupos = new Map()
+for (const l of linhas) {
+  const chave = l.chaveConta ?? (l.chavePix ? `pix|${l.chavePix}` : null)
+  if (!chave) continue
+  const k = `${l.donoId}#${chave}`
+  grupos.set(k, [...(grupos.get(k) ?? []), l])
+}
+const repetidas = [...grupos.values()].filter((g) => g.length > 1).sort((a, b) => b.length - a.length || a[0].donoNome.localeCompare(b[0].donoNome))
+
+// B. mesma conta em donos diferentes
+const porConta = new Map()
+for (const l of linhas) if (l.chaveConta) porConta.set(l.chaveConta, [...(porConta.get(l.chaveConta) ?? []), l])
+const cruzadas = [...porConta.values()].filter((g) => new Set(g.map((l) => l.donoId)).size > 1)
+
+// C. documento suspeito
+const outroTitular = []
+const semDocNomeDiferente = []
+for (const l of linhas) {
+  if (!l.chaveConta) continue
+  if (l.titular_documento) {
+    if (l.donoDoc && !mesmoTitular(l.titular_documento, l.donoDoc)) {
+      // cadastro do dono com o CNPJ/CPF incompleto (sem zeros à esquerda ou sem
+      // os dígitos verificadores): o titular é o próprio dono
+      const semZerosNoDono = l.donoDoc.length < l.titular_documento.length && (l.titular_documento.startsWith(l.donoDoc) || l.titular_documento.endsWith(l.donoDoc))
+      outroTitular.push({ l, digitacao: semZerosNoDono || distancia(l.titular_documento, l.donoDoc) <= 2, semZerosNoDono })
+    }
+  } else if (t(l.favorecido) && (digitos(l.favorecido).length >= 9 || !nomeBate(l.favorecido, l.nomes))) {
+    // ≥ 9 dígitos no titular = um CPF/CNPJ que não passou na validação
+    semDocNomeDiferente.push(l)
+  }
+}
+
+const out = []
+const dono = (l) => `${l.tipo} **${l.donoNome}** (${mascarar(l.donoDoc)})`
+out.push(`# Contas bancárias para revisar — produção, ${new Date().toLocaleDateString("pt-BR")}`, "")
+out.push(
+  `${linhas.length} contas com dono. ${repetidas.length} grupos repetidos no mesmo dono (${repetidas.reduce((n, g) => n + g.length - 1, 0)} contas sobrando), ` +
+    `${cruzadas.length} contas usadas por mais de um dono, ${outroTitular.length} com documento de outro titular, ${semDocNomeDiferente.length} sem documento e com titular de outro nome ou CPF/CNPJ inválido.`,
+  ""
+)
+out.push(`## A. Repetidas no mesmo dono (${repetidas.length})`, "", "Sugestão: manter a marcada ✅ e passar as ordens das outras para ela.", "")
+for (const g of repetidas) {
+  const ord = [...g].sort(melhor)
+  out.push(`- ${dono(g[0])} — ${g.length} cópias`)
+  ord.forEach((l, i) => out.push(`  - ${i === 0 ? "✅" : "✖"} ${descreve(l)}`))
+}
+out.push("", `## B. Mesma conta em donos diferentes (${cruzadas.length})`, "")
+for (const g of cruzadas) {
+  out.push(`- ${t(g[0].banco) ?? "banco ?"} ag ${t(g[0].agencia)} cc ${t(g[0].conta)}`)
+  for (const l of g) out.push(`  - ${dono(l)} · ${descreve(l)}`)
+}
+out.push("", `## C1. Documento de outro titular (${outroTitular.length})`, "", "⚠️ = difere do documento do dono em até 2 dígitos (parece digitação).", "")
+for (const { l, digitacao, semZerosNoDono } of outroTitular.sort((a, b) => Number(b.digitacao) - Number(a.digitacao) || a.l.donoNome.localeCompare(b.l.donoNome))) {
+  const marca = semZerosNoDono ? "🔧 CPF/CNPJ do cadastro incompleto (corrigir o cadastro) — " : digitacao ? "⚠️ " : ""
+  out.push(`- ${marca}${dono(l)} → conta no documento ${mascarar(l.titular_documento)}${t(l.favorecido) && palavras(l.favorecido).length ? ` ("${titularMascarado(l.favorecido)}")` : ""} · ${descreve(l)}`)
+}
+out.push("", `## C2. Sem documento: titular de outro nome ou CPF/CNPJ inválido (${semDocNomeDiferente.length})`, "")
+for (const l of semDocNomeDiferente.sort((a, b) => a.donoNome.localeCompare(b.donoNome))) {
+  const d = digitos(l.favorecido)
+  const igual = !l.donoDoc
+    ? ""
+    : d === l.donoDoc
+      ? " (mesmos dígitos do dono, mas não passa na validação)"
+      : distancia(d, l.donoDoc) <= 2
+        ? " ⚠️ parece digitação do documento do dono"
+        : ""
+  out.push(`- ${dono(l)} → titular "${titularMascarado(l.favorecido)}"${igual} · ${descreve(l)}`)
+}
+console.log(out.join("\n"))
