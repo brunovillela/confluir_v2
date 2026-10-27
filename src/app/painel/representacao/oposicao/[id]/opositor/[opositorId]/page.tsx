@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Check } from "lucide-react"
+import { ArrowLeft, Check, CircleHelp, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterOpositorDetalhe } from "@/lib/db/oposicao"
-import { formatarDataHora } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
 
@@ -40,6 +40,9 @@ export default async function OpositorPage({
   const avaliavel = ["nao_avaliada", "aprovada", "reprovada"].includes(
     o.situacao
   )
+  const q = o.requisitos
+  const algumProblema =
+    q.noPrazo === false || q.cartaNoPrazo === false || q.outrasDoCpf > 0 || q.fonteNaCampanha === false || !q.identificacao
 
   return (
     <>
@@ -117,22 +120,63 @@ export default async function OpositorPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {/* Requisitos conferidos de verdade (onda 0, 27/10/2026): antes os
+              itens de prazo e de CPF único apareciam sempre como cumpridos. */}
           <ul className="grid gap-1.5 text-sm">
-            <Requisito ok label="Registrada dentro do prazo da campanha" />
             <Requisito
-              ok={Boolean(o.empregadorNome)}
+              ok={q.noPrazo}
               label={
-                o.empregadorNome
-                  ? `Vinculada à fonte ${o.empregadorNome}`
-                  : "Sem fonte pagadora informada"
+                q.noPrazo === null
+                  ? "Prazo: sem registro da hora da oposição (legado)"
+                  : q.noPrazo
+                    ? `Registrada no prazo (em ${formatarData(q.diaConfirmacao)}, prazo até ${formatarData(q.prazoFim)})`
+                    : `Registrada FORA do prazo (em ${formatarData(q.diaConfirmacao)}; o prazo terminou em ${formatarData(q.prazoFim)})`
               }
             />
-            <Requisito ok label="CPF único nesta campanha (sem duplicidade)" />
+            {q.cartaNoPrazo !== null && (
+              <Requisito
+                ok={q.cartaNoPrazo}
+                label={
+                  q.cartaNoPrazo
+                    ? `Carta assinada recebida no prazo (em ${formatarData(q.diaCarta)})`
+                    : `Carta assinada recebida DEPOIS do prazo (em ${formatarData(q.diaCarta)}; prazo até ${formatarData(q.prazoFim)})`
+                }
+              />
+            )}
             <Requisito
-              ok
-              label={`Identificação: ${o.ehFiliado ? "filiado" : "não filiado"}`}
+              ok={q.fonteNaCampanha === null ? Boolean(o.empregadorNome) : q.fonteNaCampanha}
+              label={
+                !o.empregadorNome
+                  ? "Sem fonte pagadora informada"
+                  : q.fonteNaCampanha === false
+                    ? `Fonte ${o.empregadorNome} NÃO está entre as fontes da campanha`
+                    : `Vinculada à fonte ${o.empregadorNome}`
+              }
+            />
+            <Requisito
+              ok={q.outrasDoCpf === 0}
+              label={
+                q.outrasDoCpf === 0
+                  ? "CPF único nesta campanha"
+                  : `O mesmo CPF tem mais ${q.outrasDoCpf} oposição(ões) nesta campanha`
+              }
+            />
+            <Requisito
+              ok={q.identificacao}
+              label={
+                q.identificacao
+                  ? `Identificação: ${o.ehFiliado ? "filiado" : "não filiado"}, CPF válido`
+                  : "Identificação incompleta: CPF inválido ou nome em branco"
+              }
             />
           </ul>
+          {algumProblema && avaliavel && (
+            <Alert variant="warning">
+              <AlertDescription>
+                Há requisito não cumprido acima. Confira antes de decidir — se reprovar, informe o motivo.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {o.situacao === "aprovada" || o.situacao === "reprovada" ? (
             <Alert
@@ -146,7 +190,7 @@ export default async function OpositorPage({
               <AlertDescription>
                 {o.situacao === "aprovada" ? "Aprovada" : "Reprovada"}
                 {o.avaliadorNome && <> por {o.avaliadorNome}</>}
-                {o.avaliacao_data && <> em {o.avaliacao_data}</>}.
+                {o.avaliacao_data && <> em {formatarData(o.avaliacao_data)}</>}.
                 {o.reprovacao_motivo && <> Motivo: {o.reprovacao_motivo}</>}
               </AlertDescription>
             </Alert>
@@ -186,6 +230,7 @@ export default async function OpositorPage({
                     {formatarDataHora(ev.created_at)}
                   </span>
                   <span className="font-medium">{ev.evento}</span>
+                  {ev.usuarioNome && <span>por {ev.usuarioNome}</span>}
                   {ev.detalhe && (
                     <span className="text-muted-foreground">{ev.detalhe}</span>
                   )}
@@ -211,13 +256,20 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   )
 }
 
-function Requisito({ ok, label }: { ok: boolean; label: string }) {
+/** ok: true = cumpre (✓ verde), false = não cumpre (✗ em destaque), null = sem como saber (?). */
+function Requisito({ ok, label }: { ok: boolean | null; label: string }) {
   return (
     <li className="flex items-center gap-2">
-      <Check
-        className={ok ? "text-success-fg size-4" : "text-muted-foreground size-4"}
-      />
-      <span className={ok ? "" : "text-muted-foreground"}>{label}</span>
+      {ok === true ? (
+        <Check className="text-success-fg size-4 shrink-0" />
+      ) : ok === false ? (
+        <X className="text-error-fg size-4 shrink-0" />
+      ) : (
+        <CircleHelp className="text-muted-foreground size-4 shrink-0" />
+      )}
+      <span className={ok === false ? "text-error-fg font-medium" : ok === null ? "text-muted-foreground" : ""}>
+        {label}
+      </span>
     </li>
   )
 }

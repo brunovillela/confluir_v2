@@ -206,6 +206,8 @@ erDiagram
     uuid id PK
     uuid opositor_id FK
     uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid campanha_id FK
   }
   oposicao_opositor {
     uuid id PK
@@ -219,6 +221,10 @@ erDiagram
   oposicao_perguntas {
     uuid id PK
     uuid campanha_id FK
+    uuid emp_proprietaria_id FK
+  }
+  oposicao_protocolos {
+    uuid campanha_id PK,FK
     uuid emp_proprietaria_id FK
   }
   oposicao_resposta {
@@ -345,13 +351,16 @@ erDiagram
   oposicao_campanha }o--o| empresa : "empresa_id"
   oposicao_campanha_fontes }o--o| empresa : "empresa_id"
   oposicao_campanha_fontes }o--o| oposicao_campanha : "campanha_id"
+  oposicao_eventos }o--o| oposicao_campanha : "campanha_id"
   oposicao_eventos }o--o| oposicao_opositor : "opositor_id"
+  oposicao_eventos }o--o| usuarios : "usuario_id"
   oposicao_opositor }o--o| empresa : "empregador_id"
   oposicao_opositor }o--o| enderecos : "endereco_id"
   oposicao_opositor }o--o| filiacoes : "filiacao_id"
   oposicao_opositor }o--o| oposicao_campanha : "campanha_id"
   oposicao_opositor }o--o| usuarios : "avaliacao_avaliador_id"
   oposicao_perguntas }o--o| oposicao_campanha : "campanha_id"
+  oposicao_protocolos }o--|| oposicao_campanha : "campanha_id"
   oposicao_resposta }o--o| oposicao_opositor : "opositor_id"
   oposicao_resposta }o--o| oposicao_perguntas : "pergunta_id"
   portal_atendimentos }o--o| demandas : "demanda_id"

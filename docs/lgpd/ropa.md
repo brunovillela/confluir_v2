@@ -188,8 +188,8 @@
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
-| [oposicao_eventos](../dados/dicionario/filiacao.md#oposicao_eventos) | identificacao, sens. sindical | `evento` (sens. sindical), `detalhe` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao) |
-| [oposicao_opositor](../dados/dicionario/filiacao.md#oposicao_opositor) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `email` (identificacao), `telefone` (identificacao), `empresa` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `nascimento` (identificacao), `carta` (sens. sindical), `avaliacao` (sens. sindical), `desistente` (sens. sindical), `situacao` (sens. sindical), `documento_assinado_url` (sens. sindical), `reprovacao_motivo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `assinatura_validacao` (identificacao) |
+| [oposicao_eventos](../dados/dicionario/filiacao.md#oposicao_eventos) | identificacao, sens. sindical | `evento` (sens. sindical), `detalhe` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `usuario_id` (identificacao) |
+| [oposicao_opositor](../dados/dicionario/filiacao.md#oposicao_opositor) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `email` (identificacao), `telefone` (identificacao), `empresa` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `nascimento` (identificacao), `carta` (sens. sindical), `avaliacao` (sens. sindical), `desistente` (sens. sindical), `situacao` (sens. sindical), `documento_assinado_url` (sens. sindical), `reprovacao_motivo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `assinatura_validacao` (identificacao), `cpf_digitos` (identificacao), `declaracao_aceita` (sens. sindical), `documento_enviado_em` (sens. sindical) |
 | [oposicao_resposta](../dados/dicionario/filiacao.md#oposicao_resposta) | sens. sindical | `resposta` (sens. sindical) |
 
 </details>

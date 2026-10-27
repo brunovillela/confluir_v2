@@ -81,3 +81,10 @@ export function estadoPrazo(
   if (h > fim.slice(0, 10)) return "depois"
   return "aberto"
 }
+
+/**
+ * O que a pessoa aceita quando a campanha não tem texto de declaração: a
+ * frase da caixa de confirmação. Fica gravado no opositor (declaracao_aceita)
+ * junto com o hash, como o texto de qualquer campanha (onda 0, 27/10/2026).
+ */
+export const DECLARACAO_PADRAO = "Confirmo a minha oposição à contribuição."

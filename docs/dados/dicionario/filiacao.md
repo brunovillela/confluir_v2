@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-47 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+48 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -42,6 +42,7 @@
 | [oposicao_eventos](#oposicao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada carta de oposição (enviada, confirmada, avaliada, desistência...), com IP e navegador. |
 | [oposicao_opositor](#oposicao_opositor) | **sensível: sindical**, identificação, trabalhista | Cada trabalhador que se opôs à contribuição assistencial numa campanha: dados pessoais, vínculo, carta/documento assinado, avaliação e desis… |
 | [oposicao_perguntas](#oposicao_perguntas) | — | Perguntas do questionário de cada campanha de oposição. Migrado do Bubble. |
+| [oposicao_protocolos](#oposicao_protocolos) | — | Último protocolo emitido por campanha de oposição — contador atômico (oposicao_proximo_protocolo). |
 | [oposicao_resposta](#oposicao_resposta) | **sensível: sindical** | Respostas do opositor às perguntas do questionário da campanha. Migrado do Bubble. |
 | [portal_atendimentos](#portal_atendimentos) | identificação, **sensível: sindical** | Atendimentos abertos pelo filiado no portal do associado (assunto, título, prazo, situação), ligados a uma demanda interna. |
 | [portal_atendimentos_mensagens](#portal_atendimentos_mensagens) | identificação, **sensível: sindical** | Mensagens trocadas entre filiado e entidade em cada atendimento do portal, com anexo opcional. |
@@ -998,7 +999,7 @@ Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos 
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -1032,7 +1033,7 @@ Empresas (fontes pagadoras) abrangidas por cada campanha de oposição.
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -1052,20 +1053,22 @@ Trilha de eventos de cada carta de oposição (enviada, confirmada, avaliada, de
 
 - **LGPD:** **sensível: sindical**, identificação · titulares: trabalhadores opositores (filiados ou não)
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `oposicao_eventos_imutavel` → `oposicao_eventos_imutavel`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
 | 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
-| `opositor_id` | uuid | sim |  | → oposicao_opositor (**cascade**) |  |  |
+| `opositor_id` | uuid | sim |  | → oposicao_opositor (restrict) |  |  |
 | `evento` | text | sim |  |  | **sensível: sindical** |  |
 | `detalhe` | text | sim |  |  | **sensível: sindical** |  |
 | `ip` | text | sim |  |  | identificação |  |
 | `user_agent` | text | sim |  |  | identificação |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `usuario_id` | uuid | sim |  | → usuarios | identificação | Quem da entidade fez a ação (avaliação, edição da campanha); nulo = o próprio trabalhador ou o sistema. |
+| `campanha_id` | uuid | sim |  | → oposicao_campanha (restrict) |  | Campanha do evento — preenchida nos eventos da campanha (edição, fontes, perguntas), em que opositor_id é nulo. |
 
-Índices: `idx_oposicao_eventos_opositor`, `oposicao_eventos_pkey`
+Índices: `idx_oposicao_eventos_opositor`, `oposicao_eventos_campanha_idx`, `oposicao_eventos_pkey`
 
 ## oposicao_opositor
 
@@ -1073,7 +1076,7 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 
 - **LGPD:** **sensível: sindical**, identificação, trabalhista · titulares: trabalhadores opositores (filiados ou não)
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -1109,12 +1112,18 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 | `user_agent` | text | sim |  |  | identificação |  |
 | `confirmado_em` | timestamp with time zone | sim |  |  |  |  |
 | `assinatura_validacao` | jsonb | sim |  |  | identificação | Validação PAdES; contém dados do certificado do signatário. |
+| `cpf_digitos` | text | sim | `NULLIF(regexp_replace(COALESCE(cpf, ''::text), '\D'::text, ''::text, 'g'::text), ''::text)` |  | identificação | CPF só com dígitos (gerada de cpf): base da unicidade por campanha e da busca. |
+| `declaracao_aceita` | text | sim |  |  | **sensível: sindical** | Texto da declaração exatamente como a pessoa aceitou ao confirmar (o comprovante e a carta usam este, não o atual da campanha). |
+| `declaracao_hash` | text | sim |  |  |  | sha256 do texto aceito, para conferir que não mudou. |
+| `modo_formalizacao_ato` | text | sim |  |  |  | Modo de formalização da campanha no momento da confirmação (tela, assinatura, híbrido). |
+| `prazo_fim_ato` | date | sim |  |  |  | Fim do prazo da campanha no momento da confirmação. |
+| `documento_enviado_em` | timestamp with time zone | sim |  |  | **sensível: sindical** | Quando chegou a primeira carta assinada (compara com o prazo na avaliação). |
 
 Únicas: `UNIQUE (bubble_id)`
 
 Checks: `oposicao_opositor_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_documento'::text, 'nao_avaliada'::text, 'aprovada'::text, 'reprovada'::text, 'desistente'::text])))`
 
-Índices: `idx_oposicao_opositor_campanha`, `idx_oposicao_opositor_cpf`, `idx_oposicao_opositor_emp`, `oposicao_opositor_bubble_id_key`, `oposicao_opositor_pkey`
+Índices: `idx_oposicao_opositor_campanha`, `idx_oposicao_opositor_cpf`, `idx_oposicao_opositor_emp`, `oposicao_opositor_bubble_id_key`, `oposicao_opositor_campanha_cpf_key`, `oposicao_opositor_campanha_protocolo_key`, `oposicao_opositor_campanha_situacao_idx`, `oposicao_opositor_pkey`
 
 ## oposicao_perguntas
 
@@ -1122,7 +1131,7 @@ Perguntas do questionário de cada campanha de oposição. Migrado do Bubble.
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -1135,6 +1144,23 @@ Perguntas do questionário de cada campanha de oposição. Migrado do Bubble.
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
 Índices: `idx_oposicao_perguntas_campanha`, `oposicao_perguntas_pkey`
+
+## oposicao_protocolos
+
+Último protocolo emitido por campanha de oposição — contador atômico (oposicao_proximo_protocolo).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `campanha_id` | uuid | não |  | → oposicao_campanha (restrict) |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `ultimo` | integer | não |  |  |  |  |
+
+Checks: `oposicao_protocolos_ultimo_check` `CHECK ((ultimo >= 0))`
+
+Índices: `oposicao_protocolos_pkey`
 
 ## oposicao_resposta
 

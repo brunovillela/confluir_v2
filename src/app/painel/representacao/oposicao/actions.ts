@@ -87,13 +87,13 @@ export async function criarCampanhaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireOposicao()
+  const sessao = await requireOposicao()
   const { caminho, erro: erroArq } = await lerModelo(fd)
   if (erroArq) return { erro: erroArq }
-  const { id, erro } = await criarCampanha({
-    ...lerDados(fd),
-    documento_modelo_url: caminho ?? null,
-  })
+  const { id, erro } = await criarCampanha(
+    { ...lerDados(fd), documento_modelo_url: caminho ?? null },
+    sessao.usuario.id
+  )
   if (erro || !id) return { erro: erro ?? "Falha ao criar." }
   revalidar(id)
   redirect(`/painel/representacao/oposicao/${id}?salvo=1`)
@@ -103,15 +103,16 @@ export async function atualizarCampanhaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireOposicao()
+  const sessao = await requireOposicao()
   const id = texto(fd, "campanha_id")
   if (!id) return { erro: "Campanha inválida." }
   const { caminho, erro: erroArq } = await lerModelo(fd)
   if (erroArq) return { erro: erroArq }
-  const { erro } = await atualizarCampanha(id, {
-    ...lerDados(fd),
-    documento_modelo_url: caminho,
-  })
+  const { erro } = await atualizarCampanha(
+    id,
+    { ...lerDados(fd), documento_modelo_url: caminho },
+    sessao.usuario.id
+  )
   if (erro) return { erro }
   revalidar(id)
   redirect(`/painel/representacao/oposicao/${id}?salvo=1`)
@@ -121,9 +122,9 @@ export async function adicionarPerguntaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireOposicao()
+  const sessao = await requireOposicao()
   const id = texto(fd, "campanha_id")
-  const { erro } = await adicionarPergunta(id, texto(fd, "pergunta"))
+  const { erro } = await adicionarPergunta(id, texto(fd, "pergunta"), sessao.usuario.id)
   if (erro) return { erro }
   revalidar(id)
   return { ok: "Pergunta adicionada." }
@@ -133,8 +134,8 @@ export async function excluirPerguntaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requireOposicao()
-  const { erro } = await excluirPergunta(texto(fd, "pergunta_id"))
+  const sessao = await requireOposicao()
+  const { erro } = await excluirPergunta(texto(fd, "pergunta_id"), sessao.usuario.id)
   if (erro) return { erro }
   revalidar(texto(fd, "campanha_id"))
   return { ok: "Pergunta removida." }

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
 import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
@@ -20,6 +20,7 @@ import { formatarData } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
+  DECLARACAO_PADRAO,
   estadoPrazo,
   MODOS_FORMALIZACAO,
   SITUACOES_CAMPANHA,
@@ -348,32 +349,82 @@ function normalizar(dados: DadosCampanha): Record<string, unknown> {
   return p
 }
 
-/** Substitui o conjunto de fontes da campanha. */
+/**
+ * Troca o conjunto de fontes da campanha SEM passar por "nenhuma fonte":
+ * primeiro entram as novas, depois saem as retiradas (onda 0, 27/10/2026).
+ * Antes era apagar tudo e reinserir — uma falha no meio deixava a campanha sem
+ * fonte, e campanha sem fonte vale para todos os trabalhadores. Devolve o que
+ * mudou, para a trilha.
+ */
 async function gravarFontes(
   admin: Awaited<ReturnType<typeof createAdminClient>>,
   empId: string,
   campanhaId: string,
   fonteIds: string[]
-): Promise<void> {
-  await admin
+): Promise<{ erro?: string; entraram: string[]; sairam: string[] }> {
+  const { data: atuais, error: erroLer } = await admin
     .from("oposicao_campanha_fontes")
-    .delete()
+    .select("empresa_id")
     .eq("campanha_id", campanhaId)
     .eq("emp_proprietaria_id", empId)
-  const unicos = [...new Set(fonteIds.filter(Boolean))]
-  if (unicos.length) {
-    await admin.from("oposicao_campanha_fontes").insert(
-      unicos.map((empresa_id) => ({
-        campanha_id: campanhaId,
-        empresa_id,
-        emp_proprietaria_id: empId,
-      }))
+  if (erroLer) return { erro: `Falha ao ler as fontes: ${erroLer.message}`, entraram: [], sairam: [] }
+  const antes = new Set((atuais ?? []).map((f) => String(f.empresa_id)))
+  const depois = new Set(fonteIds.filter(Boolean))
+  const entraram = [...depois].filter((f) => !antes.has(f))
+  const sairam = [...antes].filter((f) => !depois.has(f))
+  if (entraram.length) {
+    const { error } = await admin.from("oposicao_campanha_fontes").insert(
+      entraram.map((empresa_id) => ({ campanha_id: campanhaId, empresa_id, emp_proprietaria_id: empId }))
     )
+    if (error) return { erro: `Falha ao vincular as fontes: ${error.message}`, entraram: [], sairam: [] }
   }
+  if (sairam.length) {
+    const { error } = await admin
+      .from("oposicao_campanha_fontes")
+      .delete()
+      .eq("campanha_id", campanhaId)
+      .eq("emp_proprietaria_id", empId)
+      .in("empresa_id", sairam)
+    if (error) return { erro: `Falha ao retirar fontes: ${error.message}`, entraram, sairam: [] }
+  }
+  return { entraram, sairam }
+}
+
+/** Oposições registradas no Confluir (fora o legado do Bubble) na campanha. */
+async function oposicoesNovasDaCampanha(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  empId: string,
+  campanhaId: string
+): Promise<number> {
+  const { count } = await admin
+    .from("oposicao_opositor")
+    .select("id", { count: "exact", head: true })
+    .eq("campanha_id", campanhaId)
+    .eq("emp_proprietaria_id", empId)
+    .is("bubble_id", null)
+  return count ?? 0
+}
+
+/** Rótulos dos campos da campanha, para a trilha da edição. */
+const ROTULOS_CAMPO_CAMPANHA: Record<string, string> = {
+  nome: "nome",
+  detalhe_desconto: "detalhe do desconto",
+  prazo_inicio: "início do prazo",
+  prazo_fim: "fim do prazo",
+  modo_formalizacao: "modo de formalização",
+  situacao: "situação",
+  texto_declaracao: "declaração",
+  video_filiado_url: "vídeo do filiado",
+  video_filiado_tempo: "tempo do vídeo do filiado",
+  video_nao_filiado_url: "vídeo do não filiado",
+  video_nao_filiado_tempo: "tempo do vídeo do não filiado",
+  video_agradecimento_url: "vídeo de agradecimento",
+  documento_modelo_url: "documento-modelo",
 }
 
 export async function criarCampanha(
-  dados: DadosCampanha
+  dados: DadosCampanha,
+  usuarioId?: string | null
 ): Promise<{ id?: string; erro?: string }> {
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
   const empId = await tenantAtual()
@@ -388,25 +439,66 @@ export async function criarCampanha(
     .select("id")
     .single()
   if (error) return { erro: `Falha ao criar a campanha: ${error.message}` }
-  await gravarFontes(admin, empId, String(data.id), dados.fonteIds)
+  const fontes = await gravarFontes(admin, empId, String(data.id), dados.fonteIds)
+  await registrarEvento(null, "campanha_criada", `fontes=${fontes.entraram.length}`, null, null, {
+    usuarioId,
+    campanhaId: String(data.id),
+  })
+  if (fontes.erro) return { id: String(data.id), erro: fontes.erro }
   return { id: String(data.id) }
 }
 
+/**
+ * Salva a campanha. Com oposições já registradas (fora o legado), a
+ * declaração e o modo de formalização ficam travados: mudá-los no meio daria a
+ * quem se opôs antes e a quem se opõe depois regras diferentes (onda 0,
+ * 27/10/2026). Prazo, fontes e vídeos continuam editáveis — mas toda mudança
+ * vai para a trilha, com o autor e os valores de antes e depois.
+ */
 export async function atualizarCampanha(
   id: string,
-  dados: DadosCampanha
+  dados: DadosCampanha,
+  usuarioId?: string | null
 ): Promise<{ erro?: string }> {
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
-  const { error } = await admin
+  const novo = normalizar(dados)
+  const { data: atual, error: erroLer } = await admin
     .from("oposicao_campanha")
-    .update(normalizar(dados))
+    .select(Object.keys(novo).join(", "))
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
-  if (error) return { erro: `Falha ao salvar a campanha: ${error.message}` }
-  await gravarFontes(admin, empId, id, dados.fonteIds)
-  return {}
+    .maybeSingle()
+  if (erroLer || !atual) return { erro: "Campanha não encontrada." }
+  const antes = atual as unknown as Record<string, unknown>
+  const mudou = Object.keys(novo).filter((k) => (antes[k] ?? null) !== (novo[k] ?? null))
+
+  if (mudou.some((k) => k === "texto_declaracao" || k === "modo_formalizacao")) {
+    const registradas = await oposicoesNovasDaCampanha(admin, empId, id)
+    if (registradas > 0) {
+      return {
+        erro: `Esta campanha já tem ${registradas.toLocaleString("pt-BR")} oposição(ões) registrada(s): a declaração e o modo de formalização não podem mais mudar — quem se opôs aceitou o texto e as regras de agora.`,
+      }
+    }
+  }
+
+  if (mudou.length) {
+    const { error } = await admin.from("oposicao_campanha").update(novo).eq("id", id).eq("emp_proprietaria_id", empId)
+    if (error) return { erro: `Falha ao salvar a campanha: ${error.message}` }
+  }
+  const fontes = await gravarFontes(admin, empId, id, dados.fonteIds)
+  // Textos longos (a declaração) vão como "(texto)": o antes/depois completo fica na auditoria.
+  const curto = (v: unknown) => (typeof v === "string" && v.length > 80 ? "(texto)" : String(v))
+  const partes = mudou.map(
+    (k) => `${ROTULOS_CAMPO_CAMPANHA[k] ?? k}: ${curto(antes[k] ?? "—")} → ${curto(novo[k] ?? "—")}`
+  )
+  if (fontes.entraram.length) partes.push(`fontes incluídas: ${fontes.entraram.length}`)
+  if (fontes.sairam.length) partes.push(`fontes retiradas: ${fontes.sairam.length}`)
+  if (partes.length) {
+    await registrarEvento(null, "campanha_editada", partes.join("; "), null, null, { usuarioId, campanhaId: id })
+  }
+  return fontes.erro ? { erro: fontes.erro } : {}
 }
 
 /** Sobe o documento-modelo (gov.br) no bucket privado; devolve o caminho. */
@@ -429,7 +521,8 @@ export async function subirDocumentoModelo(
 
 export async function adicionarPergunta(
   campanhaId: string,
-  pergunta: string
+  pergunta: string,
+  usuarioId?: string | null
 ): Promise<{ erro?: string }> {
   if (!pergunta.trim()) return { erro: "Informe a pergunta." }
   const empId = await tenantAtual()
@@ -454,17 +547,35 @@ export async function adicionarPergunta(
     emp_proprietaria_id: empId,
   })
   if (error) return { erro: `Falha ao adicionar a pergunta: ${error.message}` }
+  await registrarEvento(null, "pergunta_incluida", pergunta.trim().slice(0, 300), null, null, { usuarioId, campanhaId })
   return {}
 }
 
-export async function excluirPergunta(id: string): Promise<{ erro?: string }> {
+/** Exclui a pergunta — só se ainda não tem resposta (a resposta é prova). */
+export async function excluirPergunta(id: string, usuarioId?: string | null): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin
+  const empId = await tenantAtual()
+  const { data: p } = await admin
     .from("oposicao_perguntas")
-    .delete()
+    .select("campanha_id, pergunta")
     .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (!p) return { erro: "Pergunta não encontrada." }
+  const { count: respostas } = await admin
+    .from("oposicao_resposta")
+    .select("id", { count: "exact", head: true })
+    .eq("pergunta_id", id)
+    .eq("emp_proprietaria_id", empId)
+  if ((respostas ?? 0) > 0) {
+    return { erro: `Esta pergunta já tem ${(respostas ?? 0).toLocaleString("pt-BR")} resposta(s) e não pode ser excluída.` }
+  }
+  const { error } = await admin.from("oposicao_perguntas").delete().eq("id", id).eq("emp_proprietaria_id", empId)
   if (error) return { erro: `Falha ao excluir a pergunta: ${error.message}` }
+  await registrarEvento(null, "pergunta_excluida", String(p.pergunta ?? "").slice(0, 300), null, null, {
+    usuarioId,
+    campanhaId: String(p.campanha_id),
+  })
   return {}
 }
 
@@ -800,23 +911,36 @@ export async function vinculosAtivos(cpf: string): Promise<VinculoAtivo[]> {
     .sort((a, b) => a.fonteNome.localeCompare(b.fonteNome, "pt-BR"))
 }
 
-/** Registra um evento de auditoria (append-only). */
+/**
+ * Registra um evento na trilha — imutável no banco (migração
+ * …_oposicao_integridade). `opositorId` nulo = evento da campanha (edição,
+ * fontes, perguntas), com `campanhaId`. `usuarioId` = quem da entidade agiu.
+ * Nunca derruba a ação, mas a falha vai para o log (antes era engolida).
+ */
 export async function registrarEvento(
-  opositorId: string,
+  opositorId: string | null,
   evento: string,
   detalhe: string | null,
   ip: string | null,
-  userAgent: string | null
+  userAgent: string | null,
+  opcoes: { usuarioId?: string | null; campanhaId?: string | null } = {}
 ): Promise<void> {
-  const admin = await createAdminClient()
-  await admin.from("oposicao_eventos").insert({
-    opositor_id: opositorId,
-    evento,
-    detalhe,
-    ip,
-    user_agent: userAgent,
-    emp_proprietaria_id: await tenantAtual(),
-  })
+  try {
+    const admin = await createAdminClient()
+    const { error } = await admin.from("oposicao_eventos").insert({
+      opositor_id: opositorId,
+      evento,
+      detalhe,
+      ip,
+      user_agent: userAgent,
+      usuario_id: opcoes.usuarioId ?? null,
+      campanha_id: opcoes.campanhaId ?? null,
+      emp_proprietaria_id: await tenantAtual(),
+    })
+    if (error) console.error("[oposicao] evento não gravado:", evento, opositorId, error.message)
+  } catch (e) {
+    console.error("[oposicao] evento não gravado:", evento, opositorId, e instanceof Error ? e.message : e)
+  }
 }
 
 export type DadosOposicao = {
@@ -833,22 +957,30 @@ export type DadosOposicao = {
   userAgent: string | null
 }
 
-/** Próximo protocolo sequencial da campanha (max+1). */
+/**
+ * Próximo protocolo da campanha, pelo contador atômico do banco
+ * (oposicao_proximo_protocolo, onda 0 de 27/10/2026). O max+1 de antes dava o
+ * mesmo número a duas confirmações simultâneas; agora o unique
+ * (campanha, protocolo) também recusa a duplicata.
+ */
 async function proximoProtocolo(
   admin: Awaited<ReturnType<typeof createAdminClient>>,
   empId: string,
   campanhaId: string
 ): Promise<number> {
-  const { data } = await admin
-    .from("oposicao_opositor")
-    .select("protocolo")
-    .eq("emp_proprietaria_id", empId)
-    .eq("campanha_id", campanhaId)
-    .not("protocolo", "is", null)
-    .order("protocolo", { ascending: false })
-    .limit(1)
-  const max = data?.[0]?.protocolo
-  return (typeof max === "number" ? max : 0) + 1
+  const { data, error } = await admin.rpc("oposicao_proximo_protocolo", { p_campanha: campanhaId, p_emp: empId })
+  if (error || typeof data !== "number") throw new Error(`Falha ao gerar o protocolo: ${error?.message ?? "sem número"}`)
+  return data
+}
+
+/** sha256 em hex (declaração aceita). */
+function hashTexto(t: string): string {
+  return createHash("sha256").update(t, "utf8").digest("hex")
+}
+
+/** Erro de unique (23505) do PostgREST. */
+function duplicado(e: { code?: string } | null | undefined): boolean {
+  return e?.code === "23505"
 }
 
 /**
@@ -872,8 +1004,25 @@ export async function registrarOposicao(
     return { erro: "Você já registrou uma oposição nesta campanha." }
   }
 
-  const protocolo =
-    existente?.protocolo ?? (await proximoProtocolo(admin, empId, dados.campanhaId))
+  // O ato fica gravado como foi (onda 0, 27/10/2026): a declaração aceita, o
+  // modo e o prazo de agora — o comprovante e a carta usam estes, não os da
+  // campanha, que podem mudar depois.
+  const { data: campanha } = await admin
+    .from("oposicao_campanha")
+    .select("texto_declaracao, modo_formalizacao, prazo_fim")
+    .eq("id", dados.campanhaId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (!campanha) return { erro: "Campanha indisponível." }
+  const declaracao = texto(campanha.texto_declaracao) ?? DECLARACAO_PADRAO
+
+  let protocolo: number
+  try {
+    protocolo = existente?.protocolo ?? (await proximoProtocolo(admin, empId, dados.campanhaId))
+  } catch (e) {
+    console.error("[oposicao]", e)
+    return { erro: "Não foi possível gerar o protocolo agora. Tente de novo em instantes." }
+  }
   const campos = {
     nome_completo: dados.nome,
     email: dados.email,
@@ -885,6 +1034,10 @@ export async function registrarOposicao(
     confirmado_em: new Date().toISOString(),
     ip: dados.ip,
     user_agent: dados.userAgent,
+    declaracao_aceita: declaracao,
+    declaracao_hash: hashTexto(declaracao),
+    modo_formalizacao_ato: texto(campanha.modo_formalizacao),
+    prazo_fim_ato: texto(campanha.prazo_fim),
   }
 
   let opositorId: string
@@ -903,12 +1056,14 @@ export async function registrarOposicao(
         avaliacao_avaliador_id: null,
         reprovacao_motivo: null,
         documento_assinado_url: null,
+        documento_enviado_em: null,
       })
       .eq("id", existente.id)
       .eq("emp_proprietaria_id", empId)
       // Duas abas confirmando juntas: só a primeira acha a linha ainda 'desistente'.
       .eq("situacao", "desistente")
       .select("id")
+    if (duplicado(error)) return { erro: "Você já registrou uma oposição nesta campanha." }
     if (error) return { erro: `Falha ao registrar a oposição: ${error.message}` }
     if ((data ?? []).length === 0) {
       return { erro: "Você já registrou uma oposição nesta campanha." }
@@ -925,13 +1080,16 @@ export async function registrarOposicao(
       })
       .select("id")
       .single()
+    // Duas abas, duplo clique ou reenvio da rede: o unique (campanha, CPF)
+    // recusa a segunda linha — a pessoa já tem a oposição registrada.
+    if (duplicado(error)) return { erro: "Você já registrou uma oposição nesta campanha." }
     if (error) return { erro: `Falha ao registrar a oposição: ${error.message}` }
     opositorId = String(data.id)
   }
 
   const respostas = dados.respostas.filter((r) => r.resposta.trim())
   if (respostas.length) {
-    await admin.from("oposicao_resposta").insert(
+    const { error: erroRespostas } = await admin.from("oposicao_resposta").insert(
       respostas.map((r) => ({
         opositor_id: opositorId,
         pergunta_id: r.perguntaId,
@@ -939,6 +1097,7 @@ export async function registrarOposicao(
         emp_proprietaria_id: empId,
       }))
     )
+    if (erroRespostas) console.error("[oposicao] respostas não gravadas:", opositorId, erroRespostas.message)
   }
   await registrarEvento(
     opositorId,
@@ -1010,6 +1169,11 @@ export async function registrarDesistencia(
     })
     .select("id")
     .single()
+  if (duplicado(error)) {
+    // A outra aba gravou primeiro: se foi também "não quero me opor", nada a fazer.
+    const agora = await minhaOposicao(campanhaId, sessao.cpf)
+    return agora?.situacao === "desistente" ? {} : { erro: "Você já registrou uma oposição nesta campanha." }
+  }
   if (error) return { erro: error.message }
   await registrarEvento(String(data.id), "desistiu", null, ip, userAgent)
   return {}
@@ -1102,6 +1266,8 @@ export async function subirDocumentoAssinado(
     documento_assinado_url: caminho,
     situacao: "nao_avaliada",
     assinatura_validacao: validacao,
+    // Quando a PRIMEIRA carta chegou: a avaliação compara com o prazo (onda 0).
+    ...(troca ? {} : { documento_enviado_em: new Date().toISOString() }),
   })
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // Sem a coluna (supabase/assinatura-validacao.sql): grava sem o resultado.
@@ -1160,7 +1326,7 @@ export type Comprovante = {
 }
 
 const COLUNAS_COMPROVANTE =
-  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url"
+  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url, declaracao_aceita"
 
 /** Comprovante da oposição — só para o próprio CPF (segurança). */
 export async function obterComprovante(
@@ -1241,7 +1407,9 @@ export async function obterComprovante(
     matricula: texto(o.matricula),
     empregadorNome: e ? (texto(e.nome_fantasia) ?? texto(e.nome_razao)) : null,
     situacao: (o.situacao ?? "nao_avaliada") as SituacaoOpositor,
-    texto_declaracao: c ? texto(c.texto_declaracao) : null,
+    // O texto que a pessoa aceitou (gravado no ato); o legado e as oposições
+    // de antes da onda 0 não o têm, e caem no texto atual da campanha.
+    texto_declaracao: texto(o.declaracao_aceita) ?? (c ? texto(c.texto_declaracao) : null),
     confirmado_em: texto(o.confirmado_em),
     dia: diaSP(texto(o.confirmado_em)),
     campanhaAberta: c?.situacao === "aberta",
@@ -1282,7 +1450,36 @@ export type OpositorDetalhe = {
   reprovacao_motivo: string | null
   documentoAssinadoUrl: string | null
   respostas: { pergunta: string | null; resposta: string | null }[]
-  eventos: { evento: string | null; detalhe: string | null; ip: string | null; created_at: string | null }[]
+  eventos: {
+    evento: string | null
+    detalhe: string | null
+    ip: string | null
+    created_at: string | null
+    usuarioNome: string | null
+  }[]
+  /** Requisitos conferidos de verdade (onda 0 — antes o checklist era sempre verde). */
+  requisitos: RequisitosOposicao
+}
+
+/**
+ * Cada requisito: true = cumpre, false = não cumpre, null = sem como saber
+ * (o legado do Bubble não guardou a hora da oposição).
+ */
+export type RequisitosOposicao = {
+  /** Confirmada até o fim do prazo (dia de SP, inclusive). */
+  noPrazo: boolean | null
+  /** Dia (SP) da confirmação e o fim do prazo considerado. */
+  diaConfirmacao: string | null
+  prazoFim: string | null
+  /** A primeira carta assinada chegou no prazo (null = não houve carta). */
+  cartaNoPrazo: boolean | null
+  diaCarta: string | null
+  /** Outras oposições do mesmo CPF nesta campanha. */
+  outrasDoCpf: number
+  /** Fonte pagadora informada e vinculada à campanha (null = campanha sem fontes). */
+  fonteNaCampanha: boolean | null
+  /** CPF válido e nome informado. */
+  identificacao: boolean
 }
 
 export async function obterOpositorDetalhe(
@@ -1298,7 +1495,8 @@ export async function obterOpositorDetalhe(
     .maybeSingle()
   if (!o) return null
 
-  const [empRes, respRes, evRes, avalRes] = await Promise.all([
+  const cpfDigitos = limparCpf(texto(o.cpf) ?? "")
+  const [empRes, respRes, evRes, avalRes, campRes, fontesRes, mesmoCpfRes] = await Promise.all([
     o.empregador_id
       ? admin
           .from("empresa")
@@ -1313,7 +1511,7 @@ export async function obterOpositorDetalhe(
       .eq("emp_proprietaria_id", empId),
     admin
       .from("oposicao_eventos")
-      .select("evento, detalhe, ip, created_at")
+      .select("evento, detalhe, ip, created_at, usuario_id")
       .eq("opositor_id", id)
       .eq("emp_proprietaria_id", empId)
       .order("created_at", { ascending: true }),
@@ -1324,7 +1522,56 @@ export async function obterOpositorDetalhe(
           .eq("id", o.avaliacao_avaliador_id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    o.campanha_id
+      ? admin
+          .from("oposicao_campanha")
+          .select("prazo_fim")
+          .eq("id", o.campanha_id)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    o.campanha_id
+      ? admin
+          .from("oposicao_campanha_fontes")
+          .select("empresa_id")
+          .eq("campanha_id", o.campanha_id)
+          .eq("emp_proprietaria_id", empId)
+      : Promise.resolve({ data: [] as { empresa_id: string }[] }),
+    o.campanha_id && cpfDigitos
+      ? admin
+          .from("oposicao_opositor")
+          .select("id", { count: "exact", head: true })
+          .eq("campanha_id", o.campanha_id)
+          .eq("emp_proprietaria_id", empId)
+          .in("cpf", grafiasDoCpf(cpfDigitos))
+          .neq("id", id)
+      : Promise.resolve({ count: 0 }),
   ])
+
+  // Quem da entidade aparece na trilha (avaliador, quem editou).
+  const usuarioIds = [
+    ...new Set((evRes.data ?? []).map((ev) => texto(ev.usuario_id)).filter((v): v is string => Boolean(v))),
+  ]
+  const nomeUsuario = new Map<string, string>()
+  if (usuarioIds.length) {
+    const { data: us } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuarioIds)
+    for (const u of us ?? []) nomeUsuario.set(String(u.id), texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "—")
+  }
+
+  const prazoFim = texto(o.prazo_fim_ato) ?? texto(campRes.data?.prazo_fim)
+  const diaConfirmacao = diaSP(texto(o.confirmado_em))
+  const diaCarta = diaSP(texto(o.documento_enviado_em))
+  const fontes = (fontesRes.data ?? []).map((f) => String(f.empresa_id))
+  const requisitos: RequisitosOposicao = {
+    noPrazo: diaConfirmacao && prazoFim ? diaConfirmacao <= prazoFim.slice(0, 10) : null,
+    diaConfirmacao,
+    prazoFim: prazoFim?.slice(0, 10) ?? null,
+    cartaNoPrazo: diaCarta && prazoFim ? diaCarta <= prazoFim.slice(0, 10) : null,
+    diaCarta,
+    outrasDoCpf: mesmoCpfRes.count ?? 0,
+    fonteNaCampanha: fontes.length === 0 ? null : Boolean(o.empregador_id && fontes.includes(String(o.empregador_id))),
+    identificacao: Boolean(cpfConfiavel(texto(o.cpf)) && texto(o.nome_completo)),
+  }
 
   const perguntaIds = [
     ...new Set(
@@ -1380,7 +1627,9 @@ export async function obterOpositorDetalhe(
       detalhe: texto(ev.detalhe),
       ip: texto(ev.ip),
       created_at: texto(ev.created_at),
+      usuarioNome: texto(ev.usuario_id) ? (nomeUsuario.get(String(ev.usuario_id)) ?? null) : null,
     })),
+    requisitos,
   }
 }
 
@@ -1404,6 +1653,10 @@ export async function avaliarOpositor(
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
+  const situacaoAntes = texto(antes?.situacao)
+  if (!antes || !situacaoAntes || !["nao_avaliada", "aprovada", "reprovada"].includes(situacaoAntes)) {
+    return { erro: "Oposição não pode ser avaliada nesta situação." }
+  }
   const { data, error } = await admin
     .from("oposicao_opositor")
     .update({
@@ -1415,18 +1668,27 @@ export async function avaliarOpositor(
     })
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
-    .in("situacao", ["nao_avaliada", "aprovada", "reprovada"])
+    // Só se ninguém decidiu no meio (onda 0): dois avaliadores ao mesmo tempo
+    // gravavam os dois, e o trabalhador recebia "aceita" e "não aceita".
+    .eq("situacao", situacaoAntes)
     .select("id")
   if (error) return { erro: `Falha ao avaliar: ${error.message}` }
   if ((data ?? []).length === 0) {
-    return { erro: "Oposição não pode ser avaliada nesta situação." }
+    return { erro: "Outra pessoa acabou de avaliar esta oposição. Recarregue a página e confira a decisão." }
   }
+  const redecisao = situacaoAntes !== "nao_avaliada"
   await registrarEvento(
     id,
     aprovar ? "aprovada" : "reprovada",
-    aprovar ? null : (motivo?.trim() ?? null),
+    [
+      redecisao ? `re-decisão: ${situacaoAntes} → ${aprovar ? "aprovada" : "reprovada"}` : null,
+      aprovar ? null : (motivo?.trim() ?? null),
+    ]
+      .filter(Boolean)
+      .join("; ") || null,
     null,
-    null
+    null,
+    { usuarioId: avaliadorId, campanhaId: texto(antes.campanha_id) }
   )
   const situacaoNova = aprovar ? "aprovada" : "reprovada"
   const motivoNovo = aprovar ? null : (motivo?.trim() ?? null)

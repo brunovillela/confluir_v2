@@ -13,7 +13,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica, VinculoAtivo } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
-import { exigeDocumento } from "@/lib/oposicao-constantes"
+import { DECLARACAO_PADRAO, exigeDocumento } from "@/lib/oposicao-constantes"
 import { cn } from "@/lib/utils"
 
 import { confirmarOposicao, desistir, sairDaOposicao } from "../actions"
@@ -412,7 +412,7 @@ export function OposicaoFlow({
             <span>
               {campanha.texto_declaracao
                 ? "Li a declaração acima e confirmo a minha oposição."
-                : "Confirmo a minha oposição à contribuição."}
+                : DECLARACAO_PADRAO}
             </span>
           </label>
         </div>
