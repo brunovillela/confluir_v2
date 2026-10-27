@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import { Loader2, Save } from "lucide-react"
 
 import { CartaoEditavel } from "@/components/cartao-editavel"
@@ -83,7 +83,16 @@ export function DadosBancariosFuncionario({
           )
         }
       >
-        <form action={formAction} className="grid gap-3">
+        {/* Envio por startTransition: com `action={formAction}` o React 19
+            reinicia o formulário depois de um erro e o que foi digitado some. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            const dados = new FormData(e.currentTarget)
+            startTransition(() => formAction(dados))
+          }}
+          className="grid gap-3"
+        >
           <input type="hidden" name="usuario_id" value={usuarioId} />
           {estado.erro && (
             <Alert variant="destructive">
