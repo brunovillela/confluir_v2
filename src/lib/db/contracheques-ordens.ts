@@ -1,5 +1,6 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
+import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { camposAutorizacaoInicial, MOTIVO_DISPENSA_FOLHA, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
@@ -195,10 +196,12 @@ export async function salvarDadosBancariosFuncionario(
     prefere_pix: dados.preferePix,
     favorito: true,
   }
-  const { error } = atual
-    ? await admin.from("dados_bancarios").update(linha).eq("id", atual.id).eq("usuario_id", usuarioId)
-    : await admin.from("dados_bancarios").insert({ ...linha, usuario_id: usuarioId })
+  const { data, error } = atual
+    ? await admin.from("dados_bancarios").update(linha).eq("id", atual.id).eq("usuario_id", usuarioId).select("id").maybeSingle()
+    : await admin.from("dados_bancarios").insert({ ...linha, usuario_id: usuarioId }).select("id").single()
   if (error) return { erro: `Falha ao salvar os dados bancários: ${error.message}` }
+  // Ordens antigas da pessoa que esperavam a conta (sem forma) recebem esta.
+  if (data?.id) await ligarOrdensSemForma(String(data.id)).catch((e) => console.error("ligarOrdensSemForma:", e))
   return {}
 }
 

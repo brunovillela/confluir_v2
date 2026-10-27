@@ -2,6 +2,7 @@ import "server-only"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
+import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import {
   listarContatosEmergencia,
@@ -391,11 +392,13 @@ export async function salvarFichaDiretor(
     const bancoMudou = (Object.keys(bancoNovo) as (keyof typeof bancoNovo)[]).some((k) => bancoNovo[k] !== bancoAtual[k])
     const bancoVazio = Object.values(bancoNovo).every((v) => !v)
     if (bancoMudou && !(bancoVazio && !banco)) {
-      const { error } = banco
-        ? await admin.from("dados_bancarios").update(bancoNovo).eq("id", String(banco.id)).eq("filiado_id", filiacaoId)
-        : await admin.from("dados_bancarios").insert({ ...bancoNovo, filiado_id: filiacaoId, favorito: true })
+      const { data: salvo, error } = banco
+        ? await admin.from("dados_bancarios").update(bancoNovo).eq("id", String(banco.id)).eq("filiado_id", filiacaoId).select("id").maybeSingle()
+        : await admin.from("dados_bancarios").insert({ ...bancoNovo, filiado_id: filiacaoId, favorito: true }).select("id").single()
       if (error) return { erro: `Falha ao atualizar os dados bancários: ${error.message}` }
       mudancas.push("dados bancários")
+      // Ordens antigas do diretor que esperavam a conta (sem forma) recebem esta.
+      if (salvo?.id) await ligarOrdensSemForma(String(salvo.id)).catch((e) => console.error("ligarOrdensSemForma:", e))
     }
 
     // 3. Contato de emergência → o primeiro contato da filiação (ou um novo).

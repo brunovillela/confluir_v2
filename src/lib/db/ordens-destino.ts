@@ -262,6 +262,106 @@ export async function completarFormaPadrao(linhas: LinhaDestino[]): Promise<stri
   return null
 }
 
+/** Situações em que a ordem ainda não foi paga nem entrou em remessa. */
+const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informações", "Aguardando documento fiscal"]
+
+/**
+ * A CONTA CHEGOU (27/10/2026): ao salvar a chave Pix ou a conta de alguém,
+ * as ordens abertas dele que ainda estão SEM FORMA (as anteriores à forma
+ * obrigatória) recebem a forma — Pix quando ele prefere Pix ou só tem chave,
+ * senão TED — e ficam ligadas ao dado bancário, com "corrigida" na trilha
+ * (a auditoria reavalia). O dono da ordem é o fornecedor, o usuário
+ * beneficiário ou o filiado do pedido de reembolso; pessoa é cruzada pelo CPF
+ * (usuário ↔ filiação). Devolve quantas ordens foram ligadas; falha aqui não
+ * desfaz o cadastro da conta (quem chama ignora o erro).
+ */
+export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: d } = await admin.from("dados_bancarios").select(COLUNAS).eq("id", dadoId).maybeSingle()
+  if (!d) return 0
+  const dado = comoCadastro(d)
+  const temPix = serve(dado, "pix")
+  const temConta = serve(dado, "ted")
+  const forma = temPix && (dado.prefere_pix || !temConta) ? "Pix" : temConta ? "Depósito bancário (TED)" : null
+  if (!forma) return 0
+
+  const fornecedor = t(d.fornecedor_id)
+  const usuarios = new Set<string>()
+  const filiacoes = new Set<string>()
+  if (t(d.usuario_id)) usuarios.add(String(d.usuario_id))
+  if (t(d.filiado_id)) filiacoes.add(String(d.filiado_id))
+  // A mesma pessoa do outro lado (usuário ↔ filiação), pelo CPF.
+  if (!fornecedor) {
+    const [{ data: us }, { data: fs }] = await Promise.all([
+      usuarios.size ? admin.from("usuarios").select("cpf").in("id", [...usuarios]) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      filiacoes.size ? admin.from("filiacoes").select("cpf").in("id", [...filiacoes]) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    ])
+    const cpf = [...((us ?? []) as Record<string, unknown>[]), ...((fs ?? []) as Record<string, unknown>[])]
+      .map((p) => cpfConfiavel(t(p.cpf)))
+      .find(Boolean)
+    if (cpf) {
+      const grafias = grafiasDoCpf(cpf)
+      const [{ data: outrosU }, { data: outrasF }] = await Promise.all([
+        admin.from("usuarios").select("id").eq("emp_proprietaria_id", emp).in("cpf", grafias),
+        admin.from("filiacoes").select("id").eq("emp_proprietaria_id", emp).in("cpf", grafias),
+      ])
+      for (const u of (outrosU ?? []) as Record<string, unknown>[]) usuarios.add(String(u.id))
+      for (const f of (outrasF ?? []) as Record<string, unknown>[]) filiacoes.add(String(f.id))
+    }
+  }
+
+  const abertasSemForma = () =>
+    admin
+      .from("ordens_pagamento")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .is("forma_pagamento", null)
+      .is("dados_bancarios_id", null)
+      .in("situacao", SITUACOES_ABERTAS)
+  const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
+  const [porFornecedor, porUsuario, reembolsos] = await Promise.all([
+    fornecedor ? abertasSemForma().or(`fornecedor_id.eq.${fornecedor},beneficiario_fornecedor_id.eq.${fornecedor}`) : vazio,
+    usuarios.size
+      ? abertasSemForma().is("fornecedor_id", null).is("beneficiario_fornecedor_id", null).in("beneficiario_usuario_id", [...usuarios])
+      : vazio,
+    filiacoes.size
+      ? admin.from("filiacao_reembolsos").select("ordem_pagamento_id").in("filiado_id", [...filiacoes]).not("ordem_pagamento_id", "is", null)
+      : vazio,
+  ])
+  const ids = new Set<string>()
+  for (const o of [...((porFornecedor.data ?? []) as Record<string, unknown>[]), ...((porUsuario.data ?? []) as Record<string, unknown>[])]) {
+    ids.add(String(o.id))
+  }
+  const doReembolso = ((reembolsos.data ?? []) as Record<string, unknown>[]).map((r) => String(r.ordem_pagamento_id))
+  if (doReembolso.length) {
+    const { data } = await abertasSemForma().in("id", doReembolso)
+    for (const o of (data ?? []) as Record<string, unknown>[]) ids.add(String(o.id))
+  }
+  if (ids.size === 0) return 0
+
+  const { data: ligadas, error } = await admin
+    .from("ordens_pagamento")
+    .update({ forma_pagamento: forma, dados_bancarios_id: dadoId })
+    .in("id", [...ids])
+    .is("forma_pagamento", null)
+    .is("dados_bancarios_id", null)
+    .select("id")
+  if (error) {
+    console.error("ligarOrdensSemForma:", error.message)
+    return 0
+  }
+  const feitas = ((ligadas ?? []) as Record<string, unknown>[]).map((o) => String(o.id))
+  if (feitas.length) {
+    const { registrarEvento, usuarioDaTrilha } = await import("@/lib/db/ordens-ciclo")
+    await registrarEvento(feitas, "corrigida", await usuarioDaTrilha(), `Dados bancários do favorecido cadastrados: forma ${forma} e ${forma === "Pix" ? "chave Pix" : "conta"} ligadas à ordem.`, {
+      forma_pagamento: forma,
+      dados_bancarios_id: dadoId,
+    })
+  }
+  return feitas.length
+}
+
 /** O dado da ficha antiga do diretor vira dado bancário do usuário (o RLS exige dono). */
 async function cadastrarDaFicha(usuarioId: string, d: DadoCadastro, pix: boolean): Promise<string | null> {
   const admin = await createAdminClient()

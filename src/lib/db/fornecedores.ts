@@ -11,6 +11,7 @@ function documentoValido(d: string): boolean {
 
 import { createAdminClient } from "@/lib/supabase/admin"
 import { esquemaAusente } from "@/lib/db/comum"
+import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 
 /**
  * Fornecedores — cadastro completo sobre linhas de `empresa`, com:
@@ -841,19 +842,25 @@ export async function salvarConta(
   if (titular.erro) return { erro: titular.erro }
   dados = { ...dados, titular_documento: titular.documento }
   const admin = await createAdminClient()
-  const { error } = contaId
+  const { data, error } = contaId
     ? await admin
         .from("dados_bancarios")
         .update({ ...dados })
         .eq("id", contaId)
         .eq("fornecedor_id", fornecedorId)
+        .select("id")
+        .maybeSingle()
     : await admin
         .from("dados_bancarios")
         .insert({ ...dados, fornecedor_id: fornecedorId })
+        .select("id")
+        .single()
   if (error) {
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível salvar a conta: ${error.message}` }
   }
+  // Ordens antigas do fornecedor que esperavam a conta (sem forma) recebem esta.
+  if (data?.id) await ligarOrdensSemForma(String(data.id)).catch((e) => console.error("ligarOrdensSemForma:", e))
   return {}
 }
 

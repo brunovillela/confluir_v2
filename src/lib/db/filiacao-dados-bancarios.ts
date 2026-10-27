@@ -3,6 +3,7 @@ import "server-only"
 import { limparCpf } from "@/lib/cpf"
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { texto } from "@/lib/db/comum"
+import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -138,6 +139,8 @@ export async function salvarDadoBancarioFiliado({
       .eq("favorito", true)
     if (e) console.error("Falha ao desmarcar o principal anterior:", e.message)
   }
+  // Ordens antigas do filiado (ex.: reembolso) que esperavam a conta recebem esta.
+  await ligarOrdensSemForma(String(salvo.id)).catch((e) => console.error("ligarOrdensSemForma:", e))
   return {}
 }
 
