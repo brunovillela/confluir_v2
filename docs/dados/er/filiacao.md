@@ -202,6 +202,12 @@ erDiagram
     uuid empresa_id FK
     uuid emp_proprietaria_id FK
   }
+  oposicao_envios_empregador {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid campanha_id FK
+    uuid empresa_id FK
+  }
   oposicao_eventos {
     uuid id PK
     uuid opositor_id FK
@@ -351,6 +357,8 @@ erDiagram
   oposicao_campanha }o--o| empresa : "empresa_id"
   oposicao_campanha_fontes }o--o| empresa : "empresa_id"
   oposicao_campanha_fontes }o--o| oposicao_campanha : "campanha_id"
+  oposicao_envios_empregador }o--o| empresa : "empresa_id"
+  oposicao_envios_empregador }o--|| oposicao_campanha : "campanha_id"
   oposicao_eventos }o--o| oposicao_campanha : "campanha_id"
   oposicao_eventos }o--o| oposicao_opositor : "opositor_id"
   oposicao_eventos }o--o| usuarios : "usuario_id"

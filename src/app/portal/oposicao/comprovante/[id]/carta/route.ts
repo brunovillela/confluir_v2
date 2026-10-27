@@ -6,7 +6,7 @@ import { obterComprovante } from "@/lib/db/oposicao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { CartaOposicaoPDF } from "@/lib/pdf/carta-oposicao"
 
-import { logoDataUri } from "../logo-pdf"
+import { logoDataUri } from "@/lib/pdf/logo-pdf"
 
 export const runtime = "nodejs"
 

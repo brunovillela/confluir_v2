@@ -88,7 +88,7 @@ Virada da meia-noite no último dia (quem clica 23:59:59 pode receber "fora do p
 10. Alternativa para filiado sem acesso ao e-mail (escolher entre os e-mails do cadastro; atendimento).
 11. Conferir o limite de verificação de código em produção e elevar se preciso.
 
-**Onda 2 — trabalho da entidade em escala**
+**Onda 2 — trabalho da entidade em escala** — FEITA em 27/10/2026 (migração 20261027221836_oposicao_lote_envios; módulo `lib/db/oposicao-gestao.ts`). Avaliação em lote (marcadas ou todas as não avaliadas do filtro; aprovar passa pelo checklist e devolve as puladas com o motivo; decisão gravada com guarda de situação e autor; aviso na fila `aviso_avaliacao_pendente_em`, esvaziada por /api/oposicao/tick a cada 15 min, até 300 por volta); "ir para a próxima"; PDF assinado e selo da assinatura no painel, com conferência obrigatória para aprovar assinatura inválida/ausente/não verificada/CPF divergente ("ressalva" não barra até a onda 3); encerrar em lote, depois do prazo, as que não mandaram a carta (viram reprovadas com o motivo); exportação XLSX com os filtros; relação por empregador em PDF/XLSX com registro de envio imutável (`oposicao_envios_empregador`, snapshot dos ids; mostra novas e saídas desde o último envio); dossiê em PDF; lista com ordem estável, busca por CPF nas duas grafias/protocolo/e-mail, vírgula sem quebrar, filtro por fonte e total sem desistentes.
 12. Avaliação em lote (selecionadas / todas as filtradas) com guarda de situação, evento por oposição e e-mails com vazão controlada; "salvar e ir para a próxima".
 13. Ver o PDF assinado e a validação no painel; bloquear/confirmar aprovação com CPF divergente.
 14. Encerrar em lote as `aguardando_documento` depois do prazo ("carta não enviada").

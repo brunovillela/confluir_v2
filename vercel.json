@@ -50,6 +50,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/oposicao/tick",
+      "schedule": "10,25,40,55 * * * *"
+    },
+    {
       "path": "/api/schema/deriva/tick",
       "schedule": "0 10 * * 1"
     },

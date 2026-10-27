@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-48 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+49 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -39,6 +39,7 @@
 | [fonte_categorias](#fonte_categorias) | — | Categorias de fonte pagadora criadas pela entidade além de Empregador e Fundo de pensão; usadas na configuração da saúde dos cadastros. |
 | [oposicao_campanha](#oposicao_campanha) | — | Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos obrigatórios, modo de formalização e texto da declaração. Migrado … |
 | [oposicao_campanha_fontes](#oposicao_campanha_fontes) | — | Empresas (fontes pagadoras) abrangidas por cada campanha de oposição. |
+| [oposicao_envios_empregador](#oposicao_envios_empregador) | identificação | Cada envio, a um empregador, da relação de oposições aprovadas de uma campanha: quem enviou, quando, por qual meio e quais oposições foram (… |
 | [oposicao_eventos](#oposicao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada carta de oposição (enviada, confirmada, avaliada, desistência...), com IP e navegador. |
 | [oposicao_opositor](#oposicao_opositor) | **sensível: sindical**, identificação, trabalhista | Cada trabalhador que se opôs à contribuição assistencial numa campanha: dados pessoais, vínculo, carta/documento assinado, avaliação e desis… |
 | [oposicao_perguntas](#oposicao_perguntas) | — | Perguntas do questionário de cada campanha de oposição. Migrado do Bubble. |
@@ -1047,6 +1048,33 @@ Empresas (fontes pagadoras) abrangidas por cada campanha de oposição.
 
 Índices: `idx_oposicao_campanha_fontes_campanha`, `oposicao_campanha_fontes_campanha_id_empresa_id_key`, `oposicao_campanha_fontes_pkey`
 
+## oposicao_envios_empregador
+
+Cada envio, a um empregador, da relação de oposições aprovadas de uma campanha: quem enviou, quando, por qual meio e quais oposições foram (snapshot). Só insere (27/10/2026).
+
+- **LGPD:** identificação · titulares: opositores, usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `oposicao_envios_imutavel` → `oposicao_envios_imutavel`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `campanha_id` | uuid | não |  | → oposicao_campanha (restrict) |  |  |
+| `empresa_id` | uuid | sim |  | → empresa (restrict) |  | Fonte pagadora que recebeu a relação; null = oposições sem fonte informada. |
+| `enviado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `usuario_id` | uuid | sim |  |  | identificação | Quem registrou o envio. |
+| `usuario_nome` | text | sim |  |  | identificação | Nome de quem registrou, no momento do envio. |
+| `meio` | text | não |  |  |  | email, oficio, em_maos, sistema_rh ou outro. |
+| `referencia` | text | sim |  |  |  | Número do ofício, protocolo do RH ou assunto do e-mail. |
+| `observacao` | text | sim |  |  |  |  |
+| `opositor_ids` | uuid[] | não | `'{}'::uuid[]` |  | identificação | Oposições que constavam da relação enviada (ids de oposicao_opositor). |
+| `quantidade` | integer | não |  |  |  | Quantas oposições a relação levava. |
+
+Checks: `oposicao_envios_empregador_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'oficio'::text, 'em_maos'::text, 'sistema_rh'::text, 'outro'::text])))`; `oposicao_envios_empregador_quantidade_check` `CHECK ((quantidade >= 0))`
+
+Índices: `oposicao_envios_empregador_campanha_idx`, `oposicao_envios_empregador_pkey`
+
 ## oposicao_eventos
 
 Trilha de eventos de cada carta de oposição (enviada, confirmada, avaliada, desistência...), com IP e navegador.
@@ -1118,12 +1146,13 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 | `modo_formalizacao_ato` | text | sim |  |  |  | Modo de formalização da campanha no momento da confirmação (tela, assinatura, híbrido). |
 | `prazo_fim_ato` | date | sim |  |  |  | Fim do prazo da campanha no momento da confirmação. |
 | `documento_enviado_em` | timestamp with time zone | sim |  |  | **sensível: sindical** | Quando chegou a primeira carta assinada (compara com o prazo na avaliação). |
+| `aviso_avaliacao_pendente_em` | timestamp with time zone | sim |  |  | nenhum | Decisão tomada em lote cujo aviso ao trabalhador ainda não saiu; a rota /api/oposicao/tick envia aos poucos e volta a null. |
 
 Únicas: `UNIQUE (bubble_id)`
 
 Checks: `oposicao_opositor_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_documento'::text, 'nao_avaliada'::text, 'aprovada'::text, 'reprovada'::text, 'desistente'::text])))`
 
-Índices: `idx_oposicao_opositor_campanha`, `idx_oposicao_opositor_cpf`, `idx_oposicao_opositor_emp`, `oposicao_opositor_bubble_id_key`, `oposicao_opositor_campanha_cpf_key`, `oposicao_opositor_campanha_protocolo_key`, `oposicao_opositor_campanha_situacao_idx`, `oposicao_opositor_pkey`
+Índices: `idx_oposicao_opositor_campanha`, `idx_oposicao_opositor_cpf`, `idx_oposicao_opositor_emp`, `oposicao_opositor_aviso_pendente_idx`, `oposicao_opositor_bubble_id_key`, `oposicao_opositor_campanha_cpf_key`, `oposicao_opositor_campanha_protocolo_key`, `oposicao_opositor_campanha_situacao_idx`, `oposicao_opositor_pkey`
 
 ## oposicao_perguntas
 

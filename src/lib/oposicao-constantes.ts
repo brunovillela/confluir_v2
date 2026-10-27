@@ -88,3 +88,13 @@ export function estadoPrazo(
  * junto com o hash, como o texto de qualquer campanha (onda 0, 27/10/2026).
  */
 export const DECLARACAO_PADRAO = "Confirmo a minha oposição à contribuição."
+
+/** Meio do envio da relação de oposições ao empregador (onda 2). */
+export const MEIOS_ENVIO = [
+  { chave: "email", rotulo: "E-mail" },
+  { chave: "oficio", rotulo: "Ofício" },
+  { chave: "em_maos", rotulo: "Entregue em mãos" },
+  { chave: "sistema_rh", rotulo: "Sistema do RH" },
+  { chave: "outro", rotulo: "Outro" },
+] as const
+export type MeioEnvio = (typeof MEIOS_ENVIO)[number]["chave"]

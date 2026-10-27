@@ -51,6 +51,7 @@ export type CampanhaLinha = {
   prazo_inicio: string | null
   prazo_fim: string | null
   situacao: SituacaoCampanha
+  /** Oposições, sem os desistentes. */
   totalOpositores: number
 }
 
@@ -66,7 +67,8 @@ async function contarPorCampanha(
     .select("id", { count: "exact", head: true })
     .eq("emp_proprietaria_id", empId)
     .eq("campanha_id", campanhaId)
-  if (situacao) q = q.eq("situacao", situacao)
+  // Sem situação = o total de OPOSIÇÕES: quem desistiu não se opôs (M11).
+  q = situacao ? q.eq("situacao", situacao) : q.neq("situacao", "desistente")
   const { count } = await q
   return count ?? 0
 }
@@ -112,6 +114,7 @@ export type CampanhaDetalhe = {
   fontes: string[]
   perguntas: { id: string; pergunta: string | null }[]
   contagem: Record<SituacaoOpositor, number>
+  /** Oposições, sem os desistentes (M11). */
   total: number
 }
 
@@ -193,7 +196,7 @@ export async function obterCampanha(
       pergunta: texto(p.pergunta),
     })),
     contagem,
-    total: SITUACOES.reduce((s, k) => s + contagem[k], 0),
+    total: SITUACOES.filter((k) => k !== "desistente").reduce((s, k) => s + contagem[k], 0),
   }
 }
 
@@ -208,6 +211,8 @@ export type OpositorLinha = {
   situacao: SituacaoOpositor
   ehFiliado: boolean
   created_at: string | null
+  protocolo: number | null
+  confirmado_em: string | null
 }
 
 export type ListaOpositores = {
@@ -219,9 +224,48 @@ export type ListaOpositores = {
 
 export type FiltrosOpositores = {
   campanhaId: string
+  /** "todas" = todas as oposições, sem os desistentes (M11). */
   situacao?: SituacaoOpositor | "todas"
   busca?: string
+  /** Fonte pagadora; "sem" = sem fonte informada. */
+  fonteId?: string
   pagina?: number
+}
+
+/**
+ * Valor de filtro do PostgREST entre aspas: vírgula e parênteses deixam de
+ * quebrar o `or` (a busca "Silva, João" derrubava a página — M10).
+ */
+function valorFiltro(v: string): string {
+  return `"${v.replace(/["\\]/g, "\\$&")}"`
+}
+
+/**
+ * Os filtros da lista, aplicados a qualquer consulta de `oposicao_opositor`
+ * (lista, exportação, avaliação de "todas as filtradas"). CPF buscado pelos
+ * dígitos (`cpf_digitos`), com ou sem máscara, e o protocolo pelo número.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- builder do PostgREST, tipado por quem chama
+export function aplicarFiltrosOpositores<Q extends { eq: any; neq: any; or: any; is: any }>(q: Q, f: Omit<FiltrosOpositores, "pagina">): Q {
+  let r = q.eq("campanha_id", f.campanhaId)
+  r = f.situacao && f.situacao !== "todas" ? r.eq("situacao", f.situacao) : r.neq("situacao", "desistente")
+  if (f.fonteId === "sem") r = r.is("empregador_id", null)
+  else if (f.fonteId) r = r.eq("empregador_id", f.fonteId)
+  const termo = (f.busca ?? "").trim()
+  if (termo) {
+    const digitos = termo.replace(/[.\-/\s]/g, "")
+    if (/^\d{3,}$/.test(digitos)) {
+      const partes = [`cpf_digitos.ilike.${valorFiltro(`%${digitos}%`)}`, `matricula.ilike.${valorFiltro(`%${escaparLike(termo)}%`)}`]
+      if (digitos.length <= 9) partes.push(`protocolo.eq.${Number(digitos)}`)
+      r = r.or(partes.join(","))
+    } else {
+      const e = escaparLike(termo)
+      r = r.or(
+        [`nome_completo.ilike.${valorFiltro(`%${e}%`)}`, `matricula.ilike.${valorFiltro(`%${e}%`)}`, `email.ilike.${valorFiltro(`%${e}%`)}`].join(",")
+      )
+    }
+  }
+  return r
 }
 
 export async function listarOpositores(
@@ -231,29 +275,23 @@ export async function listarOpositores(
   const admin = await createAdminClient()
   const pagina = filtros.pagina && filtros.pagina > 0 ? filtros.pagina : 1
 
-  let q = admin
-    .from("oposicao_opositor")
-    .select(
-      "id, nome_completo, cpf, matricula, empregador_id, situacao, filiacao_id, created_at",
-      { count: "exact" }
-    )
-    .eq("emp_proprietaria_id", empId)
-    .eq("campanha_id", filtros.campanhaId)
-
-  if (filtros.situacao && filtros.situacao !== "todas") {
-    q = q.eq("situacao", filtros.situacao)
-  }
-  const termo = (filtros.busca ?? "").trim()
-  if (termo) {
-    const e = escaparLike(termo)
-    q = q.or(
-      `nome_completo.ilike.%${e}%,cpf.ilike.%${e}%,matricula.ilike.%${e}%`
-    )
-  }
+  const q = aplicarFiltrosOpositores(
+    admin
+      .from("oposicao_opositor")
+      .select(
+        "id, nome_completo, cpf, matricula, empregador_id, situacao, filiacao_id, created_at, protocolo, confirmado_em",
+        { count: "exact" }
+      )
+      .eq("emp_proprietaria_id", empId),
+    filtros
+  )
 
   const de = (pagina - 1) * OPOSITORES_POR_PAGINA
+  // Ordem estável (M10): no legado, `created_at` se repete (data da migração)
+  // e as linhas pulavam de uma página para outra; o id desempata.
   const { data, count, error } = await q
     .order("created_at", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false })
     .range(de, de + OPOSITORES_POR_PAGINA - 1)
   if (error) throw new Error(`Falha ao listar opositores: ${error.message}`)
 
@@ -286,6 +324,8 @@ export async function listarOpositores(
       situacao: (o.situacao ?? "nao_avaliada") as SituacaoOpositor,
       ehFiliado: Boolean(o.filiacao_id),
       created_at: texto(o.created_at),
+      protocolo: o.protocolo == null ? null : Number(o.protocolo),
+      confirmado_em: texto(o.confirmado_em),
     })),
     total,
     pagina,
@@ -798,7 +838,7 @@ export async function obterCampanhaPublica(
 }
 
 /** Dia de calendário (AAAA-MM-DD) de um instante, no fuso de São Paulo. */
-function diaSP(iso: string | null): string | null {
+export function diaSP(iso: string | null): string | null {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
@@ -1449,6 +1489,18 @@ export type OpositorDetalhe = {
   avaliadorNome: string | null
   reprovacao_motivo: string | null
   documentoAssinadoUrl: string | null
+  /** Link temporário (1 h) para abrir o PDF assinado no painel (item 13). */
+  documentoLink: string | null
+  documentoEnviadoEm: string | null
+  validacao: ValidacaoAssinatura | null
+  /** O que impede aprovar sem conferir o PDF (null = nada). */
+  problemaAssinatura: string | null
+  userAgent: string | null
+  /** O ato como foi aceito (onda 0): texto, hash, modo e prazo vigentes. */
+  declaracaoAceita: string | null
+  declaracaoHash: string | null
+  modoAto: string | null
+  prazoFimAto: string | null
   respostas: { pergunta: string | null; resposta: string | null }[]
   eventos: {
     evento: string | null
@@ -1594,6 +1646,19 @@ export async function obterOpositorDetalhe(
 
   const e = empRes.data as Record<string, unknown> | null
   const av = avalRes.data as Record<string, unknown> | null
+  const caminhoDocumento = texto(o.documento_assinado_url)
+  let documentoLink: string | null = null
+  if (caminhoDocumento) {
+    // Legado do Bubble guardou a URL pública; o novo, o caminho no bucket.
+    if (/^https?:\/\//.test(caminhoDocumento) || caminhoDocumento.startsWith("//")) {
+      documentoLink = caminhoDocumento.startsWith("//") ? `https:${caminhoDocumento}` : caminhoDocumento
+    } else {
+      const { data: assinado } = await admin.storage.from("oposicao").createSignedUrl(caminhoDocumento, 3600)
+      documentoLink = assinado?.signedUrl ?? null
+    }
+  }
+  const validacaoBruta = o.assinatura_validacao as ValidacaoAssinatura | null
+  const validacao = validacaoBruta && typeof validacaoBruta === "object" && "situacao" in validacaoBruta ? validacaoBruta : null
   return {
     id: String(o.id),
     campanhaId: texto(o.campanha_id),
@@ -1615,7 +1680,16 @@ export async function obterOpositorDetalhe(
       ? (texto(av.nome_completo) ?? texto(av.nome_guerra))
       : null,
     reprovacao_motivo: texto(o.reprovacao_motivo),
-    documentoAssinadoUrl: texto(o.documento_assinado_url),
+    documentoAssinadoUrl: caminhoDocumento,
+    documentoLink,
+    documentoEnviadoEm: texto(o.documento_enviado_em),
+    validacao,
+    problemaAssinatura: caminhoDocumento ? problemaDaAssinatura(validacao) : null,
+    userAgent: texto(o.user_agent),
+    declaracaoAceita: texto(o.declaracao_aceita),
+    declaracaoHash: texto(o.declaracao_hash),
+    modoAto: texto(o.modo_formalizacao_ato),
+    prazoFimAto: texto(o.prazo_fim_ato),
     respostas: (respRes.data ?? []).map((r) => ({
       pergunta: texto(r.pergunta_id)
         ? (textoPergunta.get(String(r.pergunta_id)) ?? null)
@@ -1633,13 +1707,35 @@ export async function obterOpositorDetalhe(
   }
 }
 
+/**
+ * O que impede aprovar sem olhar o PDF (item 13 da onda 2): assinatura
+ * inválida, ausente, não verificada ou com CPF de outra pessoa. "Ressalva"
+ * (íntegra, mas a raiz não confere com a lista ICP) não barra — enquanto a
+ * lista de raízes não for testada com PDF real do gov.br (A8), toda carta
+ * correta sai com ressalva. Null = sem impedimento.
+ */
+export function problemaDaAssinatura(validacao: ValidacaoAssinatura | null | undefined): string | null {
+  if (!validacao || typeof validacao !== "object" || !("situacao" in validacao)) {
+    return "A assinatura do PDF não foi verificada."
+  }
+  if (validacao.situacao === "invalida") return "A assinatura do PDF é inválida."
+  if (validacao.situacao === "sem_assinatura") return "O PDF não tem assinatura digital."
+  if (validacao.situacao === "erro") return "Não foi possível verificar a assinatura do PDF."
+  if (validacao.cpfConfere === false) return "O CPF do certificado não confere com o da oposição."
+  return null
+}
+
 /** Aprova (procedente) ou reprova (improcedente + motivo) a oposição. */
 export async function avaliarOpositor(
   id: string,
   aprovar: boolean,
   motivo: string | null,
-  avaliadorId: string
-): Promise<{ erro?: string }> {
+  avaliadorId: string,
+  opcoes: {
+    /** O avaliador conferiu o PDF e aprova apesar do problema da assinatura. */
+    confirmarAssinatura?: boolean
+  } = {}
+): Promise<{ erro?: string; exigeConfirmacao?: boolean }> {
   if (!aprovar && !motivo?.trim()) {
     return { erro: "Informe o motivo da reprovação." }
   }
@@ -1649,13 +1745,24 @@ export async function avaliarOpositor(
   // re-decidir, e o mesmo "Reprovar" salvo duas vezes não é um fato novo.
   const { data: antes } = await admin
     .from("oposicao_opositor")
-    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id")
+    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, assinatura_validacao")
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   const situacaoAntes = texto(antes?.situacao)
   if (!antes || !situacaoAntes || !["nao_avaliada", "aprovada", "reprovada"].includes(situacaoAntes)) {
     return { erro: "Oposição não pode ser avaliada nesta situação." }
+  }
+  // Aprovar com a assinatura problemática só com a conferência declarada.
+  const problemaAssinatura =
+    aprovar && texto(antes.documento_assinado_url)
+      ? problemaDaAssinatura(antes.assinatura_validacao as ValidacaoAssinatura | null)
+      : null
+  if (problemaAssinatura && !opcoes.confirmarAssinatura) {
+    return {
+      erro: `${problemaAssinatura} Abra o PDF, confira e marque “Conferi o documento” para aprovar assim mesmo.`,
+      exigeConfirmacao: true,
+    }
   }
   const { data, error } = await admin
     .from("oposicao_opositor")
@@ -1665,6 +1772,8 @@ export async function avaliarOpositor(
       avaliacao_data: hojeSP(),
       avaliacao_avaliador_id: avaliadorId,
       reprovacao_motivo: aprovar ? null : motivo?.trim(),
+      // A decisão individual avisa na hora: sai da fila do lote, se estava nela.
+      aviso_avaliacao_pendente_em: null,
     })
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
@@ -1682,6 +1791,7 @@ export async function avaliarOpositor(
     aprovar ? "aprovada" : "reprovada",
     [
       redecisao ? `re-decisão: ${situacaoAntes} → ${aprovar ? "aprovada" : "reprovada"}` : null,
+      problemaAssinatura ? `aprovada após conferência manual do PDF (${problemaAssinatura})` : null,
       aprovar ? null : (motivo?.trim() ?? null),
     ]
       .filter(Boolean)
@@ -1869,10 +1979,58 @@ export function avisarOposicaoRegistrada(o: {
   })
 }
 
+type DadosAvisoAvaliacao = {
+  opositorId: string
+  aprovada: boolean
+  motivo: string | null
+  protocolo: number | null
+  campanhaNome: string
+  pessoa: PessoaDoAviso
+}
+
+/** Monta e entrega o aviso da decisão. `origem` = https://<entidade>.confluir.online. */
+async function entregarAvisoAvaliacao(
+  o: DadosAvisoAvaliacao,
+  origem: string,
+  amb: AmbienteAviso = {}
+): Promise<ResultadoAviso> {
+  const protocolo = o.protocolo == null ? "—" : String(o.protocolo)
+  const link = `/portal/oposicao/comprovante/${o.opositorId}`
+  const resumo = `Sua oposição à contribuição assistencial (protocolo ${protocolo}, campanha ${o.campanhaNome})`
+
+  const html =
+    tituloEmail(o.aprovada ? "Sua oposição foi aceita" : "Sua oposição não foi aceita") +
+    paragrafo(
+      `${saudacaoEmail(o.pessoa.nome)} ${escaparHtml(resumo)} ${
+        o.aprovada ? "foi <strong>aceita</strong> pela entidade." : "<strong>não foi aceita</strong> pela entidade."
+      }`
+    ) +
+    (o.aprovada
+      ? ""
+      : caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(o.motivo ?? "não informado")}`) +
+        paragrafo("Se discordar da decisão, procure a entidade o quanto antes, informando o número do protocolo.")) +
+    (origem ? botaoEmail(`${origem}${link}`, "Ver o comprovante") : "")
+
+  return entregarAvisoOposicao(
+    {
+      pessoa: o.pessoa,
+      assunto: o.aprovada
+        ? `Sua oposição foi aceita — protocolo ${protocolo}`
+        : `Sua oposição não foi aceita — protocolo ${protocolo}`,
+      texto: o.aprovada ? `${resumo} foi aceita.` : `${resumo} não foi aceita. Motivo: ${o.motivo ?? "não informado"}`,
+      link,
+      html,
+      umaVez: false,
+    },
+    amb
+  )
+}
+
 /**
  * Resultado da avaliação (A16/A58): aceita ou não aceita, com o motivo e o
  * caminho para discordar. Chamada por `avaliarOpositor` só quando a decisão
- * muda — salvar a mesma decisão de novo não repete o aviso.
+ * muda — salvar a mesma decisão de novo não repete o aviso. A decisão em
+ * lote não passa por aqui: vai para a fila (`avisosAvaliacaoPendentes`).
  */
 function avisarOposicaoAvaliada(o: {
   opositorId: string
@@ -1883,7 +2041,7 @@ function avisarOposicaoAvaliada(o: {
   pessoa: PessoaDoAviso
 }): void {
   depoisDaResposta(async () => {
-    let campanha = "—"
+    let campanhaNome = "—"
     if (o.campanhaId) {
       const admin = await createAdminClient()
       const { data } = await admin
@@ -1892,38 +2050,123 @@ function avisarOposicaoAvaliada(o: {
         .eq("id", o.campanhaId)
         .eq("emp_proprietaria_id", await tenantAtual())
         .maybeSingle()
-      campanha = texto(data?.nome) ?? campanha
+      campanhaNome = texto(data?.nome) ?? campanhaNome
     }
-    const protocolo = o.protocolo == null ? "—" : String(o.protocolo)
-    const link = `/portal/oposicao/comprovante/${o.opositorId}`
     const origem = await origemAtual().catch(() => "")
-    const resumo = `Sua oposição à contribuição assistencial (protocolo ${protocolo}, campanha ${campanha})`
-
-    const html =
-      tituloEmail(o.aprovada ? "Sua oposição foi aceita" : "Sua oposição não foi aceita") +
-      paragrafo(
-        `${saudacaoEmail(o.pessoa.nome)} ${escaparHtml(resumo)} ${
-          o.aprovada ? "foi <strong>aceita</strong> pela entidade." : "<strong>não foi aceita</strong> pela entidade."
-        }`
-      ) +
-      (o.aprovada
-        ? ""
-        : caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(o.motivo ?? "não informado")}`) +
-          paragrafo("Se discordar da decisão, procure a entidade o quanto antes, informando o número do protocolo.")) +
-      (origem ? botaoEmail(`${origem}${link}`, "Ver o comprovante") : "")
-
-    const r = await entregarAvisoOposicao({
-      pessoa: o.pessoa,
-      assunto: o.aprovada
-        ? `Sua oposição foi aceita — protocolo ${protocolo}`
-        : `Sua oposição não foi aceita — protocolo ${protocolo}`,
-      texto: o.aprovada ? `${resumo} foi aceita.` : `${resumo} não foi aceita. Motivo: ${o.motivo ?? "não informado"}`,
-      link,
-      html,
-      umaVez: false,
-    })
+    const r = await entregarAvisoAvaliacao({ ...o, campanhaNome }, origem)
     await registrarEvento(o.opositorId, "aviso_avaliacao", descreverEntrega(r), null, null)
   })
+}
+
+export type ResultadoAvisosAvaliacao = {
+  /** Na fila antes desta volta. */
+  pendentes: number
+  avisados: number
+  porEmail: number
+  falhas: number
+  /** Ficaram para a próxima volta (limite de tempo ou de quantidade). */
+  restantes: number
+  erro?: string
+}
+
+/** Quantos avisos da fila saem por volta e por entidade (a rota roda a cada 15 min). */
+const AVISOS_POR_VOLTA = 300
+
+/**
+ * Fila do aviso das decisões em lote (onda 2): roda FORA de requisição, na
+ * rota /api/oposicao/tick, entidade por entidade. Manda o aviso da decisão
+ * ATUAL (se alguém re-decidiu no meio, vale a nova), cinco por vez, até
+ * `AVISOS_POR_VOLTA` ou o limite de tempo, e tira a marca de cada um. O envio
+ * fica na trilha (`aviso_avaliacao`), como no aviso individual.
+ */
+export async function avisosAvaliacaoPendentes(amb: {
+  client: SupabaseClient
+  tenantId: string
+  contexto: ContextoEmail
+  /** Date.now() a partir do qual não começa outro grupo. */
+  ate: number
+}): Promise<ResultadoAvisosAvaliacao> {
+  const { client, tenantId, contexto } = amb
+  const vazio: ResultadoAvisosAvaliacao = { pendentes: 0, avisados: 0, porEmail: 0, falhas: 0, restantes: 0 }
+  const { data, count, error } = await client
+    .from("oposicao_opositor")
+    .select("id, situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id", {
+      count: "exact",
+    })
+    .eq("emp_proprietaria_id", tenantId)
+    .not("aviso_avaliacao_pendente_em", "is", null)
+    .order("aviso_avaliacao_pendente_em")
+    .limit(AVISOS_POR_VOLTA)
+  if (error) return { ...vazio, erro: esquemaAusente(error) ? "sem a fila de avisos da oposição" : error.message }
+  const fila = data ?? []
+  const resultado: ResultadoAvisosAvaliacao = { ...vazio, pendentes: count ?? fila.length }
+  if (fila.length === 0) return resultado
+
+  const campanhaIds = [...new Set(fila.map((p) => texto(p.campanha_id)).filter((v): v is string => Boolean(v)))]
+  const nomeCampanha = new Map<string, string>()
+  if (campanhaIds.length) {
+    const { data: cs } = await client.from("oposicao_campanha").select("id, nome").in("id", campanhaIds)
+    for (const c of cs ?? []) nomeCampanha.set(String(c.id), texto(c.nome) ?? "—")
+  }
+
+  let feitos = 0
+  for (let i = 0; i < fila.length && Date.now() < amb.ate; i += 5) {
+    await Promise.all(
+      fila.slice(i, i + 5).map(async (p) => {
+        const id = String(p.id)
+        const situacao = texto(p.situacao)
+        const limpar = () =>
+          client
+            .from("oposicao_opositor")
+            .update({ aviso_avaliacao_pendente_em: null })
+            .eq("id", id)
+            .eq("emp_proprietaria_id", tenantId)
+        // Voltou a não avaliada (ou outra situação) depois do lote: nada a avisar.
+        if (situacao !== "aprovada" && situacao !== "reprovada") {
+          await limpar()
+          return
+        }
+        try {
+          const r = await entregarAvisoAvaliacao(
+            {
+              opositorId: id,
+              aprovada: situacao === "aprovada",
+              motivo: texto(p.reprovacao_motivo),
+              protocolo: p.protocolo == null ? null : Number(p.protocolo),
+              campanhaNome: nomeCampanha.get(String(p.campanha_id)) ?? "—",
+              pessoa: {
+                cpf: texto(p.cpf),
+                nome: texto(p.nome_completo),
+                email: texto(p.email)?.trim() ?? null,
+                filiado: Boolean(p.filiacao_id),
+              },
+            },
+            contexto.origem,
+            { client, tenantId, contexto }
+          )
+          if (r) resultado.avisados++
+          else resultado.falhas++
+          if (r === "email") resultado.porEmail++
+          await client.from("oposicao_eventos").insert({
+            opositor_id: id,
+            campanha_id: texto(p.campanha_id),
+            evento: "aviso_avaliacao",
+            detalhe: descreverEntrega(r),
+            emp_proprietaria_id: tenantId,
+          })
+        } catch (e) {
+          console.error("aviso da avaliação em lote:", e)
+          resultado.falhas++
+        }
+        // Sai da fila mesmo com falha no envio: a falha fica na trilha, e
+        // tentar de novo a cada 15 min repetiria o aviso a quem recebeu.
+        await limpar()
+      })
+    )
+    feitos += 5
+  }
+  resultado.restantes = Math.max(0, resultado.pendentes - Math.min(feitos, fila.length))
+  return resultado
 }
 
 /** Quantos dias antes do fim do prazo sai o lembrete da carta. */

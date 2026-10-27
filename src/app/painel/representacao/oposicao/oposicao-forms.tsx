@@ -262,14 +262,21 @@ export function AdicionarPergunta({ campanhaId }: { campanhaId: string }) {
 export function AvaliarForm({
   opositorId,
   campanhaId,
+  problemaAssinatura = null,
+  seguirPorPadrao = false,
 }: {
   opositorId: string
   campanhaId: string
+  /** O que impede aprovar sem conferir o PDF (item 13 da onda 2). */
+  problemaAssinatura?: string | null
+  /** Marcar "ir para a próxima" (avaliando a fila de não avaliadas). */
+  seguirPorPadrao?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     avaliarOpositorAction,
     {}
   )
+  const pedirConferencia = Boolean(problemaAssinatura) || Boolean(estado.exigeConfirmacao)
   return (
     <form action={formAction} className="grid gap-3">
       <input type="hidden" name="opositor_id" value={opositorId} />
@@ -283,6 +290,20 @@ export function AvaliarForm({
         <Label htmlFor="motivo">Motivo (obrigatório para reprovar)</Label>
         <Textarea id="motivo" name="motivo" rows={2} />
       </div>
+      {pedirConferencia && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="confirmar_assinatura" className="mt-0.5 size-4" />
+          <span>
+            Conferi o documento assinado e aprovo mesmo assim
+            {problemaAssinatura ? <> ({problemaAssinatura.replace(/\.$/, "").toLowerCase()})</> : null}. Fica
+            registrado na trilha.
+          </span>
+        </label>
+      )}
+      <label className="text-muted-foreground flex items-center gap-2 text-sm">
+        <input type="checkbox" name="seguir" value="1" defaultChecked={seguirPorPadrao} className="size-4" />
+        Depois de salvar, abrir a próxima não avaliada
+      </label>
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"

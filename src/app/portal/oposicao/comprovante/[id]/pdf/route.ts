@@ -15,7 +15,7 @@ import {
   fraseResultado,
   ROTULO_SITUACAO_PORTAL,
 } from "../../../situacao-portal"
-import { logoDataUri } from "../logo-pdf"
+import { logoDataUri } from "@/lib/pdf/logo-pdf"
 
 export const runtime = "nodejs"
 

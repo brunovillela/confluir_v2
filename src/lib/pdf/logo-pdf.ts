@@ -3,7 +3,8 @@ import "server-only"
 /**
  * Logo da entidade como data URI para o @react-pdf (só PNG/JPEG). Sem logo,
  * ou se o download falhar, o PDF sai só com o nome — nunca quebra por isso.
- * Usado pela carta e pelo comprovante em PDF da oposição.
+ * Usado pela carta, pelo comprovante, pela relação ao empregador e pelo
+ * dossiê da oposição (PDFs).
  */
 export async function logoDataUri(url: string | null): Promise<string | null> {
   if (!url) return null

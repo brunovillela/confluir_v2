@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Check, CircleHelp, X } from "lucide-react"
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FileText, X } from "lucide-react"
 
+import { SeloAssinatura } from "@/components/selo-assinatura"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,12 @@ export default async function OpositorPage({
   )
   const q = o.requisitos
   const algumProblema =
-    q.noPrazo === false || q.cartaNoPrazo === false || q.outrasDoCpf > 0 || q.fonteNaCampanha === false || !q.identificacao
+    q.noPrazo === false ||
+    q.cartaNoPrazo === false ||
+    q.outrasDoCpf > 0 ||
+    q.fonteNaCampanha === false ||
+    !q.identificacao ||
+    Boolean(o.problemaAssinatura)
 
   return (
     <>
@@ -68,6 +74,14 @@ export default async function OpositorPage({
           Protocolo {o.protocolo ?? "—"} · registrada em{" "}
           {formatarDataHora(o.confirmado_em)}
         </p>
+        <div className="mt-3">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/painel/representacao/oposicao/${id}/opositor/${o.id}/dossie`} target="_blank" rel="noreferrer">
+              <FileText />
+              Dossiê em PDF
+            </a>
+          </Button>
+        </div>
       </div>
 
       {avaliado === "1" && (
@@ -108,6 +122,35 @@ export default async function OpositorPage({
                 </dd>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {o.documentoAssinadoUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Carta assinada</CardTitle>
+            <CardDescription>
+              {o.documentoEnviadoEm
+                ? <>Recebida em {formatarDataHora(o.documentoEnviadoEm)}.</>
+                : "Recebida (sem a data do envio — legado)."}{" "}
+              Abra o PDF e confira antes de decidir.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {o.documentoLink ? (
+              <div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={o.documentoLink} target="_blank" rel="noreferrer">
+                    <ExternalLink />
+                    Abrir o PDF assinado
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Não foi possível gerar o link do arquivo.</p>
+            )}
+            <SeloAssinatura validacao={o.validacao} />
           </CardContent>
         </Card>
       )}
@@ -161,6 +204,12 @@ export default async function OpositorPage({
                   : `O mesmo CPF tem mais ${q.outrasDoCpf} oposição(ões) nesta campanha`
               }
             />
+            {o.documentoAssinadoUrl && (
+              <Requisito
+                ok={!o.problemaAssinatura}
+                label={o.problemaAssinatura ?? "Assinatura da carta conferida (válida ou com ressalva, CPF confere)"}
+              />
+            )}
             <Requisito
               ok={q.identificacao}
               label={
@@ -208,7 +257,12 @@ export default async function OpositorPage({
 
           {avaliavel && (
             <div className="border-t pt-4">
-              <AvaliarForm opositorId={o.id} campanhaId={id} />
+              <AvaliarForm
+                opositorId={o.id}
+                campanhaId={id}
+                problemaAssinatura={o.problemaAssinatura}
+                seguirPorPadrao={o.situacao === "nao_avaliada"}
+              />
             </div>
           )}
         </CardContent>

@@ -34,6 +34,9 @@ export const RECURSOS_EXPORTACAO = {
   juridico_processos: { rotulo: "Processos jurídicos", categorias: ["identificacao", "trabalhista"] },
   juridico_homologacoes: { rotulo: "Homologações", categorias: ["identificacao", "trabalhista"] },
   patrimonio: { rotulo: "Patrimônio", categorias: ["identificacao"] },
+  oposicao: { rotulo: "Oposições à contribuição", categorias: ["identificacao", "cpf", "sindical", "trabalhista"] },
+  oposicao_empregador: { rotulo: "Relação de oposições ao empregador", categorias: ["identificacao", "cpf", "trabalhista"] },
+  oposicao_dossie: { rotulo: "Dossiê da oposição", categorias: ["identificacao", "cpf", "sindical", "trabalhista"] },
 } as const satisfies Record<string, { rotulo: string; categorias: readonly CategoriaExportada[] }>
 
 export type RecursoExportacao = keyof typeof RECURSOS_EXPORTACAO

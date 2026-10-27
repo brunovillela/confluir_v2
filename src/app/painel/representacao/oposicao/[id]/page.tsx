@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Pencil } from "lucide-react"
+import { ArrowLeft, Building2, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,14 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -29,14 +21,16 @@ import {
   obterCampanha,
   opcoesFontes,
 } from "@/lib/db/oposicao"
+import { previsaoEncerramentoSemCarta } from "@/lib/db/oposicao-gestao"
 import { formatarData } from "@/lib/formato"
-import { mascaraCpf } from "@/lib/mascaras"
 import {
   MODOS_FORMALIZACAO,
   ROTULO_SITUACAO_OPOSITOR,
   SITUACOES_OPOSITOR,
   type SituacaoOpositor,
 } from "@/lib/oposicao-constantes"
+
+import { EncerrarSemCarta, ListaOpositores } from "../gestao-forms"
 
 import {
   AdicionarPergunta,
@@ -46,14 +40,6 @@ import {
 
 export const metadata: Metadata = {
   title: "Campanha de oposição — Confluir",
-}
-
-const VARIANTE: Record<SituacaoOpositor, "secondary" | "outline"> = {
-  aprovada: "secondary",
-  reprovada: "outline",
-  nao_avaliada: "outline",
-  desistente: "outline",
-  aguardando_documento: "outline",
 }
 
 export default async function CampanhaOposicaoPage({
@@ -67,6 +53,8 @@ export default async function CampanhaOposicaoPage({
     pagina?: string
     editar?: string
     salvo?: string
+    fonte?: string
+    fila?: string
   }>
 }) {
   await requirePermissao("oposicao")
@@ -77,9 +65,14 @@ export default async function CampanhaOposicaoPage({
   if (!campanha) notFound()
 
   const editando = brutos.editar === "1"
-  const [fontes, fonteIds] = editando
-    ? await Promise.all([opcoesFontes(), fonteIdsDaCampanha(id)])
-    : [[], []]
+  // As fontes servem ao formulário de edição e ao filtro da lista.
+  const [fontes, fonteIds, encerramento] = await Promise.all([
+    opcoesFontes(),
+    fonteIdsDaCampanha(id),
+    previsaoEncerramentoSemCarta(id),
+  ])
+  const fontesDaCampanha = fontes.filter((f) => fonteIds.includes(f.id))
+  const fonte = brutos.fonte === "sem" || fonteIds.includes(brutos.fonte ?? "") ? (brutos.fonte as string) : ""
 
   const situacao = SITUACOES_OPOSITOR.some((s) => s.chave === brutos.situacao)
     ? (brutos.situacao as SituacaoOpositor)
@@ -91,6 +84,7 @@ export default async function CampanhaOposicaoPage({
     campanhaId: id,
     situacao,
     busca,
+    fonteId: fonte || undefined,
     pagina,
   })
 
@@ -117,6 +111,12 @@ export default async function CampanhaOposicaoPage({
           {campanha.fontes.length > 0 && <> · {campanha.fontes.join(", ")}</>}
         </p>
       </div>
+
+      {brutos.fila === "vazia" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Não há mais oposições não avaliadas nesta campanha.</AlertDescription>
+        </Alert>
+      )}
 
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
@@ -220,15 +220,46 @@ export default async function CampanhaOposicaoPage({
         ))}
       </div>
 
+      {encerramento.quantidade > 0 && !encerramento.prazoAberto && (
+        <Card className="border-warning/40">
+          <CardHeader>
+            <CardTitle className="text-base">Carta não enviada no prazo</CardTitle>
+            <CardDescription>
+              {encerramento.quantidade.toLocaleString("pt-BR")} oposição(ões) ainda aguardam a carta assinada e o prazo
+              {encerramento.prazoFim && <> terminou em {formatarData(encerramento.prazoFim)}</>}. Encerre-as como
+              “carta não enviada” para fechar a lista ao empregador.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EncerrarSemCarta campanhaId={id} quantidade={encerramento.quantidade} />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Opositores</CardTitle>
-          <CardDescription>
-            {lista.total.toLocaleString("pt-BR")}
-            {situacao !== "todas" && (
-              <> · {ROTULO_SITUACAO_OPOSITOR[situacao]}</>
-            )}
-          </CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Opositores</CardTitle>
+              <CardDescription>
+                {lista.total.toLocaleString("pt-BR")}
+                {situacao !== "todas" ? (
+                  <> · {ROTULO_SITUACAO_OPOSITOR[situacao]}</>
+                ) : (
+                  <> oposições · sem os {campanha.contagem.desistente.toLocaleString("pt-BR")} desistentes</>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`${aqui}/empregadores`}>
+                  <Building2 />
+                  Relação por empregador
+                </Link>
+              </Button>
+              <ExportarXlsx href={`${aqui}/exportar`} />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <form className="mb-4 flex flex-wrap items-center gap-2" action={aqui}>
@@ -236,82 +267,49 @@ export default async function CampanhaOposicaoPage({
               type="search"
               name="busca"
               defaultValue={busca}
-              placeholder="Nome, CPF ou matrícula"
-              className="border-input bg-background h-9 w-64 max-w-full rounded-md border px-3 text-sm shadow-xs outline-none"
+              placeholder="Nome, CPF, matrícula, e-mail ou protocolo"
+              className="border-input bg-background h-9 w-72 max-w-full rounded-md border px-3 text-sm shadow-xs outline-none"
             />
             <select
               name="situacao"
               defaultValue={situacao}
               className="border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
             >
-              <option value="todas">Todas as situações</option>
+              <option value="todas">Todas (sem desistentes)</option>
               {SITUACOES_OPOSITOR.map((s) => (
                 <option key={s.chave} value={s.chave}>
                   {s.rotulo}
                 </option>
               ))}
             </select>
+            {fontesDaCampanha.length > 0 && (
+              <select
+                name="fonte"
+                defaultValue={fonte}
+                className="border-input bg-background h-9 max-w-56 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              >
+                <option value="">Todas as fontes</option>
+                {fontesDaCampanha.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome}
+                  </option>
+                ))}
+                <option value="sem">Sem fonte informada</option>
+              </select>
+            )}
             <Button type="submit" variant="outline" size="sm">
               Filtrar
             </Button>
           </form>
 
-          {lista.linhas.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
-              Nenhum opositor com esses filtros.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead>Fonte</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead>Situação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lista.linhas.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="max-w-64">
-                      <Link
-                        href={`/painel/representacao/oposicao/${id}/opositor/${o.id}`}
-                        className="text-primary line-clamp-1 hover:underline"
-                      >
-                        {o.nome ?? "(sem nome)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {o.cpf ? mascaraCpf(o.cpf) : "—"}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {o.matricula ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-40">
-                      <span className="line-clamp-1">
-                        {o.empregadorNome ?? "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="whitespace-nowrap">
-                        {o.ehFiliado ? "Filiado" : "Não filiado"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={VARIANTE[o.situacao]}
-                        className="whitespace-nowrap"
-                      >
-                        {ROTULO_SITUACAO_OPOSITOR[o.situacao]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ListaOpositores
+            // O resultado do lote não vale para outro filtro.
+            key={`${situacao}|${busca}|${fonte}|${lista.pagina}`}
+            campanhaId={id}
+            linhas={lista.linhas}
+            total={lista.total}
+            filtros={{ situacao, busca, fonte }}
+          />
           <div className="mt-4">
             <Paginacao
               total={lista.total}
